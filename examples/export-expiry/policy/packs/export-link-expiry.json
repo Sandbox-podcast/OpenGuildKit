@@ -1,0 +1,15 @@
+{
+  "id": "export-link-expiry",
+  "title": "Download link expiry",
+  "version": "1.0.0",
+  "description": "Time limit for links used to download an export.",
+  "sources": [],
+  "rules": [
+    {
+      "id": "export-link-expiry",
+      "check": {
+        "max_minutes": 60
+      }
+    }
+  ]
+}

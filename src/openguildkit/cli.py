@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from .catalog import load_catalog
+from .ci import check_export, read_policy_pack
 from .patterns import role_choices
 from .project import (
     check_instructions,
@@ -34,6 +35,8 @@ from .workflow import challenge_report, handoff, task_questions
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="openguildkit", description="Project rules and specialist reviews for AI-assisted work.")
     parser.add_argument("--project", type=Path, help="Project root (defaults to the closest configured ancestor).")
+    parser.add_argument("--policy-repo", type=Path, help="Local Git repository with the central export rule.")
+    parser.add_argument("--policy-commit", help="Full Git SHA of the central policy commit.")
     commands = parser.add_subparsers(dest="command", required=True)
     catalog = commands.add_parser("catalog", help="List rule packs, boards and sectors.")
     catalog.add_argument("--json", action="store_true", help="Print the complete catalog as JSON.")
@@ -58,6 +61,9 @@ def _parser() -> argparse.ArgumentParser:
     init_mode.add_argument("--answers", type=Path, help="Read setup answers from a JSON file.")
     commands.add_parser("sync", help="Update the managed instructions from the project profile.")
     commands.add_parser("check", help="Check that the instructions match the project profile.")
+    ci = commands.add_parser("ci-check", help="Evaluate the central export rule on an exact Git commit.")
+    ci.add_argument("--target-repo", type=Path, required=True, help="Local Git repository with the target commit.")
+    ci.add_argument("--commit", required=True, help="Full Git SHA of the target commit.")
 
     task = commands.add_parser("task", help="Frame a task, record advice and approve a handoff.")
     actions = task.add_subparsers(dest="action", required=True)
@@ -94,6 +100,15 @@ def _parser() -> argparse.ArgumentParser:
 
 def _print_json(data) -> None:
     print(json_text(data), end="")
+
+
+def _load_project_catalog(args, state: Path) -> dict:
+    if (args.policy_repo is None) != (args.policy_commit is None):
+        raise ValueError("Supply --policy-repo and --policy-commit together.")
+    policy = None
+    if args.policy_repo is not None:
+        policy = (args.policy_commit, read_policy_pack(args.policy_repo, args.policy_commit))
+    return load_catalog(state / "catalog", central_policy=policy)
 
 
 def _prompt_choices(question: dict, value: str):
@@ -310,7 +325,7 @@ def _decide(args, root: Path, state: Path, task: dict) -> None:
         if read_task(state, args.id) != task:
             raise ValueError("The task changed while you were deciding. Review it and retry.")
         if args.approve:
-            catalog = load_catalog(state / "catalog")
+            catalog = _load_project_catalog(args, state)
             profile = load_profile(state, catalog)
             require_current_scope(task, profile, catalog)
             check_instructions(root, profile, catalog)
@@ -350,7 +365,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             current_task = read_task(state, args.id)
             if current_task != task:
                 raise ValueError("The task changed while you were answering. Review it and retry.")
-            catalog = load_catalog(state / "catalog")
+            catalog = _load_project_catalog(args, state)
             profile = load_profile(state, catalog)
             check_instructions(root, profile, catalog)
             result = record_consultation(current_task, answers, profile, catalog)
@@ -374,10 +389,10 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         print(output)
 
 
-def _run(args) -> None:
+def _run(args) -> int | None:
     root = project_root(args.project)
     state = state_path(root)
-    catalog = load_catalog(state / "catalog")
+    catalog = _load_project_catalog(args, state)
     if args.command == "references":
         _print_references(args, state, catalog)
     elif args.command == "patterns":
@@ -398,12 +413,12 @@ def _run(args) -> None:
             raise ValueError("Project is already initialized. Edit .openguildkit/project.json and run openguildkit sync.")
         answers = read_json(args.answers) if args.answers else _interactive_init(questions, catalog)
         with project_lock(state):
-            catalog = load_catalog(state / "catalog")
+            catalog = _load_project_catalog(args, state)
             initialize(root, state, validate_profile(answers, catalog), catalog)
         print(f"Initialized {root}")
     elif args.command == "sync":
         with project_lock(state):
-            catalog = load_catalog(state / "catalog")
+            catalog = _load_project_catalog(args, state)
             sync_instructions(root, load_profile(state, catalog), catalog)
         print("OpenGuildKit instructions updated.")
     else:
@@ -411,6 +426,10 @@ def _run(args) -> None:
         if args.command == "check":
             check_instructions(root, profile, catalog)
             print("OpenGuildKit instructions match the project profile.")
+        elif args.command == "ci-check":
+            result = check_export(profile, catalog, args.target_repo, args.commit)
+            _print_json(result)
+            return 0 if result["status"] == "success" else 1
         elif args.command == "task":
             _task_command(args, root, state, profile, catalog)
 
@@ -423,11 +442,10 @@ def main(argv: list[str] | None = None) -> int:
                 stream.reconfigure(encoding="utf-8")
     args = _parser().parse_args(argv)
     try:
-        _run(args)
+        return _run(args) or 0
     except (OSError, ValueError, EOFError) as error:
         print(f"OpenGuildKit: {error or 'Input ended before completion.'}", file=sys.stderr)
-        return 1
+        return 2 if args.command == "ci-check" else 1
     except KeyboardInterrupt:
         print("\nOpenGuildKit: Cancelled.", file=sys.stderr)
         return 130
-    return 0

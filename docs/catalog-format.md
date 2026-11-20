@@ -64,6 +64,8 @@ A pack is a versioned set of rules an agent follows and a reviewer can verify.
 
 Versioning: bump `patch` for wording fixes, `minor` for a new rule, `major` for a removed or reversed rule. Any change to a pack changes the fingerprint of projects that use it, so their pending approvals need a new consultation.
 
+The [central export-rule example](../examples/export-expiry/README.md) uses a typed rule with `id: export-link-expiry` and `check.max_minutes` as a positive integer. The CLI derives the instruction and verification text from this rule and includes the pinned policy commit in the resolved pack.
+
 ## Boards
 
 A board is a discipline's review lens.

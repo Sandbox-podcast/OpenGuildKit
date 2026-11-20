@@ -9,10 +9,21 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.catalog import load_catalog
+from openguildkit.catalog import CatalogError, load_catalog
 from openguildkit.cli import main
 from openguildkit.project import STATE_DIR, project_root
 from openguildkit.storage import read_json, write_json
+
+
+class ExecutableCatalogTests(unittest.TestCase):
+    def test_central_pack_cannot_be_replaced_by_a_project_pack(self):
+        sample = Path(__file__).resolve().parents[1] / "examples/export-expiry/policy/packs/export-link-expiry.json"
+        pack = read_json(sample)
+        with tempfile.TemporaryDirectory() as directory:
+            project_catalog = Path(directory)
+            write_json(project_catalog / "packs" / sample.name, pack)
+            with self.assertRaisesRegex(CatalogError, "duplicate packs ID"):
+                load_catalog(project_catalog, central_policy=("0" * 40, pack))
 
 
 class WorkflowTests(unittest.TestCase):

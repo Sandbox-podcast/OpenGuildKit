@@ -18,6 +18,12 @@ COLLECTION_FIELDS = {
 ENTRY_FIELDS = {"id", "title", "description", "sources"}
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
+EXPORT_EXPIRY_ID = "export-link-expiry"
+MAX_SAFE_INTEGER = (1 << 53) - 1
+
+
+def is_positive_integer(value: Any) -> bool:
+    return type(value) in (int, float) and 0 < value <= MAX_SAFE_INTEGER and int(value) == value
 
 
 class CatalogError(ValueError):
@@ -99,13 +105,20 @@ def _validate_pack(pack: dict[str, Any]) -> None:
     seen_ids = set()
     for index, rule in enumerate(pack["rules"]):
         label = f"rules[{index}]"
-        _validate_fields(rule, label, {"id", "instruction", "verification"})
+        if isinstance(rule, dict) and "check" in rule:
+            _validate_fields(rule, label, {"id", "check"})
+            check = rule["check"]
+            _validate_fields(check, f"{label}.check", {"max_minutes"})
+            if rule["id"] != EXPORT_EXPIRY_ID or not is_positive_integer(check["max_minutes"]):
+                raise CatalogError(f"{label}: expected an {EXPORT_EXPIRY_ID} check with positive integer max_minutes")
+        else:
+            _validate_fields(rule, label, {"id", "instruction", "verification"})
+            _validate_text(rule["instruction"], f"{label}.instruction")
+            _validate_text(rule["verification"], f"{label}.verification")
         _validate_id(rule["id"], f"{label}.id")
         if rule["id"] in seen_ids:
             raise CatalogError(f"duplicate rule ID {rule['id']!r}")
         seen_ids.add(rule["id"])
-        _validate_text(rule["instruction"], f"{label}.instruction")
-        _validate_text(rule["verification"], f"{label}.verification")
 
 
 def _validate_pattern(pattern: dict[str, Any]) -> None:
@@ -192,7 +205,9 @@ def _validate_dependencies(packs: dict[str, dict[str, Any]]) -> None:
         raise CatalogError(f"pack dependency cycle: {' -> '.join(exc.args[1])}") from exc
 
 
-def load_catalog(extra_dir: Path | None = None) -> dict[str, dict[str, dict[str, Any]]]:
+def load_catalog(
+    extra_dir: Path | None = None, *, central_policy: tuple[str, dict] | None = None
+) -> dict[str, dict[str, dict[str, Any]]]:
     """Load bundled records and optional project additions, ordered by ID."""
     builtin = files("openguildkit").joinpath("registry")
     roots = [builtin]
@@ -225,6 +240,17 @@ def load_catalog(extra_dir: Path | None = None) -> dict[str, dict[str, dict[str,
             if root == builtin and not entries:
                 raise CatalogError(f"{directory} has no bundled records")
         catalog[collection] = dict(sorted(entries.items()))
+
+    if central_policy is not None:
+        commit, pack = central_policy
+        _validate_entry("packs", pack)
+        rules = pack["rules"]
+        if pack["id"] != EXPORT_EXPIRY_ID or len(rules) != 1 or "check" not in rules[0]:
+            raise CatalogError(f"The central policy must contain one executable {EXPORT_EXPIRY_ID} rule")
+        if EXPORT_EXPIRY_ID in catalog["packs"]:
+            raise CatalogError(f"duplicate packs ID {EXPORT_EXPIRY_ID!r}")
+        catalog["packs"][EXPORT_EXPIRY_ID] = {**pack, "policy_commit": commit}
+        catalog["packs"] = dict(sorted(catalog["packs"].items()))
 
     _validate_dependencies(catalog["packs"])
     for pattern_id, pattern in catalog["patterns"].items():
