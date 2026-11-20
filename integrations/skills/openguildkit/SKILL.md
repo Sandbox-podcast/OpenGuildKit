@@ -59,6 +59,8 @@ openguildkit task decide ID --approve --by "Their name" --reason "Why"
 openguildkit task decide ID --request-changes --by "Their name" --reason "What to change"
 ```
 
+If `openguildkit task blockers ID` lists open blockers, show each with its owner and clearing condition. Run `task clear` only with evidence the user confirms. Waivers are the user's: they run `task waive` in their terminal when the project allows it.
+
 Never run `task decide --approve` yourself, and never try to feed it input. Run `--request-changes` only when the user explicitly tells you to, with the name and reason they give. After a change request, update the answers and go back to step 1.4.
 
 ### 5. Implement the handoff

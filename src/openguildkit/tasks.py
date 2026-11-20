@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .project import profile_fingerprint, resolved_profile
 from .storage import read_json, write_json
-from .workflow import consult, validate_answers, validate_board_entry, validate_deliberation, validate_review
+from .workflow import blocker_list, consult, validate_answers, validate_board_entry, validate_deliberation, validate_review
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 WINDOWS_RESERVED_NAMES = {"con", "prn", "aux", "nul"} | {
@@ -112,8 +112,9 @@ def record_consultation(
     rounds = list(task["rounds"])
     if task["status"] == "changes-requested":
         archived = {key: task[key] for key in ("answers", "consultation", "review", "decision", "profile_fingerprint")}
-        if "deliberation" in task:
-            archived["deliberation"] = task["deliberation"]
+        for key in ("deliberation", "blocker_resolutions"):
+            if key in task:
+                archived[key] = task[key]
         rounds.append(archived)
     result = {**task, "answers": validate_answers(answers), "rounds": rounds}
     result.update(
@@ -125,6 +126,7 @@ def record_consultation(
     result.pop("decision", None)
     result.pop("passes", None)
     result.pop("deliberation", None)
+    result.pop("blocker_resolutions", None)
     return result
 
 
@@ -211,6 +213,54 @@ def assemble_review(task: dict, summary: str) -> dict:
     return record_review(task, review)
 
 
+_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def waiver_policy(profile: dict) -> dict | None:
+    return profile.get("waivers")
+
+
+def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict) -> dict:
+    """Clear a blocker with evidence, or cover it with a waiver the project's policy allows."""
+    if task["status"] != "reviewed":
+        raise ValueError("Resolve blockers after the review is recorded and before the decision.")
+    known = {item["id"]: item for item in blocker_list(task)}
+    if blocker_id not in known:
+        listed = ", ".join(known) or "none"
+        raise ValueError(f"Unknown blocker {blocker_id}. Blockers: {listed}.")
+    by = resolution.get("by", "").strip()
+    if not by:
+        raise ValueError("Name the person who resolves the blocker.")
+    entry = {"kind": resolution["kind"], "by": by, "at": timestamp()}
+    if resolution["kind"] == "cleared":
+        for field in ("evidence", "supports"):
+            if not resolution.get(field, "").strip():
+                raise ValueError(f"Clearing a blocker needs --{field}.")
+            entry[field] = resolution[field].strip()
+    else:
+        policy = waiver_policy(profile)
+        if not policy:
+            raise ValueError("The project's policy allows no waiver. Clear the blocker or request changes.")
+        if by not in policy["allowed_by"]:
+            raise ValueError(f"{by} cannot grant waivers. Allowed: {', '.join(policy['allowed_by'])}.")
+        until = resolution.get("until", "")
+        if not _DAY.fullmatch(until):
+            raise ValueError("Give the waiver's end date as YYYY-MM-DD.")
+        days = (datetime.fromisoformat(until).date() - datetime.now(timezone.utc).date()).days
+        if days < 1 or days > policy["max_days"]:
+            raise ValueError(f"A waiver lasts between 1 and {policy['max_days']} days.")
+        for field in ("reason", "scope"):
+            if not resolution.get(field, "").strip():
+                raise ValueError(f"A waiver needs --{field}.")
+            entry[field] = resolution[field].strip()
+        entry["until"] = until
+    return {**task, "blocker_resolutions": {**task.get("blocker_resolutions", {}), blocker_id: entry}}
+
+
+def unresolved_blockers(task: dict) -> list[str]:
+    return [item["id"] for item in blocker_list(task) if not item["resolution"]]
+
+
 def record_deliberation(task: dict, payload: dict) -> dict:
     return {**task, "deliberation": validate_deliberation(task, payload)}
 
@@ -218,6 +268,12 @@ def record_deliberation(task: dict, payload: dict) -> dict:
 def record_decision(task: dict, approve: bool, by: str, reason: str) -> dict:
     if task["status"] != "reviewed":
         raise ValueError("Record the boards' review before deciding.")
+    open_blockers = unresolved_blockers(task)
+    if approve and open_blockers:
+        raise ValueError(
+            f"Resolve each blocker before approving: {', '.join(open_blockers)}. Clear it with evidence "
+            "(task clear), waive it if the project allows (task waive), or request changes."
+        )
     if not by.strip() or not reason.strip():
         raise ValueError("Supply the decision owner and a reason.")
     status = "approved" if approve else "changes-requested"

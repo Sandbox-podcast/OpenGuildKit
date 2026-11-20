@@ -259,7 +259,7 @@ def pattern_ids(profile: dict) -> list[str]:
 def validate_profile(answers: dict, catalog: dict) -> dict:
     fields = {
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
-        "resolutions", "boards", "required_boards", "research", "host", "conventions", "checks",
+        "resolutions", "boards", "required_boards", "research", "host", "waivers", "conventions", "checks",
     }
     unknown = sorted(answers.keys() - fields)
     if unknown:
@@ -304,6 +304,14 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         if host not in HOSTS:
             raise ValueError(f"host must be one of {', '.join(HOSTS)}")
         profile["host"] = host
+    waivers = answers.get("waivers")
+    if waivers is not None:
+        if not isinstance(waivers, dict) or set(waivers) != {"allowed_by", "max_days"}:
+            raise ValueError("waivers needs allowed_by (names) and max_days")
+        max_days = waivers["max_days"]
+        if type(max_days) is not int or not 1 <= max_days <= 366:
+            raise ValueError("waivers.max_days must be a whole number of days between 1 and 366")
+        profile["waivers"] = {"allowed_by": _texts(waivers["allowed_by"], "waivers.allowed_by"), "max_days": max_days}
     required = _ids(answers.get("required_boards", []), "required_boards", catalog["boards"])
     if required:
         profile["required_boards"] = required
@@ -548,6 +556,12 @@ def render_instructions(profile: dict, catalog: dict) -> str:
                 else f"{kept} both apply"
             )
             lines.append(f"- {outcome}. Reason: {resolution['reason']}")
+    if profile.get("waivers"):
+        lines.extend(["", "### Waivers", ""])
+        lines.append(
+            f"Only {', '.join(profile['waivers']['allowed_by'])} can waive a blocker, "
+            f"for up to {profile['waivers']['max_days']} days."
+        )
     if profile.get("required_boards"):
         lines.extend(["", "### Required reviews", ""])
         lines.append(
