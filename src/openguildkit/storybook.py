@@ -1,18 +1,22 @@
-"""Storybook for a project: reference the company's Storybook and compare it with the project's own.
+"""Storybook for a project: reference the company's Storybook, compare it with the project's own,
+and extract a design system from an existing React application.
 
 The CLI never runs npm and never opens the network. It writes the refs file that the project's
 .storybook/main imports, reads Storybook index.json files the team built or downloaded, and records
-the known stories in .openguildkit/storybook.json so boards can cite a story and its state.
+the known stories in .openguildkit/storybook.json so boards can cite a story and its state. From the
+application's sources it writes an inventory, proposals the team decides on, and for validated items
+only, Design Tokens, CSF3 stories and an index that the team edits.
 """
 
 import hashlib
 import json
+import os
 import re
 import unicodedata
 from datetime import date
 from pathlib import Path
 
-from .storage import json_text, project_lock, read_json, write_json
+from .storage import json_text, project_lock, read_json, write_json, write_text
 
 STORYBOOK_VERSION = "10.6.6"
 RECORD = "storybook.json"
@@ -463,6 +467,783 @@ def scope_entry(state: Path, today: date | None = None) -> dict | None:
     }
 
 
+# Extraction from an existing React application, with the standard library only.
+
+INVENTORY = "storybook/inventory.json"
+PROPOSALS = "storybook/proposals.json"
+MANIFEST = "storybook/generated.json"
+STATUSES = ("proposed", "validated", "rejected")
+SKIP_DIRS = {"node_modules", ".git", "dist", "build", "out", "coverage", "storybook-static", ".next", ".openguildkit"}
+MAX_FILE_BYTES = 1_000_000
+_NAME = r"[A-Z][A-Za-z0-9]*[a-z][A-Za-z0-9]*"
+_FUNCTION = re.compile(rf"^[ \t]*(export\s+(?:default\s+)?)?(?:async\s+)?function\s+({_NAME})\s*(?:<[^>()]*>)?\s*\(", re.M)
+_CONST = re.compile(
+    rf"^[ \t]*(export\s+)?const\s+({_NAME})\b[^=\n]*=\s*(?:React\.)?(?:(?:forwardRef|memo)\s*(?:<[^>()]*>)?\s*\(\s*)?"
+    r"(?:async\s+)?(?:function\b[^(]*)?\(", re.M)
+_EXPORT_LIST = re.compile(r"\bexport\s*\{([^}]*)\}\s*;?")
+_EXPORT_DEFAULT = re.compile(rf"\bexport\s+default\s+({_NAME})\s*;?\s*$", re.M)
+_TAG = re.compile(r"<([A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)?)(?=[\s/>])")
+_ATTRIBUTE = re.compile(r"[A-Za-z_][\w:.-]*")
+_VARIANT_VALUE = re.compile(r"[a-z][a-z0-9-]{0,30}")
+# Props that carry content or wiring rather than a visual variant.
+_CONTENT_PROPS = {
+    "children", "label", "title", "text", "placeholder", "alt", "href", "src", "id", "name", "key", "classname",
+    "style", "value", "defaultvalue", "to", "description", "heading", "message", "caption", "tooltip", "role",
+    "htmlfor", "type", "as", "ref", "onclick", "onchange", "testid",
+}
+_SYNTHETIC_TEXT = {"label", "title", "text", "heading", "placeholder", "description", "name", "caption", "message"}
+_COLOR = re.compile(r"#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![0-9a-zA-Z])|(?:rgba?|hsla?)\([^()]*\)")
+_LENGTH = re.compile(r"(?<![\w.-])(\d*\.?\d+)(px|rem)(?![\w-])")
+_DECLARATION = re.compile(r"(--[\w-]+|\$[\w-]+|[a-zA-Z-]+)\s*:\s*([^;{}]+?)\s*(?=;|})")
+_VAR = re.compile(r"var\(\s*(--[\w-]+)")
+_SCSS_VAR = re.compile(r"\$([\w-]+)")
+TOKEN_GROUPS = {"color": "color", "spacing": "spacing", "radius": "radius", "font-size": "font-size",
+                "font-family": "font-family", "dimension": "dimension"}
+
+
+def _strip_js_comments(text: str) -> str:
+    """Blank out comments and keep every line in place, so positions still give line numbers."""
+    out, index, quote = [], 0, None
+    while index < len(text):
+        character = text[index]
+        if quote:
+            out.append(character)
+            if character == "\\" and index + 1 < len(text):
+                out.append(text[index + 1])
+                index += 2
+                continue
+            if character == quote or (character == "\n" and quote != "`"):
+                quote = None
+        elif character in "'\"`":
+            quote = character
+            out.append(character)
+        elif text.startswith("//", index) and (index == 0 or text[index - 1] != ":"):
+            end = text.find("\n", index)
+            end = len(text) if end < 0 else end
+            out.append(" " * (end - index))
+            index = end
+            continue
+        elif text.startswith("/*", index):
+            end = text.find("*/", index + 2)
+            end = len(text) if end < 0 else end + 2
+            out.append(re.sub(r"[^\n]", " ", text[index:end]))
+            index = end
+            continue
+        else:
+            out.append(character)
+        index += 1
+    return "".join(out)
+
+
+def _closing(text: str, start: int, opening: str = "{", closing: str = "}") -> int:
+    """Index of the bracket that closes the one at start, skipping quoted text; -1 if none."""
+    depth, quote, index = 0, None, start
+    while index < len(text):
+        character = text[index]
+        if quote:
+            if character == "\\":
+                index += 2
+                continue
+            if character == quote:
+                quote = None
+        elif character in "'\"`":
+            quote = character
+        elif character == opening:
+            depth += 1
+        elif character == closing:
+            depth -= 1
+            if depth == 0:
+                return index
+        index += 1
+    return -1
+
+
+def _split_top_level(text: str) -> list[str]:
+    parts, depth, quote, current = [], 0, None, []
+    for index, character in enumerate(text):
+        if quote:
+            if character == quote and text[index - 1] != "\\":
+                quote = None
+        elif character in "'\"`":
+            quote = character
+        elif character in "([{":
+            depth += 1
+        elif character in ")]}":
+            depth -= 1
+        elif character == "," and depth == 0:
+            parts.append("".join(current))
+            current = []
+            continue
+        current.append(character)
+    parts.append("".join(current))
+    return [part.strip() for part in parts if part.strip()]
+
+
+def _literal(expression: str):
+    """(True, value) for a string, number or boolean literal; (False, None) otherwise."""
+    expression = expression.strip()
+    if len(expression) >= 2 and expression[0] == expression[-1] and expression[0] in "'\"`" \
+            and not (expression[0] == "`" and "${" in expression):
+        return True, expression[1:-1]
+    if expression in ("true", "false"):
+        return True, expression == "true"
+    if re.fullmatch(r"-?\d+(\.\d+)?", expression):
+        return True, float(expression) if "." in expression else int(expression)
+    return False, None
+
+
+def _destructured_props(text: str, start: int) -> list[dict] | None:
+    """Props of a component whose first parameter is destructured: names and literal defaults."""
+    position = start
+    while position < len(text) and text[position] in " \t\r\n":
+        position += 1
+    if position >= len(text) or text[position] != "{":
+        return None
+    end = _closing(text, position)
+    if end < 0:
+        return None
+    props = []
+    for part in _split_top_level(text[position + 1:end]):
+        if part.startswith("..."):
+            continue
+        match = re.match(r"([A-Za-z_$][\w$]*)\s*(?::\s*[A-Za-z_$][\w$]*)?\s*(?:=\s*(.+))?$", part, re.S)
+        if not match:
+            continue
+        prop = {"name": match.group(1)}
+        if match.group(2) is not None:
+            known, value = _literal(match.group(2))
+            if known:
+                prop["default"] = value
+        props.append(prop)
+    return props
+
+
+def _line_of(starts: list[int], position: int) -> int:
+    low, high = 0, len(starts)
+    while low < high:
+        middle = (low + high) // 2
+        if starts[middle] <= position:
+            low = middle + 1
+        else:
+            high = middle
+    return low
+
+
+def _line_starts(text: str) -> list[int]:
+    return [0] + [match.end() for match in re.finditer("\n", text)]
+
+
+def _tag_attributes(text: str, start: int):
+    """Attributes of a JSX opening tag from start, its end and whether it closes itself."""
+    attributes, index = [], start
+    while index < len(text):
+        while index < len(text) and text[index] in " \t\r\n":
+            index += 1
+        if index >= len(text):
+            break
+        if text.startswith("/>", index):
+            return attributes, index + 2, True
+        if text[index] == ">":
+            return attributes, index + 1, False
+        if text[index] == "{":
+            end = _closing(text, index)
+            if end < 0:
+                break
+            attributes.append(("...", False, None))
+            index = end + 1
+            continue
+        match = _ATTRIBUTE.match(text, index)
+        if not match:
+            break
+        name, index = match.group(0), match.end()
+        while index < len(text) and text[index] in " \t\r\n":
+            index += 1
+        if text[index:index + 1] != "=":
+            attributes.append((name, True, True))
+            continue
+        index += 1
+        while index < len(text) and text[index] in " \t\r\n":
+            index += 1
+        if text[index:index + 1] in ("'", '"'):
+            end = text.find(text[index], index + 1)
+            if end < 0:
+                break
+            attributes.append((name, True, text[index + 1:end]))
+            index = end + 1
+        elif text[index:index + 1] == "{":
+            end = _closing(text, index)
+            if end < 0:
+                break
+            known, value = _literal(text[index + 1:end])
+            attributes.append((name, known, value))
+            index = end + 1
+        else:
+            break
+    return None, index, False
+
+
+def _source_files(sources: list[Path]):
+    for base in sources:
+        base = base.resolve()
+        if base.is_file():
+            yield base
+        elif base.is_dir():
+            for path in sorted(base.rglob("*")):
+                if path.is_file() and not SKIP_DIRS & set(path.relative_to(base).parts[:-1]):
+                    yield path
+        else:
+            raise ValueError(f"No such file or folder: {base}")
+
+
+def _origin(root: Path, path: Path, line: int) -> str:
+    return f"{_relative(root, path)}:{line}"
+
+
+def _scan_components(root: Path, path: Path, text: str, definitions: dict, usages: dict) -> None:
+    code = _strip_js_comments(text)
+    starts = _line_starts(code)
+    exported = {}
+    for match in _EXPORT_LIST.finditer(code):
+        for item in match.group(1).split(","):
+            parts = item.split(" as ")
+            local, public = parts[0].strip(), parts[-1].strip()
+            if local:
+                exported[local] = "default" if public == "default" else "named"
+    for match in _EXPORT_DEFAULT.finditer(code):
+        exported[match.group(1)] = "default"
+    has_jsx = bool(_TAG.search(code)) or bool(re.search(r"<[a-z][a-z0-9]*[\s/>]", code))
+    for pattern in (_FUNCTION, _CONST):
+        for match in pattern.finditer(code):
+            prefix, name = match.group(1) or "", match.group(2)
+            export = "default" if "default" in prefix else "named" if prefix else exported.get(name)
+            if not export or not has_jsx or name in definitions:
+                continue
+            props = _destructured_props(code, match.end())
+            definitions[name] = {
+                "name": name, "file": _relative(root, path), "line": _line_of(starts, match.start(2)),
+                "export": export, "props": props if props is not None else [],
+                "children": any(prop["name"] == "children" for prop in props or []),
+            }
+    for match in _TAG.finditer(code):
+        if match.start() > 0 and (code[match.start() - 1].isalnum() or code[match.start() - 1] in "_$).]"):
+            continue
+        attributes, _, closes = _tag_attributes(code, match.end())
+        if attributes is None:
+            continue
+        name = match.group(1)
+        usage = usages.setdefault(name, {"count": 0, "origins": [], "with_children": 0, "props": {}, "calls": []})
+        usage["count"] += 1
+        origin = _origin(root, path, _line_of(starts, match.start()))
+        usage["origins"].append(origin)
+        usage["with_children"] += not closes
+        literals = {}
+        for prop, known, value in attributes:
+            entry = usage["props"].setdefault(prop, {"literal": 0, "dynamic": 0})
+            entry["literal" if known else "dynamic"] += 1
+            if known:
+                literals[prop] = value
+        usage["calls"].append((origin, literals, [prop for prop, _, _ in attributes]))
+
+
+def _hex(red: float, green: float, blue: float, alpha: float = 1.0) -> str:
+    channels = [max(0, min(255, round(value))) for value in (red, green, blue)]
+    text = "#" + "".join(f"{value:02x}" for value in channels)
+    return text if alpha >= 1 else text + f"{max(0, min(255, round(alpha * 255))):02x}"
+
+
+def normalize_color(text: str) -> str | None:
+    """A CSS hex, rgb() or hsl() color as #rrggbb, or #rrggbbaa below full opacity."""
+    text = text.strip().lower()
+    if text.startswith("#"):
+        digits = text[1:]
+        if len(digits) in (3, 4):
+            digits = "".join(character * 2 for character in digits)
+        if len(digits) == 8 and digits.endswith("ff"):
+            digits = digits[:6]
+        return "#" + digits if len(digits) in (6, 8) else None
+    match = re.fullmatch(r"(rgba?|hsla?)\(([^()]*)\)", text)
+    if not match:
+        return None
+    values = [item for item in re.split(r"[\s,/]+", match.group(2).strip()) if item]
+    if len(values) not in (3, 4):
+        return None
+    try:
+        alpha = 1.0
+        if len(values) == 4:
+            alpha = float(values[3][:-1]) / 100 if values[3].endswith("%") else float(values[3])
+        if match.group(1).startswith("rgb"):
+            channels = [float(item[:-1]) * 2.55 if item.endswith("%") else float(item) for item in values[:3]]
+            return _hex(*channels, alpha)
+        hue = float(values[0].removesuffix("deg")) % 360 / 360
+        saturation, lightness = (float(item.rstrip("%")) / 100 for item in values[1:3])
+    except ValueError:
+        return None
+    import colorsys
+
+    red, green, blue = colorsys.hls_to_rgb(hue, lightness, saturation)
+    return _hex(red * 255, green * 255, blue * 255, alpha)
+
+
+def _length(number: str, unit: str) -> str | None:
+    value = float(number)
+    if value == 0:
+        return None
+    return f"{value:g}{unit}"
+
+
+def _dimension_kind(name: str) -> str:
+    lowered = name.casefold()
+    if "radius" in lowered or "rounded" in lowered:
+        return "radius"
+    if "font" in lowered or "text" in lowered:
+        return "font-size"
+    if any(word in lowered for word in ("space", "spacing", "gap", "padding", "margin", "inset")):
+        return "spacing"
+    return "dimension"
+
+
+def _scan_styles(root: Path, path: Path, text: str, tokens: dict, variables: dict) -> None:
+    code = re.sub(r"/\*.*?\*/", lambda match: re.sub(r"[^\n]", " ", match.group(0)), text, flags=re.S)
+    if path.suffix == ".scss":
+        code = re.sub(r"(^|[^:])//[^\n]*", lambda match: match.group(1), code)
+    starts = _line_starts(code)
+
+    def add(kind: str, value: str, origin: str, variable: str | None = None) -> None:
+        token = tokens.setdefault(f"{kind}:{value}", {
+            "key": f"{kind}:{value}", "kind": kind, "value": value, "occurrences": 0, "origins": []})
+        token["occurrences"] += 1
+        token["origins"].append(origin)
+        if variable:
+            token.setdefault("name_hint", variable.lstrip("-$"))
+            token.setdefault("variables", []).append(variable)
+
+    for match in _DECLARATION.finditer(code):
+        prop, value = match.group(1), match.group(2).strip()
+        origin = _origin(root, path, _line_of(starts, match.start()))
+        for variable in _VAR.findall(value):
+            variables.setdefault(variable, []).append(origin)
+        if path.suffix == ".scss":
+            for variable in _SCSS_VAR.findall(value):
+                variables.setdefault(f"${variable}", []).append(origin)
+        if prop.startswith(("--", "$")):
+            hint = prop.lstrip("-$")
+            colors = _COLOR.findall(value)
+            lengths = _LENGTH.findall(value)
+            if len(colors) == 1 and _COLOR.fullmatch(value) and normalize_color(colors[0]):
+                add("color", normalize_color(colors[0]), origin, prop)
+            elif len(lengths) == 1 and _LENGTH.fullmatch(value) and _length(*lengths[0]):
+                add(_dimension_kind(hint), _length(*lengths[0]), origin, prop)
+            elif "family" in hint.casefold() or ("," in value and not colors and "(" not in value):
+                add("font-family", ", ".join(part.strip() for part in value.split(",")), origin, prop)
+            else:
+                add("other", f"{prop}: {value}", origin, prop)
+            continue
+        name = prop.casefold()
+        if "var(" in value and not _COLOR.search(value) and not _LENGTH.search(value):
+            continue
+        for color in _COLOR.findall(value):
+            normalized = normalize_color(color)
+            if normalized:
+                add("color", normalized, origin)
+        if name == "font-size":
+            for number, unit in _LENGTH.findall(value):
+                if _length(number, unit):
+                    add("font-size", _length(number, unit), origin)
+        elif name == "font-family" and "var(" not in value:
+            add("font-family", ", ".join(part.strip() for part in value.split(",")), origin)
+        elif name.startswith(("margin", "padding")) or name in ("gap", "row-gap", "column-gap"):
+            for number, unit in _LENGTH.findall(value):
+                if _length(number, unit):
+                    add("spacing", _length(number, unit), origin)
+        elif name.endswith("radius"):
+            for number, unit in _LENGTH.findall(value):
+                if _length(number, unit):
+                    add("radius", _length(number, unit), origin)
+
+
+def _confidence(count: int, basis: str = "code") -> str:
+    return "observed" if count >= 2 and basis != "preview" else "hypothesis"
+
+
+def _capped(origins: list[str], limit: int = 20) -> list[str]:
+    return list(dict.fromkeys(origins))[:limit]
+
+
+def extract(root: Path, sources: list[Path], previews: list[Path] | None = None, today: date | None = None) -> dict:
+    """Inventory React components, their variants and style token candidates, each tied to its origin."""
+    today = today or date.today()
+    definitions, usages, tokens, variables = {}, {}, {}, {}
+    scanned = {"components": 0, "styles": 0}
+    for path in _source_files(sources):
+        name = path.name
+        if any(marker in name for marker in (".stories.", ".test.", ".spec.")) or name.endswith(".d.ts"):
+            continue
+        if path.suffix not in (".tsx", ".jsx", ".css", ".scss") or path.stat().st_size > MAX_FILE_BYTES:
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if path.suffix in (".tsx", ".jsx"):
+            scanned["components"] += 1
+            _scan_components(root, path, text, definitions, usages)
+        else:
+            scanned["styles"] += 1
+            _scan_styles(root, path, text, tokens, variables)
+    # A custom property counts once where it is defined and once per var() that uses it.
+    for token in tokens.values():
+        for variable in token.get("variables", []):
+            token["occurrences"] += len(variables.get(variable, []))
+            token["origins"].extend(variables.get(variable, []))
+    components, variants = [], {}
+    for name, definition in sorted(definitions.items()):
+        usage = usages.get(name, {"count": 0, "origins": [], "with_children": 0, "calls": [], "props": {}})
+        components.append({
+            **definition, "children": definition["children"] or usage["with_children"] > 0,
+            "usages": usage["count"], "origins": _capped(usage["origins"]),
+            "confidence": _confidence(usage["count"]),
+        })
+        defaults = {prop["name"]: prop["default"] for prop in definition["props"] if "default" in prop}
+        for origin, literals, given in usage["calls"]:
+            found = []
+            for prop, value in literals.items():
+                if prop.casefold() in _CONTENT_PROPS or prop.startswith(("aria-", "data-", "on")):
+                    continue
+                if value is True or (isinstance(value, str) and _VARIANT_VALUE.fullmatch(value)):
+                    found.append((prop, value, "usage"))
+            for prop, value in defaults.items():
+                if prop not in given and isinstance(value, str) and _VARIANT_VALUE.fullmatch(value):
+                    found.append((prop, value, "default"))
+            for prop, value, basis in found:
+                key = f"{name}:{prop}={json.dumps(value)}"
+                item = variants.setdefault(key, {
+                    "key": key, "component": name, "props": {prop: value}, "occurrences": 0, "origins": [],
+                    "basis": basis})
+                item["occurrences"] += 1
+                item["origins"].append(origin)
+                if basis == "usage":
+                    item["basis"] = "usage"
+    for item in variants.values():
+        item["origins"] = _capped(item["origins"])
+        item["confidence"] = _confidence(item["occurrences"])
+    external = [{"name": name, "usages": usage["count"]} for name, usage in sorted(usages.items())
+                if name not in definitions and len(name) > 1]
+    token_list = []
+    for token in sorted(tokens.values(), key=lambda item: (item["kind"], -item["occurrences"], item["value"])):
+        token = {key: value for key, value in token.items() if key != "variables"}
+        token["origins"] = _capped(token["origins"])
+        token["confidence"] = _confidence(token["occurrences"])
+        token_list.append(token)
+    return {
+        "schema_version": 1,
+        "extracted": today.isoformat(),
+        "sources": [_relative(root, path) for path in sources],
+        "previews": [{"path": _relative(root, path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+                     for path in previews or []],
+        "scanned": scanned,
+        "components": components,
+        "variants": sorted(variants.values(), key=lambda item: item["key"]),
+        "external_components": external,
+        "tokens": token_list,
+    }
+
+
+def _screen(component: dict) -> bool:
+    folders = set(component["file"].casefold().split("/")[:-1])
+    return component["name"] == "App" or bool(folders & {"pages", "screens", "views", "routes"}) \
+        or component["name"].endswith(("Page", "Screen", "View"))
+
+
+def _variant_name(props: dict) -> str:
+    words = []
+    for prop, value in props.items():
+        words.append(prop if value is True else str(value))
+    return " ".join(word[:1].upper() + word[1:] for word in " ".join(words).replace("-", " ").split()) or "Default"
+
+
+def _token_name(token: dict) -> str:
+    group = TOKEN_GROUPS.get(token["kind"], "other")
+    hint = token.get("name_hint")
+    if hint:
+        for prefix in (f"{group}-", "font-", "space-", "size-"):
+            if hint.startswith(prefix) and len(hint) > len(prefix):
+                hint = hint[len(prefix):]
+                break
+        return f"{group}.{hint}"
+    slug = re.sub(r"[^0-9a-z]+", "-", token["value"].casefold()).strip("-") or "value"
+    return f"{group}.{slug[:40]}"
+
+
+def _check_name(name: object, field: str) -> str:
+    if not isinstance(name, str) or not name.strip() or len(name.strip().splitlines()) != 1:
+        raise ValueError(f"{field} needs a name on one line.")
+    return name.strip()
+
+
+def validate_proposals(data: dict) -> dict:
+    """Check the proposals file the team edits: one status and one name per item."""
+    if not isinstance(data, dict) or data.get("schema_version") != 1 or not all(
+            isinstance(data.get(field), list) for field in ("components", "variants", "tokens")):
+        raise ValueError("Proposals need schema_version 1 and lists of components, variants and tokens.")
+    keys = set()
+    for field in ("components", "variants", "tokens"):
+        for item in data[field]:
+            if not isinstance(item, dict) or not isinstance(item.get("key"), str) or item["key"] in keys:
+                raise ValueError(f"Each item of {field} needs a unique key.")
+            keys.add(item["key"])
+            if item.get("status") not in STATUSES:
+                raise ValueError(f"{item['key']}: status must be proposed, validated or rejected.")
+            item["name"] = _check_name(item.get("name"), item["key"])
+            if item.get("basis") == "preview":
+                item["confidence"] = "hypothesis"
+    components = {item["key"] for item in data["components"]}
+    for item in data["variants"]:
+        if item.get("component") not in components or not isinstance(item.get("props"), dict) or not all(
+                isinstance(prop, str) and (value is None or isinstance(value, (str, int, float, bool)))
+                for prop, value in item["props"].items()):
+            raise ValueError(f"{item['key']}: a variant names one of the components and gives props with literal values.")
+    for item in data["tokens"]:
+        segments = item["name"].split(".")
+        if any(not segment or segment.startswith("$") or "{" in segment or "}" in segment for segment in segments):
+            raise ValueError(f"{item['key']}: a token name is a dotted path whose parts do not start with $ "
+                             "and contain no braces.")
+    validated = [item["name"] for item in data["tokens"] if item["status"] == "validated"]
+    for name in validated:
+        if validated.count(name) > 1 or any(other.startswith(name + ".") for other in validated):
+            raise ValueError(f"Validated token {name} is used twice or is also a group.")
+    return data
+
+
+def propose(root: Path, state: Path, inventory_path: Path | None = None, proposals_path: Path | None = None) -> dict:
+    """Write the proposals from the inventory. Decisions and names already in the file are kept."""
+    inventory_path = inventory_path or state / INVENTORY
+    proposals_path = proposals_path or state / PROPOSALS
+    inventory = read_json(inventory_path)
+    if inventory.get("schema_version") != 1:
+        raise ValueError(f"{inventory_path} is not an OpenGuildKit Storybook inventory. Run storybook extract.")
+    previous = validate_proposals(read_json(proposals_path)) if proposals_path.exists() else {
+        "components": [], "variants": [], "tokens": []}
+    fresh = {
+        "components": [{
+            "key": f"component:{item['name']}", "name": item["name"], "status": "proposed",
+            "kind": "screen" if _screen(item) else "component", "confidence": item["confidence"],
+            "file": item["file"], "line": item["line"], "export": item["export"], "usages": item["usages"],
+            "children": item["children"],
+            "text_props": [prop["name"] for prop in item["props"]
+                           if "default" not in prop and prop["name"].casefold() in _SYNTHETIC_TEXT],
+        } for item in inventory["components"]],
+        "variants": [{
+            "key": f"variant:{item['key']}", "component": f"component:{item['component']}",
+            "name": _variant_name(item["props"]), "props": item["props"], "status": "proposed",
+            "confidence": item["confidence"], "basis": item["basis"], "occurrences": item["occurrences"],
+            "origins": item["origins"],
+        } for item in inventory["variants"]],
+        "tokens": [{
+            "key": f"token:{item['key']}", "kind": item["kind"], "value": item["value"], "name": _token_name(item),
+            "status": "proposed", "confidence": item["confidence"], "occurrences": item["occurrences"],
+            "origins": item["origins"],
+        } for item in inventory["tokens"]],
+    }
+    decided = ("status", "name", "props", "note")
+    result = {"schema_version": 1, "inventory": {
+        "path": _relative(root, inventory_path), "sha256": hashlib.sha256(inventory_path.read_bytes()).hexdigest()}}
+    counts = {"new": 0, "kept": 0, "not_observed": 0}
+    for field in ("components", "variants", "tokens"):
+        earlier = {item["key"]: item for item in previous[field]}
+        items = []
+        for item in fresh[field]:
+            if item["key"] in earlier:
+                counts["kept"] += 1
+                item.update({key: earlier[item["key"]][key] for key in decided if key in earlier[item["key"]]})
+            else:
+                counts["new"] += 1
+            items.append(item)
+        seen = {item["key"] for item in items}
+        for key, item in earlier.items():
+            if key not in seen:
+                counts["not_observed"] += 1
+                items.append({**item, "observed": False})
+        result[field] = items
+    validate_proposals(result)
+    with project_lock(state):
+        write_json(proposals_path, result)
+    return {"proposals": _relative(root, proposals_path), **counts,
+            "hypotheses": sum(item.get("confidence") == "hypothesis" for field in ("components", "variants", "tokens")
+                              for item in result[field])}
+
+
+def _color_value(value: str) -> dict:
+    digits = value[1:]
+    channels = [int(digits[index:index + 2], 16) for index in range(0, len(digits), 2)]
+    color = {"colorSpace": "srgb", "components": [round(channel / 255, 4) for channel in channels[:3]],
+             "hex": "#" + digits[:6]}
+    if len(channels) == 4:
+        color["alpha"] = round(channels[3] / 255, 4)
+    return color
+
+
+def _dtcg_token(item: dict) -> dict | None:
+    """A validated token in the Design Tokens Format Module 2025.10."""
+    kind, value = item["kind"], item["value"]
+    if kind == "color" and re.fullmatch(r"#[0-9a-f]{6}([0-9a-f]{2})?", value):
+        token = {"$type": "color", "$value": _color_value(value)}
+    elif kind in ("spacing", "radius", "font-size", "dimension") and re.fullmatch(r"\d*\.?\d+(px|rem)", value):
+        number = float(value[:-3] if value.endswith("rem") else value[:-2])
+        token = {"$type": "dimension", "$value": {"value": int(number) if number.is_integer() else number,
+                                                   "unit": "rem" if value.endswith("rem") else "px"}}
+    elif kind == "font-family":
+        token = {"$type": "fontFamily",
+                 "$value": [part.strip().strip("'\"") for part in value.split(",") if part.strip()]}
+    else:
+        return None
+    token["$description"] = f"Extracted from {item['occurrences']} occurrence(s) in the application."
+    token["$extensions"] = {"org.openguildkit": {"origins": item["origins"], "confidence": item["confidence"]}}
+    return token
+
+
+def _identifier(name: str, taken: set) -> str:
+    words = re.findall(r"[A-Za-z0-9]+", unicodedata.normalize("NFKD", name))
+    identifier = "".join(word[:1].upper() + word[1:] for word in words) or "Story"
+    if identifier[0].isdigit():
+        identifier = "Story" + identifier
+    candidate, number = identifier, 2
+    while candidate in taken:
+        candidate, number = f"{identifier}{number}", number + 1
+    taken.add(candidate)
+    return candidate
+
+
+def _js(value) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _js_object(values: dict, indent: str) -> str:
+    if not values:
+        return "{}"
+    lines = [f"{indent}  {key if re.fullmatch(r'[A-Za-z_$][\w$]*', key) else _js(key)}: {_js(value)},"
+             for key, value in values.items()]
+    return "{\n" + "\n".join(lines) + f"\n{indent}}}"
+
+
+def _import_path(out: Path, root: Path, file: str) -> str:
+    target = (root / file).with_suffix("")
+    relative = Path(os.path.relpath(target, out)).as_posix()
+    return relative if relative.startswith(".") else f"./{relative}"
+
+
+def _story_file(component: dict, variants: list[dict], out: Path, root: Path, framework: str) -> str:
+    name = component["key"].split(":", 1)[1]
+    imported = f"import {name} from {_js(_import_path(out, root, component['file']))};" \
+        if component["export"] == "default" else \
+        f"import {{ {name} }} from {_js(_import_path(out, root, component['file']))};"
+    synthetic = {prop: f"Sample {prop}" for prop in component.get("text_props", [])}
+    if component.get("children"):
+        synthetic["children"] = component["name"]
+    lines = [
+        "// Generated by openguildkit storybook generate from the validated proposals.",
+        "// Edit freely: once this file changes, generate leaves it as it is.",
+        f"import type {{ Meta, StoryObj }} from {_js(framework)};",
+        imported,
+        "",
+        f"const meta: Meta<typeof {name}> = {{",
+        f"  title: {_js('Design system/' + component['name'])},",
+        f"  component: {name},",
+        f"  args: {_js_object(synthetic, '  ')},",
+        f"  parameters: {{ openguildkit: {{ definition: {_js(component['file'] + ':' + str(component['line']))} }} }},",
+        "};",
+        "export default meta;",
+        "",
+        f"type Story = StoryObj<typeof {name}>;",
+    ]
+    taken: set = set()
+    # Observed states first, then the hypotheses to confirm against the original screens.
+    stories = sorted(variants, key=lambda item: (item["confidence"] != "observed", item["name"].casefold())) or [
+        {"name": "Default", "props": {}, "origins": [], "confidence": component["confidence"], "basis": "usage"}]
+    for variant in stories:
+        parameters = {"origins": variant["origins"], "confidence": variant["confidence"], "basis": variant.get("basis")}
+        lines.extend([
+            "",
+            f"export const {_identifier(variant['name'], taken)}: Story = {{",
+            f"  name: {_js(variant['name'])},",
+            f"  args: {_js_object(variant['props'], '  ')},",
+            f"  parameters: {{ openguildkit: {_js(parameters)} }},",
+            "};",
+        ])
+    return "\n".join(lines) + "\n"
+
+
+def generate(root: Path, state: Path, proposals_path: Path | None = None, out: Path | None = None,
+             framework: str = "@storybook/react-vite") -> dict:
+    """Write DTCG tokens, CSF3 stories and an index for the validated proposals only.
+
+    A file the team changed since it was generated is never overwritten: its hash is kept in the manifest.
+    """
+    proposals = validate_proposals(read_json(proposals_path or state / PROPOSALS))
+    root = root.resolve()
+    out = (out or root / "src" / "design-system").resolve()
+    if root not in (out, *out.parents):
+        raise ValueError("Generate the design system inside the project.")
+    components = {item["key"]: item for item in proposals["components"] if item["status"] == "validated"}
+    files: dict[Path, str] = {}
+    skipped = []
+    by_component: dict[str, list] = {key: [] for key in components}
+    for variant in proposals["variants"]:
+        if variant["status"] != "validated":
+            continue
+        if variant["component"] in by_component:
+            by_component[variant["component"]].append(variant)
+        else:
+            skipped.append({"key": variant["key"], "reason": "its component is not validated"})
+    names = [item["key"].split(":", 1)[1] for item in components.values()]
+    if len(set(name.casefold() for name in names)) != len(names):
+        raise ValueError("Two validated components share a name.")
+    for key, component in components.items():
+        if "file" not in component or "export" not in component:
+            skipped.append({"key": key, "reason": "no definition in the application"})
+            continue
+        files[out / f"{key.split(':', 1)[1]}.stories.tsx"] = _story_file(component, by_component[key], out, root, framework)
+    tokens: dict = {}
+    for item in proposals["tokens"]:
+        if item["status"] != "validated":
+            continue
+        token = _dtcg_token(item)
+        if token is None:
+            skipped.append({"key": item["key"], "reason": "no Design Tokens type for this value"})
+            continue
+        group = tokens
+        *parents, last = item["name"].split(".")
+        for part in parents:
+            group = group.setdefault(part, {})
+        group[last] = token
+    if tokens:
+        files[out / "design.tokens.json"] = json_text(tokens)
+    exported = [component for component in components.values() if "file" in component]
+    if exported:
+        files[out / "index.ts"] = "// Generated by openguildkit storybook generate: the validated components.\n" + "".join(
+            f"export {{ {'default as ' if item['export'] == 'default' else ''}{item['key'].split(':', 1)[1]} }} from "
+            f"{_js(_import_path(out, root, item['file']))};\n" for item in exported)
+    manifest_path = state / MANIFEST
+    with project_lock(state):
+        manifest = read_json(manifest_path) if manifest_path.exists() else {"schema_version": 1, "files": {}}
+        result = {"written": [], "unchanged": [], "kept": [], "skipped": skipped}
+        for path, content in sorted(files.items()):
+            relative = _relative(root, path)
+            digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+            if path.exists():
+                current = hashlib.sha256(path.read_bytes()).hexdigest()
+                if current == digest:
+                    result["unchanged"].append(relative)
+                    manifest["files"][relative] = digest
+                    continue
+                if manifest["files"].get(relative) != current:
+                    result["kept"].append(relative)
+                    continue
+            write_text(path, content)
+            manifest["files"][relative] = digest
+            result["written"].append(relative)
+        result["left"] = sorted(path for path in manifest["files"]
+                                if path not in {_relative(root, item) for item in files} and (root / path).exists())
+        write_json(manifest_path, manifest)
+    return result
+
+
 # Command line
 
 
@@ -499,6 +1280,17 @@ def _print_import(report: dict) -> list[str]:
     return lines
 
 
+def _print_extract(result: dict, output: str) -> list[str]:
+    hypotheses = sum(item["confidence"] == "hypothesis" for field in ("components", "variants", "tokens")
+                     for item in result[field])
+    return [
+        f"Scanned {result['scanned']['components']} component files and {result['scanned']['styles']} style files.",
+        f"{len(result['components'])} components, {len(result['variants'])} variants, {len(result['tokens'])} "
+        f"token candidates; {hypotheses} seen once are hypotheses.",
+        f"Inventory written to {output}. Run openguildkit storybook propose next.",
+    ]
+
+
 def run(args, root: Path, state: Path) -> int | None:
     """The storybook subcommands."""
     if args.action == "compose":
@@ -507,6 +1299,25 @@ def run(args, root: Path, state: Path) -> int | None:
     elif args.action == "import":
         result = import_indexes(root, state, args.project_index, args.company_index, args.ref, args.library, args.package)
         lines = _print_import(result)
+    elif args.action == "extract":
+        result = extract(root, args.src, args.preview)
+        output = args.output or state / INVENTORY
+        with project_lock(state):
+            write_json(output, result)
+        lines = _print_extract(result, _relative(root, output))
+    elif args.action == "propose":
+        result = propose(root, state, args.inventory, args.proposals)
+        lines = [f"{result['proposals']}: {result['new']} new, {result['kept']} kept with their decision, "
+                 f"{result['not_observed']} no longer observed, {result['hypotheses']} hypotheses.",
+                 "Set each status to validated or rejected and adjust the names, then run storybook generate."]
+    elif args.action == "generate":
+        result = generate(root, state, args.proposals, args.out, args.framework)
+        lines = [f"Written: {path}" for path in result["written"]]
+        lines += [f"Unchanged: {path}" for path in result["unchanged"]]
+        lines += [f"Kept, changed by the team: {path}" for path in result["kept"]]
+        lines += [f"No longer generated, left in place: {path}" for path in result["left"]]
+        lines += [f"Skipped {item['key']}: {item['reason']}" for item in result["skipped"]]
+        lines = lines or ["Nothing is validated yet."]
     else:
         raise ValueError(f"Unknown storybook action {args.action}.")
     if args.json:

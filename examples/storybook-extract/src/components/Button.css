@@ -1,0 +1,12 @@
+.button {
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  padding: 8px 16px;
+}
+.button--primary { background: var(--color-brand); color: #ffffff; }
+.button--secondary { background: #ffffff; color: var(--color-brand); border: 1px solid var(--color-brand); }
+.button--danger { background: #c62828; color: #fff; }
+.button--sm { font-size: 0.75rem; padding: 4px 8px; }
+.button:disabled { opacity: 0.5; }

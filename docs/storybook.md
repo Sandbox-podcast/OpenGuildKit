@@ -1,6 +1,6 @@
 # Project Storybook and company design system
 
-A team can give its project a Storybook, show the components its company already approved next to its own, and let the Design brain cite a story in a precise state. The OpenGuildKit CLI does not run npm and never opens the network. It writes one configuration file, reads the `index.json` files that Storybook builds, and records the stories the boards can cite. The team runs npm and Storybook.
+A team can give its project a Storybook, show the components its company already approved next to its own, let the Design brain cite a story in a precise state, and derive a design system from an application it already has. The OpenGuildKit CLI does not run npm and never opens the network. It writes one configuration file, reads the `index.json` files that Storybook builds, and records the stories the boards can cite. The team runs npm and Storybook.
 
 ## Create the project Storybook
 
@@ -56,3 +56,35 @@ The command records the known stories in `.openguildkit/storybook.json`: for eac
 ## Cite a story in a review
 
 When the record exists, `task consult` adds the story IDs to the consultation scope, and the Design brief explains how to cite them. A Storybook ID names one story, so one state: `storybook:example-button--disabled` points to a project story, `storybook:company_components-button--disabled` to a composed one, as in the Storybook URL `?path=/story/ID`. The CLI refuses a story the project did not record. Import again after adding stories.
+
+## Extract a design system from an existing application
+
+A team that already has a React application can derive a design system from the code it is allowed to reuse. The extraction reads `.tsx`, `.jsx`, `.css` and `.scss` files and runs offline. It skips stories, tests, `node_modules` and build folders.
+
+```bash
+openguildkit storybook extract --src src/pages/RequestList.tsx --src src/components --preview screens/list.png
+openguildkit storybook propose
+# Edit .openguildkit/storybook/proposals.json: validate or reject, rename, group.
+openguildkit storybook generate
+npm run build-storybook
+```
+
+`extract` writes `.openguildkit/storybook/inventory.json`. Repeat `--src` to select the screens and folders to scan. The inventory lists:
+
+- The components: exported functions or constants with a PascalCase name that render JSX, with their definition file and line, their props and literal defaults, and every use with its file and line.
+- The variants: literal props such as `variant="danger"` or `disabled`, and the default values of props a use omits.
+- The token candidates: colors in hex, `rgb()` or `hsl()` notation, font sizes, spacing, radii and font families, with the custom properties and Sass variables that name them and each `var()` that uses them.
+
+An item seen only once is a `hypothesis`. `--preview` records a screenshot with its hash. The CLI does not read images, so a state the team or the agent reads from a preview goes into the proposals with `"basis": "preview"` and stays a hypothesis.
+
+`propose` writes `.openguildkit/storybook/proposals.json`. Each component, variant and token has a `status` (`proposed`, `validated` or `rejected`) and a `name`. Components found under `pages`, `screens`, `views` or `routes` are marked `"kind": "screen"`. To group variants, set the props of one variant, such as `{"variant": "secondary", "size": "sm"}`, and reject the others. A token name is a dotted path that becomes the token's groups, such as `color.brand`. Running `propose` again after a new extraction keeps every status, name and props, and keeps the items no longer observed with `"observed": false`.
+
+`generate` writes, for validated items only, into `src/design-system/` or `--out`:
+
+- `design.tokens.json`, in the [Design Tokens Format Module 2025.10](https://www.designtokens.org/TR/2025.10/format/): colors in sRGB with their hex value, dimensions in `px` or `rem`, and font families.
+- `COMPONENT.stories.tsx` in Component Story Format 3, one story per validated variant, or a `Default` story. The args are synthetic, such as `Sample label`, and never reuse the application's text. `parameters.openguildkit` gives the definition and the screens where each state was seen, with its confidence, to compare each story with the original screen.
+- `index.ts`, which exports the validated components from where they are defined.
+
+Hashes in `.openguildkit/storybook/generated.json` let `generate` replace only the files it wrote. A file the team changed is kept, and a file no longer generated is left in place and listed. Import the application's global stylesheet in `.storybook/preview.ts` so that stories look like the screens.
+
+The [example application](../examples/storybook-extract/) went through these steps on 20 November 2026, with the decisions listed in its README. `npm run build-storybook` with Storybook 10.6.6 built its 8 generated stories, and `npm run build` type-checked them with TypeScript 7.0.2 before the Vite 8.3.8 build. The extraction reads source text with patterns, not a full parser. It covers React function components, CSS and SCSS. Class components, CSS-in-JS and utility classes such as Tailwind's are not inventoried.

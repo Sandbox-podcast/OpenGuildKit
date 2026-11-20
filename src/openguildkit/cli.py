@@ -148,7 +148,7 @@ def _parser() -> argparse.ArgumentParser:
     market.add_argument("dossier", help="Dossier ID in .openguildkit/market/.")
     market.add_argument("--json", action="store_true", help="Print the result as JSON.")
     storybook = commands.add_parser(
-        "storybook", help="Compose the company Storybook, compare it with the project's and record the stories.")
+        "storybook", help="Compose the company Storybook, record its stories and extract a design system.")
     storybook_actions = storybook.add_subparsers(dest="action", required=True)
     compose = storybook_actions.add_parser(
         "compose", help="Add a published Storybook to the refs file that .storybook/main imports.")
@@ -165,7 +165,23 @@ def _parser() -> argparse.ArgumentParser:
     sb_import.add_argument("--ref", default="company", help="Ref ID of the company Storybook (default company).")
     sb_import.add_argument("--library", type=Path, help="package.json of the company component library.")
     sb_import.add_argument("--package", type=Path, help="The project's package.json (default package.json).")
-    for storybook_action in (compose, sb_import):
+    sb_extract = storybook_actions.add_parser(
+        "extract", help="Inventory the components, variants and style tokens of an existing React application.")
+    sb_extract.add_argument("--src", type=Path, action="append", required=True,
+                         help="Source folder or file to scan, such as a screen; repeat to select several.")
+    sb_extract.add_argument("--preview", type=Path, action="append", default=[],
+                         help="Screenshot the team may reuse; recorded with its hash, never analyzed.")
+    sb_extract.add_argument("--output", type=Path, help="Inventory file (default .openguildkit/storybook/inventory.json).")
+    sb_propose = storybook_actions.add_parser(
+        "propose", help="Write the proposals to validate from the inventory, keeping the decisions already made.")
+    sb_propose.add_argument("--inventory", type=Path, help="Inventory file (default .openguildkit/storybook/inventory.json).")
+    sb_propose.add_argument("--proposals", type=Path, help="Proposals file (default .openguildkit/storybook/proposals.json).")
+    sb_generate = storybook_actions.add_parser(
+        "generate", help="Write tokens, stories and an index for the validated proposals; never overwrite edits.")
+    sb_generate.add_argument("--proposals", type=Path, help="Proposals file (default .openguildkit/storybook/proposals.json).")
+    sb_generate.add_argument("--out", type=Path, help="Output folder (default src/design-system).")
+    sb_generate.add_argument("--framework", default="@storybook/react-vite", help="Storybook framework package for the types.")
+    for storybook_action in (compose, sb_import, sb_extract, sb_propose, sb_generate):
         storybook_action.add_argument("--json", action="store_true", help="Print the result as JSON.")
     storybook.epilog = f"Create the project Storybook with npm create storybook@{STORYBOOK_VERSION}."
     agent = commands.add_parser("integrations", help="Install the agent skill and subagent of this version.")
