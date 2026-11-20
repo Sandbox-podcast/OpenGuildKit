@@ -4,6 +4,8 @@ The CI coordinator is an optional Node.js integration for OpenGuildKit. It recon
 
 ## Install
 
+Use the [verified archive from a GitHub release](../../docs/install.md) for a team deployment.
+
 From the root of a trusted checkout, with Node.js 22+, npm and Git:
 
 ```bash

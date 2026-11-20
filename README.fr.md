@@ -61,6 +61,8 @@ openguildkit brains --id product
 
 ## Documentation
 
+- [Installer les paquets d’une release GitHub](docs/install.md)
+
 - [Vérifier une règle de catalogue en CI](examples/export-expiry/README.md)
 - [Coordonner les vérifications de PR avec GitHub Actions et Jenkins](integrations/ci/README.md)
 
