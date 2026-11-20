@@ -1,0 +1,32 @@
+{
+  "id": "owasp-asvs",
+  "title": "OWASP ASVS verification",
+  "version": "1.0.0",
+  "description": "Project checks for choosing and tracking defensive application security requirements from ASVS.",
+  "sources": [
+    {
+      "title": "OWASP Application Security Verification Standard",
+      "url": "https://asvs.owasp.org/"
+    }
+  ],
+  "depends_on": [
+    "secure-sdlc"
+  ],
+  "rules": [
+    {
+      "id": "select-applicable-controls",
+      "instruction": "Confirm the ASVS version, verification level and in-scope component with the application's security owner. Record which requirements apply and why.",
+      "verification": "Check that control records identify the source version and cover changed assets, data and roles. Confirm any exclusions with the owner."
+    },
+    {
+      "id": "retain-defensive-evidence",
+      "instruction": "For each applicable changed requirement, attach evidence from approved code review, configuration review or existing defensive verification.",
+      "verification": "Check that the evidence names the requirement and matches the code revision and environment being reviewed."
+    },
+    {
+      "id": "review-control-exceptions",
+      "instruction": "Record unmet requirements and exceptions with an owner, scope and review date. Escalate blockers through the project's release process.",
+      "verification": "Verify that release evidence shows the decision for each open requirement and links to remediation or approval."
+    }
+  ]
+}

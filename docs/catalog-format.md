@@ -2,18 +2,19 @@
 
 The [reference library](references.md) holds source material you can use when contributing a pack. The records below define what OpenGuildKit can apply to a project or use in a board review.
 
-The catalog has three collections, one JSON file per record:
+The catalog has four collections, one JSON file per record:
 
 ```text
 src/openguildkit/registry/          shared catalog, shipped with the package
   packs/<id>.json
   boards/<id>.json
   sectors/<id>.json
+  patterns/<id>.json
 .openguildkit/catalog/              optional, private to one project
-  packs/ boards/ sectors/
+  packs/ boards/ sectors/ patterns/
 ```
 
-`catalog.py` validates every file at load time. `openguildkit catalog --json` loads and prints everything, so it doubles as a validator.
+`catalog.py` validates every file at load time. Use `openguildkit catalog --json` to list packs, boards and sectors. Use `openguildkit patterns --json` for the [pattern collection](patterns.md).
 
 ## Rules common to all records
 

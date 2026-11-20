@@ -1,0 +1,26 @@
+{
+  "id": "typescript-development",
+  "title": "TypeScript development",
+  "description": "Review TypeScript compiler settings, runtime validation and compatibility of shared types.",
+  "sources": [
+    {
+      "title": "TypeScript strict mode",
+      "url": "https://www.typescriptlang.org/tsconfig/strict.html"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa"
+  ],
+  "packs": [
+    "typescript"
+  ],
+  "match": {
+    "stack": [
+      [
+        "typescript",
+        "ts"
+      ]
+    ]
+  }
+}

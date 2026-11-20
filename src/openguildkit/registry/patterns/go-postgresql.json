@@ -1,0 +1,36 @@
+{
+  "id": "go-postgresql",
+  "title": "Go and PostgreSQL",
+  "description": "Review database timeouts, transaction handling and schema changes in a Go service backed by PostgreSQL.",
+  "sources": [
+    {
+      "title": "Go database transactions",
+      "url": "https://go.dev/doc/database/execute-transactions"
+    },
+    {
+      "title": "PostgreSQL transactions",
+      "url": "https://www.postgresql.org/docs/current/tutorial-transactions.html"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa",
+    "performance"
+  ],
+  "packs": [
+    "go-database",
+    "postgresql"
+  ],
+  "match": {
+    "stack": [
+      [
+        "go",
+        "golang"
+      ],
+      [
+        "postgresql",
+        "postgres"
+      ]
+    ]
+  }
+}

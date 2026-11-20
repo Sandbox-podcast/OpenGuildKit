@@ -15,6 +15,7 @@ from .catalog import (
     _validate_sources,
     _validate_text,
 )
+from .patterns import role_choices
 
 REFERENCE_ID = re.compile(r"[a-z0-9]+(?:[-_][a-z0-9]+)*")
 TEXT_FIELDS = ("title", "category", "kind", "summary", "applies_when")
@@ -79,6 +80,36 @@ def _words(text: str) -> list[str]:
     folded = unicodedata.normalize("NFKD", text.casefold())
     unaccented = "".join(character for character in folded if not unicodedata.combining(character))
     return re.findall(r"[^\W_]+", unaccented)
+
+
+def with_pattern_references(families: dict, patterns: dict) -> dict:
+    """Expose actionable patterns in the same index as their source material."""
+    family_id = "work-patterns"
+    roles = role_choices(patterns)
+    existing_ids = {
+        reference["id"] for family in families.values() for reference in family["references"]
+    }
+    records = []
+    for pattern in patterns.values():
+        pattern_id = pattern["id"]
+        reference_id = f"pattern-{pattern_id}"
+        if reference_id in existing_ids:
+            raise CatalogError(f"Reference ID {reference_id!r} is already used by a pattern")
+        records.append(
+            {
+                "id": reference_id,
+                "title": pattern["title"],
+                "category": ", ".join(roles[role]["title"] for role in pattern["roles"]),
+                "kind": "Stack pattern" if "match" in pattern else "Work method",
+                "summary": pattern["description"],
+                "applies_when": f"Inspect the match and rule packs with openguildkit patterns --id {pattern_id}.",
+                "sources": pattern["sources"],
+                "pattern": pattern_id,
+            }
+        )
+    if family_id in families:
+        raise CatalogError("The work-patterns family is generated from the pattern catalog")
+    return {**families, family_id: {"id": family_id, "title": "Work and stack patterns", "references": records}}
 
 
 def find_references(

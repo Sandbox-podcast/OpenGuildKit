@@ -1,0 +1,22 @@
+{
+  "id": "structured-interviews",
+  "title": "Structured hiring interviews",
+  "description": "Use job-related questions and a shared scoring rubric to gather comparable evidence for the human hiring panel.",
+  "sources": [
+    {
+      "title": "U.S. Office of Personnel Management, Structured Interviews",
+      "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/other-assessment-methods/structured-interviews/"
+    },
+    {
+      "title": "U.S. Office of Personnel Management, Structured Interview Guide",
+      "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/structured-interviews/guide.pdf"
+    }
+  ],
+  "roles": [
+    "hr",
+    "leadership"
+  ],
+  "packs": [
+    "structured-hiring"
+  ]
+}

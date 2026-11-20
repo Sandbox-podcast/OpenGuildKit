@@ -1,0 +1,18 @@
+{
+  "id": "kanban",
+  "title": "Kanban",
+  "description": "Make queues, blocked work and capacity visible when a team needs to improve the flow of incoming requests.",
+  "sources": [
+    {
+      "title": "The Kanban Guide, May 2025",
+      "url": "https://kanbanguides.org/the-kanban-guide/2025.5/"
+    }
+  ],
+  "roles": [
+    "project-management",
+    "operations"
+  ],
+  "packs": [
+    "kanban-delivery"
+  ]
+}

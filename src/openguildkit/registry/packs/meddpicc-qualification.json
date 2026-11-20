@@ -1,0 +1,29 @@
+{
+  "id": "meddpicc-qualification",
+  "title": "MEDDPICC opportunity qualification",
+  "version": "1.0.0",
+  "description": "Evidence checks for complex sales opportunities that use MEDDPICC.",
+  "sources": [
+    {
+      "title": "MEDDICC, MEDDPICC Sales Methodology",
+      "url": "https://meddicc.com/meddpicc-sales-methodology-and-process"
+    }
+  ],
+  "rules": [
+    {
+      "id": "document-value-evidence",
+      "instruction": "Record the buyer's pain, desired outcomes and measurable value. Mark numerical estimates with their assumptions and who confirmed them.",
+      "verification": "Trace each metric to a buyer source or an explicit estimate, and identify the gaps that need a follow-up before forecast review."
+    },
+    {
+      "id": "trace-buying-decision",
+      "instruction": "Distinguish decision criteria, the people involved and the steps to a decision from the steps needed to complete the agreement. Record the economic buyer, champion and competing alternatives only when supported.",
+      "verification": "Check with the opportunity owner that the next milestone, buyer-side owner and any procurement blockers are evidenced or listed as unknown."
+    },
+    {
+      "id": "review-qualification-gaps",
+      "instruction": "Choose a next action that resolves the largest qualification gap. Revisit evidence as the buyer's timeline or decisions change.",
+      "verification": "At the next review, check what changed, which evidence supports the stage and whether the close date still has a buyer-confirmed basis."
+    }
+  ]
+}

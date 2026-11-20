@@ -1,0 +1,18 @@
+{
+  "id": "critical-path",
+  "title": "Critical path method",
+  "description": "Find dependencies with limited scheduling flexibility and check which changes can move a planned delivery date.",
+  "sources": [
+    {
+      "title": "PMI, Critical path method calculations",
+      "url": "https://www.pmi.org/learning/library/critical-path-method-calculations-scheduling-8040"
+    }
+  ],
+  "roles": [
+    "project-management",
+    "operations"
+  ],
+  "packs": [
+    "project-planning"
+  ]
+}

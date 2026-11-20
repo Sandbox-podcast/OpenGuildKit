@@ -1,0 +1,24 @@
+{
+  "id": "enterprise-risk-review",
+  "title": "Enterprise risk review",
+  "version": "1.0.0",
+  "description": "Risk ownership and response decisions linked to strategy and operational plans.",
+  "sources": [
+    {
+      "title": "COSO, Enterprise Risk Management",
+      "url": "https://www.coso.org/enterprise-risk-management"
+    }
+  ],
+  "rules": [
+    {
+      "id": "tie-risk-to-objective",
+      "instruction": "Describe each material risk as an event with a consequence for a named objective. Record the owner, current controls and proposed response.",
+      "verification": "Ask the owner to show the evidence for the current risk assessment and explain who can approve the response or accept the residual risk."
+    },
+    {
+      "id": "escalate-on-risk-trigger",
+      "instruction": "Define which changes in exposure require a decision, who receives the escalation and when open actions are reviewed.",
+      "verification": "Run a tabletop walkthrough of one trigger and verify that the decision owner, evidence and response are available."
+    }
+  ]
+}

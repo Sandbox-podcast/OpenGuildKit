@@ -1,0 +1,19 @@
+{
+  "id": "iso-27001-isms",
+  "title": "ISO/IEC 27001 project evidence",
+  "description": "Select when the security owner has confirmed the applicable ISMS scope and project controls.",
+  "sources": [
+    {
+      "title": "ISO/IEC 27001:2022 overview",
+      "url": "https://www.iso.org/standard/27001"
+    }
+  ],
+  "roles": [
+    "security",
+    "engineering",
+    "devops"
+  ],
+  "packs": [
+    "iso-27001"
+  ]
+}

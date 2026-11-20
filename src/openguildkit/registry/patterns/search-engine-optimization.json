@@ -1,0 +1,23 @@
+{
+  "id": "search-engine-optimization",
+  "title": "Search engine optimization",
+  "description": "Improve how people and search engines find public pages through useful content, crawlable links and verified indexability.",
+  "sources": [
+    {
+      "title": "Google Search Central, SEO Starter Guide",
+      "url": "https://developers.google.com/search/docs/fundamentals/seo-starter-guide"
+    },
+    {
+      "title": "Google Search Central, How to use Search Console",
+      "url": "https://developers.google.com/search/docs/monitor-debug/search-console-start"
+    }
+  ],
+  "roles": [
+    "marketing",
+    "design",
+    "product"
+  ],
+  "packs": [
+    "web-search-optimization"
+  ]
+}

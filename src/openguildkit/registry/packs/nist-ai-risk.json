@@ -1,0 +1,33 @@
+{
+  "id": "nist-ai-risk",
+  "title": "NIST AI RMF project review",
+  "version": "1.0.0",
+  "description": "Project evidence and decision checks for teams that adopt NIST AI RMF 1.0.",
+  "sources": [
+    {
+      "title": "NIST AI Risk Management Framework 1.0",
+      "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10"
+    },
+    {
+      "title": "NIST AI 600-1 Generative AI Profile",
+      "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence"
+    }
+  ],
+  "rules": [
+    {
+      "id": "document-ai-use-and-owner",
+      "instruction": "Record the intended use, affected users, model and data sources. Name the owner who accepts risk and the person who can pause the release.",
+      "verification": "Have the owner review the documented scope and confirm the conditions that require human review or pausing the system."
+    },
+    {
+      "id": "set-risk-evidence",
+      "instruction": "For material AI failure modes, agree on an evaluation, an acceptance threshold and a way to detect failures in use. Include expected human intervention where applicable.",
+      "verification": "Match each test result and monitoring signal to the risk it covers. Record gaps and who accepted the remaining risk."
+    },
+    {
+      "id": "review-model-changes",
+      "instruction": "Revisit the risk decision when a change affects the model, its permitted tools, input data or the users it serves.",
+      "verification": "Compare the proposed configuration with the approved version. Verify that risk evidence and rollback guidance apply to the updated configuration."
+    }
+  ]
+}

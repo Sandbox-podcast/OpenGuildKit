@@ -1,0 +1,33 @@
+{
+  "id": "playwright",
+  "title": "Playwright browser verification",
+  "version": "1.0.0",
+  "description": "Checks for isolated, readable browser tests and evidence from failed runs.",
+  "sources": [
+    {
+      "title": "Playwright best practices",
+      "url": "https://playwright.dev/docs/best-practices"
+    },
+    {
+      "title": "Playwright test retries",
+      "url": "https://playwright.dev/docs/test-retries"
+    }
+  ],
+  "rules": [
+    {
+      "id": "use-user-facing-locators",
+      "instruction": "Locate controls by accessible role and name where suitable. Use a stable test identifier when the UI exposes no dependable user-facing locator.",
+      "verification": "Run the test on the supported browser projects and confirm that it targets the intended control without depending on CSS structure or sort order."
+    },
+    {
+      "id": "isolate-browser-scenarios",
+      "instruction": "Start each test with the account, browser context and data it needs. Use independent records for changes and wait for observable states using Playwright assertions.",
+      "verification": "Run the changed scenarios independently and in parallel. Confirm that no test requires another test to run first."
+    },
+    {
+      "id": "investigate-flaky-tests",
+      "instruction": "Use retry evidence to diagnose intermittent failures. Keep trace handling and retention aligned with the approved test data policy.",
+      "verification": "Review a failure trace against the expected user flow and confirm that the CI result distinguishes a clean pass from a retry pass."
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "react-web",
+  "title": "React components",
+  "description": "Review rendering, hooks and visible component states for a React interface.",
+  "sources": [
+    {
+      "title": "Rules of React",
+      "url": "https://react.dev/reference/rules"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "design",
+    "qa"
+  ],
+  "packs": [
+    "react"
+  ],
+  "match": {
+    "stack": [
+      [
+        "react",
+        "react.js"
+      ]
+    ]
+  }
+}

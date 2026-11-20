@@ -1,0 +1,33 @@
+{
+  "id": "llm-evaluations",
+  "title": "LLM and agent evaluations",
+  "version": "1.0.0",
+  "description": "Checks for repeatable evaluations of model output, agent decisions and permitted tool use.",
+  "sources": [
+    {
+      "title": "Anthropic engineering, Demystifying evals for AI agents",
+      "url": "https://www.anthropic.com/research/demystifying-evals-for-ai-agents"
+    },
+    {
+      "title": "NIST AI 600-1 Generative AI Profile",
+      "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence"
+    }
+  ],
+  "rules": [
+    {
+      "id": "evaluate-user-outcomes",
+      "instruction": "Choose representative and boundary tasks from the intended use. Write a rubric for the result, uncertainty and user-visible errors, and review it with the person who owns the workflow.",
+      "verification": "Check that the cases cover critical paths and that graders agree on a sample of passing and failing outputs."
+    },
+    {
+      "id": "check-permitted-tool-use",
+      "instruction": "Use recorded or simulated tool results to test whether the agent selects permitted tools, passes valid arguments and stops for required approvals.",
+      "verification": "Inspect the tool traces from evaluation runs. Verify that no live external action occurred in the test and that blocked steps stop as expected."
+    },
+    {
+      "id": "compare-evaluation-baselines",
+      "instruction": "Record the model, prompts, tool interfaces, test data and scoring version. Use repeated trials where output varies and report the performance of each critical task group.",
+      "verification": "Run the evaluation against the approved baseline and the proposed configuration. Review changed cases and record the release decision."
+    }
+  ]
+}

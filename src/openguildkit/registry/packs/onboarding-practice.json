@@ -1,0 +1,24 @@
+{
+  "id": "onboarding-practice",
+  "title": "Employee onboarding",
+  "version": "1.0.0",
+  "description": "Preparation, first assignments and feedback for a new employee's entry into a team.",
+  "sources": [
+    {
+      "title": "U.S. Office of Personnel Management, Sample supervisor onboarding checklist",
+      "url": "https://www.opm.gov/policy-data-oversight/human-capital-management/hiring-reform/sample-supervisor-checklist.pdf"
+    }
+  ],
+  "rules": [
+    {
+      "id": "prepare-first-week",
+      "instruction": "Before the start date, assign an owner for equipment, approved account access, introductions and the first work assignment. Keep the plan accessible to the new employee and manager.",
+      "verification": "Walk through the checklist with each owner and confirm that the employee's role can complete the first assignment with the access requested."
+    },
+    {
+      "id": "review-early-progress",
+      "instruction": "Schedule onboarding check-ins that cover role expectations, learning goals and practical blockers. Give each unresolved blocker an owner and an agreed follow-up date.",
+      "verification": "At a check-in, review the employee's feedback and trace outstanding items to a person and a date the employee can use."
+    }
+  ]
+}

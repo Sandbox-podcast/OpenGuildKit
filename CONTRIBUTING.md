@@ -7,6 +7,7 @@ OpenGuildKit is useful only if its catalog reflects how practitioners actually w
 | You know... | Contribute |
 |---|---|
 | A published specification or useful source | A [reference entry](docs/references.md) in `src/openguildkit/registry/references/` |
+| A recurring stack or team method | A [pattern](docs/patterns.md) linking the context to versioned rule packs |
 | A standard, regulation or convention | A rule pack in `src/openguildkit/registry/packs/` |
 | A discipline (security, design, finance...) | A new board or better questions for an existing one |
 | A sector (banking, health, retail...) | A sector record in `src/openguildkit/registry/sectors/` |
@@ -14,6 +15,12 @@ OpenGuildKit is useful only if its catalog reflects how practitioners actually w
 | Python | CLI features, tests, bug fixes |
 
 Before large work, open an issue with the matching template so a steward or maintainer can confirm the scope.
+
+## Open a pull request
+
+For larger changes, use an issue to discuss scope. Fork the repository, create a branch for the change and open a pull request against `main`. Use `Closes #123` for the issue the PR resolves, or `Refs #123` for related work. Include the part of the catalog or workflow you exercised.
+
+GitHub labels PRs from their changed files. The `contribution-checks` status combines the test matrix and package build. Merges to `main` refresh a draft of the next release notes.
 
 ## Set up
 
@@ -24,6 +31,7 @@ python -m pip install -e .
 python -m unittest discover -s tests
 python -m openguildkit catalog
 python -m openguildkit references
+python -m openguildkit patterns
 ```
 
 No runtime dependency. Tests use `unittest` from the standard library.

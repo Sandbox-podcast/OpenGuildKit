@@ -1,0 +1,37 @@
+{
+  "id": "spring-boot",
+  "title": "Spring Boot services",
+  "version": "1.0.0",
+  "description": "External configuration, transaction boundaries and integration checks for Spring Boot applications.",
+  "sources": [
+    {
+      "title": "Spring Boot externalized configuration",
+      "url": "https://docs.spring.io/spring-boot/reference/features/external-config.html"
+    },
+    {
+      "title": "Spring Boot application testing",
+      "url": "https://docs.spring.io/spring-boot/reference/testing/spring-boot-applications.html"
+    },
+    {
+      "title": "Spring Framework transactional annotations",
+      "url": "https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html"
+    }
+  ],
+  "rules": [
+    {
+      "id": "bind-environment-settings",
+      "instruction": "Bind related application settings using the project's typed configuration classes. Keep environment values and secrets in approved external providers.",
+      "verification": "Start the app with representative settings and confirm the effective values. Test invalid required settings through the normal startup path."
+    },
+    {
+      "id": "check-spring-transaction-boundary",
+      "instruction": "For dependent writes, identify the transaction boundary and the rollback conditions. If using Spring proxy-based transactions, call the transactional entry point through the managed bean.",
+      "verification": "Verify a failure during the operation with the managed application context. Read the persisted state after the request without wrapping the test itself in the transaction under review."
+    },
+    {
+      "id": "exercise-http-entry-point",
+      "instruction": "Choose a focused HTTP test for route binding and responses and a full context test when the change crosses service boundaries.",
+      "verification": "Check that actual configuration and integration dependencies produce the expected outcome in the project's test environment."
+    }
+  ]
+}

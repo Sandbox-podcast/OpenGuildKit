@@ -6,15 +6,17 @@ OpenGuildKit is a catalog maintained by practitioners and a small CLI maintained
 
 **Contributors** open issues and pull requests. Anyone can be one.
 
-**Domain stewards** review catalog changes in their domain: security, engineering, design, product, QA, DevOps, performance, marketing, sales, finance, project management, and each sector. A steward checks that rules are accurate, verifiable and sourced. A domain can have several stewards; a steward can cover several domains. Stewards are listed in `.github/CODEOWNERS` once named.
+**Domain stewards** review patterns, rules and sources for their domain, including engineering, security, finance, people operations and project management. A steward checks that rules are accurate, verifiable and sourced. A domain can have several stewards. Stewards are listed in `.github/CODEOWNERS` once named.
 
-**Maintainers** own the CLI, the schema, releases and this document. They merge pull requests that have the required approvals.
+**Maintainers** own the CLI, the schema and releases. A maintainer records the merge decision in the pull request.
 
 ## Decisions
 
-- **Catalog changes** (new or edited packs, boards, sectors): one approval from a steward of the domain, plus CI passing. If no steward exists yet for the domain, a maintainer reviews.
-- **CLI changes:** one maintainer approval.
-- **Schema changes, new commands, changes to the task flow or to this document:** an RFC issue first, then a decision by maintainers by lazy consensus (no maintainer objects). Objections must state what would change the objector's mind.
+- **Library changes:** ask the domain steward to review when one is available. The maintainer reviews submissions for domains that have no steward yet.
+- **CLI changes:** include the tests or reproduction steps in the PR for the maintainer's review.
+- **Changes that affect how contributors or existing projects work:** use the RFC issue template to discuss the proposed change.
+
+The pull request records the proposal, review and decision. Link an existing issue when there is one. For a focused contribution, open a pull request directly. GitHub adds labels from the changed paths and reports the result of the test matrix and wheel build as `contribution-checks`.
 
 ## Becoming a steward or maintainer
 
@@ -22,7 +24,9 @@ A contributor with several merged pull requests in a domain can ask, or be propo
 
 ## Releases
 
-Versions follow Semantic Versioning for the CLI. Packs carry their own versions (see [catalog format](docs/catalog-format.md)). Release notes list every pack whose version changed, since that invalidates pending approvals in projects that use it.
+Versions follow Semantic Versioning for the CLI. Packs carry their own versions. [Catalog format](docs/catalog-format.md)
+
+GitHub refreshes the `openguildkit-next` release draft after changes reach `main`. It groups merged pull requests by label. When preparing a version, copy the generated notes into a versioned release, review them and list each pack whose version changed. A maintainer publishes the release. [GitHub release notes](https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes)
 
 ## Neutrality
 

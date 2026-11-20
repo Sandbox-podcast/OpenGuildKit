@@ -1,0 +1,12 @@
+changelog:
+  categories:
+    - title: Work patterns
+      labels: [pattern]
+    - title: Knowledge catalog
+      labels: [pack, board, sector, catalog]
+    - title: CLI and integrations
+      labels: [tooling]
+    - title: Documentation and examples
+      labels: [documentation]
+    - title: Other changes
+      labels: ['*']

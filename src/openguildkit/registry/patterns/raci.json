@@ -1,0 +1,19 @@
+{
+  "id": "raci",
+  "title": "RACI responsibility matrix",
+  "description": "Clarify who does work, who owns the decisions and who should be consulted or informed at critical handoffs.",
+  "sources": [
+    {
+      "title": "PMI, Roles, responsibilities, and resources",
+      "url": "https://www.pmi.org/learning/library/2019/04/07/15/30/best-practices-managing-people-quality-management-7012"
+    }
+  ],
+  "roles": [
+    "project-management",
+    "operations",
+    "leadership"
+  ],
+  "packs": [
+    "project-planning"
+  ]
+}

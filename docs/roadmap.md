@@ -6,6 +6,8 @@ This page separates what exists from what is planned. Items under "Next" and "La
 
 - Catalog of rule packs, specialist boards and sector profiles in validated JSON.
 - Searchable [reference library](references.md) from the SOCLE catalog. Opt-in packs for releases, the software supply chain and service reliability.
+- [Work and stack patterns](patterns.md) link project context to rule packs and surface methods by role.
+- Pull requests carry path-based labels. A required CI check protects `main`, and the release workflow refreshes a changelog draft after merges.
 - CLI: `init` questionnaire, managed `AGENTS.md` block, `sync`, `check`, project-level catalog additions.
 - Task flow: scoping QCM, deterministic board routing, consultation request, review validation, human approval at a terminal, handoff bound to the rules in force.
 - Skills for Claude Code and Codex that drive the flow.

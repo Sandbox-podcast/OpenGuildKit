@@ -152,6 +152,30 @@ class CatalogTests(CliTestCase):
 
 
 class ProjectSetupTests(CliTestCase):
+    def test_recommends_stack_patterns_and_applies_only_chosen_work_methods(self):
+        answers = {
+            "name": "Claims API",
+            "sector": "insurance",
+            "stack": ["Python 3.12", "FastAPI", "Postgres@16"],
+            "roles": ["engineering", "project-management"],
+        }
+        path = self.write_json("answers.json", answers)
+        plan = json.loads(self.run_cli("recommend", "--answers", path, "--json").stdout)
+        matched = [pattern["id"] for pattern in plan["matched"]]
+        self.assertIn("python-fastapi-postgresql", matched)
+        self.assertIn("scrum", [pattern["id"] for pattern in plan["suggested"]])
+        self.assertNotIn("scrum", matched)
+        self.assertIn("scrum", self.run_cli("patterns", "--role", "project-management").stdout)
+        self.assertIn("openguildkit patterns --id scrum", self.run_cli("references", "--id", "pattern-scrum").stdout)
+        answers["patterns"] = [*matched, "scrum"]
+        self.run_cli("init", "--answers", self.write_json("selected.json", answers))
+        self.run_cli("check")
+        instructions = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("`fastapi@", instructions)
+        self.assertIn("`postgresql@", instructions)
+        self.assertIn("`scrum-delivery@", instructions)
+        self.assertNotIn("`kanban-delivery@", instructions)
+
     def test_init_writes_profile_and_agent_instructions(self):
         self.init_example()
         profile = json.loads((self.project / ".openguildkit" / "project.json").read_text(encoding="utf-8"))

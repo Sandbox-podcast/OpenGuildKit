@@ -1,0 +1,29 @@
+{
+  "id": "kanban-delivery",
+  "title": "Kanban delivery",
+  "version": "1.0.0",
+  "description": "Workflow policies, work in progress and flow metrics for a team managing continuous demand.",
+  "sources": [
+    {
+      "title": "The Kanban Guide, May 2025",
+      "url": "https://kanbanguides.org/the-kanban-guide/2025.5/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "define-workflow",
+      "instruction": "Agree where a work item starts and finishes, which policies govern movement and how the team will control work in progress.",
+      "verification": "Select an item in each state and ask its owner to show why the item entered that state and which capacity policy applies."
+    },
+    {
+      "id": "control-in-progress-work",
+      "instruction": "When active work reaches its limit, help finish or unblock an item before pulling another. Record any agreed exception with its cause.",
+      "verification": "Compare actual item counts with the team's limits and check how any exceptions were resolved."
+    },
+    {
+      "id": "inspect-flow",
+      "instruction": "Use completed items to estimate a service level expectation and inspect active items whose age approaches it. Track cycle time, work in progress, throughput and work item age.",
+      "verification": "Recompute the metrics from a sample of movement records and confirm what the team changed in response to an aging or blocked item."
+    }
+  ]
+}

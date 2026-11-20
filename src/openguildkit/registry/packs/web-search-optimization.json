@@ -1,0 +1,28 @@
+{
+  "id": "web-search-optimization",
+  "title": "Web search optimization",
+  "version": "1.0.0",
+  "description": "Technical and content checks for pages intended to appear in organic search.",
+  "sources": [
+    {
+      "title": "Google Search Central, SEO Starter Guide",
+      "url": "https://developers.google.com/search/docs/fundamentals/seo-starter-guide"
+    },
+    {
+      "title": "Google Search Central, How to use Search Console",
+      "url": "https://developers.google.com/search/docs/monitor-debug/search-console-start"
+    }
+  ],
+  "rules": [
+    {
+      "id": "plan-for-search-intent",
+      "instruction": "Give each public page a clear search intent, a descriptive title and a visible heading. Link to it from a relevant page with text that describes the destination.",
+      "verification": "Inspect the rendered page and internal link. Confirm that the content answers the intended query and the title distinguishes it from nearby pages."
+    },
+    {
+      "id": "verify-search-visibility",
+      "instruction": "For pages meant to appear in search, review status codes, indexability and canonical targets before publishing. Plan redirects when replacing public URLs.",
+      "verification": "Inspect representative URLs and redirect targets. After release, use Search Console or the team's approved indexing report to investigate unexpected exclusions."
+    }
+  ]
+}

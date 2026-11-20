@@ -1,0 +1,34 @@
+{
+  "id": "nextjs-react",
+  "title": "Next.js and React",
+  "description": "Review server and client boundaries and mutation behavior when the project uses the Next.js App Router.",
+  "sources": [
+    {
+      "title": "Next.js Server and Client Components",
+      "url": "https://nextjs.org/docs/app/getting-started/server-and-client-components"
+    },
+    {
+      "title": "Rules of React",
+      "url": "https://react.dev/reference/rules"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "nextjs"
+  ],
+  "match": {
+    "stack": [
+      [
+        "next.js"
+      ],
+      [
+        "react",
+        "react.js"
+      ]
+    ]
+  }
+}

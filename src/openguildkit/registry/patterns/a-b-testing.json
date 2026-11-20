@@ -1,0 +1,19 @@
+{
+  "id": "a-b-testing",
+  "title": "A/B testing",
+  "description": "Use random assignment and a pre-agreed decision rule when comparing campaign or product variants.",
+  "sources": [
+    {
+      "title": "Kohavi et al., Practical Guide to Controlled Experiments on the Web",
+      "url": "https://exp-platform.com/practical-guide/"
+    }
+  ],
+  "roles": [
+    "marketing",
+    "product",
+    "design"
+  ],
+  "packs": [
+    "campaign-measurement"
+  ]
+}
