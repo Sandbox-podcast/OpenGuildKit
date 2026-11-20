@@ -4,7 +4,7 @@
   "description": "Select for a team that measures model behavior and permitted tool use with representative tasks and repeatable evaluations.",
   "sources": [
     {
-      "title": "Anthropic engineering, Demystifying evals for AI agents",
+      "title": "Anthropic, Demystifying evals for AI agents",
       "url": "https://www.anthropic.com/research/demystifying-evals-for-ai-agents"
     }
   ],

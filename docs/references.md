@@ -52,6 +52,6 @@ Contribute a JSON family file in `src/openguildkit/registry/references/`. For in
 }
 ```
 
-Save this example as `team-practices.json` and replace the example URL with the source your team uses. To extend a bundled family locally, use its existing family ID and title in your file, and include only the new entries. Reference IDs must be unique across all families. Run `openguildkit references` to validate the result.
+Save this example as `team-practices.json` and replace the example URL with the source your team uses. Sources follow the [catalog rules](catalog-format.md#rules-common-to-all-records): HTTPS, the canonical page, no tracking parameter. To extend a bundled family locally, use its existing family ID and title in your file, and include only the new entries. Reference IDs must be unique across all families. Run `openguildkit references` to validate the result.
 
 For pack fields and verification examples, see the [catalog format](catalog-format.md).

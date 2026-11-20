@@ -173,8 +173,8 @@
       "applies_when": "Pour les services adaptés à des mises en production automatiques, avec une bonne détection des incidents et des possibilités de récupération.",
       "sources": [
         {
-          "url": "https://dora.dev/capabilities/continuous-delivery/",
-          "title": "DORA — Continuous delivery"
+          "url": "https://martinfowler.com/bliki/ContinuousDelivery.html",
+          "title": "Martin Fowler — Continuous Delivery, and how it differs from Continuous Deployment"
         }
       ]
     },

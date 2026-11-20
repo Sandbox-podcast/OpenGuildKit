@@ -82,7 +82,7 @@
       "sources": [
         {
           "url": "https://atomicdesign.bradfrost.com/chapter-2/",
-          "title": "Atomic Design Methodology | Atomic Design by Brad Frost"
+          "title": "Brad Frost — Atomic Design, chapter 2: Atomic Design Methodology"
         }
       ]
     },
@@ -109,8 +109,8 @@
       "applies_when": "Option de design system à adapter à la plateforme et à la marque.",
       "sources": [
         {
-          "url": "https://developer.android.com/develop/ui/compose/designsystems/material3",
-          "title": "Material Design 3 in Compose  |  Jetpack Compose  |  Android Developers"
+          "url": "https://m3.material.io/",
+          "title": "Google — Material Design 3"
         }
       ]
     },
@@ -124,7 +124,7 @@
       "sources": [
         {
           "url": "https://developer.apple.com/design/human-interface-guidelines",
-          "title": "Human Interface Guidelines | Apple Developer Documentation"
+          "title": "Apple Developer — Human Interface Guidelines"
         }
       ]
     },
@@ -138,7 +138,7 @@
       "sources": [
         {
           "url": "https://fluent2.microsoft.design/",
-          "title": "Home - Fluent 2 Design System"
+          "title": "Microsoft — Fluent 2 Design System"
         }
       ]
     },
@@ -151,8 +151,8 @@
       "applies_when": "Option de système de design à évaluer selon les besoins et licences.",
       "sources": [
         {
-          "url": "https://carbondesignsystem.com/",
-          "title": "Home | Carbon Design System"
+          "url": "https://www.carbondesignsystem.com/",
+          "title": "IBM — Carbon Design System"
         }
       ]
     },
@@ -166,7 +166,7 @@
       "sources": [
         {
           "url": "https://design-system.service.gov.uk/",
-          "title": "Home – GOV.UK Design System"
+          "title": "GOV.UK Design System"
         }
       ]
     },
@@ -190,11 +190,11 @@
       "category": "Design UX et systèmes de composants",
       "kind": "outil",
       "summary": "Catalogue exécutable des composants et de leurs états pour documenter et tester l'interface.",
-      "applies_when": "Selon les frameworks pris en charge ; l'outil applique les choix du design system.",
+      "applies_when": "Quand l'équipe documente et teste ses composants isolément, avec un framework d'interface pris en charge par Storybook.",
       "sources": [
         {
           "url": "https://storybook.js.org/docs",
-          "title": "Get started with Storybook | Storybook docs"
+          "title": "Storybook docs — Get started with Storybook"
         }
       ]
     },
@@ -207,8 +207,8 @@
       "applies_when": "Choisir le niveau visé et le périmètre d'évaluation ; les obligations locales peuvent référencer d'autres versions.",
       "sources": [
         {
-          "url": "https://www.w3.org/TR/wcag/",
-          "title": "Web Content Accessibility Guidelines (WCAG) 2.2"
+          "url": "https://www.w3.org/TR/WCAG22/",
+          "title": "W3C — Web Content Accessibility Guidelines (WCAG) 2.2"
         }
       ]
     },
@@ -236,7 +236,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/WAI/ARIA/apg/",
-          "title": "ARIA Authoring Practices Guide | APG | WAI | W3C"
+          "title": "W3C WAI — ARIA Authoring Practices Guide (APG)"
         }
       ]
     },

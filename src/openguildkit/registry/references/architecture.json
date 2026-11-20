@@ -53,8 +53,8 @@
       "applies_when": "Pour remplacer ou tester indépendamment une interface, une base de données ou une intégration externe.",
       "sources": [
         {
-          "url": "https://alistair.cockburn.us/hexagonal-architecture?trk=public_post_comment-text",
-          "title": "Hexagonal architecture - Alistair Cockburn"
+          "url": "https://alistair.cockburn.us/hexagonal-architecture",
+          "title": "Alistair Cockburn — Hexagonal architecture"
         }
       ]
     },
@@ -156,7 +156,7 @@
         },
         {
           "url": "https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures",
-          "title": "Common web application architectures - Microsoft Learn"
+          "title": "Microsoft Learn — Common web application architectures"
         }
       ]
     },
@@ -309,8 +309,8 @@
       "applies_when": "Pour les sites, API et autres échanges qui utilisent HTTP ; préciser les méthodes, statuts et comportements attendus.",
       "sources": [
         {
-          "url": "https://datatracker.ietf.org/doc/html/rfc9110",
-          "title": "RFC 9110: HTTP Semantics - IETF"
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "IETF RFC 9110 — HTTP Semantics"
         }
       ]
     },
@@ -380,11 +380,7 @@
       "sources": [
         {
           "url": "https://www.asyncapi.com/docs/reference/specification/v3.1.0",
-          "title": "AsyncAPI Specification"
-        },
-        {
-          "url": "https://www.asyncapi.com/docs/reference/specification/latest",
-          "title": "AsyncAPI Initiative — Specification"
+          "title": "AsyncAPI Specification 3.1.0"
         }
       ]
     },
@@ -481,10 +477,6 @@
       "applies_when": "Pour les échanges et fichiers qui choisissent ce format ; ajouter un schéma si la structure doit être vérifiée.",
       "sources": [
         {
-          "url": "https://datatracker.ietf.org/doc/html/rfc8259",
-          "title": "RFC 8259: The JavaScript Object Notation (JSON) Data Interchange Format - IETF"
-        },
-        {
           "url": "https://www.rfc-editor.org/rfc/rfc8259.html",
           "title": "IETF RFC 8259 — The JavaScript Object Notation (JSON) Data Interchange Format"
         }
@@ -513,12 +505,8 @@
       "applies_when": "Pour les fichiers où la lisibilité et l'édition manuelle comptent ; choisir un schéma et des contrôles adaptés aux ambiguïtés du format.",
       "sources": [
         {
-          "url": "https://yaml.org/spec/1.2.2/index.html",
-          "title": "YAML Ain't Markup Language Version 1.2.2"
-        },
-        {
           "url": "https://yaml.org/spec/1.2.2/",
-          "title": "YAML — YAML Ain't Markup Language, Version 1.2.2"
+          "title": "YAML Ain't Markup Language (YAML) revision 1.2.2"
         }
       ]
     },
@@ -587,12 +575,8 @@
       "applies_when": "Pour les échanges ou fichiers de données qui utilisent Avro ; vérifier les règles d'évolution des schémas de lecture et d'écriture.",
       "sources": [
         {
-          "url": "https://avro.apache.org/docs/1.11.4/specification/",
-          "title": "Apache Avro Specification"
-        },
-        {
           "url": "https://avro.apache.org/docs/1.12.0/specification/",
-          "title": "Apache Avro — Specification"
+          "title": "Apache Avro 1.12.0 Specification"
         }
       ]
     },

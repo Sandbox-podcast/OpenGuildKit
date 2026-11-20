@@ -11,8 +11,8 @@
       "applies_when": "Pour les sites publics ; leur respect ne garantit ni indexation ni classement.",
       "sources": [
         {
-          "url": "https://developers.google.com/search/docs/essentials?rd=1&visit_id=639293761187205817-284660662",
-          "title": "Google Search Essentials (formerly Webmaster Guidelines) | Google Search Central  |  Documentation  |  Google for Developers"
+          "url": "https://developers.google.com/search/docs/essentials",
+          "title": "Google Search Central — Google Search Essentials"
         }
       ]
     },
@@ -26,7 +26,7 @@
       "sources": [
         {
           "url": "https://schema.org/docs/gs.html",
-          "title": "Getting Started - schema.org"
+          "title": "Schema.org — Getting started"
         }
       ]
     },
@@ -96,7 +96,7 @@
       "sources": [
         {
           "url": "https://web.dev/articles/vitals",
-          "title": "Web Vitals  |  Articles  |  web.dev"
+          "title": "web.dev — Web Vitals"
         }
       ]
     },
@@ -110,7 +110,7 @@
       "sources": [
         {
           "url": "https://support.google.com/analytics/answer/10917952",
-          "title": "URL builders: Collect campaign data with custom URLs - Analytics Help"
+          "title": "Google Analytics Help — Collect campaign data with custom URLs"
         }
       ]
     },
@@ -124,7 +124,7 @@
       "sources": [
         {
           "url": "https://prsmith.org/sostac/",
-          "title": "SOSTAC® 1-Day Masterclass - AI enabled - PR Smith Marketing"
+          "title": "PR Smith — SOSTAC planning methodology"
         }
       ]
     },
@@ -138,7 +138,7 @@
       "sources": [
         {
           "url": "https://scip.world/ethics/",
-          "title": "Ethics – Scip"
+          "title": "SCIP — Code of Ethics"
         }
       ]
     },
@@ -152,7 +152,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/rfc/rfc7208.html",
-          "title": "www.rfc-editor.org"
+          "title": "IETF RFC 7208 — Sender Policy Framework (SPF)"
         }
       ]
     },
@@ -166,7 +166,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/rfc/rfc6376.html",
-          "title": "www.rfc-editor.org"
+          "title": "IETF RFC 6376 — DomainKeys Identified Mail (DKIM) Signatures"
         }
       ]
     },
@@ -180,7 +180,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/info/rfc9989/",
-          "title": "Domain-Based Message Authentication, Reporting, and Conformance (DMARC)"
+          "title": "IETF RFC 9989 — Domain-Based Message Authentication, Reporting, and Conformance (DMARC)"
         }
       ]
     },
@@ -193,8 +193,8 @@
       "applies_when": "Pour les ventes B2B complexes ; ce n'est pas une norme de conformité.",
       "sources": [
         {
-          "url": "https://meddicc.com/ai-info",
-          "title": "AI Information: MEDDICC | MEDDPICC Sales Qualification Framework"
+          "url": "https://meddicc.com/meddpicc-sales-methodology-and-process",
+          "title": "MEDDICC — MEDDPICC Sales Methodology"
         }
       ]
     },
@@ -208,7 +208,7 @@
       "sources": [
         {
           "url": "https://www.huthwaiteinternational.com/spin-methodology",
-          "title": "The SPIN Methodology | Huthwaite International"
+          "title": "Huthwaite International — The SPIN Methodology"
         }
       ]
     },
@@ -222,7 +222,7 @@
       "sources": [
         {
           "url": "https://winningbydesign.com/resources/blueprints/the-spiced-framework/",
-          "title": "The SPICED Framework | Winning by Design Blueprints"
+          "title": "Winning by Design — The SPICED Framework"
         }
       ]
     },
@@ -235,8 +235,8 @@
       "applies_when": "À interpréter avec le contexte, l'échantillon et les autres retours clients.",
       "sources": [
         {
-          "url": "https://www.netpromotersystem.com/about/measuring-your-net-promoter-score/?trk=article-ssr-frontend-pulse_little-text-block",
-          "title": "Measuring Your Net Promoter Score℠ | Bain & Company"
+          "url": "https://www.netpromotersystem.com/about/measuring-your-net-promoter-score/",
+          "title": "Bain & Company — Measuring Your Net Promoter Score"
         }
       ]
     },
@@ -249,8 +249,8 @@
       "applies_when": "Fixer les définitions, périodes et exclusions avant de comparer des résultats.",
       "sources": [
         {
-          "url": "https://support.stripe.com/questions/billing-analytics-dashboard",
-          "title": "Billing analytics : Stripe: Help & Support"
+          "url": "https://support.stripe.com/questions/billing-analytics",
+          "title": "Stripe Support — Billing analytics"
         }
       ]
     },

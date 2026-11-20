@@ -4,8 +4,8 @@
   "description": "Use random assignment and a pre-agreed decision rule when comparing campaign or product variants.",
   "sources": [
     {
-      "title": "Kohavi et al., Practical Guide to Controlled Experiments on the Web",
-      "url": "https://exp-platform.com/practical-guide/"
+      "title": "Kohavi, Tang and Xu, Trustworthy Online Controlled Experiments: A Practical Guide to A/B Testing",
+      "url": "https://experimentguide.com/"
     }
   ],
   "roles": [

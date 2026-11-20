@@ -23,7 +23,7 @@ src/openguildkit/registry/          shared catalog, shipped with the package
 | `id` | string | Lowercase letters, digits and single hyphens (`secure-sdlc`). Unique within its collection, across bundled and project records. Use the file name `<id>.json`. |
 | `title` | string | Single line, not empty |
 | `description` | string | Single line, not empty |
-| `sources` | array | Can be empty. Each item is `{"title": "...", "url": "https://..."}`. HTTPS only, no credentials in the URL, no duplicate URL in one record. |
+| `sources` | array | Can be empty. Each item is `{"title": "...", "url": "https://..."}`. HTTPS only, no credentials in the URL, no duplicate URL in one record, no tracking parameter (`utm_*`, `trk`, `gclid`, `fbclid`, `visit_id`, `siteLocation`, a copied `#:~:text=` fragment...). |
 
 Also enforced:
 
@@ -125,5 +125,7 @@ A sector adds domain context to every consultation and to `AGENTS.md`.
 - Write each instruction as an action an agent can take in a repository or a question it must ask a named owner.
 - Write each verification as something a reviewer can check: a file, a test, a record, a link.
 - Link the official source (standard body, regulator, project documentation). Paraphrase; do not copy text from paid standards.
+- Link the canonical page, not a search result, a template download or a course page. Give the source a title that describes it, such as `IETF RFC 7208, Sender Policy Framework`, not the browser tab text or the host name.
+- Use one address for a document across packs, patterns, boards and references, at the edition the catalog cites. `tests/test_catalog_sources.py` checks the usual variants (an RFC on two IETF sites, `index.html`, a final slash).
 - Do not claim compliance. "Map project controls to the Statement of Applicability" is a rule. "This makes you ISO 27001 compliant" is not.
 - Keep one idea per rule. Split a rule that needs "and" twice.

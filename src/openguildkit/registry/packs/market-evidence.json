@@ -1,12 +1,12 @@
 {
   "id": "market-evidence",
   "title": "Market and competitor evidence",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Comparable evidence for marketing and product decisions about a market.",
   "sources": [
     {
-      "title": "U.S. Small Business Administration, Market research and competitive analysis",
-      "url": "https://www.sba.gov/business-guide/plan-your-business/market-research-competitive-analysis"
+      "title": "U.S. Small Business Administration, Plan your business: market research and competitive analysis",
+      "url": "https://www.sba.gov/counseling/plan-your-business/"
     }
   ],
   "rules": [

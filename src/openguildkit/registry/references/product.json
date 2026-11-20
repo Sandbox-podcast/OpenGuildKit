@@ -25,8 +25,8 @@
       "applies_when": "Option d'organisation pour une équipe ; ne se cumule pas mécaniquement avec toutes les autres méthodes.",
       "sources": [
         {
-          "url": "https://scrumguides.org/scrum-guide",
-          "title": "Scrum Guide | Scrum Guides"
+          "url": "https://scrumguides.org/scrum-guide.html",
+          "title": "Ken Schwaber and Jeff Sutherland — The Scrum Guide (2020)"
         }
       ]
     },
@@ -39,8 +39,8 @@
       "applies_when": "Pour piloter et améliorer un flux ; les règles sont définies par l'équipe.",
       "sources": [
         {
-          "url": "https://kanbanguides.org/the-kanban-guide/",
-          "title": "The Kanban Guide | May 2025 (latest) | Kanban Guides"
+          "url": "https://kanbanguides.org/the-kanban-guide/2025.5/",
+          "title": "Kanban Guides — The Kanban Guide, May 2025"
         }
       ]
     },
@@ -53,8 +53,8 @@
       "applies_when": "À préciser selon les responsabilités, les tests et le niveau de qualité attendu.",
       "sources": [
         {
-          "url": "https://scrumguides.org/scrum-guide",
-          "title": "Scrum Guide | Scrum Guides"
+          "url": "https://scrumguides.org/scrum-guide.html",
+          "title": "Ken Schwaber and Jeff Sutherland — The Scrum Guide (2020)"
         }
       ]
     },
@@ -67,8 +67,8 @@
       "applies_when": "Pour préparer des demandes produit et faciliter leur clarification.",
       "sources": [
         {
-          "url": "https://xp123.com/articles/invest-in-good-stories-and-smart-tasks/",
-          "title": "INVEST in Good Stories, and SMART Tasks - XP123"
+          "url": "https://xp123.com/invest-in-good-stories-and-smart-tasks/",
+          "title": "Bill Wake (XP123) — INVEST in Good Stories, and SMART Tasks"
         }
       ]
     },
@@ -81,8 +81,8 @@
       "applies_when": "Définir la variante retenue et les mesures utiles, sans en faire une règle universelle.",
       "sources": [
         {
-          "url": "https://xp123.com/articles/invest-in-good-stories-and-smart-tasks/",
-          "title": "INVEST in Good Stories, and SMART Tasks - XP123"
+          "url": "https://xp123.com/invest-in-good-stories-and-smart-tasks/",
+          "title": "Bill Wake (XP123) — INVEST in Good Stories, and SMART Tasks"
         }
       ]
     },
@@ -109,8 +109,8 @@
       "applies_when": "Pour structurer la découverte produit et comparer les options.",
       "sources": [
         {
-          "url": "https://www.producttalk.org/opportunity-solution-tree/",
-          "title": "Opportunity Solution Trees: Visualize Your Discovery to Stay Aligned and Drive Outcomes"
+          "url": "https://www.producttalk.org/opportunity-solution-trees/",
+          "title": "Teresa Torres (Product Talk) — Opportunity Solution Trees"
         }
       ]
     },
@@ -124,7 +124,7 @@
       "sources": [
         {
           "url": "https://www.intercom.com/blog/rice-simple-prioritization-for-product-managers",
-          "title": "RICE Prioritization Framework for Product Managers [+Examples]"
+          "title": "Intercom — RICE prioritization framework for product managers"
         }
       ]
     },
@@ -138,7 +138,7 @@
       "sources": [
         {
           "url": "https://www.agilebusiness.org/resource/what-is-moscow-prioritization/",
-          "title": "What is MoSCoW Prioritization? - Agile Business Consortium"
+          "title": "Agile Business Consortium — What is MoSCoW Prioritization?"
         }
       ]
     },
@@ -152,7 +152,7 @@
       "sources": [
         {
           "url": "https://framework.scaledagile.com/wsjf/",
-          "title": "Extended Guidance - WSJF - Scaled Agile Framework"
+          "title": "Scaled Agile Framework — WSJF"
         }
       ]
     },
@@ -166,7 +166,7 @@
       "sources": [
         {
           "url": "https://www.whatmatters.com/faqs/okr-meaning-definition-example",
-          "title": "What Matters: What is an OKR? OKR Meaning, Definition & Examples"
+          "title": "What Matters — What is an OKR?"
         }
       ]
     },
@@ -179,8 +179,8 @@
       "applies_when": "Pour orienter une stratégie produit et son suivi, avec des métriques de garde-fou.",
       "sources": [
         {
-          "url": "https://www.amplitude.com/books/north-star/about-north-star-framework?siteLocation=bottom-page",
-          "title": "About North Star Framework | Amplitude"
+          "url": "https://www.amplitude.com/books/north-star/about-north-star-framework",
+          "title": "Amplitude — About the North Star Framework"
         }
       ]
     },
@@ -194,7 +194,7 @@
       "sources": [
         {
           "url": "https://www.atlassian.com/team-playbook/plays/daci",
-          "title": "DACI: A Decision-Making Framework | Atlassian Team Playbook"
+          "title": "Atlassian Team Playbook — DACI decision-making framework"
         }
       ]
     },
@@ -207,8 +207,8 @@
       "applies_when": "Pour cadrer le modèle économique et ses hypothèses.",
       "sources": [
         {
-          "url": "https://www.strategyzer.com/library/the-business-model-canvas",
-          "title": "Business Model Canvas – Download the Official Template"
+          "url": "https://www.strategyzer.com/library/business-model-generation",
+          "title": "Alexander Osterwalder and Yves Pigneur — Business Model Generation"
         }
       ]
     },
@@ -221,8 +221,8 @@
       "applies_when": "Pour définir ou vérifier le positionnement d'une offre.",
       "sources": [
         {
-          "url": "https://www.strategyzer.com/library/the-value-proposition-canvas",
-          "title": "Value Proposition Canvas – Download the Official Template"
+          "url": "https://www.strategyzer.com/library/value-proposition-design-2",
+          "title": "Alexander Osterwalder, Yves Pigneur, Gregory Bernarda and Alan Smith — Value Proposition Design"
         }
       ]
     },

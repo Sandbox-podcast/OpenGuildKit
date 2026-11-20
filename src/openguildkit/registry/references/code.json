@@ -68,7 +68,7 @@
       "sources": [
         {
           "url": "https://developer.mozilla.org/en-US/docs/Glossary/Kebab_case",
-          "title": "Kebab case - MDN Web Docs Glossary"
+          "title": "MDN Web Docs Glossary — Kebab case"
         }
       ]
     },
@@ -393,7 +393,7 @@
       "applies_when": "Pour le développement C++ ; sélectionner les recommandations adaptées et les contrôles disponibles, sans les confondre avec la norme ISO du langage.",
       "sources": [
         {
-          "url": "https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines?from=main",
+          "url": "https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines",
           "title": "C++ Core Guidelines"
         }
       ]
@@ -463,8 +463,8 @@
       "applies_when": "Pour les logiciels et bibliothèques qui publient des versions ; compléter l'historique Git par une sélection éditoriale.",
       "sources": [
         {
-          "url": "https://keepachangelog.com/fr/1.1.0/",
-          "title": "Keep a Changelog"
+          "url": "https://keepachangelog.com/en/1.1.0/",
+          "title": "Keep a Changelog 1.1.0"
         }
       ]
     },
@@ -534,7 +534,7 @@
       "sources": [
         {
           "url": "https://docs.github.com/en/pull-requests/reference/pull-requests",
-          "title": "Pull requests - GitHub Docs"
+          "title": "GitHub Docs — Pull requests"
         }
       ]
     },
@@ -548,7 +548,7 @@
       "sources": [
         {
           "url": "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners",
-          "title": "About code owners - GitHub Docs"
+          "title": "GitHub Docs — About code owners"
         }
       ]
     },
@@ -590,7 +590,7 @@
       "sources": [
         {
           "url": "https://git-scm.com/docs/githooks",
-          "title": "Git - githooks Documentation"
+          "title": "Git documentation — githooks"
         }
       ]
     }

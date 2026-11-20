@@ -39,8 +39,8 @@
       "applies_when": "Pour construire un programme de sécurité progressif adapté aux capacités et aux risques de l'organisation.",
       "sources": [
         {
-          "url": "https://owasp.org/projects/samm",
-          "title": "OWASP Software Assurance Maturity Model (SAMM)"
+          "url": "https://owaspsamm.org/",
+          "title": "OWASP SAMM — Software Assurance Maturity Model"
         }
       ]
     },
@@ -53,8 +53,8 @@
       "applies_when": "Pour une application mobile, en distinguant ses contrôles locaux de ceux de ses services distants.",
       "sources": [
         {
-          "url": "https://owasp.org/projects/mobile-application-security",
-          "title": "OWASP Mobile Application Security — MASVS et MASTG"
+          "url": "https://mas.owasp.org/MASVS/",
+          "title": "OWASP MASVS — Mobile Application Security Verification Standard"
         }
       ]
     },
@@ -81,8 +81,8 @@
       "applies_when": "Pour concevoir, exposer ou auditer des API ; à compléter par des exigences et des tests précis.",
       "sources": [
         {
-          "url": "https://owasp.org/projects/api-security-project",
-          "title": "OWASP API Security Top 10 2023"
+          "url": "https://api-security.owasp.org/editions/2023/en/0x11-t10/",
+          "title": "OWASP Top 10 API Security Risks – 2023"
         }
       ]
     },
@@ -779,8 +779,8 @@
       "applies_when": "Pour construire des scénarios de détection, des exercices de défense et des analyses de couverture.",
       "sources": [
         {
-          "url": "https://attack.mitre.org/resources/",
-          "title": "MITRE ATT&CK — Get Started"
+          "url": "https://attack.mitre.org/",
+          "title": "MITRE ATT&CK"
         }
       ]
     },

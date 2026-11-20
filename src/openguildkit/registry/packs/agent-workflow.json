@@ -1,14 +1,9 @@
 {
   "id": "agent-workflow",
   "title": "Agent workflow",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "OpenGuildKit rules for scoping, reviewing and approving agent-assisted work.",
-  "sources": [
-    {
-      "title": "NIST AI Risk Management Framework 1.0",
-      "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10"
-    }
-  ],
+  "sources": [],
   "rules": [
     {
       "id": "scope-before-edits",

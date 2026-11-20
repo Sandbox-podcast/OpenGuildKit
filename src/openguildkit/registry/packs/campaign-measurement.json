@@ -1,7 +1,7 @@
 {
   "id": "campaign-measurement",
   "title": "Campaign measurement and experiments",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Track inbound links consistently and design experiments with a decision rule.",
   "sources": [
     {
@@ -9,8 +9,8 @@
       "url": "https://support.google.com/analytics/answer/10917952"
     },
     {
-      "title": "Kohavi et al., Practical Guide to Controlled Experiments on the Web",
-      "url": "https://exp-platform.com/practical-guide/"
+      "title": "Kohavi, Tang and Xu, Trustworthy Online Controlled Experiments: A Practical Guide to A/B Testing",
+      "url": "https://experimentguide.com/"
     }
   ],
   "rules": [

@@ -11,8 +11,8 @@
       "applies_when": "Pour des comportements qui peuvent être vérifiés rapidement ; choisir une autre boucle de retour lorsque le contexte le nécessite.",
       "sources": [
         {
-          "url": "https://newsletter.kentbeck.com/p/canon-tdd?_src_ref=matt.thompson.gr&triedRedirect=true",
-          "title": "Canon TDD - Kent Beck"
+          "url": "https://newsletter.kentbeck.com/p/canon-tdd",
+          "title": "Kent Beck — Canon TDD"
         }
       ]
     },
@@ -40,7 +40,7 @@
       "sources": [
         {
           "url": "https://cucumber.io/docs/gherkin/reference/",
-          "title": "Gherkin Reference - Cucumber"
+          "title": "Cucumber — Gherkin Reference"
         }
       ]
     },
@@ -68,7 +68,7 @@
       "sources": [
         {
           "url": "https://docs.python.org/3/library/unittest.html",
-          "title": "unittest - Unit testing framework - Python documentation"
+          "title": "Python documentation — unittest, unit testing framework"
         }
       ]
     },
@@ -82,7 +82,7 @@
       "sources": [
         {
           "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests",
-          "title": "Integration tests in ASP.NET Core - Microsoft Learn"
+          "title": "Microsoft Learn — Integration tests in ASP.NET Core"
         }
       ]
     },
@@ -96,7 +96,7 @@
       "sources": [
         {
           "url": "https://docs.cypress.io/app/core-concepts/testing-types",
-          "title": "Testing Types - Cypress Documentation"
+          "title": "Cypress Documentation — Testing Types"
         }
       ]
     },
@@ -110,7 +110,7 @@
       "sources": [
         {
           "url": "https://docs.pact.io/",
-          "title": "Introduction - Pact Docs"
+          "title": "Pact Docs — Introduction"
         }
       ]
     },
@@ -138,7 +138,7 @@
       "sources": [
         {
           "url": "https://stryker-mutator.io/docs/",
-          "title": "What is mutation testing? - Stryker Mutator"
+          "title": "Stryker Mutator — What is mutation testing?"
         }
       ]
     },
@@ -152,7 +152,7 @@
       "sources": [
         {
           "url": "https://www.satisfice.com/exploratory-testing",
-          "title": "Exploratory Testing - Satisfice"
+          "title": "Satisfice — Exploratory Testing"
         }
       ]
     },
@@ -180,7 +180,7 @@
       "sources": [
         {
           "url": "https://grafana.com/docs/k6/latest/testing-guides/load-testing-websites/",
-          "title": "Load testing websites - Grafana k6 documentation"
+          "title": "Grafana k6 documentation — Load testing websites"
         }
       ]
     },
@@ -194,7 +194,7 @@
       "sources": [
         {
           "url": "https://go.dev/doc/tutorial/fuzz",
-          "title": "Tutorial: Getting started with fuzzing - Go"
+          "title": "Go documentation — Tutorial: Getting started with fuzzing"
         }
       ]
     },
@@ -208,7 +208,7 @@
       "sources": [
         {
           "url": "https://playwright.dev/docs/intro",
-          "title": "Installation - Playwright"
+          "title": "Playwright documentation — Installation"
         }
       ]
     },
@@ -222,7 +222,7 @@
       "sources": [
         {
           "url": "https://docs.cypress.io/app/get-started/why-cypress",
-          "title": "Why Cypress? - Cypress Documentation"
+          "title": "Cypress Documentation — Why Cypress?"
         }
       ]
     },
@@ -264,7 +264,7 @@
       "sources": [
         {
           "url": "https://vitest.dev/guide/",
-          "title": "Getting Started - Vitest"
+          "title": "Vitest — Getting Started"
         }
       ]
     },
@@ -292,7 +292,7 @@
       "sources": [
         {
           "url": "https://docs.junit.org/current/user-guide/",
-          "title": "Overview - JUnit User Guide"
+          "title": "JUnit User Guide — Overview"
         }
       ]
     },
@@ -334,7 +334,7 @@
       "sources": [
         {
           "url": "https://docs.pact.io/",
-          "title": "Introduction - Pact Docs"
+          "title": "Pact Docs — Introduction"
         }
       ]
     },

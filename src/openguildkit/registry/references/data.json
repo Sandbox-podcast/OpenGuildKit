@@ -302,11 +302,11 @@
       "category": "Interopérabilité santé",
       "kind": "standard",
       "summary": "Ressources et interfaces d'échange de données de santé.",
-      "applies_when": "Pack sectoriel santé ; choisir la version et les profils d'implémentation réellement requis.",
+      "applies_when": "Pour les échanges de données de santé ; choisir la version et les profils d'implémentation réellement requis.",
       "sources": [
         {
           "url": "https://hl7.org/fhir/overview.html",
-          "title": "Overview - FHIR v5.0.0"
+          "title": "HL7 FHIR v5.0.0 — Overview"
         }
       ]
     },
@@ -316,11 +316,11 @@
       "category": "Interopérabilité santé",
       "kind": "standard",
       "summary": "Communication et gestion des images médicales et de leurs données associées.",
-      "applies_when": "Pack sectoriel imagerie médicale ; vérifier les services et profils nécessaires.",
+      "applies_when": "Pour les systèmes d'imagerie médicale ; vérifier les services et profils nécessaires.",
       "sources": [
         {
           "url": "https://dicom.nema.org/medical/dicom/2026b/output/html/part01.html",
-          "title": "PS3.1"
+          "title": "DICOM PS3.1 2026b — Introduction and Overview"
         }
       ]
     }

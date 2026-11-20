@@ -1,11 +1,11 @@
 {
   "id": "llm-evaluations",
   "title": "LLM and agent evaluations",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Checks for repeatable evaluations of model output, agent decisions and permitted tool use.",
   "sources": [
     {
-      "title": "Anthropic engineering, Demystifying evals for AI agents",
+      "title": "Anthropic, Demystifying evals for AI agents",
       "url": "https://www.anthropic.com/research/demystifying-evals-for-ai-agents"
     },
     {

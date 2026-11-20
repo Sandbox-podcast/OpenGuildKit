@@ -7,7 +7,7 @@ from graphlib import CycleError, TopologicalSorter
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 
 COLLECTION_FIELDS = {
@@ -22,6 +22,11 @@ VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][
 MIN_VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){0,3}")
 EXPORT_EXPIRY_ID = "export-link-expiry"
 MAX_SAFE_INTEGER = (1 << 53) - 1
+# Query parameters that record how a visitor reached a page, never which page it is.
+TRACKING_PARAMETERS = frozenset({
+    "_hsenc", "_hsmi", "_src_ref", "dclid", "fbclid", "gbraid", "gclid", "igshid", "mc_cid",
+    "mc_eid", "msclkid", "sitelocation", "trk", "visit_id", "wbraid", "yclid",
+})
 
 
 def is_positive_integer(value: Any) -> bool:
@@ -72,6 +77,16 @@ def _validate_list(value: Any, label: str, *, allow_empty: bool = False) -> None
         raise CatalogError(f"{label} must be {requirement}")
 
 
+def tracking_parameters(url: str) -> list[str]:
+    """Names of campaign, click or session parameters in a URL, and a copied text fragment."""
+    parts = urlsplit(url)
+    names = [name for name, _ in parse_qsl(parts.query, keep_blank_values=True)]
+    found = [name for name in names if name.lower() in TRACKING_PARAMETERS or name.lower().startswith("utm_")]
+    if parts.fragment.startswith(":~:"):
+        found.append("#:~:text")
+    return found
+
+
 def _validate_sources(sources: Any) -> None:
     _validate_list(sources, "sources", allow_empty=True)
     seen_urls = set()
@@ -86,6 +101,9 @@ def _validate_sources(sources: Any) -> None:
             raise CatalogError(f"{label}.url must be an HTTPS URL without credentials")
         if any(character.isspace() or character in "<>\\" for character in url):
             raise CatalogError(f"{label}.url contains invalid characters")
+        tracking = tracking_parameters(url)
+        if tracking:
+            raise CatalogError(f"{label}.url carries the tracking parameter {tracking[0]!r}; link the page without it")
         if url in seen_urls:
             raise CatalogError(f"duplicate source URL {url!r}")
         seen_urls.add(url)
