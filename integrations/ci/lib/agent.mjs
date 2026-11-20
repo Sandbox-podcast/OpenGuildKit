@@ -1,7 +1,7 @@
 import { readFileSync, mkdirSync, rmSync, rmdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { describeRule } from '../prototype/demo/check.mjs';
-import { git, gitSha, parseProfile, readRule, sha256 } from './check.mjs';
+import { committedFile, gitSha, parseProfile, readRule, sha256 } from './check.mjs';
 import { sameRepositoryUrl } from './github-identifiers.mjs';
 
 function taskDetails(data) {
@@ -22,7 +22,7 @@ export function prepareBrief({ policyRepo, policyCommit, targetRepo, profileComm
   if (!policyRepo || !(task || ticket) || !output || !gitSha.test(policyCommit) || !gitSha.test(profileCommit)) {
     throw new Error('Le brief exige les SHA complets de la règle et du profil, un ticket et un dossier de sortie.');
   }
-  const profileBytes = git(targetRepo, 'show', `${profileCommit}:openguildkit.json`);
+  const profileBytes = committedFile(targetRepo, profileCommit, 'openguildkit.json');
   const profile = parseProfile(profileBytes);
   if (profile.adoption?.state !== 'approved') throw new Error('Un profil d’adoption approuvé est requis pour l’agent.');
   const { answers, approver, mode } = profile.adoption;

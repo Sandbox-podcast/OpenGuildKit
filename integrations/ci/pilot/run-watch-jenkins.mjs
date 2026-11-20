@@ -8,9 +8,10 @@ import { checkStateDirectory } from '../lib/state-directory.mjs';
 try {
   const { values } = parseArgs({ options: {
     kit: { type: 'string' }, config: { type: 'string' }, state: { type: 'string' }, publish: { type: 'boolean' },
+    reset: { type: 'string', multiple: true },
   } });
   if (!values.kit || !values.config || !values.state) {
-    throw new Error('Usage : node pilot/run-watch-jenkins.mjs --kit FILE --config FILE --state DIR [--publish]');
+    throw new Error('Usage : node pilot/run-watch-jenkins.mjs --kit FILE --config FILE --state DIR [--publish] [--reset WORK|all]...');
   }
   const output = resolve('result.json');
   if ([values.kit, values.config].some(path => resolve(path).toLowerCase() === output.toLowerCase())) {
@@ -22,6 +23,7 @@ try {
   process.exitCode = withInstalledKit(kit, bin => {
     const args = [join(bin, 'openguildkit.mjs'), 'watch', '--config', values.config, '--state', values.state];
     if (values.publish) args.push('--publish');
+    for (const work of values.reset ?? []) args.push('--reset', work);
     const result = spawnSync(process.execPath, args, {
       encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, stdio: ['ignore', 'pipe', 'inherit'],
     });

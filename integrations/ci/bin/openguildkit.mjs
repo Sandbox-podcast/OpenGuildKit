@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { evaluateRefs, git, gitSha, isGitPath, parseProfile } from '../lib/check.mjs';
+import { committedFile, evaluateRefs, gitSha, isGitPath, parseProfile } from '../lib/check.mjs';
 import { reconcile, recordEvidence } from '../lib/reconcile.mjs';
 import { approveGitHubProfile, readGitHubTicket, reconcileGithub } from '../lib/github.mjs';
 import { loadCatalog, proposeProfile, questionnaire } from '../lib/onboard.mjs';
@@ -21,12 +21,14 @@ const help = `OpenGuildKit ${version}
   openguildkit-ci check --policy-repo DIR --policy-commit SHA --commit SHA
     [--target-repo DIR] [--profile FILE] [--profile-commit SHA] [--output DIR] [--enforce]
     [--brief FILE --pull-request URL]
+    Without --profile-commit, --profile is read from the working tree of --target-repo.
   openguildkit-ci reconcile --config FILE --state DIR [--run]
   openguildkit-ci github --config FILE --state DIR [--run] [--publish [--report-url URL]]
-  openguildkit-ci watch --config FILE --state DIR [--publish]
+  openguildkit-ci watch --config FILE --state DIR [--publish] [--reset WORK|all]...
   openguildkit-ci check-state --state DIR
   openguildkit-ci gate --config FILE --state DIR --project ID --pr NUMBER --commit SHA [--run] [--github]
-  openguildkit-ci merge --config FILE --state DIR --project OWNER/REPO --pr NUMBER --commit SHA --base BRANCH [--execute] [--ruleset ID]
+  openguildkit-ci merge --config FILE --state DIR --project OWNER/REPO --pr NUMBER --commit SHA --base BRANCH
+    [--execute] [--ruleset ID [--app-id ID]]
   openguildkit-ci merge-protection --repo OWNER/REPO --base BRANCH --ruleset ID [--app-id ID]
   openguildkit-ci merge-installation --repo OWNER/REPO --app-slug SLUG --app-id ID
   openguildkit-ci record --state DIR --work ID --evidence FILE
@@ -140,7 +142,8 @@ function init(args) {
   const profile = {
     schemaVersion: 1,
     owner: options.owner?.trim(),
-    policyPath: 'policy/export-link.json',
+    ruleId: 'export-link-expiry',
+    policyPath: 'packs/export-link-expiry.json',
     targetPath: 'export.json',
   };
   const content = JSON.stringify(profile, null, 2) + '\n';
@@ -175,8 +178,8 @@ function check(args) {
   }
   const targetRepo = options['target-repo'];
   const profileBytes = profileCommit !== undefined
-    ? git(targetRepo, 'show', `${profileCommit}:${options.profile}`)
-    : readFileSync(options.profile);
+    ? committedFile(targetRepo, profileCommit, options.profile)
+    : readFileSync(resolve(targetRepo, options.profile));
   let evidence = evaluateRefs({
     policyRepo: options['policy-repo'], policyCommit, targetRepo,
     commit: options.commit, profileBytes, kitVersion: version,
@@ -230,7 +233,7 @@ function coordinate(command, args) {
           config: { type: 'string' }, state: { type: 'string' },
           ...(command !== 'watch' ? { run: { type: 'boolean' } } : {}),
           ...(command === 'github' ? { publish: { type: 'boolean' }, 'report-url': { type: 'string' } } : {}),
-          ...(command === 'watch' ? { publish: { type: 'boolean' } } : {}),
+          ...(command === 'watch' ? { publish: { type: 'boolean' }, reset: { type: 'string', multiple: true } } : {}),
         },
   });
   if (!values.state || (command === 'record' ? !values.work || !values.evidence : !values.config)) {
@@ -238,7 +241,7 @@ function coordinate(command, args) {
   }
   const options = {
     configPath: values.config, stateDir: values.state, run: values.run, kitVersion: version,
-    publish: values.publish, reportUrl: values['report-url'],
+    publish: values.publish, reportUrl: values['report-url'], ...(values.reset ? { reset: values.reset } : {}),
   };
   const result = command === 'record'
     ? recordEvidence(values.state, values.work, JSON.parse(readFileSync(values.evidence, 'utf8')))
@@ -249,7 +252,7 @@ function coordinate(command, args) {
 
 function gate(command, args) {
   const extra = command === 'merge'
-    ? { base: { type: 'string' }, execute: { type: 'boolean' }, ruleset: { type: 'string' } }
+    ? { base: { type: 'string' }, execute: { type: 'boolean' }, ruleset: { type: 'string' }, 'app-id': { type: 'string' } }
     : { run: { type: 'boolean' }, github: { type: 'boolean' } };
   const { values } = parseArgs({
     args,
@@ -271,6 +274,7 @@ function gate(command, args) {
     const result = mergeGithub({
       ...options, base: values.base, execute: values.execute,
       ruleset: values.ruleset === undefined ? undefined : Number(values.ruleset),
+      appId: values['app-id'] === undefined ? undefined : Number(values['app-id']),
     });
     process.stdout.write(JSON.stringify(result, null, 2) + '\n');
     process.exitCode = result.exitCode;

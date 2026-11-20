@@ -1,6 +1,7 @@
 {
   "name": "openguildkit",
   "version": "0.16.1",
+  "private": true,
   "description": "Versioned engineering rules and verifiable CI results",
   "license": "MIT",
   "type": "module",
@@ -11,8 +12,9 @@
   "files": [
     "bin",
     "lib",
-    "pilot/catalog.example.json",
-    "prototype/demo/check.mjs"
+    "pilot",
+    "prototype/demo/check.mjs",
+    "prototype/windows"
   ],
   "engines": {
     "node": ">=22"

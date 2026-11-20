@@ -21,7 +21,11 @@ concurrency:
 
 jobs:
   merge:
-    if: github.ref == 'refs/heads/pilot/broker-merge-base' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    # OPENGUILDKIT_MERGE_ACTORS is a JSON array of the GitHub logins allowed to request a merge.
+    if: >-
+      github.ref == 'refs/heads/pilot/broker-merge-base' &&
+      contains(fromJSON(vars.OPENGUILDKIT_MERGE_ACTORS || '[]'), github.actor) &&
+      contains(fromJSON(vars.OPENGUILDKIT_MERGE_ACTORS || '[]'), github.triggering_actor)
     runs-on: ubuntu-latest
     environment: openguildkit-merge-pilot
     permissions:
@@ -34,6 +38,7 @@ jobs:
       RULES: pilot/broker-merge-rules
       NATIVE_RULESET: ${{ vars.OPENGUILDKIT_RULESET_ID }}
       EXPECTED_APP_ID: ${{ vars.OPENGUILDKIT_APP_ID }}
+      PROFILE_MAINTAINER: ${{ vars.OPENGUILDKIT_PROFILE_MAINTAINER }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -47,6 +52,10 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ && "$EXPECTED_HEAD" =~ ^[a-f0-9]{40}$ ]]
+          if [[ ! "$PROFILE_MAINTAINER" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,38}$ ]]; then
+            echo '::error::Set the OPENGUILDKIT_PROFILE_MAINTAINER variable to the GitHub login that merges profile proposals.'
+            exit 1
+          fi
           current_base=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BASE" --jq .object.sha)
           [[ "$current_base" == "$GITHUB_SHA" ]]
           read -r digest asset < pilot/broker-kit.sha256
@@ -60,20 +69,11 @@ jobs:
             tar -xf "$asset"
           )
           jq -n --arg repo "$GITHUB_REPOSITORY" --arg base "refs/heads/$BASE" \
-            --arg rules "refs/heads/$RULES" --argjson pr "$PR_NUMBER" \
-            '{policyRepo:{id:$repo,path:".",ref:$rules,waiversPath:"pilot/waivers.json"},projects:[{id:$repo,path:".",profileRef:$base,prNumbers:[$pr],waiverApprovers:["@securite-recette"]}]}' > integration.json
+            --arg rules "refs/heads/$RULES" --argjson pr "$PR_NUMBER" --arg maintainer "$PROFILE_MAINTAINER" \
+            '{policyRepo:{id:$repo,path:".",ref:$rules,waiversPath:"pilot/waivers.json"},projects:[{id:$repo,path:".",profileRef:$base,prNumbers:[$pr],profileMaintainer:$maintainer,waiverApprovers:["@securite-recette"]}]}' > integration.json
           node "$RUNNER_TEMP/ogk-broker/package/bin/openguildkit.mjs" merge \
             --config integration.json --state state --project "$GITHUB_REPOSITORY" \
             --pr "$PR_NUMBER" --commit "$EXPECTED_HEAD" --base "$BASE" > proof/preview.json
-      - name: Require live GitHub branch protection
-        if: inputs.execute
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          node "$RUNNER_TEMP/ogk-broker/package/bin/openguildkit.mjs" merge-protection \
-            --repo "$GITHUB_REPOSITORY" --base "$BASE" --ruleset "$NATIVE_RULESET" > proof/protection.json
       - name: Authenticate the dedicated merge application
         if: inputs.execute
         id: merge-token
@@ -81,8 +81,19 @@ jobs:
         with:
           client-id: ${{ vars.OPENGUILDKIT_APP_CLIENT_ID }}
           private-key: ${{ secrets.OPENGUILDKIT_APP_PRIVATE_KEY }}
+          permission-administration: read
           permission-contents: write
           permission-pull-requests: read
+      - name: Require live GitHub branch protection with the application as only bypass
+        if: inputs.execute
+        env:
+          GH_TOKEN: ${{ steps.merge-token.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_APP_ID" =~ ^[1-9][0-9]*$ ]]
+          node "$RUNNER_TEMP/ogk-broker/package/bin/openguildkit.mjs" merge-protection \
+            --repo "$GITHUB_REPOSITORY" --base "$BASE" --ruleset "$NATIVE_RULESET" --app-id "$EXPECTED_APP_ID" > proof/protection.json
       - name: Recheck and merge the reviewed commit
         if: inputs.execute
         env:
@@ -95,7 +106,8 @@ jobs:
             --repo "$GITHUB_REPOSITORY" --app-slug "$MERGE_APP_SLUG" --app-id "$EXPECTED_APP_ID" > proof/installation.json
           node "$RUNNER_TEMP/ogk-broker/package/bin/openguildkit.mjs" merge \
             --config integration.json --state state --project "$GITHUB_REPOSITORY" \
-            --pr "$PR_NUMBER" --commit "$EXPECTED_HEAD" --base "$BASE" --ruleset "$NATIVE_RULESET" --execute > proof/merge.json
+            --pr "$PR_NUMBER" --commit "$EXPECTED_HEAD" --base "$BASE" --ruleset "$NATIVE_RULESET" --app-id "$EXPECTED_APP_ID" \
+            --execute > proof/merge.json
       - name: Archive the decision and its evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

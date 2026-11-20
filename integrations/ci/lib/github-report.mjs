@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { gitSha, sha256 } from './check.mjs';
-import { gh } from './github.mjs';
+import { gh, latestStatus, sameStatus } from './github.mjs';
 
 function archive(entry, branch, markdown) {
   const { project, pullRequest, work } = entry;
@@ -72,13 +72,11 @@ export function publishWatchReport(entry, branch) {
   const verified = actions?.state === 'verified' && decision.effectiveStatus !== 'error';
   const url = verified ? archive(entry, branch, renderWatchReport(entry, tickets.length === 1 ? tickets[0][1] : null)) : undefined;
   const context = `openguildkit/report-pr-${pullRequest}`;
-  const error = ['mismatch', 'retry', 'error'].includes(actions?.state) || decision.effectiveStatus === 'error';
+  const error = ['mismatch', 'retry', 'failed', 'error'].includes(actions?.state) || decision.effectiveStatus === 'error';
   const state = verified ? 'success' : error ? 'error' : 'pending';
   const label = verified ? verdict[decision.effectiveStatus] : error ? 'Erreur de vérification CI' : 'Rapport des deux CI en attente';
   const description = `${label} (info) | règle ${entry.policyCommit.slice(0, 12)} | ${work.slice(0, 12)}`;
-  const { statuses } = JSON.parse(gh('api', `repos/${project}/commits/${commit}/status`));
-  if (statuses.some(item => item.context === context && item.state === state && item.description === description &&
-      (item.target_url || undefined) === url)) {
+  if (sameStatus(latestStatus(project, commit, context), { state, description, url })) {
     return { work, posted: false, url };
   }
   const link = url ? ['-f', `target_url=${url}`] : [];
