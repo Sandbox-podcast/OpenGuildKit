@@ -141,7 +141,8 @@ function init(args) {
   const profile = {
     schemaVersion: 1,
     owner: options.owner?.trim(),
-    policyPath: 'policy/export-link.json',
+    ruleId: 'export-link-expiry',
+    policyPath: 'packs/export-link-expiry.json',
     targetPath: 'export.json',
   };
   const content = JSON.stringify(profile, null, 2) + '\n';

@@ -4,7 +4,7 @@ The CI coordinator is an optional Node.js integration for OpenGuildKit. It recon
 
 ## Install
 
-Use the [verified archive from a GitHub release](../../docs/install.md) for a team deployment.
+Use the [verified archive from a GitHub release](https://github.com/Sandbox-podcast/OpenGuildKit/blob/v0.16.1/docs/install.md) for a team deployment.
 
 From the root of a trusted checkout, with Node.js 22+, npm and Git:
 
@@ -14,11 +14,11 @@ npm install --global ./openguildkit-0.16.1.tgz
 openguildkit-ci --help
 ```
 
-The coordinator installs `openguildkit-ci` and `openguildkit-ci-agent`. GitHub operations also use GitHub CLI with access to the selected repositories. The coordinator state directory must support hard links. Put it on persistent storage and restrict access to the operators of the integration.
+The package is marked private and is not published to npm. Install it from the verified archive path, never by package name: a package named `openguildkit` on the public registry does not come from this project. The coordinator installs `openguildkit-ci` and `openguildkit-ci-agent`. GitHub operations also use GitHub CLI with access to the selected repositories. The coordinator state directory must support hard links. Put it on persistent storage and restrict access to the operators of the integration.
 
 ## Share the policy
 
-Copy the [example policy repository files](../../examples/export-expiry/policy/) into a central Git repository. Both the Python project and the CI coordinator read `packs/export-link-expiry.json`. The CI catalog index provides ownership and selects the file. The approved CI profile, at `openguildkit.json` on a trusted target branch, selects the same path. The two project profiles serve different workflows and can be reviewed independently.
+Copy the [example policy repository files](https://github.com/Sandbox-podcast/OpenGuildKit/tree/v0.16.1/examples/export-expiry/policy) into a central Git repository. Both the Python project and the CI coordinator read `packs/export-link-expiry.json`. The CI catalog index provides ownership and selects the file. The approved CI profile, at `openguildkit.json` on a trusted target branch, selects the same path. The two project profiles serve different workflows and can be reviewed independently.
 
 ```json
 {
@@ -72,6 +72,8 @@ openguildkit-ci check-state --state ./state
 
 On Windows, put the state directory on NTFS. An exFAT volume does not support hard links. If the preflight reports exFAT, select a persistent NTFS path and repeat the check. A failed preflight exits with code 2.
 
+For a local Jenkins on Windows, [install-jenkins-watch.ps1](prototype/windows/install-jenkins-watch.ps1) registers a scheduled task that starts Jenkins and a job that runs the Jenkins launcher every minute. Pass `-JavaDirectory`, `-JenkinsWar`, `-WatchConfig integration.json` and `-KitManifest kit.json`, a file with the kit's `repository`, `version` and `sha256`. Add `-StateDirectory` for an NTFS path other than the default and `-Publish` to publish reports. The configuration and the manifest stay where they are. The installer writes UTF-8 files without byte order mark, as Jenkins requires on Windows PowerShell 5.1. The first start gives the generated administrator password to Jenkins through a file in its home directory, which the startup script deletes, so builds never inherit it. If the account cannot be created, Jenkins stops instead of running unsecured.
+
 Schedule `openguildkit-ci watch --config integration.json --state ./state` on a trusted Jenkins agent with concurrent builds disabled. The command repeats the preflight before contacting GitHub. It holds `watch.lock` in the state directory while it runs, and a second watcher on the same directory exits with code 2. A lock left by a stopped process on the same host is replaced. The [Jenkins launcher](pilot/run-watch-jenkins.mjs) also checks the directory before downloading or installing the kit. Add `--publish` when the Jenkins identity has permission to write to the configured evidence branch and publish statuses. Set up that branch in each project.
 
 A recheck that fails, stays queued past `watch.runTimeoutMinutes` (default 360), disappears or loses its artifact is dispatched again after `watch.retryDelayMinutes` (default 15, doubled after each attempt), up to `watch.maxAttempts` (default 3). Each cycle reports the attempt in `errors` and exits with code 2. After the last attempt, or when the two results disagree (`mismatch`), the work stays in error until an operator fixes the cause and runs `watch` with `--reset WORK`, or `--reset all` for every failed or mismatched work. The previous record is kept in `actions/history/` in the state directory. Every cycle prints its report, even when GitHub cannot be read again before publication.
@@ -109,4 +111,4 @@ The required check template evaluates a PR when it is opened or updated, and eve
 
 Both templates read the `OPENGUILDKIT_PROFILE_MAINTAINER` variable. The protected merge template runs only for the logins listed in the `OPENGUILDKIT_MERGE_ACTORS` variable, a JSON array such as `["alice", "release-bot"]`, which works for organization repositories. Protect its `openguildkit-merge-pilot` environment with required reviewers if the request needs a second person. Before merging, it checks with `--app-id` that the merge application (`OPENGUILDKIT_APP_ID`, `OPENGUILDKIT_APP_CLIENT_ID`, `OPENGUILDKIT_APP_PRIVATE_KEY`) is the only bypass actor of ruleset `OPENGUILDKIT_RULESET_ID`. Give that application the administration read permission so it can read the ruleset's bypass list. Otherwise the check stops the merge.
 
-See `openguildkit-ci --help` for the profile, agent brief, release discovery, recheck and merge subcommands. The [tests](test/) exercise rule updates, stale evidence, recovery and scoped merge decisions.
+See `openguildkit-ci --help` for the profile, agent brief, release discovery, recheck and merge subcommands. The [tests](https://github.com/Sandbox-podcast/OpenGuildKit/tree/v0.16.1/integrations/ci/test) exercise rule updates, stale evidence, recovery and scoped merge decisions.

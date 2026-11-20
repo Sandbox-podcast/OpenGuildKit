@@ -24,7 +24,7 @@ jobs:
       PR_NUMBER: ${{ inputs.pr }}
       EXPECTED_HEAD: ${{ inputs.commit }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
@@ -41,14 +41,19 @@ jobs:
           git -c credential.helper= -c 'credential.helper=!gh auth git-credential' fetch --no-tags origin "refs/pull/$PR_NUMBER/head"
           test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_HEAD"
 
+          read -r digest asset < pilot/agent-kit.sha256
+          [[ "$digest" =~ ^[a-f0-9]{64}$ && "$asset" =~ ^openguildkit-([0-9]+\.[0-9]+\.[0-9]+)\.tgz$ ]]
+          release="v${BASH_REMATCH[1]}"
           mkdir -p "$RUNNER_TEMP/ogk-agent-kit"
-          cd "$RUNNER_TEMP/ogk-agent-kit"
-          gh release download v0.7.0 -R "$GITHUB_REPOSITORY" -p 'openguildkit-0.7.0.tgz'
-          sha256sum -c "$GITHUB_WORKSPACE/pilot/agent-kit.sha256"
-          tar -xf openguildkit-0.7.0.tgz
-          cd "$GITHUB_WORKSPACE"
+          (
+            cd "$RUNNER_TEMP/ogk-agent-kit"
+            gh release download "$release" -R "$GITHUB_REPOSITORY" -p "$asset"
+            sha256sum -c "$GITHUB_WORKSPACE/pilot/agent-kit.sha256"
+            tar -xf "$asset"
+          )
           profile=$(git log -1 --format=%H HEAD -- openguildkit.json)
-          rule=$(git log -1 --format=%H HEAD -- policy/export-link.json)
+          policy_path=$(git show "$profile:openguildkit.json" | jq -er '.policyPath')
+          rule=$(git log -1 --format=%H HEAD -- "$policy_path")
           printf 'PROFILE_SHA=%s\nRULE_SHA=%s\n' "$profile" "$rule" >> "$GITHUB_ENV"
           node "$RUNNER_TEMP/ogk-agent-kit/package/bin/openguildkit.mjs" github-brief --repo "$GITHUB_REPOSITORY" \
             --pr "$PR_NUMBER" --commit "$EXPECTED_HEAD" --profile-commit "$profile" --policy-repo . --policy-commit "$rule" \
@@ -72,7 +77,7 @@ jobs:
           node "$kit/openguildkit.mjs" check --policy-repo . --policy-commit "$RULE_SHA" --profile-commit "$PROFILE_SHA" \
             --commit "$EXPECTED_HEAD" --brief proof/agent-bundle/brief.json \
             --pull-request "https://github.com/$GITHUB_REPOSITORY/pull/$PR_NUMBER" --output proof/control
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: openguildkit-agent-proof
           path: proof/
@@ -89,7 +94,7 @@ jobs:
       PR_NUMBER: ${{ inputs.pr }}
       EXPECTED_HEAD: ${{ inputs.commit }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: openguildkit-agent-proof
           path: proof

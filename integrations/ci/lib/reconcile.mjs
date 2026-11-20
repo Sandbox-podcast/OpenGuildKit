@@ -62,7 +62,10 @@ function snapshot(config, folder, kitVersion) {
       throw new Error('Chaque projet doit avoir un identifiant distinct.');
     }
     projects.add(project.id);
-    if (project.pullRequests.length === 0) continue;
+    // The GitHub commands list open PRs. A local configuration without pullRequests has nothing to evaluate.
+    const pullRequests = project.pullRequests ?? [];
+    if (!Array.isArray(pullRequests)) throw new Error(`pullRequests must be a list for ${project.id}.`);
+    if (pullRequests.length === 0) continue;
     const targetRepo = resolve(folder, project.path);
     const profile = fileRevision(targetRepo, resolveRef(targetRepo, project.profileRef), profilePath);
     const { policyPath, adoption } = parseProfile(profile.bytes);
@@ -73,7 +76,7 @@ function snapshot(config, folder, kitVersion) {
     const policy = fileRevision(policyRepo, policyTip, policyPath);
     const { id: rule } = JSON.parse(policy.bytes);
     const numbers = new Set();
-    for (const pr of project.pullRequests) {
+    for (const pr of pullRequests) {
       if (!Number.isSafeInteger(pr.number) || pr.number < 1 || numbers.has(pr.number)) {
         throw new Error(`Numéro de PR invalide ou dupliqué pour ${project.id}.`);
       }
@@ -141,7 +144,7 @@ export function reconcile({ configPath, stateDir, run, kitVersion,
     const config = loadConfig();
     if (!selection) return snapshot(config, folder, kitVersion);
     const projects = config.projects.filter(project => sameProject(project.id, selection.project)).map(project => ({
-      ...project, pullRequests: project.pullRequests.filter(pr => pr.number === selection.pullRequest),
+      ...project, pullRequests: (project.pullRequests ?? []).filter(pr => pr.number === selection.pullRequest),
     }));
     const chosen = snapshot({ ...config, projects }, folder, kitVersion);
     if (chosen.length !== 1 || chosen[0].inputs.commit !== selection.commit) {

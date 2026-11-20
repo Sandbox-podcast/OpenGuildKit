@@ -29,7 +29,7 @@ test('install a profile and verify the same target commit against two policy rev
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const policies = join(root, 'policies');
   const target = join(root, 'target');
-  mkdirSync(join(policies, 'policy'), { recursive: true });
+  mkdirSync(join(policies, 'packs'), { recursive: true });
   mkdirSync(target);
   git(policies, 'init', '-q');
   git(target, 'init', '-q');
@@ -46,8 +46,8 @@ test('install a profile and verify the same target commit against two policy rev
   assert.equal(run('init', '--owner', '@autre').status, 2);
   assert.equal(readFileSync(profilePath, 'utf8'), profile);
 
-  const first = commitJson(policies, 'policy/export-link.json', { id: 'export-link-expiry', version: 1, maxMinutes: 60 });
-  const second = commitJson(policies, 'policy/export-link.json', { id: 'export-link-expiry', version: 2, maxMinutes: 30 });
+  const first = commitJson(policies, 'packs/export-link-expiry.json', { id: 'export-link-expiry', version: 1, maxMinutes: 60 });
+  const second = commitJson(policies, 'packs/export-link-expiry.json', { id: 'export-link-expiry', version: 2, maxMinutes: 30 });
   const targetSha = commitJson(target, 'export.json', { downloadLinkMinutes: 45 });
   commitJson(target, 'export.json', { downloadLinkMinutes: 20 });
 
