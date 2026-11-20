@@ -1,0 +1,89 @@
+name: OpenGuildKit required pilot
+
+on:
+  pull_request_target:
+    branches: [pilot/merge-gate-base]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr:
+        type: string
+        required: true
+      commit:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  group: openguildkit-required-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  required:
+    if: github.event_name == 'pull_request_target' || github.ref == 'refs/heads/pilot/merge-gate-base'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || inputs.commit }}
+      EXPECTED_BASE: pilot/merge-gate-base
+      STATUS_CONTEXT: openguildkit/required-pilot
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check the PR identity
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ && "$EXPECTED_HEAD" =~ ^[a-f0-9]{40}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
+            jq -e --arg base "$EXPECTED_BASE" --arg head "$EXPECTED_HEAD" '.state == "open" and .base.ref == $base and .head.sha == $head' >/dev/null
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$EXPECTED_HEAD" -f context="$STATUS_CONTEXT" -f state=pending -f description='OpenGuildKit vérifie le commit courant'
+      - name: Install and run the required gate
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p proof "$RUNNER_TEMP/ogk-kit"
+          cd "$RUNNER_TEMP/ogk-kit"
+          gh release download v0.6.0 -R "$GITHUB_REPOSITORY" -p 'openguildkit-0.6.0.tgz'
+          sha256sum -c "$GITHUB_WORKSPACE/pilot/required-kit.sha256"
+          tar -xf openguildkit-0.6.0.tgz
+          cd "$GITHUB_WORKSPACE"
+          jq -n --arg repo "$GITHUB_REPOSITORY" --arg ref "refs/heads/$EXPECTED_BASE" --argjson pr "$PR_NUMBER" \
+            '{policyRepo:{id:$repo,path:".",ref:$ref},projects:[{id:$repo,path:".",profileRef:$ref,prNumbers:[$pr]}]}' > integration.json
+          node "$RUNNER_TEMP/ogk-kit/package/bin/openguildkit.mjs" gate --github --config integration.json \
+            --state state --project "$GITHUB_REPOSITORY" --pr "$PR_NUMBER" --commit "$EXPECTED_HEAD" --run > proof/result.json
+      - name: Archive the decision
+        if: always() && steps.identity.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: openguildkit-required-proof
+          path: |
+            proof/
+            state/
+      - name: Publish the required status
+        if: always() && steps.identity.outcome == 'success'
+        env:
+          GATE_OUTCOME: ${{ steps.gate.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
+            jq -e --arg base "$EXPECTED_BASE" --arg head "$EXPECTED_HEAD" '.state == "open" and .base.ref == $base and .head.sha == $head' >/dev/null
+          state=failure
+          if [[ "$GATE_OUTCOME" == success ]]; then state=success; fi
+          description='Contrôle OpenGuildKit incomplet'
+          if [[ -s proof/result.json ]]; then
+            description=$(jq -r '.current.decision.effectiveStatus + " | règle " + .current.policyCommit' proof/result.json)
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$EXPECTED_HEAD" -f context="$STATUS_CONTEXT" -f state="$state" \
+            -f description="$description" -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"

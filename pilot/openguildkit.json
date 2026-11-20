@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "owner": "@azerothl",
+  "policyPath": "policy/export-link.json",
+  "targetPath": "export.json"
+}
