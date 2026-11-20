@@ -82,7 +82,7 @@ def _record_problem(task: dict) -> str | None:
     return None
 
 
-def create_task(state: Path, brief: str, task_id: str | None) -> str:
+def create_task(state: Path, brief: str, task_id: str | None, follows: str | None = None) -> str:
     brief = brief.strip()
     if not brief:
         raise ValueError("Supply a task brief.")
@@ -92,18 +92,76 @@ def create_task(state: Path, brief: str, task_id: str | None) -> str:
     path = task_path(state, task_id)
     if path.exists():
         raise ValueError(f"Task already exists: {task_id}")
-    write_json(
-        path,
-        {
-            "schema_version": 1,
-            "id": task_id,
-            "brief": brief,
-            "created_at": timestamp(),
-            "status": "draft",
-            "rounds": [],
-        },
-    )
+    record = {
+        "schema_version": 1,
+        "id": task_id,
+        "brief": brief,
+        "created_at": timestamp(),
+        "status": "draft",
+        "rounds": [],
+    }
+    if follows is not None:
+        previous = read_task(state, follows)
+        if "decision" not in previous:
+            raise ValueError(f"Task {follows} has no recorded decision to follow.")
+        record["follows"] = {
+            "task": follows,
+            "brief": previous["brief"],
+            "status": previous["status"],
+            "decision": {key: previous["decision"][key] for key in ("outcome", "by", "reason", "at")},
+        }
+    write_json(path, record)
     return task_id
+
+
+def next_step(task: dict) -> str:
+    """The open point that keeps a task from moving on."""
+    status = task["status"]
+    if status == "draft":
+        return "Answer the questionnaire and consult the boards."
+    if status == "consulting":
+        passes = pass_progress(task)
+        waiting = [item["board"] for item in passes if item["status"] != "done"]
+        return f"Board reviews pending: {', '.join(waiting)}." if waiting else "Write the summary and record the review."
+    if status == "reviewed":
+        blockers = unresolved_blockers(task)
+        return f"Resolve blockers {', '.join(blockers)}." if blockers else "Waiting for the person's decision."
+    if status == "changes-requested":
+        return f"Consult again: {task['decision']['reason']}"
+    if status == "approved":
+        if task.get("answers", {}).get("kind") == "decision":
+            return "Decision recorded. Open a follow-up task to act on it."
+        return "Implement, then record the results and complete the task."
+    return "Done."
+
+
+def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
+               since: str | None = None, until: str | None = None) -> list[dict]:
+    """Every task of the project with its status, decision owner and next open point."""
+    directory = state / "tasks"
+    rows = []
+    if not directory.is_dir():
+        return rows
+    for path in sorted(directory.glob("*.json")):
+        try:
+            task = read_task(state, path.stem)
+        except ValueError as error:
+            rows.append({"id": path.stem, "status": "unreadable", "next": str(error)})
+            continue
+        decided_by = task.get("decision", {}).get("by")
+        day = task["created_at"][:10]
+        if status and task["status"] != status:
+            continue
+        if owner and (decided_by or "").casefold() != owner.casefold():
+            continue
+        if (since and day < since) or (until and day > until):
+            continue
+        row = {"id": task["id"], "status": task["status"], "created": day, "owner": decided_by,
+               "brief": task["brief"].splitlines()[0][:80], "next": next_step(task)}
+        if task.get("follows"):
+            row["follows"] = task["follows"]["task"]
+        rows.append(row)
+    return rows
 
 
 def record_consultation(

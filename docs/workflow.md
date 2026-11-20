@@ -171,6 +171,17 @@ openguildkit task complete ID
 
 Every project command is mandatory. A profile can make rules mandatory too with `"required_rules": ["secure-sdlc", "python/run-tests"]`. `task complete` sets the task to `done` only when every mandatory check passed, every other check is reported and every criterion is met; otherwise it lists what is missing.
 
+## Following the project's work
+
+```bash
+openguildkit task list                              # every task, its status, decision owner and next open point
+openguildkit task list --status approved --owner "Camille Martin" --since 2026-11-01
+openguildkit task new "Add request history" --follows request-status
+openguildkit task export request-status --output shared/request-status.json
+```
+
+`task list` gives each task's next open point: questions to answer, board reviews pending, blockers to resolve, a decision awaited, results to record. `--follows` links a new task to an earlier decision: the consultation carries that decision so the boards see what was already agreed. `task export` writes a record the team can share: the brief, each board's verdict and the sealed approval, without evidence, findings or internal notes.
+
 ## Inspecting a task
 
 `task show ID` prints the full task record as JSON: status, answers, consultation, review, decision, fingerprint and previous rounds.

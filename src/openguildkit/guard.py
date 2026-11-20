@@ -102,7 +102,7 @@ def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict
     return 0, json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": message}}), ""
 
 
-def export_decision(root: Path, state: Path, task: dict, profile: dict) -> Path:
+def export_decision(root: Path, state: Path, task: dict, profile: dict, output: Path | None = None) -> Path:
     """Write a shareable record of an approved decision: no evidence details, no internal notes."""
     if task["status"] not in ("approved", "done"):
         raise ValueError("Only an approved or completed task can be exported.")
@@ -127,7 +127,9 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict) -> Path:
             key: task["result"][key] for key in ("revision", "pull_request") if key in task["result"]
         }
         record["result"]["checks"] = {item["check"]: item["status"] for item in task["result"]["checks"]}
-    path = state / DECISIONS_DIR / f"{task['id']}.json"
+    if task.get("follows"):
+        record["follows"] = task["follows"]["task"]
+    path = output if output is not None else state / DECISIONS_DIR / f"{task['id']}.json"
     write_json(path, record)
     return path
 
