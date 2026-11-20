@@ -1,7 +1,7 @@
 {
   "id": "supply-chain",
   "title": "Software supply chain",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Build provenance, artifact verification and software inventory checks for teams that publish packages or deploy images.",
   "depends_on": [
     "secure-sdlc"
@@ -36,8 +36,13 @@
     },
     {
       "id": "verify-artifact-provenance",
-      "instruction": "For releases gated by provenance, verify the artifact digest, attestation authenticity, builder identity and source before promotion. Record the required SLSA Build level if the organization has adopted one.",
+      "instruction": "For releases gated by provenance, verify the artifact digest, attestation authenticity, builder identity and source before promotion.",
       "verification": "Run the approved verifier on a test artifact and record its verdict. Use a fixture with a mismatched digest to confirm the gate stops promotion."
+    },
+    {
+      "id": "record-required-build-level",
+      "instruction": "Ask the security owner whether the organization requires a SLSA Build level for releases, and record the answer in the release policy.",
+      "verification": "Open the release policy and check that it states the required SLSA Build level or that none is required."
     },
     {
       "id": "inventory-release-components",

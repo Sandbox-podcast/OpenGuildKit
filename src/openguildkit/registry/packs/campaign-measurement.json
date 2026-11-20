@@ -1,33 +1,24 @@
 {
   "id": "campaign-measurement",
-  "title": "Campaign measurement and experiments",
-  "version": "1.0.1",
-  "description": "Track inbound links consistently and design experiments with a decision rule.",
+  "title": "UTM campaign measurement",
+  "version": "2.0.0",
+  "description": "Consistent UTM tags on inbound links, checked against the analytics report before launch.",
   "sources": [
     {
       "title": "Google Analytics Help, Collect campaign data with custom URLs",
       "url": "https://support.google.com/analytics/answer/10917952"
-    },
-    {
-      "title": "Kohavi, Tang and Xu, Trustworthy Online Controlled Experiments: A Practical Guide to A/B Testing",
-      "url": "https://experimentguide.com/"
     }
   ],
   "rules": [
     {
       "id": "tag-inbound-links",
-      "instruction": "For links tagged with UTM parameters, agree on source, medium and campaign names with the analytics owner. Use the same case across channels and keep personal data out of parameter values.",
+      "instruction": "Ask the analytics owner for the agreed source, medium and campaign values, and use them in the same case on every link tagged with UTM parameters.",
       "verification": "Open a sample link for each channel, follow redirects and check that a test visit appears under the expected campaign dimensions."
     },
     {
-      "id": "design-controlled-test",
-      "instruction": "For an A/B test, state the hypothesis, primary metric, guardrails, unit of randomization and stopping rule before assigning traffic.",
-      "verification": "Review event definitions and the planned duration. Check assignment balance and sample ratios before interpreting observed differences."
-    },
-    {
-      "id": "report-experiment-uncertainty",
-      "instruction": "When reviewing an A/B test, record the estimated effect and uncertainty along with any problems in assignment or logging. Apply the agreed decision rule before rolling out.",
-      "verification": "Reconcile the report with the experiment plan and verify that each guardrail passed or has a recorded decision from the owner."
+      "id": "keep-personal-data-out-of-tags",
+      "instruction": "Keep personal data, such as email addresses, names or customer identifiers, out of UTM parameter values.",
+      "verification": "Review the tagged links in the campaign plan and confirm that no parameter value contains personal data."
     }
   ]
 }

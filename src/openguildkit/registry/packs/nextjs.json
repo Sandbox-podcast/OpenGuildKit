@@ -1,7 +1,7 @@
 {
   "id": "nextjs",
   "title": "Next.js App Router",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Checks for where components run, what crosses the client boundary and how server actions authorize requests.",
   "sources": [
     {
@@ -28,8 +28,18 @@
     },
     {
       "id": "check-server-mutation-access",
-      "instruction": "Validate inputs and check authorization within every changed server action that modifies protected resources. Reuse the project's server-side data access layer where it exists.",
-      "verification": "Exercise the action with a permitted role and a role without access. Confirm that an invalid request leaves the data unchanged."
+      "instruction": "Check authorization inside every changed server action that modifies protected resources.",
+      "verification": "Exercise the action with a permitted role and a role without access, and confirm that the refused call leaves the data unchanged."
+    },
+    {
+      "id": "validate-server-action-input",
+      "instruction": "Validate the input of every changed server action on the server before using it.",
+      "verification": "Call the action with an invalid payload and confirm that it is rejected and the data stays unchanged."
+    },
+    {
+      "id": "use-data-access-layer",
+      "instruction": "Reach protected data from server actions through the project's server-side data access layer where it exists.",
+      "verification": "Review the changed server actions for direct database or service calls that bypass the data access layer."
     },
     {
       "id": "check-refetched-state",

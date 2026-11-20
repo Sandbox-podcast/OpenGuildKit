@@ -1,0 +1,19 @@
+{
+  "id": "responsibility-matrix",
+  "title": "RACI responsibility matrix",
+  "version": "1.0.0",
+  "description": "One accountable owner for each decision and clear roles at critical handoffs.",
+  "sources": [
+    {
+      "title": "UK Government Security, Agreeing roles and responsibilities with a RACI matrix",
+      "url": "https://www.security.gov.uk/policy-and-guidance/secure-by-design/activities/agreeing-roles-and-responsibilities/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "assign-decision-roles",
+      "instruction": "Ask the project manager who does the work, who owns each decision, who must give input and who needs the outcome, and record the answers in a RACI matrix.",
+      "verification": "Check that each deliverable in the matrix has exactly one accountable owner and no overlapping authority before work starts."
+    }
+  ]
+}

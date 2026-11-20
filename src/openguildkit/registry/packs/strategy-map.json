@@ -1,0 +1,24 @@
+{
+  "id": "strategy-map",
+  "title": "Strategy map",
+  "version": "1.0.0",
+  "description": "Kaplan and Norton strategy maps whose cause-and-effect links are stated as assumptions the team can test.",
+  "sources": [
+    {
+      "title": "HBS Working Knowledge, Mapping Your Corporate Strategy: Robert S. Kaplan on Kaplan and Norton's Strategy Maps",
+      "url": "https://www.library.hbs.edu/working-knowledge/mapping-your-corporate-strategy"
+    }
+  ],
+  "rules": [
+    {
+      "id": "make-strategy-assumptions-testable",
+      "instruction": "When using a strategy map, link changes in team capabilities or processes to expected customer and business outcomes. Mark causal links as hypotheses and state what would invalidate them.",
+      "verification": "Review one critical link in the proposed strategy with its owner. Identify the observation and review date that would change the decision about resourcing it."
+    },
+    {
+      "id": "review-strategy-links",
+      "instruction": "At the review date, compare the measure observed for each reviewed link with the expected effect. Ask the strategy owner whether to keep, revise or drop the link.",
+      "verification": "Check that the review record gives the observed measure and the owner's decision for each reviewed link."
+    }
+  ]
+}

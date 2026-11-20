@@ -1,7 +1,7 @@
 {
   "id": "sales-pipeline-review",
   "title": "Sales pipeline review",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Stage criteria and evidence for opportunity movement and forecast reviews.",
   "sources": [
     {
@@ -17,8 +17,8 @@
     },
     {
       "id": "review-stalled-opportunities",
-      "instruction": "Review opportunities with overdue next actions or time in stage above the team's threshold. Decide whether to qualify further, move the stage or close the opportunity.",
-      "verification": "Reconcile stale records with recent customer evidence and record the basis for changes to dates, stages and forecast assumptions."
+      "instruction": "List opportunities with overdue next actions or time in stage above the team's threshold. Ask each opportunity owner whether to qualify further, move the stage or close the opportunity, and record the decision.",
+      "verification": "Reconcile the listed records with recent customer evidence and check that each has a recorded decision with its basis."
     }
   ]
 }

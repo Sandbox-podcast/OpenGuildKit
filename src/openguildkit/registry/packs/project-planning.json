@@ -1,24 +1,15 @@
 {
   "id": "project-planning",
-  "title": "Project responsibility and scheduling",
-  "version": "1.0.1",
-  "description": "Task ownership and dependency checks for project plans.",
+  "title": "Critical path scheduling",
+  "version": "2.0.0",
+  "description": "Dependency-driven schedules whose critical path is recorded and kept current.",
   "sources": [
-    {
-      "title": "UK Government Security, Agreeing roles and responsibilities with a RACI matrix",
-      "url": "https://www.security.gov.uk/policy-and-guidance/secure-by-design/activities/agreeing-roles-and-responsibilities/"
-    },
     {
       "title": "PMI, Critical path method calculations",
       "url": "https://www.pmi.org/learning/library/critical-path-method-calculations-scheduling-8040"
     }
   ],
   "rules": [
-    {
-      "id": "assign-decision-roles",
-      "instruction": "When using RACI, identify the people who do the work, the person who owns each decision, those who must give input and those who need the outcome.",
-      "verification": "Walk through one handoff with the people listed. Resolve any deliverable with no accountable owner or overlapping authority before work starts."
-    },
     {
       "id": "calculate-schedule-dependencies",
       "instruction": "For a dependency-driven schedule, record predecessors, durations and the basis for each estimate. Identify the path that determines the finish milestone and update it when dependencies change.",

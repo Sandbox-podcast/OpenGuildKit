@@ -1,0 +1,19 @@
+{
+  "id": "jobs-to-be-done",
+  "title": "Jobs to Be Done interviews",
+  "version": "1.0.0",
+  "description": "Interviews about a recent switch, and jobs traced to interview evidence.",
+  "sources": [
+    {
+      "title": "Christensen Institute, Jobs to Be Done Theory",
+      "url": "https://www.christenseninstitute.org/theory/jobs-to-be-done/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "interview-for-customer-progress",
+      "instruction": "For a Jobs to Be Done interview, ask about a recent decision, what prompted it, what else the person considered and what made change difficult.",
+      "verification": "Trace each proposed job to specific interview evidence. Look for a conflicting example before applying the finding to another customer segment."
+    }
+  ]
+}

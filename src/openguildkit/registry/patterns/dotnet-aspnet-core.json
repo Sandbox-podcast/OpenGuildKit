@@ -19,10 +19,6 @@
   "match": {
     "stack": [
       [
-        ".net",
-        "dotnet"
-      ],
-      [
         "asp.net core"
       ]
     ]

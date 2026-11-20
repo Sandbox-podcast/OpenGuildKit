@@ -18,6 +18,7 @@
     "performance"
   ],
   "packs": [
+    "api-design",
     "go-database",
     "postgresql"
   ],

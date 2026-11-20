@@ -1,7 +1,7 @@
 {
   "id": "react",
   "title": "React",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "React conventions for rendering, hooks and component states.",
   "sources": [
     {
@@ -20,8 +20,13 @@
   "rules": [
     {
       "id": "keep-render-pure",
-      "instruction": "Keep side effects out of component rendering. Call state and effect hooks at the top level of React components or custom hooks. Follow the documented placement rules for `use`.",
-      "verification": "Run the existing React lint rules and test the interaction that triggers each side effect."
+      "instruction": "Keep side effects out of component rendering. Run them in event handlers or effects.",
+      "verification": "Test the interaction that triggers each changed side effect and confirm that it runs from an event handler or effect, not during render."
+    },
+    {
+      "id": "follow-rules-of-hooks",
+      "instruction": "Call hooks only at the top level of React components or custom hooks, and follow the documented placement rules for `use`.",
+      "verification": "Run the project's React hooks lint rules on the changed files."
     },
     {
       "id": "reuse-ui-components",

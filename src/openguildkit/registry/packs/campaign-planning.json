@@ -1,13 +1,16 @@
 {
   "id": "campaign-planning",
-  "title": "Campaign and channel planning",
-  "version": "1.0.0",
-  "description": "An audience-led campaign brief, channel choice and evaluation plan.",
+  "title": "Campaign planning",
+  "version": "2.0.0",
+  "description": "An audience-led campaign brief and evaluation plan, with channel selection as a dependency.",
   "sources": [
     {
       "title": "UK Government Communication Service, Campaign lifecycle",
       "url": "https://www.gov.uk/government/publications/government-functional-standard-govs-011-communication/government-functional-standard-govs-011-communications#the-campaign-lifecycle"
     }
+  ],
+  "depends_on": [
+    "channel-selection"
   ],
   "rules": [
     {
@@ -16,14 +19,9 @@
       "verification": "Have the campaign owner identify the source for the baseline and explain which measurement would justify continuing the campaign."
     },
     {
-      "id": "choose-channels-from-evidence",
-      "instruction": "Compare channels on the audience reached, expected action, production effort and measurement limits. State the evidence behind each choice and what a small trial could disprove.",
-      "verification": "Check that the plan gives each selected channel a role in the campaign and includes a pilot whose result could change the plan."
-    },
-    {
       "id": "review-campaign-results",
-      "instruction": "After launch, review spend and observed outcomes against the planned baseline. Document major overlaps or audience changes that limit attribution.",
-      "verification": "Reconcile reported outcomes with the agreed data source and record the owner's decision to keep, adjust or stop each action."
+      "instruction": "After launch, record spend and observed outcomes against the planned baseline, with any overlaps or audience changes that limit attribution. Ask the campaign owner to decide whether to keep, adjust or stop each action.",
+      "verification": "Reconcile the results record with the agreed data source and check that it holds the owner's decision for each action."
     }
   ]
 }

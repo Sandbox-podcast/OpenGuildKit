@@ -27,6 +27,38 @@ class PatternTests(unittest.TestCase):
         self.assertNotIn("patterns", profile)
         self.assertEqual(resolved_profile(profile, self.catalog)["packs"], answers["packs"])
 
+    def test_each_pattern_activates_its_own_method(self):
+        packs = {pattern_id: frozenset(pattern["packs"]) for pattern_id, pattern in self.catalog["patterns"].items()}
+        shared = [ids for ids in packs.values() if list(packs.values()).count(ids) > 1]
+        self.assertEqual(shared, [])
+        separated = {
+            "a-b-testing": "campaign-measurement", "utm-campaign-measurement": "controlled-experiments",
+            "okr": "strategy-map", "strategy-mapping": "leadership-planning",
+            "raci": "project-planning", "critical-path": "responsibility-matrix",
+            "jobs-to-be-done": "product-discovery", "opportunity-solution-tree": "product-discovery",
+            "continuous-discovery": "jobs-to-be-done", "marketing-channel-planning": "campaign-planning",
+        }
+        for pattern_id, other_method in separated.items():
+            with self.subTest(pattern=pattern_id):
+                profile = validate_profile({"name": "Team", "patterns": [pattern_id], "packs": []}, self.catalog)
+                self.assertNotIn(other_method, resolved_profile(profile, self.catalog)["packs"])
+
+    def test_frameworks_match_without_their_platform(self):
+        def matched(stack):
+            return {pattern["id"] for pattern in recommend_patterns(self.catalog, stack, "general", [])["matched"]}
+
+        self.assertIn("java-spring-boot", matched(["Kotlin 2.1", "Spring Boot 3.5"]))
+        self.assertIn("dotnet-aspnet-core", matched(["ASP.NET Core 9"]))
+        self.assertTrue({"nextjs-react", "react-web"} <= matched(["Next.js 15"]))
+        profile = validate_profile({"name": "Web", "stack": ["Next.js 15"]}, self.catalog)
+        self.assertIn("react", resolved_profile(profile, self.catalog)["packs"])
+
+    def test_http_contract_rules_reach_every_service_stack(self):
+        for stack in (["Java", "Spring Boot"], ["ASP.NET Core"], ["Go", "PostgreSQL"], ["Python", "FastAPI", "PostgreSQL"]):
+            with self.subTest(stack=stack):
+                profile = validate_profile({"name": "Service", "stack": stack}, self.catalog)
+                self.assertIn("api-design", resolved_profile(profile, self.catalog)["packs"])
+
     def test_sector_and_exclusive_groups_control_the_recommendation(self):
         catalog = {"patterns": {
             "alternative-one": {

@@ -1,37 +1,19 @@
 {
   "id": "product-discovery",
-  "title": "Product discovery",
-  "version": "1.0.0",
-  "description": "Learn from customer evidence and test the assumptions behind product choices.",
+  "title": "Continuous product discovery",
+  "version": "2.0.0",
+  "description": "A recurring rhythm of customer contact tied to open product decisions.",
   "sources": [
-    {
-      "title": "Christensen Institute, Jobs to Be Done Theory",
-      "url": "https://www.christenseninstitute.org/theory/jobs-to-be-done/"
-    },
     {
       "title": "Teresa Torres, Product Discovery Basics",
       "url": "https://www.producttalk.org/product-discovery/"
-    },
-    {
-      "title": "Teresa Torres, Opportunity Solution Trees",
-      "url": "https://www.producttalk.org/opportunity-solution-trees/"
     }
   ],
   "rules": [
     {
-      "id": "interview-for-customer-progress",
-      "instruction": "For a Jobs to Be Done interview, ask about a recent decision, what prompted it, what else the person considered and what made change difficult.",
-      "verification": "Trace each proposed job to specific interview evidence. Look for a conflicting example before applying the finding to another customer segment."
-    },
-    {
       "id": "maintain-discovery-cadence",
-      "instruction": "Agree on a recurring rhythm for customer contact. Link each discovery activity to an outcome or open product decision.",
+      "instruction": "Ask the product owner which recurring rhythm of customer contact the team keeps, and link each discovery activity to an outcome or open product decision.",
       "verification": "Review recent customer sessions and identify which finding confirmed, changed or left open the decision it addressed."
-    },
-    {
-      "id": "compare-solution-assumptions",
-      "instruction": "When using an opportunity solution tree, connect each candidate solution to a customer opportunity and an outcome. Choose the assumption most likely to change the decision and plan a small test.",
-      "verification": "Walk from the outcome to the planned test and verify that the test result could change which solution the team pursues."
     }
   ]
 }

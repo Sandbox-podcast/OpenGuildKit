@@ -1,7 +1,7 @@
 {
   "id": "playwright",
   "title": "Playwright browser verification",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Checks for isolated, readable browser tests and evidence from failed runs.",
   "sources": [
     {
@@ -26,8 +26,13 @@
     },
     {
       "id": "investigate-flaky-tests",
-      "instruction": "Use retry evidence to diagnose intermittent failures. Keep trace handling and retention aligned with the approved test data policy.",
-      "verification": "Review a failure trace against the expected user flow and confirm that the CI result distinguishes a clean pass from a retry pass."
+      "instruction": "Treat a test that passes only on retry as flaky and diagnose it from its retry trace.",
+      "verification": "Check that the CI report lists retry passes as flaky, apart from clean passes, and review the failure trace against the expected user flow."
+    },
+    {
+      "id": "retain-traces-by-policy",
+      "instruction": "Keep trace recording and retention aligned with the approved test data policy.",
+      "verification": "Compare the configured trace option and the CI artifact retention period with the test data policy."
     }
   ]
 }

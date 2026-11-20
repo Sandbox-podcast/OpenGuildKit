@@ -1,16 +1,12 @@
 {
   "id": "leadership-planning",
-  "title": "Leadership objectives and strategy",
-  "version": "1.0.1",
-  "description": "Make executive objectives measurable and expose assumptions about how work will achieve them.",
+  "title": "Objectives and key results",
+  "version": "2.0.0",
+  "description": "Make objectives measurable with key results and review progress against them.",
   "sources": [
     {
       "title": "What Matters, What is an OKR?",
       "url": "https://www.whatmatters.com/faqs/okr-meaning-definition-example"
-    },
-    {
-      "title": "HBS Working Knowledge, Mapping Your Corporate Strategy: Robert S. Kaplan on Kaplan and Norton's Strategy Maps",
-      "url": "https://www.library.hbs.edu/working-knowledge/mapping-your-corporate-strategy"
     }
   ],
   "rules": [
@@ -18,11 +14,6 @@
       "id": "define-outcome-key-results",
       "instruction": "For each OKR, pair the objective with measurable results. Define a baseline, target, due date and measurement owner for each result.",
       "verification": "Ask the owner to reproduce the baseline and explain how hitting the target would demonstrate progress toward the objective."
-    },
-    {
-      "id": "make-strategy-assumptions-testable",
-      "instruction": "When using a strategy map, link changes in team capabilities or processes to expected customer and business outcomes. Mark causal links as hypotheses and state what would invalidate them.",
-      "verification": "Review one critical link in the proposed strategy with its owner. Identify the observation and review date that would change the decision about resourcing it."
     },
     {
       "id": "update-objective-progress",

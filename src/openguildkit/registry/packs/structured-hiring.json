@@ -1,7 +1,7 @@
 {
   "id": "structured-hiring",
   "title": "Structured hiring interviews",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Job-relevant interview materials and consistent human review.",
   "sources": [
     {
@@ -21,8 +21,13 @@
     },
     {
       "id": "record-interview-evidence",
-      "instruction": "Have interviewers record job-relevant examples and score independently before discussion. Keep candidate records in the approved system and leave the hiring decision with the designated reviewers.",
-      "verification": "Sample a completed scorecard with the hiring owner. Confirm that a reviewer can trace each score to job-related evidence and explain how the panel settled score differences."
+      "instruction": "Ask the hiring owner to have each interviewer record job-relevant examples and an independent score in the approved system before the panel discussion.",
+      "verification": "Sample a completed scorecard with the hiring owner and confirm that each score traces to job-related evidence recorded before the discussion."
+    },
+    {
+      "id": "leave-hiring-decision-to-panel",
+      "instruction": "Leave the hiring decision to the designated reviewers: do not score, rank or recommend candidates.",
+      "verification": "Check that the agent's outputs for the task contain no candidate score, ranking or hiring recommendation."
     }
   ]
 }

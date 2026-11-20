@@ -1,7 +1,7 @@
 {
   "id": "onboarding-practice",
   "title": "Employee onboarding",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Preparation, first assignments and feedback for a new employee's entry into a team.",
   "sources": [
     {
@@ -12,13 +12,18 @@
   "rules": [
     {
       "id": "prepare-first-week",
-      "instruction": "Before the start date, assign an owner for equipment, approved account access, introductions and the first work assignment. Keep the plan accessible to the new employee and manager.",
-      "verification": "Walk through the checklist with each owner and confirm that the employee's role can complete the first assignment with the access requested."
+      "instruction": "Before the start date, ask the hiring manager to name an owner for equipment, approved account access, introductions and the first work assignment, and record them in the onboarding plan.",
+      "verification": "Check that the onboarding plan names an owner for each item and that the access requested lets the role complete the first assignment."
     },
     {
       "id": "review-early-progress",
-      "instruction": "Schedule onboarding check-ins that cover role expectations, learning goals and practical blockers. Give each unresolved blocker an owner and an agreed follow-up date.",
-      "verification": "At a check-in, review the employee's feedback and trace outstanding items to a person and a date the employee can use."
+      "instruction": "Ask the manager to schedule onboarding check-ins on role expectations, learning goals and blockers, and record their dates in the onboarding plan.",
+      "verification": "Open the onboarding plan and check that it lists the check-in dates and topics."
+    },
+    {
+      "id": "track-onboarding-blockers",
+      "instruction": "Record each blocker raised at a check-in in the onboarding plan, with an owner and a follow-up date.",
+      "verification": "Check that every open blocker in the onboarding plan names an owner and a follow-up date the employee can see."
     }
   ]
 }

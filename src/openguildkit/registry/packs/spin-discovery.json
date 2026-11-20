@@ -1,7 +1,7 @@
 {
   "id": "spin-discovery",
   "title": "SPIN sales discovery",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Plan and review a discovery conversation using SPIN questions.",
   "sources": [
     {
@@ -17,7 +17,7 @@
     },
     {
       "id": "validate-discovery-summary",
-      "instruction": "After the call, summarize the problem, business consequence and desired result in the buyer's terms. Ask the buyer to confirm the summary and an agreed next step.",
+      "instruction": "After the call, draft a summary of the problem, business consequence and desired result in the buyer's words. Ask the account owner to confirm it with the buyer and record the agreed next step.",
       "verification": "Check that each consequence or stated priority links to a documented buyer statement or remains marked as an open question."
     }
   ]

@@ -8,7 +8,7 @@
 |---|---|
 | ChaosFolk | commit [`b406600`](https://github.com/loukan42/chaosfolk/commit/b406600b229485cfeb77f54ef6f8f0cf0cd4fc07) on `main` (after 0.8.0, not tagged yet) |
 | Python | 3.12 or later for ChaosFolk (OpenGuildKit itself needs 3.11) |
-| Pack | `chaosfolk-e2e` 1.0.0 |
+| Pack | `chaosfolk-e2e` 1.1.0 |
 
 ```bash
 python -m pip install "chaosfolk @ git+https://github.com/loukan42/chaosfolk@b406600b229485cfeb77f54ef6f8f0cf0cd4fc07"
