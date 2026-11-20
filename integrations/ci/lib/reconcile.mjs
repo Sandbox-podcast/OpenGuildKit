@@ -96,14 +96,14 @@ function snapshot(config, folder, kitVersion) {
   return entries;
 }
 
-function currentVerdict(stateDir, { key, inputs, mode, approvers, registry, registryCommit }, now) {
+function currentVerdict(stateDir, { key, inputs, mode, approvers, registry, registryCommit }, now, sameProject) {
   const folder = join(stateDir, 'evidence', key);
   const successPath = join(folder, 'success.json');
   const failurePath = join(folder, 'failure.json');
   const success = existsSync(successPath);
   const failure = existsSync(failurePath);
   const status = success && failure ? 'error' : success ? 'success' : failure ? 'failure' : 'pending';
-  const decision = decide({ mode, status, inputs, registry, registryCommit, approvers, now });
+  const decision = decide({ mode, status, inputs, registry, registryCommit, approvers, now, sameProject });
   const decisionPath = join(stateDir, 'decisions', key, `${workKey({ status, mode, decision, registryCommit })}.json`);
   const evidence = [success && successPath, failure && failurePath].filter(Boolean);
   storeOnce(decisionPath, {
@@ -129,12 +129,13 @@ export function recordEvidence(stateDir, key, evidence) {
 }
 
 export function reconcile({ configPath, stateDir, run, kitVersion,
-  loadConfig = () => readJson(configPath), selection, clock = Date.now }) {
+  loadConfig = () => readJson(configPath), selection, clock = Date.now,
+  sameProject = (actual, expected) => actual === expected }) {
   const folder = dirname(resolve(configPath));
   const readSnapshot = () => {
     const config = loadConfig();
     if (!selection) return snapshot(config, folder, kitVersion);
-    const projects = config.projects.filter(project => project.id === selection.project).map(project => ({
+    const projects = config.projects.filter(project => sameProject(project.id, selection.project)).map(project => ({
       ...project, pullRequests: project.pullRequests.filter(pr => pr.number === selection.pullRequest),
     }));
     const chosen = snapshot({ ...config, projects }, folder, kitVersion);
@@ -148,7 +149,7 @@ export function reconcile({ configPath, stateDir, run, kitVersion,
   };
   const plan = entries => entries.map(entry => {
     storeOnce(join(stateDir, 'work', `${entry.key}.json`), entry.inputs);
-    return currentVerdict(stateDir, entry, clock());
+    return currentVerdict(stateDir, entry, clock(), sameProject);
   });
   const entries = readSnapshot();
   const current = plan(entries);

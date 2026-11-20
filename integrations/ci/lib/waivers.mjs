@@ -1,6 +1,6 @@
 import { gitSha } from './check.mjs';
 
-const fields = ['project', 'pullRequest', 'commit', 'profileCommit', 'policyCommit', 'rule'];
+const fields = ['pullRequest', 'commit', 'profileCommit', 'policyCommit', 'rule'];
 const text = value => typeof value === 'string' && value.trim().length > 0;
 
 function timestamp(value) {
@@ -31,7 +31,7 @@ export function parseWaivers(bytes) {
   });
 }
 
-export function decide({ mode, status, inputs, registry, registryCommit, approvers, now }) {
+export function decide({ mode, status, inputs, registry, registryCommit, approvers, now, sameProject }) {
   if (status !== 'failure') {
     return {
       effectiveStatus: status,
@@ -40,7 +40,8 @@ export function decide({ mode, status, inputs, registry, registryCommit, approve
     };
   }
   const eligible = registry.filter(({ item, start, end }) => start <= now && now < end &&
-    approvers.includes(item.approver) && fields.every(field => item[field] === inputs[field]));
+    approvers.includes(item.approver) && sameProject(item.project, inputs.project) &&
+    fields.every(field => item[field] === inputs[field]));
   if (eligible.length > 1) {
     return { effectiveStatus: 'error', conditionMet: mode === 'observation', waiver: null, waiverConflict: true };
   }

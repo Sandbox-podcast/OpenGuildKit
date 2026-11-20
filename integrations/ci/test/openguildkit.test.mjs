@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { reconcile } from '../lib/reconcile.mjs';
+import { sameRepository } from '../lib/github-identifiers.mjs';
 
 const cli = fileURLToPath(new URL('../bin/openguildkit.mjs', import.meta.url));
 const agent = fileURLToPath(new URL('../bin/openguildkit-agent.mjs', import.meta.url));
@@ -400,6 +401,17 @@ test('gate applies an authorized waiver only during its scope and validity', t =
   assert.equal(atExpiry.decision.conditionMet, false);
   assert.equal(atExpiry.decision.waiver, null);
   assert.equal(JSON.parse(readFileSync(current.decisionPath, 'utf8')).decision.effectiveStatus, 'waived');
+  save([{ ...entry, project: 'EQUIPE/Portail' }]);
+  assert.equal(gate().status, 1);
+  const github = reconcile({
+    configPath: config, stateDir: state, kitVersion, sameProject: sameRepository,
+    selection: { project: 'Equipe/PORTAIL', pullRequest: 7, commit, mode: 'required' },
+  }).current[0];
+  assert.equal(github.decision.effectiveStatus, 'waived');
+  save([{ ...entry, project: 'EQUIPE/Autre' }]);
+  assert.equal(reconcile({
+    configPath: config, stateDir: state, kitVersion, sameProject: sameRepository,
+  }).current[0].decision.effectiveStatus, 'failure');
   save([entry, { ...entry, id: 'overlap' }]);
   assert.equal(gate().status, 2);
 

@@ -140,13 +140,9 @@ export function reconcileGithub({ publish, reportUrl, ...options }) {
   if (reportUrl !== undefined && (!publish || !['http:', 'https:'].includes(new URL(reportUrl).protocol))) {
     throw new Error('--report-url requiert --publish et une URL HTTP ou HTTPS.');
   }
-  const config = synchronize(options.configPath);
-  const selection = options.selection && {
-    ...options.selection,
-    project: config.projects.find(project => sameRepository(project.id, options.selection.project))?.id
-      ?? options.selection.project,
-  };
-  const result = reconcile({ ...options, selection, loadConfig: () => config });
+  const result = reconcile({
+    ...options, sameProject: sameRepository, loadConfig: () => synchronize(options.configPath),
+  });
   if (publish) result.publications = result.current.map(entry => publishObservation(entry, reportUrl));
   return result;
 }
