@@ -171,6 +171,19 @@ openguildkit task complete ID
 
 Every project command is mandatory. A profile can make rules mandatory too with `"required_rules": ["secure-sdlc", "python/run-tests"]`. `task complete` sets the task to `done` only when every mandatory check passed, every other check is reported and every criterion is met; otherwise it lists what is missing.
 
+## Dependency alerts
+
+The CLI does not scan dependencies. It reads the JSON report of a scanner the project already uses and keeps one entry per alert in the task:
+
+```bash
+npm audit --json > npm-audit.json          # or: pip-audit -f json, osv-scanner --format json, gh api repos/OWNER/REPO/dependabot/alerts
+openguildkit task alerts ID --import npm-audit.json
+openguildkit task alerts ID --set npm:semver:ghsa-c2qf-rxjj-qqgw --status dismissed --by "Alex Moreau" --reason "Only used at build time"
+openguildkit task alerts ID
+```
+
+Each alert keeps its ecosystem, package, version or vulnerable range, advisory, severity, the fix when the scanner knows it and the scanner it came from. Reviewers mark it `confirmed`, `to-verify` (the default) or `dismissed` with a reason; a new import keeps those marks. The summary lists each import with the scanner, file name and SHA-256 of the report, so the team can check what was imported. Alerts imported before `task consult` reach the boards in the consultation scope. A fix is a change like any other: open a task for it, for example with `--follows`.
+
 ## Following the project's work
 
 ```bash
