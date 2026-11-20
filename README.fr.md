@@ -71,6 +71,7 @@ openguildkit brains --id product
 - [Coordonner les vérifications de PR avec GitHub Actions et Jenkins](integrations/ci/README.md)
 
 - [Architecture](docs/architecture.md) et [parcours d'une tâche](docs/workflow.md)
+- [Dossiers marché et veille concurrentielle](docs/market.md)
 - [Tests de bout en bout avec ChaosFolk, en option](integrations/chaosfolk/)
 - [Contribuer](CONTRIBUTING.md) et [format du catalogue](docs/catalog-format.md)
 - [Feuille de route](docs/roadmap.md) et [licence MIT](LICENSE)

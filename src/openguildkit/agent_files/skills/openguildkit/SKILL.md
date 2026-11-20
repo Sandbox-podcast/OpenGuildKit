@@ -77,6 +77,10 @@ A task of kind `decision` returns an "Approved decision record" instead. Report 
 
 When the user upgrades OpenGuildKit or asks for the latest rules, run `openguildkit update` and show the changes rule by rule. Run `openguildkit update --apply` only after the user agrees, then list the tasks it flags as consulted under the previous rules.
 
+## Market dossiers
+
+When Product or Marketing reviews a feature and `.openguildkit/market/` holds a dossier for its market, pass `--market ID` to `task consult`. Run `openguildkit market due ID` when the user asks for the competitor watch; review the due sources only when the research policy is `public-sources`, record each retained change with its date, link and the person who verified it, and never put private project details in a search.
+
 ## Board guard
 
 When a hook reminds you that no approved task covers the work, open a task before changing project files, even for a small change, unless the user only asked a question. When an edit is refused by the guard, explain it to the user and continue the task flow. After the user approves, run `openguildkit task export ID` and commit the decision record with the change.

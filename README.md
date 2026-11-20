@@ -70,6 +70,7 @@ openguildkit patterns --id python-fastapi-postgresql
 - [Coordinate pull request checks across GitHub Actions and Jenkins](integrations/ci/README.md)
 
 - [Specialist brains and decision briefs](docs/brains.md)
+- [Market dossiers and competitor watch](docs/market.md)
 - [Stack matching and work methods](docs/patterns.md)
 - [Optional ChaosFolk end-to-end replays](integrations/chaosfolk/)
 
