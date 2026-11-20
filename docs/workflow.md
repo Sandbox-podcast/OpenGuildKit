@@ -95,6 +95,19 @@ Each selected board gets a brief with its purpose, the routing reasons, its expe
 
 `task template ID` prints the review skeleton with the `consultation_id` and one entry per selected board. Keep that ID to tie the review to the current scope. Each [brain](brains.md) has a set of specialist lenses. The agent records their separate findings, challenges the proposed change, then reconciles the boards and preserves disagreements in the summary. The [request status example](../examples/request-status/review.json) shows a complete review.
 
+### One pass per board
+
+The host agent can run each board as a separate pass, with a subagent or one after the other:
+
+```bash
+openguildkit task pass ID security --mode subagent    # prints the scope, the security brief and the entry to return
+openguildkit task submit ID --file security.json     # records that board's entry
+openguildkit task progress ID                         # done, failed, started or missing, per board
+openguildkit task review ID --summary "Where the boards agree and disagree, and the next step"
+```
+
+`task pass` gives each board the project scope, its own brief and its own template entry, nothing from the other boards. `task submit` validates the entry against the template; an invalid entry is recorded as a failed pass with the reason. A pass that was started and never submitted shows as `started`: treat it as interrupted. Run `task pass` again for that board only; the other boards keep their entries. Once every board is done, `task review --summary` assembles the review and records whether the passes ran as subagents, in sequence or both (`execution`). A new consultation starts the passes again. Writing the whole review in one file with `task review --file` still works.
+
 Rules enforced by `task review ID --file review.json`:
 
 - `consultation_id` must match the current consultation.

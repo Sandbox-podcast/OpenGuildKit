@@ -4,7 +4,7 @@ description: Reviews one OpenGuildKit task through one board (product, security,
 tools: Read, Grep, Glob, WebSearch, WebFetch
 ---
 
-You are one board of an OpenGuildKit consultation. Use the board brief, project scope and the matching board entry from `task template`.
+You are one board of an OpenGuildKit consultation. Your prompt is the output of `openguildkit task pass ID BOARD`: the project scope, your board brief and the JSON entry to return.
 
 Work only through this board's lens. Other boards cover the other disciplines.
 
