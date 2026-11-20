@@ -23,7 +23,7 @@ const help = `OpenGuildKit ${version}
     [--brief FILE --pull-request URL]
   openguildkit-ci reconcile --config FILE --state DIR [--run]
   openguildkit-ci github --config FILE --state DIR [--run] [--publish [--report-url URL]]
-  openguildkit-ci watch --config FILE --state DIR [--publish]
+  openguildkit-ci watch --config FILE --state DIR [--publish] [--reset WORK|all]...
   openguildkit-ci check-state --state DIR
   openguildkit-ci gate --config FILE --state DIR --project ID --pr NUMBER --commit SHA [--run] [--github]
   openguildkit-ci merge --config FILE --state DIR --project OWNER/REPO --pr NUMBER --commit SHA --base BRANCH [--execute] [--ruleset ID]
@@ -230,7 +230,7 @@ function coordinate(command, args) {
           config: { type: 'string' }, state: { type: 'string' },
           ...(command !== 'watch' ? { run: { type: 'boolean' } } : {}),
           ...(command === 'github' ? { publish: { type: 'boolean' }, 'report-url': { type: 'string' } } : {}),
-          ...(command === 'watch' ? { publish: { type: 'boolean' } } : {}),
+          ...(command === 'watch' ? { publish: { type: 'boolean' }, reset: { type: 'string', multiple: true } } : {}),
         },
   });
   if (!values.state || (command === 'record' ? !values.work || !values.evidence : !values.config)) {
@@ -238,7 +238,7 @@ function coordinate(command, args) {
   }
   const options = {
     configPath: values.config, stateDir: values.state, run: values.run, kitVersion: version,
-    publish: values.publish, reportUrl: values['report-url'],
+    publish: values.publish, reportUrl: values['report-url'], ...(values.reset ? { reset: values.reset } : {}),
   };
   const result = command === 'record'
     ? recordEvidence(values.state, values.work, JSON.parse(readFileSync(values.evidence, 'utf8')))

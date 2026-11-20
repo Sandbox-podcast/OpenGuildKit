@@ -14,6 +14,16 @@ export function gh(...args) {
   return execFileSync('gh', args, { encoding: 'utf8', timeout: 30_000 }).trim();
 }
 
+// The combined status lists the latest status of each context, one page at a time.
+export function latestStatus(project, commit, context, request = gh) {
+  const pages = JSON.parse(request('api', '--paginate', '--slurp', `repos/${project}/commits/${commit}/status?per_page=100`));
+  return pages.flatMap(page => page.statuses ?? []).find(item => item.context === context);
+}
+
+export function sameStatus(item, { state, description, url }) {
+  return item?.state === state && item.description === description && (item.target_url || undefined) === url;
+}
+
 export function approveGitHubProfile(options) {
   return approvedGitHubProfile(options, (endpoint, ...args) => JSON.parse(gh('api', ...args, endpoint)));
 }
@@ -125,10 +135,8 @@ function publishObservation(entry, reportUrl) {
   const state = { success: 'success', failure: 'success', waived: 'success', pending: 'pending', error: 'error' }[status];
   const label = { success: 'Conforme', failure: 'Écart', waived: 'Dérogation', pending: 'En attente', error: 'Contrôle indéterminé' }[status];
   const description = `${label} (obs.) | règle ${policyCommit.slice(0, 12)} | profil ${profileCommit.slice(0, 12)} | ${work.slice(0, 12)}`;
-  const statuses = JSON.parse(gh('api', `repos/${project}/commits/${commit}/status`)).statuses;
   const context = `openguildkit/observation-pr-${pullRequest}`;
-  if (statuses.some(item => item.context === context && item.state === state && item.description === description &&
-      (item.target_url || undefined) === reportUrl)) {
+  if (sameStatus(latestStatus(project, commit, context), { state, description, url: reportUrl })) {
     return { work, posted: false };
   }
   const target = reportUrl ? ['-f', `target_url=${reportUrl}`] : [];

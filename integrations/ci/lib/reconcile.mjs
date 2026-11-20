@@ -34,6 +34,11 @@ function resolveRef(repo, ref) {
 }
 
 function fileRevision(repo, tip, path) {
+  // The work key names the last commit that changed each file. A truncated history names another commit.
+  if (git(repo, 'rev-parse', '--is-shallow-repository').toString().trim() !== 'false') {
+    throw new Error(`${repo} is a shallow clone, so the last commit that changed ${path} cannot be identified ` +
+      'and the work key would differ from the recheck workflow. Run git fetch --unshallow in that clone.');
+  }
   const bytes = git(repo, 'show', `${tip}:${path}`);
   const lastChange = git(repo, 'log', '-1', '--format=%H', tip, '--', path).toString().trim();
   // A merge can resolve the path differently from the revision selected by Git history simplification.

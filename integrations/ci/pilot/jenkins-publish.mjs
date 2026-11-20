@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { sameRepositoryUrl } from '../lib/github-identifiers.mjs';
+import { latestStatus, sameStatus } from '../lib/github.mjs';
 
 const [repo, file, context = 'openguildkit/pilot-jenkins'] = process.argv.slice(2);
 if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !file || !/^openguildkit\/[a-z\d/-]+$/.test(context)) {
@@ -53,9 +54,7 @@ const observation = report.state === 'success' ? 'Conforme' : 'Écart';
 const url = `https://github.com/${repo}/blob/${evidenceCommit}/${path}`;
 if (agentProof) verifyAgentPull();
 const description = `${observation} (obs.) | règle ${report.policyCommit}`;
-const { statuses } = JSON.parse(gh(['api', `repos/${repo}/commits/${report.commit}/status`]));
-if (!statuses.some(status => status.context === context && status.state === 'success' &&
-    status.description === description && status.target_url === url)) {
+if (!sameStatus(latestStatus(repo, report.commit, context), { state: 'success', description, url })) {
   gh(['api', `repos/${repo}/statuses/${report.commit}`, '-f', `context=${context}`,
     '-f', 'state=success', '-f', `description=${description}`, '-f', `target_url=${url}`]);
 }

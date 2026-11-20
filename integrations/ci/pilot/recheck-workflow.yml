@@ -17,6 +17,10 @@ on:
         type: string
         description: Identifiant de tentative pour la reprise du coordinateur
         required: false
+      expected:
+        type: string
+        description: Entrées de la clé de travail calculées par le coordinateur (JSON), pour expliquer un écart
+        required: false
 
 permissions:
   contents: read
@@ -29,7 +33,7 @@ jobs:
       PR_NUMBER: ${{ inputs.pr }}
       EXPECTED_HEAD: ${{ inputs.commit }}
       EXPECTED_WORK: ${{ inputs.work }}
-      PROFILE_REF: refs/heads/pilot/recheck-base
+      EXPECTED_INPUTS: ${{ inputs.expected }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -42,9 +46,21 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ && "$EXPECTED_HEAD" =~ ^[a-f0-9]{40}$ && "$EXPECTED_WORK" =~ ^[a-f0-9]{64}$ ]]
+          # The coordinator's profileRef, policy and kit must match these pins to compute the same work key.
+          profile_ref=$(jq -er '.profileRef' pilot/recheck.json)
+          [[ "$profile_ref" == refs/heads/* ]]
+          git check-ref-format "$profile_ref"
           read -r digest asset < pilot/recheck-kit.sha256
           [[ "$digest" =~ ^[a-f0-9]{64}$ && "$asset" =~ ^openguildkit-([0-9]+\.[0-9]+\.[0-9]+)\.tgz$ ]]
-          release="v${BASH_REMATCH[1]}"
+          kit_version="${BASH_REMATCH[1]}"
+          release="v$kit_version"
+          if [[ -n "$EXPECTED_INPUTS" ]]; then
+            expected_kit=$(jq -c '.kitVersion' <<< "$EXPECTED_INPUTS")
+            if [[ "$expected_kit" != "\"$kit_version\"" ]]; then
+              printf '::error::The coordinator uses kit %s and pilot/recheck-kit.sha256 pins "%s". Pin the same version on this branch.\n' "$expected_kit" "$kit_version"
+              exit 1
+            fi
+          fi
           mkdir -p "$RUNNER_TEMP/ogk-kit" proof
           (
             cd "$RUNNER_TEMP/ogk-kit"
@@ -53,7 +69,7 @@ jobs:
             tar -xf "$asset"
           )
           git -c credential.helper= -c 'credential.helper=!gh auth git-credential' fetch --no-tags origin \
-            "+$PROFILE_REF:refs/openguildkit/profile" "+refs/pull/$PR_NUMBER/head:refs/openguildkit/pr"
+            "+$profile_ref:refs/openguildkit/profile" "+refs/pull/$PR_NUMBER/head:refs/openguildkit/pr"
           [[ "$(git rev-parse refs/openguildkit/pr)" == "$EXPECTED_HEAD" ]]
       - name: Load the approved policy reference
         env:
@@ -88,7 +104,15 @@ jobs:
             '{policyRepo:{path:".",ref:"refs/openguildkit/policy"},projects:[{id:$repo,path:".",profileRef:"refs/openguildkit/profile",pullRequests:[{number:$pr,ref:"refs/openguildkit/pr",sha:$sha}]}]}' > integration.json
           cli="$RUNNER_TEMP/ogk-kit/package/bin/openguildkit.mjs"
           node "$cli" reconcile --config integration.json --state state > plan.json
-          jq -e --arg work "$EXPECTED_WORK" '.current | length == 1 and .[0].work == $work' plan.json > /dev/null
+          if ! jq -e --arg work "$EXPECTED_WORK" '.current | length == 1 and .[0].work == $work' plan.json > /dev/null; then
+            echo '::error::This workflow computed another work key than the coordinator.'
+            if [[ -n "$EXPECTED_INPUTS" ]]; then
+              jq -r --argjson expected "$EXPECTED_INPUTS" '.current[0] as $row | $expected | to_entries[]
+                | select($row[.key] != .value)
+                | "::error::\(.key | tojson): coordinator \(.value | tojson), workflow \($row[.key] | tojson)"' plan.json
+            fi
+            exit 1
+          fi
           node "$cli" reconcile --config integration.json --state state --run > observed.json
           evidence=$(jq -er '.current[0].evidence[0]' observed.json)
           jq -n --arg work "$EXPECTED_WORK" --arg repo "$GITHUB_REPOSITORY" --argjson pr "$PR_NUMBER" \
