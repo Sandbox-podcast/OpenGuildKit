@@ -20,7 +20,9 @@ def timestamp() -> str:
 
 
 def task_path(state: Path, task_id: str) -> Path:
-    if len(task_id) > 64 or not ID_PATTERN.fullmatch(task_id) or task_id in WINDOWS_RESERVED_NAMES:
+    if task_id in WINDOWS_RESERVED_NAMES:
+        raise ValueError(f"{task_id} is a reserved file name on Windows. Choose another task ID.")
+    if len(task_id) > 64 or not ID_PATTERN.fullmatch(task_id):
         raise ValueError("Use a task ID of up to 64 lowercase letters, digits and separating hyphens.")
     path = state / "tasks" / f"{task_id}.json"
     if path.resolve() != path:
@@ -35,13 +37,54 @@ def read_task(state: Path, task_id: str) -> dict:
     task = read_json(path)
     if task.get("schema_version") != 1 or task.get("id") != task_id:
         raise ValueError(f"Unsupported or mismatched task record: {path}")
+    problem = _record_problem(task)
+    if problem:
+        raise ValueError(f"Task record {path} is inconsistent: {problem}. Restore it from version control or open a new task.")
     return task
+
+
+STATUSES = {
+    "draft": (),
+    "consulting": ("answers", "consultation", "profile_fingerprint"),
+    "reviewed": ("answers", "consultation", "profile_fingerprint", "review"),
+    "changes-requested": ("answers", "consultation", "profile_fingerprint", "review", "decision"),
+    "approved": ("answers", "consultation", "profile_fingerprint", "review", "decision"),
+}
+CONSULTATION_FIELDS = ("id", "boards", "routing", "scope", "markdown", "review_template")
+
+
+def _record_problem(task: dict) -> str | None:
+    """Describe the first field of a task record that the CLI could not use, if any."""
+    if not isinstance(task.get("brief"), str) or not task["brief"].strip():
+        return "brief must be text"
+    status = task.get("status")
+    if status not in STATUSES:
+        return f"status must be one of {', '.join(STATUSES)}"
+    rounds = task.get("rounds")
+    if not isinstance(rounds, list) or any(not isinstance(entry, dict) for entry in rounds):
+        return "rounds must be a list of objects"
+    for field in STATUSES[status]:
+        if field not in task:
+            return f"a {status} task needs {field}"
+    for field in ("answers", "consultation", "review", "decision"):
+        if field in task and not isinstance(task[field], dict):
+            return f"{field} must be an object"
+    consultation = task.get("consultation")
+    if consultation is not None:
+        missing = [field for field in CONSULTATION_FIELDS if field not in consultation]
+        if missing:
+            return f"consultation needs {', '.join(missing)}"
+        if not isinstance(consultation["boards"], list) or not isinstance(consultation["markdown"], str):
+            return "consultation boards must be a list and markdown text"
+    return None
 
 
 def create_task(state: Path, brief: str, task_id: str | None) -> str:
     brief = brief.strip()
     if not brief:
         raise ValueError("Supply a task brief.")
+    if task_id is not None and not task_id.strip():
+        raise ValueError("The task ID is empty. Omit --id to generate one.")
     task_id = task_id or f"task-{uuid.uuid4().hex[:12]}"
     path = task_path(state, task_id)
     if path.exists():

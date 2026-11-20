@@ -130,7 +130,11 @@ def _ids(value, field: str, available: dict) -> list[str]:
     chosen = _texts(value, field)
     unknown = sorted(set(chosen) - available.keys())
     if unknown:
-        raise ValueError(f"Unknown {field}: {', '.join(unknown)}. Run openguildkit catalog.")
+        hint = (
+            " It comes from a central policy: pass --policy-repo and --policy-commit."
+            if "export-link-expiry" in unknown else " Run openguildkit catalog."
+        )
+        raise ValueError(f"Unknown {field}: {', '.join(unknown)}.{hint}")
     return chosen
 
 

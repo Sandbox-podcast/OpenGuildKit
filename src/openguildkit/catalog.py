@@ -2,6 +2,7 @@
 
 import json
 import re
+import unicodedata
 from graphlib import CycleError, TopologicalSorter
 from importlib.resources import files
 from pathlib import Path
@@ -56,8 +57,8 @@ def _validate_fields(
 def _validate_text(value: Any, label: str) -> None:
     if not isinstance(value, str) or not value.strip():
         raise CatalogError(f"{label} must be a non-empty string")
-    if any(ord(character) < 32 or 0xD800 <= ord(character) <= 0xDFFF for character in value):
-        raise CatalogError(f"{label} must be a single line of text")
+    if any(unicodedata.category(character) in ("Cc", "Cs", "Zl", "Zp") for character in value):
+        raise CatalogError(f"{label} must be a single line of text without control characters")
 
 
 def _validate_id(value: Any, label: str) -> None:
@@ -253,6 +254,10 @@ def load_catalog(
                     record_id = entry["id"]
                     if record_id in entries:
                         raise CatalogError(f"duplicate {collection} ID {record_id!r}")
+                    if path.name != f"{record_id}.json":
+                        raise CatalogError(f"name the file {record_id}.json after its id")
+                except RecursionError as exc:
+                    raise CatalogError(f"{path}: JSON nested too deeply") from exc
                 except (OSError, ValueError) as exc:
                     raise CatalogError(f"{path}: {exc}") from exc
                 entries[record_id] = entry

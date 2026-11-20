@@ -46,6 +46,8 @@ def main() -> None:
     args = parser.parse_args()
 
     project = args.project or Path(tempfile.mkdtemp(prefix="openguildkit-requests-"))
+    if project.exists() and not project.is_dir():
+        sys.exit(f"{project} is a file. Pick an empty folder.")
     project.mkdir(parents=True, exist_ok=True)
     if any(project.iterdir()):
         sys.exit(f"{project} is not empty. Pick an empty folder.")
