@@ -6,7 +6,12 @@
 
 OpenGuildKit is an open source framework for teams that build with AI agents. Choose the rules your agents should follow and get reviews from the disciplines affected by a change before you approve it.
 
-https://github.com/user-attachments/assets/8a6ec7e6-e7c3-4f95-bd21-6dcd1d960d8f
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=i-BYPsvVHm0">
+    <img src="https://i.ytimg.com/vi/i-BYPsvVHm0/maxresdefault.jpg" alt="OpenGuildKit V1 trailer" width="640"><br>
+    Watch the trailer on YouTube
+  </a>
+</p>
 
 ## Try it
 
