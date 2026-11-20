@@ -4,13 +4,13 @@ Download the assets for the [release you want to deploy](https://github.com/Sand
 
 ## Download and verify
 
-Download the wheel, the optional Node archive and `SHA256SUMS.txt`. With GitHub CLI, the first combined release can be downloaded with:
+Download the wheel, the optional Node archive and `SHA256SUMS.txt`. For v0.16.1, use the following GitHub CLI command.
 
 ```sh
-gh release download v0.16.0 --repo Sandbox-podcast/OpenGuildKit --pattern 'openguildkit-0.16.0-py3-none-any.whl' --pattern 'openguildkit-0.16.0.tgz' --pattern SHA256SUMS.txt
+gh release download v0.16.1 --repo Sandbox-podcast/OpenGuildKit --pattern 'openguildkit-0.16.1-py3-none-any.whl' --pattern 'openguildkit-0.16.1.tgz' --pattern SHA256SUMS.txt
 ```
 
-On Linux use `sha256sum -c SHA256SUMS.txt`. On macOS use `shasum -a 256 -c SHA256SUMS.txt`. On Windows use `Get-FileHash .\openguildkit-0.16.0-py3-none-any.whl, .\openguildkit-0.16.0.tgz -Algorithm SHA256` in PowerShell and compare each hash to the corresponding line in `SHA256SUMS.txt`.
+On Linux use `sha256sum -c SHA256SUMS.txt`. On macOS use `shasum -a 256 -c SHA256SUMS.txt`. On Windows use `Get-FileHash .\openguildkit-0.16.1-py3-none-any.whl, .\openguildkit-0.16.1.tgz -Algorithm SHA256` in PowerShell and compare each hash to the corresponding line in `SHA256SUMS.txt`.
 
 ## Install the Python CLI
 
@@ -19,7 +19,7 @@ Use Python 3.11 or later. Save the path to the wheel before switching to the pro
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install ./openguildkit-0.16.0-py3-none-any.whl
+python -m pip install ./openguildkit-0.16.1-py3-none-any.whl
 openguildkit catalog
 ```
 
@@ -27,7 +27,7 @@ On Windows:
 
 ```powershell
 py -3 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install .\openguildkit-0.16.0-py3-none-any.whl
+.\.venv\Scripts\python.exe -m pip install .\openguildkit-0.16.1-py3-none-any.whl
 .\.venv\Scripts\openguildkit.exe catalog
 ```
 
@@ -38,13 +38,13 @@ From the project to equip, run `openguildkit init` and then `openguildkit check`
 Use Node.js 22 or later, npm and Git. The GitHub integration also needs an authenticated GitHub CLI.
 
 ```sh
-npm install --global ./openguildkit-0.16.0.tgz
+npm install --global ./openguildkit-0.16.1.tgz
 openguildkit-ci --version
 ```
 
 The package also provides `openguildkit-ci-agent`. Use the [CI integration guide](../integrations/ci/README.md) to set up the approved profile, rule repository, trusted workflow and Jenkins state directory. Start in observation mode, using the [shared export rule example](../examples/export-expiry/README.md) to verify one project before enabling enforcement.
 
-On Windows, choose a persistent NTFS directory for Jenkins state. The coordinator needs hard links, and exFAT does not support them. In builds that include the preflight command, run `openguildkit-ci check-state --state ./state` with the exact directory and account the Jenkins job will use. The check creates and removes a temporary hard link. If it reports exFAT, choose an NTFS directory and update `--state` in the job. For the published v0.16.0 package, select an NTFS directory before starting the job.
+Before scheduling Jenkins, run `openguildkit-ci check-state --state ./state` with the exact directory and account the job will use. The check creates and removes a temporary hard link. On Windows, choose a persistent NTFS directory. An exFAT directory fails with exit code 2 and a message explaining how to change `--state`. The job repeats the check before contacting GitHub.
 
 To check for a newer pilot package from a machine with GitHub CLI:
 

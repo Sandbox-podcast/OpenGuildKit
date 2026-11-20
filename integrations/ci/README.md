@@ -10,7 +10,7 @@ From the root of a trusted checkout, with Node.js 22+, npm and Git:
 
 ```bash
 npm pack ./integrations/ci
-npm install --global ./openguildkit-0.16.0.tgz
+npm install --global ./openguildkit-0.16.1.tgz
 openguildkit-ci --help
 ```
 
@@ -66,7 +66,7 @@ Before scheduling the job, run the preflight as the Jenkins account with the sam
 openguildkit-ci check-state --state ./state
 ```
 
-On Windows, put the state directory on NTFS. An exFAT volume does not support hard links. If the preflight reports exFAT, select a persistent NTFS path and repeat the check. A failed preflight exits with code 2. If you installed the v0.16.0 GitHub archive, select the NTFS path directly. The preflight commands were added after that release.
+On Windows, put the state directory on NTFS. An exFAT volume does not support hard links. If the preflight reports exFAT, select a persistent NTFS path and repeat the check. A failed preflight exits with code 2.
 
 Schedule `openguildkit-ci watch --config integration.json --state ./state` on a trusted Jenkins agent with concurrent builds disabled. The command repeats the preflight before contacting GitHub. The [Jenkins launcher](pilot/run-watch-jenkins.mjs) also checks the directory before downloading or installing the kit. Add `--publish` when the Jenkins identity has permission to write to the configured evidence branch and publish statuses. Set up that branch in each project.
 

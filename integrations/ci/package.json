@@ -1,6 +1,6 @@
 {
   "name": "openguildkit",
-  "version": "0.16.0",
+  "version": "0.16.1",
   "description": "Versioned engineering rules and verifiable CI results",
   "license": "MIT",
   "type": "module",
