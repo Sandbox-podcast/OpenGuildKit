@@ -184,8 +184,50 @@ _STRUCTURED_ROUTES = {
 }
 
 
-def _normalized_words(value: str) -> str:
-    return " ".join(unicodedata.normalize("NFKC", value).casefold().split())
+_APOSTROPHES = re.compile("[\u2019\u2018\u02bc\u00b4`]")
+_SEPARATORS = re.compile(r"[/_|]")
+_PLURAL = "(?:s|es|x)?"
+
+
+def normalize_text(value: str) -> str:
+    """Fold case, accents, apostrophes and spacing so that triggers match how people write."""
+    decomposed = unicodedata.normalize("NFKD", value).casefold()
+    folded = "".join(character for character in decomposed if not unicodedata.combining(character))
+    return " ".join(_SEPARATORS.sub(" ", _APOSTROPHES.sub("'", folded)).split())
+
+
+_normalized_words = normalize_text
+
+
+def trigger_pattern(trigger: str) -> re.Pattern:
+    """Match a trigger as whole words, allowing a regular plural on each word."""
+    words = normalize_text(trigger).split(" ")
+    parts = [re.escape(word) + (_PLURAL if word[-1:].isalpha() else "") for word in words]
+    return re.compile(r"(?<![\w-])" + r"\s+".join(parts) + r"(?![\w-])")
+
+
+def trigger_matches(boards: dict, text: str, enabled: set[str] | None = None) -> dict[str, list[str]]:
+    """Return the triggers that select each board. The longest phrase claims the words it covers,
+    so "performance budget" selects Performance and not Finance through "budget"."""
+    normalized = normalize_text(text)
+    candidates = []
+    for board_id in sorted(enabled if enabled is not None else boards):
+        for trigger in boards[board_id]["triggers"]:
+            for match in trigger_pattern(trigger).finditer(normalized):
+                candidates.append((match.end() - match.start(), match.start(), match.end(), board_id, trigger))
+    claimed: set[tuple[int, int]] = set()
+    selected: dict[str, list[str]] = {}
+    for _, start, end, board_id, trigger in sorted(candidates, key=lambda item: (-item[0], item[1], item[3])):
+        # Boards that share the exact same phrase are all selected; a longer phrase wins otherwise.
+        if any(start < other_end and other_start < end and (start, end) != (other_start, other_end)
+               for other_start, other_end in claimed):
+            continue
+        claimed.add((start, end))
+        found = selected.setdefault(board_id, [])
+        # "regression" and "régression" are one word once folded: report it once.
+        if all(normalize_text(trigger) != normalize_text(other) for other in found):
+            found.append(trigger)
+    return selected
 
 
 def _route_boards(profile: dict, catalog: dict, task: dict, answers: dict) -> dict:
@@ -197,12 +239,10 @@ def _route_boards(profile: dict, catalog: dict, task: dict, answers: dict) -> di
             if board_id in enabled:
                 reasons.setdefault(board_id, []).append(reason)
 
-    task_text = _normalized_words(f"{task['brief']} {answers.get('context', '')}")
-    for board_id in sorted(enabled):
-        for trigger in boards[board_id]["triggers"]:
-            phrase = re.escape(_normalized_words(trigger))
-            if re.search(rf"(?<!\w){phrase}(?!\w)", task_text):
-                reasons.setdefault(board_id, []).append(f"Brief mentions {trigger!r}")
+    matches = trigger_matches(boards, f"{task['brief']} {answers.get('context', '')}", enabled)
+    for board_id in sorted(matches):
+        for trigger in matches[board_id]:
+            reasons.setdefault(board_id, []).append(f"Brief mentions {trigger!r}")
 
     if not reasons:
         board_id = "product" if "product" in enabled else min(enabled)
