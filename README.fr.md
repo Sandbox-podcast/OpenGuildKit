@@ -62,5 +62,6 @@ openguildkit brains --id product
 ## Documentation
 
 - [Architecture](docs/architecture.md) et [parcours d'une tâche](docs/workflow.md)
+- [Tests de bout en bout avec ChaosFolk, en option](integrations/chaosfolk/)
 - [Contribuer](CONTRIBUTING.md) et [format du catalogue](docs/catalog-format.md)
 - [Feuille de route](docs/roadmap.md) et [licence MIT](LICENSE)
