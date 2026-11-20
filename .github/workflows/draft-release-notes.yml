@@ -3,6 +3,8 @@ name: Draft release notes
 on:
   push:
     branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions: {}
@@ -12,36 +14,37 @@ concurrency:
 
 jobs:
   draft:
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name != 'release' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
       - name: Refresh the automated draft on GitHub
         env:
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          releases="/repos/$GH_REPO/releases"
-          tag=openguildkit-next
-          existing=$(gh api --paginate --slurp "$releases?per_page=100")
+          SHA: ${{ github.sha }}
+        run: bash .github/scripts/release-notes.sh draft "$SHA"
 
-          if jq -e --arg tag "$tag" 'any(.[][]; .tag_name == $tag and (.draft | not))' <<< "$existing" >/dev/null; then
-            printf 'Tag %s is already attached to a published release.\n' "$tag" >&2
-            exit 1
-          fi
+  published:
+    if: github.event_name == 'release' && !github.event.release.draft
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
 
-          draft_id=$(jq -r --arg tag "$tag" '.[][] | select(.draft and .tag_name == $tag) | .id' <<< "$existing")
-          if [[ -n "$draft_id" ]]; then
-            method=PATCH
-            endpoint="$releases/$draft_id"
-          else
-            method=POST
-            endpoint="$releases"
-          fi
-
-          gh api --method POST "$releases/generate-notes" \
-            -f tag_name="$tag" -f target_commitish=main -f configuration_file_path=.github/release.yml |
-            jq --arg tag "$tag" '{tag_name: $tag, target_commitish: "main", name: "Next release (automated draft)", draft: true, body: .body}' |
-            gh api --method "$method" "$endpoint" --input - --silent
+      - name: End the comparison link on the published tag
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+          RELEASE_ID: ${{ github.event.release.id }}
+        run: bash .github/scripts/release-notes.sh published "$TAG" "$RELEASE_ID"
