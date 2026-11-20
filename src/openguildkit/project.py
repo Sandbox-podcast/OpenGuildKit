@@ -233,7 +233,7 @@ def _source_link(source: dict) -> str:
 def rule_text(rule: dict) -> tuple[str, str]:
     if "check" not in rule:
         return rule["instruction"], rule["verification"]
-    threshold = rule["check"]["max_minutes"]
+    threshold = int(rule["check"]["max_minutes"])
     return (
         f"Limit downloadLinkMinutes in export.json to {threshold} minutes.",
         "Run the CI check on the target commit.",

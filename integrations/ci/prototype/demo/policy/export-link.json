@@ -1,0 +1,5 @@
+{
+  "id": "export-link-expiry",
+  "version": 1,
+  "maxMinutes": 60
+}

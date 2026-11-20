@@ -69,10 +69,28 @@ jobs:
           /tmp/wheel-env/bin/openguildkit references --id conventional-commits
           /tmp/wheel-env/bin/openguildkit patterns
 
+  ci-coordinator:
+    name: CI coordinator on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: integrations/ci
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm test
+      - run: npm pack --dry-run
+
   contribution-checks:
     name: contribution-checks
     if: ${{ always() }}
-    needs: [test, package]
+    needs: [test, package, ci-coordinator]
     runs-on: ubuntu-latest
     permissions: {}
     steps:
@@ -80,6 +98,7 @@ jobs:
         env:
           TEST_RESULT: ${{ needs.test.result }}
           PACKAGE_RESULT: ${{ needs.package.result }}
+          COORDINATOR_RESULT: ${{ needs.ci-coordinator.result }}
         run: |
-          printf 'Tests: %s\nWheel: %s\n' "$TEST_RESULT" "$PACKAGE_RESULT"
-          test "$TEST_RESULT" = success && test "$PACKAGE_RESULT" = success
+          printf 'Tests: %s\nWheel: %s\nCI coordinator: %s\n' "$TEST_RESULT" "$PACKAGE_RESULT" "$COORDINATOR_RESULT"
+          test "$TEST_RESULT" = success && test "$PACKAGE_RESULT" = success && test "$COORDINATOR_RESULT" = success

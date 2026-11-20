@@ -17,3 +17,5 @@ Use `init` only when creating a profile. With an existing profile, add the pack 
 To replay the update, evaluate two commits with 45 and 30 minutes at the original 60-minute policy SHA. Publish a new policy commit with `max_minutes: 30` and a new pack version. Reuse the same target SHAs and replace only `POLICY_SHA`. Both commits pass at 60 minutes. The 45-minute commit fails at 30 minutes and the 30-minute commit still passes.
 
 The [end-to-end test](../../tests/e2e/test_export_ci.py) runs both phases, checks that the instructions and verdict have the same rule source, and replays the previous policy. Your CI system supplies the trigger and the list of open pull requests.
+
+The [CI coordinator](../../integrations/ci/README.md) can watch open pull requests and schedule these rechecks. It uses the same export pack through the supplied [catalog index](policy/policy/catalog.json).

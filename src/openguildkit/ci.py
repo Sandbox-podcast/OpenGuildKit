@@ -5,7 +5,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from .catalog import EXPORT_EXPIRY_ID, MAX_SAFE_INTEGER
+from .catalog import EXPORT_EXPIRY_ID, is_positive_integer
 from .project import profile_fingerprint, resolved_profile, rule_text
 from .storage import parse_json
 
@@ -47,11 +47,11 @@ def check_export(profile: dict, catalog: dict, target: Path, commit: str) -> dic
     if "policy_commit" not in pack:
         raise ValueError("Supply the central policy repository and its commit.")
     rule = pack["rules"][0]
-    threshold = rule["check"]["max_minutes"]
+    threshold = int(rule["check"]["max_minutes"])
     instruction, _ = rule_text(rule)
     config = _committed_json(target, commit, EXPORT_PATH)
     minutes = config.get("downloadLinkMinutes")
-    valid_minutes = type(minutes) is int and 0 < minutes <= MAX_SAFE_INTEGER
+    valid_minutes = is_positive_integer(minutes)
     return {
         "schema_version": 1,
         "rule": rule["id"],
@@ -61,6 +61,6 @@ def check_export(profile: dict, catalog: dict, target: Path, commit: str) -> dic
         "commit": commit,
         "instruction": instruction,
         "max_minutes": threshold,
-        "actual_minutes": minutes if valid_minutes else None,
+        "actual_minutes": int(minutes) if valid_minutes else None,
         "status": "success" if valid_minutes and minutes <= threshold else "failure",
     }

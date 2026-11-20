@@ -62,6 +62,7 @@ openguildkit brains --id product
 ## Documentation
 
 - [Vérifier une règle de catalogue en CI](examples/export-expiry/README.md)
+- [Coordonner les vérifications de PR avec GitHub Actions et Jenkins](integrations/ci/README.md)
 
 - [Architecture](docs/architecture.md) et [parcours d'une tâche](docs/workflow.md)
 - [Tests de bout en bout avec ChaosFolk, en option](integrations/chaosfolk/)

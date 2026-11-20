@@ -59,6 +59,7 @@ openguildkit patterns --id python-fastapi-postgresql
 ## Documentation
 
 - [Run an executable catalog rule in CI](examples/export-expiry/README.md)
+- [Coordinate pull request checks across GitHub Actions and Jenkins](integrations/ci/README.md)
 
 - [Specialist brains and decision briefs](docs/brains.md)
 - [Stack matching and work methods](docs/patterns.md)

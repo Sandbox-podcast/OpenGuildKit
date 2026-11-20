@@ -22,6 +22,10 @@ EXPORT_EXPIRY_ID = "export-link-expiry"
 MAX_SAFE_INTEGER = (1 << 53) - 1
 
 
+def is_positive_integer(value: Any) -> bool:
+    return type(value) in (int, float) and 0 < value <= MAX_SAFE_INTEGER and int(value) == value
+
+
 class CatalogError(ValueError):
     """A catalog record or dependency is invalid."""
 
@@ -105,9 +109,7 @@ def _validate_pack(pack: dict[str, Any]) -> None:
             _validate_fields(rule, label, {"id", "check"})
             check = rule["check"]
             _validate_fields(check, f"{label}.check", {"max_minutes"})
-            if rule["id"] != EXPORT_EXPIRY_ID or type(check["max_minutes"]) is not int or not (
-                0 < check["max_minutes"] <= MAX_SAFE_INTEGER
-            ):
+            if rule["id"] != EXPORT_EXPIRY_ID or not is_positive_integer(check["max_minutes"]):
                 raise CatalogError(f"{label}: expected an {EXPORT_EXPIRY_ID} check with positive integer max_minutes")
         else:
             _validate_fields(rule, label, {"id", "instruction", "verification"})
