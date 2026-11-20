@@ -13,7 +13,7 @@ https://github.com/user-attachments/assets/397e93ff-cd9f-455b-a4c0-c1425c8a5200
 Use Python 3.11 or later.
 
 ```bash
-git clone https://github.com/loukan42/OpenGuildKit.git
+git clone https://github.com/Sandbox-podcast/OpenGuildKit.git
 cd OpenGuildKit
 python -m pip install -e .
 python examples/request-status/replay.py

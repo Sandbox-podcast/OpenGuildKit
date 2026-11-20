@@ -22,8 +22,8 @@ classifiers = [
 openguildkit = "openguildkit.cli:main"
 
 [project.urls]
-Repository = "https://github.com/loukan42/OpenGuildKit"
-Issues = "https://github.com/loukan42/OpenGuildKit/issues"
+Repository = "https://github.com/Sandbox-podcast/OpenGuildKit"
+Issues = "https://github.com/Sandbox-podcast/OpenGuildKit/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
