@@ -10,6 +10,10 @@ Any agent that reads `AGENTS.md` and runs shell commands can follow the OpenGuil
 
 Both agents use the same `SKILL.md` format (a folder with a `SKILL.md` file and `name` and `description` in the front matter).
 
+## Install from the package
+
+`openguildkit integrations --host claude-code` or `--host codex` copies the skill and subagent shipped with the installed version into the project (`--user` for your home folder). It keeps files you changed unless you pass `--force`. The copies below are the same files; a test keeps them identical to the packaged ones in `src/openguildkit/agent_files/`.
+
 ## Claude Code
 
 Per project (shared with the team through git):

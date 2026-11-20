@@ -18,10 +18,17 @@ COLLECTIONS = ("packs", "boards", "sectors", "patterns")
 
 
 def package_version() -> str:
+    """The installed version, or the version of the source checkout the CLI runs from."""
     try:
         return metadata.version("openguildkit")
     except metadata.PackageNotFoundError:
-        return "unknown"
+        pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
+        try:
+            import tomllib
+
+            return tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"] + "+source"
+        except (OSError, KeyError, ValueError):
+            return "unknown"
 
 
 def lock_path(state: Path) -> Path:

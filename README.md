@@ -19,6 +19,8 @@ python -m pip install -e .
 python examples/request-status/replay.py
 ```
 
+To install a published version instead, with its verified wheel and agent files, follow [Install a GitHub release](docs/install.md).
+
 The [request status demo](examples/request-status/) creates a temporary project and uses prepared reviews for tracking support requests. Run it in a terminal to compare the findings, approve the scope and see the implementation brief.
 
 ## Set up your project
