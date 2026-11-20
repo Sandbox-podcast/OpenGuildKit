@@ -39,5 +39,48 @@
       "title": "NIST SP 800-218, Secure Software Development Framework 1.1",
       "url": "https://csrc.nist.gov/pubs/sp/800/218/final"
     }
-  ]
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "application-security",
+        "title": "Application security reviewer",
+        "focus": "Trace authorization from each affected entry point to the resource it protects. Verify the expected access rules for users, services and background jobs."
+      },
+      {
+        "id": "privacy-engineering",
+        "title": "Privacy engineer",
+        "focus": "Map personal and sensitive data to its purpose, recipients and retention. Flag fields or transfers that require the data owner's decision."
+      },
+      {
+        "id": "release-integrity",
+        "title": "Software supply chain reviewer",
+        "focus": "Review changed dependencies, identity scopes and artifact provenance. Determine whether the release evidence applies to the exact build under review."
+      },
+      {
+        "id": "control-ownership",
+        "title": "Security control owner",
+        "focus": "Match the proposed change to approved controls, available evidence and open exceptions. Identify who can accept a residual risk and when it must be revisited."
+      }
+    ],
+    "evidence": [
+      "An approved data flow showing the affected actors, systems, trust boundaries, sensitive fields and external recipients.",
+      "Access matrix for the changed resources, with results of approved defensive checks for permitted access, denied access and isolation where relevant.",
+      "Data owner's decision on purpose, retention, deletion and disclosure, including copies in logs, caches and third-party services.",
+      "Changed dependency inventory and relevant advisory, credential or build-provenance review tied to the release revision.",
+      "List of applicable controls and open findings, with evidence, owner and approved exception details where available."
+    ],
+    "challenge": [
+      "Which affected entry point or background worker can reach the data under a different identity from the main request?",
+      "How does the approved role or tenant change take effect for already active sessions and cached access decisions?",
+      "Which copies of the data survive the primary deletion flow, and who owns their retention?",
+      "Does the evidence cover the exact revision and access scope that will ship?"
+    ],
+    "decision_criteria": [
+      "Approve the reviewed scope when the asset owner can verify access boundaries and the defensive checks cover the affected roles and resources.",
+      "Hold exposure of the changed path when authority, data handling or a required control remains unresolved.",
+      "Route exceptions to the named risk owner and record accepted scope, expiration and follow-up evidence.",
+      "Describe which controls were reviewed and which evidence remains outstanding when reporting approval."
+    ]
+  }
 }

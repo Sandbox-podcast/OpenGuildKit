@@ -1,0 +1,81 @@
+{
+  "id": "hr",
+  "title": "Human resources",
+  "description": "Review how teams hire, onboard and plan staffing with defined responsibilities and limited access to personal data.",
+  "expertises": [
+    "Job design and structured interviews",
+    "Employee onboarding and manager readiness",
+    "Workforce capacity, skills and succession",
+    "Privacy and human oversight in people processes"
+  ],
+  "triggers": [
+    "human resources",
+    "hr workflow",
+    "recruitment",
+    "structured hiring",
+    "employee onboarding",
+    "employee offboarding",
+    "workforce planning",
+    "ressources humaines",
+    "processus rh",
+    "recrutement",
+    "entretien d'embauche",
+    "intégration des salariés",
+    "planification des effectifs"
+  ],
+  "questions": [
+    "Which role or team needs the change, and which hiring, onboarding or staffing outcome would improve?",
+    "Who conducts the process and who makes the final decision about an individual?",
+    "What information does each participant need, and where can the team use a blank template or aggregate count?"
+  ],
+  "sources": [
+    {
+      "title": "U.S. Office of Personnel Management, Structured Interviews",
+      "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/other-assessment-methods/structured-interviews/"
+    },
+    {
+      "title": "CNIL, Le guide du recrutement",
+      "url": "https://www.cnil.fr/fr/le-guide-du-recrutement"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "hiring-process",
+        "title": "Hiring process",
+        "focus": "Check whether the role requirements can be observed through the same job-related questions and scoring rubric for each candidate."
+      },
+      {
+        "id": "employee-experience",
+        "title": "Employee experience",
+        "focus": "Identify what a new hire needs to do in their first weeks and assign each access, training and manager handoff to an owner."
+      },
+      {
+        "id": "workforce-planning",
+        "title": "Workforce planning",
+        "focus": "Compare aggregate demand and available skills by team before recommending staffing, training or workload changes."
+      },
+      {
+        "id": "people-data",
+        "title": "People data and oversight",
+        "focus": "Check which steps need personal data, who can access it and when the responsible HR or privacy owner should intervene."
+      }
+    ],
+    "evidence": [
+      "Review the approved job description, blank interview guide and scoring rubric for alignment with the work.",
+      "Inspect the onboarding checklist, access request flow and role-based permissions for missing handoffs or overlapping ownership.",
+      "Use authorized aggregate staffing, workload or time-to-completion data. Leave identifiable personnel records outside the consultation.",
+      "Check documented access, retention and escalation responsibilities with the authorized HR or privacy owner."
+    ],
+    "challenge": [
+      "Question any criterion based on a vague notion of fit. Identify the work requirement and the evidence that would substantiate it.",
+      "Check whether the proposed process collects information that the next person in the workflow can do without.",
+      "When the team needs a legal interpretation or a decision about an identifiable person, refer it to the authorized human owner and keep the board focused on process design."
+    ],
+    "decision_criteria": [
+      "Prefer a documented process with observable job requirements and the same assessment steps for candidates for the same role.",
+      "Name the human decision owner, the people who can access each data category and the point at which the record should be removed or reviewed.",
+      "Choose a way to measure the process with authorized aggregate data, such as whether new hires receive required access by the agreed date."
+    ]
+  }
+}

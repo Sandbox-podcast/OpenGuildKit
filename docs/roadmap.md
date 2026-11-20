@@ -11,7 +11,7 @@ This page separates what exists from what is planned. Items under "Next" and "La
 - CLI: `init` questionnaire, managed `AGENTS.md` block, `sync`, `check`, project-level catalog additions.
 - Task flow: scoping QCM, deterministic board routing, consultation request, review validation, human approval at a terminal, handoff bound to the rules in force.
 - Skills for Claude Code and Codex that drive the flow.
-- Tests, cross-platform CI, a reproducible insurance example.
+- Tests, cross-platform CI and a reproducible support request example.
 
 ## Next: breadth of the catalog
 

@@ -1,7 +1,0 @@
-{
-  "kind": "feature",
-  "surface": "customer",
-  "data": "personal",
-  "research": "local",
-  "context": "Policyholders see the current stage of each claim and the next expected step. Brokers keep their current view. Acceptance: a policyholder only sees claims where they are the policyholder."
-}

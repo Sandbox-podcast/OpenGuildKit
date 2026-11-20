@@ -44,6 +44,52 @@
     {
       "title": "shadcn/ui components",
       "url": "https://ui.shadcn.com/docs/components"
+    },
+    {
+      "title": "GOV.UK Service Manual, Using moderated usability testing",
+      "url": "https://www.gov.uk/service-manual/user-research/using-moderated-usability-testing"
     }
-  ]
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "interaction-designer",
+        "title": "Interaction designer",
+        "focus": "Map the task across entry, decision, completion and recovery. Find steps where users could misunderstand scope, status or consequences."
+      },
+      {
+        "id": "systems-designer",
+        "title": "Design systems designer",
+        "focus": "Locate components and tokens in the project's chosen system. Compare composition and extension against adding a new pattern the team would need to maintain."
+      },
+      {
+        "id": "accessibility-specialist",
+        "title": "Accessibility specialist",
+        "focus": "Examine how keyboard, zoom and assistive technologies handle the relevant tasks. Identify focus behavior, accessible names and announcements in state changes."
+      },
+      {
+        "id": "usability-researcher",
+        "title": "Usability researcher",
+        "focus": "Define representative participants and realistic tasks the team can observe. Separate usability observations from issues caused by prototype or test conditions."
+      }
+    ],
+    "evidence": [
+      "Current journey or prototype, target platform, available devices and the content the user sees at each decision.",
+      "The project's selected design system and version, existing components and screenshots or examples of their states.",
+      "Examples of slow, empty, invalid, interrupted or restricted states that occur in the actual workflow.",
+      "Recent user observations and applicable keyboard, focus, text resizing or assistive technology checks for the flow."
+    ],
+    "challenge": [
+      "Compare an existing design system pattern with a simpler sequence or platform-native control. State which interaction and maintenance trade-offs justify a new component.",
+      "Walk the primary task with a keyboard and one relevant assistive technology configuration. Check where focus and error messages go after a failed submission.",
+      "Test what users infer before a destructive or irreversible step and how they resume when the flow is interrupted.",
+      "Check whether constrained space, long labels, text resizing or localization changes the reading or action order."
+    ],
+    "decision_criteria": [
+      "Use an existing pattern when it communicates the correct task and states, passes relevant accessibility checks and fits the supported platforms.",
+      "Propose a new pattern only for a documented interaction gap. Specify its states, validation approach and maintenance owner.",
+      "Hold the current recommendation when an observed blocker prevents users from completing or recovering within the flow. Name the evidence that would resolve it.",
+      "Prefer a prototype or usability session when different designs make plausible but unverified claims about user understanding."
+    ]
+  }
 }

@@ -16,8 +16,8 @@ To preview a project, save this example as `answers.json`.
 
 ```json
 {
-  "name": "Claims API",
-  "sector": "insurance",
+  "name": "Support API",
+  "sector": "general",
   "stack": ["Python 3.12", "FastAPI", "PostgreSQL 16"],
   "roles": ["engineering", "project-management", "security"]
 }
@@ -41,13 +41,13 @@ Add `src/openguildkit/registry/patterns/<id>.json`, or place the same format in 
 
 ```json
 {
-  "id": "insurance-python-api",
-  "title": "Python API for insurance",
+  "id": "team-python-api",
+  "title": "Team Python API",
   "description": "Apply the team's API and data rules to services using FastAPI and PostgreSQL.",
   "roles": ["engineering"],
   "match": {
     "stack": [["Python", "Python3"], ["FastAPI"], ["PostgreSQL", "Postgres"]],
-    "sectors": ["insurance"]
+    "sectors": ["general"]
   },
   "packs": ["api-design", "fastapi", "postgresql"],
   "sources": [{"title": "FastAPI documentation", "url": "https://fastapi.tiangolo.com/"}]

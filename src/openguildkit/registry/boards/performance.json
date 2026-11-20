@@ -39,6 +39,53 @@
     {
       "title": "Google SRE, Monitoring Distributed Systems",
       "url": "https://sre.google/sre-book/monitoring-distributed-systems/"
+    },
+    {
+      "title": "Google SRE Workbook, Managing Load",
+      "url": "https://sre.google/workbook/managing-load/"
     }
-  ]
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "client-responsiveness",
+        "title": "Client performance engineer",
+        "focus": "Choose a user-visible interaction and measure it across the devices, browsers and network conditions that matter to the audience."
+      },
+      {
+        "id": "service-latency",
+        "title": "Service performance engineer",
+        "focus": "Break down time across queueing, service work, storage and upstream calls. Identify the bottleneck that the proposal addresses."
+      },
+      {
+        "id": "capacity",
+        "title": "Capacity engineer",
+        "focus": "Compare expected concurrency and growth with measured saturation. Quantify headroom, cost and behavior when an upstream service slows."
+      },
+      {
+        "id": "benchmark-review",
+        "title": "Benchmark reviewer",
+        "focus": "Check that baseline and candidate runs are comparable. Examine sample size, cache state and variance before interpreting an apparent improvement."
+      }
+    ],
+    "evidence": [
+      "Target journey and performance budget, with metric, unit, percentile or range, and representative users or traffic.",
+      "Before-and-after measurements from the same environment and workload, with sample counts, warm-up and cache conditions, errors and timeouts.",
+      "Trace, profile or query plan that locates time spent and resource growth along the path most likely to improve.",
+      "Latency and resource use at normal and peak demand with estimated capacity margin and operating cost.",
+      "Regression gate or monitoring query, with threshold, measurement window and owner."
+    ],
+    "challenge": [
+      "Did the apparent speedup come from warmer caches, a different dataset or fewer concurrent requests?",
+      "What happens to tail latency and the completion rate if the slowest dependency gets slower?",
+      "Does the improvement hold for the device, tenant or request shape with the highest cost?",
+      "Which resource reaches its limit first, and how will users notice it?"
+    ],
+    "decision_criteria": [
+      "Recommend the change when it meets the agreed user-facing budget on representative runs and stays within the resource limits.",
+      "Request another measurement when test conditions differ, samples are sparse or the effect is smaller than normal variance.",
+      "Prefer a targeted fix when evidence identifies the bottleneck and the simpler change meets the budget.",
+      "Hold rollout expansion if the agreed tail-latency, error or saturation limits are exceeded."
+    ]
+  }
 }

@@ -16,10 +16,10 @@ Utilise Python 3.11 ou une version plus récente.
 git clone https://github.com/loukan42/OpenGuildKit.git
 cd OpenGuildKit
 python -m pip install -e .
-python examples/insurance-claims/replay.py
+python examples/request-status/replay.py
 ```
 
-La [démo assurance](examples/insurance-claims/) crée un projet temporaire et utilise des avis préparés sur une fonctionnalité de suivi de sinistre. Lance-la dans un terminal pour valider le périmètre et lire le brief d'implémentation.
+La [démo](examples/request-status/) crée un projet temporaire et utilise des avis préparés sur le suivi des demandes support. Lance-la dans un terminal pour comparer les avis, valider le périmètre et lire le brief d'implémentation.
 
 ## Configurer ton projet
 
@@ -44,6 +44,8 @@ flowchart TB
 
 La CLI choisit les boards et enregistre leurs avis en local. Ton agent rédige ces avis et utilise ses outils pour les recherches que tu autorises. Tu valides le périmètre dans ton terminal avant que la CLI affiche le brief d'implémentation.
 
+Chaque brain traite la demande sous plusieurs angles. Il confronte la proposition à une alternative et te montre les preuves, les objections et les tests qui permettraient de décider. [Brains métier](docs/brains.md)
+
 ## Parcourir le catalogue
 
 ```bash
@@ -52,6 +54,7 @@ openguildkit references
 openguildkit patterns --role project-management
 openguildkit patterns --role hr
 openguildkit patterns --id python-fastapi-postgresql
+openguildkit brains --id product
 ```
 
 `catalog` liste les packs, les boards et les secteurs. L'index donne accès aux sources et aux méthodes. Chaque pattern indique quand il s'applique et quels packs alimentent `AGENTS.md`. [Références](docs/references.md) · [Choix des patterns](docs/patterns.md)

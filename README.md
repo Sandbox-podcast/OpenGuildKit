@@ -16,10 +16,10 @@ Use Python 3.11 or later.
 git clone https://github.com/loukan42/OpenGuildKit.git
 cd OpenGuildKit
 python -m pip install -e .
-python examples/insurance-claims/replay.py
+python examples/request-status/replay.py
 ```
 
-The [insurance demo](examples/insurance-claims/) creates a temporary project and uses prepared reviews for a claim tracking feature. Run it in a terminal to approve the scope and see the implementation brief.
+The [request status demo](examples/request-status/) creates a temporary project and uses prepared reviews for tracking support requests. Run it in a terminal to compare the findings, approve the scope and see the implementation brief.
 
 ## Set up your project
 
@@ -58,6 +58,7 @@ openguildkit patterns --id python-fastapi-postgresql
 
 ## Documentation
 
+- [Specialist brains and decision briefs](docs/brains.md)
 - [Stack matching and work methods](docs/patterns.md)
 
 - [Architecture](docs/architecture.md) and [task workflow](docs/workflow.md)

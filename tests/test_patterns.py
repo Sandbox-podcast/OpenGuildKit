@@ -31,20 +31,20 @@ class PatternTests(unittest.TestCase):
         catalog = {"patterns": {
             "alternative-one": {
                 "id": "alternative-one", "roles": ["engineering"],
-                "match": {"stack": [["postgresql", "postgres"]], "sectors": ["insurance"]},
+                "match": {"stack": [["postgresql", "postgres"]], "sectors": ["internal-tools"]},
                 "exclusive_group": "database-layout",
             },
             "alternative-two": {
                 "id": "alternative-two", "roles": ["engineering"],
-                "match": {"stack": [["postgresql", "postgres"]], "sectors": ["insurance"]},
+                "match": {"stack": [["postgresql", "postgres"]], "sectors": ["internal-tools"]},
                 "exclusive_group": "database-layout",
             },
         }}
         general = recommend_patterns(catalog, ["Postgres@16"], "general", [])
         self.assertEqual(general, {"matched": [], "suggested": []})
-        insurance = recommend_patterns(catalog, ["Postgres@16"], "insurance", [])
-        self.assertEqual(insurance["matched"], [])
-        self.assertTrue(all(item["choice_required"] for item in insurance["suggested"]))
-        self.assertEqual(len(insurance["suggested"]), 2)
+        scoped = recommend_patterns(catalog, ["Postgres@16"], "internal-tools", [])
+        self.assertEqual(scoped["matched"], [])
+        self.assertTrue(all(item["choice_required"] for item in scoped["suggested"]))
+        self.assertEqual(len(scoped["suggested"]), 2)
         with self.assertRaisesRegex(ValueError, "Choose one pattern"):
             check_pattern_choices(["alternative-one", "alternative-two"], catalog["patterns"])

@@ -14,7 +14,7 @@ flowchart LR
 ## 1. Open a task
 
 ```bash
-openguildkit task new "Let policyholders follow the status of a claim online" --id claim-status
+openguildkit task new "Show signed-in users the status of their support requests" --id request-status
 openguildkit task new --file brief.md          # multi-line brief
 ```
 
@@ -40,7 +40,7 @@ Without `--id`, the CLI generates `task-` followed by 12 hex characters. IDs use
   "surface": "customer",
   "data": "personal",
   "research": "local",
-  "context": "Policyholders see the claim stage and the next expected step. Brokers keep their current view."
+  "context": "Signed-in users see the status and next step of their own support requests."
 }
 ```
 
@@ -69,22 +69,7 @@ Each selected board gets a brief with its purpose, the routing reasons, its expe
 
 ## 3. Review through each board
 
-`task template ID` prints the review skeleton with the `consultation_id` and one entry per selected board. The agent fills it, one independent pass per board, then reconciles. Keep `consultation_id` as printed: it ties the review to this consultation, so a review written before a new consultation is refused.
-
-```json
-{
-  "consultation_id": "copied from task template",
-  "summary": "Ship a read-only status page first; notifications in a second task.",
-  "boards": [
-    {
-      "id": "security",
-      "recommendation": "Show only claims where the signed-in user is the policyholder. Log each access.",
-      "evidence": ["src/claims/permissions.py: broker and policyholder roles are separate"],
-      "open_questions": ["Which retention period applies to access logs?"]
-    }
-  ]
-}
-```
+`task template ID` prints the review skeleton with the `consultation_id` and one entry per selected board. Keep that ID to tie the review to the current scope. Each [brain](brains.md) has a set of specialist lenses. The agent records their separate findings, challenges the proposed change, then reconciles the boards and preserves disagreements in the summary. The [request status example](../examples/request-status/review.json) shows a complete review.
 
 Rules enforced by `task review ID --file review.json`:
 
@@ -92,23 +77,26 @@ Rules enforced by `task review ID --file review.json`:
 - `summary` and every `recommendation` must contain text.
 - There must be exactly one entry per selected board, and no other board.
 - `evidence` and `open_questions` are lists of non-empty strings (they can be empty lists).
+- For a brain, each specialist needs exactly one finding with an evidence basis. An observed finding cites positions in that board's evidence list. A board records its verdict, confidence, alternative, failure mode, verification and blockers.
 
-The agent then shows the findings, the open questions and the proposed next step to the person, and stops.
+Run `openguildkit task challenge ID` to show how the verdicts differ, what each board recommends and which checks can change the decision. The agent shows this brief to the person before implementation.
 
 ## 4. Decide
 
 The person runs the command in their own terminal:
 
 ```bash
-openguildkit task decide claim-status --approve --by "Camille Martin" --reason "Read-only scope agreed with claims ops"
+openguildkit task decide request-status --approve --by "Camille Martin" --reason "Read-only scope agreed with support"
 ```
 
 The CLI prints the brief and the review, then asks the person to type the task ID. Approval fails when stdin is not a terminal, when the typed ID does not match, when the task changed during the decision, when the profile or catalog changed since the consultation, or when `AGENTS.md` is out of date.
 
+If a board flags blockers, the approval prompt asks the decision owner to record how the decision addresses them. After upgrading the board catalog, run `openguildkit sync` and check whether a pending task needs another consultation under the new rules.
+
 To send the task back:
 
 ```bash
-openguildkit task decide claim-status --request-changes --by "Camille Martin" --reason "Include brokers in scope"
+openguildkit task decide request-status --request-changes --by "Camille Martin" --reason "Include the empty state in scope"
 ```
 
 This works without a terminal. The next `task consult` archives the previous answers, consultation, review and decision in `rounds`, so the history of the task is kept.
@@ -116,7 +104,7 @@ This works without a terminal. The next `task consult` archives the previous ans
 ## 5. Hand off
 
 ```bash
-openguildkit task handoff claim-status
+openguildkit task handoff request-status
 ```
 
 The handoff exists only for approved tasks whose fingerprint still matches the project. If the profile or catalog changed after approval, the handoff fails and the task cannot be consulted again: open a new task for the same work. It contains the approval (who and why), the approved scope snapshot with the rules in force, and the board review. The agent implements that scope, runs the project checks and brings any scope change back to the person.
