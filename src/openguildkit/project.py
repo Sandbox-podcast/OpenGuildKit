@@ -259,7 +259,7 @@ def pattern_ids(profile: dict) -> list[str]:
 def validate_profile(answers: dict, catalog: dict) -> dict:
     fields = {
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
-        "resolutions", "boards", "required_boards", "research", "conventions", "checks",
+        "resolutions", "boards", "required_boards", "research", "host", "conventions", "checks",
     }
     unknown = sorted(answers.keys() - fields)
     if unknown:
@@ -298,6 +298,12 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         profile["roles"] = roles
     if patterns:
         profile["patterns"] = patterns
+    host = answers.get("host")
+    if host is not None:
+        from .hosts import HOSTS
+        if host not in HOSTS:
+            raise ValueError(f"host must be one of {', '.join(HOSTS)}")
+        profile["host"] = host
     required = _ids(answers.get("required_boards", []), "required_boards", catalog["boards"])
     if required:
         profile["required_boards"] = required
@@ -500,6 +506,7 @@ def render_instructions(profile: dict, catalog: dict) -> str:
         f"Sector: {sector['title']}",
         f"Stack: {', '.join(profile['stack']) or 'See the project files.'}",
         f"Research policy: `{profile['research']}`",
+        *([f"Host agent: `{profile['host']}`"] if profile.get("host") else []),
         "",
         *_bullets(sector["context"]),
         "",

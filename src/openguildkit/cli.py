@@ -7,6 +7,7 @@ from pathlib import Path
 from .catalog import load_catalog
 from .ci import check_export, read_policy_pack
 from .detect import components_for_profile, detect_stack
+from .hosts import apply_host_settings, host_controls
 from .lock import (
     apply_lock,
     build_lock,
@@ -35,6 +36,8 @@ from .project import (
 from .references import find_references, load_references, with_pattern_references
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
+    ACTIONS,
+    record_authorization,
     create_task,
     read_task,
     record_consultation,
@@ -79,6 +82,9 @@ def _parser() -> argparse.ArgumentParser:
     init_mode.add_argument("--questions", action="store_true", help="Print the setup questionnaire as JSON.")
     init_mode.add_argument("--answers", type=Path, help="Read setup answers from a JSON file.")
     commands.add_parser("sync", help="Update the managed instructions from the project profile.")
+    host = commands.add_parser("host", help="Show or apply the rules the host agent can enforce.")
+    host.add_argument("mode", choices=("check", "apply"), help="check reports each rule; apply writes the host settings.")
+    host.add_argument("--json", action="store_true", help="Print the report as JSON.")
     update = commands.add_parser("update", help="Show what the installed catalog would change and adopt it.")
     update.add_argument("--apply", action="store_true", help="Adopt the installed catalog's records for this project.")
     update.add_argument("--json", action="store_true", help="Print the changes as JSON.")
@@ -104,6 +110,7 @@ def _parser() -> argparse.ArgumentParser:
         "decide": "Record a human decision.",
         "handoff": "Print the approved implementation handoff, or the decision record of a decision task.",
         "show": "Print the task record as JSON.",
+        "authorize": "Record a person's decision on an external action outside the authorized scope.",
     }
     for action, description in descriptions.items():
         command = actions.add_parser(action, help=description)
@@ -120,6 +127,15 @@ def _parser() -> argparse.ArgumentParser:
             command.add_argument("--json", action="store_true", help="Print the selection as JSON.")
         if action == "review":
             command.add_argument("--file", type=Path, required=True, help="Completed review JSON.")
+        if action == "authorize":
+            command.add_argument("--action", dest="external_action", required=True, choices=ACTIONS,
+                                 help="Kind of external action.")
+            command.add_argument("--target", required=True, help="Host or tool name, without query or private details.")
+            outcome = command.add_mutually_exclusive_group(required=True)
+            outcome.add_argument("--allow", action="store_true", help="Allow the action (needs a terminal).")
+            outcome.add_argument("--deny", action="store_true", help="Refuse the action.")
+            command.add_argument("--by", required=True, help="Decision owner's name.")
+            command.add_argument("--reason", required=True, help="Reason for the decision.")
         if action == "decide":
             outcome = command.add_mutually_exclusive_group(required=True)
             outcome.add_argument("--approve", action="store_true", help="Approve the reviewed scope in a terminal.")
@@ -648,7 +664,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             catalog = _load_project_catalog(args, state)
             profile = load_profile(state, catalog)
             check_instructions(root, profile, catalog)
-            result = record_consultation(current_task, answers, profile, catalog, _selection(args))
+            controls = host_controls(root, profile)
+            result = record_consultation(current_task, answers, profile, catalog, _selection(args), controls)
             write_json(task_path(state, args.id), result)
         print(result["consultation"]["markdown"])
     elif action == "review":
@@ -662,6 +679,19 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         print(result["status"])
     elif action == "decide":
         _decide(args, root, state, task)
+    elif action == "authorize":
+        if args.allow and not sys.stdin.isatty():
+            raise ValueError("Allowing an external action requires a person at an interactive terminal.")
+        result = record_authorization(task, args.external_action, args.target, args.allow, args.by, args.reason)
+        if args.allow:
+            print(f"Type {args.id} to allow {args.external_action} on {args.target}: ", end="", file=sys.stderr, flush=True)
+            if input().strip() != args.id:
+                raise ValueError("Authorization cancelled.")
+        with project_lock(state):
+            if read_task(state, args.id) != task:
+                raise ValueError("The task changed while you were deciding. Review it and retry.")
+            write_json(task_path(state, args.id), result)
+        print(result["authorizations"][-1]["decision"])
     elif action == "handoff":
         output = handoff(task)
         require_current_scope(task, profile, catalog)
@@ -724,8 +754,23 @@ def _run(args) -> int | None:
             print(f"OpenGuildKit: review pattern {item['id']}: {'; '.join(item['reasons'])}", file=sys.stderr)
     else:
         profile = load_profile(state, catalog)
+        if args.command == "host":
+            controls = host_controls(root, profile)
+            if args.mode == "apply":
+                for path in apply_host_settings(root, profile):
+                    print(f"Wrote {path}", file=sys.stderr)
+                controls = host_controls(root, profile)
+            if args.json:
+                _print_json(controls)
+            else:
+                for control in controls:
+                    print(f"[{control['status']}] {control['title']}\n    {control['detail']}")
+            return
         if args.command == "check":
             check_instructions(root, profile, catalog)
+            missing = [control["title"] for control in host_controls(root, profile) if control["status"] == "missing"]
+            if missing:
+                raise ValueError(f"The host settings do not enforce: {'; '.join(missing)}. Run openguildkit host apply.")
             _, bundled = _installed_catalog(args, state)
             if not lock_is_current(read_lock(state), profile, catalog, bundled):
                 raise ValueError("The catalog lock does not match the profile. Run openguildkit sync.")

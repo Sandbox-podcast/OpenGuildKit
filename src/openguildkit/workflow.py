@@ -417,6 +417,12 @@ def _consultation_markdown(scope: dict, boards: dict, routing: dict, delegations
         )
     else:
         research = "Use authorized project files and source material available locally."
+        control = next((item for item in scope.get("host_controls", []) if item["id"] == "research"), None)
+        if control and control["status"] != "enforced":
+            research += (
+                " The host agent does not block public research for this project: do not search, "
+                "and ask the requester before using any external source."
+            )
 
     lines = [
         "# Board consultation request",
@@ -521,12 +527,16 @@ def _board_template(board: dict, reviewer: str | None = None) -> dict:
     return entry
 
 
-def consult(profile: dict, catalog: dict, task: dict, selection: dict | None = None) -> dict:
+def consult(
+    profile: dict, catalog: dict, task: dict, selection: dict | None = None, host_controls: list[dict] | None = None
+) -> dict:
     """Route a scoped task and prepare a review request for the host agent."""
     answers = validate_answers(task["answers"])
     selected = select_boards(profile, catalog, task, answers, selection)
     routing, delegations = selected["routing"], selected["delegations"]
     scope = _scope_snapshot(profile, catalog, task, answers)
+    if host_controls:
+        scope["host_controls"] = host_controls
     consultation_id = uuid4().hex
     consultation = {
         "id": consultation_id,
@@ -746,5 +756,9 @@ def handoff(task: dict) -> str:
             "",
             _json_section(review),
             "",
+            *(
+                ["## External actions decided by a person", "", _json_section(task["authorizations"]), ""]
+                if task.get("authorizations") else []
+            ),
         ]
     )
