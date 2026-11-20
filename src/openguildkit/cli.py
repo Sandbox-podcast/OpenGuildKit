@@ -40,6 +40,7 @@ from .project import (
 from .references import find_references, load_references, with_pattern_references
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
+    list_tasks,
     complete_task,
     record_result,
     resolve_blocker,
@@ -117,6 +118,13 @@ def _parser() -> argparse.ArgumentParser:
     new.add_argument("brief", nargs="?", help="Short description of the work.")
     new.add_argument("--file", type=Path, help="Read the brief from a UTF-8 Markdown or text file.")
     new.add_argument("--id", help="Use a readable lowercase task ID.")
+    new.add_argument("--follows", metavar="TASK", help="Link the task to an earlier task's decision.")
+    listing = actions.add_parser("list", help="List the project's tasks with their status and next open point.")
+    listing.add_argument("--status", help="Only tasks in this status.")
+    listing.add_argument("--owner", help="Only tasks decided by this person.")
+    listing.add_argument("--since", help="Created on or after YYYY-MM-DD.")
+    listing.add_argument("--until", help="Created on or before YYYY-MM-DD.")
+    listing.add_argument("--json", action="store_true", help="Print the tasks as JSON.")
     descriptions = {
         "questions": "Print the task questionnaire as JSON.",
         "route": "Preview the boards a consultation would select, and why.",
@@ -177,6 +185,8 @@ def _parser() -> argparse.ArgumentParser:
             command.add_argument("--until", required=True, help="Last day of the waiver, YYYY-MM-DD.")
         if action == "blockers":
             command.add_argument("--json", action="store_true", help="Print the blockers as JSON.")
+        if action == "export":
+            command.add_argument("--output", type=Path, help="Write the shareable record to this file instead.")
         if action == "checks":
             command.add_argument("--json", action="store_true", help="Print the checks as JSON.")
         if action == "result":
@@ -725,7 +735,20 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         brief = args.file.read_text(encoding="utf-8-sig") if args.file else args.brief
         check_instructions(root, profile, catalog)
         with project_lock(state):
-            print(create_task(state, brief, args.id))
+            print(create_task(state, brief, args.id, args.follows))
+        return
+    if action == "list":
+        rows = list_tasks(state, args.status, args.owner, args.since, args.until)
+        if args.json:
+            _print_json(rows)
+        elif not rows:
+            print("No task matches.")
+        else:
+            for row in rows:
+                owner = f" by {row['owner']}" if row.get("owner") else ""
+                follows = f" (follows {row['follows']})" if row.get("follows") else ""
+                print(f"{row['id']} [{row['status']}{owner}] {row.get('brief', '')}{follows}")
+                print(f"    next: {row['next']}")
         return
 
     task = read_task(state, args.id)
@@ -815,8 +838,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             problems = completion_problems(result, profile)
             print(f"{len(problems)} point(s) before the task can be done." if problems else "Ready: run task complete.")
     elif action == "export":
-        path = export_decision(root, state, task, profile)
-        print(path.relative_to(root).as_posix())
+        path = export_decision(root, state, task, profile, args.output).resolve()
+        print(path.relative_to(root).as_posix() if root in path.parents else str(path))
     elif action == "deliberate":
         _print_json(deliberation_request(task))
     elif action == "respond":
