@@ -1,18 +1,35 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { evaluate, isCatalogVersion } from '../prototype/demo/check.mjs';
+import { parseJsonObject } from './json.mjs';
 
-export const gitSha = /^[a-f0-9]{40}$/;
+// SHA-1 and SHA-256 repositories, in full lowercase, as accepted by openguildkit ci-check.
+export const gitSha = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
 export const sha256 = value => createHash('sha256').update(value).digest('hex');
 export const isGitPath = file => typeof file === 'string' &&
   /^[\w./-]+$/.test(file) && file.split('/').every(part => part && part !== '.' && part !== '..');
 
+// Like ci-check, ignore replacement objects and never fetch missing objects while reading.
 export function git(repo, ...args) {
-  return execFileSync('git', ['-C', repo, ...args]);
+  return execFileSync('git', ['--no-replace-objects', '-c', 'protocol.allow=never', '-C', repo, ...args], {
+    env: { ...process.env, GIT_NO_LAZY_FETCH: '1' },
+  });
+}
+
+export function committedFile(repo, commit, path) {
+  if (!gitSha.test(commit)) throw new Error(`Use a full lowercase Git commit SHA: ${commit}.`);
+  let resolved = null;
+  try {
+    resolved = git(repo, 'rev-parse', '--verify', '--quiet', '--end-of-options', `${commit}^{commit}`).toString().trim();
+  } catch {
+    // An unknown object is reported below.
+  }
+  if (resolved !== commit) throw new Error(`${commit} must identify a commit of ${repo} directly.`);
+  return git(repo, 'show', `${commit}:${path}`);
 }
 
 export function parseProfile(bytes, { allowProposal = false } = {}) {
-  const profile = JSON.parse(bytes.toString('utf8'));
+  const profile = parseJsonObject(bytes, 'openguildkit.json');
   const { owner, policyPath, targetPath } = profile;
   if (profile.schemaVersion !== 1 || typeof owner !== 'string' || !owner.trim() ||
       !isGitPath(policyPath) || !isGitPath(targetPath)) {
@@ -32,7 +49,7 @@ export function parseProfile(bytes, { allowProposal = false } = {}) {
 }
 
 export function readRule(policyRepo, policyCommit, profile) {
-  const source = JSON.parse(git(policyRepo, 'show', `${policyCommit}:${profile.policyPath}`));
+  const source = parseJsonObject(committedFile(policyRepo, policyCommit, profile.policyPath), profile.policyPath);
   let rule = source;
   if (source.rules !== undefined) {
     const [entry] = Array.isArray(source.rules) ? source.rules : [];
@@ -53,7 +70,7 @@ export function readRule(policyRepo, policyCommit, profile) {
 export function evaluateRefs({ policyRepo, policyCommit, targetRepo, commit, profileBytes, kitVersion }) {
   const profile = parseProfile(profileBytes);
   const rule = readRule(policyRepo, policyCommit, profile);
-  const config = JSON.parse(git(targetRepo, 'show', `${commit}:${profile.targetPath}`));
+  const config = parseJsonObject(committedFile(targetRepo, commit, profile.targetPath), profile.targetPath);
   return {
     ...evaluate(rule, policyCommit, commit, config),
     kitVersion,

@@ -40,10 +40,11 @@ test('Jenkins and the recheck template compute the same work key from the config
   const head = commitJson(origin, 'export.json', { downloadLinkMinutes: 20 });
   git(origin, 'switch', '-q', 'main');
 
-  const plan = (folder, config) => reconcile({
+  const reconcileWith = (folder, config) => reconcile({
     configPath: join(folder, 'integration.json'), stateDir: join(folder, 'state'), kitVersion: '0.16.1',
     loadConfig: () => config,
-  }).current[0];
+  });
+  const plan = (folder, config) => reconcileWith(folder, config).current[0];
   const jenkins = plan(root, {
     policyRepo: { path: origin, ref: 'refs/heads/main' },
     projects: [{ id: 'team/repo', path: origin, profileRef: 'refs/heads/main',
@@ -71,9 +72,11 @@ test('Jenkins and the recheck template compute the same work key from the config
 
   const shallow = join(root, 'shallow');
   execFileSync('git', ['clone', '-q', '--depth', '1', '--no-single-branch', pathToFileURL(origin).href, shallow]);
-  assert.throws(() => plan(root, {
+  const refused = reconcileWith(root, {
     policyRepo: { path: origin, ref: 'refs/heads/main' },
     projects: [{ id: 'team/repo', path: shallow, profileRef: 'refs/remotes/origin/main',
       pullRequests: [{ number: 4, ref: 'refs/remotes/origin/candidate' }] }],
-  }), /shallow clone.*git fetch --unshallow/);
+  });
+  assert.deepEqual(refused.current, []);
+  assert.match(refused.errors[0].message, /shallow clone.*git fetch --unshallow/);
 });

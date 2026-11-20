@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { evaluateRefs, git, gitSha, isGitPath, parseProfile } from '../lib/check.mjs';
+import { committedFile, evaluateRefs, gitSha, isGitPath, parseProfile } from '../lib/check.mjs';
 import { reconcile, recordEvidence } from '../lib/reconcile.mjs';
 import { approveGitHubProfile, readGitHubTicket, reconcileGithub } from '../lib/github.mjs';
 import { loadCatalog, proposeProfile, questionnaire } from '../lib/onboard.mjs';
@@ -21,6 +21,7 @@ const help = `OpenGuildKit ${version}
   openguildkit-ci check --policy-repo DIR --policy-commit SHA --commit SHA
     [--target-repo DIR] [--profile FILE] [--profile-commit SHA] [--output DIR] [--enforce]
     [--brief FILE --pull-request URL]
+    Without --profile-commit, --profile is read from the working tree of --target-repo.
   openguildkit-ci reconcile --config FILE --state DIR [--run]
   openguildkit-ci github --config FILE --state DIR [--run] [--publish [--report-url URL]]
   openguildkit-ci watch --config FILE --state DIR [--publish] [--reset WORK|all]...
@@ -177,8 +178,8 @@ function check(args) {
   }
   const targetRepo = options['target-repo'];
   const profileBytes = profileCommit !== undefined
-    ? git(targetRepo, 'show', `${profileCommit}:${options.profile}`)
-    : readFileSync(options.profile);
+    ? committedFile(targetRepo, profileCommit, options.profile)
+    : readFileSync(resolve(targetRepo, options.profile));
   let evidence = evaluateRefs({
     policyRepo: options['policy-repo'], policyCommit, targetRepo,
     commit: options.commit, profileBytes, kitVersion: version,

@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { reconcileGithub } from '../lib/github.mjs';
 import { mergeGithub } from '../lib/merge.mjs';
+import { reconcile } from '../lib/reconcile.mjs';
 
 function git(cwd, ...args) {
   return execFileSync('git', ['-c', 'user.name=OpenGuildKit Test',
@@ -84,21 +85,28 @@ function githubFixture(t) {
   };
   const fetchRefs = (repo, _id, refspecs) => git(repo, 'fetch', '--quiet', '--atomic', '--no-tags', origin, ...refspecs);
   const configPath = join(root, 'integration.json');
-  const configure = project => writeFileSync(configPath, JSON.stringify({
-    policyRepo: { id: 'team/policies', path: 'clone', ref: 'refs/heads/main' },
-    projects: [{ id: 'team/repo', path: 'clone', profileRef: 'refs/heads/main', ...project }],
+  const configure = (project, { others = [], policy = {} } = {}) => writeFileSync(configPath, JSON.stringify({
+    policyRepo: { id: 'team/policies', path: 'clone', ref: 'refs/heads/main', ...policy },
+    projects: [{ id: 'team/repo', path: 'clone', profileRef: 'refs/heads/main', ...project }, ...others],
   }));
   const sync = (options = {}) => reconcileGithub({
     configPath, stateDir: join(root, 'state'), kitVersion: '0.16.1', ...options,
   }, { request, fetchRefs });
-  return { root, origin, api, addPull, configure, sync, request, fetchRefs, configPath, approved };
+  return { root, origin, api, addPull, pulls, configure, sync, request, fetchRefs, configPath, approved };
+}
+
+function refused(result, pattern) {
+  assert.deepEqual(result.current, []);
+  assert.equal(result.errors.length, 1);
+  assert.equal(result.errors[0].project, 'team/repo');
+  assert.match(result.errors[0].message, pattern);
 }
 
 test('the GitHub flows accept an adopted profile only after the maintainer approval is verified', t => {
   const { origin, api, addPull, configure, sync, approved } = githubFixture(t);
   addPull(7, 45);
   configure({});
-  assert.throws(() => sync(), /Set profileMaintainer for team\/repo/);
+  refused(sync(), /Set profileMaintainer for team\/repo/);
 
   configure({ profileMaintainer: 'lead' });
   const [current] = sync().current;
@@ -106,12 +114,57 @@ test('the GitHub flows accept an adopted profile only after the maintainer appro
   assert.equal(current.status, 'pending');
 
   api.mergedBy = 'someone-else';
-  assert.throws(() => sync(), /fusionnée par le mainteneur désigné/);
+  refused(sync(), /fusionnée par le mainteneur désigné/);
   api.mergedBy = 'lead';
 
   commitJson(origin, 'openguildkit.json', { ...approved, owner: '@intruder',
     adoption: { ...approved.adoption, approver: '@intruder' } });
-  assert.throws(() => sync(), /diffère de la proposition approuvée/);
+  refused(sync(), /diffère de la proposition approuvée/);
+});
+
+test('an error limited to one project or one PR is reported without stopping the others', t => {
+  const { root, origin, api, addPull, pulls, configure, sync } = githubFixture(t);
+  const head = addPull(7, 45);
+  const moved = addPull(8, 20);
+  pulls.push({ number: 9, state: 'open', head: { sha: 'not-a-commit' }, base: { repo: { full_name: 'team/repo' } } });
+  api.responses.set('repos/team/repo/pulls?state=open&per_page=100',
+    () => [pulls.map(pr => pr.number === 8 ? { ...pr, head: { sha: '0'.repeat(40) } } : pr)]);
+  git(origin, 'switch', '-q', '-c', 'broken');
+  writeFileSync(join(origin, 'openguildkit.json'),
+    '{"schemaVersion": 1, "owner": "@x", "owner": "@y", "policyPath": "policy/export-link.json", "targetPath": "export.json"}');
+  git(origin, 'commit', '-qam', 'Duplicate a key');
+  git(origin, 'switch', '-q', 'main');
+  api.responses.set('repos/team/broken/pulls?state=open&per_page=100',
+    () => [[{ number: 7, state: 'open', head: { sha: head }, base: { repo: { full_name: 'team/broken' } } }]]);
+  configure({ profileMaintainer: 'lead' }, { others: [{ id: 'team/broken', path: 'clone', profileRef: 'refs/heads/broken' }] });
+
+  const result = sync({ run: true });
+  assert.deepEqual(result.current.map(row => [row.project, row.pullRequest, row.status]), [['team/repo', 7, 'failure']]);
+  assert.deepEqual(result.errors.map(error => [error.project, error.pullRequest]),
+    [['team/repo', 9], ['team/repo', 8], ['team/broken', undefined]]);
+  assert.match(result.errors[1].message, /a évolué pendant le chargement/);
+  assert.match(result.errors[2].message, /Duplicate JSON key: owner/);
+  assert.throws(() => sync({ selection: { project: 'team/repo', pullRequest: 8, commit: moved, mode: 'required' } }),
+    /a évolué pendant le chargement/);
+
+  const local = join(root, 'local.json');
+  writeFileSync(local, JSON.stringify({
+    policyRepo: { path: 'origin', ref: 'refs/heads/main' },
+    projects: [
+      { id: 'local/broken', path: 'origin', profileRef: 'refs/heads/broken', pullRequests: [{ number: 1, ref: 'refs/heads/pr-7' }] },
+      { id: 'local/plain', path: 'origin', profileRef: 'refs/heads/main', pullRequests: [
+        { number: 1, ref: 'refs/heads/pr-7' }, { number: 2, ref: 'refs/heads/missing' }] },
+    ],
+  }));
+  const plain = reconcile({ configPath: local, stateDir: join(root, 'local-state'), kitVersion: '0.16.1' });
+  assert.deepEqual(plain.current.map(row => [row.project, row.pullRequest]), [['local/plain', 1]]);
+  assert.deepEqual(plain.errors.map(error => [error.project, error.pullRequest]), [['local/broken', undefined], ['local/plain', 2]]);
+
+  writeFileSync(join(origin, 'policy/waivers.json'), JSON.stringify({ schemaVersion: 1, waivers: [{ id: 'incomplete' }] }));
+  git(origin, 'add', 'policy/waivers.json');
+  git(origin, 'commit', '-qm', 'Add an invalid waiver');
+  configure({ profileMaintainer: 'lead' }, { policy: { waiversPath: 'policy/waivers.json' } });
+  assert.throws(() => sync(), /Dérogation invalide : incomplete/);
 });
 
 test('the merge rechecks that the merge application is the only bypass actor', () => {

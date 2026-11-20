@@ -1,0 +1,224 @@
+{
+  "description": "Files and commits that openguildkit-ci check (Node) and openguildkit ci-check (Python) must judge alike. The verdicts map to exit codes 0 (success), 1 (failure) and 2 (error). Each export is evaluated at packs/export-link-expiry.json with the pack below, each pack with a 30-minute export, each commit case with a 30-minute export.",
+  "pack": {
+    "id": "export-link-expiry",
+    "title": "Download link expiry",
+    "version": "1.0.0",
+    "description": "Time limit for links used to download an export.",
+    "sources": [],
+    "rules": [
+      {
+        "id": "export-link-expiry",
+        "check": {
+          "max_minutes": 60
+        }
+      }
+    ]
+  },
+  "exports": [
+    {
+      "name": "within the limit",
+      "text": "{\"downloadLinkMinutes\": 30}",
+      "verdict": "success"
+    },
+    {
+      "name": "at the limit",
+      "text": "{\"downloadLinkMinutes\": 60}",
+      "verdict": "success"
+    },
+    {
+      "name": "over the limit",
+      "text": "{\"downloadLinkMinutes\": 90}",
+      "verdict": "failure"
+    },
+    {
+      "name": "UTF-8 byte order mark",
+      "base64": "77u/eyJkb3dubG9hZExpbmtNaW51dGVzIjogMzB9",
+      "verdict": "success"
+    },
+    {
+      "name": "two byte order marks",
+      "base64": "77u/77u/eyJkb3dubG9hZExpbmtNaW51dGVzIjogMzB9",
+      "verdict": "error"
+    },
+    {
+      "name": "UTF-16 with byte order mark",
+      "base64": "//57ACIAZABvAHcAbgBsAG8AYQBkAEwAaQBuAGsATQBpAG4AdQB0AGUAcwAiADoAIAAzADAAfQA=",
+      "verdict": "error"
+    },
+    {
+      "name": "invalid UTF-8",
+      "base64": "eyJkb3dubG9hZExpbmtNaW51dGVzIjogMzAsICJub3RlIjogIv8ifQ==",
+      "verdict": "error"
+    },
+    {
+      "name": "duplicate key",
+      "text": "{\"downloadLinkMinutes\": 30, \"downloadLinkMinutes\": 90}",
+      "verdict": "error"
+    },
+    {
+      "name": "duplicate key in a nested object",
+      "text": "{\"downloadLinkMinutes\": 30, \"meta\": {\"a\": 1, \"a\": 2}}",
+      "verdict": "error"
+    },
+    {
+      "name": "duplicate key written with an escape",
+      "text": "{\"downloadLinkMinutes\": 30, \"download\\u004cinkMinutes\": 30}",
+      "verdict": "error"
+    },
+    {
+      "name": "array instead of an object",
+      "text": "[{\"downloadLinkMinutes\": 30}]",
+      "verdict": "error"
+    },
+    {
+      "name": "null instead of an object",
+      "text": "null",
+      "verdict": "error"
+    },
+    {
+      "name": "trailing comma",
+      "text": "{\"downloadLinkMinutes\": 30,}",
+      "verdict": "error"
+    },
+    {
+      "name": "trailing data",
+      "text": "{\"downloadLinkMinutes\": 30} {}",
+      "verdict": "error"
+    },
+    {
+      "name": "control character in a string",
+      "text": "{\"downloadLinkMinutes\": 30, \"note\": \"a\tb\"}",
+      "verdict": "error"
+    },
+    {
+      "name": "missing value",
+      "text": "{}",
+      "verdict": "failure"
+    },
+    {
+      "name": "zero",
+      "text": "{\"downloadLinkMinutes\": 0}",
+      "verdict": "failure"
+    },
+    {
+      "name": "negative",
+      "text": "{\"downloadLinkMinutes\": -5}",
+      "verdict": "failure"
+    },
+    {
+      "name": "decimal with an integer value",
+      "text": "{\"downloadLinkMinutes\": 30.0}",
+      "verdict": "success"
+    },
+    {
+      "name": "exponent",
+      "text": "{\"downloadLinkMinutes\": 3e1}",
+      "verdict": "success"
+    },
+    {
+      "name": "fraction",
+      "text": "{\"downloadLinkMinutes\": 30.5}",
+      "verdict": "failure"
+    },
+    {
+      "name": "beyond the safe integer range",
+      "text": "{\"downloadLinkMinutes\": 9007199254740993}",
+      "verdict": "failure"
+    },
+    {
+      "name": "boolean",
+      "text": "{\"downloadLinkMinutes\": true}",
+      "verdict": "failure"
+    },
+    {
+      "name": "string",
+      "text": "{\"downloadLinkMinutes\": \"30\"}",
+      "verdict": "failure"
+    },
+    {
+      "name": "NaN",
+      "text": "{\"downloadLinkMinutes\": NaN}",
+      "verdict": "failure"
+    },
+    {
+      "name": "Infinity",
+      "text": "{\"downloadLinkMinutes\": Infinity}",
+      "verdict": "failure"
+    },
+    {
+      "name": "-Infinity",
+      "text": "{\"downloadLinkMinutes\": -Infinity}",
+      "verdict": "failure"
+    }
+  ],
+  "packs": [
+    {
+      "name": "pack with a byte order mark",
+      "base64": "77u/ewogICJpZCI6ICJleHBvcnQtbGluay1leHBpcnkiLAogICJ0aXRsZSI6ICJEb3dubG9hZCBsaW5rIGV4cGlyeSIsCiAgInZlcnNpb24iOiAiMS4wLjAiLAogICJkZXNjcmlwdGlvbiI6ICJUaW1lIGxpbWl0IGZvciBsaW5rcyB1c2VkIHRvIGRvd25sb2FkIGFuIGV4cG9ydC4iLAogICJzb3VyY2VzIjogW10sCiAgInJ1bGVzIjogWwogICAgewogICAgICAiaWQiOiAiZXhwb3J0LWxpbmstZXhwaXJ5IiwKICAgICAgImNoZWNrIjogewogICAgICAgICJtYXhfbWludXRlcyI6IDYwCiAgICAgIH0KICAgIH0KICBdCn0=",
+      "verdict": "success"
+    },
+    {
+      "name": "pack with a duplicate key",
+      "text": "{\n  \"id\": \"export-link-expiry\",\n  \"id\": \"export-link-expiry\",\n  \"title\": \"Download link expiry\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Time limit for links used to download an export.\",\n  \"sources\": [],\n  \"rules\": [\n    {\n      \"id\": \"export-link-expiry\",\n      \"check\": {\n        \"max_minutes\": 60\n      }\n    }\n  ]\n}",
+      "verdict": "error"
+    }
+  ],
+  "commits": [
+    {
+      "name": "full commit SHA",
+      "target": "commit",
+      "policy": "commit",
+      "verdict": "success"
+    },
+    {
+      "name": "target given as a tree",
+      "target": "tree",
+      "policy": "commit",
+      "verdict": "error"
+    },
+    {
+      "name": "target given as an annotated tag",
+      "target": "tag",
+      "policy": "commit",
+      "verdict": "error"
+    },
+    {
+      "name": "target given as a blob",
+      "target": "blob",
+      "policy": "commit",
+      "verdict": "error"
+    },
+    {
+      "name": "abbreviated target",
+      "target": "short",
+      "policy": "commit",
+      "verdict": "error"
+    },
+    {
+      "name": "uppercase target",
+      "target": "upper",
+      "policy": "commit",
+      "verdict": "error"
+    },
+    {
+      "name": "policy given as a tree",
+      "target": "commit",
+      "policy": "tree",
+      "verdict": "error"
+    },
+    {
+      "name": "policy given as an annotated tag",
+      "target": "commit",
+      "policy": "tag",
+      "verdict": "error"
+    },
+    {
+      "name": "target in a SHA-256 repository",
+      "target": "commit",
+      "policy": "commit",
+      "objectFormat": "sha256",
+      "verdict": "success"
+    }
+  ]
+}

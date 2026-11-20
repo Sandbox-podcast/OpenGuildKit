@@ -70,6 +70,12 @@ test('install a profile and verify the same target commit against two policy rev
   assert.equal(readFileSync(join(output, 'AGENTS.md'), 'utf8'), evidence.guidance + '\n');
   assert.equal(check(second, '--enforce').status, 1);
   assert.equal(check(second.slice(0, 7)).status, 2);
+
+  // Without --profile-commit, the profile comes from the target repository, not the current directory.
+  const elsewhere = spawnSync(process.execPath, [cli, 'check', '--policy-repo', policies, '--policy-commit', first,
+    '--commit', targetSha, '--target-repo', target], { cwd: root, encoding: 'utf8' });
+  assert.equal(elsewhere.status, 0, elsewhere.stderr);
+  assert.equal(JSON.parse(elsewhere.stdout).owner, '@equipe');
 });
 
 test('reconcile current PR, policy and profile references without promoting a late result', t => {

@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { git, gitSha, sha256 } from './check.mjs';
 import { reconcile } from './reconcile.mjs';
+import { parseJsonObject } from './json.mjs';
 import { approvedGitHubProfile } from './github-profile.mjs';
 import { sameRepository, sameRepositoryUrl } from './github-identifiers.mjs';
 
@@ -63,76 +64,89 @@ function validateRepo(id, path, ref) {
   git(path, 'check-ref-format', ref);
 }
 
-function listPullRequests(id, numbers, request) {
+function listPullRequests(id, numbers, request, errors) {
   const all = JSON.parse(request('api', '--paginate', '--slurp', `repos/${id}/pulls?state=open&per_page=100`)).flat();
-  return all.filter(pr => !numbers || numbers.includes(pr.number)).map(pr => {
+  return all.filter(pr => !numbers || numbers.includes(pr.number)).flatMap(pr => {
     const repository = pr.base?.repo?.full_name;
     if (pr.state !== 'open' || !Number.isSafeInteger(pr.number) || pr.number < 1 ||
         !gitSha.test(pr.head?.sha) || !sameRepository(repository, id)) {
-      throw new Error(`PR GitHub invalide dans ${id}.`);
+      const pullRequest = Number.isSafeInteger(pr.number) ? { pullRequest: pr.number } : {};
+      errors.push({ project: id, ...pullRequest, message: `PR GitHub invalide dans ${id}.` });
+      return [];
     }
-    return { number: pr.number, sha: pr.head.sha, repository };
+    return [{ number: pr.number, sha: pr.head.sha, repository }];
   });
 }
 
-function synchronize(configPath, { request = gh, fetchRefs = fetch } = {}) {
+function synchronizeProject(project, folder, { request, fetchRefs }, errors) {
+  validateRepo(project.id, resolve(folder, project.path), project.profileRef);
+  if (project.prNumbers !== undefined && (!Array.isArray(project.prNumbers) ||
+      project.prNumbers.some(number => !Number.isSafeInteger(number) || number < 1))) {
+    throw new Error('prNumbers doit contenir des numéros de PR positifs.');
+  }
+  const target = resolve(folder, project.path);
+  const namespace = `refs/openguildkit/projects/${sha256(`${project.id}:${project.profileRef}`)}`;
+  let profileRef = `${namespace}/profile`;
+  const listed = listPullRequests(project.id, project.prNumbers, request, errors).map(pr => ({
+    ...pr, ref: `${namespace}/pull/${pr.number}`,
+  }));
+  const refspecs = listed.map(pr => `+refs/pull/${pr.number}/head:${pr.ref}`);
+  fetchRefs(target, project.id, [`+${project.profileRef}:${profileRef}`, ...refspecs]);
+  const tip = listed.length > 0 && git(target, 'rev-parse', '--verify', profileRef).toString().trim();
+  const profile = tip && parseJsonObject(git(target, 'show', `${tip}:openguildkit.json`), 'openguildkit.json');
+  // An adoption profile states its own approval. Only the merged proposal PR on GitHub can confirm it.
+  if (profile && profile.adoption !== undefined && project.profileMaintainer === undefined) {
+    throw new Error(`Set profileMaintainer for ${project.id}: an adopted profile is only accepted after ` +
+      'verifying the proposal PR merged by that maintainer.');
+  }
+  if (profile && project.profileMaintainer !== undefined) {
+    const approved = approveGitHubProfile({
+      repo: project.id, pullRequest: profile.adoption?.approval?.pullRequest,
+      base: project.profileRef.slice('refs/heads/'.length), maintainer: project.profileMaintainer,
+    }, request);
+    if (!isDeepStrictEqual(profile, approved)) {
+      throw new Error(`Le profil actif de ${project.id} diffère de la proposition approuvée.`);
+    }
+    try {
+      git(target, 'merge-base', '--is-ancestor', approved.adoption.approval.mergeCommit, tip);
+    } catch {
+      throw new Error(`The approval of ${project.id} was not merged into ${project.profileRef}.`);
+    }
+    profileRef = `${namespace}/approved-profiles/${tip}`;
+    git(target, 'update-ref', profileRef, tip);
+  }
+  // A PR pushed between the listing and the fetch is evaluated on the next synchronization.
+  const pullRequests = listed.filter(pr => {
+    if (git(target, 'rev-parse', '--verify', pr.ref).toString().trim() === pr.sha) return true;
+    errors.push({ project: project.id, pullRequest: pr.number,
+      message: `La PR ${project.id}#${pr.number} a évolué pendant le chargement. Relancer la synchronisation.` });
+    return false;
+  });
+  const id = listed[0]?.repository ?? project.id;
+  return { id, path: project.path, profileRef, pullRequests, waiverApprovers: project.waiverApprovers };
+}
+
+// An error on the policy repository stops everything. An error on one project or one PR is reported for that item.
+function synchronize(configPath, dependencies) {
   const config = JSON.parse(readFileSync(configPath, 'utf8'));
   const folder = dirname(resolve(configPath));
   const policy = config.policyRepo;
   const policyPath = resolve(folder, policy.path);
   validateRepo(policy.id, policyPath, policy.ref);
-  for (const project of config.projects) {
-    validateRepo(project.id, resolve(folder, project.path), project.profileRef);
-    if (project.prNumbers !== undefined && (!Array.isArray(project.prNumbers) ||
-        project.prNumbers.some(number => !Number.isSafeInteger(number) || number < 1))) {
-      throw new Error('prNumbers doit contenir des numéros de PR positifs.');
-    }
-  }
+  if (!Array.isArray(config.projects)) throw new Error('projects doit être une liste.');
 
   const policyRef = `refs/openguildkit/policy/${sha256(`${policy.id}:${policy.ref}`)}`;
-  fetchRefs(policyPath, policy.id, [`+${policy.ref}:${policyRef}`]);
-  const projects = config.projects.map(project => {
-    const target = resolve(folder, project.path);
-    const namespace = `refs/openguildkit/projects/${sha256(`${project.id}:${project.profileRef}`)}`;
-    let profileRef = `${namespace}/profile`;
-    const pullRequests = listPullRequests(project.id, project.prNumbers, request).map(pr => ({
-      ...pr, ref: `${namespace}/pull/${pr.number}`,
-    }));
-    const refspecs = pullRequests.map(pr => `+refs/pull/${pr.number}/head:${pr.ref}`);
-    fetchRefs(target, project.id, [`+${project.profileRef}:${profileRef}`, ...refspecs]);
-    const tip = pullRequests.length > 0 && git(target, 'rev-parse', '--verify', profileRef).toString().trim();
-    const profile = tip && JSON.parse(git(target, 'show', `${tip}:openguildkit.json`));
-    // An adoption profile states its own approval. Only the merged proposal PR on GitHub can confirm it.
-    if (profile && profile.adoption !== undefined && project.profileMaintainer === undefined) {
-      throw new Error(`Set profileMaintainer for ${project.id}: an adopted profile is only accepted after ` +
-        'verifying the proposal PR merged by that maintainer.');
+  dependencies.fetchRefs(policyPath, policy.id, [`+${policy.ref}:${policyRef}`]);
+  const errors = [];
+  const projects = config.projects.flatMap(project => {
+    try {
+      return [synchronizeProject(project, folder, dependencies, errors)];
+    } catch (error) {
+      errors.push({ project: project.id, message: error.message });
+      return [];
     }
-    if (profile && project.profileMaintainer !== undefined) {
-      const approved = approveGitHubProfile({
-        repo: project.id, pullRequest: profile.adoption?.approval?.pullRequest,
-        base: project.profileRef.slice('refs/heads/'.length), maintainer: project.profileMaintainer,
-      }, request);
-      if (!isDeepStrictEqual(profile, approved)) {
-        throw new Error(`Le profil actif de ${project.id} diffère de la proposition approuvée.`);
-      }
-      try {
-        git(target, 'merge-base', '--is-ancestor', approved.adoption.approval.mergeCommit, tip);
-      } catch {
-        throw new Error(`The approval of ${project.id} was not merged into ${project.profileRef}.`);
-      }
-      profileRef = `${namespace}/approved-profiles/${tip}`;
-      git(target, 'update-ref', profileRef, tip);
-    }
-    for (const pr of pullRequests) {
-      const fetched = git(target, 'rev-parse', '--verify', pr.ref).toString().trim();
-      if (fetched !== pr.sha) {
-        throw new Error(`La PR ${project.id}#${pr.number} a évolué pendant le chargement. Relancer la synchronisation.`);
-      }
-    }
-    const id = pullRequests[0]?.repository ?? project.id;
-    return { id, path: project.path, profileRef, pullRequests, waiverApprovers: project.waiverApprovers };
   });
-  return { policyRepo: { path: policy.path, ref: policyRef, waiversPath: policy.waiversPath }, projects };
+  return { policyRepo: { path: policy.path, ref: policyRef, waiversPath: policy.waiversPath }, projects, errors };
 }
 
 function publishObservation(entry, reportUrl, request) {
@@ -160,6 +174,15 @@ export function reconcileGithub({ publish, reportUrl, ...options }, { request = 
   const result = reconcile({
     ...options, sameProject: sameRepository, loadConfig: () => synchronize(options.configPath, { request, fetchRefs }),
   });
-  if (publish) result.publications = result.current.map(entry => publishObservation(entry, reportUrl, request));
+  if (publish) {
+    result.publications = [];
+    for (const entry of result.current) {
+      try {
+        result.publications.push(publishObservation(entry, reportUrl, request));
+      } catch (error) {
+        result.errors.push({ work: entry.work, message: error.message });
+      }
+    }
+  }
   return result;
 }

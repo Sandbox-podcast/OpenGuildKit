@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { evaluateRefs, git, gitSha, isGitPath, parseProfile, sha256 } from './check.mjs';
+import { parseJsonObject } from './json.mjs';
 import { decide, parseWaivers } from './waivers.mjs';
 
 const json = value => JSON.stringify(value, null, 2) + '\n';
@@ -46,37 +47,20 @@ function fileRevision(repo, tip, path) {
   return { bytes, commit: matches ? lastChange : tip };
 }
 
-function snapshot(config, folder, kitVersion) {
-  const policyRepo = resolve(folder, config.policyRepo.path);
-  const policyTip = resolveRef(policyRepo, config.policyRepo.ref);
-  const waiversPath = config.policyRepo.waiversPath;
-  if (waiversPath !== undefined && !isGitPath(waiversPath)) {
-    throw new Error('Chemin Git du registre de dérogations invalide.');
+function projectEntries(project, folder, { policyRepo, policyTip, registry, registryCommit, kitVersion }, errors) {
+  const targetRepo = resolve(folder, project.path);
+  const profile = fileRevision(targetRepo, resolveRef(targetRepo, project.profileRef), profilePath);
+  const { policyPath, adoption } = parseProfile(profile.bytes);
+  const approvers = project.waiverApprovers ?? [];
+  if (!Array.isArray(approvers) || !approvers.every(item => typeof item === 'string' && item.trim())) {
+    throw new Error(`Approbateurs de dérogations invalides pour ${project.id}.`);
   }
-  const waiverFile = waiversPath === undefined ? null : fileRevision(policyRepo, policyTip, waiversPath);
-  const registry = waiverFile ? parseWaivers(waiverFile.bytes) : [];
+  const policy = fileRevision(policyRepo, policyTip, policyPath);
+  const { id: rule } = parseJsonObject(policy.bytes, policyPath);
+  const numbers = new Set();
   const entries = [];
-  const projects = new Set();
-  for (const project of config.projects) {
-    if (typeof project.id !== 'string' || !project.id.trim() || projects.has(project.id)) {
-      throw new Error('Chaque projet doit avoir un identifiant distinct.');
-    }
-    projects.add(project.id);
-    // The GitHub commands list open PRs. A local configuration without pullRequests has nothing to evaluate.
-    const pullRequests = project.pullRequests ?? [];
-    if (!Array.isArray(pullRequests)) throw new Error(`pullRequests must be a list for ${project.id}.`);
-    if (pullRequests.length === 0) continue;
-    const targetRepo = resolve(folder, project.path);
-    const profile = fileRevision(targetRepo, resolveRef(targetRepo, project.profileRef), profilePath);
-    const { policyPath, adoption } = parseProfile(profile.bytes);
-    const approvers = project.waiverApprovers ?? [];
-    if (!Array.isArray(approvers) || !approvers.every(item => typeof item === 'string' && item.trim())) {
-      throw new Error(`Approbateurs de dérogations invalides pour ${project.id}.`);
-    }
-    const policy = fileRevision(policyRepo, policyTip, policyPath);
-    const { id: rule } = JSON.parse(policy.bytes);
-    const numbers = new Set();
-    for (const pr of pullRequests) {
+  for (const pr of project.pullRequests) {
+    try {
       if (!Number.isSafeInteger(pr.number) || pr.number < 1 || numbers.has(pr.number)) {
         throw new Error(`Numéro de PR invalide ou dupliqué pour ${project.id}.`);
       }
@@ -97,11 +81,46 @@ function snapshot(config, folder, kitVersion) {
       };
       entries.push({
         key: workKey(inputs), inputs, policyRepo, targetRepo, profileBytes: profile.bytes,
-        mode: adoption?.mode ?? 'observation', approvers, registry, registryCommit: waiverFile?.commit,
+        mode: adoption?.mode ?? 'observation', approvers, registry, registryCommit,
       });
+    } catch (error) {
+      errors.push({ project: project.id, pullRequest: pr.number, message: error.message });
     }
   }
   return entries;
+}
+
+// The policy and the waiver registry apply to every project: an error there stops the snapshot.
+// An error limited to one project or one PR is reported for that item, and the others are still evaluated.
+function snapshot(config, folder, kitVersion) {
+  const policyRepo = resolve(folder, config.policyRepo.path);
+  const policyTip = resolveRef(policyRepo, config.policyRepo.ref);
+  const waiversPath = config.policyRepo.waiversPath;
+  if (waiversPath !== undefined && !isGitPath(waiversPath)) {
+    throw new Error('Chemin Git du registre de dérogations invalide.');
+  }
+  const waiverFile = waiversPath === undefined ? null : fileRevision(policyRepo, policyTip, waiversPath);
+  const registry = waiverFile ? parseWaivers(waiverFile.bytes) : [];
+  const shared = { policyRepo, policyTip, registry, registryCommit: waiverFile?.commit, kitVersion };
+  const entries = [];
+  const errors = [...(config.errors ?? [])];
+  const projects = new Set();
+  for (const project of config.projects) {
+    if (typeof project.id !== 'string' || !project.id.trim() || projects.has(project.id)) {
+      throw new Error('Chaque projet doit avoir un identifiant distinct.');
+    }
+    projects.add(project.id);
+    // The GitHub commands list open PRs. A local configuration without pullRequests has nothing to evaluate.
+    const pullRequests = project.pullRequests ?? [];
+    try {
+      if (!Array.isArray(pullRequests)) throw new Error(`pullRequests must be a list for ${project.id}.`);
+      if (pullRequests.length === 0) continue;
+      entries.push(...projectEntries({ ...project, pullRequests }, folder, shared, errors));
+    } catch (error) {
+      errors.push({ project: project.id, message: error.message });
+    }
+  }
+  return { entries, errors };
 }
 
 function currentVerdict(stateDir, { key, inputs, mode, approvers, registry, registryCommit }, now, sameProject) {
@@ -147,27 +166,31 @@ export function reconcile({ configPath, stateDir, run, kitVersion,
       ...project, pullRequests: (project.pullRequests ?? []).filter(pr => pr.number === selection.pullRequest),
     }));
     const chosen = snapshot({ ...config, projects }, folder, kitVersion);
-    if (chosen.length !== 1 || chosen[0].inputs.commit !== selection.commit) {
+    // A gate decides on one PR: any error on the selected project or PR fails closed.
+    const related = chosen.errors.filter(error => error.project === undefined || sameProject(error.project, selection.project));
+    if (related.length) throw new Error(related.map(error => error.message).join(' '));
+    const [entry] = chosen.entries;
+    if (chosen.entries.length !== 1 || entry.inputs.commit !== selection.commit) {
       throw new Error('La PR ou le commit demandé ne correspond plus aux références courantes.');
     }
-    if (selection.mode && chosen[0].mode !== selection.mode) {
+    if (selection.mode && entry.mode !== selection.mode) {
       throw new Error('Le profil approuvé doit être en mode obligatoire pour utiliser gate.');
     }
-    return chosen;
+    return { entries: chosen.entries, errors: [] };
   };
   const plan = entries => entries.map(entry => {
     storeOnce(join(stateDir, 'work', `${entry.key}.json`), entry.inputs);
     return currentVerdict(stateDir, entry, clock(), sameProject);
   });
-  const entries = readSnapshot();
+  const { entries, errors: snapshotErrors } = readSnapshot();
   const current = plan(entries);
-  if (!run) return { current };
+  if (!run) return { current, errors: snapshotErrors };
 
   const pending = entries.filter((_, index) => current[index].status === 'pending');
   const errors = [];
   const executed = [];
   const executedEvidence = [];
-  if (!pending.length) return { current, executed, executedEvidence, errors };
+  if (!pending.length) return { current, executed, executedEvidence, errors: snapshotErrors };
   for (const entry of pending) {
     try {
       const evidence = evaluateRefs({ ...entry, ...entry.inputs });
@@ -182,7 +205,8 @@ export function reconcile({ configPath, stateDir, run, kitVersion,
   }
   // A check may finish against an older revision. Keep its report accessible without promoting it to current.
   try {
-    return { current: plan(readSnapshot()), executed, executedEvidence, errors };
+    const latest = readSnapshot();
+    return { current: plan(latest.entries), executed, executedEvidence, errors: [...errors, ...latest.errors] };
   } catch (error) {
     errors.push({ message: error.message });
     return { current: [], executed, executedEvidence, errors };

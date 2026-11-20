@@ -1,4 +1,5 @@
 import { gitSha } from './check.mjs';
+import { parseJsonObject } from './json.mjs';
 
 const fields = ['pullRequest', 'commit', 'profileCommit', 'policyCommit', 'rule'];
 const text = value => typeof value === 'string' && value.trim().length > 0;
@@ -12,7 +13,7 @@ function timestamp(value) {
 }
 
 export function parseWaivers(bytes) {
-  const registry = JSON.parse(bytes);
+  const registry = parseJsonObject(bytes, 'waiver registry');
   if (registry.schemaVersion !== 1 || !Array.isArray(registry.waivers)) {
     throw new Error('Registre de dérogations invalide.');
   }

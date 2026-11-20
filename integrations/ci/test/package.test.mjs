@@ -57,7 +57,7 @@ test('init and reconcile run with the configuration shown in the README', t => {
   writeFileSync(join(root, 'integration.json'), JSON.stringify(configExample));
   const reconcile = run('reconcile', '--config', 'integration.json', '--state', 'state');
   assert.equal(reconcile.status, 0, reconcile.stderr);
-  assert.deepEqual(JSON.parse(reconcile.stdout), { current: [] });
+  assert.deepEqual(JSON.parse(reconcile.stdout), { current: [], errors: [] });
 });
 
 test('the workflow templates pin their actions and read the kit version from their pin file', () => {

@@ -1,5 +1,6 @@
 """Replay a central policy change against two unchanged Git commits."""
 
+import base64
 import json
 import subprocess
 from pathlib import Path
@@ -9,6 +10,14 @@ from .test_cli_flow import CliTestCase
 
 EXAMPLE = Path(__file__).resolve().parents[2] / "examples" / "export-expiry"
 POLICY = Path("packs/export-link-expiry.json")
+# The Node coordinator's test suite judges the same cases with openguildkit-ci check.
+PARITY = Path(__file__).resolve().parents[2] / "integrations" / "ci" / "test" / "fixtures" / "parity.json"
+EXIT_CODES = {"success": 0, "failure": 1, "error": 2}
+VALID_EXPORT = b'{"downloadLinkMinutes": 30}'
+
+
+def fixture_bytes(case):
+    return base64.b64decode(case["base64"]) if "base64" in case else case["text"].encode("utf-8")
 
 
 class ExportCiTests(CliTestCase):
@@ -45,6 +54,57 @@ class ExportCiTests(CliTestCase):
 
     def evaluate(self, policy, repo, commit, expect=0):
         return self.with_policy(policy, "ci-check", "--target-repo", repo, "--commit", commit, expect=expect)
+
+    def commit_bytes(self, repo, path, content, object_format="sha1"):
+        if not (repo / ".git").is_dir():
+            repo.mkdir()
+            self.git(repo, "init", "--quiet", f"--object-format={object_format}")
+        file = repo / path
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_bytes(content)
+        self.git(repo, "add", str(path))
+        self.git(
+            repo, "-c", "user.name=OpenGuildKit tests", "-c", "user.email=tests@example.invalid",
+            "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "Record fixture",
+        )
+        return self.git(repo, "rev-parse", "HEAD")
+
+    def test_node_coordinator_judges_the_shared_cases_alike(self):
+        fixture = json.loads(PARITY.read_text(encoding="utf-8"))
+        policy = self.commit_bytes(self.policy, POLICY, json.dumps(fixture["pack"], indent=2).encode("utf-8"))
+        target = self.project / "parity"
+        for case in fixture["exports"]:
+            with self.subTest(export=case["name"]):
+                head = self.commit_bytes(target, "export.json", fixture_bytes(case))
+                self.evaluate(policy, target, head, expect=EXIT_CODES[case["verdict"]])
+
+        head = self.commit_bytes(target, "export.json", VALID_EXPORT)
+        for case in fixture["packs"]:
+            with self.subTest(pack=case["name"]):
+                revision = self.commit_bytes(self.policy, POLICY, fixture_bytes(case))
+                self.evaluate(revision, target, head, expect=EXIT_CODES[case["verdict"]])
+
+        policy = self.commit(self.policy, POLICY, fixture["pack"])
+        self.git(self.policy, "-c", "tag.gpgsign=false", "tag", "-a", "parity-policy", "-m", "Policy tag", policy)
+
+        def names(repo, commit, tag, path):
+            return {
+                "commit": commit,
+                "tree": self.git(repo, "rev-parse", f"{commit}^{{tree}}"),
+                "tag": self.git(repo, "rev-parse", tag),
+                "blob": self.git(repo, "rev-parse", f"{commit}:{path}"),
+                "short": commit[:12],
+                "upper": commit.upper(),
+            }
+
+        policy_names = names(self.policy, policy, "parity-policy", POLICY.as_posix())
+        for index, case in enumerate(fixture["commits"]):
+            with self.subTest(commit=case["name"]):
+                repo = self.project / f"commit-{index}"
+                commit = self.commit_bytes(repo, "export.json", VALID_EXPORT, case.get("objectFormat", "sha1"))
+                self.git(repo, "-c", "tag.gpgsign=false", "tag", "-a", "parity-target", "-m", "Target tag", commit)
+                target_name = names(repo, commit, "parity-target", "export.json")[case["target"]]
+                self.evaluate(policy_names[case["policy"]], repo, target_name, expect=EXIT_CODES[case["verdict"]])
 
     def test_two_targets_are_rechecked_with_identical_inputs_per_policy(self):
         first = self.project / "repo-a"

@@ -1,4 +1,5 @@
-import { git, gitSha, isGitPath, parseProfile, readRule } from './check.mjs';
+import { committedFile, git, gitSha, isGitPath, parseProfile, readRule } from './check.mjs';
+import { parseJsonObject } from './json.mjs';
 
 const questions = {
   project: 'Quel projet et quel dépôt sont concernés ?',
@@ -27,7 +28,7 @@ export function loadCatalog({ policyRepo, policyCommit, catalogPath = 'policy/ca
   if (!policyRepo || !gitSha.test(policyCommit) || !isGitPath(catalogPath)) {
     throw new Error('Le catalogue demande un dépôt, un SHA complet et un chemin Git relatif.');
   }
-  const catalog = JSON.parse(git(policyRepo, 'show', `${policyCommit}:${catalogPath}`));
+  const catalog = parseJsonObject(committedFile(policyRepo, policyCommit, catalogPath), catalogPath);
   if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.rules) || !catalog.rules.length) {
     throw new Error('Catalogue invalide : au moins une règle est requise.');
   }

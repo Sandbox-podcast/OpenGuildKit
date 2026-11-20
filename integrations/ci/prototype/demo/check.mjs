@@ -10,7 +10,7 @@ export function describeRule(rule, source) {
   if (rule.id !== 'export-link-expiry' ||
       (!catalogVersion && (!Number.isSafeInteger(rule.version) || rule.version < 1)) ||
       !Number.isSafeInteger(rule.maxMinutes) || rule.maxMinutes < 1 ||
-      !/^[a-f0-9]{40}$/.test(source)) {
+      !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(source)) {
     throw new Error('Règle ou références Git invalides.');
   }
   return {
@@ -23,7 +23,7 @@ export function describeRule(rule, source) {
 
 export function evaluate(rule, source, commit, config) {
   const details = describeRule(rule, source);
-  if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error('Commit Git invalide.');
+  if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(commit)) throw new Error('Commit Git invalide.');
   const actualMinutes = config.downloadLinkMinutes;
   const passes = Number.isSafeInteger(actualMinutes) &&
     actualMinutes > 0 && actualMinutes <= rule.maxMinutes;

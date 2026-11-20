@@ -82,6 +82,14 @@ A run that executes new checks refreshes the active references afterward. If the
 
 The workflow templates retain their pilot branch names and configuration filenames. Adjust them for the deployment. Keep checkout, validation and report publication on trusted revisions. The project keeps its normal merge review and approval settings.
 
+## Results and errors
+
+`check`, `gate` and the Jenkins helpers in `pilot/` share the exit codes of `openguildkit ci-check`: 0 when the commit conforms or the profile only observes, 1 when the rule fails with `--enforce` or a required profile, and 2 when the evaluation could not run. `reconcile`, `github` and `watch` exit with 2 when their report lists errors.
+
+The coordinator reads `export.json`, the policy pack, the profile and the waiver registry like `openguildkit ci-check`. A UTF-8 byte order mark is accepted and a duplicate key is refused. Commit SHAs are full and lowercase, from SHA-1 or SHA-256 repositories, and must name a commit, not a tree or a tag. Without `--profile-commit`, `check` reads `--profile` from the working tree of `--target-repo`. Both test suites judge the shared cases of `integrations/ci/test/fixtures/parity.json` in the repository.
+
+During a synchronization, an error limited to one PR, such as a head pushed during the read or a malformed PR, or to one project, such as an invalid profile, a failed fetch or an unverified approval, is listed in `errors` with the project and PR. The other projects and PRs are still evaluated. An error on the policy repository or in the waiver registry stops the whole synchronization: one invalid waiver could otherwise remove an exception without notice, so the coordinator fails closed. `gate` and `merge` stop on any error about the selected PR.
+
 ## Configuration reference
 
 Paths are relative to the configuration file.
