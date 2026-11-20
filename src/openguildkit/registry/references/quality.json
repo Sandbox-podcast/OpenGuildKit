@@ -185,6 +185,20 @@
       ]
     },
     {
+      "id": "core-web-vitals",
+      "title": "Core Web Vitals",
+      "category": "Performance web",
+      "kind": "indicateur",
+      "summary": "Mesures de chargement, réactivité et stabilité visuelle de l'expérience web.",
+      "applies_when": "À mesurer dans des conditions et sur des populations définies.",
+      "sources": [
+        {
+          "url": "https://web.dev/articles/vitals",
+          "title": "web.dev — Web Vitals"
+        }
+      ]
+    },
+    {
       "id": "fuzzing",
       "title": "Fuzzing",
       "category": "Stratégies de test et QA",
@@ -205,6 +219,10 @@
       "kind": "outil",
       "summary": "Automatise des parcours et des vérifications d'applications Web dans plusieurs moteurs de navigateur.",
       "applies_when": "Pour des tests Web, notamment de bout en bout ; sélectionner les navigateurs et scénarios correspondant aux usages visés.",
+      "pattern": "playwright-web",
+      "packs": [
+        "playwright"
+      ],
       "sources": [
         {
           "url": "https://playwright.dev/docs/intro",
@@ -275,6 +293,10 @@
       "kind": "outil",
       "summary": "Permet d'écrire et d'exécuter des tests Python avec des assertions, des jeux de données et des ressources de test réutilisables.",
       "applies_when": "Pour les projets Python qui retiennent pytest, des tests ciblés aux scénarios fonctionnels plus complexes.",
+      "pattern": "python-pytest",
+      "packs": [
+        "pytest"
+      ],
       "sources": [
         {
           "url": "https://docs.pytest.org/en/stable/",

@@ -139,6 +139,10 @@
       "kind": "norme",
       "summary": "Définit les exigences d'un système de management de la sécurité de l'information.",
       "applies_when": "Pour organiser un système de management de la sécurité de l'information et, si l'organisation le décide, le faire certifier par un organisme accrédité.",
+      "pattern": "iso-27001-isms",
+      "packs": [
+        "iso-27001"
+      ],
       "sources": [
         {
           "url": "https://www.iso.org/standard/27001",
@@ -248,7 +252,7 @@
       "id": "soc-2",
       "title": "SOC 2 — Examen et rapport d'attestation",
       "category": "Gouvernance, audit et management",
-      "kind": "attestation",
+      "kind": "référentiel",
       "summary": "Rend compte de l'examen de contrôles d'une organisation de services selon les critères applicables.",
       "applies_when": "Quand des clients ou partenaires attendent une assurance indépendante sur les contrôles d'une organisation de services ; le rapport est émis par un auditeur indépendant.",
       "sources": [
@@ -262,7 +266,7 @@
       "id": "soc-3",
       "title": "SOC 3 — Rapport à usage général",
       "category": "Gouvernance, audit et management",
-      "kind": "attestation",
+      "kind": "référentiel",
       "summary": "Présente un rapport de confiance destiné à une diffusion plus large, avec moins de détails qu'un SOC 2.",
       "applies_when": "Pour communiquer une assurance sur des contrôles au public ; ce n'est pas un catalogue de prescriptions techniques.",
       "sources": [

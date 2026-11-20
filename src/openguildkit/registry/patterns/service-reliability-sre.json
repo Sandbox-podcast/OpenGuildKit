@@ -15,5 +15,14 @@
   ],
   "packs": [
     "service-reliability"
+  ],
+  "references": [
+    "site-reliability-engineering",
+    "error-budget",
+    "opentelemetry",
+    "opentelemetry-semantic-conventions",
+    "otlp",
+    "service-level-indicator",
+    "service-level-objective"
   ]
 }

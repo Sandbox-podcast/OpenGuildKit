@@ -14,5 +14,8 @@
   ],
   "packs": [
     "campaign-measurement"
+  ],
+  "references": [
+    "utm"
   ]
 }

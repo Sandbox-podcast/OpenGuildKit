@@ -16,6 +16,10 @@
   "packs": [
     "aspnet-core"
   ],
+  "references": [
+    "http",
+    "openapi"
+  ],
   "match": {
     "stack": [
       [

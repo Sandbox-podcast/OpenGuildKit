@@ -20,7 +20,7 @@
       "id": "schema-org",
       "title": "Schema.org",
       "category": "Marketing SEO et mesure des campagnes",
-      "kind": "vocabulaire",
+      "kind": "spécification",
       "summary": "Vocabulaire partagé pour décrire des pages, organisations, produits, événements et autres contenus.",
       "applies_when": "Pour les données structurées des contenus web, selon les types réellement présents.",
       "sources": [
@@ -34,7 +34,7 @@
       "id": "json-ld",
       "title": "JSON-LD",
       "category": "Marketing SEO et mesure des campagnes",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Représentation JSON de données liées et de leurs relations.",
       "applies_when": "Pour les données structurées web ou autres graphes de connaissances, selon les besoins.",
       "sources": [
@@ -62,7 +62,7 @@
       "id": "robots-txt",
       "title": "Robots Exclusion Protocol",
       "category": "Marketing SEO et mesure des campagnes",
-      "kind": "standard",
+      "kind": "protocole",
       "summary": "Règles publiées dans robots.txt à destination des robots qui acceptent de les suivre.",
       "applies_when": "Pour le parcours des sites par les robots ; ce mécanisme ne protège pas des données privées.",
       "sources": [
@@ -87,26 +87,16 @@
       ]
     },
     {
-      "id": "core-web-vitals",
-      "title": "Core Web Vitals",
-      "category": "Marketing SEO et mesure des campagnes",
-      "kind": "indicateurs",
-      "summary": "Mesures de chargement, réactivité et stabilité visuelle de l'expérience web.",
-      "applies_when": "À mesurer dans des conditions et sur des populations définies.",
-      "sources": [
-        {
-          "url": "https://web.dev/articles/vitals",
-          "title": "web.dev — Web Vitals"
-        }
-      ]
-    },
-    {
       "id": "utm",
       "title": "Paramètres UTM",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "convention",
       "summary": "Paramètres d'URL qui attribuent le trafic aux campagnes, sources et supports.",
       "applies_when": "Définir une nomenclature commune pour éviter les doublons et erreurs de reporting.",
+      "pattern": "utm-campaign-measurement",
+      "packs": [
+        "campaign-measurement"
+      ],
       "sources": [
         {
           "url": "https://support.google.com/analytics/answer/10917952",
@@ -132,7 +122,7 @@
       "id": "scip-ethics",
       "title": "SCIP Code of Ethics",
       "category": "Marketing SEO et mesure des campagnes",
-      "kind": "code professionnel",
+      "kind": "référentiel",
       "summary": "Repères éthiques pour collecter et utiliser de l'intelligence concurrentielle.",
       "applies_when": "Pour cadrer la veille et la collecte de sources de marché.",
       "sources": [
@@ -143,54 +133,16 @@
       ]
     },
     {
-      "id": "spf",
-      "title": "SPF",
-      "category": "Email et identité des domaines",
-      "kind": "protocole",
-      "summary": "Déclare quels serveurs peuvent envoyer des emails pour un domaine.",
-      "applies_when": "Pour les domaines qui émettent des messages ; à articuler avec DKIM et DMARC.",
-      "sources": [
-        {
-          "url": "https://www.rfc-editor.org/rfc/rfc7208.html",
-          "title": "IETF RFC 7208 — Sender Policy Framework (SPF)"
-        }
-      ]
-    },
-    {
-      "id": "dkim",
-      "title": "DKIM",
-      "category": "Email et identité des domaines",
-      "kind": "protocole",
-      "summary": "Associe une signature vérifiable à un message au nom d'un domaine.",
-      "applies_when": "Pour l'authentification des emails, sans chiffrer leur contenu.",
-      "sources": [
-        {
-          "url": "https://www.rfc-editor.org/rfc/rfc6376.html",
-          "title": "IETF RFC 6376 — DomainKeys Identified Mail (DKIM) Signatures"
-        }
-      ]
-    },
-    {
-      "id": "dmarc",
-      "title": "DMARC",
-      "category": "Email et identité des domaines",
-      "kind": "protocole",
-      "summary": "Relie l'authentification des emails au domaine visible de l'expéditeur et à une politique de traitement.",
-      "applies_when": "À déployer avec suivi des rapports et configuration SPF/DKIM cohérente.",
-      "sources": [
-        {
-          "url": "https://www.rfc-editor.org/info/rfc9989/",
-          "title": "IETF RFC 9989 — Domain-Based Message Authentication, Reporting, and Conformance (DMARC)"
-        }
-      ]
-    },
-    {
       "id": "meddpicc",
       "title": "MEDDPICC",
       "category": "Commerce et relation client",
       "kind": "méthode",
       "summary": "Structure la qualification d'une vente complexe, de la valeur attendue au processus de décision.",
       "applies_when": "Pour les ventes B2B complexes ; ce n'est pas une norme de conformité.",
+      "pattern": "meddpicc",
+      "packs": [
+        "meddpicc-qualification"
+      ],
       "sources": [
         {
           "url": "https://meddicc.com/meddpicc-sales-methodology-and-process",
@@ -205,6 +157,10 @@
       "kind": "méthode",
       "summary": "Guide les questions de découverte autour de la situation, des problèmes, de leurs effets et de la valeur attendue.",
       "applies_when": "Pour les conversations commerciales et la compréhension du besoin.",
+      "pattern": "spin-selling",
+      "packs": [
+        "spin-discovery"
+      ],
       "sources": [
         {
           "url": "https://www.huthwaiteinternational.com/spin-methodology",
@@ -244,7 +200,7 @@
       "id": "saas-billing-metrics",
       "title": "MRR et churn",
       "category": "Commerce et relation client",
-      "kind": "indicateurs",
+      "kind": "indicateur",
       "summary": "Conventions de mesure du revenu récurrent mensuel et de la perte de clients ou revenus.",
       "applies_when": "Fixer les définitions, périodes et exclusions avant de comparer des résultats.",
       "sources": [

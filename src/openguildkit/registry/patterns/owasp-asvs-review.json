@@ -15,5 +15,9 @@
   ],
   "packs": [
     "owasp-asvs"
+  ],
+  "references": [
+    "owasp-asvs",
+    "nist-ssdf"
   ]
 }

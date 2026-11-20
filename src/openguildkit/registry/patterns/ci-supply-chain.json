@@ -15,5 +15,12 @@
   ],
   "packs": [
     "supply-chain"
+  ],
+  "references": [
+    "slsa",
+    "cyclonedx",
+    "nist-ssdf",
+    "sbom",
+    "spdx"
   ]
 }

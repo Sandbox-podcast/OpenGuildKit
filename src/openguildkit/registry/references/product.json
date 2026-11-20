@@ -20,9 +20,13 @@
       "id": "scrum",
       "title": "Scrum",
       "category": "Produit et organisation",
-      "kind": "cadre méthodologique",
+      "kind": "méthode",
       "summary": "Cadre de travail avec responsabilités, événements et engagements explicites pour faire évoluer un produit.",
       "applies_when": "Option d'organisation pour une équipe ; ne se cumule pas mécaniquement avec toutes les autres méthodes.",
+      "pattern": "scrum",
+      "packs": [
+        "scrum-delivery"
+      ],
       "sources": [
         {
           "url": "https://scrumguides.org/scrum-guide.html",
@@ -37,6 +41,10 @@
       "kind": "méthode",
       "summary": "Organisation du flux de travail avec limites de travail en cours et mesures de circulation des tâches.",
       "applies_when": "Pour piloter et améliorer un flux ; les règles sont définies par l'équipe.",
+      "pattern": "kanban",
+      "packs": [
+        "kanban-delivery"
+      ],
       "sources": [
         {
           "url": "https://kanbanguides.org/the-kanban-guide/2025.5/",
@@ -51,6 +59,9 @@
       "kind": "convention",
       "summary": "Définition partagée des conditions qu'un incrément doit respecter pour être considéré terminé.",
       "applies_when": "À préciser selon les responsabilités, les tests et le niveau de qualité attendu.",
+      "packs": [
+        "scrum-delivery"
+      ],
       "sources": [
         {
           "url": "https://scrumguides.org/scrum-guide.html",
@@ -62,7 +73,7 @@
       "id": "invest",
       "title": "INVEST",
       "category": "Produit et organisation",
-      "kind": "heuristique",
+      "kind": "principe",
       "summary": "Critères pour rédiger des user stories autonomes, utiles, estimables, petites et testables.",
       "applies_when": "Pour préparer des demandes produit et faciliter leur clarification.",
       "sources": [
@@ -76,7 +87,7 @@
       "id": "smart",
       "title": "SMART",
       "category": "Produit et organisation",
-      "kind": "heuristique",
+      "kind": "principe",
       "summary": "Aide à formuler des tâches ou objectifs suffisamment précis et vérifiables.",
       "applies_when": "Définir la variante retenue et les mesures utiles, sans en faire une règle universelle.",
       "sources": [
@@ -93,6 +104,10 @@
       "kind": "méthode",
       "summary": "Analyse du progrès que les personnes cherchent à accomplir dans une situation donnée.",
       "applies_when": "Pour la découverte produit, la recherche client et le positionnement.",
+      "pattern": "jobs-to-be-done",
+      "packs": [
+        "jobs-to-be-done"
+      ],
       "sources": [
         {
           "url": "https://www.christenseninstitute.org/theory/jobs-to-be-done/",
@@ -107,6 +122,10 @@
       "kind": "méthode",
       "summary": "Relie un résultat souhaité aux opportunités clients, aux solutions et aux tests envisagés.",
       "applies_when": "Pour structurer la découverte produit et comparer les options.",
+      "pattern": "opportunity-solution-tree",
+      "packs": [
+        "opportunity-solution-tree"
+      ],
       "sources": [
         {
           "url": "https://www.producttalk.org/opportunity-solution-trees/",
@@ -163,6 +182,10 @@
       "kind": "méthode",
       "summary": "Relie des objectifs à des résultats clés mesurables.",
       "applies_when": "Pour l'alignement et le suivi de résultats ; les tâches ne remplacent pas les résultats.",
+      "pattern": "okr",
+      "packs": [
+        "leadership-planning"
+      ],
       "sources": [
         {
           "url": "https://www.whatmatters.com/faqs/okr-meaning-definition-example",

@@ -15,5 +15,8 @@
   ],
   "packs": [
     "secure-sdlc"
+  ],
+  "references": [
+    "nist-ssdf"
   ]
 }

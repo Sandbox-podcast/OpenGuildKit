@@ -104,7 +104,7 @@
       "id": "dita",
       "title": "DITA",
       "category": "Documentation et rédaction",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Architecture XML de contenus documentaires modulaires et réutilisables.",
       "applies_when": "Pour les chaînes éditoriales structurées qui ont besoin de réutilisation et de publications multiples.",
       "sources": [
@@ -160,7 +160,7 @@
       "id": "unicode-cldr",
       "title": "Unicode CLDR",
       "category": "Internationalisation et conventions de référence",
-      "kind": "référentiel de données",
+      "kind": "référentiel",
       "summary": "Données de langues et de régions pour dates, nombres, monnaies et autres présentations locales.",
       "applies_when": "Pour localiser une application avec des données partagées plutôt que des règles improvisées.",
       "sources": [
@@ -188,7 +188,7 @@
       "id": "iana-timezones",
       "title": "IANA Time Zone Database",
       "category": "Internationalisation et conventions de référence",
-      "kind": "référentiel de données",
+      "kind": "référentiel",
       "summary": "Identifiants et règles historiques des fuseaux horaires et changements d'heure.",
       "applies_when": "Pour stocker et afficher des heures selon la zone de l'utilisateur.",
       "sources": [
@@ -202,7 +202,7 @@
       "id": "unicode-normalization",
       "title": "Unicode Normalization UAX 15",
       "category": "Internationalisation et conventions de référence",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Définit des formes normalisées de texte Unicode pour comparer et traiter les caractères.",
       "applies_when": "Pour les recherches, échanges et identifiants sensibles aux représentations des caractères.",
       "sources": [

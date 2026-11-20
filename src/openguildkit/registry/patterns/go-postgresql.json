@@ -22,6 +22,10 @@
     "go-database",
     "postgresql"
   ],
+  "references": [
+    "http",
+    "openapi"
+  ],
   "match": {
     "stack": [
       [

@@ -15,5 +15,8 @@
   ],
   "packs": [
     "web-accessibility"
+  ],
+  "references": [
+    "wcag-22"
   ]
 }

@@ -19,6 +19,10 @@
   "packs": [
     "spring-boot"
   ],
+  "references": [
+    "http",
+    "openapi"
+  ],
   "match": {
     "stack": [
       [

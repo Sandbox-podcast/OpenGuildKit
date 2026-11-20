@@ -15,5 +15,9 @@
   ],
   "packs": [
     "nist-ai-risk"
+  ],
+  "references": [
+    "nist-ai-rmf",
+    "nist-ai-genai-profile"
   ]
 }

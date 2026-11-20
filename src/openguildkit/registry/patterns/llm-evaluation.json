@@ -16,5 +16,9 @@
   ],
   "packs": [
     "llm-evaluations"
+  ],
+  "references": [
+    "llm-agent-evaluations",
+    "nist-ai-genai-profile"
   ]
 }

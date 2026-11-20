@@ -16,6 +16,10 @@
   "packs": [
     "kubernetes-gitops"
   ],
+  "references": [
+    "opengitops",
+    "kubernetes"
+  ],
   "match": {
     "stack": [
       [

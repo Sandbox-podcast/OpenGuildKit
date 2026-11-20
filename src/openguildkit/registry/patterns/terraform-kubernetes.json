@@ -20,6 +20,10 @@
   "packs": [
     "terraform-kubernetes"
   ],
+  "references": [
+    "kubernetes",
+    "terraform"
+  ],
   "match": {
     "stack": [
       [

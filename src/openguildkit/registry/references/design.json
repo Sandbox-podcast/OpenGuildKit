@@ -9,6 +9,10 @@
       "kind": "méthode",
       "summary": "Structure la recherche du problème puis l'exploration et la validation de solutions.",
       "applies_when": "Pour organiser un travail de conception et de recherche utilisateur.",
+      "pattern": "double-diamond",
+      "packs": [
+        "design-process"
+      ],
       "sources": [
         {
           "url": "https://www.designcouncil.org.uk/resources/the-double-diamond/",
@@ -48,7 +52,7 @@
       "id": "nielsen-heuristics",
       "title": "Heuristiques de Nielsen",
       "category": "Design UX et systèmes de composants",
-      "kind": "heuristique",
+      "kind": "principe",
       "summary": "Repères d'évaluation ergonomique des interfaces et de la compréhension du système.",
       "applies_when": "Pour une revue UX ; ne remplace pas les tests avec des utilisateurs.",
       "sources": [
@@ -90,7 +94,7 @@
       "id": "dtcg-design-tokens",
       "title": "DTCG Design Tokens",
       "category": "Design UX et systèmes de composants",
-      "kind": "spécification communautaire",
+      "kind": "spécification",
       "summary": "Format d'échange des valeurs de design comme couleurs, espacements et typographie.",
       "applies_when": "Choisir une version publiée du format ; ce rapport communautaire n'est pas une recommandation W3C.",
       "sources": [
@@ -104,7 +108,7 @@
       "id": "material-design",
       "title": "Material Design",
       "category": "Design UX et systèmes de composants",
-      "kind": "système de design",
+      "kind": "référentiel",
       "summary": "Langage de design et composants documentés pour des interfaces cohérentes.",
       "applies_when": "Option de design system à adapter à la plateforme et à la marque.",
       "sources": [
@@ -132,7 +136,7 @@
       "id": "fluent-design",
       "title": "Fluent 2",
       "category": "Design UX et systèmes de composants",
-      "kind": "système de design",
+      "kind": "référentiel",
       "summary": "Système de styles, composants et recommandations de Microsoft.",
       "applies_when": "Option de bibliothèque et de langage visuel selon la plateforme.",
       "sources": [
@@ -146,7 +150,7 @@
       "id": "carbon-design",
       "title": "Carbon Design System",
       "category": "Design UX et systèmes de composants",
-      "kind": "système de design",
+      "kind": "référentiel",
       "summary": "Système de composants et de recommandations maintenu par IBM.",
       "applies_when": "Option de système de design à évaluer selon les besoins et licences.",
       "sources": [
@@ -160,7 +164,7 @@
       "id": "govuk-design",
       "title": "GOV.UK Design System",
       "category": "Design UX et systèmes de composants",
-      "kind": "système de design",
+      "kind": "référentiel",
       "summary": "Styles, composants et parcours de référence pour les services publics britanniques.",
       "applies_when": "Pour les services concernés ou comme référence d'étude, en respectant les conditions de réutilisation.",
       "sources": [
@@ -174,7 +178,7 @@
       "id": "dsfr",
       "title": "Système de Design de l'État",
       "category": "Design UX et systèmes de composants",
-      "kind": "système de design",
+      "kind": "référentiel",
       "summary": "Composants et principes visuels des interfaces officielles de l'État français.",
       "applies_when": "Pour les services autorisés à utiliser le DSFR ; sa marque n'est pas libre d'usage universel.",
       "sources": [
@@ -202,9 +206,13 @@
       "id": "wcag-22",
       "title": "WCAG 2.2",
       "category": "Accessibilité numérique",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Critères de réussite pour rendre les contenus web accessibles.",
       "applies_when": "Choisir le niveau visé et le périmètre d'évaluation ; les obligations locales peuvent référencer d'autres versions.",
+      "pattern": "wcag-web-accessibility",
+      "packs": [
+        "web-accessibility"
+      ],
       "sources": [
         {
           "url": "https://www.w3.org/TR/WCAG22/",
@@ -216,7 +224,7 @@
       "id": "wai-aria",
       "title": "WAI-ARIA 1.2",
       "category": "Accessibilité numérique",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Rôles, états et propriétés qui rendent les composants compréhensibles par les technologies d'assistance.",
       "applies_when": "Pour les interfaces web interactives, en privilégiant les éléments HTML natifs appropriés.",
       "sources": [
@@ -286,7 +294,7 @@
       "id": "epub-accessibility",
       "title": "EPUB Accessibility",
       "category": "Accessibilité numérique",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Exigences d'accessibilité et de description de cette accessibilité pour les publications EPUB.",
       "applies_when": "Pour les livres et documents numériques distribués en EPUB.",
       "sources": [

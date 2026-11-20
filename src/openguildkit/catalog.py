@@ -156,6 +156,12 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
             raise CatalogError(f"{key} contains duplicate IDs")
     if "exclusive_group" in pattern:
         _validate_id(pattern["exclusive_group"], "exclusive_group")
+    if "references" in pattern:
+        _validate_list(pattern["references"], "references")
+        for reference_id in pattern["references"]:
+            _validate_id(reference_id, "references entry")
+        if len(set(pattern["references"])) != len(pattern["references"]):
+            raise CatalogError("references contains duplicate IDs")
     if "match" not in pattern:
         return
     match = pattern["match"]
@@ -206,7 +212,7 @@ def _validate_entry(collection: str, entry: Any) -> None:
     required = ENTRY_FIELDS | COLLECTION_FIELDS[collection]
     optional = {
         "packs": {"depends_on", "conflicts_with"},
-        "patterns": {"match", "exclusive_group"},
+        "patterns": {"match", "exclusive_group", "references"},
         "boards": {"review"},
     }.get(collection)
     _validate_fields(entry, "record", required, optional)

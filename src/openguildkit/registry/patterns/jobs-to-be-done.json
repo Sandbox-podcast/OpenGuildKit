@@ -16,5 +16,8 @@
   ],
   "packs": [
     "jobs-to-be-done"
+  ],
+  "references": [
+    "jobs-to-be-done"
   ]
 }

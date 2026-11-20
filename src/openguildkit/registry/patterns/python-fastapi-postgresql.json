@@ -21,6 +21,11 @@
     "fastapi",
     "postgresql"
   ],
+  "references": [
+    "http",
+    "openapi",
+    "python-pep8"
+  ],
   "match": {
     "stack": [
       [

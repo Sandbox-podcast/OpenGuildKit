@@ -15,6 +15,9 @@
   "packs": [
     "python"
   ],
+  "references": [
+    "python-pep8"
+  ],
   "match": {
     "stack": [
       [

@@ -9,6 +9,10 @@
       "kind": "référentiel",
       "summary": "Organise les pratiques de développement qui réduisent les vulnérabilités et préparent leur traitement.",
       "applies_when": "Pour structurer la sécurité du cycle de développement, en adaptant les pratiques au produit et aux risques.",
+      "pattern": "secure-software-lifecycle",
+      "packs": [
+        "secure-sdlc"
+      ],
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/sp/800/218/final",
@@ -23,6 +27,10 @@
       "kind": "référentiel",
       "summary": "Fournit des exigences de sécurité applicative que l'équipe peut sélectionner, mettre en œuvre et vérifier.",
       "applies_when": "Pour des applications et services web ; les contrôles retenus demandent des tests techniques et parfois une revue humaine.",
+      "pattern": "owasp-asvs-review",
+      "packs": [
+        "owasp-asvs"
+      ],
       "sources": [
         {
           "url": "https://asvs.owasp.org/",
@@ -163,6 +171,10 @@
       "kind": "référentiel",
       "summary": "Décrit des niveaux de garanties sur l'origine et la fabrication des logiciels.",
       "applies_when": "Pour sécuriser les builds et vérifier la provenance des artefacts ; le niveau dépend des garanties réellement établies.",
+      "pattern": "ci-supply-chain",
+      "packs": [
+        "supply-chain"
+      ],
       "sources": [
         {
           "url": "https://slsa.dev/spec/v1.2/",
@@ -177,6 +189,9 @@
       "kind": "pratique",
       "summary": "Produit l'inventaire des composants et dépendances qui constituent une version du logiciel.",
       "applies_when": "Pour connaître les composants livrés, répondre aux vulnérabilités et partager un inventaire avec les clients.",
+      "packs": [
+        "supply-chain"
+      ],
       "sources": [
         {
           "url": "https://www.cyber.gov.au/publication/2026-minimum-elements-for-a-software-bill-of-materials-sbom",
@@ -191,6 +206,9 @@
       "kind": "format",
       "summary": "Structure l'échange d'informations sur les composants logiciels, leurs licences et leur provenance.",
       "applies_when": "Pour produire ou consommer des inventaires logiciels dans une version du format supportée par les outils.",
+      "packs": [
+        "supply-chain"
+      ],
       "sources": [
         {
           "url": "https://spdx.dev/about/overview/",
@@ -205,6 +223,9 @@
       "kind": "format",
       "summary": "Décrit des composants, services et dépendances dans des nomenclatures exploitables par les outils.",
       "applies_when": "Pour échanger des SBOM et des informations de supply chain avec une version de schéma explicitement choisie.",
+      "packs": [
+        "supply-chain"
+      ],
       "sources": [
         {
           "url": "https://cyclonedx.org/specification/overview/",
@@ -641,6 +662,48 @@
         {
           "url": "https://csrc.nist.gov/glossary/term/least_privilege",
           "title": "NIST CSRC Glossary - least privilege"
+        }
+      ]
+    },
+    {
+      "id": "spf",
+      "title": "SPF",
+      "category": "Email et identité des domaines",
+      "kind": "protocole",
+      "summary": "Déclare quels serveurs peuvent envoyer des emails pour un domaine.",
+      "applies_when": "Pour les domaines qui émettent des messages ; à articuler avec DKIM et DMARC.",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc7208.html",
+          "title": "IETF RFC 7208 — Sender Policy Framework (SPF)"
+        }
+      ]
+    },
+    {
+      "id": "dkim",
+      "title": "DKIM",
+      "category": "Email et identité des domaines",
+      "kind": "protocole",
+      "summary": "Associe une signature vérifiable à un message au nom d'un domaine.",
+      "applies_when": "Pour l'authentification des emails, sans chiffrer leur contenu.",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc6376.html",
+          "title": "IETF RFC 6376 — DomainKeys Identified Mail (DKIM) Signatures"
+        }
+      ]
+    },
+    {
+      "id": "dmarc",
+      "title": "DMARC",
+      "category": "Email et identité des domaines",
+      "kind": "protocole",
+      "summary": "Relie l'authentification des emails au domaine visible de l'expéditeur et à une politique de traitement.",
+      "applies_when": "À déployer avec suivi des rapports et configuration SPF/DKIM cohérente.",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/info/rfc9989/",
+          "title": "IETF RFC 9989 — Domain-Based Message Authentication, Reporting, and Conformance (DMARC)"
         }
       ]
     },
