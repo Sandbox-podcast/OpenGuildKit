@@ -8,6 +8,7 @@ from pathlib import Path
 from .catalog import load_catalog
 from .ci import check_export, read_policy_pack
 from .decisions import NAMESPACE, approval_policy, check_decision, decision_payload, git_revision, payload_text, verify_signature
+from .alerts import alert_summary, import_alerts, set_alert_status
 from .detect import components_for_profile, detect_stack
 from .integrations import install_agent_files
 from .guard import NO_TASK, ci_guard, covering_tasks, export_decision, guard_hook, guard_mode
@@ -158,6 +159,7 @@ def _parser() -> argparse.ArgumentParser:
         "result": "Record the delivered revision, criteria and check outcomes.",
         "complete": "Declare the task done once mandatory checks passed with evidence.",
         "runs": "Compare the last two ChaosFolk replays of the task.",
+        "alerts": "Import dependency alerts from a scanner report and review them.",
         "export": "Write a shareable decision record to .openguildkit/decisions for the pull request.",
         "authorize": "Record a person's decision on an external action outside the authorized scope.",
     }
@@ -204,6 +206,14 @@ def _parser() -> argparse.ArgumentParser:
             command.add_argument("--chaosfolk", type=Path, metavar="SUMMARY",
                                  help="Record a ChaosFolk regression summary.json instead of running the check commands.")
             command.add_argument("--tool-version", help="ChaosFolk version or commit that produced the summary.")
+        if action == "alerts":
+            command.add_argument("--import", dest="import_file", type=Path, metavar="REPORT",
+                                 help="npm audit, pip-audit, OSV-Scanner or Dependabot JSON report.")
+            command.add_argument("--set", dest="alert_id", metavar="ALERT", help="Alert ID to review.")
+            command.add_argument("--status", choices=("to-verify", "confirmed", "dismissed"), help="Review status for --set.")
+            command.add_argument("--by", help="Reviewer's name for --set.")
+            command.add_argument("--reason", default="", help="Reason, required to dismiss.")
+            command.add_argument("--json", action="store_true", help="Print the alerts as JSON.")
         if action == "runs":
             command.add_argument("--json", action="store_true", help="Print the comparison as JSON.")
         if action == "respond":
@@ -856,6 +866,28 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 print(f"{item['check']}: {item['status']}")
             problems = completion_problems(result, profile)
             print(f"{len(problems)} point(s) before the task can be done." if problems else "Ready: run task complete.")
+    elif action == "alerts":
+        if args.import_file or args.alert_id:
+            with project_lock(state):
+                current_task = read_task(state, args.id)
+                if args.import_file:
+                    current_task = import_alerts(current_task, args.import_file)
+                if args.alert_id:
+                    if not args.status:
+                        raise ValueError("Give --status with --set.")
+                    current_task = set_alert_status(current_task, args.alert_id, args.status, args.by or "", args.reason)
+                write_json(task_path(state, args.id), current_task)
+            task = current_task
+        summary = alert_summary(task)
+        if args.json:
+            _print_json({"summary": summary, "alerts": task.get("dependency_alerts", {}).get("alerts", [])})
+        else:
+            for item in summary["imports"]:
+                print(f"Imported {item['alerts']} alert(s) from {item['tool']} ({item['file']}, sha256 {item['sha256'][:12]})")
+            print(f"{summary['total']} alert(s): " + ", ".join(f"{count} {status}" for status, count in summary["by_status"].items()))
+            for alert in task.get("dependency_alerts", {}).get("alerts", []):
+                fix = f" fix: {alert['fix']}" if alert.get("fix") else ""
+                print(f"  [{alert['status']}] {alert['id']} {alert['severity']} {alert['version']}{fix}")
     elif action == "runs":
         comparison = compare_runs(task)
         if comparison is None:

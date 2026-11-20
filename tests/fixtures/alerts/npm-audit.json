@@ -1,0 +1,15 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "semver": {
+      "name": "semver",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {"source": 1101088, "name": "semver", "dependency": "semver", "title": "semver vulnerable to Regular Expression Denial of Service", "url": "https://github.com/advisories/GHSA-c2qf-rxjj-qqgw", "severity": "high", "range": "<5.7.2"}
+      ],
+      "range": "<5.7.2",
+      "fixAvailable": {"name": "semver", "version": "5.7.2", "isSemVerMajor": false}
+    }
+  }
+}

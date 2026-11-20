@@ -402,6 +402,13 @@ def _scope_snapshot(profile: dict, catalog: dict, task: dict, answers: dict) -> 
         scope["previous_decision"] = task["rounds"][-1]["decision"]
     if task.get("follows"):
         scope["follows"] = task["follows"]
+    alerts = [alert for alert in task.get("dependency_alerts", {}).get("alerts", []) if alert["status"] != "dismissed"]
+    if alerts:
+        scope["dependency_alerts"] = [
+            {key: alert[key] for key in ("id", "ecosystem", "package", "version", "advisory", "severity", "status", "fix")
+             if key in alert}
+            for alert in alerts
+        ]
     for field in ("roles", "components", "patterns", "resolutions"):
         if profile.get(field):
             scope[field] = profile[field]
