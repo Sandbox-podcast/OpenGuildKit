@@ -270,7 +270,9 @@ function gate(command, args) {
   const synchronize = values.github ? reconcileGithub : reconcile;
   const result = synchronize({ ...options, run: values.run });
   const current = result.current[0];
-  process.stdout.write(JSON.stringify({ current, errors: result.errors ?? [] }, null, 2) + '\n');
+  process.stdout.write(JSON.stringify({
+    current, executedEvidence: result.executedEvidence ?? [], errors: result.errors ?? [],
+  }, null, 2) + '\n');
   process.exitCode = result.errors?.length || current.decision.effectiveStatus === 'error'
     ? 2 : current.decision.conditionMet ? 0 : 1;
 }

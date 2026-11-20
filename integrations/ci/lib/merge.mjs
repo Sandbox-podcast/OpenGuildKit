@@ -38,7 +38,7 @@ export function mergeGithub({ base, execute, ruleset, ...options }, {
     return { exitCode: 0, reason: null };
   };
   const result = (current, errors, decision, merge = null) => ({
-    current, base, baseCommit, errors, merge, ...decision,
+    current, base, baseCommit, errors, merge, executedEvidence: assessed.executedEvidence ?? [], ...decision,
   });
   const checked = assessed.current[0];
   const firstErrors = assessed.errors ?? [];

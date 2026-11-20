@@ -218,6 +218,65 @@ test('the CI coordinator uses the public catalog pack with its original Git comm
   assert.equal(JSON.parse(readFileSync(before.evidence[0])).evidence.state, 'success');
 });
 
+test('keep the executed proof when the active policy changes and skip sync when no check is pending', t => {
+  const root = mkdtempSync(join(tmpdir(), 'openguildkit-live-policy-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  git(root, 'init', '-q', '-b', 'main');
+  mkdirSync(join(root, 'policy'));
+  const policyPath = 'policy/export-link.json';
+  const rule = { id: 'export-link-expiry', version: 1, maxMinutes: 60 };
+  const before = commitJson(root, policyPath, rule);
+  commitJson(root, 'openguildkit.json', {
+    schemaVersion: 1, owner: '@platform', policyPath, targetPath: 'export.json',
+    adoption: { state: 'approved', approver: '@platform', mode: 'required', inventoryCommit: before, catalogCommit: before },
+  });
+  git(root, 'switch', '-q', '-c', 'candidate');
+  const head = commitJson(root, 'export.json', { downloadLinkMinutes: 45 });
+  git(root, 'switch', '-q', 'main');
+  const config = {
+    policyRepo: { path: '.', ref: 'refs/heads/main' },
+    projects: [{
+      id: 'demo', path: '.', profileRef: 'refs/heads/main',
+      pullRequests: [{ number: 1, ref: 'refs/heads/candidate', sha: head }],
+    }],
+  };
+  const options = { configPath: join(root, 'config.json'), stateDir: join(root, 'state'), run: true, kitVersion: '0.16.0' };
+  let reads = 0;
+  let after;
+  const drift = reconcile({ ...options, loadConfig() {
+    reads += 1;
+    if (reads === 2) after = commitJson(root, policyPath, { ...rule, version: 2, maxMinutes: 30 });
+    return config;
+  } });
+  assert.equal(reads, 2);
+  assert.equal(drift.current[0].policyCommit, after);
+  assert.equal(drift.current[0].status, 'pending');
+  assert.equal(drift.current[0].decision.conditionMet, false);
+  assert.equal(drift.executedEvidence[0].work, drift.executed[0]);
+  const historic = JSON.parse(readFileSync(drift.executedEvidence[0].path)).evidence;
+  assert.equal(historic.policyCommit, before);
+  assert.equal(historic.state, 'success');
+
+  const loadConfig = () => { reads += 1; return config; };
+  assert.equal(reconcile({ ...options, loadConfig }).current[0].status, 'failure');
+  reads = 0;
+  const stable = reconcile({ ...options, loadConfig });
+  assert.equal(reads, 1);
+  assert.equal(stable.current[0].status, 'failure');
+  assert.deepEqual(stable.executedEvidence, []);
+
+  commitJson(root, policyPath, { ...rule, version: 3, maxMinutes: 25 });
+  reads = 0;
+  const closed = reconcile({
+    ...options,
+    selection: { project: 'demo', pullRequest: 1, commit: head, mode: 'required' },
+    loadConfig: () => ++reads === 1 ? config : { ...config, projects: [] },
+  });
+  assert.deepEqual(closed.current, []);
+  assert.match(closed.errors[0].message, /références courantes/);
+  assert.equal(JSON.parse(readFileSync(closed.executedEvidence[0].path)).evidence.state, 'failure');
+});
+
 test('prepare a questionnaire from committed files and activate only a reviewed profile', t => {
   const root = mkdtempSync(join(tmpdir(), 'openguildkit-onboard-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));

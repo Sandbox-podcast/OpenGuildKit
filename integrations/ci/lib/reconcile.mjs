@@ -155,18 +155,28 @@ export function reconcile({ configPath, stateDir, run, kitVersion,
   const current = plan(entries);
   if (!run) return { current };
 
+  const pending = entries.filter((_, index) => current[index].status === 'pending');
   const errors = [];
   const executed = [];
-  for (const [index, entry] of entries.entries()) {
-    if (current[index].status !== 'pending') continue;
+  const executedEvidence = [];
+  if (!pending.length) return { current, executed, executedEvidence, errors };
+  for (const entry of pending) {
     try {
       const evidence = evaluateRefs({ ...entry, ...entry.inputs });
-      recordEvidence(stateDir, entry.key, { ...evidence, profileCommit: entry.inputs.profileCommit });
+      const { work, path } = recordEvidence(
+        stateDir, entry.key, { ...evidence, profileCommit: entry.inputs.profileCommit },
+      );
       executed.push(entry.key);
+      executedEvidence.push({ work, path });
     } catch (error) {
       errors.push({ work: entry.key, message: error.message });
     }
   }
-  // Re-read the active references after execution so a change during a check is immediately visible.
-  return { current: plan(readSnapshot()), executed, errors };
+  // A check may finish against an older revision. Keep its report accessible without promoting it to current.
+  try {
+    return { current: plan(readSnapshot()), executed, executedEvidence, errors };
+  } catch (error) {
+    errors.push({ message: error.message });
+    return { current: [], executed, executedEvidence, errors };
+  }
 }

@@ -60,6 +60,8 @@ Use `openguildkit-ci github --config integration.json --state ./state --run` to 
 
 Schedule `openguildkit-ci watch --config integration.json --state ./state` on a trusted Jenkins agent with a persistent state directory and concurrent builds disabled. The [Jenkins launcher](pilot/run-watch-jenkins.mjs) supports installing the CLI from a verified archive before running the scheduled check. Add `--publish` when the Jenkins identity has permission to write to the configured evidence branch and publish statuses. Set up that branch in each project.
 
+A run that executes new checks refreshes the active references afterward. If they changed during evaluation, the report still links to the evidence just produced in `executedEvidence`. The `current` entries track the newly active references.
+
 The workflow templates retain their pilot branch names and configuration filenames. Adjust them for the deployment. Keep checkout, validation and report publication on trusted revisions. The project keeps its normal merge review and approval settings.
 
 ## Required checks and waivers

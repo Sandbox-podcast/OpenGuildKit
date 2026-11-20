@@ -149,10 +149,11 @@ export function watchGithub({ publish, ...options }, {
     }
     return target;
   });
-  const result = { targets, errors };
+  const result = { targets, executedEvidence: report.executedEvidence ?? [], errors };
   if (publish) {
-    const latest = new Map(reconcile({ ...options, run: false }).current.map(entry => [entry.work, entry]));
     result.publications = [];
+    if (!targets.length) return result;
+    const latest = new Map(reconcile({ ...options, run: false }).current.map(entry => [entry.work, entry]));
     for (const target of targets) {
       const live = latest.get(target.work);
       if (!live || !isDeepStrictEqual(live.decision, target.decision)) continue;
