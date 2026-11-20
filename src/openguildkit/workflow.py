@@ -423,7 +423,9 @@ def _json_section(value: object) -> str:
     return f"{fence}json\n{body}\n{fence}"
 
 
-def _consultation_markdown(scope: dict, boards: dict, routing: dict, delegations: dict | None = None) -> str:
+def _consultation_markdown(
+    scope: dict, boards: dict, routing: dict, delegations: dict | None = None, knowledge: dict | None = None
+) -> str:
     if scope["research"] == "public-sources":
         research = (
             "Use authorized project evidence and public sources. Keep private "
@@ -488,6 +490,8 @@ def _consultation_markdown(scope: dict, boards: dict, routing: dict, delegations
                 "state as evidence with ref storybook:STORY_ID, or storybook:REF_STORY_ID for a composed "
                 "Storybook, such as storybook:button--disabled. Only recorded story IDs are accepted."
             )
+        if knowledge and knowledge.get(board_id):
+            brief["knowledge"] = knowledge[board_id]
         if delegations and board_id in delegations:
             brief["reviewer"] = (
                 f"{delegations[board_id]} reviews for this board. Prepare the brief for them and record "
@@ -558,7 +562,7 @@ def _board_template(board: dict, reviewer: str | None = None) -> dict:
 
 def consult(
     profile: dict, catalog: dict, task: dict, selection: dict | None = None, host_controls: list[dict] | None = None,
-    market: dict | None = None, storybook: dict | None = None,
+    market: dict | None = None, storybook: dict | None = None, knowledge: dict | None = None,
 ) -> dict:
     """Route a scoped task and prepare a review request for the host agent."""
     answers = validate_answers(task["answers"])
@@ -578,7 +582,7 @@ def consult(
         "routing": routing,
         "scope": scope,
         "evidence_format": "structured",
-        "markdown": _consultation_markdown(scope, catalog["boards"], routing, delegations),
+        "markdown": _consultation_markdown(scope, catalog["boards"], routing, delegations, knowledge),
         "review_template": {
             "consultation_id": consultation_id,
             "summary": "",

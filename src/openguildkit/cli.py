@@ -11,6 +11,7 @@ from .ci import check_export, read_policy_pack
 from .decisions import NAMESPACE, approval_policy, check_decision, decision_payload, git_revision, payload_text, verify_signature
 from .alerts import alert_summary, import_alerts, set_alert_status
 from .deliverables import draft_problems, launch_notice, load_deliverables, new_draft
+from .brains import brain_knowledge, brief_knowledge, knowledge_gaps
 from .detect import components_for_profile, detect_stack
 from .publishing import add_share, export_docs, revoke_share, share_status
 from .market import dossier_gaps, due_sources, load_dossier
@@ -103,6 +104,7 @@ def _parser() -> argparse.ArgumentParser:
     brains = commands.add_parser("brains", help="List the specialist review boards.")
     brains.add_argument("--id", help="Show a brain's specialist lenses and review criteria.")
     brains.add_argument("--json", action="store_true", help="Print the board definitions as JSON.")
+    brains.add_argument("--check", action="store_true", help="Fail when a brain has no method or no reference.")
     init = commands.add_parser("init", help="Initialize a project profile and agent instructions.")
     init_mode = init.add_mutually_exclusive_group()
     init_mode.add_argument("--questions", action="store_true", help="Print the setup questionnaire as JSON.")
@@ -851,12 +853,21 @@ def _read_consultation(task: dict) -> dict:
     return task["consultation"]
 
 
-def _print_brains(args, catalog: dict) -> None:
+def _print_brains(args, catalog: dict, families: dict) -> int:
     boards = catalog["boards"]
     if args.id and args.id not in boards:
         raise ValueError(f"Unknown brain: {args.id}. Run openguildkit brains.")
+    if args.check:
+        gaps = knowledge_gaps(catalog, families)
+        for gap in gaps:
+            print(f"- {gap}")
+        print(f"{len(boards)} brains, {len(gaps)} gap(s).")
+        return 1 if gaps else 0
     if args.json:
-        _print_json(boards[args.id] if args.id else boards)
+        if args.id:
+            _print_json({**boards[args.id], "knowledge": brain_knowledge(args.id, catalog, families)})
+        else:
+            _print_json(boards)
     elif args.id:
         board = boards[args.id]
         print(f"{board['title']} [{board['id']}]")
@@ -873,11 +884,23 @@ def _print_brains(args, catalog: dict) -> None:
                 print(f"\n{heading}")
                 for question in plan[key]:
                     print(f"  - {question}")
+        knowledge = brain_knowledge(args.id, catalog, families)
+        print("\nMethods")
+        for item in knowledge["methods"]:
+            print(f"  - {item['title']} [{item['id']}]")
+        print("\nRule packs")
+        for item in knowledge["packs"]:
+            print(f"  - {item['title']} [{item['id']}@{item['version']}]")
+        print("\nReferences and standards")
+        for item in knowledge["references"]:
+            edition = f" ({item['edition']})" if item.get("edition") else ""
+            print(f"  - {item['title']}{edition}: {item['url']}")
     else:
         for board in boards.values():
             reviewers = board.get("review", {}).get("specialists", [])
             count = f" ({len(reviewers)} specialists)" if reviewers else ""
             print(f"  {board['id']:<23} {board['title']}{count}")
+    return 0
 
 
 def _decide(args, root: Path, state: Path, task: dict, profile: dict) -> None:
@@ -1115,8 +1138,11 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             if args.market:
                 research = "public-sources" if profile.get("research") == "public-sources" and answers.get("research") == "public" else "local-only"
                 market = market_scope_entry(load_dossier(state, args.market), research)
+            families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
+            active = set(resolved_profile(profile, catalog)["packs"])
+            knowledge = {board_id: brief_knowledge(board_id, catalog, families, active) for board_id in catalog["boards"]}
             result = record_consultation(current_task, answers, profile, catalog, _selection(args), controls, market,
-                                         storybook_scope_entry(state))
+                                         storybook_scope_entry(state), knowledge)
             write_json(task_path(state, args.id), result)
         print(result["consultation"]["markdown"])
     elif action == "review":
@@ -1198,7 +1224,8 @@ def _run(args) -> int | None:
     elif args.command == "patterns":
         _print_patterns(args, catalog["patterns"])
     elif args.command == "brains":
-        _print_brains(args, catalog)
+        families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
+        return _print_brains(args, catalog, families)
     elif args.command == "integrations":
         base = Path.home() if args.user else root
         for item in install_agent_files(base, args.host, args.force):
