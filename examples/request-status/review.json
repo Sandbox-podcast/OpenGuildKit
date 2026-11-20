@@ -5,9 +5,21 @@
       "id": "product",
       "recommendation": "Start with a read-only list of the signed-in user's requests. Agree with the support team on the status labels and who supplies the next step. Count existing contacts about request status before evaluating the release.",
       "evidence": [
-        "brief.md asks for signed-in users to see support request status and the next step.",
-        "answers.json limits the customer view to current status and next step. Support agents keep their current view.",
-        "profile.json requires French and English for user-facing text."
+        {
+          "source": "requester",
+          "ref": "examples/request-status/brief.md",
+          "supports": "brief.md asks for signed-in users to see support request status and the next step."
+        },
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json limits the customer view to current status and next step. Support agents keep their current view."
+        },
+        {
+          "source": "project-file",
+          "ref": ".openguildkit/project.json",
+          "supports": "profile.json requires French and English for user-facing text."
+        }
       ],
       "open_questions": [
         "Which internal states map to each customer-facing status, and who owns the wording?",
@@ -34,7 +46,8 @@
             "finding": "The acceptance context supports showing status and next step in a read-only customer view while retaining the support agent view.",
             "basis": "observed",
             "evidence_refs": [
-              2
+              2,
+              3
             ]
           },
           {
@@ -56,9 +69,21 @@
       "id": "engineering",
       "recommendation": "Extend the existing support request service if it owns the customer read path. Use the verified link from accounts to their requests, apply the access rule on the server and map internal states to customer-facing labels in one place.",
       "evidence": [
-        "profile.json lists Python, FastAPI, PostgreSQL, TypeScript and React.",
-        "answers.json limits customer visibility to requests they opened and preserves the support agent view.",
-        "answers.json calls for both the current status and the next step."
+        {
+          "source": "project-file",
+          "ref": ".openguildkit/project.json",
+          "supports": "profile.json lists Python, FastAPI, PostgreSQL, TypeScript and React."
+        },
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json limits customer visibility to requests they opened and preserves the support agent view."
+        },
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json calls for both the current status and the next step."
+        }
       ],
       "open_questions": [
         "Which module owns the existing support request reads?",
@@ -109,9 +134,21 @@
       "id": "qa",
       "recommendation": "Build acceptance checks for request ownership and regression checks for the support agent view. Include older requests and unavailable or unmapped statuses.",
       "evidence": [
-        "answers.json requires customers to see only requests they opened.",
-        "answers.json says support agents retain their current view while customers see status and next step.",
-        "profile.json lists the project's Python and front-end check commands."
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json requires customers to see only requests they opened."
+        },
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json says support agents retain their current view while customers see status and next step."
+        },
+        {
+          "source": "project-file",
+          "ref": ".openguildkit/project.json",
+          "supports": "profile.json lists the project's Python and front-end check commands."
+        }
       ],
       "open_questions": [
         "Which synthetic fixture can represent a request opened before the change?",
@@ -164,9 +201,21 @@
       "id": "design",
       "recommendation": "Start with a status label and a plain-language next step using existing portal components. Add a sequence only if support confirms an ordered process and user testing shows a benefit.",
       "evidence": [
-        "answers.json says the portal should show the current status and next step.",
-        "profile.json requires user-facing text in French and English.",
-        "profile.json identifies React. It does not name a design system or supply existing portal components."
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json says the portal should show the current status and next step."
+        },
+        {
+          "source": "project-file",
+          "ref": ".openguildkit/project.json",
+          "supports": "profile.json requires user-facing text in French and English."
+        },
+        {
+          "source": "project-file",
+          "ref": ".openguildkit/project.json",
+          "supports": "profile.json identifies React. It does not name a design system or supply existing portal components."
+        }
       ],
       "open_questions": [
         "Which portal component already communicates status or alerts?",
@@ -217,8 +266,16 @@
       "id": "marketing",
       "recommendation": "Describe the planned capability in plain terms. Treat competitive positioning as a follow-up that needs dated evidence for a comparable audience and support workflow.",
       "evidence": [
-        "profile.json and answers.json restrict research for this task to local material.",
-        "brief.md identifies the intended feature as request status and next steps for signed-in users."
+        {
+          "source": "project-file",
+          "ref": ".openguildkit/project.json",
+          "supports": "profile.json and answers.json restrict research for this task to local material."
+        },
+        {
+          "source": "requester",
+          "ref": "examples/request-status/brief.md",
+          "supports": "brief.md identifies the intended feature as request status and next steps for signed-in users."
+        }
       ],
       "open_questions": [
         "Is there approved customer research or support data about status follow-ups?",
@@ -265,9 +322,21 @@
       "id": "security",
       "recommendation": "Enforce customer request boundaries on the server. Have the data owner confirm what the customer view and logs may contain. Verify the boundaries on synthetic requests before release.",
       "evidence": [
-        "answers.json labels the task as involving personal data and limits customer visibility to requests they opened.",
-        "answers.json separates the customer view from the existing support agent view and calls for synthetic accounts and requests in tests.",
-        "The active secure-sdlc pack calls for access checks at service boundaries and approved checks for permitted access and isolation."
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json labels the task as involving personal data and limits customer visibility to requests they opened."
+        },
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json separates the customer view from the existing support agent view and calls for synthetic accounts and requests in tests."
+        },
+        {
+          "source": "project-file",
+          "ref": "AGENTS.md",
+          "supports": "The active secure-sdlc pack calls for access checks at service boundaries and approved checks for permitted access and isolation."
+        }
       ],
       "open_questions": [
         "Who owns the access matrix for the portal and confirms which fields may appear?",
