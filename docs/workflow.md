@@ -27,12 +27,24 @@ Without `--id`, the CLI generates `task-` followed by 12 hex characters. IDs use
 | Key | Question | Choices |
 |---|---|---|
 | `kind` | What are you asking the team to do? | `feature`, `bug`, `maintenance`, `decision`, `other`, `unsure` |
-| `surface` | Which area will this task affect most? | `customer`, `service`, `infrastructure`, `business`, `other`, `unsure` |
+| `surface` | Which areas will this task affect? Several can apply. | `customer`, `service`, `infrastructure`, `business`, `other`, `unsure` |
 | `data` | What is the most sensitive data this task may access or change? | `none`, `internal`, `personal`, `regulated`, `unsure` |
 | `research` | What evidence can the boards consult? | `local`, `public`, `unsure` |
 | `context` | What acceptance criteria, constraints or other context should the boards know? | Free text |
 
-`context` is optional, except when any answer is `other`.
+`context` is optional, except when any answer is `other`. `surface` takes a list, for example `["customer", "service"]` for a change to a screen and the service behind it; a single value is still accepted.
+
+### Follow-up questions and open points
+
+Save the first answers and run `task questions ID --answers answers.json`. The CLI adds the questions that these answers call for and lists the points still open:
+
+| Key | Asked when | Question |
+|---|---|---|
+| `outcome` | feature, bug, maintenance, other, unsure | The observable result, the expected behaviour and how to reproduce a defect, or what must keep working |
+| `affected` | feature, decision, other or unsure work, customer or business areas, personal or regulated data | Who is affected: users, customers, teams or partners |
+| `options` | decision | The options on the table and what would make you choose one |
+
+A question is essential for the cases where the boards cannot review without it: the outcome of a feature or a bug, who is affected by a customer-facing change, the options of a decision. A short brief, an `unsure` answer or an unanswered essential question is an **open point**. Open points do not block the consultation: they appear in it, each board says how they affect its recommendation, and the decision brief repeats them. A well-described local bug gets no question about customers or options.
 
 ```json
 {

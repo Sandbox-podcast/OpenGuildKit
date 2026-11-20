@@ -14,8 +14,10 @@ in the user's language. Keep the CLI's IDs and JSON keys as printed.
 
 1. Run `openguildkit task new "BRIEF"`. Read the questionnaire with
    `openguildkit task questions ID`. Ask the user for missing answers and
-   confirm any choice you inferred from their brief. Record acceptance
-   criteria and any free-text answers in `context`.
+   confirm any choice you inferred from their brief. Save the answers, then
+   run `openguildkit task questions ID --answers FILE` to get the follow-up
+   questions they call for and the points still open. Record acceptance
+   criteria and any other free text in `context`.
 2. Save the answers as a JSON object and run
    `openguildkit task consult ID --answers FILE`. Read the consultation before
    changing project files. It lists which boards to consult and the evidence
@@ -91,18 +93,58 @@ _QUESTIONS = (
 )
 
 
-def task_questions(brief: str) -> list[dict]:
-    """Return the questionnaire the user answers before consultation."""
+MULTIPLE = {"surface"}
+FOLLOW_UPS = ("outcome", "affected", "options")
+SHORT_BRIEF_WORDS = 8
+
+
+def _choice_question(question_id: str, prompt: str, choices) -> dict:
+    question = {
+        "id": question_id,
+        "prompt": prompt,
+        "choices": [{"id": choice_id, "label": label} for choice_id, label in choices],
+    }
+    if question_id in MULTIPLE:
+        question["type"] = "multi-select"
+        question["prompt"] = "Which areas will this task affect? Select every area that applies."
+    return question
+
+
+def _follow_up_questions(answers: dict) -> list[dict]:
+    """Questions that depend on the kind and impact of the change."""
+    kind = answers.get("kind")
+    surfaces = _as_list(answers.get("surface"))
+    questions = []
+    outcome_prompts = {
+        "feature": "What observable result shows that the feature works?",
+        "bug": "What should happen instead, and how can someone reproduce the defect?",
+        "maintenance": "What must keep working, and how will you check it after the change?",
+        "other": "What observable result shows that the task is done?",
+        "unsure": "What would you like to be different once this task is done?",
+    }
+    if kind in outcome_prompts:
+        questions.append({"id": "outcome", "type": "text", "prompt": outcome_prompts[kind],
+                          "essential": kind in ("feature", "bug", "unsure")})
+    customer_facing = bool({"customer", "business"} & set(surfaces))
+    sensitive = answers.get("data") in ("personal", "regulated")
+    if kind in ("feature", "decision", "unsure", "other") or customer_facing or sensitive:
+        questions.append({"id": "affected", "type": "text",
+                          "prompt": "Who is affected: which users, customers, teams or partners?",
+                          "essential": customer_facing or kind == "unsure"})
+    if kind == "decision":
+        questions.append({"id": "options", "type": "text",
+                          "prompt": "Which options are on the table, and what would make you choose one?",
+                          "essential": True})
+    return questions
+
+
+def task_questions(brief: str, answers: dict | None = None) -> list[dict]:
+    """Return the questionnaire. With partial answers, add the follow-up questions they call for."""
     if not brief.strip():
         raise ValueError("A task brief is required.")
-    questions = [
-        {
-            "id": question_id,
-            "prompt": prompt,
-            "choices": [{"id": choice_id, "label": label} for choice_id, label in choices],
-        }
-        for question_id, prompt, choices in _QUESTIONS
-    ]
+    questions = [_choice_question(question_id, prompt, choices) for question_id, prompt, choices in _QUESTIONS]
+    if answers:
+        questions.extend(_follow_up_questions(answers))
     questions.append(
         {
             "id": "context",
@@ -114,6 +156,10 @@ def task_questions(brief: str) -> list[dict]:
     return questions
 
 
+def _as_list(value) -> list:
+    return value if isinstance(value, list) else [value] if value is not None else []
+
+
 def validate_answers(answers: dict) -> dict:
     """Normalize the scope answers from interactive or JSON input."""
     if not isinstance(answers, dict):
@@ -123,22 +169,48 @@ def validate_answers(answers: dict) -> dict:
     for question_id, _, choices in _QUESTIONS:
         allowed = [choice_id for choice_id, _ in choices]
         answer = answers.get(question_id)
+        if question_id in MULTIPLE:
+            selected = _as_list(answer)
+            if not selected or any(item not in allowed for item in selected) or len(set(selected)) != len(selected):
+                raise ValueError(f"Choose one or more {question_id} values from {', '.join(allowed)}.")
+            if "unsure" in selected and len(selected) > 1:
+                raise ValueError(f"Choose {question_id} values or unsure, not both.")
+            validated[question_id] = selected
+            continue
         if answer not in allowed:
             raise ValueError(f"Choose {question_id} from {', '.join(allowed)}.")
         validated[question_id] = answer
 
-    unknown = answers.keys() - validated.keys() - {"context"}
+    unknown = answers.keys() - validated.keys() - {"context", *FOLLOW_UPS}
     if unknown:
         raise ValueError(f"Unknown task answer fields: {', '.join(sorted(unknown))}.")
-    context = answers.get("context", "")
-    if not isinstance(context, str):
-        raise ValueError("Task context must be text.")
-    context = context.strip()
-    if "other" in validated.values() and not context:
+    for field in ("context", *FOLLOW_UPS):
+        value = answers.get(field, "")
+        if not isinstance(value, str):
+            raise ValueError(f"Task {field} must be text.")
+        if value.strip():
+            validated[field] = value.strip()
+    chosen = [validated[key] for key in ("kind", "data", "research")] + validated["surface"]
+    if "other" in chosen and not validated.get("context"):
         raise ValueError("Describe the answer marked 'other' in context.")
-    if context:
-        validated["context"] = context
     return validated
+
+
+def open_points(brief: str, answers: dict) -> list[str]:
+    """Essential points still open before the boards review the task."""
+    points = []
+    words = len(brief.split()) + len(answers.get("context", "").split())
+    if words < SHORT_BRIEF_WORDS:
+        points.append("The brief is short. Describe the change, who needs it and why.")
+    labels = {"kind": "the kind of work", "surface": "the affected areas", "data": "the most sensitive data",
+              "research": "the evidence the boards can use"}
+    for key, label in labels.items():
+        if "unsure" in _as_list(answers.get(key)):
+            points.append(f"The requester is unsure about {label}.")
+    for question in _follow_up_questions(answers):
+        if question["essential"] and not answers.get(question["id"]):
+            points.append(f"Unanswered: {question['prompt']}")
+    return points
 
 
 _STRUCTURED_ROUTES = {
@@ -235,11 +307,13 @@ def _route_boards(profile: dict, catalog: dict, task: dict, answers: dict) -> di
     enabled = set(profile.get("boards") or boards)
     reasons = {}
     for question_id, routes in _STRUCTURED_ROUTES.items():
-        for board_id, reason in routes.get(answers[question_id], {}).items():
-            if board_id in enabled:
-                reasons.setdefault(board_id, []).append(reason)
+        for answer in _as_list(answers[question_id]):
+            for board_id, reason in routes.get(answer, {}).items():
+                if board_id in enabled and reason not in reasons.get(board_id, []):
+                    reasons.setdefault(board_id, []).append(reason)
 
-    matches = trigger_matches(boards, f"{task['brief']} {answers.get('context', '')}", enabled)
+    text = " ".join([task["brief"], *(answers.get(field, "") for field in ("context", *FOLLOW_UPS))])
+    matches = trigger_matches(boards, text, enabled)
     for board_id in sorted(matches):
         for trigger in matches[board_id]:
             reasons.setdefault(board_id, []).append(f"Brief mentions {trigger!r}")
@@ -266,6 +340,7 @@ def _scope_snapshot(profile: dict, catalog: dict, task: dict, answers: dict) -> 
         "conventions": profile.get("conventions", []),
         "checks": profile.get("checks", []),
         "research": research,
+        "open_points": open_points(task["brief"], answers),
     }
     if task.get("rounds"):
         scope["previous_decision"] = task["rounds"][-1]["decision"]
@@ -308,8 +383,22 @@ def _consultation_markdown(scope: dict, boards: dict, routing: dict) -> str:
         "",
         _json_section(scope),
         "",
-        "## Board briefs",
     ]
+    if scope.get("open_points"):
+        lines.extend(
+            [
+                "## Open points",
+                "",
+                "The requester left these points open. Each board says how they affect its "
+                "recommendation and asks for what it needs.",
+                "",
+                *(f"- {point}" for point in scope["open_points"]),
+                "",
+            ]
+        )
+    lines.extend([
+        "## Board briefs",
+    ])
     for board_id, reasons in routing.items():
         board = boards[board_id]
         brief = {
@@ -532,6 +621,9 @@ def challenge_report(task: dict) -> str:
             verdicts.setdefault(challenge["verdict"], []).append(entry["id"])
         findings.append(finding)
     report = {"summary": review["summary"], "verdicts": verdicts, "findings": findings}
+    points = task["consultation"]["scope"].get("open_points")
+    if points:
+        report["open_points"] = points
     return "# Decision brief\n\n" + _json_section(report) + "\n"
 
 

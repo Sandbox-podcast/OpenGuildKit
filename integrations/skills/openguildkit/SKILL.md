@@ -28,7 +28,7 @@ Run commands from the project root, or pass `--project PATH` before the subcomma
 
 1. `openguildkit task new "BRIEF" --id SHORT-ID` (or `--file brief.md` for a long brief). Use the user's words for the brief.
 2. `openguildkit task questions ID`. Ask the four choice questions (`kind`, `surface`, `data`, `research`) in the user's language. Use the question tool when it can show all choices and use a numbered list otherwise. Pre-select what the brief already makes clear and ask the user to confirm it. Keep "unsure" available.
-3. Ask for acceptance criteria and constraints, and put them in `context`. `context` is required when an answer is `other`.
+3. Save these answers and run `openguildkit task questions ID --answers FILE`. Ask the `follow_ups` it lists (outcome, who is affected, options) in the user's language, and show the `open_points`. `surface` can hold several areas. Ask for acceptance criteria and constraints, and put them in `context`. `context` is required when an answer is `other`.
 4. Write the answers to a temporary JSON file and run `openguildkit task consult ID --answers FILE`.
 
 ### 2. Consult each board separately
