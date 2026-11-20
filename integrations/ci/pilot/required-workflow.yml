@@ -4,54 +4,108 @@ on:
   pull_request_target:
     branches: [pilot/merge-gate-base]
     types: [opened, synchronize, reopened]
+  # A waiver expires and a rule changes without any push to the PR. GitHub runs schedules from the default branch.
+  schedule:
+    - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
     inputs:
       pr:
         type: string
-        required: true
+        description: PR à évaluer. Sans PR ni commit, toutes les PR ouvertes sont réévaluées.
+        required: false
       commit:
         type: string
-        required: true
+        required: false
 
-permissions:
-  contents: read
-  pull-requests: read
-  statuses: write
-
-concurrency:
-  group: openguildkit-required-${{ github.event.pull_request.number || inputs.pr }}
-  cancel-in-progress: true
+permissions: {}
 
 jobs:
-  required:
-    if: github.event_name == 'pull_request_target' || github.ref == 'refs/heads/pilot/merge-gate-base'
+  targets:
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/pilot/merge-gate-base'
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      pulls: ${{ steps.list.outputs.pulls }}
     env:
       GH_TOKEN: ${{ github.token }}
-      PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
-      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || inputs.commit }}
+      EVENT_PR: ${{ github.event.pull_request.number || inputs.pr }}
+      EVENT_HEAD: ${{ github.event.pull_request.head.sha || inputs.commit }}
+      EXPECTED_BASE: pilot/merge-gate-base
+    steps:
+      - name: List the pull requests to evaluate
+        id: list
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$EVENT_PR" || -n "$EVENT_HEAD" ]]; then
+            [[ "$EVENT_PR" =~ ^[1-9][0-9]*$ && "$EVENT_HEAD" =~ ^[a-f0-9]{40}$ ]]
+            pulls=$(jq -cn --argjson pr "$EVENT_PR" --arg head "$EVENT_HEAD" '[{pr: $pr, head: $head}]')
+          else
+            pulls=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/pulls?state=open&base=$EXPECTED_BASE&per_page=100" |
+              jq -c 'add // [] | map({pr: .number, head: .head.sha})')
+          fi
+          printf 'pulls=%s\n' "$pulls" >> "$GITHUB_OUTPUT"
+
+  required:
+    needs: targets
+    if: needs.targets.outputs.pulls != '[]'
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include: ${{ fromJSON(needs.targets.outputs.pulls) }}
+    concurrency:
+      group: openguildkit-required-${{ matrix.pr }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ matrix.pr }}
+      EXPECTED_HEAD: ${{ matrix.head }}
       EXPECTED_BASE: pilot/merge-gate-base
       STATUS_CONTEXT: openguildkit/required-pilot
+      PROFILE_MAINTAINER: ${{ vars.OPENGUILDKIT_PROFILE_MAINTAINER }}
     steps:
+      # Branch protection requires this context from this application only. A status from GITHUB_TOKEN does not count.
+      - name: Authenticate the status application
+        id: status-token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: ${{ vars.OPENGUILDKIT_STATUS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.OPENGUILDKIT_STATUS_APP_PRIVATE_KEY }}
+          permission-statuses: write
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          ref: ${{ github.event.pull_request.base.sha || 'refs/heads/pilot/merge-gate-base' }}
           fetch-depth: 0
           persist-credentials: false
       - name: Check the PR identity
         id: identity
+        env:
+          STATUS_TOKEN: ${{ steps.status-token.outputs.token }}
+          EVENT_NAME: ${{ github.event_name }}
         shell: bash
         run: |
           set -euo pipefail
           [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ && "$EXPECTED_HEAD" =~ ^[a-f0-9]{40}$ ]]
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
             jq -e --arg base "$EXPECTED_BASE" --arg head "$EXPECTED_HEAD" '.state == "open" and .base.ref == $base and .head.sha == $head' >/dev/null
-          gh api "repos/$GITHUB_REPOSITORY/statuses/$EXPECTED_HEAD" -f context="$STATUS_CONTEXT" -f state=pending -f description='OpenGuildKit vérifie le commit courant'
+          if [[ "$EVENT_NAME" != schedule ]]; then
+            GH_TOKEN="$STATUS_TOKEN" gh api "repos/$GITHUB_REPOSITORY/statuses/$EXPECTED_HEAD" -f context="$STATUS_CONTEXT" -f state=pending -f description='OpenGuildKit vérifie le commit courant'
+          fi
       - name: Install and run the required gate
         id: gate
         shell: bash
         run: |
           set -euo pipefail
+          if [[ ! "$PROFILE_MAINTAINER" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,38}$ ]]; then
+            echo '::error::Set the OPENGUILDKIT_PROFILE_MAINTAINER variable to the GitHub login that merges profile proposals.'
+            exit 1
+          fi
           mkdir -p proof "$RUNNER_TEMP/ogk-kit"
           cd "$RUNNER_TEMP/ogk-kit"
           gh release download v0.6.0 -R "$GITHUB_REPOSITORY" -p 'openguildkit-0.6.0.tgz'
@@ -59,14 +113,15 @@ jobs:
           tar -xf openguildkit-0.6.0.tgz
           cd "$GITHUB_WORKSPACE"
           jq -n --arg repo "$GITHUB_REPOSITORY" --arg ref "refs/heads/$EXPECTED_BASE" --argjson pr "$PR_NUMBER" \
-            '{policyRepo:{id:$repo,path:".",ref:$ref},projects:[{id:$repo,path:".",profileRef:$ref,prNumbers:[$pr]}]}' > integration.json
+            --arg maintainer "$PROFILE_MAINTAINER" \
+            '{policyRepo:{id:$repo,path:".",ref:$ref},projects:[{id:$repo,path:".",profileRef:$ref,prNumbers:[$pr],profileMaintainer:$maintainer}]}' > integration.json
           node "$RUNNER_TEMP/ogk-kit/package/bin/openguildkit.mjs" gate --github --config integration.json \
             --state state --project "$GITHUB_REPOSITORY" --pr "$PR_NUMBER" --commit "$EXPECTED_HEAD" --run > proof/result.json
       - name: Archive the decision
         if: always() && steps.identity.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: openguildkit-required-proof
+          name: openguildkit-required-proof-${{ matrix.pr }}
           path: |
             proof/
             state/
@@ -74,6 +129,7 @@ jobs:
         if: always() && steps.identity.outcome == 'success'
         env:
           GATE_OUTCOME: ${{ steps.gate.outcome }}
+          STATUS_TOKEN: ${{ steps.status-token.outputs.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -85,5 +141,12 @@ jobs:
           if [[ -s proof/result.json ]]; then
             description=$(jq -r '.current.decision.effectiveStatus + " | règle " + .current.policyCommit' proof/result.json)
           fi
-          gh api "repos/$GITHUB_REPOSITORY/statuses/$EXPECTED_HEAD" -f context="$STATUS_CONTEXT" -f state="$state" \
+          # A scheduled run only adds a status when the verdict changed, which keeps under GitHub's status limit.
+          latest=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_HEAD/status?per_page=100" |
+            jq -c --arg context "$STATUS_CONTEXT" '[.[] | .statuses[]? | select(.context == $context)][0] // {} | [.state, .description]')
+          if [[ "$latest" == "$(jq -cn --arg state "$state" --arg description "$description" '[$state, $description]')" ]]; then
+            echo "Status unchanged: $state"
+            exit 0
+          fi
+          GH_TOKEN="$STATUS_TOKEN" gh api "repos/$GITHUB_REPOSITORY/statuses/$EXPECTED_HEAD" -f context="$STATUS_CONTEXT" -f state="$state" \
             -f description="$description" -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"

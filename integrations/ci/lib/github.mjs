@@ -24,8 +24,8 @@ export function sameStatus(item, { state, description, url }) {
   return item?.state === state && item.description === description && (item.target_url || undefined) === url;
 }
 
-export function approveGitHubProfile(options) {
-  return approvedGitHubProfile(options, (endpoint, ...args) => JSON.parse(gh('api', ...args, endpoint)));
+export function approveGitHubProfile(options, request = gh) {
+  return approvedGitHubProfile(options, (endpoint, ...args) => JSON.parse(request('api', ...args, endpoint)));
 }
 
 export function readGitHubTicket({ repo, pullRequest, commit }, api = endpoint => JSON.parse(gh('api', endpoint))) {
@@ -63,8 +63,8 @@ function validateRepo(id, path, ref) {
   git(path, 'check-ref-format', ref);
 }
 
-function listPullRequests(id, numbers) {
-  const all = JSON.parse(gh('api', '--paginate', '--slurp', `repos/${id}/pulls?state=open&per_page=100`)).flat();
+function listPullRequests(id, numbers, request) {
+  const all = JSON.parse(request('api', '--paginate', '--slurp', `repos/${id}/pulls?state=open&per_page=100`)).flat();
   return all.filter(pr => !numbers || numbers.includes(pr.number)).map(pr => {
     const repository = pr.base?.repo?.full_name;
     if (pr.state !== 'open' || !Number.isSafeInteger(pr.number) || pr.number < 1 ||
@@ -75,7 +75,7 @@ function listPullRequests(id, numbers) {
   });
 }
 
-function synchronize(configPath) {
+function synchronize(configPath, { request = gh, fetchRefs = fetch } = {}) {
   const config = JSON.parse(readFileSync(configPath, 'utf8'));
   const folder = dirname(resolve(configPath));
   const policy = config.policyRepo;
@@ -90,27 +90,36 @@ function synchronize(configPath) {
   }
 
   const policyRef = `refs/openguildkit/policy/${sha256(`${policy.id}:${policy.ref}`)}`;
-  fetch(policyPath, policy.id, [`+${policy.ref}:${policyRef}`]);
+  fetchRefs(policyPath, policy.id, [`+${policy.ref}:${policyRef}`]);
   const projects = config.projects.map(project => {
     const target = resolve(folder, project.path);
     const namespace = `refs/openguildkit/projects/${sha256(`${project.id}:${project.profileRef}`)}`;
     let profileRef = `${namespace}/profile`;
-    const pullRequests = listPullRequests(project.id, project.prNumbers).map(pr => ({
+    const pullRequests = listPullRequests(project.id, project.prNumbers, request).map(pr => ({
       ...pr, ref: `${namespace}/pull/${pr.number}`,
     }));
     const refspecs = pullRequests.map(pr => `+refs/pull/${pr.number}/head:${pr.ref}`);
-    fetch(target, project.id, [`+${project.profileRef}:${profileRef}`, ...refspecs]);
-    if (project.profileMaintainer !== undefined && pullRequests.length > 0) {
-      const tip = git(target, 'rev-parse', '--verify', profileRef).toString().trim();
-      const profile = JSON.parse(git(target, 'show', `${tip}:openguildkit.json`));
+    fetchRefs(target, project.id, [`+${project.profileRef}:${profileRef}`, ...refspecs]);
+    const tip = pullRequests.length > 0 && git(target, 'rev-parse', '--verify', profileRef).toString().trim();
+    const profile = tip && JSON.parse(git(target, 'show', `${tip}:openguildkit.json`));
+    // An adoption profile states its own approval. Only the merged proposal PR on GitHub can confirm it.
+    if (profile && profile.adoption !== undefined && project.profileMaintainer === undefined) {
+      throw new Error(`Set profileMaintainer for ${project.id}: an adopted profile is only accepted after ` +
+        'verifying the proposal PR merged by that maintainer.');
+    }
+    if (profile && project.profileMaintainer !== undefined) {
       const approved = approveGitHubProfile({
         repo: project.id, pullRequest: profile.adoption?.approval?.pullRequest,
         base: project.profileRef.slice('refs/heads/'.length), maintainer: project.profileMaintainer,
-      });
+      }, request);
       if (!isDeepStrictEqual(profile, approved)) {
         throw new Error(`Le profil actif de ${project.id} diffère de la proposition approuvée.`);
       }
-      git(target, 'merge-base', '--is-ancestor', approved.adoption.approval.mergeCommit, tip);
+      try {
+        git(target, 'merge-base', '--is-ancestor', approved.adoption.approval.mergeCommit, tip);
+      } catch {
+        throw new Error(`The approval of ${project.id} was not merged into ${project.profileRef}.`);
+      }
       profileRef = `${namespace}/approved-profiles/${tip}`;
       git(target, 'update-ref', profileRef, tip);
     }
@@ -126,31 +135,31 @@ function synchronize(configPath) {
   return { policyRepo: { path: policy.path, ref: policyRef, waiversPath: policy.waiversPath }, projects };
 }
 
-function publishObservation(entry, reportUrl) {
+function publishObservation(entry, reportUrl, request) {
   const { project, pullRequest, commit, policyCommit, profileCommit, work } = entry;
   const status = entry.decision.effectiveStatus;
-  const pr = JSON.parse(gh('api', `repos/${project}/pulls/${pullRequest}`));
+  const pr = JSON.parse(request('api', `repos/${project}/pulls/${pullRequest}`));
   if (pr.state !== 'open' || pr.head.sha !== commit) return { work, posted: false };
 
   const state = { success: 'success', failure: 'success', waived: 'success', pending: 'pending', error: 'error' }[status];
   const label = { success: 'Conforme', failure: 'Écart', waived: 'Dérogation', pending: 'En attente', error: 'Contrôle indéterminé' }[status];
   const description = `${label} (obs.) | règle ${policyCommit.slice(0, 12)} | profil ${profileCommit.slice(0, 12)} | ${work.slice(0, 12)}`;
   const context = `openguildkit/observation-pr-${pullRequest}`;
-  if (sameStatus(latestStatus(project, commit, context), { state, description, url: reportUrl })) {
+  if (sameStatus(latestStatus(project, commit, context, request), { state, description, url: reportUrl })) {
     return { work, posted: false };
   }
   const target = reportUrl ? ['-f', `target_url=${reportUrl}`] : [];
-  gh('api', `repos/${project}/statuses/${commit}`, '-f', `context=${context}`, '-f', `state=${state}`, '-f', `description=${description}`, ...target);
+  request('api', `repos/${project}/statuses/${commit}`, '-f', `context=${context}`, '-f', `state=${state}`, '-f', `description=${description}`, ...target);
   return { work, posted: true };
 }
 
-export function reconcileGithub({ publish, reportUrl, ...options }) {
+export function reconcileGithub({ publish, reportUrl, ...options }, { request = gh, fetchRefs = fetch } = {}) {
   if (reportUrl !== undefined && (!publish || !['http:', 'https:'].includes(new URL(reportUrl).protocol))) {
     throw new Error('--report-url requiert --publish et une URL HTTP ou HTTPS.');
   }
   const result = reconcile({
-    ...options, sameProject: sameRepository, loadConfig: () => synchronize(options.configPath),
+    ...options, sameProject: sameRepository, loadConfig: () => synchronize(options.configPath, { request, fetchRefs }),
   });
-  if (publish) result.publications = result.current.map(entry => publishObservation(entry, reportUrl));
+  if (publish) result.publications = result.current.map(entry => publishObservation(entry, reportUrl, request));
   return result;
 }

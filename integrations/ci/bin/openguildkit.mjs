@@ -26,7 +26,8 @@ const help = `OpenGuildKit ${version}
   openguildkit-ci watch --config FILE --state DIR [--publish] [--reset WORK|all]...
   openguildkit-ci check-state --state DIR
   openguildkit-ci gate --config FILE --state DIR --project ID --pr NUMBER --commit SHA [--run] [--github]
-  openguildkit-ci merge --config FILE --state DIR --project OWNER/REPO --pr NUMBER --commit SHA --base BRANCH [--execute] [--ruleset ID]
+  openguildkit-ci merge --config FILE --state DIR --project OWNER/REPO --pr NUMBER --commit SHA --base BRANCH
+    [--execute] [--ruleset ID [--app-id ID]]
   openguildkit-ci merge-protection --repo OWNER/REPO --base BRANCH --ruleset ID [--app-id ID]
   openguildkit-ci merge-installation --repo OWNER/REPO --app-slug SLUG --app-id ID
   openguildkit-ci record --state DIR --work ID --evidence FILE
@@ -249,7 +250,7 @@ function coordinate(command, args) {
 
 function gate(command, args) {
   const extra = command === 'merge'
-    ? { base: { type: 'string' }, execute: { type: 'boolean' }, ruleset: { type: 'string' } }
+    ? { base: { type: 'string' }, execute: { type: 'boolean' }, ruleset: { type: 'string' }, 'app-id': { type: 'string' } }
     : { run: { type: 'boolean' }, github: { type: 'boolean' } };
   const { values } = parseArgs({
     args,
@@ -271,6 +272,7 @@ function gate(command, args) {
     const result = mergeGithub({
       ...options, base: values.base, execute: values.execute,
       ruleset: values.ruleset === undefined ? undefined : Number(values.ruleset),
+      appId: values['app-id'] === undefined ? undefined : Number(values['app-id']),
     });
     process.stdout.write(JSON.stringify(result, null, 2) + '\n');
     process.exitCode = result.exitCode;

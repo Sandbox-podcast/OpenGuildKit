@@ -32,6 +32,8 @@ Copy the [example policy repository files](../../examples/export-expiry/policy/)
 
 Start in observation mode. Use `openguildkit-ci onboard` to create a profile proposal, and `openguildkit-ci github-approve-profile` to verify the maintainer's approval. Older numeric-version policy files and existing coordinator profiles remain supported.
 
+The GitHub commands (`github`, `watch`, `gate --github` and `merge`) accept a profile with an `adoption` block only after verifying its approval. Set `profileMaintainer` for the project. The active profile must equal the proposal PR merged by that maintainer into `profileRef`, as returned by `github-approve-profile`, and that merge must be in the branch history. Without `profileMaintainer`, the project is refused. The local commands (`check`, `reconcile`, `gate` without `--github` and `brief`) read the `adoption` block as committed and rely on the access rules of the branch they read.
+
 ## Recheck one or more repositories
 
 Provide the organization and repository IDs, corresponding local Git checkouts, approved branch references and the GitHub workflow that can run a recheck. The paths in the configuration are relative to the configuration file.
@@ -78,8 +80,33 @@ A run that executes new checks refreshes the active references afterward. If the
 
 The workflow templates retain their pilot branch names and configuration filenames. Adjust them for the deployment. Keep checkout, validation and report publication on trusted revisions. The project keeps its normal merge review and approval settings.
 
+## Configuration reference
+
+Paths are relative to the configuration file.
+
+| Key | Commands | Meaning |
+| --- | --- | --- |
+| `policyRepo.id` | GitHub commands | `OWNER/REPO` of the policy repository. |
+| `policyRepo.path` | All | Local clone of the policy repository. |
+| `policyRepo.ref` | All | Full branch reference of the active policy, `refs/heads/…`. |
+| `policyRepo.waiversPath` | All, optional | Path of the waiver registry in the policy repository. |
+| `projects[].id` | All | `OWNER/REPO`, distinct for each project. |
+| `projects[].path` | All | Local clone of the project with its full history. |
+| `projects[].profileRef` | All | Trusted branch that holds `openguildkit.json`. |
+| `projects[].pullRequests` | `reconcile`, `gate` | Local PRs to evaluate, `[{"number": 7, "ref": "refs/…", "sha": "…"}]`. The GitHub commands list open PRs themselves. |
+| `projects[].prNumbers` | GitHub commands, optional | Limits the evaluation to these open PRs. |
+| `projects[].profileMaintainer` | GitHub commands | GitHub login that merges profile proposals. Required when the profile has an `adoption` block. |
+| `projects[].waiverApprovers` | All, optional | Approvers whose waivers apply to the project, for instance `["@security"]`. |
+| `projects[].workflow.file`, `.ref` | `watch` | Recheck workflow file and the branch that holds it, `pilot/recheck.json` and `pilot/recheck-kit.sha256`. |
+| `projects[].workflow.evidenceBranch` | `watch --publish` | Branch that receives the Markdown reports. |
+| `watch.maxAttempts`, `watch.retryDelayMinutes`, `watch.runTimeoutMinutes` | `watch`, optional | Recheck limits, by default 3, 15 and 360. |
+
 ## Required checks and waivers
 
-`openguildkit-ci gate` derives the merge condition from the current PR, profile and policy. `openguildkit-ci merge` can recheck a time-limited waiver immediately before submitting the exact PR SHA to GitHub. Use the [required check](pilot/required-workflow.yml) and [protected merge](pilot/broker-workflow.yml) templates to adapt branch enforcement to a pilot. Their GitHub App and credentials are provisioned separately by the repository owner.
+`openguildkit-ci gate` derives the merge condition from the current PR, profile and policy. `openguildkit-ci merge` can recheck a time-limited waiver immediately before submitting the exact PR SHA to GitHub. Use the [required check](pilot/required-workflow.yml) and [protected merge](pilot/broker-workflow.yml) templates to adapt branch enforcement to a pilot. Their GitHub Apps and credentials are provisioned separately by the repository owner.
+
+The required check template evaluates a PR when it is opened or updated, and every open PR of the base branch four times an hour, so an expired waiver or a stricter rule changes the status within 15 minutes. A manual run without inputs reevaluates them at once. GitHub runs schedules from the default branch, so keep the template there too. A scheduled run adds a status only when the verdict changed. The template posts `openguildkit/required-pilot` with a dedicated status application (`OPENGUILDKIT_STATUS_APP_CLIENT_ID` variable and `OPENGUILDKIT_STATUS_APP_PRIVATE_KEY` secret, with the commit statuses write permission). In the branch ruleset, require that check with this application as its source. A status posted with `GITHUB_TOKEN`, including by another workflow with `statuses: write`, then cannot satisfy it.
+
+Both templates read the `OPENGUILDKIT_PROFILE_MAINTAINER` variable. The protected merge template runs only for the logins listed in the `OPENGUILDKIT_MERGE_ACTORS` variable, a JSON array such as `["alice", "release-bot"]`, which works for organization repositories. Protect its `openguildkit-merge-pilot` environment with required reviewers if the request needs a second person. Before merging, it checks with `--app-id` that the merge application (`OPENGUILDKIT_APP_ID`, `OPENGUILDKIT_APP_CLIENT_ID`, `OPENGUILDKIT_APP_PRIVATE_KEY`) is the only bypass actor of ruleset `OPENGUILDKIT_RULESET_ID`. Give that application the administration read permission so it can read the ruleset's bypass list. Otherwise the check stops the merge.
 
 See `openguildkit-ci --help` for the profile, agent brief, release discovery, recheck and merge subcommands. The [tests](test/) exercise rule updates, stale evidence, recovery and scoped merge decisions.

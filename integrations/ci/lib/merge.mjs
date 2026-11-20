@@ -4,7 +4,7 @@ import { inspectMergeProtection } from './merge-protection.mjs';
 
 const githubApi = (endpoint, ...args) => JSON.parse(gh('api', endpoint, ...args));
 
-export function mergeGithub({ base, execute, ruleset, ...options }, {
+export function mergeGithub({ base, execute, ruleset, appId, ...options }, {
   api = githubApi, reconcile = reconcileGithub, clock = Date.now,
 } = {}) {
   const { project, pullRequest, commit } = options.selection;
@@ -50,7 +50,7 @@ export function mergeGithub({ base, execute, ruleset, ...options }, {
   if (readCandidate() !== baseCommit) {
     throw new Error('La branche cible a évolué pendant le contrôle. Relancer la demande de fusion.');
   }
-  if (ruleset !== undefined && !inspectMergeProtection({ repo: project, base, ruleset }, api).approved) {
+  if (ruleset !== undefined && !inspectMergeProtection({ repo: project, base, ruleset, appId }, api).approved) {
     return result(current, [], { exitCode: 2, reason: 'inactive-branch-protection' });
   }
   const errors = latest.errors ?? [];
