@@ -86,11 +86,25 @@ jobs:
 | 1 | The assertion failed on every trial | Product regression: fix, then replay the same scenario |
 | 2 | Invalid scenario, browser that does not start, incomplete or intermittent trials | Not a verdict and not a pass: fix the run, then replay |
 
-`qa-results` holds `junit.xml`, `summary.json` and one `run-*` folder per trial. Link the summary from the task's checks. Screenshots can show the test app: keep test data synthetic and the raw evidence in your CI artifact storage.
+`qa-results` holds `junit.xml`, `summary.json` and one `run-*` folder per trial.
+
+## Record the replays in the task
+
+After the handoff, record each replay in the task:
+
+```bash
+openguildkit task verify ID --chaosfolk qa-results/summary.json --tool-version b406600
+openguildkit task runs ID        # compare the last two replays after a fix
+openguildkit task complete ID
+```
+
+Each scenario becomes a check `chaosfolk:<scenario file>` with ChaosFolk's own result. A product regression (`failed`) and a run that gave no verdict (`error`) are both recorded as failed checks with their reason, and `task complete` refuses to close the task until a later replay passes. The task keeps every replay with the ChaosFolk version you give and the path of the summary, so the QA board can compare the run before and after a fix. Only the summary path is recorded: screenshots and traces stay in the CI artifact storage.
+
+Start locally with synthetic data against a test environment the project authorizes, then run the same scenario files in CI. Screenshots can show the test app: keep test data synthetic and the raw evidence in your CI artifact storage.
 
 ## Limits
 
-- OpenGuildKit does not run ChaosFolk and does not store its results in the task record yet. Recording post-handoff checks is tracked in [#16](https://github.com/Sandbox-podcast/OpenGuildKit/issues/16); the full ChaosFolk flow in [#31](https://github.com/Sandbox-podcast/OpenGuildKit/issues/31).
+- OpenGuildKit does not run ChaosFolk itself: CI or a person runs it, and `task verify --chaosfolk` records its summary.
 - Never point ChaosFolk at production. Simulated users click, submit and download for real.
 
 ## Upgrading ChaosFolk
