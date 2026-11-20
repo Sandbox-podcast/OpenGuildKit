@@ -166,7 +166,7 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
 
 def record_consultation(
     task: dict, answers: dict, profile: dict, catalog: dict, selection: dict | None = None,
-    host_controls: list[dict] | None = None, market: dict | None = None,
+    host_controls: list[dict] | None = None, market: dict | None = None, storybook: dict | None = None,
 ) -> dict:
     if task["status"] not in {"draft", "consulting", "changes-requested"}:
         raise ValueError("Start a new task or request changes before consulting again.")
@@ -180,7 +180,9 @@ def record_consultation(
     result = {**task, "answers": validate_answers(answers), "rounds": rounds}
     result.update(
         status="consulting",
-        consultation=consult(resolved_profile(profile, catalog), catalog, result, selection, host_controls, market),
+        consultation=consult(
+            resolved_profile(profile, catalog), catalog, result, selection, host_controls, market, storybook
+        ),
         profile_fingerprint=profile_fingerprint(profile, catalog),
     )
     result.pop("review", None)

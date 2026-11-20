@@ -1,0 +1,22 @@
+{
+  "v": 4,
+  "entries": {
+    "forms-checkbox--docs": {
+      "id": "forms-checkbox--docs",
+      "title": "Forms/Checkbox",
+      "name": "Docs",
+      "importPath": "./src/Checkbox.mdx",
+      "storiesImports": ["./src/Checkbox.stories.tsx"],
+      "type": "docs",
+      "tags": ["docs"]
+    },
+    "forms-checkbox--checked": {
+      "id": "forms-checkbox--checked",
+      "title": "Forms/Checkbox",
+      "name": "Checked",
+      "importPath": "./src/Checkbox.stories.tsx",
+      "type": "story",
+      "tags": ["story"]
+    }
+  }
+}

@@ -81,6 +81,10 @@ When the user upgrades OpenGuildKit or asks for the latest rules, run `openguild
 
 When Product or Marketing reviews a feature and `.openguildkit/market/` holds a dossier for its market, pass `--market ID` to `task consult`. Run `openguildkit market due ID` when the user asks for the competitor watch; review the due sources only when the research policy is `public-sources`, record each retained change with its date, link and the person who verified it, and never put private project details in a search.
 
+## Storybook
+
+When the project has a Storybook or the user wants the company's design system, run `openguildkit storybook compose REF --url URL` and show the two lines it prints for `.storybook/main` if they are missing. After `npm run build-storybook`, run `openguildkit storybook import`, with `--company-index` and `--library` when the user provides them, and show the components to map and the conflicts. In a Design review, cite a recorded story as `storybook:STORY_ID`. Ask before downloading an index or installing a package.
+
 ## Board guard
 
 When a hook reminds you that no approved task covers the work, open a task before changing project files, even for a small change, unless the user only asked a question. When an edit is refused by the guard, explain it to the user and continue the task flow. After the user approves, run `openguildkit task export ID` and commit the decision record with the change.
