@@ -1,7 +1,7 @@
 {
   "id": "api-design",
   "title": "HTTP API design",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "HTTP semantics and OpenAPI conventions for teams maintaining client-facing contracts.",
   "sources": [
     {
@@ -9,8 +9,8 @@
       "url": "https://www.rfc-editor.org/rfc/rfc9110.html"
     },
     {
-      "title": "OpenAPI Specification 3.1.2",
-      "url": "https://spec.openapis.org/oas/v3.1.2.html"
+      "title": "OpenAPI Specification 3.2.1",
+      "url": "https://spec.openapis.org/oas/v3.2.1.html"
     }
   ],
   "rules": [
