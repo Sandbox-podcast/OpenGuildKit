@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .decisions import decision_payload, seal
 from .project import profile_fingerprint, resolved_profile
+from .results import completion_problems, merge_results, validate_result
 from .storage import read_json, write_json
 from .workflow import blocker_list, consult, validate_answers, validate_board_entry, validate_deliberation, validate_review
 
@@ -50,6 +51,7 @@ STATUSES = {
     "reviewed": ("answers", "consultation", "profile_fingerprint", "review"),
     "changes-requested": ("answers", "consultation", "profile_fingerprint", "review", "decision"),
     "approved": ("answers", "consultation", "profile_fingerprint", "review", "decision"),
+    "done": ("answers", "consultation", "profile_fingerprint", "review", "decision", "result"),
 }
 CONSULTATION_FIELDS = ("id", "boards", "routing", "scope", "markdown", "review_template")
 
@@ -260,6 +262,20 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
 
 def unresolved_blockers(task: dict) -> list[str]:
     return [item["id"] for item in blocker_list(task) if not item["resolution"]]
+
+
+def record_result(task: dict, profile: dict, payload: dict) -> dict:
+    """Add a delivery report to an approved task; later reports update earlier checks."""
+    if task["status"] != "approved":
+        raise ValueError("Results belong to an approved task that is not done yet.")
+    return {**task, "result": merge_results(task.get("result"), validate_result(task, profile, payload))}
+
+
+def complete_task(task: dict, profile: dict) -> dict:
+    problems = completion_problems(task, profile)
+    if problems:
+        raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(problems))
+    return {**task, "status": "done", "completed_at": timestamp()}
 
 
 def record_deliberation(task: dict, payload: dict) -> dict:

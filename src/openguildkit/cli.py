@@ -8,6 +8,7 @@ from .catalog import load_catalog
 from .ci import check_export, read_policy_pack
 from .decisions import NAMESPACE, approval_policy, check_decision, decision_payload, git_revision, payload_text, verify_signature
 from .detect import components_for_profile, detect_stack
+from .results import completion_problems, expected_checks, run_command_checks
 from .hosts import apply_host_settings, host_controls
 from .lock import (
     apply_lock,
@@ -37,6 +38,8 @@ from .project import (
 from .references import find_references, load_references, with_pattern_references
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
+    complete_task,
+    record_result,
     resolve_blocker,
     record_deliberation,
     assemble_review,
@@ -126,6 +129,10 @@ def _parser() -> argparse.ArgumentParser:
         "handoff": "Print the approved implementation handoff, or the decision record of a decision task.",
         "decision-payload": "Print the exact decision an approver signs in a project that requires signed approvals.",
         "show": "Print the task record as JSON.",
+        "checks": "List the checks the approved task must report.",
+        "verify": "Run the project's check commands and record their results.",
+        "result": "Record the delivered revision, criteria and check outcomes.",
+        "complete": "Declare the task done once mandatory checks passed with evidence.",
         "authorize": "Record a person's decision on an external action outside the authorized scope.",
     }
     for action, description in descriptions.items():
@@ -161,6 +168,10 @@ def _parser() -> argparse.ArgumentParser:
             command.add_argument("--until", required=True, help="Last day of the waiver, YYYY-MM-DD.")
         if action == "blockers":
             command.add_argument("--json", action="store_true", help="Print the blockers as JSON.")
+        if action == "checks":
+            command.add_argument("--json", action="store_true", help="Print the checks as JSON.")
+        if action == "result":
+            command.add_argument("--file", type=Path, required=True, help="Result JSON.")
         if action == "respond":
             command.add_argument("--file", type=Path, required=True, help="Completed deliberation JSON.")
         if action == "submit":
@@ -724,6 +735,43 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 raise ValueError("The task changed while you were deciding. Review it and retry.")
             write_json(task_path(state, args.id), result)
         print(details["kind"])
+    elif action == "checks":
+        if task["status"] not in ("approved", "done"):
+            raise ValueError("Checks belong to an approved task.")
+        checks = expected_checks(task, profile)
+        reported = {item["check"]: item for item in task.get("result", {}).get("checks", [])}
+        if args.json:
+            _print_json([{**check, "result": reported.get(check["id"])} for check in checks])
+        else:
+            for check in checks:
+                outcome = reported.get(check["id"], {}).get("status", "not reported")
+                label = check.get("command") or check.get("verification")
+                print(f"{check['id']} [{'mandatory' if check['mandatory'] else 'report'}] {outcome}: {label}")
+    elif action in ("verify", "result", "complete"):
+        if action == "verify":
+            if task["status"] != "approved":
+                raise ValueError("Run checks for an approved task that is not done yet.")
+            revision = git_revision(root)
+            payload = {"revision": revision["commit"] if revision else "working tree",
+                       "checks": run_command_checks(root, state, task, profile)}
+        with project_lock(state):
+            current_task = read_task(state, args.id)
+            if current_task != task:
+                raise ValueError("The task changed meanwhile. Retry.")
+            if action == "verify":
+                result = record_result(current_task, profile, payload)
+            elif action == "result":
+                result = record_result(current_task, profile, read_json(args.file))
+            else:
+                result = complete_task(current_task, profile)
+            write_json(task_path(state, args.id), result)
+        if action == "complete":
+            print("done")
+        else:
+            for item in result["result"]["checks"]:
+                print(f"{item['check']}: {item['status']}")
+            problems = completion_problems(result, profile)
+            print(f"{len(problems)} point(s) before the task can be done." if problems else "Ready: run task complete.")
     elif action == "deliberate":
         _print_json(deliberation_request(task))
     elif action == "respond":

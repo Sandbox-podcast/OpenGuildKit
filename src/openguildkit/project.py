@@ -259,7 +259,8 @@ def pattern_ids(profile: dict) -> list[str]:
 def validate_profile(answers: dict, catalog: dict) -> dict:
     fields = {
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
-        "resolutions", "boards", "required_boards", "research", "host", "waivers", "approval", "conventions", "checks",
+        "resolutions", "boards", "required_boards", "required_rules", "research", "host", "waivers", "approval",
+        "conventions", "checks",
     }
     unknown = sorted(answers.keys() - fields)
     if unknown:
@@ -304,6 +305,14 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         if host not in HOSTS:
             raise ValueError(f"host must be one of {', '.join(HOSTS)}")
         profile["host"] = host
+    required_rules = _texts(answers.get("required_rules", []), "required_rules")
+    for item in required_rules:
+        pack_id, _, rule_id = item.partition("/")
+        pack = catalog["packs"].get(pack_id)
+        if pack is None or (rule_id and rule_id not in {rule["id"] for rule in pack["rules"]}):
+            raise ValueError(f"Unknown required rule {item}: use PACK or PACK/RULE from openguildkit catalog")
+    if required_rules:
+        profile["required_rules"] = required_rules
     approval = answers.get("approval")
     if approval is not None:
         if not isinstance(approval, dict) or approval.get("mode") not in ("local", "signed"):

@@ -156,6 +156,21 @@ The handoff exists only for approved tasks whose fingerprint still matches the p
 
 A task answered with `kind: decision` asks for a recommendation. Its handoff is an **approved decision record**: the same approval, scope and review, with an instruction to report the decision and leave the project unchanged. To act on the decision, open a new task that cites it, so the implementation scope gets its own consultation and approval.
 
+## 6. Report the results
+
+After implementing an approved task, the agent proves what was delivered:
+
+```bash
+openguildkit task checks ID            # the expected checks: project commands and the rules of the active packs
+openguildkit task verify ID            # runs the project's check commands and keeps each log as evidence
+openguildkit task result ID --file result.json
+openguildkit task complete ID
+```
+
+`task verify` runs only the commands listed in the profile's `checks`, in the project root, and records each exit code with its log under `.openguildkit/tasks/`. `result.json` names the delivered `revision` or `pull_request`, the acceptance `criteria` (`met` or `not-met`, with evidence) and an outcome for each rule: `passed` or `failed` with evidence, or `skipped` or `not-applicable` with a reason and an owner. Later reports update earlier outcomes check by check.
+
+Every project command is mandatory. A profile can make rules mandatory too with `"required_rules": ["secure-sdlc", "python/run-tests"]`. `task complete` sets the task to `done` only when every mandatory check passed, every other check is reported and every criterion is met; otherwise it lists what is missing.
+
 ## Inspecting a task
 
 `task show ID` prints the full task record as JSON: status, answers, consultation, review, decision, fingerprint and previous rounds.
