@@ -38,12 +38,14 @@ No runtime dependency. Tests use `unittest` from the standard library.
 
 ## Adding a pack
 
-1. Copy an existing pack, for example `src/openguildkit/registry/packs/api-design.json`, to `src/openguildkit/registry/packs/<your-id>.json`.
-2. Set `version` to `1.0.0`.
-3. Write each rule as an `instruction` the agent can follow and a `verification` a reviewer can check. See [writing good records](docs/catalog-format.md#writing-good-records).
-4. Link the official source for the pack. Paraphrase; never paste text from a paid standard.
-5. Run `python -m openguildkit catalog` and the tests.
-6. In the pull request, say which projects would use the pack and how you tested the rules on a real repository.
+1. Check [catalog coverage](docs/coverage.md) for your discipline: the brains with few packs and the documentary references that no pack applies yet show where a pack is missing.
+2. Copy an existing pack, for example `src/openguildkit/registry/packs/api-design.json`, to `src/openguildkit/registry/packs/<your-id>.json`.
+3. Set `version` to `1.0.0`. Start the description with the context the pack applies to, such as "For a service in production: ...".
+4. Write each rule as an `instruction` the agent can follow and a `verification` a reviewer can check. See [writing good records](docs/catalog-format.md#writing-good-records).
+5. Link the official source for the pack. Paraphrase; never paste text from a paid standard.
+6. Reach the pack from a pattern for the roles that use it, and add the pack to the `packs` of the references it applies.
+7. Run `python -m openguildkit catalog`, `python scripts/coverage.py` to refresh the coverage page, and the tests.
+8. In the pull request, say which projects would use the pack and how you tested the rules on a real repository.
 
 ## Adding a board
 

@@ -129,6 +129,10 @@
       ],
       "summary": "Examine ce qu'un attaquant pourrait faire pour choisir les protections avant et pendant le développement.",
       "applies_when": "Lors de la conception ou d'un changement important de flux, de données, d'accès ou d'architecture.",
+      "pattern": "threat-modeling",
+      "packs": [
+        "threat-modeling"
+      ],
       "sources": [
         {
           "url": "https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html",
@@ -928,6 +932,9 @@
       ],
       "summary": "Rassemble un vaste catalogue de contrôles de sécurité et de protection de la vie privée.",
       "applies_when": "Pour sélectionner des contrôles adaptés aux risques ou à un cadre qui les exige ; le catalogue entier n'est pas obligatoire pour tous.",
+      "packs": [
+        "employee-offboarding"
+      ],
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final",
@@ -946,6 +953,10 @@
       ],
       "summary": "Aide à préparer et intégrer la réponse aux incidents dans la gestion des risques cyber.",
       "applies_when": "Pour définir les responsabilités, procédures et améliorations liées aux incidents de sécurité.",
+      "pattern": "incident-response",
+      "packs": [
+        "incident-response"
+      ],
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/sp/800/61/r3/final",

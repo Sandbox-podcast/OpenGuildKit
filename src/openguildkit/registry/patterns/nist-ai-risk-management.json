@@ -9,6 +9,7 @@
     }
   ],
   "roles": [
+    "data",
     "security",
     "engineering",
     "product"

@@ -247,6 +247,10 @@
       ],
       "summary": "Mesures de chargement, réactivité et stabilité visuelle de l'expérience web.",
       "applies_when": "À mesurer dans des conditions et sur des populations définies.",
+      "pattern": "web-performance",
+      "packs": [
+        "web-performance"
+      ],
       "sources": [
         {
           "url": "https://web.dev/articles/vitals",

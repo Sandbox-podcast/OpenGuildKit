@@ -12,6 +12,9 @@
       ],
       "summary": "Intègre la création et l'amélioration des articles de connaissance au traitement des demandes, pour que la base reflète les questions réelles.",
       "applies_when": "Pour une équipe support qui veut capitaliser ses réponses dans une base de connaissances à jour.",
+      "packs": [
+        "support-readiness"
+      ],
       "sources": [
         {
           "url": "https://www.serviceinnovation.org/kcs/",

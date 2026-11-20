@@ -1,0 +1,26 @@
+{
+  "id": "release-and-incident-communication",
+  "title": "Release and incident communication",
+  "description": "Agree who approves a message, write it in plain language and measure whether it reached its goal.",
+  "sources": [
+    {
+      "title": "Digital.gov, Plain language guide series",
+      "url": "https://digital.gov/guides/plain-language"
+    },
+    {
+      "title": "AMEC, Barcelona Principles 3.0",
+      "url": "https://amecorg.com/amec-resources-centre-communication-measurement-evaluation-tools/barcelona-principles-3-0/"
+    }
+  ],
+  "roles": [
+    "communication",
+    "support"
+  ],
+  "packs": [
+    "release-communication"
+  ],
+  "references": [
+    "amec-barcelona-principles",
+    "digital-gov-plain-language"
+  ]
+}

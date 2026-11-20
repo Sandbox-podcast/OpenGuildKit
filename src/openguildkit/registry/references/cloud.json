@@ -549,6 +549,9 @@
       ],
       "summary": "Attribuer des rôles clairs pendant un incident, notamment coordination, opérations et communication, pour limiter les actions désordonnées.",
       "applies_when": "Pour les incidents de production qui exigent une coordination entre plusieurs intervenants ou équipes.",
+      "packs": [
+        "incident-response"
+      ],
       "sources": [
         {
           "url": "https://sre.google/workbook/incident-response/",
@@ -570,6 +573,9 @@
       ],
       "summary": "Documenter les faits, facteurs contributifs et actions après un incident, en favorisant l'apprentissage plutôt que l'accusation individuelle.",
       "applies_when": "Après les incidents significatifs ou récurrents, afin que leurs enseignements produisent des améliorations suivies.",
+      "packs": [
+        "incident-response"
+      ],
       "sources": [
         {
           "url": "https://sre.google/workbook/postmortem-culture/",
@@ -873,6 +879,10 @@
       ],
       "summary": "Cadre de collaboration entre ingénierie, finance et métier pour relier les dépenses technologiques à leur valeur et à des responsabilités explicites.",
       "applies_when": "Quand les dépenses cloud, SaaS ou autres technologies doivent être comprises, pilotées et arbitrées collectivement.",
+      "pattern": "finops",
+      "packs": [
+        "finops-cost-management"
+      ],
       "sources": [
         {
           "url": "https://www.finops.org/framework/",
@@ -915,6 +925,9 @@
       ],
       "summary": "Répartir les dépenses entre produits, équipes ou centres de responsabilité, à l'aide de règles et de métadonnées adaptées.",
       "applies_when": "Quand une facture partagée doit devenir compréhensible et exploitable par les équipes qui influencent les coûts.",
+      "packs": [
+        "finops-cost-management"
+      ],
       "sources": [
         {
           "url": "https://www.finops.org/framework/capabilities/allocation/",
@@ -936,6 +949,9 @@
       ],
       "summary": "Relier les coûts à une unité utile au métier, par exemple une transaction, un client ou un traitement réussi.",
       "applies_when": "Pour savoir si la croissance de l'usage améliore ou dégrade l'économie du produit, au-delà de la facture totale.",
+      "packs": [
+        "finops-cost-management"
+      ],
       "sources": [
         {
           "url": "https://www.finops.org/framework/capabilities/unit-economics/",
@@ -957,6 +973,9 @@
       ],
       "summary": "Repérer des dépenses inhabituelles, comprendre leur cause et organiser la réaction des responsables concernés.",
       "applies_when": "Lorsque l'usage et la facturation peuvent varier rapidement et qu'un dépassement inattendu doit être traité.",
+      "packs": [
+        "finops-cost-management"
+      ],
       "sources": [
         {
           "url": "https://www.finops.org/framework/capabilities/anomaly-management/",

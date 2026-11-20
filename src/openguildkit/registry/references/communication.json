@@ -36,6 +36,9 @@
       ],
       "summary": "Sept principes pour mesurer et évaluer la communication par ses effets sur les publics et l'organisation, pas seulement par sa production.",
       "applies_when": "Pour fixer les indicateurs d'une campagne ou d'une communication de lancement.",
+      "packs": [
+        "release-communication"
+      ],
       "sources": [
         {
           "url": "https://amecorg.com/amec-resources-centre-communication-measurement-evaluation-tools/barcelona-principles-3-0/",
@@ -53,6 +56,9 @@
       ],
       "summary": "Guides du gouvernement américain pour écrire des contenus clairs, organisés pour le lecteur et faciles à mettre en pratique.",
       "applies_when": "Pour les notes de version, messages d'erreur, courriels aux clients et pages d'aide.",
+      "packs": [
+        "release-communication"
+      ],
       "sources": [
         {
           "url": "https://digital.gov/guides/plain-language",
