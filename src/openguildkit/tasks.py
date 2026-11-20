@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .decisions import decision_payload, seal
 from .project import profile_fingerprint, resolved_profile
 from .storage import read_json, write_json
 from .workflow import blocker_list, consult, validate_answers, validate_board_entry, validate_deliberation, validate_review
@@ -265,7 +266,9 @@ def record_deliberation(task: dict, payload: dict) -> dict:
     return {**task, "deliberation": validate_deliberation(task, payload)}
 
 
-def record_decision(task: dict, approve: bool, by: str, reason: str) -> dict:
+def record_decision(
+    task: dict, approve: bool, by: str, reason: str, base_revision: dict | None = None, signature: dict | None = None
+) -> dict:
     if task["status"] != "reviewed":
         raise ValueError("Record the boards' review before deciding.")
     open_blockers = unresolved_blockers(task)
@@ -278,6 +281,11 @@ def record_decision(task: dict, approve: bool, by: str, reason: str) -> dict:
         raise ValueError("Supply the decision owner and a reason.")
     status = "approved" if approve else "changes-requested"
     decision = {"outcome": status, "by": by.strip(), "reason": reason.strip(), "at": timestamp()}
+    if approve:
+        payload = decision_payload(task, by, reason, base_revision)
+        decision.update(base_revision=base_revision, seal=seal(payload))
+        if signature is not None:
+            decision.update(signer=signature["signer"], signature=signature["text"])
     return {**task, "status": status, "decision": decision}
 
 

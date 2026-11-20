@@ -20,7 +20,8 @@ class BlockerTests(unittest.TestCase):
             "waivers": {"allowed_by": ["Camille Martin"], "max_days": 30},
         }, catalog)
         answers = json.loads((EXAMPLE / "answers.json").read_text())
-        task = {"id": "request-status", "brief": "Show request status.", "answers": answers, "status": "consulting", "rounds": []}
+        task = {"id": "request-status", "brief": "Show request status.", "answers": answers, "status": "consulting", "rounds": [],
+                "profile_fingerprint": "0" * 64}
         consultation = consult(resolved_profile(self.profile, catalog), catalog, task)
         review = {"consultation_id": consultation["id"], **json.loads((EXAMPLE / "review.json").read_text())}
         security = next(entry for entry in review["boards"] if entry["id"] == "security")

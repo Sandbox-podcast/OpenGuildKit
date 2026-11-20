@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .catalog import load_catalog
 from .ci import check_export, read_policy_pack
+from .decisions import NAMESPACE, approval_policy, check_decision, decision_payload, git_revision, payload_text, verify_signature
 from .detect import components_for_profile, detect_stack
 from .hosts import apply_host_settings, host_controls
 from .lock import (
@@ -123,6 +124,7 @@ def _parser() -> argparse.ArgumentParser:
         "respond": "Record the boards' answers to each other's objections.",
         "decide": "Record a human decision.",
         "handoff": "Print the approved implementation handoff, or the decision record of a decision task.",
+        "decision-payload": "Print the exact decision an approver signs in a project that requires signed approvals.",
         "show": "Print the task record as JSON.",
         "authorize": "Record a person's decision on an external action outside the authorized scope.",
     }
@@ -180,6 +182,12 @@ def _parser() -> argparse.ArgumentParser:
             outcome.add_argument("--request-changes", action="store_true", help="Send the task back to consultation.")
             command.add_argument("--by", required=True, help="Decision owner's name.")
             command.add_argument("--reason", required=True, help="Reason for the decision.")
+            command.add_argument("--signature", type=Path, help="SSH signature of task decision-payload (signed projects).")
+            command.add_argument("--signer", help="Principal in the allowed signers file (signed projects).")
+        if action == "decision-payload":
+            command.add_argument("--by", required=True, help="Decision owner's name.")
+            command.add_argument("--reason", required=True, help="Reason for the decision.")
+            command.add_argument("--output", type=Path, help="Write the exact bytes to sign to this file.")
     return parser
 
 
@@ -616,9 +624,21 @@ def _print_brains(args, catalog: dict) -> None:
             print(f"  {board['id']:<23} {board['title']}{count}")
 
 
-def _decide(args, root: Path, state: Path, task: dict) -> None:
-    result = record_decision(task, args.approve, args.by, args.reason)
-    if args.approve:
+def _decide(args, root: Path, state: Path, task: dict, profile: dict) -> None:
+    policy = approval_policy(profile)
+    base = git_revision(root) if args.approve else None
+    signature = None
+    if args.approve and policy["mode"] == "signed":
+        if not args.signature or not args.signer:
+            raise ValueError(
+                "This project requires a signed approval: run task decision-payload, sign it with ssh-keygen -Y sign "
+                f"-n {NAMESPACE}, then pass --signature FILE --signer PRINCIPAL."
+            )
+        text = args.signature.read_text(encoding="utf-8")
+        verify_signature(root, policy, decision_payload(task, args.by, args.reason, base), text, args.signer)
+        signature = {"signer": args.signer, "text": text}
+    result = record_decision(task, args.approve, args.by, args.reason, base, signature)
+    if args.approve and signature is None:
         if not sys.stdin.isatty():
             raise ValueError("Approval requires a person at an interactive terminal.")
         print(
@@ -787,7 +807,17 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 if "error" in item:
                     print(f"    {item['error']}")
     elif action == "decide":
-        _decide(args, root, state, task)
+        _decide(args, root, state, task, profile)
+    elif action == "decision-payload":
+        if task["status"] != "reviewed":
+            raise ValueError("Record the boards' review before preparing a decision.")
+        text = payload_text(decision_payload(task, args.by, args.reason, git_revision(root)))
+        if args.output:
+            # Exact UTF-8 bytes with LF line endings: a shell redirect could change the encoding.
+            args.output.write_bytes(text.encode("utf-8"))
+            print(args.output)
+        else:
+            print(text, end="")
     elif action == "authorize":
         if args.allow and not sys.stdin.isatty():
             raise ValueError("Allowing an external action requires a person at an interactive terminal.")
@@ -803,6 +833,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         print(result["authorizations"][-1]["decision"])
     elif action == "handoff":
         output = handoff(task)
+        check_decision(task, root, profile)
         require_current_scope(task, profile, catalog)
         check_instructions(root, profile, catalog)
         print(output)

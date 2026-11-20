@@ -259,7 +259,7 @@ def pattern_ids(profile: dict) -> list[str]:
 def validate_profile(answers: dict, catalog: dict) -> dict:
     fields = {
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
-        "resolutions", "boards", "required_boards", "research", "host", "waivers", "conventions", "checks",
+        "resolutions", "boards", "required_boards", "research", "host", "waivers", "approval", "conventions", "checks",
     }
     unknown = sorted(answers.keys() - fields)
     if unknown:
@@ -304,6 +304,20 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         if host not in HOSTS:
             raise ValueError(f"host must be one of {', '.join(HOSTS)}")
         profile["host"] = host
+    approval = answers.get("approval")
+    if approval is not None:
+        if not isinstance(approval, dict) or approval.get("mode") not in ("local", "signed"):
+            raise ValueError("approval.mode must be local or signed")
+        if approval["mode"] == "signed":
+            if set(approval) != {"mode", "allowed_signers", "approvers"}:
+                raise ValueError("A signed approval needs allowed_signers (a project path) and approvers")
+            path = approval["allowed_signers"]
+            if not isinstance(path, str) or not path.strip() or path.startswith(("/", "\\")) or ".." in path.replace("\\", "/").split("/"):
+                raise ValueError("approval.allowed_signers must be a path inside the project")
+            profile["approval"] = {"mode": "signed", "allowed_signers": path.strip(),
+                                   "approvers": _texts(approval["approvers"], "approval.approvers")}
+        elif set(approval) != {"mode"}:
+            raise ValueError("A local approval takes no other setting")
     waivers = answers.get("waivers")
     if waivers is not None:
         if not isinstance(waivers, dict) or set(waivers) != {"allowed_by", "max_days"}:
@@ -556,6 +570,12 @@ def render_instructions(profile: dict, catalog: dict) -> str:
                 else f"{kept} both apply"
             )
             lines.append(f"- {outcome}. Reason: {resolution['reason']}")
+    if profile.get("approval", {}).get("mode") == "signed":
+        lines.extend(["", "### Signed approvals", ""])
+        lines.append(
+            f"Approvals must be signed by {', '.join(profile['approval']['approvers'])} with a key listed in "
+            f"`{profile['approval']['allowed_signers']}`."
+        )
     if profile.get("waivers"):
         lines.extend(["", "### Waivers", ""])
         lines.append(

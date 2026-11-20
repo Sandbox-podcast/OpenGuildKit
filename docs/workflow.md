@@ -126,7 +126,7 @@ The person runs the command in their own terminal:
 openguildkit task decide request-status --approve --by "Camille Martin" --reason "Read-only scope agreed with support"
 ```
 
-The CLI prints the brief and the review, then asks the person to type the task ID. Approval fails when stdin is not a terminal, when the typed ID does not match, when the task changed during the decision, when the profile or catalog changed since the consultation, or when `AGENTS.md` is out of date.
+The CLI prints the brief and the review, then asks the person to type the task ID. The approval records the base Git revision and a seal over what was approved; a project that requires signed approvals verifies the approver's SSH signature instead of the typed ID ([details](architecture.md#design-decisions)). Approval fails when stdin is not a terminal, when the typed ID does not match, when the task changed during the decision, when the profile or catalog changed since the consultation, or when `AGENTS.md` is out of date.
 
 A blocker names the finding, its `owner` and `clears_when`, the condition that would clear it. Approval waits until each blocker is resolved:
 
