@@ -18,6 +18,7 @@ COLLECTION_FIELDS = {
 ENTRY_FIELDS = {"id", "title", "description", "sources"}
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
+MIN_VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){0,3}")
 EXPORT_EXPIRY_ID = "export-link-expiry"
 MAX_SAFE_INTEGER = (1 << 53) - 1
 
@@ -134,7 +135,7 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
     if "match" not in pattern:
         return
     match = pattern["match"]
-    _validate_fields(match, "match", {"stack"}, {"sectors"})
+    _validate_fields(match, "match", {"stack"}, {"sectors", "min_versions"})
     _validate_list(match["stack"], "match.stack")
     for group in match["stack"]:
         _validate_list(group, "technology aliases")
@@ -142,6 +143,16 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
             _validate_text(alias, "technology alias")
             if not any(character.isalnum() for character in alias):
                 raise CatalogError("Technology aliases must contain letters or digits")
+    if "min_versions" in match:
+        minimums = match["min_versions"]
+        if not isinstance(minimums, dict) or not minimums:
+            raise CatalogError("match.min_versions must be a non-empty JSON object")
+        aliases = {alias for group in match["stack"] for alias in group}
+        for alias, version in minimums.items():
+            if alias not in aliases:
+                raise CatalogError(f"match.min_versions names {alias!r}, which is not a stack alias")
+            if not isinstance(version, str) or not MIN_VERSION_PATTERN.fullmatch(version):
+                raise CatalogError(f"match.min_versions[{alias!r}] must be a version such as 13.4")
     if "sectors" in match:
         _validate_list(match["sectors"], "match.sectors")
         for sector in match["sectors"]:

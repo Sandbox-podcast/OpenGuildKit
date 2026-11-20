@@ -29,6 +29,9 @@
         "react",
         "react.js"
       ]
-    ]
+    ],
+    "min_versions": {
+      "next.js": "13.4"
+    }
   }
 }

@@ -23,9 +23,10 @@ The [request status demo](examples/request-status/) creates a temporary project 
 
 ## Set up your project
 
-From your own repository, launch the interactive questionnaire. Pick your stack, sector, rule packs and boards.
+From your own repository, launch the interactive questionnaire. Pick your stack, sector, rule packs and boards. In an existing repository, `openguildkit detect` proposes your components and versions first, and each pattern applies to the component where its technologies are used.
 
 ```bash
+openguildkit detect
 openguildkit init
 openguildkit check
 ```

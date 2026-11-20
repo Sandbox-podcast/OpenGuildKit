@@ -31,6 +31,33 @@ openguildkit init --answers answers.json
 
 The preview shows the matching technologies, the recommended packs and work methods for the selected roles. The sector narrows patterns that specify a sector list. Technology aliases handle names such as PostgreSQL and Postgres. A compound pattern requires a match for each technology group. Versions in the declared stack stay in the project profile.
 
+## Components and versions
+
+In an existing repository, `openguildkit detect` reads the manifests it knows (`package.json`, `pyproject.toml`, `requirements*.txt`, `go.mod`, `pom.xml`, Gradle builds, `.csproj`, Dockerfiles and Compose files, Terraform, Helm and Kustomize files, GitHub workflows) and proposes one component per folder, with the versions it found and the file behind each one. A database inferred from a client library, such as PostgreSQL from `psycopg`, is marked as inferred. Detection reads files only: it runs no package manager and opens no network connection.
+
+```text
+openguildkit detect
+openguildkit detect --json
+```
+
+`init --questions` includes the detected components as the default answer to `components`. Correct the paths, stacks and versions before saving the answers:
+
+```json
+{
+  "name": "Support portal",
+  "components": [
+    {"id": "web", "path": "apps/web", "stack": ["Next.js 14.2", "React 18.3", "TypeScript"]},
+    {"id": "api", "path": "services/api", "stack": ["Python 3.12", "FastAPI", "PostgreSQL 16"]}
+  ]
+}
+```
+
+With components, every technology group of a pattern must match inside the same component. A FastAPI service and a separate PostgreSQL job do not activate the FastAPI and PostgreSQL pattern. The profile records where each pattern applies, for example `{"id": "nextjs-react", "components": ["web"]}`, and `AGENTS.md` lists the components and the scope of each pack. The project `stack` becomes the list of all component technologies.
+
+A pattern can set a minimum version. The Next.js pattern needs Next.js 13.4 or later because its rules concern the App Router: a project on Next.js 10 gets the React rules only, and the preview says why. When the stack gives no version, the pattern still matches and the preview asks you to confirm the version.
+
+After you change the stack, the components or a version, `openguildkit sync` and `openguildkit recommend` list the selected patterns that no longer match, with the reason. Profiles written before components existed keep working unchanged.
+
 The interactive questionnaire defaults to the matching stack patterns. For an answers file, omitting both `packs` and `patterns` applies the same defaults. Set `patterns` to the full list you want if you also choose a work method. Use `[]` to skip patterns. Omit `packs` to keep the baseline and language recommendations or set it to the exact additional packs you want. The required workflow pack and the packs linked from your selected patterns still apply.
 
 The selected pattern IDs go into `.openguildkit/project.json`. During `init` or `sync`, their packs and dependencies are written in `AGENTS.md` and reused for a task consultation. Use `openguildkit recommend` from an initialized project to preview matches against its current stack. Edit the profile and run `sync` to apply a new selection.
@@ -54,6 +81,6 @@ Add `src/openguildkit/registry/patterns/<id>.json`, or place the same format in 
 }
 ```
 
-Every technology group needs a match. Within a group, one alias is enough. Omit `match` for a method the team chooses, such as a sales qualification framework. Use `exclusive_group` only for patterns that would impose competing choices in the same scope. If multiple automatic matches share that group, the CLI asks the team to choose one.
+Every technology group needs a match. Within a group, one alias is enough. Add `"min_versions": {"next.js": "13.4"}` to `match` when the rules only hold from a given version; the key must be one of the aliases. Omit `match` for a method the team chooses, such as a sales qualification framework. Use `exclusive_group` only for patterns that would impose competing choices in the same scope. If multiple automatic matches share that group, the CLI asks the team to choose one.
 
 Link existing packs where they cover the same rules. For new rules, cite the primary source and describe the evidence a reviewer can check. The [catalog format](catalog-format.md) shows how to write a pack.
