@@ -1,0 +1,89 @@
+{
+  "id": "campaign-brief",
+  "title": "Campaign brief",
+  "description": "Plan a marketing campaign with its audience, message, channels, measures and approvals before any tool sends or publishes.",
+  "method": "marketing-campaign-planning",
+  "brains": [
+    "marketing",
+    "communication",
+    "legal"
+  ],
+  "inputs": [
+    {
+      "id": "objective",
+      "label": "Business objective and the decision it supports",
+      "data": "internal"
+    },
+    {
+      "id": "audience",
+      "label": "Audience segment, described without personal data",
+      "data": "internal"
+    },
+    {
+      "id": "offer",
+      "label": "Product or feature and the claim the campaign makes",
+      "data": "none"
+    },
+    {
+      "id": "budget",
+      "label": "Budget and dates",
+      "data": "internal"
+    }
+  ],
+  "tool_actions": [
+    {
+      "action": "send-message",
+      "description": "Sending emails or messages to contacts through the campaign tool."
+    },
+    {
+      "action": "publish",
+      "description": "Publishing ads, posts or landing pages."
+    }
+  ],
+  "sections": [
+    {
+      "id": "message",
+      "title": "Message",
+      "prompt": "The promise, the proof behind it and the call to action, in the words the audience uses."
+    },
+    {
+      "id": "channels",
+      "title": "Channels and calendar",
+      "prompt": "Each channel, why it reaches the audience, and the dates."
+    },
+    {
+      "id": "measurement",
+      "title": "Measurement",
+      "prompt": "The metric that shows success, its baseline, the target and how links are tagged."
+    },
+    {
+      "id": "consent",
+      "title": "Consent and data",
+      "prompt": "Which contact lists are used, on which legal basis, and how people opt out."
+    }
+  ],
+  "checks": [
+    {
+      "id": "claim-substantiated",
+      "verification": "Each claim in the message points to evidence the team can show."
+    },
+    {
+      "id": "consent-confirmed",
+      "verification": "The contact lists and their legal basis are confirmed by the data protection owner."
+    },
+    {
+      "id": "measurement-ready",
+      "verification": "Tracking links and the success metric are set up before launch."
+    }
+  ],
+  "sources": [
+    {
+      "title": "UK Government Functional Standard GovS 011, Communication, the campaign lifecycle",
+      "url": "https://www.gov.uk/government/publications/government-functional-standard-govs-011-communication/government-functional-standard-govs-011-communications#the-campaign-lifecycle"
+    },
+    {
+      "title": "CNIL, Site web, cookies et autres traceurs",
+      "url": "https://www.cnil.fr/fr/cookies-et-autres-traceurs"
+    }
+  ]
+}

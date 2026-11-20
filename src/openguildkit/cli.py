@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from .catalog import load_catalog
 from .ci import check_export, read_policy_pack
 from .decisions import NAMESPACE, approval_policy, check_decision, decision_payload, git_revision, payload_text, verify_signature
 from .alerts import alert_summary, import_alerts, set_alert_status
+from .deliverables import draft_problems, launch_notice, load_deliverables, new_draft
 from .detect import components_for_profile, detect_stack
 from .publishing import add_share, export_docs, revoke_share, share_status
 from .market import dossier_gaps, due_sources, load_dossier
@@ -109,6 +111,18 @@ def _parser() -> argparse.ArgumentParser:
     guard_mode.add_argument("--ci", action="store_true", help="Check the decisions exported for the changes since --base.")
     guard.add_argument("--base", default="origin/main", help="Base revision for --ci (default origin/main).")
     guard.add_argument("--json", action="store_true", help="Print the result as JSON.")
+    deliverable = commands.add_parser("deliverable", help="Start and check a business deliverable from an approved task.")
+    deliverable_actions = deliverable.add_subparsers(dest="deliverable_action", required=True)
+    deliverable_actions.add_parser("list", help="List the deliverable templates.")
+    show_deliverable = deliverable_actions.add_parser("show", help="Show a template: inputs, approvals and checks.")
+    show_deliverable.add_argument("id")
+    new_deliverable = deliverable_actions.add_parser("new", help="Write a draft for an approved task.")
+    new_deliverable.add_argument("id")
+    new_deliverable.add_argument("--task", required=True, help="Approved task the deliverable comes from.")
+    new_deliverable.add_argument("--tool", required=True, help="Tool the team uses, from the profile's approved tools.")
+    new_deliverable.add_argument("--output", type=Path, required=True, help="Markdown file to write.")
+    check_deliverable = deliverable_actions.add_parser("check", help="List what keeps a draft from review.")
+    check_deliverable.add_argument("path", type=Path)
     docs = commands.add_parser("docs", help="Export documentation of completed tasks and track who it is shared with.")
     docs_actions = docs.add_subparsers(dest="docs_action", required=True)
     export = docs_actions.add_parser("export", help="Write Reference, Learn and Blog pages for Documentalist.")
@@ -703,6 +717,50 @@ def _guard(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
     return 0
 
 
+def _deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
+    templates = load_deliverables(catalog, state / "catalog" / "deliverables")
+    action = args.deliverable_action
+    if action == "list":
+        for template in templates.values():
+            method = f" (method {template['method']})" if template.get("method") else ""
+            print(f"{template['id']:<24} {template['title']}{method} [{', '.join(template['brains'])}]")
+        return 0
+    if action == "check":
+        path = args.path if args.path.is_absolute() else root / args.path
+        text = path.read_text(encoding="utf-8")
+        match = re.search(r'^deliverable: "([a-z0-9-]+)"$', text, re.MULTILINE)
+        if not match or match.group(1) not in templates:
+            raise ValueError(f"{args.path} is not a draft written by openguildkit deliverable new.")
+        problems = draft_problems(templates[match.group(1)], text)
+        for problem in problems:
+            print(f"- {problem}")
+        if not problems:
+            print("Ready for review by " + ", ".join(templates[match.group(1)]["brains"]))
+        return 1 if problems else 0
+    if args.id not in templates:
+        raise ValueError(f"Unknown deliverable {args.id}. Run openguildkit deliverable list.")
+    template = templates[args.id]
+    if action == "show":
+        print(f"{template['title']} [{template['id']}]\n{template['description']}\nBefore starting the tool:")
+        for line in launch_notice(template):
+            print(f"  - {line}")
+        print("Checks:")
+        for check in template["checks"]:
+            print(f"  - {check['id']}: {check['verification']}")
+        return 0
+    task = read_task(state, args.task)
+    output = args.output if args.output.is_absolute() else root / args.output
+    entry = new_draft(template, task, args.tool, profile.get("tools", []), output)
+    with project_lock(state):
+        current = read_task(state, args.task)
+        write_json(task_path(state, args.task), {**current, "deliverables": [*current.get("deliverables", []), entry]})
+    print("Before starting the tool:")
+    for line in launch_notice(template):
+        print(f"  - {line}")
+    print(f"Draft written to {args.output}")
+    return 0
+
+
 def _docs(args, root: Path, state: Path, profile: dict) -> int:
     if args.docs_action == "export":
         tasks = [item.strip() for item in args.tasks.split(",") if item.strip()]
@@ -1140,6 +1198,8 @@ def _run(args) -> int | None:
             print(f"OpenGuildKit: review pattern {item['id']}: {'; '.join(item['reasons'])}", file=sys.stderr)
     else:
         profile = load_profile(state, catalog)
+        if args.command == "deliverable":
+            return _deliverable(args, root, state, profile, catalog)
         if args.command == "docs":
             return _docs(args, root, state, profile)
         if args.command == "market":

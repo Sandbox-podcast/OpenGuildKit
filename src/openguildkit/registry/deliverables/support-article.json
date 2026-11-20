@@ -1,0 +1,60 @@
+{
+  "id": "support-article",
+  "title": "Knowledge base article",
+  "description": "Write the support article customers and agents need for a change, from the questions they will ask.",
+  "brains": [
+    "support",
+    "communication"
+  ],
+  "inputs": [
+    {
+      "id": "questions",
+      "label": "Questions and error messages customers will raise",
+      "data": "internal"
+    },
+    {
+      "id": "resolution",
+      "label": "Steps that resolve each case, checked on a test account",
+      "data": "none"
+    }
+  ],
+  "tool_actions": [
+    {
+      "action": "publish",
+      "description": "Publishing the article in the customer help center."
+    }
+  ],
+  "sections": [
+    {
+      "id": "problem",
+      "title": "Problem",
+      "prompt": "The situation in the customer's words, including the exact error message."
+    },
+    {
+      "id": "resolution",
+      "title": "Resolution",
+      "prompt": "Numbered steps a customer can follow, with what they should see after each."
+    },
+    {
+      "id": "escalation",
+      "title": "When to contact support",
+      "prompt": "What to send support when the steps do not work."
+    }
+  ],
+  "checks": [
+    {
+      "id": "steps-tested",
+      "verification": "Someone followed the steps on a test account and got the expected result."
+    },
+    {
+      "id": "no-personal-data",
+      "verification": "Screenshots and examples contain synthetic data only."
+    }
+  ],
+  "sources": [
+    {
+      "title": "Consortium for Service Innovation, Knowledge-Centered Service (KCS)",
+      "url": "https://www.serviceinnovation.org/kcs/"
+    }
+  ]
+}
