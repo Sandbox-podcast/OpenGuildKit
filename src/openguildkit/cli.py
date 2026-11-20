@@ -36,6 +36,7 @@ from .project import (
 from .references import find_references, load_references, with_pattern_references
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
+    record_deliberation,
     assemble_review,
     pass_progress,
     start_pass,
@@ -50,7 +51,7 @@ from .tasks import (
     require_current_scope,
     task_path,
 )
-from .workflow import board_brief, challenge_report, handoff, open_points, select_boards, task_questions, validate_answers
+from .workflow import board_brief, challenge_report, deliberation_request, handoff, open_points, select_boards, task_questions, validate_answers
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -114,6 +115,8 @@ def _parser() -> argparse.ArgumentParser:
         "progress": "Show which board passes are done, failed, started or missing.",
         "review": "Record the completed board reviews.",
         "challenge": "Print the decision brief and each board's challenge.",
+        "deliberate": "Print the objections between boards and the response template.",
+        "respond": "Record the boards' answers to each other's objections.",
         "decide": "Record a human decision.",
         "handoff": "Print the approved implementation handoff, or the decision record of a decision task.",
         "show": "Print the task record as JSON.",
@@ -140,6 +143,8 @@ def _parser() -> argparse.ArgumentParser:
             command.add_argument("board", help="Board ID.")
         if action in ("pass", "submit"):
             command.add_argument("--mode", choices=("subagent", "sequential"), help="How the host runs this pass.")
+        if action == "respond":
+            command.add_argument("--file", type=Path, required=True, help="Completed deliberation JSON.")
         if action == "submit":
             command.add_argument("--file", type=Path, required=True, help="The board's filled-in JSON entry.")
         if action == "progress":
@@ -652,6 +657,18 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         print(_read_consultation(task)["markdown"])
     elif action == "template":
         _print_json(_read_consultation(task)["review_template"])
+    elif action == "deliberate":
+        _print_json(deliberation_request(task))
+    elif action == "respond":
+        payload = read_json(args.file)
+        with project_lock(state):
+            current_task = read_task(state, args.id)
+            if current_task != task:
+                raise ValueError("The task changed while you were deliberating. Run task deliberate again.")
+            result = record_deliberation(current_task, payload)
+            write_json(task_path(state, args.id), result)
+        deliberation = result["deliberation"]
+        print(f"{len(deliberation['agreed'])} resolved, {len(deliberation['open'])} open")
     elif action == "challenge":
         print(challenge_report(task), end="")
     elif action == "route":

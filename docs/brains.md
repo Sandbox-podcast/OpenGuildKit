@@ -17,6 +17,18 @@ The catalog covers engineering, security, DevOps, QA, performance, product, desi
 3. Compare the proposal with an alternative, name a failure it could cause and specify a test or observation that would change the decision. Identify blocking findings and who can resolve them.
 4. Record the reviews with `task review ID --file FILE`. `task challenge ID` groups the verdicts and shows alternatives, verification steps and unresolved items. The owner makes the decision in their terminal.
 
+## Answer the other boards' objections
+
+When boards disagree, each board answers the others on the same point before the person decides. A board whose verdict is `revise`, `block` or `insufficient-evidence` objects to each board whose verdict is `proceed`.
+
+```bash
+openguildkit task deliberate ID      # objections and the response template
+openguildkit task respond ID --file deliberation.json
+openguildkit task challenge ID       # agreement reached, remaining disagreements, decision needed
+```
+
+For each objection, both boards record a `position` (`maintain`, `concede` or `amend`), a `response` and the positions in their own evidence list that support it; maintaining or amending a position needs evidence. An objection one board concedes is resolved. When disagreements remain, `decision_needed` says which decision the responsible person must take. The first reviews stay as recorded, and the decision brief lists objections that were not deliberated.
+
 ## What the verdict means
 
 | Verdict | Meaning |
