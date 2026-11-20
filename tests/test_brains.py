@@ -1,7 +1,7 @@
 import unittest
 
 from openguildkit.catalog import load_catalog
-from openguildkit.workflow import challenge_report, consult, validate_review
+from openguildkit.workflow import challenge_report, consult, handoff, validate_review
 
 
 class BrainReviewTests(unittest.TestCase):
@@ -55,6 +55,19 @@ class BrainReviewTests(unittest.TestCase):
             lens.update(basis="assumption", evidence_refs=[])
         with self.assertRaisesRegex(ValueError, "observed finding"):
             validate_review(self.consultation, self.review)
+
+    def test_decision_task_handoff_is_a_record_without_implementation_order(self):
+        review = validate_review(self.consultation, self.review)
+        task = {
+            "id": "request-access", "status": "approved", "consultation": self.consultation, "review": review,
+            "decision": {"by": "Owner", "reason": "Agreed"},
+            "answers": {"kind": "decision", "surface": "customer", "data": "personal", "research": "local"},
+        }
+        record = handoff(task)
+        self.assertIn("# Approved decision record", record)
+        self.assertNotIn("Implement the approved scope", record)
+        task["answers"]["kind"] = "feature"
+        self.assertIn("# Approved task handoff", handoff(task))
 
     def test_previous_review_format_still_validates_against_its_template(self):
         self.entry.pop("challenge")

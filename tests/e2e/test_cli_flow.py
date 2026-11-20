@@ -339,11 +339,11 @@ class TaskFlowTests(CliTestCase):
 
 @unittest.skipUnless(os.name == "posix", "approval needs a pseudo-terminal, available on Linux and macOS")
 class ApprovalTests(CliTestCase):
-    def decide_in_terminal(self, typed):
+    def decide_in_terminal(self, typed, task_id=TASK_ID):
         master, slave = os.openpty()
         try:
             process = subprocess.Popen(
-                self.command("task", "decide", TASK_ID, "--approve", "--by", "Test Owner", "--reason", "Scope agreed"),
+                self.command("task", "decide", task_id, "--approve", "--by", "Test Owner", "--reason", "Scope agreed"),
                 stdin=slave,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -386,6 +386,33 @@ class ApprovalTests(CliTestCase):
 
         expired = self.run_cli("task", "handoff", TASK_ID, expect=1)
         self.assertIn("changed", expired.stderr)
+
+    def test_an_approved_decision_task_returns_a_decision_record(self):
+        self.init_example()
+        task_id = "pricing-choice"
+        self.run_cli("task", "new", "Recommend whether to bill support per seat or per request.", "--id", task_id)
+        answers = {"kind": "decision", "surface": "business", "data": "none", "research": "local"}
+        self.run_cli("task", "consult", task_id, "--answers", self.write_json("decision.json", answers))
+        template = json.loads(self.run_cli("task", "template", task_id).stdout)
+        template["summary"] = "Bill per seat for the pilot and measure request volume."
+        for entry in template["boards"]:
+            entry.update(recommendation="Keep per-seat billing for the pilot.", evidence=["pricing.md"], open_questions=[])
+            challenge = entry["challenge"]
+            for lens in challenge["specialists"]:
+                lens.update(finding="The current contract bills per seat.", basis="observed", evidence_refs=[1])
+            challenge.update(
+                verdict="proceed", confidence="medium", alternative="Bill per request.",
+                failure_mode="Heavy users cost more than they pay.", verification="Compare request volume after a month.",
+            )
+        self.run_cli("task", "review", task_id, "--file", self.write_json("decision-review.json", template))
+
+        code, stdout, stderr = self.decide_in_terminal(task_id, task_id=task_id)
+        self.assertEqual(code, 0, stderr)
+        record = self.run_cli("task", "handoff", task_id).stdout
+        self.assertIn("# Approved decision record", record)
+        self.assertIn("Leave the project files unchanged", record)
+        self.assertNotIn("Implement the approved scope", record)
+        self.assertNotIn("# Approved task handoff", record)
 
 
 if __name__ == "__main__":

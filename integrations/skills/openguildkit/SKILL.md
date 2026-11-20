@@ -65,6 +65,8 @@ Never run `task decide --approve` yourself, and never try to feed it input. Run 
 
 When the user says they approved, run `openguildkit task handoff ID`. Implement only the approved scope, follow the rule packs and conventions in the handoff, run the project checks it lists and report their results. If the handoff fails because the rules changed, explain it and open a new task. Bring any scope change back to the user before doing it.
 
+A task of kind `decision` returns an "Approved decision record" instead. Report the decision and stop: do not change project files. If the user wants to act on it, open a new task whose brief cites the decision ID, and take that task through consultation and approval.
+
 ## Do not
 
 - Edit `.openguildkit/tasks/*.json` or the OpenGuildKit block in `AGENTS.md` by hand. Use the CLI (`sync` regenerates the block).
