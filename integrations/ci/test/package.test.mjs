@@ -10,8 +10,9 @@ const packageRoot = fileURLToPath(new URL('..', import.meta.url));
 const repositoryRoot = join(packageRoot, '..', '..');
 const cli = join(packageRoot, 'bin', 'openguildkit.mjs');
 const manifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
-const readme = readFileSync(join(packageRoot, 'README.md'), 'utf8');
-const read = path => readFileSync(join(packageRoot, path), 'utf8');
+// Windows checkouts may convert line endings; compare text with LF only.
+const readme = readFileSync(join(packageRoot, 'README.md'), 'utf8').replace(/\r\n/g, '\n');
+const read = path => readFileSync(join(packageRoot, path), 'utf8').replace(/\r\n/g, '\n');
 
 function git(cwd, ...args) {
   return execFileSync('git', ['-c', 'user.name=OpenGuildKit Test',

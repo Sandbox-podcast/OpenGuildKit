@@ -85,7 +85,7 @@ class ExportCiTests(CliTestCase):
                 self.evaluate(revision, target, head, expect=EXIT_CODES[case["verdict"]])
 
         policy = self.commit(self.policy, POLICY, fixture["pack"])
-        self.git(self.policy, "-c", "tag.gpgsign=false", "tag", "-a", "parity-policy", "-m", "Policy tag", policy)
+        self.git(self.policy, "-c", "tag.gpgsign=false", "-c", "user.name=OpenGuildKit tests", "-c", "user.email=tests@example.invalid", "tag", "-a", "parity-policy", "-m", "Policy tag", policy)
 
         def names(repo, commit, tag, path):
             return {
@@ -102,7 +102,7 @@ class ExportCiTests(CliTestCase):
             with self.subTest(commit=case["name"]):
                 repo = self.project / f"commit-{index}"
                 commit = self.commit_bytes(repo, "export.json", VALID_EXPORT, case.get("objectFormat", "sha1"))
-                self.git(repo, "-c", "tag.gpgsign=false", "tag", "-a", "parity-target", "-m", "Target tag", commit)
+                self.git(repo, "-c", "tag.gpgsign=false", "-c", "user.name=OpenGuildKit tests", "-c", "user.email=tests@example.invalid", "tag", "-a", "parity-target", "-m", "Target tag", commit)
                 target_name = names(repo, commit, "parity-target", "export.json")[case["target"]]
                 self.evaluate(policy_names[case["policy"]], repo, target_name, expect=EXIT_CODES[case["verdict"]])
 

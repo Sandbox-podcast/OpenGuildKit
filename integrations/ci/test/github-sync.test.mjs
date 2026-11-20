@@ -194,7 +194,7 @@ test('the merge rechecks that the merge application is the only bypass actor', (
 });
 
 test('the enforcement templates guard organization repositories and verifiable sources', () => {
-  const read = name => readFileSync(new URL(`../pilot/${name}`, import.meta.url), 'utf8');
+  const read = name => readFileSync(new URL(`../pilot/${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const broker = read('broker-workflow.yml');
   assert.doesNotMatch(broker, /repository_owner/);
   assert.match(broker, /contains\(fromJSON\(vars\.OPENGUILDKIT_MERGE_ACTORS \|\| '\[\]'\), github\.actor\)/);
