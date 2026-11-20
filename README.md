@@ -60,6 +60,7 @@ openguildkit patterns --id python-fastapi-postgresql
 
 - [Specialist brains and decision briefs](docs/brains.md)
 - [Stack matching and work methods](docs/patterns.md)
+- [Optional ChaosFolk end-to-end replays](integrations/chaosfolk/)
 
 - [Architecture](docs/architecture.md) and [task workflow](docs/workflow.md)
 - [Contributing](CONTRIBUTING.md) and [catalog format](docs/catalog-format.md)

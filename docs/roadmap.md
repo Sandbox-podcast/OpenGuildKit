@@ -11,6 +11,7 @@ This page separates what exists from what is planned. Items under "Next" and "La
 - CLI: `init` questionnaire, managed `AGENTS.md` block, `sync`, `check`, project-level catalog additions.
 - Task flow: scoping QCM, deterministic board routing, consultation request, review validation, human approval at a terminal, handoff bound to the rules in force.
 - Skills for Claude Code and Codex that drive the flow.
+- Optional [ChaosFolk end-to-end replays](../integrations/chaosfolk/): the `chaosfolk-e2e` pack and CI guide, pinned to ChaosFolk commit `b406600`. Storing replay results in the task record waits for post-handoff checks (#16).
 - Tests, cross-platform CI and a reproducible support request example.
 
 ## Next: breadth of the catalog

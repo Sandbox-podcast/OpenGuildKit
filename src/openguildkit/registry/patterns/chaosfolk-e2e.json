@@ -1,0 +1,26 @@
+{
+  "id": "chaosfolk-e2e",
+  "title": "ChaosFolk browser replays",
+  "description": "Replay reviewed browser journeys with ChaosFolk in CI and attach the results to the task's checks.",
+  "sources": [
+    {
+      "title": "ChaosFolk",
+      "url": "https://github.com/loukan42/chaosfolk"
+    }
+  ],
+  "roles": [
+    "qa",
+    "engineering"
+  ],
+  "packs": [
+    "chaosfolk-e2e"
+  ],
+  "match": {
+    "stack": [
+      [
+        "chaosfolk",
+        "chaos folk"
+      ]
+    ]
+  }
+}
