@@ -47,6 +47,10 @@
     {
       "title": "W3C WAI, Evaluating Web Accessibility",
       "url": "https://www.w3.org/WAI/test-evaluate/"
+    },
+    {
+      "title": "OWASP, Web Security Testing Guide",
+      "url": "https://owasp.org/projects/web-security-testing-guide"
     }
   ],
   "review": {

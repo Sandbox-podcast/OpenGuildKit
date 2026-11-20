@@ -1,11 +1,12 @@
 {
   "id": "engineering",
-  "title": "Engineering",
-  "description": "Review code boundaries, dependencies and compatibility before choosing an implementation.",
+  "title": "Software development (front-end and back-end)",
+  "description": "Review code boundaries, front-end and back-end behaviour, dependencies and compatibility before choosing an implementation.",
   "expertises": [
     "Software architecture and integration",
     "Data modeling and migrations",
-    "API design and maintainability"
+    "API design and maintainability",
+    "Front-end rendering, client state and browser support"
   ],
   "triggers": [
     "api",
@@ -53,6 +54,14 @@
     {
       "title": "Google Engineering Practices, Code review",
       "url": "https://google.github.io/eng-practices/review/reviewer/looking-for.html"
+    },
+    {
+      "title": "web.dev, Baseline",
+      "url": "https://web.dev/baseline"
+    },
+    {
+      "title": "The Twelve-Factor App",
+      "url": "https://12factor.net/"
     }
   ],
   "review": {
@@ -76,6 +85,16 @@
         "id": "maintainability",
         "title": "Code reviewer",
         "focus": "Find unnecessary dependencies and duplicated domain logic. Confirm that the proposed change can be verified through the entry points callers use."
+      },
+      {
+        "id": "frontend-rendering",
+        "title": "Front-end engineer",
+        "focus": "Check where the interface renders, how it loads and updates state, and that it stays usable on slow networks and small screens."
+      },
+      {
+        "id": "browser-compatibility",
+        "title": "Web platform specialist",
+        "focus": "Check the browsers and devices the project supports, the web platform features the change relies on and the weight it adds to what users download."
       }
     ],
     "evidence": [
@@ -83,19 +102,22 @@
       "Before-and-after public contracts and a list of supported callers or event consumers, with compatibility results for affected versions.",
       "Data schema and migration sequence, with results for existing records, mixed-version rollout and the agreed recovery path where relevant.",
       "Tests or execution traces that show success, a representative partial failure and a retry for operations that can repeat.",
-      "Reason for any new service or dependency and the name of the team expected to maintain it."
+      "Reason for any new service or dependency and the name of the team expected to maintain it.",
+      "Supported browsers and devices, page weight before and after, and how the change loads data on the client."
     ],
     "challenge": [
       "Could an existing module own this behavior without introducing a second source of truth?",
       "Which supported caller or previously stored value would behave differently with the proposed change?",
       "What has already been committed if the second step fails, and what happens when the request is retried?",
-      "Which edge of the new design requires another team to change or deploy at the same time?"
+      "Which edge of the new design requires another team to change or deploy at the same time?",
+      "What does the user see while data loads, fails or arrives partially?"
     ],
     "decision_criteria": [
       "Prefer the design with a clear owner, the smallest affected boundary and a demonstrated test path for the agreed behavior.",
       "Ask for a migration or consumer approval if a supported API, event or stored shape would break.",
       "Hold the change when a foreseeable failure, retry or concurrent operation can break a data invariant without a verified recovery path.",
-      "Record the reason and responsible team when the change adds an operational dependency."
+      "Record the reason and responsible team when the change adds an operational dependency.",
+      "Ask for a fallback or progressive enhancement when the change relies on a browser feature outside the supported set."
     ]
   }
 }

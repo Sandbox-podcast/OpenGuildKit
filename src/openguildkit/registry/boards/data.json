@@ -1,0 +1,106 @@
+{
+  "id": "data",
+  "title": "Data and AI",
+  "description": "Review the data the change produces or uses, its quality and lineage, and the behaviour of any model or AI feature it adds.",
+  "expertises": [
+    "Data modelling, quality and lineage",
+    "Analytics and event instrumentation",
+    "Machine learning and generative AI evaluation",
+    "AI risk and model documentation"
+  ],
+  "triggers": [
+    "data pipeline",
+    "pipeline de données",
+    "data quality",
+    "qualité des données",
+    "data warehouse",
+    "entrepôt de données",
+    "analytics",
+    "analytique",
+    "tracking plan",
+    "plan de marquage",
+    "event tracking",
+    "machine learning",
+    "apprentissage automatique",
+    "llm",
+    "ai feature",
+    "fonctionnalité ia",
+    "artificial intelligence",
+    "intelligence artificielle",
+    "rag",
+    "embedding",
+    "dataset",
+    "jeu de données",
+    "data lineage",
+    "lignage des données",
+    "etl",
+    "dbt",
+    "model evaluation",
+    "évaluation du modèle"
+  ],
+  "questions": [
+    "Which data does the change create, transform or rely on, and who owns its definition and quality?",
+    "How will the change be measured: which events or metrics, defined where?",
+    "If the change uses a model, how is it evaluated before release and monitored after?"
+  ],
+  "sources": [
+    {
+      "title": "NIST, AI Risk Management Framework",
+      "url": "https://www.nist.gov/itl/ai-risk-management-framework"
+    },
+    {
+      "title": "DAMA International, Data Management Body of Knowledge (DAMA-DMBOK)",
+      "url": "https://dama.org/learning-resources/dama-data-management-body-of-knowledge-dmbok/"
+    },
+    {
+      "title": "Mitchell et al., Model Cards for Model Reporting",
+      "url": "https://arxiv.org/abs/1810.03993"
+    },
+    {
+      "title": "OpenLineage",
+      "url": "https://openlineage.io/"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "data-steward",
+        "title": "Data steward",
+        "focus": "Name the owner and definition of each dataset or metric the change touches, and the quality checks it needs: completeness, freshness and validity."
+      },
+      {
+        "id": "analytics-engineer",
+        "title": "Analytics engineer",
+        "focus": "Check the events, schemas and transformations that measure the change, and that existing dashboards and reports keep working."
+      },
+      {
+        "id": "ml-evaluator",
+        "title": "ML and AI evaluator",
+        "focus": "For a model or AI feature, define the evaluation set, the quality and safety metrics and the threshold that blocks release."
+      },
+      {
+        "id": "ai-risk-lead",
+        "title": "AI risk lead",
+        "focus": "Document the model's intended use, limits and failure modes, the human oversight in place and the obligations that apply to the use case."
+      }
+    ],
+    "evidence": [
+      "Data contracts, schemas or dbt models for the datasets involved, with their owner.",
+      "Tracking plan or metric definitions for the change.",
+      "Evaluation dataset, results and thresholds for any model or prompt change, with the date of the run.",
+      "Model card or AI use-case record with intended use, limits and oversight."
+    ],
+    "challenge": [
+      "Which downstream report, model or customer export breaks if this field changes meaning or format?",
+      "Would we notice a silent drop in data quality, and how fast?",
+      "On which inputs does the model fail, and what does the user see then?",
+      "Does the evaluation represent production data, or only the examples we expected?"
+    ],
+    "decision_criteria": [
+      "Proceed when owned data definitions, quality checks and lineage cover what the change touches.",
+      "Revise when no metric or event can show whether the change worked.",
+      "Block an AI feature without an evaluation run against agreed thresholds or without a documented human fallback.",
+      "Escalate to the legal owner a use case that may fall under a regulated AI category."
+    ]
+  }
+}

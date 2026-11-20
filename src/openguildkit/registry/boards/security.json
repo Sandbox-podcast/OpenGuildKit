@@ -62,6 +62,10 @@
     {
       "title": "NIST SP 800-218, Secure Software Development Framework 1.1",
       "url": "https://csrc.nist.gov/pubs/sp/800/218/final"
+    },
+    {
+      "title": "CNIL, Guide de la sécurité des données personnelles",
+      "url": "https://www.cnil.fr/fr/guide-de-la-securite-des-donnees-personnelles"
     }
   ],
   "review": {

@@ -5,7 +5,10 @@ import unicodedata
 from collections import Counter
 
 ROLE_TITLES = {
-    "data": "Data and analytics",
+    "communication": "Communication",
+    "data": "Data and AI / Données et IA",
+    "legal": "Legal and compliance / Juridique et conformité",
+    "support": "Customer support / Support client",
     "design": "Design / UX",
     "devops": "DevOps and platform",
     "engineering": "Software development / Développement",

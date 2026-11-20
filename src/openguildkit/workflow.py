@@ -252,7 +252,10 @@ _STRUCTURED_ROUTES = {
     "data": {
         "internal": {"security": "Internal data access"},
         "personal": {"security": "Personal data access"},
-        "regulated": {"security": "Regulated or restricted data access"},
+        "regulated": {
+            "security": "Regulated or restricted data access",
+            "legal": "Obligations attached to regulated data",
+        },
         "unsure": {"security": "Data sensitivity is open"},
     },
 }

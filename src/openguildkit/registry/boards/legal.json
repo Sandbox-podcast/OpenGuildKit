@@ -1,0 +1,104 @@
+{
+  "id": "legal",
+  "title": "Legal and compliance",
+  "description": "Identify the laws, contracts and licences the change touches and who must confirm them, without claiming compliance.",
+  "expertises": [
+    "Data protection and privacy law",
+    "Contracts, terms and service commitments",
+    "Open source and third-party licences",
+    "Sector regulations and regulatory reporting"
+  ],
+  "triggers": [
+    "legal",
+    "juridique",
+    "compliance",
+    "conformité",
+    "regulation",
+    "réglementation",
+    "gdpr",
+    "rgpd",
+    "dora",
+    "nis2",
+    "nis 2",
+    "ai act",
+    "cyber resilience act",
+    "contract",
+    "contrat",
+    "terms of service",
+    "conditions générales",
+    "cgu",
+    "cgv",
+    "licence",
+    "license",
+    "open source license",
+    "licence open source",
+    "data processing agreement",
+    "subprocessor",
+    "sous-traitant",
+    "cookie consent",
+    "consentement",
+    "legal notice",
+    "mentions légales"
+  ],
+  "questions": [
+    "Which laws, contracts or licences apply to this change, and who in the company confirms that reading?",
+    "Does the change alter what customers agreed to, what data is processed or who processes it?",
+    "Which record or notice must exist before release: register entry, impact assessment, contract amendment or licence notice?"
+  ],
+  "sources": [
+    {
+      "title": "CNIL, Le règlement général sur la protection des données",
+      "url": "https://www.cnil.fr/fr/reglement-europeen-protection-donnees"
+    },
+    {
+      "title": "Open Source Initiative, Licenses",
+      "url": "https://opensource.org/licenses"
+    },
+    {
+      "title": "SPDX License List",
+      "url": "https://spdx.org/licenses/"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "privacy-counsel",
+        "title": "Data protection counsel",
+        "focus": "Map the personal data the change collects, uses or shares to its purpose, legal basis, retention and processors. Say which register or impact assessment needs an update."
+      },
+      {
+        "id": "contracts-counsel",
+        "title": "Contracts counsel",
+        "focus": "Compare the change with the customer terms, service levels and data processing agreements in force. Flag any new obligation, liability or notice period."
+      },
+      {
+        "id": "licence-compliance",
+        "title": "Licence compliance specialist",
+        "focus": "Check the licences of new dependencies, assets and generated content against how the product is distributed, and record the notices to ship."
+      },
+      {
+        "id": "regulatory-specialist",
+        "title": "Regulatory specialist",
+        "focus": "Identify the sector rules that apply to the customer or the product, such as finance, health, public sector or AI, and the reporting or testing they require."
+      }
+    ],
+    "evidence": [
+      "Record of processing activities, data map or impact assessment covering the data involved.",
+      "Customer terms, order forms, service levels and data processing agreements that the change affects.",
+      "Dependency list with SPDX licence identifiers and the project's licence policy.",
+      "Written position of the legal or compliance owner for each regulation the project names."
+    ],
+    "challenge": [
+      "Which customer could say the change breaks what they signed, and which clause would they cite?",
+      "Does a new dependency or asset carry a licence that conflicts with how the product is distributed?",
+      "Would the change require a notice to customers, a regulator or a data protection authority, and by when?",
+      "Are we treating an assumption about the law as a confirmed position?"
+    ],
+    "decision_criteria": [
+      "Proceed when the legal owner has confirmed the applicable obligations and the records they require exist or are scheduled before release.",
+      "Revise when a dependency licence, data flow or contract term calls for a change of scope or a notice.",
+      "Block when the change processes personal or regulated data without a documented basis, or ships a licence the policy forbids.",
+      "Record each open legal question with its owner instead of settling it with an assumption."
+    ]
+  }
+}
