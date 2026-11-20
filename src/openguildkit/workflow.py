@@ -32,7 +32,9 @@ in the user's language. Keep the CLI's IDs and JSON keys as printed.
    `openguildkit task decide ID --request-changes --by NAME --reason TEXT`.
    For a change request, update the scoped answers and consult again.
    Keep implementation paused until `openguildkit task handoff ID` returns an
-   approved handoff. Use the approved scope and checks in that handoff.
+   approved handoff. Use the approved scope and checks in that handoff. A task
+   of kind `decision` ends with a decision record: report it and leave the
+   project files unchanged. Open a new task to implement the decision.
 
 Keep source code, secrets and customer data inside their authorized boundary.
 Get any approval for external actions through the host agent's permission flow.
@@ -493,6 +495,11 @@ def challenge_report(task: dict) -> str:
     return "# Decision brief\n\n" + _json_section(report) + "\n"
 
 
+def is_decision_task(task: dict) -> bool:
+    """A decision task asks for a recommendation, not for a change to the project."""
+    return task.get("answers", {}).get("kind") == "decision"
+
+
 def handoff(task: dict) -> str:
     """Render the authorized scope, decision and advisory findings."""
     if task.get("status") != "approved":
@@ -504,19 +511,32 @@ def handoff(task: dict) -> str:
         "by": _text(decision.get("by"), "Approver"),
         "reason": _text(decision.get("reason"), "Approval reason"),
     }
-    return "\n".join(
-        [
-            "# Approved task handoff",
-            "",
+    if is_decision_task(task):
+        heading = "# Approved decision record"
+        instruction = (
+            "Report this decision and its review to the user. Leave the project files "
+            "unchanged. To act on the decision, open a new task with "
+            f"`openguildkit task new BRIEF`, cite decision `{task['id']}` in its brief and "
+            "get that task's scope approved before implementing it."
+        )
+    else:
+        heading = "# Approved task handoff"
+        instruction = (
             "Implement the approved scope. Apply the recorded rules and conventions, "
             "run the relevant project checks and report the results. Bring scope "
-            "changes and unresolved decisions back to the user.",
+            "changes and unresolved decisions back to the user."
+        )
+    return "\n".join(
+        [
+            heading,
+            "",
+            instruction,
             "",
             "## Human approval",
             "",
             _json_section(approval),
             "",
-            "## Approved project scope",
+            "## Reviewed scope" if is_decision_task(task) else "## Approved project scope",
             "",
             _json_section(consultation["scope"]),
             "",
