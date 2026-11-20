@@ -23,6 +23,7 @@
     {
       "id": "scrum",
       "title": "Scrum",
+      "edition": "2020",
       "category": "Produit et organisation",
       "kind": "méthode",
       "brains": [
@@ -45,6 +46,7 @@
     {
       "id": "kanban-guide",
       "title": "Kanban",
+      "edition": "mai 2025",
       "category": "Produit et organisation",
       "kind": "méthode",
       "brains": [
@@ -312,6 +314,7 @@
     {
       "id": "iso-56001",
       "title": "ISO 56001",
+      "edition": "2024",
       "category": "Produit et organisation",
       "kind": "norme",
       "brains": [

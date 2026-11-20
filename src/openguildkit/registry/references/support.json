@@ -43,6 +43,7 @@
     {
       "id": "iso-18295-1",
       "title": "ISO 18295-1:2017",
+      "edition": "2017",
       "category": "Organisation du support",
       "kind": "norme",
       "brains": [
@@ -61,6 +62,7 @@
     {
       "id": "iso-10002",
       "title": "ISO 10002",
+      "edition": "2018",
       "category": "Réclamations et satisfaction client",
       "kind": "norme",
       "brains": [
@@ -78,6 +80,7 @@
     {
       "id": "iso-10004",
       "title": "ISO 10004",
+      "edition": "2018",
       "category": "Réclamations et satisfaction client",
       "kind": "norme",
       "brains": [

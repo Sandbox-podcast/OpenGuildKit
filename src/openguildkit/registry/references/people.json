@@ -5,6 +5,7 @@
     {
       "id": "iso-30414",
       "title": "ISO 30414:2025",
+      "edition": "2025",
       "category": "Pilotage RH et santé au travail",
       "kind": "norme",
       "brains": [
@@ -23,6 +24,7 @@
     {
       "id": "iso-45003",
       "title": "ISO 45003:2021",
+      "edition": "2021",
       "category": "Pilotage RH et santé au travail",
       "kind": "norme",
       "brains": [
@@ -41,6 +43,7 @@
     {
       "id": "iso-45001",
       "title": "ISO 45001:2018",
+      "edition": "2018",
       "category": "Pilotage RH et santé au travail",
       "kind": "norme",
       "brains": [

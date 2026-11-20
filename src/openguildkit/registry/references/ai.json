@@ -153,6 +153,7 @@
         "pd_pmml"
       ],
       "title": "Predictive Model Markup Language (PMML)",
+      "edition": "4.4.1",
       "category": "ML et MLOps",
       "kind": "format",
       "brains": [
@@ -213,6 +214,7 @@
     {
       "id": "nist-ai-rmf",
       "title": "NIST AI Risk Management Framework 1.0",
+      "edition": "1.0",
       "category": "IA responsable et sécurité des agents",
       "kind": "référentiel",
       "brains": [
@@ -276,6 +278,7 @@
     {
       "id": "owasp-agentic-top-10",
       "title": "OWASP Top 10 for Agentic Applications 2026",
+      "edition": "2026",
       "category": "IA responsable et sécurité des agents",
       "kind": "taxonomie",
       "brains": [
@@ -312,6 +315,7 @@
     {
       "id": "iso-iec-42001",
       "title": "ISO/IEC 42001:2023",
+      "edition": "2023",
       "category": "IA responsable et sécurité des agents",
       "kind": "norme",
       "brains": [
@@ -330,6 +334,7 @@
     {
       "id": "iso-iec-23894",
       "title": "ISO/IEC 23894:2023",
+      "edition": "2023",
       "category": "IA responsable et sécurité des agents",
       "kind": "norme",
       "brains": [

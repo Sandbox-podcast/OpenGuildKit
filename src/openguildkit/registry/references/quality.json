@@ -503,6 +503,7 @@
     {
       "id": "iso-iec-ieee-12207",
       "title": "ISO/IEC/IEEE 12207:2026",
+      "edition": "2026",
       "category": "Qualité et cycle de vie",
       "kind": "norme",
       "brains": [
@@ -522,6 +523,7 @@
     {
       "id": "iso-iec-ieee-29148",
       "title": "ISO/IEC/IEEE 29148:2018",
+      "edition": "2018",
       "category": "Qualité et cycle de vie",
       "kind": "norme",
       "brains": [
@@ -540,6 +542,7 @@
     {
       "id": "iso-iec-ieee-42010",
       "title": "ISO/IEC/IEEE 42010:2022",
+      "edition": "2022",
       "category": "Qualité et cycle de vie",
       "kind": "norme",
       "brains": [
@@ -557,6 +560,7 @@
     {
       "id": "iso-iec-25012",
       "title": "ISO/IEC 25012:2008",
+      "edition": "2008",
       "category": "Qualité et cycle de vie",
       "kind": "norme",
       "brains": [

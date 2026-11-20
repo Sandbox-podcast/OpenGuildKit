@@ -528,6 +528,7 @@
     {
       "id": "semver",
       "title": "Semantic Versioning",
+      "edition": "2.0.0",
       "category": "Git, versions et collaboration",
       "kind": "convention",
       "brains": [
@@ -570,6 +571,7 @@
     {
       "id": "keep-a-changelog",
       "title": "Keep a Changelog",
+      "edition": "1.1.0",
       "category": "Git, versions et collaboration",
       "kind": "convention",
       "brains": [

@@ -1,9 +1,14 @@
+import contextlib
+import io
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
 
 from openguildkit.catalog import ID_PATTERN, CatalogError, load_catalog
+from openguildkit.cli import main
+from openguildkit.project import render_instructions, resolved_profile, validate_profile
 from openguildkit.references import (
     KINDS,
     check_reference_links,
@@ -129,8 +134,7 @@ class ReferenceTests(unittest.TestCase):
         self.assertEqual(sorted(generated + presented), sorted(self.catalog["patterns"]))
         scrum = find_references(self.index, record_id="pattern-scrum")
         self.assertEqual([(record["id"], record["family"]) for record in scrum], [("scrum", "product")])
-        self.assertIn("openguildkit patterns --id scrum", scrum[0]["applies_when"])
-        self.assertIn("scrum-delivery", scrum[0]["applies_when"])
+        self.assertEqual((scrum[0]["pattern"], scrum[0]["packs"], scrum[0]["status"]), ("scrum", ["scrum-delivery"], "applied"))
         titles = [record["title"] for family in self.index.values() for record in family["references"]]
         self.assertEqual(titles.count("Scrum"), 1)
         with tempfile.TemporaryDirectory() as directory:
@@ -177,3 +181,41 @@ class ReferenceTests(unittest.TestCase):
         self.assertEqual(family_of["core-web-vitals"], "quality")
         self.assertEqual({family_of[name] for name in ("spf", "dkim", "dmarc")}, {"security"})
         self.assertEqual({family_of[name] for name in ("iso-10002", "iso-10004", "kcs")}, {"support"})
+
+    def test_editions_are_shown_with_the_rules_or_the_documentary_status(self):
+        records = {record["id"]: record for family in self.families.values() for record in family["references"]}
+        for record in records.values():
+            if record["kind"] == "norme" and re.search(r":(19|20)\d\d", record["title"]):
+                with self.subTest(reference=record["id"]):
+                    self.assertTrue(record.get("edition"))
+        with tempfile.TemporaryDirectory() as directory:
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(["--project", directory, "references", "--id", "iso-iec-27001"]), 0)
+            self.assertIn("Edition: 2022", output.getvalue())
+            self.assertIn("Pack iso-27001@", output.getvalue())
+            self.assertIn("confirm-isms-scope", output.getvalue())
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(["--project", directory, "references", "--id", "iso-9001"]), 0)
+            self.assertIn("Status: documentary reference", output.getvalue())
+        with tempfile.TemporaryDirectory() as directory, self.assertRaisesRegex(CatalogError, "edition must be a non-empty string"):
+            load_references(write_family(directory, [team_record(edition="")]))
+
+    def test_the_documented_gdpr_example_extends_the_bundled_pack(self):
+        text = (Path(__file__).resolve().parents[1] / "docs" / "references.md").read_text(encoding="utf-8")
+        block = re.search(r"<!-- worked-example: team-gdpr -->\s*```json\n(.*?)```", text, re.S).group(1)
+        with tempfile.TemporaryDirectory() as directory:
+            packs = Path(directory) / "packs"
+            packs.mkdir()
+            (packs / "team-gdpr.json").write_text(block, encoding="utf-8")
+            catalog = load_catalog(Path(directory))
+        self.assertEqual(catalog["packs"]["team-gdpr"]["depends_on"], ["gdpr"])
+        self.assertIn("gdpr", find_references(self.families, record_id="rgpd")[0]["packs"])
+        profile = validate_profile({"name": "Support console", "packs": ["team-gdpr"]}, catalog)
+        selected = resolved_profile(profile, catalog)["packs"]
+        self.assertLess(selected.index("gdpr"), selected.index("team-gdpr"))
+        instructions = render_instructions(profile, catalog)
+        self.assertLess(instructions.index("`gdpr@"), instructions.index("`team-gdpr@"))
+        self.assertIn("`link-processing-entry`", instructions)
+

@@ -133,6 +133,7 @@
         "pd_mqtt"
       ],
       "title": "MQTT 5.0",
+      "edition": "5.0",
       "category": "Formats et échanges de données",
       "kind": "protocole",
       "brains": [
@@ -154,6 +155,7 @@
         "pd_amqp"
       ],
       "title": "AMQP 1.0",
+      "edition": "1.0",
       "category": "Formats et échanges de données",
       "kind": "protocole",
       "brains": [
@@ -175,6 +177,7 @@
         "root-add-sql"
       ],
       "title": "SQL / série ISO/IEC 9075",
+      "edition": "ISO/IEC 9075-1:2023",
       "category": "Gouvernance et architecture des données",
       "kind": "norme",
       "brains": [
@@ -445,6 +448,7 @@
     {
       "id": "hl7-fhir",
       "title": "HL7 FHIR",
+      "edition": "R5 (v5.0.0)",
       "category": "Interopérabilité santé",
       "kind": "norme",
       "brains": [
@@ -464,6 +468,7 @@
     {
       "id": "dicom",
       "title": "DICOM",
+      "edition": "2026b",
       "category": "Interopérabilité santé",
       "kind": "norme",
       "brains": [

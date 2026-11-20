@@ -41,6 +41,7 @@
     {
       "id": "coso-internal-control",
       "title": "COSO — Internal Control, Integrated Framework (2013)",
+      "edition": "2013",
       "category": "Contrôle interne",
       "kind": "référentiel",
       "brains": [
@@ -59,6 +60,7 @@
     {
       "id": "hm-treasury-green-book",
       "title": "HM Treasury — The Green Book (2026)",
+      "edition": "2026",
       "category": "Décision d'investissement",
       "kind": "guide",
       "brains": [

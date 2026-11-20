@@ -5,6 +5,7 @@
     {
       "id": "pmbok",
       "title": "PMBOK Guide — huitième édition",
+      "edition": "huitième édition (2025)",
       "category": "Gestion de projet",
       "kind": "référentiel",
       "brains": [
@@ -22,6 +23,7 @@
     {
       "id": "iso-21502",
       "title": "ISO 21502:2020",
+      "edition": "2020",
       "category": "Gestion de projet",
       "kind": "norme",
       "brains": [
@@ -39,6 +41,7 @@
     {
       "id": "prince2",
       "title": "PRINCE2 7",
+      "edition": "7",
       "category": "Gestion de projet",
       "kind": "méthode",
       "brains": [
@@ -65,6 +68,7 @@
     {
       "id": "safe",
       "title": "SAFe 6.0 (Scaled Agile Framework)",
+      "edition": "6.0",
       "category": "Gestion de projet",
       "kind": "méthode",
       "brains": [

@@ -27,6 +27,7 @@
     {
       "id": "iso-9241-210",
       "title": "ISO 9241-210",
+      "edition": "2019",
       "category": "Design UX et systèmes de composants",
       "kind": "norme",
       "brains": [
@@ -44,6 +45,7 @@
     {
       "id": "iso-9241-11",
       "title": "ISO 9241-11",
+      "edition": "2018",
       "category": "Design UX et systèmes de composants",
       "kind": "norme",
       "brains": [
@@ -113,6 +115,7 @@
     {
       "id": "dtcg-design-tokens",
       "title": "DTCG Design Tokens",
+      "edition": "2025.10",
       "category": "Design UX et systèmes de composants",
       "kind": "spécification",
       "brains": [
@@ -251,6 +254,7 @@
     {
       "id": "wcag-22",
       "title": "WCAG 2.2",
+      "edition": "2.2",
       "category": "Accessibilité numérique",
       "kind": "spécification",
       "brains": [
@@ -273,6 +277,7 @@
     {
       "id": "wai-aria",
       "title": "WAI-ARIA 1.2",
+      "edition": "1.2",
       "category": "Accessibilité numérique",
       "kind": "spécification",
       "brains": [
@@ -328,6 +333,7 @@
     {
       "id": "en-301549",
       "title": "EN 301 549",
+      "edition": "V4.1.1",
       "category": "Accessibilité numérique",
       "kind": "norme",
       "brains": [
@@ -347,6 +353,7 @@
     {
       "id": "pdf-ua",
       "title": "PDF/UA",
+      "edition": "ISO 14289-1:2014 (PDF/UA-1)",
       "category": "Accessibilité numérique",
       "kind": "norme",
       "brains": [
@@ -365,6 +372,7 @@
     {
       "id": "epub-accessibility",
       "title": "EPUB Accessibility",
+      "edition": "1.1",
       "category": "Accessibilité numérique",
       "kind": "spécification",
       "brains": [

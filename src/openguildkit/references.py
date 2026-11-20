@@ -22,6 +22,8 @@ from .patterns import role_choices
 LEGACY_ID = re.compile(r"[a-z0-9]+(?:[-_][a-z0-9]+)*")
 TEXT_FIELDS = ("title", "category", "kind", "summary", "applies_when")
 LINK_FIELDS = ("aliases", "brains", "pattern", "packs")
+# The edition or version the entry describes, when the source has several: "2022", "Rev. 5", "5.0.0".
+OPTIONAL_TEXT_FIELDS = ("edition",)
 KINDS = {
     "norme": "standard published by a standards body (ISO, IEC, ETSI, NIST FIPS, Ecma, HL7, NEMA)",
     "spécification": "technical specification from a consortium, a community or the IETF",
@@ -75,14 +77,14 @@ def _validate_family(family, filename: str) -> None:
     _validate_text(family["title"], "family title")
     _validate_list(family["references"], "references")
     for record in family["references"]:
-        _validate_fields(record, "reference", {"id", "sources", *TEXT_FIELDS}, set(LINK_FIELDS))
+        _validate_fields(record, "reference", {"id", "sources", *TEXT_FIELDS}, {*LINK_FIELDS, *OPTIONAL_TEXT_FIELDS})
         record_id = record["id"]
         if not isinstance(record_id, str) or not ID_PATTERN.fullmatch(record_id):
             raise CatalogError(
                 f"Invalid reference ID: {record_id!r}. Use lowercase letters, digits and hyphens, "
                 "and keep a former ID in aliases."
             )
-        for field in TEXT_FIELDS:
+        for field in (*TEXT_FIELDS, *(name for name in OPTIONAL_TEXT_FIELDS if name in record)):
             _validate_text(record[field], f"{record_id}.{field}")
         if record["kind"] not in KINDS:
             raise CatalogError(f"{record_id}.kind must be one of: {', '.join(KINDS)}")
@@ -173,16 +175,9 @@ def check_reference_links(families: dict, catalog: dict) -> None:
                 raise CatalogError(f"Reference {reference_id!r} names neither pattern {pattern_id!r} nor one of its packs")
 
 
-def _with_links(record: dict) -> dict:
-    """Show the pattern and packs of a reference in the text the CLI prints."""
-    links = []
-    if "pattern" in record:
-        links.append(f"openguildkit patterns --id {record['pattern']}")
-    if record.get("packs"):
-        links.append(("pack " if len(record["packs"]) == 1 else "packs ") + ", ".join(record["packs"]))
-    if not links:
-        return record
-    linked = {**record, "applies_when": f"{record['applies_when']} Dans OpenGuildKit : {' ; '.join(links)}."}
+def _with_status(record: dict) -> dict:
+    """An entry is applied when packs turn it into rules, documentary otherwise."""
+    linked = {**record, "status": "applied" if record.get("packs") else "documentary"}
     if "pattern" in record:
         linked["aliases"] = [*record.get("aliases", []), f"pattern-{record['pattern']}"]
     return linked
@@ -193,6 +188,7 @@ def with_pattern_references(families: dict, patterns: dict) -> dict:
 
     A pattern that a reference presents appears once, as that reference, which also
     answers to the generated ID pattern-<id>. Other patterns get a generated entry.
+    Every entry gets a status: applied when packs turn it into rules, documentary otherwise.
     """
     if PATTERN_FAMILY in families:
         raise CatalogError("The work-patterns family is generated from the pattern catalog")
@@ -232,10 +228,12 @@ def with_pattern_references(families: dict, patterns: dict) -> dict:
                 "applies_when": f"Inspect the match and rule packs with openguildkit patterns --id {pattern_id}.",
                 "sources": pattern["sources"],
                 "pattern": pattern_id,
+                "packs": pattern["packs"],
+                "status": "applied",
             }
         )
     linked = {
-        family_id: {**family, "references": [_with_links(reference) for reference in family["references"]]}
+        family_id: {**family, "references": [_with_status(reference) for reference in family["references"]]}
         for family_id, family in families.items()
     }
     return {**linked, PATTERN_FAMILY: {"id": PATTERN_FAMILY, "title": "Work and stack patterns", "references": records}}
