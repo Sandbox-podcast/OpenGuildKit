@@ -19,8 +19,8 @@ Run commands from the project root, or pass `--project PATH` before the subcomma
 
 1. Read `openguildkit init --questions`. In an existing repository, `components` carries the components that `openguildkit detect` found: show each one with its path and stack and ask the user to confirm or correct the technologies and versions. Ask for the project name, sector, stack or components, and roles first. Use your multiple-choice tool when it can show the choices as printed, or use a numbered list in the conversation.
 2. Save those answers in a temporary JSON file outside the repository. Run `openguildkit recommend --answers FILE --json`. Show the matching stack patterns and ask which suggested work methods the team uses. For details, run `openguildkit patterns --id ID`. Record the full selection in `patterns`, including any stack pattern the user wants to keep. An empty list skips patterns.
-3. Collect pack overrides, boards, research permissions, conventions and checks. Leave `packs` out to keep the baseline and language defaults. Set it to a list to choose the additional packs. Save the complete answers and run `openguildkit preview --answers FILE`. Show the user the packs with their origin and scope, and any conflict. For each conflict, ask which packs to keep and why, and record it in `resolutions`. Then run `openguildkit init --answers FILE`.
-4. Run `openguildkit check`, then show the user that `.openguildkit/project.json` and `.openguildkit/catalog.lock.json` should be committed. Show the selected patterns and the applied packs in `AGENTS.md`, alongside the profile in `.openguildkit/project.json`.
+3. Collect pack overrides, boards, research permissions, the host agent (`claude-code`, `codex` or `other` in `host`), conventions and checks. Leave `packs` out to keep the baseline and language defaults. Set it to a list to choose the additional packs. Save the complete answers and run `openguildkit preview --answers FILE`. Show the user the packs with their origin and scope, and any conflict. For each conflict, ask which packs to keep and why, and record it in `resolutions`. Then run `openguildkit init --answers FILE`.
+4. When `host` is set, run `openguildkit host apply` and show `openguildkit host check` to the user. Run `openguildkit check`, then show the user that `.openguildkit/project.json` and `.openguildkit/catalog.lock.json` should be committed. Show the selected patterns and the applied packs in `AGENTS.md`, alongside the profile in `.openguildkit/project.json`.
 
 ## Task
 
@@ -71,6 +71,10 @@ A task of kind `decision` returns an "Approved decision record" instead. Report 
 ## Catalog updates
 
 When the user upgrades OpenGuildKit or asks for the latest rules, run `openguildkit update` and show the changes rule by rule. Run `openguildkit update --apply` only after the user agrees, then list the tasks it flags as consulted under the previous rules.
+
+## External actions
+
+Before any action outside the approved scope or the research policy (a web search under `local-only`, a call to an external API, sending a message, publishing, installing a dependency), stop and ask the user. They record their decision with `openguildkit task authorize ID --action KIND --target HOST --allow|--deny --by NAME --reason TEXT`. Never run `--allow` yourself. Name the target by host or tool only, without private details.
 
 ## Do not
 

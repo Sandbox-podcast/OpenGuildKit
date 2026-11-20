@@ -111,6 +111,8 @@ sequenceDiagram
 | Project catalog additions | Trusted project config | Same schema validation as bundled records; cannot reuse a bundled ID |
 | Review JSON | Agent output | Schema validated; must cover exactly the selected boards |
 
+The project's host settings, written by `openguildkit host apply`, let Claude Code or Codex enforce the research policy and keep the agent away from the approval command. `openguildkit host check` says which rules remain instructions. [Host controls](../integrations/README.md#what-the-host-enforces)
+
 Public research is allowed only when the profile says `public-sources` **and** the task answer says `public`. Otherwise the consultation tells the agent to stay with local project material.
 
 ## Extension points

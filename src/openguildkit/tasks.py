@@ -103,7 +103,10 @@ def create_task(state: Path, brief: str, task_id: str | None) -> str:
     return task_id
 
 
-def record_consultation(task: dict, answers: dict, profile: dict, catalog: dict, selection: dict | None = None) -> dict:
+def record_consultation(
+    task: dict, answers: dict, profile: dict, catalog: dict, selection: dict | None = None,
+    host_controls: list[dict] | None = None,
+) -> dict:
     if task["status"] not in {"draft", "consulting", "changes-requested"}:
         raise ValueError("Start a new task or request changes before consulting again.")
     rounds = list(task["rounds"])
@@ -112,7 +115,7 @@ def record_consultation(task: dict, answers: dict, profile: dict, catalog: dict,
     result = {**task, "answers": validate_answers(answers), "rounds": rounds}
     result.update(
         status="consulting",
-        consultation=consult(resolved_profile(profile, catalog), catalog, result, selection),
+        consultation=consult(resolved_profile(profile, catalog), catalog, result, selection, host_controls),
         profile_fingerprint=profile_fingerprint(profile, catalog),
     )
     result.pop("review", None)
@@ -135,6 +138,25 @@ def record_decision(task: dict, approve: bool, by: str, reason: str) -> dict:
     status = "approved" if approve else "changes-requested"
     decision = {"outcome": status, "by": by.strip(), "reason": reason.strip(), "at": timestamp()}
     return {**task, "status": status, "decision": decision}
+
+
+ACTIONS = ("public-research", "external-api", "send-message", "publish", "install-dependency", "other")
+_TARGET = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,99}")
+
+
+def record_authorization(task: dict, action: str, target: str, allow: bool, by: str, reason: str) -> dict:
+    """Record a person's decision on an external action outside the authorized scope."""
+    if action not in ACTIONS:
+        raise ValueError(f"Choose the action from {', '.join(ACTIONS)}.")
+    if not _TARGET.fullmatch(target) or "?" in target or "@" in target:
+        raise ValueError("Name the target as a host or tool name, without a query, an address or private details.")
+    if not by.strip() or not reason.strip():
+        raise ValueError("Supply the decision owner and a reason.")
+    entry = {
+        "action": action, "target": target, "decision": "allow" if allow else "deny",
+        "by": by.strip(), "reason": reason.strip(), "at": timestamp(),
+    }
+    return {**task, "authorizations": [*task.get("authorizations", []), entry]}
 
 
 def require_current_scope(task: dict, profile: dict, catalog: dict) -> None:
