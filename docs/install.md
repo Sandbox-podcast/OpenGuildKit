@@ -44,6 +44,8 @@ openguildkit-ci --version
 
 The package also provides `openguildkit-ci-agent`. Use the [CI integration guide](../integrations/ci/README.md) to set up the approved profile, rule repository, trusted workflow and Jenkins state directory. Start in observation mode, using the [shared export rule example](../examples/export-expiry/README.md) to verify one project before enabling enforcement.
 
+On Windows, choose a persistent NTFS directory for Jenkins state. The coordinator needs hard links, and exFAT does not support them. In builds that include the preflight command, run `openguildkit-ci check-state --state ./state` with the exact directory and account the Jenkins job will use. The check creates and removes a temporary hard link. If it reports exFAT, choose an NTFS directory and update `--state` in the job. For the published v0.16.0 package, select an NTFS directory before starting the job.
+
 To check for a newer pilot package from a machine with GitHub CLI:
 
 ```sh

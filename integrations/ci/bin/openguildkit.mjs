@@ -11,6 +11,7 @@ import { mergeGithub } from '../lib/merge.mjs';
 import { watchGithub } from '../lib/watch.mjs';
 import { checkKitRelease } from '../lib/releases.mjs';
 import { inspectMergeInstallation, inspectMergeProtection } from '../lib/merge-protection.mjs';
+import { checkStateDirectory } from '../lib/state-directory.mjs';
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const help = `OpenGuildKit ${version}
@@ -23,6 +24,7 @@ const help = `OpenGuildKit ${version}
   openguildkit-ci reconcile --config FILE --state DIR [--run]
   openguildkit-ci github --config FILE --state DIR [--run] [--publish [--report-url URL]]
   openguildkit-ci watch --config FILE --state DIR [--publish]
+  openguildkit-ci check-state --state DIR
   openguildkit-ci gate --config FILE --state DIR --project ID --pr NUMBER --commit SHA [--run] [--github]
   openguildkit-ci merge --config FILE --state DIR --project OWNER/REPO --pr NUMBER --commit SHA --base BRANCH [--execute] [--ruleset ID]
   openguildkit-ci merge-protection --repo OWNER/REPO --base BRANCH --ruleset ID [--app-id ID]
@@ -41,6 +43,13 @@ En mode informatif, un écart est enregistré et la commande retourne 0.
 Avec --enforce, un écart retourne 1. Une erreur de configuration ou de lecture retourne 2.`;
 
 const profileOption = { type: 'string', default: 'openguildkit.json' };
+
+function checkState(args) {
+  const { values } = parseArgs({ args, options: { state: { type: 'string' } } });
+  if (!values.state) throw new Error('Usage: openguildkit-ci check-state --state DIR');
+  const directory = checkStateDirectory(values.state);
+  console.log(`OpenGuildKit state directory "${directory}": hard links verified.`);
+}
 
 function mergeProtection(args) {
   const { values } = parseArgs({ args, options: {
@@ -291,6 +300,7 @@ try {
     case 'onboard': adoption(command, args); break;
     case 'github-approve-profile': approveProfile(args); break;
     case 'check': check(args); break;
+    case 'check-state': checkState(args); break;
     case 'brief':
     case 'github-brief': brief(command, args); break;
     case 'gate':

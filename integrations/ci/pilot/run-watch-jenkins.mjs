@@ -3,6 +3,7 @@ import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { withInstalledKit } from './install-kit.mjs';
+import { checkStateDirectory } from '../lib/state-directory.mjs';
 
 try {
   const { values } = parseArgs({ options: {
@@ -16,6 +17,7 @@ try {
     throw new Error('Le chemin result.json est réservé au rapport du job Jenkins.');
   }
   rmSync(output, { force: true });
+  checkStateDirectory(values.state);
   const kit = JSON.parse(readFileSync(values.kit, 'utf8'));
   process.exitCode = withInstalledKit(kit, bin => {
     const args = [join(bin, 'openguildkit.mjs'), 'watch', '--config', values.config, '--state', values.state];
