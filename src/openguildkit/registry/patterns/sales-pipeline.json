@@ -15,5 +15,8 @@
   ],
   "packs": [
     "sales-pipeline-review"
+  ],
+  "references": [
+    "sales-pipeline-stages"
   ]
 }

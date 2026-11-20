@@ -1,0 +1,143 @@
+{
+  "id": "finance",
+  "title": "Finance et contrôle de gestion",
+  "references": [
+    {
+      "id": "ifrs-15",
+      "title": "IFRS 15 — Produits des activités ordinaires tirés de contrats avec des clients",
+      "category": "Normes comptables",
+      "kind": "norme",
+      "brains": [
+        "finance",
+        "sales"
+      ],
+      "summary": "Fixe la comptabilisation du chiffre d'affaires selon le transfert au client des biens ou services promis, en cinq étapes.",
+      "applies_when": "Pour les abonnements, licences et services vendus par un éditeur ; les choix comptables relèvent de la direction financière et des commissaires aux comptes.",
+      "sources": [
+        {
+          "url": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-15-revenue-from-contracts-with-customers/",
+          "title": "IFRS Foundation — IFRS 15 Revenue from Contracts with Customers"
+        }
+      ]
+    },
+    {
+      "id": "ias-38",
+      "title": "IAS 38 — Immobilisations incorporelles",
+      "category": "Normes comptables",
+      "kind": "norme",
+      "brains": [
+        "finance",
+        "engineering"
+      ],
+      "summary": "Définit quand comptabiliser une immobilisation incorporelle, dont les dépenses de développement de logiciels, et comment l'évaluer.",
+      "applies_when": "Quand la finance décide d'immobiliser des coûts de développement ; les critères de la phase de développement se vérifient avec la direction financière.",
+      "sources": [
+        {
+          "url": "https://www.ifrs.org/issued-standards/list-of-standards/ias-38-intangible-assets/",
+          "title": "IFRS Foundation — IAS 38 Intangible Assets"
+        }
+      ]
+    },
+    {
+      "id": "coso-internal-control",
+      "title": "COSO — Internal Control, Integrated Framework (2013)",
+      "category": "Contrôle interne",
+      "kind": "référentiel",
+      "brains": [
+        "finance",
+        "leadership"
+      ],
+      "summary": "Organise le contrôle interne en cinq composantes, de l'environnement de contrôle au pilotage, pour fiabiliser l'information et les opérations.",
+      "applies_when": "Pour concevoir ou documenter des contrôles financiers et opérationnels ; ce cadre ne vaut pas audit.",
+      "sources": [
+        {
+          "url": "https://www.coso.org/internal-control",
+          "title": "COSO — Internal Control, Integrated Framework"
+        }
+      ]
+    },
+    {
+      "id": "hm-treasury-green-book",
+      "title": "HM Treasury — The Green Book (2026)",
+      "category": "Décision d'investissement",
+      "kind": "guide",
+      "brains": [
+        "finance",
+        "leadership"
+      ],
+      "summary": "Guide d'évaluation des options d'investissement public : coûts, bénéfices, risques et scénarios comparés sur une même base.",
+      "applies_when": "Pour comparer des options de projet et tester les hypothèses qui changeraient la décision ; méthode britannique utilisable comme référence.",
+      "pattern": "financial-scenario-planning",
+      "packs": [
+        "financial-planning",
+        "business-case-review"
+      ],
+      "sources": [
+        {
+          "url": "https://www.gov.uk/government/publications/the-green-book--2/the-green-book-2026",
+          "title": "HM Treasury, The Green Book (2026)"
+        }
+      ]
+    },
+    {
+      "id": "hm-treasury-business-case",
+      "title": "HM Treasury — Business cases de projets et programmes",
+      "category": "Décision d'investissement",
+      "kind": "méthode",
+      "brains": [
+        "finance",
+        "leadership",
+        "project-management"
+      ],
+      "summary": "Structure un business case en cinq dimensions : stratégique, économique, commerciale, financière et managériale.",
+      "applies_when": "Pour préparer une décision d'investissement et désigner qui suivra les bénéfices après la livraison.",
+      "pattern": "business-case",
+      "packs": [
+        "business-case-review"
+      ],
+      "sources": [
+        {
+          "url": "https://www.gov.uk/government/publications/guidance-on-developing-business-cases/guidance-on-developing-business-cases-for-projects-and-programmes",
+          "title": "HM Treasury, Developing business cases for projects and programmes"
+        }
+      ]
+    },
+    {
+      "id": "csrd",
+      "title": "Directive (UE) 2022/2464 sur la publication d'informations en matière de durabilité (CSRD)",
+      "category": "Reporting de durabilité",
+      "kind": "réglementation",
+      "brains": [
+        "finance",
+        "leadership",
+        "legal"
+      ],
+      "summary": "Impose aux entreprises concernées de publier des informations de durabilité selon les normes européennes ESRS, avec vérification par un tiers.",
+      "applies_when": "Selon la taille de l'entreprise et la loi nationale de transposition ; le texte ayant été modifié depuis 2022, vérifier le calendrier applicable avec la direction financière.",
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/dir/2022/2464/oj",
+          "title": "Directive (UE) 2022/2464 — CSRD"
+        }
+      ]
+    },
+    {
+      "id": "late-payment-directive",
+      "title": "Directive 2011/7/UE concernant la lutte contre le retard de paiement",
+      "category": "Contrats et paiements",
+      "kind": "réglementation",
+      "brains": [
+        "finance",
+        "sales"
+      ],
+      "summary": "Encadre les délais de paiement entre entreprises et avec les pouvoirs publics, ainsi que les intérêts de retard.",
+      "applies_when": "Pour les conditions de paiement des contrats entre professionnels et des marchés publics ; les délais exacts dépendent de la loi nationale.",
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/dir/2011/7/oj",
+          "title": "Directive 2011/7/UE — Retard de paiement dans les transactions commerciales"
+        }
+      ]
+    }
+  ]
+}

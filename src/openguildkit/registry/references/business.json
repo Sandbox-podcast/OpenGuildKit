@@ -262,37 +262,85 @@
       ]
     },
     {
-      "id": "iso-10002",
-      "title": "ISO 10002",
-      "category": "Commerce et relation client",
-      "kind": "norme",
+      "id": "sba-market-research",
+      "title": "SBA — Étude de marché et analyse concurrentielle",
+      "category": "Marketing SEO et mesure des campagnes",
+      "kind": "guide",
       "brains": [
-        "support"
+        "marketing",
+        "product"
       ],
-      "summary": "Lignes directrices pour organiser le traitement des réclamations clients.",
-      "applies_when": "Pour structurer la relation client et la boucle d'amélioration.",
+      "summary": "Guide de la Small Business Administration pour étudier un marché, ses clients et ses concurrents.",
+      "applies_when": "Pour préparer une comparaison des concurrents et des solutions de remplacement sur un marché défini.",
+      "pattern": "market-competitor-analysis",
+      "packs": [
+        "market-evidence"
+      ],
       "sources": [
         {
-          "url": "https://www.iso.org/standard/10002",
-          "title": "ISO 10002:2018 - Quality management — Customer satisfaction — Guidelines for complaints handling in organizations"
+          "url": "https://www.sba.gov/counseling/plan-your-business/",
+          "title": "U.S. Small Business Administration, Plan your business: market research and competitive analysis"
         }
       ]
     },
     {
-      "id": "iso-10004",
-      "title": "ISO 10004",
-      "category": "Commerce et relation client",
-      "kind": "norme",
+      "id": "iab-tcf",
+      "title": "IAB Europe — Transparency and Consent Framework (TCF)",
+      "category": "Marketing SEO et mesure des campagnes",
+      "kind": "spécification",
       "brains": [
-        "support",
-        "product"
+        "marketing",
+        "legal"
       ],
-      "summary": "Lignes directrices pour surveiller et mesurer la satisfaction client.",
-      "applies_when": "Pour définir un dispositif de suivi de la satisfaction, adapté à l'organisation.",
+      "summary": "Cadre technique et règles pour transmettre le consentement des utilisateurs aux partenaires publicitaires.",
+      "applies_when": "Pour un site qui travaille avec des partenaires publicitaires via une plateforme de gestion du consentement ; son usage ne vaut pas conformité.",
       "sources": [
         {
-          "url": "https://www.iso.org/standard/71582.html",
-          "title": "ISO 10004:2018 - Quality management — Customer satisfaction — Guidelines for monitoring and measuring"
+          "url": "https://iabeurope.eu/transparency-consent-framework/",
+          "title": "IAB Europe, Transparency and Consent Framework"
+        }
+      ]
+    },
+    {
+      "id": "sales-pipeline-stages",
+      "title": "Étapes du pipeline commercial",
+      "category": "Commerce et relation client",
+      "kind": "guide",
+      "brains": [
+        "sales"
+      ],
+      "summary": "Décrit les étapes d'un pipeline de vente, de la prospection à la signature, et ce qui fait passer une opportunité d'une étape à l'autre.",
+      "applies_when": "Pour définir des critères de passage d'étape observables chez l'acheteur.",
+      "pattern": "sales-pipeline",
+      "packs": [
+        "sales-pipeline-review"
+      ],
+      "sources": [
+        {
+          "url": "https://www.salesforce.com/sales/pipeline/stages/",
+          "title": "Salesforce, Sales Pipeline Stages"
+        }
+      ]
+    },
+    {
+      "id": "eu-public-procurement-directive",
+      "title": "Directive 2014/24/UE sur la passation des marchés publics",
+      "category": "Commerce et relation client",
+      "kind": "réglementation",
+      "brains": [
+        "sales",
+        "legal"
+      ],
+      "summary": "Fixe les procédures de passation des marchés publics dans l'UE, les critères d'attribution et les motifs d'exclusion des candidats.",
+      "applies_when": "Pour répondre à un appel d'offres public ; vérifier le droit national et les documents de la consultation.",
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/dir/2014/24/oj",
+          "title": "Directive 2014/24/UE — Passation des marchés publics"
+        },
+        {
+          "url": "https://single-market-economy.ec.europa.eu/single-market/public-procurement_en",
+          "title": "European Commission, Public procurement"
         }
       ]
     }

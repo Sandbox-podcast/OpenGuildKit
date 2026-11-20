@@ -151,7 +151,29 @@ class ReferenceTests(unittest.TestCase):
             with self.assertRaisesRegex(CatalogError, "brains contains duplicates"):
                 load_references(write_family(directory, [team_record(brains=["hr", "hr"])]))
 
+    def test_every_brain_has_references_of_its_discipline(self):
+        counts = {board_id: 0 for board_id in self.catalog["boards"]}
+        for family in self.families.values():
+            for record in family["references"]:
+                for board_id in record["brains"]:
+                    counts[board_id] += 1
+        self.assertEqual({board_id: count for board_id, count in counts.items() if count < 5}, {})
+        business_brains = ("hr", "finance", "sales", "communication", "support", "legal",
+                           "project-management", "operations", "leadership")
+        self.assertEqual({board_id: counts[board_id] for board_id in business_brains if counts[board_id] < 6}, {})
+
+    def test_business_references_are_found_by_family_and_by_word(self):
+        for family_id in ("people", "finance", "legal", "support", "communication", "delivery", "strategy"):
+            with self.subTest(family=family_id):
+                self.assertTrue(find_references(self.index, family_id=family_id))
+        for query, expected in (("ISO 30414", "iso-30414"), ("PMBOK", "pmbok"), ("KCS", "kcs"),
+                                ("IFRS 15", "ifrs-15"), ("Barcelona Principles", "amec-barcelona-principles"),
+                                ("2023/970", "eu-pay-transparency"), ("ISO 37000", "iso-37000")):
+            with self.subTest(query=query):
+                self.assertEqual(find_references(self.index, query=query)[0]["id"], expected)
+
     def test_references_sit_in_the_family_of_their_discipline(self):
         family_of = {record["id"]: family_id for family_id, family in self.families.items() for record in family["references"]}
         self.assertEqual(family_of["core-web-vitals"], "quality")
         self.assertEqual({family_of[name] for name in ("spf", "dkim", "dmarc")}, {"security"})
+        self.assertEqual({family_of[name] for name in ("iso-10002", "iso-10004", "kcs")}, {"support"})

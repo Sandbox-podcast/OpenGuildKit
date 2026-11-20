@@ -1,6 +1,6 @@
 # Reference library
 
-The library starts from the French SOCLE catalog dated 20 November 2026 (`Socle_Catalogue_References.json`). Each entry keeps its family, category, type, description, applicability notes and public source links. Entries whose source ID did not follow the ID convention were renamed and keep that ID as an alias. The descriptions are in French. The library includes conventions, technical specifications, practices, tools and regulations. [Browse the family files](../src/openguildkit/registry/references/).
+The library starts from the French SOCLE catalog dated 20 November 2026 (`Socle_Catalogue_References.json`). Each entry keeps its family, category, type, description, applicability notes and public source links. Entries whose source ID did not follow the ID convention were renamed and keep that ID as an alias. The descriptions are in French. The library includes conventions, technical specifications, practices, tools and regulations. Families added since then cover the non-technical disciplines: `people` (human resources), `finance`, `legal`, `support`, `communication`, `delivery` (project management and operations) and `strategy` (leadership and governance). [Browse the family files](../src/openguildkit/registry/references/).
 
 ## Find a reference
 
