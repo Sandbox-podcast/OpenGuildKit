@@ -226,7 +226,7 @@ def _print_update(result: dict, as_json: bool) -> None:
 def _prompt_choices(question: dict, value: str):
     choices = question["choices"]
     ids = [choice["id"] for choice in choices]
-    raw = [item.strip() for item in value.split(",")] if question.get("type") == "multi-select" else [value]
+    raw = [item.strip() for item in value.split(",") if item.strip()] if question.get("type") == "multi-select" else [value]
     selected = []
     for item in raw:
         if item in ids:
@@ -254,7 +254,9 @@ def _prompt_questions(questions: list[dict], command: str) -> dict:
         if question["id"] == "patterns":
             print("  Enter '-' to skip patterns, or select all the IDs you want to apply.", file=sys.stderr)
         if "default" in question:
-            print(f"  Default: {question['default']}", file=sys.stderr)
+            default = question["default"]
+            shown = ", ".join(map(str, default)) if isinstance(default, list) else default
+            print(f"  Default: {shown or 'none'}", file=sys.stderr)
         while True:
             print("> ", end="", file=sys.stderr, flush=True)
             value = input().strip()
@@ -686,12 +688,14 @@ def main(argv: list[str] | None = None) -> int:
         # Redirected output is consumed by agents and scripts on every platform.
         for stream in (sys.stdout, sys.stderr):
             if not stream.isatty() and hasattr(stream, "reconfigure"):
-                stream.reconfigure(encoding="utf-8")
+                stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(errors="backslashreplace")
     args = _parser().parse_args(argv)
     try:
         return _run(args) or 0
     except (OSError, ValueError, EOFError) as error:
-        print(f"OpenGuildKit: {error or 'Input ended before completion.'}", file=sys.stderr)
+        print(f"OpenGuildKit: {str(error) or 'Input ended before completion.'}", file=sys.stderr)
         return 2 if args.command == "ci-check" else 1
     except KeyboardInterrupt:
         print("\nOpenGuildKit: Cancelled.", file=sys.stderr)

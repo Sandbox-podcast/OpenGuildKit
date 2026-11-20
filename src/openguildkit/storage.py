@@ -8,6 +8,12 @@ from contextlib import contextmanager
 from pathlib import Path
 
 
+def _current_umask() -> int:
+    mask = os.umask(0o022)
+    os.umask(mask)
+    return mask
+
+
 def _unique_keys(pairs):
     result = {}
     for key, value in pairs:
@@ -22,6 +28,8 @@ def parse_json(content: bytes, label: str) -> dict:
         data = json.loads(content.decode("utf-8-sig"), object_pairs_hook=_unique_keys)
     except (UnicodeError, ValueError) as error:
         raise ValueError(f"Invalid JSON in {label}: {error}") from error
+    except RecursionError as error:
+        raise ValueError(f"Invalid JSON in {label}: nested too deeply") from error
     if not isinstance(data, dict):
         raise ValueError(f"Expected a JSON object in {label}")
     return data
@@ -50,6 +58,9 @@ def write_text(path: Path, content: str) -> None:
             temporary.close()
             if path.exists():
                 temporary_path.chmod(stat.S_IMODE(path.stat().st_mode))
+            else:
+                # Temporary files are private; a new file gets the usual permissions.
+                temporary_path.chmod(0o666 & ~_current_umask())
             os.replace(temporary_path, path)
         finally:
             temporary_path.unlink(missing_ok=True)
@@ -61,10 +72,23 @@ def write_json(path: Path, data: dict) -> None:
 
 @contextmanager
 def project_lock(directory: Path):
+    created = not directory.exists()
     directory.mkdir(parents=True, exist_ok=True)
     lock_file = directory / ".lock"
     if lock_file.is_symlink():
         raise ValueError(f"Refusing a symbolic link as project lock: {lock_file}")
+    try:
+        with _held_lock(lock_file):
+            yield
+    finally:
+        # A command that failed in a folder it created leaves nothing behind.
+        if created and [entry.name for entry in directory.iterdir()] == [".lock"]:
+            lock_file.unlink(missing_ok=True)
+            directory.rmdir()
+
+
+@contextmanager
+def _held_lock(lock_file: Path):
     with lock_file.open("a+b") as handle:
         handle.seek(0)
         try:

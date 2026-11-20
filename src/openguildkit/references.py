@@ -69,6 +69,8 @@ def load_references(extra_dir: Path | None = None) -> dict[str, dict]:
                         raise CatalogError(f"Duplicate reference ID: {record_id}")
                     seen.add(record_id)
                     family["references"].append(reference)
+            except RecursionError as error:
+                raise CatalogError(f"{path}: JSON nested too deeply") from error
             except (OSError, ValueError) as error:
                 raise CatalogError(f"{path}: {error}") from error
         if directory == bundled and not families:
