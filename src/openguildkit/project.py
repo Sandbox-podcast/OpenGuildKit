@@ -259,7 +259,7 @@ def pattern_ids(profile: dict) -> list[str]:
 def validate_profile(answers: dict, catalog: dict) -> dict:
     fields = {
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
-        "resolutions", "boards", "required_boards", "required_rules", "research", "host", "waivers", "approval",
+        "resolutions", "boards", "required_boards", "required_rules", "research", "host", "guard", "waivers", "approval",
         "conventions", "checks",
     }
     unknown = sorted(answers.keys() - fields)
@@ -305,6 +305,11 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         if host not in HOSTS:
             raise ValueError(f"host must be one of {', '.join(HOSTS)}")
         profile["host"] = host
+    guard = answers.get("guard")
+    if guard is not None:
+        if guard not in ("off", "observe", "enforce"):
+            raise ValueError("guard must be off, observe or enforce")
+        profile["guard"] = guard
     required_rules = _texts(answers.get("required_rules", []), "required_rules")
     for item in required_rules:
         pack_id, _, rule_id = item.partition("/")
@@ -590,6 +595,12 @@ def render_instructions(profile: dict, catalog: dict) -> str:
         lines.append(
             f"Only {', '.join(profile['waivers']['allowed_by'])} can waive a blocker, "
             f"for up to {profile['waivers']['max_days']} days."
+        )
+    if profile.get("guard", "off") != "off":
+        lines.extend(["", "### Board guard", ""])
+        lines.append(
+            "Every change goes through an approved task. "
+            + ("Edits without one are refused." if profile["guard"] == "enforce" else "Edits without one are flagged.")
         )
     if profile.get("required_boards"):
         lines.extend(["", "### Required reviews", ""])

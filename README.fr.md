@@ -44,6 +44,8 @@ flowchart TB
     D -- valider --> H["Brief d'implémentation avec périmètre et contrôles"]
 ```
 
+Avec `"guard": "enforce"` dans le profil, le board n'est plus facultatif : les hooks de l'agent le rappellent à chaque demande, refusent toute modification de fichier tant qu'aucune tâche n'est approuvée, et un contrôle CI exige la décision approuvée dans chaque PR. [Board automatique](integrations/README.md#the-board-before-every-change)
+
 La CLI choisit les boards et enregistre leurs avis en local. Ton agent rédige ces avis et utilise ses outils pour les recherches que tu autorises. Tu valides le périmètre dans ton terminal avant que la CLI affiche le brief d'implémentation.
 
 Chaque brain traite la demande sous plusieurs angles. Il confronte la proposition à une alternative et te montre les preuves, les objections et les tests qui permettraient de décider. [Brains métier](docs/brains.md)

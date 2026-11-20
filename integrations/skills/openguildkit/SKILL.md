@@ -77,6 +77,10 @@ A task of kind `decision` returns an "Approved decision record" instead. Report 
 
 When the user upgrades OpenGuildKit or asks for the latest rules, run `openguildkit update` and show the changes rule by rule. Run `openguildkit update --apply` only after the user agrees, then list the tasks it flags as consulted under the previous rules.
 
+## Board guard
+
+When a hook reminds you that no approved task covers the work, open a task before changing project files, even for a small change, unless the user only asked a question. When an edit is refused by the guard, explain it to the user and continue the task flow. After the user approves, run `openguildkit task export ID` and commit the decision record with the change.
+
 ## External actions
 
 Before any action outside the approved scope or the research policy (a web search under `local-only`, a call to an external API, sending a message, publishing, installing a dependency), stop and ask the user. They record their decision with `openguildkit task authorize ID --action KIND --target HOST --allow|--deny --by NAME --reason TEXT`. Never run `--allow` yourself. Name the target by host or tool only, without private details.

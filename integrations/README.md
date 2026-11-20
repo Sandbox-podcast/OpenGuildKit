@@ -48,6 +48,7 @@ openguildkit host apply
 |---|---|---|---|
 | No public research when the policy is `local-only` | `.claude/settings.json` denies `WebSearch` and `WebFetch` | `.codex/config.toml` sets `web_search = "disabled"` and leaves sandbox network access off | Instruction only |
 | The agent cannot run the approval command | `.claude/settings.json` denies `openguildkit task decide` and the `script`, `expect` and `unbuffer` terminal emulators | `.codex/rules/openguildkit.rules` forbids the same commands | Typed confirmation only |
+| The board before every change (`"guard": "observe"` or `"enforce"`) | Hooks in `.claude/settings.json` run `openguildkit guard` on each request and before `Edit`, `Write`, `MultiEdit` and `NotebookEdit` | `.codex/hooks.json` runs it on each request and before `apply_patch` | AGENTS.md instruction and the CI check |
 | External actions outside the authorized scope | Recorded decision with `openguildkit task authorize` | Same | Same |
 
 `host check` reports each rule as enforced, missing (the host could enforce it but the setting is absent), instruction (the agent follows the instruction and a person checks) or human (a person decides). When a project declares a host, `openguildkit check` fails while a setting is missing. Codex reads project settings only once the project is trusted. Denying the documented commands does not stop an agent with a shell from emulating a terminal another way; teams that need a verifiable approver use the team approval described in the task workflow.
@@ -61,6 +62,15 @@ openguildkit task authorize ID --action external-api --target api.example.com --
 ```
 
 `--allow` needs a terminal and the typed task ID; `--deny` works anywhere. The target is a host or tool name, never a URL with a query, an address or other private details. The decisions appear in the task record and in the handoff.
+
+## The board before every change
+
+With `"guard": "observe"` or `"guard": "enforce"` in the profile, `openguildkit host apply` installs hooks that run `openguildkit guard`:
+
+- on each request, the agent receives a reminder: either the approved tasks in progress, or the instruction to open a task and consult the boards before changing files;
+- before a file edit inside the project, `observe` adds a warning for the agent and `enforce` refuses the edit when no approved task covers the work. Edits to `.openguildkit/` and to files outside the project stay allowed.
+
+`openguildkit guard` without options prints the same answer for a person. In CI, export the decision of the approved task with `openguildkit task export ID`: it writes `.openguildkit/decisions/ID.json` with the brief, the verdict of each board and the sealed approval, without evidence or internal notes. Commit it with the change. [`github/openguildkit-guard.yml`](github/openguildkit-guard.yml) runs `openguildkit guard --ci --base BASE`: a pull request that changes the project without a decision approved under the current rules is reported, and fails in `enforce` mode.
 
 ## Other agents
 

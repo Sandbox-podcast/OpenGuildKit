@@ -1,0 +1,30 @@
+# Copy to .github/workflows/openguildkit-guard.yml in a project that uses OpenGuildKit.
+# It checks that a pull request carries a decision exported with `openguildkit task export ID`
+# and approved under the project's current rules. With "guard": "observe" in the profile it
+# only reports; with "guard": "enforce" a pull request without a valid decision fails.
+name: OpenGuildKit guard
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install OpenGuildKit
+        # Pin the version your project uses; see docs/install.md for verified release assets.
+        run: python -m pip install "openguildkit @ git+https://github.com/Sandbox-podcast/OpenGuildKit@main"
+      - name: Check the decision behind the changes
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: openguildkit guard --ci --base "$BASE_REF"
