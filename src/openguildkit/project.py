@@ -113,9 +113,16 @@ def init_questions(catalog: dict, project_name: str, detected: list[dict] | None
     ]
 
 
+def _single_line(value: str) -> bool:
+    """True when the text holds no line break of any kind, including a lone carriage return."""
+    return len(value.strip().splitlines()) == 1
+
+
 def _texts(value, field: str) -> list[str]:
     if not isinstance(value, list) or any(not isinstance(item, str) or not item.strip() for item in value):
         raise ValueError(f"{field} must be a list of non-empty strings")
+    if any(not _single_line(item) for item in value):
+        raise ValueError(f"Each entry of {field} must be a single line")
     return list(dict.fromkeys(item.strip() for item in value))
 
 
@@ -231,7 +238,7 @@ def _resolutions(value, catalog: dict) -> list[dict]:
         if not keep or not set(keep) <= set(packs):
             raise ValueError("keep must list one or more of the resolution's packs")
         reason = item["reason"]
-        if not isinstance(reason, str) or not reason.strip() or len(reason.splitlines()) != 1:
+        if not isinstance(reason, str) or not reason.strip() or not _single_line(reason):
             raise ValueError("A resolution needs a single-line reason")
         key = tuple(sorted(packs))
         if key in seen:
@@ -257,7 +264,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     if type(version) is not int or version != SCHEMA_VERSION:
         raise ValueError(f"Unsupported project schema version: {version}")
     name = answers.get("name")
-    if not isinstance(name, str) or not name.strip() or len(name.splitlines()) != 1:
+    if not isinstance(name, str) or not name.strip() or not _single_line(name):
         raise ValueError("name must be a non-empty single line")
     sector, stack, roles, components = _project_context(answers, catalog)
     research = answers.get("research", "local-only")
@@ -548,48 +555,97 @@ def render_instructions(profile: dict, catalog: dict) -> str:
     return "\n".join(lines)
 
 
-def merged_instructions(current: str, generated: str) -> str:
+_MARKER_LINE = re.compile("(" + re.escape(BEGIN) + "|" + re.escape(END) + r")[ \t]*")
+_FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
+BOM = "\ufeff"
+
+
+def _marker_positions(text: str) -> list[tuple[str, int, int]]:
+    """Find the OpenGuildKit markers that stand on their own line outside fenced code blocks."""
+    found, fence, offset = [], None, 0
+    for line in text.splitlines(keepends=True):
+        content = line.rstrip("\r\n")
+        opening = _FENCE.match(content)
+        if fence is None and opening:
+            fence = opening.group(1)
+        elif fence is not None:
+            if opening and opening.group(1)[0] == fence[0] and len(opening.group(1)) >= len(fence) \
+                    and not content[opening.end():].strip():
+                fence = None
+        else:
+            match = _MARKER_LINE.fullmatch(content)
+            if match:
+                found.append((match.group(1), offset, offset + len(content)))
+        offset += len(line)
+    return found
+
+
+def merged_instructions(current: str, generated: str, label: str = "AGENTS.md") -> str:
+    """Replace the managed block in an instructions file, or append it, keeping the rest unchanged."""
     newline = "\r\n" if "\r\n" in current else "\n"
-    marker = re.compile(r"(?m)^(" + re.escape(BEGIN) + "|" + re.escape(END) + r")[ \t]*(?=\r?$)")
-    if marker.search(generated):
+    if any(_MARKER_LINE.fullmatch(line.strip()) for line in generated.splitlines()):
         raise ValueError("Project instructions contain a reserved OpenGuildKit marker.")
-    matches = list(marker.finditer(current))
+    matches = _marker_positions(current)
     block = newline.join([BEGIN, generated.replace("\n", newline), END])
     if not matches:
         separator = newline if current.endswith(newline) else newline * 2
         return current + (separator if current else "") + block + newline
-    if [match.group(1) for match in matches] != [BEGIN, END]:
-        raise ValueError("AGENTS.md has malformed OpenGuildKit markers. Repair the marked block and retry.")
-    return current[:matches[0].start()] + block + current[matches[1].end():]
+    if [kind for kind, _, _ in matches] != [BEGIN, END]:
+        raise ValueError(f"{label} has malformed OpenGuildKit markers. Repair the marked block and retry.")
+    return current[:matches[0][1]] + block + current[matches[1][2]:]
+
+
+def _read_instructions(path: Path) -> tuple[str, bool]:
+    """Read an instructions file and report whether it starts with a UTF-8 byte order mark."""
+    if path.is_symlink():
+        raise ValueError(f"Refusing a symbolic link as project instructions: {path}")
+    if not path.exists():
+        return "", False
+    text = path.read_bytes().decode("utf-8")
+    return (text[1:], True) if text.startswith(BOM) else (text, False)
 
 
 def _instruction_text(path: Path) -> str:
-    if path.is_symlink():
-        raise ValueError(f"Refusing a symbolic link as project instructions: {path}")
-    return path.read_bytes().decode("utf-8") if path.exists() else ""
+    return _read_instructions(path)[0]
+
+
+def _claude_links_to_agents(root: Path) -> bool:
+    """A CLAUDE.md that is a symbolic link to the project's AGENTS.md already carries the rules."""
+    claude, agents = root / "CLAUDE.md", root / "AGENTS.md"
+    if not claude.is_symlink():
+        return False
+    try:
+        return claude.resolve(strict=True) == agents.resolve(strict=True) and not agents.is_symlink()
+    except OSError:
+        return False
 
 
 def _claude_instructions(current: str) -> str:
     standalone_import = any(line.strip() in {"@AGENTS.md", "@./AGENTS.md"} for line in current.splitlines())
-    if BEGIN not in current and END not in current and standalone_import:
+    if not _marker_positions(current) and standalone_import:
         return current
-    return merged_instructions(current, "@AGENTS.md")
+    return merged_instructions(current, "@AGENTS.md", "CLAUDE.md")
 
 
 def sync_instructions(root: Path, profile: dict, catalog: dict) -> None:
     state = state_path(root)
     instructions = root / "AGENTS.md"
-    updated = merged_instructions(_instruction_text(instructions), render_instructions(profile, catalog))
+    current, bom = _read_instructions(instructions)
+    updated = merged_instructions(current, render_instructions(profile, catalog))
     claude = root / "CLAUDE.md"
-    updated_claude = _claude_instructions(_instruction_text(claude))
+    linked = _claude_links_to_agents(root)
+    if not linked:
+        current_claude, claude_bom = _read_instructions(claude)
+        updated_claude = _claude_instructions(current_claude)
     ignore = state / ".gitignore"
     previous_ignore = _instruction_text(ignore)
     missing = [entry for entry in PROJECT_IGNORE.splitlines() if entry not in previous_ignore.splitlines()]
     if missing:
         separator = "\n" if previous_ignore and not previous_ignore.endswith("\n") else ""
         write_text(ignore, previous_ignore + separator + "\n".join(missing) + "\n")
-    write_text(instructions, updated)
-    write_text(claude, updated_claude)
+    write_text(instructions, (BOM if bom else "") + updated)
+    if not linked:
+        write_text(claude, (BOM if claude_bom else "") + updated_claude)
 
 
 def initialize(root: Path, state: Path, profile: dict, catalog: dict) -> None:
@@ -602,11 +658,12 @@ def initialize(root: Path, state: Path, profile: dict, catalog: dict) -> None:
 
 def check_instructions(root: Path, profile: dict, catalog: dict) -> None:
     current = _instruction_text(root / "AGENTS.md")
-    claude = _instruction_text(root / "CLAUDE.md")
+    linked = _claude_links_to_agents(root)
+    claude = "" if linked else _instruction_text(root / "CLAUDE.md")
     ignore = _instruction_text(state_path(root) / ".gitignore")
     if (
         current != merged_instructions(current, render_instructions(profile, catalog))
-        or claude != _claude_instructions(claude)
+        or (not linked and claude != _claude_instructions(claude))
         or not set(PROJECT_IGNORE.splitlines()).issubset(ignore.splitlines())
     ):
         raise ValueError("OpenGuildKit instructions are out of date. Run openguildkit sync.")
