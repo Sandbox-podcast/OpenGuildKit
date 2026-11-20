@@ -14,7 +14,7 @@ OpenGuildKit is useful only if its catalog reflects how practitioners actually w
 | A coding agent | An integration in `integrations/` |
 | Python | CLI features, tests, bug fixes |
 
-Before large work, open an issue with the matching template so a steward or maintainer can confirm the scope.
+Before large work, open an issue with the matching template so a steward or maintainer can confirm the scope. [Your first contribution](docs/first-contribution.md) walks through one change from the fork to the merged pull request.
 
 ## Open a pull request
 
