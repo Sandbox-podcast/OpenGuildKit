@@ -107,6 +107,9 @@
       ],
       "summary": "Étudie un traitement, ses risques pour les personnes et les mesures pour les réduire.",
       "applies_when": "Lorsque le traitement est susceptible d'engendrer un risque élevé ou entre dans un cas où le RGPD impose cette analyse.",
+      "packs": [
+        "gdpr"
+      ],
       "sources": [
         {
           "url": "https://www.cnil.fr/fr/RGPD-analyse-impact-protection-des-donnees-aipd",
@@ -125,6 +128,9 @@
       ],
       "summary": "Prévoit dès le départ les protections et des réglages qui limitent l'utilisation des données au nécessaire.",
       "applies_when": "Pour les traitements de données personnelles concernés par l'article 25 du RGPD et les choix de conception associés.",
+      "packs": [
+        "gdpr"
+      ],
       "sources": [
         {
           "url": "https://www.cnil.fr/fr/reglement-europeen-protection-donnees/chapitre4",
@@ -395,6 +401,10 @@
       ],
       "summary": "Encadre le traitement des données personnelles et les droits des personnes concernées.",
       "applies_when": "Lorsque les traitements et acteurs entrent dans son champ matériel et territorial ; les obligations dépendent notamment du rôle tenu.",
+      "pattern": "gdpr-personal-data",
+      "packs": [
+        "gdpr"
+      ],
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra",
@@ -413,6 +423,10 @@
       ],
       "summary": "Renforce la cybersécurité et la gestion des incidents des entités appartenant à des secteurs visés.",
       "applies_when": "Selon le secteur, la taille, le statut de l'entité et les règles nationales de transposition applicables.",
+      "pattern": "nis2-essential-entity",
+      "packs": [
+        "nis2"
+      ],
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/en",
@@ -431,6 +445,10 @@
       ],
       "summary": "Organise la résilience numérique du secteur financier et la maîtrise des risques liés aux prestataires informatiques.",
       "applies_when": "Pour les entités financières couvertes et les rôles de prestataires concernés ; les engagements d'un éditeur dépendent de son contexte.",
+      "pattern": "dora-financial-entity",
+      "packs": [
+        "dora"
+      ],
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/fra",
@@ -449,6 +467,10 @@
       ],
       "summary": "Encadre les usages et acteurs de l'IA selon les risques, les rôles et les catégories de systèmes ou modèles.",
       "applies_when": "Si l'activité entre dans son champ ; qualifier le rôle, le système, les exceptions et le calendrier des dispositions pertinentes.",
+      "pattern": "eu-ai-act-system",
+      "packs": [
+        "eu-ai-act"
+      ],
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/reg/2024/1689",
@@ -467,6 +489,10 @@
       ],
       "summary": "Fixe des exigences de cybersécurité pour des produits comportant des éléments numériques et leur suivi.",
       "applies_when": "Pour les produits concernés mis sur le marché de l'UE, selon les rôles, exceptions et échéances applicables.",
+      "pattern": "cyber-resilience-act-product",
+      "packs": [
+        "cyber-resilience-act"
+      ],
       "sources": [
         {
           "url": "https://digital-strategy.ec.europa.eu/en/policies/cra-summary",

@@ -85,6 +85,9 @@
       ],
       "summary": "Fournit des clauses types pour encadrer les transferts de données personnelles vers des pays tiers, en quatre modules selon le rôle des parties.",
       "applies_when": "Quand un fournisseur ou une filiale hors de l'Espace économique européen reçoit des données personnelles ; à compléter par une analyse du transfert.",
+      "packs": [
+        "gdpr"
+      ],
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/dec_impl/2021/914/oj",

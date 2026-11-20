@@ -242,7 +242,8 @@
       "summary": "Produit l'inventaire des composants et dépendances qui constituent une version du logiciel.",
       "applies_when": "Pour connaître les composants livrés, répondre aux vulnérabilités et partager un inventaire avec les clients.",
       "packs": [
-        "supply-chain"
+        "supply-chain",
+        "cyber-resilience-act"
       ],
       "sources": [
         {

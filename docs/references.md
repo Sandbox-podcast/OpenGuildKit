@@ -25,6 +25,11 @@ The `work-patterns` family comes from the [pattern catalog](patterns.md). A patt
 | `release-management` | Conventional Commits, SemVer, Keep a Changelog | Version decision, compatibility checks, release notes |
 | `supply-chain` | SLSA, SBOM, SPDX, CycloneDX | Artifact provenance, verification result, SBOM for the shipped version |
 | `service-reliability` | SLI, SLO, error budgets, OpenTelemetry, OTLP | SLO definition, dashboard or query, telemetry test |
+| `gdpr` | GDPR (Regulation (EU) 2016/679), CNIL guidance, standard contractual clauses | Processing record entry, lawful basis, retention job, DPIA decision |
+| `dora` | DORA (Regulation (EU) 2022/2554) | ICT asset inventory, restoration test, register of information, incident runbook |
+| `nis2` | NIS 2 (Directive (EU) 2022/2555) and its national transposition | Scope decision, security policy, supplier assessment, incident runbook |
+| `eu-ai-act` | AI Act (Regulation (EU) 2024/1689, as amended) | Classification and role, AI interaction notice, logs, oversight procedure |
+| `cyber-resilience-act` | Cyber Resilience Act (Regulation (EU) 2024/2847) | Role decision, release SBOM, disclosure policy, support period, reporting runbook |
 
 When turning a new reference into a pack, confirm its edition, the conditions where it applies and the team that owns it. Write the action to take, how to verify it and what evidence to keep. Use your organization's approved interpretation for regulatory requirements and licensed standards.
 
