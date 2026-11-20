@@ -259,7 +259,7 @@ def pattern_ids(profile: dict) -> list[str]:
 def validate_profile(answers: dict, catalog: dict) -> dict:
     fields = {
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
-        "resolutions", "boards", "research", "conventions", "checks",
+        "resolutions", "boards", "required_boards", "research", "conventions", "checks",
     }
     unknown = sorted(answers.keys() - fields)
     if unknown:
@@ -298,6 +298,9 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         profile["roles"] = roles
     if patterns:
         profile["patterns"] = patterns
+    required = _ids(answers.get("required_boards", []), "required_boards", catalog["boards"])
+    if required:
+        profile["required_boards"] = required
     resolutions = _resolutions(answers.get("resolutions", []), catalog)
     if resolutions:
         profile["resolutions"] = resolutions
@@ -538,6 +541,12 @@ def render_instructions(profile: dict, catalog: dict) -> str:
                 else f"{kept} both apply"
             )
             lines.append(f"- {outcome}. Reason: {resolution['reason']}")
+    if profile.get("required_boards"):
+        lines.extend(["", "### Required reviews", ""])
+        lines.append(
+            "Every consultation includes these boards: "
+            + ", ".join(f"`{board_id}`" for board_id in profile["required_boards"]) + "."
+        )
     for title, field in (("Team conventions", "conventions"), ("Project checks", "checks")):
         if profile[field]:
             lines.extend(["", f"### {title}", "", *_bullets(profile[field])])
