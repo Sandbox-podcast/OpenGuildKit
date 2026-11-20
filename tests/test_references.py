@@ -138,6 +138,19 @@ class ReferenceTests(unittest.TestCase):
             with self.assertRaisesRegex(CatalogError, "presents unknown pattern"):
                 with_pattern_references(local, self.catalog["patterns"])
 
+    def test_every_reference_names_the_brains_it_serves(self):
+        for family in self.families.values():
+            for record in family["references"]:
+                with self.subTest(reference=record["id"]):
+                    self.assertTrue(1 <= len(record.get("brains", [])) <= 3)
+                    self.assertTrue(set(record["brains"]) <= set(self.catalog["boards"]))
+        with tempfile.TemporaryDirectory() as directory:
+            local = load_references(write_family(directory, [team_record(brains=["no-such-brain"])]))
+            with self.assertRaisesRegex(CatalogError, "unknown brains: no-such-brain"):
+                check_reference_links(local, self.catalog)
+            with self.assertRaisesRegex(CatalogError, "brains contains duplicates"):
+                load_references(write_family(directory, [team_record(brains=["hr", "hr"])]))
+
     def test_references_sit_in_the_family_of_their_discipline(self):
         family_of = {record["id"]: family_id for family_id, family in self.families.items() for record in family["references"]}
         self.assertEqual(family_of["core-web-vitals"], "quality")

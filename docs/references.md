@@ -42,6 +42,7 @@ Contribute a JSON family file in `src/openguildkit/registry/references/`. For in
       "title": "Change record",
       "category": "Delivery",
       "kind": "pratique",
+      "brains": ["devops", "operations"],
       "summary": "Record the owner, impact and verification results of a production change.",
       "applies_when": "A change affects an interface or operation used by another team.",
       "sources": [
@@ -60,6 +61,7 @@ Contribute a JSON family file in `src/openguildkit/registry/references/`. For in
 | `aliases` | Optional. Former IDs that `references --id` still resolves. Use it when you rename an entry. |
 | `title`, `category`, `summary`, `applies_when` | Single lines. French for the bundled entries. |
 | `kind` | One of the types below. |
+| `brains` | Optional for project entries, set on every bundled entry. One to three [brain](brains.md) IDs whose work the reference supports, such as `["legal", "security"]`. The tests check that each ID is a bundled board. |
 | `pattern` | Optional. The pattern this reference presents. The index then shows the reference instead of a generated `pattern-<id>` entry, and the pattern lists the reference in its `references`. A pattern can be presented by one reference. |
 | `packs` | Optional. The rule packs built on this reference. |
 | `sources` | At least one source, with the same rules as catalog sources. |

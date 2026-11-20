@@ -7,6 +7,10 @@
       "title": "Diátaxis",
       "category": "Documentation et rédaction",
       "kind": "méthode",
+      "brains": [
+        "engineering",
+        "communication"
+      ],
       "summary": "Sépare tutoriels, guides pratiques, références et explications selon le besoin du lecteur.",
       "applies_when": "Pour structurer une documentation produit, API ou technique.",
       "sources": [
@@ -21,6 +25,10 @@
       "title": "Docs as Code",
       "category": "Documentation et rédaction",
       "kind": "pratique",
+      "brains": [
+        "engineering",
+        "communication"
+      ],
       "summary": "Gère la documentation avec versionnement, revue et automatisation proches de ceux du code.",
       "applies_when": "Pour garder les documents reliés aux changements du produit.",
       "sources": [
@@ -35,6 +43,9 @@
       "title": "Google Developer Documentation Style Guide",
       "category": "Documentation et rédaction",
       "kind": "guide",
+      "brains": [
+        "communication"
+      ],
       "summary": "Conventions éditoriales pour une documentation technique claire et cohérente.",
       "applies_when": "Option de guide rédactionnel, à adapter aux langues et à la voix de la marque.",
       "sources": [
@@ -49,6 +60,9 @@
       "title": "Microsoft Writing Style Guide",
       "category": "Documentation et rédaction",
       "kind": "guide",
+      "brains": [
+        "communication"
+      ],
       "summary": "Recommandations de rédaction et de terminologie pour les contenus numériques.",
       "applies_when": "Autre guide éditorial possible ; décider du guide retenu et des adaptations locales.",
       "sources": [
@@ -63,6 +77,10 @@
       "title": "CommonMark",
       "category": "Documentation et rédaction",
       "kind": "spécification",
+      "brains": [
+        "engineering",
+        "communication"
+      ],
       "summary": "Définit une syntaxe Markdown et son interprétation pour améliorer l'interopérabilité.",
       "applies_when": "Pour les documents Markdown et les moteurs de rendu qui suivent cette spécification.",
       "sources": [
@@ -77,6 +95,10 @@
       "title": "GitHub Flavored Markdown",
       "category": "Documentation et rédaction",
       "kind": "spécification",
+      "brains": [
+        "engineering",
+        "communication"
+      ],
       "summary": "Dialecte Markdown avec extensions utilisées par GitHub.",
       "applies_when": "Pour les contenus rendus avec GFM ; vérifier les différences avec les autres moteurs.",
       "sources": [
@@ -91,6 +113,10 @@
       "title": "AsciiDoc",
       "category": "Documentation et rédaction",
       "kind": "format",
+      "brains": [
+        "engineering",
+        "communication"
+      ],
       "summary": "Langage de balisage adapté à la rédaction et à la réutilisation de contenus techniques.",
       "applies_when": "Alternative à Markdown ou à d'autres formats selon la chaîne documentaire.",
       "sources": [
@@ -105,6 +131,10 @@
       "title": "DITA",
       "category": "Documentation et rédaction",
       "kind": "spécification",
+      "brains": [
+        "engineering",
+        "communication"
+      ],
       "summary": "Architecture XML de contenus documentaires modulaires et réutilisables.",
       "applies_when": "Pour les chaînes éditoriales structurées qui ont besoin de réutilisation et de publications multiples.",
       "sources": [
@@ -119,6 +149,9 @@
       "title": "ISO 24495-1",
       "category": "Documentation et rédaction",
       "kind": "norme",
+      "brains": [
+        "communication"
+      ],
       "summary": "Principes pour rédiger des documents que leurs lecteurs peuvent trouver, comprendre et utiliser.",
       "applies_when": "Pour les contenus qui nécessitent un langage clair ; adapter à l'audience.",
       "sources": [
@@ -133,6 +166,10 @@
       "title": "PDF/A",
       "category": "Documentation et rédaction",
       "kind": "norme",
+      "brains": [
+        "communication",
+        "operations"
+      ],
       "summary": "Profils PDF destinés à la conservation à long terme des documents.",
       "applies_when": "Choisir le profil d'archivage adapté ; référence PDF/A-1 liée ici, distinct de l'accessibilité PDF/UA.",
       "sources": [
@@ -147,6 +184,10 @@
       "title": "BCP 47",
       "category": "Internationalisation et conventions de référence",
       "kind": "spécification",
+      "brains": [
+        "engineering",
+        "communication"
+      ],
       "summary": "Étiquettes pour identifier les langues et leurs variantes, par exemple fr-FR.",
       "applies_when": "Pour les contenus multilingues, API et métadonnées linguistiques.",
       "sources": [
@@ -161,6 +202,10 @@
       "title": "Unicode CLDR",
       "category": "Internationalisation et conventions de référence",
       "kind": "référentiel",
+      "brains": [
+        "engineering",
+        "communication"
+      ],
       "summary": "Données de langues et de régions pour dates, nombres, monnaies et autres présentations locales.",
       "applies_when": "Pour localiser une application avec des données partagées plutôt que des règles improvisées.",
       "sources": [
@@ -175,6 +220,10 @@
       "title": "ICU MessageFormat",
       "category": "Internationalisation et conventions de référence",
       "kind": "format",
+      "brains": [
+        "engineering",
+        "communication"
+      ],
       "summary": "Syntaxe de messages traduisibles avec variables, pluriels et variantes.",
       "applies_when": "Pour les interfaces multilingues ; fixer le dialecte pris en charge par l'outillage.",
       "sources": [
@@ -189,6 +238,9 @@
       "title": "IANA Time Zone Database",
       "category": "Internationalisation et conventions de référence",
       "kind": "référentiel",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Identifiants et règles historiques des fuseaux horaires et changements d'heure.",
       "applies_when": "Pour stocker et afficher des heures selon la zone de l'utilisateur.",
       "sources": [
@@ -203,6 +255,9 @@
       "title": "Unicode Normalization UAX 15",
       "category": "Internationalisation et conventions de référence",
       "kind": "spécification",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Définit des formes normalisées de texte Unicode pour comparer et traiter les caractères.",
       "applies_when": "Pour les recherches, échanges et identifiants sensibles aux représentations des caractères.",
       "sources": [
@@ -217,6 +272,10 @@
       "title": "ISO 4217",
       "category": "Internationalisation et conventions de référence",
       "kind": "norme",
+      "brains": [
+        "engineering",
+        "finance"
+      ],
       "summary": "Codes de monnaies comme EUR ou USD.",
       "applies_when": "Pour les prix, paiements, reporting et échanges de données monétaires.",
       "sources": [
@@ -231,6 +290,9 @@
       "title": "ISO 3166",
       "category": "Internationalisation et conventions de référence",
       "kind": "norme",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Codes de pays et subdivisions pour représenter des territoires.",
       "applies_when": "Pour les adresses, paramètres régionaux, analyses et échanges de données.",
       "sources": [

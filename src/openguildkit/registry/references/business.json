@@ -7,6 +7,10 @@
       "title": "Google Search Essentials",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "guide",
+      "brains": [
+        "marketing",
+        "engineering"
+      ],
       "summary": "Exigences et bonnes pratiques de référencement pour les contenus indexables par Google.",
       "applies_when": "Pour les sites publics ; leur respect ne garantit ni indexation ni classement.",
       "sources": [
@@ -21,6 +25,9 @@
       "title": "Schema.org",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "spécification",
+      "brains": [
+        "marketing"
+      ],
       "summary": "Vocabulaire partagé pour décrire des pages, organisations, produits, événements et autres contenus.",
       "applies_when": "Pour les données structurées des contenus web, selon les types réellement présents.",
       "sources": [
@@ -35,6 +42,10 @@
       "title": "JSON-LD",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "spécification",
+      "brains": [
+        "marketing",
+        "engineering"
+      ],
       "summary": "Représentation JSON de données liées et de leurs relations.",
       "applies_when": "Pour les données structurées web ou autres graphes de connaissances, selon les besoins.",
       "sources": [
@@ -49,6 +60,9 @@
       "title": "Open Graph",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "protocole",
+      "brains": [
+        "marketing"
+      ],
       "summary": "Métadonnées qui décrivent notamment le titre, l'image et la nature d'une page partagée.",
       "applies_when": "Pour contrôler les aperçus de partage sur les services compatibles.",
       "sources": [
@@ -63,6 +77,10 @@
       "title": "Robots Exclusion Protocol",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "protocole",
+      "brains": [
+        "marketing",
+        "engineering"
+      ],
       "summary": "Règles publiées dans robots.txt à destination des robots qui acceptent de les suivre.",
       "applies_when": "Pour le parcours des sites par les robots ; ce mécanisme ne protège pas des données privées.",
       "sources": [
@@ -77,6 +95,10 @@
       "title": "Sitemaps XML",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "protocole",
+      "brains": [
+        "marketing",
+        "engineering"
+      ],
       "summary": "Format pour signaler aux moteurs les adresses et métadonnées utiles d'un site.",
       "applies_when": "Pour aider à la découverte des pages ; sans garantie d'indexation.",
       "sources": [
@@ -91,6 +113,10 @@
       "title": "Paramètres UTM",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "convention",
+      "brains": [
+        "marketing",
+        "data"
+      ],
       "summary": "Paramètres d'URL qui attribuent le trafic aux campagnes, sources et supports.",
       "applies_when": "Définir une nomenclature commune pour éviter les doublons et erreurs de reporting.",
       "pattern": "utm-campaign-measurement",
@@ -109,6 +135,9 @@
       "title": "SOSTAC",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "méthode",
+      "brains": [
+        "marketing"
+      ],
       "summary": "Cadre de planification reliant situation, objectifs, stratégie, tactiques, actions et contrôle.",
       "applies_when": "Option de préparation et de suivi des plans marketing ou commerciaux.",
       "sources": [
@@ -123,6 +152,10 @@
       "title": "SCIP Code of Ethics",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "référentiel",
+      "brains": [
+        "marketing",
+        "legal"
+      ],
       "summary": "Repères éthiques pour collecter et utiliser de l'intelligence concurrentielle.",
       "applies_when": "Pour cadrer la veille et la collecte de sources de marché.",
       "sources": [
@@ -137,6 +170,9 @@
       "title": "MEDDPICC",
       "category": "Commerce et relation client",
       "kind": "méthode",
+      "brains": [
+        "sales"
+      ],
       "summary": "Structure la qualification d'une vente complexe, de la valeur attendue au processus de décision.",
       "applies_when": "Pour les ventes B2B complexes ; ce n'est pas une norme de conformité.",
       "pattern": "meddpicc",
@@ -155,6 +191,9 @@
       "title": "SPIN Selling",
       "category": "Commerce et relation client",
       "kind": "méthode",
+      "brains": [
+        "sales"
+      ],
       "summary": "Guide les questions de découverte autour de la situation, des problèmes, de leurs effets et de la valeur attendue.",
       "applies_when": "Pour les conversations commerciales et la compréhension du besoin.",
       "pattern": "spin-selling",
@@ -173,6 +212,9 @@
       "title": "SPICED",
       "category": "Commerce et relation client",
       "kind": "méthode",
+      "brains": [
+        "sales"
+      ],
       "summary": "Organise les informations de découverte sur situation, douleur, impact, échéance et décision.",
       "applies_when": "Pour qualifier et transmettre le contexte entre vente et suivi client.",
       "sources": [
@@ -187,6 +229,11 @@
       "title": "Net Promoter Score",
       "category": "Commerce et relation client",
       "kind": "indicateur",
+      "brains": [
+        "support",
+        "marketing",
+        "product"
+      ],
       "summary": "Mesure une intention de recommandation à partir d'une enquête structurée.",
       "applies_when": "À interpréter avec le contexte, l'échantillon et les autres retours clients.",
       "sources": [
@@ -201,6 +248,10 @@
       "title": "MRR et churn",
       "category": "Commerce et relation client",
       "kind": "indicateur",
+      "brains": [
+        "finance",
+        "sales"
+      ],
       "summary": "Conventions de mesure du revenu récurrent mensuel et de la perte de clients ou revenus.",
       "applies_when": "Fixer les définitions, périodes et exclusions avant de comparer des résultats.",
       "sources": [
@@ -215,6 +266,9 @@
       "title": "ISO 10002",
       "category": "Commerce et relation client",
       "kind": "norme",
+      "brains": [
+        "support"
+      ],
       "summary": "Lignes directrices pour organiser le traitement des réclamations clients.",
       "applies_when": "Pour structurer la relation client et la boucle d'amélioration.",
       "sources": [
@@ -229,6 +283,10 @@
       "title": "ISO 10004",
       "category": "Commerce et relation client",
       "kind": "norme",
+      "brains": [
+        "support",
+        "product"
+      ],
       "summary": "Lignes directrices pour surveiller et mesurer la satisfaction client.",
       "applies_when": "Pour définir un dispositif de suivi de la satisfaction, adapté à l'organisation.",
       "sources": [

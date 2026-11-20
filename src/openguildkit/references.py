@@ -21,7 +21,7 @@ from .patterns import role_choices
 # IDs used before the hyphen convention, such as pd_iac, stay resolvable as aliases.
 LEGACY_ID = re.compile(r"[a-z0-9]+(?:[-_][a-z0-9]+)*")
 TEXT_FIELDS = ("title", "category", "kind", "summary", "applies_when")
-LINK_FIELDS = ("aliases", "pattern", "packs")
+LINK_FIELDS = ("aliases", "brains", "pattern", "packs")
 KINDS = {
     "norme": "standard published by a standards body (ISO, IEC, ETSI, NIST FIPS, Ecma, HL7, NEMA)",
     "spécification": "technical specification from a consortium, a community or the IETF",
@@ -51,6 +51,12 @@ def _validate_links(record: dict, record_id: str) -> None:
                 raise CatalogError(f"{record_id}.aliases must list former IDs other than the current one")
         if len(set(aliases)) != len(aliases):
             raise CatalogError(f"{record_id}.aliases contains duplicates")
+    if "brains" in record:
+        _validate_list(record["brains"], f"{record_id}.brains")
+        for board_id in record["brains"]:
+            _validate_id(board_id, f"{record_id}.brains entry")
+        if len(set(record["brains"])) != len(record["brains"]):
+            raise CatalogError(f"{record_id}.brains contains duplicates")
     if "pattern" in record:
         _validate_id(record["pattern"], f"{record_id}.pattern")
     if "packs" in record:
@@ -143,11 +149,15 @@ def _active_packs(pack_ids: list[str], packs: dict) -> set[str]:
 def check_reference_links(families: dict, catalog: dict) -> None:
     """Check that references, packs and patterns on one subject name each other.
 
-    A reference names the pattern it presents and the packs built on it. A pattern names
-    the references behind the packs it activates, dependencies included.
+    A reference names the brains whose work it supports, the pattern it presents and the
+    packs built on it. A pattern names the references behind the packs it activates,
+    dependencies included.
     """
     records = {record["id"]: record for family in families.values() for record in family["references"]}
     for record_id, record in records.items():
+        unknown = sorted(set(record.get("brains", [])) - catalog["boards"].keys())
+        if unknown:
+            raise CatalogError(f"Reference {record_id!r} names unknown brains: {', '.join(unknown)}")
         unknown = sorted(set(record.get("packs", [])) - catalog["packs"].keys())
         if unknown:
             raise CatalogError(f"Reference {record_id!r} names unknown packs: {', '.join(unknown)}")

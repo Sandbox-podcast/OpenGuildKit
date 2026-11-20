@@ -10,6 +10,10 @@
       "title": "ISO 8601",
       "category": "Formats et échanges de données",
       "kind": "norme",
+      "brains": [
+        "engineering",
+        "data"
+      ],
       "summary": "Définit des représentations des dates et heures afin de limiter les ambiguïtés entre systèmes, pays et conventions locales.",
       "applies_when": "Quand des dates ou heures sont échangées ou stockées selon un format partagé ; préciser également les règles de fuseau utiles.",
       "sources": [
@@ -27,6 +31,10 @@
       "title": "RFC 3339",
       "category": "Formats et échanges de données",
       "kind": "spécification",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Profil d'ISO 8601 pour représenter des horodatages Internet avec une date, une heure et une indication de décalage à UTC.",
       "applies_when": "Pour les horodatages d'API, d'événements ou de journaux qui doivent être interprétés sans ambiguïté entre systèmes.",
       "sources": [
@@ -44,6 +52,9 @@
       "title": "UTF-8 / RFC 3629",
       "category": "Formats et échanges de données",
       "kind": "format",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Représente les caractères Unicode dans une suite d'octets et permet d'échanger des textes de nombreuses langues.",
       "applies_when": "Pour harmoniser l'encodage des fichiers, API et données textuelles, avec une déclaration explicite là où le protocole l'exige.",
       "sources": [
@@ -61,6 +72,10 @@
       "title": "CSV / RFC 4180",
       "category": "Formats et échanges de données",
       "kind": "format",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Décrit un format courant de fichiers tabulaires séparés par des virgules. Le RFC 4180 est informatif, et les variantes de CSV restent nombreuses.",
       "applies_when": "Pour les imports et exports simples, en précisant délimiteur, encodage, guillemets et règles de traitement des valeurs.",
       "sources": [
@@ -78,6 +93,10 @@
       "title": "Apache Parquet",
       "category": "Formats et échanges de données",
       "kind": "format",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Format de stockage en colonnes conçu pour lire et compresser efficacement des données analytiques structurées.",
       "applies_when": "Pour les traitements analytiques qui parcourent de nombreuses lignes mais seulement une partie des colonnes.",
       "sources": [
@@ -95,6 +114,10 @@
       "title": "Apache Arrow Columnar Format",
       "category": "Formats et échanges de données",
       "kind": "format",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Représentation en colonnes pour les données en mémoire, conçue pour permettre des échanges efficaces entre moteurs et langages compatibles.",
       "applies_when": "Quand plusieurs bibliothèques ou moteurs analytiques doivent partager des données avec peu de conversions.",
       "sources": [
@@ -112,6 +135,10 @@
       "title": "MQTT 5.0",
       "category": "Formats et échanges de données",
       "kind": "protocole",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Protocole de messagerie publish/subscribe léger qui relie des clients à un courtier et propose plusieurs niveaux de qualité de service.",
       "applies_when": "Pour des équipements ou connexions à ressources limitées, notamment certains usages IoT.",
       "sources": [
@@ -129,6 +156,10 @@
       "title": "AMQP 1.0",
       "category": "Formats et échanges de données",
       "kind": "protocole",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Protocole de messagerie qui définit le transfert de messages entre pairs pour favoriser l'interopérabilité des systèmes compatibles.",
       "applies_when": "Pour les échanges de messages d'entreprise lorsque la fiabilité et l'interopérabilité du transport sont nécessaires.",
       "sources": [
@@ -146,6 +177,10 @@
       "title": "SQL / série ISO/IEC 9075",
       "category": "Gouvernance et architecture des données",
       "kind": "norme",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Normalise le langage de définition, de requête et de manipulation des bases de données relationnelles.",
       "applies_when": "Les moteurs proposent des dialectes et extensions ; définir la portabilité attendue pour le projet.",
       "sources": [
@@ -163,6 +198,10 @@
       "title": "Propriétés ACID",
       "category": "Gouvernance et architecture des données",
       "kind": "concept",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Atomicité, cohérence, isolation et durabilité : propriétés recherchées pour que les transactions préservent les règles de la base malgré erreurs et accès concurrents.",
       "applies_when": "Quand une opération modifie des données qui doivent rester fiables, par exemple des commandes, stocks ou soldes.",
       "sources": [
@@ -180,6 +219,10 @@
       "title": "Théorème CAP",
       "category": "Gouvernance et architecture des données",
       "kind": "concept",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "En présence d'une partition réseau, un système distribué ne peut garantir simultanément la cohérence forte et la disponibilité au sens du théorème.",
       "applies_when": "Pour expliciter les compromis d'une architecture distribuée face aux coupures réseau, sans réduire le choix d'une base à trois étiquettes.",
       "sources": [
@@ -197,6 +240,10 @@
       "title": "Normalisation relationnelle",
       "category": "Gouvernance et architecture des données",
       "kind": "méthode",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Organiser tables et dépendances afin de limiter les répétitions de données et les anomalies de mise à jour.",
       "applies_when": "Lors de la conception d'un modèle relationnel, avant d'éventuels choix de dénormalisation motivés par des besoins mesurés.",
       "sources": [
@@ -214,6 +261,10 @@
       "title": "Open Data Contract Standard (ODCS)",
       "category": "Gouvernance et architecture des données",
       "kind": "spécification",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Structure des contrats de données qui décrivent notamment schémas, qualité, responsabilités et engagements attendus entre producteurs et consommateurs.",
       "applies_when": "Quand des données partagées doivent avoir un contrat explicite, versionné et exploitable par différents outils.",
       "sources": [
@@ -231,6 +282,10 @@
       "title": "Contrats de modèles dbt",
       "category": "Gouvernance et architecture des données",
       "kind": "outil",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Déclarer et contrôler la structure de sortie d'un modèle dbt, notamment ses colonnes, types et certaines contraintes selon la plateforme.",
       "applies_when": "Pour stabiliser les interfaces de modèles dbt dont dépendent d'autres modèles, tableaux de bord ou consommateurs.",
       "sources": [
@@ -248,6 +303,10 @@
       "title": "dbt",
       "category": "Gouvernance et architecture des données",
       "kind": "outil",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Outille la transformation de données dans une plateforme analytique, avec des modèles, tests, dépendances et documentation versionnables.",
       "applies_when": "Quand l'équipe construit et maintient des transformations analytiques reproductibles, notamment en SQL.",
       "sources": [
@@ -265,6 +324,10 @@
       "title": "Great Expectations / GX Core",
       "category": "Gouvernance et architecture des données",
       "kind": "outil",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Bibliothèque qui permet de définir des attentes sur les données et d'exécuter des validations organisées dans un workflow.",
       "applies_when": "Pour contrôler la qualité de jeux de données aux étapes utiles de leur traitement.",
       "sources": [
@@ -282,6 +345,10 @@
       "title": "OpenLineage",
       "category": "Gouvernance et architecture des données",
       "kind": "spécification",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Décrit des événements de traçabilité reliant jeux de données, tâches et exécutions pour reconstituer leurs dépendances.",
       "applies_when": "Pour comprendre l'origine d'une donnée et les effets possibles d'une modification dans une chaîne de traitements.",
       "sources": [
@@ -299,6 +366,10 @@
       "title": "Apache Iceberg Table Specification",
       "category": "Gouvernance et architecture des données",
       "kind": "format",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Définit des tables analytiques sur un ensemble de fichiers, avec métadonnées, instantanés et règles d'évolution du schéma.",
       "applies_when": "Pour des tables volumineuses partagées par des moteurs analytiques compatibles et nécessitant une gestion fiable de leurs évolutions.",
       "sources": [
@@ -316,6 +387,10 @@
       "title": "Delta Lake Transaction Log Protocol",
       "category": "Gouvernance et architecture des données",
       "kind": "protocole",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Décrit le journal et les métadonnées qui organisent des tables Delta et leurs opérations transactionnelles.",
       "applies_when": "Quand différents moteurs doivent lire ou écrire des tables Delta en respectant les versions et fonctionnalités du protocole.",
       "sources": [
@@ -333,6 +408,10 @@
       "title": "Migrations de base de données",
       "category": "Gouvernance et architecture des données",
       "kind": "pratique",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Versionner les changements de structure ou de données et les appliquer dans un ordre maîtrisé entre environnements.",
       "applies_when": "Pour faire évoluer une base existante avec une trace des changements et une stratégie de compatibilité avec les versions applicatives.",
       "sources": [
@@ -350,6 +429,10 @@
       "title": "Niveaux d'isolation des transactions",
       "category": "Gouvernance et architecture des données",
       "kind": "concept",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Définissent ce qu'une transaction peut observer des opérations concurrentes et les anomalies que le moteur doit empêcher.",
       "applies_when": "Quand des accès simultanés peuvent modifier les mêmes données ; le niveau choisi doit correspondre aux invariants métier.",
       "sources": [
@@ -364,6 +447,11 @@
       "title": "HL7 FHIR",
       "category": "Interopérabilité santé",
       "kind": "norme",
+      "brains": [
+        "data",
+        "engineering",
+        "legal"
+      ],
       "summary": "Ressources et interfaces d'échange de données de santé.",
       "applies_when": "Pour les échanges de données de santé ; choisir la version et les profils d'implémentation réellement requis.",
       "sources": [
@@ -378,6 +466,10 @@
       "title": "DICOM",
       "category": "Interopérabilité santé",
       "kind": "norme",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Communication et gestion des images médicales et de leurs données associées.",
       "applies_when": "Pour les systèmes d'imagerie médicale ; vérifier les services et profils nécessaires.",
       "sources": [
