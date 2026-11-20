@@ -46,8 +46,15 @@ jobs:
         run: python examples/request-status/replay.py
 
   package:
-    name: Build and install the wheel
-    runs-on: ubuntu-latest
+    name: Build and install the wheel on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v5
 
@@ -60,14 +67,24 @@ jobs:
           python -m pip install build
           python -m build
 
-      - name: Install the wheel in a clean environment
+      - name: Install the wheel in a clean environment and set up a test project
         run: |
-          python -m venv /tmp/wheel-env
-          /tmp/wheel-env/bin/pip install dist/*.whl
-          cd /tmp
-          /tmp/wheel-env/bin/openguildkit catalog
-          /tmp/wheel-env/bin/openguildkit references --id conventional-commits
-          /tmp/wheel-env/bin/openguildkit patterns
+          python -m venv "$RUNNER_TEMP/wheel-env"
+          if [ -x "$RUNNER_TEMP/wheel-env/bin/python" ]; then bin="$RUNNER_TEMP/wheel-env/bin"; else bin="$RUNNER_TEMP/wheel-env/Scripts"; fi
+          "$bin/python" -m pip install dist/*.whl
+          project="$RUNNER_TEMP/test-project"
+          mkdir -p "$project"
+          cd "$project"
+          "$bin/openguildkit" --version
+          "$bin/openguildkit" catalog > /dev/null
+          "$bin/openguildkit" references --id conventional-commits > /dev/null
+          "$bin/openguildkit" patterns > /dev/null
+          printf '{"name": "Wheel check", "stack": ["Python"]}' > answers.json
+          "$bin/openguildkit" init --answers answers.json
+          "$bin/openguildkit" check
+          "$bin/openguildkit" integrations --host claude-code
+          test -f .claude/skills/openguildkit/SKILL.md
+          test -f .claude/agents/guild-board.md
 
   ci-coordinator:
     name: CI coordinator on ${{ matrix.os }}

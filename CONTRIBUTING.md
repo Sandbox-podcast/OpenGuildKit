@@ -65,6 +65,8 @@ A catalog pull request is merged when:
 
 ## Code contributions
 
+- The agent skill and subagent live in `src/openguildkit/agent_files/` and are copied in `integrations/`; edit both, the tests check that they match.
+
 - Python 3.11+, standard library only at runtime.
 - Keep the CLI offline. It must never call a model provider or the network.
 - Add unit tests in `tests/` and, for a new command, an end-to-end test in `tests/e2e/`.

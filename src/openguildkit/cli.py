@@ -9,10 +9,12 @@ from .catalog import load_catalog
 from .ci import check_export, read_policy_pack
 from .decisions import NAMESPACE, approval_policy, check_decision, decision_payload, git_revision, payload_text, verify_signature
 from .detect import components_for_profile, detect_stack
+from .integrations import install_agent_files
 from .guard import NO_TASK, ci_guard, covering_tasks, export_decision, guard_hook, guard_mode
 from .results import completion_problems, expected_checks, run_command_checks
 from .hosts import apply_host_settings, host_controls
 from .lock import (
+    package_version,
     apply_lock,
     build_lock,
     catalog_changes,
@@ -64,6 +66,7 @@ from .workflow import blocker_list, board_brief, challenge_report, deliberation_
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="openguildkit", description="Project rules and specialist reviews for AI-assisted work.")
+    parser.add_argument("--version", action="version", version=f"openguildkit {package_version()}")
     parser.add_argument("--project", type=Path, help="Project root (defaults to the closest configured ancestor).")
     parser.add_argument("--policy-repo", type=Path, help="Local Git repository with the central export rule.")
     parser.add_argument("--policy-commit", help="Full Git SHA of the central policy commit.")
@@ -101,6 +104,10 @@ def _parser() -> argparse.ArgumentParser:
     guard_mode.add_argument("--ci", action="store_true", help="Check the decisions exported for the changes since --base.")
     guard.add_argument("--base", default="origin/main", help="Base revision for --ci (default origin/main).")
     guard.add_argument("--json", action="store_true", help="Print the result as JSON.")
+    agent = commands.add_parser("integrations", help="Install the agent skill and subagent of this version.")
+    agent.add_argument("--host", required=True, choices=("claude-code", "codex"), help="Agent to configure.")
+    agent.add_argument("--user", action="store_true", help="Install in the home folder for every project.")
+    agent.add_argument("--force", action="store_true", help="Replace modified files, keeping a .previous copy.")
     host = commands.add_parser("host", help="Show or apply the rules the host agent can enforce.")
     host.add_argument("mode", choices=("check", "apply"), help="check reports each rule; apply writes the host settings.")
     host.add_argument("--json", action="store_true", help="Print the report as JSON.")
@@ -965,6 +972,11 @@ def _run(args) -> int | None:
         _print_patterns(args, catalog["patterns"])
     elif args.command == "brains":
         _print_brains(args, catalog)
+    elif args.command == "integrations":
+        base = Path.home() if args.user else root
+        for item in install_agent_files(base, args.host, args.force):
+            print(f"{item['file']}: {item['action']}")
+        print(f"openguildkit {package_version()}")
     elif args.command == "detect":
         _print_detection(detect_stack(root), args.json)
     elif args.command == "preview":

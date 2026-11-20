@@ -31,7 +31,25 @@ py -3 -m venv .venv
 .\.venv\Scripts\openguildkit.exe catalog
 ```
 
-From the project to equip, run `openguildkit init` and then `openguildkit check`. On Windows, use the full path to `openguildkit.exe` from the installed environment, or activate that environment first. Commit the generated profile and instructions for the team.
+Check the version you installed with `openguildkit --version`. From the project to equip, run `openguildkit init` and then `openguildkit check`. On Windows, use the full path to `openguildkit.exe` from the installed environment, or activate that environment first. Commit the generated profile, `.openguildkit/catalog.lock.json` and the instructions for the team.
+
+## Set up the agent
+
+The wheel ships the agent skill and the board subagent of the same version. From the project:
+
+```sh
+openguildkit integrations --host claude-code   # .claude/skills/openguildkit and .claude/agents/guild-board.md
+openguildkit integrations --host codex         # .agents/skills/openguildkit
+```
+
+Add `--user` to install them in your home folder for every project. A file you changed is kept and reported; `--force` replaces it and saves your version as `.previous`. Each folder gets `openguildkit-version.txt`. Then set `"host"` in `.openguildkit/project.json` and run `openguildkit host apply` to install the host settings and hooks.
+
+## Upgrade
+
+1. Download and verify the new release assets as above, then `python -m pip install --upgrade ./openguildkit-NEW-py3-none-any.whl` and check `openguildkit --version`.
+2. Run `openguildkit integrations --host ...` again to update the skill and subagent.
+3. Run `openguildkit update` to see what the new catalog changes for the project, and `openguildkit update --apply` once the team agrees. Tasks consulted under the previous rules are listed.
+4. Run `openguildkit check` and commit the updated files.
 
 ## Add the optional CI coordinator
 
