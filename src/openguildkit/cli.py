@@ -10,6 +10,8 @@ from .ci import check_export, read_policy_pack
 from .decisions import NAMESPACE, approval_policy, check_decision, decision_payload, git_revision, payload_text, verify_signature
 from .alerts import alert_summary, import_alerts, set_alert_status
 from .detect import components_for_profile, detect_stack
+from .market import dossier_gaps, due_sources, load_dossier
+from .market import scope_entry as market_scope_entry
 from .integrations import install_agent_files
 from .guard import NO_TASK, ci_guard, covering_tasks, export_decision, guard_hook, guard_mode
 from .results import chaosfolk_checks, compare_runs, completion_problems, expected_checks, run_command_checks
@@ -106,6 +108,10 @@ def _parser() -> argparse.ArgumentParser:
     guard_mode.add_argument("--ci", action="store_true", help="Check the decisions exported for the changes since --base.")
     guard.add_argument("--base", default="origin/main", help="Base revision for --ci (default origin/main).")
     guard.add_argument("--json", action="store_true", help="Print the result as JSON.")
+    market = commands.add_parser("market", help="Check a market dossier and the competitor sources due for review.")
+    market.add_argument("mode", choices=("check", "due"), help="check validates and lists gaps; due lists watched sources to review.")
+    market.add_argument("dossier", help="Dossier ID in .openguildkit/market/.")
+    market.add_argument("--json", action="store_true", help="Print the result as JSON.")
     agent = commands.add_parser("integrations", help="Install the agent skill and subagent of this version.")
     agent.add_argument("--host", required=True, choices=("claude-code", "codex"), help="Agent to configure.")
     agent.add_argument("--user", action="store_true", help="Install in the home folder for every project.")
@@ -168,6 +174,8 @@ def _parser() -> argparse.ArgumentParser:
         command.add_argument("id", help="Task ID.")
         if action in ("consult", "questions", "route"):
             command.add_argument("--answers", type=Path, help="Read task answers from a JSON file.")
+        if action == "consult":
+            command.add_argument("--market", metavar="DOSSIER", help="Attach a market dossier from .openguildkit/market/.")
         if action in ("consult", "route"):
             command.add_argument("--add", action="append", default=[], metavar="BOARD", help="Add a board to the consultation.")
             command.add_argument("--remove", action="append", default=[], metavar="BOARD", help="Remove a proposed board.")
@@ -943,7 +951,11 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             profile = load_profile(state, catalog)
             check_instructions(root, profile, catalog)
             controls = host_controls(root, profile)
-            result = record_consultation(current_task, answers, profile, catalog, _selection(args), controls)
+            market = None
+            if args.market:
+                research = "public-sources" if profile.get("research") == "public-sources" and answers.get("research") == "public" else "local-only"
+                market = market_scope_entry(load_dossier(state, args.market), research)
+            result = record_consultation(current_task, answers, profile, catalog, _selection(args), controls, market)
             write_json(task_path(state, args.id), result)
         print(result["consultation"]["markdown"])
     elif action == "review":
@@ -1076,6 +1088,20 @@ def _run(args) -> int | None:
             print(f"OpenGuildKit: review pattern {item['id']}: {'; '.join(item['reasons'])}", file=sys.stderr)
     else:
         profile = load_profile(state, catalog)
+        if args.command == "market":
+            dossier = load_dossier(state, args.dossier)
+            if args.mode == "check":
+                result = {"dossier": args.dossier, "gaps": dossier_gaps(dossier, profile.get("research", "local-only"))}
+                lines = [f"- {gap}" for gap in result["gaps"]] or ["No gap found."]
+            else:
+                result = {"dossier": args.dossier, "due": due_sources(dossier), "paused": dossier.get("watch", {}).get("paused", False)}
+                lines = [f"- {item['competitor']} {item['kind']}: {item['url']}" for item in result["due"]] or [
+                    "Watch paused." if result["paused"] else "No source due for review."]
+            if args.json:
+                _print_json(result)
+            else:
+                print("\n".join(lines))
+            return
         if args.command == "guard":
             return _guard(args, root, state, profile, catalog)
         if args.command == "host":

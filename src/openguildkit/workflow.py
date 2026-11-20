@@ -551,7 +551,8 @@ def _board_template(board: dict, reviewer: str | None = None) -> dict:
 
 
 def consult(
-    profile: dict, catalog: dict, task: dict, selection: dict | None = None, host_controls: list[dict] | None = None
+    profile: dict, catalog: dict, task: dict, selection: dict | None = None, host_controls: list[dict] | None = None,
+    market: dict | None = None,
 ) -> dict:
     """Route a scoped task and prepare a review request for the host agent."""
     answers = validate_answers(task["answers"])
@@ -560,6 +561,8 @@ def consult(
     scope = _scope_snapshot(profile, catalog, task, answers)
     if host_controls:
         scope["host_controls"] = host_controls
+    if market:
+        scope["market"] = market
     consultation_id = uuid4().hex
     consultation = {
         "id": consultation_id,
@@ -603,7 +606,7 @@ _DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _REVISION = re.compile(r"[0-9a-f]{7,64}")
 
 
-def _evidence_item(item: object, field: str) -> dict:
+def _evidence_item(item: object, field: str, market_refs: frozenset = frozenset()) -> dict:
     """An evidence item says where it comes from, what it supports and how to find it again."""
     if not isinstance(item, dict) or not {"source", "ref", "supports"} <= item.keys() \
             or not item.keys() <= {"source", "ref", "supports", "date", "revision"}:
@@ -612,7 +615,9 @@ def _evidence_item(item: object, field: str) -> dict:
     if source not in EVIDENCE_SOURCES:
         raise ValueError(f"{field}: source must be one of {', '.join(EVIDENCE_SOURCES)}.")
     result = {"source": source, "ref": _text(item["ref"], f"{field} ref"), "supports": _text(item["supports"], f"{field} supports")}
-    if source == "public" and not result["ref"].startswith("https://"):
+    if result["ref"].startswith("market:") and result["ref"] not in market_refs:
+        raise ValueError(f"{field}: {result['ref']} is not an observation or change of the attached market dossier.")
+    if source == "public" and not result["ref"].startswith(("https://", "market:")):
         raise ValueError(f"{field}: a public source needs an https link in ref.")
     if "date" in item:
         if not isinstance(item["date"], str) or not _DATE.fullmatch(item["date"]):
@@ -622,18 +627,27 @@ def _evidence_item(item: object, field: str) -> dict:
         if not isinstance(item["revision"], str) or not _REVISION.fullmatch(item["revision"]):
             raise ValueError(f"{field}: revision must be a commit SHA.")
         result["revision"] = item["revision"]
-    if source in DATED_SOURCES and "date" not in result:
+    if source in DATED_SOURCES and "date" not in result and not result["ref"].startswith("market:"):
         raise ValueError(f"{field}: a {source} source needs the date it was observed.")
     return result
 
 
-def _evidence_list(value: object, field: str, structured: bool) -> list:
+def market_references(scope: dict) -> frozenset:
+    market = scope.get("market")
+    if not market:
+        return frozenset()
+    refs = {f"market:{market['id']}/{item['id']}" for item in market["observations"]}
+    refs |= {f"market:{market['id']}/change-{index}" for index, _ in enumerate(market.get("changes", []), start=1)}
+    return frozenset(refs)
+
+
+def _evidence_list(value: object, field: str, structured: bool, market_refs: frozenset = frozenset()) -> list:
     """Reviews made before structured evidence keep their text items."""
     if not structured:
         return _text_list(value, field)
     if not isinstance(value, list):
         raise ValueError(f"{field} must be a list.")
-    return [_evidence_item(item, field) for item in value]
+    return [_evidence_item(item, field, market_refs) for item in value]
 
 
 def _blocker(item: object, board_id: str) -> dict:
@@ -740,7 +754,8 @@ def validate_board_entry(consultation: dict, entry: object) -> dict:
         "id": board_id,
         "recommendation": _text(entry["recommendation"], f"{board_id} recommendation"),
         "evidence": _evidence_list(
-            entry["evidence"], f"{board_id} evidence", consultation.get("evidence_format") == "structured"
+            entry["evidence"], f"{board_id} evidence", consultation.get("evidence_format") == "structured",
+            market_references(consultation.get("scope", {})),
         ),
         "open_questions": _text_list(entry["open_questions"], f"{board_id} open questions"),
     }
