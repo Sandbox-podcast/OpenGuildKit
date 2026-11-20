@@ -48,6 +48,9 @@ your-project/
     catalog/                     optional private packs, boards, sectors (commit it)
       packs/ boards/ sectors/
     tasks/                       task records (local, git-ignored)
+    shares/                      who a deliverable is shared with (local, git-ignored)
+    decisions/                   exported decision records (commit them)
+    market/                      market dossiers (commit them)
     .gitignore                   created by init: tasks/, .lock, temp files
 ```
 

@@ -18,7 +18,7 @@ STATE_DIR = ".openguildkit"
 SCHEMA_VERSION = 1
 BEGIN = "<!-- BEGIN OPENGUILDKIT -->"
 END = "<!-- END OPENGUILDKIT -->"
-PROJECT_IGNORE = "tasks/\n.lock\n.*.tmp\n"
+PROJECT_IGNORE = "tasks/\nshares/\n.lock\n.*.tmp\n"
 
 
 def project_root(path: Path | None) -> Path:

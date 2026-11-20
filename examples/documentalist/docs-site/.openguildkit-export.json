@@ -1,0 +1,13 @@
+{
+  "version": "1.4.0",
+  "tasks": [
+    "request-status"
+  ],
+  "files": [
+    "README.md",
+    "SUMMARY.md",
+    "blog/2026-11-20-request-status.md",
+    "learn/request-status.md",
+    "reference/request-status.md"
+  ]
+}

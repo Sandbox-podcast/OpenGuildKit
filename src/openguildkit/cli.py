@@ -10,6 +10,7 @@ from .ci import check_export, read_policy_pack
 from .decisions import NAMESPACE, approval_policy, check_decision, decision_payload, git_revision, payload_text, verify_signature
 from .alerts import alert_summary, import_alerts, set_alert_status
 from .detect import components_for_profile, detect_stack
+from .publishing import add_share, export_docs, revoke_share, share_status
 from .market import dossier_gaps, due_sources, load_dossier
 from .market import scope_entry as market_scope_entry
 from .integrations import install_agent_files
@@ -108,6 +109,23 @@ def _parser() -> argparse.ArgumentParser:
     guard_mode.add_argument("--ci", action="store_true", help="Check the decisions exported for the changes since --base.")
     guard.add_argument("--base", default="origin/main", help="Base revision for --ci (default origin/main).")
     guard.add_argument("--json", action="store_true", help="Print the result as JSON.")
+    docs = commands.add_parser("docs", help="Export documentation of completed tasks and track who it is shared with.")
+    docs_actions = docs.add_subparsers(dest="docs_action", required=True)
+    export = docs_actions.add_parser("export", help="Write Reference, Learn and Blog pages for Documentalist.")
+    export.add_argument("--tasks", required=True, help="Comma-separated IDs of completed tasks to document.")
+    export.add_argument("--output", type=Path, required=True, help="Folder to write, for example docs-site.")
+    export.add_argument("--version", dest="doc_version", required=True, help="Project version the pages describe.")
+    export.add_argument("--sections", default="reference,learn,blog", help="Sections to write.")
+    export.add_argument("--openapi", type=Path, help="OpenAPI file to place next to the pages.")
+    share = docs_actions.add_parser("share", help="Record, list, revoke or check the shares of a deliverable.")
+    share.add_argument("share_action", choices=("add", "list", "revoke", "check"))
+    share.add_argument("--deliverable", help="Page or folder shared (add).")
+    share.add_argument("--recipient", action="append", default=[], help="Recipient email address (add, repeatable).")
+    share.add_argument("--until", help="Last day of access, YYYY-MM-DD (add).")
+    share.add_argument("--portal", help="https address of the Documentalist portal (add).")
+    share.add_argument("--id", dest="share_id", help="Share ID (revoke).")
+    share.add_argument("--by", help="Owner of the share (add, revoke).")
+    share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
     market = commands.add_parser("market", help="Check a market dossier and the competitor sources due for review.")
     market.add_argument("mode", choices=("check", "due"), help="check validates and lists gaps; due lists watched sources to review.")
     market.add_argument("dossier", help="Dossier ID in .openguildkit/market/.")
@@ -685,6 +703,40 @@ def _guard(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
     return 0
 
 
+def _docs(args, root: Path, state: Path, profile: dict) -> int:
+    if args.docs_action == "export":
+        tasks = [item.strip() for item in args.tasks.split(",") if item.strip()]
+        sections = tuple(item.strip() for item in args.sections.split(",") if item.strip())
+        output = args.output if args.output.is_absolute() else root / args.output
+        result = export_docs(state, tasks, output, args.doc_version, sections, args.openapi, profile["name"])
+        for path in result["written"]:
+            print(f"wrote {path}")
+        for path in result["removed"]:
+            print(f"removed {path}")
+        return 0
+    if args.share_action == "add":
+        if not (args.deliverable and args.until and args.portal and args.by):
+            raise ValueError("docs share add needs --deliverable, --recipient, --until, --portal and --by.")
+        share = add_share(state, args.deliverable, args.recipient, args.until, args.portal, args.by)
+        print(f"Share {share['id']} recorded. Invite the recipients in the portal's reader settings now, "
+              f"and remove their access on {share['until']}.")
+        return 0
+    if args.share_action == "revoke":
+        if not args.share_id or not args.by:
+            raise ValueError("docs share revoke needs --id and --by.")
+        revoke_share(state, args.share_id, args.by)
+        print("revoked")
+        return 0
+    rows = share_status(state)
+    if args.json:
+        _print_json(rows)
+    else:
+        for row in rows:
+            print(f"{row['id']} {row['deliverable']} until {row['until']} ({len(row['recipients'])} recipient(s)): {row['state']}")
+    expired = [row for row in rows if row["state"].startswith("expired")]
+    return 1 if args.share_action == "check" and expired else 0
+
+
 def _read_consultation(task: dict) -> dict:
     if "consultation" not in task:
         raise ValueError("Run task consult first.")
@@ -1088,6 +1140,8 @@ def _run(args) -> int | None:
             print(f"OpenGuildKit: review pattern {item['id']}: {'; '.join(item['reasons'])}", file=sys.stderr)
     else:
         profile = load_profile(state, catalog)
+        if args.command == "docs":
+            return _docs(args, root, state, profile)
         if args.command == "market":
             dossier = load_dossier(state, args.dossier)
             if args.mode == "check":
