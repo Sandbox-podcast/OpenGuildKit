@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .project import profile_fingerprint, resolved_profile
 from .storage import read_json, write_json
-from .workflow import consult, validate_answers, validate_board_entry, validate_review
+from .workflow import consult, validate_answers, validate_board_entry, validate_deliberation, validate_review
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 WINDOWS_RESERVED_NAMES = {"con", "prn", "aux", "nul"} | {
@@ -111,7 +111,10 @@ def record_consultation(
         raise ValueError("Start a new task or request changes before consulting again.")
     rounds = list(task["rounds"])
     if task["status"] == "changes-requested":
-        rounds.append({key: task[key] for key in ("answers", "consultation", "review", "decision", "profile_fingerprint")})
+        archived = {key: task[key] for key in ("answers", "consultation", "review", "decision", "profile_fingerprint")}
+        if "deliberation" in task:
+            archived["deliberation"] = task["deliberation"]
+        rounds.append(archived)
     result = {**task, "answers": validate_answers(answers), "rounds": rounds}
     result.update(
         status="consulting",
@@ -121,6 +124,7 @@ def record_consultation(
     result.pop("review", None)
     result.pop("decision", None)
     result.pop("passes", None)
+    result.pop("deliberation", None)
     return result
 
 
@@ -205,6 +209,10 @@ def assemble_review(task: dict, summary: str) -> dict:
         "execution": execution,
     }
     return record_review(task, review)
+
+
+def record_deliberation(task: dict, payload: dict) -> dict:
+    return {**task, "deliberation": validate_deliberation(task, payload)}
 
 
 def record_decision(task: dict, approve: bool, by: str, reason: str) -> dict:

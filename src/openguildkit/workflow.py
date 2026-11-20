@@ -27,8 +27,10 @@ in the user's language. Keep the CLI's IDs and JSON keys as printed.
    concrete recommendations and evidence from the project or allowed public
    sources. For each brain, get a finding from each specialist lens before
    reconciling its verdict, alternative, and checks. Record missing evidence
-   and disagreements. Run `openguildkit task review ID --file FILE` and show
-   the decision brief from `openguildkit task challenge ID` to the user.
+   and disagreements. Run `openguildkit task review ID --file FILE`. When
+   `openguildkit task deliberate ID` lists objections, have each board answer
+   the other on the same point and record it with `task respond`. Show the
+   decision brief from `openguildkit task challenge ID` to the user.
 4. The user records the decision in their terminal with
    `openguildkit task decide ID --approve --by NAME --reason TEXT` or
    `openguildkit task decide ID --request-changes --by NAME --reason TEXT`.
@@ -791,6 +793,104 @@ def board_brief(consultation: dict, board_id: str) -> str:
     )
 
 
+OBJECTING_VERDICTS = ("revise", "block", "insufficient-evidence")
+POSITIONS = ("maintain", "concede", "amend")
+
+
+def objections(review: dict) -> list[dict]:
+    """Each board that asks to revise, block or gather evidence objects to each board that would proceed."""
+    entries = [entry for entry in review["boards"] if "challenge" in entry]
+    proceeding = [entry for entry in entries if entry["challenge"]["verdict"] == "proceed"]
+    result = []
+    for objector in entries:
+        challenge = objector["challenge"]
+        if challenge["verdict"] not in OBJECTING_VERDICTS:
+            continue
+        point = "; ".join(challenge["blockers"]) or challenge["failure_mode"]
+        for responder in proceeding:
+            result.append({
+                "id": f"{objector['id']}-to-{responder['id']}",
+                "from": objector["id"],
+                "to": responder["id"],
+                "point": point,
+                "from_position": f"{challenge['verdict']}: {objector['recommendation']}",
+                "to_position": f"proceed: {responder['recommendation']}",
+            })
+    return result
+
+
+def deliberation_request(task: dict) -> dict:
+    """What each board must answer, on the same point, before the person decides."""
+    if task.get("status") != "reviewed":
+        raise ValueError("Deliberate after the review is recorded and before the decision.")
+    review = validate_review(task["consultation"], task["review"])
+    items = objections(review)
+    template = {
+        "consultation_id": review["consultation_id"],
+        "responses": [
+            {"objection": item["id"], "board": board, "position": "", "response": "", "evidence_refs": []}
+            for item in items for board in (item["from"], item["to"])
+        ],
+        "decision_needed": "",
+    }
+    return {"objections": items, "template": template}
+
+
+def validate_deliberation(task: dict, payload: dict) -> dict:
+    """Both boards answer each objection with a position and evidence from their first review."""
+    request = deliberation_request(task)
+    items = {item["id"]: item for item in request["objections"]}
+    if not items:
+        raise ValueError("The boards do not disagree on this task: there is nothing to deliberate.")
+    if not isinstance(payload, dict) or payload.keys() != {"consultation_id", "responses", "decision_needed"}:
+        raise ValueError("A deliberation contains consultation_id, responses and decision_needed. Run task deliberate.")
+    if payload["consultation_id"] != task["consultation"]["id"]:
+        raise ValueError("This deliberation belongs to another consultation.")
+    evidence = {entry["id"]: entry["evidence"] for entry in task["review"]["boards"]}
+    responses = {}
+    if not isinstance(payload["responses"], list):
+        raise ValueError("responses must be a list.")
+    for response in payload["responses"]:
+        if not isinstance(response, dict) or response.keys() != {"objection", "board", "position", "response", "evidence_refs"}:
+            raise ValueError("Each response needs objection, board, position, response and evidence_refs.")
+        item = items.get(response["objection"])
+        if item is None or response["board"] not in (item["from"], item["to"]):
+            raise ValueError(f"Unknown objection or board in response: {response.get('objection')}/{response.get('board')}.")
+        key = (response["objection"], response["board"])
+        if key in responses:
+            raise ValueError(f"Repeated response for {key[0]} by {key[1]}.")
+        if response["position"] not in POSITIONS:
+            raise ValueError("position must be maintain, concede or amend.")
+        references = response["evidence_refs"]
+        board_evidence = evidence[response["board"]]
+        if not isinstance(references, list) or any(
+            type(index) is not int or not 1 <= index <= len(board_evidence) for index in references
+        ):
+            raise ValueError(f"{response['board']} evidence_refs must point to its evidence list.")
+        if response["position"] != "concede" and not references:
+            raise ValueError(f"{response['board']} must cite its evidence to maintain or amend a position.")
+        responses[key] = {**response, "response": _text(response["response"], "Response")}
+    missing = [f"{item_id} by {board}" for item_id, item in items.items() for board in (item["from"], item["to"])
+               if (item_id, board) not in responses]
+    if missing:
+        raise ValueError(f"Responses are missing: {', '.join(missing)}.")
+    agreed, open_items = [], []
+    for item_id, item in items.items():
+        positions = {responses[(item_id, board)]["position"] for board in (item["from"], item["to"])}
+        (agreed if "concede" in positions else open_items).append(item_id)
+    decision = payload["decision_needed"].strip() if isinstance(payload["decision_needed"], str) else ""
+    if open_items and not decision:
+        raise ValueError("Some disagreements remain: say which decision the responsible person must take.")
+    return {
+        "consultation_id": payload["consultation_id"],
+        "objections": list(items.values()),
+        "responses": [responses[(item_id, board)] for item_id, item in items.items() for board in (item["from"], item["to"])],
+        "agreed": agreed,
+        "open": open_items,
+        "decision_needed": decision,
+    }
+
+
 def challenge_report(task: dict) -> str:
     if "review" not in task:
         raise ValueError("Record the board reviews before opening the decision brief.")
@@ -816,6 +916,20 @@ def challenge_report(task: dict) -> str:
     points = task["consultation"]["scope"].get("open_points")
     if points:
         report["open_points"] = points
+    deliberation = task.get("deliberation")
+    if deliberation:
+        report["deliberation"] = {
+            "agreed": [item for item in deliberation["objections"] if item["id"] in deliberation["agreed"]],
+            "disagreements": [
+                {**item, "responses": [r for r in deliberation["responses"] if r["objection"] == item["id"]]}
+                for item in deliberation["objections"] if item["id"] in deliberation["open"]
+            ],
+            "decision_needed": deliberation["decision_needed"],
+        }
+    else:
+        pending = objections(review)
+        if pending:
+            report["objections_not_deliberated"] = [item["id"] for item in pending]
     return "# Decision brief\n\n" + _json_section(report) + "\n"
 
 

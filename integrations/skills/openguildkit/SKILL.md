@@ -47,7 +47,8 @@ Save each returned entry and run `openguildkit task submit ID --file ENTRY`. Che
 1. When every pass is done, write the summary yourself: where the boards agree, where they conflict, and the smallest next step you propose.
 2. Run `openguildkit task review ID --summary "SUMMARY"`. It assembles the entries from the passes and records how they ran.
 3. Without passes, fill `openguildkit task template ID` (keep its `consultation_id`), save it and run `openguildkit task review ID --file FILE`.
-4. Run `openguildkit task challenge ID`. Show the user the recommendation, disagreements, blockers and the checks that could change the decision.
+4. Run `openguildkit task deliberate ID`. When it lists objections, give each board the objection, its own first review and the other board's position, and get its answer on the same point with evidence from its list. Record them with `openguildkit task respond ID --file FILE`, with `decision_needed` when disagreements remain.
+5. Run `openguildkit task challenge ID`. Show the user the recommendation, disagreements, blockers and the checks that could change the decision.
 
 ### 4. Stop for the decision
 
