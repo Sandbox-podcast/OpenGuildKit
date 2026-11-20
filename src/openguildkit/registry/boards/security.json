@@ -1,0 +1,43 @@
+{
+  "id": "security",
+  "title": "Security and privacy",
+  "description": "Review who can reach the changed systems, which data they can see and which controls need evidence.",
+  "expertises": [
+    "Application security and access control",
+    "Privacy engineering and data handling",
+    "Security governance and control evidence"
+  ],
+  "triggers": [
+    "authentication",
+    "authorization",
+    "permission",
+    "permissions",
+    "personal data",
+    "secrets",
+    "security",
+    "privacy",
+    "iso 27001",
+    "dora",
+    "gdpr",
+    "rgpd",
+    "sécurité",
+    "données personnelles",
+    "confidentialité",
+    "authentification"
+  ],
+  "questions": [
+    "Which actors, permissions and data classes does the change affect?",
+    "What controls already cover the new data path, and who owns them?",
+    "What verification should a reviewer see before approving the change?"
+  ],
+  "sources": [
+    {
+      "title": "OWASP Application Security Verification Standard",
+      "url": "https://asvs.owasp.org/"
+    },
+    {
+      "title": "NIST SP 800-218, Secure Software Development Framework 1.1",
+      "url": "https://csrc.nist.gov/pubs/sp/800/218/final"
+    }
+  ]
+}

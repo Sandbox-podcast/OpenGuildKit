@@ -1,0 +1,347 @@
+"""End-to-end tests: run the real CLI in a subprocess against a temporary project.
+
+The insurance example in examples/insurance-claims is the fixture, so the
+example cannot drift from the CLI without failing these tests.
+"""
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+EXAMPLE = REPO / "examples" / "insurance-claims"
+TASK_ID = "claim-status"
+EXPECTED_BOARDS = {"product", "engineering", "qa", "design", "marketing", "security"}
+
+ENV = {
+    **os.environ,
+    "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"), os.environ.get("PYTHONPATH")])),
+    "PYTHONIOENCODING": "utf-8",
+    "PYTHONUTF8": "1",
+}
+
+
+class CliTestCase(unittest.TestCase):
+    def setUp(self):
+        self.project = Path(tempfile.mkdtemp(prefix="ogk-e2e-")).resolve()
+        self.addCleanup(shutil.rmtree, self.project, ignore_errors=True)
+
+    def command(self, *args):
+        return [sys.executable, "-m", "openguildkit", "--project", str(self.project), *map(str, args)]
+
+    def run_cli(self, *args, stdin_text="", expect=0):
+        result = subprocess.run(
+            self.command(*args),
+            input=stdin_text,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            env=ENV,
+            timeout=60,
+        )
+        if expect is not None:
+            self.assertEqual(
+                result.returncode,
+                expect,
+                f"openguildkit {' '.join(map(str, args))}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}",
+            )
+        return result
+
+    def init_example(self):
+        self.run_cli("init", "--answers", EXAMPLE / "profile.json")
+
+    def consult_example(self):
+        self.init_example()
+        created = self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK_ID)
+        self.assertEqual(created.stdout.strip(), TASK_ID)
+        self.run_cli("task", "consult", TASK_ID, "--answers", EXAMPLE / "answers.json")
+
+    def task_record(self):
+        return json.loads(self.run_cli("task", "show", TASK_ID).stdout)
+
+    def write_json(self, name, data):
+        path = self.project / name
+        path.write_text(json.dumps(data), encoding="utf-8")
+        return path
+
+    def example_review(self, task_id=TASK_ID):
+        """The example review, bound to the current consultation as task template prints it."""
+        template = json.loads(self.run_cli("task", "template", task_id).stdout)
+        review = json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))
+        return {"consultation_id": template["consultation_id"], **review}
+
+    def record_example_review(self):
+        path = self.write_json("review.json", self.example_review())
+        return self.run_cli("task", "review", TASK_ID, "--file", path)
+
+
+class CatalogTests(CliTestCase):
+    def test_bundled_catalog_loads_as_json(self):
+        catalog = json.loads(self.run_cli("catalog", "--json").stdout)
+        self.assertEqual(set(catalog), {"packs", "boards", "sectors"})
+        self.assertIn("agent-workflow", catalog["packs"])
+        self.assertIn("performance", catalog["boards"])
+        self.assertIn("insurance", catalog["sectors"])
+        for pack in catalog["packs"].values():
+            for rule in pack["rules"]:
+                self.assertTrue(rule["instruction"] and rule["verification"], f"{pack['id']}/{rule['id']}")
+
+    def test_project_pack_is_loaded_and_applied(self):
+        packs = self.project / ".openguildkit" / "catalog" / "packs"
+        packs.mkdir(parents=True)
+        (packs / "house-style.json").write_text(
+            json.dumps(
+                {
+                    "id": "house-style",
+                    "title": "House style",
+                    "version": "1.0.0",
+                    "description": "Conventions specific to this company.",
+                    "sources": [],
+                    "rules": [
+                        {
+                            "id": "feature-flags",
+                            "instruction": "Ship customer-facing changes behind a feature flag.",
+                            "verification": "The pull request names the flag and its default.",
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        self.assertIn("house-style", self.run_cli("catalog").stdout)
+
+        profile = json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8"))
+        profile["packs"] = ["house-style"]
+        self.run_cli("init", "--answers", self.write_json("profile.json", profile))
+        agents = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("`feature-flags` Ship customer-facing changes behind a feature flag.", agents)
+
+    def test_invalid_project_pack_is_rejected_with_its_path(self):
+        packs = self.project / ".openguildkit" / "catalog" / "packs"
+        packs.mkdir(parents=True)
+        (packs / "broken.json").write_text(
+            json.dumps({"id": "broken", "title": "Broken", "version": "1.0", "description": "x", "sources": [], "rules": []}),
+            encoding="utf-8",
+        )
+        result = self.run_cli("catalog", expect=1)
+        self.assertIn("broken.json", result.stderr)
+
+    def test_project_pack_cannot_shadow_a_bundled_pack(self):
+        packs = self.project / ".openguildkit" / "catalog" / "packs"
+        packs.mkdir(parents=True)
+        bundled = REPO / "src" / "openguildkit" / "registry" / "packs" / "python.json"
+        shutil.copy(bundled, packs / "python.json")
+        result = self.run_cli("catalog", expect=1)
+        self.assertIn("duplicate", result.stderr)
+
+
+class ProjectSetupTests(CliTestCase):
+    def test_init_writes_profile_and_agent_instructions(self):
+        self.init_example()
+        profile = json.loads((self.project / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
+        self.assertEqual(profile["sector"], "insurance")
+        self.assertEqual(profile["packs"][0], "agent-workflow")
+        self.assertIn("secure-sdlc", profile["packs"])
+
+        agents = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("<!-- BEGIN OPENGUILDKIT -->", agents)
+        self.assertIn("Sector: Insurance", agents)
+        self.assertIn("## OpenGuildKit task workflow", agents)
+        self.assertIn("@AGENTS.md", (self.project / "CLAUDE.md").read_text(encoding="utf-8"))
+        self.assertIn("tasks/", (self.project / ".openguildkit" / ".gitignore").read_text(encoding="utf-8"))
+        self.run_cli("check")
+
+    def test_init_refuses_to_run_twice(self):
+        self.init_example()
+        result = self.run_cli("init", "--answers", EXAMPLE / "profile.json", expect=1)
+        self.assertIn("already initialized", result.stderr)
+
+    def test_init_without_terminal_needs_answers(self):
+        result = self.run_cli("init", expect=1)
+        self.assertIn("--answers", result.stderr)
+
+    def test_init_questions_are_printed_as_json(self):
+        questions = json.loads(self.run_cli("init", "--questions").stdout)
+        ids = [question["id"] for question in questions]
+        self.assertEqual(ids[:2], ["name", "sector"])
+        self.assertIn("packs", ids)
+        self.assertIn("research", ids)
+
+    def test_check_detects_drift_and_sync_repairs_it_without_touching_user_text(self):
+        self.init_example()
+        agents_path = self.project / "AGENTS.md"
+        text = agents_path.read_text(encoding="utf-8")
+        agents_path.write_text(
+            "# Team notes\n\nKeep this line.\n\n" + text.replace("Sector: Insurance", "Sector: Retail"),
+            encoding="utf-8",
+        )
+        result = self.run_cli("check", expect=1)
+        self.assertIn("sync", result.stderr)
+
+        self.run_cli("sync")
+        self.run_cli("check")
+        repaired = agents_path.read_text(encoding="utf-8")
+        self.assertIn("Keep this line.", repaired)
+        self.assertIn("Sector: Insurance", repaired)
+        self.assertNotIn("Sector: Retail", repaired)
+
+    def test_task_new_refuses_stale_instructions(self):
+        self.init_example()
+        agents_path = self.project / "AGENTS.md"
+        agents_path.write_text(agents_path.read_text(encoding="utf-8").replace("Stack:", "Stack: COBOL,"), encoding="utf-8")
+        self.run_cli("task", "new", "Anything", expect=1)
+
+
+class TaskFlowTests(CliTestCase):
+    def test_example_flow_until_human_decision(self):
+        self.init_example()
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK_ID)
+        self.assertEqual(self.task_record()["status"], "draft")
+
+        questions = json.loads(self.run_cli("task", "questions", TASK_ID).stdout)
+        self.assertEqual([question["id"] for question in questions], ["kind", "surface", "data", "research", "context"])
+
+        consultation = self.run_cli("task", "consult", TASK_ID, "--answers", EXAMPLE / "answers.json").stdout
+        self.assertIn("# Board consultation request", consultation)
+        for board in EXPECTED_BOARDS:
+            self.assertIn(f"### {board}", consultation)
+        self.assertEqual(self.run_cli("task", "brief", TASK_ID).stdout.strip(), consultation.strip())
+
+        template = json.loads(self.run_cli("task", "template", TASK_ID).stdout)
+        self.assertEqual({entry["id"] for entry in template["boards"]}, EXPECTED_BOARDS)
+
+        self.assertEqual(self.record_example_review().stdout.strip(), "reviewed")
+
+        refused = self.run_cli(
+            "task", "decide", TASK_ID, "--approve", "--by", "Agent", "--reason", "Looks fine",
+            stdin_text=f"{TASK_ID}\n", expect=1,
+        )
+        self.assertIn("interactive terminal", refused.stderr)
+        self.assertEqual(self.task_record()["status"], "reviewed")
+
+        blocked = self.run_cli("task", "handoff", TASK_ID, expect=1)
+        self.assertIn("approval", blocked.stderr)
+
+    def test_request_changes_then_consult_again_keeps_history(self):
+        self.consult_example()
+        first_review = self.example_review()
+        self.record_example_review()
+        decided = self.run_cli(
+            "task", "decide", TASK_ID, "--request-changes", "--by", "Claims owner", "--reason", "Include brokers"
+        )
+        self.assertEqual(decided.stdout.strip(), "changes-requested")
+
+        answers = json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8"))
+        answers["context"] += " Brokers also see the stage of their clients' claims."
+        self.run_cli("task", "consult", TASK_ID, "--answers", self.write_json("answers-2.json", answers))
+
+        task = self.task_record()
+        self.assertEqual(task["status"], "consulting")
+        self.assertEqual(len(task["rounds"]), 1)
+        self.assertEqual(task["rounds"][0]["decision"]["reason"], "Include brokers")
+        self.assertNotIn("review", task)
+
+        stale = self.run_cli("task", "review", TASK_ID, "--file", self.write_json("stale.json", first_review), expect=1)
+        self.assertIn("consultation", stale.stderr)
+        self.record_example_review()
+
+    def test_review_must_cover_exactly_the_selected_boards(self):
+        self.consult_example()
+        review = self.example_review()
+
+        missing = {**review, "boards": [entry for entry in review["boards"] if entry["id"] != "security"]}
+        result = self.run_cli("task", "review", TASK_ID, "--file", self.write_json("missing.json", missing), expect=1)
+        self.assertIn("security", result.stderr)
+
+        extra = {**review, "boards": review["boards"] + [{**review["boards"][0], "id": "finance"}]}
+        result = self.run_cli("task", "review", TASK_ID, "--file", self.write_json("extra.json", extra), expect=1)
+        self.assertIn("finance", result.stderr)
+
+        empty = {**review, "boards": [{**review["boards"][0], "recommendation": " "}] + review["boards"][1:]}
+        self.run_cli("task", "review", TASK_ID, "--file", self.write_json("empty.json", empty), expect=1)
+        self.assertEqual(self.task_record()["status"], "consulting")
+
+    def test_other_answer_requires_context(self):
+        self.init_example()
+        self.run_cli("task", "new", "Something unusual", "--id", "odd")
+        answers = {"kind": "other", "surface": "unsure", "data": "none", "research": "local"}
+        result = self.run_cli("task", "consult", "odd", "--answers", self.write_json("odd.json", answers), expect=1)
+        self.assertIn("context", result.stderr)
+
+    def test_brief_words_route_to_boards(self):
+        self.init_example()
+        self.run_cli("task", "new", "Réduire la latence de la page de devis", "--id", "quote-speed")
+        answers = {"kind": "maintenance", "surface": "unsure", "data": "none", "research": "local"}
+        self.run_cli("task", "consult", "quote-speed", "--answers", self.write_json("speed.json", answers))
+        routing = self.task_record_for("quote-speed")["consultation"]["routing"]
+        self.assertIn("performance", routing)
+        self.assertNotIn("security", routing)
+
+    def task_record_for(self, task_id):
+        return json.loads(self.run_cli("task", "show", task_id).stdout)
+
+    def test_usage_errors_exit_with_code_2(self):
+        result = subprocess.run(
+            self.command("task", "decide", TASK_ID), capture_output=True, text=True, encoding="utf-8", env=ENV, timeout=60
+        )
+        self.assertEqual(result.returncode, 2)
+
+
+@unittest.skipUnless(os.name == "posix", "approval needs a pseudo-terminal, available on Linux and macOS")
+class ApprovalTests(CliTestCase):
+    def decide_in_terminal(self, typed):
+        master, slave = os.openpty()
+        try:
+            process = subprocess.Popen(
+                self.command("task", "decide", TASK_ID, "--approve", "--by", "Test Owner", "--reason", "Scope agreed"),
+                stdin=slave,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                env=ENV,
+            )
+            os.close(slave)
+            slave = None
+            os.write(master, f"{typed}\n".encode())
+            stdout, stderr = process.communicate(timeout=60)
+        finally:
+            if slave is not None:
+                os.close(slave)
+            os.close(master)
+        return process.returncode, stdout, stderr
+
+    def test_approval_requires_the_typed_id_and_expires_when_rules_change(self):
+        self.consult_example()
+        self.record_example_review()
+
+        code, _, stderr = self.decide_in_terminal("wrong-id")
+        self.assertEqual(code, 1, stderr)
+        self.assertEqual(self.task_record()["status"], "reviewed")
+
+        code, stdout, stderr = self.decide_in_terminal(TASK_ID)
+        self.assertEqual(code, 0, stderr)
+        self.assertEqual(stdout.strip(), "approved")
+
+        handoff = self.run_cli("task", "handoff", TASK_ID).stdout
+        self.assertIn("# Approved task handoff", handoff)
+        self.assertIn("Test Owner", handoff)
+        self.assertIn("check-access-control", handoff)
+
+        profile_path = self.project / ".openguildkit" / "project.json"
+        profile = json.loads(profile_path.read_text(encoding="utf-8"))
+        profile["packs"].append("web-accessibility")
+        profile_path.write_text(json.dumps(profile, indent=2), encoding="utf-8")
+        self.run_cli("sync")
+
+        expired = self.run_cli("task", "handoff", TASK_ID, expect=1)
+        self.assertIn("changed", expired.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()

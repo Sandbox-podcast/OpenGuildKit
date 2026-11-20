@@ -1,0 +1,35 @@
+name: Propose or improve a board
+description: A discipline that should review tasks, or better questions for an existing board.
+title: "board: "
+labels: [catalog, board]
+body:
+  - type: input
+    id: board-id
+    attributes:
+      label: Board ID
+      description: New ID, or the ID of the board to improve.
+    validations:
+      required: true
+  - type: textarea
+    id: expertises
+    attributes:
+      label: Expertises
+      description: The specialties this board brings to a review.
+    validations:
+      required: true
+  - type: textarea
+    id: questions
+    attributes:
+      label: Questions every task should answer for this board
+    validations:
+      required: true
+  - type: textarea
+    id: triggers
+    attributes:
+      label: Trigger words
+      description: Words or phrases in a brief that should select this board. Include other languages.
+  - type: textarea
+    id: example
+    attributes:
+      label: Example brief
+      description: A task this board would have improved, and how.

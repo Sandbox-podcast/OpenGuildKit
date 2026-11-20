@@ -1,0 +1,43 @@
+{
+  "id": "secure-sdlc",
+  "title": "Secure software development lifecycle",
+  "version": "1.0.0",
+  "description": "Engineering checks for teams adding security review to design, implementation and release.",
+  "sources": [
+    {
+      "title": "NIST SP 800-218, Secure Software Development Framework 1.1",
+      "url": "https://csrc.nist.gov/pubs/sp/800/218/final"
+    },
+    {
+      "title": "OWASP Application Security Verification Standard",
+      "url": "https://asvs.owasp.org/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "review-trust-boundaries",
+      "instruction": "For changes to identity, permissions or data flows, name the actors and trust boundaries before proposing an implementation.",
+      "verification": "Review the diagram or change notes with the security owner and record any required controls."
+    },
+    {
+      "id": "check-access-control",
+      "instruction": "Apply access checks at service boundaries and handle rejected access without exposing protected data.",
+      "verification": "Run the project's authorized access-control tests for allowed access, insufficient permissions and tenant isolation where relevant."
+    },
+    {
+      "id": "protect-secrets",
+      "instruction": "Use approved secret storage and redact sensitive values from logs, test data and AI inputs.",
+      "verification": "Review configuration, fixtures and new logging paths. Run the repository's secret scanner if configured."
+    },
+    {
+      "id": "review-dependencies",
+      "instruction": "Review a new dependency's role, release history, license and security advisories before adding it.",
+      "verification": "Record the dependency review and run the project's approved dependency checks on the proposed lockfile."
+    },
+    {
+      "id": "triage-before-release",
+      "instruction": "Assign an owner and a target date to each unresolved security finding. Follow the release policy for remediation or risk acceptance.",
+      "verification": "Link blocking findings and any recorded exceptions in the release review."
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "id": "api-design",
+  "title": "HTTP API design",
+  "version": "1.0.0",
+  "description": "HTTP semantics and OpenAPI conventions for teams maintaining client-facing contracts.",
+  "sources": [
+    {
+      "title": "IETF RFC 9110, HTTP semantics",
+      "url": "https://www.rfc-editor.org/rfc/rfc9110.html"
+    },
+    {
+      "title": "OpenAPI Specification 3.1.2",
+      "url": "https://spec.openapis.org/oas/v3.1.2.html"
+    }
+  ],
+  "rules": [
+    {
+      "id": "publish-contract-changes",
+      "instruction": "Update the repository's OpenAPI contract for changed HTTP endpoints, including meaningful success and error responses.",
+      "verification": "Validate the specification and check contract tests against the implementation."
+    },
+    {
+      "id": "preserve-http-semantics",
+      "instruction": "Choose methods and status codes that match operation behavior. Document any retry or idempotency expectations.",
+      "verification": "Test success, input errors and repeated requests where retries are supported."
+    },
+    {
+      "id": "plan-consumer-migrations",
+      "instruction": "Identify affected consumers and agree on a migration path before making a breaking contract change.",
+      "verification": "Record the migration decision and run compatibility checks for supported client versions."
+    }
+  ]
+}

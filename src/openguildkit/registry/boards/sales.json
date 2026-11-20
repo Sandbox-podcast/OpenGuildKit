@@ -1,0 +1,30 @@
+{
+  "id": "sales",
+  "title": "Sales",
+  "description": "Review the buyer, the purchase process and what Sales can substantiate in a conversation.",
+  "expertises": [
+    "Buyer roles and sales discovery",
+    "Sales enablement and demo design",
+    "Procurement and customer objections"
+  ],
+  "triggers": [
+    "sales",
+    "pricing",
+    "procurement",
+    "buyer",
+    "demo",
+    "objection",
+    "vente",
+    "commerce",
+    "tarification",
+    "acheteur",
+    "démo",
+    "appel d'offres"
+  ],
+  "questions": [
+    "Who uses, sponsors and approves the purchase?",
+    "Which buyer objections can the proposed change address with evidence?",
+    "What should Sales show in a demo or explain during procurement?"
+  ],
+  "sources": []
+}

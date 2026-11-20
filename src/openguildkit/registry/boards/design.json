@@ -1,0 +1,49 @@
+{
+  "id": "design",
+  "title": "Product design",
+  "description": "Review the interaction, the chosen design system and the states a user must navigate.",
+  "expertises": [
+    "Interaction design and usability",
+    "Design systems and component states",
+    "Accessibility and inclusive design"
+  ],
+  "triggers": [
+    "ux",
+    "ui",
+    "design",
+    "interface",
+    "accessibility",
+    "keyboard",
+    "screen reader",
+    "form",
+    "dashboard",
+    "accessibilité",
+    "formulaire",
+    "parcours",
+    "clavier",
+    "tableau de bord"
+  ],
+  "questions": [
+    "Which component or pattern in the chosen design system fits this interaction?",
+    "How will users recover from empty, invalid or interrupted states?",
+    "Can users complete the flow with a keyboard and a supported screen reader?"
+  ],
+  "sources": [
+    {
+      "title": "W3C Web Content Accessibility Guidelines 2.2",
+      "url": "https://www.w3.org/TR/WCAG22/"
+    },
+    {
+      "title": "Material Design 3 components",
+      "url": "https://m3.material.io/components"
+    },
+    {
+      "title": "Apple Human Interface Guidelines",
+      "url": "https://developer.apple.com/design/human-interface-guidelines"
+    },
+    {
+      "title": "shadcn/ui components",
+      "url": "https://ui.shadcn.com/docs/components"
+    }
+  ]
+}

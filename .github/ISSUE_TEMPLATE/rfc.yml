@@ -1,0 +1,25 @@
+name: RFC
+description: Change the schema, the task flow, a command or the governance.
+title: "rfc: "
+labels: [rfc]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What projects cannot do today, with an example.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+    validations:
+      required: true
+  - type: textarea
+    id: migration
+    attributes:
+      label: Effect on existing projects
+      description: Profiles, catalog records and pending approvals that change.
+    validations:
+      required: true

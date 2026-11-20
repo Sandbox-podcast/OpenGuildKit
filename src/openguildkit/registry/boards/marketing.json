@@ -1,0 +1,37 @@
+{
+  "id": "marketing",
+  "title": "Marketing and market research",
+  "description": "Compare competitors and substitutes in the named market before proposing positioning or a launch message.",
+  "expertises": [
+    "Competitive research and market segmentation",
+    "Positioning and launch messaging",
+    "Channel selection and measurement"
+  ],
+  "triggers": [
+    "marketing",
+    "market research",
+    "market analysis",
+    "competitor",
+    "competitors",
+    "competition",
+    "positioning",
+    "go-to-market",
+    "launch",
+    "concurrent",
+    "concurrents",
+    "analyse de marché",
+    "positionnement",
+    "lancement"
+  ],
+  "questions": [
+    "What market, audience and time window should the research cover?",
+    "What do dated product pages, release notes, public statements or filings confirm about direct competitors and substitutes?",
+    "What can the team substantiate in launch messaging, and which claims need evidence?"
+  ],
+  "sources": [
+    {
+      "title": "U.S. Small Business Administration, Market research and competitive analysis",
+      "url": "https://www.sba.gov/counseling/plan-your-business/"
+    }
+  ]
+}

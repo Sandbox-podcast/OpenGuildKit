@@ -1,0 +1,44 @@
+{
+  "id": "performance",
+  "title": "Performance",
+  "description": "Set a measurable performance target and compare the change with a representative baseline.",
+  "expertises": [
+    "Client-side responsiveness and rendering",
+    "Service latency, throughput and resource use",
+    "Benchmark design and regression analysis"
+  ],
+  "triggers": [
+    "performance",
+    "latency",
+    "throughput",
+    "slow",
+    "load testing",
+    "load test",
+    "web vitals",
+    "profiling",
+    "latence",
+    "lenteur",
+    "temps de réponse",
+    "montée en charge",
+    "débit"
+  ],
+  "questions": [
+    "Which user journey or service call needs a performance budget?",
+    "What baseline, traffic shape and dataset represent real use?",
+    "Which measurement separates client rendering, service work and upstream delays?"
+  ],
+  "sources": [
+    {
+      "title": "Google, Web Vitals",
+      "url": "https://web.dev/articles/vitals"
+    },
+    {
+      "title": "React Profiler reference",
+      "url": "https://react.dev/reference/react/Profiler"
+    },
+    {
+      "title": "Google SRE, Monitoring Distributed Systems",
+      "url": "https://sre.google/sre-book/monitoring-distributed-systems/"
+    }
+  ]
+}

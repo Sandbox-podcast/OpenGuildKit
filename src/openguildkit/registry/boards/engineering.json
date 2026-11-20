@@ -1,0 +1,32 @@
+{
+  "id": "engineering",
+  "title": "Engineering",
+  "description": "Review code boundaries, dependencies and compatibility before choosing an implementation.",
+  "expertises": [
+    "Software architecture and integration",
+    "Data modeling and migrations",
+    "API design and maintainability"
+  ],
+  "triggers": [
+    "api",
+    "architecture",
+    "backend",
+    "database",
+    "migration",
+    "refactor",
+    "code",
+    "base de données",
+    "développement"
+  ],
+  "questions": [
+    "Which existing modules and interfaces can handle the change?",
+    "What happens to existing data and clients during rollout?",
+    "Which contracts or architecture decisions should the change document?"
+  ],
+  "sources": [
+    {
+      "title": "OpenAPI Specification 3.1.2",
+      "url": "https://spec.openapis.org/oas/v3.1.2.html"
+    }
+  ]
+}

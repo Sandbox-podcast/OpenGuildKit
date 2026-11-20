@@ -1,0 +1,33 @@
+{
+  "id": "typescript",
+  "title": "TypeScript",
+  "version": "1.0.0",
+  "description": "Type-checking and input-boundary conventions for TypeScript projects.",
+  "sources": [
+    {
+      "title": "TypeScript strict mode",
+      "url": "https://www.typescriptlang.org/tsconfig/strict.html"
+    },
+    {
+      "title": "TypeScript narrowing",
+      "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html"
+    }
+  ],
+  "rules": [
+    {
+      "id": "strict-type-checking",
+      "instruction": "Keep the repository's compiler checks enabled. Prefer strict mode when setting up a new TypeScript project.",
+      "verification": "Run the project's type-check command with its committed TypeScript configuration."
+    },
+    {
+      "id": "validate-inputs-at-runtime",
+      "instruction": "Receive external payloads as unknown and validate them before using them as domain types.",
+      "verification": "Exercise valid, missing and malformed values in boundary tests."
+    },
+    {
+      "id": "preserve-typed-contracts",
+      "instruction": "Update shared types and consumers together when changing public interfaces.",
+      "verification": "Compile affected packages and verify compatibility with supported consumers."
+    }
+  ]
+}

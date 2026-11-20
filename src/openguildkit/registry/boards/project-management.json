@@ -1,0 +1,35 @@
+{
+  "id": "project-management",
+  "title": "Project management",
+  "description": "Map dependencies, ownership and decision dates before committing to delivery.",
+  "expertises": [
+    "Delivery planning and sequencing",
+    "Dependencies and stakeholder coordination",
+    "Risk tracking and decision ownership"
+  ],
+  "triggers": [
+    "project management",
+    "milestone",
+    "deadline",
+    "delivery plan",
+    "stakeholder",
+    "dependencies",
+    "planning",
+    "gestion de projet",
+    "jalon",
+    "échéance",
+    "dépendances",
+    "partie prenante"
+  ],
+  "questions": [
+    "Which dependency can block the next release, and who owns it?",
+    "What can the team deliver independently and in what order?",
+    "Who decides on scope, dates and accepted risks?"
+  ],
+  "sources": [
+    {
+      "title": "The Scrum Guide",
+      "url": "https://scrumguides.org/scrum-guide.html"
+    }
+  ]
+}

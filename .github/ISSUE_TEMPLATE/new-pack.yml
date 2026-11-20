@@ -1,0 +1,43 @@
+name: Propose a rule pack
+description: A standard, regulation or convention agents should follow.
+title: "pack: "
+labels: [catalog, pack]
+body:
+  - type: input
+    id: pack-id
+    attributes:
+      label: Proposed pack ID
+      description: Lowercase letters, digits and hyphens, for example owasp-asvs.
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Official source
+      description: HTTPS link to the standard body, regulator or project documentation.
+    validations:
+      required: true
+  - type: textarea
+    id: rules
+    attributes:
+      label: Draft rules
+      description: For each rule, one instruction and one verification a reviewer can perform.
+      placeholder: |
+        instruction: ...
+        verification: ...
+    validations:
+      required: true
+  - type: textarea
+    id: users
+    attributes:
+      label: Who would use it
+      description: Which teams or projects need this pack, and which existing packs it depends on.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: The rules paraphrase the source and do not copy text from a paid standard.
+          required: true
+        - label: No rule claims compliance or certification.
+          required: true

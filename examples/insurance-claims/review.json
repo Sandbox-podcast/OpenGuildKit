@@ -1,0 +1,65 @@
+{
+  "summary": "Ship a read-only claim status view for policyholders first. Keep notifications and document upload for later tasks. Confirm the stage list with claims operations and the access rule with the data owner before implementation.",
+  "boards": [
+    {
+      "id": "product",
+      "recommendation": "Limit the first version to a read-only list of the policyholder's claims with the current stage and the next expected step. Measure how many status questions reach the claims team before and after release.",
+      "evidence": [
+        "Task context: policyholders see the current stage and the next expected step; brokers keep their current view."
+      ],
+      "open_questions": [
+        "Which claim stages does claims operations want to expose to customers?",
+        "Who owns the wording of each stage?"
+      ]
+    },
+    {
+      "id": "engineering",
+      "recommendation": "Expose a read endpoint that returns only claims linked to the signed-in policyholder, filtered on the server. Map internal claim states to customer-facing stages in one place so wording changes do not touch the API.",
+      "evidence": [
+        "Profile stack: Python, FastAPI, PostgreSQL, TypeScript, React."
+      ],
+      "open_questions": [
+        "Is the link between a customer account and a policyholder already stored, or does it need a migration?"
+      ]
+    },
+    {
+      "id": "qa",
+      "recommendation": "Turn the acceptance criterion into tests: a policyholder sees their own claims, never another policyholder's, and a broker's view is unchanged. Add one test per customer-facing stage.",
+      "evidence": [
+        "Task context acceptance criterion: a policyholder only sees claims where they are the policyholder."
+      ],
+      "open_questions": []
+    },
+    {
+      "id": "design",
+      "recommendation": "Show the stages as an ordered list with the current one highlighted and a plain-language next step. Cover the states: no claim, one claim, several claims, claim closed, data unavailable.",
+      "evidence": [
+        "web-accessibility guidance applies to the customer portal if the team activates the pack."
+      ],
+      "open_questions": [
+        "Should the web-accessibility pack be added to the profile for the customer portal?"
+      ]
+    },
+    {
+      "id": "marketing",
+      "recommendation": "No market evidence was available under the local-only research policy. Do not position the feature against competitors until a task with public research compares claim tracking in comparable insurers.",
+      "evidence": [
+        "Profile research policy: local-only."
+      ],
+      "open_questions": [
+        "Should the team allow public research for a follow-up market comparison?"
+      ]
+    },
+    {
+      "id": "security",
+      "recommendation": "Enforce the policyholder check on the server for every request and log access to claim records. Use synthetic claims in tests and demos.",
+      "evidence": [
+        "Insurance sector context: distinguish policyholder, beneficiary, broker and insurer and check what each can see.",
+        "secure-sdlc rule check-access-control."
+      ],
+      "open_questions": [
+        "How long must access logs be kept, and who owns that decision?"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "id": "devops",
+  "title": "DevOps and reliability",
+  "description": "Review how the change ships, how the team will detect failures and how it can recover.",
+  "expertises": [
+    "Continuous integration and delivery",
+    "Observability and incident response",
+    "Progressive rollout and recovery"
+  ],
+  "triggers": [
+    "deployment",
+    "infrastructure",
+    "rollback",
+    "incident",
+    "rollout",
+    "ci/cd",
+    "observability",
+    "kubernetes",
+    "déploiement",
+    "mise en production",
+    "observabilité"
+  ],
+  "questions": [
+    "How will the team roll out the change and detect a bad release?",
+    "Which configuration, telemetry and runbooks need updates?",
+    "Can the team roll back safely after the change has written data?"
+  ],
+  "sources": [
+    {
+      "title": "Google SRE, Monitoring Distributed Systems",
+      "url": "https://sre.google/sre-book/monitoring-distributed-systems/"
+    },
+    {
+      "title": "Google SRE Workbook, Canarying Releases",
+      "url": "https://sre.google/workbook/canarying-releases/"
+    }
+  ]
+}

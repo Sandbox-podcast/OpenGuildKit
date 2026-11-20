@@ -1,0 +1,15 @@
+{
+  "name": "Claims portal",
+  "sector": "insurance",
+  "stack": ["Python", "FastAPI", "PostgreSQL", "TypeScript", "React"],
+  "research": "local-only",
+  "conventions": [
+    "Use Conventional Commits for commit messages.",
+    "Write user-facing text in French and English."
+  ],
+  "checks": [
+    "python -m pytest",
+    "npm run lint",
+    "npm test"
+  ]
+}

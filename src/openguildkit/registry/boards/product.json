@@ -1,0 +1,31 @@
+{
+  "id": "product",
+  "title": "Product management",
+  "description": "Define the user outcome, evidence for the change and the smallest version worth shipping.",
+  "expertises": [
+    "Product discovery and prioritization",
+    "User research and success metrics",
+    "Scope and acceptance criteria"
+  ],
+  "triggers": [
+    "feature",
+    "user story",
+    "roadmap",
+    "product discovery",
+    "onboarding",
+    "fonctionnalité",
+    "feuille de route",
+    "critères d'acceptation"
+  ],
+  "questions": [
+    "Who faces this problem and what do they do today?",
+    "What result would show the change helped them?",
+    "Which assumption can the team test before committing to the full scope?"
+  ],
+  "sources": [
+    {
+      "title": "The Scrum Guide",
+      "url": "https://scrumguides.org/scrum-guide.html"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "id": "qa",
+  "title": "Quality assurance",
+  "description": "Turn acceptance criteria into checks that cover the user flow and likely regressions.",
+  "expertises": [
+    "Risk-based test design",
+    "Regression and compatibility testing",
+    "Release acceptance and defect triage"
+  ],
+  "triggers": [
+    "bug",
+    "regression",
+    "tests",
+    "test strategy",
+    "quality assurance",
+    "failure case",
+    "régression",
+    "recette",
+    "cas limite",
+    "cas limites"
+  ],
+  "questions": [
+    "Which user paths and boundary conditions need explicit tests?",
+    "What fixture or environment would make a failure reproducible?",
+    "Which compatibility and regression checks must pass before release?"
+  ],
+  "sources": [
+    {
+      "title": "ISTQB Foundation Level testing syllabus",
+      "url": "https://istqb.org/certifications/certified-tester-foundation-level-ctfl-v4-0/"
+    }
+  ]
+}

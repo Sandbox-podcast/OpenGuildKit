@@ -1,0 +1,35 @@
+{
+  "id": "finance",
+  "title": "Finance and FinOps",
+  "description": "Estimate the cost of building and operating the change, and record what could change that estimate.",
+  "expertises": [
+    "Cost estimation and unit economics",
+    "Cloud and AI usage budgets",
+    "Forecast assumptions and scenarios"
+  ],
+  "triggers": [
+    "finance",
+    "budget",
+    "cost",
+    "costs",
+    "finops",
+    "margin",
+    "forecast",
+    "coût",
+    "coûts",
+    "marge",
+    "prévision",
+    "rentabilité"
+  ],
+  "questions": [
+    "Which costs occur once and which recur with usage?",
+    "What volume, model pricing and support assumptions drive the estimate?",
+    "Which threshold would require a different choice, and who can confirm it?"
+  ],
+  "sources": [
+    {
+      "title": "FinOps Foundation Framework",
+      "url": "https://www.finops.org/framework/"
+    }
+  ]
+}
