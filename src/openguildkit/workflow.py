@@ -853,7 +853,8 @@ def objections(review: dict) -> list[dict]:
         challenge = objector["challenge"]
         if challenge["verdict"] not in OBJECTING_VERDICTS:
             continue
-        point = "; ".join(challenge["blockers"]) or challenge["failure_mode"]
+        findings = [item["finding"] if isinstance(item, dict) else item for item in challenge["blockers"]]
+        point = "; ".join(findings) or challenge["failure_mode"]
         for responder in proceeding:
             result.append({
                 "id": f"{objector['id']}-to-{responder['id']}",

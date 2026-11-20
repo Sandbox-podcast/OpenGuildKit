@@ -1,0 +1,29 @@
+# Host validation scenario
+
+A fictional support portal (`project/`, synthetic data only) and two tasks (`tasks.json`) to check that an agent host can run the whole OpenGuildKit flow: board passes with evidence, a disagreement between boards, a board without enough evidence, a person's decision and the results of the work.
+
+| Task | What it exercises |
+|---|---|
+| `request-export` (feature, personal data) | Board passes with evidence on the project files, objections between boards, a blocker to clear, approval, `task verify`, `task result`, `task complete` |
+| `pricing-comparison` (decision, local research, no market data) | A board added by the requester, `insufficient-evidence` verdicts, the decision brief |
+
+## Rehearse with the CLI
+
+```bash
+python examples/host-validation/rehearse.py --report report.json
+```
+
+The rehearsal plays a host without subagents: it runs `task pass ... --mode sequential` for each board with prepared answers, records the deliberation and the blocker, approves through a pseudo-terminal on Linux and macOS (as the person deciding would), runs the project check and completes the task. CI runs it (`tests/e2e/test_host_rehearsal.py`).
+
+## Run it in a host
+
+1. Copy `project/` to an empty folder, install OpenGuildKit and the agent files (`openguildkit integrations --host claude-code` or `--host codex`), and run `openguildkit init --answers profile.json` there, with `"host"` set to the host you test. Run `openguildkit host apply`.
+2. Ask the agent, in its own words, for each task's brief from `tasks.json`. Do not tell it the commands: the skill and `AGENTS.md` must lead it.
+3. Answer its questions with the `answers` in `tasks.json`. Check that it runs `task route` and one `task pass` per board, as subagents when the host has them, and that it stops before the decision.
+4. Take the decision yourself in your terminal, then ask the agent to implement and report. Check that it runs `task verify`, `task result` and `task complete`.
+5. Fill in a report like the ones in `reports/`, with what you observed: commands run, entries refused and corrected, `execution` recorded, objections, the decision brief, the final state. Use synthetic data only and keep keys and private details out of the report.
+
+## Reports
+
+- [Claude Code, 2026-11-20](reports/claude-code-2026-11-20.md)
+- Codex: not run yet. Running it needs the Codex CLI and an OpenAI account, which the maintainers who prepared this scenario did not have on this machine.

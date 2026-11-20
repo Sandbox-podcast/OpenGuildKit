@@ -76,6 +76,10 @@ With `"guard": "observe"` or `"guard": "enforce"` in the profile, `openguildkit 
 
 `openguildkit guard` without options prints the same answer for a person. In CI, export the decision of the approved task with `openguildkit task export ID`: it writes `.openguildkit/decisions/ID.json` with the brief, the verdict of each board and the sealed approval, without evidence or internal notes. Commit it with the change. [`github/openguildkit-guard.yml`](github/openguildkit-guard.yml) runs `openguildkit guard --ci --base BASE`: a pull request that changes the project without a decision approved under the current rules is reported, and fails in `enforce` mode.
 
+## Validate a host
+
+The [host validation scenario](../examples/host-validation/) checks that an agent runs the whole flow: board passes, a disagreement, insufficient evidence, the person's decision and the results. Its CLI rehearsal runs in CI; reports from real hosts sit next to it.
+
 ## Other agents
 
 Point the agent at `AGENTS.md`, which already contains the workflow, or paste the "Task" section of `SKILL.md` into its project instructions.
