@@ -1,0 +1,91 @@
+{
+  "id": "support",
+  "title": "Customer support and success",
+  "description": "Prepare the support and customer success teams to answer, diagnose and measure the change once customers use it.",
+  "expertises": [
+    "Support readiness and knowledge base",
+    "Ticket triage, escalation and service levels",
+    "Customer success and adoption follow-up"
+  ],
+  "triggers": [
+    "customer support",
+    "support client",
+    "service client",
+    "help desk",
+    "helpdesk",
+    "support ticket",
+    "ticket de support",
+    "knowledge base",
+    "base de connaissances",
+    "faq",
+    "customer success",
+    "succès client",
+    "escalation",
+    "escalade",
+    "customer satisfaction",
+    "satisfaction client",
+    "csat",
+    "nps"
+  ],
+  "questions": [
+    "What will customers ask about this change, and where will support find the answer?",
+    "Which problems can support solve alone, and which go to engineering with what information?",
+    "How will tickets and feedback show that the change works for customers?"
+  ],
+  "sources": [
+    {
+      "title": "Consortium for Service Innovation, Knowledge-Centered Service (KCS)",
+      "url": "https://www.serviceinnovation.org/kcs/"
+    },
+    {
+      "title": "ISO 10002, Customer satisfaction, guidelines for complaints handling",
+      "url": "https://www.iso.org/standard/10002"
+    },
+    {
+      "title": "GOV.UK Service Manual, Suggestions and support",
+      "url": "https://www.gov.uk/service-manual/support/"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "support-readiness",
+        "title": "Support readiness lead",
+        "focus": "List the questions and errors customers will raise and check that support has an article, a macro or a script for each before release."
+      },
+      {
+        "id": "escalation-manager",
+        "title": "Escalation manager",
+        "focus": "Define what support collects before escalating, who receives the escalation and the response time for each severity."
+      },
+      {
+        "id": "knowledge-manager",
+        "title": "Knowledge manager",
+        "focus": "Plan the knowledge base articles to create or update, their owner and how agents improve them from real tickets."
+      },
+      {
+        "id": "customer-success",
+        "title": "Customer success manager",
+        "focus": "Identify the accounts most affected and how adoption or dissatisfaction will show in usage, tickets and renewals."
+      }
+    ],
+    "evidence": [
+      "Current top ticket categories and volumes for the area the change touches.",
+      "Draft knowledge base articles, macros or troubleshooting steps for the change.",
+      "Escalation path, severity definitions and service level commitments in force.",
+      "Accounts or segments most affected and the success metric to follow after release."
+    ],
+    "challenge": [
+      "What is the first ticket we will receive after release, and can support answer it without engineering?",
+      "Which error message or state would a customer report in words support cannot link to a cause?",
+      "Does the release date leave support time to train before customers see the change?",
+      "Which signal would show that customers struggle before they churn or complain?"
+    ],
+    "decision_criteria": [
+      "Proceed when support has the articles, escalation path and training it needs before customers see the change.",
+      "Revise when error messages, logs or admin tools do not let support diagnose the likely problems.",
+      "Ask for a support briefing or a staged rollout when ticket volume could exceed the team's service levels.",
+      "Name the metric and threshold that will show whether the change reduced or increased support load."
+    ]
+  }
+}

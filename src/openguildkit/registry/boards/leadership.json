@@ -48,6 +48,10 @@
     {
       "title": "COSO, Enterprise Risk Management",
       "url": "https://www.coso.org/enterprise-risk-management"
+    },
+    {
+      "title": "Kaplan and Norton, The Balanced Scorecard, measures that drive performance",
+      "url": "https://hbr.org/1992/01/the-balanced-scorecard-measures-that-drive-performance-2"
     }
   ],
   "review": {
@@ -82,12 +86,14 @@
     "challenge": [
       "Test one realistic scenario where adoption is slower, benefits are lower or costs are higher. Identify any option that would then rank higher.",
       "Check whether one option appears attractive because the analysis omitted displaced work, organizational change or ongoing support.",
-      "Distinguish a decision the sponsor can reverse from a commitment that requires a governing body or formal approval."
+      "Distinguish a decision the sponsor can reverse from a commitment that requires a governing body or formal approval.",
+      "Which measure would show within the first months that the decision is not producing the expected result?"
     ],
     "decision_criteria": [
       "Present the current approach and viable alternatives against one strategic objective and a consistent evidence-based comparison.",
       "Make the opportunity cost, remaining risks and unresolved assumptions visible to the person with authority to decide.",
-      "For the recommended option, name the result owner and the date or threshold for expanding, pausing or revisiting the commitment."
+      "For the recommended option, name the result owner and the date or threshold for expanding, pausing or revisiting the commitment.",
+      "Escalate to the governing body any commitment that exceeds the delegated budget, risk appetite or duration."
     ]
   }
 }

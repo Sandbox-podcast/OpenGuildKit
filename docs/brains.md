@@ -8,7 +8,47 @@ openguildkit brains --id product
 openguildkit brains --id security --json
 ```
 
-The catalog covers engineering, security, DevOps, QA, performance, product, design, marketing, sales, finance, project management, HR, executive leadership and operations.
+The catalog has one brain per discipline of a software publisher:
+
+| Brain | ID | Brings |
+|---|---|---|
+| Software development (front-end and back-end) | `engineering` | Architecture, contracts, data consistency, maintainability, front-end rendering and browser support |
+| Security and privacy | `security` | Application security, privacy engineering, release integrity, control ownership |
+| DevOps and reliability | `devops` | Delivery pipeline, progressive delivery, observability, recovery |
+| Quality assurance | `qa` | Test design, regressions, exploratory testing, release acceptance |
+| Performance | `performance` | Client responsiveness, service latency, capacity, benchmarks |
+| Product management | `product` | Discovery, analytics, scope, rollout and adoption |
+| Product design | `design` | Interaction, design systems, accessibility, usability research |
+| Data and AI | `data` | Data ownership and quality, analytics instrumentation, model evaluation, AI risk |
+| Marketing and market research | `marketing` | Market research, positioning, channels, measurement |
+| Communication | `communication` | Release and customer communication, crisis communication, plain language, internal communication |
+| Sales | `sales` | Discovery, qualification, enablement, procurement |
+| Customer support and success | `support` | Support readiness, escalation, knowledge base, customer success |
+| Finance and FinOps | `finance` | Planning, FinOps, unit economics, budget ownership |
+| Legal and compliance | `legal` | Data protection, contracts, licences, sector regulations |
+| Human resources | `hr` | Hiring, employee experience, workforce planning, people data |
+| Project management | `project-management` | Delivery planning, capacity, governance, risk and change |
+| Business operations | `operations` | Process flow, queues, service quality, process change |
+| Executive leadership | `leadership` | Strategy, portfolio, risk governance, benefits |
+
+Each brain has at least four specialists, four evidence requests, four challenge questions, four decision criteria and three primary sources.
+
+### Where lenses meet
+
+Some questions concern two brains. Each brain keeps its own angle:
+
+| Topic | Brains | Who answers what |
+|---|---|---|
+| Rolling out a change | product, devops | Product decides who gets it and how adoption is judged; DevOps decides how it is deployed, paused and reversed |
+| Build and release integrity | security, devops | Security decides which provenance and permissions are required; DevOps runs the pipeline that produces them |
+| Capacity | performance, devops, hr, project-management, operations | Performance measures system capacity, DevOps runs it; HR plans people, project management schedules them, operations balances work queues |
+| Supported consumers and versions | qa, engineering | Engineering decides compatibility and migrations; QA tests the supported combinations |
+| Accessibility | design, qa | Design specifies accessible interactions; QA verifies them with keyboard and assistive technology |
+| Users' needs | product, design | Product decides which problem is worth solving; design researches how people do the task |
+| Measurement | marketing, product, data | Marketing measures acquisition, product measures use and outcomes, data owns definitions and quality |
+| Budgets and portfolio | finance, leadership | Finance models costs; leadership decides which work gets the resources |
+| Personal data | security, legal | Security protects it; legal confirms the obligations and records attached to it |
+| Customer messages | communication, support, marketing | Communication owns what is said and when, support answers the questions it raises, marketing owns promotion |
 
 ## Run the review
 

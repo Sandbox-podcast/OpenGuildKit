@@ -37,6 +37,6 @@ After `init`, `AGENTS.md` contains the workflow and packs from the matched stack
 | marketing | Customer expectations and market evidence |
 | security | Personal data access |
 
-`review.json` records findings from 24 specialist lenses. The product board supports a read-only scope, security requests further access checks, and marketing reports insufficient evidence for a competitor comparison. The replay prints the decision brief so you can compare verdicts and see what would change them.
+`review.json` records findings from 26 specialist lenses. The product board supports a read-only scope, security requests further access checks, and marketing reports insufficient evidence for a competitor comparison. The replay prints the decision brief so you can compare verdicts and see what would change them.
 
 `task decide --approve` asks you to type `request-status` in the terminal. Once approved, `task handoff` prints the scope.

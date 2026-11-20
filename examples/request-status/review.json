@@ -120,6 +120,20 @@
             "evidence_refs": [
               3
             ]
+          },
+          {
+            "id": "frontend-rendering",
+            "finding": "The answers do not say what the portal shows while requests load or when the request service fails.",
+            "basis": "missing",
+            "evidence_refs": []
+          },
+          {
+            "id": "browser-compatibility",
+            "finding": "The React front end is listed but the profile names no supported browsers or devices for the portal.",
+            "basis": "assumption",
+            "evidence_refs": [
+              1
+            ]
           }
         ],
         "verdict": "revise",

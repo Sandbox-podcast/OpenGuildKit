@@ -64,6 +64,10 @@
     {
       "title": "CNIL, Le guide du recrutement",
       "url": "https://www.cnil.fr/fr/le-guide-du-recrutement"
+    },
+    {
+      "title": "ISO 30414, Human resource management, human capital reporting and disclosure",
+      "url": "https://www.iso.org/standard/30414"
     }
   ],
   "review": {
@@ -98,12 +102,14 @@
     "challenge": [
       "Question any criterion based on a vague notion of fit. Identify the work requirement and the evidence that would substantiate it.",
       "Check whether the proposed process collects information that the next person in the workflow can do without.",
-      "When the team needs a legal interpretation or a decision about an identifiable person, refer it to the authorized human owner and keep the board focused on process design."
+      "When the team needs a legal interpretation or a decision about an identifiable person, refer it to the authorized human owner and keep the board focused on process design.",
+      "Would a candidate or employee affected by this process understand how a decision about them was made, and how to contest it?"
     ],
     "decision_criteria": [
       "Prefer a documented process with observable job requirements and the same assessment steps for candidates for the same role.",
       "Name the human decision owner, the people who can access each data category and the point at which the record should be removed or reviewed.",
-      "Choose a way to measure the process with authorized aggregate data, such as whether new hires receive required access by the agreed date."
+      "Choose a way to measure the process with authorized aggregate data, such as whether new hires receive required access by the agreed date.",
+      "Revise a process when an automated step could decide about a person without a named human able to review it."
     ]
   }
 }
