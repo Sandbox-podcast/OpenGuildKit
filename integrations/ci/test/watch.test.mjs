@@ -12,7 +12,7 @@ test('a restarted watcher resumes existing work and only dispatches the revised 
   const configPath = join(folder, 'config.json');
   const [a, b] = ['team/a', 'team/b'];
   writeFileSync(configPath, JSON.stringify({
-    projects: [a, b].map(id => ({ id, workflow: { file: 'recheck.yml', ref: 'pilot/base' } })),
+    projects: [a.toUpperCase(), b].map(id => ({ id, workflow: { file: 'recheck.yml', ref: 'pilot/base' } })),
   }));
   const make = (project, work, profileCommit, state) => {
     const proof = { commit: 'a'.repeat(40), policyCommit: 'b'.repeat(40), profileCommit, state };

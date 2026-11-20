@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { gh, reconcileGithub } from './github.mjs';
+import { sameRepositoryUrl } from './github-identifiers.mjs';
 import { publishWatchReport } from './github-report.mjs';
 
 function readJson(path) {
@@ -32,7 +33,7 @@ const githubActions = {
       input: JSON.stringify({ pr: String(pullRequest), commit, work, attempt }), encoding: 'utf8', timeout: 30_000,
     }).trim();
     const match = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/actions\/runs\/(\d+)$/.exec(output);
-    if (!match || !output.startsWith(`https://github.com/${project}/`)) {
+    if (!match || !sameRepositoryUrl(output, `https://github.com/${project}/actions/runs/${match[1]}`)) {
       throw new Error('GitHub Actions n’a pas renvoyé d’identifiant d’exécution.');
     }
     return { id: match[1], url: output };
@@ -46,7 +47,7 @@ const githubActions = {
     const match = pages.flatMap(page => page.workflow_runs).find(run => run.display_title === title);
     if (!match) return null;
     const id = String(match.id);
-    if (!/^\d+$/.test(id) || match.html_url !== `https://github.com/${project}/actions/runs/${id}`) {
+    if (!/^\d+$/.test(id) || !sameRepositoryUrl(match.html_url, `https://github.com/${project}/actions/runs/${id}`)) {
       throw new Error('Exécution GitHub Actions retrouvée avec des références invalides.');
     }
     return { id, url: match.html_url };
@@ -103,7 +104,7 @@ export function watchGithub({ publish, ...options }, {
         !/^[\w./-]+$/.test(workflow.evidenceBranch) || workflow.evidenceBranch.startsWith('-'))) {
       throw new Error(`Branche de rapports absente ou invalide pour ${id}.`);
     }
-    return [id, workflow];
+    return [id.toLowerCase(), workflow];
   }));
   const report = reconcile({ ...options, run: true });
   const errors = [...(report.errors ?? [])];
@@ -116,7 +117,7 @@ export function watchGithub({ publish, ...options }, {
     try {
       let run = loadRun(path);
       if (!run?.id) {
-        run = startOrRecover(entry, workflows.get(entry.project), path, run, actions, clock());
+        run = startOrRecover(entry, workflows.get(entry.project.toLowerCase()), path, run, actions, clock());
       } else if (run.state === 'dispatched') {
         const status = actions.status(entry.project, run.id);
         if (status.status === 'completed') {
@@ -156,7 +157,7 @@ export function watchGithub({ publish, ...options }, {
       const live = latest.get(target.work);
       if (!live || !isDeepStrictEqual(live.decision, target.decision)) continue;
       try {
-        result.publications.push(publishReport(target, workflows.get(target.project).evidenceBranch));
+        result.publications.push(publishReport(target, workflows.get(target.project.toLowerCase()).evidenceBranch));
       } catch (error) {
         errors.push({ work: target.work, message: error.message });
       }

@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { sameRepositoryUrl } from '../lib/github-identifiers.mjs';
 
 const [repo, file, context = 'openguildkit/pilot-jenkins'] = process.argv.slice(2);
 if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !file || !/^openguildkit\/[a-z\d/-]+$/.test(context)) {
@@ -18,15 +19,13 @@ function gh(args, input) {
 }
 
 function verifyAgentPull() {
-  if (!report.pullRequest?.startsWith(`https://github.com/${repo}/pull/`)) {
-    throw new Error('La preuve agent doit désigner une PR du dépôt cible.');
-  }
-  const number = report.pullRequest.split('/').at(-1);
-  if (!/^[1-9]\d*$/.test(number) || !/^[a-f0-9]{64}$/.test(report.briefSha256)) {
+  const number = report.pullRequest?.split('/').at(-1);
+  if (!/^[1-9]\d*$/.test(number) || !/^[a-f0-9]{64}$/.test(report.briefSha256) ||
+      !sameRepositoryUrl(report.pullRequest, `https://github.com/${repo}/pull/${number}`)) {
     throw new Error('PR ou empreinte du brief invalide.');
   }
   const pr = JSON.parse(gh(['api', `repos/${repo}/pulls/${number}`]));
-  if (pr.html_url !== report.pullRequest || pr.state !== 'open' || pr.head.sha !== report.commit) {
+  if (!sameRepositoryUrl(pr.html_url, report.pullRequest) || pr.state !== 'open' || pr.head.sha !== report.commit) {
     throw new Error('La PR ou son commit courant ne correspond plus au rapport.');
   }
 }

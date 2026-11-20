@@ -2,6 +2,7 @@ import { readFileSync, mkdirSync, rmSync, rmdirSync, writeFileSync } from 'node:
 import { dirname, join } from 'node:path';
 import { describeRule } from '../prototype/demo/check.mjs';
 import { git, gitSha, parseProfile, readRule, sha256 } from './check.mjs';
+import { sameRepositoryUrl } from './github-identifiers.mjs';
 
 function taskDetails(data) {
   const { ticket, outcome, criteria } = data;
@@ -104,7 +105,7 @@ export function linkBrief(evidence, path, pullRequest) {
   if (brief.schemaVersion !== 1 || brief.kitVersion !== evidence.kitVersion || !evidence.profileCommit ||
       brief.profileCommit !== evidence.profileCommit || brief.profileSha256 !== evidence.profileSha256 ||
       !evidence.project || brief.project !== evidence.project ||
-      (brief.github && (brief.github.pullRequest !== pullRequest || brief.github.commit !== evidence.commit)) ||
+      (brief.github && (!sameRepositoryUrl(brief.github.pullRequest, pullRequest) || brief.github.commit !== evidence.commit)) ||
       brief.rule?.policyCommit !== evidence.policyCommit || brief.rule.rule !== evidence.rule ||
       brief.rule.guidance !== evidence.guidance) {
     throw new Error('Le brief agent ne correspond pas au profil et à la règle évalués.');

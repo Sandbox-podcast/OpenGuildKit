@@ -5,6 +5,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { git, gitSha, sha256 } from './check.mjs';
 import { reconcile } from './reconcile.mjs';
 import { approvedGitHubProfile } from './github-profile.mjs';
+import { sameRepository, sameRepositoryUrl } from './github-identifiers.mjs';
 
 const repositoryPattern = /^[a-z\d][a-z\d-]*\/[a-z\d_.-]+$/i;
 const branchPattern = /^refs\/heads\/[\w./-]+$/;
@@ -17,24 +18,24 @@ export function approveGitHubProfile(options) {
   return approvedGitHubProfile(options, (endpoint, ...args) => JSON.parse(gh('api', ...args, endpoint)));
 }
 
-export function readGitHubTicket({ repo, pullRequest, commit }) {
+export function readGitHubTicket({ repo, pullRequest, commit }, api = endpoint => JSON.parse(gh('api', endpoint))) {
   if (!repositoryPattern.test(repo) || !Number.isSafeInteger(pullRequest) || pullRequest < 1 || !gitSha.test(commit)) {
     throw new Error('Dépôt GitHub, numéro de PR et SHA complet requis.');
   }
   const pullUrl = `https://github.com/${repo}/pull/${pullRequest}`;
-  const pr = JSON.parse(gh('api', `repos/${repo}/pulls/${pullRequest}`));
-  if (pr.state !== 'open' || pr.head.sha !== commit || pr.html_url !== pullUrl) {
+  const pr = api(`repos/${repo}/pulls/${pullRequest}`);
+  if (pr.state !== 'open' || pr.head.sha !== commit || !sameRepositoryUrl(pr.html_url, pullUrl)) {
     throw new Error('La PR ou son commit courant ne correspond plus à la demande.');
   }
   const links = [...(pr.body ?? '').matchAll(/^OpenGuildKit-Ticket:[ \t]*#([1-9]\d*)[ \t]*\r?$/gm)];
   if (links.length !== 1) throw new Error('La PR doit déclarer un seul ticket avec OpenGuildKit-Ticket: #NUMERO.');
   const number = links[0][1];
-  const issue = JSON.parse(gh('api', `repos/${repo}/issues/${number}`));
-  if (issue.pull_request || issue.html_url !== `https://github.com/${repo}/issues/${number}`) {
+  const issue = api(`repos/${repo}/issues/${number}`);
+  if (issue.pull_request || !sameRepositoryUrl(issue.html_url, `https://github.com/${repo}/issues/${number}`)) {
     throw new Error('La référence doit désigner un ticket du dépôt de la PR.');
   }
   return {
-    issue, source: { pullRequest: pullUrl, commit, ticketUpdatedAt: issue.updated_at },
+    issue, source: { pullRequest: pr.html_url, commit, ticketUpdatedAt: issue.updated_at },
   };
 }
 
@@ -55,10 +56,12 @@ function validateRepo(id, path, ref) {
 function listPullRequests(id, numbers) {
   const all = JSON.parse(gh('api', '--paginate', '--slurp', `repos/${id}/pulls?state=open&per_page=100`)).flat();
   return all.filter(pr => !numbers || numbers.includes(pr.number)).map(pr => {
-    if (pr.state !== 'open' || !Number.isSafeInteger(pr.number) || pr.number < 1 || !gitSha.test(pr.head?.sha)) {
+    const repository = pr.base?.repo?.full_name;
+    if (pr.state !== 'open' || !Number.isSafeInteger(pr.number) || pr.number < 1 ||
+        !gitSha.test(pr.head?.sha) || !sameRepository(repository, id)) {
       throw new Error(`PR GitHub invalide dans ${id}.`);
     }
-    return { number: pr.number, sha: pr.head.sha };
+    return { number: pr.number, sha: pr.head.sha, repository };
   });
 }
 
@@ -107,7 +110,8 @@ function synchronize(configPath) {
         throw new Error(`La PR ${project.id}#${pr.number} a évolué pendant le chargement. Relancer la synchronisation.`);
       }
     }
-    return { id: project.id, path: project.path, profileRef, pullRequests, waiverApprovers: project.waiverApprovers };
+    const id = pullRequests[0]?.repository ?? project.id;
+    return { id, path: project.path, profileRef, pullRequests, waiverApprovers: project.waiverApprovers };
   });
   return { policyRepo: { path: policy.path, ref: policyRef, waiversPath: policy.waiversPath }, projects };
 }
@@ -136,7 +140,13 @@ export function reconcileGithub({ publish, reportUrl, ...options }) {
   if (reportUrl !== undefined && (!publish || !['http:', 'https:'].includes(new URL(reportUrl).protocol))) {
     throw new Error('--report-url requiert --publish et une URL HTTP ou HTTPS.');
   }
-  const result = reconcile({ ...options, loadConfig: () => synchronize(options.configPath) });
+  const config = synchronize(options.configPath);
+  const selection = options.selection && {
+    ...options.selection,
+    project: config.projects.find(project => sameRepository(project.id, options.selection.project))?.id
+      ?? options.selection.project,
+  };
+  const result = reconcile({ ...options, selection, loadConfig: () => config });
   if (publish) result.publications = result.current.map(entry => publishObservation(entry, reportUrl));
   return result;
 }
