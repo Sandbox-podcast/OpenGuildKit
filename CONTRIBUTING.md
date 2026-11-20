@@ -25,7 +25,7 @@ GitHub labels PRs from their changed files. The `contribution-checks` status com
 ## Set up
 
 ```bash
-git clone https://github.com/loukan42/OpenGuildKit.git
+git clone https://github.com/Sandbox-podcast/OpenGuildKit.git
 cd OpenGuildKit
 python -m pip install -e .
 python -m unittest discover -s tests
