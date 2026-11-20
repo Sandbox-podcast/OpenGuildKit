@@ -1,0 +1,30 @@
+pattern:
+  - changed-files:
+      - any-glob-to-any-file: 'src/openguildkit/registry/patterns/**'
+pack:
+  - changed-files:
+      - any-glob-to-any-file: 'src/openguildkit/registry/packs/**'
+board:
+  - changed-files:
+      - any-glob-to-any-file: 'src/openguildkit/registry/boards/**'
+sector:
+  - changed-files:
+      - any-glob-to-any-file: 'src/openguildkit/registry/sectors/**'
+catalog:
+  - changed-files:
+      - any-glob-to-any-file: 'src/openguildkit/registry/references/**'
+tooling:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/openguildkit/*.py'
+          - 'integrations/**'
+          - 'tests/**'
+          - 'pyproject.toml'
+          - '.github/**'
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '*.md'
+          - 'docs/**'
+          - 'examples/**'
+          - 'assets/**'

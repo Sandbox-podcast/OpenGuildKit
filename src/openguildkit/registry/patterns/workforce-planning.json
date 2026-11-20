@@ -1,0 +1,20 @@
+{
+  "id": "workforce-planning",
+  "title": "Workforce planning",
+  "description": "Compare future demand with available roles and skills before committing to a staffing response.",
+  "sources": [
+    {
+      "title": "U.S. Office of Personnel Management, Workforce Planning Model",
+      "url": "https://www.opm.gov/policy-data-oversight/human-capital-framework/reference-materials/strategic-alignment/workforceplanning/"
+    }
+  ],
+  "roles": [
+    "hr",
+    "leadership",
+    "finance",
+    "operations"
+  ],
+  "packs": [
+    "workforce-capacity"
+  ]
+}

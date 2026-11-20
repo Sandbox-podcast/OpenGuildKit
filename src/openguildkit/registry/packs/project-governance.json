@@ -1,0 +1,33 @@
+{
+  "id": "project-governance",
+  "title": "Project stage governance",
+  "version": "1.0.0",
+  "description": "Evidence and decisions for a team managing a project in PRINCE2 stages.",
+  "sources": [
+    {
+      "title": "PeopleCert, PRINCE2 7: A Process of Evolution",
+      "url": "https://www.peoplecert.org/news-and-announcements/2023/PRINCE2%207%20-%20A%20Process%20of%20Evolution"
+    },
+    {
+      "title": "PeopleCert, Applying PRINCE2 7 principles",
+      "url": "https://www.peoplecert.org/news-and-announcements/2023/prince2-7-applying-universal-principles-for-companies-of-all-sizes"
+    }
+  ],
+  "rules": [
+    {
+      "id": "agree-stage-tolerance",
+      "instruction": "At stage start, agree on the products due, acceptance criteria, resources and tolerances the team can work within. Assign decisions beyond those tolerances to the agreed escalation owner.",
+      "verification": "Ask the project manager to explain which forecast would trigger escalation and trace that threshold to an approved stage plan."
+    },
+    {
+      "id": "review-stage-boundary",
+      "instruction": "Before committing to the next stage, review what was accepted, what remains open and whether the current business case still supports continuing.",
+      "verification": "Record the sponsor's decision and its evidence, including updated assumptions and any conditions on the next stage."
+    },
+    {
+      "id": "close-project",
+      "instruction": "At closure, hand over accepted products with unresolved items and operational owners. Agree who will review expected benefits and when.",
+      "verification": "Match each outstanding item to a handover entry and confirm that the benefits review has an owner and date."
+    }
+  ]
+}

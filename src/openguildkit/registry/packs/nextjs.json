@@ -1,0 +1,40 @@
+{
+  "id": "nextjs",
+  "title": "Next.js App Router",
+  "version": "1.0.0",
+  "description": "Checks for where components run, what crosses the client boundary and how server actions authorize requests.",
+  "sources": [
+    {
+      "title": "Next.js Server and Client Components",
+      "url": "https://nextjs.org/docs/app/getting-started/server-and-client-components"
+    },
+    {
+      "title": "Next.js data security guide",
+      "url": "https://nextjs.org/docs/app/guides/data-security"
+    },
+    {
+      "title": "Next.js App Router revalidation",
+      "url": "https://nextjs.org/docs/app/getting-started/revalidating"
+    }
+  ],
+  "depends_on": [
+    "react"
+  ],
+  "rules": [
+    {
+      "id": "locate-client-boundary",
+      "instruction": "For App Router code, keep browser interaction in the Client Components that need it. Pass those components only the serializable fields they use.",
+      "verification": "Build the app and inspect the changed route for server-only imports or fields crossing into the client bundle or payload."
+    },
+    {
+      "id": "check-server-mutation-access",
+      "instruction": "Validate inputs and check authorization within every changed server action that modifies protected resources. Reuse the project's server-side data access layer where it exists.",
+      "verification": "Exercise the action with a permitted role and a role without access. Confirm that an invalid request leaves the data unchanged."
+    },
+    {
+      "id": "check-refetched-state",
+      "instruction": "After a server mutation, apply the project's cache and revalidation strategy to affected pages and data.",
+      "verification": "Verify the new state after submission, navigation and reload with the page's configured cache behavior."
+    }
+  ]
+}

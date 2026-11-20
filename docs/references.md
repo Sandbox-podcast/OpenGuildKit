@@ -14,6 +14,8 @@ openguildkit references --family cloud "observabilite" --json
 
 Without options, the command lists the families and their counts. Search matches whole words across names, categories and descriptions, ignoring accents and case. Results with terms in the title or ID appear first. Use `--id` for the full entry and its source links. With `--json`, the command returns an array of matching records. The CLI reads the index locally.
 
+The `work-patterns` family comes from the [pattern catalog](patterns.md). An entry such as `pattern-scrum` links to the actionable Scrum pattern. Edit the pattern record to change its index entry.
+
 ## Apply a reference to a project
 
 `openguildkit references` shows material to investigate. `openguildkit catalog` lists the rule packs that can be applied to project instructions. During setup, select the packs that fit your stack and delivery process. For an existing project, edit the `packs` array in `.openguildkit/project.json`, then run `openguildkit sync` and `openguildkit check`.

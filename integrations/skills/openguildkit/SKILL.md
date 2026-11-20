@@ -17,10 +17,10 @@ Run commands from the project root, or pass `--project PATH` before the subcomma
 
 ## Setup
 
-1. Run `openguildkit catalog` and `openguildkit init --questions`.
-2. Ask the user each question. Use your multiple-choice tool when it can show the choices as printed. Use a numbered list in the conversation when the tool has fewer options. Omit the `packs` key to use stack-based recommendations. Use `"packs": []` to select only the required workflow pack.
-3. Write the answers as a JSON object to a temporary file outside the repository and run `openguildkit init --answers FILE`.
-4. Run `openguildkit check`, then show the user the packs and boards now active and where they live (`AGENTS.md`, `.openguildkit/project.json`).
+1. Read `openguildkit init --questions`. Ask for the project name, sector, stack and roles first. Use your multiple-choice tool when it can show the choices as printed, or use a numbered list in the conversation.
+2. Save those answers in a temporary JSON file outside the repository. Run `openguildkit recommend --answers FILE --json`. Show the matching stack patterns and ask which suggested work methods the team uses. For details, run `openguildkit patterns --id ID`. Record the full selection in `patterns`, including any stack pattern the user wants to keep. An empty list skips patterns.
+3. Collect pack overrides, boards, research permissions, conventions and checks. Leave `packs` out to keep the baseline and language defaults. Set it to a list to choose the additional packs. Save the complete answers and run `openguildkit init --answers FILE`.
+4. Run `openguildkit check`, then show the selected patterns and the applied packs in `AGENTS.md`, alongside the profile in `.openguildkit/project.json`.
 
 ## Task
 

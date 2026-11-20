@@ -1,0 +1,31 @@
+{
+  "id": "postgresql-database",
+  "title": "PostgreSQL data integrity",
+  "description": "Review schema compatibility, database invariants and critical query plans.",
+  "sources": [
+    {
+      "title": "PostgreSQL transactions",
+      "url": "https://www.postgresql.org/docs/current/tutorial-transactions.html"
+    },
+    {
+      "title": "PostgreSQL constraints",
+      "url": "https://www.postgresql.org/docs/current/ddl-constraints.html"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "performance",
+    "qa"
+  ],
+  "packs": [
+    "postgresql"
+  ],
+  "match": {
+    "stack": [
+      [
+        "postgresql",
+        "postgres"
+      ]
+    ]
+  }
+}

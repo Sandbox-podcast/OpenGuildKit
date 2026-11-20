@@ -1,0 +1,19 @@
+{
+  "id": "owasp-asvs-review",
+  "title": "OWASP ASVS review",
+  "description": "Select when the security owner wants a defensive application review against a named ASVS version and level.",
+  "sources": [
+    {
+      "title": "OWASP Application Security Verification Standard",
+      "url": "https://asvs.owasp.org/"
+    }
+  ],
+  "roles": [
+    "security",
+    "engineering",
+    "qa"
+  ],
+  "packs": [
+    "owasp-asvs"
+  ]
+}

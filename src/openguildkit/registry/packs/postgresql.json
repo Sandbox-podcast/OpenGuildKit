@@ -1,0 +1,37 @@
+{
+  "id": "postgresql",
+  "title": "PostgreSQL data integrity",
+  "version": "1.0.0",
+  "description": "Checks for transaction boundaries, schema changes and queries that serve important paths.",
+  "sources": [
+    {
+      "title": "PostgreSQL transactions",
+      "url": "https://www.postgresql.org/docs/current/tutorial-transactions.html"
+    },
+    {
+      "title": "PostgreSQL constraints",
+      "url": "https://www.postgresql.org/docs/current/ddl-constraints.html"
+    },
+    {
+      "title": "PostgreSQL EXPLAIN",
+      "url": "https://www.postgresql.org/docs/current/using-explain.html"
+    }
+  ],
+  "rules": [
+    {
+      "id": "protect-data-invariants",
+      "instruction": "Use database constraints for invariants the schema can express. Put writes that must succeed together in one transaction.",
+      "verification": "Run an integration case that fails partway through the operation and check that the prior committed state is intact. Verify the relevant constraint with an invalid fixture."
+    },
+    {
+      "id": "stage-schema-migrations",
+      "instruction": "Check existing rows and supported readers and writers before tightening constraints or removing fields. Sequence the migration and record its recovery plan.",
+      "verification": "Apply the migration to representative data on the supported PostgreSQL version. Verify fresh setup, upgrade from the prior schema and coexistence of app versions if the rollout requires it."
+    },
+    {
+      "id": "inspect-critical-query-plan",
+      "instruction": "Measure changed critical queries with data volumes and distributions that represent the expected workload. Record any index or query changes that follow.",
+      "verification": "Review the query plan and measured timings on approved test data. Use execution-based plan collection only where running the statement is permitted."
+    }
+  ]
+}

@@ -1,14 +1,15 @@
 ## What changes
 
-<!-- One topic per pull request. Link the issue. -->
+<!-- Describe the contribution and who can use it. For a pattern, include the situation and the expected outcome. -->
+
+## Related issue
+
+<!-- Link an existing issue if there is one. Use "Closes #123" if this resolves it. A focused contribution can start with this pull request. -->
 
 ## Effect on existing projects
 
-<!-- Changed pack versions invalidate pending approvals in projects that use them. List them, or write "none". -->
+<!-- Mention changes to rule packs or project instructions that require sync or a new consultation. -->
 
-## Checks
+## Verification
 
-- [ ] `python -m unittest discover -s tests` passes
-- [ ] `python -m openguildkit catalog --json` loads without error
-- [ ] Catalog changes: sources are official, HTTPS, paraphrased; no compliance claim
-- [ ] Docs updated (README, docs/) if behavior changed
+<!-- List what you tested. For catalog-only changes, run the relevant command: openguildkit catalog, references or patterns. For CLI changes, run python -m unittest discover -s tests. -->

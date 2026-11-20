@@ -1,0 +1,29 @@
+{
+  "id": "java-spring-boot",
+  "title": "Java and Spring Boot",
+  "description": "Review application configuration, Spring-managed transactions and endpoint tests in a Java service.",
+  "sources": [
+    {
+      "title": "Spring Boot externalized configuration",
+      "url": "https://docs.spring.io/spring-boot/reference/features/external-config.html"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa"
+  ],
+  "packs": [
+    "spring-boot"
+  ],
+  "match": {
+    "stack": [
+      [
+        "java",
+        "jdk"
+      ],
+      [
+        "spring boot"
+      ]
+    ]
+  }
+}

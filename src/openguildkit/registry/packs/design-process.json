@@ -1,0 +1,24 @@
+{
+  "id": "design-process",
+  "title": "Double Diamond design process",
+  "version": "1.0.0",
+  "description": "Explore the problem before committing to an approach and test alternatives before delivery.",
+  "sources": [
+    {
+      "title": "Design Council, Framework for Innovation",
+      "url": "https://www.designcouncil.org.uk/resources/framework-for-innovation"
+    }
+  ],
+  "rules": [
+    {
+      "id": "test-problem-definition",
+      "instruction": "Explore the problem with the people affected, then narrow it to a design question tied to observed behavior. Keep consequential unknowns visible.",
+      "verification": "Review a sample of research evidence with the team and check that it supports the chosen design question."
+    },
+    {
+      "id": "compare-prototypes",
+      "instruction": "Explore alternatives before investing in a detailed solution. Test promising prototypes on the same user task so differences can inform selection.",
+      "verification": "Record what users could complete, where they struggled and which evidence led the team to keep, refine or discard each alternative."
+    }
+  ]
+}

@@ -5,17 +5,19 @@ import sys
 from pathlib import Path
 
 from .catalog import load_catalog
+from .patterns import role_choices
 from .project import (
     check_instructions,
     init_questions,
     initialize,
     load_profile,
+    profile_recommendations,
     project_root,
     state_path,
     sync_instructions,
     validate_profile,
 )
-from .references import find_references, load_references
+from .references import find_references, load_references, with_pattern_references
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
     create_task,
@@ -40,6 +42,13 @@ def _parser() -> argparse.ArgumentParser:
     references.add_argument("--family", help="Show references from one family ID.")
     references.add_argument("--id", help="Show one reference and its sources.")
     references.add_argument("--json", action="store_true", help="Print matching references as JSON.")
+    patterns = commands.add_parser("patterns", help="List stack patterns and work methods.")
+    patterns.add_argument("--role", help="Filter by role ID.")
+    patterns.add_argument("--id", help="Show a pattern, its match and its rule packs.")
+    patterns.add_argument("--json", action="store_true", help="Print matching patterns as JSON.")
+    recommend = commands.add_parser("recommend", help="Preview patterns for a project context.")
+    recommend.add_argument("--answers", type=Path, help="Read sector, stack and roles from a JSON file.")
+    recommend.add_argument("--json", action="store_true", help="Print matches and suggestions as JSON.")
     init = commands.add_parser("init", help="Initialize a project profile and agent instructions.")
     init_mode = init.add_mutually_exclusive_group()
     init_mode.add_argument("--questions", action="store_true", help="Print the setup questionnaire as JSON.")
@@ -110,7 +119,9 @@ def _prompt_questions(questions: list[dict], command: str) -> dict:
         if kind in {"list", "multi-select"}:
             print("  Separate multiple entries with commas.", file=sys.stderr)
         if question["id"] == "packs":
-            print("  Enter '-' to use only the OpenGuildKit workflow pack.", file=sys.stderr)
+            print("  Enter '-' for the required workflow pack and any selected pattern packs.", file=sys.stderr)
+        if question["id"] == "patterns":
+            print("  Enter '-' to skip patterns, or select all the IDs you want to apply.", file=sys.stderr)
         if "default" in question:
             print(f"  Default: {question['default']}", file=sys.stderr)
         while True:
@@ -121,8 +132,8 @@ def _prompt_questions(questions: list[dict], command: str) -> dict:
                 break
             if not value and kind in {"list", "multi-select"}:
                 break
-            if value == "-" and question["id"] == "packs":
-                answers["packs"] = []
+            if value == "-" and question["id"] in {"packs", "patterns"}:
+                answers[question["id"]] = []
                 break
             if not value:
                 print("  Choose an answer.", file=sys.stderr)
@@ -142,18 +153,37 @@ def _prompt_questions(questions: list[dict], command: str) -> dict:
     return answers
 
 
+def _interactive_init(questions: list[dict], catalog: dict) -> dict:
+    context_questions = [question for question in questions if question["id"] in {"name", "sector", "stack", "roles"}]
+    answers = _prompt_questions(context_questions, "init")
+    pending = [question for question in questions if question not in context_questions]
+    plan = profile_recommendations(answers, catalog)
+    matched = [pattern["id"] for pattern in plan["matched"]]
+    suggested = [pattern["id"] for pattern in plan["suggested"]]
+    if suggested:
+        print(f"\nMethods and alternatives to consider: {', '.join(suggested)}", file=sys.stderr)
+    for question in pending:
+        if question["id"] == "patterns":
+            question["default"] = matched
+            position = {pattern_id: index for index, pattern_id in enumerate([*matched, *suggested])}
+            question["choices"].sort(key=lambda choice: position.get(choice["id"], len(position)))
+    answers.update(_prompt_questions(pending, "init"))
+    return answers
+
+
 def _print_catalog(catalog: dict, as_json: bool) -> None:
+    groups = ("packs", "boards", "sectors")
     if as_json:
-        _print_json(catalog)
+        _print_json({group: catalog[group] for group in groups})
         return
-    for group in ("packs", "boards", "sectors"):
+    for group in groups:
         print(group.capitalize())
         for entry in catalog[group].values():
             print(f"  {entry['id']:<24} {entry['title']}")
 
 
-def _print_references(args, state: Path) -> None:
-    families = load_references(state / "catalog" / "references")
+def _print_references(args, state: Path, catalog: dict) -> None:
+    families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
     if not args.json and all(value is None for value in (args.query, args.family, args.id)):
         print(f"{sum(len(family['references']) for family in families.values())} references")
         for family in families.values():
@@ -174,6 +204,52 @@ def _print_references(args, state: Path) -> None:
             print(f"  {reference['id']:<34} {reference['title']} [{reference['family']}]")
     else:
         print("No references matched.")
+
+
+def _print_patterns(args, patterns: dict) -> None:
+    roles = role_choices(patterns)
+    if args.role and args.role not in roles:
+        raise ValueError(f"Unknown role: {args.role}. Available roles: {', '.join(roles)}.")
+    matches = [
+        pattern for pattern in patterns.values()
+        if (not args.role or args.role in pattern["roles"]) and (not args.id or args.id == pattern["id"])
+    ]
+    if args.id and not matches:
+        raise ValueError(f"No pattern matched {args.id!r}.")
+    if args.json:
+        _print_json(matches)
+        return
+    if args.id:
+        pattern = matches[0]
+        print(f"{pattern['title']} [{pattern['id']}]")
+        print(pattern["description"])
+        print(f"Roles: {', '.join(pattern['roles'])}")
+        print(f"Packs: {', '.join(pattern['packs'])}")
+        if "match" in pattern:
+            requirements = [" / ".join(group) for group in pattern["match"]["stack"]]
+            print(f"Stack requirements: {' + '.join(requirements)}")
+            if pattern["match"].get("sectors"):
+                print(f"Sectors: {', '.join(pattern['match']['sectors'])}")
+        for source in pattern["sources"]:
+            print(f"- {source['title']}: {source['url']}")
+        return
+    print(f"{len(matches)} patterns")
+    for pattern in matches:
+        print(f"  {pattern['id']:<33} {pattern['title']} [{', '.join(pattern['roles'])}]")
+
+
+def _print_recommendations(plan: dict, as_json: bool) -> None:
+    if as_json:
+        _print_json(plan)
+        return
+    print("Matched stack patterns")
+    for pattern in plan["matched"]:
+        print(f"  {pattern['id']}: {', '.join(pattern['matched_stack'])}")
+    print("Methods and alternatives to consider")
+    for pattern in plan["suggested"]:
+        reason = ", ".join(pattern.get("matched_roles", [])) or "choose one overlapping pattern"
+        print(f"  {pattern['id']}: {reason}")
+    print(f"Recommended packs: {', '.join(plan['recommended_packs'])}")
 
 
 def _read_consultation(task: dict) -> dict:
@@ -260,11 +336,15 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
 def _run(args) -> None:
     root = project_root(args.project)
     state = state_path(root)
-    if args.command == "references":
-        _print_references(args, state)
-        return
     catalog = load_catalog(state / "catalog")
-    if args.command == "catalog":
+    if args.command == "references":
+        _print_references(args, state, catalog)
+    elif args.command == "patterns":
+        _print_patterns(args, catalog["patterns"])
+    elif args.command == "recommend":
+        answers = read_json(args.answers) if args.answers else load_profile(state, catalog)
+        _print_recommendations(profile_recommendations(answers, catalog), args.json)
+    elif args.command == "catalog":
         _print_catalog(catalog, args.json)
     elif args.command == "init":
         questions = init_questions(catalog, root.name or "Project")
@@ -273,7 +353,7 @@ def _run(args) -> None:
             return
         if (state / "project.json").exists():
             raise ValueError("Project is already initialized. Edit .openguildkit/project.json and run openguildkit sync.")
-        answers = read_json(args.answers) if args.answers else _prompt_questions(questions, "init")
+        answers = read_json(args.answers) if args.answers else _interactive_init(questions, catalog)
         with project_lock(state):
             catalog = load_catalog(state / "catalog")
             initialize(root, state, validate_profile(answers, catalog), catalog)

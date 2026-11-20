@@ -1,0 +1,24 @@
+{
+  "id": "market-evidence",
+  "title": "Market and competitor evidence",
+  "version": "1.0.0",
+  "description": "Comparable evidence for marketing and product decisions about a market.",
+  "sources": [
+    {
+      "title": "U.S. Small Business Administration, Market research and competitive analysis",
+      "url": "https://www.sba.gov/business-guide/plan-your-business/market-research-competitive-analysis"
+    }
+  ],
+  "rules": [
+    {
+      "id": "define-comparison-set",
+      "instruction": "Define the buyer, problem and geography before comparing alternatives. Include direct competitors and what buyers can do without purchasing a product.",
+      "verification": "Check that the comparison set matches the brief and explicitly describes how each alternative solves the same problem."
+    },
+    {
+      "id": "cite-comparable-evidence",
+      "instruction": "For each market claim, record its source, date and market scope. Distinguish advertised features and prices from what customers reported in research.",
+      "verification": "Sample the decision-driving claims and reproduce them from the cited evidence. Mark missing details as unknown and record a validation step."
+    }
+  ]
+}

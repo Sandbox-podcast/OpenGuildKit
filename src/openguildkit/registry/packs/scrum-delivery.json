@@ -1,0 +1,29 @@
+{
+  "id": "scrum-delivery",
+  "title": "Scrum delivery",
+  "version": "1.0.0",
+  "description": "Sprint planning, inspection and follow-through for teams that use Scrum.",
+  "sources": [
+    {
+      "title": "The Scrum Guide, 2020",
+      "url": "https://scrumguides.org/scrum-guide.html"
+    }
+  ],
+  "rules": [
+    {
+      "id": "plan-sprint",
+      "instruction": "Before selecting Sprint work, agree on a Sprint Goal and have the Developers check capacity and dependencies. Keep the Sprint Backlog current as they learn.",
+      "verification": "Check that each selected item supports the Sprint Goal or has a stated reason, that open dependencies have owners and that the team can explain the current plan."
+    },
+    {
+      "id": "inspect-increment",
+      "instruction": "Apply the team's Definition of Done to the Increment. At the Sprint Review, gather stakeholder feedback and use it to revisit the Product Backlog.",
+      "verification": "Trace completed items to evidence for the Definition of Done and check that Review feedback has a recorded backlog decision."
+    },
+    {
+      "id": "follow-retrospective-action",
+      "instruction": "Choose an improvement from the Sprint Retrospective, give it an owner and agree on what to observe in the next Sprint.",
+      "verification": "At the next Retrospective, review the change and its observed effect before deciding whether to keep it."
+    }
+  ]
+}

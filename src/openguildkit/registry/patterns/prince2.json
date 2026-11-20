@@ -1,0 +1,22 @@
+{
+  "id": "prince2",
+  "title": "PRINCE2 project stages",
+  "description": "Review the business case and change exposure at each stage boundary before committing the next tranche of work.",
+  "sources": [
+    {
+      "title": "PeopleCert, PRINCE2 7: A Process of Evolution",
+      "url": "https://www.peoplecert.org/news-and-announcements/2023/PRINCE2%207%20-%20A%20Process%20of%20Evolution"
+    },
+    {
+      "title": "PeopleCert, Applying PRINCE2 7 principles",
+      "url": "https://www.peoplecert.org/news-and-announcements/2023/prince2-7-applying-universal-principles-for-companies-of-all-sizes"
+    }
+  ],
+  "roles": [
+    "project-management",
+    "leadership"
+  ],
+  "packs": [
+    "project-governance"
+  ]
+}

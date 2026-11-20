@@ -1,0 +1,33 @@
+{
+  "id": "campaign-measurement",
+  "title": "Campaign measurement and experiments",
+  "version": "1.0.0",
+  "description": "Track inbound links consistently and design experiments with a decision rule.",
+  "sources": [
+    {
+      "title": "Google Analytics Help, Collect campaign data with custom URLs",
+      "url": "https://support.google.com/analytics/answer/10917952"
+    },
+    {
+      "title": "Kohavi et al., Practical Guide to Controlled Experiments on the Web",
+      "url": "https://exp-platform.com/practical-guide/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "tag-inbound-links",
+      "instruction": "For links tagged with UTM parameters, agree on source, medium and campaign names with the analytics owner. Use the same case across channels and keep personal data out of parameter values.",
+      "verification": "Open a sample link for each channel, follow redirects and check that a test visit appears under the expected campaign dimensions."
+    },
+    {
+      "id": "design-controlled-test",
+      "instruction": "For an A/B test, state the hypothesis, primary metric, guardrails, unit of randomization and stopping rule before assigning traffic.",
+      "verification": "Review event definitions and the planned duration. Check assignment balance and sample ratios before interpreting observed differences."
+    },
+    {
+      "id": "report-experiment-uncertainty",
+      "instruction": "When reviewing an A/B test, record the estimated effect and uncertainty along with any problems in assignment or logging. Apply the agreed decision rule before rolling out.",
+      "verification": "Reconcile the report with the experiment plan and verify that each guardrail passed or has a recorded decision from the owner."
+    }
+  ]
+}

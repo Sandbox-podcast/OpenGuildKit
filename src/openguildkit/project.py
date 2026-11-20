@@ -5,6 +5,7 @@ import json
 import re
 from pathlib import Path
 
+from .patterns import check_pattern_choices, recommend_patterns, role_choices
 from .storage import read_json, write_json, write_text
 from .workflow import AGENT_WORKFLOW
 
@@ -58,8 +59,20 @@ def init_questions(catalog: dict, project_name: str) -> list[dict]:
             "examples": ["Python", "FastAPI", "PostgreSQL"],
         },
         _select(
+            "roles",
+            "Which roles should this project support?",
+            role_choices(catalog["patterns"]).values(),
+            multiple=True,
+        ),
+        _select(
+            "patterns",
+            "Which patterns should apply? Enter for matches from the stack.",
+            catalog["patterns"].values(),
+            multiple=True,
+        ),
+        _select(
             "packs",
-            "Which rule packs should apply? Enter for recommendations based on the stack.",
+            "Which additional packs should apply? Enter for recommended baseline and language packs.",
             catalog["packs"].values(),
             multiple=True,
         ),
@@ -100,12 +113,36 @@ def _ids(value, field: str, available: dict) -> list[str]:
 def _recommended_packs(stack: list[str], catalog: dict) -> list[str]:
     aliases = {"react.js": "react", "openapi": "api-design"}
     tokens = {re.split(r"[\s@]+", item.lower(), maxsplit=1)[0] for item in stack}
-    candidates = {"secure-sdlc", *(aliases.get(token, token) for token in tokens)}
+    legacy_stack_packs = {"api-design", "python", "react", "typescript"}
+    names = {aliases.get(token, token) for token in tokens}
+    candidates = {"secure-sdlc", *(names & legacy_stack_packs)}
     return sorted(candidates & catalog["packs"].keys())
 
 
+def _project_context(answers: dict, catalog: dict) -> tuple[str, list[str], list[str]]:
+    sector = answers.get("sector", "general")
+    if not isinstance(sector, str) or sector not in catalog["sectors"]:
+        raise ValueError(f"Unknown sector: {sector}. Run openguildkit catalog.")
+    stack = _texts(answers.get("stack", []), "stack")
+    roles = _ids(answers.get("roles", []), "roles", role_choices(catalog["patterns"]))
+    return sector, stack, roles
+
+
+def profile_recommendations(answers: dict, catalog: dict) -> dict:
+    sector, stack, roles = _project_context(answers, catalog)
+    result = recommend_patterns(catalog, stack, sector, roles)
+    base_packs = ["agent-workflow", *_recommended_packs(stack, catalog)]
+    result["recommended_packs"] = list(
+        dict.fromkeys([*base_packs, *(pack for pattern in result["matched"] for pack in pattern["packs"])])
+    )
+    return result
+
+
 def validate_profile(answers: dict, catalog: dict) -> dict:
-    fields = {"schema_version", "name", "sector", "stack", "packs", "boards", "research", "conventions", "checks"}
+    fields = {
+        "schema_version", "name", "sector", "stack", "roles", "patterns", "packs",
+        "boards", "research", "conventions", "checks",
+    }
     unknown = sorted(answers.keys() - fields)
     if unknown:
         raise ValueError(f"Unknown profile fields: {', '.join(unknown)}")
@@ -115,15 +152,18 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     name = answers.get("name")
     if not isinstance(name, str) or not name.strip() or len(name.splitlines()) != 1:
         raise ValueError("name must be a non-empty single line")
-    sector = answers.get("sector", "general")
-    if not isinstance(sector, str) or sector not in catalog["sectors"]:
-        raise ValueError(f"Unknown sector: {sector}. Run openguildkit catalog.")
+    sector, stack, roles = _project_context(answers, catalog)
     research = answers.get("research", "local-only")
     if research not in ("local-only", "public-sources"):
         raise ValueError("research must be local-only or public-sources")
-    stack = _texts(answers.get("stack", []), "stack")
+    pattern_ids = _ids(answers.get("patterns", []), "patterns", catalog["patterns"])
+    if "patterns" not in answers and "packs" not in answers:
+        pattern_ids = [
+            record["id"] for record in recommend_patterns(catalog, stack, sector, roles)["matched"]
+        ]
+    check_pattern_choices(pattern_ids, catalog["patterns"])
     packs = _ids(answers.get("packs", _recommended_packs(stack, catalog)), "packs", catalog["packs"])
-    return {
+    profile = {
         "schema_version": SCHEMA_VERSION,
         "name": name.strip(),
         "sector": sector,
@@ -134,6 +174,11 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         "conventions": _texts(answers.get("conventions", []), "conventions"),
         "checks": _texts(answers.get("checks", []), "checks"),
     }
+    if roles:
+        profile["roles"] = roles
+    if pattern_ids:
+        profile["patterns"] = pattern_ids
+    return profile
 
 
 def load_profile(state: Path, catalog: dict) -> dict:
@@ -152,7 +197,12 @@ def resolved_profile(profile: dict, catalog: dict) -> dict:
                 add_pack(dependency)
             ordered[pack_id] = None
 
-    for pack_id in profile["packs"]:
+    pattern_packs = [
+        pack_id
+        for pattern_id in profile.get("patterns", [])
+        for pack_id in catalog["patterns"][pattern_id]["packs"]
+    ]
+    for pack_id in [*profile["packs"], *pattern_packs]:
         add_pack(pack_id)
     return {**profile, "packs": list(ordered), "boards": profile["boards"] or sorted(catalog["boards"])}
 
@@ -165,6 +215,8 @@ def profile_fingerprint(profile: dict, catalog: dict) -> str:
         "boards": [catalog["boards"][board_id] for board_id in resolved["boards"]],
         "sector": catalog["sectors"][resolved["sector"]],
     }
+    if profile.get("patterns"):
+        snapshot["patterns"] = [catalog["patterns"][pattern_id] for pattern_id in profile["patterns"]]
     canonical = json.dumps(snapshot, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
@@ -193,6 +245,12 @@ def render_instructions(profile: dict, catalog: dict) -> str:
         "",
         *AGENT_WORKFLOW.strip().splitlines(),
     ]
+    if profile.get("patterns"):
+        lines.extend(["", "### Selected patterns", ""])
+        for pattern_id in profile["patterns"]:
+            pattern = catalog["patterns"][pattern_id]
+            packs = ", ".join(f"`{pack_id}`" for pack_id in pattern["packs"])
+            lines.append(f"- {pattern['title']} (`{pattern_id}`) uses {packs}.")
     for title, field in (("Team conventions", "conventions"), ("Project checks", "checks")):
         if profile[field]:
             lines.extend(["", f"### {title}", "", *_bullets(profile[field])])

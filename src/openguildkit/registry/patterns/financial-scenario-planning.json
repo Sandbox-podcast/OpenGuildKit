@@ -1,0 +1,19 @@
+{
+  "id": "financial-scenario-planning",
+  "title": "Financial scenario planning",
+  "description": "Compare planning outcomes under different assumptions and find which changes would alter the decision.",
+  "sources": [
+    {
+      "title": "HM Treasury, The Green Book (2026)",
+      "url": "https://www.gov.uk/government/publications/the-green-book--2/the-green-book-2026"
+    }
+  ],
+  "roles": [
+    "finance",
+    "leadership",
+    "operations"
+  ],
+  "packs": [
+    "financial-planning"
+  ]
+}

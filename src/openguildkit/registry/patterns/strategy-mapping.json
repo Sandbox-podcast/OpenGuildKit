@@ -1,0 +1,19 @@
+{
+  "id": "strategy-mapping",
+  "title": "Strategy mapping",
+  "description": "Show the assumptions that connect team capabilities and process changes to customer and financial outcomes.",
+  "sources": [
+    {
+      "title": "Robert S. Kaplan, Mapping Your Corporate Strategy",
+      "url": "https://www.library.hbs.edu/working-knowledge/mapping-your-corporate-strategy"
+    }
+  ],
+  "roles": [
+    "leadership",
+    "finance",
+    "operations"
+  ],
+  "packs": [
+    "leadership-planning"
+  ]
+}

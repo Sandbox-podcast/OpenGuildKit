@@ -1,0 +1,19 @@
+{
+  "id": "employee-onboarding",
+  "title": "Employee onboarding",
+  "description": "Prepare first-week work and access before a new hire starts, then use check-ins to resolve real blockers.",
+  "sources": [
+    {
+      "title": "U.S. Office of Personnel Management, Sample supervisor onboarding checklist",
+      "url": "https://www.opm.gov/policy-data-oversight/human-capital-management/hiring-reform/sample-supervisor-checklist.pdf"
+    }
+  ],
+  "roles": [
+    "hr",
+    "operations",
+    "leadership"
+  ],
+  "packs": [
+    "onboarding-practice"
+  ]
+}

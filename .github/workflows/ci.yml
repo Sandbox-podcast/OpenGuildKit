@@ -33,6 +33,9 @@ jobs:
       - name: Validate the reference library
         run: openguildkit references
 
+      - name: Validate the pattern library
+        run: openguildkit patterns
+
       - name: Unit and end-to-end tests
         run: python -m unittest discover -s tests -v
 
@@ -61,3 +64,19 @@ jobs:
           cd /tmp
           /tmp/wheel-env/bin/openguildkit catalog
           /tmp/wheel-env/bin/openguildkit references --id conventional-commits
+          /tmp/wheel-env/bin/openguildkit patterns
+
+  contribution-checks:
+    name: contribution-checks
+    if: ${{ always() }}
+    needs: [test, package]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Require the matrix and wheel checks to pass
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+          PACKAGE_RESULT: ${{ needs.package.result }}
+        run: |
+          printf 'Tests: %s\nWheel: %s\n' "$TEST_RESULT" "$PACKAGE_RESULT"
+          test "$TEST_RESULT" = success && test "$PACKAGE_RESULT" = success

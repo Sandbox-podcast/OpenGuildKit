@@ -1,0 +1,41 @@
+{
+  "id": "fastapi",
+  "title": "FastAPI services",
+  "version": "1.0.0",
+  "description": "Checks for API response schemas, resource lifespan and request behavior.",
+  "sources": [
+    {
+      "title": "FastAPI response models",
+      "url": "https://fastapi.tiangolo.com/tutorial/response-model/"
+    },
+    {
+      "title": "FastAPI lifespan events",
+      "url": "https://fastapi.tiangolo.com/advanced/events/"
+    },
+    {
+      "title": "FastAPI testing",
+      "url": "https://fastapi.tiangolo.com/tutorial/testing/"
+    }
+  ],
+  "depends_on": [
+    "python",
+    "api-design"
+  ],
+  "rules": [
+    {
+      "id": "declare-response-model",
+      "instruction": "Declare the response model for JSON endpoints that return application data. Expose the promised fields and keep private persistence fields outside the schema.",
+      "verification": "Inspect the generated OpenAPI operation and assert the response shape with a representative record containing internal fields."
+    },
+    {
+      "id": "manage-resource-lifespan",
+      "instruction": "Open and close shared resources through the project's FastAPI lifespan mechanism. Keep request-scoped state attached to the request or its dependencies.",
+      "verification": "Exercise startup and shutdown in an integration test and confirm that an initialization failure prevents the app from serving requests."
+    },
+    {
+      "id": "verify-request-contract",
+      "instruction": "Test changes through the application entry point using its configured route dependencies and test services.",
+      "verification": "Check a representative success response, a validation failure and any authorization rules affected by the change."
+    }
+  ]
+}

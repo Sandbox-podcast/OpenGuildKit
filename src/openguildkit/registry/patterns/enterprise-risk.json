@@ -1,0 +1,20 @@
+{
+  "id": "enterprise-risk",
+  "title": "Enterprise risk management",
+  "description": "Tie each material risk to an objective, a response owner and a threshold for escalation.",
+  "sources": [
+    {
+      "title": "COSO, Enterprise Risk Management",
+      "url": "https://www.coso.org/enterprise-risk-management"
+    }
+  ],
+  "roles": [
+    "leadership",
+    "finance",
+    "operations",
+    "project-management"
+  ],
+  "packs": [
+    "enterprise-risk-review"
+  ]
+}

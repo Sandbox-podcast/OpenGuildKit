@@ -13,6 +13,7 @@ COLLECTION_FIELDS = {
     "packs": {"version", "rules"},
     "boards": {"expertises", "triggers", "questions"},
     "sectors": {"context"},
+    "patterns": {"roles", "packs"},
 }
 ENTRY_FIELDS = {"id", "title", "description", "sources"}
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -107,9 +108,36 @@ def _validate_pack(pack: dict[str, Any]) -> None:
         _validate_text(rule["verification"], f"{label}.verification")
 
 
+def _validate_pattern(pattern: dict[str, Any]) -> None:
+    for key in ("roles", "packs"):
+        identifiers = pattern[key]
+        _validate_list(identifiers, key)
+        for item in identifiers:
+            _validate_id(item, f"{key} entry")
+        if len(identifiers) != len(set(identifiers)):
+            raise CatalogError(f"{key} contains duplicate IDs")
+    if "exclusive_group" in pattern:
+        _validate_id(pattern["exclusive_group"], "exclusive_group")
+    if "match" not in pattern:
+        return
+    match = pattern["match"]
+    _validate_fields(match, "match", {"stack"}, {"sectors"})
+    _validate_list(match["stack"], "match.stack")
+    for group in match["stack"]:
+        _validate_list(group, "technology aliases")
+        for alias in group:
+            _validate_text(alias, "technology alias")
+            if not any(character.isalnum() for character in alias):
+                raise CatalogError("Technology aliases must contain letters or digits")
+    if "sectors" in match:
+        _validate_list(match["sectors"], "match.sectors")
+        for sector in match["sectors"]:
+            _validate_id(sector, "sector ID")
+
+
 def _validate_entry(collection: str, entry: Any) -> None:
     required = ENTRY_FIELDS | COLLECTION_FIELDS[collection]
-    optional = {"depends_on"} if collection == "packs" else None
+    optional = {"packs": {"depends_on"}, "patterns": {"match", "exclusive_group"}}.get(collection)
     _validate_fields(entry, "record", required, optional)
     _validate_id(entry["id"], "id")
     _validate_text(entry["title"], "title")
@@ -117,6 +145,9 @@ def _validate_entry(collection: str, entry: Any) -> None:
     _validate_sources(entry["sources"])
     if collection == "packs":
         _validate_pack(entry)
+        return
+    if collection == "patterns":
+        _validate_pattern(entry)
         return
     for field in sorted(COLLECTION_FIELDS[collection]):
         _validate_list(entry[field], field)
@@ -171,4 +202,11 @@ def load_catalog(extra_dir: Path | None = None) -> dict[str, dict[str, dict[str,
         catalog[collection] = dict(sorted(entries.items()))
 
     _validate_dependencies(catalog["packs"])
+    for pattern_id, pattern in catalog["patterns"].items():
+        unknown_packs = set(pattern["packs"]) - catalog["packs"].keys()
+        if unknown_packs:
+            raise CatalogError(f"Pattern {pattern_id!r} links unknown packs: {', '.join(sorted(unknown_packs))}")
+        unknown_sectors = set(pattern.get("match", {}).get("sectors", [])) - catalog["sectors"].keys()
+        if unknown_sectors:
+            raise CatalogError(f"Pattern {pattern_id!r} links unknown sectors: {', '.join(sorted(unknown_sectors))}")
     return catalog

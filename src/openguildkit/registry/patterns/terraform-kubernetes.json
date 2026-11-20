@@ -1,0 +1,34 @@
+{
+  "id": "terraform-kubernetes",
+  "title": "Terraform and Kubernetes",
+  "description": "Review infrastructure plans, protect Terraform state and check Kubernetes workload health.",
+  "sources": [
+    {
+      "title": "Terraform plan",
+      "url": "https://developer.hashicorp.com/terraform/cli/commands/plan"
+    },
+    {
+      "title": "Kubernetes workload probes",
+      "url": "https://kubernetes.io/docs/concepts/workloads/pods/probes/"
+    }
+  ],
+  "roles": [
+    "devops",
+    "security",
+    "engineering"
+  ],
+  "packs": [
+    "terraform-kubernetes"
+  ],
+  "match": {
+    "stack": [
+      [
+        "terraform"
+      ],
+      [
+        "kubernetes",
+        "k8s"
+      ]
+    ]
+  }
+}

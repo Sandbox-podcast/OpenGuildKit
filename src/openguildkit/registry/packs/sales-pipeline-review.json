@@ -1,0 +1,24 @@
+{
+  "id": "sales-pipeline-review",
+  "title": "Sales pipeline review",
+  "version": "1.0.0",
+  "description": "Stage criteria and evidence for opportunity movement and forecast reviews.",
+  "sources": [
+    {
+      "title": "Salesforce, Sales Pipeline Stages",
+      "url": "https://www.salesforce.com/sales/pipeline/stages/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "define-stage-exit-evidence",
+      "instruction": "Define an observable buyer milestone for each opportunity stage. Assign a next action, owner and due date when the opportunity advances.",
+      "verification": "Sample opportunities and check that their latest buyer activity meets the stage criteria and supports the next action."
+    },
+    {
+      "id": "review-stalled-opportunities",
+      "instruction": "Review opportunities with overdue next actions or time in stage above the team's threshold. Decide whether to qualify further, move the stage or close the opportunity.",
+      "verification": "Reconcile stale records with recent customer evidence and record the basis for changes to dates, stages and forecast assumptions."
+    }
+  ]
+}

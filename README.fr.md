@@ -23,7 +23,7 @@ La [démo assurance](examples/insurance-claims/) crée un projet temporaire et u
 
 ## Configurer ton projet
 
-Depuis ton dépôt, lance le questionnaire interactif. Choisis ta stack, ton secteur, tes packs de règles et tes boards.
+Depuis ton dépôt, indique ta stack, ton secteur et les métiers concernés. Le questionnaire repère les combinaisons techniques connues et te laisse choisir les méthodes que ton équipe applique.
 
 ```bash
 openguildkit init
@@ -49,12 +49,12 @@ La CLI choisit les boards et enregistre leurs avis en local. Ton agent rédige c
 ```bash
 openguildkit catalog
 openguildkit references
-openguildkit references --family code
-openguildkit references "ISO 27001"
-openguildkit references --id conventional-commits
+openguildkit patterns --role project-management
+openguildkit patterns --role hr
+openguildkit patterns --id python-fastapi-postgresql
 ```
 
-`catalog` liste les packs, les boards et les secteurs que tu peux utiliser dans un projet. L'[index des références](docs/references.md) donne accès aux résumés et aux sources. Les packs contiennent les consignes et les contrôles que `init` écrit dans `AGENTS.md`.
+`catalog` liste les packs, les boards et les secteurs. L'index donne accès aux sources et aux méthodes. Chaque pattern indique quand il s'applique et quels packs alimentent `AGENTS.md`. [Références](docs/references.md) · [Choix des patterns](docs/patterns.md)
 
 ## Documentation
 

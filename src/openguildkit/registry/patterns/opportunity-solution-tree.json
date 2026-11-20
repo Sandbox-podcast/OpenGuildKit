@@ -1,0 +1,18 @@
+{
+  "id": "opportunity-solution-tree",
+  "title": "Opportunity solution tree",
+  "description": "Connect a desired outcome to customer opportunities, candidate solutions and tests of their assumptions.",
+  "sources": [
+    {
+      "title": "Teresa Torres, Opportunity Solution Trees",
+      "url": "https://www.producttalk.org/opportunity-solution-trees/"
+    }
+  ],
+  "roles": [
+    "product",
+    "design"
+  ],
+  "packs": [
+    "product-discovery"
+  ]
+}

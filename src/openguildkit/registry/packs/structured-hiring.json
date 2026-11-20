@@ -1,0 +1,28 @@
+{
+  "id": "structured-hiring",
+  "title": "Structured hiring interviews",
+  "version": "1.0.0",
+  "description": "Job-relevant interview materials and consistent human review.",
+  "sources": [
+    {
+      "title": "U.S. Office of Personnel Management, Structured Interviews",
+      "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/other-assessment-methods/structured-interviews/"
+    },
+    {
+      "title": "U.S. Office of Personnel Management, Structured Interview Guide",
+      "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/structured-interviews/guide.pdf"
+    }
+  ],
+  "rules": [
+    {
+      "id": "prepare-role-based-interview",
+      "instruction": "Use the role's responsibilities to define assessed competencies, common questions and examples of responses at each score. Have the hiring owner approve the guide before interviews begin.",
+      "verification": "Pilot the questions with sample answers to check that interviewers can apply the same scoring criteria and explain any disagreement."
+    },
+    {
+      "id": "record-interview-evidence",
+      "instruction": "Have interviewers record job-relevant examples and score independently before discussion. Keep candidate records in the approved system and leave the hiring decision with the designated reviewers.",
+      "verification": "Sample a completed scorecard with the hiring owner. Confirm that a reviewer can trace each score to job-related evidence and explain how the panel settled score differences."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "ci-supply-chain",
+  "title": "CI supply chain verification",
+  "description": "Select for a release process that reviews build provenance, verifies artifacts and publishes or retains an SBOM.",
+  "sources": [
+    {
+      "title": "SLSA 1.2",
+      "url": "https://slsa.dev/spec/v1.2/"
+    }
+  ],
+  "roles": [
+    "devops",
+    "security",
+    "engineering"
+  ],
+  "packs": [
+    "supply-chain"
+  ]
+}

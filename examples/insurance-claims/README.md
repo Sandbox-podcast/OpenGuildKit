@@ -24,7 +24,7 @@ The script creates a temporary project, runs every step and prints the boards it
 
 ## What to look at
 
-After `init`, the project has `AGENTS.md` with the insurance context, the workflow and the rules of five packs: `agent-workflow`, `python`, `react`, `secure-sdlc` and `typescript` (recommended from the stack). `CLAUDE.md` imports it.
+After `init`, the project has `AGENTS.md` with the insurance context, the workflow and packs from the matched stack patterns. The Python, FastAPI and PostgreSQL combination adds API and database checks. `CLAUDE.md` imports the generated instructions.
 
 `task consult` selects six boards and says why:
 

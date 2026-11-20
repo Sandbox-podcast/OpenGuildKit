@@ -1,0 +1,27 @@
+{
+  "id": "github-actions-ci",
+  "title": "GitHub Actions workflows",
+  "description": "Check workflow permissions, third-party action pins and deployment identity.",
+  "sources": [
+    {
+      "title": "GitHub Actions secure use",
+      "url": "https://docs.github.com/en/actions/reference/security/secure-use"
+    }
+  ],
+  "roles": [
+    "devops",
+    "security",
+    "engineering"
+  ],
+  "packs": [
+    "github-actions-security"
+  ],
+  "match": {
+    "stack": [
+      [
+        "github actions",
+        "gh actions"
+      ]
+    ]
+  }
+}

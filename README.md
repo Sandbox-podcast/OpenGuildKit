@@ -49,14 +49,16 @@ The local CLI selects the boards and records their reviews. Your agent writes th
 ```bash
 openguildkit catalog
 openguildkit references
-openguildkit references --family code
-openguildkit references "ISO 27001"
-openguildkit references --id conventional-commits
+openguildkit patterns --role project-management
+openguildkit patterns --role hr
+openguildkit patterns --id python-fastapi-postgresql
 ```
 
 `catalog` lists the packs, boards and sectors you can use in a project. The [reference index](docs/references.md) provides summaries and source links. Rule packs contain the instructions and checks `init` writes into `AGENTS.md`.
 
 ## Documentation
+
+- [Stack matching and work methods](docs/patterns.md)
 
 - [Architecture](docs/architecture.md) and [task workflow](docs/workflow.md)
 - [Contributing](CONTRIBUTING.md) and [catalog format](docs/catalog-format.md)

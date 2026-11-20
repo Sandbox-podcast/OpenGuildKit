@@ -1,0 +1,36 @@
+{
+  "id": "pytest",
+  "title": "pytest verification",
+  "version": "1.0.0",
+  "description": "Fixtures and test cases for Python projects that use pytest.",
+  "sources": [
+    {
+      "title": "pytest fixtures",
+      "url": "https://docs.pytest.org/en/stable/how-to/fixtures.html"
+    },
+    {
+      "title": "pytest parametrization",
+      "url": "https://docs.pytest.org/en/stable/how-to/parametrize.html"
+    }
+  ],
+  "depends_on": [
+    "python"
+  ],
+  "rules": [
+    {
+      "id": "scope-test-state",
+      "instruction": "Use fixtures with the smallest scope that fits the resource. Give each test independent mutable state and arrange cleanup for resources it creates.",
+      "verification": "Run a changed test alone and with its suite. Confirm that failing test setup or execution leaves disposable resources ready for the next run."
+    },
+    {
+      "id": "parameterize-cases",
+      "instruction": "Parameterize cases that exercise the same behavior across inputs. Give the cases names that reveal the boundary or failure reason.",
+      "verification": "Confirm that the cases show up separately in test collection and check their expected outcomes against the behavior contract."
+    },
+    {
+      "id": "test-supported-interfaces",
+      "instruction": "Use the same public entry points as callers when writing regression tests. Keep narrow unit tests for behavior that can be exercised without external services.",
+      "verification": "Run the regression on the affected Python version and confirm the observed result at the public interface."
+    }
+  ]
+}

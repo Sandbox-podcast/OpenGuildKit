@@ -1,0 +1,19 @@
+{
+  "id": "nist-ai-risk-management",
+  "title": "NIST AI Risk Management Framework",
+  "description": "Select when the team uses NIST AI RMF 1.0 to document and review risks from an AI system.",
+  "sources": [
+    {
+      "title": "NIST AI Risk Management Framework 1.0",
+      "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10"
+    }
+  ],
+  "roles": [
+    "security",
+    "engineering",
+    "product"
+  ],
+  "packs": [
+    "nist-ai-risk"
+  ]
+}
