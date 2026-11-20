@@ -17,14 +17,18 @@ def _unique_keys(pairs):
     return result
 
 
-def read_json(path: Path) -> dict:
+def parse_json(content: bytes, label: str) -> dict:
     try:
-        data = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=_unique_keys)
+        data = json.loads(content.decode("utf-8-sig"), object_pairs_hook=_unique_keys)
     except (UnicodeError, ValueError) as error:
-        raise ValueError(f"Invalid JSON in {path}: {error}") from error
+        raise ValueError(f"Invalid JSON in {label}: {error}") from error
     if not isinstance(data, dict):
-        raise ValueError(f"Expected a JSON object in {path}")
+        raise ValueError(f"Expected a JSON object in {label}")
     return data
+
+
+def read_json(path: Path) -> dict:
+    return parse_json(path.read_bytes(), str(path))
 
 
 def json_text(data) -> str:

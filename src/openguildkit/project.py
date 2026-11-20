@@ -230,6 +230,16 @@ def _source_link(source: dict) -> str:
     return f"[{title}](<{source['url']}>)"
 
 
+def rule_text(rule: dict) -> tuple[str, str]:
+    if "check" not in rule:
+        return rule["instruction"], rule["verification"]
+    threshold = rule["check"]["max_minutes"]
+    return (
+        f"Limit downloadLinkMinutes in export.json to {threshold} minutes.",
+        "Run the CI check on the target commit.",
+    )
+
+
 def render_instructions(profile: dict, catalog: dict) -> str:
     resolved = resolved_profile(profile, catalog)
     sector = catalog["sectors"][profile["sector"]]
@@ -258,8 +268,11 @@ def render_instructions(profile: dict, catalog: dict) -> str:
     for pack_id in resolved["packs"]:
         pack = catalog["packs"][pack_id]
         lines.extend(["", f"#### {pack['title']} (`{pack_id}@{pack['version']}`)", "", pack["description"], ""])
+        if "policy_commit" in pack:
+            lines.extend([f"Policy commit: `{pack['policy_commit']}`", ""])
         for rule in pack["rules"]:
-            lines.extend([f"- `{rule['id']}` {rule['instruction']}", f"  Verify: {rule['verification']}"])
+            instruction, verification = rule_text(rule)
+            lines.extend([f"- `{rule['id']}` {instruction}", f"  Verify: {verification}"])
         if pack["sources"]:
             lines.extend(["", *_bullets([_source_link(source) for source in pack["sources"]])])
     lines.extend(["", f"<!-- openguildkit profile {profile_fingerprint(profile, catalog)} -->"])
