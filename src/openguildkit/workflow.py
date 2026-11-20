@@ -502,6 +502,12 @@ def _consultation_markdown(scope: dict, boards: dict, routing: dict, delegations
             "confidence rating requires observed findings and cited evidence. For a "
             "blocking finding, say who can resolve it and what would clear it.",
             "",
+            "Record each evidence item as an object: source (" + ", ".join(EVIDENCE_SOURCES) + "), "
+            "ref (a project path, a document title or an https link), supports (what it establishes), "
+            "and date (YYYY-MM-DD) or revision (commit SHA) when it matters. Public sources, "
+            "measurements and interviews need their date. The requester's own words cannot be the only "
+            "support for proceeding or for high confidence.",
+            "",
         ]
     )
     return "\n".join(lines)
@@ -543,6 +549,7 @@ def consult(
         "boards": list(routing),
         "routing": routing,
         "scope": scope,
+        "evidence_format": "structured",
         "markdown": _consultation_markdown(scope, catalog["boards"], routing, delegations),
         "review_template": {
             "consultation_id": consultation_id,
@@ -569,6 +576,47 @@ def _text_list(value: object, field: str) -> list[str]:
     if not isinstance(value, list):
         raise ValueError(f"{field} must be a list of strings.")
     return [_text(item, field) for item in value]
+
+
+EVIDENCE_SOURCES = (
+    "requester", "project-file", "test", "measurement", "public", "interview", "ticket", "decision-record", "other",
+)
+DATED_SOURCES = ("public", "measurement", "interview")
+_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+_REVISION = re.compile(r"[0-9a-f]{7,64}")
+
+
+def _evidence_item(item: object, field: str) -> dict:
+    """An evidence item says where it comes from, what it supports and how to find it again."""
+    if not isinstance(item, dict) or not {"source", "ref", "supports"} <= item.keys() \
+            or not item.keys() <= {"source", "ref", "supports", "date", "revision"}:
+        raise ValueError(f"{field}: each item needs source, ref and supports, and can add date or revision.")
+    source = item["source"]
+    if source not in EVIDENCE_SOURCES:
+        raise ValueError(f"{field}: source must be one of {', '.join(EVIDENCE_SOURCES)}.")
+    result = {"source": source, "ref": _text(item["ref"], f"{field} ref"), "supports": _text(item["supports"], f"{field} supports")}
+    if source == "public" and not result["ref"].startswith("https://"):
+        raise ValueError(f"{field}: a public source needs an https link in ref.")
+    if "date" in item:
+        if not isinstance(item["date"], str) or not _DATE.fullmatch(item["date"]):
+            raise ValueError(f"{field}: date must be written YYYY-MM-DD.")
+        result["date"] = item["date"]
+    if "revision" in item:
+        if not isinstance(item["revision"], str) or not _REVISION.fullmatch(item["revision"]):
+            raise ValueError(f"{field}: revision must be a commit SHA.")
+        result["revision"] = item["revision"]
+    if source in DATED_SOURCES and "date" not in result:
+        raise ValueError(f"{field}: a {source} source needs the date it was observed.")
+    return result
+
+
+def _evidence_list(value: object, field: str, structured: bool) -> list:
+    """Reviews made before structured evidence keep their text items."""
+    if not structured:
+        return _text_list(value, field)
+    if not isinstance(value, list):
+        raise ValueError(f"{field} must be a list.")
+    return [_evidence_item(item, field) for item in value]
 
 
 def _validate_challenge(board_id: str, challenge: object, template: dict, evidence: list[str]) -> dict:
@@ -613,6 +661,15 @@ def _validate_challenge(board_id: str, challenge: object, template: dict, eviden
     observed = any(finding["basis"] == "observed" for finding in findings.values())
     if (verdict == "proceed" or confidence == "high") and not observed:
         raise ValueError(f"{board_id} needs an observed finding and cited evidence for this review.")
+    if (verdict == "proceed" or confidence == "high") and evidence and isinstance(evidence[0], dict):
+        cited = {
+            index for finding in findings.values() if finding["basis"] == "observed" for index in finding["evidence_refs"]
+        }
+        if all(evidence[index - 1]["source"] == "requester" for index in cited):
+            raise ValueError(
+                f"{board_id}: the requester's own words cannot be the only evidence for this verdict. "
+                "Cite a project file, test, measurement or other inspected source."
+            )
     blockers = _text_list(challenge["blockers"], f"{board_id} blockers")
     if verdict == "block" and not blockers:
         raise ValueError(f"{board_id} must name the blocking findings.")
@@ -651,7 +708,9 @@ def validate_board_entry(consultation: dict, entry: object) -> dict:
     result = {
         "id": board_id,
         "recommendation": _text(entry["recommendation"], f"{board_id} recommendation"),
-        "evidence": _text_list(entry["evidence"], f"{board_id} evidence"),
+        "evidence": _evidence_list(
+            entry["evidence"], f"{board_id} evidence", consultation.get("evidence_format") == "structured"
+        ),
         "open_questions": _text_list(entry["open_questions"], f"{board_id} open questions"),
     }
     if "reviewer" in template:
@@ -744,6 +803,11 @@ def challenge_report(task: dict) -> str:
         for field in ("verdict", "confidence", "alternative", "failure_mode", "verification", "blockers"):
             if field in challenge:
                 finding[field] = challenge[field]
+        cited = sorted({
+            index for lens in challenge.get("specialists", []) if lens["basis"] == "observed" for index in lens["evidence_refs"]
+        })
+        if cited:
+            finding["decisive_evidence"] = [entry["evidence"][index - 1] for index in cited]
         finding["open_questions"] = entry["open_questions"]
         if "verdict" in challenge:
             verdicts.setdefault(challenge["verdict"], []).append(entry["id"])

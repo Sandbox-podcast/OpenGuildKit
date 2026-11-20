@@ -54,7 +54,7 @@ class BrainSelectionTests(unittest.TestCase):
         self.assertEqual(entry["reviewer"], "Alex Moreau")
         template["summary"] = "Agreed."
         for item in template["boards"]:
-            item.update(recommendation="Proceed with a read-only scope.", evidence=["docs/scope.md"])
+            item.update(recommendation="Proceed with a read-only scope.", evidence=[{"source": "project-file", "ref": "docs/scope.md", "supports": "Read-only scope."}])
             for lens in item["challenge"]["specialists"]:
                 lens.update(finding="The scope is read-only.", basis="observed", evidence_refs=[1])
             item["challenge"].update(verdict="revise", confidence="medium", alternative="Wait.",

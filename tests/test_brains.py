@@ -18,7 +18,7 @@ class BrainReviewTests(unittest.TestCase):
         self.entry = self.review["boards"][0].copy()
         self.review["boards"] = [self.entry]
         self.entry["recommendation"] = "Use server-side ownership checks."
-        self.entry["evidence"] = ["Documented roles in docs/permissions.md."]
+        self.entry["evidence"] = [{"source": "project-file", "ref": "docs/permissions.md", "supports": "Documented roles."}]
         self.challenge = self.entry["challenge"].copy()
         self.entry["challenge"] = self.challenge
         self.challenge.update(
@@ -68,6 +68,37 @@ class BrainReviewTests(unittest.TestCase):
         self.assertNotIn("Implement the approved scope", record)
         task["answers"]["kind"] = "feature"
         self.assertIn("# Approved task handoff", handoff(task))
+
+    def test_evidence_records_its_origin_and_what_it_supports(self):
+        self.entry["evidence"] = [{"source": "public", "ref": "https://example.org/guide", "supports": "A guide."}]
+        with self.assertRaisesRegex(ValueError, "needs the date"):
+            validate_review(self.consultation, self.review)
+        self.entry["evidence"][0]["date"] = "2026-11-20"
+        validate_review(self.consultation, self.review)
+        self.entry["evidence"] = ["docs/permissions.md"]
+        with self.assertRaisesRegex(ValueError, "source, ref and supports"):
+            validate_review(self.consultation, self.review)
+        self.entry["evidence"] = [{"source": "project-file", "ref": "docs/a.md", "supports": "x", "revision": "not-a-sha"}]
+        with self.assertRaisesRegex(ValueError, "commit SHA"):
+            validate_review(self.consultation, self.review)
+
+    def test_the_requesters_words_alone_cannot_justify_proceeding(self):
+        self.entry["evidence"] = [{"source": "requester", "ref": "brief", "supports": "Users want to see requests."}]
+        with self.assertRaisesRegex(ValueError, "requester's own words"):
+            validate_review(self.consultation, self.review)
+        self.challenge["verdict"] = "revise"
+        validate_review(self.consultation, self.review)
+
+    def test_the_decision_brief_shows_the_decisive_evidence(self):
+        review = validate_review(self.consultation, self.review)
+        report = challenge_report({"consultation": self.consultation, "review": review})
+        self.assertIn('"decisive_evidence"', report)
+        self.assertIn("docs/permissions.md", report)
+
+    def test_reviews_recorded_before_structured_evidence_stay_readable(self):
+        self.consultation.pop("evidence_format")
+        self.entry["evidence"] = ["Documented roles in docs/permissions.md."]
+        self.assertEqual(validate_review(self.consultation, self.review)["boards"][0]["evidence"], self.entry["evidence"])
 
     def test_previous_review_format_still_validates_against_its_template(self):
         self.entry.pop("challenge")

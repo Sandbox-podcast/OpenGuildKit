@@ -26,6 +26,14 @@ The catalog covers engineering, security, DevOps, QA, performance, product, desi
 | `block` | The board identifies a condition that needs an accountable decision or resolution. |
 | `insufficient-evidence` | The board needs specific evidence before it can judge the proposal. |
 
+Each item of a board's `evidence` list records where it comes from and what it establishes:
+
+```json
+{"source": "project-file", "ref": "src/permissions.py", "supports": "Requests are filtered by owner on the server.", "revision": "3fffa1c"}
+```
+
+`source` is one of `requester`, `project-file`, `test`, `measurement`, `public`, `interview`, `ticket`, `decision-record` or `other`. `ref` is a project path, a document title or an https link. Public sources, measurements and interviews carry the `date` they were observed; a `revision` pins a file to a commit. The requester's own words (`requester`) cannot be the only support for `proceed` or for high confidence. The decision brief lists, for each board, the evidence its observed findings cite. Reviews recorded before this format keep their text items.
+
 `task template ID` returns the exact shape for the selected boards. In a brain entry, `challenge.specialists` uses the specialist IDs from the prompt. `evidence_refs` contains one-based positions in the board evidence array. For example, `[1, 3]` cites the first and third items. Use `low`, `medium`, or `high` confidence. Proceeding or claiming high confidence requires observed evidence, a block needs at least one blocker, and an insufficient-evidence verdict uses low confidence.
 
 The CLI validates the review record. The host agent or reviewer gathers and interprets the evidence. See the [request status example](../examples/request-status/) for a recorded review with multiple verdicts.

@@ -70,7 +70,7 @@ class WorkflowTests(unittest.TestCase):
         review["summary"] = "Export only the visible fields and test cross-account access."
         for board in review["boards"]:
             board["recommendation"] = "Cover the approved scope with a synthetic fixture."
-            board["evidence"] = ["docs/permissions.md"]
+            board["evidence"] = [{"source": "project-file", "ref": "docs/permissions.md", "supports": "The permission policy."}]
             challenge = board["challenge"]
             for specialist in challenge["specialists"]:
                 specialist.update(finding="The permission policy requires scoped access.", basis="observed", evidence_refs=[1])
