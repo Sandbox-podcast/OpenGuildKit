@@ -5,7 +5,12 @@ import json
 import re
 from pathlib import Path
 
-from .patterns import check_pattern_choices, recommend_patterns, role_choices
+from .patterns import (
+    check_pattern_choices,
+    pattern_selection,
+    recommend_patterns,
+    role_choices,
+)
 from .storage import read_json, write_json, write_text
 from .workflow import AGENT_WORKFLOW
 
@@ -48,16 +53,28 @@ def _select(question_id, prompt, choices, default=None, multiple=False):
     return question
 
 
-def init_questions(catalog: dict, project_name: str) -> list[dict]:
+def init_questions(catalog: dict, project_name: str, detected: list[dict] | None = None) -> list[dict]:
+    components = {
+        "id": "components",
+        "type": "components",
+        "prompt": (
+            "Which components does the repository contain? Confirm or correct each component's "
+            "path and stack, with versions where you know them."
+        ),
+        "examples": [{"id": "web", "path": "apps/web", "stack": ["Next.js 14.2", "React 18.3", "TypeScript"]}],
+    }
+    if detected:
+        components["default"] = detected
     return [
         {"id": "name", "type": "text", "prompt": "Project name", "default": project_name},
         _select("sector", "Which sector describes the project?", catalog["sectors"].values(), "general"),
         {
             "id": "stack",
             "type": "list",
-            "prompt": "Which languages, frameworks and services are in the stack?",
-            "examples": ["Python", "FastAPI", "PostgreSQL"],
+            "prompt": "Which languages, frameworks and services are in the stack? Add a version where it matters.",
+            "examples": ["Python 3.12", "FastAPI", "PostgreSQL 16"],
         },
+        components,
         _select(
             "roles",
             "Which roles should this project support?",
@@ -119,18 +136,53 @@ def _recommended_packs(stack: list[str], catalog: dict) -> list[str]:
     return sorted(candidates & catalog["packs"].keys())
 
 
-def _project_context(answers: dict, catalog: dict) -> tuple[str, list[str], list[str]]:
+COMPONENT_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+
+
+def _components(value) -> list[dict]:
+    """Validate the project's components: an ID, an optional relative path and a stack each."""
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError("components must be a list of objects with id, path and stack")
+    components, seen = [], set()
+    for component in value:
+        if not isinstance(component, dict) or not {"id", "stack"} <= component.keys() <= {"id", "path", "stack"}:
+            raise ValueError("Each component needs an id and a stack, and can have a path")
+        component_id = component["id"]
+        if not isinstance(component_id, str) or len(component_id) > 64 or not COMPONENT_ID.fullmatch(component_id):
+            raise ValueError("Component IDs use up to 64 lowercase letters, digits and separating hyphens")
+        if component_id in seen:
+            raise ValueError(f"Duplicate component: {component_id}")
+        seen.add(component_id)
+        entry = {"id": component_id}
+        if "path" in component:
+            path = component["path"]
+            parts = path.replace("\\", "/").split("/") if isinstance(path, str) else []
+            if not isinstance(path, str) or not path.strip() or path.startswith(("/", "\\")) or ":" in path or ".." in parts:
+                raise ValueError(f"Component {component_id} needs a path relative to the project root")
+            entry["path"] = path.strip()
+        entry["stack"] = _texts(component["stack"], f"components.{component_id}.stack")
+        components.append(entry)
+    return components
+
+
+def _project_context(answers: dict, catalog: dict) -> tuple[str, list[str], list[str], list[dict]]:
     sector = answers.get("sector", "general")
     if not isinstance(sector, str) or sector not in catalog["sectors"]:
         raise ValueError(f"Unknown sector: {sector}. Run openguildkit catalog.")
+    components = _components(answers.get("components"))
     stack = _texts(answers.get("stack", []), "stack")
+    if components:
+        # With components, the project stack is the union of what each component uses.
+        stack = list(dict.fromkeys([*stack, *(item for component in components for item in component["stack"])]))
     roles = _ids(answers.get("roles", []), "roles", role_choices(catalog["patterns"]))
-    return sector, stack, roles
+    return sector, stack, roles, components
 
 
 def profile_recommendations(answers: dict, catalog: dict) -> dict:
-    sector, stack, roles = _project_context(answers, catalog)
-    result = recommend_patterns(catalog, stack, sector, roles)
+    sector, stack, roles, components = _project_context(answers, catalog)
+    result = recommend_patterns(catalog, stack, sector, roles, components)
     base_packs = ["agent-workflow", *_recommended_packs(stack, catalog)]
     result["recommended_packs"] = list(
         dict.fromkeys([*base_packs, *(pack for pattern in result["matched"] for pack in pattern["packs"])])
@@ -138,9 +190,39 @@ def profile_recommendations(answers: dict, catalog: dict) -> dict:
     return result
 
 
+def _pattern_entries(value, catalog: dict, components: list[dict]) -> list:
+    """Validate selected patterns: plain IDs, or objects limiting a pattern to components."""
+    if not isinstance(value, list):
+        raise ValueError("patterns must be a list")
+    known_components = {component["id"] for component in components}
+    entries, seen = [], set()
+    for entry in value:
+        if isinstance(entry, dict):
+            if set(entry) != {"id", "components"}:
+                raise ValueError("A scoped pattern needs exactly id and components")
+            scope = _texts(entry["components"], "pattern components")
+            unknown = sorted(set(scope) - known_components)
+            if unknown:
+                raise ValueError(f"Pattern {entry['id']} names unknown components: {', '.join(unknown)}")
+            pattern_id = entry["id"]
+        else:
+            pattern_id, scope = entry, None
+        if not isinstance(pattern_id, str) or pattern_id not in catalog["patterns"]:
+            raise ValueError(f"Unknown patterns: {pattern_id}. Run openguildkit catalog.")
+        if pattern_id in seen:
+            continue
+        seen.add(pattern_id)
+        entries.append({"id": pattern_id, "components": scope} if scope else pattern_id)
+    return entries
+
+
+def pattern_ids(profile: dict) -> list[str]:
+    return [pattern_selection(entry)[0] for entry in profile.get("patterns", [])]
+
+
 def validate_profile(answers: dict, catalog: dict) -> dict:
     fields = {
-        "schema_version", "name", "sector", "stack", "roles", "patterns", "packs",
+        "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
         "boards", "research", "conventions", "checks",
     }
     unknown = sorted(answers.keys() - fields)
@@ -152,22 +234,24 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     name = answers.get("name")
     if not isinstance(name, str) or not name.strip() or len(name.splitlines()) != 1:
         raise ValueError("name must be a non-empty single line")
-    sector, stack, roles = _project_context(answers, catalog)
+    sector, stack, roles, components = _project_context(answers, catalog)
     research = answers.get("research", "local-only")
     if research not in ("local-only", "public-sources"):
         raise ValueError("research must be local-only or public-sources")
-    pattern_ids = _ids(answers.get("patterns", []), "patterns", catalog["patterns"])
+    patterns = _pattern_entries(answers.get("patterns", []), catalog, components)
     if "patterns" not in answers and "packs" not in answers:
-        pattern_ids = [
-            record["id"] for record in recommend_patterns(catalog, stack, sector, roles)["matched"]
+        patterns = [
+            {"id": record["id"], "components": record["components"]} if record.get("components") else record["id"]
+            for record in recommend_patterns(catalog, stack, sector, roles, components)["matched"]
         ]
-    check_pattern_choices(pattern_ids, catalog["patterns"])
+    check_pattern_choices([pattern_selection(entry)[0] for entry in patterns], catalog["patterns"])
     packs = _ids(answers.get("packs", _recommended_packs(stack, catalog)), "packs", catalog["packs"])
     profile = {
         "schema_version": SCHEMA_VERSION,
         "name": name.strip(),
         "sector": sector,
         "stack": stack,
+        **({"components": components} if components else {}),
         "packs": list(dict.fromkeys(["agent-workflow", *packs])),
         "boards": _ids(answers.get("boards", []), "boards", catalog["boards"]),
         "research": research,
@@ -176,8 +260,8 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     }
     if roles:
         profile["roles"] = roles
-    if pattern_ids:
-        profile["patterns"] = pattern_ids
+    if patterns:
+        profile["patterns"] = patterns
     return profile
 
 
@@ -199,12 +283,34 @@ def resolved_profile(profile: dict, catalog: dict) -> dict:
 
     pattern_packs = [
         pack_id
-        for pattern_id in profile.get("patterns", [])
+        for pattern_id in pattern_ids(profile)
         for pack_id in catalog["patterns"][pattern_id]["packs"]
     ]
     for pack_id in [*profile["packs"], *pattern_packs]:
         add_pack(pack_id)
     return {**profile, "packs": list(ordered), "boards": profile["boards"] or sorted(catalog["boards"])}
+
+
+def pack_scopes(profile: dict, catalog: dict) -> dict[str, list[str] | None]:
+    """Map each resolved pack to the components it applies to, or None for the whole project."""
+    scopes: dict[str, set[str] | None] = {}
+
+    def apply(pack_id: str, scope: set[str] | None) -> None:
+        current = scopes.get(pack_id, set())
+        merged = None if current is None or scope is None else current | scope
+        if pack_id in scopes and merged == current:
+            return
+        scopes[pack_id] = merged
+        for dependency in catalog["packs"][pack_id].get("depends_on", []):
+            apply(dependency, merged)
+
+    for pack_id in profile["packs"]:
+        apply(pack_id, None)
+    for entry in profile.get("patterns", []):
+        pattern_id, components = pattern_selection(entry)
+        for pack_id in catalog["patterns"][pattern_id]["packs"]:
+            apply(pack_id, set(components) if components else None)
+    return {pack_id: (sorted(scope) if scope is not None else None) for pack_id, scope in scopes.items()}
 
 
 def profile_fingerprint(profile: dict, catalog: dict) -> str:
@@ -216,7 +322,7 @@ def profile_fingerprint(profile: dict, catalog: dict) -> str:
         "sector": catalog["sectors"][resolved["sector"]],
     }
     if profile.get("patterns"):
-        snapshot["patterns"] = [catalog["patterns"][pattern_id] for pattern_id in profile["patterns"]]
+        snapshot["patterns"] = [catalog["patterns"][pattern_id] for pattern_id in pattern_ids(profile)]
     canonical = json.dumps(snapshot, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
@@ -255,19 +361,39 @@ def render_instructions(profile: dict, catalog: dict) -> str:
         "",
         *AGENT_WORKFLOW.strip().splitlines(),
     ]
+    components = {component["id"]: component for component in profile.get("components", [])}
+
+    def scope_text(scope: list[str] | None) -> str:
+        names = [
+            f"`{component_id}` ({components[component_id]['path']})" if components[component_id].get("path")
+            else f"`{component_id}`"
+            for component_id in scope or []
+        ]
+        return ", ".join(names)
+
+    if components:
+        lines.extend(["", "### Components", ""])
+        for component in components.values():
+            location = f" in `{component['path']}`" if component.get("path") else ""
+            lines.append(f"- `{component['id']}`{location}: {', '.join(component['stack'])}")
     if profile.get("patterns"):
         lines.extend(["", "### Selected patterns", ""])
-        for pattern_id in profile["patterns"]:
+        for entry in profile["patterns"]:
+            pattern_id, scope = pattern_selection(entry)
             pattern = catalog["patterns"][pattern_id]
             packs = ", ".join(f"`{pack_id}`" for pack_id in pattern["packs"])
-            lines.append(f"- {pattern['title']} (`{pattern_id}`) uses {packs}.")
+            where = f" Applies to {scope_text(scope)}." if scope else ""
+            lines.append(f"- {pattern['title']} (`{pattern_id}`) uses {packs}.{where}")
     for title, field in (("Team conventions", "conventions"), ("Project checks", "checks")):
         if profile[field]:
             lines.extend(["", f"### {title}", "", *_bullets(profile[field])])
+    scopes = pack_scopes(profile, catalog) if components else {}
     lines.extend(["", "### Rule packs"])
     for pack_id in resolved["packs"]:
         pack = catalog["packs"][pack_id]
         lines.extend(["", f"#### {pack['title']} (`{pack_id}@{pack['version']}`)", "", pack["description"], ""])
+        if scopes.get(pack_id):
+            lines.extend([f"Applies to {scope_text(scopes[pack_id])}.", ""])
         if "policy_commit" in pack:
             lines.extend([f"Policy commit: `{pack['policy_commit']}`", ""])
         for rule in pack["rules"]:

@@ -17,7 +17,7 @@ Run commands from the project root, or pass `--project PATH` before the subcomma
 
 ## Setup
 
-1. Read `openguildkit init --questions`. Ask for the project name, sector, stack and roles first. Use your multiple-choice tool when it can show the choices as printed, or use a numbered list in the conversation.
+1. Read `openguildkit init --questions`. In an existing repository, `components` carries the components that `openguildkit detect` found: show each one with its path and stack and ask the user to confirm or correct the technologies and versions. Ask for the project name, sector, stack or components, and roles first. Use your multiple-choice tool when it can show the choices as printed, or use a numbered list in the conversation.
 2. Save those answers in a temporary JSON file outside the repository. Run `openguildkit recommend --answers FILE --json`. Show the matching stack patterns and ask which suggested work methods the team uses. For details, run `openguildkit patterns --id ID`. Record the full selection in `patterns`, including any stack pattern the user wants to keep. An empty list skips patterns.
 3. Collect pack overrides, boards, research permissions, conventions and checks. Leave `packs` out to keep the baseline and language defaults. Set it to a list to choose the additional packs. Save the complete answers and run `openguildkit init --answers FILE`.
 4. Run `openguildkit check`, then show the selected patterns and the applied packs in `AGENTS.md`, alongside the profile in `.openguildkit/project.json`.

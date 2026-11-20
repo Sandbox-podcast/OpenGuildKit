@@ -182,6 +182,31 @@ class ProjectSetupTests(CliTestCase):
         self.assertIn("`scrum-delivery@", instructions)
         self.assertNotIn("`kanban-delivery@", instructions)
 
+    def test_detected_components_feed_init_and_a_stack_change_is_flagged(self):
+        web = self.project / "apps" / "web"
+        web.mkdir(parents=True)
+        (web / "package.json").write_text(json.dumps({"dependencies": {"next": "^14.2.0", "react": "^18.3.0"}}), encoding="utf-8")
+        detected = json.loads(self.run_cli("detect", "--json").stdout)
+        self.assertEqual(detected["components"][0]["stack"], ["Next.js 14.2.0", "React 18.3.0"])
+
+        questions = {question["id"]: question for question in json.loads(self.run_cli("init", "--questions").stdout)}
+        components = questions["components"]["default"]
+        self.assertEqual(components[0]["path"], "apps/web")
+
+        self.run_cli("init", "--answers", self.write_json("answers.json", {"name": "Portal", "components": components}))
+        agents = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("Applies to `apps-web` (apps/web).", agents)
+
+        profile_path = self.project / ".openguildkit" / "project.json"
+        profile = json.loads(profile_path.read_text(encoding="utf-8"))
+        profile["components"][0]["stack"] = ["Next.js 12.3", "React 18.3"]
+        profile["stack"] = profile["components"][0]["stack"]
+        profile_path.write_text(json.dumps(profile), encoding="utf-8")
+        synced = self.run_cli("sync")
+        self.assertIn("review pattern nextjs-react", synced.stderr)
+        plan = json.loads(self.run_cli("recommend", "--json").stdout)
+        self.assertEqual(plan["review"][0]["id"], "nextjs-react")
+
     def test_init_writes_profile_and_agent_instructions(self):
         self.init_example()
         profile = json.loads((self.project / ".openguildkit" / "project.json").read_text(encoding="utf-8"))

@@ -29,6 +29,7 @@ flowchart LR
 | Module | Responsibility |
 |---|---|
 | `catalog.py` | Loads bundled records from `registry/` and optional project records from `.openguildkit/catalog/`. Rejects unknown fields, duplicate IDs, duplicate JSON keys, non-HTTPS sources, multi-line text and pack dependency cycles. |
+| `detect.py` | Proposes components, technologies and versions from the repository's manifests, without running a package manager. |
 | `project.py` | Builds the init questionnaire, validates the profile, recommends packs from the stack, resolves pack dependencies, renders the managed block in `AGENTS.md`, computes the profile fingerprint and checks that instructions are current. |
 | `workflow.py` | Holds the task questionnaire, routes a task to boards, renders the consultation request and the handoff, and validates reviews. |
 | `tasks.py` | Creates task records and enforces the state machine: draft, consulting, reviewed, approved or changes-requested. |
