@@ -216,6 +216,31 @@ def _pattern_entries(value, catalog: dict, components: list[dict]) -> list:
     return entries
 
 
+def _resolutions(value, catalog: dict) -> list[dict]:
+    """Validate the team's choices between conflicting packs."""
+    if not isinstance(value, list):
+        raise ValueError("resolutions must be a list")
+    result, seen = [], set()
+    for item in value:
+        if not isinstance(item, dict) or set(item) != {"packs", "keep", "reason"}:
+            raise ValueError("Each resolution needs packs, keep and reason")
+        packs = _ids(item["packs"], "resolution packs", catalog["packs"])
+        keep = _ids(item["keep"], "resolution keep", catalog["packs"])
+        if len(packs) < 2:
+            raise ValueError("A resolution names at least two conflicting packs")
+        if not keep or not set(keep) <= set(packs):
+            raise ValueError("keep must list one or more of the resolution's packs")
+        reason = item["reason"]
+        if not isinstance(reason, str) or not reason.strip() or len(reason.splitlines()) != 1:
+            raise ValueError("A resolution needs a single-line reason")
+        key = tuple(sorted(packs))
+        if key in seen:
+            raise ValueError(f"Duplicate resolution for {', '.join(key)}")
+        seen.add(key)
+        result.append({"packs": sorted(packs), "keep": sorted(keep), "reason": reason.strip()})
+    return result
+
+
 def pattern_ids(profile: dict) -> list[str]:
     return [pattern_selection(entry)[0] for entry in profile.get("patterns", [])]
 
@@ -223,7 +248,7 @@ def pattern_ids(profile: dict) -> list[str]:
 def validate_profile(answers: dict, catalog: dict) -> dict:
     fields = {
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
-        "boards", "research", "conventions", "checks",
+        "resolutions", "boards", "research", "conventions", "checks",
     }
     unknown = sorted(answers.keys() - fields)
     if unknown:
@@ -262,6 +287,9 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         profile["roles"] = roles
     if patterns:
         profile["patterns"] = patterns
+    resolutions = _resolutions(answers.get("resolutions", []), catalog)
+    if resolutions:
+        profile["resolutions"] = resolutions
     return profile
 
 
@@ -272,7 +300,8 @@ def load_profile(state: Path, catalog: dict) -> dict:
     return validate_profile(read_json(path), catalog)
 
 
-def resolved_profile(profile: dict, catalog: dict) -> dict:
+def _selected_packs(profile: dict, catalog: dict) -> list[str]:
+    """Packs from the profile and its patterns, each after its dependencies, before any resolution."""
     ordered = {}
 
     def add_pack(pack_id):
@@ -288,7 +317,107 @@ def resolved_profile(profile: dict, catalog: dict) -> dict:
     ]
     for pack_id in [*profile["packs"], *pattern_packs]:
         add_pack(pack_id)
-    return {**profile, "packs": list(ordered), "boards": profile["boards"] or sorted(catalog["boards"])}
+    return list(ordered)
+
+
+def rule_conflicts(profile: dict, catalog: dict) -> list[dict]:
+    """Declared incompatibilities between selected packs that apply to a common scope."""
+    selected = _selected_packs(profile, catalog)
+    scopes = pack_scopes(profile, catalog)
+    # A declaration on either pack is enough: conflicts are symmetric.
+    pairs = sorted(
+        {
+            tuple(sorted((pack_id, other)))
+            for pack_id in selected
+            for other in catalog["packs"][pack_id].get("conflicts_with", [])
+            if other in selected
+        }
+    )
+    conflicts = []
+    for first, second in pairs:
+        left, right = scopes.get(first), scopes.get(second)
+        if left is None or right is None:
+            shared = right if left is None else left
+        else:
+            shared = sorted(set(left) & set(right))
+            if not shared:
+                continue
+        resolution = next(
+            (item for item in profile.get("resolutions", []) if {first, second} <= set(item["packs"])), None
+        )
+        conflicts.append({"packs": [first, second], "scope": shared, "resolution": resolution})
+    return conflicts
+
+
+def _excluded_packs(profile: dict, catalog: dict) -> set[str]:
+    excluded = set()
+    for conflict in rule_conflicts(profile, catalog):
+        resolution = conflict["resolution"]
+        if resolution:
+            excluded |= set(conflict["packs"]) - set(resolution["keep"])
+    return excluded
+
+
+def resolved_profile(profile: dict, catalog: dict) -> dict:
+    excluded = _excluded_packs(profile, catalog) if profile.get("resolutions") else set()
+    packs = [pack_id for pack_id in _selected_packs(profile, catalog) if pack_id not in excluded]
+    return {**profile, "packs": packs, "boards": profile["boards"] or sorted(catalog["boards"])}
+
+
+def pack_provenance(profile: dict, catalog: dict) -> dict[str, list[str]]:
+    """Explain why each pack is active: required, selected, from a pattern or as a dependency."""
+    reasons: dict[str, list[str]] = {}
+
+    def add(pack_id: str, reason: str) -> None:
+        known = reasons.setdefault(pack_id, [])
+        if reason in known:
+            return
+        known.append(reason)
+        for dependency in catalog["packs"][pack_id].get("depends_on", []):
+            add(dependency, f"dependency of {pack_id}")
+
+    for pack_id in profile["packs"]:
+        add(pack_id, "required by OpenGuildKit" if pack_id == "agent-workflow" else "selected")
+    for pattern_id in pattern_ids(profile):
+        for pack_id in catalog["patterns"][pattern_id]["packs"]:
+            add(pack_id, f"pattern {pattern_id}")
+    return reasons
+
+
+def rule_plan(profile: dict, catalog: dict) -> dict:
+    """Everything init or sync would write, with the origin and scope of each pack."""
+    resolved = resolved_profile(profile, catalog)
+    scopes = pack_scopes(profile, catalog)
+    provenance = pack_provenance(profile, catalog)
+    selected = _selected_packs(profile, catalog)
+    return {
+        "packs": [
+            {
+                "id": pack_id,
+                "title": catalog["packs"][pack_id]["title"],
+                "version": catalog["packs"][pack_id]["version"],
+                "provenance": provenance.get(pack_id, []),
+                "scope": scopes.get(pack_id),
+                "rules": [rule["id"] for rule in catalog["packs"][pack_id]["rules"]],
+            }
+            for pack_id in resolved["packs"]
+        ],
+        "excluded": [pack_id for pack_id in selected if pack_id not in resolved["packs"]],
+        "conflicts": rule_conflicts(profile, catalog),
+        "conventions": profile.get("conventions", []),
+        "checks": profile.get("checks", []),
+    }
+
+
+def require_resolved_conflicts(profile: dict, catalog: dict) -> None:
+    open_conflicts = [conflict for conflict in rule_conflicts(profile, catalog) if conflict["resolution"] is None]
+    if open_conflicts:
+        names = "; ".join(" and ".join(conflict["packs"]) for conflict in open_conflicts)
+        raise ValueError(
+            f"Conflicting rule packs: {names}. Run openguildkit preview, then choose the rules that apply in "
+            '"resolutions" of .openguildkit/project.json, for example '
+            '{"packs": ["first", "second"], "keep": ["second"], "reason": "Why"}.'
+        )
 
 
 def pack_scopes(profile: dict, catalog: dict) -> dict[str, list[str] | None]:
@@ -347,6 +476,7 @@ def rule_text(rule: dict) -> tuple[str, str]:
 
 
 def render_instructions(profile: dict, catalog: dict) -> str:
+    require_resolved_conflicts(profile, catalog)
     resolved = resolved_profile(profile, catalog)
     sector = catalog["sectors"][profile["sector"]]
     lines = [
@@ -384,6 +514,19 @@ def render_instructions(profile: dict, catalog: dict) -> str:
             packs = ", ".join(f"`{pack_id}`" for pack_id in pattern["packs"])
             where = f" Applies to {scope_text(scope)}." if scope else ""
             lines.append(f"- {pattern['title']} (`{pattern_id}`) uses {packs}.{where}")
+    applied = [conflict for conflict in rule_conflicts(profile, catalog) if conflict["resolution"]]
+    if applied:
+        lines.extend(["", "### Rule decisions", ""])
+        for conflict in applied:
+            resolution = conflict["resolution"]
+            kept = ", ".join(f"`{pack_id}`" for pack_id in resolution["keep"])
+            dropped = [pack_id for pack_id in conflict["packs"] if pack_id not in resolution["keep"]]
+            verb = "applies" if len(resolution["keep"]) == 1 else "apply"
+            outcome = (
+                f"{kept} {verb} instead of {', '.join(f'`{pack_id}`' for pack_id in dropped)}" if dropped
+                else f"{kept} both apply"
+            )
+            lines.append(f"- {outcome}. Reason: {resolution['reason']}")
     for title, field in (("Team conventions", "conventions"), ("Project checks", "checks")):
         if profile[field]:
             lines.extend(["", f"### {title}", "", *_bullets(profile[field])])

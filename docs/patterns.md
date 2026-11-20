@@ -62,6 +62,20 @@ The interactive questionnaire defaults to the matching stack patterns. For an an
 
 The selected pattern IDs go into `.openguildkit/project.json`. During `init` or `sync`, their packs and dependencies are written in `AGENTS.md` and reused for a task consultation. Use `openguildkit recommend` from an initialized project to preview matches against its current stack. Edit the profile and run `sync` to apply a new selection.
 
+## Review the rules before applying them
+
+`openguildkit preview --answers answers.json` shows what `init` would write, before anything changes in the repository: each pack with its version, why it is active (required, selected, from a pattern, or a dependency of another pack) and the components it applies to, then the team conventions and checks. On an initialized project, `openguildkit preview` reads the saved profile. Add `--json` for the agent. The interactive `init` shows the same preview and asks for confirmation.
+
+Some packs declare that they conflict with another, for example Scrum Sprint planning and Kanban flow for the same team. When both apply to a common scope, whether they come from a pattern or from a direct selection, the preview lists the conflict and `init`, `sync` and `check` stop until the team records its choice in the profile:
+
+```json
+"resolutions": [
+  {"packs": ["kanban-delivery", "scrum-delivery"], "keep": ["kanban-delivery"], "reason": "Support work arrives continuously."}
+]
+```
+
+`keep` can name one pack or both. `AGENTS.md` lists the decision and its reason under "Rule decisions", leaves out the pack that was not kept, and the consultation and handoff carry the same choice. Packs that apply to different components do not conflict.
+
 ## Contribute a pattern
 
 Add `src/openguildkit/registry/patterns/<id>.json`, or place the same format in your project's `.openguildkit/catalog/patterns/` for a local addition.

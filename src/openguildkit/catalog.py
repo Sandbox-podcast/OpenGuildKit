@@ -95,12 +95,17 @@ def _validate_pack(pack: dict[str, Any]) -> None:
     if not isinstance(version, str) or not VERSION_PATTERN.fullmatch(version):
         raise CatalogError("version must use major.minor.patch")
 
-    dependencies = pack.get("depends_on", [])
-    _validate_list(dependencies, "depends_on", allow_empty=True)
-    for dependency in dependencies:
-        _validate_id(dependency, "depends_on entry")
-    if len(set(dependencies)) != len(dependencies):
-        raise CatalogError("depends_on contains duplicate IDs")
+    for field in ("depends_on", "conflicts_with"):
+        identifiers = pack.get(field, [])
+        _validate_list(identifiers, field, allow_empty=True)
+        for identifier in identifiers:
+            _validate_id(identifier, f"{field} entry")
+        if len(set(identifiers)) != len(identifiers):
+            raise CatalogError(f"{field} contains duplicate IDs")
+        if pack["id"] in identifiers:
+            raise CatalogError(f"{field} cannot name the pack itself")
+    if set(pack.get("depends_on", [])) & set(pack.get("conflicts_with", [])):
+        raise CatalogError("A pack cannot depend on a pack it conflicts with")
 
     _validate_list(pack["rules"], "rules")
     seen_ids = set()
@@ -181,7 +186,7 @@ def _validate_board_review(review: Any) -> None:
 def _validate_entry(collection: str, entry: Any) -> None:
     required = ENTRY_FIELDS | COLLECTION_FIELDS[collection]
     optional = {
-        "packs": {"depends_on"},
+        "packs": {"depends_on", "conflicts_with"},
         "patterns": {"match", "exclusive_group"},
         "boards": {"review"},
     }.get(collection)
@@ -210,6 +215,9 @@ def _validate_dependencies(packs: dict[str, dict[str, Any]]) -> None:
         missing = sorted(set(dependencies) - packs.keys())
         if missing:
             raise CatalogError(f"pack {pack_id!r} requires unknown packs: {', '.join(missing)}")
+        unknown = sorted(set(packs[pack_id].get("conflicts_with", [])) - packs.keys())
+        if unknown:
+            raise CatalogError(f"pack {pack_id!r} conflicts with unknown packs: {', '.join(unknown)}")
     try:
         TopologicalSorter(graph).prepare()
     except CycleError as exc:

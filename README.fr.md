@@ -28,6 +28,7 @@ Depuis ton dépôt, indique ta stack, ton secteur et les métiers concernés. Le
 ```bash
 openguildkit detect
 openguildkit init
+openguildkit preview
 openguildkit check
 ```
 

@@ -207,6 +207,23 @@ class ProjectSetupTests(CliTestCase):
         plan = json.loads(self.run_cli("recommend", "--json").stdout)
         self.assertEqual(plan["review"][0]["id"], "nextjs-react")
 
+    def test_preview_shows_the_rules_and_init_waits_for_a_conflict_resolution(self):
+        answers = {"name": "Team", "stack": ["Python", "FastAPI", "PostgreSQL"], "packs": ["kanban-delivery", "scrum-delivery"]}
+        path = self.write_json("answers.json", answers)
+        preview = self.run_cli("preview", "--answers", path).stdout
+        self.assertIn("agent-workflow@", preview)
+        self.assertIn("kanban-delivery / scrum-delivery: unresolved", preview)
+        refused = self.run_cli("init", "--answers", path, expect=1)
+        self.assertIn("Conflicting rule packs", refused.stderr)
+        self.assertFalse((self.project / ".openguildkit" / "project.json").exists())
+
+        answers["resolutions"] = [{"packs": ["kanban-delivery", "scrum-delivery"], "keep": ["kanban-delivery"], "reason": "Continuous demand."}]
+        self.run_cli("init", "--answers", self.write_json("answers.json", answers))
+        plan = json.loads(self.run_cli("preview", "--json").stdout)
+        self.assertEqual(plan["excluded"], ["scrum-delivery"])
+        self.assertIn("Reason: Continuous demand.", (self.project / "AGENTS.md").read_text(encoding="utf-8"))
+        self.run_cli("check")
+
     def test_init_writes_profile_and_agent_instructions(self):
         self.init_example()
         profile = json.loads((self.project / ".openguildkit" / "project.json").read_text(encoding="utf-8"))

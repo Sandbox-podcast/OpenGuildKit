@@ -229,7 +229,7 @@ def _scope_snapshot(profile: dict, catalog: dict, task: dict, answers: dict) -> 
     }
     if task.get("rounds"):
         scope["previous_decision"] = task["rounds"][-1]["decision"]
-    for field in ("roles", "components", "patterns"):
+    for field in ("roles", "components", "patterns", "resolutions"):
         if profile.get(field):
             scope[field] = profile[field]
     return deepcopy(scope)
