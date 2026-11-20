@@ -44,6 +44,8 @@ flowchart TB
     D -- approve --> H["Implementation brief with scope and checks"]
 ```
 
+With `"guard": "enforce"` in the profile, the board is not optional: host hooks remind the agent on every request, refuse file edits until a task is approved, and a CI check requires the approved decision in each pull request. [Board guard](integrations/README.md#the-board-before-every-change)
+
 The local CLI selects the boards and records their reviews. Your agent writes the reviews and uses its own tools for any research you authorize. You approve the scope in your terminal before the CLI issues the implementation brief.
 
 ## Browse the catalog

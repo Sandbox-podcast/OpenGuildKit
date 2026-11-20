@@ -1,6 +1,7 @@
 """Command-line interface for OpenGuildKit."""
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -8,6 +9,7 @@ from .catalog import load_catalog
 from .ci import check_export, read_policy_pack
 from .decisions import NAMESPACE, approval_policy, check_decision, decision_payload, git_revision, payload_text, verify_signature
 from .detect import components_for_profile, detect_stack
+from .guard import NO_TASK, ci_guard, covering_tasks, export_decision, guard_hook, guard_mode
 from .results import completion_problems, expected_checks, run_command_checks
 from .hosts import apply_host_settings, host_controls
 from .lock import (
@@ -92,6 +94,12 @@ def _parser() -> argparse.ArgumentParser:
     init_mode.add_argument("--questions", action="store_true", help="Print the setup questionnaire as JSON.")
     init_mode.add_argument("--answers", type=Path, help="Read setup answers from a JSON file.")
     commands.add_parser("sync", help="Update the managed instructions from the project profile.")
+    guard = commands.add_parser("guard", help="Say whether an approved task covers the work, for hooks and CI.")
+    guard_mode = guard.add_mutually_exclusive_group()
+    guard_mode.add_argument("--hook", choices=("prompt", "pre-edit"), help="Run as a host hook; reads the hook input on stdin.")
+    guard_mode.add_argument("--ci", action="store_true", help="Check the decisions exported for the changes since --base.")
+    guard.add_argument("--base", default="origin/main", help="Base revision for --ci (default origin/main).")
+    guard.add_argument("--json", action="store_true", help="Print the result as JSON.")
     host = commands.add_parser("host", help="Show or apply the rules the host agent can enforce.")
     host.add_argument("mode", choices=("check", "apply"), help="check reports each rule; apply writes the host settings.")
     host.add_argument("--json", action="store_true", help="Print the report as JSON.")
@@ -133,6 +141,7 @@ def _parser() -> argparse.ArgumentParser:
         "verify": "Run the project's check commands and record their results.",
         "result": "Record the delivered revision, criteria and check outcomes.",
         "complete": "Declare the task done once mandatory checks passed with evidence.",
+        "export": "Write a shareable decision record to .openguildkit/decisions for the pull request.",
         "authorize": "Record a person's decision on an external action outside the authorized scope.",
     }
     for action, description in descriptions.items():
@@ -600,6 +609,39 @@ def _selection(args) -> dict:
     return {"add": args.add, "remove": args.remove, "reason": args.reason, "delegate": delegate}
 
 
+def _guard(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
+    if args.hook:
+        raw = "" if sys.stdin.isatty() else sys.stdin.read()
+        try:
+            hook_input = json.loads(raw) if raw.strip() else {}
+        except ValueError:
+            hook_input = {}
+        code, out, err = guard_hook(args.hook, root, state, profile, catalog, hook_input if isinstance(hook_input, dict) else {})
+        if out:
+            print(out)
+        if err:
+            print(err, file=sys.stderr)
+        return code
+    if args.ci:
+        result = ci_guard(root, state, profile, catalog, args.base)
+        if args.json:
+            _print_json(result)
+        else:
+            print(f"{result['changed']} changed file(s); decisions: {', '.join(result['decisions']) or 'none'}")
+            for problem in result["problems"]:
+                print(f"  {problem}")
+        if result["ok"] or result["mode"] != "enforce":
+            return 0
+        return 1
+    covered = covering_tasks(root, state, profile, catalog)
+    result = {"mode": guard_mode(profile), "covered_by": covered}
+    if args.json:
+        _print_json(result)
+    else:
+        print(f"Approved task(s) in progress: {', '.join(covered)}" if covered else NO_TASK)
+    return 0
+
+
 def _read_consultation(task: dict) -> dict:
     if "consultation" not in task:
         raise ValueError("Run task consult first.")
@@ -772,6 +814,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 print(f"{item['check']}: {item['status']}")
             problems = completion_problems(result, profile)
             print(f"{len(problems)} point(s) before the task can be done." if problems else "Ready: run task complete.")
+    elif action == "export":
+        path = export_decision(root, state, task, profile)
+        print(path.relative_to(root).as_posix())
     elif action == "deliberate":
         _print_json(deliberation_request(task))
     elif action == "respond":
@@ -942,6 +987,8 @@ def _run(args) -> int | None:
             print(f"OpenGuildKit: review pattern {item['id']}: {'; '.join(item['reasons'])}", file=sys.stderr)
     else:
         profile = load_profile(state, catalog)
+        if args.command == "guard":
+            return _guard(args, root, state, profile, catalog)
         if args.command == "host":
             controls = host_controls(root, profile)
             if args.mode == "apply":

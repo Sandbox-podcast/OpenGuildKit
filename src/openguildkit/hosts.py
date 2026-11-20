@@ -74,6 +74,43 @@ def _codex_rules() -> str:
     return "".join(rules)
 
 
+CODEX_HOOKS_FILE = Path(".codex") / "hooks.json"
+GUARD_PROMPT = "openguildkit guard --hook prompt"
+GUARD_EDIT = "openguildkit guard --hook pre-edit"
+EDIT_MATCHERS = {"claude-code": "Edit|Write|MultiEdit|NotebookEdit", "codex": "apply_patch|Edit|Write"}
+
+
+def _guard_hooks(host: str) -> dict:
+    return {
+        "UserPromptSubmit": [{"hooks": [{"type": "command", "command": GUARD_PROMPT}]}],
+        "PreToolUse": [{"matcher": EDIT_MATCHERS[host], "hooks": [{"type": "command", "command": GUARD_EDIT}]}],
+    }
+
+
+def _claude_hooks_present(hooks: object) -> bool:
+    if not isinstance(hooks, dict):
+        return False
+    commands = {
+        handler.get("command")
+        for groups in hooks.values() if isinstance(groups, list)
+        for group in groups if isinstance(group, dict)
+        for handler in group.get("hooks", []) if isinstance(handler, dict)
+    }
+    return {GUARD_PROMPT, GUARD_EDIT} <= commands
+
+
+def _merge_hooks(current: object, host: str) -> dict:
+    hooks = dict(current) if isinstance(current, dict) else {}
+    for event, groups in _guard_hooks(host).items():
+        existing = hooks.get(event) if isinstance(hooks.get(event), list) else []
+        if not any(handler.get("command") in (GUARD_PROMPT, GUARD_EDIT)
+                   for group in existing if isinstance(group, dict)
+                   for handler in group.get("hooks", []) if isinstance(handler, dict)):
+            existing = [*existing, *groups]
+        hooks[event] = existing
+    return hooks
+
+
 def _control(control_id: str, title: str, status: str, detail: str) -> dict:
     return {"id": control_id, "title": title, "status": status, "detail": detail}
 
@@ -129,6 +166,22 @@ def host_controls(root: Path, profile: dict) -> list[dict]:
             "approval", approval_title, "instruction",
             "The approval asks for a typed confirmation at a terminal. A person keeps the command for themself.",
         ))
+    guard = profile.get("guard", "off")
+    if guard != "off":
+        hooks_title = "The board is consulted before each change"
+        if host == "claude-code":
+            present = _claude_hooks_present(_claude_settings(root).get("hooks", {}))
+            controls.append(_control("board", hooks_title, "enforced" if present else "missing",
+                                     f"Claude Code hooks in {CLAUDE_SETTINGS_FILE.as_posix()} run openguildkit guard on each request and before file edits."))
+        elif host == "codex":
+            path = root / CODEX_HOOKS_FILE
+            present = path.is_file() and _claude_hooks_present(json.loads(path.read_text(encoding="utf-8-sig")).get("hooks", {}))
+            controls.append(_control("board", hooks_title, "enforced" if present else "missing",
+                                     f"{CODEX_HOOKS_FILE.as_posix()} runs openguildkit guard on each request and before patches. "
+                                     "Codex reads it only once the project is trusted and its hooks reviewed."))
+        else:
+            controls.append(_control("board", hooks_title, "instruction",
+                                     "This host has no known hook: AGENTS.md tells the agent to open a task, and CI checks decisions."))
     controls.append(_control(
         "external-actions", "External actions outside the authorized scope need a recorded decision", "human",
         "The agent asks the requester, who records the decision with openguildkit task authorize.",
@@ -152,11 +205,21 @@ def apply_host_settings(root: Path, profile: dict) -> list[str]:
             raise ValueError(f"{path}: permissions.deny must be a list.")
         wanted = list(CLAUDE_APPROVAL_RULES) + (list(CLAUDE_RESEARCH_RULES) if local_only else [])
         deny.extend(rule for rule in wanted if rule not in deny)
+        if profile.get("guard", "off") != "off":
+            settings["hooks"] = _merge_hooks(settings.get("hooks"), host)
         write_text(path, json.dumps(settings, indent=2, ensure_ascii=False) + "\n")
         written.append(CLAUDE_SETTINGS_FILE.as_posix())
     elif host == "codex":
         write_text(root / CODEX_RULES_FILE, _codex_rules())
         written.append(CODEX_RULES_FILE.as_posix())
+        if profile.get("guard", "off") != "off":
+            hooks_path = root / CODEX_HOOKS_FILE
+            current = json.loads(hooks_path.read_text(encoding="utf-8-sig")) if hooks_path.is_file() else {}
+            if not isinstance(current, dict):
+                raise ValueError(f"{hooks_path} must hold a JSON object.")
+            current["hooks"] = _merge_hooks(current.get("hooks"), host)
+            write_text(hooks_path, json.dumps(current, indent=2, ensure_ascii=False) + "\n")
+            written.append(CODEX_HOOKS_FILE.as_posix())
         if local_only:
             path = root / CODEX_CONFIG_FILE
             config = _codex_config(root)
