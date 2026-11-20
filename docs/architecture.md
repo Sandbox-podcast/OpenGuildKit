@@ -44,6 +44,7 @@ your-project/
   CLAUDE.md                      imports AGENTS.md for Claude Code
   .openguildkit/
     project.json                 the profile (commit it)
+    catalog.lock.json            the catalog records in force (commit it)
     catalog/                     optional private packs, boards, sectors (commit it)
       packs/ boards/ sectors/
     tasks/                       task records (local, git-ignored)
@@ -93,6 +94,8 @@ sequenceDiagram
 **One rule = one instruction + one verification.** An instruction an agent cannot be checked against is advice, not a rule. The verification line tells the reviewer, or the agent itself, how to confirm the rule was applied.
 
 **Boards are lenses, not oracles.** A board brief lists the discipline's expertises, the questions it asks and source leads. The host agent applies it to the task. The CLI only checks that every selected board answered. Routing is deterministic: the same answers and brief always select the same boards, so a team can predict and discuss it.
+
+**Catalog updates are adopted, not received.** `init` and `sync` copy every bundled pack, board, sector and pattern the profile uses into `.openguildkit/catalog.lock.json`. Commands read the locked copies, so installing a newer OpenGuildKit leaves the project's rules, `AGENTS.md` and fingerprints unchanged. `openguildkit update` lists what the installed catalog would add, remove or change, rule by rule with its sources. `openguildkit update --apply` adopts it, rewrites the instructions and names the tasks consulted under the previous rules. Records the project adds in `.openguildkit/catalog/` are already versioned with the project and are not copied.
 
 **A person approves, at a terminal.** `task decide --approve` refuses non-interactive input and asks the person to type the task ID after showing the brief and review. This is friction by design. It stops an agent from approving its own plan through a pipe. It is not a security boundary against someone with shell access.
 

@@ -63,7 +63,7 @@ A pack is a versioned set of rules an agent follows and a reviewer can verify.
 | `conflicts_with` | Optional. IDs of packs whose rules cannot both apply to the same scope. A project that selects both must record which ones it keeps, with a reason. A pack cannot depend on a pack it conflicts with. |
 | `rules` | Non-empty array of `{id, instruction, verification}`. Rule IDs follow the ID format and are unique within the pack. |
 
-Versioning: bump `patch` for wording fixes, `minor` for a new rule, `major` for a removed or reversed rule. Any change to a pack changes the fingerprint of projects that use it, so their pending approvals need a new consultation.
+Versioning: bump `patch` for wording fixes, `minor` for a new rule, `major` for a removed or reversed rule. Projects pin the records they use in `.openguildkit/catalog.lock.json`, so a changed pack reaches them only when they run `openguildkit update --apply`. From then on their fingerprint changes and pending approvals need a new consultation.
 
 The [central export-rule example](../examples/export-expiry/README.md) uses a typed rule with `id: export-link-expiry` and `check.max_minutes` as a positive integer. The CLI derives the instruction and verification text from this rule and includes the pinned policy commit in the resolved pack.
 

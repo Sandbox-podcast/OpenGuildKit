@@ -7,6 +7,15 @@ from pathlib import Path
 from .catalog import load_catalog
 from .ci import check_export, read_policy_pack
 from .detect import components_for_profile, detect_stack
+from .lock import (
+    apply_lock,
+    build_lock,
+    catalog_changes,
+    lock_is_current,
+    read_lock,
+    update_target,
+    write_lock,
+)
 from .patterns import patterns_to_review, role_choices
 from .project import (
     check_instructions,
@@ -14,7 +23,9 @@ from .project import (
     initialize,
     load_profile,
     profile_recommendations,
+    profile_fingerprint,
     project_root,
+    rule_conflicts,
     rule_plan,
     state_path,
     sync_instructions,
@@ -67,6 +78,9 @@ def _parser() -> argparse.ArgumentParser:
     init_mode.add_argument("--questions", action="store_true", help="Print the setup questionnaire as JSON.")
     init_mode.add_argument("--answers", type=Path, help="Read setup answers from a JSON file.")
     commands.add_parser("sync", help="Update the managed instructions from the project profile.")
+    update = commands.add_parser("update", help="Show what the installed catalog would change and adopt it.")
+    update.add_argument("--apply", action="store_true", help="Adopt the installed catalog's records for this project.")
+    update.add_argument("--json", action="store_true", help="Print the changes as JSON.")
     commands.add_parser("check", help="Check that the instructions match the project profile.")
     ci = commands.add_parser("ci-check", help="Evaluate the central export rule on an exact Git commit.")
     ci.add_argument("--target-repo", type=Path, required=True, help="Local Git repository with the target commit.")
@@ -109,13 +123,104 @@ def _print_json(data) -> None:
     print(json_text(data), end="")
 
 
-def _load_project_catalog(args, state: Path) -> dict:
+def _installed_catalog(args, state: Path) -> tuple[dict, dict[str, set[str]]]:
+    """The installed catalog with project additions, and the IDs that ship with OpenGuildKit."""
     if (args.policy_repo is None) != (args.policy_commit is None):
         raise ValueError("Supply --policy-repo and --policy-commit together.")
     policy = None
     if args.policy_repo is not None:
         policy = (args.policy_commit, read_policy_pack(args.policy_repo, args.policy_commit))
-    return load_catalog(state / "catalog", central_policy=policy)
+    live = load_catalog(state / "catalog", central_policy=policy)
+    bundled = {collection: set(entries) for collection, entries in load_catalog().items()}
+    return live, bundled
+
+
+def _load_project_catalog(args, state: Path) -> dict:
+    """The catalog in force for the project: locked records take precedence over installed ones."""
+    live, _ = _installed_catalog(args, state)
+    return apply_lock(live, read_lock(state))
+
+
+def _stale_tasks(state: Path, profile: dict, catalog: dict) -> list[dict]:
+    stale = []
+    directory = state / "tasks"
+    if not directory.is_dir():
+        return stale
+    for path in sorted(directory.glob("*.json")):
+        try:
+            task = read_task(state, path.stem)
+        except ValueError:
+            continue
+        if task.get("profile_fingerprint") and task["profile_fingerprint"] != profile_fingerprint(profile, catalog):
+            stale.append({"id": task["id"], "status": task["status"]})
+    return stale
+
+
+def _update_catalog(args, root: Path, state: Path) -> None:
+    with project_lock(state):
+        live, bundled = _installed_catalog(args, state)
+        lock = read_lock(state)
+        if lock is None:
+            catalog = live
+            profile = load_profile(state, catalog)
+            if args.apply:
+                write_lock(state, build_lock(profile, catalog, bundled))
+            result = {"changes": [], "conflicts": [], "applied": args.apply, "stale_tasks": [],
+                      "note": "The project had no catalog lock. It now pins the installed catalog." if args.apply
+                      else "The project has no catalog lock yet. Run openguildkit update --apply or sync to create one."}
+        else:
+            current = apply_lock(live, lock)
+            profile = load_profile(state, current)
+            target = update_target(live, lock)
+            changes = catalog_changes(lock, live, target, profile, bundled)
+            conflicts = [conflict for conflict in rule_conflicts(profile, target) if conflict["resolution"] is None]
+            result = {"changes": changes, "conflicts": conflicts, "applied": False, "stale_tasks": []}
+            if args.apply and changes:
+                sync_instructions(root, profile, target)
+                write_lock(state, build_lock(profile, target, bundled))
+                result["applied"] = True
+                result["stale_tasks"] = _stale_tasks(state, profile, target)
+    _print_update(result, args.json)
+
+
+def _print_update(result: dict, as_json: bool) -> None:
+    if as_json:
+        _print_json(result)
+        return
+    if result.get("note"):
+        print(result["note"])
+        return
+    if not result["changes"]:
+        print("The project's rules match the installed catalog.")
+        return
+    for change in result["changes"]:
+        label = f"{change['collection']}/{change['id']}"
+        if change["status"] == "added":
+            print(f"+ {label} {change.get('version') or ''}".rstrip())
+            continue
+        if change["status"] != "changed":
+            print(f"- {label}: {change['status']}, kept from the lock")
+            continue
+        version = f" {change['version'][0]} -> {change['version'][1]}" if "version" in change else ""
+        print(f"~ {label}{version} ({', '.join(change['fields'])})")
+        for rule in change.get("rules", {}).get("added", []):
+            print(f"    + rule {rule['id']}: {rule['text']}")
+        for rule_id in change.get("rules", {}).get("removed", []):
+            print(f"    - rule {rule_id}")
+        for rule in change.get("rules", {}).get("changed", []):
+            print(f"    ~ rule {rule['id']}: {rule['after']}")
+        for url in change["sources"]["added"]:
+            print(f"    + source {url}")
+        for url in change["sources"]["removed"]:
+            print(f"    - source {url}")
+    for conflict in result["conflicts"]:
+        print(f"! {' and '.join(conflict['packs'])} conflict: record a resolution before applying.")
+    if not result["applied"]:
+        print("Nothing changed. Run openguildkit update --apply to adopt these rules.")
+        return
+    print("Applied. The next consultations use these rules.")
+    for task in result["stale_tasks"]:
+        print(f"  Task {task['id']} ({task['status']}) was consulted under the previous rules: review it again.")
 
 
 def _prompt_choices(question: dict, value: str):
@@ -543,14 +648,20 @@ def _run(args) -> int | None:
         if not args.answers:
             _confirm_rule_plan(rule_plan(validate_profile(answers, catalog), catalog))
         with project_lock(state):
-            catalog = _load_project_catalog(args, state)
-            initialize(root, state, validate_profile(answers, catalog), catalog)
+            live, bundled = _installed_catalog(args, state)
+            profile = validate_profile(answers, live)
+            initialize(root, state, profile, live)
+            write_lock(state, build_lock(profile, live, bundled))
         print(f"Initialized {root}")
+    elif args.command == "update":
+        _update_catalog(args, root, state)
     elif args.command == "sync":
         with project_lock(state):
-            catalog = _load_project_catalog(args, state)
+            live, bundled = _installed_catalog(args, state)
+            catalog = apply_lock(live, read_lock(state))
             profile = load_profile(state, catalog)
             sync_instructions(root, profile, catalog)
+            write_lock(state, build_lock(profile, catalog, bundled))
         print("OpenGuildKit instructions updated.")
         for item in patterns_to_review(profile, catalog):
             print(f"OpenGuildKit: review pattern {item['id']}: {'; '.join(item['reasons'])}", file=sys.stderr)
@@ -558,6 +669,9 @@ def _run(args) -> int | None:
         profile = load_profile(state, catalog)
         if args.command == "check":
             check_instructions(root, profile, catalog)
+            _, bundled = _installed_catalog(args, state)
+            if not lock_is_current(read_lock(state), profile, catalog, bundled):
+                raise ValueError("The catalog lock does not match the profile. Run openguildkit sync.")
             print("OpenGuildKit instructions match the project profile.")
         elif args.command == "ci-check":
             result = check_export(profile, catalog, args.target_repo, args.commit)
