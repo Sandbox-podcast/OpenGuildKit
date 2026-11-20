@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .project import profile_fingerprint, resolved_profile
 from .storage import read_json, write_json
-from .workflow import consult, validate_answers, validate_review
+from .workflow import consult, validate_answers, validate_board_entry, validate_review
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 WINDOWS_RESERVED_NAMES = {"con", "prn", "aux", "nul"} | {
@@ -120,6 +120,7 @@ def record_consultation(
     )
     result.pop("review", None)
     result.pop("decision", None)
+    result.pop("passes", None)
     return result
 
 
@@ -127,7 +128,83 @@ def record_review(task: dict, review: dict) -> dict:
     if task["status"] != "consulting":
         raise ValueError("Run task consult before recording a review.")
     review = validate_review(task["consultation"], review)
-    return {**task, "status": "reviewed", "review": review}
+    result = {**task, "status": "reviewed", "review": review}
+    result.pop("passes", None)
+    return result
+
+
+def _passes(task: dict) -> dict:
+    if task["status"] != "consulting":
+        raise ValueError("Board passes can only run while the task is being consulted.")
+    passes = task.get("passes")
+    if not passes or passes.get("consultation_id") != task["consultation"]["id"]:
+        return {"consultation_id": task["consultation"]["id"], "boards": {}}
+    return {"consultation_id": passes["consultation_id"], "boards": dict(passes["boards"])}
+
+
+def start_pass(task: dict, board_id: str, mode: str) -> dict:
+    """Mark a board's pass as started; starting again replaces a failed or interrupted pass."""
+    if board_id not in task["consultation"]["boards"]:
+        raise ValueError(f"Board {board_id!r} is not part of this consultation.")
+    if mode not in ("subagent", "sequential"):
+        raise ValueError("A pass runs as a subagent or in sequence.")
+    passes = _passes(task)
+    previous = passes["boards"].get(board_id, {})
+    passes["boards"][board_id] = {"status": "started", "mode": mode, "started_at": timestamp(),
+                                  "attempts": previous.get("attempts", 0) + 1}
+    return {**task, "passes": passes}
+
+
+def submit_pass(task: dict, entry: dict, mode: str | None = None) -> dict:
+    """Record one board's entry. An invalid entry is recorded as a failure to retry."""
+    passes = _passes(task)
+    board_id = entry.get("id") if isinstance(entry, dict) else None
+    current = passes["boards"].get(board_id, {}) if isinstance(board_id, str) else {}
+    mode = mode or current.get("mode", "sequential")
+    try:
+        validated = validate_board_entry(task["consultation"], entry)
+    except ValueError as error:
+        if isinstance(board_id, str) and board_id in task["consultation"]["boards"]:
+            passes["boards"][board_id] = {**current, "status": "failed", "mode": mode, "error": str(error),
+                                          "at": timestamp(), "attempts": current.get("attempts", 1)}
+            return {**task, "passes": passes, "_error": str(error)}
+        raise
+    passes["boards"][validated["id"]] = {"status": "done", "mode": mode, "entry": validated, "at": timestamp(),
+                                         "attempts": current.get("attempts", 1)}
+    return {**task, "passes": passes}
+
+
+def pass_progress(task: dict) -> list[dict]:
+    """Each selected board with its pass status: done, failed, started (or interrupted) or missing."""
+    passes = task.get("passes") if task["status"] == "consulting" else None
+    if passes and passes.get("consultation_id") != task["consultation"]["id"]:
+        passes = None
+    progress = []
+    for board_id in task["consultation"]["boards"]:
+        state = (passes or {}).get("boards", {}).get(board_id)
+        item = {"board": board_id, "status": state["status"] if state else "missing"}
+        if state:
+            item.update({key: state[key] for key in ("mode", "attempts", "error") if key in state})
+        progress.append(item)
+    return progress
+
+
+def assemble_review(task: dict, summary: str) -> dict:
+    """Build the full review from completed passes once every board is done."""
+    passes = _passes(task)
+    progress = pass_progress({**task, "passes": passes})
+    waiting = [item["board"] for item in progress if item["status"] != "done"]
+    if waiting:
+        raise ValueError(f"Board passes are not done for {', '.join(waiting)}. Run task progress.")
+    modes = {passes["boards"][board_id]["mode"] for board_id in task["consultation"]["boards"]}
+    execution = "subagents" if modes == {"subagent"} else "sequential" if modes == {"sequential"} else "mixed"
+    review = {
+        "consultation_id": task["consultation"]["id"],
+        "summary": summary,
+        "boards": [passes["boards"][board_id]["entry"] for board_id in task["consultation"]["boards"]],
+        "execution": execution,
+    }
+    return record_review(task, review)
 
 
 def record_decision(task: dict, approve: bool, by: str, reason: str) -> dict:

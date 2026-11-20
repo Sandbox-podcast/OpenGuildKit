@@ -36,6 +36,10 @@ from .project import (
 from .references import find_references, load_references, with_pattern_references
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
+    assemble_review,
+    pass_progress,
+    start_pass,
+    submit_pass,
     ACTIONS,
     record_authorization,
     create_task,
@@ -46,7 +50,7 @@ from .tasks import (
     require_current_scope,
     task_path,
 )
-from .workflow import challenge_report, handoff, open_points, select_boards, task_questions, validate_answers
+from .workflow import board_brief, challenge_report, handoff, open_points, select_boards, task_questions, validate_answers
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -105,6 +109,9 @@ def _parser() -> argparse.ArgumentParser:
         "consult": "Save task answers and prepare the board consultation.",
         "brief": "Print the saved consultation for the host agent.",
         "template": "Print the review template as JSON.",
+        "pass": "Start one board's independent pass and print what it needs.",
+        "submit": "Record one board's review entry from its pass.",
+        "progress": "Show which board passes are done, failed, started or missing.",
         "review": "Record the completed board reviews.",
         "challenge": "Print the decision brief and each board's challenge.",
         "decide": "Record a human decision.",
@@ -126,7 +133,17 @@ def _parser() -> argparse.ArgumentParser:
         if action == "route":
             command.add_argument("--json", action="store_true", help="Print the selection as JSON.")
         if action == "review":
-            command.add_argument("--file", type=Path, required=True, help="Completed review JSON.")
+            source = command.add_mutually_exclusive_group(required=True)
+            source.add_argument("--file", type=Path, help="Completed review JSON.")
+            source.add_argument("--summary", help="Assemble the review from completed board passes with this summary.")
+        if action == "pass":
+            command.add_argument("board", help="Board ID.")
+        if action in ("pass", "submit"):
+            command.add_argument("--mode", choices=("subagent", "sequential"), help="How the host runs this pass.")
+        if action == "submit":
+            command.add_argument("--file", type=Path, required=True, help="The board's filled-in JSON entry.")
+        if action == "progress":
+            command.add_argument("--json", action="store_true", help="Print the progress as JSON.")
         if action == "authorize":
             command.add_argument("--action", dest="external_action", required=True, choices=ACTIONS,
                                  help="Kind of external action.")
@@ -669,14 +686,42 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             write_json(task_path(state, args.id), result)
         print(result["consultation"]["markdown"])
     elif action == "review":
-        review = read_json(args.file)
+        review = read_json(args.file) if args.file else None
         with project_lock(state):
             current_task = read_task(state, args.id)
             if current_task != task:
                 raise ValueError("The task changed while you were reviewing. Read the consultation and retry.")
-            result = record_review(current_task, review)
+            result = record_review(current_task, review) if review is not None else assemble_review(current_task, args.summary)
             write_json(task_path(state, args.id), result)
         print(result["status"])
+    elif action in ("pass", "submit"):
+        entry = read_json(args.file) if action == "submit" else None
+        with project_lock(state):
+            current_task = read_task(state, args.id)
+            if action == "pass":
+                result = start_pass(current_task, args.board, args.mode or "sequential")
+            else:
+                result = submit_pass(current_task, entry, args.mode)
+            error = result.pop("_error", None)
+            write_json(task_path(state, args.id), result)
+        if action == "pass":
+            print(board_brief(result["consultation"], args.board))
+        elif error:
+            raise ValueError(f"The pass is recorded as failed: {error} Start it again with task pass.")
+        else:
+            print("done")
+    elif action == "progress":
+        if "consultation" not in task:
+            raise ValueError("Run task consult first.")
+        progress = pass_progress(task)
+        if args.json:
+            _print_json(progress)
+        else:
+            for item in progress:
+                details = ", ".join(f"{key} {item[key]}" for key in ("mode", "attempts") if key in item)
+                print(f"{item['board']}: {item['status']}{f' ({details})' if details else ''}")
+                if "error" in item:
+                    print(f"    {item['error']}")
     elif action == "decide":
         _decide(args, root, state, task)
     elif action == "authorize":
