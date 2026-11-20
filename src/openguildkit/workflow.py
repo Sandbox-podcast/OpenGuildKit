@@ -324,6 +324,57 @@ def _route_boards(profile: dict, catalog: dict, task: dict, answers: dict) -> di
     return reasons
 
 
+def select_boards(profile: dict, catalog: dict, task: dict, answers: dict, selection: dict | None = None) -> dict:
+    """Apply the project's required boards and the requester's changes to the proposed routing.
+
+    selection: {"add": [ids], "remove": [ids], "reason": text, "delegate": {board: person}}
+    Returns {"routing": {...}, "adjustments": [...], "delegations": {...}}.
+    """
+    selection = selection or {}
+    boards = catalog["boards"]
+    enabled = set(profile.get("boards") or boards)
+    routing = _route_boards(profile, catalog, task, answers)
+    required = list(profile.get("required_boards", []))
+    delegations = dict(selection.get("delegate") or {})
+    unknown = sorted(set(delegations) - set(required))
+    if unknown:
+        raise ValueError(f"Only a required board can be delegated: {', '.join(unknown)}.")
+    missing = []
+    for board_id in required:
+        if board_id in enabled:
+            if "Required by the project" not in routing.get(board_id, []):
+                routing.setdefault(board_id, []).append("Required by the project")
+        elif board_id in delegations:
+            routing.setdefault(board_id, []).append(f"Required by the project, reviewed by {delegations[board_id]}")
+        else:
+            missing.append(board_id)
+    if missing:
+        raise ValueError(
+            f"Required reviews are unavailable: {', '.join(missing)} not enabled in the profile. Enable them, "
+            "or name the person who will review with --delegate BOARD=NAME."
+        )
+    adjustments = []
+    reason = (selection.get("reason") or "").strip()
+    if (selection.get("add") or selection.get("remove")) and not reason:
+        raise ValueError("Give a --reason for adding or removing a board.")
+    for board_id in selection.get("add") or []:
+        if board_id not in enabled:
+            raise ValueError(f"Board {board_id!r} is not enabled for this project.")
+        if board_id not in routing:
+            routing[board_id] = [f"Added by the requester: {reason}"]
+            adjustments.append({"action": "add", "board": board_id, "reason": reason})
+    for board_id in selection.get("remove") or []:
+        if board_id not in routing:
+            raise ValueError(f"Board {board_id!r} was not proposed for this task.")
+        if board_id in required:
+            raise ValueError(f"The project requires the {board_id} review; it cannot be removed.")
+        del routing[board_id]
+        adjustments.append({"action": "remove", "board": board_id, "reason": reason})
+    if not routing:
+        raise ValueError("Keep at least one board for the consultation.")
+    return {"routing": routing, "adjustments": adjustments, "delegations": delegations}
+
+
 def _scope_snapshot(profile: dict, catalog: dict, task: dict, answers: dict) -> dict:
     research = "local-only"
     if profile.get("research") == "public-sources" and answers["research"] == "public":
@@ -358,7 +409,7 @@ def _json_section(value: object) -> str:
     return f"{fence}json\n{body}\n{fence}"
 
 
-def _consultation_markdown(scope: dict, boards: dict, routing: dict) -> str:
+def _consultation_markdown(scope: dict, boards: dict, routing: dict, delegations: dict | None = None) -> str:
     if scope["research"] == "public-sources":
         research = (
             "Use authorized project evidence and public sources. Keep private "
@@ -411,6 +462,11 @@ def _consultation_markdown(scope: dict, boards: dict, routing: dict) -> str:
         }
         if "review" in board:
             brief["brain_review"] = board["review"]
+        if delegations and board_id in delegations:
+            brief["reviewer"] = (
+                f"{delegations[board_id]} reviews for this board. Prepare the brief for them and record "
+                "their review as given."
+            )
         lines.extend(
             [
                 "",
@@ -445,8 +501,10 @@ def _consultation_markdown(scope: dict, boards: dict, routing: dict) -> str:
     return "\n".join(lines)
 
 
-def _board_template(board: dict) -> dict:
+def _board_template(board: dict, reviewer: str | None = None) -> dict:
     entry = {"id": board["id"], "recommendation": "", "evidence": [], "open_questions": []}
+    if reviewer:
+        entry["reviewer"] = reviewer
     if "review" in board:
         entry["challenge"] = {
             "specialists": [
@@ -463,24 +521,32 @@ def _board_template(board: dict) -> dict:
     return entry
 
 
-def consult(profile: dict, catalog: dict, task: dict) -> dict:
+def consult(profile: dict, catalog: dict, task: dict, selection: dict | None = None) -> dict:
     """Route a scoped task and prepare a review request for the host agent."""
     answers = validate_answers(task["answers"])
-    routing = _route_boards(profile, catalog, task, answers)
+    selected = select_boards(profile, catalog, task, answers, selection)
+    routing, delegations = selected["routing"], selected["delegations"]
     scope = _scope_snapshot(profile, catalog, task, answers)
     consultation_id = uuid4().hex
-    return {
+    consultation = {
         "id": consultation_id,
         "boards": list(routing),
         "routing": routing,
         "scope": scope,
-        "markdown": _consultation_markdown(scope, catalog["boards"], routing),
+        "markdown": _consultation_markdown(scope, catalog["boards"], routing, delegations),
         "review_template": {
             "consultation_id": consultation_id,
             "summary": "",
-            "boards": [_board_template(catalog["boards"][board_id]) for board_id in routing],
+            "boards": [
+                _board_template(catalog["boards"][board_id], delegations.get(board_id)) for board_id in routing
+            ],
         },
     }
+    if selected["adjustments"]:
+        consultation["adjustments"] = selected["adjustments"]
+    if delegations:
+        consultation["delegations"] = delegations
+    return consultation
 
 
 def _text(value: object, field: str) -> str:
@@ -580,6 +646,8 @@ def validate_review(consultation: dict, review: dict) -> dict:
         fields = {"id", "recommendation", "evidence", "open_questions"}
         if "challenge" in template:
             fields.add("challenge")
+        if "reviewer" in template:
+            fields.add("reviewer")
         if entry.keys() != fields:
             raise ValueError(f"{board_id} review does not match task template. Expected {', '.join(sorted(fields))}.")
         result = {
@@ -588,6 +656,8 @@ def validate_review(consultation: dict, review: dict) -> dict:
             "evidence": _text_list(entry["evidence"], f"{board_id} evidence"),
             "open_questions": _text_list(entry["open_questions"], f"{board_id} open questions"),
         }
+        if "reviewer" in template:
+            result["reviewer"] = _text(entry["reviewer"], f"{board_id} reviewer")
         if "challenge" in template:
             result["challenge"] = _validate_challenge(
                 board_id, entry["challenge"], template["challenge"], result["evidence"]

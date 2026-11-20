@@ -25,6 +25,7 @@ from .project import (
     profile_recommendations,
     profile_fingerprint,
     project_root,
+    resolved_profile,
     rule_conflicts,
     rule_plan,
     state_path,
@@ -42,7 +43,7 @@ from .tasks import (
     require_current_scope,
     task_path,
 )
-from .workflow import challenge_report, handoff, open_points, task_questions, validate_answers
+from .workflow import challenge_report, handoff, open_points, select_boards, task_questions, validate_answers
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -94,6 +95,7 @@ def _parser() -> argparse.ArgumentParser:
     new.add_argument("--id", help="Use a readable lowercase task ID.")
     descriptions = {
         "questions": "Print the task questionnaire as JSON.",
+        "route": "Preview the boards a consultation would select, and why.",
         "consult": "Save task answers and prepare the board consultation.",
         "brief": "Print the saved consultation for the host agent.",
         "template": "Print the review template as JSON.",
@@ -106,8 +108,16 @@ def _parser() -> argparse.ArgumentParser:
     for action, description in descriptions.items():
         command = actions.add_parser(action, help=description)
         command.add_argument("id", help="Task ID.")
-        if action in ("consult", "questions"):
+        if action in ("consult", "questions", "route"):
             command.add_argument("--answers", type=Path, help="Read task answers from a JSON file.")
+        if action in ("consult", "route"):
+            command.add_argument("--add", action="append", default=[], metavar="BOARD", help="Add a board to the consultation.")
+            command.add_argument("--remove", action="append", default=[], metavar="BOARD", help="Remove a proposed board.")
+            command.add_argument("--reason", help="Why the boards were added or removed.")
+            command.add_argument("--delegate", action="append", default=[], metavar="BOARD=NAME",
+                                 help="Name the person who reviews a required board the project has not enabled.")
+        if action == "route":
+            command.add_argument("--json", action="store_true", help="Print the selection as JSON.")
         if action == "review":
             command.add_argument("--file", type=Path, required=True, help="Completed review JSON.")
         if action == "decide":
@@ -507,6 +517,16 @@ def _print_detection(detected: dict, as_json: bool) -> None:
             print(f"  {item['name']}: {version} [{item['evidence']}{note}]")
 
 
+def _selection(args) -> dict:
+    delegate = {}
+    for item in args.delegate:
+        board_id, separator, name = item.partition("=")
+        if not separator or not board_id.strip() or not name.strip():
+            raise ValueError("Use --delegate BOARD=NAME.")
+        delegate[board_id.strip()] = name.strip()
+    return {"add": args.add, "remove": args.remove, "reason": args.reason, "delegate": delegate}
+
+
 def _read_consultation(task: dict) -> dict:
     if "consultation" not in task:
         raise ValueError("Run task consult first.")
@@ -601,6 +621,20 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         _print_json(_read_consultation(task)["review_template"])
     elif action == "challenge":
         print(challenge_report(task), end="")
+    elif action == "route":
+        if args.answers is None and "answers" not in task:
+            raise ValueError("Pass --answers FILE, or consult the task first.")
+        answers = validate_answers(read_json(args.answers) if args.answers else task["answers"])
+        selected = select_boards(
+            resolved_profile(profile, catalog), catalog, {**task, "answers": answers}, answers, _selection(args)
+        )
+        if args.json:
+            _print_json(selected)
+        else:
+            for board_id, reasons in selected["routing"].items():
+                print(f"{board_id}: {'; '.join(reasons)}")
+            for item in selected["adjustments"]:
+                print(f"  {item['action']} {item['board']}: {item['reason']}")
     elif action == "consult":
         answers = (
             read_json(args.answers)
@@ -614,7 +648,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             catalog = _load_project_catalog(args, state)
             profile = load_profile(state, catalog)
             check_instructions(root, profile, catalog)
-            result = record_consultation(current_task, answers, profile, catalog)
+            result = record_consultation(current_task, answers, profile, catalog, _selection(args))
             write_json(task_path(state, args.id), result)
         print(result["consultation"]["markdown"])
     elif action == "review":

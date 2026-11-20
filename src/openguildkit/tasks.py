@@ -103,7 +103,7 @@ def create_task(state: Path, brief: str, task_id: str | None) -> str:
     return task_id
 
 
-def record_consultation(task: dict, answers: dict, profile: dict, catalog: dict) -> dict:
+def record_consultation(task: dict, answers: dict, profile: dict, catalog: dict, selection: dict | None = None) -> dict:
     if task["status"] not in {"draft", "consulting", "changes-requested"}:
         raise ValueError("Start a new task or request changes before consulting again.")
     rounds = list(task["rounds"])
@@ -112,7 +112,7 @@ def record_consultation(task: dict, answers: dict, profile: dict, catalog: dict)
     result = {**task, "answers": validate_answers(answers), "rounds": rounds}
     result.update(
         status="consulting",
-        consultation=consult(resolved_profile(profile, catalog), catalog, result),
+        consultation=consult(resolved_profile(profile, catalog), catalog, result, selection),
         profile_fingerprint=profile_fingerprint(profile, catalog),
     )
     result.pop("review", None)

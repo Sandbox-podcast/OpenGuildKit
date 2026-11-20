@@ -363,6 +363,18 @@ class TaskFlowTests(CliTestCase):
         consultation = self.run_cli("task", "consult", "vague", "--answers", answers).stdout
         self.assertIn("## Open points", consultation)
 
+    def test_route_preview_and_requester_adjustments(self):
+        self.init_example()
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK_ID)
+        preview = self.run_cli("task", "route", TASK_ID, "--answers", EXAMPLE / "answers.json").stdout
+        self.assertIn("marketing: Customer expectations and market evidence", preview)
+        self.assertNotIn("consultation", self.task_record())
+        self.run_cli("task", "consult", TASK_ID, "--answers", EXAMPLE / "answers.json",
+                     "--remove", "marketing", "--add", "finance", "--reason", "No launch planned")
+        consultation = self.task_record()["consultation"]
+        self.assertNotIn("marketing", consultation["boards"])
+        self.assertEqual(consultation["adjustments"][0]["reason"], "No launch planned")
+
     def test_other_answer_requires_context(self):
         self.init_example()
         self.run_cli("task", "new", "Something unusual", "--id", "odd")
