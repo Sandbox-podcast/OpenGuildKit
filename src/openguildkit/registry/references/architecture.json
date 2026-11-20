@@ -1,0 +1,656 @@
+{
+  "id": "architecture",
+  "title": "Architecture API et formats",
+  "references": [
+    {
+      "id": "solid",
+      "title": "SOLID",
+      "category": "Architecture et modélisation",
+      "kind": "pratique",
+      "summary": "Rassemble cinq principes de conception destinés à clarifier les responsabilités, les interfaces et les dépendances du code.",
+      "applies_when": "Pour guider les décisions de conception, notamment orientées objet ; appliquer avec discernement selon la complexité réelle.",
+      "sources": [
+        {
+          "url": "https://blog.cleancoder.com/uncle-bob/2020/10/18/Solid-Relevance.html",
+          "title": "Solid Relevance - Robert C. Martin"
+        }
+      ]
+    },
+    {
+      "id": "domain-driven-design",
+      "title": "Domain-Driven Design",
+      "category": "Architecture et modélisation",
+      "kind": "méthode",
+      "summary": "Organise la conception autour du métier, de son vocabulaire et de frontières explicites entre domaines.",
+      "applies_when": "Pour des logiciels dont les règles métier sont importantes ou complexes ; adapter l'effort de modélisation au besoin.",
+      "sources": [
+        {
+          "url": "https://www.domainlanguage.com/ddd/reference/",
+          "title": "Domain-Driven Design Reference - Eric Evans"
+        }
+      ]
+    },
+    {
+      "id": "clean-architecture",
+      "title": "Clean Architecture",
+      "category": "Architecture et modélisation",
+      "kind": "pratique",
+      "summary": "Place les règles métier au centre et oriente les dépendances pour les isoler des détails techniques.",
+      "applies_when": "Pour les applications qui ont besoin de faire évoluer séparément le métier, l'interface et les technologies de stockage.",
+      "sources": [
+        {
+          "url": "https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html",
+          "title": "The Clean Architecture - Robert C. Martin"
+        }
+      ]
+    },
+    {
+      "id": "hexagonal-architecture",
+      "title": "Hexagonal Architecture",
+      "category": "Architecture et modélisation",
+      "kind": "pratique",
+      "summary": "Sépare le cœur de l'application de ses entrées et sorties grâce à des ports et des adaptateurs.",
+      "applies_when": "Pour remplacer ou tester indépendamment une interface, une base de données ou une intégration externe.",
+      "sources": [
+        {
+          "url": "https://alistair.cockburn.us/hexagonal-architecture?trk=public_post_comment-text",
+          "title": "Hexagonal architecture - Alistair Cockburn"
+        }
+      ]
+    },
+    {
+      "id": "cqrs",
+      "title": "Command Query Responsibility Segregation",
+      "category": "Architecture et modélisation",
+      "kind": "pratique",
+      "summary": "Sépare les modèles qui modifient les données de ceux qui servent à les consulter.",
+      "applies_when": "Pour des besoins de lecture et d'écriture suffisamment différents pour justifier cette complexité ; pas une obligation pour une application simple.",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs",
+          "title": "CQRS pattern - Azure Architecture Center"
+        }
+      ]
+    },
+    {
+      "id": "event-sourcing",
+      "title": "Event Sourcing",
+      "category": "Architecture et modélisation",
+      "kind": "pratique",
+      "summary": "Conserve une succession d'événements métier permettant de reconstruire l'état d'un système.",
+      "applies_when": "Pour des besoins explicites d'historique ou de reconstruction ; évaluer les coûts de migration des événements, d'exploitation et de gestion des données.",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing",
+          "title": "Event Sourcing pattern - Azure Architecture Center"
+        }
+      ]
+    },
+    {
+      "id": "c4-model",
+      "title": "C4 model",
+      "category": "Architecture et modélisation",
+      "kind": "méthode",
+      "summary": "Décrit l'architecture à plusieurs niveaux, du contexte global jusqu'aux composants et au code.",
+      "applies_when": "Pour expliquer un système à des publics différents ; sélectionner les niveaux utiles plutôt que produire tous les diagrammes.",
+      "sources": [
+        {
+          "url": "https://c4model.com/",
+          "title": "The C4 model for visualising software architecture"
+        }
+      ]
+    },
+    {
+      "id": "architecture-decision-records",
+      "title": "Architecture Decision Records",
+      "category": "Architecture et modélisation",
+      "kind": "pratique",
+      "summary": "Conserve le contexte, le choix et les conséquences d'une décision d'architecture dans un document court.",
+      "applies_when": "Pour les décisions importantes ou difficiles à comprendre plus tard ; garder une trace des décisions remplacées.",
+      "sources": [
+        {
+          "url": "https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions",
+          "title": "Documenting Architecture Decisions - Michael Nygard"
+        }
+      ]
+    },
+    {
+      "id": "twelve-factor-app",
+      "title": "The Twelve-Factor App",
+      "category": "Architecture et modélisation",
+      "kind": "méthode",
+      "summary": "Propose douze principes pour organiser la construction, la configuration et l'exploitation d'applications de service.",
+      "applies_when": "Pour des applications livrées comme services, avec adaptation aux contraintes réelles de déploiement et d'exploitation.",
+      "sources": [
+        {
+          "url": "https://12factor.net/",
+          "title": "The Twelve-Factor App"
+        }
+      ]
+    },
+    {
+      "id": "microservices",
+      "title": "Microservices",
+      "category": "Architecture et modélisation",
+      "kind": "pratique",
+      "summary": "Découpe une application en services organisés autour de capacités métier et pouvant être déployés séparément.",
+      "applies_when": "Lorsque l'autonomie des équipes et des déploiements justifie les coûts de communication, de supervision et d'exploitation distribuée.",
+      "sources": [
+        {
+          "url": "https://martinfowler.com/articles/microservices.html",
+          "title": "Microservices - James Lewis and Martin Fowler"
+        }
+      ]
+    },
+    {
+      "id": "modular-monolith",
+      "title": "Modular Monolith",
+      "category": "Architecture et modélisation",
+      "kind": "pratique",
+      "summary": "Organise une application déployée comme un ensemble unique en modules aux responsabilités et dépendances explicites.",
+      "applies_when": "Pour préserver des frontières internes avec une exploitation plus simple ; alternative possible aux microservices.",
+      "sources": [
+        {
+          "url": "https://docs.spring.io/spring-modulith/reference/fundamentals.html",
+          "title": "Spring Modulith: Fundamentals"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures",
+          "title": "Common web application architectures - Microsoft Learn"
+        }
+      ]
+    },
+    {
+      "id": "uml",
+      "title": "Unified Modeling Language",
+      "category": "Architecture et modélisation",
+      "kind": "standard",
+      "summary": "Fournit un langage de modélisation avec des diagrammes pour représenter la structure et le comportement des systèmes.",
+      "applies_when": "Lorsque des diagrammes partagés sont utiles, par exemple pour expliquer des classes, des séquences ou des états.",
+      "sources": [
+        {
+          "url": "https://www.omg.org/spec/UML/",
+          "title": "Unified Modeling Language - OMG"
+        }
+      ]
+    },
+    {
+      "id": "arc42",
+      "title": "arc42",
+      "category": "Architecture et modélisation",
+      "kind": "format",
+      "summary": "Propose une structure de documentation couvrant le contexte, les décisions, les vues et les risques d'une architecture.",
+      "applies_when": "Pour documenter une architecture de façon cohérente ; remplir les sections utiles à la taille et au contexte du projet.",
+      "sources": [
+        {
+          "url": "https://arc42.org/overview/",
+          "title": "arc42 Template Overview"
+        }
+      ]
+    },
+    {
+      "id": "design-by-contract",
+      "title": "Design by Contract",
+      "category": "Architecture et modélisation",
+      "kind": "pratique",
+      "summary": "Exprime les conditions attendues avant et après une opération ainsi que les propriétés qui doivent rester vraies.",
+      "applies_when": "Pour rendre explicites les engagements entre composants ; les mécanismes de vérification dépendent du langage et des outils.",
+      "sources": [
+        {
+          "url": "https://www.eiffel.com/values/design-by-contract/",
+          "title": "Design by Contract - Eiffel Software"
+        }
+      ]
+    },
+    {
+      "id": "togaf",
+      "title": "TOGAF Standard",
+      "category": "Architecture et modélisation",
+      "kind": "méthode",
+      "summary": "Fournit un cadre et une démarche pour développer et gouverner l'architecture d'entreprise.",
+      "applies_when": "Pour coordonner des transformations à l'échelle d'une organisation ; sélectionner le niveau de formalisation utile.",
+      "sources": [
+        {
+          "url": "https://help.opengroup.org/hc/en-us/articles/32726995273362-Understanding-the-TOGAF-Standard",
+          "title": "Understanding the TOGAF Standard - The Open Group"
+        }
+      ]
+    },
+    {
+      "id": "archimate",
+      "title": "ArchiMate",
+      "category": "Architecture et modélisation",
+      "kind": "standard",
+      "summary": "Fournit un langage de modélisation reliant les activités métier, les applications et les technologies.",
+      "applies_when": "Pour décrire et analyser l'architecture d'entreprise, avec ou sans utilisation de TOGAF.",
+      "sources": [
+        {
+          "url": "https://help.opengroup.org/hc/en-us/articles/32115987894930-How-the-ArchiMate-Language-and-the-TOGAF-Standard-Complement-Each-Other",
+          "title": "How the ArchiMate Language and the TOGAF Standard Complement Each Other - The Open Group"
+        }
+      ]
+    },
+    {
+      "id": "bpmn",
+      "title": "Business Process Model and Notation",
+      "category": "Architecture et modélisation",
+      "kind": "standard",
+      "summary": "Représente les activités, événements et échanges d'un processus métier avec une notation partagée.",
+      "applies_when": "Pour comprendre, communiquer ou automatiser des processus selon les outils choisis ; tous les diagrammes ne sont pas exécutables.",
+      "sources": [
+        {
+          "url": "https://www.omg.org/spec/BPMN/",
+          "title": "Business Process Model and Notation - OMG"
+        }
+      ]
+    },
+    {
+      "id": "dmn",
+      "title": "Decision Model and Notation",
+      "category": "Architecture et modélisation",
+      "kind": "standard",
+      "summary": "Décrit des décisions métier et leurs règles, notamment à l'aide de tables de décision.",
+      "applies_when": "Pour rendre des décisions explicites et vérifiables, éventuellement en complément de processus BPMN.",
+      "sources": [
+        {
+          "url": "https://www.omg.org/spec/DMN/1.5",
+          "title": "Decision Model and Notation 1.5 - OMG"
+        }
+      ]
+    },
+    {
+      "id": "root-add-dry",
+      "title": "DRY — Don't Repeat Yourself",
+      "category": "Architecture et modélisation",
+      "kind": "principe",
+      "summary": "Évite de représenter plusieurs fois la même connaissance métier ou technique, afin de limiter les incohérences.",
+      "applies_when": "À appliquer avec discernement ; deux codes ressemblants peuvent représenter des besoins différents.",
+      "sources": [
+        {
+          "url": "https://pragprog.com/tips/",
+          "title": "The Pragmatic Programmer — Tips"
+        }
+      ]
+    },
+    {
+      "id": "root-add-simple",
+      "title": "KISS / simplicité de conception",
+      "category": "Architecture et modélisation",
+      "kind": "principe",
+      "summary": "Favorise la solution la plus simple qui satisfait les besoins réels et reste compréhensible.",
+      "applies_when": "Principe de conception, pas règle chiffrée ni justification pour supprimer une exigence nécessaire.",
+      "sources": [
+        {
+          "url": "https://public.isaqb.org/glossary/glossary-en.html",
+          "title": "iSAQB — Glossary of Software Architecture Terminology"
+        }
+      ]
+    },
+    {
+      "id": "root-add-yagni",
+      "title": "YAGNI — You Aren't Gonna Need It",
+      "category": "Architecture et modélisation",
+      "kind": "principe",
+      "summary": "Évite de développer trop tôt une capacité hypothétique dont le besoin n'est pas confirmé.",
+      "applies_when": "Pour arbitrer les fonctionnalités anticipées ; n'empêche pas le travail qui rend le code maintenable.",
+      "sources": [
+        {
+          "url": "https://martinfowler.com/bliki/Yagni.html",
+          "title": "Martin Fowler — Yagni"
+        }
+      ]
+    },
+    {
+      "id": "http",
+      "title": "HTTP",
+      "category": "API, protocoles et interopérabilité",
+      "kind": "protocole",
+      "summary": "Définit la manière dont clients et serveurs échangent des requêtes et des réponses sur le Web.",
+      "applies_when": "Pour les sites, API et autres échanges qui utilisent HTTP ; préciser les méthodes, statuts et comportements attendus.",
+      "sources": [
+        {
+          "url": "https://datatracker.ietf.org/doc/html/rfc9110",
+          "title": "RFC 9110: HTTP Semantics - IETF"
+        }
+      ]
+    },
+    {
+      "id": "rest",
+      "title": "Representational State Transfer",
+      "category": "API, protocoles et interopérabilité",
+      "kind": "pratique",
+      "summary": "Décrit un style d'architecture fondé notamment sur des ressources, une interface uniforme et des échanges sans état de session côté serveur.",
+      "applies_when": "Pour concevoir une API suivant ces contraintes ; ce n'est ni un protocole autonome ni un simple synonyme d'API JSON.",
+      "sources": [
+        {
+          "url": "https://ics.uci.edu/~fielding/pubs/dissertation/rest_arch_style.htm",
+          "title": "Representational State Transfer (REST) - Roy Fielding"
+        }
+      ]
+    },
+    {
+      "id": "graphql",
+      "title": "GraphQL",
+      "category": "API, protocoles et interopérabilité",
+      "kind": "standard",
+      "summary": "Définit un langage de requête et un système de types permettant au client de demander les données dont il a besoin.",
+      "applies_when": "Pour les API qui choisissent ce modèle d'accès aux données ; alternative ou complément à d'autres styles d'API.",
+      "sources": [
+        {
+          "url": "https://spec.graphql.org/September2026/",
+          "title": "GraphQL Specification - September 2026 Edition"
+        }
+      ]
+    },
+    {
+      "id": "grpc",
+      "title": "gRPC",
+      "category": "API, protocoles et interopérabilité",
+      "kind": "outil",
+      "summary": "Fournit un cadre d'appels de procédures distantes à partir de services et de messages définis explicitement.",
+      "applies_when": "Pour les échanges entre composants et langages compatibles ; choisir les adaptateurs nécessaires selon les clients, notamment les navigateurs.",
+      "sources": [
+        {
+          "url": "https://grpc.io/docs/what-is-grpc/introduction/",
+          "title": "Introduction to gRPC"
+        }
+      ]
+    },
+    {
+      "id": "openapi",
+      "title": "OpenAPI Specification",
+      "category": "API, protocoles et interopérabilité",
+      "kind": "standard",
+      "summary": "Décrit les opérations, paramètres et réponses d'une API HTTP dans un document exploitable par des outils.",
+      "applies_when": "Pour documenter, générer ou vérifier des interfaces HTTP ; le document doit rester cohérent avec leur comportement réel.",
+      "sources": [
+        {
+          "url": "https://spec.openapis.org/oas/latest.html",
+          "title": "OpenAPI Specification"
+        }
+      ]
+    },
+    {
+      "id": "asyncapi",
+      "title": "AsyncAPI Specification",
+      "category": "API, protocoles et interopérabilité",
+      "kind": "standard",
+      "summary": "Décrit les canaux, messages et opérations d'interfaces utilisant des échanges asynchrones.",
+      "applies_when": "Pour les architectures à messages ou événements ; compléter la description avec les protocoles et conventions réellement utilisés.",
+      "sources": [
+        {
+          "url": "https://www.asyncapi.com/docs/reference/specification/v3.1.0",
+          "title": "AsyncAPI Specification"
+        },
+        {
+          "url": "https://www.asyncapi.com/docs/reference/specification/latest",
+          "title": "AsyncAPI Initiative — Specification"
+        }
+      ]
+    },
+    {
+      "id": "websocket",
+      "title": "WebSocket",
+      "category": "API, protocoles et interopérabilité",
+      "kind": "protocole",
+      "summary": "Permet des échanges dans les deux sens entre un client et un serveur sur une connexion persistante.",
+      "applies_when": "Pour les interactions en temps réel nécessitant des messages bidirectionnels, par exemple une collaboration en direct.",
+      "sources": [
+        {
+          "url": "https://datatracker.ietf.org/doc/html/rfc6455",
+          "title": "RFC 6455: The WebSocket Protocol - IETF"
+        }
+      ]
+    },
+    {
+      "id": "server-sent-events",
+      "title": "Server-Sent Events",
+      "category": "API, protocoles et interopérabilité",
+      "kind": "protocole",
+      "summary": "Permet à un serveur d'envoyer un flux d'événements à un client sur une connexion HTTP.",
+      "applies_when": "Pour pousser des mises à jour du serveur vers le client ; le besoin de communication bidirectionnelle peut appeler un autre choix.",
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/server-sent-events.html",
+          "title": "HTML Living Standard: Server-sent events - WHATWG"
+        }
+      ]
+    },
+    {
+      "id": "soap",
+      "title": "SOAP",
+      "category": "API, protocoles et interopérabilité",
+      "kind": "protocole",
+      "summary": "Définit des échanges de messages structurés en XML entre applications.",
+      "applies_when": "Pour les intégrations qui utilisent SOAP, notamment lorsqu'un partenaire ou un système existant l'impose.",
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/soap12-part1/",
+          "title": "SOAP Version 1.2 Part 1: Messaging Framework - W3C"
+        }
+      ]
+    },
+    {
+      "id": "odata",
+      "title": "OData",
+      "category": "API, protocoles et interopérabilité",
+      "kind": "protocole",
+      "summary": "Définit des conventions pour exposer, consulter et modifier des données au moyen d'API.",
+      "applies_when": "Pour les écosystèmes qui adoptent OData et ont besoin de comportements de requête partagés.",
+      "sources": [
+        {
+          "url": "https://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html",
+          "title": "OData Version 4.01. Part 1: Protocol - OASIS"
+        }
+      ]
+    },
+    {
+      "id": "json-rpc",
+      "title": "JSON-RPC",
+      "category": "API, protocoles et interopérabilité",
+      "kind": "protocole",
+      "summary": "Représente des appels de méthodes, leurs paramètres et leurs résultats sous forme de messages JSON.",
+      "applies_when": "Pour une interface qui choisit le modèle RPC, indépendamment du transport retenu.",
+      "sources": [
+        {
+          "url": "https://www.jsonrpc.org/specification",
+          "title": "JSON-RPC 2.0 Specification"
+        }
+      ]
+    },
+    {
+      "id": "cloudevents",
+      "title": "CloudEvents",
+      "category": "API, protocoles et interopérabilité",
+      "kind": "standard",
+      "summary": "Définit une enveloppe commune et des métadonnées pour décrire des événements entre systèmes.",
+      "applies_when": "Pour faciliter les échanges d'événements entre services ou plateformes ; ne remplace pas le contenu métier ni le transport.",
+      "sources": [
+        {
+          "url": "https://cloudevents.io/",
+          "title": "CloudEvents"
+        }
+      ]
+    },
+    {
+      "id": "json",
+      "title": "JSON",
+      "category": "Formats et schémas",
+      "kind": "format",
+      "summary": "Représente des données avec des objets, des tableaux et des valeurs simples dans un texte lisible.",
+      "applies_when": "Pour les échanges et fichiers qui choisissent ce format ; ajouter un schéma si la structure doit être vérifiée.",
+      "sources": [
+        {
+          "url": "https://datatracker.ietf.org/doc/html/rfc8259",
+          "title": "RFC 8259: The JavaScript Object Notation (JSON) Data Interchange Format - IETF"
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc8259.html",
+          "title": "IETF RFC 8259 — The JavaScript Object Notation (JSON) Data Interchange Format"
+        }
+      ]
+    },
+    {
+      "id": "json-schema",
+      "title": "JSON Schema",
+      "category": "Formats et schémas",
+      "kind": "standard",
+      "summary": "Décrit la structure et les contraintes attendues d'un document JSON pour permettre sa validation.",
+      "applies_when": "Pour vérifier des configurations ou des messages JSON ; préciser le dialecte utilisé et les règles réellement prises en charge.",
+      "sources": [
+        {
+          "url": "https://json-schema.org/specification",
+          "title": "JSON Schema Specification"
+        }
+      ]
+    },
+    {
+      "id": "yaml",
+      "title": "YAML",
+      "category": "Formats et schémas",
+      "kind": "format",
+      "summary": "Représente des données structurées dans un format texte souvent utilisé pour la configuration.",
+      "applies_when": "Pour les fichiers où la lisibilité et l'édition manuelle comptent ; choisir un schéma et des contrôles adaptés aux ambiguïtés du format.",
+      "sources": [
+        {
+          "url": "https://yaml.org/spec/1.2.2/index.html",
+          "title": "YAML Ain't Markup Language Version 1.2.2"
+        },
+        {
+          "url": "https://yaml.org/spec/1.2.2/",
+          "title": "YAML — YAML Ain't Markup Language, Version 1.2.2"
+        }
+      ]
+    },
+    {
+      "id": "toml",
+      "title": "TOML",
+      "category": "Formats et schémas",
+      "kind": "format",
+      "summary": "Organise des paramètres de configuration sous forme de clés, de valeurs et de sections lisibles.",
+      "applies_when": "Pour les projets ou outils qui utilisent TOML ; alternative à JSON ou YAML selon les besoins de configuration.",
+      "sources": [
+        {
+          "url": "https://toml.io/en/v1.1.0",
+          "title": "TOML v1.1.0"
+        }
+      ]
+    },
+    {
+      "id": "xml",
+      "title": "Extensible Markup Language",
+      "category": "Formats et schémas",
+      "kind": "format",
+      "summary": "Structure des documents et des données à l'aide de balises et d'attributs.",
+      "applies_when": "Pour les formats documentaires et intégrations qui utilisent XML ; choisir les schémas et conventions de l'écosystème.",
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/xml/",
+          "title": "Extensible Markup Language (XML) 1.0 - W3C"
+        }
+      ]
+    },
+    {
+      "id": "xsd",
+      "title": "XML Schema Definition",
+      "category": "Formats et schémas",
+      "kind": "standard",
+      "summary": "Décrit les éléments, types et contraintes attendus dans des documents XML.",
+      "applies_when": "Pour valider des échanges ou documents XML ; choisir une version de XSD compatible avec les outils utilisés.",
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/xmlschema11-1/",
+          "title": "W3C XML Schema Definition Language (XSD) 1.1 Part 1: Structures"
+        }
+      ]
+    },
+    {
+      "id": "protocol-buffers",
+      "title": "Protocol Buffers",
+      "category": "Formats et schémas",
+      "kind": "format",
+      "summary": "Décrit des messages typés et leur représentation sérialisée, avec génération de code pour plusieurs langages.",
+      "applies_when": "Pour les échanges structurés qui adoptent Protobuf, notamment avec gRPC ; organiser l'évolution compatible des schémas.",
+      "sources": [
+        {
+          "url": "https://protobuf.dev/overview/",
+          "title": "Protocol Buffers Overview"
+        }
+      ]
+    },
+    {
+      "id": "apache-avro",
+      "title": "Apache Avro",
+      "category": "Formats et schémas",
+      "kind": "format",
+      "summary": "Associe un schéma à une représentation sérialisée des données et définit des mécanismes de lecture entre schémas.",
+      "applies_when": "Pour les échanges ou fichiers de données qui utilisent Avro ; vérifier les règles d'évolution des schémas de lecture et d'écriture.",
+      "sources": [
+        {
+          "url": "https://avro.apache.org/docs/1.11.4/specification/",
+          "title": "Apache Avro Specification"
+        },
+        {
+          "url": "https://avro.apache.org/docs/1.12.0/specification/",
+          "title": "Apache Avro — Specification"
+        }
+      ]
+    },
+    {
+      "id": "messagepack",
+      "title": "MessagePack",
+      "category": "Formats et schémas",
+      "kind": "format",
+      "summary": "Encode des structures de données dans une représentation binaire compacte.",
+      "applies_when": "Lorsque le format binaire et la compatibilité des bibliothèques conviennent mieux au besoin qu'un échange texte.",
+      "sources": [
+        {
+          "url": "https://msgpack.org/",
+          "title": "MessagePack"
+        }
+      ]
+    },
+    {
+      "id": "cbor",
+      "title": "Concise Binary Object Representation",
+      "category": "Formats et schémas",
+      "kind": "format",
+      "summary": "Représente des données structurées dans un format binaire normalisé par l'IETF.",
+      "applies_when": "Pour les systèmes qui choisissent CBOR, notamment lorsque la taille des messages ou les ressources disponibles comptent.",
+      "sources": [
+        {
+          "url": "https://datatracker.ietf.org/doc/html/rfc8949",
+          "title": "RFC 8949: Concise Binary Object Representation (CBOR) - IETF"
+        }
+      ]
+    },
+    {
+      "id": "root-add-html",
+      "title": "HTML Living Standard",
+      "category": "Standards de la plateforme web",
+      "kind": "standard",
+      "summary": "Définit la structure et les comportements du langage HTML et de nombreuses fonctions de la plateforme web.",
+      "applies_when": "Pour les produits web ; compléter par les exigences d'accessibilité et de compatibilité des navigateurs.",
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/",
+          "title": "WHATWG — HTML Living Standard"
+        }
+      ]
+    },
+    {
+      "id": "root-add-css",
+      "title": "Spécifications CSS",
+      "category": "Standards de la plateforme web",
+      "kind": "standard",
+      "summary": "Décrivent les mécanismes de présentation, de mise en page et de styles des documents web.",
+      "applies_when": "Vérifier le statut des modules et leur prise en charge par les navigateurs ciblés.",
+      "sources": [
+        {
+          "url": "https://www.w3.org/Style/CSS/",
+          "title": "W3C — Cascading Style Sheets"
+        }
+      ]
+    }
+  ]
+}

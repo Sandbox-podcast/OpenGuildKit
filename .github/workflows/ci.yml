@@ -18,9 +18,9 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
 
@@ -29,6 +29,9 @@ jobs:
 
       - name: Validate the catalog
         run: openguildkit catalog --json
+
+      - name: Validate the reference library
+        run: openguildkit references
 
       - name: Unit and end-to-end tests
         run: python -m unittest discover -s tests -v
@@ -40,9 +43,9 @@ jobs:
     name: Build and install the wheel
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
@@ -57,3 +60,4 @@ jobs:
           /tmp/wheel-env/bin/pip install dist/*.whl
           cd /tmp
           /tmp/wheel-env/bin/openguildkit catalog
+          /tmp/wheel-env/bin/openguildkit references --id conventional-commits

@@ -1,5 +1,7 @@
 # Catalog format
 
+The [reference library](references.md) holds source material you can use when contributing a pack. The records below define what OpenGuildKit can apply to a project or use in a board review.
+
 The catalog has three collections, one JSON file per record:
 
 ```text

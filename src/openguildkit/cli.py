@@ -15,6 +15,7 @@ from .project import (
     sync_instructions,
     validate_profile,
 )
+from .references import find_references, load_references
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
     create_task,
@@ -34,6 +35,11 @@ def _parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     catalog = commands.add_parser("catalog", help="List rule packs, boards and sectors.")
     catalog.add_argument("--json", action="store_true", help="Print the complete catalog as JSON.")
+    references = commands.add_parser("references", help="Browse the reference library.")
+    references.add_argument("query", nargs="?", help="Search reference names and descriptions.")
+    references.add_argument("--family", help="Show references from one family ID.")
+    references.add_argument("--id", help="Show one reference and its sources.")
+    references.add_argument("--json", action="store_true", help="Print matching references as JSON.")
     init = commands.add_parser("init", help="Initialize a project profile and agent instructions.")
     init_mode = init.add_mutually_exclusive_group()
     init_mode.add_argument("--questions", action="store_true", help="Print the setup questionnaire as JSON.")
@@ -146,6 +152,30 @@ def _print_catalog(catalog: dict, as_json: bool) -> None:
             print(f"  {entry['id']:<24} {entry['title']}")
 
 
+def _print_references(args, state: Path) -> None:
+    families = load_references(state / "catalog" / "references")
+    if not args.json and all(value is None for value in (args.query, args.family, args.id)):
+        print(f"{sum(len(family['references']) for family in families.values())} references")
+        for family in families.values():
+            print(f"  {family['id']:<14} {family['title']} ({len(family['references'])})")
+        return
+    matches = find_references(families, family_id=args.family, query=args.query, record_id=args.id)
+    if args.json:
+        _print_json(matches)
+    elif args.id:
+        reference = matches[0]
+        print(f"{reference['title']} [{reference['id']}]")
+        print(f"{reference['family_title']} / {reference['category']} / {reference['kind']}")
+        print(f"\n{reference['summary']}\n{reference['applies_when']}\n")
+        for source in reference["sources"]:
+            print(f"- {source['title']}: {source['url']}")
+    elif matches:
+        for reference in matches:
+            print(f"  {reference['id']:<34} {reference['title']} [{reference['family']}]")
+    else:
+        print("No references matched.")
+
+
 def _read_consultation(task: dict) -> dict:
     if "consultation" not in task:
         raise ValueError("Run task consult first.")
@@ -230,6 +260,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
 def _run(args) -> None:
     root = project_root(args.project)
     state = state_path(root)
+    if args.command == "references":
+        _print_references(args, state)
+        return
     catalog = load_catalog(state / "catalog")
     if args.command == "catalog":
         _print_catalog(catalog, args.json)

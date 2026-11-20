@@ -1,0 +1,42 @@
+{
+  "id": "release-management",
+  "title": "Release management",
+  "version": "1.0.0",
+  "description": "Checks for projects that use Conventional Commits, Semantic Versioning and a public changelog.",
+  "sources": [
+    {
+      "title": "Conventional Commits 1.0.0",
+      "url": "https://www.conventionalcommits.org/en/v1.0.0/"
+    },
+    {
+      "title": "Semantic Versioning 2.0.0",
+      "url": "https://semver.org/spec/v2.0.0.html"
+    },
+    {
+      "title": "Keep a Changelog 1.1.0",
+      "url": "https://keepachangelog.com/en/1.1.0/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "classify-commit",
+      "instruction": "Classify changes by what the diff does. Mark incompatible changes with an exclamation point in the header or a BREAKING CHANGE footer, and describe what consumers need to do.",
+      "verification": "Run the repository's configured commit check on the message that will enter the default branch, including the squash message when applicable. Confirm the type and breaking marker against the diff."
+    },
+    {
+      "id": "version-public-contract",
+      "instruction": "Compare the declared public interfaces with the previous release. For a stable public contract, use a major bump for a break, a minor bump for a compatible feature or a patch bump for a compatible fix. Follow the project's pre-1.0 policy for initial development.",
+      "verification": "Review the contract diff and compatibility checks with the release owner. Check that package metadata and the proposed tag use the version approved for the change."
+    },
+    {
+      "id": "write-release-notes",
+      "instruction": "Update the changelog for user-visible changes. Record affected users and migration steps for changes that require action.",
+      "verification": "Check that the release notes match the proposed version and cover breaking changes, deprecations and fixes that affect consumers."
+    },
+    {
+      "id": "keep-releases-immutable",
+      "instruction": "Prepare a new version when correcting a release that is already available.",
+      "verification": "Check that the version is unused and that the release process preserves the tags and artifacts from prior published versions."
+    }
+  ]
+}

@@ -1,0 +1,300 @@
+{
+  "id": "design",
+  "title": "Design et accessibilité",
+  "references": [
+    {
+      "id": "double-diamond",
+      "title": "Double Diamond",
+      "category": "Design UX et systèmes de composants",
+      "kind": "méthode",
+      "summary": "Structure la recherche du problème puis l'exploration et la validation de solutions.",
+      "applies_when": "Pour organiser un travail de conception et de recherche utilisateur.",
+      "sources": [
+        {
+          "url": "https://www.designcouncil.org.uk/resources/the-double-diamond/",
+          "title": "The Double Diamond - Design Council"
+        }
+      ]
+    },
+    {
+      "id": "iso-9241-210",
+      "title": "ISO 9241-210",
+      "category": "Design UX et systèmes de composants",
+      "kind": "norme",
+      "summary": "Principes et activités de conception centrée sur les personnes pour les systèmes interactifs.",
+      "applies_when": "Pour cadrer le processus de conception, pas pour certifier automatiquement une interface.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/77520.html",
+          "title": "ISO 9241-210:2019 - Ergonomics of human-system interaction — Part 210: Human-centred design for interactive systems"
+        }
+      ]
+    },
+    {
+      "id": "iso-9241-11",
+      "title": "ISO 9241-11",
+      "category": "Design UX et systèmes de composants",
+      "kind": "norme",
+      "summary": "Définit l'utilisabilité en tenant compte des utilisateurs, des objectifs et du contexte d'usage.",
+      "applies_when": "Pour définir et évaluer l'efficacité, l'efficience et la satisfaction en contexte.",
+      "sources": [
+        {
+          "url": "https://committee.iso.org/standard/63500.html",
+          "title": "ISO 9241-11:2018 - Ergonomics of human-system interaction — Part 11: Usability: Definitions and concepts"
+        }
+      ]
+    },
+    {
+      "id": "nielsen-heuristics",
+      "title": "Heuristiques de Nielsen",
+      "category": "Design UX et systèmes de composants",
+      "kind": "heuristique",
+      "summary": "Repères d'évaluation ergonomique des interfaces et de la compréhension du système.",
+      "applies_when": "Pour une revue UX ; ne remplace pas les tests avec des utilisateurs.",
+      "sources": [
+        {
+          "url": "https://www.nngroup.com/articles/ten-usability-heuristics/",
+          "title": "10 Usability Heuristics for User Interface Design - NN/G"
+        }
+      ]
+    },
+    {
+      "id": "heart",
+      "title": "HEART",
+      "category": "Design UX et systèmes de composants",
+      "kind": "méthode",
+      "summary": "Cadre de mesure de l'expérience : satisfaction, engagement, adoption, rétention et réussite des tâches.",
+      "applies_when": "Choisir les dimensions pertinentes selon les objectifs du produit.",
+      "sources": [
+        {
+          "url": "https://research.google/pubs/measuring-the-user-experience-on-a-large-scale-user-centered-metrics-for-web-applications/",
+          "title": "Measuring the User Experience on a Large Scale: User-Centered Metrics for Web Applications"
+        }
+      ]
+    },
+    {
+      "id": "atomic-design",
+      "title": "Atomic Design",
+      "category": "Design UX et systèmes de composants",
+      "kind": "méthode",
+      "summary": "Organise les éléments d'interface en composants composables jusqu'aux écrans.",
+      "applies_when": "Pour structurer un design system et favoriser la réutilisation.",
+      "sources": [
+        {
+          "url": "https://atomicdesign.bradfrost.com/chapter-2/",
+          "title": "Atomic Design Methodology | Atomic Design by Brad Frost"
+        }
+      ]
+    },
+    {
+      "id": "dtcg-design-tokens",
+      "title": "DTCG Design Tokens",
+      "category": "Design UX et systèmes de composants",
+      "kind": "spécification communautaire",
+      "summary": "Format d'échange des valeurs de design comme couleurs, espacements et typographie.",
+      "applies_when": "Choisir une version publiée du format ; ce rapport communautaire n'est pas une recommandation W3C.",
+      "sources": [
+        {
+          "url": "https://www.designtokens.org/tr/2025.10/format/",
+          "title": "Design Tokens Format Module 2025.10"
+        }
+      ]
+    },
+    {
+      "id": "material-design",
+      "title": "Material Design",
+      "category": "Design UX et systèmes de composants",
+      "kind": "système de design",
+      "summary": "Langage de design et composants documentés pour des interfaces cohérentes.",
+      "applies_when": "Option de design system à adapter à la plateforme et à la marque.",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/designsystems/material3",
+          "title": "Material Design 3 in Compose  |  Jetpack Compose  |  Android Developers"
+        }
+      ]
+    },
+    {
+      "id": "apple-hig",
+      "title": "Apple Human Interface Guidelines",
+      "category": "Design UX et systèmes de composants",
+      "kind": "guide",
+      "summary": "Recommandations de conception pour les plateformes Apple.",
+      "applies_when": "Pour les applications Apple ; ne se transpose pas automatiquement à tous les produits.",
+      "sources": [
+        {
+          "url": "https://developer.apple.com/design/human-interface-guidelines",
+          "title": "Human Interface Guidelines | Apple Developer Documentation"
+        }
+      ]
+    },
+    {
+      "id": "fluent-design",
+      "title": "Fluent 2",
+      "category": "Design UX et systèmes de composants",
+      "kind": "système de design",
+      "summary": "Système de styles, composants et recommandations de Microsoft.",
+      "applies_when": "Option de bibliothèque et de langage visuel selon la plateforme.",
+      "sources": [
+        {
+          "url": "https://fluent2.microsoft.design/",
+          "title": "Home - Fluent 2 Design System"
+        }
+      ]
+    },
+    {
+      "id": "carbon-design",
+      "title": "Carbon Design System",
+      "category": "Design UX et systèmes de composants",
+      "kind": "système de design",
+      "summary": "Système de composants et de recommandations maintenu par IBM.",
+      "applies_when": "Option de système de design à évaluer selon les besoins et licences.",
+      "sources": [
+        {
+          "url": "https://carbondesignsystem.com/",
+          "title": "Home | Carbon Design System"
+        }
+      ]
+    },
+    {
+      "id": "govuk-design",
+      "title": "GOV.UK Design System",
+      "category": "Design UX et systèmes de composants",
+      "kind": "système de design",
+      "summary": "Styles, composants et parcours de référence pour les services publics britanniques.",
+      "applies_when": "Pour les services concernés ou comme référence d'étude, en respectant les conditions de réutilisation.",
+      "sources": [
+        {
+          "url": "https://design-system.service.gov.uk/",
+          "title": "Home – GOV.UK Design System"
+        }
+      ]
+    },
+    {
+      "id": "dsfr",
+      "title": "Système de Design de l'État",
+      "category": "Design UX et systèmes de composants",
+      "kind": "système de design",
+      "summary": "Composants et principes visuels des interfaces officielles de l'État français.",
+      "applies_when": "Pour les services autorisés à utiliser le DSFR ; sa marque n'est pas libre d'usage universel.",
+      "sources": [
+        {
+          "url": "https://www.systeme-de-design.gouv.fr/",
+          "title": "Système de Design de l’État"
+        }
+      ]
+    },
+    {
+      "id": "storybook",
+      "title": "Storybook",
+      "category": "Design UX et systèmes de composants",
+      "kind": "outil",
+      "summary": "Catalogue exécutable des composants et de leurs états pour documenter et tester l'interface.",
+      "applies_when": "Selon les frameworks pris en charge ; l'outil applique les choix du design system.",
+      "sources": [
+        {
+          "url": "https://storybook.js.org/docs",
+          "title": "Get started with Storybook | Storybook docs"
+        }
+      ]
+    },
+    {
+      "id": "wcag-22",
+      "title": "WCAG 2.2",
+      "category": "Accessibilité numérique",
+      "kind": "standard",
+      "summary": "Critères de réussite pour rendre les contenus web accessibles.",
+      "applies_when": "Choisir le niveau visé et le périmètre d'évaluation ; les obligations locales peuvent référencer d'autres versions.",
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/wcag/",
+          "title": "Web Content Accessibility Guidelines (WCAG) 2.2"
+        }
+      ]
+    },
+    {
+      "id": "wai-aria",
+      "title": "WAI-ARIA 1.2",
+      "category": "Accessibilité numérique",
+      "kind": "standard",
+      "summary": "Rôles, états et propriétés qui rendent les composants compréhensibles par les technologies d'assistance.",
+      "applies_when": "Pour les interfaces web interactives, en privilégiant les éléments HTML natifs appropriés.",
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/wai-aria/",
+          "title": "Accessible Rich Internet Applications (WAI-ARIA) 1.2"
+        }
+      ]
+    },
+    {
+      "id": "aria-apg",
+      "title": "ARIA Authoring Practices Guide",
+      "category": "Accessibilité numérique",
+      "kind": "guide",
+      "summary": "Modèles de comportements et d'usage des attributs ARIA pour les composants interactifs.",
+      "applies_when": "Guide de mise en œuvre ; les exemples demandent validation dans le contexte réel.",
+      "sources": [
+        {
+          "url": "https://www.w3.org/WAI/ARIA/apg/",
+          "title": "ARIA Authoring Practices Guide | APG | WAI | W3C"
+        }
+      ]
+    },
+    {
+      "id": "rgaa",
+      "title": "RGAA",
+      "category": "Accessibilité numérique",
+      "kind": "référentiel",
+      "summary": "Méthode française d'évaluation de l'accessibilité des services numériques.",
+      "applies_when": "Pour les organismes et services concernés, selon la version de référence applicable.",
+      "sources": [
+        {
+          "url": "https://accessibilite.numerique.gouv.fr/",
+          "title": "Référentiel général d’amélioration de l’accessibilité - RGAA"
+        }
+      ]
+    },
+    {
+      "id": "en-301549",
+      "title": "EN 301 549",
+      "category": "Accessibilité numérique",
+      "kind": "norme",
+      "summary": "Exigences d'accessibilité applicables aux produits et services des technologies de l'information.",
+      "applies_when": "Édition et portée à déterminer selon le contrat et le cadre réglementaire ; publication ne signifie pas harmonisation automatique.",
+      "sources": [
+        {
+          "url": "https://www.etsi.org/deliver/etsi_en/301500_301599/301549/04.01.01_60/en_301549v040101p.pdf",
+          "title": "EN 301 549 - V4.1.1 - Accessibility requirements for ICT products and services"
+        }
+      ]
+    },
+    {
+      "id": "pdf-ua",
+      "title": "PDF/UA",
+      "category": "Accessibilité numérique",
+      "kind": "norme",
+      "summary": "Exigences techniques pour produire des documents PDF accessibles.",
+      "applies_when": "Choisir le profil et la version adaptés au PDF produit ; référence PDF/UA-1 liée ici.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/64599.html",
+          "title": "ISO 14289-1:2014 - Document management applications — Electronic document file format enhancement for accessibility — Part 1: Use of ISO 32000-1 (PDF/UA-1)"
+        }
+      ]
+    },
+    {
+      "id": "epub-accessibility",
+      "title": "EPUB Accessibility",
+      "category": "Accessibilité numérique",
+      "kind": "standard",
+      "summary": "Exigences d'accessibilité et de description de cette accessibilité pour les publications EPUB.",
+      "applies_when": "Pour les livres et documents numériques distribués en EPUB.",
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/epub-a11y-11/",
+          "title": "EPUB Accessibility 1.1"
+        }
+      ]
+    }
+  ]
+}

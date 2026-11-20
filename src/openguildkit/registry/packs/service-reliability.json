@@ -1,0 +1,58 @@
+{
+  "id": "service-reliability",
+  "title": "Service reliability and observability",
+  "version": "1.0.0",
+  "description": "Checks for teams that set service reliability targets and use OpenTelemetry to measure service behavior.",
+  "sources": [
+    {
+      "title": "Google SRE Workbook, Implementing SLOs",
+      "url": "https://sre.google/workbook/implementing-slos/"
+    },
+    {
+      "title": "Google SRE Workbook, Example Error Budget Policy",
+      "url": "https://sre.google/workbook/error-budget-policy/"
+    },
+    {
+      "title": "Google SRE Workbook, Alerting on SLOs",
+      "url": "https://sre.google/workbook/alerting-on-slos/"
+    },
+    {
+      "title": "OpenTelemetry Specification 1.62.0",
+      "url": "https://github.com/open-telemetry/opentelemetry-specification/releases/tag/v1.62.0"
+    },
+    {
+      "title": "OpenTelemetry Semantic Conventions 1.45.0",
+      "url": "https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.45.0"
+    },
+    {
+      "title": "OpenTelemetry Protocol 1.11.1",
+      "url": "https://github.com/open-telemetry/opentelemetry-proto/blob/v1.11.1/docs/specification.md"
+    },
+    {
+      "title": "OpenTelemetry, Handling sensitive data",
+      "url": "https://opentelemetry.io/docs/security/handling-sensitive-data/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "define-reliability-target",
+      "instruction": "For a critical user journey, document the service level indicator (SLI), the target (SLO), the measurement window and who owns the result.",
+      "verification": "Recalculate the SLI from a representative sample, including failures and any exclusions. Have the service owner confirm the target and window."
+    },
+    {
+      "id": "test-error-budget-policy",
+      "instruction": "Define what the team does as the service consumes its error budget, and link alert rules to the runbook and on-call owner.",
+      "verification": "Replay healthy, degraded and missing-data samples in a test environment. Check the alert outcomes and routing against the runbook."
+    },
+    {
+      "id": "verify-telemetry-contract",
+      "instruction": "For instruments used in service dashboards or alerts, apply the project's selected OpenTelemetry semantic conventions. Record the signal, units and attributes used by each consumer.",
+      "verification": "Send a synthetic request through the configured telemetry pipeline, using OTLP if selected. Compare the resulting instruments and attributes with dashboard and alert queries."
+    },
+    {
+      "id": "minimize-telemetry-data",
+      "instruction": "Collect only the attributes required for operations. Keep credentials out of telemetry and include personal data only for approved fields and purposes.",
+      "verification": "Use a synthetic request with sensitive-looking inputs and inspect the exported sample. Confirm that the pipeline omits or redacts the fields required by policy."
+    }
+  ]
+}

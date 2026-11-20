@@ -1,0 +1,328 @@
+{
+  "id": "data",
+  "title": "Données et interopérabilité sectorielle",
+  "references": [
+    {
+      "id": "pd_iso8601",
+      "title": "ISO 8601",
+      "category": "Formats et échanges de données",
+      "kind": "norme ISO",
+      "summary": "Définit des représentations des dates et heures afin de limiter les ambiguïtés entre systèmes, pays et conventions locales.",
+      "applies_when": "Quand des dates ou heures sont échangées ou stockées selon un format partagé ; préciser également les règles de fuseau utiles.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/iso-8601-date-and-time-format.html",
+          "title": "ISO — ISO 8601: Date and time format"
+        }
+      ]
+    },
+    {
+      "id": "pd_rfc3339",
+      "title": "RFC 3339",
+      "category": "Formats et échanges de données",
+      "kind": "standard Internet",
+      "summary": "Profil d'ISO 8601 pour représenter des horodatages Internet avec une date, une heure et une indication de décalage à UTC.",
+      "applies_when": "Pour les horodatages d'API, d'événements ou de journaux qui doivent être interprétés sans ambiguïté entre systèmes.",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc3339",
+          "title": "IETF RFC 3339 — Date and Time on the Internet: Timestamps"
+        }
+      ]
+    },
+    {
+      "id": "pd_utf8",
+      "title": "UTF-8 / RFC 3629",
+      "category": "Formats et échanges de données",
+      "kind": "encodage standardisé",
+      "summary": "Représente les caractères Unicode dans une suite d'octets et permet d'échanger des textes de nombreuses langues.",
+      "applies_when": "Pour harmoniser l'encodage des fichiers, API et données textuelles, avec une déclaration explicite là où le protocole l'exige.",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc3629",
+          "title": "IETF RFC 3629 — UTF-8, a transformation format of ISO 10646"
+        }
+      ]
+    },
+    {
+      "id": "pd_csv",
+      "title": "CSV / RFC 4180",
+      "category": "Formats et échanges de données",
+      "kind": "format documenté par RFC informative",
+      "summary": "Décrit un format courant de fichiers tabulaires séparés par des virgules. Le RFC 4180 est informatif, et les variantes de CSV restent nombreuses.",
+      "applies_when": "Pour les imports et exports simples, en précisant délimiteur, encodage, guillemets et règles de traitement des valeurs.",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc4180",
+          "title": "RFC 4180 — Common Format and MIME Type for CSV Files (Informational)"
+        }
+      ]
+    },
+    {
+      "id": "pd_parquet",
+      "title": "Apache Parquet",
+      "category": "Formats et échanges de données",
+      "kind": "format de fichier",
+      "summary": "Format de stockage en colonnes conçu pour lire et compresser efficacement des données analytiques structurées.",
+      "applies_when": "Pour les traitements analytiques qui parcourent de nombreuses lignes mais seulement une partie des colonnes.",
+      "sources": [
+        {
+          "url": "https://parquet.apache.org/docs/overview/",
+          "title": "Apache Parquet — Overview"
+        }
+      ]
+    },
+    {
+      "id": "pd_arrow",
+      "title": "Apache Arrow Columnar Format",
+      "category": "Formats et échanges de données",
+      "kind": "format mémoire",
+      "summary": "Représentation en colonnes pour les données en mémoire, conçue pour permettre des échanges efficaces entre moteurs et langages compatibles.",
+      "applies_when": "Quand plusieurs bibliothèques ou moteurs analytiques doivent partager des données avec peu de conversions.",
+      "sources": [
+        {
+          "url": "https://arrow.apache.org/docs/format/Columnar.html",
+          "title": "Apache Arrow — Columnar Format"
+        }
+      ]
+    },
+    {
+      "id": "pd_mqtt",
+      "title": "MQTT 5.0",
+      "category": "Formats et échanges de données",
+      "kind": "protocole normalisé OASIS",
+      "summary": "Protocole de messagerie publish/subscribe léger qui relie des clients à un courtier et propose plusieurs niveaux de qualité de service.",
+      "applies_when": "Pour des équipements ou connexions à ressources limitées, notamment certains usages IoT.",
+      "sources": [
+        {
+          "url": "https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html",
+          "title": "OASIS — MQTT Version 5.0"
+        }
+      ]
+    },
+    {
+      "id": "pd_amqp",
+      "title": "AMQP 1.0",
+      "category": "Formats et échanges de données",
+      "kind": "protocole normalisé OASIS",
+      "summary": "Protocole de messagerie qui définit le transfert de messages entre pairs pour favoriser l'interopérabilité des systèmes compatibles.",
+      "applies_when": "Pour les échanges de messages d'entreprise lorsque la fiabilité et l'interopérabilité du transport sont nécessaires.",
+      "sources": [
+        {
+          "url": "https://docs.oasis-open.org/amqp/core/v1.0/os/amqp-core-overview-v1.0-os.html",
+          "title": "OASIS — Advanced Message Queuing Protocol (AMQP) Version 1.0"
+        }
+      ]
+    },
+    {
+      "id": "root-add-sql",
+      "title": "SQL / série ISO/IEC 9075",
+      "category": "Gouvernance et architecture des données",
+      "kind": "norme",
+      "summary": "Normalise le langage de définition, de requête et de manipulation des bases de données relationnelles.",
+      "applies_when": "Les moteurs proposent des dialectes et extensions ; définir la portabilité attendue pour le projet.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/76583.html",
+          "title": "ISO/IEC 9075-1:2023 — SQL Framework"
+        }
+      ]
+    },
+    {
+      "id": "pd_acid",
+      "title": "Propriétés ACID",
+      "category": "Gouvernance et architecture des données",
+      "kind": "concept",
+      "summary": "Atomicité, cohérence, isolation et durabilité : propriétés recherchées pour que les transactions préservent les règles de la base malgré erreurs et accès concurrents.",
+      "applies_when": "Quand une opération modifie des données qui doivent rester fiables, par exemple des commandes, stocks ou soldes.",
+      "sources": [
+        {
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/mysql-acid.html",
+          "title": "MySQL — InnoDB and the ACID Model"
+        }
+      ]
+    },
+    {
+      "id": "pd_cap",
+      "title": "Théorème CAP",
+      "category": "Gouvernance et architecture des données",
+      "kind": "concept théorique",
+      "summary": "En présence d'une partition réseau, un système distribué ne peut garantir simultanément la cohérence forte et la disponibilité au sens du théorème.",
+      "applies_when": "Pour expliciter les compromis d'une architecture distribuée face aux coupures réseau, sans réduire le choix d'une base à trois étiquettes.",
+      "sources": [
+        {
+          "url": "https://www.comp.nus.edu.sg/~gilbert/pubs/BrewersConjecture-SigAct.pdf",
+          "title": "Seth Gilbert et Nancy Lynch — Brewer's Conjecture and the Feasibility of Consistent, Available, Partition-Tolerant Web Services"
+        }
+      ]
+    },
+    {
+      "id": "pd_normalization",
+      "title": "Normalisation relationnelle",
+      "category": "Gouvernance et architecture des données",
+      "kind": "méthode de modélisation",
+      "summary": "Organiser tables et dépendances afin de limiter les répétitions de données et les anomalies de mise à jour.",
+      "applies_when": "Lors de la conception d'un modèle relationnel, avant d'éventuels choix de dénormalisation motivés par des besoins mesurés.",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/previous-versions/troubleshoot/microsoft-365/microsoft-365-apps/access/database-normalization-description",
+          "title": "Microsoft Learn — Database normalization description"
+        }
+      ]
+    },
+    {
+      "id": "pd_odcs",
+      "title": "Open Data Contract Standard (ODCS)",
+      "category": "Gouvernance et architecture des données",
+      "kind": "spécification ouverte",
+      "summary": "Structure des contrats de données qui décrivent notamment schémas, qualité, responsabilités et engagements attendus entre producteurs et consommateurs.",
+      "applies_when": "Quand des données partagées doivent avoir un contrat explicite, versionné et exploitable par différents outils.",
+      "sources": [
+        {
+          "url": "https://bitol-io.github.io/open-data-contract-standard/latest/",
+          "title": "Bitol — Open Data Contract Standard (ODCS)"
+        }
+      ]
+    },
+    {
+      "id": "pd_dbt_contracts",
+      "title": "Contrats de modèles dbt",
+      "category": "Gouvernance et architecture des données",
+      "kind": "mécanisme de validation",
+      "summary": "Déclarer et contrôler la structure de sortie d'un modèle dbt, notamment ses colonnes, types et certaines contraintes selon la plateforme.",
+      "applies_when": "Pour stabiliser les interfaces de modèles dbt dont dépendent d'autres modèles, tableaux de bord ou consommateurs.",
+      "sources": [
+        {
+          "url": "https://docs.getdbt.com/docs/mesh/govern/model-contracts",
+          "title": "dbt Developer Hub — Model contracts"
+        }
+      ]
+    },
+    {
+      "id": "pd_dbt",
+      "title": "dbt",
+      "category": "Gouvernance et architecture des données",
+      "kind": "outil",
+      "summary": "Outille la transformation de données dans une plateforme analytique, avec des modèles, tests, dépendances et documentation versionnables.",
+      "applies_when": "Quand l'équipe construit et maintient des transformations analytiques reproductibles, notamment en SQL.",
+      "sources": [
+        {
+          "url": "https://docs.getdbt.com/docs/introduction",
+          "title": "dbt Developer Hub — What is dbt?"
+        }
+      ]
+    },
+    {
+      "id": "pd_great_expectations",
+      "title": "Great Expectations / GX Core",
+      "category": "Gouvernance et architecture des données",
+      "kind": "outil",
+      "summary": "Bibliothèque qui permet de définir des attentes sur les données et d'exécuter des validations organisées dans un workflow.",
+      "applies_when": "Pour contrôler la qualité de jeux de données aux étapes utiles de leur traitement.",
+      "sources": [
+        {
+          "url": "https://docs.greatexpectations.io/docs/core/introduction/",
+          "title": "Great Expectations — Introduction to GX Core"
+        }
+      ]
+    },
+    {
+      "id": "pd_openlineage",
+      "title": "OpenLineage",
+      "category": "Gouvernance et architecture des données",
+      "kind": "spécification ouverte",
+      "summary": "Décrit des événements de traçabilité reliant jeux de données, tâches et exécutions pour reconstituer leurs dépendances.",
+      "applies_when": "Pour comprendre l'origine d'une donnée et les effets possibles d'une modification dans une chaîne de traitements.",
+      "sources": [
+        {
+          "url": "https://openlineage.io/docs/spec/object-model/",
+          "title": "OpenLineage — Object Model"
+        }
+      ]
+    },
+    {
+      "id": "pd_iceberg",
+      "title": "Apache Iceberg Table Specification",
+      "category": "Gouvernance et architecture des données",
+      "kind": "format de table",
+      "summary": "Définit des tables analytiques sur un ensemble de fichiers, avec métadonnées, instantanés et règles d'évolution du schéma.",
+      "applies_when": "Pour des tables volumineuses partagées par des moteurs analytiques compatibles et nécessitant une gestion fiable de leurs évolutions.",
+      "sources": [
+        {
+          "url": "https://iceberg.apache.org/spec/",
+          "title": "Apache Iceberg — Table Specification"
+        }
+      ]
+    },
+    {
+      "id": "pd_delta_protocol",
+      "title": "Delta Lake Transaction Log Protocol",
+      "category": "Gouvernance et architecture des données",
+      "kind": "protocole de table",
+      "summary": "Décrit le journal et les métadonnées qui organisent des tables Delta et leurs opérations transactionnelles.",
+      "applies_when": "Quand différents moteurs doivent lire ou écrire des tables Delta en respectant les versions et fonctionnalités du protocole.",
+      "sources": [
+        {
+          "url": "https://github.com/delta-io/delta/blob/master/PROTOCOL.md",
+          "title": "Delta Lake — Transaction Log Protocol"
+        }
+      ]
+    },
+    {
+      "id": "pd_db_migrations",
+      "title": "Migrations de base de données",
+      "category": "Gouvernance et architecture des données",
+      "kind": "pratique",
+      "summary": "Versionner les changements de structure ou de données et les appliquer dans un ordre maîtrisé entre environnements.",
+      "applies_when": "Pour faire évoluer une base existante avec une trace des changements et une stratégie de compatibilité avec les versions applicatives.",
+      "sources": [
+        {
+          "url": "https://documentation.red-gate.com/flyway/flyway-concepts/migrations",
+          "title": "Redgate Flyway — Migrations"
+        }
+      ]
+    },
+    {
+      "id": "pd_transaction_isolation",
+      "title": "Niveaux d'isolation des transactions",
+      "category": "Gouvernance et architecture des données",
+      "kind": "concept",
+      "summary": "Définissent ce qu'une transaction peut observer des opérations concurrentes et les anomalies que le moteur doit empêcher.",
+      "applies_when": "Quand des accès simultanés peuvent modifier les mêmes données ; le niveau choisi doit correspondre aux invariants métier.",
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "title": "PostgreSQL — Transaction Isolation"
+        }
+      ]
+    },
+    {
+      "id": "hl7-fhir",
+      "title": "HL7 FHIR",
+      "category": "Interopérabilité santé",
+      "kind": "standard",
+      "summary": "Ressources et interfaces d'échange de données de santé.",
+      "applies_when": "Pack sectoriel santé ; choisir la version et les profils d'implémentation réellement requis.",
+      "sources": [
+        {
+          "url": "https://hl7.org/fhir/overview.html",
+          "title": "Overview - FHIR v5.0.0"
+        }
+      ]
+    },
+    {
+      "id": "dicom",
+      "title": "DICOM",
+      "category": "Interopérabilité santé",
+      "kind": "standard",
+      "summary": "Communication et gestion des images médicales et de leurs données associées.",
+      "applies_when": "Pack sectoriel imagerie médicale ; vérifier les services et profils nécessaires.",
+      "sources": [
+        {
+          "url": "https://dicom.nema.org/medical/dicom/2026b/output/html/part01.html",
+          "title": "PS3.1"
+        }
+      ]
+    }
+  ]
+}

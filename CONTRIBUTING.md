@@ -6,6 +6,7 @@ OpenGuildKit is useful only if its catalog reflects how practitioners actually w
 
 | You know... | Contribute |
 |---|---|
+| A published specification or useful source | A [reference entry](docs/references.md) in `src/openguildkit/registry/references/` |
 | A standard, regulation or convention | A rule pack in `src/openguildkit/registry/packs/` |
 | A discipline (security, design, finance...) | A new board or better questions for an existing one |
 | A sector (banking, health, retail...) | A sector record in `src/openguildkit/registry/sectors/` |
@@ -21,7 +22,8 @@ git clone https://github.com/loukan42/OpenGuildKit.git
 cd OpenGuildKit
 python -m pip install -e .
 python -m unittest discover -s tests
-python -m openguildkit catalog --json > /dev/null   # validates the whole catalog
+python -m openguildkit catalog
+python -m openguildkit references
 ```
 
 No runtime dependency. Tests use `unittest` from the standard library.
@@ -59,7 +61,7 @@ A catalog pull request is merged when:
 - Keep the CLI offline. It must never call a model provider or the network.
 - Add unit tests in `tests/` and, for a new command, an end-to-end test in `tests/e2e/`.
 - Keep messages short and actionable, prefixed `OpenGuildKit:` on errors.
-- Code, catalog and docs are in English so contributors everywhere can review them. The French README is maintained alongside the English one.
+- Write code, rule packs and contribution docs in English. Reference entries can keep their original language. The French README is maintained alongside the English one.
 
 ## Pull requests
 

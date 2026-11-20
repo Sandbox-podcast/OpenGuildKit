@@ -81,6 +81,17 @@ class CliTestCase(unittest.TestCase):
 
 
 class CatalogTests(CliTestCase):
+    def test_reference_library_commands_work_without_an_initialized_project(self):
+        groups = self.run_cli("references").stdout
+        self.assertIn("references", groups)
+        self.assertIn("governance", groups)
+        matches = json.loads(self.run_cli("references", "ISO 27001", "--family", "governance", "--json").stdout)
+        self.assertEqual(matches[0]["id"], "iso-iec-27001")
+        details = self.run_cli("references", "--id", "conventional-commits").stdout
+        self.assertIn("Conventional Commits", details)
+        self.assertIn("https://www.conventionalcommits.org/", details)
+        self.run_cli("references", "--family", "unknown", expect=1)
+
     def test_bundled_catalog_loads_as_json(self):
         catalog = json.loads(self.run_cli("catalog", "--json").stdout)
         self.assertEqual(set(catalog), {"packs", "boards", "sectors"})

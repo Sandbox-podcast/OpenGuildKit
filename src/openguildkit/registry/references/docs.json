@@ -1,0 +1,244 @@
+{
+  "id": "docs",
+  "title": "Documentation et internationalisation",
+  "references": [
+    {
+      "id": "diataxis",
+      "title": "Diátaxis",
+      "category": "Documentation et rédaction",
+      "kind": "méthode",
+      "summary": "Sépare tutoriels, guides pratiques, références et explications selon le besoin du lecteur.",
+      "applies_when": "Pour structurer une documentation produit, API ou technique.",
+      "sources": [
+        {
+          "url": "https://diataxis.fr/",
+          "title": "Diátaxis"
+        }
+      ]
+    },
+    {
+      "id": "docs-as-code",
+      "title": "Docs as Code",
+      "category": "Documentation et rédaction",
+      "kind": "pratique",
+      "summary": "Gère la documentation avec versionnement, revue et automatisation proches de ceux du code.",
+      "applies_when": "Pour garder les documents reliés aux changements du produit.",
+      "sources": [
+        {
+          "url": "https://www.writethedocs.org/guide/docs-as-code/",
+          "title": "Docs as code — Write the Docs"
+        }
+      ]
+    },
+    {
+      "id": "google-doc-style",
+      "title": "Google Developer Documentation Style Guide",
+      "category": "Documentation et rédaction",
+      "kind": "guide",
+      "summary": "Conventions éditoriales pour une documentation technique claire et cohérente.",
+      "applies_when": "Option de guide rédactionnel, à adapter aux langues et à la voix de la marque.",
+      "sources": [
+        {
+          "url": "https://developers.google.com/style",
+          "title": "About this guide  |  Google developer documentation style guide  |  Google for Developers"
+        }
+      ]
+    },
+    {
+      "id": "microsoft-writing-style",
+      "title": "Microsoft Writing Style Guide",
+      "category": "Documentation et rédaction",
+      "kind": "guide",
+      "summary": "Recommandations de rédaction et de terminologie pour les contenus numériques.",
+      "applies_when": "Autre guide éditorial possible ; décider du guide retenu et des adaptations locales.",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/style-guide/welcome/",
+          "title": "Welcome - Microsoft Writing Style Guide | Microsoft Learn"
+        }
+      ]
+    },
+    {
+      "id": "commonmark",
+      "title": "CommonMark",
+      "category": "Documentation et rédaction",
+      "kind": "spécification",
+      "summary": "Définit une syntaxe Markdown et son interprétation pour améliorer l'interopérabilité.",
+      "applies_when": "Pour les documents Markdown et les moteurs de rendu qui suivent cette spécification.",
+      "sources": [
+        {
+          "url": "https://spec.commonmark.org/",
+          "title": "CommonMark Spec"
+        }
+      ]
+    },
+    {
+      "id": "gfm",
+      "title": "GitHub Flavored Markdown",
+      "category": "Documentation et rédaction",
+      "kind": "spécification",
+      "summary": "Dialecte Markdown avec extensions utilisées par GitHub.",
+      "applies_when": "Pour les contenus rendus avec GFM ; vérifier les différences avec les autres moteurs.",
+      "sources": [
+        {
+          "url": "https://github.github.com/gfm/",
+          "title": "GitHub Flavored Markdown Spec"
+        }
+      ]
+    },
+    {
+      "id": "asciidoc",
+      "title": "AsciiDoc",
+      "category": "Documentation et rédaction",
+      "kind": "format",
+      "summary": "Langage de balisage adapté à la rédaction et à la réutilisation de contenus techniques.",
+      "applies_when": "Alternative à Markdown ou à d'autres formats selon la chaîne documentaire.",
+      "sources": [
+        {
+          "url": "https://asciidoc.org/",
+          "title": "AsciiDoc"
+        }
+      ]
+    },
+    {
+      "id": "dita",
+      "title": "DITA",
+      "category": "Documentation et rédaction",
+      "kind": "standard",
+      "summary": "Architecture XML de contenus documentaires modulaires et réutilisables.",
+      "applies_when": "Pour les chaînes éditoriales structurées qui ont besoin de réutilisation et de publications multiples.",
+      "sources": [
+        {
+          "url": "https://docs.oasis-open.org/dita/dita/v1.3/os/part1-base/dita-v1.3-os-part1-base.html",
+          "title": "DITA Version 1.3 Specification"
+        }
+      ]
+    },
+    {
+      "id": "iso-24495-1",
+      "title": "ISO 24495-1",
+      "category": "Documentation et rédaction",
+      "kind": "norme",
+      "summary": "Principes pour rédiger des documents que leurs lecteurs peuvent trouver, comprendre et utiliser.",
+      "applies_when": "Pour les contenus qui nécessitent un langage clair ; adapter à l'audience.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/78907.html",
+          "title": "ISO 24495-1:2023 - Plain language — Part 1: Governing principles and guidelines"
+        }
+      ]
+    },
+    {
+      "id": "pdf-a",
+      "title": "PDF/A",
+      "category": "Documentation et rédaction",
+      "kind": "norme",
+      "summary": "Profils PDF destinés à la conservation à long terme des documents.",
+      "applies_when": "Choisir le profil d'archivage adapté ; référence PDF/A-1 liée ici, distinct de l'accessibilité PDF/UA.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/38920.html",
+          "title": "ISO 19005-1:2005 - Document management — Electronic document file format for long-term preservation — Part 1: Use of PDF 1.4 (PDF/A-1)"
+        }
+      ]
+    },
+    {
+      "id": "bcp47",
+      "title": "BCP 47",
+      "category": "Internationalisation et conventions de référence",
+      "kind": "spécification",
+      "summary": "Étiquettes pour identifier les langues et leurs variantes, par exemple fr-FR.",
+      "applies_when": "Pour les contenus multilingues, API et métadonnées linguistiques.",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc5646.html",
+          "title": "www.rfc-editor.org"
+        }
+      ]
+    },
+    {
+      "id": "unicode-cldr",
+      "title": "Unicode CLDR",
+      "category": "Internationalisation et conventions de référence",
+      "kind": "référentiel de données",
+      "summary": "Données de langues et de régions pour dates, nombres, monnaies et autres présentations locales.",
+      "applies_when": "Pour localiser une application avec des données partagées plutôt que des règles improvisées.",
+      "sources": [
+        {
+          "url": "https://cldr.unicode.org/",
+          "title": "Unicode CLDR Project"
+        }
+      ]
+    },
+    {
+      "id": "icu-messageformat",
+      "title": "ICU MessageFormat",
+      "category": "Internationalisation et conventions de référence",
+      "kind": "format",
+      "summary": "Syntaxe de messages traduisibles avec variables, pluriels et variantes.",
+      "applies_when": "Pour les interfaces multilingues ; fixer le dialecte pris en charge par l'outillage.",
+      "sources": [
+        {
+          "url": "https://unicode-org.github.io/icu/userguide/format_parse/messages/",
+          "title": "Formatting Messages | ICU Documentation"
+        }
+      ]
+    },
+    {
+      "id": "iana-timezones",
+      "title": "IANA Time Zone Database",
+      "category": "Internationalisation et conventions de référence",
+      "kind": "référentiel de données",
+      "summary": "Identifiants et règles historiques des fuseaux horaires et changements d'heure.",
+      "applies_when": "Pour stocker et afficher des heures selon la zone de l'utilisateur.",
+      "sources": [
+        {
+          "url": "https://www.iana.org/time-zones",
+          "title": "Time Zones"
+        }
+      ]
+    },
+    {
+      "id": "unicode-normalization",
+      "title": "Unicode Normalization UAX 15",
+      "category": "Internationalisation et conventions de référence",
+      "kind": "standard",
+      "summary": "Définit des formes normalisées de texte Unicode pour comparer et traiter les caractères.",
+      "applies_when": "Pour les recherches, échanges et identifiants sensibles aux représentations des caractères.",
+      "sources": [
+        {
+          "url": "https://www.unicode.org/reports/tr15/",
+          "title": "UAX #15: Unicode Normalization Forms"
+        }
+      ]
+    },
+    {
+      "id": "iso-4217",
+      "title": "ISO 4217",
+      "category": "Internationalisation et conventions de référence",
+      "kind": "norme",
+      "summary": "Codes de monnaies comme EUR ou USD.",
+      "applies_when": "Pour les prix, paiements, reporting et échanges de données monétaires.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/iso-4217-currency-codes.html",
+          "title": "ISO - ISO 4217 — Currency codes"
+        }
+      ]
+    },
+    {
+      "id": "iso-3166",
+      "title": "ISO 3166",
+      "category": "Internationalisation et conventions de référence",
+      "kind": "norme",
+      "summary": "Codes de pays et subdivisions pour représenter des territoires.",
+      "applies_when": "Pour les adresses, paramètres régionaux, analyses et échanges de données.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/iso-3166-country-codes.html",
+          "title": "ISO - ISO 3166 — Country Codes"
+        }
+      ]
+    }
+  ]
+}

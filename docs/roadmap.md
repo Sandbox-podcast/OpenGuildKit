@@ -2,9 +2,10 @@
 
 This page separates what exists from what is planned. Items under "Next" and "Later" are not built. Open an issue to discuss or claim one.
 
-## V1 (this release)
+## Available
 
-- Catalog: 8 rule packs, 11 boards, 2 sectors, all validated JSON with official sources.
+- Catalog of rule packs, specialist boards and sector profiles in validated JSON.
+- Searchable [reference library](references.md) from the SOCLE catalog. Opt-in packs for releases, the software supply chain and service reliability.
 - CLI: `init` questionnaire, managed `AGENTS.md` block, `sync`, `check`, project-level catalog additions.
 - Task flow: scoping QCM, deterministic board routing, consultation request, review validation, human approval at a terminal, handoff bound to the rules in force.
 - Skills for Claude Code and Codex that drive the flow.
@@ -15,7 +16,7 @@ This page separates what exists from what is planned. Items under "Next" and "La
 The catalog is where most contributions will go. Priorities, by domain:
 
 - **Security and compliance context:** OWASP ASVS levels, OWASP Top 10 for LLM applications, GDPR, DORA, NIS2, SOC 2, PCI DSS. Each pack asks the owner and gathers evidence; none claims compliance.
-- **Engineering conventions:** Conventional Commits, Semantic Versioning, twelve-factor apps, Go, Java, Kotlin, C#, Swift, Terraform, Kubernetes, containers.
+- **Engineering conventions:** twelve-factor apps, Go, Java, Kotlin, C#, Swift, Terraform, Kubernetes, containers.
 - **Agentic work:** prompt-injection handling, tool and permission scoping, MCP server hygiene, evaluation before release, AI cost budgets.
 - **Sectors:** banking, healthcare, retail, public sector, industry, education.
 - **Boards:** legal, data and AI, customer support, people and HR.

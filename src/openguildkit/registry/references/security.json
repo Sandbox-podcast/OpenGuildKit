@@ -1,0 +1,844 @@
+{
+  "id": "security",
+  "title": "Sécurité et cyber",
+  "references": [
+    {
+      "id": "nist-ssdf",
+      "title": "NIST SSDF 1.1 (SP 800-218)",
+      "category": "Sécurité applicative",
+      "kind": "référentiel",
+      "summary": "Organise les pratiques de développement qui réduisent les vulnérabilités et préparent leur traitement.",
+      "applies_when": "Pour structurer la sécurité du cycle de développement, en adaptant les pratiques au produit et aux risques.",
+      "sources": [
+        {
+          "url": "https://csrc.nist.gov/pubs/sp/800/218/final",
+          "title": "NIST SP 800-218 — Secure Software Development Framework (SSDF) Version 1.1"
+        }
+      ]
+    },
+    {
+      "id": "owasp-asvs",
+      "title": "OWASP Application Security Verification Standard 5.0.0",
+      "category": "Sécurité applicative",
+      "kind": "référentiel",
+      "summary": "Fournit des exigences de sécurité applicative que l'équipe peut sélectionner, mettre en œuvre et vérifier.",
+      "applies_when": "Pour des applications et services web ; les contrôles retenus demandent des tests techniques et parfois une revue humaine.",
+      "sources": [
+        {
+          "url": "https://asvs.owasp.org/",
+          "title": "OWASP Application Security Verification Standard — ASVS 5.0.0"
+        }
+      ]
+    },
+    {
+      "id": "owasp-samm",
+      "title": "OWASP Software Assurance Maturity Model (SAMM)",
+      "category": "Sécurité applicative",
+      "kind": "référentiel",
+      "summary": "Aide une organisation à mesurer ses pratiques de sécurité logicielle et à choisir ses prochaines améliorations.",
+      "applies_when": "Pour construire un programme de sécurité progressif adapté aux capacités et aux risques de l'organisation.",
+      "sources": [
+        {
+          "url": "https://owasp.org/projects/samm",
+          "title": "OWASP Software Assurance Maturity Model (SAMM)"
+        }
+      ]
+    },
+    {
+      "id": "owasp-masvs",
+      "title": "OWASP Mobile Application Security Verification Standard (MASVS)",
+      "category": "Sécurité applicative",
+      "kind": "référentiel",
+      "summary": "Définit des exigences de sécurité et de protection de la vie privée pour les applications mobiles.",
+      "applies_when": "Pour une application mobile, en distinguant ses contrôles locaux de ceux de ses services distants.",
+      "sources": [
+        {
+          "url": "https://owasp.org/projects/mobile-application-security",
+          "title": "OWASP Mobile Application Security — MASVS et MASTG"
+        }
+      ]
+    },
+    {
+      "id": "owasp-top-10",
+      "title": "OWASP Top 10:2025",
+      "category": "Sécurité applicative",
+      "kind": "taxonomie",
+      "summary": "Présente dix grandes familles de risques web pour sensibiliser et orienter les priorités.",
+      "applies_when": "Pour la formation et l'analyse initiale des risques ; ce document ne constitue ni une certification ni un audit complet.",
+      "sources": [
+        {
+          "url": "https://top10.owasp.org/",
+          "title": "OWASP Top 10:2025"
+        }
+      ]
+    },
+    {
+      "id": "owasp-api-top-10",
+      "title": "OWASP API Security Top 10 2023",
+      "category": "Sécurité applicative",
+      "kind": "taxonomie",
+      "summary": "Présente les principales familles de risques propres aux interfaces API.",
+      "applies_when": "Pour concevoir, exposer ou auditer des API ; à compléter par des exigences et des tests précis.",
+      "sources": [
+        {
+          "url": "https://owasp.org/projects/api-security-project",
+          "title": "OWASP API Security Top 10 2023"
+        }
+      ]
+    },
+    {
+      "id": "threat-modeling",
+      "title": "Modélisation des menaces (Threat Modeling)",
+      "category": "Sécurité applicative",
+      "kind": "pratique",
+      "summary": "Examine ce qu'un attaquant pourrait faire pour choisir les protections avant et pendant le développement.",
+      "applies_when": "Lors de la conception ou d'un changement important de flux, de données, d'accès ou d'architecture.",
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html",
+          "title": "OWASP Threat Modeling Cheat Sheet"
+        }
+      ]
+    },
+    {
+      "id": "secure-by-design",
+      "title": "Secure by Design et Secure by Default",
+      "category": "Sécurité applicative",
+      "kind": "pratique",
+      "summary": "Intègre la sécurité dans la conception du produit et dans sa configuration initiale.",
+      "applies_when": "Pour limiter la charge de sécurisation reportée sur chaque client ou utilisateur du logiciel.",
+      "sources": [
+        {
+          "url": "https://www.cisa.gov/sites/default/files/2023-06/principles_approaches_for_security-by-design-default_508c.pdf",
+          "title": "CISA — Shifting the Balance of Cybersecurity Risk: Principles and Approaches for Security-by-Design and -Default"
+        }
+      ]
+    },
+    {
+      "id": "sast",
+      "title": "Static Application Security Testing (SAST)",
+      "category": "Sécurité applicative",
+      "kind": "pratique",
+      "summary": "Recherche des failles possibles dans le code sans exécuter l'application.",
+      "applies_when": "Quand le code peut être analysé, notamment lors des changements ; les alertes nécessitent une qualification.",
+      "sources": [
+        {
+          "title": "OWASP Developer Guide, Static Application Security Testing",
+          "url": "https://devguide.owasp.org/en/05-implementation/05-static-analysis/"
+        }
+      ]
+    },
+    {
+      "id": "dast",
+      "title": "Dynamic Application Security Testing (DAST)",
+      "category": "Sécurité applicative",
+      "kind": "pratique",
+      "summary": "Teste une application en fonctionnement pour repérer des failles accessibles depuis ses interfaces.",
+      "applies_when": "Quand une version de l'application peut être testée, notamment en préproduction ; complète les analyses du code.",
+      "sources": [
+        {
+          "title": "OWASP Developer Guide, Secure development and integration",
+          "url": "https://devguide.owasp.org/en/02-foundations/02-secure-development/"
+        }
+      ]
+    },
+    {
+      "id": "secret-scanning",
+      "title": "Secret scanning - détection de secrets exposés",
+      "category": "Sécurité applicative",
+      "kind": "pratique",
+      "summary": "Repère les mots de passe, clés et jetons présents par erreur dans le code, les configurations ou leur historique.",
+      "applies_when": "Pour contrôler les dépôts existants et les nouveaux changements, avant leur partage ou leur intégration.",
+      "sources": [
+        {
+          "url": "https://owasp.github.io/secure-agent-playbook/plugins/code-security-skills/plays/secrets-scan.html",
+          "title": "OWASP secure-agent-playbook - Play: Secrets Scan"
+        }
+      ]
+    },
+    {
+      "id": "slsa",
+      "title": "Supply-chain Levels for Software Artifacts (SLSA) 1.2",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "référentiel",
+      "summary": "Décrit des niveaux de garanties sur l'origine et la fabrication des logiciels.",
+      "applies_when": "Pour sécuriser les builds et vérifier la provenance des artefacts ; le niveau dépend des garanties réellement établies.",
+      "sources": [
+        {
+          "url": "https://slsa.dev/spec/v1.2/",
+          "title": "SLSA specification Version 1.2"
+        }
+      ]
+    },
+    {
+      "id": "sbom",
+      "title": "Software Bill of Materials (SBOM)",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "pratique",
+      "summary": "Produit l'inventaire des composants et dépendances qui constituent une version du logiciel.",
+      "applies_when": "Pour connaître les composants livrés, répondre aux vulnérabilités et partager un inventaire avec les clients.",
+      "sources": [
+        {
+          "url": "https://www.cyber.gov.au/publication/2026-minimum-elements-for-a-software-bill-of-materials-sbom",
+          "title": "2026 Minimum Elements for a Software Bill of Materials (SBOM)"
+        }
+      ]
+    },
+    {
+      "id": "spdx",
+      "title": "System Package Data Exchange (SPDX)",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "format",
+      "summary": "Structure l'échange d'informations sur les composants logiciels, leurs licences et leur provenance.",
+      "applies_when": "Pour produire ou consommer des inventaires logiciels dans une version du format supportée par les outils.",
+      "sources": [
+        {
+          "url": "https://spdx.dev/about/overview/",
+          "title": "SPDX — Overview"
+        }
+      ]
+    },
+    {
+      "id": "cyclonedx",
+      "title": "CycloneDX 1.7",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "format",
+      "summary": "Décrit des composants, services et dépendances dans des nomenclatures exploitables par les outils.",
+      "applies_when": "Pour échanger des SBOM et des informations de supply chain avec une version de schéma explicitement choisie.",
+      "sources": [
+        {
+          "url": "https://cyclonedx.org/specification/overview/",
+          "title": "CycloneDX — Specification Overview"
+        }
+      ]
+    },
+    {
+      "id": "vex",
+      "title": "Vulnerability Exploitability eXchange (VEX)",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "pratique",
+      "summary": "Communique si une vulnérabilité connue affecte effectivement un produit et avec quelle justification.",
+      "applies_when": "Pour qualifier les alertes sur les dépendances et éviter de confondre présence d'un composant et exposition réelle.",
+      "sources": [
+        {
+          "url": "https://www.cisa.gov/sites/default/files/2024-07/SBOM%20FAQ%202024.pdf",
+          "title": "CISA — SBOM FAQ 2024"
+        }
+      ]
+    },
+    {
+      "id": "openvex",
+      "title": "OpenVEX Specification v0.2.0 (draft)",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "format",
+      "summary": "Propose un format léger pour les déclarations VEX sur l'effet d'une vulnérabilité.",
+      "applies_when": "Si les outils retenus prennent en charge cette spécification encore présentée comme draft par son projet.",
+      "sources": [
+        {
+          "url": "https://github.com/openvex/spec",
+          "title": "OpenVEX Specification — draft"
+        },
+        {
+          "url": "https://github.com/openvex/spec/blob/main/OPENVEX-SPEC.md",
+          "title": "OpenVEX Specification v0.2.0"
+        }
+      ]
+    },
+    {
+      "id": "csaf",
+      "title": "Common Security Advisory Framework (CSAF) 2.0",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "format",
+      "summary": "Structure les avis de sécurité pour que produits, vulnérabilités et correctifs soient lisibles par des logiciels.",
+      "applies_when": "Pour publier ou consommer automatiquement des bulletins de sécurité de fournisseurs.",
+      "sources": [
+        {
+          "url": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf-v2.0.html",
+          "title": "Common Security Advisory Framework Version 2.0 Errata 01"
+        }
+      ]
+    },
+    {
+      "id": "osv",
+      "title": "Open Source Vulnerability (OSV) schema",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "format",
+      "summary": "Décrit les vulnérabilités de paquets open source en les reliant précisément aux versions ou aux commits.",
+      "applies_when": "Pour alimenter l'analyse des dépendances à partir de bases compatibles avec ce schéma.",
+      "sources": [
+        {
+          "url": "https://ossf.github.io/osv-schema/",
+          "title": "Open Source Vulnerability format — OSV schema"
+        }
+      ]
+    },
+    {
+      "id": "sigstore",
+      "title": "Sigstore",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "outil",
+      "summary": "Fournit des outils pour signer les livrables logiciels et vérifier leur origine.",
+      "applies_when": "Pour les fichiers publiés, images de conteneurs ou SBOM, avec un modèle de confiance et de vérification défini.",
+      "sources": [
+        {
+          "url": "https://docs.sigstore.dev/",
+          "title": "Sigstore — Overview"
+        }
+      ]
+    },
+    {
+      "id": "tuf",
+      "title": "The Update Framework (TUF)",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "référentiel",
+      "summary": "Décrit comment protéger la distribution des mises à jour, même face à certaines compromissions de clés ou de dépôts.",
+      "applies_when": "Pour un éditeur qui distribue des mises à jour et veut renforcer leur authenticité et leur intégrité.",
+      "sources": [
+        {
+          "url": "https://theupdateframework.io/docs/overview/",
+          "title": "The Update Framework — Overview"
+        }
+      ]
+    },
+    {
+      "id": "in-toto",
+      "title": "in-toto",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "format",
+      "summary": "Relie des métadonnées de preuve aux étapes, acteurs et résultats de la chaîne de fabrication logicielle.",
+      "applies_when": "Pour vérifier qu'un livrable a traversé les étapes attendues de sa chaîne de production.",
+      "sources": [
+        {
+          "url": "https://in-toto.io/",
+          "title": "in-toto — A framework to secure the integrity of software supply chains"
+        }
+      ]
+    },
+    {
+      "id": "openssf-scorecard",
+      "title": "OpenSSF Scorecard",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "outil",
+      "summary": "Exécute des vérifications automatiques sur les pratiques de sécurité de projets open source.",
+      "applies_when": "Pour examiner un dépôt ou des dépendances ; ses scores sont des indicateurs et ne prouvent pas la sécurité du code.",
+      "sources": [
+        {
+          "url": "https://openssf.org/projects/scorecard/",
+          "title": "OpenSSF Scorecard"
+        }
+      ]
+    },
+    {
+      "id": "openssf-best-practices",
+      "title": "OpenSSF Best Practices Badge",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "référentiel",
+      "summary": "Permet à un projet open source de documenter les bonnes pratiques qu'il déclare suivre.",
+      "applies_when": "Pour rendre les pratiques d'un projet visibles ; la démarche volontaire ne remplace pas un audit indépendant.",
+      "sources": [
+        {
+          "url": "https://openssf.org/projects/best-practices-badge/",
+          "title": "OpenSSF Best Practices Badge Program"
+        }
+      ]
+    },
+    {
+      "id": "iso-iec-5230",
+      "title": "OpenChain ISO/IEC 5230",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "norme",
+      "summary": "Définit les éléments d'un programme de gestion des obligations liées aux licences open source.",
+      "applies_when": "Pour les organisations qui assemblent ou distribuent des logiciels avec des composants open source.",
+      "sources": [
+        {
+          "url": "https://openchainproject.org/license-compliance",
+          "title": "OpenChain ISO/IEC 5230 — License Compliance"
+        }
+      ]
+    },
+    {
+      "id": "openssf-osps-baseline",
+      "title": "OpenSSF Open Source Project Security Baseline",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "référentiel",
+      "summary": "Fournit un ensemble de contrôles de sécurité pour les projets open source, organisé par niveau de maturité.",
+      "applies_when": "Pour poser un socle progressif de pratiques de sécurité au niveau d'un projet.",
+      "sources": [
+        {
+          "url": "https://openssf.org/blog/2026/01/07/your-guide-to-the-openssf-osps-baseline-for-more-secure-open-source-projects/",
+          "title": "OpenSSF — Your Guide to the OpenSSF OSPS Baseline"
+        }
+      ]
+    },
+    {
+      "id": "sca",
+      "title": "Software Composition Analysis (SCA)",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "pratique",
+      "summary": "Analyse les bibliothèques et composants utilisés pour repérer des vulnérabilités connues.",
+      "applies_when": "Dès qu'un logiciel dépend de composants tiers ; refaire l'analyse lors des mises à jour et des nouvelles alertes.",
+      "sources": [
+        {
+          "title": "OWASP Developer Guide, Secure development and integration",
+          "url": "https://devguide.owasp.org/en/02-foundations/02-secure-development/"
+        }
+      ]
+    },
+    {
+      "id": "oauth-2",
+      "title": "OAuth 2.0 (RFC 6749)",
+      "category": "Identité, accès et cryptographie",
+      "kind": "protocole",
+      "summary": "Permet de déléguer à une application un accès limité à une ressource.",
+      "applies_when": "Pour autoriser des intégrations ou des API ; les choix d'implémentation doivent suivre les recommandations de sécurité complémentaires.",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/info/rfc6749/",
+          "title": "RFC 6749 — The OAuth 2.0 Authorization Framework"
+        },
+        {
+          "url": "https://www.rfc-editor.org/info/rfc9700/",
+          "title": "RFC 9700 / BCP 240 — Best Current Practice for OAuth 2.0 Security"
+        }
+      ]
+    },
+    {
+      "id": "oauth-security-bcp",
+      "title": "OAuth 2.0 Security Best Current Practice (RFC 9700)",
+      "category": "Identité, accès et cryptographie",
+      "kind": "référentiel",
+      "summary": "Actualise les protections à appliquer à OAuth et écarte des modes d'utilisation devenus insuffisamment sûrs.",
+      "applies_when": "Pour concevoir ou réviser une implémentation OAuth 2.0.",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/info/rfc9700/",
+          "title": "RFC 9700 / BCP 240 — Best Current Practice for OAuth 2.0 Security"
+        }
+      ]
+    },
+    {
+      "id": "openid-connect",
+      "title": "OpenID Connect Core 1.0",
+      "category": "Identité, accès et cryptographie",
+      "kind": "protocole",
+      "summary": "Ajoute une couche d'identification de l'utilisateur au mécanisme d'autorisation OAuth 2.0.",
+      "applies_when": "Pour connecter une application à un fournisseur d'identité et gérer la connexion des utilisateurs.",
+      "sources": [
+        {
+          "url": "https://openid.net/specs/openid-connect-core-1_0.html",
+          "title": "OpenID Connect Core 1.0 incorporating errata set 2"
+        }
+      ]
+    },
+    {
+      "id": "saml-2",
+      "title": "Security Assertion Markup Language (SAML) 2.0",
+      "category": "Identité, accès et cryptographie",
+      "kind": "protocole",
+      "summary": "Échange des informations d'authentification entre organisations ou applications.",
+      "applies_when": "Pour le SSO d'entreprise lorsque les applications et fournisseurs d'identité utilisent SAML.",
+      "sources": [
+        {
+          "url": "https://docs.oasis-open.org/security/saml/Post2.0/sstc-saml-tech-overview-2.0.html",
+          "title": "OASIS — SAML 2.0 Technical Overview"
+        }
+      ]
+    },
+    {
+      "id": "webauthn",
+      "title": "Web Authentication (WebAuthn)",
+      "category": "Identité, accès et cryptographie",
+      "kind": "protocole",
+      "summary": "Permet à un site d'authentifier un utilisateur avec des justificatifs cryptographiques gérés par un authentificateur.",
+      "applies_when": "Pour proposer des passkeys ou des clés de sécurité compatibles ; choisir un niveau publié adapté au support des navigateurs.",
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/webauthn/",
+          "title": "W3C — Web Authentication: An API for accessing Public Key Credentials"
+        }
+      ]
+    },
+    {
+      "id": "fido2",
+      "title": "FIDO2",
+      "category": "Identité, accès et cryptographie",
+      "kind": "protocole",
+      "summary": "Réunit WebAuthn et les protocoles de communication avec les authentificateurs pour des connexions par clés publiques.",
+      "applies_when": "Pour une authentification compatible avec des passkeys ou des dispositifs FIDO2.",
+      "sources": [
+        {
+          "url": "https://fidoalliance.org/specifications/",
+          "title": "FIDO Alliance — User Authentication Specifications Overview"
+        }
+      ]
+    },
+    {
+      "id": "pkce",
+      "title": "Proof Key for Code Exchange (PKCE, RFC 7636)",
+      "category": "Identité, accès et cryptographie",
+      "kind": "protocole",
+      "summary": "Protège un échange de code d'autorisation OAuth contre son interception et son utilisation par un autre client.",
+      "applies_when": "Pour les flux OAuth concernés, selon le type de client et les recommandations de sécurité retenues.",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/info/rfc7636/",
+          "title": "RFC 7636 — Proof Key for Code Exchange by OAuth Public Clients"
+        },
+        {
+          "url": "https://www.rfc-editor.org/info/rfc9700/",
+          "title": "RFC 9700 / BCP 240 — Best Current Practice for OAuth 2.0 Security"
+        }
+      ]
+    },
+    {
+      "id": "jwt",
+      "title": "JSON Web Token (JWT, RFC 7519)",
+      "category": "Identité, accès et cryptographie",
+      "kind": "format",
+      "summary": "Transporte des informations déclarées sur une identité ou un contexte dans un jeton compact.",
+      "applies_when": "Pour des systèmes qui utilisent des jetons, avec validation de l'émetteur, du destinataire et de l'expiration ; JWT ne signifie pas chiffrement.",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/info/rfc7519/",
+          "title": "RFC 7519 — JSON Web Token (JWT)"
+        }
+      ]
+    },
+    {
+      "id": "jws",
+      "title": "JSON Web Signature (JWS, RFC 7515)",
+      "category": "Identité, accès et cryptographie",
+      "kind": "format",
+      "summary": "Permet de protéger l'intégrité d'un message par une signature numérique ou un code d'authentification.",
+      "applies_when": "Pour vérifier qu'un message ou un jeton provient d'une source autorisée et n'a pas été modifié.",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/info/rfc7515/",
+          "title": "RFC 7515 — JSON Web Signature (JWS)"
+        }
+      ]
+    },
+    {
+      "id": "jwe",
+      "title": "JSON Web Encryption (JWE, RFC 7516)",
+      "category": "Identité, accès et cryptographie",
+      "kind": "format",
+      "summary": "Définit une représentation chiffrée des messages pour en protéger la confidentialité.",
+      "applies_when": "Lorsque des messages ou jetons doivent rester illisibles pour les intermédiaires non autorisés.",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/info/rfc7516/",
+          "title": "RFC 7516 — JSON Web Encryption (JWE)"
+        }
+      ]
+    },
+    {
+      "id": "tls-1-3",
+      "title": "Transport Layer Security (TLS) 1.3",
+      "category": "Identité, accès et cryptographie",
+      "kind": "protocole",
+      "summary": "Protège les communications réseau contre la lecture et la modification par des tiers.",
+      "applies_when": "Pour chiffrer les échanges réseau avec une configuration et une gestion des certificats adaptées.",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/info/rfc8446/",
+          "title": "RFC 8446 — The Transport Layer Security Protocol Version 1.3"
+        }
+      ]
+    },
+    {
+      "id": "scim-2",
+      "title": "System for Cross-domain Identity Management (SCIM) 2.0",
+      "category": "Identité, accès et cryptographie",
+      "kind": "protocole",
+      "summary": "Automatise la création, la mise à jour et la désactivation des comptes entre systèmes.",
+      "applies_when": "Pour relier les comptes applicatifs à la gestion des identités de l'organisation.",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/info/rfc7644/",
+          "title": "RFC 7644 — System for Cross-domain Identity Management: Protocol"
+        }
+      ]
+    },
+    {
+      "id": "nist-sp-800-63",
+      "title": "NIST SP 800-63-4 — Digital Identity Guidelines",
+      "category": "Identité, accès et cryptographie",
+      "kind": "référentiel",
+      "summary": "Organise les exigences de preuve d'identité, d'authentification et de fédération selon les besoins d'assurance.",
+      "applies_when": "Pour définir un niveau d'assurance d'identité ou répondre à un cadre contractuel qui le retient.",
+      "sources": [
+        {
+          "url": "https://csrc.nist.gov/pubs/sp/800/63/4/final",
+          "title": "NIST SP 800-63-4 — Digital Identity Guidelines"
+        }
+      ]
+    },
+    {
+      "id": "aes-fips-197",
+      "title": "Advanced Encryption Standard (AES, FIPS 197)",
+      "category": "Identité, accès et cryptographie",
+      "kind": "norme",
+      "summary": "Définit un algorithme de chiffrement symétrique largement utilisé pour protéger les données.",
+      "applies_when": "Quand la solution emploie AES, avec un mode d'utilisation, des clés et une implémentation adaptés.",
+      "sources": [
+        {
+          "url": "https://csrc.nist.gov/pubs/fips/197/final",
+          "title": "NIST FIPS 197 — Advanced Encryption Standard (AES)"
+        }
+      ]
+    },
+    {
+      "id": "fips-140-3",
+      "title": "FIPS 140-3 — Cryptographic Modules",
+      "category": "Identité, accès et cryptographie",
+      "kind": "norme",
+      "summary": "Fixe des exigences de sécurité portant sur les modules cryptographiques.",
+      "applies_when": "Lorsque le secteur, le contrat ou le contexte impose une validation de module cryptographique ; utiliser AES seul ne suffit pas.",
+      "sources": [
+        {
+          "url": "https://csrc.nist.gov/pubs/fips/140-3/final",
+          "title": "NIST FIPS 140-3 — Security Requirements for Cryptographic Modules"
+        }
+      ]
+    },
+    {
+      "id": "rbac",
+      "title": "Role-Based Access Control (RBAC)",
+      "category": "Identité, accès et cryptographie",
+      "kind": "pratique",
+      "summary": "Attribue les autorisations à des rôles, puis associe les personnes ou services aux rôles adaptés.",
+      "applies_when": "Quand les droits suivent des fonctions identifiables, comme administrateur, support ou lecteur.",
+      "sources": [
+        {
+          "url": "https://csrc.nist.gov/glossary/term/role_based_access_control",
+          "title": "NIST CSRC Glossary - role-based access control (RBAC)"
+        }
+      ]
+    },
+    {
+      "id": "abac",
+      "title": "Attribute-Based Access Control (ABAC)",
+      "category": "Identité, accès et cryptographie",
+      "kind": "pratique",
+      "summary": "Décide d'un accès en évaluant les attributs de l'utilisateur, de la ressource, de l'action et du contexte.",
+      "applies_when": "Quand les droits dépendent de conditions fines, par exemple l'organisation, la sensibilité d'une donnée ou le contexte d'accès.",
+      "sources": [
+        {
+          "url": "https://csrc.nist.gov/pubs/sp/800/162/upd2/final",
+          "title": "NIST SP 800-162 - Guide to Attribute Based Access Control (ABAC) Definition and Considerations"
+        }
+      ]
+    },
+    {
+      "id": "least-privilege",
+      "title": "Principe du moindre privilège",
+      "category": "Identité, accès et cryptographie",
+      "kind": "pratique",
+      "summary": "Limite les autorisations de chaque personne, service ou agent à ce qui est nécessaire à sa tâche.",
+      "applies_when": "Pour concevoir et réviser les droits des utilisateurs, applications, automatisations et agents IA.",
+      "sources": [
+        {
+          "url": "https://csrc.nist.gov/glossary/term/least_privilege",
+          "title": "NIST CSRC Glossary - least privilege"
+        }
+      ]
+    },
+    {
+      "id": "nist-csf",
+      "title": "NIST Cybersecurity Framework (CSF) 2.0",
+      "category": "Risques, vulnérabilités et incidents",
+      "kind": "référentiel",
+      "summary": "Organise les résultats attendus pour gouverner les risques, protéger l'activité et réagir aux incidents.",
+      "applies_when": "Pour définir une stratégie de cybersécurité et suivre sa progression, quelle que soit la stack.",
+      "sources": [
+        {
+          "url": "https://www.nist.gov/publications/nist-cybersecurity-framework-csf-20",
+          "title": "The NIST Cybersecurity Framework (CSF) 2.0"
+        }
+      ]
+    },
+    {
+      "id": "nist-sp-800-53",
+      "title": "NIST SP 800-53 Rev. 5",
+      "category": "Risques, vulnérabilités et incidents",
+      "kind": "référentiel",
+      "summary": "Rassemble un vaste catalogue de contrôles de sécurité et de protection de la vie privée.",
+      "applies_when": "Pour sélectionner des contrôles adaptés aux risques ou à un cadre qui les exige ; le catalogue entier n'est pas obligatoire pour tous.",
+      "sources": [
+        {
+          "url": "https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final",
+          "title": "NIST SP 800-53 Rev. 5 — Security and Privacy Controls for Information Systems and Organizations"
+        }
+      ]
+    },
+    {
+      "id": "nist-sp-800-61",
+      "title": "NIST SP 800-61 Rev. 3",
+      "category": "Risques, vulnérabilités et incidents",
+      "kind": "référentiel",
+      "summary": "Aide à préparer et intégrer la réponse aux incidents dans la gestion des risques cyber.",
+      "applies_when": "Pour définir les responsabilités, procédures et améliorations liées aux incidents de sécurité.",
+      "sources": [
+        {
+          "url": "https://csrc.nist.gov/pubs/sp/800/61/r3/final",
+          "title": "NIST SP 800-61 Rev. 3 — Incident Response Recommendations and Considerations for Cybersecurity Risk Management"
+        }
+      ]
+    },
+    {
+      "id": "nist-zero-trust",
+      "title": "NIST SP 800-207 — Zero Trust Architecture",
+      "category": "Risques, vulnérabilités et incidents",
+      "kind": "référentiel",
+      "summary": "Décrit une architecture où l'accès dépend de vérifications explicites plutôt que de la seule position sur le réseau.",
+      "applies_when": "Pour concevoir les accès aux ressources dans des environnements distribués ou sensibles.",
+      "sources": [
+        {
+          "url": "https://csrc.nist.gov/pubs/sp/800/207/final",
+          "title": "NIST SP 800-207 — Zero Trust Architecture"
+        }
+      ]
+    },
+    {
+      "id": "cve",
+      "title": "Common Vulnerabilities and Exposures (CVE)",
+      "category": "Risques, vulnérabilités et incidents",
+      "kind": "référentiel",
+      "summary": "Attribue des identifiants communs aux vulnérabilités publiquement documentées.",
+      "applies_when": "Pour retrouver et partager les informations sur une vulnérabilité précise entre outils et équipes.",
+      "sources": [
+        {
+          "url": "https://www.cve.org/",
+          "title": "CVE — Common Vulnerabilities and Exposures"
+        }
+      ]
+    },
+    {
+      "id": "cwe",
+      "title": "Common Weakness Enumeration (CWE)",
+      "category": "Risques, vulnérabilités et incidents",
+      "kind": "taxonomie",
+      "summary": "Classe les types de faiblesses du logiciel ou du matériel à l'origine de vulnérabilités.",
+      "applies_when": "Pour analyser les défauts récurrents, organiser les résultats d'analyse et former les développeurs.",
+      "sources": [
+        {
+          "url": "https://cwe.mitre.org/about/faq",
+          "title": "MITRE CWE — Frequently Asked Questions"
+        }
+      ]
+    },
+    {
+      "id": "capec",
+      "title": "Common Attack Pattern Enumeration and Classification (CAPEC)",
+      "category": "Risques, vulnérabilités et incidents",
+      "kind": "taxonomie",
+      "summary": "Décrit des schémas d'attaque réutilisables pour comprendre comment des faiblesses peuvent être exploitées.",
+      "applies_when": "Pour modéliser les menaces et identifier les mesures de protection qui correspondent à chaque risque.",
+      "sources": [
+        {
+          "url": "https://capec.mitre.org/about/new_to_capec.html",
+          "title": "MITRE CAPEC — New to CAPEC?"
+        }
+      ]
+    },
+    {
+      "id": "cvss",
+      "title": "Common Vulnerability Scoring System (CVSS)",
+      "category": "Risques, vulnérabilités et incidents",
+      "kind": "référentiel",
+      "summary": "Caractérise la gravité d'une vulnérabilité avec un score et des critères explicites.",
+      "applies_when": "Pour évaluer la sévérité, en tenant compte de l'environnement ; le score ne représente pas à lui seul le risque de l'entreprise.",
+      "sources": [
+        {
+          "url": "https://www.first.org/cvss/",
+          "title": "FIRST — Common Vulnerability Scoring System"
+        }
+      ]
+    },
+    {
+      "id": "epss",
+      "title": "Exploit Prediction Scoring System (EPSS)",
+      "category": "Risques, vulnérabilités et incidents",
+      "kind": "référentiel",
+      "summary": "Estime la probabilité d'exploitation d'une vulnérabilité connue pour aider à prioriser sa correction.",
+      "applies_when": "Pour compléter la gravité technique, l'exposition réelle et les informations d'exploitation observée.",
+      "sources": [
+        {
+          "url": "https://www.first.org/epss/",
+          "title": "FIRST — Exploit Prediction Scoring System"
+        }
+      ]
+    },
+    {
+      "id": "mitre-attack",
+      "title": "MITRE ATT&CK",
+      "category": "Risques, vulnérabilités et incidents",
+      "kind": "taxonomie",
+      "summary": "Organise les tactiques et techniques d'attaque observées dans le monde réel.",
+      "applies_when": "Pour construire des scénarios de détection, des exercices de défense et des analyses de couverture.",
+      "sources": [
+        {
+          "url": "https://attack.mitre.org/resources/",
+          "title": "MITRE ATT&CK — Get Started"
+        }
+      ]
+    },
+    {
+      "id": "cisa-kev",
+      "title": "CISA Known Exploited Vulnerabilities (KEV) Catalog",
+      "category": "Risques, vulnérabilités et incidents",
+      "kind": "référentiel",
+      "summary": "Recense des vulnérabilités dont l'exploitation est connue.",
+      "applies_when": "Pour prioriser les correctifs selon les produits réellement présents ; les obligations et échéances associées dépendent du contexte.",
+      "sources": [
+        {
+          "url": "https://github.com/cisagov/kev-data",
+          "title": "CISA — Known Exploited Vulnerabilities catalog data"
+        }
+      ]
+    },
+    {
+      "id": "cis-controls",
+      "title": "CIS Critical Security Controls v8.1",
+      "category": "Risques, vulnérabilités et incidents",
+      "kind": "référentiel",
+      "summary": "Propose des mesures de sécurité priorisées pour réduire les attaques courantes.",
+      "applies_when": "Pour choisir un socle de protections proportionné à la taille, aux moyens et aux risques de l'organisation.",
+      "sources": [
+        {
+          "url": "https://www.cisecurity.org/controls/v8-1",
+          "title": "CIS Critical Security Controls Version 8.1"
+        }
+      ]
+    },
+    {
+      "id": "cis-benchmarks",
+      "title": "CIS Benchmarks",
+      "category": "Risques, vulnérabilités et incidents",
+      "kind": "référentiel",
+      "summary": "Fournit des recommandations de configuration sécurisée propres aux technologies utilisées.",
+      "applies_when": "Pour durcir des systèmes, services cloud ou logiciels couverts par un benchmark pertinent et sa version.",
+      "sources": [
+        {
+          "url": "https://www.cisecurity.org/cis-benchmarks-overview",
+          "title": "CIS Benchmarks — Overview"
+        }
+      ]
+    },
+    {
+      "id": "ebios-risk-manager",
+      "title": "ANSSI EBIOS Risk Manager",
+      "category": "Risques, vulnérabilités et incidents",
+      "kind": "référentiel",
+      "summary": "Aide à comprendre les scénarios de risque numérique qui menacent les activités de l'organisation.",
+      "applies_when": "Pour mener une analyse de risques partagée entre métiers, décideurs et responsables techniques.",
+      "sources": [
+        {
+          "url": "https://cyber.gouv.fr/securisation/analyse-des-risques/methode-ebios-rm/",
+          "title": "ANSSI — La méthode EBIOS Risk Manager"
+        }
+      ]
+    }
+  ]
+}
