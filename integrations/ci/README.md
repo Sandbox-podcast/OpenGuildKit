@@ -60,7 +60,15 @@ Provide the organization and repository IDs, corresponding local Git checkouts, 
 
 Use `openguildkit-ci github --config integration.json --state ./state --run` to inspect the resulting checks. For continuous operation, copy the [GitHub Actions recheck template](pilot/recheck-workflow.yml) to `.github/workflows/openguildkit.yml` on a trusted workflow branch. Set `pilot/recheck.json` with `policyRepository` and `policyRef`, and put the archive's SHA-256 followed by its filename in `pilot/recheck-kit.sha256`. Host the pinned archive as a GitHub Release asset of that project, as expected by the template. Provision read-only policy access if the policy repository is private.
 
-Schedule `openguildkit-ci watch --config integration.json --state ./state` on a trusted Jenkins agent with a persistent state directory and concurrent builds disabled. The [Jenkins launcher](pilot/run-watch-jenkins.mjs) supports installing the CLI from a verified archive before running the scheduled check. Add `--publish` when the Jenkins identity has permission to write to the configured evidence branch and publish statuses. Set up that branch in each project.
+Before scheduling the job, run the preflight as the Jenkins account with the same path you will pass to `watch`.
+
+```sh
+openguildkit-ci check-state --state ./state
+```
+
+On Windows, put the state directory on NTFS. An exFAT volume does not support hard links. If the preflight reports exFAT, select a persistent NTFS path and repeat the check. A failed preflight exits with code 2. If you installed the v0.16.0 GitHub archive, select the NTFS path directly. The preflight commands were added after that release.
+
+Schedule `openguildkit-ci watch --config integration.json --state ./state` on a trusted Jenkins agent with concurrent builds disabled. The command repeats the preflight before contacting GitHub. The [Jenkins launcher](pilot/run-watch-jenkins.mjs) also checks the directory before downloading or installing the kit. Add `--publish` when the Jenkins identity has permission to write to the configured evidence branch and publish statuses. Set up that branch in each project.
 
 A run that executes new checks refreshes the active references afterward. If they changed during evaluation, the report still links to the evidence just produced in `executedEvidence`. The `current` entries track the newly active references.
 

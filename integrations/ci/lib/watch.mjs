@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { gh, reconcileGithub } from './github.mjs';
 import { sameRepositoryUrl } from './github-identifiers.mjs';
+import { checkStateDirectory } from './state-directory.mjs';
 import { publishWatchReport } from './github-report.mjs';
 
 function readJson(path) {
@@ -94,6 +95,7 @@ export function watchGithub({ publish, ...options }, {
   reconcile = reconcileGithub, actions = githubActions, publishReport = publishWatchReport, clock = Date.now,
 } = {}) {
   const { configPath, stateDir } = options;
+  checkStateDirectory(stateDir);
   const config = readJson(configPath);
   const workflows = new Map(config.projects.map(({ id, workflow }) => {
     if (!workflow || !/^[\w.-]+\.ya?ml$/.test(workflow.file) ||
