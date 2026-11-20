@@ -32,6 +32,53 @@
     {
       "title": "U.S. Small Business Administration, Market research and competitive analysis",
       "url": "https://www.sba.gov/counseling/plan-your-business/"
+    },
+    {
+      "title": "UK Government Communication Service, Campaign lifecycle",
+      "url": "https://www.gov.uk/government/publications/government-functional-standard-govs-011-communication/government-functional-standard-govs-011-communications#the-campaign-lifecycle"
     }
-  ]
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "market-researcher",
+        "title": "Market researcher",
+        "focus": "Define the buyer problem, geography and review period. Compare dated evidence for direct competitors, substitutes and the option of doing nothing."
+      },
+      {
+        "id": "positioning-lead",
+        "title": "Positioning lead",
+        "focus": "Connect audience needs to a specific value proposition. Identify the proof, scope and qualifications needed for claims about capability, outcomes or differentiation."
+      },
+      {
+        "id": "channel-planner",
+        "title": "Channel planner",
+        "focus": "Compare how the target audience discovers and evaluates options across channels. Propose a sequence and pilot that fit the budget and production effort."
+      },
+      {
+        "id": "measurement-analyst",
+        "title": "Marketing measurement analyst",
+        "focus": "Define the observable action and attribution limits. Select a baseline or comparison that can distinguish campaign effects from seasonality and other launches."
+      }
+    ],
+    "evidence": [
+      "Named audience, buying role, market geography, release timing and available campaign capacity.",
+      "Approved customer interviews or win-loss notes for the stated problem, with date and segment where available.",
+      "Dated product pages, release notes or official statements for relevant competitors. Record the plan, region and version that support each claim.",
+      "Approved message claims with their backing release criteria, customer evidence and applicable qualification.",
+      "Channel performance baselines, event or reporting definitions and known changes to tracking or visitor mix."
+    ],
+    "challenge": [
+      "Test whether the claimed differentiation survives after comparing the same problem, subscription tier, market and time window.",
+      "Compare a broader launch, a targeted audience pilot and deferring the launch until an evidence gap closes. State what could change the audience or message.",
+      "Challenge claims drawn from a competitor's silence, a small interview sample or traffic without a defined buyer action.",
+      "Check if simultaneous launches, seasonality or measurement changes could produce the same outcome without the campaign."
+    ],
+    "decision_criteria": [
+      "Recommend a message when the selected audience has a specific evidenced need and every material claim can be supported with appropriately scoped proof.",
+      "Recommend a pilot when channel fit, audience behavior or incremental impact is uncertain and one measurable test can resolve it.",
+      "Defer a claim when supporting evidence applies to another market, version or audience, or when first-hand evidence remains unavailable.",
+      "Recommend a channel only with an owner, a feasible budget and a defined action that the team can measure or validate."
+    ]
+  }
 }

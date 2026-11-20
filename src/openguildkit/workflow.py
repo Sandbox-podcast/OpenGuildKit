@@ -23,8 +23,10 @@ in the user's language. Keep the CLI's IDs and JSON keys as printed.
    subagents when available.
 3. Get the response shape with `openguildkit task template ID`. Fill it with
    concrete recommendations and evidence from the project or allowed public
-   sources. Record missing evidence and disagreements. Run
-   `openguildkit task review ID --file FILE` and show the findings to the user.
+   sources. For each brain, get a finding from each specialist lens before
+   reconciling its verdict, alternative, and checks. Record missing evidence
+   and disagreements. Run `openguildkit task review ID --file FILE` and show
+   the decision brief from `openguildkit task challenge ID` to the user.
 4. The user records the decision in their terminal with
    `openguildkit task decide ID --approve --by NAME --reason TEXT` or
    `openguildkit task decide ID --request-changes --by NAME --reason TEXT`.
@@ -268,21 +270,22 @@ def _consultation_markdown(scope: dict, boards: dict, routing: dict) -> str:
     ]
     for board_id, reasons in routing.items():
         board = boards[board_id]
+        brief = {
+            "title": board["title"],
+            "purpose": board["description"],
+            "routing": reasons,
+            "expertises": board["expertises"],
+            "questions": board["questions"],
+            "source_leads": board["sources"],
+        }
+        if "review" in board:
+            brief["brain_review"] = board["review"]
         lines.extend(
             [
                 "",
                 f"### {board_id}",
                 "",
-                _json_section(
-                    {
-                        "title": board["title"],
-                        "purpose": board["description"],
-                        "routing": reasons,
-                        "expertises": board["expertises"],
-                        "questions": board["questions"],
-                        "source_leads": board["sources"],
-                    }
-                ),
+                _json_section(brief),
             ]
         )
     lines.extend(
@@ -294,9 +297,39 @@ def _consultation_markdown(scope: dict, boards: dict, routing: dict) -> str:
             "unresolved scope, missing evidence and trade-offs. Summarize the "
             "proposed next step and any decisions the user needs to make.",
             "",
+            "For a brain review, write each specialist finding before forming a verdict. "
+            "Mark its basis as observed, assumption, or missing, and cite one-based "
+            "positions from the board's evidence list. Challenge the proposed "
+            "approach with a realistic alternative and one way it could fail, then name "
+            "the test or evidence that would change the decision. Preserve disagreement "
+            "between specialists or boards in the summary.",
+            "",
+            "Use verdict proceed, revise, block, or insufficient-evidence. "
+            "Use confidence low, medium, or high. A recommendation to proceed or a high "
+            "confidence rating requires observed findings and cited evidence. For a "
+            "blocking finding, say who can resolve it and what would clear it.",
+            "",
         ]
     )
     return "\n".join(lines)
+
+
+def _board_template(board: dict) -> dict:
+    entry = {"id": board["id"], "recommendation": "", "evidence": [], "open_questions": []}
+    if "review" in board:
+        entry["challenge"] = {
+            "specialists": [
+                {"id": specialist["id"], "finding": "", "basis": "", "evidence_refs": []}
+                for specialist in board["review"]["specialists"]
+            ],
+            "verdict": "",
+            "confidence": "",
+            "alternative": "",
+            "failure_mode": "",
+            "verification": "",
+            "blockers": [],
+        }
+    return entry
 
 
 def consult(profile: dict, catalog: dict, task: dict) -> dict:
@@ -314,10 +347,7 @@ def consult(profile: dict, catalog: dict, task: dict) -> dict:
         "review_template": {
             "consultation_id": consultation_id,
             "summary": "",
-            "boards": [
-                {"id": board_id, "recommendation": "", "evidence": [], "open_questions": []}
-                for board_id in routing
-            ],
+            "boards": [_board_template(catalog["boards"][board_id]) for board_id in routing],
         },
     }
 
@@ -334,6 +364,64 @@ def _text_list(value: object, field: str) -> list[str]:
     return [_text(item, field) for item in value]
 
 
+def _validate_challenge(board_id: str, challenge: object, template: dict, evidence: list[str]) -> dict:
+    if not isinstance(challenge, dict) or challenge.keys() != template.keys():
+        raise ValueError(f"{board_id} challenge does not match the template fields.")
+    verdict = challenge["verdict"]
+    if verdict not in ("proceed", "revise", "block", "insufficient-evidence"):
+        raise ValueError(f"{board_id} verdict must be proceed, revise, block or insufficient-evidence.")
+    confidence = challenge["confidence"]
+    if confidence not in ("low", "medium", "high"):
+        raise ValueError(f"{board_id} confidence must be low, medium or high.")
+    if verdict == "insufficient-evidence" and confidence != "low":
+        raise ValueError(f"{board_id} must use low confidence when evidence is insufficient.")
+    expected = [specialist["id"] for specialist in template["specialists"]]
+    specialists = challenge["specialists"]
+    if not isinstance(specialists, list):
+        raise ValueError(f"{board_id} specialists must be a list.")
+    findings = {}
+    for specialist in specialists:
+        if not isinstance(specialist, dict) or specialist.keys() != {"id", "finding", "basis", "evidence_refs"}:
+            raise ValueError(f"Each {board_id} specialist needs id, finding, basis and evidence_refs.")
+        specialist_id = _text(specialist["id"], "Specialist ID")
+        if specialist_id not in expected or specialist_id in findings:
+            raise ValueError(f"Unexpected or repeated {board_id} specialist: {specialist_id}.")
+        basis = specialist["basis"]
+        if basis not in ("observed", "assumption", "missing"):
+            raise ValueError(f"{board_id}/{specialist_id} basis must be observed, assumption or missing.")
+        references = specialist["evidence_refs"]
+        if not isinstance(references, list) or any(
+            type(index) is not int or not 1 <= index <= len(evidence) for index in references
+        ):
+            raise ValueError(f"{board_id}/{specialist_id} evidence_refs must point to the board's evidence list.")
+        if basis == "observed" and not references:
+            raise ValueError(f"{board_id}/{specialist_id} needs an evidence reference for an observed finding.")
+        findings[specialist_id] = {
+            "id": specialist_id, "finding": _text(specialist["finding"], "Specialist finding"), "basis": basis,
+            "evidence_refs": list(dict.fromkeys(references)),
+        }
+    missing = [specialist_id for specialist_id in expected if specialist_id not in findings]
+    if missing:
+        raise ValueError(f"{board_id} specialist findings are missing for {', '.join(missing)}.")
+    observed = any(finding["basis"] == "observed" for finding in findings.values())
+    if (verdict == "proceed" or confidence == "high") and not observed:
+        raise ValueError(f"{board_id} needs an observed finding and cited evidence for this review.")
+    blockers = _text_list(challenge["blockers"], f"{board_id} blockers")
+    if verdict == "block" and not blockers:
+        raise ValueError(f"{board_id} must name the blocking findings.")
+    if verdict == "proceed" and blockers:
+        raise ValueError(f"{board_id} cannot recommend proceeding with unresolved blockers.")
+    return {
+        "specialists": [findings[specialist_id] for specialist_id in expected],
+        "verdict": verdict,
+        "confidence": confidence,
+        "alternative": _text(challenge["alternative"], f"{board_id} alternative"),
+        "failure_mode": _text(challenge["failure_mode"], f"{board_id} failure mode"),
+        "verification": _text(challenge["verification"], f"{board_id} verification"),
+        "blockers": blockers,
+    }
+
+
 def validate_review(consultation: dict, review: dict) -> dict:
     """Require a recommendation for every board in the recorded consultation."""
     if not isinstance(review, dict) or review.keys() != {"consultation_id", "summary", "boards"}:
@@ -345,23 +433,35 @@ def validate_review(consultation: dict, review: dict) -> dict:
         raise ValueError("Review boards must be a list.")
 
     selected = consultation["boards"]
+    templates = {
+        entry["id"]: entry for entry in consultation.get("review_template", {}).get("boards", [])
+    }
     found = {}
     for entry in review["boards"]:
-        if not isinstance(entry, dict) or entry.keys() != {
-            "id", "recommendation", "evidence", "open_questions"
-        }:
-            raise ValueError("A board review needs id, recommendation, evidence and open_questions.")
-        board_id = _text(entry["id"], "Board ID")
+        if not isinstance(entry, dict):
+            raise ValueError("A board review must be a JSON object.")
+        board_id = _text(entry.get("id"), "Board ID")
         if board_id not in selected:
             raise ValueError(f"Board {board_id!r} was not selected for this consultation.")
         if board_id in found:
             raise ValueError(f"Provide one review for board {board_id!r}.")
-        found[board_id] = {
+        template = templates.get(board_id, {})
+        fields = {"id", "recommendation", "evidence", "open_questions"}
+        if "challenge" in template:
+            fields.add("challenge")
+        if entry.keys() != fields:
+            raise ValueError(f"{board_id} review does not match task template. Expected {', '.join(sorted(fields))}.")
+        result = {
             "id": board_id,
             "recommendation": _text(entry["recommendation"], f"{board_id} recommendation"),
             "evidence": _text_list(entry["evidence"], f"{board_id} evidence"),
             "open_questions": _text_list(entry["open_questions"], f"{board_id} open questions"),
         }
+        if "challenge" in template:
+            result["challenge"] = _validate_challenge(
+                board_id, entry["challenge"], template["challenge"], result["evidence"]
+            )
+        found[board_id] = result
 
     missing = [board_id for board_id in selected if board_id not in found]
     if missing:
@@ -371,6 +471,26 @@ def validate_review(consultation: dict, review: dict) -> dict:
         "summary": summary,
         "boards": [found[board_id] for board_id in selected],
     }
+
+
+def challenge_report(task: dict) -> str:
+    if "review" not in task:
+        raise ValueError("Record the board reviews before opening the decision brief.")
+    review = validate_review(task["consultation"], task["review"])
+    findings = []
+    verdicts = {}
+    for entry in review["boards"]:
+        challenge = entry.get("challenge", {})
+        finding = {"board": entry["id"], "recommendation": entry["recommendation"]}
+        for field in ("verdict", "confidence", "alternative", "failure_mode", "verification", "blockers"):
+            if field in challenge:
+                finding[field] = challenge[field]
+        finding["open_questions"] = entry["open_questions"]
+        if "verdict" in challenge:
+            verdicts.setdefault(challenge["verdict"], []).append(entry["id"])
+        findings.append(finding)
+    report = {"summary": review["summary"], "verdicts": verdicts, "findings": findings}
+    return "# Decision brief\n\n" + _json_section(report) + "\n"
 
 
 def handoff(task: dict) -> str:

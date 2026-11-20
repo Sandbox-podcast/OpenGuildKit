@@ -1,0 +1,75 @@
+{
+  "id": "operations",
+  "title": "Business operations",
+  "description": "Review how recurring work moves between teams and whether the proposed change improves service without shifting delays or rework elsewhere.",
+  "expertises": [
+    "Process mapping and cross-team handoffs",
+    "Queue management and demand-to-capacity planning",
+    "Service quality, exceptions and recovery",
+    "Measurement and rollout of process changes"
+  ],
+  "triggers": [
+    "business operations",
+    "operating procedure",
+    "service backlog",
+    "process improvement",
+    "process bottleneck",
+    "queue management",
+    "service handoff",
+    "opérations métier",
+    "procédure opérationnelle",
+    "amélioration de processus",
+    "goulot d'étranglement",
+    "file de traitement",
+    "passage de relais"
+  ],
+  "questions": [
+    "What event starts the work, what counts as finished, and who accepts the result?",
+    "Where do cases wait, get sent back or require manual handling?",
+    "How does the team handle a demand spike, an absent owner or a case that doesn't fit the normal process?"
+  ],
+  "sources": [
+    {
+      "title": "Lean Enterprise Institute, Value Stream Mapping",
+      "url": "https://www.lean.org/lexicon-terms/value-stream-mapping/"
+    },
+    {
+      "title": "The Kanban Guide, May 2025",
+      "url": "https://kanbanguides.org/the-kanban-guide/2025.5/"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "process-flow",
+        "title": "Process and handoffs",
+        "focus": "Trace a typical request and an exception through the real handoffs, including what each team needs before it can act."
+      },
+      {
+        "id": "capacity-and-queues",
+        "title": "Capacity and queues",
+        "focus": "Locate the step where incoming work exceeds completion capacity and compare the effect of changing intake, batch size or staffing."
+      },
+      {
+        "id": "service-quality",
+        "title": "Service quality and controls",
+        "focus": "Check which reviews prevent incomplete or incorrect work and define who handles exceptions when those checks fail."
+      }
+    ],
+    "evidence": [
+      "Review the current process map and operating procedure with the people who perform the steps. Check the actual entry, exit and handoff criteria.",
+      "Inspect authorized aggregate arrival volume, queue age, completion time and rework over a representative period. Identify any groups missing from the data.",
+      "Use redacted examples of routine and exceptional cases to check how the receiving team handles missing inputs and who takes responsibility when work stalls."
+    ],
+    "challenge": [
+      "Check whether faster processing in one team increases waiting, errors or manual work in the next team.",
+      "Walk through a demand spike and an exception with the owners. Identify where the proposed process needs escalation or a fallback.",
+      "Question any proposed automation that assumes clean input or removes a review without an equivalent check."
+    ],
+    "decision_criteria": [
+      "Prefer the change that addresses the observed constraint and improves end-to-end completion without increasing rework or harming the agreed service target.",
+      "Assign one owner for each handoff and exception that changes. Describe what evidence the receiving team uses to accept the work.",
+      "Define a pilot with a representative set of cases, a review date and the result that would trigger returning to the current process."
+    ]
+  }
+}

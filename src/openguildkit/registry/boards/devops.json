@@ -33,6 +33,53 @@
     {
       "title": "Google SRE Workbook, Canarying Releases",
       "url": "https://sre.google/workbook/canarying-releases/"
+    },
+    {
+      "title": "Google SRE Workbook, Implementing SLOs",
+      "url": "https://sre.google/workbook/implementing-slos/"
     }
-  ]
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "delivery-pipeline",
+        "title": "Release engineer",
+        "focus": "Verify how the build becomes the deployed artifact. Find changes to permissions, configuration and promotion gates that affect the release."
+      },
+      {
+        "id": "progressive-delivery",
+        "title": "Rollout owner",
+        "focus": "Choose initial exposure, a representative comparison population and the conditions for advancing, pausing or stopping the rollout."
+      },
+      {
+        "id": "service-observability",
+        "title": "Site reliability engineer",
+        "focus": "Check that service indicators surface user impact and that missing telemetry has a defined response. Confirm alert delivery and on-call ownership."
+      },
+      {
+        "id": "recovery-operations",
+        "title": "Recovery engineer",
+        "focus": "Determine what persists after rollback. Check that the team can restore the service within its agreed recovery objectives."
+      }
+    ],
+    "evidence": [
+      "Release revision and artifact digest, promotion path, required approvals and affected environments.",
+      "Reviewed configuration or infrastructure diff with replacement, downtime and deployment ordering risks called out.",
+      "Rollout plan with cohorts, minimum observation window and thresholds for advancing, pausing and rolling back.",
+      "Dashboard query and alert route for a critical user journey, plus an example of healthy and degraded behavior.",
+      "Recovery rehearsal with elapsed time and checks on state before and after a rollback or restore."
+    ],
+    "challenge": [
+      "Who can stop this rollout, and which signal reaches them soon enough to act?",
+      "Could the first cohort look healthy because it misses a high-traffic tenant, scheduled job or slow dependency?",
+      "Which writes or external actions will survive a rollback of the deployment?",
+      "Which release step can be repeated safely if the pipeline stops after making part of the change?"
+    ],
+    "decision_criteria": [
+      "Promote only after the agreed observation window and signal checks pass for a representative cohort.",
+      "Pause when the team loses a required signal or cannot attribute a regression to the changed release.",
+      "Require a recovery rehearsal or an approved fallback for changes that can block restore, corrupt state or affect an irreversible operation.",
+      "Assign the deployment, rollback and on-call responsibilities before expanding exposure."
+    ]
+  }
 }

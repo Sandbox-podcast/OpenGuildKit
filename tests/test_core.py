@@ -60,6 +60,16 @@ class WorkflowTests(unittest.TestCase):
         for board in review["boards"]:
             board["recommendation"] = "Cover the approved scope with a synthetic fixture."
             board["evidence"] = ["docs/permissions.md"]
+            challenge = board["challenge"]
+            for specialist in challenge["specialists"]:
+                specialist.update(finding="The permission policy requires scoped access.", basis="observed", evidence_refs=[1])
+            challenge.update(
+                verdict="revise",
+                confidence="medium",
+                alternative="Keep exports disabled until access is verified.",
+                failure_mode="Cross-account access exposes a claim.",
+                verification="Verify the policy against an authorized synthetic fixture.",
+            )
         write_json(self.review_path, review)
         self.run_cli("task", "review", self.task_id, "--file", self.review_path)
 

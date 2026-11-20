@@ -73,6 +73,7 @@ def main() -> None:
         encoding="utf-8",
     )
     cli(project, "task", "review", TASK_ID, "--file", review_path)
+    cli(project, "task", "challenge", TASK_ID)
 
     step("5. Human decision")
     decide = ["task", "decide", TASK_ID, "--approve", "--by", "NAME", "--reason", "REASON"]

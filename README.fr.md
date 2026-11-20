@@ -44,6 +44,8 @@ flowchart TB
 
 La CLI choisit les boards et enregistre leurs avis en local. Ton agent rédige ces avis et utilise ses outils pour les recherches que tu autorises. Tu valides le périmètre dans ton terminal avant que la CLI affiche le brief d'implémentation.
 
+Chaque brain traite la demande sous plusieurs angles. Il confronte la proposition à une alternative et te montre les preuves, les objections et les tests qui permettraient de décider. [Brains métier](docs/brains.md)
+
 ## Parcourir le catalogue
 
 ```bash
@@ -52,6 +54,7 @@ openguildkit references
 openguildkit patterns --role project-management
 openguildkit patterns --role hr
 openguildkit patterns --id python-fastapi-postgresql
+openguildkit brains --id product
 ```
 
 `catalog` liste les packs, les boards et les secteurs. L'index donne accès aux sources et aux méthodes. Chaque pattern indique quand il s'applique et quels packs alimentent `AGENTS.md`. [Références](docs/references.md) · [Choix des patterns](docs/patterns.md)

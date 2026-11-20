@@ -91,6 +91,7 @@ A board is a discipline's review lens.
 | Field | Constraint |
 |---|---|
 | `expertises` | Non-empty list. The specialties the board brings. |
+| `review` | Optional [brain review](brains.md) with specialists, evidence requests, challenge prompts and decision criteria. |
 | `triggers` | Non-empty list. Words or phrases that select the board when they appear as whole words in a brief. Matching ignores case and Unicode width. Add translations (`sécurité`, `rgpd`) so non-English briefs route correctly. |
 | `questions` | Non-empty list. What the board asks of every task it reviews. |
 

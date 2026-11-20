@@ -135,9 +135,32 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
             _validate_id(sector, "sector ID")
 
 
+def _validate_board_review(review: Any) -> None:
+    _validate_fields(review, "review", {"specialists", "evidence", "challenge", "decision_criteria"})
+    _validate_list(review["specialists"], "review.specialists")
+    seen = set()
+    for specialist in review["specialists"]:
+        _validate_fields(specialist, "specialist", {"id", "title", "focus"})
+        specialist_id = specialist["id"]
+        _validate_id(specialist_id, "specialist ID")
+        if specialist_id in seen:
+            raise CatalogError(f"Duplicate specialist: {specialist_id}")
+        seen.add(specialist_id)
+        _validate_text(specialist["title"], "specialist title")
+        _validate_text(specialist["focus"], "specialist focus")
+    for key in ("evidence", "challenge", "decision_criteria"):
+        _validate_list(review[key], f"review.{key}")
+        for prompt in review[key]:
+            _validate_text(prompt, f"review.{key} entry")
+
+
 def _validate_entry(collection: str, entry: Any) -> None:
     required = ENTRY_FIELDS | COLLECTION_FIELDS[collection]
-    optional = {"packs": {"depends_on"}, "patterns": {"match", "exclusive_group"}}.get(collection)
+    optional = {
+        "packs": {"depends_on"},
+        "patterns": {"match", "exclusive_group"},
+        "boards": {"review"},
+    }.get(collection)
     _validate_fields(entry, "record", required, optional)
     _validate_id(entry["id"], "id")
     _validate_text(entry["title"], "title")
@@ -149,6 +172,8 @@ def _validate_entry(collection: str, entry: Any) -> None:
     if collection == "patterns":
         _validate_pattern(entry)
         return
+    if collection == "boards" and "review" in entry:
+        _validate_board_review(entry["review"])
     for field in sorted(COLLECTION_FIELDS[collection]):
         _validate_list(entry[field], field)
         for index, item in enumerate(entry[field]):

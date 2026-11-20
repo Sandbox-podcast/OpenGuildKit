@@ -26,6 +26,56 @@
     {
       "title": "The Scrum Guide",
       "url": "https://scrumguides.org/scrum-guide.html"
+    },
+    {
+      "title": "Teresa Torres, Opportunity Solution Trees",
+      "url": "https://www.producttalk.org/opportunity-solution-trees/"
+    },
+    {
+      "title": "Christensen Institute, Jobs to Be Done Theory",
+      "url": "https://www.christenseninstitute.org/theory/jobs-to-be-done/"
     }
-  ]
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "discovery-lead",
+        "title": "Product discovery lead",
+        "focus": "Identify the affected user and their progress in a concrete situation. Compare the observed problem with the proposed solution and the workaround users already use."
+      },
+      {
+        "id": "product-analyst",
+        "title": "Product analyst",
+        "focus": "Specify the outcome event, eligible population, baseline and decision window. Identify signals that would distinguish adoption from sustained improvement."
+      },
+      {
+        "id": "scope-lead",
+        "title": "Scope and prioritization lead",
+        "focus": "Define the smallest complete user flow that could test the main assumption. Identify dependencies, deferred cases and the cost of leaving the current flow in place."
+      },
+      {
+        "id": "rollout-lead",
+        "title": "Adoption and rollout lead",
+        "focus": "Identify groups whose work changes, what support they need and how the team would pause or reverse rollout if friction rises."
+      }
+    ],
+    "evidence": [
+      "Recent support tickets, user interviews or workflow observations showing who encountered the problem, under what conditions and what they tried next.",
+      "A current baseline for the target outcome, including eligible users or transactions, time window and known data gaps.",
+      "Current workflow, dependencies and acceptance examples for the intended path, including one consequential exception or role boundary.",
+      "Existing rollout, support and analytics capabilities that the team can use to test or reverse the change."
+    ],
+    "challenge": [
+      "Compare leave as is, improve the existing workflow and deliver a small new slice. Explain which user friction each option addresses.",
+      "Test the proposed priority against a counterexample such as a less frequent problem with a greater consequence or a group for whom the workaround already succeeds.",
+      "Challenge success numbers that rise when usage grows but leave the target problem unchanged. State the data or experiment needed to separate those effects.",
+      "Identify a product assumption that could be tested without building the full feature. Explain which result would change the recommendation."
+    ],
+    "decision_criteria": [
+      "Recommend a build when observed demand, a complete first slice and a measurable improvement are supported by the evidence.",
+      "Recommend discovery or a pilot when affected users are known but the cause, demand or replacement workflow is still uncertain. Name the test and what would count as enough evidence.",
+      "Recommend keeping or improving the current workflow when it addresses the verified need with lower support and maintenance cost.",
+      "Condition rollout on a named owner, a baseline and an agreed threshold for pausing or revising the release."
+    ]
+  }
 }

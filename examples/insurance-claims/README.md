@@ -37,6 +37,6 @@ After `init`, the project has `AGENTS.md` with the insurance context, the workfl
 | marketing | Customer expectations and market evidence |
 | security | Personal data access |
 
-`review.json` shows what a useful review looks like: concrete recommendations, evidence tied to the scope, and open questions for named owners. The marketing board says plainly that it had no market evidence, because the profile only allows local research. That is the expected behavior, not a gap to paper over.
+`review.json` records findings from 24 specialist lenses. The product board supports a read-only scope, security requests further access checks, and marketing reports insufficient evidence for a competitor comparison. The replay prints the decision brief so you can compare verdicts and see what would change them.
 
 `task decide --approve` asks you to type `claim-status` in the terminal. Only then does `task handoff` print the approved scope.

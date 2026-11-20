@@ -28,7 +28,7 @@ from .tasks import (
     require_current_scope,
     task_path,
 )
-from .workflow import handoff, task_questions
+from .workflow import challenge_report, handoff, task_questions
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -49,6 +49,9 @@ def _parser() -> argparse.ArgumentParser:
     recommend = commands.add_parser("recommend", help="Preview patterns for a project context.")
     recommend.add_argument("--answers", type=Path, help="Read sector, stack and roles from a JSON file.")
     recommend.add_argument("--json", action="store_true", help="Print matches and suggestions as JSON.")
+    brains = commands.add_parser("brains", help="List the specialist review boards.")
+    brains.add_argument("--id", help="Show a brain's specialist lenses and review criteria.")
+    brains.add_argument("--json", action="store_true", help="Print the board definitions as JSON.")
     init = commands.add_parser("init", help="Initialize a project profile and agent instructions.")
     init_mode = init.add_mutually_exclusive_group()
     init_mode.add_argument("--questions", action="store_true", help="Print the setup questionnaire as JSON.")
@@ -68,6 +71,7 @@ def _parser() -> argparse.ArgumentParser:
         "brief": "Print the saved consultation for the host agent.",
         "template": "Print the review template as JSON.",
         "review": "Record the completed board reviews.",
+        "challenge": "Print the decision brief and each board's challenge.",
         "decide": "Record a human decision.",
         "handoff": "Print the approved implementation handoff.",
         "show": "Print the task record as JSON.",
@@ -258,12 +262,47 @@ def _read_consultation(task: dict) -> dict:
     return task["consultation"]
 
 
+def _print_brains(args, catalog: dict) -> None:
+    boards = catalog["boards"]
+    if args.id and args.id not in boards:
+        raise ValueError(f"Unknown brain: {args.id}. Run openguildkit brains.")
+    if args.json:
+        _print_json(boards[args.id] if args.id else boards)
+    elif args.id:
+        board = boards[args.id]
+        print(f"{board['title']} [{board['id']}]")
+        print(board["description"])
+        if "review" in board:
+            plan = board["review"]
+            for specialist in plan["specialists"]:
+                print(f"  {specialist['title']}: {specialist['focus']}")
+            for heading, key in (
+                ("Evidence to inspect", "evidence"),
+                ("Challenge questions", "challenge"),
+                ("Decision criteria", "decision_criteria"),
+            ):
+                print(f"\n{heading}")
+                for question in plan[key]:
+                    print(f"  - {question}")
+    else:
+        for board in boards.values():
+            reviewers = board.get("review", {}).get("specialists", [])
+            count = f" ({len(reviewers)} specialists)" if reviewers else ""
+            print(f"  {board['id']:<23} {board['title']}{count}")
+
+
 def _decide(args, root: Path, state: Path, task: dict) -> None:
     result = record_decision(task, args.approve, args.by, args.reason)
     if args.approve:
         if not sys.stdin.isatty():
             raise ValueError("Approval requires a person at an interactive terminal.")
-        print(json_text({"brief": task["brief"], "review": task["review"]}), file=sys.stderr, end="")
+        print(
+            json_text({"brief": task["brief"], "answers": task["answers"], "review": task["review"]}),
+            file=sys.stderr,
+            end="",
+        )
+        if any(entry.get("challenge", {}).get("blockers") for entry in task["review"]["boards"]):
+            print("The review flags blockers. Record how the decision addresses them.", file=sys.stderr)
         print(f"Type {args.id} to approve the reviewed scope: ", end="", file=sys.stderr, flush=True)
         if input().strip() != args.id:
             raise ValueError("Approval cancelled.")
@@ -299,6 +338,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         print(_read_consultation(task)["markdown"])
     elif action == "template":
         _print_json(_read_consultation(task)["review_template"])
+    elif action == "challenge":
+        print(challenge_report(task), end="")
     elif action == "consult":
         answers = (
             read_json(args.answers)
@@ -341,6 +382,8 @@ def _run(args) -> None:
         _print_references(args, state, catalog)
     elif args.command == "patterns":
         _print_patterns(args, catalog["patterns"])
+    elif args.command == "brains":
+        _print_brains(args, catalog)
     elif args.command == "recommend":
         answers = read_json(args.answers) if args.answers else load_profile(state, catalog)
         _print_recommendations(profile_recommendations(answers, catalog), args.json)

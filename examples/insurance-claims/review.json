@@ -1,65 +1,320 @@
 {
-  "summary": "Ship a read-only claim status view for policyholders first. Keep notifications and document upload for later tasks. Confirm the stage list with claims operations and the access rule with the data owner before implementation.",
+  "summary": "Keep the first release to a read-only view of a policyholder's own claims. Confirm the account relationship and public stage wording before implementation. Verify access, broker compatibility and recovery states before release. Treat competitive positioning as a separate decision.",
   "boards": [
     {
       "id": "product",
-      "recommendation": "Limit the first version to a read-only list of the policyholder's claims with the current stage and the next expected step. Measure how many status questions reach the claims team before and after release.",
+      "recommendation": "Start with a read-only list of the signed-in policyholder's claims. Agree on public stage definitions and next-step copy with claims operations. Establish a baseline for support contacts about claim status before judging the release.",
       "evidence": [
-        "Task context: policyholders see the current stage and the next expected step; brokers keep their current view."
+        "brief.md asks for online claim tracking in the customer portal.",
+        "answers.json sets the public information to current stage and next expected step. Brokers keep their current view.",
+        "profile.json requires French and English for user-facing text."
       ],
       "open_questions": [
-        "Which claim stages does claims operations want to expose to customers?",
-        "Who owns the wording of each stage?"
-      ]
+        "Which internal states map to each public stage, and who owns that vocabulary?",
+        "Can claims operations produce a baseline for status questions for the group eligible for the first release?"
+      ],
+      "challenge": {
+        "specialists": [
+          {
+            "id": "discovery-lead",
+            "finding": "The brief identifies a policyholder task, but provides no interviews, support counts or observed workaround that establish how often it matters.",
+            "basis": "observed",
+            "evidence_refs": [
+              1
+            ]
+          },
+          {
+            "id": "product-analyst",
+            "finding": "There is no baseline or eligible population recorded for comparing status contacts before and after release.",
+            "basis": "missing",
+            "evidence_refs": []
+          },
+          {
+            "id": "scope-lead",
+            "finding": "The acceptance context supports a complete read-only slice of current stage and next step without changing broker behavior.",
+            "basis": "observed",
+            "evidence_refs": [
+              2
+            ]
+          },
+          {
+            "id": "rollout-lead",
+            "finding": "Starting with one claims team could make feedback and bilingual wording changes easier to manage. Capacity and eligibility for a pilot need confirmation.",
+            "basis": "assumption",
+            "evidence_refs": []
+          }
+        ],
+        "verdict": "proceed",
+        "confidence": "medium",
+        "alternative": "If most status contacts come from unclear next steps rather than portal access, improve the existing contact or email wording for a pilot group first.",
+        "failure_mode": "A visible stage and stale next step can give the policyholder a second reason to contact the claims team.",
+        "verification": "Have claims operations confirm the stage mapping and next-step ownership. Record how the pilot group and current status contacts will be counted.",
+        "blockers": []
+      }
     },
     {
       "id": "engineering",
-      "recommendation": "Expose a read endpoint that returns only claims linked to the signed-in policyholder, filtered on the server. Map internal claim states to customer-facing stages in one place so wording changes do not touch the API.",
+      "recommendation": "Extend the existing claims code if it owns the customer-facing read path. Reuse the verified account-to-policyholder association, apply the access rule on the server and map internal states to public stages in one place.",
       "evidence": [
-        "Profile stack: Python, FastAPI, PostgreSQL, TypeScript, React."
+        "profile.json lists Python, FastAPI, PostgreSQL, TypeScript and React.",
+        "answers.json limits claim visibility to the policyholder and preserves the broker view.",
+        "answers.json calls for both the current stage and the next expected step."
       ],
       "open_questions": [
-        "Is the link between a customer account and a policyholder already stored, or does it need a migration?"
-      ]
+        "Which module owns the existing claims reads?",
+        "Where is the account-to-policyholder relationship stored and verified?"
+      ],
+      "challenge": {
+        "specialists": [
+          {
+            "id": "architecture",
+            "finding": "The stack supports a read path through FastAPI and PostgreSQL. The example contains no repository evidence for which claims module owns it.",
+            "basis": "observed",
+            "evidence_refs": [
+              1
+            ]
+          },
+          {
+            "id": "contracts",
+            "finding": "A customer-specific projection must preserve the existing broker view. The current broker response and client compatibility are unverified.",
+            "basis": "observed",
+            "evidence_refs": [
+              2
+            ]
+          },
+          {
+            "id": "data-consistency",
+            "finding": "No schema or fixture establishes how a signed-in account maps to a policyholder for historical claims.",
+            "basis": "missing",
+            "evidence_refs": []
+          },
+          {
+            "id": "maintainability",
+            "finding": "A shared server-side stage mapping could keep public wording decoupled from internal state values. It depends on an existing owner for that logic.",
+            "basis": "assumption",
+            "evidence_refs": [
+              3
+            ]
+          }
+        ],
+        "verdict": "revise",
+        "confidence": "medium",
+        "alternative": "Prefer an extension to the existing claims read service. Consider a distinct portal projection only if sharing the current response would expose broker-only fields or require a breaking contract.",
+        "failure_mode": "A new endpoint built around an assumed account mapping can present an incomplete list to policyholders with older claims.",
+        "verification": "Inspect the repository's existing claims service, broker contract and account-to-policyholder relationship. Create synthetic fixtures for historical and new claims before choosing a migration or route.",
+        "blockers": []
+      }
     },
     {
       "id": "qa",
-      "recommendation": "Turn the acceptance criterion into tests: a policyholder sees their own claims, never another policyholder's, and a broker's view is unchanged. Add one test per customer-facing stage.",
+      "recommendation": "Build acceptance and regression checks from the ownership rule and the preserved broker path. Add representative historical records and results for unavailable or unmapped claim stages.",
       "evidence": [
-        "Task context acceptance criterion: a policyholder only sees claims where they are the policyholder."
+        "answers.json requires policyholders to see only claims where they are the policyholder.",
+        "answers.json says brokers keep their current view while policyholders see current stage and next expected step.",
+        "profile.json lists the project's Python and front-end check commands."
       ],
-      "open_questions": []
+      "open_questions": [
+        "Which existing fixture can represent a historical claim?",
+        "Which browser and supported assistive technology configuration cover the portal's main journey?"
+      ],
+      "challenge": {
+        "specialists": [
+          {
+            "id": "test-design",
+            "finding": "The scope yields clear expected results for one owned claim, claims owned by another policyholder and an empty list.",
+            "basis": "observed",
+            "evidence_refs": [
+              1
+            ]
+          },
+          {
+            "id": "compatibility",
+            "finding": "The broker view is explicitly in the no-change scope. Its current behavior needs a regression fixture before any shared read logic changes.",
+            "basis": "observed",
+            "evidence_refs": [
+              2
+            ]
+          },
+          {
+            "id": "exploratory-testing",
+            "finding": "An unmapped or unavailable stage could look like a closed claim if empty and error states share the same presentation.",
+            "basis": "assumption",
+            "evidence_refs": [
+              2
+            ]
+          },
+          {
+            "id": "release-acceptance",
+            "finding": "The profile names test commands, but there are no results tied to a candidate revision in this example.",
+            "basis": "observed",
+            "evidence_refs": [
+              3
+            ]
+          }
+        ],
+        "verdict": "proceed",
+        "confidence": "medium",
+        "alternative": "Use a browser journey for stage and next-step display, plus service-level checks on synthetic policyholder and broker fixtures for access and compatibility.",
+        "failure_mode": "Tests with only newly created, owned claims can pass while historical records or the unchanged broker view break.",
+        "verification": "Map the written scope to expected results. Before release, run the approved checks on the candidate for two policyholders, one broker and representative historical, unmapped and unavailable cases.",
+        "blockers": []
+      }
     },
     {
       "id": "design",
-      "recommendation": "Show the stages as an ordered list with the current one highlighted and a plain-language next step. Cover the states: no claim, one claim, several claims, claim closed, data unavailable.",
+      "recommendation": "Start with a claim status label and plain-language next step using the portal's existing components. Add a stage list only if the business confirms an ordered sequence and users benefit from seeing it.",
       "evidence": [
-        "web-accessibility guidance applies to the customer portal if the team activates the pack."
+        "answers.json says the portal should show the current stage and the next expected step.",
+        "profile.json requires user-facing text in French and English.",
+        "profile.json identifies React. It does not name a design system or supply existing portal components."
       ],
       "open_questions": [
-        "Should the web-accessibility pack be added to the profile for the customer portal?"
-      ]
+        "Which portal component already communicates status or alerts?",
+        "How does claims operations describe a case that moves backward or needs more information?"
+      ],
+      "challenge": {
+        "specialists": [
+          {
+            "id": "interaction-designer",
+            "finding": "The requirement is present state and next step. It leaves the history, full sequence and visual representation open.",
+            "basis": "observed",
+            "evidence_refs": [
+              1
+            ]
+          },
+          {
+            "id": "systems-designer",
+            "finding": "The profile names the front-end framework but provides no evidence for which components, tokens or status patterns the portal uses.",
+            "basis": "observed",
+            "evidence_refs": [
+              3
+            ]
+          },
+          {
+            "id": "accessibility-specialist",
+            "finding": "The bilingual requirement adds content that must fit at supported sizes. Keyboard focus, status announcements and reading order need checks on a rendered prototype.",
+            "basis": "observed",
+            "evidence_refs": [
+              2
+            ]
+          },
+          {
+            "id": "usability-researcher",
+            "finding": "There are no task observations showing that a full timeline is clearer than a status label for this audience.",
+            "basis": "missing",
+            "evidence_refs": []
+          }
+        ],
+        "verdict": "revise",
+        "confidence": "medium",
+        "alternative": "Compare a current-stage label with a sequence indicator on the same task. Keep the label if the sequence implies a fixed progression the claims process does not follow.",
+        "failure_mode": "A linear stage list can imply a promise about timing or advancement when the claim can pause or move backward.",
+        "verification": "Find the existing portal pattern and test both representations with sample status changes. Check French and English wording, keyboard operation, reading order and the unavailable state.",
+        "blockers": []
+      }
     },
     {
       "id": "marketing",
-      "recommendation": "No market evidence was available under the local-only research policy. Do not position the feature against competitors until a task with public research compares claim tracking in comparable insurers.",
+      "recommendation": "Describe the planned capability in plain terms. Reserve comparative claims for a follow-up with dated evidence from the relevant region, customer segment and claims service.",
       "evidence": [
-        "Profile research policy: local-only."
+        "profile.json and answers.json restrict research for this task to local material.",
+        "brief.md identifies the intended feature as online claim tracking for policyholders."
       ],
       "open_questions": [
-        "Should the team allow public research for a follow-up market comparison?"
-      ]
+        "Is there approved customer research or support evidence on claim-status needs?",
+        "Would the project owner authorize a public market review for a separate task?"
+      ],
+      "challenge": {
+        "specialists": [
+          {
+            "id": "market-researcher",
+            "finding": "There are no comparable insurers, markets or dated external product claims in the provided material.",
+            "basis": "missing",
+            "evidence_refs": []
+          },
+          {
+            "id": "positioning-lead",
+            "finding": "The brief supports a description of planned online claim tracking. It does not establish competitive differentiation or prove that the capability is live.",
+            "basis": "observed",
+            "evidence_refs": [
+              2
+            ]
+          },
+          {
+            "id": "channel-planner",
+            "finding": "The portal is the proposed product surface. No distribution plan or eligible launch audience is supplied.",
+            "basis": "missing",
+            "evidence_refs": []
+          },
+          {
+            "id": "measurement-analyst",
+            "finding": "No traffic, activation or contact baseline is supplied for estimating the effect of launch communication.",
+            "basis": "missing",
+            "evidence_refs": []
+          }
+        ],
+        "verdict": "insufficient-evidence",
+        "confidence": "low",
+        "alternative": "Use an informational portal notice for eligible policyholders after availability is confirmed. Keep market positioning for a separate decision.",
+        "failure_mode": "Calling the feature unique based on an incomplete local review could turn a factual availability notice into an unsupported claim.",
+        "verification": "Confirm release availability with the product owner. If needed, request separate public research approval and collect dated primary evidence for comparable claim workflows.",
+        "blockers": []
+      }
     },
     {
       "id": "security",
-      "recommendation": "Enforce the policyholder check on the server for every request and log access to claim records. Use synthetic claims in tests and demos.",
+      "recommendation": "Use server-side access checks for the scoped claims read. Have the data owner confirm allowed public fields and any logging policy. Verify roles and disclosure with synthetic claim records before release.",
       "evidence": [
-        "Insurance sector context: distinguish policyholder, beneficiary, broker and insurer and check what each can see.",
-        "secure-sdlc rule check-access-control."
+        "answers.json labels the task as involving personal data and requires policyholder-only visibility.",
+        "The insurance sector guidance separates policyholders, beneficiaries, brokers and insurers for access decisions.",
+        "The active secure-sdlc pack calls for access checks at service boundaries and approved checks for permitted access and isolation."
       ],
       "open_questions": [
-        "How long must access logs be kept, and who owns that decision?"
-      ]
+        "Who owns the access matrix for the portal and confirms which fields may appear?",
+        "What event, fields and retention period does the approved logging policy permit?"
+      ],
+      "challenge": {
+        "specialists": [
+          {
+            "id": "application-security",
+            "finding": "The stated scope requires resource-level authorization on each affected claim read. The example contains no results demonstrating it.",
+            "basis": "observed",
+            "evidence_refs": [
+              1,
+              3
+            ]
+          },
+          {
+            "id": "privacy-engineering",
+            "finding": "The task involves personal data and identifies distinct role boundaries. The approved field and logging inventory is missing.",
+            "basis": "observed",
+            "evidence_refs": [
+              1,
+              2
+            ]
+          },
+          {
+            "id": "release-integrity",
+            "finding": "There is no candidate revision, changed dependency inventory or release evidence to review yet.",
+            "basis": "missing",
+            "evidence_refs": []
+          },
+          {
+            "id": "control-ownership",
+            "finding": "The current access-control rule indicates what reviewers need to verify, but does not identify the owner who approves this portal scope.",
+            "basis": "observed",
+            "evidence_refs": [
+              3
+            ]
+          }
+        ],
+        "verdict": "revise",
+        "confidence": "medium",
+        "alternative": "Reuse the portal's verified customer read boundary and return an explicit public field set. Use a separate projection if the existing contract carries more data than the data owner approves.",
+        "failure_mode": "A shared response or a log record can disclose fields beyond the intended public stage and next step even when the ownership check is correct.",
+        "verification": "Get the approved access and field matrix. Run authorized checks with synthetic accounts and inspect controlled test logs before the change exposes real records.",
+        "blockers": []
+      }
     }
   ]
 }

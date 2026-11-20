@@ -27,6 +27,53 @@
     {
       "title": "OpenAPI Specification 3.1.2",
       "url": "https://spec.openapis.org/oas/v3.1.2.html"
+    },
+    {
+      "title": "Google Engineering Practices, Code review",
+      "url": "https://google.github.io/eng-practices/review/reviewer/looking-for.html"
     }
-  ]
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "architecture",
+        "title": "Software architect",
+        "focus": "Trace the use case through the existing modules. Choose where the behavior and its dependencies belong and name the owner of any new boundary."
+      },
+      {
+        "id": "contracts",
+        "title": "API and integration engineer",
+        "focus": "Check changed request, response and event contracts against every supported consumer. Decide which changes need a compatibility path or migration."
+      },
+      {
+        "id": "data-consistency",
+        "title": "Data engineer",
+        "focus": "Identify the invariants for reads and writes. Check what happens to committed data when work is interrupted, retried or performed concurrently."
+      },
+      {
+        "id": "maintainability",
+        "title": "Code reviewer",
+        "focus": "Find unnecessary dependencies and duplicated domain logic. Confirm that the proposed change can be verified through the entry points callers use."
+      }
+    ],
+    "evidence": [
+      "Entry point, owning modules, changed behavior and the relevant repository paths or design decision.",
+      "Before-and-after public contracts and a list of supported callers or event consumers, with compatibility results for affected versions.",
+      "Data schema and migration sequence, with results for existing records, mixed-version rollout and the agreed recovery path where relevant.",
+      "Tests or execution traces that show success, a representative partial failure and a retry for operations that can repeat.",
+      "Reason for any new service or dependency and the name of the team expected to maintain it."
+    ],
+    "challenge": [
+      "Could an existing module own this behavior without introducing a second source of truth?",
+      "Which supported caller or previously stored value would behave differently with the proposed change?",
+      "What has already been committed if the second step fails, and what happens when the request is retried?",
+      "Which edge of the new design requires another team to change or deploy at the same time?"
+    ],
+    "decision_criteria": [
+      "Prefer the design with a clear owner, the smallest affected boundary and a demonstrated test path for the agreed behavior.",
+      "Ask for a migration or consumer approval if a supported API, event or stored shape would break.",
+      "Hold the change when a foreseeable failure, retry or concurrent operation can break a data invariant without a verified recovery path.",
+      "Record the reason and responsible team when the change adds an operational dependency."
+    ]
+  }
 }

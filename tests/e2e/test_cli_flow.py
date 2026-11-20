@@ -81,6 +81,12 @@ class CliTestCase(unittest.TestCase):
 
 
 class CatalogTests(CliTestCase):
+    def test_hr_brain_exposes_distinct_review_lenses(self):
+        brain = json.loads(self.run_cli("brains", "--id", "hr", "--json").stdout)
+        lenses = brain["review"]["specialists"]
+        self.assertGreaterEqual(len({lens["id"] for lens in lenses}), 3)
+        self.assertTrue(brain["review"]["challenge"])
+
     def test_reference_library_commands_work_without_an_initialized_project(self):
         groups = self.run_cli("references").stdout
         self.assertIn("references", groups)
@@ -251,6 +257,10 @@ class TaskFlowTests(CliTestCase):
         self.assertEqual({entry["id"] for entry in template["boards"]}, EXPECTED_BOARDS)
 
         self.assertEqual(self.record_example_review().stdout.strip(), "reviewed")
+        brief = self.run_cli("task", "challenge", TASK_ID).stdout
+        self.assertIn("# Decision brief", brief)
+        self.assertIn('"verdicts"', brief)
+        self.assertIn('"failure_mode"', brief)
 
         refused = self.run_cli(
             "task", "decide", TASK_ID, "--approve", "--by", "Agent", "--reason", "Looks fine",

@@ -69,22 +69,7 @@ Each selected board gets a brief with its purpose, the routing reasons, its expe
 
 ## 3. Review through each board
 
-`task template ID` prints the review skeleton with the `consultation_id` and one entry per selected board. The agent fills it, one independent pass per board, then reconciles. Keep `consultation_id` as printed: it ties the review to this consultation, so a review written before a new consultation is refused.
-
-```json
-{
-  "consultation_id": "copied from task template",
-  "summary": "Ship a read-only status page first; notifications in a second task.",
-  "boards": [
-    {
-      "id": "security",
-      "recommendation": "Show only claims where the signed-in user is the policyholder. Log each access.",
-      "evidence": ["src/claims/permissions.py: broker and policyholder roles are separate"],
-      "open_questions": ["Which retention period applies to access logs?"]
-    }
-  ]
-}
-```
+`task template ID` prints the review skeleton with the `consultation_id` and one entry per selected board. Keep that ID to tie the review to the current scope. Each [brain](brains.md) has a set of specialist lenses. The agent records their separate findings, challenges the proposed change, then reconciles the boards and preserves disagreements in the summary. The [insurance example](../examples/insurance-claims/review.json) shows a complete review.
 
 Rules enforced by `task review ID --file review.json`:
 
@@ -92,8 +77,9 @@ Rules enforced by `task review ID --file review.json`:
 - `summary` and every `recommendation` must contain text.
 - There must be exactly one entry per selected board, and no other board.
 - `evidence` and `open_questions` are lists of non-empty strings (they can be empty lists).
+- For a brain, each specialist needs exactly one finding with an evidence basis. An observed finding cites positions in that board's evidence list. A board records its verdict, confidence, alternative, failure mode, verification and blockers.
 
-The agent then shows the findings, the open questions and the proposed next step to the person, and stops.
+Run `openguildkit task challenge ID` to show how the verdicts differ, what each board recommends and which checks can change the decision. The agent shows this brief to the person before implementation.
 
 ## 4. Decide
 
@@ -104,6 +90,8 @@ openguildkit task decide claim-status --approve --by "Camille Martin" --reason "
 ```
 
 The CLI prints the brief and the review, then asks the person to type the task ID. Approval fails when stdin is not a terminal, when the typed ID does not match, when the task changed during the decision, when the profile or catalog changed since the consultation, or when `AGENTS.md` is out of date.
+
+If a board flags blockers, the approval prompt asks the decision owner to record how the decision addresses them. After upgrading the board catalog, run `openguildkit sync` and check whether a pending task needs another consultation under the new rules.
 
 To send the task back:
 
