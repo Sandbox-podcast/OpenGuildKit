@@ -353,6 +353,16 @@ class TaskFlowTests(CliTestCase):
         self.run_cli("task", "review", TASK_ID, "--file", self.write_json("empty.json", empty), expect=1)
         self.assertEqual(self.task_record()["status"], "consulting")
 
+    def test_follow_up_questions_and_open_points(self):
+        self.init_example()
+        self.run_cli("task", "new", "Improve exports", "--id", "vague")
+        answers = self.write_json("vague.json", {"kind": "feature", "surface": ["customer", "service"], "data": "none", "research": "local"})
+        plan = json.loads(self.run_cli("task", "questions", "vague", "--answers", answers).stdout)
+        self.assertEqual(plan["follow_ups"], ["affected", "outcome"])
+        self.assertTrue(any("brief is short" in point for point in plan["open_points"]))
+        consultation = self.run_cli("task", "consult", "vague", "--answers", answers).stdout
+        self.assertIn("## Open points", consultation)
+
     def test_other_answer_requires_context(self):
         self.init_example()
         self.run_cli("task", "new", "Something unusual", "--id", "odd")

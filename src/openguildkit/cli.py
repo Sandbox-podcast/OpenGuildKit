@@ -42,7 +42,7 @@ from .tasks import (
     require_current_scope,
     task_path,
 )
-from .workflow import challenge_report, handoff, task_questions
+from .workflow import challenge_report, handoff, open_points, task_questions, validate_answers
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -106,7 +106,7 @@ def _parser() -> argparse.ArgumentParser:
     for action, description in descriptions.items():
         command = actions.add_parser(action, help=description)
         command.add_argument("id", help="Task ID.")
-        if action == "consult":
+        if action in ("consult", "questions"):
             command.add_argument("--answers", type=Path, help="Read task answers from a JSON file.")
         if action == "review":
             command.add_argument("--file", type=Path, required=True, help="Completed review JSON.")
@@ -322,6 +322,17 @@ def _print_plan_notes(plan: dict) -> None:
     for item in plan.get("excluded", []):
         where = f" in {item['component']}" if item["component"] else ""
         print(f"  {item['id']} does not apply{where}: {'; '.join(item['reasons'])}", file=sys.stderr)
+
+
+def _prompt_task_questions(brief: str) -> dict:
+    """Ask the base questions, then the follow-ups that the first answers call for."""
+    base = [question for question in task_questions(brief) if question["id"] != "context"]
+    answers = _prompt_questions(base, "task consult")
+    follow_ups = [question for question in task_questions(brief, answers) if question["id"] not in answers]
+    answers.update(_prompt_questions(follow_ups, "task consult"))
+    for point in open_points(brief, validate_answers(answers)):
+        print(f"  Open point: {point}", file=sys.stderr)
+    return answers
 
 
 def _interactive_init(questions: list[dict], catalog: dict) -> dict:
@@ -573,7 +584,17 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
     if action == "show":
         _print_json(task)
     elif action == "questions":
-        _print_json(task_questions(task["brief"]))
+        if args.answers is None:
+            _print_json(task_questions(task["brief"]))
+        else:
+            answers = read_json(args.answers)
+            questions = task_questions(task["brief"], answers)
+            asked = {question["id"] for question in questions if question.get("essential") is not None}
+            _print_json({
+                "questions": questions,
+                "follow_ups": sorted(asked - answers.keys()),
+                "open_points": open_points(task["brief"], validate_answers(answers)),
+            })
     elif action == "brief":
         print(_read_consultation(task)["markdown"])
     elif action == "template":
@@ -584,7 +605,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         answers = (
             read_json(args.answers)
             if args.answers is not None
-            else _prompt_questions(task_questions(task["brief"]), "task consult")
+            else _prompt_task_questions(task["brief"])
         )
         with project_lock(state):
             current_task = read_task(state, args.id)
