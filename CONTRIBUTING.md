@@ -47,7 +47,7 @@ No runtime dependency. Tests use `unittest` from the standard library.
 
 ## Adding a board
 
-Boards should map to a real discipline with its own questions. Give it 3 expertises, 3 questions every task should answer, and triggers in English plus at least one other language. Check that your triggers do not fire on common words: run `openguildkit task consult` on a few briefs and read the routing reasons.
+Boards should map to a real discipline with its own questions. Give it 3 expertises, 3 questions every task should answer, and triggers in English plus at least one other language. Check that your triggers do not fire on common words: add briefs that must and must not select the board to `tests/routing_cases.json`, which CI runs on every change.
 
 ## Adding a sector
 

@@ -9,13 +9,24 @@
   ],
   "triggers": [
     "feature",
+    "fonctionnalité",
     "user story",
     "roadmap",
-    "product discovery",
-    "onboarding",
-    "fonctionnalité",
     "feuille de route",
-    "critères d'acceptation"
+    "product discovery",
+    "discovery",
+    "onboarding",
+    "critères d'acceptation",
+    "acceptance criteria",
+    "mvp",
+    "product requirements",
+    "prioritization",
+    "priorisation",
+    "product backlog",
+    "backlog produit",
+    "user need",
+    "besoin utilisateur",
+    "adoption"
   ],
   "questions": [
     "Who faces this problem and what do they do today?",
