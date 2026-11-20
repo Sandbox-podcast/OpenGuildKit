@@ -6,7 +6,8 @@ from pathlib import Path
 
 from .catalog import load_catalog
 from .ci import check_export, read_policy_pack
-from .patterns import role_choices
+from .detect import components_for_profile, detect_stack
+from .patterns import patterns_to_review, role_choices
 from .project import (
     check_instructions,
     init_questions,
@@ -49,6 +50,8 @@ def _parser() -> argparse.ArgumentParser:
     patterns.add_argument("--role", help="Filter by role ID.")
     patterns.add_argument("--id", help="Show a pattern, its match and its rule packs.")
     patterns.add_argument("--json", action="store_true", help="Print matching patterns as JSON.")
+    detect = commands.add_parser("detect", help="Propose components and technologies from the repository's manifests.")
+    detect.add_argument("--json", action="store_true", help="Print the components and their evidence as JSON.")
     recommend = commands.add_parser("recommend", help="Preview patterns for a project context.")
     recommend.add_argument("--answers", type=Path, help="Read sector, stack and roles from a JSON file.")
     recommend.add_argument("--json", action="store_true", help="Print matches and suggestions as JSON.")
@@ -172,11 +175,57 @@ def _prompt_questions(questions: list[dict], command: str) -> dict:
     return answers
 
 
+def _prompt_components(question: dict) -> list[dict]:
+    """Show the detected components and let the person keep them or describe the stack instead."""
+    detected = question.get("default") or []
+    if not detected:
+        return []
+    print(f"\n{question['prompt']}", file=sys.stderr)
+    for component in detected:
+        print(f"  {component['id']} ({component['path']}): {', '.join(component['stack'])}", file=sys.stderr)
+    print("  Keep these components? [Y/n] (edit .openguildkit/project.json later to correct them)", file=sys.stderr)
+    while True:
+        print("> ", end="", file=sys.stderr, flush=True)
+        value = input().strip().casefold()
+        if value in ("", "y", "yes", "o", "oui"):
+            return detected
+        if value in ("n", "no", "non"):
+            return []
+        print("  Answer y or n.", file=sys.stderr)
+
+
+def _scoped_patterns(selected: list, plan: dict) -> list:
+    """Keep the components on which each chosen stack pattern matched."""
+    scopes = {pattern["id"]: pattern.get("components") for pattern in [*plan["matched"], *plan["suggested"]]}
+    return [
+        {"id": pattern_id, "components": scopes[pattern_id]}
+        if isinstance(pattern_id, str) and scopes.get(pattern_id) else pattern_id
+        for pattern_id in selected
+    ]
+
+
+def _print_plan_notes(plan: dict) -> None:
+    for pattern in plan["matched"]:
+        if pattern.get("version_unknown"):
+            print(f"  {pattern['id']}: confirm {', '.join(pattern['version_unknown'])}", file=sys.stderr)
+    for item in plan.get("excluded", []):
+        where = f" in {item['component']}" if item["component"] else ""
+        print(f"  {item['id']} does not apply{where}: {'; '.join(item['reasons'])}", file=sys.stderr)
+
+
 def _interactive_init(questions: list[dict], catalog: dict) -> dict:
-    context_questions = [question for question in questions if question["id"] in {"name", "sector", "stack", "roles"}]
-    answers = _prompt_questions(context_questions, "init")
-    pending = [question for question in questions if question not in context_questions]
+    by_id = {question["id"]: question for question in questions}
+    answers = _prompt_questions([by_id["name"], by_id["sector"]], "init")
+    components = _prompt_components(by_id["components"])
+    if components:
+        answers["components"] = components
+    else:
+        answers.update(_prompt_questions([by_id["stack"]], "init"))
+    answers.update(_prompt_questions([by_id["roles"]], "init"))
+    asked = {"name", "sector", "stack", "components", "roles"}
+    pending = [question for question in questions if question["id"] not in asked]
     plan = profile_recommendations(answers, catalog)
+    _print_plan_notes(plan)
     matched = [pattern["id"] for pattern in plan["matched"]]
     suggested = [pattern["id"] for pattern in plan["suggested"]]
     if suggested:
@@ -187,6 +236,8 @@ def _interactive_init(questions: list[dict], catalog: dict) -> dict:
             position = {pattern_id: index for index, pattern_id in enumerate([*matched, *suggested])}
             question["choices"].sort(key=lambda choice: position.get(choice["id"], len(position)))
     answers.update(_prompt_questions(pending, "init"))
+    if "patterns" in answers:
+        answers["patterns"] = _scoped_patterns(answers["patterns"], plan)
     return answers
 
 
@@ -263,12 +314,39 @@ def _print_recommendations(plan: dict, as_json: bool) -> None:
         return
     print("Matched stack patterns")
     for pattern in plan["matched"]:
-        print(f"  {pattern['id']}: {', '.join(pattern['matched_stack'])}")
+        where = f" [{', '.join(pattern['components'])}]" if pattern.get("components") else ""
+        print(f"  {pattern['id']}{where}: {', '.join(pattern['matched_stack'])}")
+        if pattern.get("version_unknown"):
+            print(f"    version unknown, confirm {', '.join(pattern['version_unknown'])}")
+    if plan.get("excluded"):
+        print("Not applicable because of a version")
+        for item in plan["excluded"]:
+            where = f" [{item['component']}]" if item["component"] else ""
+            print(f"  {item['id']}{where}: {'; '.join(item['reasons'])}")
     print("Methods and alternatives to consider")
     for pattern in plan["suggested"]:
         reason = ", ".join(pattern.get("matched_roles", [])) or "choose one overlapping pattern"
         print(f"  {pattern['id']}: {reason}")
     print(f"Recommended packs: {', '.join(plan['recommended_packs'])}")
+    if plan.get("review"):
+        print("Selected patterns to review")
+        for item in plan["review"]:
+            print(f"  {item['id']}: {'; '.join(item['reasons'])}")
+
+
+def _print_detection(detected: dict, as_json: bool) -> None:
+    if as_json:
+        _print_json(detected)
+        return
+    if not detected["components"]:
+        print("No known manifest found. Describe the stack during init.")
+        return
+    for component in detected["components"]:
+        print(f"{component['id']} ({component['path']})")
+        for item in component["evidence"]:
+            version = item["version"] or "version unknown"
+            note = ", inferred from a client library" if item["inferred"] else ""
+            print(f"  {item['name']}: {version} [{item['evidence']}{note}]")
 
 
 def _read_consultation(task: dict) -> dict:
@@ -399,13 +477,20 @@ def _run(args) -> int | None:
         _print_patterns(args, catalog["patterns"])
     elif args.command == "brains":
         _print_brains(args, catalog)
+    elif args.command == "detect":
+        _print_detection(detect_stack(root), args.json)
     elif args.command == "recommend":
-        answers = read_json(args.answers) if args.answers else load_profile(state, catalog)
-        _print_recommendations(profile_recommendations(answers, catalog), args.json)
+        if args.answers:
+            plan = profile_recommendations(read_json(args.answers), catalog)
+        else:
+            profile = load_profile(state, catalog)
+            plan = {**profile_recommendations(profile, catalog), "review": patterns_to_review(profile, catalog)}
+        _print_recommendations(plan, args.json)
     elif args.command == "catalog":
         _print_catalog(catalog, args.json)
     elif args.command == "init":
-        questions = init_questions(catalog, root.name or "Project")
+        detected = components_for_profile(detect_stack(root))
+        questions = init_questions(catalog, root.name or "Project", detected)
         if args.questions:
             _print_json(questions)
             return
@@ -419,8 +504,11 @@ def _run(args) -> int | None:
     elif args.command == "sync":
         with project_lock(state):
             catalog = _load_project_catalog(args, state)
-            sync_instructions(root, load_profile(state, catalog), catalog)
+            profile = load_profile(state, catalog)
+            sync_instructions(root, profile, catalog)
         print("OpenGuildKit instructions updated.")
+        for item in patterns_to_review(profile, catalog):
+            print(f"OpenGuildKit: review pattern {item['id']}: {'; '.join(item['reasons'])}", file=sys.stderr)
     else:
         profile = load_profile(state, catalog)
         if args.command == "check":

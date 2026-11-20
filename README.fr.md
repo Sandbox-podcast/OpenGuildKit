@@ -23,9 +23,10 @@ La [démo](examples/request-status/) crée un projet temporaire et utilise des a
 
 ## Configurer ton projet
 
-Depuis ton dépôt, indique ta stack, ton secteur et les métiers concernés. Le questionnaire repère les combinaisons techniques connues et te laisse choisir les méthodes que ton équipe applique.
+Depuis ton dépôt, indique ta stack, ton secteur et les métiers concernés. Le questionnaire repère les combinaisons techniques connues et te laisse choisir les méthodes que ton équipe applique. Dans un dépôt existant, `openguildkit detect` propose d'abord tes composants et leurs versions, et chaque pattern s'applique au composant qui utilise ses technologies.
 
 ```bash
+openguildkit detect
 openguildkit init
 openguildkit check
 ```

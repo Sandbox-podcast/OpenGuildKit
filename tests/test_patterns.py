@@ -41,7 +41,7 @@ class PatternTests(unittest.TestCase):
             },
         }}
         general = recommend_patterns(catalog, ["Postgres@16"], "general", [])
-        self.assertEqual(general, {"matched": [], "suggested": []})
+        self.assertEqual(general, {"matched": [], "suggested": [], "excluded": []})
         scoped = recommend_patterns(catalog, ["Postgres@16"], "internal-tools", [])
         self.assertEqual(scoped["matched"], [])
         self.assertTrue(all(item["choice_required"] for item in scoped["suggested"]))
