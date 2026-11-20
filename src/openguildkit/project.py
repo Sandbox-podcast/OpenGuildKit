@@ -259,7 +259,7 @@ def pattern_ids(profile: dict) -> list[str]:
 def validate_profile(answers: dict, catalog: dict) -> dict:
     fields = {
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
-        "resolutions", "boards", "required_boards", "required_rules", "research", "host", "guard", "waivers", "approval",
+        "resolutions", "boards", "required_boards", "required_rules", "research", "host", "guard", "waivers", "approval", "tools",
         "conventions", "checks",
     }
     unknown = sorted(answers.keys() - fields)
@@ -305,6 +305,9 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         if host not in HOSTS:
             raise ValueError(f"host must be one of {', '.join(HOSTS)}")
         profile["host"] = host
+    tools = _texts(answers.get("tools", []), "tools")
+    if tools:
+        profile["tools"] = tools
     guard = answers.get("guard")
     if guard is not None:
         if guard not in ("off", "observe", "enforce"):

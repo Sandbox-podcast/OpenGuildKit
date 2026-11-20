@@ -72,6 +72,7 @@ openguildkit brains --id product
 
 - [Architecture](docs/architecture.md) et [parcours d'une tâche](docs/workflow.md)
 - [Dossiers marché et veille concurrentielle](docs/market.md)
+- [Livrables métier issus des tâches approuvées](docs/deliverables.md)
 - [Documentation du projet et partage avec Documentalist](docs/documentation.md)
 - [Tests de bout en bout avec ChaosFolk, en option](integrations/chaosfolk/)
 - [Contribuer](CONTRIBUTING.md) et [format du catalogue](docs/catalog-format.md)

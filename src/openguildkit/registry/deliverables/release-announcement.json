@@ -1,0 +1,78 @@
+{
+  "id": "release-announcement",
+  "title": "Release announcement",
+  "description": "Tell customers and internal teams what a release changes for them, when, and what they need to do.",
+  "brains": [
+    "communication",
+    "support",
+    "product"
+  ],
+  "inputs": [
+    {
+      "id": "change",
+      "label": "What changes for users, from the approved task",
+      "data": "none"
+    },
+    {
+      "id": "audiences",
+      "label": "Who is affected and through which channel they hear about it",
+      "data": "internal"
+    },
+    {
+      "id": "date",
+      "label": "Release date and rollout steps",
+      "data": "internal"
+    }
+  ],
+  "tool_actions": [
+    {
+      "action": "publish",
+      "description": "Publishing release notes or a status page update."
+    },
+    {
+      "action": "send-message",
+      "description": "Emailing customers or posting in customer channels."
+    }
+  ],
+  "sections": [
+    {
+      "id": "summary",
+      "title": "What changes",
+      "prompt": "One paragraph in plain language: what the reader can now do or must do differently."
+    },
+    {
+      "id": "actions",
+      "title": "What you need to do",
+      "prompt": "Any action, deadline or setting the reader must change, or 'nothing'."
+    },
+    {
+      "id": "internal",
+      "title": "Internal briefing",
+      "prompt": "What support, sales and operations need to know before customers ask."
+    }
+  ],
+  "checks": [
+    {
+      "id": "matches-release",
+      "verification": "Every statement matches the approved scope and the delivered result of the task."
+    },
+    {
+      "id": "plain-language",
+      "verification": "A reader outside the team understood the summary without help."
+    },
+    {
+      "id": "support-briefed",
+      "verification": "Support has the briefing and the matching knowledge base article."
+    }
+  ],
+  "sources": [
+    {
+      "title": "Keep a Changelog 1.1.0",
+      "url": "https://keepachangelog.com/en/1.1.0/"
+    },
+    {
+      "title": "Digital.gov, Plain language guide series",
+      "url": "https://digital.gov/guides/plain-language"
+    }
+  ]
+}
