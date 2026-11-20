@@ -1,0 +1,24 @@
+{
+  "id": "channel-selection",
+  "title": "Marketing channel selection",
+  "version": "1.0.0",
+  "description": "Channel choices based on audience evidence and tested with a small trial.",
+  "sources": [
+    {
+      "title": "UK Government Communication Service, Campaign lifecycle",
+      "url": "https://www.gov.uk/government/publications/government-functional-standard-govs-011-communication/government-functional-standard-govs-011-communications#the-campaign-lifecycle"
+    }
+  ],
+  "rules": [
+    {
+      "id": "choose-channels-from-evidence",
+      "instruction": "Compare candidate channels on the audience reached, expected action, production effort and measurement limits. Record the evidence behind each choice.",
+      "verification": "Check that the plan gives each selected channel a role in the campaign and cites the evidence for it."
+    },
+    {
+      "id": "pilot-channel-choice",
+      "instruction": "For each selected channel, plan a small trial whose result could change the choice.",
+      "verification": "Check that the plan names, for each selected channel, the trial, its success measure and the decision it could change."
+    }
+  ]
+}

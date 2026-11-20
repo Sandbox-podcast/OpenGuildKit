@@ -1,0 +1,29 @@
+{
+  "id": "web-accessibility",
+  "title": "Web accessibility",
+  "version": "1.0.0",
+  "description": "Starter checks for accessible web UI informed by WCAG 2.2. Confirm the required conformance target with the project owner.",
+  "sources": [
+    {
+      "title": "W3C Web Content Accessibility Guidelines 2.2",
+      "url": "https://www.w3.org/TR/WCAG22/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "keyboard-access",
+      "instruction": "Support the full interaction with the keyboard and keep focus visible, including when dialogs open, close or show errors.",
+      "verification": "Complete the changed flow using only the keyboard, including recovery from an error."
+    },
+    {
+      "id": "label-controls-and-errors",
+      "instruction": "Give controls meaningful accessible names and associate validation errors with the corresponding inputs.",
+      "verification": "Check accessible names and error announcements with a supported screen reader."
+    },
+    {
+      "id": "verify-contrast-and-layout",
+      "instruction": "Use the project's accessible color tokens and preserve meaning when the layout reflows or users enlarge text.",
+      "verification": "Check the applicable contrast and reflow criteria with automated and manual review."
+    }
+  ]
+}

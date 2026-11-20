@@ -1,0 +1,467 @@
+{
+  "id": "ai",
+  "title": "IA et agents",
+  "references": [
+    {
+      "id": "mlops",
+      "aliases": [
+        "pd_mlops"
+      ],
+      "title": "MLOps",
+      "category": "ML et MLOps",
+      "kind": "pratique",
+      "summary": "Organiser le cycle de vie des modèles avec validation, versionnement et automatisation des données, de l'entraînement et du déploiement.",
+      "applies_when": "Si le produit entraîne ou exploite des modèles qui doivent être maintenus et réévalués au fil du temps.",
+      "sources": [
+        {
+          "url": "https://cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning",
+          "title": "Google Cloud — MLOps: Continuous delivery and automation pipelines in machine learning"
+        }
+      ]
+    },
+    {
+      "id": "mlflow",
+      "aliases": [
+        "pd_mlflow"
+      ],
+      "title": "MLflow",
+      "category": "ML et MLOps",
+      "kind": "outil",
+      "summary": "Plateforme pour suivre les expériences, évaluer et versionner les modèles, puis organiser leur registre et leur déploiement.",
+      "applies_when": "Quand les équipes doivent retrouver les paramètres, résultats et artefacts d'expériences et gérer les versions de modèles.",
+      "sources": [
+        {
+          "url": "https://mlflow.org/docs/latest/ml/",
+          "title": "MLflow — ML Models: Core Capabilities"
+        }
+      ]
+    },
+    {
+      "id": "dvc",
+      "aliases": [
+        "pd_dvc"
+      ],
+      "title": "DVC",
+      "category": "ML et MLOps",
+      "kind": "outil",
+      "summary": "Outil de versionnement de données et de pipelines qui complète Git pour reproduire des traitements et suivre leurs artefacts.",
+      "applies_when": "Quand les jeux de données ou modèles sont trop volumineux pour être gérés comme du code ordinaire dans Git.",
+      "sources": [
+        {
+          "url": "https://dvc.org/doc",
+          "title": "DVC — Data Version Control Documentation"
+        }
+      ]
+    },
+    {
+      "id": "onnx",
+      "aliases": [
+        "pd_onnx"
+      ],
+      "title": "Open Neural Network Exchange (ONNX)",
+      "category": "ML et MLOps",
+      "kind": "format",
+      "summary": "Représentation de modèles de machine learning destinée à faciliter leur échange et leur exécution entre outils compatibles.",
+      "applies_when": "Pour porter un modèle entre environnements, après vérification des opérations et versions effectivement prises en charge.",
+      "sources": [
+        {
+          "url": "https://onnx.ai/",
+          "title": "ONNX — Open Neural Network Exchange"
+        }
+      ]
+    },
+    {
+      "id": "model-cards",
+      "aliases": [
+        "pd_model_cards"
+      ],
+      "title": "Model Cards",
+      "category": "ML et MLOps",
+      "kind": "pratique",
+      "summary": "Fiches qui décrivent les usages prévus d'un modèle, ses évaluations et ses limites pour aider à juger son adéquation à un contexte.",
+      "applies_when": "Pour les modèles livrés ou réutilisés par des personnes qui ont besoin de comprendre leurs capacités et leurs restrictions.",
+      "sources": [
+        {
+          "url": "https://research.google/pubs/model-cards-for-model-reporting/",
+          "title": "Mitchell et al. — Model Cards for Model Reporting"
+        }
+      ]
+    },
+    {
+      "id": "datasheets-for-datasets",
+      "aliases": [
+        "pd_datasheets"
+      ],
+      "title": "Datasheets for Datasets",
+      "category": "ML et MLOps",
+      "kind": "pratique",
+      "summary": "Documenter la motivation, la composition, la collecte et les usages d'un jeu de données afin de rendre sa réutilisation plus éclairée.",
+      "applies_when": "Quand un jeu de données est partagé ou employé pour entraîner et évaluer des modèles.",
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/1803.09010",
+          "title": "Gebru et al. — Datasheets for Datasets"
+        }
+      ]
+    },
+    {
+      "id": "tensorflow-savedmodel",
+      "aliases": [
+        "pd_savedmodel"
+      ],
+      "title": "TensorFlow SavedModel",
+      "category": "ML et MLOps",
+      "kind": "format",
+      "summary": "Conteneur d'export TensorFlow qui réunit les calculs et les paramètres nécessaires à l'utilisation d'un modèle.",
+      "applies_when": "Pour conserver et déployer des modèles TensorFlow dans des environnements qui prennent en charge ce format.",
+      "sources": [
+        {
+          "url": "https://www.tensorflow.org/guide/saved_model",
+          "title": "TensorFlow — Using the SavedModel format"
+        }
+      ]
+    },
+    {
+      "id": "pmml",
+      "aliases": [
+        "pd_pmml"
+      ],
+      "title": "Predictive Model Markup Language (PMML)",
+      "category": "ML et MLOps",
+      "kind": "format",
+      "summary": "Format XML décrivant des modèles prédictifs et leurs transformations pour permettre leur échange entre outils compatibles.",
+      "applies_when": "Pour déplacer des modèles pris en charge par PMML entre solutions analytiques sans réécrire leur description.",
+      "sources": [
+        {
+          "url": "https://dmg.org/pmml/v4-4-1/GeneralStructure.html",
+          "title": "Data Mining Group — PMML 4.4.1: General Structure"
+        }
+      ]
+    },
+    {
+      "id": "feast",
+      "aliases": [
+        "pd_feast"
+      ],
+      "title": "Feast",
+      "category": "ML et MLOps",
+      "kind": "outil",
+      "summary": "Feature store qui organise l'accès aux caractéristiques utilisées par les modèles pour l'entraînement et la prédiction.",
+      "applies_when": "Quand plusieurs modèles réutilisent des caractéristiques et doivent maintenir une cohérence entre entraînement et service en production.",
+      "sources": [
+        {
+          "url": "https://docs.feast.dev/",
+          "title": "Feast — Feature Store Documentation"
+        }
+      ]
+    },
+    {
+      "id": "tensorflow-data-validation",
+      "aliases": [
+        "pd_tfdv"
+      ],
+      "title": "TensorFlow Data Validation (TFDV)",
+      "category": "ML et MLOps",
+      "kind": "outil",
+      "summary": "Analyse les données, leurs schémas et certaines différences de distribution, notamment les dérives et écarts entre entraînement et service.",
+      "applies_when": "Pour détecter des anomalies de données dans les pipelines ML compatibles avant qu'elles ne dégradent les modèles.",
+      "sources": [
+        {
+          "url": "https://www.tensorflow.org/tfx/data_validation/get_started",
+          "title": "TensorFlow — Get started with TensorFlow Data Validation"
+        }
+      ]
+    },
+    {
+      "id": "nist-ai-rmf",
+      "title": "NIST AI Risk Management Framework 1.0",
+      "category": "IA responsable et sécurité des agents",
+      "kind": "référentiel",
+      "summary": "Aide à identifier, mesurer et gérer les risques des systèmes d'intelligence artificielle.",
+      "applies_when": "Pour les organisations qui conçoivent, déploient ou utilisent de l'IA et veulent structurer une démarche de confiance.",
+      "pattern": "nist-ai-risk-management",
+      "packs": [
+        "nist-ai-risk"
+      ],
+      "sources": [
+        {
+          "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10",
+          "title": "NIST — Artificial Intelligence Risk Management Framework (AI RMF 1.0)"
+        }
+      ]
+    },
+    {
+      "id": "nist-ai-genai-profile",
+      "title": "NIST AI 600-1 — Generative AI Profile",
+      "category": "IA responsable et sécurité des agents",
+      "kind": "référentiel",
+      "summary": "Adapte le cadre de gestion des risques IA aux particularités de l'intelligence artificielle générative.",
+      "applies_when": "Pour cadrer des usages génératifs, leurs risques spécifiques et les mesures à évaluer.",
+      "packs": [
+        "llm-evaluations",
+        "nist-ai-risk"
+      ],
+      "sources": [
+        {
+          "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence",
+          "title": "NIST AI 600-1 — Generative Artificial Intelligence Profile"
+        }
+      ]
+    },
+    {
+      "id": "owasp-llm-top-10",
+      "title": "OWASP Top 10 for LLM Applications",
+      "category": "IA responsable et sécurité des agents",
+      "kind": "taxonomie",
+      "summary": "Présente les grandes familles de risques des applications qui utilisent des modèles de langage.",
+      "applies_when": "Pour orienter l'analyse des risques d'une application LLM ; choisir et documenter l'édition utilisée, sans assimiler cette liste à une certification de sécurité.",
+      "sources": [
+        {
+          "title": "OWASP Top 10 for LLM Applications, Risks and Mitigations",
+          "url": "https://genai.owasp.org/llm-top-10/"
+        }
+      ]
+    },
+    {
+      "id": "owasp-agentic-top-10",
+      "title": "OWASP Top 10 for Agentic Applications 2026",
+      "category": "IA responsable et sécurité des agents",
+      "kind": "taxonomie",
+      "summary": "Présente les risques spécifiques aux agents capables d'utiliser des outils et d'enchaîner des actions.",
+      "applies_when": "Pour concevoir ou évaluer des agents autonomes, leurs permissions et leurs interactions avec des systèmes.",
+      "sources": [
+        {
+          "url": "https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/",
+          "title": "OWASP Top 10 for Agentic Applications for 2026"
+        }
+      ]
+    },
+    {
+      "id": "mitre-atlas",
+      "title": "MITRE ATLAS",
+      "category": "IA responsable et sécurité des agents",
+      "kind": "taxonomie",
+      "summary": "Décrit des tactiques et techniques adverses impliquant les systèmes d'intelligence artificielle.",
+      "applies_when": "Pour cartographier les risques, choisir des protections et vérifier ce que les mécanismes de détection couvrent.",
+      "sources": [
+        {
+          "url": "https://atlas.mitre.org/",
+          "title": "MITRE ATLAS — Adversarial Threat Landscape for Artificial-Intelligence Systems"
+        }
+      ]
+    },
+    {
+      "id": "iso-iec-42001",
+      "title": "ISO/IEC 42001:2023",
+      "category": "IA responsable et sécurité des agents",
+      "kind": "norme",
+      "summary": "Définit les exigences d'un système de management de l'intelligence artificielle.",
+      "applies_when": "Pour organiser les responsabilités, risques et améliorations autour de l'IA, sur un périmètre choisi.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/42001",
+          "title": "ISO/IEC 42001:2023 — AI management systems"
+        }
+      ]
+    },
+    {
+      "id": "iso-iec-23894",
+      "title": "ISO/IEC 23894:2023",
+      "category": "IA responsable et sécurité des agents",
+      "kind": "norme",
+      "summary": "Donne des recommandations de gestion des risques propres à l'intelligence artificielle.",
+      "applies_when": "Pour les organisations qui développent, produisent, déploient ou utilisent des produits et services fondés sur l'IA.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/77304.html",
+          "title": "ISO/IEC 23894:2023 — AI guidance on risk management"
+        }
+      ]
+    },
+    {
+      "id": "nist-ssdf-ai-profile",
+      "title": "NIST SP 800-218A — SSDF Community Profile for AI",
+      "category": "IA responsable et sécurité des agents",
+      "kind": "référentiel",
+      "summary": "Complète les pratiques de développement sécurisé pour la création de modèles génératifs et de modèles de fondation.",
+      "applies_when": "Pour le développement de ces modèles ; ce profil ne vise pas simplement tout code écrit avec un assistant IA.",
+      "sources": [
+        {
+          "url": "https://csrc.nist.gov/pubs/sp/800/218/a/final",
+          "title": "NIST SP 800-218A — Secure Software Development Practices for Generative AI and Dual-Use Foundation Models"
+        }
+      ]
+    },
+    {
+      "id": "owasp-agent-control-standard",
+      "title": "OWASP Agent Control Standard (ACS) - spécification émergente",
+      "category": "IA responsable et sécurité des agents",
+      "kind": "référentiel",
+      "summary": "Définit une approche ouverte pour observer et contrôler les actions des agents pendant leur exécution.",
+      "applies_when": "Si la plateforme d'agents expose des points de contrôle compatibles ; évaluer cette spécification émergente en pilote, figer sa version et vérifier l'interopérabilité avant son adoption.",
+      "sources": [
+        {
+          "url": "https://genai.owasp.org/resource/agent-control-standard-acs/",
+          "title": "OWASP — Agent Control Standard (ACS)"
+        }
+      ]
+    },
+    {
+      "id": "model-context-protocol",
+      "aliases": [
+        "agent_mcp"
+      ],
+      "title": "Model Context Protocol (MCP)",
+      "category": "Agents IA et orchestration",
+      "kind": "protocole",
+      "summary": "Définit une interface commune pour qu'une application utilisant un modèle accède à des outils, ressources et modèles de prompts exposés par des serveurs.",
+      "applies_when": "Quand les agents doivent utiliser des capacités externes via des intégrations interopérables, avec authentification et permissions adaptées.",
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/specification/latest",
+          "title": "Model Context Protocol — Specification"
+        }
+      ]
+    },
+    {
+      "id": "agent2agent",
+      "aliases": [
+        "agent_a2a"
+      ],
+      "title": "Agent2Agent (A2A)",
+      "category": "Agents IA et orchestration",
+      "kind": "protocole",
+      "summary": "Décrit la découverte des capacités d'agents et leurs échanges de messages, tâches et résultats pour coordonner des systèmes distincts.",
+      "applies_when": "Quand des agents indépendants doivent coopérer au-delà d'une même application ou d'un même framework, avec des responsabilités explicites.",
+      "sources": [
+        {
+          "url": "https://a2a-protocol.org/latest/specification/",
+          "title": "Agent2Agent — Protocol Specification"
+        }
+      ]
+    },
+    {
+      "id": "retrieval-augmented-generation",
+      "aliases": [
+        "agent_rag"
+      ],
+      "title": "Retrieval-Augmented Generation (RAG)",
+      "category": "Agents IA et orchestration",
+      "kind": "pratique",
+      "summary": "Associe la recherche de documents à la génération de réponses afin de fournir au modèle des informations retrouvées dans un corpus.",
+      "applies_when": "Pour exploiter des connaissances métier ou techniques maintenues hors du modèle, avec vérification de la pertinence des documents et des réponses.",
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2005.11401",
+          "title": "Lewis et al. — Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks"
+        }
+      ]
+    },
+    {
+      "id": "llm-agent-evaluations",
+      "aliases": [
+        "agent_evals"
+      ],
+      "title": "Évaluations de LLM et d'agents",
+      "category": "Agents IA et orchestration",
+      "kind": "pratique",
+      "summary": "Tester des scénarios représentatifs et noter les résultats, les trajectoires et les appels d'outils selon des critères explicites, avec évaluateurs automatiques ou humains.",
+      "applies_when": "Avant de changer modèles, consignes ou outils, puis régulièrement pour détecter des régressions sur les tâches réelles du produit.",
+      "pattern": "llm-evaluation",
+      "packs": [
+        "llm-evaluations"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/research/demystifying-evals-for-ai-agents",
+          "title": "Anthropic — Demystifying evals for AI agents"
+        }
+      ]
+    },
+    {
+      "id": "agent-tool-permissions",
+      "aliases": [
+        "agent_tool_permissions"
+      ],
+      "title": "Permissions et moindre privilège des outils",
+      "category": "Agents IA et orchestration",
+      "kind": "pratique",
+      "summary": "Limiter les capacités d'un agent aux opérations et données nécessaires, avec des permissions minimales et une élévation ciblée lorsqu'elle est requise.",
+      "applies_when": "Dès qu'un agent peut consulter des données privées, modifier un dépôt ou agir sur des systèmes externes.",
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/specification/latest/basic/security_best_practices",
+          "title": "Model Context Protocol — Security Best Practices, Scope Minimization"
+        }
+      ]
+    },
+    {
+      "id": "human-in-the-loop",
+      "aliases": [
+        "agent_human_in_loop"
+      ],
+      "title": "Validation humaine dans la boucle",
+      "category": "Agents IA et orchestration",
+      "kind": "pratique",
+      "summary": "Interrompre l'exécution à un point prévu pour permettre à une personne de valider, corriger ou refuser une action avant sa poursuite.",
+      "applies_when": "Pour les décisions et actions dont l'organisation exige une validation humaine, avec un état sauvegardé et une reprise maîtrisée.",
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/interrupts",
+          "title": "LangGraph — Interrupts"
+        }
+      ]
+    },
+    {
+      "id": "agent-execution-limits",
+      "aliases": [
+        "agent_execution_limits"
+      ],
+      "title": "Budgets et limites d'exécution des agents",
+      "category": "Agents IA et orchestration",
+      "kind": "pratique",
+      "summary": "Fixer des conditions d'arrêt portant sur le nombre d'échanges, les jetons consommés ou la durée, et prévoir une interruption externe.",
+      "applies_when": "Pour contenir les boucles, les délais et la consommation de ressources des agents ; les limites doivent être appliquées par l'orchestrateur.",
+      "sources": [
+        {
+          "url": "https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/tutorial/termination.html",
+          "title": "Microsoft AutoGen — Termination"
+        }
+      ]
+    },
+    {
+      "id": "context-engineering",
+      "aliases": [
+        "agent_context_engineering"
+      ],
+      "title": "Context engineering",
+      "category": "Agents IA et orchestration",
+      "kind": "pratique",
+      "summary": "Sélectionner, organiser et actualiser les instructions, outils, informations et historiques réellement utiles dans la fenêtre de contexte du modèle.",
+      "applies_when": "Quand une tâche longue ou complexe accumule trop d'informations ; définir des règles de sélection, de synthèse et de récupération du contexte.",
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/research/effective-context-engineering-for-ai-agents",
+          "title": "Anthropic — Effective context engineering for AI agents"
+        }
+      ]
+    },
+    {
+      "id": "agent-memory",
+      "aliases": [
+        "agent_agent_memory"
+      ],
+      "title": "Gestion de la mémoire des agents",
+      "category": "Agents IA et orchestration",
+      "kind": "pratique",
+      "summary": "Distinguer l'état d'une conversation des informations conservées entre sessions, et organiser leur enregistrement puis leur récupération.",
+      "applies_when": "Quand les agents doivent reprendre une tâche ou réutiliser des connaissances, avec un périmètre d'accès et des règles de conservation explicites.",
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/concepts/memory",
+          "title": "LangChain — Memory overview"
+        }
+      ]
+    }
+  ]
+}

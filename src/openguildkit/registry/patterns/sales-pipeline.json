@@ -1,0 +1,19 @@
+{
+  "id": "sales-pipeline",
+  "title": "Sales pipeline management",
+  "description": "Set evidence for stage transitions, review stalled deals and keep forecasts tied to buyer milestones.",
+  "sources": [
+    {
+      "title": "Salesforce, Sales Pipeline Stages",
+      "url": "https://www.salesforce.com/sales/pipeline/stages/"
+    }
+  ],
+  "roles": [
+    "sales",
+    "operations",
+    "finance"
+  ],
+  "packs": [
+    "sales-pipeline-review"
+  ]
+}

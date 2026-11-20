@@ -1,0 +1,23 @@
+name: Propose a sector
+description: Domain context agents need in an industry.
+title: "sector: "
+labels: [catalog, sector]
+body:
+  - type: input
+    id: sector-id
+    attributes:
+      label: Sector ID
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context items
+      description: What an agent must ask or check in this industry. Roles, data, approvals, regulators. One instruction per line.
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Sources
+      description: Regulators or official bodies, HTTPS links.

@@ -1,0 +1,23 @@
+{
+  "id": "okr",
+  "title": "Objectives and key results",
+  "description": "Define the outcome an objective seeks and the measurements that will prove progress during a defined period.",
+  "sources": [
+    {
+      "title": "What Matters, What is an OKR?",
+      "url": "https://www.whatmatters.com/faqs/okr-meaning-definition-example"
+    }
+  ],
+  "roles": [
+    "leadership",
+    "product",
+    "project-management",
+    "operations"
+  ],
+  "packs": [
+    "leadership-planning"
+  ],
+  "references": [
+    "okr"
+  ]
+}

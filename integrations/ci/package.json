@@ -1,0 +1,25 @@
+{
+  "name": "openguildkit",
+  "version": "0.16.1",
+  "private": true,
+  "description": "Versioned engineering rules and verifiable CI results",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "openguildkit-ci": "bin/openguildkit.mjs",
+    "openguildkit-ci-agent": "bin/openguildkit-agent.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "pilot",
+    "prototype/demo/check.mjs",
+    "prototype/windows"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

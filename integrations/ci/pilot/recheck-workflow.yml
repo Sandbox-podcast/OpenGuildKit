@@ -1,0 +1,124 @@
+name: OpenGuildKit recheck pilot
+run-name: OpenGuildKit recheck ${{ inputs.work }}${{ inputs.attempt && format(' {0}', inputs.attempt) || '' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        type: string
+        required: true
+      commit:
+        type: string
+        required: true
+      work:
+        type: string
+        required: true
+      attempt:
+        type: string
+        description: Identifiant de tentative pour la reprise du coordinateur
+        required: false
+      expected:
+        type: string
+        description: Entrées de la clé de travail calculées par le coordinateur (JSON), pour expliquer un écart
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  recheck:
+    if: github.ref == 'refs/heads/pilot/recheck-base'
+    runs-on: ubuntu-latest
+    env:
+      PR_NUMBER: ${{ inputs.pr }}
+      EXPECTED_HEAD: ${{ inputs.commit }}
+      EXPECTED_WORK: ${{ inputs.work }}
+      EXPECTED_INPUTS: ${{ inputs.expected }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Load trusted code and the exact PR objects
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ && "$EXPECTED_HEAD" =~ ^[a-f0-9]{40}$ && "$EXPECTED_WORK" =~ ^[a-f0-9]{64}$ ]]
+          # The coordinator's profileRef, policy and kit must match these pins to compute the same work key.
+          profile_ref=$(jq -er '.profileRef' pilot/recheck.json)
+          [[ "$profile_ref" == refs/heads/* ]]
+          git check-ref-format "$profile_ref"
+          read -r digest asset < pilot/recheck-kit.sha256
+          [[ "$digest" =~ ^[a-f0-9]{64}$ && "$asset" =~ ^openguildkit-([0-9]+\.[0-9]+\.[0-9]+)\.tgz$ ]]
+          kit_version="${BASH_REMATCH[1]}"
+          release="v$kit_version"
+          if [[ -n "$EXPECTED_INPUTS" ]]; then
+            expected_kit=$(jq -c '.kitVersion' <<< "$EXPECTED_INPUTS")
+            if [[ "$expected_kit" != "\"$kit_version\"" ]]; then
+              printf '::error::The coordinator uses kit %s and pilot/recheck-kit.sha256 pins "%s". Pin the same version on this branch.\n' "$expected_kit" "$kit_version"
+              exit 1
+            fi
+          fi
+          mkdir -p "$RUNNER_TEMP/ogk-kit" proof
+          (
+            cd "$RUNNER_TEMP/ogk-kit"
+            gh release download "$release" -R "$GITHUB_REPOSITORY" -p "$asset"
+            sha256sum -c "$GITHUB_WORKSPACE/pilot/recheck-kit.sha256"
+            tar -xf "$asset"
+          )
+          git -c credential.helper= -c 'credential.helper=!gh auth git-credential' fetch --no-tags origin \
+            "+$profile_ref:refs/openguildkit/profile" "+refs/pull/$PR_NUMBER/head:refs/openguildkit/pr"
+          [[ "$(git rev-parse refs/openguildkit/pr)" == "$EXPECTED_HEAD" ]]
+      - name: Load the approved policy reference
+        env:
+          GH_TOKEN: ${{ secrets.OPENGUILDKIT_POLICY_READ_TOKEN || github.token }}
+          POLICY_DEPLOY_KEY: ${{ secrets.OPENGUILDKIT_POLICY_DEPLOY_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo=$(jq -er '.policyRepository' pilot/recheck.json)
+          ref=$(jq -er '.policyRef' pilot/recheck.json)
+          [[ "$repo" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]*/[a-zA-Z0-9_.-]+$ && "$ref" == refs/heads/* ]]
+          git check-ref-format "$ref"
+          printf 'Source de règle %s · %s\n' "$repo" "$ref"
+          if [[ -n "$POLICY_DEPLOY_KEY" ]]; then
+            key_dir=$(mktemp -d)
+            trap 'rm -f -- "$key_dir/key" "$key_dir/known_hosts"; rmdir -- "$key_dir"' EXIT
+            umask 077
+            printf '%s\n' "$POLICY_DEPLOY_KEY" > "$key_dir/key"
+            unset POLICY_DEPLOY_KEY
+            printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$key_dir/known_hosts"
+            printf -v ssh_command 'ssh -F /dev/null -i %q -o UserKnownHostsFile=%q -o GlobalKnownHostsFile=/dev/null -o StrictHostKeyChecking=yes -o HostKeyAlgorithms=ssh-ed25519 -o IdentitiesOnly=yes -o BatchMode=yes' "$key_dir/key" "$key_dir/known_hosts"
+            GIT_SSH_COMMAND="$ssh_command" git fetch --no-tags "ssh://git@github.com/$repo.git" "+$ref:refs/openguildkit/policy"
+          else
+            git -c credential.helper= -c 'credential.helper=!gh auth git-credential' fetch --no-tags \
+              "https://github.com/$repo.git" "+$ref:refs/openguildkit/policy"
+          fi
+      - name: Evaluate and identify the proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n --arg repo "$GITHUB_REPOSITORY" --arg sha "$EXPECTED_HEAD" --argjson pr "$PR_NUMBER" \
+            '{policyRepo:{path:".",ref:"refs/openguildkit/policy"},projects:[{id:$repo,path:".",profileRef:"refs/openguildkit/profile",pullRequests:[{number:$pr,ref:"refs/openguildkit/pr",sha:$sha}]}]}' > integration.json
+          cli="$RUNNER_TEMP/ogk-kit/package/bin/openguildkit.mjs"
+          node "$cli" reconcile --config integration.json --state state > plan.json
+          if ! jq -e --arg work "$EXPECTED_WORK" '.current | length == 1 and .[0].work == $work' plan.json > /dev/null; then
+            echo '::error::This workflow computed another work key than the coordinator.'
+            if [[ -n "$EXPECTED_INPUTS" ]]; then
+              jq -r --argjson expected "$EXPECTED_INPUTS" '.current[0] as $row | $expected | to_entries[]
+                | select($row[.key] != .value)
+                | "::error::\(.key | tojson): coordinator \(.value | tojson), workflow \($row[.key] | tojson)"' plan.json
+            fi
+            exit 1
+          fi
+          node "$cli" reconcile --config integration.json --state state --run > observed.json
+          evidence=$(jq -er '.current[0].evidence[0]' observed.json)
+          jq -n --arg work "$EXPECTED_WORK" --arg repo "$GITHUB_REPOSITORY" --argjson pr "$PR_NUMBER" \
+            --slurpfile evidence "$evidence" '{work:$work,project:$repo,pullRequest:$pr,proof:$evidence[0].evidence}' > proof/result.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: openguildkit-recheck
+          path: proof/result.json
+          if-no-files-found: error

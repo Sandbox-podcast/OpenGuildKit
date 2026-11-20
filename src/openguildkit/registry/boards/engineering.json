@@ -1,0 +1,123 @@
+{
+  "id": "engineering",
+  "title": "Software development (front-end and back-end)",
+  "description": "Review code boundaries, front-end and back-end behaviour, dependencies and compatibility before choosing an implementation.",
+  "expertises": [
+    "Software architecture and integration",
+    "Data modeling and migrations",
+    "API design and maintainability",
+    "Front-end rendering, client state and browser support"
+  ],
+  "triggers": [
+    "api",
+    "api design",
+    "architecture",
+    "backend",
+    "back-end",
+    "frontend",
+    "front-end",
+    "database",
+    "base de données",
+    "database schema",
+    "migration",
+    "migrate",
+    "migrer",
+    "refactor",
+    "refactoring",
+    "refactorisation",
+    "source code",
+    "code source",
+    "codebase",
+    "software development",
+    "développement logiciel",
+    "endpoint",
+    "microservice",
+    "data model",
+    "modèle de données",
+    "technical debt",
+    "dette technique",
+    "concurrency",
+    "concurrent write",
+    "race condition",
+    "deadlock"
+  ],
+  "questions": [
+    "Which existing modules and interfaces can handle the change?",
+    "What happens to existing data and clients during rollout?",
+    "Which contracts or architecture decisions should the change document?"
+  ],
+  "sources": [
+    {
+      "title": "OpenAPI Specification 3.1.2",
+      "url": "https://spec.openapis.org/oas/v3.1.2.html"
+    },
+    {
+      "title": "Google Engineering Practices, Code review",
+      "url": "https://google.github.io/eng-practices/review/reviewer/looking-for.html"
+    },
+    {
+      "title": "web.dev, Baseline",
+      "url": "https://web.dev/baseline"
+    },
+    {
+      "title": "The Twelve-Factor App",
+      "url": "https://12factor.net/"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "architecture",
+        "title": "Software architect",
+        "focus": "Trace the use case through the existing modules. Choose where the behavior and its dependencies belong and name the owner of any new boundary."
+      },
+      {
+        "id": "contracts",
+        "title": "API and integration engineer",
+        "focus": "Check changed request, response and event contracts against every supported consumer. Decide which changes need a compatibility path or migration."
+      },
+      {
+        "id": "data-consistency",
+        "title": "Data engineer",
+        "focus": "Identify the invariants for reads and writes. Check what happens to committed data when work is interrupted, retried or performed concurrently."
+      },
+      {
+        "id": "maintainability",
+        "title": "Code reviewer",
+        "focus": "Find unnecessary dependencies and duplicated domain logic. Confirm that the proposed change can be verified through the entry points callers use."
+      },
+      {
+        "id": "frontend-rendering",
+        "title": "Front-end engineer",
+        "focus": "Check where the interface renders, how it loads and updates state, and that it stays usable on slow networks and small screens."
+      },
+      {
+        "id": "browser-compatibility",
+        "title": "Web platform specialist",
+        "focus": "Check the browsers and devices the project supports, the web platform features the change relies on and the weight it adds to what users download."
+      }
+    ],
+    "evidence": [
+      "Entry point, owning modules, changed behavior and the relevant repository paths or design decision.",
+      "Before-and-after public contracts and a list of supported callers or event consumers, with compatibility results for affected versions.",
+      "Data schema and migration sequence, with results for existing records, mixed-version rollout and the agreed recovery path where relevant.",
+      "Tests or execution traces that show success, a representative partial failure and a retry for operations that can repeat.",
+      "Reason for any new service or dependency and the name of the team expected to maintain it.",
+      "Supported browsers and devices, page weight before and after, and how the change loads data on the client."
+    ],
+    "challenge": [
+      "Could an existing module own this behavior without introducing a second source of truth?",
+      "Which supported caller or previously stored value would behave differently with the proposed change?",
+      "What has already been committed if the second step fails, and what happens when the request is retried?",
+      "Which edge of the new design requires another team to change or deploy at the same time?",
+      "What does the user see while data loads, fails or arrives partially?"
+    ],
+    "decision_criteria": [
+      "Prefer the design with a clear owner, the smallest affected boundary and a demonstrated test path for the agreed behavior.",
+      "Ask for a migration or consumer approval if a supported API, event or stored shape would break.",
+      "Hold the change when a foreseeable failure, retry or concurrent operation can break a data invariant without a verified recovery path.",
+      "Record the reason and responsible team when the change adds an operational dependency.",
+      "Ask for a fallback or progressive enhancement when the change relies on a browser feature outside the supported set."
+    ]
+  }
+}

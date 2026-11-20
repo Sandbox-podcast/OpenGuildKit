@@ -1,0 +1,28 @@
+{
+  "id": "business-case-review",
+  "title": "Business case review",
+  "version": "1.0.0",
+  "description": "A consistent comparison of project options, delivery constraints and expected benefits.",
+  "sources": [
+    {
+      "title": "HM Treasury, Developing business cases for projects and programmes",
+      "url": "https://www.gov.uk/government/publications/guidance-on-developing-business-cases/guidance-on-developing-business-cases-for-projects-and-programmes"
+    },
+    {
+      "title": "HM Treasury, The Green Book (2026)",
+      "url": "https://www.gov.uk/government/publications/the-green-book--2/the-green-book-2026"
+    }
+  ],
+  "rules": [
+    {
+      "id": "compare-credible-options",
+      "instruction": "State the decision, problem and success criteria. Compare feasible options against continuing with the current approach using a shared time horizon and scope.",
+      "verification": "Check that the same outcome, cost and delivery assumptions were used across options and that the recorded recommendation follows the stated criteria."
+    },
+    {
+      "id": "assign-benefit-ownership",
+      "instruction": "Name the owner of each material benefit, the intended measure and when it will be reviewed after implementation.",
+      "verification": "Check that the plan shows how the owner can observe each claimed benefit and who will decide if results fall short."
+    }
+  ]
+}

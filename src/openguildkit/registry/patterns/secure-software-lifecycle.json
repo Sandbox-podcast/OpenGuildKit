@@ -1,0 +1,22 @@
+{
+  "id": "secure-software-lifecycle",
+  "title": "Secure software development lifecycle",
+  "description": "Select for an explicit SDLC review that records security decisions from design through release.",
+  "sources": [
+    {
+      "title": "NIST SP 800-218, Secure Software Development Framework 1.1",
+      "url": "https://csrc.nist.gov/pubs/sp/800/218/final"
+    }
+  ],
+  "roles": [
+    "security",
+    "engineering",
+    "devops"
+  ],
+  "packs": [
+    "secure-sdlc"
+  ],
+  "references": [
+    "nist-ssdf"
+  ]
+}

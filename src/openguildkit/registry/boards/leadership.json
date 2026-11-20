@@ -1,0 +1,99 @@
+{
+  "id": "leadership",
+  "title": "Executive leadership",
+  "description": "Compare strategic options, their use of limited resources and the risks an executive must decide whether to accept.",
+  "expertises": [
+    "Strategy and portfolio priorities",
+    "Business cases and resource allocation",
+    "Decision authority and risk appetite",
+    "Benefits tracking and executive accountability"
+  ],
+  "triggers": [
+    "executive decision",
+    "business strategy",
+    "strategy",
+    "stratégie",
+    "strategic planning",
+    "plan stratégique",
+    "okr",
+    "objectives and key results",
+    "company vision",
+    "capital allocation",
+    "allocation du capital",
+    "investment committee",
+    "comité d'investissement",
+    "risk appetite",
+    "appétence au risque",
+    "portfolio prioritization",
+    "arbitrage stratégique",
+    "direction générale",
+    "board of directors",
+    "conseil d'administration",
+    "comité de direction",
+    "codir",
+    "comex",
+    "fundraising",
+    "levée de fonds"
+  ],
+  "questions": [
+    "Which strategic objective does this decision serve, and what would change if the current approach continued?",
+    "What investment or team capacity must the decision maker reserve, and which existing work would give way?",
+    "Who can commit those resources or accept the remaining risk, and what evidence would make them revisit the decision?"
+  ],
+  "sources": [
+    {
+      "title": "HM Treasury, Developing business cases for projects and programmes",
+      "url": "https://www.gov.uk/government/publications/guidance-on-developing-business-cases/guidance-on-developing-business-cases-for-projects-and-programmes"
+    },
+    {
+      "title": "COSO, Enterprise Risk Management",
+      "url": "https://www.coso.org/enterprise-risk-management"
+    },
+    {
+      "title": "Kaplan and Norton, The Balanced Scorecard, measures that drive performance",
+      "url": "https://hbr.org/1992/01/the-balanced-scorecard-measures-that-drive-performance-2"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "strategy",
+        "title": "Strategic fit",
+        "focus": "Compare the change with current objectives and identify which intended result the proposal can affect."
+      },
+      {
+        "id": "portfolio",
+        "title": "Portfolio and resources",
+        "focus": "Check the full demands on funds and people, including recurring costs and any work that loses resources."
+      },
+      {
+        "id": "risk-governance",
+        "title": "Risk and decision rights",
+        "focus": "Identify approvals and trade-offs that exceed the sponsor's authority or the organization's documented risk appetite."
+      },
+      {
+        "id": "benefits",
+        "title": "Benefits tracking",
+        "focus": "Test whether the proposed measures track the intended result and name who will compare them with the current baseline."
+      }
+    ],
+    "evidence": [
+      "Read the latest authorized strategy and its measurable objectives. Check which of them the proposal affects and how.",
+      "Compare the current approach with viable alternatives using the same categories of cost, people, expected outcomes and timing.",
+      "Check the approved risk thresholds, budget limits and delegated authority with the relevant owners. Record gaps without copying confidential board material.",
+      "Identify who produced each forecast, when it was last updated and what observation would test its most consequential assumption."
+    ],
+    "challenge": [
+      "Test one realistic scenario where adoption is slower, benefits are lower or costs are higher. Identify any option that would then rank higher.",
+      "Check whether one option appears attractive because the analysis omitted displaced work, organizational change or ongoing support.",
+      "Distinguish a decision the sponsor can reverse from a commitment that requires a governing body or formal approval.",
+      "Which measure would show within the first months that the decision is not producing the expected result?"
+    ],
+    "decision_criteria": [
+      "Present the current approach and viable alternatives against one strategic objective and a consistent evidence-based comparison.",
+      "Make the opportunity cost, remaining risks and unresolved assumptions visible to the person with authority to decide.",
+      "For the recommended option, name the result owner and the date or threshold for expanding, pausing or revisiting the commitment.",
+      "Escalate to the governing body any commitment that exceeds the delegated budget, risk appetite or duration."
+    ]
+  }
+}

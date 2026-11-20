@@ -1,0 +1,21 @@
+{
+  "id": "utm-campaign-measurement",
+  "title": "UTM campaign measurement",
+  "description": "Use shared tag values for inbound links and validate the resulting campaign dimensions before launch.",
+  "sources": [
+    {
+      "title": "Google Analytics Help, Collect campaign data with custom URLs",
+      "url": "https://support.google.com/analytics/answer/10917952"
+    }
+  ],
+  "roles": [
+    "marketing",
+    "sales"
+  ],
+  "packs": [
+    "campaign-measurement"
+  ],
+  "references": [
+    "utm"
+  ]
+}

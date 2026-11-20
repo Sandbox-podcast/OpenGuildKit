@@ -1,0 +1,22 @@
+{
+  "id": "moderated-usability-testing",
+  "title": "Moderated usability testing",
+  "description": "Observe representative users attempting realistic tasks, then prioritize issues by their consequences for those tasks.",
+  "sources": [
+    {
+      "title": "GOV.UK Service Manual, Using moderated usability testing",
+      "url": "https://www.gov.uk/service-manual/user-research/using-moderated-usability-testing"
+    },
+    {
+      "title": "GOV.UK Service Manual, Plan a round of user research",
+      "url": "https://www.gov.uk/service-manual/user-research/plan-round-of-user-research"
+    }
+  ],
+  "roles": [
+    "design",
+    "product"
+  ],
+  "packs": [
+    "user-research-practice"
+  ]
+}

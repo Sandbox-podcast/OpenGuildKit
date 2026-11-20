@@ -1,0 +1,99 @@
+{
+  "id": "qa",
+  "title": "Quality assurance",
+  "description": "Turn acceptance criteria into checks that cover the user flow and likely regressions.",
+  "expertises": [
+    "Risk-based test design",
+    "Regression and compatibility testing",
+    "Release acceptance and defect triage"
+  ],
+  "triggers": [
+    "bug",
+    "defect",
+    "anomalie",
+    "regression",
+    "régression",
+    "tests",
+    "test plan",
+    "plan de test",
+    "test strategy",
+    "stratégie de test",
+    "test design",
+    "quality assurance",
+    "assurance qualité",
+    "qa",
+    "failure case",
+    "edge case",
+    "cas limite",
+    "recette",
+    "acceptance test",
+    "test d'acceptation",
+    "end-to-end test",
+    "e2e",
+    "flaky test",
+    "unit test",
+    "test unitaire"
+  ],
+  "questions": [
+    "Which user paths and boundary conditions need explicit tests?",
+    "What fixture or environment would make a failure reproducible?",
+    "Which compatibility and regression checks must pass before release?"
+  ],
+  "sources": [
+    {
+      "title": "ISTQB Foundation Level testing syllabus",
+      "url": "https://istqb.org/certifications/certified-tester-foundation-level-ctfl-v4-0/"
+    },
+    {
+      "title": "W3C WAI, Evaluating Web Accessibility",
+      "url": "https://www.w3.org/WAI/test-evaluate/"
+    },
+    {
+      "title": "OWASP, Web Security Testing Guide",
+      "url": "https://owasp.org/projects/web-security-testing-guide"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "test-design",
+        "title": "Test design lead",
+        "focus": "Map each important acceptance criterion to an observable result. Prioritize boundary cases and recovery paths that could change the release decision."
+      },
+      {
+        "id": "compatibility",
+        "title": "Regression engineer",
+        "focus": "Choose representative legacy data and supported versions. Verify that existing users and integrations can continue through the change."
+      },
+      {
+        "id": "exploratory-testing",
+        "title": "Exploratory tester",
+        "focus": "Exercise the user journey with realistic interruptions, partial progress and varied input. Include keyboard or assistive technology checks when the changed interface requires them."
+      },
+      {
+        "id": "release-acceptance",
+        "title": "Release QA lead",
+        "focus": "Assess which results are trustworthy for the candidate revision. Triage defects by user impact and decide which unmet criteria block shipment."
+      }
+    ],
+    "evidence": [
+      "Acceptance criteria mapped to named automated checks or a manual test charter, with expected outcomes.",
+      "Build revision, environment, test data description and supported client or browser versions covered by the results.",
+      "Coverage of upgraded records and existing flows, with separate results for new records and clean setup where relevant.",
+      "Evidence for representative boundary, failure and recovery paths, including a trace or observed outcome for defects.",
+      "List of regressions, intermittent failures and untested cases with impact, owner and disposition."
+    ],
+    "challenge": [
+      "Which assertion would fail if the interface reported success while the underlying state stayed unchanged?",
+      "How would the same test behave for a customer whose records were created before this release?",
+      "Which failure only appears after an interruption, a retry or a change in the order of operations?",
+      "Could test data, mocks or a successful retry conceal a defect in the supported user environment?"
+    ],
+    "decision_criteria": [
+      "Recommend release when the agreed high-impact scenarios pass on the candidate and the release owner has reviewed the impact and disposition of the remaining gaps.",
+      "Hold release for reproducible data loss, an unavailable critical journey or a broken compatibility promise in scope.",
+      "Record a flaky or unrun critical check as missing evidence until the team can explain the result or verify it another way.",
+      "Accept a deferral only with documented user impact, a clear workaround or mitigation where applicable, and agreement from the release owner."
+    ]
+  }
+}

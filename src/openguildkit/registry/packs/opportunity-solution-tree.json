@@ -1,0 +1,19 @@
+{
+  "id": "opportunity-solution-tree",
+  "title": "Opportunity solution tree",
+  "version": "1.0.0",
+  "description": "Candidate solutions linked to a customer opportunity and an outcome, and tested through their riskiest assumption.",
+  "sources": [
+    {
+      "title": "Teresa Torres, Opportunity Solution Trees",
+      "url": "https://www.producttalk.org/opportunity-solution-trees/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "compare-solution-assumptions",
+      "instruction": "When using an opportunity solution tree, connect each candidate solution to a customer opportunity and an outcome. Choose the assumption most likely to change the decision and plan a small test.",
+      "verification": "Walk from the outcome to the planned test and verify that the test result could change which solution the team pursues."
+    }
+  ]
+}

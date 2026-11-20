@@ -1,0 +1,36 @@
+{
+  "id": "iso-27001",
+  "title": "ISO/IEC 27001 context",
+  "version": "1.0.0",
+  "description": "Project evidence and ownership prompts for teams working under an information security management system. Use the organization's approved scope and controls.",
+  "sources": [
+    {
+      "title": "ISO/IEC 27001:2022 overview",
+      "url": "https://www.iso.org/standard/27001"
+    },
+    {
+      "title": "ISO/IEC 27001 Auditing Practices Group, Statement of Applicability note",
+      "url": "https://committee.iso.org/files/live/sites/jtc1sc27/files/resources/ISO-IECJTC1-SC27-WG1_N3298_Auditing%20Practices%20Note%20-%20SoA.pdf"
+    }
+  ],
+  "depends_on": [
+    "secure-sdlc"
+  ],
+  "rules": [
+    {
+      "id": "confirm-isms-scope",
+      "instruction": "Ask the security owner which systems, teams and data fall within the organization's information security management system.",
+      "verification": "Link to the approved scope or record a scope question for the owner."
+    },
+    {
+      "id": "map-applicable-controls",
+      "instruction": "Tie project controls and exceptions to the organization's Statement of Applicability and risk treatment decisions with the control owner.",
+      "verification": "For each applicable project control, record its owner, evidence location and open exceptions."
+    },
+    {
+      "id": "retain-change-evidence",
+      "instruction": "Store approvals, risk decisions and verification results in the organization's approved evidence location.",
+      "verification": "Check that reviewers can retrieve each record and that retention follows company policy."
+    }
+  ]
+}

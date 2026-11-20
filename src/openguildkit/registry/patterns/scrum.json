@@ -1,0 +1,22 @@
+{
+  "id": "scrum",
+  "title": "Scrum",
+  "description": "Apply Sprint Goals, the Definition of Done and recurring feedback when a cross-functional team works in Sprints.",
+  "sources": [
+    {
+      "title": "The Scrum Guide, 2020",
+      "url": "https://scrumguides.org/scrum-guide.html"
+    }
+  ],
+  "roles": [
+    "project-management",
+    "product"
+  ],
+  "packs": [
+    "scrum-delivery"
+  ],
+  "references": [
+    "scrum",
+    "definition-of-done"
+  ]
+}

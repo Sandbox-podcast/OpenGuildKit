@@ -1,0 +1,37 @@
+{
+  "id": "terraform-kubernetes",
+  "title": "Terraform and Kubernetes operations",
+  "version": "1.0.0",
+  "description": "Review infrastructure plans, protect state and check workload health before rollout.",
+  "sources": [
+    {
+      "title": "Terraform plan",
+      "url": "https://developer.hashicorp.com/terraform/cli/commands/plan"
+    },
+    {
+      "title": "Terraform sensitive data",
+      "url": "https://developer.hashicorp.com/terraform/language/manage-sensitive-data"
+    },
+    {
+      "title": "Kubernetes workload probes",
+      "url": "https://kubernetes.io/docs/concepts/workloads/pods/probes/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "review-plan-before-apply",
+      "instruction": "Prepare the infrastructure plan for the intended workspace and environment. Have the owner review resource replacements, deletes and access changes before applying it.",
+      "verification": "Compare the plan with the intended scope and verify the workspace and expected providers. Record who accepted any destructive changes."
+    },
+    {
+      "id": "protect-state-and-plan",
+      "instruction": "Restrict access to Terraform state and saved plans. Treat both as sensitive artifacts even when console output suppresses secret values.",
+      "verification": "Review permissions, encryption and retention for the backend and any stored plans. Confirm that neither file is committed to Git or copied into public CI artifacts."
+    },
+    {
+      "id": "test-workload-probes",
+      "instruction": "Configure Kubernetes probes to distinguish startup, readiness to receive traffic and failures that require a restart.",
+      "verification": "In the test environment, check how the changed workload behaves during normal startup, brief dependency failure and recovery. Confirm that the probe triggers the intended traffic or restart behavior."
+    }
+  ]
+}

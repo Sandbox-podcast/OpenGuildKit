@@ -1,0 +1,10 @@
+{
+  "id": "general",
+  "title": "General",
+  "description": "Use the project's declared market, users and operating constraints.",
+  "context": [
+    "Name the target geography, users and organisations before comparing products or making domain assumptions.",
+    "Record unresolved legal or contractual obligations for the responsible owner to check."
+  ],
+  "sources": []
+}

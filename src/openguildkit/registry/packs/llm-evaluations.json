@@ -1,0 +1,43 @@
+{
+  "id": "llm-evaluations",
+  "title": "LLM and agent evaluations",
+  "version": "1.1.0",
+  "description": "Checks for repeatable evaluations of model output, agent decisions and permitted tool use.",
+  "sources": [
+    {
+      "title": "Anthropic, Demystifying evals for AI agents",
+      "url": "https://www.anthropic.com/research/demystifying-evals-for-ai-agents"
+    },
+    {
+      "title": "NIST AI 600-1 Generative AI Profile",
+      "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence"
+    }
+  ],
+  "rules": [
+    {
+      "id": "evaluate-user-outcomes",
+      "instruction": "Build the evaluation cases from representative and boundary tasks of the intended use.",
+      "verification": "Check that the cases cover the critical paths and boundary conditions of the intended use."
+    },
+    {
+      "id": "review-grading-rubric",
+      "instruction": "Write a rubric for the result, uncertainty and user-visible errors, and ask the workflow owner to approve it.",
+      "verification": "Have two graders score a sample of passing and failing outputs with the approved rubric and check that they agree."
+    },
+    {
+      "id": "check-permitted-tool-use",
+      "instruction": "Use recorded or simulated tool results to test whether the agent selects permitted tools, passes valid arguments and stops for required approvals.",
+      "verification": "Inspect the tool traces from evaluation runs. Verify that no live external action occurred in the test and that blocked steps stop as expected."
+    },
+    {
+      "id": "record-evaluation-setup",
+      "instruction": "Record the model, prompts, tool interfaces, test data and scoring version of each evaluation run.",
+      "verification": "Open the run record and check that it names each of these items."
+    },
+    {
+      "id": "compare-evaluation-baselines",
+      "instruction": "Run the evaluation on the approved baseline and on the proposed configuration, with repeated trials where output varies, and report results for each critical task group.",
+      "verification": "Review the cases that changed between the two runs and record the release decision."
+    }
+  ]
+}

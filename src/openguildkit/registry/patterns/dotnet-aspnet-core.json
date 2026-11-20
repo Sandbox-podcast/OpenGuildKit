@@ -1,0 +1,30 @@
+{
+  "id": "dotnet-aspnet-core",
+  "title": ".NET and ASP.NET Core",
+  "description": "Review configuration binding, request cancellation and middleware behavior in an ASP.NET Core service.",
+  "sources": [
+    {
+      "title": "ASP.NET Core integration tests",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "aspnet-core"
+  ],
+  "references": [
+    "http",
+    "openapi"
+  ],
+  "match": {
+    "stack": [
+      [
+        "asp.net core"
+      ]
+    ]
+  }
+}

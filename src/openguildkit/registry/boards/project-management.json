@@ -1,0 +1,103 @@
+{
+  "id": "project-management",
+  "title": "Project management",
+  "description": "Map dependencies, ownership and decision dates before committing to delivery.",
+  "expertises": [
+    "Delivery planning and sequencing",
+    "Dependencies and stakeholder coordination",
+    "Risk tracking and decision ownership"
+  ],
+  "triggers": [
+    "project management",
+    "gestion de projet",
+    "pilotage de projet",
+    "project plan",
+    "plan de projet",
+    "milestone",
+    "jalon",
+    "deadline",
+    "échéance",
+    "delivery plan",
+    "stakeholder",
+    "partie prenante",
+    "cross-team dependency",
+    "dépendance entre équipes",
+    "planning",
+    "planification",
+    "sprint",
+    "scrum",
+    "kanban",
+    "raci",
+    "gantt",
+    "critical path",
+    "chemin critique",
+    "retrospective",
+    "rétrospective",
+    "steering committee",
+    "comité de pilotage",
+    "copil",
+    "risk register",
+    "registre des risques"
+  ],
+  "questions": [
+    "Which dependency can block the next release, and who owns it?",
+    "What can the team deliver independently and in what order?",
+    "Who decides on scope, dates and accepted risks?"
+  ],
+  "sources": [
+    {
+      "title": "The Scrum Guide",
+      "url": "https://scrumguides.org/scrum-guide.html"
+    },
+    {
+      "title": "PMI, Critical path method calculations",
+      "url": "https://www.pmi.org/learning/library/critical-path-method-calculations-scheduling-8040"
+    },
+    {
+      "title": "ISO 21502, Project, programme and portfolio management, guidance on project management",
+      "url": "https://www.iso.org/standard/74947.html"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "delivery-planner",
+        "title": "Delivery planning",
+        "focus": "Find the longest chain of unfinished dependencies and compare the proposed sequence with a smaller increment the team can deliver independently."
+      },
+      {
+        "id": "capacity-coordinator",
+        "title": "Capacity and dependencies",
+        "focus": "Check availability and handoff dates with the teams that own shared people, environments, vendors or approvals."
+      },
+      {
+        "id": "decision-owner",
+        "title": "Governance and escalation",
+        "focus": "Identify who can change scope, dates or staffing and when that person needs to decide to protect delivery."
+      },
+      {
+        "id": "risk-coordinator",
+        "title": "Risk and change coordinator",
+        "focus": "Keep the risk and change log current for the work, and check that each risk that can move the date has an owner, a response and a review date."
+      }
+    ],
+    "evidence": [
+      "Check the latest milestone plan and dated commitments. Identify the owner and predecessor for each item that can move the delivery date.",
+      "Compare estimates with recent delivery of similar work, available team capacity and commitments the teams have already made.",
+      "Read acceptance criteria and the dependency or risk register. Confirm when each external owner can accept a handoff.",
+      "Risk and change log entries for the work, with owner, response and review date."
+    ],
+    "challenge": [
+      "Check whether tasks shown in parallel compete for the same people or environment.",
+      "Test the plan against one plausible delay on the longest unfinished dependency chain. State which date, scope or capacity decision it changes.",
+      "Separate a target date from a commitment. Flag dates that depend on an unconfirmed estimate, decision or vendor.",
+      "Which change request accepted since the plan was agreed has not yet been reflected in the dates?"
+    ],
+    "decision_criteria": [
+      "Recommend the sequence that delivers an accepted increment within confirmed capacity and names an owner for each blocking dependency.",
+      "For each date-sensitive assumption, identify an owner and the date by which it must be confirmed or escalated.",
+      "If the scope, date and capacity cannot all hold, present the trade-off for the person who can change one of them.",
+      "Ask for a re-plan when accepted changes or open risks invalidate the committed date."
+    ]
+  }
+}

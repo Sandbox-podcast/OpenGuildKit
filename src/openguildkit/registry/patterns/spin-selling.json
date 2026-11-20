@@ -1,0 +1,21 @@
+{
+  "id": "spin-selling",
+  "title": "SPIN selling",
+  "description": "Prepare questions about the customer's situation, problems, implications and expected benefit for a discovery call.",
+  "sources": [
+    {
+      "title": "Huthwaite International, The SPIN Methodology",
+      "url": "https://www.huthwaiteinternational.com/spin-methodology"
+    }
+  ],
+  "roles": [
+    "sales",
+    "marketing"
+  ],
+  "packs": [
+    "spin-discovery"
+  ],
+  "references": [
+    "spin-selling"
+  ]
+}

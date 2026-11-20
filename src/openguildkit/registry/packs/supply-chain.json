@@ -1,0 +1,58 @@
+{
+  "id": "supply-chain",
+  "title": "Software supply chain",
+  "version": "1.1.0",
+  "description": "Build provenance, artifact verification and software inventory checks for teams that publish packages or deploy images.",
+  "depends_on": [
+    "secure-sdlc"
+  ],
+  "sources": [
+    {
+      "title": "SLSA 1.2 Build Track requirements",
+      "url": "https://slsa.dev/spec/v1.2/build-requirements"
+    },
+    {
+      "title": "SLSA 1.2 artifact verification",
+      "url": "https://slsa.dev/spec/v1.2/verifying-artifacts"
+    },
+    {
+      "title": "ASD 2026 Minimum Elements for a Software Bill of Materials",
+      "url": "https://www.cyber.gov.au/publication/2026-minimum-elements-for-a-software-bill-of-materials-sbom"
+    },
+    {
+      "title": "SPDX 3.0.1",
+      "url": "https://spdx.github.io/spdx-spec/v3.0.1/"
+    },
+    {
+      "title": "CycloneDX 1.7 JSON reference",
+      "url": "https://cyclonedx.org/docs/1.7/json/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "record-build-provenance",
+      "instruction": "Have the approved build platform record the source revision, build identity and output digests for release artifacts. Attach the provenance to the release evidence.",
+      "verification": "For a test release, compare the attestation subject digest with the generated artifact and confirm that the source revision matches the release commit."
+    },
+    {
+      "id": "verify-artifact-provenance",
+      "instruction": "For releases gated by provenance, verify the artifact digest, attestation authenticity, builder identity and source before promotion.",
+      "verification": "Run the approved verifier on a test artifact and record its verdict. Use a fixture with a mismatched digest to confirm the gate stops promotion."
+    },
+    {
+      "id": "record-required-build-level",
+      "instruction": "Ask the security owner whether the organization requires a SLSA Build level for releases, and record the answer in the release policy.",
+      "verification": "Open the release policy and check that it states the required SLSA Build level or that none is required."
+    },
+    {
+      "id": "inventory-release-components",
+      "instruction": "Generate a software bill of materials (SBOM) for each release artifact in an SPDX or CycloneDX format and version accepted by its consumers. Include shipped direct and transitive components and record any gaps.",
+      "verification": "Validate the SBOM against the selected format version, review component coverage against the resolved dependencies and built artifact, and link the inventory to the release digest."
+    },
+    {
+      "id": "review-before-sharing",
+      "instruction": "Set the audience for provenance and SBOM records. Review the metadata before sharing it outside the project.",
+      "verification": "Confirm that the records reach the approved audience, contain no credentials and disclose only the internal identifiers authorized for that audience."
+    }
+  ]
+}

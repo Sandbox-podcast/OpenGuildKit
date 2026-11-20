@@ -1,0 +1,40 @@
+name: Propose a work pattern
+description: Discuss a work pattern before writing the catalog entry.
+title: "pattern: "
+labels: [pattern]
+body:
+  - type: input
+    id: role
+    attributes:
+      label: Role or team
+      description: Who would use this pattern?
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: Describe a recurring task or decision and what the pattern helps the team achieve.
+    validations:
+      required: true
+  - type: textarea
+    id: applicability
+    attributes:
+      label: Applicability
+      description: Describe the stack or sector that should trigger the pattern, or when a team should choose it by hand.
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Primary source
+      description: Link to the maintainer, publisher, standard body or regulator.
+    validations:
+      required: true
+  - type: textarea
+    id: pack-verification
+    attributes:
+      label: Rule packs and verification
+      description: Name the packs to link and give an example of how a reviewer would verify a rule from one of them.
+    validations:
+      required: true

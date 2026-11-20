@@ -1,0 +1,38 @@
+{
+  "id": "web-search-optimization",
+  "title": "Web search optimization",
+  "version": "1.1.0",
+  "description": "Technical and content checks for pages intended to appear in organic search.",
+  "sources": [
+    {
+      "title": "Google Search Central, SEO Starter Guide",
+      "url": "https://developers.google.com/search/docs/fundamentals/seo-starter-guide"
+    },
+    {
+      "title": "Google Search Central, How to use Search Console",
+      "url": "https://developers.google.com/search/docs/monitor-debug/search-console-start"
+    }
+  ],
+  "rules": [
+    {
+      "id": "plan-for-search-intent",
+      "instruction": "Record in the content plan the search intent that each public page serves.",
+      "verification": "Open the content plan and check that each changed public page has an intent and that no two pages share one."
+    },
+    {
+      "id": "write-descriptive-page-title",
+      "instruction": "Give each public page a descriptive title element and a visible main heading that distinguish it from nearby pages.",
+      "verification": "Check that the rendered HTML of each changed page has a title element and a main heading, and that no other page in the sitemap uses the same title."
+    },
+    {
+      "id": "link-with-descriptive-text",
+      "instruction": "Link to each public page from a relevant page, with anchor text that describes the destination.",
+      "verification": "Find the internal link in the rendered HTML and check that it is a crawlable `<a href>` link whose text describes the destination."
+    },
+    {
+      "id": "verify-search-visibility",
+      "instruction": "For pages meant to appear in search, review status codes, indexability and canonical targets before publishing. Plan redirects when replacing public URLs.",
+      "verification": "Inspect representative URLs and redirect targets. After release, use Search Console or the team's approved indexing report to investigate unexpected exclusions."
+    }
+  ]
+}

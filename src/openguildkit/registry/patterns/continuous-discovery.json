@@ -1,0 +1,19 @@
+{
+  "id": "continuous-discovery",
+  "title": "Continuous product discovery",
+  "description": "Use recurring customer contact and small tests to make product decisions while work is underway.",
+  "sources": [
+    {
+      "title": "Teresa Torres, Product Discovery Basics",
+      "url": "https://www.producttalk.org/product-discovery/"
+    }
+  ],
+  "roles": [
+    "product",
+    "design",
+    "project-management"
+  ],
+  "packs": [
+    "product-discovery"
+  ]
+}

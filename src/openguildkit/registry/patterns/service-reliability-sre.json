@@ -1,0 +1,28 @@
+{
+  "id": "service-reliability-sre",
+  "title": "Service reliability and SRE",
+  "description": "Select when the service owner sets reliability targets, uses an error budget and maintains a telemetry plan.",
+  "sources": [
+    {
+      "title": "Google SRE Workbook, Implementing SLOs",
+      "url": "https://sre.google/workbook/implementing-slos/"
+    }
+  ],
+  "roles": [
+    "devops",
+    "performance",
+    "engineering"
+  ],
+  "packs": [
+    "service-reliability"
+  ],
+  "references": [
+    "site-reliability-engineering",
+    "error-budget",
+    "opentelemetry",
+    "opentelemetry-semantic-conventions",
+    "otlp",
+    "service-level-indicator",
+    "service-level-objective"
+  ]
+}

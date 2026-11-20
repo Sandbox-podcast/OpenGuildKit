@@ -1,0 +1,37 @@
+{
+  "id": "python",
+  "title": "Python",
+  "version": "1.0.0",
+  "description": "Repository conventions for Python code, typing and package metadata.",
+  "sources": [
+    {
+      "title": "PEP 8, Python code style",
+      "url": "https://peps.python.org/pep-0008/"
+    },
+    {
+      "title": "Python typing guide for libraries",
+      "url": "https://typing.python.org/en/latest/guides/libraries.html"
+    },
+    {
+      "title": "PyPA guide to pyproject.toml",
+      "url": "https://packaging.python.org/en/latest/guides/writing-pyproject-toml/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "follow-python-style",
+      "instruction": "Use the repository's formatter, lint rules and module layout. Use PEP 8 where the repository leaves a convention open.",
+      "verification": "Run the configured formatter and linter on the changed code."
+    },
+    {
+      "id": "type-public-interfaces",
+      "instruction": "Annotate new public parameters and return values and use types supported by the project's minimum Python version.",
+      "verification": "Run the configured type checker and tests on the supported Python versions."
+    },
+    {
+      "id": "declare-package-metadata",
+      "instruction": "For packaged code, keep the supported Python range, build configuration and runtime dependencies in the project's packaging metadata.",
+      "verification": "Build and install the package in a clean environment, then smoke-test its public entry point."
+    }
+  ]
+}

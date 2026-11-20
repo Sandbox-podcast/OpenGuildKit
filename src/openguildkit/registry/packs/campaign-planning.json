@@ -1,0 +1,27 @@
+{
+  "id": "campaign-planning",
+  "title": "Campaign planning",
+  "version": "2.0.0",
+  "description": "An audience-led campaign brief and evaluation plan, with channel selection as a dependency.",
+  "sources": [
+    {
+      "title": "UK Government Communication Service, Campaign lifecycle",
+      "url": "https://www.gov.uk/government/publications/government-functional-standard-govs-011-communication/government-functional-standard-govs-011-communications#the-campaign-lifecycle"
+    }
+  ],
+  "depends_on": [
+    "channel-selection"
+  ],
+  "rules": [
+    {
+      "id": "agree-campaign-outcome",
+      "instruction": "Define the audience behavior or decision the campaign should change. Record the current baseline, evidence about that audience and a success measure before approval.",
+      "verification": "Have the campaign owner identify the source for the baseline and explain which measurement would justify continuing the campaign."
+    },
+    {
+      "id": "review-campaign-results",
+      "instruction": "After launch, record spend and observed outcomes against the planned baseline, with any overlaps or audience changes that limit attribution. Ask the campaign owner to decide whether to keep, adjust or stop each action.",
+      "verification": "Reconcile the results record with the agreed data source and check that it holds the owner's decision for each action."
+    }
+  ]
+}

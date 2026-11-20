@@ -1,0 +1,30 @@
+{
+  "id": "playwright-web",
+  "title": "Playwright browser tests",
+  "description": "Review locators, test isolation and retry evidence for a Playwright suite.",
+  "sources": [
+    {
+      "title": "Playwright best practices",
+      "url": "https://playwright.dev/docs/best-practices"
+    }
+  ],
+  "roles": [
+    "qa",
+    "engineering",
+    "design"
+  ],
+  "packs": [
+    "playwright"
+  ],
+  "references": [
+    "playwright"
+  ],
+  "match": {
+    "stack": [
+      [
+        "playwright",
+        "playwright test"
+      ]
+    ]
+  }
+}

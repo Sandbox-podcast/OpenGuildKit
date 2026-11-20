@@ -1,0 +1,403 @@
+{
+  "summary": "Keep the first release to a read-only view of each customer's own support requests. Confirm how requests are linked to accounts and agree on status labels before implementation. Verify customer access, support agent compatibility and recovery states before release. Treat competitive positioning as a separate decision.",
+  "boards": [
+    {
+      "id": "product",
+      "recommendation": "Start with a read-only list of the signed-in user's requests. Agree with the support team on the status labels and who supplies the next step. Count existing contacts about request status before evaluating the release.",
+      "evidence": [
+        {
+          "source": "requester",
+          "ref": "examples/request-status/brief.md",
+          "supports": "brief.md asks for signed-in users to see support request status and the next step."
+        },
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json limits the customer view to current status and next step. Support agents keep their current view."
+        },
+        {
+          "source": "project-file",
+          "ref": ".openguildkit/project.json",
+          "supports": "profile.json requires French and English for user-facing text."
+        }
+      ],
+      "open_questions": [
+        "Which internal states map to each customer-facing status, and who owns the wording?",
+        "Can the support team count status follow-ups for customers eligible for the pilot?"
+      ],
+      "challenge": {
+        "specialists": [
+          {
+            "id": "discovery-lead",
+            "finding": "The brief identifies the customer task. How often customers need it remains unmeasured.",
+            "basis": "observed",
+            "evidence_refs": [
+              1
+            ]
+          },
+          {
+            "id": "product-analyst",
+            "finding": "There is no baseline or eligible population recorded for comparing status contacts before and after release.",
+            "basis": "missing",
+            "evidence_refs": []
+          },
+          {
+            "id": "scope-lead",
+            "finding": "The acceptance context supports showing status and next step in a read-only customer view while retaining the support agent view.",
+            "basis": "observed",
+            "evidence_refs": [
+              2,
+              3
+            ]
+          },
+          {
+            "id": "rollout-lead",
+            "finding": "A pilot with one support queue could make feedback and bilingual wording changes easier to manage. Capacity and eligibility need confirmation.",
+            "basis": "assumption",
+            "evidence_refs": []
+          }
+        ],
+        "verdict": "proceed",
+        "confidence": "medium",
+        "alternative": "If most status contacts come from unclear next steps rather than portal access, improve the existing contact or email wording for a pilot group first.",
+        "failure_mode": "A stale next step can prompt more follow-ups even when the displayed request status is correct.",
+        "verification": "Have support confirm the customer-facing status mapping and next-step owner. Record who is eligible for the pilot and how status follow-ups will be counted.",
+        "blockers": []
+      }
+    },
+    {
+      "id": "engineering",
+      "recommendation": "Extend the existing support request service if it owns the customer read path. Use the verified link from accounts to their requests, apply the access rule on the server and map internal states to customer-facing labels in one place.",
+      "evidence": [
+        {
+          "source": "project-file",
+          "ref": ".openguildkit/project.json",
+          "supports": "profile.json lists Python, FastAPI, PostgreSQL, TypeScript and React."
+        },
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json limits customer visibility to requests they opened and preserves the support agent view."
+        },
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json calls for both the current status and the next step."
+        }
+      ],
+      "open_questions": [
+        "Which module owns the existing support request reads?",
+        "How do older support requests identify the account that opened them?"
+      ],
+      "challenge": {
+        "specialists": [
+          {
+            "id": "architecture",
+            "finding": "The profile lists FastAPI and PostgreSQL. The example provides no source code identifying the module that owns support request reads.",
+            "basis": "observed",
+            "evidence_refs": [
+              1
+            ]
+          },
+          {
+            "id": "contracts",
+            "finding": "The customer response must preserve the existing support agent view. The response contract for the support console still needs review.",
+            "basis": "observed",
+            "evidence_refs": [
+              2
+            ]
+          },
+          {
+            "id": "data-consistency",
+            "finding": "No schema or fixture establishes how a signed-in account links to requests opened before the portal change.",
+            "basis": "missing",
+            "evidence_refs": []
+          },
+          {
+            "id": "maintainability",
+            "finding": "A shared server-side mapping could keep customer-facing wording independent of internal state values. The team still needs to identify the owner of that logic.",
+            "basis": "assumption",
+            "evidence_refs": [
+              3
+            ]
+          },
+          {
+            "id": "frontend-rendering",
+            "finding": "The answers do not say what the portal shows while requests load or when the request service fails.",
+            "basis": "missing",
+            "evidence_refs": []
+          },
+          {
+            "id": "browser-compatibility",
+            "finding": "The React front end is listed but the profile names no supported browsers or devices for the portal.",
+            "basis": "assumption",
+            "evidence_refs": [
+              1
+            ]
+          }
+        ],
+        "verdict": "revise",
+        "confidence": "medium",
+        "alternative": "Prefer a narrowly scoped extension to the existing request service. Use a separate customer response if the existing support console contract includes fields reserved for agents.",
+        "failure_mode": "An endpoint built around an assumed account mapping could omit valid requests opened before the change.",
+        "verification": "Inspect the request service, support console contract and account associations. Use synthetic examples of older and new requests before deciding whether to change the route or migrate records.",
+        "blockers": []
+      }
+    },
+    {
+      "id": "qa",
+      "recommendation": "Build acceptance checks for request ownership and regression checks for the support agent view. Include older requests and unavailable or unmapped statuses.",
+      "evidence": [
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json requires customers to see only requests they opened."
+        },
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json says support agents retain their current view while customers see status and next step."
+        },
+        {
+          "source": "project-file",
+          "ref": ".openguildkit/project.json",
+          "supports": "profile.json lists the project's Python and front-end check commands."
+        }
+      ],
+      "open_questions": [
+        "Which synthetic fixture can represent a request opened before the change?",
+        "Which browser and supported assistive technology configuration cover the portal's main journey?"
+      ],
+      "challenge": {
+        "specialists": [
+          {
+            "id": "test-design",
+            "finding": "The scope gives expected results for an owned request, a request opened by a second account and a customer with no requests.",
+            "basis": "observed",
+            "evidence_refs": [
+              1
+            ]
+          },
+          {
+            "id": "compatibility",
+            "finding": "The scope preserves the support agent view. Capture its current behavior in a regression fixture before changing shared request logic.",
+            "basis": "observed",
+            "evidence_refs": [
+              2
+            ]
+          },
+          {
+            "id": "exploratory-testing",
+            "finding": "An unavailable status could look like a resolved request if the UI uses the same fallback for both.",
+            "basis": "assumption",
+            "evidence_refs": [
+              2
+            ]
+          },
+          {
+            "id": "release-acceptance",
+            "finding": "The profile names test commands, but there are no results tied to a candidate revision in this example.",
+            "basis": "observed",
+            "evidence_refs": [
+              3
+            ]
+          }
+        ],
+        "verdict": "proceed",
+        "confidence": "medium",
+        "alternative": "Test status and next step through the browser. Use service tests with synthetic customers and support agents for access and compatibility.",
+        "failure_mode": "Tests with only new requests opened by the signed-in user can miss regressions on older records and the support agent view.",
+        "verification": "Map the scope to observable results. Run the agreed checks for two customers, one support agent and examples with older records, unmapped statuses and unavailable data.",
+        "blockers": []
+      }
+    },
+    {
+      "id": "design",
+      "recommendation": "Start with a status label and a plain-language next step using existing portal components. Add a sequence only if support confirms an ordered process and user testing shows a benefit.",
+      "evidence": [
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json says the portal should show the current status and next step."
+        },
+        {
+          "source": "project-file",
+          "ref": ".openguildkit/project.json",
+          "supports": "profile.json requires user-facing text in French and English."
+        },
+        {
+          "source": "project-file",
+          "ref": ".openguildkit/project.json",
+          "supports": "profile.json identifies React. It does not name a design system or supply existing portal components."
+        }
+      ],
+      "open_questions": [
+        "Which portal component already communicates status or alerts?",
+        "How does the support team describe a reopened request or one waiting for customer input?"
+      ],
+      "challenge": {
+        "specialists": [
+          {
+            "id": "interaction-designer",
+            "finding": "The requirement is present state and next step. It leaves the history, full sequence and visual representation open.",
+            "basis": "observed",
+            "evidence_refs": [
+              1
+            ]
+          },
+          {
+            "id": "systems-designer",
+            "finding": "The profile names the front-end framework but provides no evidence for which components, tokens or status patterns the portal uses.",
+            "basis": "observed",
+            "evidence_refs": [
+              3
+            ]
+          },
+          {
+            "id": "accessibility-specialist",
+            "finding": "The bilingual requirement adds content that must fit at supported sizes. Keyboard focus, status announcements and reading order need checks on a rendered prototype.",
+            "basis": "observed",
+            "evidence_refs": [
+              2
+            ]
+          },
+          {
+            "id": "usability-researcher",
+            "finding": "There are no task observations showing that a full timeline is clearer than a status label for this audience.",
+            "basis": "missing",
+            "evidence_refs": []
+          }
+        ],
+        "verdict": "revise",
+        "confidence": "medium",
+        "alternative": "Compare a status label with a sequence indicator on the same task. Use the label if the sequence misrepresents requests that reopen or skip a state.",
+        "failure_mode": "A progress indicator can imply forward movement when a request actually waits for a response or reopens.",
+        "verification": "Find the existing portal pattern and test both representations with sample status changes. Check French and English wording, keyboard operation, reading order and the unavailable state.",
+        "blockers": []
+      }
+    },
+    {
+      "id": "marketing",
+      "recommendation": "Describe the planned capability in plain terms. Treat competitive positioning as a follow-up that needs dated evidence for a comparable audience and support workflow.",
+      "evidence": [
+        {
+          "source": "project-file",
+          "ref": ".openguildkit/project.json",
+          "supports": "profile.json and answers.json restrict research for this task to local material."
+        },
+        {
+          "source": "requester",
+          "ref": "examples/request-status/brief.md",
+          "supports": "brief.md identifies the intended feature as request status and next steps for signed-in users."
+        }
+      ],
+      "open_questions": [
+        "Is there approved customer research or support data about status follow-ups?",
+        "Would the project owner authorize a public market review for a separate task?"
+      ],
+      "challenge": {
+        "specialists": [
+          {
+            "id": "market-researcher",
+            "finding": "The provided material contains no dated evidence about how other portals show request status.",
+            "basis": "missing",
+            "evidence_refs": []
+          },
+          {
+            "id": "positioning-lead",
+            "finding": "The brief supports describing the planned request tracking capability. Availability and competitive differentiation remain unverified.",
+            "basis": "observed",
+            "evidence_refs": [
+              2
+            ]
+          },
+          {
+            "id": "channel-planner",
+            "finding": "The portal is the proposed product surface. No distribution plan or eligible launch audience is supplied.",
+            "basis": "missing",
+            "evidence_refs": []
+          },
+          {
+            "id": "measurement-analyst",
+            "finding": "No traffic, activation or contact baseline is supplied for estimating the effect of launch communication.",
+            "basis": "missing",
+            "evidence_refs": []
+          }
+        ],
+        "verdict": "insufficient-evidence",
+        "confidence": "low",
+        "alternative": "Publish an informational notice to eligible customers after the product owner confirms availability. Revisit positioning once comparable evidence exists.",
+        "failure_mode": "Describing the feature as unique could mislead customers when the team has reviewed only its own brief.",
+        "verification": "Confirm availability with the product owner. If a comparison is needed, request separate approval for public research and collect dated primary evidence for comparable support request workflows.",
+        "blockers": []
+      }
+    },
+    {
+      "id": "security",
+      "recommendation": "Enforce customer request boundaries on the server. Have the data owner confirm what the customer view and logs may contain. Verify the boundaries on synthetic requests before release.",
+      "evidence": [
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json labels the task as involving personal data and limits customer visibility to requests they opened."
+        },
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json separates the customer view from the existing support agent view and calls for synthetic accounts and requests in tests."
+        },
+        {
+          "source": "project-file",
+          "ref": "AGENTS.md",
+          "supports": "The active secure-sdlc pack calls for access checks at service boundaries and approved checks for permitted access and isolation."
+        }
+      ],
+      "open_questions": [
+        "Who owns the access matrix for the portal and confirms which fields may appear?",
+        "What event, fields and retention period does the approved logging policy permit?"
+      ],
+      "challenge": {
+        "specialists": [
+          {
+            "id": "application-security",
+            "finding": "The stated scope requires an ownership check on each affected customer request read. The example contains no test results for that behavior.",
+            "basis": "observed",
+            "evidence_refs": [
+              1,
+              3
+            ]
+          },
+          {
+            "id": "privacy-engineering",
+            "finding": "The task involves personal data and identifies distinct role boundaries. The approved field and logging inventory is missing.",
+            "basis": "observed",
+            "evidence_refs": [
+              1,
+              2
+            ]
+          },
+          {
+            "id": "release-integrity",
+            "finding": "There is no candidate revision, changed dependency inventory or release evidence to review yet.",
+            "basis": "missing",
+            "evidence_refs": []
+          },
+          {
+            "id": "control-ownership",
+            "finding": "The current access-control rule indicates what reviewers need to verify, but does not identify the owner who approves this portal scope.",
+            "basis": "observed",
+            "evidence_refs": [
+              3
+            ]
+          }
+        ],
+        "verdict": "revise",
+        "confidence": "medium",
+        "alternative": "Reuse the portal's verified customer read boundary and return an explicit public field set. Use a separate projection if the existing contract carries more data than the data owner approves.",
+        "failure_mode": "Even with correct ownership checks, a shared response or log record can expose internal support notes beyond the intended status and next step.",
+        "verification": "Get the approved access and field matrix. Run authorized checks with synthetic accounts and inspect controlled test logs before the change exposes real records.",
+        "blockers": []
+      }
+    }
+  ]
+}

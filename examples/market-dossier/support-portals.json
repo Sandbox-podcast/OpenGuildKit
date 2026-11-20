@@ -1,0 +1,26 @@
+{
+  "id": "support-portals",
+  "title": "Customer support portals",
+  "market": "B2B software vendors in France",
+  "audience": "Customers of a support desk who follow their own requests",
+  "feature": "Request status and next step in a customer portal",
+  "competitors": [
+    {"id": "vendor-a", "name": "Fictional Vendor A", "kind": "direct", "segment": "Mid-market help desks"},
+    {"id": "email-updates", "name": "Status updates by email", "kind": "substitute"}
+  ],
+  "observations": [
+    {"id": "a-status-page", "competitor": "vendor-a", "claim": "Shows a status and an expected response date for each request.", "feature": "Request status", "source": {"ref": "Sales call notes, synthetic example", "date": "2026-11-02"}},
+    {"id": "email-only", "competitor": "email-updates", "claim": "Customers receive one email per status change and no list of open requests.", "source": {"ref": "Support team interview, synthetic example", "date": "2026-10-28"}}
+  ],
+  "unknowns": ["Prices of direct competitors for the portal option."],
+  "watch": {
+    "every_days": 30,
+    "paused": false,
+    "sources": [
+      {"competitor": "vendor-a", "url": "https://example.com/vendor-a/release-notes", "kind": "release notes"}
+    ],
+    "changes": [
+      {"competitor": "vendor-a", "what": "Added request priority labels to the customer portal.", "date": "2026-11-10", "source": "https://example.com/vendor-a/release-notes", "verified_by": "Camille Martin"}
+    ]
+  }
+}

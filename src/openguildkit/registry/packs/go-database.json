@@ -1,0 +1,37 @@
+{
+  "id": "go-database",
+  "title": "Go database access",
+  "version": "1.0.0",
+  "description": "Connection lifecycle, request cancellation and transaction checks for Go services.",
+  "sources": [
+    {
+      "title": "Go database transactions",
+      "url": "https://go.dev/doc/database/execute-transactions"
+    },
+    {
+      "title": "Go database cancellation",
+      "url": "https://go.dev/doc/database/cancel-operations"
+    },
+    {
+      "title": "Go database queries",
+      "url": "https://go.dev/doc/database/querying"
+    }
+  ],
+  "rules": [
+    {
+      "id": "propagate-query-context",
+      "instruction": "Pass the request context into blocking database operations. Set deadlines at the boundary that owns the time budget.",
+      "verification": "Cancel a request in an integration test and check that the database operation and handler return within the configured deadline."
+    },
+    {
+      "id": "use-one-transaction-handle",
+      "instruction": "Use the same transaction handle for dependent database statements. Handle commit errors and make rollback available on every failure path.",
+      "verification": "Test a successful write and a failure after the first statement, then read the committed state through a fresh query."
+    },
+    {
+      "id": "check-resource-cleanup",
+      "instruction": "Arrange cleanup of result rows on every return path of a streaming query. Check iteration errors before returning a complete result.",
+      "verification": "Repeatedly run the changed query against a test database, including an interrupted read, and confirm the connection pool remains usable."
+    }
+  ]
+}

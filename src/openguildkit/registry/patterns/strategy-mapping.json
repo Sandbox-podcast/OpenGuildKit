@@ -1,0 +1,19 @@
+{
+  "id": "strategy-mapping",
+  "title": "Strategy mapping",
+  "description": "Use a Kaplan and Norton strategy map to show the assumptions that connect team capabilities and process changes to customer and financial outcomes.",
+  "sources": [
+    {
+      "title": "HBS Working Knowledge, Mapping Your Corporate Strategy: Robert S. Kaplan on Kaplan and Norton's Strategy Maps",
+      "url": "https://www.library.hbs.edu/working-knowledge/mapping-your-corporate-strategy"
+    }
+  ],
+  "roles": [
+    "leadership",
+    "finance",
+    "operations"
+  ],
+  "packs": [
+    "strategy-map"
+  ]
+}

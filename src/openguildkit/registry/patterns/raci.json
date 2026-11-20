@@ -1,0 +1,19 @@
+{
+  "id": "raci",
+  "title": "RACI responsibility matrix",
+  "description": "Clarify who does work, who owns the decisions and who should be consulted or informed at critical handoffs.",
+  "sources": [
+    {
+      "title": "UK Government Security, Agreeing roles and responsibilities with a RACI matrix",
+      "url": "https://www.security.gov.uk/policy-and-guidance/secure-by-design/activities/agreeing-roles-and-responsibilities/"
+    }
+  ],
+  "roles": [
+    "project-management",
+    "operations",
+    "leadership"
+  ],
+  "packs": [
+    "responsibility-matrix"
+  ]
+}

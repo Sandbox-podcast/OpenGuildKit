@@ -1,0 +1,24 @@
+{
+  "id": "campaign-measurement",
+  "title": "UTM campaign measurement",
+  "version": "2.0.0",
+  "description": "Consistent UTM tags on inbound links, checked against the analytics report before launch.",
+  "sources": [
+    {
+      "title": "Google Analytics Help, Collect campaign data with custom URLs",
+      "url": "https://support.google.com/analytics/answer/10917952"
+    }
+  ],
+  "rules": [
+    {
+      "id": "tag-inbound-links",
+      "instruction": "Ask the analytics owner for the agreed source, medium and campaign values, and use them in the same case on every link tagged with UTM parameters.",
+      "verification": "Open a sample link for each channel, follow redirects and check that a test visit appears under the expected campaign dimensions."
+    },
+    {
+      "id": "keep-personal-data-out-of-tags",
+      "instruction": "Keep personal data, such as email addresses, names or customer identifiers, out of UTM parameter values.",
+      "verification": "Review the tagged links in the campaign plan and confirm that no parameter value contains personal data."
+    }
+  ]
+}

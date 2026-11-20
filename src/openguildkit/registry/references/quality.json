@@ -1,0 +1,466 @@
+{
+  "id": "quality",
+  "title": "Tests et qualité",
+  "references": [
+    {
+      "id": "test-driven-development",
+      "title": "Test-Driven Development",
+      "category": "Stratégies de test et QA",
+      "kind": "méthode",
+      "summary": "Fait progresser le code par petits cycles où un test exprime le résultat attendu avant l'implémentation puis la remise en ordre du code.",
+      "applies_when": "Pour des comportements qui peuvent être vérifiés rapidement ; choisir une autre boucle de retour lorsque le contexte le nécessite.",
+      "sources": [
+        {
+          "url": "https://newsletter.kentbeck.com/p/canon-tdd",
+          "title": "Kent Beck — Canon TDD"
+        }
+      ]
+    },
+    {
+      "id": "behaviour-driven-development",
+      "title": "Behaviour-Driven Development",
+      "category": "Stratégies de test et QA",
+      "kind": "méthode",
+      "summary": "Fait préciser les comportements attendus avec des exemples compréhensibles par les personnes du métier et du développement.",
+      "applies_when": "Pour aligner les attentes avant et pendant l'implémentation ; la démarche ne se réduit pas à rédiger des tests Gherkin.",
+      "sources": [
+        {
+          "url": "https://dannorth.net/blog/introducing-bdd/",
+          "title": "Introducing BDD - Dan North"
+        }
+      ]
+    },
+    {
+      "id": "gherkin",
+      "title": "Gherkin",
+      "category": "Stratégies de test et QA",
+      "kind": "format",
+      "summary": "Structure des scénarios de comportement avec des mots-clés tels que Given, When et Then, disponibles dans plusieurs langues.",
+      "applies_when": "Pour des spécifications par l'exemple ; les rendre exécutables demande des définitions d'étapes et un outil compatible.",
+      "sources": [
+        {
+          "url": "https://cucumber.io/docs/gherkin/reference/",
+          "title": "Cucumber — Gherkin Reference"
+        }
+      ]
+    },
+    {
+      "id": "test-pyramid",
+      "title": "Test Automation Pyramid",
+      "category": "Stratégies de test et QA",
+      "kind": "méthode",
+      "summary": "Organise une stratégie avec de nombreux tests rapides et ciblés, complétés par moins de tests traversant tout le système.",
+      "applies_when": "Pour équilibrer vitesse, couverture utile et coût de maintenance ; adapter la forme au système sans imposer de pourcentages universels.",
+      "sources": [
+        {
+          "url": "https://www.mountaingoatsoftware.com/agile/the-forgotten-layer-of-the-test-automation-pyramid",
+          "title": "The Forgotten Layer of the Test Automation Pyramid - Mike Cohn"
+        }
+      ]
+    },
+    {
+      "id": "unit-testing",
+      "title": "Unit Testing",
+      "category": "Stratégies de test et QA",
+      "kind": "pratique",
+      "summary": "Vérifie le comportement d'une petite partie du code à partir d'entrées et de résultats attendus.",
+      "applies_when": "Pour les règles et composants testables de manière ciblée ; compléter avec des tests des interactions entre composants.",
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/unittest.html",
+          "title": "Python documentation — unittest, unit testing framework"
+        }
+      ]
+    },
+    {
+      "id": "integration-testing",
+      "title": "Integration Testing",
+      "category": "Stratégies de test et QA",
+      "kind": "pratique",
+      "summary": "Vérifie que plusieurs composants fonctionnent ensemble, y compris avec des dépendances comme une base de données.",
+      "applies_when": "Pour les frontières entre composants et infrastructures ; choisir les dépendances réelles ou simulées selon l'objectif du test.",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests",
+          "title": "Microsoft Learn — Integration tests in ASP.NET Core"
+        }
+      ]
+    },
+    {
+      "id": "end-to-end-testing",
+      "title": "End-to-End Testing",
+      "category": "Stratégies de test et QA",
+      "kind": "pratique",
+      "summary": "Vérifie un parcours complet à travers les couches de l'application et ses intégrations.",
+      "applies_when": "Pour les parcours importants qui nécessitent de vérifier l'ensemble du système ; maîtriser le coût et la fragilité de ces scénarios.",
+      "sources": [
+        {
+          "url": "https://docs.cypress.io/app/core-concepts/testing-types",
+          "title": "Cypress Documentation — Testing Types"
+        }
+      ]
+    },
+    {
+      "id": "contract-testing",
+      "title": "Contract Testing",
+      "category": "Stratégies de test et QA",
+      "kind": "pratique",
+      "summary": "Vérifie que les messages produits et attendus par deux applications respectent un contrat partagé.",
+      "applies_when": "Pour les intégrations entre consommateurs et fournisseurs d'API ou de messages ; complète les tests métier et les autres tests d'intégration.",
+      "sources": [
+        {
+          "url": "https://docs.pact.io/",
+          "title": "Pact Docs — Introduction"
+        }
+      ]
+    },
+    {
+      "id": "property-based-testing",
+      "title": "Property-Based Testing",
+      "category": "Stratégies de test et QA",
+      "kind": "pratique",
+      "summary": "Génère de nombreux cas pour rechercher des violations de propriétés attendues du programme.",
+      "applies_when": "Lorsque des propriétés générales peuvent être formulées, par exemple la réversibilité d'un encodage ; complète les exemples choisis à la main.",
+      "sources": [
+        {
+          "url": "https://hypothesis.readthedocs.io/en/latest/",
+          "title": "Hypothesis documentation"
+        }
+      ]
+    },
+    {
+      "id": "mutation-testing",
+      "title": "Mutation Testing",
+      "category": "Stratégies de test et QA",
+      "kind": "pratique",
+      "summary": "Introduit de petites modifications artificielles du code pour voir si les tests existants les détectent.",
+      "applies_when": "Pour évaluer la capacité de détection d'une suite de tests sur un périmètre ciblé ; prévoir le coût de calcul et l'analyse des résultats.",
+      "sources": [
+        {
+          "url": "https://stryker-mutator.io/docs/",
+          "title": "Stryker Mutator — What is mutation testing?"
+        }
+      ]
+    },
+    {
+      "id": "exploratory-testing",
+      "title": "Exploratory Testing",
+      "category": "Stratégies de test et QA",
+      "kind": "pratique",
+      "summary": "Fait évoluer les essais à partir de ce que la personne découvre en utilisant et en étudiant le logiciel.",
+      "applies_when": "Pour chercher des problèmes difficiles à anticiper dans des scénarios fixes ; conserver les observations et les pistes explorées.",
+      "sources": [
+        {
+          "url": "https://www.satisfice.com/exploratory-testing",
+          "title": "Satisfice — Exploratory Testing"
+        }
+      ]
+    },
+    {
+      "id": "regression-testing",
+      "title": "Regression Testing",
+      "category": "Stratégies de test et QA",
+      "kind": "pratique",
+      "summary": "Recherche les effets indésirables qu'une modification peut introduire dans des comportements déjà présents.",
+      "applies_when": "Après des changements de code, de configuration ou d'environnement ; choisir les vérifications selon les impacts et les risques.",
+      "sources": [
+        {
+          "url": "https://istqb.org/wp-content/uploads/2024/11/ISTQB_CTFL_Syllabus_v4.0.1.pdf",
+          "title": "ISTQB Certified Tester Foundation Level Syllabus v4.0.1"
+        }
+      ]
+    },
+    {
+      "id": "load-testing",
+      "title": "Load Testing",
+      "category": "Stratégies de test et QA",
+      "kind": "pratique",
+      "summary": "Soumet un système à une activité simulée pour observer sa performance et son comportement sous charge.",
+      "applies_when": "Pour vérifier des objectifs de capacité avec des scénarios représentatifs ; définir explicitement le volume, la durée et les critères attendus.",
+      "sources": [
+        {
+          "url": "https://grafana.com/docs/k6/latest/testing-guides/load-testing-websites/",
+          "title": "Grafana k6 documentation — Load testing websites"
+        }
+      ]
+    },
+    {
+      "id": "core-web-vitals",
+      "title": "Core Web Vitals",
+      "category": "Performance web",
+      "kind": "indicateur",
+      "summary": "Mesures de chargement, réactivité et stabilité visuelle de l'expérience web.",
+      "applies_when": "À mesurer dans des conditions et sur des populations définies.",
+      "sources": [
+        {
+          "url": "https://web.dev/articles/vitals",
+          "title": "web.dev — Web Vitals"
+        }
+      ]
+    },
+    {
+      "id": "fuzzing",
+      "title": "Fuzzing",
+      "category": "Stratégies de test et QA",
+      "kind": "pratique",
+      "summary": "Génère et fait varier des entrées pour rechercher des erreurs ou des comportements inattendus.",
+      "applies_when": "Pour les composants qui traitent des entrées nombreuses ou complexes, par exemple des parseurs et des protocoles.",
+      "sources": [
+        {
+          "url": "https://go.dev/doc/tutorial/fuzz",
+          "title": "Go documentation — Tutorial: Getting started with fuzzing"
+        }
+      ]
+    },
+    {
+      "id": "playwright",
+      "title": "Playwright",
+      "category": "Outils de test",
+      "kind": "outil",
+      "summary": "Automatise des parcours et des vérifications d'applications Web dans plusieurs moteurs de navigateur.",
+      "applies_when": "Pour des tests Web, notamment de bout en bout ; sélectionner les navigateurs et scénarios correspondant aux usages visés.",
+      "pattern": "playwright-web",
+      "packs": [
+        "playwright"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/intro",
+          "title": "Playwright documentation — Installation"
+        }
+      ]
+    },
+    {
+      "id": "cypress",
+      "title": "Cypress",
+      "category": "Outils de test",
+      "kind": "outil",
+      "summary": "Fournit des outils pour écrire et exécuter des tests d'applications Web, notamment de bout en bout et de composants.",
+      "applies_when": "Pour les équipes qui choisissent son modèle d'exécution et ses intégrations ; alternative ou complément ciblé aux autres outils Web.",
+      "sources": [
+        {
+          "url": "https://docs.cypress.io/app/get-started/why-cypress",
+          "title": "Cypress Documentation — Why Cypress?"
+        }
+      ]
+    },
+    {
+      "id": "selenium",
+      "title": "Selenium",
+      "category": "Outils de test",
+      "kind": "outil",
+      "summary": "Automatise des interactions avec les navigateurs, notamment au moyen de WebDriver.",
+      "applies_when": "Pour les suites de test Web qui ont besoin de son écosystème, de ses langages ou de ses possibilités d'exécution distante.",
+      "sources": [
+        {
+          "url": "https://www.selenium.dev/documentation/",
+          "title": "The Selenium Browser Automation Project"
+        }
+      ]
+    },
+    {
+      "id": "jest",
+      "title": "Jest",
+      "category": "Outils de test",
+      "kind": "outil",
+      "summary": "Fournit un cadre pour exécuter des tests JavaScript avec des assertions, des simulations et des rapports.",
+      "applies_when": "Pour les projets JavaScript ou TypeScript qui choisissent Jest et configurent les transformations nécessaires à leur code.",
+      "sources": [
+        {
+          "url": "https://jestjs.io/",
+          "title": "Jest"
+        }
+      ]
+    },
+    {
+      "id": "vitest",
+      "title": "Vitest",
+      "category": "Outils de test",
+      "kind": "outil",
+      "summary": "Fournit un cadre de test construit sur Vite pour les projets JavaScript et TypeScript.",
+      "applies_when": "Pour les projets qui choisissent cet écosystème ; examiner l'intégration avec le système de construction et les tests déjà présents.",
+      "sources": [
+        {
+          "url": "https://vitest.dev/guide/",
+          "title": "Vitest — Getting Started"
+        }
+      ]
+    },
+    {
+      "id": "pytest",
+      "title": "pytest",
+      "category": "Outils de test",
+      "kind": "outil",
+      "summary": "Permet d'écrire et d'exécuter des tests Python avec des assertions, des jeux de données et des ressources de test réutilisables.",
+      "applies_when": "Pour les projets Python qui retiennent pytest, des tests ciblés aux scénarios fonctionnels plus complexes.",
+      "pattern": "python-pytest",
+      "packs": [
+        "pytest"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.pytest.org/en/stable/",
+          "title": "pytest documentation"
+        }
+      ]
+    },
+    {
+      "id": "junit",
+      "title": "JUnit",
+      "category": "Outils de test",
+      "kind": "outil",
+      "summary": "Fournit une plateforme et des composants pour écrire et exécuter des tests dans l'écosystème JVM.",
+      "applies_when": "Pour les projets Java et autres langages JVM compatibles ; choisir les composants et versions adaptés à l'environnement.",
+      "sources": [
+        {
+          "url": "https://docs.junit.org/current/user-guide/",
+          "title": "JUnit User Guide — Overview"
+        }
+      ]
+    },
+    {
+      "id": "nunit",
+      "title": "NUnit",
+      "category": "Outils de test",
+      "kind": "outil",
+      "summary": "Fournit un cadre de tests automatisés pour les langages de la plateforme .NET.",
+      "applies_when": "Pour les équipes .NET qui retiennent NUnit ; alternative à d'autres cadres de test de cet écosystème.",
+      "sources": [
+        {
+          "url": "https://docs.nunit.org/articles/nunit/intro.html",
+          "title": "NUnit Documentation"
+        }
+      ]
+    },
+    {
+      "id": "testcontainers",
+      "title": "Testcontainers",
+      "category": "Outils de test",
+      "kind": "outil",
+      "summary": "Démarre des dépendances conteneurisées temporaires pour les besoins des tests.",
+      "applies_when": "Pour tester des intégrations avec des services comme des bases de données ; nécessite un environnement de conteneurs compatible.",
+      "sources": [
+        {
+          "url": "https://testcontainers.com/",
+          "title": "Testcontainers"
+        }
+      ]
+    },
+    {
+      "id": "pact",
+      "title": "Pact",
+      "category": "Outils de test",
+      "kind": "outil",
+      "summary": "Met en œuvre des tests de contrat entre les consommateurs et les fournisseurs d'API ou de messages.",
+      "applies_when": "Pour vérifier des interactions compatibles avec les implémentations de Pact ; coordonner les contrats entre les équipes concernées.",
+      "sources": [
+        {
+          "url": "https://docs.pact.io/",
+          "title": "Pact Docs — Introduction"
+        }
+      ]
+    },
+    {
+      "id": "hypothesis",
+      "title": "Hypothesis",
+      "category": "Outils de test",
+      "kind": "outil",
+      "summary": "Génère des données de test Python pour vérifier des propriétés et trouver des cas qui les contredisent.",
+      "applies_when": "Pour compléter les exemples de tests Python par des familles d'entrées et des propriétés explicites.",
+      "sources": [
+        {
+          "url": "https://hypothesis.readthedocs.io/en/latest/",
+          "title": "Hypothesis documentation"
+        }
+      ]
+    },
+    {
+      "id": "grafana-k6",
+      "title": "Grafana k6",
+      "category": "Outils de test",
+      "kind": "outil",
+      "summary": "Exécute des scénarios de charge et de performance et mesure les comportements obtenus.",
+      "applies_when": "Pour les API, applications et infrastructures à évaluer sous charge ; définir des profils réalistes et des seuils propres au service.",
+      "sources": [
+        {
+          "url": "https://grafana.com/docs/k6/latest/",
+          "title": "Grafana k6 documentation"
+        }
+      ]
+    },
+    {
+      "id": "iso-iec-ieee-12207",
+      "title": "ISO/IEC/IEEE 12207:2026",
+      "category": "Qualité et cycle de vie",
+      "kind": "norme",
+      "summary": "Décrit les processus du cycle de vie d'un logiciel, de son acquisition ou développement à son exploitation et son retrait.",
+      "applies_when": "Pour répartir les activités et responsabilités sur tout le cycle de vie, y compris avec une méthode agile.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/90219.html",
+          "title": "ISO/IEC/IEEE 12207:2026 - Systems and software engineering - Software life cycle processes"
+        }
+      ]
+    },
+    {
+      "id": "iso-iec-ieee-29148",
+      "title": "ISO/IEC/IEEE 29148:2018",
+      "category": "Qualité et cycle de vie",
+      "kind": "norme",
+      "summary": "Cadre l'élaboration, l'expression et la gestion des exigences d'un système ou d'un logiciel.",
+      "applies_when": "Pour transformer des besoins en exigences structurées et traçables ; sélectionner explicitement l'édition applicable au projet.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/72089.html",
+          "title": "ISO/IEC/IEEE 29148:2018 - Systems and software engineering - Life cycle processes - Requirements engineering"
+        }
+      ]
+    },
+    {
+      "id": "iso-iec-ieee-42010",
+      "title": "ISO/IEC/IEEE 42010:2022",
+      "category": "Qualité et cycle de vie",
+      "kind": "norme",
+      "summary": "Structure la description d'une architecture selon les préoccupations de ses parties prenantes.",
+      "applies_when": "Quand plusieurs métiers doivent comprendre et examiner l'architecture ; la norme cadre sa description, sans imposer une stack.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/74393.html",
+          "title": "ISO/IEC/IEEE 42010:2022 - Software, systems and enterprise - Architecture description"
+        }
+      ]
+    },
+    {
+      "id": "iso-iec-25012",
+      "title": "ISO/IEC 25012:2008",
+      "category": "Qualité et cycle de vie",
+      "kind": "norme",
+      "summary": "Fournit un modèle pour définir et évaluer la qualité de données conservées dans un système informatique.",
+      "applies_when": "Quand les données doivent satisfaire des critères explicites de qualité, notamment lors de leur production, intégration ou évaluation.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/35736.html",
+          "title": "ISO/IEC 25012:2008 - Software engineering - Software product Quality Requirements and Evaluation (SQuaRE) - Data quality model"
+        }
+      ]
+    },
+    {
+      "id": "iso-iec-ieee-29119",
+      "title": "ISO/IEC/IEEE 29119 - série sur les tests logiciels",
+      "category": "Qualité et cycle de vie",
+      "kind": "norme",
+      "summary": "Organise les concepts, processus, documents et techniques des tests logiciels dans une série de normes.",
+      "applies_when": "Pour formaliser une stratégie de test et ses livrables ; choisir les parties et éditions utiles, car la série n'a pas un millésime unique.",
+      "sources": [
+        {
+          "url": "https://committee.iso.org/sites/jtc1sc7/home/projects/flagship-standards/isoiecieee-29119-series.html",
+          "title": "ISO/IEC JTC 1/SC 7 - ISO/IEC/IEEE 29119 series"
+        },
+        {
+          "url": "https://www.iso.org/standard/79428.html",
+          "title": "ISO/IEC/IEEE 29119-2:2021 - Software and systems engineering - Software testing - Part 2: Test processes"
+        }
+      ]
+    }
+  ]
+}

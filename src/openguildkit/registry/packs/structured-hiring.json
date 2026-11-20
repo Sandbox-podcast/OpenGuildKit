@@ -1,0 +1,33 @@
+{
+  "id": "structured-hiring",
+  "title": "Structured hiring interviews",
+  "version": "1.1.0",
+  "description": "Job-relevant interview materials and consistent human review.",
+  "sources": [
+    {
+      "title": "U.S. Office of Personnel Management, Structured Interviews",
+      "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/other-assessment-methods/structured-interviews/"
+    },
+    {
+      "title": "U.S. Office of Personnel Management, Structured Interview Guide",
+      "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/structured-interviews/guide.pdf"
+    }
+  ],
+  "rules": [
+    {
+      "id": "prepare-role-based-interview",
+      "instruction": "Use the role's responsibilities to define assessed competencies, common questions and examples of responses at each score. Have the hiring owner approve the guide before interviews begin.",
+      "verification": "Pilot the questions with sample answers to check that interviewers can apply the same scoring criteria and explain any disagreement."
+    },
+    {
+      "id": "record-interview-evidence",
+      "instruction": "Ask the hiring owner to have each interviewer record job-relevant examples and an independent score in the approved system before the panel discussion.",
+      "verification": "Sample a completed scorecard with the hiring owner and confirm that each score traces to job-related evidence recorded before the discussion."
+    },
+    {
+      "id": "leave-hiring-decision-to-panel",
+      "instruction": "Leave the hiring decision to the designated reviewers: do not score, rank or recommend candidates.",
+      "verification": "Check that the agent's outputs for the task contain no candidate score, ranking or hiring recommendation."
+    }
+  ]
+}

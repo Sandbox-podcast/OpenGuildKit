@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "id": "export-link-expiry",
+      "owner": "@platform",
+      "rationale": "Reduce the time a shared download link remains usable.",
+      "scope": ["Projects with export download links"],
+      "guidance": "Use the limit defined in the shared export expiry pack.",
+      "evaluation": "automated",
+      "policyPath": "packs/export-link-expiry.json",
+      "targetPath": "export.json"
+    }
+  ]
+}

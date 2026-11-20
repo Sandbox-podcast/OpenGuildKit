@@ -1,0 +1,33 @@
+{
+  "id": "python-pytest",
+  "title": "Python and pytest",
+  "description": "Check isolated fixtures, meaningful parameterized cases and regression coverage through the public interface.",
+  "sources": [
+    {
+      "title": "pytest fixtures",
+      "url": "https://docs.pytest.org/en/stable/how-to/fixtures.html"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa"
+  ],
+  "packs": [
+    "pytest"
+  ],
+  "references": [
+    "pytest",
+    "python-pep8"
+  ],
+  "match": {
+    "stack": [
+      [
+        "python",
+        "python3"
+      ],
+      [
+        "pytest"
+      ]
+    ]
+  }
+}

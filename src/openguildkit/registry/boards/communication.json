@@ -1,0 +1,94 @@
+{
+  "id": "communication",
+  "title": "Communication",
+  "description": "Decide what users, customers, partners and teams must be told about the change, by whom, when and in which words.",
+  "expertises": [
+    "Product and release communication",
+    "Incident and crisis communication",
+    "Plain language and translated content",
+    "Internal communication and change adoption"
+  ],
+  "triggers": [
+    "communication",
+    "announcement",
+    "annonce",
+    "release notes",
+    "notes de version",
+    "changelog",
+    "press release",
+    "communiqué de presse",
+    "customer email",
+    "email aux clients",
+    "status page",
+    "page de statut",
+    "incident communication",
+    "crisis communication",
+    "communication de crise",
+    "internal communication",
+    "communication interne",
+    "plain language",
+    "langage clair",
+    "wording"
+  ],
+  "questions": [
+    "Who must learn about this change, before or after it ships, and through which channel?",
+    "What will a user or customer need to do differently, and is it said in words they understand?",
+    "Who approves the message and who answers the questions it raises?"
+  ],
+  "sources": [
+    {
+      "title": "AMEC, Barcelona Principles 3.0",
+      "url": "https://amecorg.com/amec-resources-centre-communication-measurement-evaluation-tools/barcelona-principles-3-0/"
+    },
+    {
+      "title": "Digital.gov, Plain language guide series",
+      "url": "https://digital.gov/guides/plain-language"
+    },
+    {
+      "title": "PRSA Code of Ethics",
+      "url": "https://www.prsa.org/professional-development/prsa-resources/ethics"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "release-communicator",
+        "title": "Release communication lead",
+        "focus": "Decide who must hear about the change, when and through which channel: release notes, in-product notice, customer email or account team. Match the timing to the rollout."
+      },
+      {
+        "id": "plain-language-editor",
+        "title": "Plain language editor",
+        "focus": "Check that user-facing words say what changes, what the reader must do and by when, in the languages the project supports, without internal jargon."
+      },
+      {
+        "id": "crisis-communicator",
+        "title": "Incident and crisis communicator",
+        "focus": "Prepare what the status page, support and account teams say if the change fails or exposes data, and who approves those messages."
+      },
+      {
+        "id": "internal-communicator",
+        "title": "Internal communication lead",
+        "focus": "Identify the teams whose work changes, such as support, sales and operations, and what they need to know before customers ask."
+      }
+    ],
+    "evidence": [
+      "Draft release notes, in-product text or customer message, with the languages and channels planned.",
+      "The rollout plan or release date the message must follow, and the audience each step reaches.",
+      "The incident or rollback procedure and the approved holding statement for a failure.",
+      "The list of internal teams affected and the briefing or FAQ they receive."
+    ],
+    "challenge": [
+      "What will a customer notice first, and what would they ask support if nobody told them?",
+      "Does the message promise anything the change does not deliver for every customer segment or plan?",
+      "If the change is rolled back, what do we tell the customers who already saw the announcement?",
+      "Which wording could a non-native reader or a screen reader user misunderstand?"
+    ],
+    "decision_criteria": [
+      "Proceed when each affected audience has a message, an owner, a channel and a date tied to the rollout.",
+      "Revise when user-facing text describes internal mechanics instead of what changes for the reader.",
+      "Block a release that changes customer obligations, prices or data use without an approved customer notice.",
+      "Ask for a holding statement before release when a failure would be visible to customers."
+    ]
+  }
+}

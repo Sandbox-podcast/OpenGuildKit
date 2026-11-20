@@ -1,0 +1,19 @@
+{
+  "id": "product-discovery",
+  "title": "Continuous product discovery",
+  "version": "2.0.0",
+  "description": "A recurring rhythm of customer contact tied to open product decisions.",
+  "sources": [
+    {
+      "title": "Teresa Torres, Product Discovery Basics",
+      "url": "https://www.producttalk.org/product-discovery/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "maintain-discovery-cadence",
+      "instruction": "Ask the product owner which recurring rhythm of customer contact the team keeps, and link each discovery activity to an outcome or open product decision.",
+      "verification": "Review recent customer sessions and identify which finding confirmed, changed or left open the decision it addressed."
+    }
+  ]
+}

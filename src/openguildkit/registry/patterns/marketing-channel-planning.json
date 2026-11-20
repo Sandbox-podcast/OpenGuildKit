@@ -1,0 +1,18 @@
+{
+  "id": "marketing-channel-planning",
+  "title": "Evidence-led marketing channel selection",
+  "description": "Choose channels using audience behavior, expected action and a test that can change the choice.",
+  "sources": [
+    {
+      "title": "UK Government Communication Service, Campaign lifecycle",
+      "url": "https://www.gov.uk/government/publications/government-functional-standard-govs-011-communication/government-functional-standard-govs-011-communications#the-campaign-lifecycle"
+    }
+  ],
+  "roles": [
+    "marketing",
+    "sales"
+  ],
+  "packs": [
+    "channel-selection"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "id": "kubernetes-gitops",
+  "title": "Kubernetes GitOps",
+  "version": "1.0.0",
+  "description": "Checks for desired state, reconciliation and recoverable changes with GitOps controllers.",
+  "sources": [
+    {
+      "title": "OpenGitOps principles",
+      "url": "https://opengitops.dev/"
+    },
+    {
+      "title": "Argo CD automated sync policy",
+      "url": "https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/"
+    },
+    {
+      "title": "Flux core concepts",
+      "url": "https://fluxcd.io/flux/concepts/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "review-desired-state",
+      "instruction": "Keep desired workload state in the project's reviewed declarative source. Record which controller owns each resource scope and resolve secrets from the approved secret system.",
+      "verification": "Confirm that the change is traceable to a reviewed source revision. Inspect ownership and secret references for the modified resource scope."
+    },
+    {
+      "id": "plan-pruning-and-drift",
+      "instruction": "Review synchronization, drift correction and pruning settings when changing a controller or removing resources from its source.",
+      "verification": "Inspect the reconciliation preview or events in the approved test environment. Confirm which resources update, stay in place or get removed."
+    },
+    {
+      "id": "prove-recovery-through-source",
+      "instruction": "Document how to restore the prior desired state through the supported source workflow. Record manual recovery steps for stateful changes.",
+      "verification": "Rehearse a reversible change in the test environment and compare the reconciled state and service health with the recovery plan."
+    }
+  ]
+}

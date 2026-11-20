@@ -1,0 +1,15 @@
+## What changes
+
+<!-- Describe the contribution and who can use it. For a pattern, include the situation and the expected outcome. -->
+
+## Related issue
+
+<!-- Link an existing issue if there is one. Use "Closes #123" if this resolves it. A focused contribution can start with this pull request. -->
+
+## Effect on existing projects
+
+<!-- Mention changes to rule packs or project instructions that require sync or a new consultation. -->
+
+## Verification
+
+<!-- List what you tested. For catalog-only changes, run the relevant command: openguildkit catalog, references or patterns. For CLI changes, run python -m unittest discover -s tests. -->

@@ -1,0 +1,20 @@
+{
+  "id": "meddpicc",
+  "title": "MEDDPICC",
+  "description": "Qualify a complex sale through buyer evidence for value, decision authority, process and competition.",
+  "sources": [
+    {
+      "title": "MEDDICC, MEDDPICC Sales Methodology",
+      "url": "https://meddicc.com/meddpicc-sales-methodology-and-process"
+    }
+  ],
+  "roles": [
+    "sales"
+  ],
+  "packs": [
+    "meddpicc-qualification"
+  ],
+  "references": [
+    "meddpicc"
+  ]
+}

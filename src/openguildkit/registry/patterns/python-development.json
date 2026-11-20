@@ -1,0 +1,29 @@
+{
+  "id": "python-development",
+  "title": "Python development",
+  "description": "Apply the project's Python style, annotations and packaging checks.",
+  "sources": [
+    {
+      "title": "PEP 8, Python code style",
+      "url": "https://peps.python.org/pep-0008/"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa"
+  ],
+  "packs": [
+    "python"
+  ],
+  "references": [
+    "python-pep8"
+  ],
+  "match": {
+    "stack": [
+      [
+        "python",
+        "python3"
+      ]
+    ]
+  }
+}

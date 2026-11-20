@@ -1,0 +1,42 @@
+{
+  "id": "react",
+  "title": "React",
+  "version": "1.1.0",
+  "description": "React conventions for rendering, hooks and component states.",
+  "sources": [
+    {
+      "title": "Rules of React",
+      "url": "https://react.dev/reference/rules"
+    },
+    {
+      "title": "React rules-of-hooks lint documentation",
+      "url": "https://react.dev/reference/eslint-plugin-react-hooks/lints/rules-of-hooks"
+    },
+    {
+      "title": "Storybook guide to writing stories",
+      "url": "https://storybook.js.org/docs/writing-stories"
+    }
+  ],
+  "rules": [
+    {
+      "id": "keep-render-pure",
+      "instruction": "Keep side effects out of component rendering. Run them in event handlers or effects.",
+      "verification": "Test the interaction that triggers each changed side effect and confirm that it runs from an event handler or effect, not during render."
+    },
+    {
+      "id": "follow-rules-of-hooks",
+      "instruction": "Call hooks only at the top level of React components or custom hooks, and follow the documented placement rules for `use`.",
+      "verification": "Run the project's React hooks lint rules on the changed files."
+    },
+    {
+      "id": "reuse-ui-components",
+      "instruction": "Use the project's existing components and design tokens when they support the interaction.",
+      "verification": "Review the change against the selected design system and check focus, loading and error states."
+    },
+    {
+      "id": "cover-component-states",
+      "instruction": "Represent the user-visible states of a changed component, including failure and empty states where applicable.",
+      "verification": "Update stories if the project uses Storybook, or demonstrate those states with the existing component tests."
+    }
+  ]
+}

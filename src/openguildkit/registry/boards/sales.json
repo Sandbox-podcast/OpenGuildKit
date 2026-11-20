@@ -1,0 +1,101 @@
+{
+  "id": "sales",
+  "title": "Sales",
+  "description": "Review the buyer, the purchase process and what Sales can substantiate in a conversation.",
+  "expertises": [
+    "Buyer roles and sales discovery",
+    "Sales enablement and demo design",
+    "Procurement and customer objections"
+  ],
+  "triggers": [
+    "sales",
+    "vente",
+    "commercial",
+    "business development",
+    "développement commercial",
+    "pricing",
+    "pricing strategy",
+    "tarification",
+    "procurement",
+    "achats",
+    "buyer",
+    "acheteur",
+    "sales demo",
+    "customer demo",
+    "démo client",
+    "objection",
+    "rfp",
+    "request for proposal",
+    "appel d'offres",
+    "devis",
+    "sales pipeline",
+    "pipeline commercial",
+    "crm",
+    "prospect",
+    "prospection",
+    "renewal",
+    "renouvellement",
+    "upsell"
+  ],
+  "questions": [
+    "Who uses, sponsors and approves the purchase?",
+    "Which buyer objections can the proposed change address with evidence?",
+    "What should Sales show in a demo or explain during procurement?"
+  ],
+  "sources": [
+    {
+      "title": "Huthwaite International, The SPIN Methodology",
+      "url": "https://www.huthwaiteinternational.com/spin-methodology"
+    },
+    {
+      "title": "MEDDICC, MEDDPICC Sales Methodology",
+      "url": "https://meddicc.com/meddpicc-sales-methodology-and-process"
+    },
+    {
+      "title": "European Commission, Public procurement",
+      "url": "https://single-market-economy.ec.europa.eu/single-market/public-procurement_en"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "discovery-specialist",
+        "title": "Sales discovery specialist",
+        "focus": "Identify the customer's current process, cost of the problem and expected outcome. Choose questions that check assumptions without leading the buyer."
+      },
+      {
+        "id": "qualification-lead",
+        "title": "Opportunity qualification lead",
+        "focus": "Separate user, sponsor, economic buyer and decision authority. Distinguish buyer-confirmed criteria and milestones from seller expectations."
+      },
+      {
+        "id": "sales-enablement-lead",
+        "title": "Sales enablement lead",
+        "focus": "Map known objections to evidence the seller can show. Design a demo around one buyer workflow and identify claims the demo cannot substantiate."
+      },
+      {
+        "id": "procurement-specialist",
+        "title": "Procurement specialist",
+        "focus": "Identify buyer-side procurement stages, technical and security documentation, dependencies and handoffs that can delay a decision."
+      }
+    ],
+    "evidence": [
+      "Approved discovery or CRM records confirming the customer problem, stakeholder roles, expected outcomes and known alternatives.",
+      "Buyer-provided criteria, milestones or procurement documents with a named source and date. Label any seller estimates.",
+      "Current product documentation, demo environment and approved proof points for claims about available capabilities.",
+      "Agreed pricing, implementation and support boundaries from the responsible internal owners if they are relevant to the buyer conversation."
+    ],
+    "challenge": [
+      "Compare a targeted demo, a discovery follow-up and pausing qualification. Identify the evidence that would justify each next step.",
+      "Test whether the apparent champion has access to the decision maker and whether budget, approval and procurement milestones come from the buyer.",
+      "Check that the demo uses the buyer's actual task and distinguishes released functions, planned work and elements shown only in the demo environment.",
+      "Challenge proposed dates or commitments that omit buyer-side approval, security review, implementation capacity or dependencies."
+    ],
+    "decision_criteria": [
+      "Advance when the buyer confirms the problem, a relevant next milestone and who on their side owns it.",
+      "Keep in discovery when a decision criterion, stakeholder or business impact is still a seller assumption. Name the next question and who can answer it.",
+      "Recommend a demo or proof of value when it directly tests a buyer-confirmed criterion using approved evidence and realistic constraints.",
+      "Route terms, delivery guarantees and commitments outside the team's agreed scope to the responsible internal owner before quoting them."
+    ]
+  }
+}

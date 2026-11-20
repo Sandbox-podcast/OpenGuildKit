@@ -1,0 +1,28 @@
+{
+  "id": "user-research-practice",
+  "title": "Moderated usability research",
+  "version": "1.0.0",
+  "description": "Research planning and observed evidence for testing an interface with representative participants.",
+  "sources": [
+    {
+      "title": "GOV.UK Service Manual, Using moderated usability testing",
+      "url": "https://www.gov.uk/service-manual/user-research/using-moderated-usability-testing"
+    },
+    {
+      "title": "GOV.UK Service Manual, Plan a round of user research",
+      "url": "https://www.gov.uk/service-manual/user-research/plan-round-of-user-research"
+    }
+  ],
+  "rules": [
+    {
+      "id": "prepare-research-session",
+      "instruction": "Select participants whose experience relates to the research question. Prepare realistic tasks without leading them to the interface controls they should find.",
+      "verification": "Pilot the guide and check that instructions, recruitment criteria, consent and recording settings were reviewed by the research owner."
+    },
+    {
+      "id": "triage-observed-issues",
+      "instruction": "Record what participants did, distinguish observations from interpretation and describe the consequence of each issue for the user task.",
+      "verification": "Verify priority findings against session notes. Assign a follow-up owner and a way to check whether the proposed change helps."
+    }
+  ]
+}

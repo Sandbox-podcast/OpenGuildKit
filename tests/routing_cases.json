@@ -1,0 +1,343 @@
+[
+  {
+    "brief": "Handle concurrent writes in the order service",
+    "must": [
+      "engineering"
+    ],
+    "must_not": [
+      "marketing"
+    ]
+  },
+  {
+    "brief": "Launch the nightly export job from the CLI",
+    "must_not": [
+      "marketing"
+    ]
+  },
+  {
+    "brief": "Increase the CSS margin around the login form",
+    "must": [
+      "design"
+    ],
+    "must_not": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Set a performance budget for the checkout page",
+    "must": [
+      "performance"
+    ],
+    "must_not": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Track the error budget of the public API",
+    "must": [
+      "devops",
+      "engineering"
+    ],
+    "must_not": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Show DORA metrics on the team dashboard",
+    "must": [
+      "devops"
+    ],
+    "must_not": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Prepare the DORA register of ICT third-party providers",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Update the checkout of our e-commerce site",
+    "must_not": [
+      "sales"
+    ]
+  },
+  {
+    "brief": "Create a demo dataset for local development",
+    "must_not": [
+      "sales"
+    ]
+  },
+  {
+    "brief": "Le débit bancaire mensuel est prélevé le 5",
+    "must_not": [
+      "performance"
+    ]
+  },
+  {
+    "brief": "Prepare the employee performance review cycle",
+    "must": [
+      "hr"
+    ],
+    "must_not": [
+      "performance"
+    ]
+  },
+  {
+    "brief": "Bump npm dependencies",
+    "must_not": [
+      "project-management"
+    ]
+  },
+  {
+    "brief": "Mettre à jour le code de conduite",
+    "must": [
+      "hr"
+    ],
+    "must_not": [
+      "engineering"
+    ]
+  },
+  {
+    "brief": "Rename the feature flag for exports",
+    "must": [
+      "devops"
+    ],
+    "must_not": [
+      "product"
+    ]
+  },
+  {
+    "brief": "Redesign the onboarding checklist for new employees",
+    "must": [
+      "hr"
+    ]
+  },
+  {
+    "brief": "Add an interface for the payment provider adapter",
+    "must_not": [
+      "design"
+    ]
+  },
+  {
+    "brief": "Hire two engineers for the platform team",
+    "must": [
+      "hr"
+    ]
+  },
+  {
+    "brief": "Draft the OKRs for next quarter",
+    "must": [
+      "leadership"
+    ]
+  },
+  {
+    "brief": "Define the company strategy for 2027",
+    "must": [
+      "leadership"
+    ]
+  },
+  {
+    "brief": "Recruter un commercial pour la région Ouest",
+    "must": [
+      "hr",
+      "sales"
+    ]
+  },
+  {
+    "brief": "Map the order-to-cash process",
+    "must": [
+      "operations"
+    ]
+  },
+  {
+    "brief": "Reduce the support ticket backlog",
+    "must": [
+      "operations",
+      "support"
+    ]
+  },
+  {
+    "brief": "Audit the app against ISO/IEC 27001 controls",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Migrate the front-end to Vue 3",
+    "must": [
+      "engineering"
+    ]
+  },
+  {
+    "brief": "Renforcer la securite des donnees personnelles",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Préparer la réponse à l’appel d’offres de la région",
+    "must": [
+      "sales"
+    ]
+  },
+  {
+    "brief": "Suivre les parties prenantes et les jalons du projet",
+    "must": [
+      "project-management"
+    ]
+  },
+  {
+    "brief": "Prepare the 2027 budget for the support team",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Reduce checkout latency",
+    "must": [
+      "performance"
+    ]
+  },
+  {
+    "brief": "Réduire la latence de la page de recherche",
+    "must": [
+      "performance"
+    ],
+    "must_not": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Plan the go-to-market for the analytics add-on",
+    "must": [
+      "marketing"
+    ]
+  },
+  {
+    "brief": "Compare our pricing with competitors",
+    "must": [
+      "sales",
+      "marketing"
+    ]
+  },
+  {
+    "brief": "Fix the regression in the invoice export",
+    "must": [
+      "qa",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Roll back the failed deployment",
+    "must": [
+      "devops"
+    ]
+  },
+  {
+    "brief": "Write user stories for the bulk edit feature",
+    "must": [
+      "product"
+    ]
+  },
+  {
+    "brief": "Run an SEO audit of the documentation site",
+    "must": [
+      "marketing"
+    ]
+  },
+  {
+    "brief": "Plan the next sprint with the team",
+    "must": [
+      "project-management"
+    ]
+  },
+  {
+    "brief": "Estimate the cloud cost of the new search cluster",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Add keyboard navigation to the date picker",
+    "must": [
+      "design"
+    ]
+  },
+  {
+    "brief": "Add a sales pipeline view to the CRM",
+    "must": [
+      "sales"
+    ],
+    "must_not": [
+      "devops"
+    ]
+  },
+  {
+    "brief": "Rédiger la stratégie de test de la recette",
+    "must": [
+      "qa"
+    ],
+    "must_not": [
+      "leadership"
+    ]
+  },
+  {
+    "brief": "Announce the new export feature in the release notes",
+    "must": [
+      "communication"
+    ]
+  },
+  {
+    "brief": "Prepare the status page message for the outage",
+    "must": [
+      "communication",
+      "devops"
+    ]
+  },
+  {
+    "brief": "Check the open source licence of the new PDF library",
+    "must": [
+      "legal"
+    ]
+  },
+  {
+    "brief": "Update the data processing agreement with the new subprocessor",
+    "must": [
+      "legal"
+    ]
+  },
+  {
+    "brief": "Write knowledge base articles for the billing change",
+    "must": [
+      "support",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Add event tracking for the onboarding funnel",
+    "must": [
+      "data"
+    ]
+  },
+  {
+    "brief": "Evaluate the LLM answers before release",
+    "must": [
+      "data"
+    ]
+  },
+  {
+    "brief": "Rename the data export button",
+    "must_not": [
+      "data",
+      "legal"
+    ]
+  },
+  {
+    "brief": "Rédiger l'annonce de la nouvelle version pour les clients",
+    "must": [
+      "communication"
+    ]
+  }
+]

@@ -1,0 +1,29 @@
+{
+  "id": "agent-workflow",
+  "title": "Agent workflow",
+  "version": "1.0.1",
+  "description": "OpenGuildKit rules for scoping, reviewing and approving agent-assisted work.",
+  "sources": [],
+  "rules": [
+    {
+      "id": "scope-before-edits",
+      "instruction": "Confirm the intended outcome, affected components and acceptance criteria with the requester before editing.",
+      "verification": "Check that the task brief records the target behavior, boundaries and unresolved decisions."
+    },
+    {
+      "id": "review-by-discipline",
+      "instruction": "Ask the relevant boards to review the scoped change and bring conflicting recommendations to the decision owner.",
+      "verification": "Attach the review record and the owner's decisions to the change."
+    },
+    {
+      "id": "approved-operations",
+      "instruction": "Use the project owner's approved tools and data sources. Obtain explicit permission before publishing, deploying or making destructive changes.",
+      "verification": "Compare the work performed with the agreed scope and retain any approvals needed for external actions."
+    },
+    {
+      "id": "verify-before-handoff",
+      "instruction": "Run the repository's relevant checks and record any gaps. Ask the designated reviewer to approve the result before merge.",
+      "verification": "Provide the commands, outcomes and reviewer decision with the proposed change."
+    }
+  ]
+}

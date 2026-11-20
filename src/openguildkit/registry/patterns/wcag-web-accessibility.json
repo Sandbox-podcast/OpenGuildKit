@@ -1,0 +1,22 @@
+{
+  "id": "wcag-web-accessibility",
+  "title": "WCAG 2.2 web accessibility",
+  "description": "Select when the team uses WCAG 2.2 for web accessibility reviews and can name its conformance target.",
+  "sources": [
+    {
+      "title": "W3C Web Content Accessibility Guidelines 2.2",
+      "url": "https://www.w3.org/TR/WCAG22/"
+    }
+  ],
+  "roles": [
+    "design",
+    "qa",
+    "engineering"
+  ],
+  "packs": [
+    "web-accessibility"
+  ],
+  "references": [
+    "wcag-22"
+  ]
+}

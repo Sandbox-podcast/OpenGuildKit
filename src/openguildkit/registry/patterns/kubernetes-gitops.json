@@ -1,0 +1,37 @@
+{
+  "id": "kubernetes-gitops",
+  "title": "Kubernetes GitOps",
+  "description": "Review declarative state, ownership boundaries, reconciliation behavior and recovery for Kubernetes workloads.",
+  "sources": [
+    {
+      "title": "OpenGitOps principles",
+      "url": "https://opengitops.dev/"
+    }
+  ],
+  "roles": [
+    "devops",
+    "engineering",
+    "security"
+  ],
+  "packs": [
+    "kubernetes-gitops"
+  ],
+  "references": [
+    "opengitops",
+    "kubernetes"
+  ],
+  "match": {
+    "stack": [
+      [
+        "kubernetes",
+        "k8s"
+      ],
+      [
+        "gitops",
+        "argo cd",
+        "flux",
+        "fluxcd"
+      ]
+    ]
+  }
+}

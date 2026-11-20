@@ -1,0 +1,20 @@
+{
+  "id": "market-competitor-analysis",
+  "title": "Market and competitor analysis",
+  "description": "Compare primary evidence for direct competitors, substitutes and ways buyers handle the problem today.",
+  "sources": [
+    {
+      "title": "U.S. Small Business Administration, Plan your business: market research and competitive analysis",
+      "url": "https://www.sba.gov/counseling/plan-your-business/"
+    }
+  ],
+  "roles": [
+    "marketing",
+    "product",
+    "sales",
+    "leadership"
+  ],
+  "packs": [
+    "market-evidence"
+  ]
+}

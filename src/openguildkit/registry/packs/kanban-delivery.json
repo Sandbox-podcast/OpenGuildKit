@@ -1,0 +1,39 @@
+{
+  "id": "kanban-delivery",
+  "title": "Kanban delivery",
+  "version": "1.1.0",
+  "description": "Workflow policies, work in progress and flow metrics for a team managing continuous demand.",
+  "sources": [
+    {
+      "title": "The Kanban Guide, May 2025",
+      "url": "https://kanbanguides.org/the-kanban-guide/2025.5/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "define-workflow",
+      "instruction": "Agree where a work item starts and finishes, which policies govern movement and how the team will control work in progress.",
+      "verification": "Select an item in each state and ask its owner to show why the item entered that state and which capacity policy applies."
+    },
+    {
+      "id": "control-in-progress-work",
+      "instruction": "When work in progress reaches the agreed limit, ask the team lead which item to finish or unblock before a new one starts, and record any exception with its cause.",
+      "verification": "Compare actual item counts with the team's limits and check that each exception has a recorded cause."
+    },
+    {
+      "id": "track-flow-measures",
+      "instruction": "Compute cycle time, work in progress, throughput and work item age from the board's movement records.",
+      "verification": "Recompute the measures from a sample of movement records and compare them with the team's report."
+    },
+    {
+      "id": "set-service-level-expectation",
+      "instruction": "Estimate a service level expectation from the cycle times of completed items and record it with the workflow definition.",
+      "verification": "Recompute the expectation from the completed items of the stated period."
+    },
+    {
+      "id": "inspect-flow",
+      "instruction": "Flag active items whose age approaches the service level expectation and record what the team did about each.",
+      "verification": "For a sample of items that passed the expectation, find the recorded action or the reason none was taken."
+    }
+  ]
+}

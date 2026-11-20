@@ -1,0 +1,23 @@
+{
+  "id": "jobs-to-be-done",
+  "title": "Jobs to Be Done",
+  "description": "Identify the progress customers wanted in a real situation and what helped or hindered the change.",
+  "sources": [
+    {
+      "title": "Christensen Institute, Jobs to Be Done Theory",
+      "url": "https://www.christenseninstitute.org/theory/jobs-to-be-done/"
+    }
+  ],
+  "roles": [
+    "marketing",
+    "product",
+    "design",
+    "sales"
+  ],
+  "packs": [
+    "jobs-to-be-done"
+  ],
+  "references": [
+    "jobs-to-be-done"
+  ]
+}

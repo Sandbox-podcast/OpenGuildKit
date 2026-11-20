@@ -1,0 +1,73 @@
+# Install OpenGuildKit from GitHub Releases
+
+Download the assets for the [release you want to deploy](https://github.com/Sandbox-podcast/OpenGuildKit/releases). The Python wheel provides the catalog, project setup and specialist reviews. The optional Node package coordinates checks across GitHub Actions and Jenkins.
+
+## Download and verify
+
+Download the wheel, the optional Node archive and `SHA256SUMS.txt`. For v0.16.1, use the following GitHub CLI command.
+
+```sh
+gh release download v0.16.1 --repo Sandbox-podcast/OpenGuildKit --pattern 'openguildkit-0.16.1-py3-none-any.whl' --pattern 'openguildkit-0.16.1.tgz' --pattern SHA256SUMS.txt
+```
+
+On Linux use `sha256sum -c SHA256SUMS.txt`. On macOS use `shasum -a 256 -c SHA256SUMS.txt`. On Windows use `Get-FileHash .\openguildkit-0.16.1-py3-none-any.whl, .\openguildkit-0.16.1.tgz -Algorithm SHA256` in PowerShell and compare each hash to the corresponding line in `SHA256SUMS.txt`.
+
+## Install the Python CLI
+
+Use Python 3.11 or later. Save the path to the wheel before switching to the project directory. On Linux or macOS:
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install ./openguildkit-0.16.1-py3-none-any.whl
+openguildkit catalog
+```
+
+On Windows:
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install .\openguildkit-0.16.1-py3-none-any.whl
+.\.venv\Scripts\openguildkit.exe catalog
+```
+
+Check the version you installed with `openguildkit --version`. From the project to equip, run `openguildkit init` and then `openguildkit check`. On Windows, use the full path to `openguildkit.exe` from the installed environment, or activate that environment first. Commit the generated profile, `.openguildkit/catalog.lock.json` and the instructions for the team.
+
+## Set up the agent
+
+The wheel ships the agent skill and the board subagent of the same version. From the project:
+
+```sh
+openguildkit integrations --host claude-code   # .claude/skills/openguildkit and .claude/agents/guild-board.md
+openguildkit integrations --host codex         # .agents/skills/openguildkit
+```
+
+Add `--user` to install them in your home folder for every project. A file you changed is kept and reported; `--force` replaces it and saves your version as `.previous`. Each folder gets `openguildkit-version.txt`. Then set `"host"` in `.openguildkit/project.json` and run `openguildkit host apply` to install the host settings and hooks.
+
+## Upgrade
+
+1. Download and verify the new release assets as above, then `python -m pip install --upgrade ./openguildkit-NEW-py3-none-any.whl` and check `openguildkit --version`.
+2. Run `openguildkit integrations --host ...` again to update the skill and subagent.
+3. Run `openguildkit update` to see what the new catalog changes for the project, and `openguildkit update --apply` once the team agrees. Tasks consulted under the previous rules are listed.
+4. Run `openguildkit check` and commit the updated files.
+
+## Add the optional CI coordinator
+
+Use Node.js 22 or later, npm and Git. The GitHub integration also needs an authenticated GitHub CLI.
+
+```sh
+npm install --global ./openguildkit-0.16.1.tgz
+openguildkit-ci --version
+```
+
+The package also provides `openguildkit-ci-agent`. Use the [CI integration guide](../integrations/ci/README.md) to set up the approved profile, rule repository, trusted workflow and Jenkins state directory. Start in observation mode, using the [shared export rule example](../examples/export-expiry/README.md) to verify one project before enabling enforcement.
+
+Before scheduling Jenkins, run `openguildkit-ci check-state --state ./state` with the exact directory and account the job will use. The check creates and removes a temporary hard link. On Windows, choose a persistent NTFS directory. An exFAT directory fails with exit code 2 and a message explaining how to change `--state`. The job repeats the check before contacting GitHub.
+
+To check for a newer pilot package from a machine with GitHub CLI:
+
+```sh
+openguildkit-ci releases --repo Sandbox-podcast/OpenGuildKit --channel pilot
+```
+
+For CI installs, pin the release tag and archive hash. Each consumer repository can use the public release as its distribution source. If using a workflow template that downloads from the consumer repository, set the release download to point to `Sandbox-podcast/OpenGuildKit` or mirror the verified asset under the same tag.

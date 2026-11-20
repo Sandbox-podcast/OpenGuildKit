@@ -1,0 +1,24 @@
+{
+  "id": "workforce-capacity",
+  "title": "Workforce capacity planning",
+  "version": "1.0.0",
+  "description": "Translate planned work into team skill and capacity decisions using documented assumptions.",
+  "sources": [
+    {
+      "title": "U.S. Office of Personnel Management, Workforce Planning Model",
+      "url": "https://www.opm.gov/policy-data-oversight/human-capital-framework/reference-materials/strategic-alignment/workforceplanning/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "compare-capacity-with-demand",
+      "instruction": "Identify the capabilities needed for the planned work, then estimate team capacity and gaps by role and period. Use aggregated workforce data for planning.",
+      "verification": "Have team leads verify the demand and availability assumptions and identify which gaps would remain if the plan changed."
+    },
+    {
+      "id": "review-workforce-options",
+      "instruction": "For each material gap, compare actions such as training, redistribution or hiring. Record who owns the chosen action and when the capacity estimate will be revisited.",
+      "verification": "Check that the option comparison shows time to close the gap and operational trade-offs. Review the estimate at the agreed decision date."
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "id": "github-actions-security",
+  "title": "GitHub Actions security",
+  "version": "1.0.0",
+  "description": "Checks for build workflow permissions, action pinning and deployment credentials.",
+  "sources": [
+    {
+      "title": "GitHub Actions secure use",
+      "url": "https://docs.github.com/en/actions/reference/security/secure-use"
+    },
+    {
+      "title": "GitHub Actions OpenID Connect",
+      "url": "https://docs.github.com/en/actions/concepts/security/openid-connect"
+    }
+  ],
+  "rules": [
+    {
+      "id": "limit-workflow-permissions",
+      "instruction": "Give each GitHub Actions job the permissions needed for its task. Keep privileged operations and credentials outside jobs that run untrusted changes.",
+      "verification": "Compare the effective permissions of changed jobs with their steps. Verify that the proposed pull request workflow can run its checks without write access or deployment credentials."
+    },
+    {
+      "id": "pin-external-actions",
+      "instruction": "Pin external action references in changed workflows to reviewed full commit SHAs, and record the corresponding upstream versions.",
+      "verification": "Confirm that each pinned commit belongs to the intended upstream repository and matches the reviewed release or commit."
+    },
+    {
+      "id": "scope-deployment-identity",
+      "instruction": "Use short-lived deployment credentials when the provider supports them. Restrict the identity to the approved repository, workflow or environment context and the required cloud permissions.",
+      "verification": "Check the trust-policy conditions against the approved workflow claims and review the cloud role's permissions for the intended deployment."
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+name: Draft release notes
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: draft-release-notes
+
+jobs:
+  draft:
+    if: github.event_name != 'release' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Refresh the automated draft on GitHub
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: bash .github/scripts/release-notes.sh draft "$SHA"
+
+  published:
+    if: github.event_name == 'release' && !github.event.release.draft
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: End the comparison link on the published tag
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+          RELEASE_ID: ${{ github.event.release.id }}
+        run: bash .github/scripts/release-notes.sh published "$TAG" "$RELEASE_ID"

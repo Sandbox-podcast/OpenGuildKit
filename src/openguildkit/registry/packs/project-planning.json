@@ -1,0 +1,19 @@
+{
+  "id": "project-planning",
+  "title": "Critical path scheduling",
+  "version": "2.0.0",
+  "description": "Dependency-driven schedules whose critical path is recorded and kept current.",
+  "sources": [
+    {
+      "title": "PMI, Critical path method calculations",
+      "url": "https://www.pmi.org/learning/library/critical-path-method-calculations-scheduling-8040"
+    }
+  ],
+  "rules": [
+    {
+      "id": "calculate-schedule-dependencies",
+      "instruction": "For a dependency-driven schedule, record predecessors, durations and the basis for each estimate. Identify the path that determines the finish milestone and update it when dependencies change.",
+      "verification": "Trace the critical path to the finish milestone with project owners. Test one schedule delay and check that its effect agrees with the recorded float."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "a-b-testing",
+  "title": "A/B testing",
+  "description": "Use random assignment and a pre-agreed decision rule when comparing campaign or product variants.",
+  "sources": [
+    {
+      "title": "Kohavi, Tang and Xu, Trustworthy Online Controlled Experiments: A Practical Guide to A/B Testing",
+      "url": "https://experimentguide.com/"
+    }
+  ],
+  "roles": [
+    "marketing",
+    "product",
+    "design"
+  ],
+  "packs": [
+    "controlled-experiments"
+  ]
+}

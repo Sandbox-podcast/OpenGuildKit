@@ -1,0 +1,4 @@
+{"results": [{"source": {"path": "go.sum", "type": "lockfile"}, "packages": [
+  {"package": {"name": "golang.org/x/net", "version": "0.17.0", "ecosystem": "Go"},
+   "vulnerabilities": [{"id": "GO-2024-2687", "summary": "HTTP/2 CONTINUATION flood in net/http", "database_specific": {"severity": "MODERATE"}}]}
+]}]}

@@ -1,0 +1,24 @@
+{
+  "id": "financial-planning",
+  "title": "Financial scenario planning",
+  "version": "1.0.0",
+  "description": "Planning comparisons that make cost, timing and demand assumptions visible to decision owners.",
+  "sources": [
+    {
+      "title": "HM Treasury, The Green Book (2026)",
+      "url": "https://www.gov.uk/government/publications/the-green-book--2/the-green-book-2026"
+    }
+  ],
+  "rules": [
+    {
+      "id": "model-consistent-scenarios",
+      "instruction": "Compare a base case with relevant downside or upside scenarios using the same period, units and definitions. Document assumptions about timing, capacity and input costs.",
+      "verification": "Recompute one outcome from source inputs and compare totals with the planning basis. Review the scenario ranges with the finance owner."
+    },
+    {
+      "id": "test-switching-assumptions",
+      "instruction": "Vary the assumptions that drive the choice and record values at which the preferred option would change. Note dependencies between inputs before combining changes.",
+      "verification": "Have the finance owner reproduce a sensitivity result and confirm which estimate should be improved before making the decision."
+    }
+  ]
+}

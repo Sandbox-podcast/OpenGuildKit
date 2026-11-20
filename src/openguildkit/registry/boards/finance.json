@@ -1,0 +1,102 @@
+{
+  "id": "finance",
+  "title": "Finance and FinOps",
+  "description": "Estimate the cost of building and operating the change, and record what could change that estimate.",
+  "expertises": [
+    "Cost estimation and unit economics",
+    "Cloud and AI usage budgets",
+    "Forecast assumptions and scenarios"
+  ],
+  "triggers": [
+    "finance",
+    "financial",
+    "financier",
+    "financière",
+    "budget",
+    "budgétaire",
+    "cost",
+    "coût",
+    "finops",
+    "gross margin",
+    "profit margin",
+    "marge brute",
+    "forecast",
+    "prévision financière",
+    "rentabilité",
+    "profitability",
+    "unit economics",
+    "billing",
+    "facturation",
+    "revenue",
+    "chiffre d'affaires",
+    "cash flow",
+    "trésorerie",
+    "business case",
+    "return on investment",
+    "retour sur investissement",
+    "roi",
+    "invoice",
+    "facture"
+  ],
+  "questions": [
+    "Which costs occur once and which recur with usage?",
+    "What volume, model pricing and support assumptions drive the estimate?",
+    "Which threshold would require a different choice, and who can confirm it?"
+  ],
+  "sources": [
+    {
+      "title": "FinOps Foundation Framework",
+      "url": "https://www.finops.org/framework/"
+    },
+    {
+      "title": "FinOps Foundation, Unit Economics",
+      "url": "https://www.finops.org/framework/capabilities/unit-economics/"
+    },
+    {
+      "title": "HM Treasury, The Green Book (2026)",
+      "url": "https://www.gov.uk/government/publications/the-green-book--2/the-green-book-2026"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "planning-analyst",
+        "title": "Financial planning analyst",
+        "focus": "Compare options on the same period and units. Separate one-time delivery and migration costs from recurring operations, support and maintenance."
+      },
+      {
+        "id": "finops-lead",
+        "title": "FinOps lead",
+        "focus": "Trace workload and vendor costs to measured usage and a price basis. Account for shared allocations, tier boundaries, peak capacity and what cannot be measured yet."
+      },
+      {
+        "id": "unit-economics-analyst",
+        "title": "Unit economics analyst",
+        "focus": "Define a meaningful denominator such as a completed case or supported customer. Compare cost per unit at expected and constrained volumes."
+      },
+      {
+        "id": "budget-owner-adviser",
+        "title": "Budget review adviser",
+        "focus": "Identify who can validate the model, own material assumptions and make a budget decision. Propose review and alert thresholds tied to those assumptions."
+      }
+    ],
+    "evidence": [
+      "Approved current cost baseline, actual usage or a representative measurement and the period and units used for each.",
+      "Dated vendor quotes, pricing schedules or internal allocation assumptions, including when commitments or tier changes take effect.",
+      "Engineering, migration, support and ongoing operating estimates with owners and stated uncertainty.",
+      "A consistent base and downside scenario, with demand and unit cost drivers, along with the budget owner and any agreed constraints."
+    ],
+    "challenge": [
+      "Compare keep as is, pilot and full implementation over the same period. Identify one-time reversibility costs and long-term cost drivers.",
+      "Vary volume and cost inputs enough to find an assumption or threshold that would change the recommended option.",
+      "Check whether the per-unit result hides idle capacity, failed work, retries or support time. Show how the decision changes if these are included.",
+      "Separate modeled savings from verified savings and confirm who can approve treating released capacity or cash as a realized benefit."
+    ],
+    "decision_criteria": [
+      "Recommend an option when its total cost and unit cost fit the approved assumptions and the budget owner can validate the main drivers.",
+      "Recommend a pilot when measurement or utilization uncertainty could change the option ranking. Define which unit metric and volume range the pilot must establish.",
+      "Escalate when the chosen scenario exceeds a recorded constraint or assumptions rely on unconfirmed quotes, commitments or shared cost allocations.",
+      "Bind the recommendation to the measured period, scope and assumptions. Name the cost or usage threshold that should trigger a review."
+    ]
+  }
+}

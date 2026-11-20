@@ -1,0 +1,45 @@
+{
+  "id": "aspnet-core",
+  "title": "ASP.NET Core services",
+  "version": "1.1.0",
+  "description": "Configuration, request cancellation and integration checks for ASP.NET Core applications.",
+  "sources": [
+    {
+      "title": "ASP.NET Core configuration",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/"
+    },
+    {
+      "title": "ASP.NET Core request context",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/use-http-context#requestaborted"
+    },
+    {
+      "title": "ASP.NET Core integration tests",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests"
+    }
+  ],
+  "depends_on": [
+    "api-design"
+  ],
+  "rules": [
+    {
+      "id": "bind-and-verify-settings",
+      "instruction": "Bind application options through the configured providers and validate required options at startup, before the app serves requests.",
+      "verification": "Start the test host using its normal configuration pipeline and confirm that valid and missing required settings produce the expected startup result."
+    },
+    {
+      "id": "resolve-secrets-from-store",
+      "instruction": "Read credentials from the environment's approved secret store, never from configuration files committed to the repository.",
+      "verification": "Search the committed configuration files for credential values and check that the app reads each credential through the configured secret provider."
+    },
+    {
+      "id": "propagate-request-abort",
+      "instruction": "Pass the request cancellation token to downstream reads and other interruptible operations. Define which writes can be interrupted safely.",
+      "verification": "Cancel a test request and verify both the downstream cancellation and the final stored state where a write is involved."
+    },
+    {
+      "id": "test-middleware-and-routing",
+      "instruction": "Exercise endpoints through the ASP.NET Core test host when a change touches middleware, routing, authorization or serialization.",
+      "verification": "Check the request's expected status, response and side effects for the relevant roles and inputs."
+    }
+  ]
+}

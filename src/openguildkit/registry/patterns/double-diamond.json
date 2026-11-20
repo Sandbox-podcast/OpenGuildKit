@@ -1,0 +1,21 @@
+{
+  "id": "double-diamond",
+  "title": "Double Diamond",
+  "description": "Alternate exploration and selection while defining a problem and developing a design response.",
+  "sources": [
+    {
+      "title": "Design Council, Framework for Innovation",
+      "url": "https://www.designcouncil.org.uk/resources/framework-for-innovation"
+    }
+  ],
+  "roles": [
+    "design",
+    "product"
+  ],
+  "packs": [
+    "design-process"
+  ],
+  "references": [
+    "double-diamond"
+  ]
+}

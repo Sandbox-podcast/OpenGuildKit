@@ -1,0 +1,119 @@
+name: OpenGuildKit ticket and agent pilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        type: string
+        required: true
+      commit:
+        type: string
+        required: true
+
+permissions: {}
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/pilot/agent-ticket-base'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    env:
+      PR_NUMBER: ${{ inputs.pr }}
+      EXPECTED_HEAD: ${{ inputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare the ticket brief with read-only access
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ && "$EXPECTED_HEAD" =~ ^[a-f0-9]{40}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
+            jq -e --arg head "$EXPECTED_HEAD" '.state == "open" and .base.ref == "pilot/agent-ticket-base" and .head.sha == $head' >/dev/null
+          git -c credential.helper= -c 'credential.helper=!gh auth git-credential' fetch --no-tags origin "refs/pull/$PR_NUMBER/head"
+          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_HEAD"
+
+          read -r digest asset < pilot/agent-kit.sha256
+          [[ "$digest" =~ ^[a-f0-9]{64}$ && "$asset" =~ ^openguildkit-([0-9]+\.[0-9]+\.[0-9]+)\.tgz$ ]]
+          release="v${BASH_REMATCH[1]}"
+          mkdir -p "$RUNNER_TEMP/ogk-agent-kit"
+          (
+            cd "$RUNNER_TEMP/ogk-agent-kit"
+            gh release download "$release" -R "$GITHUB_REPOSITORY" -p "$asset"
+            sha256sum -c "$GITHUB_WORKSPACE/pilot/agent-kit.sha256"
+            tar -xf "$asset"
+          )
+          profile=$(git log -1 --format=%H HEAD -- openguildkit.json)
+          policy_path=$(git show "$profile:openguildkit.json" | jq -er '.policyPath')
+          rule=$(git log -1 --format=%H HEAD -- "$policy_path")
+          printf 'PROFILE_SHA=%s\nRULE_SHA=%s\n' "$profile" "$rule" >> "$GITHUB_ENV"
+          node "$RUNNER_TEMP/ogk-agent-kit/package/bin/openguildkit.mjs" github-brief --repo "$GITHUB_REPOSITORY" \
+            --pr "$PR_NUMBER" --commit "$EXPECTED_HEAD" --profile-commit "$profile" --policy-repo . --policy-commit "$rule" \
+            --output proof/agent-bundle
+
+          # The empty write request cannot create a file even if the token is misconfigured.
+          if result=$(gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/open-guild-kit-permission-probe" --input - <<<'{}' 2>&1); then exit 1; fi
+          grep -q 'HTTP 403' <<< "$result"
+          if result=$(gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$EXPECTED_HEAD" --input - <<<'{}' 2>&1); then exit 1; fi
+          grep -q 'HTTP 403' <<< "$result"
+          printf '%s\n' '{"contentsWrite":403,"statusPublish":403}' > proof/permissions.json
+      - name: Read the brief with the agent adapter and evaluate the change
+        shell: bash
+        run: |
+          set -euo pipefail
+          kit="$RUNNER_TEMP/ogk-agent-kit/package/bin"
+          printf '%s\n' '{"id":1,"method":"brief"}' '{"id":2,"method":"guidance"}' \
+            '{"id":3,"method":"write"}' '{"id":4,"method":"publish"}' |
+            node "$kit/openguildkit-agent.mjs" --bundle proof/agent-bundle > "$RUNNER_TEMP/agent-responses.jsonl" 2> proof/agent-audit.jsonl
+          jq -e -s '.[0].result.request.ticket.url and .[1].result and .[2].error and .[3].error' "$RUNNER_TEMP/agent-responses.jsonl" >/dev/null
+          node "$kit/openguildkit.mjs" check --policy-repo . --policy-commit "$RULE_SHA" --profile-commit "$PROFILE_SHA" \
+            --commit "$EXPECTED_HEAD" --brief proof/agent-bundle/brief.json \
+            --pull-request "https://github.com/$GITHUB_REPOSITORY/pull/$PR_NUMBER" --output proof/control
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: openguildkit-agent-proof
+          path: proof/
+          if-no-files-found: error
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      statuses: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ inputs.pr }}
+      EXPECTED_HEAD: ${{ inputs.commit }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: openguildkit-agent-proof
+          path: proof
+      - name: Link the ticket and the evidence from the PR
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ && "$EXPECTED_HEAD" =~ ^[a-f0-9]{40}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
+            jq -e --arg head "$EXPECTED_HEAD" '.state == "open" and .base.ref == "pilot/agent-ticket-base" and .head.sha == $head' >/dev/null
+          evidence=proof/control/evidence.json
+          jq -e --arg head "$EXPECTED_HEAD" --arg pr "https://github.com/$GITHUB_REPOSITORY/pull/$PR_NUMBER" \
+            '.commit == $head and .pullRequest == $pr and .mode == "observation"' "$evidence" >/dev/null
+          ticket=$(jq -r .ticket.url "$evidence")
+          issue=${ticket##*/}
+          [[ "$issue" =~ ^[1-9][0-9]*$ && "$ticket" == "https://github.com/$GITHUB_REPOSITORY/issues/$issue" ]]
+          rule=$(jq -r .policyCommit "$evidence")
+          test "$(sha256sum proof/agent-bundle/brief.json | cut -d ' ' -f1)" = "$(jq -r .briefSha256 "$evidence")"
+          printf '## OpenGuildKit\n\n[Ouvrir le ticket #%s](%s)\n\nCommit vérifié : `%s`\n\nRègle : `%s`\n' "$issue" "$ticket" "$EXPECTED_HEAD" "$rule" >> "$GITHUB_STEP_SUMMARY"
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$EXPECTED_HEAD" -f context="openguildkit/agent-brief-pr-$PR_NUMBER" \
+            -f state=success -f description="Ticket #$issue | preuve OpenGuildKit (obs.)" \
+            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"

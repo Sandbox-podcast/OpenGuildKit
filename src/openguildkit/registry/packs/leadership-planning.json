@@ -1,0 +1,24 @@
+{
+  "id": "leadership-planning",
+  "title": "Objectives and key results",
+  "version": "2.0.0",
+  "description": "Make objectives measurable with key results and review progress against them.",
+  "sources": [
+    {
+      "title": "What Matters, What is an OKR?",
+      "url": "https://www.whatmatters.com/faqs/okr-meaning-definition-example"
+    }
+  ],
+  "rules": [
+    {
+      "id": "define-outcome-key-results",
+      "instruction": "For each OKR, pair the objective with measurable results. Define a baseline, target, due date and measurement owner for each result.",
+      "verification": "Ask the owner to reproduce the baseline and explain how hitting the target would demonstrate progress toward the objective."
+    },
+    {
+      "id": "update-objective-progress",
+      "instruction": "At the review date, record progress using the agreed measure and explain changes in assumptions. Ask the decision owner which work to continue, adjust or stop.",
+      "verification": "Compare the updated result with the baseline and previous review. Confirm that any change to a metric definition or target has a recorded decision."
+    }
+  ]
+}

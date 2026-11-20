@@ -1,0 +1,33 @@
+{
+  "id": "java-spring-boot",
+  "title": "Spring Boot (Java or Kotlin)",
+  "description": "Review application configuration, Spring-managed transactions and endpoint tests in a Spring Boot service written in Java or Kotlin.",
+  "sources": [
+    {
+      "title": "Spring Boot externalized configuration",
+      "url": "https://docs.spring.io/spring-boot/reference/features/external-config.html"
+    },
+    {
+      "title": "Spring Boot Kotlin support",
+      "url": "https://docs.spring.io/spring-boot/reference/features/kotlin.html"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa"
+  ],
+  "packs": [
+    "spring-boot"
+  ],
+  "references": [
+    "http",
+    "openapi"
+  ],
+  "match": {
+    "stack": [
+      [
+        "spring boot"
+      ]
+    ]
+  }
+}

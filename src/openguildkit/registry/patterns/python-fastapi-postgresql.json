@@ -1,0 +1,44 @@
+{
+  "id": "python-fastapi-postgresql",
+  "title": "Python, FastAPI and PostgreSQL",
+  "description": "Review HTTP response models, service resource lifetimes and transactional writes for a Python API backed by PostgreSQL.",
+  "sources": [
+    {
+      "title": "FastAPI response models",
+      "url": "https://fastapi.tiangolo.com/tutorial/response-model/"
+    },
+    {
+      "title": "PostgreSQL transactions",
+      "url": "https://www.postgresql.org/docs/current/tutorial-transactions.html"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "fastapi",
+    "postgresql"
+  ],
+  "references": [
+    "http",
+    "openapi",
+    "python-pep8"
+  ],
+  "match": {
+    "stack": [
+      [
+        "python",
+        "python3"
+      ],
+      [
+        "fastapi"
+      ],
+      [
+        "postgresql",
+        "postgres"
+      ]
+    ]
+  }
+}
