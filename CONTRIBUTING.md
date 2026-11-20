@@ -65,6 +65,19 @@ A catalog pull request is merged when:
 - nothing claims compliance or certification;
 - a steward of the domain approved it (see [GOVERNANCE.md](GOVERNANCE.md)).
 
+## Reviewing source links
+
+The scheduled workflow `Check catalog links` runs every Monday and on demand. It runs `python3 -I scripts/check_links.py --out link-report`, uploads the dated `links-YYYY-MM-DD.md` and `.json` report as the `link-report` artifact, and fails only when a link is dead. The script reads the bundled catalog only: catalogs that projects keep in `.openguildkit/catalog/` stay in those projects and are never fetched.
+
+For each URL, the report gives its category and the records that cite it: references with their edition and the packs that apply them, packs with their version and rule IDs, patterns, boards and sectors. A maintainer reviews it as follows.
+
+- **Dead:** find the page that replaces it on the publisher's site, fetch it, and check its status and title. Replace the URL and the title in every record the report lists, so the document keeps one address.
+- **Redirected:** use the target when it is the publisher's new canonical page. Leave aliases such as `latest` when the catalog means to follow the current version.
+- **To recheck:** open the page in a browser. Some publishers (ISO, W3C, PMI, EUR-Lex) answer scripts with 403 or 202, and GitHub sometimes answers 503 under load; keep the URL when the page works.
+- **New edition:** the report lists the packs and rules that cite the old edition. Decide with the domain steward whether the rules change, bump the pack version (patch for a source or wording change, minor or major when rules change) and update the reference's `edition`. Projects see the change in `openguildkit update` before they apply it.
+
+A maintainer validates every replacement in the pull request that makes it. Run the script locally with the same command before proposing one.
+
 ## Code contributions
 
 - The agent skill and subagent live in `src/openguildkit/agent_files/` and are copied in `integrations/`; edit both, the tests check that they match.

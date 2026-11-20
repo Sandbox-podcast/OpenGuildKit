@@ -14,6 +14,7 @@ This page separates what exists from what is planned. Items under "Next" and "La
 - Skills for Claude Code and Codex that drive the flow.
 - Optional [ChaosFolk end-to-end replays](../integrations/chaosfolk/): the `chaosfolk-e2e` pack and CI guide, pinned to ChaosFolk commit `b406600`. Storing replay results in the task record waits for post-handoff checks (#16).
 - Tests, cross-platform CI and a reproducible support request example.
+- Weekly check of the catalog's source links, with a dated report that lists the records citing each link.
 
 ## Next: breadth of the catalog
 
@@ -37,7 +38,7 @@ The catalog is where most contributions will go. Priorities, by domain:
 - **Generated documentation:** API reference, changelog, roadmap and component catalog (Storybook) produced from the approved handoffs, with access links to share them with customers.
 - **Dependency watch:** checks the libraries in use against vulnerability databases and proposes fixes or alternatives through the normal task flow.
 - **Distribution:** PyPI package, an MCP server exposing the CLI to any MCP-capable agent, a community registry of signed packs, and `openguildkit update` to pull newer catalog versions.
-- **Catalog upkeep:** scheduled checks for broken source links and new versions of the standards packs refer to.
+- **Catalog upkeep:** detect new versions of the standards that packs refer to; broken and redirected links are already reported weekly.
 - **Beyond software teams:** profiles and boards for marketing, sales and finance teams running their own projects with agents.
 
 ## How items move up
