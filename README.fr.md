@@ -6,6 +6,8 @@
 
 OpenGuildKit est un framework open source pour les équipes qui développent avec des agents IA. Tu choisis les règles que tes agents doivent suivre et tu consultes les métiers concernés avant de valider un changement.
 
+https://github.com/user-attachments/assets/8a6ec7e6-e7c3-4f95-bd21-6dcd1d960d8f
+
 ## Essayer la démo
 
 Utilise Python 3.11 ou une version plus récente.
