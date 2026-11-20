@@ -28,6 +28,7 @@ From your own repository, launch the interactive questionnaire. Pick your stack,
 ```bash
 openguildkit detect
 openguildkit init
+openguildkit preview
 openguildkit check
 ```
 

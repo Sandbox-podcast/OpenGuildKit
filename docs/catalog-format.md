@@ -60,6 +60,7 @@ A pack is a versioned set of rules an agent follows and a reviewer can verify.
 |---|---|
 | `version` | `major.minor.patch`, no leading zeros |
 | `depends_on` | Optional. IDs of other packs. Must exist, no duplicates, no cycles. Dependencies are activated before the pack. |
+| `conflicts_with` | Optional. IDs of packs whose rules cannot both apply to the same scope. A project that selects both must record which ones it keeps, with a reason. A pack cannot depend on a pack it conflicts with. |
 | `rules` | Non-empty array of `{id, instruction, verification}`. Rule IDs follow the ID format and are unique within the pack. |
 
 Versioning: bump `patch` for wording fixes, `minor` for a new rule, `major` for a removed or reversed rule. Any change to a pack changes the fingerprint of projects that use it, so their pending approvals need a new consultation.

@@ -15,6 +15,7 @@ from .project import (
     load_profile,
     profile_recommendations,
     project_root,
+    rule_plan,
     state_path,
     sync_instructions,
     validate_profile,
@@ -50,6 +51,9 @@ def _parser() -> argparse.ArgumentParser:
     patterns.add_argument("--role", help="Filter by role ID.")
     patterns.add_argument("--id", help="Show a pattern, its match and its rule packs.")
     patterns.add_argument("--json", action="store_true", help="Print matching patterns as JSON.")
+    preview = commands.add_parser("preview", help="Show the rule packs, their origin and scope before writing them.")
+    preview.add_argument("--answers", type=Path, help="Preview setup answers instead of the saved profile.")
+    preview.add_argument("--json", action="store_true", help="Print the plan as JSON.")
     detect = commands.add_parser("detect", help="Propose components and technologies from the repository's manifests.")
     detect.add_argument("--json", action="store_true", help="Print the components and their evidence as JSON.")
     recommend = commands.add_parser("recommend", help="Preview patterns for a project context.")
@@ -334,6 +338,42 @@ def _print_recommendations(plan: dict, as_json: bool) -> None:
             print(f"  {item['id']}: {'; '.join(item['reasons'])}")
 
 
+def _print_rule_plan(plan: dict, as_json: bool, file=sys.stdout) -> None:
+    if as_json:
+        print(json_text(plan), end="", file=file)
+        return
+    print("Rule packs, in the order AGENTS.md lists them", file=file)
+    for pack in plan["packs"]:
+        scope = f" [{', '.join(pack['scope'])}]" if pack["scope"] else ""
+        print(f"  {pack['id']}@{pack['version']}{scope}: {'; '.join(pack['provenance'])}", file=file)
+    for pack_id in plan["excluded"]:
+        print(f"  {pack_id}: not applied, see the rule decisions", file=file)
+    if plan["conflicts"]:
+        print("Conflicting packs", file=file)
+        for conflict in plan["conflicts"]:
+            where = f" in {', '.join(conflict['scope'])}" if conflict["scope"] else ""
+            resolution = conflict["resolution"]
+            outcome = (
+                f"keep {', '.join(resolution['keep'])} ({resolution['reason']})" if resolution
+                else "unresolved: add a resolution to the profile"
+            )
+            print(f"  {' / '.join(conflict['packs'])}{where}: {outcome}", file=file)
+    for title, field in (("Team conventions", "conventions"), ("Project checks", "checks")):
+        if plan[field]:
+            print(title, file=file)
+            for item in plan[field]:
+                print(f"  - {item}", file=file)
+
+
+def _confirm_rule_plan(plan: dict) -> None:
+    print("", file=sys.stderr)
+    _print_rule_plan(plan, False, file=sys.stderr)
+    print("Write this profile and these rules? [Y/n]", file=sys.stderr)
+    print("> ", end="", file=sys.stderr, flush=True)
+    if input().strip().casefold() not in ("", "y", "yes", "o", "oui"):
+        raise ValueError("Setup cancelled. Nothing was written.")
+
+
 def _print_detection(detected: dict, as_json: bool) -> None:
     if as_json:
         _print_json(detected)
@@ -479,6 +519,9 @@ def _run(args) -> int | None:
         _print_brains(args, catalog)
     elif args.command == "detect":
         _print_detection(detect_stack(root), args.json)
+    elif args.command == "preview":
+        profile = validate_profile(read_json(args.answers), catalog) if args.answers else load_profile(state, catalog)
+        _print_rule_plan(rule_plan(profile, catalog), args.json)
     elif args.command == "recommend":
         if args.answers:
             plan = profile_recommendations(read_json(args.answers), catalog)
@@ -497,6 +540,8 @@ def _run(args) -> int | None:
         if (state / "project.json").exists():
             raise ValueError("Project is already initialized. Edit .openguildkit/project.json and run openguildkit sync.")
         answers = read_json(args.answers) if args.answers else _interactive_init(questions, catalog)
+        if not args.answers:
+            _confirm_rule_plan(rule_plan(validate_profile(answers, catalog), catalog))
         with project_lock(state):
             catalog = _load_project_catalog(args, state)
             initialize(root, state, validate_profile(answers, catalog), catalog)
