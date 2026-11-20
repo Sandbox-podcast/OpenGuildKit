@@ -504,6 +504,9 @@ def _consultation_markdown(scope: dict, boards: dict, routing: dict, delegations
             "confidence rating requires observed findings and cited evidence. For a "
             "blocking finding, say who can resolve it and what would clear it.",
             "",
+            "Record each blocker as an object with finding, owner (who can resolve it) and "
+            "clears_when (the condition or evidence that would clear it).",
+            "",
             "Record each evidence item as an object: source (" + ", ".join(EVIDENCE_SOURCES) + "), "
             "ref (a project path, a document title or an https link), supports (what it establishes), "
             "and date (YYYY-MM-DD) or revision (commit SHA) when it matters. Public sources, "
@@ -621,7 +624,16 @@ def _evidence_list(value: object, field: str, structured: bool) -> list:
     return [_evidence_item(item, field) for item in value]
 
 
-def _validate_challenge(board_id: str, challenge: object, template: dict, evidence: list[str]) -> dict:
+def _blocker(item: object, board_id: str) -> dict:
+    """A blocking finding names who can resolve it and what would clear it."""
+    if not isinstance(item, dict) or item.keys() != {"finding", "owner", "clears_when"}:
+        raise ValueError(f"Each {board_id} blocker needs finding, owner and clears_when.")
+    return {key: _text(item[key], f"{board_id} blocker {key}") for key in ("finding", "owner", "clears_when")}
+
+
+def _validate_challenge(
+    board_id: str, challenge: object, template: dict, evidence: list, structured: bool = False
+) -> dict:
     if not isinstance(challenge, dict) or challenge.keys() != template.keys():
         raise ValueError(f"{board_id} challenge does not match the template fields.")
     verdict = challenge["verdict"]
@@ -672,7 +684,12 @@ def _validate_challenge(board_id: str, challenge: object, template: dict, eviden
                 f"{board_id}: the requester's own words cannot be the only evidence for this verdict. "
                 "Cite a project file, test, measurement or other inspected source."
             )
-    blockers = _text_list(challenge["blockers"], f"{board_id} blockers")
+    if structured:
+        if not isinstance(challenge["blockers"], list):
+            raise ValueError(f"{board_id} blockers must be a list.")
+        blockers = [_blocker(item, board_id) for item in challenge["blockers"]]
+    else:
+        blockers = _text_list(challenge["blockers"], f"{board_id} blockers")
     if verdict == "block" and not blockers:
         raise ValueError(f"{board_id} must name the blocking findings.")
     if verdict == "proceed" and blockers:
@@ -718,7 +735,10 @@ def validate_board_entry(consultation: dict, entry: object) -> dict:
     if "reviewer" in template:
         result["reviewer"] = _text(entry["reviewer"], f"{board_id} reviewer")
     if "challenge" in template:
-        result["challenge"] = _validate_challenge(board_id, entry["challenge"], template["challenge"], result["evidence"])
+        result["challenge"] = _validate_challenge(
+            board_id, entry["challenge"], template["challenge"], result["evidence"],
+            consultation.get("evidence_format") == "structured",
+        )
     return result
 
 
@@ -938,6 +958,20 @@ def is_decision_task(task: dict) -> bool:
     return task.get("answers", {}).get("kind") == "decision"
 
 
+def blocker_list(task: dict) -> list[dict]:
+    """Every blocker of the recorded review, with how it was resolved so far."""
+    if "review" not in task:
+        return []
+    resolutions = task.get("blocker_resolutions", {})
+    items = []
+    for entry in task["review"]["boards"]:
+        for index, blocker in enumerate(entry.get("challenge", {}).get("blockers", []), start=1):
+            key = f"{entry['id']}:{index}"
+            details = blocker if isinstance(blocker, dict) else {"finding": blocker}
+            items.append({"id": key, "board": entry["id"], **details, "resolution": resolutions.get(key)})
+    return items
+
+
 def handoff(task: dict) -> str:
     """Render the authorized scope, decision and advisory findings."""
     if task.get("status") != "approved":
@@ -985,6 +1019,18 @@ def handoff(task: dict) -> str:
             *(
                 ["## External actions decided by a person", "", _json_section(task["authorizations"]), ""]
                 if task.get("authorizations") else []
+            ),
+            *(
+                [
+                    "## Conditions from resolved blockers",
+                    "",
+                    "Respect each waiver's scope and expiry. A waiver that expires before the work ships needs a "
+                    "new decision.",
+                    "",
+                    _json_section([item for item in blocker_list(task) if item["resolution"]]),
+                    "",
+                ]
+                if any(item["resolution"] for item in blocker_list(task)) else []
             ),
         ]
     )

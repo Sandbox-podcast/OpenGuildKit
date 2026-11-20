@@ -128,7 +128,15 @@ openguildkit task decide request-status --approve --by "Camille Martin" --reason
 
 The CLI prints the brief and the review, then asks the person to type the task ID. Approval fails when stdin is not a terminal, when the typed ID does not match, when the task changed during the decision, when the profile or catalog changed since the consultation, or when `AGENTS.md` is out of date.
 
-If a board flags blockers, the approval prompt asks the decision owner to record how the decision addresses them. After upgrading the board catalog, run `openguildkit sync` and check whether a pending task needs another consultation under the new rules.
+A blocker names the finding, its `owner` and `clears_when`, the condition that would clear it. Approval waits until each blocker is resolved:
+
+```bash
+openguildkit task blockers ID
+openguildkit task clear ID security:1 --evidence tests/test_access.py --supports "Cross-account access is refused" --by "Alex Moreau"
+openguildkit task waive ID security:2 --by "Camille Martin" --reason "Internal pilot only" --scope "Internal users" --until 2026-12-15
+```
+
+Clearing records the evidence. A waiver is possible only when the profile allows it, for example `"waivers": {"allowed_by": ["Camille Martin"], "max_days": 30}`; it needs the named person at a terminal, a reason, a scope and an end date within the limit. Otherwise send the task back with `--request-changes`. The handoff lists the cleared blockers and the waivers with their scope and end date. After upgrading the board catalog, run `openguildkit sync` and check whether a pending task needs another consultation under the new rules.
 
 To send the task back:
 

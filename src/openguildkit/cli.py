@@ -36,6 +36,7 @@ from .project import (
 from .references import find_references, load_references, with_pattern_references
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
+    resolve_blocker,
     record_deliberation,
     assemble_review,
     pass_progress,
@@ -51,7 +52,7 @@ from .tasks import (
     require_current_scope,
     task_path,
 )
-from .workflow import board_brief, challenge_report, deliberation_request, handoff, open_points, select_boards, task_questions, validate_answers
+from .workflow import blocker_list, board_brief, challenge_report, deliberation_request, handoff, open_points, select_boards, task_questions, validate_answers
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -116,6 +117,9 @@ def _parser() -> argparse.ArgumentParser:
         "review": "Record the completed board reviews.",
         "challenge": "Print the decision brief and each board's challenge.",
         "deliberate": "Print the objections between boards and the response template.",
+        "blockers": "List the review's blockers and how each was resolved.",
+        "clear": "Record the evidence that clears a blocker.",
+        "waive": "Waive a blocker within the project's waiver policy (needs a terminal).",
         "respond": "Record the boards' answers to each other's objections.",
         "decide": "Record a human decision.",
         "handoff": "Print the approved implementation handoff, or the decision record of a decision task.",
@@ -143,6 +147,18 @@ def _parser() -> argparse.ArgumentParser:
             command.add_argument("board", help="Board ID.")
         if action in ("pass", "submit"):
             command.add_argument("--mode", choices=("subagent", "sequential"), help="How the host runs this pass.")
+        if action in ("clear", "waive"):
+            command.add_argument("blocker", help="Blocker ID such as security:1 (see task blockers).")
+            command.add_argument("--by", required=True, help="Person who resolves the blocker.")
+        if action == "clear":
+            command.add_argument("--evidence", required=True, help="Path, document or link that clears it.")
+            command.add_argument("--supports", required=True, help="What the evidence establishes.")
+        if action == "waive":
+            command.add_argument("--reason", required=True, help="Why the risk is accepted.")
+            command.add_argument("--scope", required=True, help="What the waiver covers.")
+            command.add_argument("--until", required=True, help="Last day of the waiver, YYYY-MM-DD.")
+        if action == "blockers":
+            command.add_argument("--json", action="store_true", help="Print the blockers as JSON.")
         if action == "respond":
             command.add_argument("--file", type=Path, required=True, help="Completed deliberation JSON.")
         if action == "submit":
@@ -610,8 +626,9 @@ def _decide(args, root: Path, state: Path, task: dict) -> None:
             file=sys.stderr,
             end="",
         )
-        if any(entry.get("challenge", {}).get("blockers") for entry in task["review"]["boards"]):
-            print("The review flags blockers. Record how the decision addresses them.", file=sys.stderr)
+        for item in blocker_list(task):
+            resolution = item["resolution"]
+            print(f"Blocker {item['id']} {resolution['kind']} by {resolution['by']}: {item['finding']}", file=sys.stderr)
         print(f"Type {args.id} to approve the reviewed scope: ", end="", file=sys.stderr, flush=True)
         if input().strip() != args.id:
             raise ValueError("Approval cancelled.")
@@ -657,6 +674,36 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         print(_read_consultation(task)["markdown"])
     elif action == "template":
         _print_json(_read_consultation(task)["review_template"])
+    elif action == "blockers":
+        items = blocker_list(task)
+        if args.json:
+            _print_json(items)
+        elif not items:
+            print("No blockers.")
+        else:
+            for item in items:
+                resolution = item["resolution"]
+                state = f"{resolution['kind']} by {resolution['by']}" if resolution else "open"
+                print(f"{item['id']} [{state}] {item['finding']}")
+                if item.get("owner"):
+                    print(f"    owner: {item['owner']}; clears when: {item['clears_when']}")
+    elif action in ("clear", "waive"):
+        if action == "waive":
+            if not sys.stdin.isatty():
+                raise ValueError("A waiver needs a person at an interactive terminal.")
+            details = {"kind": "waived", "by": args.by, "reason": args.reason, "scope": args.scope, "until": args.until}
+        else:
+            details = {"kind": "cleared", "by": args.by, "evidence": args.evidence, "supports": args.supports}
+        result = resolve_blocker(task, args.blocker, details, profile)
+        if action == "waive":
+            print(f"Type {args.id} to waive {args.blocker} until {args.until}: ", end="", file=sys.stderr, flush=True)
+            if input().strip() != args.id:
+                raise ValueError("Waiver cancelled.")
+        with project_lock(state):
+            if read_task(state, args.id) != task:
+                raise ValueError("The task changed while you were deciding. Review it and retry.")
+            write_json(task_path(state, args.id), result)
+        print(details["kind"])
     elif action == "deliberate":
         _print_json(deliberation_request(task))
     elif action == "respond":
