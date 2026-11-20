@@ -79,7 +79,7 @@ def _parser() -> argparse.ArgumentParser:
         "review": "Record the completed board reviews.",
         "challenge": "Print the decision brief and each board's challenge.",
         "decide": "Record a human decision.",
-        "handoff": "Print the approved implementation handoff.",
+        "handoff": "Print the approved implementation handoff, or the decision record of a decision task.",
         "show": "Print the task record as JSON.",
     }
     for action, description in descriptions.items():
