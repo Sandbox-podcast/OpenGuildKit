@@ -16,6 +16,23 @@ function Read-GitHub($Endpoint) {
     $json | ConvertFrom-Json
 }
 
+function Find-RulePush($Report) {
+    $ref = $Report.policyRef
+    if ($ref -notlike 'refs/heads/*') { $ref = "refs/heads/$ref" }
+    $encodedRef = [Uri]::EscapeDataString($ref)
+    $endpoint = "repos/$($Report.policyRepo)/activity?ref=$encodedRef&activity_type=push&per_page=100"
+    $json = & $gh api --paginate --slurp $endpoint
+    if ($LASTEXITCODE -ne 0) { throw "GitHub request failed: $endpoint" }
+    $pages = (ConvertFrom-Json -InputObject ('{"pages":' + ($json -join "`n") + '}')).pages
+    $pushes = @(foreach ($page in $pages) {
+        $page | Where-Object { $_.ref -eq $ref -and $_.after -eq $Report.policyCommit -and $_.activity_type -eq 'push' }
+    })
+    if ($pushes.Count -ne 1 -or -not $pushes[0].timestamp) {
+        throw "Expected one GitHub push of rule $($Report.policyCommit) to $ref."
+    }
+    $pushes[0]
+}
+
 try {
     $boot = [DateTimeOffset](Get-CimInstance Win32_OperatingSystem).LastBootUpTime
     $oldBoot = [DateTimeOffset]$test.previousBoot
@@ -39,11 +56,11 @@ try {
     } while ($true)
 
     $report = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    $commit = Read-GitHub "repos/$($report.policyRepo)/commits/$($report.policyCommit)"
-    $published = [DateTimeOffset]$commit.commit.committer.date
+    $rulePush = Find-RulePush $report
+    $published = [DateTimeOffset]$rulePush.timestamp
     $task = Get-ScheduledTask -TaskName 'OpenGuildKit Jenkins'
     $taskRun = [DateTimeOffset](Get-ScheduledTaskInfo -TaskName $task.TaskName).LastRunTime
-    $javaPath = Join-Path $runtime 'java/bin/java.exe'
+    $javaPath = Join-Path $runtime 'java\bin\java.exe'
     $java = Get-CimInstance Win32_Process -Filter "Name='java.exe'" |
         Where-Object { $_.ExecutablePath -eq $javaPath -and $_.CommandLine -like '*--httpPort=52278*' } |
         Select-Object -First 1
@@ -53,8 +70,17 @@ try {
     $buildXml = Get-Content -LiteralPath $job -Raw
     if ($buildXml -notmatch 'TimerTriggerCause') { throw 'Jenkins did not start from its timer.' }
     if ($report.targets.Count -ne $test.targets.Count) { throw 'Unexpected pull-request count.' }
+    $baselineTargets = @{}
+    foreach ($target in $test.targets) {
+        $key = "$($target.repo)#$($target.number)"
+        if ($baselineTargets.ContainsKey($key)) { throw "Duplicate baseline pull request: $key." }
+        $baselineTargets.Add($key, $target)
+    }
     foreach ($target in $report.targets) {
-        $before = $test.targets | Where-Object repo -eq $target.repo
+        $key = "$($target.repo)#$($target.number)"
+        if (-not $baselineTargets.ContainsKey($key)) { throw "Unexpected pull request: $key." }
+        $before = $baselineTargets[$key]
+        $baselineTargets.Remove($key)
         $pr = Read-GitHub "repos/$($target.repo)/pulls/$($target.number)"
         if ($pr.state -ne 'open' -or $pr.head.sha -ne $before.commit -or $target.commit -ne $before.commit -or
             $target.result.policyCommit -ne $report.policyCommit -or $target.result.version -ne $test.expectedVersion -or
@@ -72,12 +98,13 @@ try {
 
     $duringRestart = $published -ge $armed -and $published -lt $boot
     $afterShutdown = if ($event) { $published -ge [DateTimeOffset]$event.TimeCreated } else { $null }
-    @{
+    $receipt = @{
         previousBoot = $oldBoot.ToUniversalTime().ToString('o')
         armedAt = $armed.ToUniversalTime().ToString('o')
         windowsShutdown = $(if ($event) { ([DateTimeOffset]$event.TimeCreated).ToUniversalTime().ToString('o') })
         windowsBoot = $boot.ToUniversalTime().ToString('o')
         rulePublishedAt = $published.ToUniversalTime().ToString('o')
+        rulePushActivityId = $rulePush.id
         publishedBeforeWindowsBoot = $duringRestart
         publishedAfterWindowsShutdownEvent = $afterShutdown
         publishedBeforeJenkinsStarted = $published -lt $started
@@ -86,7 +113,8 @@ try {
         jenkinsTrigger = 'TimerTrigger'
         publisherRun = $test.publisherRun
         report = $report
-    } | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $test.output -Encoding utf8
+    }
+    ConvertTo-Json -InputObject $receipt -Depth 12 | Set-Content -LiteralPath $test.output -Encoding utf8
 
     if ($PublishStatus) {
         $statusState = if ($duringRestart -and $afterShutdown -eq $true) { 'success' } else { 'error' }

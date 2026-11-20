@@ -8,6 +8,8 @@ To reproduce the original fixture, copy [the demo files](demo/) into a dedicated
 
 Run [the restart verifier](windows/verify-reboot.ps1) after a reboot in the legacy prototype environment. It uses the original watcher state and reports, the Windows System event log and the Jenkins timer build. The JSON output records separately whether GitHub published the rule before boot and after Windows logged the shutdown.
 
+Publish the rule with a direct push that makes the rule commit the tip of the watched branch. The verifier matches the branch and commit SHA against GitHub repository activity and records the push timestamp and activity ID in its receipt. It reports an error when the matching activity is missing or ambiguous. The GitHub CLI credentials must be able to read repository activity.
+
 ```powershell
 .\windows\verify-reboot.ps1 -ProbeConfig C:\pilot-runtime\reboot-probe.json
 ```
