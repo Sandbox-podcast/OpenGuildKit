@@ -11,7 +11,7 @@ from .decisions import NAMESPACE, approval_policy, check_decision, decision_payl
 from .detect import components_for_profile, detect_stack
 from .integrations import install_agent_files
 from .guard import NO_TASK, ci_guard, covering_tasks, export_decision, guard_hook, guard_mode
-from .results import completion_problems, expected_checks, run_command_checks
+from .results import chaosfolk_checks, compare_runs, completion_problems, expected_checks, run_command_checks
 from .hosts import apply_host_settings, host_controls
 from .lock import (
     package_version,
@@ -42,6 +42,7 @@ from .project import (
 from .references import find_references, load_references, with_pattern_references
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
+    timestamp,
     list_tasks,
     complete_task,
     record_result,
@@ -156,6 +157,7 @@ def _parser() -> argparse.ArgumentParser:
         "verify": "Run the project's check commands and record their results.",
         "result": "Record the delivered revision, criteria and check outcomes.",
         "complete": "Declare the task done once mandatory checks passed with evidence.",
+        "runs": "Compare the last two ChaosFolk replays of the task.",
         "export": "Write a shareable decision record to .openguildkit/decisions for the pull request.",
         "authorize": "Record a person's decision on an external action outside the authorized scope.",
     }
@@ -198,6 +200,12 @@ def _parser() -> argparse.ArgumentParser:
             command.add_argument("--json", action="store_true", help="Print the checks as JSON.")
         if action == "result":
             command.add_argument("--file", type=Path, required=True, help="Result JSON.")
+        if action == "verify":
+            command.add_argument("--chaosfolk", type=Path, metavar="SUMMARY",
+                                 help="Record a ChaosFolk regression summary.json instead of running the check commands.")
+            command.add_argument("--tool-version", help="ChaosFolk version or commit that produced the summary.")
+        if action == "runs":
+            command.add_argument("--json", action="store_true", help="Print the comparison as JSON.")
         if action == "respond":
             command.add_argument("--file", type=Path, required=True, help="Completed deliberation JSON.")
         if action == "submit":
@@ -824,8 +832,12 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             if task["status"] != "approved":
                 raise ValueError("Run checks for an approved task that is not done yet.")
             revision = git_revision(root)
-            payload = {"revision": revision["commit"] if revision else "working tree",
-                       "checks": run_command_checks(root, state, task, profile)}
+            payload = {"revision": revision["commit"] if revision else "working tree"}
+            if args.chaosfolk:
+                imported = chaosfolk_checks(root, args.chaosfolk, args.tool_version)
+                payload.update(checks=imported["checks"], run={**imported["run"], "at": timestamp()})
+            else:
+                payload["checks"] = run_command_checks(root, state, task, profile)
         with project_lock(state):
             current_task = read_task(state, args.id)
             if current_task != task:
@@ -844,6 +856,16 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 print(f"{item['check']}: {item['status']}")
             problems = completion_problems(result, profile)
             print(f"{len(problems)} point(s) before the task can be done." if problems else "Ready: run task complete.")
+    elif action == "runs":
+        comparison = compare_runs(task)
+        if comparison is None:
+            raise ValueError("The task has fewer than two ChaosFolk replays to compare.")
+        if args.json:
+            _print_json(comparison)
+        else:
+            for name, (before, after) in comparison["changed"].items():
+                print(f"{name}: {before or 'absent'} -> {after or 'absent'}")
+            print(f"{len(comparison['unchanged'])} scenario(s) unchanged")
     elif action == "export":
         path = export_decision(root, state, task, profile, args.output).resolve()
         print(path.relative_to(root).as_posix() if root in path.parents else str(path))
