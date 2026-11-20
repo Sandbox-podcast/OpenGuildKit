@@ -16,5 +16,8 @@
   ],
   "packs": [
     "leadership-planning"
+  ],
+  "references": [
+    "okr"
   ]
 }

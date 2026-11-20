@@ -59,7 +59,7 @@ A catalog pull request is merged when:
 
 - the JSON validates (CI runs it on Linux, macOS and Windows);
 - every rule has a verification a reviewer could actually perform;
-- sources are official or widely recognized and use HTTPS;
+- sources are official or widely recognized, use HTTPS and link the canonical page without tracking parameters, with one address per document;
 - nothing claims compliance or certification;
 - a steward of the domain approved it (see [GOVERNANCE.md](GOVERNANCE.md)).
 

@@ -20,7 +20,8 @@
     "stack": [
       [
         "react",
-        "react.js"
+        "react.js",
+        "next.js"
       ]
     ]
   }

@@ -15,6 +15,9 @@
     "sales"
   ],
   "packs": [
-    "product-discovery"
+    "jobs-to-be-done"
+  ],
+  "references": [
+    "jobs-to-be-done"
   ]
 }

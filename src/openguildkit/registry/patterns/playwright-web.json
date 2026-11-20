@@ -16,6 +16,9 @@
   "packs": [
     "playwright"
   ],
+  "references": [
+    "playwright"
+  ],
   "match": {
     "stack": [
       [

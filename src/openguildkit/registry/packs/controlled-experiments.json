@@ -1,0 +1,24 @@
+{
+  "id": "controlled-experiments",
+  "title": "Controlled experiments (A/B tests)",
+  "version": "1.0.0",
+  "description": "Experiment plans with a decision rule set before traffic is assigned, and reports that state effect and uncertainty.",
+  "sources": [
+    {
+      "title": "Kohavi, Tang and Xu, Trustworthy Online Controlled Experiments: A Practical Guide to A/B Testing",
+      "url": "https://experimentguide.com/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "design-controlled-test",
+      "instruction": "For an A/B test, state the hypothesis, primary metric, guardrails, unit of randomization and stopping rule before assigning traffic.",
+      "verification": "Review event definitions and the planned duration. Check assignment balance and sample ratios before interpreting observed differences."
+    },
+    {
+      "id": "report-experiment-uncertainty",
+      "instruction": "When reviewing an A/B test, record the estimated effect and uncertainty along with any problems in assignment or logging. Apply the agreed decision rule before rolling out.",
+      "verification": "Reconcile the report with the experiment plan and verify that each guardrail passed or has a recorded decision from the owner."
+    }
+  ]
+}

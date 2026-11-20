@@ -24,10 +24,6 @@
     "stack": [
       [
         "next.js"
-      ],
-      [
-        "react",
-        "react.js"
       ]
     ],
     "min_versions": {

@@ -53,8 +53,8 @@
       "applies_when": "Pour remplacer ou tester indépendamment une interface, une base de données ou une intégration externe.",
       "sources": [
         {
-          "url": "https://alistair.cockburn.us/hexagonal-architecture?trk=public_post_comment-text",
-          "title": "Hexagonal architecture - Alistair Cockburn"
+          "url": "https://alistair.cockburn.us/hexagonal-architecture",
+          "title": "Alistair Cockburn — Hexagonal architecture"
         }
       ]
     },
@@ -156,7 +156,7 @@
         },
         {
           "url": "https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures",
-          "title": "Common web application architectures - Microsoft Learn"
+          "title": "Microsoft Learn — Common web application architectures"
         }
       ]
     },
@@ -164,7 +164,7 @@
       "id": "uml",
       "title": "Unified Modeling Language",
       "category": "Architecture et modélisation",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Fournit un langage de modélisation avec des diagrammes pour représenter la structure et le comportement des systèmes.",
       "applies_when": "Lorsque des diagrammes partagés sont utiles, par exemple pour expliquer des classes, des séquences ou des états.",
       "sources": [
@@ -220,7 +220,7 @@
       "id": "archimate",
       "title": "ArchiMate",
       "category": "Architecture et modélisation",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Fournit un langage de modélisation reliant les activités métier, les applications et les technologies.",
       "applies_when": "Pour décrire et analyser l'architecture d'entreprise, avec ou sans utilisation de TOGAF.",
       "sources": [
@@ -234,7 +234,7 @@
       "id": "bpmn",
       "title": "Business Process Model and Notation",
       "category": "Architecture et modélisation",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Représente les activités, événements et échanges d'un processus métier avec une notation partagée.",
       "applies_when": "Pour comprendre, communiquer ou automatiser des processus selon les outils choisis ; tous les diagrammes ne sont pas exécutables.",
       "sources": [
@@ -248,7 +248,7 @@
       "id": "dmn",
       "title": "Decision Model and Notation",
       "category": "Architecture et modélisation",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Décrit des décisions métier et leurs règles, notamment à l'aide de tables de décision.",
       "applies_when": "Pour rendre des décisions explicites et vérifiables, éventuellement en complément de processus BPMN.",
       "sources": [
@@ -259,7 +259,10 @@
       ]
     },
     {
-      "id": "root-add-dry",
+      "id": "dry",
+      "aliases": [
+        "root-add-dry"
+      ],
       "title": "DRY — Don't Repeat Yourself",
       "category": "Architecture et modélisation",
       "kind": "principe",
@@ -273,7 +276,10 @@
       ]
     },
     {
-      "id": "root-add-simple",
+      "id": "kiss",
+      "aliases": [
+        "root-add-simple"
+      ],
       "title": "KISS / simplicité de conception",
       "category": "Architecture et modélisation",
       "kind": "principe",
@@ -287,7 +293,10 @@
       ]
     },
     {
-      "id": "root-add-yagni",
+      "id": "yagni",
+      "aliases": [
+        "root-add-yagni"
+      ],
       "title": "YAGNI — You Aren't Gonna Need It",
       "category": "Architecture et modélisation",
       "kind": "principe",
@@ -307,10 +316,13 @@
       "kind": "protocole",
       "summary": "Définit la manière dont clients et serveurs échangent des requêtes et des réponses sur le Web.",
       "applies_when": "Pour les sites, API et autres échanges qui utilisent HTTP ; préciser les méthodes, statuts et comportements attendus.",
+      "packs": [
+        "api-design"
+      ],
       "sources": [
         {
-          "url": "https://datatracker.ietf.org/doc/html/rfc9110",
-          "title": "RFC 9110: HTTP Semantics - IETF"
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "IETF RFC 9110 — HTTP Semantics"
         }
       ]
     },
@@ -332,7 +344,7 @@
       "id": "graphql",
       "title": "GraphQL",
       "category": "API, protocoles et interopérabilité",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Définit un langage de requête et un système de types permettant au client de demander les données dont il a besoin.",
       "applies_when": "Pour les API qui choisissent ce modèle d'accès aux données ; alternative ou complément à d'autres styles d'API.",
       "sources": [
@@ -360,9 +372,12 @@
       "id": "openapi",
       "title": "OpenAPI Specification",
       "category": "API, protocoles et interopérabilité",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Décrit les opérations, paramètres et réponses d'une API HTTP dans un document exploitable par des outils.",
       "applies_when": "Pour documenter, générer ou vérifier des interfaces HTTP ; le document doit rester cohérent avec leur comportement réel.",
+      "packs": [
+        "api-design"
+      ],
       "sources": [
         {
           "url": "https://spec.openapis.org/oas/latest.html",
@@ -374,17 +389,13 @@
       "id": "asyncapi",
       "title": "AsyncAPI Specification",
       "category": "API, protocoles et interopérabilité",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Décrit les canaux, messages et opérations d'interfaces utilisant des échanges asynchrones.",
       "applies_when": "Pour les architectures à messages ou événements ; compléter la description avec les protocoles et conventions réellement utilisés.",
       "sources": [
         {
           "url": "https://www.asyncapi.com/docs/reference/specification/v3.1.0",
-          "title": "AsyncAPI Specification"
-        },
-        {
-          "url": "https://www.asyncapi.com/docs/reference/specification/latest",
-          "title": "AsyncAPI Initiative — Specification"
+          "title": "AsyncAPI Specification 3.1.0"
         }
       ]
     },
@@ -462,7 +473,7 @@
       "id": "cloudevents",
       "title": "CloudEvents",
       "category": "API, protocoles et interopérabilité",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Définit une enveloppe commune et des métadonnées pour décrire des événements entre systèmes.",
       "applies_when": "Pour faciliter les échanges d'événements entre services ou plateformes ; ne remplace pas le contenu métier ni le transport.",
       "sources": [
@@ -481,10 +492,6 @@
       "applies_when": "Pour les échanges et fichiers qui choisissent ce format ; ajouter un schéma si la structure doit être vérifiée.",
       "sources": [
         {
-          "url": "https://datatracker.ietf.org/doc/html/rfc8259",
-          "title": "RFC 8259: The JavaScript Object Notation (JSON) Data Interchange Format - IETF"
-        },
-        {
           "url": "https://www.rfc-editor.org/rfc/rfc8259.html",
           "title": "IETF RFC 8259 — The JavaScript Object Notation (JSON) Data Interchange Format"
         }
@@ -494,7 +501,7 @@
       "id": "json-schema",
       "title": "JSON Schema",
       "category": "Formats et schémas",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Décrit la structure et les contraintes attendues d'un document JSON pour permettre sa validation.",
       "applies_when": "Pour vérifier des configurations ou des messages JSON ; préciser le dialecte utilisé et les règles réellement prises en charge.",
       "sources": [
@@ -513,12 +520,8 @@
       "applies_when": "Pour les fichiers où la lisibilité et l'édition manuelle comptent ; choisir un schéma et des contrôles adaptés aux ambiguïtés du format.",
       "sources": [
         {
-          "url": "https://yaml.org/spec/1.2.2/index.html",
-          "title": "YAML Ain't Markup Language Version 1.2.2"
-        },
-        {
           "url": "https://yaml.org/spec/1.2.2/",
-          "title": "YAML — YAML Ain't Markup Language, Version 1.2.2"
+          "title": "YAML Ain't Markup Language (YAML) revision 1.2.2"
         }
       ]
     },
@@ -554,7 +557,7 @@
       "id": "xsd",
       "title": "XML Schema Definition",
       "category": "Formats et schémas",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Décrit les éléments, types et contraintes attendus dans des documents XML.",
       "applies_when": "Pour valider des échanges ou documents XML ; choisir une version de XSD compatible avec les outils utilisés.",
       "sources": [
@@ -587,12 +590,8 @@
       "applies_when": "Pour les échanges ou fichiers de données qui utilisent Avro ; vérifier les règles d'évolution des schémas de lecture et d'écriture.",
       "sources": [
         {
-          "url": "https://avro.apache.org/docs/1.11.4/specification/",
-          "title": "Apache Avro Specification"
-        },
-        {
           "url": "https://avro.apache.org/docs/1.12.0/specification/",
-          "title": "Apache Avro — Specification"
+          "title": "Apache Avro 1.12.0 Specification"
         }
       ]
     },
@@ -625,10 +624,13 @@
       ]
     },
     {
-      "id": "root-add-html",
+      "id": "html",
+      "aliases": [
+        "root-add-html"
+      ],
       "title": "HTML Living Standard",
       "category": "Standards de la plateforme web",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Définit la structure et les comportements du langage HTML et de nombreuses fonctions de la plateforme web.",
       "applies_when": "Pour les produits web ; compléter par les exigences d'accessibilité et de compatibilité des navigateurs.",
       "sources": [
@@ -639,10 +641,13 @@
       ]
     },
     {
-      "id": "root-add-css",
+      "id": "css",
+      "aliases": [
+        "root-add-css"
+      ],
       "title": "Spécifications CSS",
       "category": "Standards de la plateforme web",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Décrivent les mécanismes de présentation, de mise en page et de styles des documents web.",
       "applies_when": "Vérifier le statut des modules et leur prise en charge par les navigateurs ciblés.",
       "sources": [

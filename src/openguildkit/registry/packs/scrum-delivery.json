@@ -1,7 +1,7 @@
 {
   "id": "scrum-delivery",
   "title": "Scrum delivery",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Sprint planning, inspection and follow-through for teams that use Scrum.",
   "sources": [
     {
@@ -15,8 +15,13 @@
   "rules": [
     {
       "id": "plan-sprint",
-      "instruction": "Before selecting Sprint work, agree on a Sprint Goal and have the Developers check capacity and dependencies. Keep the Sprint Backlog current as they learn.",
-      "verification": "Check that each selected item supports the Sprint Goal or has a stated reason, that open dependencies have owners and that the team can explain the current plan."
+      "instruction": "Before Sprint work is selected, ask the Scrum Team for the Sprint Goal and the Developers for their capacity, and record both in the Sprint Backlog.",
+      "verification": "Open the Sprint Backlog and check that it states the Sprint Goal and capacity, and that each selected item supports the goal or has a recorded reason."
+    },
+    {
+      "id": "record-sprint-dependencies",
+      "instruction": "Record each dependency of the selected Sprint work in the Sprint Backlog with an owner, and update it as the Developers learn.",
+      "verification": "Check that every open dependency in the Sprint Backlog names an owner."
     },
     {
       "id": "inspect-increment",
@@ -25,8 +30,8 @@
     },
     {
       "id": "follow-retrospective-action",
-      "instruction": "Choose an improvement from the Sprint Retrospective, give it an owner and agree on what to observe in the next Sprint.",
-      "verification": "At the next Retrospective, review the change and its observed effect before deciding whether to keep it."
+      "instruction": "Ask the Scrum Team which improvement from the Sprint Retrospective it will act on, and record it with an owner and what to observe in the next Sprint.",
+      "verification": "At the next Retrospective, check that the record gives the observed effect before the team decides whether to keep the change."
     }
   ]
 }

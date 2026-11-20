@@ -14,5 +14,8 @@
   ],
   "packs": [
     "design-process"
+  ],
+  "references": [
+    "double-diamond"
   ]
 }

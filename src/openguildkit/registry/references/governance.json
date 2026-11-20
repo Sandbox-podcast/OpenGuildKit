@@ -25,7 +25,7 @@
       "applies_when": "Pour les services cloud publics agissant comme sous-traitants de données personnelles et leurs clients.",
       "sources": [
         {
-          "url": "https://www.iso.org/fr/standard/27018?browse=ics",
+          "url": "https://www.iso.org/fr/standard/27018",
           "title": "ISO/IEC 27018:2025 — Protection des informations personnelles dans le cloud public"
         }
       ]
@@ -138,7 +138,11 @@
       "category": "Gouvernance, audit et management",
       "kind": "norme",
       "summary": "Définit les exigences d'un système de management de la sécurité de l'information.",
-      "applies_when": "Pour organiser et éventuellement faire certifier un périmètre de management de la sécurité ; une pipeline ne délivre pas cette certification.",
+      "applies_when": "Pour organiser un système de management de la sécurité de l'information et, si l'organisation le décide, le faire certifier par un organisme accrédité.",
+      "pattern": "iso-27001-isms",
+      "packs": [
+        "iso-27001"
+      ],
       "sources": [
         {
           "url": "https://www.iso.org/standard/27001",
@@ -248,9 +252,9 @@
       "id": "soc-2",
       "title": "SOC 2 — Examen et rapport d'attestation",
       "category": "Gouvernance, audit et management",
-      "kind": "attestation",
+      "kind": "référentiel",
       "summary": "Rend compte de l'examen de contrôles d'une organisation de services selon les critères applicables.",
-      "applies_when": "Quand des clients ou partenaires attendent une assurance indépendante ; ce rapport ne constitue pas une certification ISO du code.",
+      "applies_when": "Quand des clients ou partenaires attendent une assurance indépendante sur les contrôles d'une organisation de services ; le rapport est émis par un auditeur indépendant.",
       "sources": [
         {
           "url": "https://www.aicpa-cima.com/resources/download/get-description-criteria-for-your-organizations-soc-2-r-report",
@@ -262,7 +266,7 @@
       "id": "soc-3",
       "title": "SOC 3 — Rapport à usage général",
       "category": "Gouvernance, audit et management",
-      "kind": "attestation",
+      "kind": "référentiel",
       "summary": "Présente un rapport de confiance destiné à une diffusion plus large, avec moins de détails qu'un SOC 2.",
       "applies_when": "Pour communiquer une assurance sur des contrôles au public ; ce n'est pas un catalogue de prescriptions techniques.",
       "sources": [
@@ -292,7 +296,7 @@
       "category": "Gouvernance, audit et management",
       "kind": "norme",
       "summary": "Définit les exigences d'un système de management de la qualité et de son amélioration continue.",
-      "applies_when": "Quand l'organisation structure sa démarche qualité ou prépare une certification ; le framework peut soutenir les processus et preuves attendus.",
+      "applies_when": "Quand l'organisation structure sa démarche qualité ou prépare une certification ; le périmètre, les processus et les preuves se définissent avec son responsable qualité.",
       "sources": [
         {
           "url": "https://www.iso.org/standard/9001",
@@ -570,14 +574,14 @@
       "category": "Qualité et sûreté sectorielles",
       "kind": "référentiel",
       "summary": "Définit des objectifs d'assurance du développement des logiciels embarqués aéronautiques.",
-      "applies_when": "Pour les logiciels aéronautiques visés par une démarche de certification acceptant ce référentiel ; une installation d'outil n'accorde aucune approbation.",
+      "applies_when": "Pour les logiciels aéronautiques visés par une démarche de certification acceptant ce référentiel ; les objectifs applicables dépendent du niveau logiciel convenu avec l'autorité de certification.",
       "sources": [
         {
           "url": "https://www.rtca.org/do-178/",
           "title": "RTCA — DO-178 Software Standards Documents"
         },
         {
-          "url": "https://www.faa.gov/airports/resources/advisory_circulars/index.cfm/go/document.information/documentNumber/20-115D",
+          "url": "https://www.faa.gov/regulations_policies/advisory_circulars/index.cfm/go/document.information/documentNumber/20-115D",
           "title": "FAA AC 20-115D — Airborne Software Development Assurance Using EUROCAE ED-12 and RTCA DO-178"
         }
       ]

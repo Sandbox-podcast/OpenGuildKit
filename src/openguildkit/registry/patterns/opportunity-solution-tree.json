@@ -13,6 +13,9 @@
     "design"
   ],
   "packs": [
-    "product-discovery"
+    "opportunity-solution-tree"
+  ],
+  "references": [
+    "opportunity-solution-tree"
   ]
 }

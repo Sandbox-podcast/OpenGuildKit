@@ -3,14 +3,48 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit.catalog import CatalogError
-from openguildkit.references import find_references, load_references
+from openguildkit.catalog import ID_PATTERN, CatalogError, load_catalog
+from openguildkit.references import (
+    KINDS,
+    check_reference_links,
+    find_references,
+    load_references,
+    with_pattern_references,
+)
+
+# Methods that have a hand-written reference and a pattern: the index shows each one once.
+PRESENTED = {
+    "scrum": "scrum", "kanban-guide": "kanban", "okr": "okr", "jobs-to-be-done": "jobs-to-be-done",
+    "opportunity-solution-tree": "opportunity-solution-tree", "double-diamond": "double-diamond",
+    "meddpicc": "meddpicc", "spin-selling": "spin-selling", "utm": "utm-campaign-measurement",
+    "playwright": "playwright-web", "owasp-asvs": "owasp-asvs-review", "wcag-22": "wcag-web-accessibility",
+    "nist-ai-rmf": "nist-ai-risk-management", "iso-iec-27001": "iso-27001-isms",
+    "llm-agent-evaluations": "llm-evaluation", "site-reliability-engineering": "service-reliability-sre",
+    "nist-ssdf": "secure-software-lifecycle",
+}
+
+
+def write_family(directory, references, family_id="team-practices", title="Team practices"):
+    path = Path(directory) / f"{family_id}.json"
+    path.write_text(json.dumps({"id": family_id, "title": title, "references": references}), encoding="utf-8")
+    return path.parent
+
+
+def team_record(**fields):
+    record = {
+        "id": "team-change-record", "title": "Change record", "category": "Livraison", "kind": "pratique",
+        "summary": "Trace les changements.", "applies_when": "Pour chaque mise en production.",
+        "sources": [{"title": "Handbook", "url": "https://example.org/handbook"}],
+    }
+    return {**record, **fields}
 
 
 class ReferenceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.families = load_references()
+        cls.catalog = load_catalog()
+        cls.index = with_pattern_references(cls.families, cls.catalog["patterns"])
 
     def test_title_matches_rank_above_mentions(self):
         matches = find_references(self.families, query="ISO 27001")
@@ -42,3 +76,69 @@ class ReferenceTests(unittest.TestCase):
             path.write_text(json.dumps(data), encoding="utf-8")
             with self.assertRaisesRegex(CatalogError, "Duplicate reference ID"):
                 load_references(path.parent)
+
+    def test_ids_use_hyphens_and_former_ids_still_resolve(self):
+        records = [record for family in self.families.values() for record in family["references"]]
+        self.assertEqual([record["id"] for record in records if not ID_PATTERN.fullmatch(record["id"])], [])
+        for former, current in (("pd_iac", "infrastructure-as-code"), ("agent_agent_memory", "agent-memory"),
+                                ("root-add-sql", "sql"), ("pd_continuous_deployment", "continuous-deployment")):
+            with self.subTest(former=former):
+                self.assertEqual(find_references(self.index, record_id=former)[0]["id"], current)
+
+    def test_ids_and_aliases_are_validated_and_unique(self):
+        cases = [
+            (team_record(id="team_change_record"), "Use lowercase letters, digits and hyphens"),
+            (team_record(aliases=["Team Change"]), "aliases must list former IDs"),
+            (team_record(aliases=["team-change-record"]), "aliases must list former IDs"),
+            (team_record(aliases=["pd_iac"]), "Duplicate reference ID: pd_iac"),
+            (team_record(id="pd-iac", aliases=["infrastructure-as-code"]), "Duplicate reference ID"),
+        ]
+        for record, message in cases:
+            with self.subTest(message=message), tempfile.TemporaryDirectory() as directory:
+                with self.assertRaisesRegex(CatalogError, message):
+                    load_references(write_family(directory, [record]))
+
+    def test_kind_uses_the_closed_vocabulary(self):
+        kinds = {record["kind"] for family in self.families.values() for record in family["references"]}
+        self.assertLessEqual(kinds, set(KINDS))
+        self.assertLessEqual(len(KINDS), 15)
+        with tempfile.TemporaryDirectory() as directory, self.assertRaisesRegex(CatalogError, "kind must be one of"):
+            load_references(write_family(directory, [team_record(kind="Practice")]))
+
+    def test_references_packs_and_patterns_name_each_other(self):
+        check_reference_links(self.families, self.catalog)
+        for reference_id, pattern_id in PRESENTED.items():
+            with self.subTest(reference=reference_id):
+                record = find_references(self.families, record_id=reference_id)[0]
+                self.assertEqual(record["pattern"], pattern_id)
+                self.assertIn(reference_id, self.catalog["patterns"][pattern_id]["references"])
+                self.assertTrue(set(record["packs"]) <= set(self.catalog["packs"]))
+        broken = json.loads(json.dumps(self.catalog))
+        broken["patterns"]["scrum"]["references"] = ["definition-of-done"]
+        with self.assertRaisesRegex(CatalogError, "must list reference 'scrum'"):
+            check_reference_links(self.families, broken)
+        with tempfile.TemporaryDirectory() as directory:
+            local = load_references(write_family(directory, [team_record(packs=["no-such-pack"])]))
+            with self.assertRaisesRegex(CatalogError, "unknown packs: no-such-pack"):
+                check_reference_links(local, self.catalog)
+
+    def test_the_index_shows_each_method_once(self):
+        generated = [record["pattern"] for record in self.index["work-patterns"]["references"]]
+        presented = [record["pattern"] for family in self.families.values() for record in family["references"] if "pattern" in record]
+        self.assertLessEqual(set(PRESENTED.values()), set(presented))
+        self.assertEqual(sorted(generated + presented), sorted(self.catalog["patterns"]))
+        scrum = find_references(self.index, record_id="pattern-scrum")
+        self.assertEqual([(record["id"], record["family"]) for record in scrum], [("scrum", "product")])
+        self.assertIn("openguildkit patterns --id scrum", scrum[0]["applies_when"])
+        self.assertIn("scrum-delivery", scrum[0]["applies_when"])
+        titles = [record["title"] for family in self.index.values() for record in family["references"]]
+        self.assertEqual(titles.count("Scrum"), 1)
+        with tempfile.TemporaryDirectory() as directory:
+            local = load_references(write_family(directory, [team_record(pattern="no-such-pattern")]))
+            with self.assertRaisesRegex(CatalogError, "presents unknown pattern"):
+                with_pattern_references(local, self.catalog["patterns"])
+
+    def test_references_sit_in_the_family_of_their_discipline(self):
+        family_of = {record["id"]: family_id for family_id, family in self.families.items() for record in family["references"]}
+        self.assertEqual(family_of["core-web-vitals"], "quality")
+        self.assertEqual({family_of[name] for name in ("spf", "dkim", "dmarc")}, {"security"})

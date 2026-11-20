@@ -1,11 +1,11 @@
 {
   "id": "llm-evaluations",
   "title": "LLM and agent evaluations",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Checks for repeatable evaluations of model output, agent decisions and permitted tool use.",
   "sources": [
     {
-      "title": "Anthropic engineering, Demystifying evals for AI agents",
+      "title": "Anthropic, Demystifying evals for AI agents",
       "url": "https://www.anthropic.com/research/demystifying-evals-for-ai-agents"
     },
     {
@@ -16,8 +16,13 @@
   "rules": [
     {
       "id": "evaluate-user-outcomes",
-      "instruction": "Choose representative and boundary tasks from the intended use. Write a rubric for the result, uncertainty and user-visible errors, and review it with the person who owns the workflow.",
-      "verification": "Check that the cases cover critical paths and that graders agree on a sample of passing and failing outputs."
+      "instruction": "Build the evaluation cases from representative and boundary tasks of the intended use.",
+      "verification": "Check that the cases cover the critical paths and boundary conditions of the intended use."
+    },
+    {
+      "id": "review-grading-rubric",
+      "instruction": "Write a rubric for the result, uncertainty and user-visible errors, and ask the workflow owner to approve it.",
+      "verification": "Have two graders score a sample of passing and failing outputs with the approved rubric and check that they agree."
     },
     {
       "id": "check-permitted-tool-use",
@@ -25,9 +30,14 @@
       "verification": "Inspect the tool traces from evaluation runs. Verify that no live external action occurred in the test and that blocked steps stop as expected."
     },
     {
+      "id": "record-evaluation-setup",
+      "instruction": "Record the model, prompts, tool interfaces, test data and scoring version of each evaluation run.",
+      "verification": "Open the run record and check that it names each of these items."
+    },
+    {
       "id": "compare-evaluation-baselines",
-      "instruction": "Record the model, prompts, tool interfaces, test data and scoring version. Use repeated trials where output varies and report the performance of each critical task group.",
-      "verification": "Run the evaluation against the approved baseline and the proposed configuration. Review changed cases and record the release decision."
+      "instruction": "Run the evaluation on the approved baseline and on the proposed configuration, with repeated trials where output varies, and report results for each critical task group.",
+      "verification": "Review the cases that changed between the two runs and record the release decision."
     }
   ]
 }

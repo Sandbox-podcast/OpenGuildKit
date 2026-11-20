@@ -68,7 +68,7 @@
       "sources": [
         {
           "url": "https://developer.mozilla.org/en-US/docs/Glossary/Kebab_case",
-          "title": "Kebab case - MDN Web Docs Glossary"
+          "title": "MDN Web Docs Glossary — Kebab case"
         }
       ]
     },
@@ -171,7 +171,10 @@
       ]
     },
     {
-      "id": "root-add-bem",
+      "id": "bem",
+      "aliases": [
+        "root-add-bem"
+      ],
       "title": "BEM",
       "category": "Nommage et formatage",
       "kind": "convention",
@@ -219,6 +222,9 @@
       "kind": "convention",
       "summary": "Décrit les conventions usuelles de présentation et de nommage du code Python.",
       "applies_when": "Pour le code Python, en tenant compte du style cohérent du projet et des contraintes de compatibilité.",
+      "packs": [
+        "python"
+      ],
       "sources": [
         {
           "url": "https://peps.python.org/pep-0008/",
@@ -393,7 +399,7 @@
       "applies_when": "Pour le développement C++ ; sélectionner les recommandations adaptées et les contrôles disponibles, sans les confondre avec la norme ISO du langage.",
       "sources": [
         {
-          "url": "https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines?from=main",
+          "url": "https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines",
           "title": "C++ Core Guidelines"
         }
       ]
@@ -413,10 +419,13 @@
       ]
     },
     {
-      "id": "root-add-ecma",
+      "id": "ecmascript",
+      "aliases": [
+        "root-add-ecma"
+      ],
       "title": "ECMAScript / ECMA-262",
       "category": "Conventions par langage",
-      "kind": "standard",
+      "kind": "norme",
       "summary": "Spécifie le langage dont JavaScript est une implémentation.",
       "applies_when": "Choisir les fonctionnalités selon les environnements d'exécution et les cibles de compatibilité.",
       "sources": [
@@ -433,6 +442,9 @@
       "kind": "convention",
       "summary": "Utilise des numéros de version majeure, mineure et corrective pour annoncer la nature des changements d'une interface publique.",
       "applies_when": "Pour un produit ou une bibliothèque dont l'interface publique et les engagements de compatibilité sont définis.",
+      "packs": [
+        "release-management"
+      ],
       "sources": [
         {
           "url": "https://semver.org/spec/v2.0.0.html",
@@ -447,6 +459,9 @@
       "kind": "convention",
       "summary": "Structure les messages de commit avec des indications comme feat, fix ou changement incompatible.",
       "applies_when": "Pour les dépôts qui veulent un historique exploitable par les personnes et les automatisations ; ne prouve pas à lui seul la compatibilité.",
+      "packs": [
+        "release-management"
+      ],
       "sources": [
         {
           "url": "https://www.conventionalcommits.org/",
@@ -461,10 +476,13 @@
       "kind": "convention",
       "summary": "Organise un historique lisible des changements importants pour les utilisateurs à chaque version.",
       "applies_when": "Pour les logiciels et bibliothèques qui publient des versions ; compléter l'historique Git par une sélection éditoriale.",
+      "packs": [
+        "release-management"
+      ],
       "sources": [
         {
-          "url": "https://keepachangelog.com/fr/1.1.0/",
-          "title": "Keep a Changelog"
+          "url": "https://keepachangelog.com/en/1.1.0/",
+          "title": "Keep a Changelog 1.1.0"
         }
       ]
     },
@@ -534,7 +552,7 @@
       "sources": [
         {
           "url": "https://docs.github.com/en/pull-requests/reference/pull-requests",
-          "title": "Pull requests - GitHub Docs"
+          "title": "GitHub Docs — Pull requests"
         }
       ]
     },
@@ -548,7 +566,7 @@
       "sources": [
         {
           "url": "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners",
-          "title": "About code owners - GitHub Docs"
+          "title": "GitHub Docs — About code owners"
         }
       ]
     },
@@ -590,7 +608,7 @@
       "sources": [
         {
           "url": "https://git-scm.com/docs/githooks",
-          "title": "Git - githooks Documentation"
+          "title": "Git documentation — githooks"
         }
       ]
     }

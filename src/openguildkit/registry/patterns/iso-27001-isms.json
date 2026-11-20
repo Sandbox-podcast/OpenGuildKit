@@ -15,5 +15,9 @@
   ],
   "packs": [
     "iso-27001"
+  ],
+  "references": [
+    "iso-iec-27001",
+    "nist-ssdf"
   ]
 }

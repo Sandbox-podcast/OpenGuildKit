@@ -40,7 +40,7 @@
       "sources": [
         {
           "url": "https://developers.google.com/style",
-          "title": "About this guide  |  Google developer documentation style guide  |  Google for Developers"
+          "title": "Google developer documentation style guide — About this guide"
         }
       ]
     },
@@ -54,7 +54,7 @@
       "sources": [
         {
           "url": "https://learn.microsoft.com/en-us/style-guide/welcome/",
-          "title": "Welcome - Microsoft Writing Style Guide | Microsoft Learn"
+          "title": "Microsoft Learn — Microsoft Writing Style Guide"
         }
       ]
     },
@@ -104,7 +104,7 @@
       "id": "dita",
       "title": "DITA",
       "category": "Documentation et rédaction",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Architecture XML de contenus documentaires modulaires et réutilisables.",
       "applies_when": "Pour les chaînes éditoriales structurées qui ont besoin de réutilisation et de publications multiples.",
       "sources": [
@@ -152,7 +152,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/rfc/rfc5646.html",
-          "title": "www.rfc-editor.org"
+          "title": "IETF RFC 5646 (BCP 47) — Tags for Identifying Languages"
         }
       ]
     },
@@ -160,7 +160,7 @@
       "id": "unicode-cldr",
       "title": "Unicode CLDR",
       "category": "Internationalisation et conventions de référence",
-      "kind": "référentiel de données",
+      "kind": "référentiel",
       "summary": "Données de langues et de régions pour dates, nombres, monnaies et autres présentations locales.",
       "applies_when": "Pour localiser une application avec des données partagées plutôt que des règles improvisées.",
       "sources": [
@@ -180,7 +180,7 @@
       "sources": [
         {
           "url": "https://unicode-org.github.io/icu/userguide/format_parse/messages/",
-          "title": "Formatting Messages | ICU Documentation"
+          "title": "ICU User Guide — Formatting Messages"
         }
       ]
     },
@@ -188,13 +188,13 @@
       "id": "iana-timezones",
       "title": "IANA Time Zone Database",
       "category": "Internationalisation et conventions de référence",
-      "kind": "référentiel de données",
+      "kind": "référentiel",
       "summary": "Identifiants et règles historiques des fuseaux horaires et changements d'heure.",
       "applies_when": "Pour stocker et afficher des heures selon la zone de l'utilisateur.",
       "sources": [
         {
           "url": "https://www.iana.org/time-zones",
-          "title": "Time Zones"
+          "title": "IANA — Time Zone Database"
         }
       ]
     },
@@ -202,7 +202,7 @@
       "id": "unicode-normalization",
       "title": "Unicode Normalization UAX 15",
       "category": "Internationalisation et conventions de référence",
-      "kind": "standard",
+      "kind": "spécification",
       "summary": "Définit des formes normalisées de texte Unicode pour comparer et traiter les caractères.",
       "applies_when": "Pour les recherches, échanges et identifiants sensibles aux représentations des caractères.",
       "sources": [

@@ -53,7 +53,7 @@ class ChaosFolkIntegrationTests(unittest.TestCase):
         self.assertIn("chaosfolk-e2e", profile["patterns"])
         self.assertIn("chaosfolk-e2e", resolved_profile(profile, self.catalog)["packs"])
         instructions = render_instructions(profile, self.catalog)
-        self.assertIn("`chaosfolk-e2e@1.0.0`", instructions)
+        self.assertIn(f"`chaosfolk-e2e@{self.pack['version']}`", instructions)
         self.assertIn("`gate-ci-on-replays`", instructions)
 
 

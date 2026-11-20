@@ -3,7 +3,10 @@
   "title": "Cloud fiabilité et coûts",
   "references": [
     {
-      "id": "pd_iac",
+      "id": "infrastructure-as-code",
+      "aliases": [
+        "pd_iac"
+      ],
       "title": "Infrastructure as Code (IaC)",
       "category": "Infrastructure et conteneurs",
       "kind": "pratique",
@@ -21,7 +24,10 @@
       ]
     },
     {
-      "id": "pd_immutable",
+      "id": "immutable-infrastructure",
+      "aliases": [
+        "pd_immutable"
+      ],
       "title": "Infrastructure immuable",
       "category": "Infrastructure et conteneurs",
       "kind": "pratique",
@@ -35,10 +41,13 @@
       ]
     },
     {
-      "id": "pd_oci_image",
+      "id": "oci-image-spec",
+      "aliases": [
+        "pd_oci_image"
+      ],
       "title": "OCI Image Specification",
       "category": "Infrastructure et conteneurs",
-      "kind": "spécification ouverte",
+      "kind": "spécification",
       "summary": "Définit la structure des images de conteneurs : manifeste, configuration et couches, afin que les outils puissent les échanger.",
       "applies_when": "Quand le produit fabrique, stocke ou déploie des images de conteneurs et veut limiter les dépendances à un format propriétaire.",
       "sources": [
@@ -49,10 +58,13 @@
       ]
     },
     {
-      "id": "pd_oci_runtime",
+      "id": "oci-runtime-spec",
+      "aliases": [
+        "pd_oci_runtime"
+      ],
       "title": "OCI Runtime Specification",
       "category": "Infrastructure et conteneurs",
-      "kind": "spécification ouverte",
+      "kind": "spécification",
       "summary": "Décrit la configuration et le cycle de vie d'un conteneur ainsi que les exigences de son environnement d'exécution.",
       "applies_when": "Pour choisir ou intégrer des moteurs d'exécution de conteneurs compatibles avec l'écosystème OCI.",
       "sources": [
@@ -67,7 +79,10 @@
       ]
     },
     {
-      "id": "pd_oci_distribution",
+      "id": "oci-distribution-spec",
+      "aliases": [
+        "pd_oci_distribution"
+      ],
       "title": "OCI Distribution Specification",
       "category": "Infrastructure et conteneurs",
       "kind": "protocole",
@@ -81,12 +96,19 @@
       ]
     },
     {
-      "id": "pd_kubernetes",
+      "id": "kubernetes",
+      "aliases": [
+        "pd_kubernetes"
+      ],
       "title": "Kubernetes",
       "category": "Infrastructure et conteneurs",
       "kind": "outil",
       "summary": "Orchestre le déploiement et le fonctionnement de conteneurs à partir d'un état souhaité ; ce n'est pas une norme de développement.",
       "applies_when": "Quand le nombre de services, les besoins de disponibilité ou les environnements justifient la complexité d'un orchestrateur.",
+      "packs": [
+        "kubernetes-gitops",
+        "terraform-kubernetes"
+      ],
       "sources": [
         {
           "url": "https://kubernetes.io/docs/concepts/overview/",
@@ -95,12 +117,18 @@
       ]
     },
     {
-      "id": "pd_terraform",
+      "id": "terraform",
+      "aliases": [
+        "pd_terraform"
+      ],
       "title": "Terraform",
       "category": "Infrastructure et conteneurs",
       "kind": "outil",
       "summary": "Outil d'Infrastructure as Code qui planifie et applique des changements à des ressources gérées par des fournisseurs logiciels.",
       "applies_when": "Si l'organisation choisit Terraform pour gérer ses ressources et accepte son modèle d'état, ses extensions et ses conditions de licence.",
+      "packs": [
+        "terraform-kubernetes"
+      ],
       "sources": [
         {
           "url": "https://developer.hashicorp.com/terraform/intro",
@@ -109,7 +137,10 @@
       ]
     },
     {
-      "id": "pd_opentofu",
+      "id": "opentofu",
+      "aliases": [
+        "pd_opentofu"
+      ],
       "title": "OpenTofu",
       "category": "Infrastructure et conteneurs",
       "kind": "outil",
@@ -123,7 +154,10 @@
       ]
     },
     {
-      "id": "pd_helm",
+      "id": "helm",
+      "aliases": [
+        "pd_helm"
+      ],
       "title": "Helm",
       "category": "Infrastructure et conteneurs",
       "kind": "outil",
@@ -137,7 +171,10 @@
       ]
     },
     {
-      "id": "pd_ci",
+      "id": "continuous-integration",
+      "aliases": [
+        "pd_ci"
+      ],
       "title": "Intégration continue (CI)",
       "category": "Livraison et plateformes développeur",
       "kind": "pratique",
@@ -151,7 +188,10 @@
       ]
     },
     {
-      "id": "pd_continuous_delivery",
+      "id": "continuous-delivery",
+      "aliases": [
+        "pd_continuous_delivery"
+      ],
       "title": "Livraison continue",
       "category": "Livraison et plateformes développeur",
       "kind": "pratique",
@@ -165,7 +205,10 @@
       ]
     },
     {
-      "id": "pd_continuous_deployment",
+      "id": "continuous-deployment",
+      "aliases": [
+        "pd_continuous_deployment"
+      ],
       "title": "Déploiement continu",
       "category": "Livraison et plateformes développeur",
       "kind": "pratique",
@@ -173,18 +216,25 @@
       "applies_when": "Pour les services adaptés à des mises en production automatiques, avec une bonne détection des incidents et des possibilités de récupération.",
       "sources": [
         {
-          "url": "https://dora.dev/capabilities/continuous-delivery/",
-          "title": "DORA — Continuous delivery"
+          "url": "https://martinfowler.com/bliki/ContinuousDelivery.html",
+          "title": "Martin Fowler — Continuous Delivery, and how it differs from Continuous Deployment"
         }
       ]
     },
     {
-      "id": "pd_gitops",
+      "id": "opengitops",
+      "aliases": [
+        "pd_gitops"
+      ],
       "title": "OpenGitOps",
       "category": "Livraison et plateformes développeur",
-      "kind": "référentiel de principes",
+      "kind": "principe",
       "summary": "Cadre à quatre principes : état déclaratif, versionné et immuable, récupéré automatiquement, puis réconcilié en continu avec l'environnement réel.",
       "applies_when": "Quand les changements d'exploitation doivent suivre un processus versionné, contrôlé et automatiquement rapproché de la production.",
+      "pattern": "kubernetes-gitops",
+      "packs": [
+        "kubernetes-gitops"
+      ],
       "sources": [
         {
           "url": "https://opengitops.dev/",
@@ -193,10 +243,13 @@
       ]
     },
     {
-      "id": "pd_blue_green",
+      "id": "blue-green-deployment",
+      "aliases": [
+        "pd_blue_green"
+      ],
       "title": "Déploiement blue-green",
       "category": "Livraison et plateformes développeur",
-      "kind": "stratégie de déploiement",
+      "kind": "pratique",
       "summary": "Préparer une nouvelle version dans un environnement distinct, puis basculer le trafic lorsque ses vérifications sont satisfaisantes.",
       "applies_when": "Quand l'infrastructure permet deux environnements et que les migrations de données restent compatibles avec la stratégie de bascule.",
       "sources": [
@@ -207,10 +260,13 @@
       ]
     },
     {
-      "id": "pd_canary",
+      "id": "canary-deployment",
+      "aliases": [
+        "pd_canary"
+      ],
       "title": "Déploiement canary",
       "category": "Livraison et plateformes développeur",
-      "kind": "stratégie de déploiement",
+      "kind": "pratique",
       "summary": "Exposer progressivement une nouvelle version à une fraction du trafic et observer ses résultats avant d'élargir sa diffusion.",
       "applies_when": "Pour réduire le périmètre initial d'un problème, avec des indicateurs fiables et une capacité de retour ou de correction.",
       "sources": [
@@ -221,7 +277,10 @@
       ]
     },
     {
-      "id": "pd_feature_flags",
+      "id": "feature-flags",
+      "aliases": [
+        "pd_feature_flags"
+      ],
       "title": "Feature flags",
       "category": "Livraison et plateformes développeur",
       "kind": "pratique",
@@ -235,10 +294,13 @@
       ]
     },
     {
-      "id": "pd_openfeature",
+      "id": "openfeature",
+      "aliases": [
+        "pd_openfeature"
+      ],
       "title": "OpenFeature",
       "category": "Livraison et plateformes développeur",
-      "kind": "spécification ouverte",
+      "kind": "spécification",
       "summary": "Définit une API commune d'évaluation des feature flags pour réduire le couplage entre le code applicatif et un fournisseur de drapeaux.",
       "applies_when": "Quand plusieurs services ou fournisseurs doivent partager une façon cohérente de lire les feature flags.",
       "sources": [
@@ -249,7 +311,10 @@
       ]
     },
     {
-      "id": "pd_backstage",
+      "id": "backstage",
+      "aliases": [
+        "pd_backstage"
+      ],
       "title": "Backstage",
       "category": "Livraison et plateformes développeur",
       "kind": "outil",
@@ -263,10 +328,13 @@
       ]
     },
     {
-      "id": "pd_dora_metrics",
+      "id": "dora-metrics",
+      "aliases": [
+        "pd_dora_metrics"
+      ],
       "title": "Métriques DORA de livraison logicielle",
       "category": "Livraison et plateformes développeur",
-      "kind": "indicateurs",
+      "kind": "indicateur",
       "summary": "Le modèle actuel comprend cinq mesures : change lead time, deployment frequency, failed deployment recovery time, change fail rate et deployment rework rate.",
       "applies_when": "Pour mesurer les délais, la fréquence et l'instabilité des livraisons d'un service. Ce référentiel DevOps est distinct du règlement financier européen DORA.",
       "sources": [
@@ -277,10 +345,13 @@
       ]
     },
     {
-      "id": "pd_platform_engineering",
+      "id": "platform-engineering",
+      "aliases": [
+        "pd_platform_engineering"
+      ],
       "title": "Platform engineering",
       "category": "Livraison et plateformes développeur",
-      "kind": "discipline",
+      "kind": "pratique",
       "summary": "Concevoir une plateforme interne comme un produit destiné aux développeurs, avec des capacités et parcours qui répondent à leurs besoins.",
       "applies_when": "Quand plusieurs équipes répètent les mêmes tâches d'infrastructure et de livraison et qu'une plateforme partagée apporte un bénéfice concret.",
       "sources": [
@@ -291,12 +362,19 @@
       ]
     },
     {
-      "id": "pd_sre",
+      "id": "site-reliability-engineering",
+      "aliases": [
+        "pd_sre"
+      ],
       "title": "Site Reliability Engineering (SRE)",
       "category": "Fiabilité et SRE",
-      "kind": "discipline",
+      "kind": "pratique",
       "summary": "Appliquer l'ingénierie logicielle à l'exploitation pour améliorer la fiabilité et réduire le travail manuel récurrent.",
       "applies_when": "Pour les services en exploitation dont la disponibilité, la performance et la réponse aux incidents nécessitent une responsabilité structurée.",
+      "pattern": "service-reliability-sre",
+      "packs": [
+        "service-reliability"
+      ],
       "sources": [
         {
           "url": "https://sre.google/sre-book/introduction/",
@@ -305,12 +383,18 @@
       ]
     },
     {
-      "id": "pd_sli",
+      "id": "service-level-indicator",
+      "aliases": [
+        "pd_sli"
+      ],
       "title": "Service Level Indicator (SLI)",
       "category": "Fiabilité et SRE",
       "kind": "indicateur",
       "summary": "Mesure observée de la qualité du service, par exemple la proportion de requêtes réussies ou traitées dans le temps attendu.",
       "applies_when": "Pour traduire l'expérience utilisateur en mesures utilisables par l'exploitation et les décisions de fiabilité.",
+      "packs": [
+        "service-reliability"
+      ],
       "sources": [
         {
           "url": "https://sre.google/workbook/implementing-slos/",
@@ -319,12 +403,18 @@
       ]
     },
     {
-      "id": "pd_slo",
+      "id": "service-level-objective",
+      "aliases": [
+        "pd_slo"
+      ],
       "title": "Service Level Objective (SLO)",
       "category": "Fiabilité et SRE",
-      "kind": "objectif de service",
+      "kind": "indicateur",
       "summary": "Cible définie pour un indicateur de service sur une période ; elle explicite la qualité que l'équipe cherche à tenir.",
       "applies_when": "Lorsque produit et exploitation doivent décider ensemble du niveau de fiabilité attendu et de son coût.",
+      "packs": [
+        "service-reliability"
+      ],
       "sources": [
         {
           "url": "https://sre.google/workbook/implementing-slos/",
@@ -333,12 +423,18 @@
       ]
     },
     {
-      "id": "pd_error_budget",
+      "id": "error-budget",
+      "aliases": [
+        "pd_error_budget"
+      ],
       "title": "Budget d'erreur",
       "category": "Fiabilité et SRE",
       "kind": "pratique",
       "summary": "Quantifie la marge de dégradation compatible avec un SLO et sert à arbitrer entre nouvelles livraisons et travaux de fiabilité.",
       "applies_when": "Quand les équipes disposent de SLO mesurés et veulent des règles explicites pour réagir à leur consommation.",
+      "packs": [
+        "service-reliability"
+      ],
       "sources": [
         {
           "url": "https://sre.google/workbook/implementing-slos/",
@@ -351,7 +447,10 @@
       ]
     },
     {
-      "id": "pd_incident_command",
+      "id": "incident-command",
+      "aliases": [
+        "pd_incident_command"
+      ],
       "title": "Organisation de réponse aux incidents",
       "category": "Fiabilité et SRE",
       "kind": "pratique",
@@ -365,7 +464,10 @@
       ]
     },
     {
-      "id": "pd_postmortem",
+      "id": "blameless-postmortem",
+      "aliases": [
+        "pd_postmortem"
+      ],
       "title": "Postmortem sans recherche de blâme",
       "category": "Fiabilité et SRE",
       "kind": "pratique",
@@ -379,7 +481,10 @@
       ]
     },
     {
-      "id": "pd_toil_reduction",
+      "id": "toil-reduction",
+      "aliases": [
+        "pd_toil_reduction"
+      ],
       "title": "Réduction du toil",
       "category": "Fiabilité et SRE",
       "kind": "pratique",
@@ -393,10 +498,13 @@
       ]
     },
     {
-      "id": "pd_rto",
+      "id": "recovery-time-objective",
+      "aliases": [
+        "pd_rto"
+      ],
       "title": "Recovery Time Objective (RTO)",
       "category": "Fiabilité et SRE",
-      "kind": "objectif de reprise",
+      "kind": "indicateur",
       "summary": "Fixe la durée maximale d'interruption jugée acceptable pour restaurer un service après un événement perturbateur.",
       "applies_when": "Pour choisir et tester une stratégie de reprise adaptée aux besoins métier de chaque service.",
       "sources": [
@@ -407,10 +515,13 @@
       ]
     },
     {
-      "id": "pd_rpo",
+      "id": "recovery-point-objective",
+      "aliases": [
+        "pd_rpo"
+      ],
       "title": "Recovery Point Objective (RPO)",
       "category": "Fiabilité et SRE",
-      "kind": "objectif de reprise",
+      "kind": "indicateur",
       "summary": "Fixe la perte de données acceptable, exprimée comme un intervalle de temps depuis le dernier point de récupération.",
       "applies_when": "Pour dimensionner les sauvegardes et la réplication selon les données que le métier peut accepter de perdre.",
       "sources": [
@@ -421,10 +532,13 @@
       ]
     },
     {
-      "id": "pd_chaos_engineering",
+      "id": "chaos-engineering",
+      "aliases": [
+        "pd_chaos_engineering"
+      ],
       "title": "Chaos engineering",
       "category": "Fiabilité et SRE",
-      "kind": "méthode expérimentale",
+      "kind": "pratique",
       "summary": "Tester une hypothèse de résilience en introduisant une perturbation maîtrisée, avec observation et limitation du périmètre affecté.",
       "applies_when": "Lorsque les protections, la supervision et les conditions d'arrêt permettent de conduire des expériences contrôlées.",
       "sources": [
@@ -435,12 +549,18 @@
       ]
     },
     {
-      "id": "pd_opentelemetry",
+      "id": "opentelemetry",
+      "aliases": [
+        "pd_opentelemetry"
+      ],
       "title": "OpenTelemetry",
       "category": "Observabilité et diagnostic",
-      "kind": "écosystème d'instrumentation",
+      "kind": "outil",
       "summary": "Ensemble ouvert d'API, SDK et composants pour produire, collecter et exporter des traces, métriques et journaux de télémétrie.",
       "applies_when": "Pour instrumenter une stack hétérogène et conserver des possibilités de choix entre solutions d'observation.",
+      "packs": [
+        "service-reliability"
+      ],
       "sources": [
         {
           "url": "https://opentelemetry.io/docs/what-is-opentelemetry/",
@@ -449,12 +569,18 @@
       ]
     },
     {
-      "id": "pd_otlp",
+      "id": "otlp",
+      "aliases": [
+        "pd_otlp"
+      ],
       "title": "OpenTelemetry Protocol (OTLP)",
       "category": "Observabilité et diagnostic",
       "kind": "protocole",
       "summary": "Définit l'encodage et le transport des données de télémétrie entre composants OpenTelemetry et systèmes compatibles.",
       "applies_when": "Quand agents, collecteurs et outils d'observation doivent échanger les signaux selon un protocole commun.",
+      "packs": [
+        "service-reliability"
+      ],
       "sources": [
         {
           "url": "https://opentelemetry.io/docs/specs/otlp/",
@@ -463,12 +589,18 @@
       ]
     },
     {
-      "id": "pd_otel_semconv",
+      "id": "opentelemetry-semantic-conventions",
+      "aliases": [
+        "pd_otel_semconv"
+      ],
       "title": "OpenTelemetry Semantic Conventions",
       "category": "Observabilité et diagnostic",
-      "kind": "conventions",
+      "kind": "convention",
       "summary": "Normalise les noms et attributs des signaux de télémétrie pour donner un sens cohérent aux opérations observées.",
       "applies_when": "Pour comparer et corréler des données issues de services, langages et bibliothèques différents.",
+      "packs": [
+        "service-reliability"
+      ],
       "sources": [
         {
           "url": "https://opentelemetry.io/docs/specs/semconv/",
@@ -477,10 +609,13 @@
       ]
     },
     {
-      "id": "pd_trace_context",
+      "id": "w3c-trace-context",
+      "aliases": [
+        "pd_trace_context"
+      ],
       "title": "W3C Trace Context",
       "category": "Observabilité et diagnostic",
-      "kind": "recommandation W3C",
+      "kind": "spécification",
       "summary": "Définit des en-têtes qui transportent le contexte d'une trace distribuée d'un service à un autre.",
       "applies_when": "Lorsque le diagnostic d'une requête doit traverser plusieurs services ou outils d'instrumentation.",
       "sources": [
@@ -491,10 +626,13 @@
       ]
     },
     {
-      "id": "pd_baggage",
+      "id": "w3c-baggage",
+      "aliases": [
+        "pd_baggage"
+      ],
       "title": "W3C Baggage",
       "category": "Observabilité et diagnostic",
-      "kind": "spécification W3C candidate",
+      "kind": "spécification",
       "summary": "Décrit la propagation de propriétés de contexte entre services. La source consultée est une Candidate Recommendation W3C.",
       "applies_when": "Pour transmettre un contexte technique choisi entre composants, avec maîtrise des informations propagées et de leur volume.",
       "sources": [
@@ -505,10 +643,13 @@
       ]
     },
     {
-      "id": "pd_openmetrics",
+      "id": "openmetrics",
+      "aliases": [
+        "pd_openmetrics"
+      ],
       "title": "OpenMetrics",
       "category": "Observabilité et diagnostic",
-      "kind": "spécification de format",
+      "kind": "format",
       "summary": "Définit une représentation ouverte de mesures destinée à l'échange de métriques entre systèmes d'instrumentation et de surveillance.",
       "applies_when": "Quand les producteurs et collecteurs de métriques doivent partager un format compatible et documenté.",
       "sources": [
@@ -519,7 +660,10 @@
       ]
     },
     {
-      "id": "pd_prometheus",
+      "id": "prometheus",
+      "aliases": [
+        "pd_prometheus"
+      ],
       "title": "Prometheus",
       "category": "Observabilité et diagnostic",
       "kind": "outil",
@@ -533,10 +677,13 @@
       ]
     },
     {
-      "id": "pd_use_method",
+      "id": "use-method",
+      "aliases": [
+        "pd_use_method"
+      ],
       "title": "Méthode USE",
       "category": "Observabilité et diagnostic",
-      "kind": "méthode de diagnostic",
+      "kind": "méthode",
       "summary": "Examiner l'utilisation, la saturation et les erreurs de chaque ressource pour rechercher systématiquement des problèmes de performance.",
       "applies_when": "Lors du diagnostic de ressources telles que processeurs, mémoire, stockage ou interfaces réseau.",
       "sources": [
@@ -547,10 +694,13 @@
       ]
     },
     {
-      "id": "pd_red_method",
+      "id": "red-method",
+      "aliases": [
+        "pd_red_method"
+      ],
       "title": "Méthode RED",
       "category": "Observabilité et diagnostic",
-      "kind": "méthode d'instrumentation",
+      "kind": "méthode",
       "summary": "Observer le volume des requêtes, leurs erreurs et leur durée pour suivre le comportement d'un service.",
       "applies_when": "Pour instrumenter des services qui traitent des requêtes et relier leur fonctionnement à l'expérience des utilisateurs.",
       "sources": [
@@ -561,7 +711,10 @@
       ]
     },
     {
-      "id": "pd_finops",
+      "id": "finops-framework",
+      "aliases": [
+        "pd_finops"
+      ],
       "title": "FinOps Framework",
       "category": "FinOps et sobriété numérique",
       "kind": "référentiel",
@@ -575,10 +728,13 @@
       ]
     },
     {
-      "id": "pd_focus",
+      "id": "finops-focus",
+      "aliases": [
+        "pd_focus"
+      ],
       "title": "FinOps Open Cost and Usage Specification (FOCUS)",
       "category": "FinOps et sobriété numérique",
-      "kind": "spécification ouverte",
+      "kind": "spécification",
       "summary": "Définit un schéma commun de données de coûts et d'usage pour faciliter leur comparaison entre fournisseurs technologiques.",
       "applies_when": "Pour consolider des factures et données d'usage hétérogènes dans une analyse financière cohérente.",
       "sources": [
@@ -589,10 +745,13 @@
       ]
     },
     {
-      "id": "pd_cost_allocation",
+      "id": "cost-allocation",
+      "aliases": [
+        "pd_cost_allocation"
+      ],
       "title": "Allocation des coûts",
       "category": "FinOps et sobriété numérique",
-      "kind": "pratique FinOps",
+      "kind": "pratique",
       "summary": "Répartir les dépenses entre produits, équipes ou centres de responsabilité, à l'aide de règles et de métadonnées adaptées.",
       "applies_when": "Quand une facture partagée doit devenir compréhensible et exploitable par les équipes qui influencent les coûts.",
       "sources": [
@@ -603,10 +762,13 @@
       ]
     },
     {
-      "id": "pd_unit_economics",
+      "id": "unit-economics",
+      "aliases": [
+        "pd_unit_economics"
+      ],
       "title": "Unit economics",
       "category": "FinOps et sobriété numérique",
-      "kind": "méthode de pilotage",
+      "kind": "pratique",
       "summary": "Relier les coûts à une unité utile au métier, par exemple une transaction, un client ou un traitement réussi.",
       "applies_when": "Pour savoir si la croissance de l'usage améliore ou dégrade l'économie du produit, au-delà de la facture totale.",
       "sources": [
@@ -617,10 +779,13 @@
       ]
     },
     {
-      "id": "pd_cost_anomalies",
+      "id": "cost-anomaly-detection",
+      "aliases": [
+        "pd_cost_anomalies"
+      ],
       "title": "Détection des anomalies de coûts",
       "category": "FinOps et sobriété numérique",
-      "kind": "pratique FinOps",
+      "kind": "pratique",
       "summary": "Repérer des dépenses inhabituelles, comprendre leur cause et organiser la réaction des responsables concernés.",
       "applies_when": "Lorsque l'usage et la facturation peuvent varier rapidement et qu'un dépassement inattendu doit être traité.",
       "sources": [
@@ -631,10 +796,13 @@
       ]
     },
     {
-      "id": "pd_usage_optimization",
+      "id": "usage-optimization",
+      "aliases": [
+        "pd_usage_optimization"
+      ],
       "title": "Optimisation de l'usage et rightsizing",
       "category": "FinOps et sobriété numérique",
-      "kind": "pratique FinOps",
+      "kind": "pratique",
       "summary": "Ajuster la quantité, la taille et le fonctionnement des ressources à leur besoin réel, en tenant compte de la performance attendue.",
       "applies_when": "Pour réduire les ressources inutilisées ou surdimensionnées sans compromettre les objectifs du service.",
       "sources": [
@@ -645,10 +813,13 @@
       ]
     },
     {
-      "id": "pd_sci",
+      "id": "software-carbon-intensity",
+      "aliases": [
+        "pd_sci"
+      ],
       "title": "Software Carbon Intensity (SCI)",
       "category": "FinOps et sobriété numérique",
-      "kind": "spécification de mesure",
+      "kind": "spécification",
       "summary": "Calcule une intensité carbone du logiciel par unité fonctionnelle, à partir des émissions opérationnelles et de la part attribuée au matériel.",
       "applies_when": "Pour comparer l'évolution d'un même service avec un périmètre et une unité fonctionnelle explicites et cohérents.",
       "sources": [
@@ -659,7 +830,10 @@
       ]
     },
     {
-      "id": "pd_carbon_aware",
+      "id": "carbon-aware-computing",
+      "aliases": [
+        "pd_carbon_aware"
+      ],
       "title": "Carbon-aware computing",
       "category": "FinOps et sobriété numérique",
       "kind": "pratique",
@@ -673,7 +847,10 @@
       ]
     },
     {
-      "id": "pd_rgesn",
+      "id": "rgesn",
+      "aliases": [
+        "pd_rgesn"
+      ],
       "title": "Référentiel général d'écoconception de services numériques (RGESN)",
       "category": "FinOps et sobriété numérique",
       "kind": "référentiel",

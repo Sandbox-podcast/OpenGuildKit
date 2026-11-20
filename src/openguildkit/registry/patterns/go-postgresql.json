@@ -18,8 +18,13 @@
     "performance"
   ],
   "packs": [
+    "api-design",
     "go-database",
     "postgresql"
+  ],
+  "references": [
+    "http",
+    "openapi"
   ],
   "match": {
     "stack": [

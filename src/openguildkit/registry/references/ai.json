@@ -3,10 +3,13 @@
   "title": "IA et agents",
   "references": [
     {
-      "id": "pd_mlops",
+      "id": "mlops",
+      "aliases": [
+        "pd_mlops"
+      ],
       "title": "MLOps",
       "category": "ML et MLOps",
-      "kind": "discipline",
+      "kind": "pratique",
       "summary": "Organiser le cycle de vie des modèles avec validation, versionnement et automatisation des données, de l'entraînement et du déploiement.",
       "applies_when": "Si le produit entraîne ou exploite des modèles qui doivent être maintenus et réévalués au fil du temps.",
       "sources": [
@@ -17,7 +20,10 @@
       ]
     },
     {
-      "id": "pd_mlflow",
+      "id": "mlflow",
+      "aliases": [
+        "pd_mlflow"
+      ],
       "title": "MLflow",
       "category": "ML et MLOps",
       "kind": "outil",
@@ -31,7 +37,10 @@
       ]
     },
     {
-      "id": "pd_dvc",
+      "id": "dvc",
+      "aliases": [
+        "pd_dvc"
+      ],
       "title": "DVC",
       "category": "ML et MLOps",
       "kind": "outil",
@@ -45,10 +54,13 @@
       ]
     },
     {
-      "id": "pd_onnx",
+      "id": "onnx",
+      "aliases": [
+        "pd_onnx"
+      ],
       "title": "Open Neural Network Exchange (ONNX)",
       "category": "ML et MLOps",
-      "kind": "format ouvert",
+      "kind": "format",
       "summary": "Représentation de modèles de machine learning destinée à faciliter leur échange et leur exécution entre outils compatibles.",
       "applies_when": "Pour porter un modèle entre environnements, après vérification des opérations et versions effectivement prises en charge.",
       "sources": [
@@ -59,10 +71,13 @@
       ]
     },
     {
-      "id": "pd_model_cards",
+      "id": "model-cards",
+      "aliases": [
+        "pd_model_cards"
+      ],
       "title": "Model Cards",
       "category": "ML et MLOps",
-      "kind": "pratique documentaire",
+      "kind": "pratique",
       "summary": "Fiches qui décrivent les usages prévus d'un modèle, ses évaluations et ses limites pour aider à juger son adéquation à un contexte.",
       "applies_when": "Pour les modèles livrés ou réutilisés par des personnes qui ont besoin de comprendre leurs capacités et leurs restrictions.",
       "sources": [
@@ -73,10 +88,13 @@
       ]
     },
     {
-      "id": "pd_datasheets",
+      "id": "datasheets-for-datasets",
+      "aliases": [
+        "pd_datasheets"
+      ],
       "title": "Datasheets for Datasets",
       "category": "ML et MLOps",
-      "kind": "pratique documentaire",
+      "kind": "pratique",
       "summary": "Documenter la motivation, la composition, la collecte et les usages d'un jeu de données afin de rendre sa réutilisation plus éclairée.",
       "applies_when": "Quand un jeu de données est partagé ou employé pour entraîner et évaluer des modèles.",
       "sources": [
@@ -87,7 +105,10 @@
       ]
     },
     {
-      "id": "pd_savedmodel",
+      "id": "tensorflow-savedmodel",
+      "aliases": [
+        "pd_savedmodel"
+      ],
       "title": "TensorFlow SavedModel",
       "category": "ML et MLOps",
       "kind": "format",
@@ -101,10 +122,13 @@
       ]
     },
     {
-      "id": "pd_pmml",
+      "id": "pmml",
+      "aliases": [
+        "pd_pmml"
+      ],
       "title": "Predictive Model Markup Language (PMML)",
       "category": "ML et MLOps",
-      "kind": "standard de format DMG",
+      "kind": "format",
       "summary": "Format XML décrivant des modèles prédictifs et leurs transformations pour permettre leur échange entre outils compatibles.",
       "applies_when": "Pour déplacer des modèles pris en charge par PMML entre solutions analytiques sans réécrire leur description.",
       "sources": [
@@ -115,7 +139,10 @@
       ]
     },
     {
-      "id": "pd_feast",
+      "id": "feast",
+      "aliases": [
+        "pd_feast"
+      ],
       "title": "Feast",
       "category": "ML et MLOps",
       "kind": "outil",
@@ -129,7 +156,10 @@
       ]
     },
     {
-      "id": "pd_tfdv",
+      "id": "tensorflow-data-validation",
+      "aliases": [
+        "pd_tfdv"
+      ],
       "title": "TensorFlow Data Validation (TFDV)",
       "category": "ML et MLOps",
       "kind": "outil",
@@ -149,6 +179,10 @@
       "kind": "référentiel",
       "summary": "Aide à identifier, mesurer et gérer les risques des systèmes d'intelligence artificielle.",
       "applies_when": "Pour les organisations qui conçoivent, déploient ou utilisent de l'IA et veulent structurer une démarche de confiance.",
+      "pattern": "nist-ai-risk-management",
+      "packs": [
+        "nist-ai-risk"
+      ],
       "sources": [
         {
           "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10",
@@ -163,6 +197,10 @@
       "kind": "référentiel",
       "summary": "Adapte le cadre de gestion des risques IA aux particularités de l'intelligence artificielle générative.",
       "applies_when": "Pour cadrer des usages génératifs, leurs risques spécifiques et les mesures à évaluer.",
+      "packs": [
+        "llm-evaluations",
+        "nist-ai-risk"
+      ],
       "sources": [
         {
           "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence",
@@ -269,10 +307,13 @@
       ]
     },
     {
-      "id": "agent_mcp",
+      "id": "model-context-protocol",
+      "aliases": [
+        "agent_mcp"
+      ],
       "title": "Model Context Protocol (MCP)",
       "category": "Agents IA et orchestration",
-      "kind": "protocole ouvert",
+      "kind": "protocole",
       "summary": "Définit une interface commune pour qu'une application utilisant un modèle accède à des outils, ressources et modèles de prompts exposés par des serveurs.",
       "applies_when": "Quand les agents doivent utiliser des capacités externes via des intégrations interopérables, avec authentification et permissions adaptées.",
       "sources": [
@@ -283,10 +324,13 @@
       ]
     },
     {
-      "id": "agent_a2a",
+      "id": "agent2agent",
+      "aliases": [
+        "agent_a2a"
+      ],
       "title": "Agent2Agent (A2A)",
       "category": "Agents IA et orchestration",
-      "kind": "protocole ouvert",
+      "kind": "protocole",
       "summary": "Décrit la découverte des capacités d'agents et leurs échanges de messages, tâches et résultats pour coordonner des systèmes distincts.",
       "applies_when": "Quand des agents indépendants doivent coopérer au-delà d'une même application ou d'un même framework, avec des responsabilités explicites.",
       "sources": [
@@ -297,10 +341,13 @@
       ]
     },
     {
-      "id": "agent_rag",
+      "id": "retrieval-augmented-generation",
+      "aliases": [
+        "agent_rag"
+      ],
       "title": "Retrieval-Augmented Generation (RAG)",
       "category": "Agents IA et orchestration",
-      "kind": "approche d'architecture",
+      "kind": "pratique",
       "summary": "Associe la recherche de documents à la génération de réponses afin de fournir au modèle des informations retrouvées dans un corpus.",
       "applies_when": "Pour exploiter des connaissances métier ou techniques maintenues hors du modèle, avec vérification de la pertinence des documents et des réponses.",
       "sources": [
@@ -311,12 +358,19 @@
       ]
     },
     {
-      "id": "agent_evals",
+      "id": "llm-agent-evaluations",
+      "aliases": [
+        "agent_evals"
+      ],
       "title": "Évaluations de LLM et d'agents",
       "category": "Agents IA et orchestration",
-      "kind": "pratique d'évaluation",
+      "kind": "pratique",
       "summary": "Tester des scénarios représentatifs et noter les résultats, les trajectoires et les appels d'outils selon des critères explicites, avec évaluateurs automatiques ou humains.",
       "applies_when": "Avant de changer modèles, consignes ou outils, puis régulièrement pour détecter des régressions sur les tâches réelles du produit.",
+      "pattern": "llm-evaluation",
+      "packs": [
+        "llm-evaluations"
+      ],
       "sources": [
         {
           "url": "https://www.anthropic.com/research/demystifying-evals-for-ai-agents",
@@ -325,10 +379,13 @@
       ]
     },
     {
-      "id": "agent_tool_permissions",
+      "id": "agent-tool-permissions",
+      "aliases": [
+        "agent_tool_permissions"
+      ],
       "title": "Permissions et moindre privilège des outils",
       "category": "Agents IA et orchestration",
-      "kind": "pratique de contrôle d'accès",
+      "kind": "pratique",
       "summary": "Limiter les capacités d'un agent aux opérations et données nécessaires, avec des permissions minimales et une élévation ciblée lorsqu'elle est requise.",
       "applies_when": "Dès qu'un agent peut consulter des données privées, modifier un dépôt ou agir sur des systèmes externes.",
       "sources": [
@@ -339,10 +396,13 @@
       ]
     },
     {
-      "id": "agent_human_in_loop",
+      "id": "human-in-the-loop",
+      "aliases": [
+        "agent_human_in_loop"
+      ],
       "title": "Validation humaine dans la boucle",
       "category": "Agents IA et orchestration",
-      "kind": "pratique de gouvernance",
+      "kind": "pratique",
       "summary": "Interrompre l'exécution à un point prévu pour permettre à une personne de valider, corriger ou refuser une action avant sa poursuite.",
       "applies_when": "Pour les décisions et actions dont l'organisation exige une validation humaine, avec un état sauvegardé et une reprise maîtrisée.",
       "sources": [
@@ -353,10 +413,13 @@
       ]
     },
     {
-      "id": "agent_execution_limits",
+      "id": "agent-execution-limits",
+      "aliases": [
+        "agent_execution_limits"
+      ],
       "title": "Budgets et limites d'exécution des agents",
       "category": "Agents IA et orchestration",
-      "kind": "pratique d'exploitation",
+      "kind": "pratique",
       "summary": "Fixer des conditions d'arrêt portant sur le nombre d'échanges, les jetons consommés ou la durée, et prévoir une interruption externe.",
       "applies_when": "Pour contenir les boucles, les délais et la consommation de ressources des agents ; les limites doivent être appliquées par l'orchestrateur.",
       "sources": [
@@ -367,10 +430,13 @@
       ]
     },
     {
-      "id": "agent_context_engineering",
+      "id": "context-engineering",
+      "aliases": [
+        "agent_context_engineering"
+      ],
       "title": "Context engineering",
       "category": "Agents IA et orchestration",
-      "kind": "pratique de conception",
+      "kind": "pratique",
       "summary": "Sélectionner, organiser et actualiser les instructions, outils, informations et historiques réellement utiles dans la fenêtre de contexte du modèle.",
       "applies_when": "Quand une tâche longue ou complexe accumule trop d'informations ; définir des règles de sélection, de synthèse et de récupération du contexte.",
       "sources": [
@@ -381,10 +447,13 @@
       ]
     },
     {
-      "id": "agent_agent_memory",
+      "id": "agent-memory",
+      "aliases": [
+        "agent_agent_memory"
+      ],
       "title": "Gestion de la mémoire des agents",
       "category": "Agents IA et orchestration",
-      "kind": "pratique de gestion d'état",
+      "kind": "pratique",
       "summary": "Distinguer l'état d'une conversation des informations conservées entre sessions, et organiser leur enregistrement puis leur récupération.",
       "applies_when": "Quand les agents doivent reprendre une tâche ou réutiliser des connaissances, avec un périmètre d'accès et des règles de conservation explicites.",
       "sources": [
