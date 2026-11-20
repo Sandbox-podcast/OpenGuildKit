@@ -42,8 +42,8 @@ jobs:
       - name: Unit and end-to-end tests
         run: python -m unittest discover -s tests -v
 
-      - name: Replay the insurance example
-        run: python examples/insurance-claims/replay.py
+      - name: Replay the request status example
+        run: python examples/request-status/replay.py
 
   package:
     name: Build and install the wheel

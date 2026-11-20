@@ -33,7 +33,7 @@ class WorkflowTests(unittest.TestCase):
         }
         write_json(
             self.input_path,
-            {"name": "Insurance console", "sector": "insurance", "stack": ["Python"], "packs": ["python"]},
+            {"name": "Support console", "sector": "general", "stack": ["Python"], "packs": ["python"]},
         )
 
     def run_cli(self, *arguments, code=0):
@@ -67,7 +67,7 @@ class WorkflowTests(unittest.TestCase):
                 verdict="revise",
                 confidence="medium",
                 alternative="Keep exports disabled until access is verified.",
-                failure_mode="Cross-account access exposes a claim.",
+                failure_mode="Cross-account access exposes a request.",
                 verification="Verify the policy against an authorized synthetic fixture.",
             )
         write_json(self.review_path, review)
@@ -91,7 +91,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_approval_requires_correct_confirmation_and_current_scope(self):
         self.init()
-        self.run_cli("task", "new", "Export claim status.", "--id", self.task_id)
+        self.run_cli("task", "new", "Export request status.", "--id", self.task_id)
         consultation = self.consult()
         self.assertIn("security", consultation["boards"])
         self.assertEqual(consultation["scope"]["research"], "local-only")
@@ -116,7 +116,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_review_from_an_earlier_consultation_is_rejected(self):
         self.init()
-        self.run_cli("task", "new", "Export claim status.", "--id", self.task_id)
+        self.run_cli("task", "new", "Export request status.", "--id", self.task_id)
         old_consultation = self.consult()
         self.review()
         self.run_cli("task", "decide", self.task_id, "--request-changes", "--by", "Owner", "--reason", "Review retention")
@@ -145,7 +145,7 @@ class WorkflowTests(unittest.TestCase):
             },
         )
         self.assertIn("iso-27001", catalog["packs"])
-        write_json(self.input_path, {"name": "Insurance console", "packs": ["team-iso"]})
+        write_json(self.input_path, {"name": "Support console", "packs": ["team-iso"]})
         self.init()
         instructions = (self.root / "AGENTS.md").read_text(encoding="utf-8")
         self.assertLess(instructions.index("iso-27001@"), instructions.index("team-iso@"))

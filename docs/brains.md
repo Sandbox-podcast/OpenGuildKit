@@ -28,7 +28,7 @@ The catalog covers engineering, security, DevOps, QA, performance, product, desi
 
 `task template ID` returns the exact shape for the selected boards. In a brain entry, `challenge.specialists` uses the specialist IDs from the prompt. `evidence_refs` contains one-based positions in the board evidence array. For example, `[1, 3]` cites the first and third items. Use `low`, `medium`, or `high` confidence. Proceeding or claiming high confidence requires observed evidence, a block needs at least one blocker, and an insufficient-evidence verdict uses low confidence.
 
-The CLI validates the review record. The host agent or reviewer gathers and interprets the evidence. See the [insurance example](../examples/insurance-claims/) for a recorded review with multiple verdicts.
+The CLI validates the review record. The host agent or reviewer gathers and interprets the evidence. See the [request status example](../examples/request-status/) for a recorded review with multiple verdicts.
 
 ## Contribute a brain
 

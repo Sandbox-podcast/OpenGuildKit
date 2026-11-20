@@ -60,25 +60,25 @@ sequenceDiagram
     participant C as openguildkit CLI
     participant F as .openguildkit/tasks
 
-    U->>A: "Add online claim tracking"
-    A->>C: task new "..." --id claim-status
+    U->>A: "Show the status of support requests"
+    A->>C: task new "..." --id request-status
     C->>F: draft
-    A->>C: task questions claim-status
+    A->>C: task questions request-status
     C-->>A: QCM (kind, surface, data, research)
     A->>U: asks the questions, confirms inferred answers
     U-->>A: answers
-    A->>C: task consult claim-status --answers answers.json
+    A->>C: task consult request-status --answers answers.json
     C->>F: consulting + scope snapshot + fingerprint
     C-->>A: consultation request (one brief per board)
     loop each selected board
         A->>A: independent pass (subagent when available)
     end
-    A->>C: task review claim-status --file review.json
+    A->>C: task review request-status --file review.json
     C->>F: reviewed
     A->>U: findings, open questions, proposed next step
-    U->>C: task decide claim-status --approve (types the ID)
+    U->>C: task decide request-status --approve (types the ID)
     C->>F: approved
-    A->>C: task handoff claim-status
+    A->>C: task handoff request-status
     C-->>A: approved scope, rules, checks, review
     A->>A: implements, runs checks
 ```
@@ -87,7 +87,7 @@ sequenceDiagram
 
 **No AI calls in the CLI.** Companies already chose an agent, a model provider and a data policy. OpenGuildKit works inside those choices instead of adding another provider, another API key and another data flow. The CLI itself opens no network connection, and it is a small Python package without dependencies that a security team can read in full. What the host agent sends to its provider is governed by that agent's settings, not by OpenGuildKit.
 
-**Catalog as validated JSON.** Contributors who know a domain (security, accessibility, insurance) should not need Python to share that knowledge. The schema is strict on purpose: a typo fails CI instead of producing a silent gap in a project's rules.
+**Catalog as validated JSON.** Contributors can add rules for security, accessibility or a new domain without writing Python. CI checks the schema and reports invalid fields.
 
 **One rule = one instruction + one verification.** An instruction an agent cannot be checked against is advice, not a rule. The verification line tells the reviewer, or the agent itself, how to confirm the rule was applied.
 

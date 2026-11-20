@@ -1,6 +1,6 @@
 {
-  "name": "Claims portal",
-  "sector": "insurance",
+  "name": "Support portal",
+  "sector": "general",
   "stack": ["Python", "FastAPI", "PostgreSQL", "TypeScript", "React"],
   "research": "local-only",
   "conventions": [

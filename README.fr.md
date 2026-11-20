@@ -16,10 +16,10 @@ Utilise Python 3.11 ou une version plus récente.
 git clone https://github.com/loukan42/OpenGuildKit.git
 cd OpenGuildKit
 python -m pip install -e .
-python examples/insurance-claims/replay.py
+python examples/request-status/replay.py
 ```
 
-La [démo assurance](examples/insurance-claims/) crée un projet temporaire et utilise des avis préparés sur une fonctionnalité de suivi de sinistre. Lance-la dans un terminal pour valider le périmètre et lire le brief d'implémentation.
+La [démo](examples/request-status/) crée un projet temporaire et utilise des avis préparés sur le suivi des demandes support. Lance-la dans un terminal pour comparer les avis, valider le périmètre et lire le brief d'implémentation.
 
 ## Configurer ton projet
 

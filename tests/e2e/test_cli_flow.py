@@ -1,6 +1,6 @@
 """End-to-end tests: run the real CLI in a subprocess against a temporary project.
 
-The insurance example in examples/insurance-claims is the fixture, so the
+The request status example in examples/request-status is the fixture, so the
 example cannot drift from the CLI without failing these tests.
 """
 
@@ -14,8 +14,8 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-EXAMPLE = REPO / "examples" / "insurance-claims"
-TASK_ID = "claim-status"
+EXAMPLE = REPO / "examples" / "request-status"
+TASK_ID = "request-status"
 EXPECTED_BOARDS = {"product", "engineering", "qa", "design", "marketing", "security"}
 
 ENV = {
@@ -103,7 +103,7 @@ class CatalogTests(CliTestCase):
         self.assertEqual(set(catalog), {"packs", "boards", "sectors"})
         self.assertIn("agent-workflow", catalog["packs"])
         self.assertIn("performance", catalog["boards"])
-        self.assertIn("insurance", catalog["sectors"])
+        self.assertIn("general", catalog["sectors"])
         for pack in catalog["packs"].values():
             for rule in pack["rules"]:
                 self.assertTrue(rule["instruction"] and rule["verification"], f"{pack['id']}/{rule['id']}")
@@ -160,8 +160,8 @@ class CatalogTests(CliTestCase):
 class ProjectSetupTests(CliTestCase):
     def test_recommends_stack_patterns_and_applies_only_chosen_work_methods(self):
         answers = {
-            "name": "Claims API",
-            "sector": "insurance",
+            "name": "Requests API",
+            "sector": "general",
             "stack": ["Python 3.12", "FastAPI", "Postgres@16"],
             "roles": ["engineering", "project-management"],
         }
@@ -185,13 +185,13 @@ class ProjectSetupTests(CliTestCase):
     def test_init_writes_profile_and_agent_instructions(self):
         self.init_example()
         profile = json.loads((self.project / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
-        self.assertEqual(profile["sector"], "insurance")
+        self.assertEqual(profile["sector"], "general")
         self.assertEqual(profile["packs"][0], "agent-workflow")
         self.assertIn("secure-sdlc", profile["packs"])
 
         agents = (self.project / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("<!-- BEGIN OPENGUILDKIT -->", agents)
-        self.assertIn("Sector: Insurance", agents)
+        self.assertIn("Sector: General", agents)
         self.assertIn("## OpenGuildKit task workflow", agents)
         self.assertIn("@AGENTS.md", (self.project / "CLAUDE.md").read_text(encoding="utf-8"))
         self.assertIn("tasks/", (self.project / ".openguildkit" / ".gitignore").read_text(encoding="utf-8"))
@@ -218,7 +218,7 @@ class ProjectSetupTests(CliTestCase):
         agents_path = self.project / "AGENTS.md"
         text = agents_path.read_text(encoding="utf-8")
         agents_path.write_text(
-            "# Team notes\n\nKeep this line.\n\n" + text.replace("Sector: Insurance", "Sector: Retail"),
+            "# Team notes\n\nKeep this line.\n\n" + text.replace("Sector: General", "Sector: Outdated"),
             encoding="utf-8",
         )
         result = self.run_cli("check", expect=1)
@@ -228,8 +228,8 @@ class ProjectSetupTests(CliTestCase):
         self.run_cli("check")
         repaired = agents_path.read_text(encoding="utf-8")
         self.assertIn("Keep this line.", repaired)
-        self.assertIn("Sector: Insurance", repaired)
-        self.assertNotIn("Sector: Retail", repaired)
+        self.assertIn("Sector: General", repaired)
+        self.assertNotIn("Sector: Outdated", repaired)
 
     def test_task_new_refuses_stale_instructions(self):
         self.init_example()
@@ -277,18 +277,18 @@ class TaskFlowTests(CliTestCase):
         first_review = self.example_review()
         self.record_example_review()
         decided = self.run_cli(
-            "task", "decide", TASK_ID, "--request-changes", "--by", "Claims owner", "--reason", "Include brokers"
+            "task", "decide", TASK_ID, "--request-changes", "--by", "Service owner", "--reason", "Show the last update date"
         )
         self.assertEqual(decided.stdout.strip(), "changes-requested")
 
         answers = json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8"))
-        answers["context"] += " Brokers also see the stage of their clients' claims."
+        answers["context"] += " Show the date of the last status update."
         self.run_cli("task", "consult", TASK_ID, "--answers", self.write_json("answers-2.json", answers))
 
         task = self.task_record()
         self.assertEqual(task["status"], "consulting")
         self.assertEqual(len(task["rounds"]), 1)
-        self.assertEqual(task["rounds"][0]["decision"]["reason"], "Include brokers")
+        self.assertEqual(task["rounds"][0]["decision"]["reason"], "Show the last update date")
         self.assertNotIn("review", task)
 
         stale = self.run_cli("task", "review", TASK_ID, "--file", self.write_json("stale.json", first_review), expect=1)
@@ -320,10 +320,10 @@ class TaskFlowTests(CliTestCase):
 
     def test_brief_words_route_to_boards(self):
         self.init_example()
-        self.run_cli("task", "new", "Réduire la latence de la page de devis", "--id", "quote-speed")
+        self.run_cli("task", "new", "Réduire la latence de la page de recherche", "--id", "search-speed")
         answers = {"kind": "maintenance", "surface": "unsure", "data": "none", "research": "local"}
-        self.run_cli("task", "consult", "quote-speed", "--answers", self.write_json("speed.json", answers))
-        routing = self.task_record_for("quote-speed")["consultation"]["routing"]
+        self.run_cli("task", "consult", "search-speed", "--answers", self.write_json("speed.json", answers))
+        routing = self.task_record_for("search-speed")["consultation"]["routing"]
         self.assertIn("performance", routing)
         self.assertNotIn("security", routing)
 

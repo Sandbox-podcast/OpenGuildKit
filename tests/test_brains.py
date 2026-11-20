@@ -6,15 +6,15 @@ from openguildkit.workflow import challenge_report, consult, validate_review
 
 class BrainReviewTests(unittest.TestCase):
     def setUp(self):
-        profile = {"name": "Insurance portal", "sector": "insurance", "packs": [], "boards": ["security"]}
+        profile = {"name": "Support portal", "sector": "general", "packs": [], "boards": ["security"]}
         task = {
-            "id": "claim-access",
-            "brief": "Allow policyholders to view a claim.",
+            "id": "request-access",
+            "brief": "Allow signed-in users to view their support requests.",
             "answers": {"kind": "feature", "surface": "customer", "data": "personal", "research": "local"},
         }
         self.consultation = consult(profile, load_catalog(), task)
         self.review = self.consultation["review_template"].copy()
-        self.review["summary"] = "Review ownership before exposing claims."
+        self.review["summary"] = "Review ownership before exposing requests."
         self.entry = self.review["boards"][0].copy()
         self.review["boards"] = [self.entry]
         self.entry["recommendation"] = "Use server-side ownership checks."
@@ -29,8 +29,8 @@ class BrainReviewTests(unittest.TestCase):
             verdict="proceed",
             confidence="medium",
             alternative="Show a generic contact link until ownership is verified.",
-            failure_mode="An account can see a claim that belongs to someone else.",
-            verification="Verify own-claim and other-claim behavior with synthetic users.",
+            failure_mode="An account can see a request that belongs to someone else.",
+            verification="Verify own-request and other-request behavior with synthetic users.",
         )
 
     def test_challenge_reports_verdicts_and_checks(self):

@@ -101,21 +101,21 @@ A sector adds domain context to every consultation and to `AGENTS.md`.
 
 ```json
 {
-  "id": "insurance",
-  "title": "Insurance",
-  "description": "Adapt the review to the insurer, intermediary or software supplier and the insurance workflow in scope.",
+  "id": "internal-tools",
+  "title": "Internal tools",
+  "description": "Adapt reviews to applications with named teams and internal operators.",
   "context": [
-    "Identify the insurance line, jurisdiction, organisation's role and affected workflow, such as quotes, underwriting, distribution, policy servicing or claims."
+    "Identify the operating team, the groups who can access each workflow and the owner who approves role changes."
   ],
-  "sources": [
-    {"title": "Regulation (EU) 2022/2554, DORA", "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/eng"}
-  ]
+  "sources": []
 }
 ```
 
 | Field | Constraint |
 |---|---|
 | `context` | Non-empty list of instructions specific to the sector. |
+
+`general` is the default. If a saved profile uses a sector absent from the current catalog, add that sector to the project's local catalog or set `sector` to an available ID in `.openguildkit/project.json`, then run `openguildkit sync`.
 
 ## Writing good records
 

@@ -1,6 +1,6 @@
-"""Replay the insurance example from init to handoff.
+"""Replay the support request example from init to handoff.
 
-    python examples/insurance-claims/replay.py [--project DIR]
+    python examples/request-status/replay.py [--project DIR]
 
 Without --project, the run uses a new temporary folder. When stdin is a
 terminal, the script lets you record the approval yourself and prints the
@@ -17,7 +17,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
-TASK_ID = "claim-status"
+TASK_ID = "request-status"
 ENV = {
     **os.environ,
     "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"), os.environ.get("PYTHONPATH")])),
@@ -45,7 +45,7 @@ def main() -> None:
     parser.add_argument("--project", type=Path, help="Empty folder to use as the example project.")
     args = parser.parse_args()
 
-    project = args.project or Path(tempfile.mkdtemp(prefix="openguildkit-claims-"))
+    project = args.project or Path(tempfile.mkdtemp(prefix="openguildkit-requests-"))
     project.mkdir(parents=True, exist_ok=True)
     if any(project.iterdir()):
         sys.exit(f"{project} is not empty. Pick an empty folder.")
