@@ -1,0 +1,19 @@
+{
+  "name": "Host validation portal",
+  "sector": "general",
+  "stack": [
+    "Python"
+  ],
+  "packs": [],
+  "boards": [
+    "product",
+    "engineering",
+    "qa",
+    "security",
+    "marketing"
+  ],
+  "research": "local-only",
+  "checks": [
+    "python -m unittest discover -s project -p \"test_*.py\""
+  ]
+}

@@ -1,6 +1,7 @@
 import copy
 import json
 import unittest
+import unittest.mock
 from pathlib import Path
 
 from openguildkit.catalog import load_catalog
@@ -68,6 +69,15 @@ class DeliberationTests(unittest.TestCase):
         payload["responses"].pop()
         with self.assertRaisesRegex(ValueError, "Responses are missing"):
             record_deliberation(self.task, payload)
+
+    def test_structured_blockers_become_the_point_of_the_objection(self):
+        review = copy.deepcopy(self.task["review"])
+        security = next(entry for entry in review["boards"] if entry["id"] == "security")
+        security["challenge"]["blockers"] = [{"finding": "No rate limit on exports.", "owner": "Security lead", "clears_when": "A limit exists."}]
+        task = {**self.task, "review": review}
+        with unittest.mock.patch("openguildkit.workflow.validate_review", return_value=review):
+            items = deliberation_request(task)["objections"]
+        self.assertEqual(next(item for item in items if item["from"] == "security")["point"], "No rate limit on exports.")
 
     def test_without_deliberation_the_brief_lists_open_objections(self):
         self.assertIn("objections_not_deliberated", challenge_report(self.task))
