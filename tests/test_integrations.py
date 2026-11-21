@@ -26,8 +26,20 @@ class IntegrationTests(unittest.TestCase):
     def test_repository_copies_match_the_packaged_files(self):
         self.assertEqual(packaged_file("skills/openguildkit/SKILL.md"),
                          (REPO / "integrations/skills/openguildkit/SKILL.md").read_text(encoding="utf-8"))
-        self.assertEqual(packaged_file("agents/guild-board.md"),
-                         (REPO / "integrations/claude-code/agents/guild-board.md").read_text(encoding="utf-8"))
+        for name in ("guild-board", "market-analyst"):
+            self.assertEqual(packaged_file(f"agents/{name}.md"),
+                             (REPO / f"integrations/claude-code/agents/{name}.md").read_text(encoding="utf-8"))
+
+    def test_the_market_analyst_is_installed_with_the_board(self):
+        self.run_cli("integrations", "--host", "claude-code")
+        agents = self.root / ".claude" / "agents"
+        self.assertEqual(sorted(path.name for path in agents.glob("*.md")),
+                         ["guild-board.md", "market-analyst.md"])
+        analyst = (agents / "market-analyst.md").read_text(encoding="utf-8")
+        self.assertIn("name: market-analyst", analyst)
+        for words in ("`local-only`", "`public-sources`", "openguildkit market new", "openguildkit market change",
+                      "never edit the JSON", "no personal data", "Obscura and Playwright"):
+            self.assertIn(words, analyst)
 
     def test_install_keeps_modified_files_unless_forced(self):
         output = self.run_cli("integrations", "--host", "claude-code")

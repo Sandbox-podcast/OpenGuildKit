@@ -16,7 +16,8 @@ from .detect import components_for_profile, detect_stack
 from .publishing import add_share, export_docs, revoke_share, share_status
 from . import tools_cli
 from .tools import connected_tools, load_tools
-from .market import dossier_gaps, due_sources, load_dossier
+from . import market_cli
+from .market import load_dossier
 from .market import scope_entry as market_scope_entry
 from .storybook import STORYBOOK_VERSION
 from .storybook import run as storybook_command
@@ -149,10 +150,7 @@ def _parser() -> argparse.ArgumentParser:
     share.add_argument("--by", help="Owner of the share (add, revoke).")
     share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
     tools_cli.add_parser(commands)
-    market = commands.add_parser("market", help="Check a market dossier and the competitor sources due for review.")
-    market.add_argument("mode", choices=("check", "due"), help="check validates and lists gaps; due lists watched sources to review.")
-    market.add_argument("dossier", help="Dossier ID in .openguildkit/market/.")
-    market.add_argument("--json", action="store_true", help="Print the result as JSON.")
+    market_cli.add_parser(commands)
     storybook = commands.add_parser(
         "storybook", help="Compose the company Storybook, record its stories and extract a design system.")
     storybook_actions = storybook.add_subparsers(dest="action", required=True)
@@ -1323,19 +1321,7 @@ def _run(args) -> int | None:
         if args.command == "docs":
             return _docs(args, root, state, profile)
         if args.command == "market":
-            dossier = load_dossier(state, args.dossier)
-            if args.mode == "check":
-                result = {"dossier": args.dossier, "gaps": dossier_gaps(dossier, profile.get("research", "local-only"))}
-                lines = [f"- {gap}" for gap in result["gaps"]] or ["No gap found."]
-            else:
-                result = {"dossier": args.dossier, "due": due_sources(dossier), "paused": dossier.get("watch", {}).get("paused", False)}
-                lines = [f"- {item['competitor']} {item['kind']}: {item['url']}" for item in result["due"]] or [
-                    "Watch paused." if result["paused"] else "No source due for review."]
-            if args.json:
-                _print_json(result)
-            else:
-                print("\n".join(lines))
-            return
+            return market_cli.run(args, state, profile)
         if args.command == "storybook":
             return storybook_command(args, root, state)
         if args.command == "guard":
