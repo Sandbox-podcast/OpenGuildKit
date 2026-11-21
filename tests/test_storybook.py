@@ -11,7 +11,8 @@ from pathlib import Path
 from openguildkit.cli import main
 from openguildkit.storage import write_json
 from openguildkit.storybook import (
-    REFS_FILE, compare, compose, dependency_conflicts, import_indexes, read_index, scope_entry, theme_sources,
+    MINIMAL_MAIN, REFS_FILE, _print_compose, compare, compose, dependency_conflicts, import_indexes, read_index,
+    scope_entry, theme_sources,
 )
 
 REPO = Path(__file__).resolve().parents[1]
@@ -94,6 +95,37 @@ class StorybookIndexTests(unittest.TestCase):
         (storybook / REFS_FILE).write_text('{"stories": ["../src/**"]}')
         with self.assertRaisesRegex(ValueError, "managed by openguildkit"):
             compose(self.root, "company", "https://design.example.com")
+
+    def test_compose_refuses_a_url_with_a_user_name_or_a_password(self):
+        (self.root / ".storybook").mkdir()
+        for url in ("https://user:secret@design.example.com", "https://user@design.example.com",
+                    "https://:secret@design.example.com", "http://user:secret@localhost:6006"):
+            with self.subTest(url=url), self.assertRaisesRegex(ValueError, "authentication"):
+                compose(self.root, "company", url)
+        self.assertFalse((self.root / ".storybook" / REFS_FILE).exists())
+
+    def test_compose_prints_the_minimal_main_when_the_project_has_none(self):
+        (self.root / ".storybook").mkdir()
+        result = compose(self.root, "company", "https://design.example.com")
+        self.assertIsNone(result["main"])
+        self.assertIn("import refs from './openguildkit-refs.json' with { type: 'json' };", result["minimal_main"])
+        self.assertIn("  refs,", result["minimal_main"])
+        self.assertEqual(MINIMAL_MAIN, result["minimal_main"])
+        text = "\n".join(_print_compose(result))
+        self.assertIn(".storybook/main.ts", text)
+        self.assertIn("framework: '@storybook/react-vite'", text)
+
+    def test_an_index_outside_the_project_is_never_recorded_by_absolute_path(self):
+        project = self.root / "project"
+        project.mkdir()
+        outside = self.root / "downloads" / "company-index.json"
+        outside.parent.mkdir()
+        shutil.copy(FIXTURES / "company-index.json", outside)
+        report = import_indexes(project, project / ".openguildkit", None, outside, today=date(2026, 11, 20))
+        record = (project / ".openguildkit" / "storybook.json").read_text()
+        self.assertEqual(report["company"]["source"], "../downloads/company-index.json")
+        self.assertNotIn(str(self.root.resolve()), record)
+        self.assertNotIn(self.root.resolve().as_posix(), record)
 
     def test_import_records_both_indexes_without_touching_project_stories(self):
         state = self.root / ".openguildkit"

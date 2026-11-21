@@ -15,6 +15,7 @@ import re
 import unicodedata
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from .storage import json_text, project_lock, read_json, write_json, write_text
 
@@ -33,12 +34,53 @@ STYLING_PACKAGES = (
 _THEME_WORDS = ("theme", "token", "color", "colour", "couleur", "typograph", "spacing", "palette", "css", "style")
 
 
-def _relative(root: Path, path: Path) -> str:
-    resolved = path.resolve()
+OUTSIDE = "outside:"
+MINIMAL_MAIN = """import type { StorybookConfig } from '@storybook/react-vite';
+import refs from './openguildkit-refs.json' with { type: 'json' };
+
+const config: StorybookConfig = {
+  framework: '@storybook/react-vite',
+  stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|mjs|ts|tsx)'],
+  addons: ['@storybook/addon-docs'],
+  refs,
+};
+export default config;
+"""
+
+
+def _home() -> Path | None:
+    """The user's home folder, kept apart so a test can stand in for it."""
     try:
-        return resolved.relative_to(root.resolve()).as_posix()
+        return Path.home().resolve()
+    except (RuntimeError, OSError):
+        return None
+
+
+def _outside_relative(root: Path, path: Path) -> str | None:
+    """A path outside the project written relative to it, unless that would spell the drive or the home folder.
+
+    Both are resolved. Files written here are committed, so they must not carry a user name.
+    """
+    try:
+        relative = os.path.relpath(path, root)
+        common = Path(os.path.commonpath([path, root]))
     except ValueError:
-        return resolved.as_posix()
+        return None
+    if common.parent == common:
+        return None
+    home = _home()
+    if home and (home == path or home in path.parents) and not (home == root or home in root.parents):
+        return None
+    return Path(relative).as_posix()
+
+
+def _relative(root: Path, path: Path) -> str:
+    """A path as the project's committed files write it: never absolute, outside:NAME when it cannot be relative."""
+    resolved, base = path.resolve(), root.resolve()
+    try:
+        return resolved.relative_to(base).as_posix()
+    except ValueError:
+        return _outside_relative(base, resolved) or OUTSIDE + resolved.name
 
 
 def ref_id(value: str) -> str:
@@ -316,6 +358,19 @@ def theme_sources(library: dict | None, company: list[dict]) -> list[dict]:
 # The managed refs file and the record of known stories.
 
 
+def _check_ref_url(url: object) -> None:
+    """The refs file is committed: an https URL, or localhost while testing, and never credentials."""
+    try:
+        netloc = urlsplit(url).netloc if isinstance(url, str) else ""
+    except ValueError:
+        netloc = ""
+    if "@" in netloc:
+        raise ValueError("Remove the user name and password from the URL: the refs file is committed. "
+                         "Let the Storybook host handle authentication, with its own sign-in.")
+    if not netloc or not re.fullmatch(r"(https://[^\s]+|http://(localhost|127\.0\.0\.1)(:\d+)?(/[^\s]*)?)", url):
+        raise ValueError("The composed Storybook needs an https URL, or http://localhost while testing.")
+
+
 def compose(root: Path, ref: str, url: str | None, title: str | None = None, remove: bool = False,
             config_dir: str = ".storybook") -> dict:
     """Add, update or remove one composed Storybook in the refs file that .storybook/main imports."""
@@ -327,7 +382,8 @@ def compose(root: Path, ref: str, url: str | None, title: str | None = None, rem
         raise ValueError("The Storybook configuration folder must be inside the project.")
     if not directory.is_dir():
         raise ValueError(f"No Storybook configuration in {config_dir}. Create the project Storybook first, "
-                         f"with npm create storybook@{STORYBOOK_VERSION}.")
+                         f"with npm create storybook@{STORYBOOK_VERSION}, or create the {config_dir} folder and run "
+                         "this command again: it prints a minimal main.ts.")
     path = directory / REFS_FILE
     refs = read_json(path) if path.exists() else {}
     if any(not isinstance(item, dict) or not isinstance(item.get("url"), str) for item in refs.values()):
@@ -337,8 +393,7 @@ def compose(root: Path, ref: str, url: str | None, title: str | None = None, rem
             raise ValueError(f"No composed Storybook named {ref} in {path.name}.")
         del refs[ref]
     else:
-        if not isinstance(url, str) or not re.fullmatch(r"(https://[^\s]+|http://(localhost|127\.0\.0\.1)(:\d+)?(/[^\s]*)?)", url):
-            raise ValueError("The composed Storybook needs an https URL, or http://localhost while testing.")
+        _check_ref_url(url)
         current = refs.get(ref, {})
         title = (title or current.get("title") or ref).strip()
         if not title or len(title.splitlines()) != 1:
@@ -349,6 +404,9 @@ def compose(root: Path, ref: str, url: str | None, title: str | None = None, rem
     imported = bool(main) and REFS_FILE in main.read_text(encoding="utf-8", errors="replace")
     result = {"file": _relative(root, path), "refs": refs, "main": _relative(root, main) if main else None,
               "imported": imported}
+    if main is None:
+        result["minimal_main"] = MINIMAL_MAIN
+        result["minimal_main_file"] = _relative(root, directory / "main.ts")
     if not imported:
         result["add_to_main"] = [
             f"import refs from './{REFS_FILE}' with {{ type: 'json' }};",
@@ -480,7 +538,9 @@ _FUNCTION = re.compile(rf"^[ \t]*(export\s+(?:default\s+)?)?(?:async\s+)?functio
 _CONST = re.compile(
     rf"^[ \t]*(export\s+)?const\s+({_NAME})\b[^=\n]*=\s*(?:React\.)?(?:(?:forwardRef|memo)\s*(?:<[^>()]*>)?\s*\(\s*)?"
     r"(?:async\s+)?(?:function\b[^(]*)?\(", re.M)
-_EXPORT_LIST = re.compile(r"\bexport\s*\{([^}]*)\}\s*;?")
+_EXPORT_LIST = re.compile(r"\bexport\s*\{([^}]*)\}(?:\s*from\s*(['\"])([^'\"\n]+)\2)?")
+_EXPORT_ITEM = re.compile(r"\s*(?:type\s+)?([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?\s*")
+_MODULE_SUFFIXES = (".tsx", ".jsx", ".ts", ".js")
 _EXPORT_DEFAULT = re.compile(rf"\bexport\s+default\s+({_NAME})\s*;?\s*$", re.M)
 _TAG = re.compile(r"<([A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)?)(?=[\s/>])")
 _ATTRIBUTE = re.compile(r"[A-Za-z_][\w:.-]*")
@@ -683,47 +743,171 @@ def _tag_attributes(text: str, start: int):
 
 
 def _source_files(sources: list[Path]):
+    """Each source file with the folder given for it, in POSIX path order on every system."""
     for base in sources:
         base = base.resolve()
         if base.is_file():
-            yield base
+            yield base.parent, base
         elif base.is_dir():
-            for path in sorted(base.rglob("*")):
+            for path in sorted(base.rglob("*"), key=lambda item: item.as_posix()):
                 if path.is_file() and not SKIP_DIRS & set(path.relative_to(base).parts[:-1]):
-                    yield path
+                    yield base, path
         else:
-            raise ValueError(f"No such file or folder: {base}")
+            raise ValueError(f"No such file or folder: {base.name}. Give a --src path that exists.")
 
 
-def _origin(root: Path, path: Path, line: int) -> str:
-    return f"{_relative(root, path)}:{line}"
+def _file_label(root: Path, base: Path, path: Path) -> str:
+    """A source file as the inventory names it: relative to the project, or outside:FOLDER/... by the given folder."""
+    label = _relative(root, path)
+    if label.startswith(OUTSIDE):
+        return f"{OUTSIDE}{base.name}/{path.relative_to(base).as_posix()}"
+    return label
 
 
-def _scan_components(root: Path, path: Path, text: str, definitions: dict, usages: dict) -> None:
-    code = _strip_js_comments(text)
-    starts = _line_starts(code)
-    exported = {}
+def _origin(label: str, line: int) -> str:
+    return f"{label}:{line}"
+
+
+def _type_body(code: str, name: str) -> str | None:
+    """The members of an interface or object type alias declared in the same file."""
+    match = re.search(rf"\binterface\s+{re.escape(name)}\b[^{{;]*\{{", code) or re.search(
+        rf"\btype\s+{re.escape(name)}\s*(?:<[^>]*>)?\s*=\s*\{{", code)
+    if not match:
+        return None
+    end = _closing(code, match.end() - 1)
+    return code[match.end():end] if end > 0 else None
+
+
+def _type_alias(code: str, name: str) -> str | None:
+    """The right-hand side of type NAME = ..., up to its semicolon or the last line that continues the union."""
+    match = re.search(rf"\btype\s+{re.escape(name)}\s*=", code)
+    if not match:
+        return None
+    lines, rest = [], code[match.end():].split("\n")
+    for index, line in enumerate(rest):
+        if index and not line.strip().startswith("|"):
+            break
+        lines.append(line.split(";")[0])
+        if ";" in line:
+            break
+    return " ".join(lines)
+
+
+def _string_union(code: str, type_text: str, depth: int = 0) -> list[str] | None:
+    """The values of a union of string literals, following type aliases of the same file; None for other types."""
+    values = []
+    for part in type_text.strip().lstrip("|").split("|"):
+        part = part.strip()
+        known, value = _literal(part)
+        if known and isinstance(value, str) and part[0] != "`":
+            values.append(value)
+        elif part in ("undefined", "null"):
+            continue
+        elif _JS_IDENTIFIER.fullmatch(part) and depth < 3 and _type_alias(code, part) is not None:
+            nested = _string_union(code, _type_alias(code, part), depth + 1)
+            if nested is None:
+                return None
+            values.extend(nested)
+        else:
+            return None
+    values = list(dict.fromkeys(values))
+    return values if len(values) >= 2 else None
+
+
+def _member_types(code: str, body: str) -> dict:
+    """Prop name to type text, for the members of an object type."""
+    starts = list(re.finditer(r"(?:^|[;{,\n])\s*(?:readonly\s+)?([A-Za-z_$][\w$]*)\s*\??\s*:", body))
+    members = {}
+    for index, match in enumerate(starts):
+        end = starts[index + 1].start() if index + 1 < len(starts) else len(body)
+        members.setdefault(match.group(1), body[match.end():end].strip().rstrip(";,").strip())
+    return members
+
+
+def _props_type(code: str, after_props: int, declaration: str) -> dict:
+    """Member types of the props: the annotation after the destructured parameter, or FC<Props> on a constant."""
+    position = after_props
+    while position < len(code) and code[position] in " \t\r\n":
+        position += 1
+    name = None
+    if code[position:position + 1] == ":":
+        annotation = code[position + 1:].lstrip()
+        if annotation.startswith("{"):
+            end = _closing(annotation, 0)
+            return _member_types(code, annotation[1:end]) if end > 0 else {}
+        match = _JS_IDENTIFIER.match(annotation)
+        name = match.group(0) if match else None
+    if name is None:
+        generics = re.findall(r"<([^<>()]*)>", declaration)
+        if generics:
+            name = generics[-1].split(",")[-1].strip()
+    body = _type_body(code, name) if name and _JS_IDENTIFIER.fullmatch(name) else None
+    return _member_types(code, body) if body is not None else {}
+
+
+def _export_lists(path: Path, code: str, reexports: list) -> dict:
+    """Local name to the public names an export list gives it; re-exports from another module are set aside."""
+    exported: dict[str, list[str]] = {}
     for match in _EXPORT_LIST.finditer(code):
         for item in match.group(1).split(","):
-            parts = item.split(" as ")
-            local, public = parts[0].strip(), parts[-1].strip()
-            if local:
-                exported[local] = "default" if public == "default" else "named"
+            names = _EXPORT_ITEM.fullmatch(item)
+            if not names:
+                continue
+            local, public = names.group(1), names.group(2) or names.group(1)
+            if match.group(3):
+                reexports.append((path, match.group(3), local, public))
+            else:
+                exported.setdefault(local, []).append(public)
     for match in _EXPORT_DEFAULT.finditer(code):
-        exported[match.group(1)] = "default"
+        exported.setdefault(match.group(1), []).append("default")
+    return exported
+
+
+def _export_of(name: str, prefix: str, publics: list[str]) -> tuple[str | None, str]:
+    """How the component is exported and the name to import: its own name first, then default, then an alias."""
+    if "default" in prefix:
+        return "default", "default"
+    if prefix or name in publics:
+        return "named", name
+    if "default" in publics:
+        return "default", "default"
+    return ("named", publics[0]) if publics else (None, "")
+
+
+def _scan_reexports(path: Path, text: str, reexports: list) -> None:
+    """An index module that re-exports components, possibly under another name."""
+    _export_lists(path, _strip_js_comments(text), reexports)
+
+
+def _scan_components(label: str, path: Path, text: str, definitions: dict, usages: dict, modules: dict,
+                     reexports: list) -> None:
+    code = _strip_js_comments(text)
+    starts = _line_starts(code)
+    exported = _export_lists(path, code, reexports)
+    public_names = modules.setdefault(path, {})
     has_jsx = bool(_TAG.search(code)) or bool(re.search(r"<[a-z][a-z0-9]*[\s/>]", code))
     for pattern in (_FUNCTION, _CONST):
         for match in pattern.finditer(code):
             prefix, name = match.group(1) or "", match.group(2)
-            export = "default" if "default" in prefix else "named" if prefix else exported.get(name)
+            export, public = _export_of(name, prefix, exported.get(name, []))
             if not export or not has_jsx or name in definitions:
                 continue
             props = _destructured_props(code, match.end())
+            if props:
+                members = _props_type(code, _closing(code, code.index("{", match.end())) + 1, match.group(0))
+                for prop in props:
+                    options = _string_union(code, members.get(prop["name"], ""))
+                    if options:
+                        prop["options"] = options
             definitions[name] = {
-                "name": name, "file": _relative(root, path), "line": _line_of(starts, match.start(2)),
+                "name": name, "file": label, "line": _line_of(starts, match.start(2)),
                 "export": export, "props": props if props is not None else [],
                 "children": any(prop["name"] == "children" for prop in props or []),
             }
+            if export == "named" and public != name:
+                definitions[name]["public"] = public
+            for alias in {public, *exported.get(name, [])}:
+                public_names[alias] = name
     for match in _TAG.finditer(code):
         if match.start() > 0 and (code[match.start() - 1].isalnum() or code[match.start() - 1] in "_$).]"):
             continue
@@ -733,7 +917,7 @@ def _scan_components(root: Path, path: Path, text: str, definitions: dict, usage
         name = match.group(1)
         usage = usages.setdefault(name, {"count": 0, "origins": [], "with_children": 0, "props": {}, "calls": []})
         usage["count"] += 1
-        origin = _origin(root, path, _line_of(starts, match.start()))
+        origin = _origin(label, _line_of(starts, match.start()))
         usage["origins"].append(origin)
         usage["with_children"] += not closes
         literals = {}
@@ -743,6 +927,51 @@ def _scan_components(root: Path, path: Path, text: str, definitions: dict, usage
             if known:
                 literals[prop] = value
         usage["calls"].append((origin, literals, [prop for prop, _, _ in attributes]))
+
+
+def _variant_prop(prop: str) -> bool:
+    """A prop that can carry a visual state, not content or wiring."""
+    return prop.casefold() not in _CONTENT_PROPS and not prop.startswith(("aria-", "data-", "on"))
+
+
+def _module_file(path: Path, specifier: str) -> Path | None:
+    """The scanned module a relative import specifier names, as a bundler resolves it."""
+    if not specifier.startswith("."):
+        return None
+    target = path.parent / specifier
+    candidates = [target, *(target.with_name(target.name + suffix) for suffix in _MODULE_SUFFIXES),
+                  *(target / f"index{suffix}" for suffix in _MODULE_SUFFIXES)]
+    return next((candidate.resolve() for candidate in candidates if candidate.is_file()), None)
+
+
+def _aliases(definitions: dict, modules: dict, reexports: list) -> dict:
+    """Component name to the other names the application uses it under: export aliases and re-exports."""
+    aliases: dict[str, list[str]] = {}
+
+    def add(name: str | None, alias: str) -> None:
+        if name in definitions and alias not in (name, "default") and alias not in definitions:
+            aliases.setdefault(name, [])
+            if alias not in aliases[name]:
+                aliases[name].append(alias)
+
+    for public_names in modules.values():
+        for alias, name in public_names.items():
+            add(name, alias)
+    for path, specifier, local, public in reexports:
+        target = _module_file(path, specifier)
+        add(modules.get(target, {}).get(local), public)
+    return aliases
+
+
+def _merged_usage(found: list[dict]) -> dict:
+    """The uses of one component under each of its names, counted together."""
+    merged = {"count": 0, "origins": [], "with_children": 0, "calls": [], "props": {}}
+    for usage in found:
+        for field in ("count", "with_children"):
+            merged[field] += usage[field]
+        for field in ("origins", "calls"):
+            merged[field].extend(usage[field])
+    return merged
 
 
 def _hex(red: float, green: float, blue: float, alpha: float = 1.0) -> str:
@@ -802,7 +1031,7 @@ def _dimension_kind(name: str) -> str:
     return "dimension"
 
 
-def _scan_styles(root: Path, path: Path, text: str, tokens: dict, variables: dict) -> None:
+def _scan_styles(label: str, path: Path, text: str, tokens: dict, variables: dict) -> None:
     code = re.sub(r"/\*.*?\*/", lambda match: re.sub(r"[^\n]", " ", match.group(0)), text, flags=re.S)
     if path.suffix == ".scss":
         code = re.sub(r"(^|[^:])//[^\n]*", lambda match: match.group(1), code)
@@ -819,7 +1048,7 @@ def _scan_styles(root: Path, path: Path, text: str, tokens: dict, variables: dic
 
     for match in _DECLARATION.finditer(code):
         prop, value = match.group(1), match.group(2).strip()
-        origin = _origin(root, path, _line_of(starts, match.start()))
+        origin = _origin(label, _line_of(starts, match.start()))
         for variable in _VAR.findall(value):
             variables.setdefault(variable, []).append(origin)
         if path.suffix == ".scss":
@@ -873,20 +1102,25 @@ def extract(root: Path, sources: list[Path], previews: list[Path] | None = None,
     """Inventory React components, their variants and style token candidates, each tied to its origin."""
     today = today or date.today()
     definitions, usages, tokens, variables = {}, {}, {}, {}
+    modules, reexports = {}, []
     scanned = {"components": 0, "styles": 0}
-    for path in _source_files(sources):
+    for base, path in _source_files(sources):
         name = path.name
         if any(marker in name for marker in (".stories.", ".test.", ".spec.")) or name.endswith(".d.ts"):
             continue
-        if path.suffix not in (".tsx", ".jsx", ".css", ".scss") or path.stat().st_size > MAX_FILE_BYTES:
+        if path.suffix not in (*_MODULE_SUFFIXES, ".css", ".scss") or path.stat().st_size > MAX_FILE_BYTES:
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
+        label = _file_label(root, base, path)
         if path.suffix in (".tsx", ".jsx"):
             scanned["components"] += 1
-            _scan_components(root, path, text, definitions, usages)
+            _scan_components(label, path, text, definitions, usages, modules, reexports)
+        elif path.suffix in (".ts", ".js"):
+            _scan_reexports(path, text, reexports)
         else:
             scanned["styles"] += 1
-            _scan_styles(root, path, text, tokens, variables)
+            _scan_styles(label, path, text, tokens, variables)
+    aliases = _aliases(definitions, modules, reexports)
     # A custom property counts once where it is defined and once per var() that uses it.
     for token in tokens.values():
         for variable in token.get("variables", []):
@@ -894,7 +1128,7 @@ def extract(root: Path, sources: list[Path], previews: list[Path] | None = None,
             token["origins"].extend(variables.get(variable, []))
     components, variants = [], {}
     for name, definition in sorted(definitions.items()):
-        usage = usages.get(name, {"count": 0, "origins": [], "with_children": 0, "calls": [], "props": {}})
+        usage = _merged_usage([usages[tag] for tag in [name, *aliases.get(name, [])] if tag in usages])
         components.append({
             **definition, "children": definition["children"] or usage["with_children"] > 0,
             "usages": usage["count"], "origins": _capped(usage["origins"]),
@@ -904,7 +1138,7 @@ def extract(root: Path, sources: list[Path], previews: list[Path] | None = None,
         for origin, literals, given in usage["calls"]:
             found = []
             for prop, value in literals.items():
-                if prop.casefold() in _CONTENT_PROPS or prop.startswith(("aria-", "data-", "on")):
+                if not _variant_prop(prop):
                     continue
                 if value is True or (isinstance(value, str) and _VARIANT_VALUE.fullmatch(value)):
                     found.append((prop, value, "usage"))
@@ -920,18 +1154,30 @@ def extract(root: Path, sources: list[Path], previews: list[Path] | None = None,
                 item["origins"].append(origin)
                 if basis == "usage":
                     item["basis"] = "usage"
+        # Values a typed string union allows, unseen in the scanned uses: states to confirm on the screens.
+        for prop in definition["props"]:
+            if not _variant_prop(prop["name"]):
+                continue
+            for value in prop.get("options", []):
+                key = f"{name}:{prop['name']}={json.dumps(value)}"
+                if _VARIANT_VALUE.fullmatch(value) and key not in variants:
+                    variants[key] = {
+                        "key": key, "component": name, "props": {prop["name"]: value}, "occurrences": 0,
+                        "origins": [_origin(definition["file"], definition["line"])],
+                        "basis": "default" if prop.get("default") == value else "type"}
     for item in variants.values():
         item["origins"] = _capped(item["origins"])
         item["confidence"] = _confidence(item["occurrences"])
+    aliased = {alias for names in aliases.values() for alias in names}
     external = [{"name": name, "usages": usage["count"]} for name, usage in sorted(usages.items())
-                if name not in definitions and len(name) > 1]
+                if name not in definitions and name not in aliased and len(name) > 1]
     token_list = []
     for token in sorted(tokens.values(), key=lambda item: (item["kind"], -item["occurrences"], item["value"])):
         token = {key: value for key, value in token.items() if key != "variables"}
         token["origins"] = _capped(token["origins"])
         token["confidence"] = _confidence(token["occurrences"])
         token_list.append(token)
-    return {
+    inventory = {
         "schema_version": 1,
         "extracted": today.isoformat(),
         "sources": [_relative(root, path) for path in sources],
@@ -943,6 +1189,13 @@ def extract(root: Path, sources: list[Path], previews: list[Path] | None = None,
         "external_components": external,
         "tokens": token_list,
     }
+    if any(item.startswith(OUTSIDE) for item in inventory["sources"]) or any(
+            item["file"].startswith(OUTSIDE) for item in components):
+        inventory["notes"] = [
+            "A source outside the project is named outside:FOLDER/... by its folder name, because a path relative "
+            "to the project would spell the home folder or the drive. generate writes no story for a component "
+            "defined there: copy it into the project, or extract from a folder next to the project."]
+    return inventory
 
 
 def _screen(component: dict) -> bool:
@@ -993,6 +1246,12 @@ def validate_proposals(data: dict) -> dict:
             item["name"] = _check_name(item.get("name"), item["key"])
             if item.get("basis") == "preview":
                 item["confidence"] = "hypothesis"
+    for item in data["components"]:
+        if item.get("export", "named") not in ("named", "default") or not (
+                "public" not in item or (isinstance(item["public"], str) and _JS_IDENTIFIER.fullmatch(item["public"])
+                                         and item["public"] != "default")):
+            raise ValueError(f"{item['key']}: export is named or default, and public is the JavaScript name "
+                             "the component is exported under.")
     components = {item["key"] for item in data["components"]}
     for item in data["variants"]:
         if item.get("component") not in components or not isinstance(item.get("props"), dict) or not all(
@@ -1025,7 +1284,7 @@ def propose(root: Path, state: Path, inventory_path: Path | None = None, proposa
             "key": f"component:{item['name']}", "name": item["name"], "status": "proposed",
             "kind": "screen" if _screen(item) else "component", "confidence": item["confidence"],
             "file": item["file"], "line": item["line"], "export": item["export"], "usages": item["usages"],
-            "children": item["children"],
+            "children": item["children"], **({"public": item["public"]} if "public" in item else {}),
             "text_props": [prop["name"] for prop in item["props"]
                            if "default" not in prop and prop["name"].casefold() in _SYNTHETIC_TEXT],
         } for item in inventory["components"]],
@@ -1130,11 +1389,20 @@ def _import_path(out: Path, root: Path, file: str) -> str:
     return relative if relative.startswith(".") else f"./{relative}"
 
 
+def _imported_as(component: dict) -> str:
+    """The import clause that binds the component's name to what its module really exports."""
+    name = component["key"].split(":", 1)[1]
+    if component["export"] == "default":
+        return f"{{ default as {name} }}"
+    public = component.get("public", name)
+    return f"{{ {public} }}" if public == name else f"{{ {public} as {name} }}"
+
+
 def _story_file(component: dict, variants: list[dict], out: Path, root: Path, framework: str) -> str:
     name = component["key"].split(":", 1)[1]
-    imported = f"import {name} from {_js(_import_path(out, root, component['file']))};" \
-        if component["export"] == "default" else \
-        f"import {{ {name} }} from {_js(_import_path(out, root, component['file']))};"
+    source = _js(_import_path(out, root, component["file"]))
+    imported = f"import {name} from {source};" if component["export"] == "default" else \
+        f"import {_imported_as(component)} from {source};"
     synthetic = {prop: f"Sample {prop}" for prop in component.get("text_props", [])}
     if component.get("children"):
         synthetic["children"] = component["name"]
@@ -1200,6 +1468,10 @@ def generate(root: Path, state: Path, proposals_path: Path | None = None, out: P
         if "file" not in component or "export" not in component:
             skipped.append({"key": key, "reason": "no definition in the application"})
             continue
+        if component["file"].startswith(OUTSIDE):
+            skipped.append({"key": key, "reason": f"defined outside the project ({component['file']}); copy it into "
+                                                  "the project or extract from a folder next to it"})
+            continue
         files[out / f"{key.split(':', 1)[1]}.stories.tsx"] = _story_file(component, by_component[key], out, root, framework)
     tokens: dict = {}
     for item in proposals["tokens"]:
@@ -1216,11 +1488,11 @@ def generate(root: Path, state: Path, proposals_path: Path | None = None, out: P
         group[last] = token
     if tokens:
         files[out / "design.tokens.json"] = json_text(tokens)
-    exported = [component for component in components.values() if "file" in component]
+    exported = [component for component in components.values()
+                if "file" in component and not component["file"].startswith(OUTSIDE)]
     if exported:
         files[out / "index.ts"] = "// Generated by openguildkit storybook generate: the validated components.\n" + "".join(
-            f"export {{ {'default as ' if item['export'] == 'default' else ''}{item['key'].split(':', 1)[1]} }} from "
-            f"{_js(_import_path(out, root, item['file']))};\n" for item in exported)
+            f"export {_imported_as(item)} from {_js(_import_path(out, root, item['file']))};\n" for item in exported)
     manifest_path = state / MANIFEST
     with project_lock(state):
         manifest = read_json(manifest_path) if manifest_path.exists() else {"schema_version": 1, "files": {}}
@@ -1253,7 +1525,9 @@ def _print_compose(result: dict) -> list[str]:
     lines = [f"{result['file']}: " + (", ".join(f"{key} ({value['url']})" for key, value in result["refs"].items())
                                        or "no composed Storybook")]
     if result["main"] is None:
-        lines.append("No .storybook/main file was found. Create the project Storybook first.")
+        lines.append(f"No Storybook main file was found. Create the project Storybook first, or start from this "
+                     f"{result['minimal_main_file']}:")
+        lines.extend(f"  {line}" if line else "" for line in result["minimal_main"].splitlines())
     elif not result["imported"]:
         lines.append(f"Add these lines to {result['main']}, then rebuild Storybook:")
         lines.extend(f"  {line}" for line in result["add_to_main"])
