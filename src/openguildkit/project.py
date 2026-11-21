@@ -413,7 +413,14 @@ def load_profile(state: Path, catalog: dict) -> dict:
     if not path.is_file():
         raise ValueError("Project is missing a profile. Run openguildkit init.")
     answers = read_json(path)
-    missing = _missing_records(answers, catalog) if isinstance(answers, dict) else []
+    sector = answers.get("sector", "general")
+    if isinstance(sector, str) and sector not in catalog["sectors"]:
+        raise ValueError(
+            f".openguildkit/project.json names the sector {sector!r}, which neither this release nor the catalog "
+            "lock provides: choose one listed by openguildkit catalog, set it in .openguildkit/project.json, "
+            "then run openguildkit sync."
+        )
+    missing = _missing_records(answers, catalog)
     if missing:
         entries = ", ".join(f'"{record_id}" from "{field}"' for field, record_id in missing)
         raise ValueError(
@@ -564,10 +571,12 @@ def require_resolved_conflicts(profile: dict, catalog: dict) -> None:
     open_conflicts = [conflict for conflict in rule_conflicts(profile, catalog) if conflict["resolution"] is None]
     if open_conflicts:
         names = "; ".join(" and ".join(conflict["packs"]) for conflict in open_conflicts)
+        # During init the profile is still the answers file: .openguildkit/project.json does not exist yet.
         raise ValueError(
-            f"Conflicting rule packs: {names}. Run openguildkit preview, then choose the rules that apply in "
-            '"resolutions" of .openguildkit/project.json, for example '
-            '{"packs": ["first", "second"], "keep": ["second"], "reason": "Why"}.'
+            f"Conflicting rule packs: {names}. Keep only one of them, or record which apply in \"resolutions\" of "
+            "the profile (the file passed to init --answers, or .openguildkit/project.json once the project is set "
+            'up), for example {"packs": ["first", "second"], "keep": ["second"], "reason": "Why"}. '
+            "Run openguildkit preview --answers FILE to check it."
         )
 
 

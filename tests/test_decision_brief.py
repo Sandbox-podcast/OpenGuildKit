@@ -151,6 +151,9 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertIn("Supports: Inputs are bound parameters.", prompt)
 
     def test_a_copied_review_is_recorded_with_warnings(self):
+        (self.root / "api").mkdir()
+        (self.root / "api" / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+
         def copy_everything(review):
             for entry in review["boards"]:
                 entry["recommendation"] = "Ship it."

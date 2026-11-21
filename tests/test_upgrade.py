@@ -85,7 +85,10 @@ class FirstReleaseTests(UpgradeTestCase):
         profile.write_text(profile.read_text(encoding="utf-8").replace('"insurance"', '"retired-sector"'), encoding="utf-8")
         for command in (("check",), ("update",), ("task", "list")):
             result = self.run_cli(*command, expect=1)
-            self.assertEqual(result.stderr.strip(), "OpenGuildKit: Unknown sector: retired-sector. Run openguildkit catalog.")
+            self.assertEqual(result.stderr.strip(), (
+                "OpenGuildKit: .openguildkit/project.json names the sector 'retired-sector', which neither this release "
+                "nor the catalog lock provides: choose one listed by openguildkit catalog, set it in "
+                ".openguildkit/project.json, then run openguildkit sync."))
             self.assertNotIn("Traceback", result.stderr)
 
     def test_the_first_release_project_upgrades_and_its_tasks_load(self):

@@ -30,23 +30,6 @@ TASK = "request-status"
 SEED = int(os.environ.get("OPENGUILDKIT_FUZZ_SEED", "20261121"))
 SAMPLES = 24
 
-# Crashes already reported elsewhere, fixed by other changes: (exception, openguildkit function) -> issue.
-# Set OPENGUILDKIT_FUZZ_STRICT=1 to fail on them too, for instance once those issues are closed.
-KNOWN_CRASHES = {
-    ("TypeError", "_follow_up_questions"): "#99, task questions with a list or object as kind or surface",
-    ("TypeError", "validate_result"): "#99, task result with a list as check",
-    ("AttributeError", "validate_result"): "#99, task result with a number as check",
-    ("TypeError", "validate_deliberation"): "#99, task respond with a list as objection",
-    ("AttributeError", "edited_paths"): "#95, guard pre-edit hook with tool_input that is not an object",
-    # Found by this suite on a task record edited by hand; reported with the pull request that adds it.
-    ("TypeError", "validate_board_entry"): "task record edited by hand: review_template boards not objects",
-    ("AttributeError", "_validate_challenge"): "task record edited by hand: challenge not an object",
-    ("AttributeError", "blocker_list"): "task record edited by hand: challenge not an object",
-    ("TypeError", "blocker_list"): "#99, task record edited by hand: blockers not a list",
-    ("TypeError", "_validate_challenge"): "#99, task record edited by hand: specialists not a list",
-    ("KeyError", "list_tasks"): "#99, task record edited by hand: created_at not a text",
-}
-STRICT = os.environ.get("OPENGUILDKIT_FUZZ_STRICT") == "1"
 
 
 UNICODE_RANGES = ((0x20, 0x7E), (0xA0, 0x24F), (0x300, 0x36F), (0x590, 0x6FF), (0x4E00, 0x4E80), (0x1F300, 0x1F64F),
@@ -179,8 +162,7 @@ class FuzzTestCase(unittest.TestCase):
                 code, _, stderr = run(source)
             except Crash as crash:
                 exception = crash.args[0]
-                if STRICT or exception not in KNOWN_CRASHES:
-                    self.crashes.append(f"{context}: {exception[0]} in {exception[1]}")
+                self.crashes.append(f"{context}: {exception[0]} in {exception[1]}")
                 continue
             if code not in (0, 1, 2):
                 self.crashes.append(f"{context}: exit code {code}")
