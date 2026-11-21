@@ -16,7 +16,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 EXAMPLE = REPO / "examples" / "request-status"
 TASK_ID = "request-status"
-EXPECTED_BOARDS = {"product", "engineering", "qa", "design", "marketing", "security"}
+EXPECTED_BOARDS = {"product", "engineering", "qa", "design", "marketing", "security", "legal"}
 
 ENV = {
     **os.environ,
@@ -287,7 +287,7 @@ class TaskFlowTests(CliTestCase):
         self.assertEqual(self.task_record()["status"], "draft")
 
         questions = json.loads(self.run_cli("task", "questions", TASK_ID).stdout)
-        self.assertEqual([question["id"] for question in questions], ["kind", "surface", "data", "research", "context"])
+        self.assertEqual([question["id"] for question in questions], ["kind", "surface", "data", "research", "concerns", "context"])
 
         consultation = self.run_cli("task", "consult", TASK_ID, "--answers", EXAMPLE / "answers.json").stdout
         self.assertIn("# Board consultation request", consultation)

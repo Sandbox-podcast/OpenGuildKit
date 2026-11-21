@@ -32,7 +32,11 @@
     "public documentation",
     "documentation publique",
     "docs as code",
-    "api reference documentation"
+    "api reference documentation",
+    "documentation",
+    "api documentation",
+    "api reference",
+    "developer docs"
   ],
   "questions": [
     "Who reads the documentation for this change, and what must they be able to do after reading it?",

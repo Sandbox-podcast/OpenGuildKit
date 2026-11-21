@@ -1224,6 +1224,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 print(f"{board_id}: {'; '.join(reasons)}")
             for item in selected["adjustments"]:
                 print(f"  {item['action']} {item['board']}: {item['reason']}")
+            for pattern in selected["patterns"]:
+                print(f"Suggested pattern {pattern['id']}: {pattern['reason']}. See openguildkit patterns --id {pattern['id']}.")
     elif action == "consult":
         answers = (
             read_json(args.answers)

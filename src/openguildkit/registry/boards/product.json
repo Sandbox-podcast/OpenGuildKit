@@ -14,7 +14,6 @@
     "roadmap",
     "feuille de route",
     "product discovery",
-    "discovery",
     "onboarding",
     "critères d'acceptation",
     "acceptance criteria",
@@ -26,7 +25,9 @@
     "backlog produit",
     "user need",
     "besoin utilisateur",
-    "adoption"
+    "adoption",
+    "churn",
+    "attrition"
   ],
   "questions": [
     "Who faces this problem and what do they do today?",

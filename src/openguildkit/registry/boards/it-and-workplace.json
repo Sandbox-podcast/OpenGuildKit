@@ -34,7 +34,11 @@
     "google workspace",
     "microsoft 365",
     "it asset",
-    "parc informatique"
+    "parc informatique",
+    "laptop management",
+    "jamf",
+    "intune",
+    "it equipment"
   ],
   "questions": [
     "Which devices, accounts and SaaS tools does the change add, move or remove for employees?",

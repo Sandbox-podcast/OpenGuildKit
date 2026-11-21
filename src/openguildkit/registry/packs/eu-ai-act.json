@@ -1,7 +1,7 @@
 {
   "id": "eu-ai-act",
   "title": "EU AI Act obligations",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Questions for the legal and AI owners and evidence checks for AI systems under Regulation (EU) 2024/1689, as amended. Obligations depend on the organization's role and on the system's classification; these rules do not establish compliance.",
   "sources": [
     {
@@ -18,6 +18,11 @@
       "id": "classify-ai-system",
       "instruction": "Ask the legal owner to classify the AI system as a prohibited practice (Art. 5), a high-risk system (Art. 6 and Annex III) or neither, and to record whether the organization acts as provider or deployer (Art. 3).",
       "verification": "Link the recorded classification and role from the change."
+    },
+    {
+      "id": "classify-employment-use",
+      "instruction": "When the system recruits or selects people, filters job applications, evaluates candidates or informs decisions about workers (Annex III, point 4), ask the legal owner before the team builds it to record whether it is a high-risk system under Art. 6(2) or the documented reasons of an Art. 6(3) exception.",
+      "verification": "Link the legal owner's recorded classification of the employment use, or the Art. 6(3) assessment and its registration where Art. 6(4) requires it."
     },
     {
       "id": "inform-people-of-ai-interaction",

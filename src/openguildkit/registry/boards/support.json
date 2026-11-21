@@ -25,7 +25,12 @@
     "customer satisfaction",
     "satisfaction client",
     "csat",
-    "nps"
+    "nps",
+    "churn",
+    "attrition",
+    "chatbot",
+    "customer question",
+    "question client"
   ],
   "questions": [
     "What will customers ask about this change, and where will support find the answer?",

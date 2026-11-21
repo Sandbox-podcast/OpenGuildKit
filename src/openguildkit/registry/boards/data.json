@@ -36,7 +36,18 @@
     "etl",
     "dbt",
     "model evaluation",
-    "évaluation du modèle"
+    "évaluation du modèle",
+    "ai",
+    "ia",
+    "ai model",
+    "ml model",
+    "eval set",
+    "evaluation set",
+    "jeu d'évaluation",
+    "snowflake",
+    "bigquery",
+    "databricks",
+    "google analytics"
   ],
   "questions": [
     "Which data does the change create, transform or rely on, and who owns its definition and quality?",
