@@ -6,6 +6,8 @@ tagged with the brain. The consultation carries this knowledge to each selected 
 """
 
 import json
+import re
+import unicodedata
 from pathlib import Path
 
 from .catalog import ID_PATTERN
@@ -13,6 +15,53 @@ from .catalog import ID_PATTERN
 MAX_REFERENCES_IN_BRIEF = 12
 # Text the skeleton of a project brain leaves to replace. brains --check reports it until it is gone.
 TODO = "TODO:"
+
+# Words too common to tell one reference from another, in English and French.
+_STOPWORDS = frozenset("""
+a an and are as at be by for from in into is it its of on or our the their this to with we you your
+add build change make new use using update need needs want let over per via all any each
+au aux avec ce ces dans de des du en est et la le les leur nos notre ou par pour sur un une
+data donnees system systeme service project projet team equipe user users utilisateur application app task
+""".split())
+# Catalogue summaries are in French and often name a standard by its acronym: these bridges let an
+# English brief reach them. Keys and values are folded words.
+_RELATED_WORDS = {
+    "sso": ("saml", "openid", "oauth", "federation", "authentification", "asvs"),
+    "login": ("authentification", "connexion", "asvs"),
+    "authentication": ("authentification", "asvs"),
+    "identity": ("identite", "identification"),
+    "okta": ("saml", "openid", "oauth"),
+    "payment": ("paiement", "carte", "pci"),
+    "card": ("carte", "paiement", "pci"),
+    "cardholder": ("carte", "pci"),
+    "privacy": ("rgpd", "gdpr", "personnelles"),
+    "personal": ("personnelles", "rgpd"),
+    "health": ("sante",),
+    "patient": ("sante", "patient"),
+    "accessibility": ("accessibilite",),
+    "accessible": ("accessibilite",),
+    "a11y": ("accessibilite", "wcag"),
+    "translation": ("traduction", "internationalisation", "localisation"),
+    "invoice": ("facture", "facturation"),
+    "billing": ("facturation",),
+    "tax": ("taxe", "tva"),
+    "vat": ("tva",),
+    "hiring": ("recrutement", "embauche"),
+    "recruiting": ("recrutement",),
+    "candidate": ("candidat", "recrutement"),
+    "applicant": ("candidat", "recrutement"),
+    "employee": ("salarie", "travail"),
+    "salary": ("salaire", "remuneration"),
+    "ai": ("ia",),
+    "llm": ("ia", "langage"),
+    "security": ("securite",),
+    "vulnerability": ("vulnerabilite",),
+    "contract": ("contrat",),
+    "cost": ("cout",),
+    "revenue": ("revenu",),
+    "log": ("journal", "journalisation"),
+    "regulated": ("reglementation",),
+}
 
 
 def brain_knowledge(board_id: str, catalog: dict, families: dict, active_packs: set[str] | None = None) -> dict:
@@ -63,11 +112,62 @@ def knowledge_gaps(catalog: dict, families: dict) -> list[str]:
     return gaps
 
 
-def brief_knowledge(board_id: str, catalog: dict, families: dict, active_packs: set[str]) -> dict:
-    """The part of the knowledge a consultation carries: active packs first, a bounded reading list."""
+def _words(text: str) -> set[str]:
+    """Folded words without accents or a regular plural, so "Customers" and "customer" compare equal."""
+    folded = unicodedata.normalize("NFKD", text.casefold())
+    plain = "".join(character for character in folded if not unicodedata.combining(character))
+    words = set()
+    for word in re.findall(r"[^\W\d_]+", plain):
+        if len(word) > 1:
+            words.add(word[:-1] if len(word) > 3 and word.endswith("s") else word)
+    return words - _STOPWORDS
+
+
+def consultation_context(task: dict, answers: dict, profile: dict, catalog: dict) -> str:
+    """The words that describe a task for ranking references: brief, answers, sector and stack.
+    The general sector names no domain, and active packs rank their references first on their own."""
+    parts = [task.get("brief", "")]
+    for key, value in answers.items():
+        if key not in ("kind", "research"):
+            parts.extend(value if isinstance(value, list) else [value])
+    if profile.get("sector") != "general":
+        sector = catalog["sectors"].get(profile.get("sector", ""), {})
+        parts += [sector.get("title", ""), sector.get("description", "")]
+    parts += profile.get("stack", [])
+    return " ".join(part for part in parts if isinstance(part, str))
+
+
+def _task_words(context: str) -> set[str]:
+    words = _words(context)
+    for word in list(words):
+        words.update(_words(" ".join(_RELATED_WORDS.get(word, ()))))
+    return words
+
+
+def _rank(reference: dict, words: set[str], active_packs: set[str]) -> tuple:
+    """Active packs first, then the overlap with the task (names count double), then applied references."""
+    names = _words(" ".join([reference["id"].replace("-", " "), reference.get("title", ""),
+                             *reference.get("aliases", [])]))
+    labels = _words(f"{reference.get('category', '')} {reference.get('summary', '')}")
+    overlap = 2 * len(words & names) + len(words & labels)
+    applied = reference.get("status") == "applied" or bool(reference.get("packs"))
+    return (not set(reference.get("packs", [])) & active_packs, -overlap, not applied, reference["id"])
+
+
+def brief_knowledge(board_id: str, catalog: dict, families: dict, active_packs: set[str], context: str = "") -> dict:
+    """The part of the knowledge a consultation carries: active packs first, and a reading list
+    of the brain's references that best fit the task, bounded so the brief stays readable."""
     knowledge = brain_knowledge(board_id, catalog, families, active_packs)
     knowledge["packs"].sort(key=lambda pack: not pack["active"])
-    knowledge["references"] = knowledge["references"][:MAX_REFERENCES_IN_BRIEF]
+    words = _task_words(context)
+    records = {
+        reference["id"]: reference
+        for family in families.values()
+        for reference in family["references"]
+        if board_id in reference.get("brains", [])
+    }
+    ranked = sorted(knowledge["references"], key=lambda item: _rank(records[item["id"]], words, active_packs))
+    knowledge["references"] = ranked[:MAX_REFERENCES_IN_BRIEF]
     return knowledge
 
 
@@ -150,3 +250,10 @@ def write_brain_skeleton(catalog_dir: Path, board_id: str, catalog: dict) -> lis
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return list(files)
+
+
+def reading_list_note(count: int) -> str:
+    """Says that brains --id shows the whole list while a consultation filters it."""
+    return (f"All {count} references of this brain. A consultation keeps the {MAX_REFERENCES_IN_BRIEF} that best "
+            "fit the task: those of the project's active packs, then those that share words with the brief, "
+            "the answers, the sector and the stack.")

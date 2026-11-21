@@ -1,7 +1,13 @@
+import contextlib
+import io
+import tempfile
 import unittest
+from pathlib import Path
 
-from openguildkit.brains import brain_knowledge, brief_knowledge, knowledge_gaps
+from openguildkit.brains import brain_knowledge, brief_knowledge, consultation_context, knowledge_gaps
 from openguildkit.catalog import load_catalog
+from openguildkit.cli import main
+from openguildkit.project import resolved_profile
 from openguildkit.references import load_references, with_pattern_references
 from openguildkit.workflow import consult
 
@@ -10,9 +16,21 @@ def families_with(*references):
     return {"test": {"id": "test", "title": "Test", "references": list(references)}}
 
 
-def reference(ref_id, brains):
+def reference(ref_id, brains, **fields):
     return {"id": ref_id, "title": ref_id.upper(), "kind": "norme", "brains": brains,
-            "sources": [{"title": ref_id, "url": f"https://example.org/{ref_id}"}]}
+            "sources": [{"title": ref_id, "url": f"https://example.org/{ref_id}"}]} | fields
+
+
+AUDIT_PROFILE = {
+    "name": "Portal", "sector": "general", "boards": [],
+    "stack": ["Python 3.12", "FastAPI", "PostgreSQL 16", "React", "TypeScript"],
+    "packs": ["agent-workflow", "python", "react", "secure-sdlc", "typescript"],
+    "patterns": ["postgresql-database", "python-development", "python-fastapi-postgresql", "react-web",
+                 "typescript-development"],
+}
+SSO_TASK = {"id": "b13", "brief": "Add SSO with Okta for enterprise customers"}
+SSO_ANSWERS = {"kind": "feature", "surface": ["service"], "data": "personal", "research": "local",
+               "context": "Okta SAML SSO for enterprise tenants, FastAPI backend with PostgreSQL"}
 
 
 class BrainKnowledgeTests(unittest.TestCase):
@@ -43,6 +61,60 @@ class BrainKnowledgeTests(unittest.TestCase):
         consultation = consult(profile, self.catalog, task, knowledge=knowledge)
         self.assertIn('"knowledge"', consultation["markdown"])
         self.assertEqual(len(knowledge["security"]["references"]), 12)
+
+    def reading_list(self, board_id, task, answers, profile=AUDIT_PROFILE):
+        families = with_pattern_references(load_references(), self.catalog["patterns"])
+        active = set(resolved_profile(profile, self.catalog)["packs"])
+        context = consultation_context(task, answers, profile, self.catalog)
+        knowledge = brief_knowledge(board_id, self.catalog, families, active, context)
+        return [item["id"] for item in knowledge["references"]]
+
+    def test_the_security_brain_reads_identity_standards_for_single_sign_on(self):
+        reading = self.reading_list("security", SSO_TASK, SSO_ANSWERS)
+        self.assertLessEqual({"saml-2", "openid-connect", "oauth-2", "owasp-asvs"}, set(reading))
+        for unrelated in ("nist-ai-rmf", "owasp-llm-top-10", "mitre-atlas"):
+            self.assertNotIn(unrelated, reading)
+        self.assertEqual(len(reading), 12)
+
+    def test_the_legal_brain_reads_pci_dss_for_a_card_export_in_financial_services(self):
+        profile = {**AUDIT_PROFILE, "sector": "financial-services"}
+        task = {"id": "c1", "brief": "Export card transactions to the customer's accounting tool"}
+        answers = {"kind": "feature", "surface": ["service"], "data": "regulated", "research": "local"}
+        self.assertIn("pci-dss", self.reading_list("legal", task, answers, profile))
+
+    def test_the_sector_brings_its_references_without_a_matching_word_in_the_brief(self):
+        task = {"id": "c2", "brief": "Export transactions to the accounting tool"}
+        answers = {"kind": "feature", "surface": ["service"], "data": "internal", "research": "local"}
+        self.assertIn("pci-dss", self.reading_list("legal", task, answers, {**AUDIT_PROFILE, "sector": "financial-services"}))
+        self.assertNotIn("pci-dss", self.reading_list("legal", task, answers))
+
+    def test_unrelated_tasks_get_different_reading_lists_and_the_same_task_the_same_one(self):
+        hiring = {"id": "h1", "brief": "Use AI to screen and rank job applicants"}
+        answers = {"kind": "feature", "surface": ["business"], "data": "personal", "research": "local"}
+        sso = self.reading_list("legal", SSO_TASK, SSO_ANSWERS)
+        self.assertNotEqual(sso, self.reading_list("legal", hiring, answers))
+        self.assertIn("eu-ai-act", self.reading_list("legal", hiring, answers))
+        self.assertEqual(sso, self.reading_list("legal", SSO_TASK, SSO_ANSWERS))
+
+    def test_references_of_active_packs_come_first_then_task_words_then_applied_ones(self):
+        families = families_with(
+            reference("aaa", ["security"]),
+            reference("bbb", ["security"], packs=["other-pack"], status="applied"),
+            reference("saml", ["security"], summary="Federated sign-on with SAML assertions."),
+            reference("zzz", ["security"], packs=["secure-sdlc"], status="applied"),
+        )
+        knowledge = brief_knowledge("security", self.catalog, families, {"secure-sdlc"}, "Add SAML sign-on")
+        self.assertEqual([item["id"] for item in knowledge["references"]], ["zzz", "saml", "bbb", "aaa"])
+
+    def test_brains_id_lists_every_reference_and_says_a_consultation_filters_them(self):
+        output = io.StringIO()
+        with tempfile.TemporaryDirectory() as directory, contextlib.redirect_stdout(output):
+            self.assertEqual(main(["--project", str(Path(directory)), "brains", "--id", "security"]), 0)
+        families = with_pattern_references(load_references(), self.catalog["patterns"])
+        count = len(brain_knowledge("security", self.catalog, families)["references"])
+        self.assertGreater(count, 12)
+        self.assertIn(f"All {count} references of this brain", output.getvalue())
+        self.assertIn("keeps the 12 that best fit the task", output.getvalue())
 
     def test_every_bundled_brain_has_methods_and_references(self):
         families = with_pattern_references(load_references(), self.catalog["patterns"])
