@@ -54,7 +54,7 @@
     {
       "id": "promotion",
       "title": "Promotion",
-      "prompt": "The channels and dates that bring registrations, with tagged links."
+      "prompt": "The channels and dates that bring registrations, with tagged links. Build each tagged link with openguildkit deliverable utm."
     },
     {
       "id": "registration",

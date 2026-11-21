@@ -170,6 +170,39 @@ class DeliverableTests(unittest.TestCase):
         self.assertIn("--market", draft)
         self.assertNotIn("market:", draft.split("---", 2)[1])
 
+    def test_utm_builds_a_campaign_link_that_follows_the_measurement_pack(self):
+        output, _ = self.run_cli("deliverable", "utm", "--url", "https://www.example.test/pricing?plan=team#compare",
+                                 "--campaign", " spring-launch ", "--source", "newsletter", "--medium", "email",
+                                 "--content", "header-button")
+        self.assertEqual(output.strip(), "https://www.example.test/pricing?plan=team&utm_source=newsletter&utm_medium=email"
+                                         "&utm_campaign=spring-launch&utm_content=header-button#compare")
+        common = ["deliverable", "utm", "--campaign", "spring-launch", "--source", "newsletter", "--medium", "email"]
+        refused = {
+            "http://www.example.test/": "https",
+            "https:///pricing": "https",
+            "https://www.example.test/?utm_source=x": "already carries",
+            "https://www.example.test/?UTM_Medium=x": "already carries",
+        }
+        for url, message in refused.items():
+            with self.subTest(url=url):
+                _, error = self.run_cli(*common, "--url", url, code=1)
+                self.assertIn(message, error)
+        for flag, value, message in (("--campaign", "Spring-Launch", "lowercase"), ("--campaign", "spring launch", "lowercase"),
+                                     ("--source", "camille@example.test", "personal data"), ("--medium", "", "lowercase")):
+            with self.subTest(value=value):
+                arguments = [item for item in common]
+                arguments[arguments.index(flag) + 1] = value
+                _, error = self.run_cli(*arguments, "--url", "https://www.example.test/", code=1)
+                self.assertTrue(error.startswith("OpenGuildKit: "), error)
+                self.assertIn(message, error)
+
+    def test_templates_that_publish_a_link_point_to_the_utm_command(self):
+        templates = load_deliverables(load_catalog())
+        for template_id in ("campaign-brief", "landing-page-brief", "newsletter-issue", "social-media-plan", "webinar-plan"):
+            with self.subTest(template=template_id):
+                self.assertIn("openguildkit deliverable utm", json.dumps(templates[template_id]))
+        self.assertIn("deliverable utm", (REPO / "docs" / "deliverables.md").read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -55,7 +55,7 @@
     {
       "id": "measurement",
       "title": "Measurement",
-      "prompt": "The metric per network, its baseline and how links are tagged."
+      "prompt": "The metric per network, its baseline and how links are tagged. Build each tagged link with openguildkit deliverable utm."
     }
   ],
   "checks": [

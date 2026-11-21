@@ -54,7 +54,7 @@
     {
       "id": "measurement",
       "title": "Measurement",
-      "prompt": "Tagged links, the metric that matters for this issue and the previous issue's result."
+      "prompt": "Tagged links, the metric that matters for this issue and the previous issue's result. Build each tagged link with openguildkit deliverable utm."
     }
   ],
   "checks": [

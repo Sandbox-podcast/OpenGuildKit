@@ -8,10 +8,11 @@ is still missing before the brain and the owner review it.
 
 import json
 import re
-from datetime import datetime, timezone
 from importlib.resources import files
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from . import clock
 from .catalog import CatalogError, _unique_fields, _validate_fields, _validate_id, _validate_list, _validate_sources, _validate_text
 from .storage import write_text
 
@@ -22,6 +23,10 @@ _COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 _FENCE = re.compile(r"^\s{0,3}(```|~~~)")
 _FIELD = re.compile(r'^(?P<key>[a-z_]+): (?P<value>".*")$')
 FRONT_MATTER = ("deliverable", "task", "approved_by")
+# The campaign-measurement pack asks for the agreed values in the same case on every link;
+# lowercase letters, digits, dots, hyphens and underscores keep one spelling per value.
+_UTM_VALUE = re.compile(r"[a-z0-9][a-z0-9._-]*")
+UTM_ORDER = ("source", "medium", "campaign", "content", "term")
 
 
 def _validate(record: dict, catalog: dict) -> None:
@@ -88,6 +93,33 @@ def launch_notice(deliverable: dict) -> list[str]:
     return lines
 
 
+def utm_link(url: str, values: dict[str, str | None]) -> str:
+    """A landing URL tagged with UTM parameters, following the campaign-measurement pack.
+
+    Values are trimmed and must be lowercase without spaces, so each one has a single spelling;
+    an email address is refused, since personal data stays out of tags. Nothing is fetched.
+    """
+    address = urlsplit(url.strip())
+    if address.scheme != "https" or not address.hostname or address.username is not None:
+        raise ValueError("Give the landing page as an https address with a host and no credentials.")
+    if any(key.lower().startswith("utm_") for key, _ in parse_qsl(address.query, keep_blank_values=True)):
+        raise ValueError("The landing URL already carries utm_ parameters. Give the page address without them.")
+    tags = []
+    for name in UTM_ORDER:
+        value = values.get(name)
+        if value is None:
+            continue
+        value = value.strip()
+        if "@" in value:
+            raise ValueError(f"utm_{name} looks like an email address: keep personal data out of UTM values.")
+        if not _UTM_VALUE.fullmatch(value):
+            raise ValueError(f"Write utm_{name} in lowercase letters, digits, '.', '-' or '_', without spaces, "
+                             f"as agreed with the analytics owner: {value!r}.")
+        tags.append((f"utm_{name}", value))
+    query = "&".join(part for part in (address.query, urlencode(tags)) if part)
+    return urlunsplit((address.scheme, address.netloc, address.path, query, address.fragment))
+
+
 def _market_lines(deliverable: dict, task: dict) -> tuple[list[str], list[str]]:
     """Front matter and input lines linking a market template to the dossier the task was consulted with."""
     if not deliverable.get("market"):
@@ -134,7 +166,7 @@ def new_draft(deliverable: dict, task: dict, tool: str, approved_tools: list[str
     lines += [f"- [ ] {check['id']}: {check['verification']} Evidence: " for check in deliverable["checks"]]
     write_text(output, "\n".join(lines) + "\n")
     return {"deliverable": deliverable["id"], "path": output.as_posix(), "tool": tool,
-            "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+            "created_at": clock.timestamp()}
 
 
 def _front_matter(text: str) -> tuple[dict, str]:

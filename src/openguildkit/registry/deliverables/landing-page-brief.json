@@ -70,7 +70,7 @@
     {
       "id": "measurement",
       "title": "Measurement",
-      "prompt": "Conversion event, tagged links, and the target compared with the baseline."
+      "prompt": "Conversion event, tagged links, and the target compared with the baseline. Build each tagged link with openguildkit deliverable utm."
     }
   ],
   "checks": [

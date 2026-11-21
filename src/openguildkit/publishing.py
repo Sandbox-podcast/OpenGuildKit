@@ -1,8 +1,8 @@
 """Turn verified work into documentation pages and keep track of who it is shared with.
 
 The export writes a Markdown tree that Documentalist imports from a Git repository:
-`reference/` for the Reference tab, `learn/` for Learn, `blog/` for dated release notes,
-and `SUMMARY.md` for the order. Paths stay stable, so re-exporting updates the same pages.
+`project/overview.md` for what the project is and the rules in force, `reference/` for the
+Reference tab, `learn/` for Learn, `blog/` for dated release notes, and `SUMMARY.md` for the order. Paths stay stable, so re-exporting updates the same pages.
 Only tasks completed with recorded checks can be exported, and only the fields listed here
 leave the project: no review, evidence or internal note.
 """
@@ -10,20 +10,23 @@ leave the project: no review, evidence or internal note.
 import json
 import re
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from . import clock
+from .project import pack_scopes, rule_plan, rule_text
 from .storage import project_lock, read_json, write_json, write_text
 from .tasks import read_task
 
 MANIFEST = ".openguildkit-export.json"
-SECTIONS = ("reference", "learn", "blog")
+SECTIONS = ("project", "reference", "learn", "blog")
+PROJECT_PAGE = "project/overview.md"
 SHARES_DIR = "shares"
 _EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 _DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 # The only paths an export writes; a manifest entry of another shape is never removed.
-_EXPORTED = re.compile(r"(?:(?:reference|learn|blog)/[^/]+\.md|openapi/[^/]+|SUMMARY\.md|README\.md)")
+_EXPORTED = re.compile(r"(?:(?:reference|learn|blog)/[^/]+\.md|openapi/[^/]+|project/overview\.md|SUMMARY\.md|README\.md)")
 MAX_SHARE_DAYS = 366
 
 
@@ -72,6 +75,40 @@ def _pages(task: dict, position: int, version: str, sections: tuple[str, ...]) -
     return pages
 
 
+def project_overview(profile: dict, catalog: dict) -> dict:
+    """What the Project page shows: profile fields, active packs with their rules, and boards.
+
+    Component paths, check commands and anything outside the profile and catalog stay out.
+    """
+    plan, scopes = rule_plan(profile, catalog), pack_scopes(profile, catalog)
+    packs = [{"id": item["id"], "title": item["title"], "version": item["version"], "components": scopes.get(item["id"]),
+              "rules": [rule_text(rule)[0] for rule in catalog["packs"][item["id"]]["rules"]]} for item in plan["packs"]]
+    boards = profile.get("boards") or sorted(catalog["boards"])
+    return {"name": profile["name"], "sector": profile.get("sector"), "stack": profile.get("stack", []),
+            "components": [{"id": item["id"], "stack": item["stack"]} for item in profile.get("components", [])],
+            "conventions": profile.get("conventions", []), "packs": packs,
+            "boards": [{"id": board_id, "title": catalog["boards"][board_id]["title"]} for board_id in boards]}
+
+
+def _project_page(overview: dict, version: str) -> str:
+    lines = [f"# {overview['name']}", "", "<!-- Generated from the OpenGuildKit project profile. Review before publishing. -->", ""]
+    lines += [f"Sector: {overview['sector']}", ""] if overview["sector"] else []
+    lines += [f"Stack: {', '.join(overview['stack'])}", ""] if overview["stack"] else []
+    if overview["components"]:
+        lines += ["## Components", "", *[f"- {item['id']}: {', '.join(item['stack'])}" for item in overview["components"]], ""]
+    if overview["conventions"]:
+        lines += ["## Conventions", "", *[f"- {item}" for item in overview["conventions"]], ""]
+    lines += ["## Rules in force", ""]
+    for pack in overview["packs"]:
+        lines += [f"### {pack['title']} ({pack['id']}, version {pack['version']})", ""]
+        lines += [f"Applies to: {', '.join(pack['components'])}", ""] if pack["components"] else []
+        lines += [*[f"- {rule}" for rule in pack["rules"]], ""]
+    lines += ["## Boards consulted", "", "The boards a change can be routed to for review before a person approves it.", "",
+              *[f"- {item['title']} ({item['id']})" for item in overview["boards"]], ""]
+    front = {"title": overview["name"], "project_version": version, "sidebar_position": 0}
+    return _frontmatter(front) + "\n".join(lines)
+
+
 def _inside(output: Path, relative: str) -> bool:
     """True when the path stays in the output folder once links and `..` are resolved."""
     if Path(relative).is_absolute() or Path(relative).anchor:
@@ -84,8 +121,9 @@ def _inside(output: Path, relative: str) -> bool:
 
 
 def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
-                sections: tuple[str, ...] = SECTIONS, openapi: Path | None = None, project: str = "Project") -> dict:
-    """Write the selected completed tasks as documentation pages; return what was written."""
+                sections: tuple[str, ...] = SECTIONS, openapi: Path | None = None, project: str = "Project",
+                overview: dict | None = None) -> dict:
+    """Write the selected completed tasks, and the project page when given, as documentation pages."""
     unknown = sorted(set(sections) - set(SECTIONS))
     if unknown or not sections:
         raise ValueError(f"Choose sections among {', '.join(SECTIONS)}.")
@@ -101,6 +139,9 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
     for position, task in enumerate(tasks, start=1):
         pages.update(_pages(task, position, version, sections))
     summary = [f"# {project}", ""]
+    if "project" in sections and overview is not None:
+        pages[PROJECT_PAGE] = _project_page(overview, version)
+        summary += ["## Project", "", f"- [Overview]({PROJECT_PAGE})", ""]
     for section in ("reference", "learn"):
         entries = [path for path in pages if path.startswith(f"{section}/")]
         if entries:
@@ -147,7 +188,7 @@ def add_share(state: Path, deliverable: str, recipients: list[str], until: str, 
         raise ValueError("Give the https address of the Documentalist portal.")
     share = {"id": uuid.uuid4().hex[:8], "deliverable": deliverable.strip(), "recipients": sorted(set(recipients)),
              "until": until, "portal": portal, "by": by.strip(),
-             "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "revoked_at": None}
+             "created_at": clock.timestamp(), "revoked_at": None}
     with project_lock(state):
         write_json(_shares_path(state), {"shares": [*_load_shares(state), share]})
     return share
@@ -161,9 +202,9 @@ def _share_end(until: str) -> date:
         end = None
     if end is None:
         raise ValueError(f"Give the last day of access as YYYY-MM-DD, not {until!r}.")
-    if end <= date.today():
+    if end <= clock.today():
         raise ValueError("A share ends after today.")
-    if end > date.today() + timedelta(days=MAX_SHARE_DAYS):
+    if end > clock.today() + timedelta(days=MAX_SHARE_DAYS):
         raise ValueError(f"A share lasts at most {MAX_SHARE_DAYS} days. Record a new share when it ends to extend it.")
     return end
 
@@ -179,7 +220,7 @@ def revoke_share(state: Path, share_id: str, by: str) -> dict:
             raise ValueError(f"Unknown share {share_id}. Run openguildkit docs share list.")
         if share["revoked_at"]:
             raise ValueError(f"Share {share_id} was already revoked by {share.get('revoked_by') or 'someone'} on {share['revoked_at'][:10]}.")
-        share["revoked_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        share["revoked_at"] = clock.timestamp()
         share["revoked_by"] = by.strip()
         write_json(_shares_path(state), {"shares": shares})
     return share
@@ -187,7 +228,7 @@ def revoke_share(state: Path, share_id: str, by: str) -> dict:
 
 def share_status(state: Path, today: date | None = None) -> list[dict]:
     """Each share with its state: active, expired (to revoke in Documentalist) or revoked."""
-    today = today or date.today()
+    today = today or clock.today()
     rows = []
     for share in _load_shares(state):
         if share["revoked_at"]:

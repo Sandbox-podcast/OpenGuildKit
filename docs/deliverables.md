@@ -7,6 +7,7 @@ openguildkit deliverable list
 openguildkit deliverable show campaign-brief
 openguildkit deliverable new campaign-brief --task launch --tool Brevo --output marketing/spring-brief.md
 openguildkit deliverable check marketing/spring-brief.md
+openguildkit deliverable utm --url https://www.example.test/pricing --campaign spring-launch --source newsletter --medium email
 ```
 
 | Template | Method | Market dossier | Brains that review it |
@@ -39,5 +40,16 @@ A template marked "Market dossier" uses the [market dossier](market.md) the task
 - a check not ticked with its evidence under `## Checks`.
 
 Only what a reader sees counts: a heading, a source or a ticked check inside an HTML comment (`<!-- -->`) or a fenced code block is ignored. An empty draft therefore lists every missing section. The task record lists its deliverables, so the brains and the owner can find the draft, its sources, its checks and the decision behind it.
+
+## Tagged campaign links
+
+`deliverable utm` prints a landing page address tagged for analytics, following the `campaign-measurement` pack (pattern `utm-campaign-measurement`):
+
+```bash
+openguildkit deliverable utm --url "https://www.example.test/pricing?plan=team" --campaign spring-launch --source newsletter --medium email --content header-button
+# https://www.example.test/pricing?plan=team&utm_source=newsletter&utm_medium=email&utm_campaign=spring-launch&utm_content=header-button
+```
+
+`--campaign`, `--source` and `--medium` are required; `--content` and `--term` are optional. The pack asks for the values agreed with the analytics owner, in the same case on every link, and for no personal data in them. Since analytics tools treat `Email` and `email` as two mediums, the command trims each value and accepts only lowercase letters, digits, `.`, `-` and `_`: a value with a capital or a space is refused rather than rewritten, so you correct it to the agreed spelling. A value that looks like an email address is refused. The landing URL must be an https address with a host; one that already carries `utm_` parameters is refused, its other parameters and its `#fragment` are kept. The command prints the link and opens nothing. The templates that publish links (`campaign-brief`, `landing-page-brief`, `newsletter-issue`, `social-media-plan`, `webinar-plan`) point to it in their measurement or promotion section.
 
 A project adds its own templates in `.openguildkit/catalog/deliverables/`, in the same format as `src/openguildkit/registry/deliverables/`. Set `"market": true` on a template that should carry the task's market dossier.

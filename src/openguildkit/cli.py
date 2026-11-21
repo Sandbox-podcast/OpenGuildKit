@@ -11,10 +11,10 @@ from .ci import check_export, read_policy_pack
 from .decisions import NAMESPACE, approval_policy, check_decision, decision_payload, git_revision, payload_text, verify_signature
 from . import alerts_cli
 from .alerts import blocking_alerts, load_register
-from .deliverables import draft_problems, launch_notice, load_deliverables, new_draft
+from .deliverables import draft_problems, launch_notice, load_deliverables, new_draft, utm_link
 from .brains import brain_knowledge, brief_knowledge, knowledge_gaps
 from .detect import components_for_profile, detect_stack
-from .publishing import add_share, export_docs, revoke_share, share_status
+from .publishing import add_share, export_docs, project_overview, revoke_share, share_status
 from . import tools_cli
 from .tools import connected_tools, load_tools
 from . import market_cli
@@ -133,13 +133,19 @@ def _parser() -> argparse.ArgumentParser:
     new_deliverable.add_argument("--output", type=Path, required=True, help="Markdown file to write.")
     check_deliverable = deliverable_actions.add_parser("check", help="List what keeps a draft from review.")
     check_deliverable.add_argument("path", type=Path)
+    utm = deliverable_actions.add_parser("utm", help="Print a landing URL tagged with the campaign's UTM parameters.")
+    utm.add_argument("--url", required=True, help="https address of the landing page.")
+    for name in ("campaign", "source", "medium"):
+        utm.add_argument(f"--{name}", required=True, help=f"utm_{name} value agreed with the analytics owner.")
+    utm.add_argument("--content", help="utm_content value, to tell links of the same campaign apart.")
+    utm.add_argument("--term", help="utm_term value, for paid search keywords.")
     docs = commands.add_parser("docs", help="Export documentation of completed tasks and track who it is shared with.")
     docs_actions = docs.add_subparsers(dest="docs_action", required=True)
     export = docs_actions.add_parser("export", help="Write Reference, Learn and Blog pages for Documentalist.")
     export.add_argument("--tasks", required=True, help="Comma-separated IDs of completed tasks to document.")
     export.add_argument("--output", type=Path, required=True, help="Folder to write, for example docs-site.")
     export.add_argument("--version", dest="doc_version", required=True, help="Project version the pages describe.")
-    export.add_argument("--sections", default="reference,learn,blog", help="Sections to write.")
+    export.add_argument("--sections", default="project,reference,learn,blog", help="Sections to write.")
     export.add_argument("--openapi", type=Path, help="OpenAPI file to place next to the pages.")
     share = docs_actions.add_parser("share", help="Record, list, revoke or check the shares of a deliverable.")
     share.add_argument("share_action", choices=("add", "list", "revoke", "check"))
@@ -825,6 +831,10 @@ def _deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) ->
             method = f" (method {template['method']})" if template.get("method") else ""
             print(f"{template['id']:<24} {template['title']}{method} [{', '.join(template['brains'])}]")
         return 0
+    if action == "utm":
+        names = ("source", "medium", "campaign", "content", "term")
+        print(utm_link(args.url, {name: getattr(args, name) for name in names}))
+        return 0
     if action == "check":
         path = args.path if args.path.is_absolute() else root / args.path
         text = path.read_text(encoding="utf-8")
@@ -861,12 +871,13 @@ def _deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) ->
     return 0
 
 
-def _docs(args, root: Path, state: Path, profile: dict) -> int:
+def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
     if args.docs_action == "export":
         tasks = [item.strip() for item in args.tasks.split(",") if item.strip()]
         sections = tuple(item.strip() for item in args.sections.split(",") if item.strip())
         output = args.output if args.output.is_absolute() else root / args.output
-        result = export_docs(state, tasks, output, args.doc_version, sections, args.openapi, profile["name"])
+        result = export_docs(state, tasks, output, args.doc_version, sections, args.openapi, profile["name"],
+                             project_overview(profile, catalog))
         for path in result["written"]:
             print(f"wrote {path}")
         for path in result["removed"]:
@@ -1369,7 +1380,7 @@ def _run(args) -> int | None:
         if args.command == "deliverable":
             return _deliverable(args, root, state, profile, catalog)
         if args.command == "docs":
-            return _docs(args, root, state, profile)
+            return _docs(args, root, state, profile, catalog)
         if args.command == "market":
             return market_cli.run(args, state, profile)
         if args.command == "storybook":

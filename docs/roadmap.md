@@ -20,7 +20,7 @@ This page separates what exists from what is planned. Open an issue to discuss o
 **After the decision**
 
 - Results and checks before a task is done, task list and follow-up links, decision export for pull requests.
-- Documentation export for Documentalist and a share register, business deliverables (campaign brief, release announcement, support article), Storybook composition and extraction.
+- Documentation export for Documentalist and a share register, business deliverables (campaign brief, landing page, product one-pager, case study, newsletter, social media plan, press release, webinar, pricing page, competitive battle card, release announcement, support article) and tagged campaign links, Storybook composition and extraction.
 
 **Catalog**
 

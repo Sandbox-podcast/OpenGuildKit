@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import publishing
+from openguildkit.catalog import load_catalog
 from openguildkit.cli import main
 from openguildkit.storage import write_json
 
@@ -236,16 +237,50 @@ class PublishingTests(unittest.TestCase):
                                    "--reason", "Scope agreed"]), 0)
         second = subprocess.run(command, env=environment, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertIn("is identical to examples/documentalist/docs-site", second.stdout)
         produced, expected = project / "docs-site", DOCUMENTALIST / "docs-site"
-        # The blog page is named and dated after the day of completion; every other byte must match.
-        expected_day = next((expected / "blog").glob("*.md")).name[:10]
-        produced_day = next((produced / "blog").glob("*.md")).name[:10]
 
-        def tree(folder, day):
-            return {path.relative_to(folder).as_posix().replace(day, "DAY"): path.read_text(encoding="utf-8").replace(day, "DAY")
-                    for path in sorted(folder.rglob("*")) if path.is_file()}
+        def tree(folder):
+            return {path.relative_to(folder).as_posix(): path.read_bytes() for path in sorted(folder.rglob("*")) if path.is_file()}
 
-        self.assertEqual(tree(produced, produced_day), tree(expected, expected_day))
+        self.assertEqual(tree(produced), tree(expected))
+
+    def test_export_writes_one_project_page_from_the_profile_packs_and_boards(self):
+        profile_path = self.root / ".openguildkit" / "project.json"
+        profile = json.loads(profile_path.read_text(encoding="utf-8"))
+        profile.update(sector="general", conventions=["Write user-facing text in French and English."],
+                       components=[{"id": "portal-api", "path": "services/api", "stack": ["Python"]}])
+        write_json(profile_path, profile)
+        self.run_cli("sync")
+        self.done_task()
+        self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0")
+        self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.1")
+        site = self.root / "docs-site"
+        self.assertEqual([path.name for path in (site / "project").iterdir()], ["overview.md"])
+        page = (site / "project" / "overview.md").read_text(encoding="utf-8")
+        manifest = json.loads((site / ".openguildkit-export.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["files"].count("project/overview.md"), 1)
+        self.assertIn("(project/overview.md)", (site / "SUMMARY.md").read_text(encoding="utf-8"))
+        self.assertIn('project_version: "1.4.1"', page)
+        self.assertIn("# Support portal", page)
+        self.assertIn("Sector: general", page)
+        self.assertIn("Python", page)
+        self.assertIn("portal-api", page)
+        self.assertIn("Write user-facing text in French and English.", page)
+        workflow = load_catalog()["packs"]["agent-workflow"]
+        self.assertIn(f"{workflow['title']} (agent-workflow, version {workflow['version']})", page)
+        self.assertIn(workflow["rules"][0]["instruction"], page)
+        self.assertIn("Marketing and market research", page)
+        for private in ("services/api", str(self.root), self.root.as_posix(), "print(1)", "Camille"):
+            self.assertNotIn(private, page)
+
+    def test_the_project_page_is_selected_like_the_other_sections(self):
+        self.done_task()
+        self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0", "--sections", "reference")
+        self.assertFalse((self.root / "docs-site" / "project").exists())
+        output, _ = self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0", "--sections", "project")
+        self.assertIn("wrote project/overview.md", output)
+        self.assertIn("removed reference/request-status.md", output)
 
 
 if __name__ == "__main__":

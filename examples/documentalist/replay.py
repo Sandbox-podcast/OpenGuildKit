@@ -7,6 +7,10 @@ the decision, which needs a person: in a terminal it asks your name and lets you
 otherwise it prints the command to run yourself. Run the script again with the same
 --project once the task is approved: it runs the checks, records the result, completes
 the task, exports DIR/docs-site and compares it with this folder's docs-site.
+
+The script sets SOURCE_DATE_EPOCH to the example's completion day, so the dated blog page
+is the same on any day. The project page is left out: it quotes the catalog's pack rules,
+which change between versions, while the task pages depend only on this folder's inputs.
 """
 
 import argparse
@@ -22,8 +26,11 @@ REPO = HERE.parents[1]
 REQUEST_STATUS = REPO / "examples" / "request-status"
 TASK_ID = "request-status"
 VERSION = "1.4.0"
+SECTIONS = "reference,learn,blog"
+COMPLETED = "1795176000"  # 2026-11-20T12:00:00Z, the day docs-site was exported
 ENV = {
     **os.environ,
+    "SOURCE_DATE_EPOCH": COMPLETED,
     "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"), os.environ.get("PYTHONPATH")])),
     "PYTHONIOENCODING": "utf-8",
 }
@@ -111,7 +118,7 @@ def main() -> None:
     task = json.loads(cli(project, "task", "show", TASK_ID, capture=True))
     if task["status"] == "approved":
         deliver(project, task["decision"]["by"])
-    cli(project, "docs", "export", "--tasks", TASK_ID, "--output", "docs-site", "--version", VERSION)
+    cli(project, "docs", "export", "--tasks", TASK_ID, "--output", "docs-site", "--version", VERSION, "--sections", SECTIONS)
     differences = compare(project / "docs-site", HERE / "docs-site")
     if not differences:
         print(f"{project / 'docs-site'} is identical to examples/documentalist/docs-site.")
@@ -119,7 +126,6 @@ def main() -> None:
     print("Differences with examples/documentalist/docs-site:")
     for path in differences:
         print(f"  {path}")
-    print("The blog page is named and dated after the day the task was completed.")
 
 
 if __name__ == "__main__":
