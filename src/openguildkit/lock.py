@@ -5,6 +5,7 @@ uses. Commands read the locked copy instead of the bundled one. `openguildkit up
 shows what a newer catalog would change and applies it only when asked.
 """
 
+import json
 from copy import deepcopy
 from pathlib import Path
 
@@ -138,9 +139,12 @@ def lock_is_current(lock: dict | None, profile: dict, catalog: dict, bundled: di
 
 
 def _rule_text(rule: dict) -> str:
+    text = f"{rule.get('instruction', '')} Verify: {rule.get('verification', '')}".strip()
     if "check" in rule:
-        return f"check {rule['check']}"
-    return f"{rule['instruction']} Verify: {rule['verification']}"
+        text = f"{text} Check: {json.dumps(rule['check'], sort_keys=True)}"
+    if "evidence" in rule:
+        text = f"{text} Evidence: {', '.join(item['id'] for item in rule['evidence'])}"
+    return text
 
 
 def _source_urls(record: dict) -> list[str]:

@@ -1,7 +1,7 @@
 {
   "id": "gdpr",
   "title": "GDPR personal data processing",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Questions for the privacy owner and repository checks when a change processes personal data under Regulation (EU) 2016/679. Apply the organization's approved interpretation; these rules do not establish compliance.",
   "sources": [
     {
@@ -28,7 +28,13 @@
     {
       "id": "update-processing-record",
       "instruction": "When the change creates or alters a processing of personal data, ask the privacy owner to update the record of processing activities (GDPR Art. 30) with the purpose, data categories, recipients and retention.",
-      "verification": "Link the updated entry of the record of processing activities from the change."
+      "verification": "Link the updated entry of the record of processing activities from the change.",
+      "evidence": [
+        {
+          "id": "processing-record",
+          "title": "Record of processing activities"
+        }
+      ]
     },
     {
       "id": "confirm-lawful-basis",
@@ -48,7 +54,13 @@
     {
       "id": "assess-dpia-need",
       "instruction": "Ask the data protection officer whether the change requires a data protection impact assessment under Art. 35, and record the decision with its reason.",
-      "verification": "Link the recorded decision or the completed assessment from the change."
+      "verification": "Link the recorded decision or the completed assessment from the change.",
+      "evidence": [
+        {
+          "id": "dpia-decision",
+          "title": "Recorded decision on the data protection impact assessment"
+        }
+      ]
     },
     {
       "id": "review-processor-terms",

@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlsplit
 
+from .rule_checks import validate_check
+
 
 COLLECTION_FIELDS = {
     "packs": {"version", "rules"},
@@ -21,6 +23,8 @@ ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
 MIN_VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){0,3}")
 EXPORT_EXPIRY_ID = "export-link-expiry"
+LEGACY_EXPORT_CHECK = {"kind": "field", "path": "export.json", "field": "downloadLinkMinutes", "integer": True, "min": 1}
+MAX_EVIDENCE = 5
 # A method is preselected for its roles; a regulation only for its sectors or personal data.
 PATTERN_KINDS = ("method", "regulation")
 MAX_SAFE_INTEGER = (1 << 53) - 1
@@ -113,7 +117,7 @@ def _validate_sources(sources: Any) -> None:
         seen_urls.add(url)
 
 
-def _validate_pack(pack: dict[str, Any]) -> None:
+def _validate_pack(pack: dict[str, Any], allow_command: bool = False) -> None:
     version = pack["version"]
     if not isinstance(version, str) or not VERSION_PATTERN.fullmatch(version):
         raise CatalogError("version must use major.minor.patch")
@@ -134,20 +138,54 @@ def _validate_pack(pack: dict[str, Any]) -> None:
     seen_ids = set()
     for index, rule in enumerate(pack["rules"]):
         label = f"rules[{index}]"
-        if isinstance(rule, dict) and "check" in rule:
-            _validate_fields(rule, label, {"id", "check"})
-            check = rule["check"]
-            _validate_fields(check, f"{label}.check", {"max_minutes"})
-            if rule["id"] != EXPORT_EXPIRY_ID or not is_positive_integer(check["max_minutes"]):
-                raise CatalogError(f"{label}: expected an {EXPORT_EXPIRY_ID} check with positive integer max_minutes")
-        else:
-            _validate_fields(rule, label, {"id", "instruction", "verification"})
-            _validate_text(rule["instruction"], f"{label}.instruction")
-            _validate_text(rule["verification"], f"{label}.verification")
-        _validate_id(rule["id"], f"{label}.id")
+        _validate_rule(rule, label, allow_command)
         if rule["id"] in seen_ids:
             raise CatalogError(f"duplicate rule ID {rule['id']!r}")
         seen_ids.add(rule["id"])
+
+
+def rule_check(rule: dict) -> dict | None:
+    """The machine check a rule declares, with the former central export form written out."""
+    check = rule.get("check")
+    if check is None or "kind" in check:
+        return check
+    # Central policy packs written before generic checks: {"max_minutes": N} on the export rule.
+    return {**LEGACY_EXPORT_CHECK, "max": check["max_minutes"]}
+
+
+def _validate_evidence(evidence: Any, label: str) -> None:
+    _validate_list(evidence, f"{label}.evidence")
+    if len(evidence) > MAX_EVIDENCE:
+        raise CatalogError(f"{label}.evidence names at most {MAX_EVIDENCE} pieces of evidence")
+    seen = set()
+    for item in evidence:
+        _validate_fields(item, f"{label}.evidence entry", {"id", "title"})
+        _validate_id(item["id"], f"{label}.evidence id")
+        _validate_text(item["title"], f"{label}.evidence title")
+        if item["id"] in seen:
+            raise CatalogError(f"{label}.evidence names {item['id']!r} twice")
+        seen.add(item["id"])
+
+
+def _validate_rule(rule: Any, label: str, allow_command: bool) -> None:
+    """A rule states an instruction and its verification; a machine check can stand in for both."""
+    _validate_fields(rule, label, {"id"}, {"instruction", "verification", "check", "evidence"})
+    _validate_id(rule["id"], f"{label}.id")
+    if "check" in rule and isinstance(rule["check"], dict) and rule["check"].keys() == {"max_minutes"}:
+        if rule["id"] != EXPORT_EXPIRY_ID or not is_positive_integer(rule["check"]["max_minutes"]):
+            raise CatalogError(f"{label}: expected an {EXPORT_EXPIRY_ID} check with positive integer max_minutes")
+    elif "check" in rule:
+        try:
+            validate_check(rule["check"], f"{label}.check", allow_command=allow_command)
+        except ValueError as error:
+            raise CatalogError(str(error)) from error
+    for field in ("instruction", "verification"):
+        if field in rule:
+            _validate_text(rule[field], f"{label}.{field}")
+        elif "check" not in rule:
+            raise CatalogError(f"{label} is missing fields: {field}")
+    if "evidence" in rule:
+        _validate_evidence(rule["evidence"], label)
 
 
 def _validate_pattern(pattern: dict[str, Any]) -> None:
@@ -225,7 +263,7 @@ def _validate_board_review(review: Any) -> None:
             _validate_text(prompt, f"review.{key} entry")
 
 
-def _validate_entry(collection: str, entry: Any) -> None:
+def _validate_entry(collection: str, entry: Any, *, allow_command: bool = False) -> None:
     required = ENTRY_FIELDS | COLLECTION_FIELDS[collection]
     optional = {
         "packs": {"depends_on", "conflicts_with"},
@@ -238,7 +276,7 @@ def _validate_entry(collection: str, entry: Any) -> None:
     _validate_text(entry["description"], "description")
     _validate_sources(entry["sources"])
     if collection == "packs":
-        _validate_pack(entry)
+        _validate_pack(entry, allow_command)
         return
     if collection == "patterns":
         _validate_pattern(entry)
@@ -304,7 +342,8 @@ def _load_entry(collection: str, path: Path, entry: Any, entries: dict, bundled:
         merged = merge_board(entries[record_id], entry)
         _validate_entry(collection, merged)
     else:
-        _validate_entry(collection, entry)
+        # Only the project's own catalog may run commands: it already controls its check commands.
+        _validate_entry(collection, entry, allow_command=not bundled)
         merged = entry
         if record_id in entries:
             raise CatalogError(f"duplicate {collection} ID {record_id!r}")
@@ -421,8 +460,9 @@ def load_catalog(
         commit, pack = central_policy
         _validate_entry("packs", pack)
         rules = pack["rules"]
-        if pack["id"] != EXPORT_EXPIRY_ID or len(rules) != 1 or "check" not in rules[0]:
-            raise CatalogError(f"The central policy must contain one executable {EXPORT_EXPIRY_ID} rule")
+        check = rule_check(rules[0]) if len(rules) == 1 else None
+        if pack["id"] != EXPORT_EXPIRY_ID or check is None or check["kind"] != "field":
+            raise CatalogError(f"The central policy must contain one {EXPORT_EXPIRY_ID} rule with a field check")
         if EXPORT_EXPIRY_ID in catalog["packs"]:
             raise CatalogError(f"duplicate packs ID {EXPORT_EXPIRY_ID!r}")
         catalog["packs"][EXPORT_EXPIRY_ID] = {**pack, "policy_commit": commit}

@@ -5,6 +5,7 @@ import json
 import re
 from pathlib import Path
 
+from .catalog import rule_check
 from .patterns import (
     check_pattern_choices,
     condition_reasons,
@@ -13,6 +14,7 @@ from .patterns import (
     recommend_patterns,
     role_choices,
 )
+from .rule_checks import describe_check
 from .storage import read_json, write_json, write_text
 from .workflow import AGENT_WORKFLOW
 
@@ -808,13 +810,17 @@ def _source_link(source: dict) -> str:
     return f"[{title}](<{source['url']}>)"
 
 
+CHECK_VERIFICATION = "OpenGuildKit evaluates the check: task verify in the project, ci-check on a commit."
+
+
 def rule_text(rule: dict) -> tuple[str, str]:
-    if "check" not in rule:
+    """The rule's instruction and verification; a machine check fills in the text a rule leaves out."""
+    check = rule_check(rule)
+    if check is None:
         return rule["instruction"], rule["verification"]
-    threshold = int(rule["check"]["max_minutes"])
     return (
-        f"Limit downloadLinkMinutes in export.json to {threshold} minutes.",
-        "Run the CI check on the target commit.",
+        rule.get("instruction", describe_check(check)),
+        rule.get("verification", CHECK_VERIFICATION),
     )
 
 
@@ -910,6 +916,10 @@ def render_instructions(profile: dict, catalog: dict) -> str:
         for rule in pack["rules"]:
             instruction, verification = rule_text(rule)
             lines.extend([f"- `{rule['id']}` {instruction}", f"  Verify: {verification}"])
+            if "check" in rule and "instruction" in rule:
+                lines.append(f"  Checked by task verify: {describe_check(rule_check(rule))}")
+            for item in rule.get("evidence", []):
+                lines.append(f"  Evidence for task result: {item['title']} (a project path or an https link).")
         if pack["sources"]:
             lines.extend(["", *_bullets([_source_link(source) for source in pack["sources"]])])
     lines.extend(["", f"<!-- openguildkit profile {profile_fingerprint(profile, catalog)} -->"])

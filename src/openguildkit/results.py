@@ -1,17 +1,22 @@
 """Record what was delivered for an approved task and the checks that prove it.
 
 The expected checks come from the approved scope: every project check command is
-mandatory, and every rule of the active packs must be reported. A project can make some
-rules mandatory with `required_rules`. A task is done only when every mandatory check
-passed with evidence.
+mandatory, and every rule of the active packs must be reported. A rule with a machine
+check is evaluated and recorded by task verify instead of being reported. A named piece of
+evidence that a rule requires is mandatory: task result supplies it as a project path or
+an https link. A project can make some rules mandatory with `required_rules`. A task is
+done only when every mandatory check passed with evidence.
 """
 
 import subprocess
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
+from .catalog import rule_check
 from .decisions import git_revision
 from .project import rule_text
+from .rule_checks import evaluate_check, validate_path
 from .storage import write_text
 
 RESULT_STATUSES = ("passed", "failed", "skipped", "not-applicable")
@@ -29,44 +34,93 @@ def expected_checks(task: dict, profile: dict) -> list[dict]:
     ]
     for pack in scope.get("packs", []):
         for rule in pack["rules"]:
-            rule_id = f"rule:{pack['id']}/{rule['id']}"
+            name = f"{pack['id']}/{rule['id']}"
             _, verification = rule_text(rule)
-            checks.append({
-                "id": rule_id, "kind": "rule", "verification": verification,
-                "mandatory": pack["id"] in required or f"{pack['id']}/{rule['id']}" in required,
-            })
+            check = {"id": f"rule:{name}", "kind": "rule", "verification": verification,
+                     "mandatory": pack["id"] in required or name in required}
+            machine = rule_check(rule)
+            if machine is not None:
+                check.update(kind="machine", check=machine)
+            checks.append(check)
+            # A named evidence of an active pack is always due: the pack was accepted for the project.
+            checks.extend(
+                {"id": f"evidence:{name}/{item['id']}", "kind": "evidence", "title": item["title"],
+                 "verification": f"Supply {item['title']} as a project path or an https link.", "mandatory": True}
+                for item in rule.get("evidence", [])
+            )
     return checks
 
 
+def _run_command(root: Path, state: Path, task: dict, check: dict, command: str, timeout: int) -> dict:
+    """Run one command in the project root and keep its log as evidence."""
+    started = time.monotonic()
+    try:
+        # The commands come from the project profile or the project's own catalog, which it controls.
+        completed = subprocess.run(
+            command, shell=True, cwd=root, capture_output=True, text=True, timeout=timeout,
+            encoding="utf-8", errors="replace",
+        )
+        code, output = completed.returncode, completed.stdout + completed.stderr
+    except subprocess.TimeoutExpired as error:
+        code, output = None, f"Timed out after {timeout} seconds.\n{error.stdout or ''}{error.stderr or ''}"
+    log = state / "tasks" / f"{task['id']}-checks" / f"{check['id'].replace(':', '-').replace('/', '-')}.log"
+    write_text(log, f"$ {command}\n{output[-LOG_TAIL:]}")
+    return {
+        "check": check["id"],
+        "status": "passed" if code == 0 else "failed",
+        "evidence": log.relative_to(root).as_posix(),
+        "exit_code": code,
+        "seconds": round(time.monotonic() - started, 1),
+    }
+
+
 def run_command_checks(root: Path, state: Path, task: dict, profile: dict, timeout: int = 1800) -> list[dict]:
-    """Run the project's own check commands in the project root and keep each log as evidence."""
+    """Run the project's check commands and evaluate the rules' machine checks, with their evidence."""
     revision = git_revision(root)
-    logs = state / "tasks" / f"{task['id']}-checks"
     results = []
     for check in expected_checks(task, profile):
-        if check["kind"] != "command":
+        if check["kind"] == "command":
+            outcome = _run_command(root, state, task, check, check["command"], timeout)
+        elif check["kind"] == "machine" and check["check"]["kind"] == "command":
+            outcome = _run_command(root, state, task, check, check["check"]["command"], timeout)
+        elif check["kind"] == "machine":
+            outcome = {"check": check["id"], **evaluate_check(root, check["check"])}
+        else:
             continue
-        started = time.monotonic()
-        try:
-            # The commands come from the committed project profile, the source of what the project authorizes.
-            completed = subprocess.run(
-                check["command"], shell=True, cwd=root, capture_output=True, text=True, timeout=timeout,
-                encoding="utf-8", errors="replace",
-            )
-            code, output = completed.returncode, completed.stdout + completed.stderr
-        except subprocess.TimeoutExpired as error:
-            code, output = None, f"Timed out after {timeout} seconds.\n{error.stdout or ''}{error.stderr or ''}"
-        log = logs / f"{check['id'].replace(':', '-')}.log"
-        write_text(log, f"$ {check['command']}\n{output[-LOG_TAIL:]}")
-        results.append({
-            "check": check["id"],
-            "status": "passed" if code == 0 else "failed",
-            "evidence": log.relative_to(root).as_posix(),
-            "exit_code": code,
-            "seconds": round(time.monotonic() - started, 1),
-            **({"revision": revision["commit"]} if revision else {}),
-        })
+        results.append({**outcome, **({"revision": revision["commit"]} if revision else {})})
     return results
+
+
+def _evidence_reference(value: str, check_id: str) -> str:
+    """A named evidence is an https link or a path inside the project."""
+    if value.startswith("https://"):
+        if not urlsplit(value).hostname or any(character.isspace() for character in value):
+            raise ValueError(f"{check_id} evidence must be a valid https link.")
+        return value
+    try:
+        validate_path(value, f"{check_id} evidence", pattern=False)
+    except ValueError:
+        raise ValueError(
+            f"{check_id} evidence must be a project path such as docs/privacy/record.md or an https link."
+        ) from None
+    return value
+
+
+def evidence_files_missing(root: Path, payload: dict, task: dict, profile: dict) -> list[str]:
+    """Named evidences given as project paths that do not exist."""
+    named = {check["id"] for check in expected_checks(task, profile) if check["kind"] == "evidence"}
+    checks = payload.get("checks") if isinstance(payload, dict) else None
+    missing = []
+    # A malformed result is left to validate_result, which says what to fix.
+    for item in checks if isinstance(checks, list) else []:
+        if not isinstance(item, dict) or not isinstance(item.get("check"), str) or item["check"] not in named:
+            continue
+        if item.get("status") != "passed":
+            continue
+        value = _evidence_reference(_text(item.get("evidence"), f"{item['check']} evidence"), item["check"])
+        if not value.startswith("https://") and not (root / value).exists():
+            missing.append(f"{item['check']}: {value} does not exist in the project.")
+    return missing
 
 
 def _text(value: object, field: str) -> str:
@@ -135,6 +189,8 @@ def validate_result(task: dict, profile: dict, payload: dict, source: str = "rep
         except ValueError as error:
             needed = " and ".join(fields)
             raise _refusal(task, f"{error} A {item['status']} check needs {needed}.") from None
+        if known.get(item["check"], {}).get("kind") == "evidence" and "evidence" in entry:
+            entry["evidence"] = _evidence_reference(entry["evidence"], item["check"])
         for key in ("exit_code", "seconds", "revision", "chaosfolk_status", "message"):
             if key in item:
                 entry[key] = item[key]
@@ -154,6 +210,8 @@ def _check_source(check_id: object, known: dict, source: str) -> None:
         raise ValueError(f"Unknown check {check_id}. Run task checks for the expected IDs.")
     if known[check_id]["kind"] == "command" and source != "verify":
         raise ValueError(f"{check_id} is recorded by task verify, which runs the command. Run task verify.")
+    if known[check_id]["kind"] == "machine" and source != "verify":
+        raise ValueError(f"{check_id} is recorded by task verify, which evaluates its check. Run task verify.")
 
 
 def merge_results(previous: dict | None, new: dict) -> dict:
@@ -182,7 +240,11 @@ def completion_problems(task: dict, profile: dict) -> list[str]:
     reported = {item["check"]: item for item in result.get("checks", [])}
     for check in expected_checks(task, profile):
         outcome = reported.get(check["id"])
-        if check["mandatory"]:
+        if check["kind"] == "evidence" and (outcome is None or outcome["status"] != "passed"):
+            problems.append(
+                f"{check['id']} needs {check['title']}: supply a project path or an https link with task result."
+            )
+        elif check["mandatory"]:
             if outcome is None:
                 problems.append(f"{check['id']} is mandatory and has no result.")
             elif outcome["status"] != "passed":
@@ -272,15 +334,19 @@ def missing_scenarios(task: dict) -> list[str]:
 
 
 def result_template(task: dict, profile: dict) -> dict:
-    """A result file to fill: the acceptance criteria and every check a report must cover."""
+    """A result file to fill: the acceptance criteria, every check a report covers and each named evidence."""
     outcome = task.get("answers", {}).get("outcome", "")
+    checks = []
+    for check in expected_checks(task, profile):
+        if check["kind"] == "rule":
+            checks.append({"check": check["id"], "mandatory": check["mandatory"], "verification": check["verification"],
+                           "status": "", "evidence": "", "reason": "", "owner": ""})
+        elif check["kind"] == "evidence":
+            checks.append({"check": check["id"], "mandatory": True, "evidence_name": check["title"],
+                           "verification": check["verification"], "status": "", "evidence": ""})
     return {
         "revision": "",
         "pull_request": "",
         "criteria": [{"criterion": outcome, "status": "", "evidence": ""}],
-        "checks": [
-            {"check": check["id"], "mandatory": check["mandatory"], "verification": check["verification"],
-             "status": "", "evidence": "", "reason": "", "owner": ""}
-            for check in expected_checks(task, profile) if check["kind"] == "rule"
-        ],
+        "checks": checks,
     }

@@ -61,11 +61,37 @@ A pack is a versioned set of rules an agent follows and a reviewer can verify.
 | `version` | `major.minor.patch`, no leading zeros |
 | `depends_on` | Optional. IDs of other packs. Must exist, no duplicates, no cycles. Dependencies are activated before the pack. |
 | `conflicts_with` | Optional. IDs of packs whose rules cannot both apply to the same scope. A project that selects both must record which ones it keeps, with a reason. A pack cannot depend on a pack it conflicts with. |
-| `rules` | Non-empty array of `{id, instruction, verification}`. Rule IDs follow the ID format and are unique within the pack. |
+| `rules` | Non-empty array of `{id, instruction, verification}`, each with an optional `check` and an optional `evidence` (see below). Rule IDs follow the ID format and are unique within the pack. A rule with a `check` may leave out `instruction` and `verification`: the CLI writes them from the check. |
 
 Versioning: bump `patch` for wording fixes, `minor` for a new rule, `major` for a removed or reversed rule. Projects pin the records they use in `.openguildkit/catalog.lock.json`, so a changed pack reaches them only when they run `openguildkit update --apply`. From then on their fingerprint changes and pending approvals need a new consultation.
 
-The [central export-rule example](../examples/export-expiry/README.md) uses a typed rule with `id: export-link-expiry` and `check.max_minutes` as a positive integer. The CLI derives the instruction and verification text from this rule and includes the pinned policy commit in the resolved pack.
+### Machine checks and named evidence
+
+A rule can declare a `check` that `openguildkit task verify` evaluates and records as a check of the task, `rule:PACK/RULE`, with the evidence it found. Only `task verify` records it: `task result` refuses an outcome for it. The declarative kinds read the project's files with the standard library and run nothing:
+
+| `kind` | Fields | Passes when |
+|---|---|---|
+| `file-exists` | `paths`: 1 to 20 paths | One of the paths exists. |
+| `text` | `paths`, `contains`: 1 to 20 literal texts of at most 200 characters, `expect`: `present` or `absent`, optional `ignore_case` | `present`: a file contains one of the texts. `absent`: no file contains any. |
+| `field` | `path` of a `.json` or `.toml` file, `field` as a dotted path such as `tool.audit.level`, and at least one of `equals`, `one_of`, `min`, `max`, `integer: true` | The field exists and meets every condition. `true` and `1` are different values. |
+| `command` | `command` | The command exits with 0. Only a pack in `.openguildkit/catalog/packs/` may declare it: the project already controls its check commands. A bundled pack, a central policy or a catalog lock with a command is refused. |
+
+Paths are relative to the project root, written with `/`, made of letters, digits, `. _ - @ + =` and the wildcards `*`, `?` and `**`, without `.` or `..` segments; a `field` path names one file, without wildcards. A path that resolves outside the project through a link is ignored, and `.git` and `.openguildkit` are not searched. The work is bounded: at most 200 matched files (more fails the check and asks for narrower paths) and 1,000,000 bytes per file read (a larger file fails the check). Texts are matched literally, never as regular expressions, so a check always runs in time proportional to the files it reads. Field checks read JSON and TOML only; YAML is not supported. A file that is not valid JSON or TOML fails the check with the parser's message.
+
+A rule can also name pieces of evidence that a person keeps outside the code, such as the record of processing activities:
+
+```json
+{
+  "id": "update-processing-record",
+  "instruction": "When the change creates or alters a processing of personal data, ask the privacy owner to update the record of processing activities.",
+  "verification": "Link the updated entry of the record of processing activities from the change.",
+  "evidence": [{"id": "processing-record", "title": "Record of processing activities"}]
+}
+```
+
+Each entry becomes a mandatory check `evidence:PACK/RULE/ID`: the pack is active because the project accepted it, so the task does not complete until `task result` supplies the evidence as `passed` with a project path that exists or an `https://` link. A rule names at most 5 pieces of evidence.
+
+The [central export-rule example](../examples/export-expiry/README.md) is a pack `export-link-expiry` with one rule whose check is a `field` check: `{"kind": "field", "path": "export.json", "field": "downloadLinkMinutes", "integer": true, "min": 1, "max": 60}`. `ci-check` evaluates it on the exact target commit with the same evaluator as `task verify`, and the CLI derives the instruction and verification text from the check. The former form, `"check": {"max_minutes": 60}`, is still read as that same field check. The Node coordinator in `integrations/ci/` supports this one rule, in either form.
 
 ## Boards
 

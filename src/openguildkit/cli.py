@@ -28,7 +28,10 @@ from .storybook import run as storybook_command
 from .storybook import scope_entry as storybook_scope_entry
 from .integrations import install_agent_files
 from .guard import NO_TASK, STALE_DAYS, ci_guard, covering_approvals, export_decision, guard_mode, run_hook
-from .results import chaosfolk_checks, compare_runs, completion_problems, expected_checks, missing_scenarios, result_template, run_command_checks
+from .results import (
+    chaosfolk_checks, compare_runs, completion_problems, evidence_files_missing, expected_checks, missing_scenarios,
+    result_template, run_command_checks,
+)
 from .hosts import apply_host_settings, approval_warning, host_controls
 from .lock import (
     package_version,
@@ -276,7 +279,7 @@ def _parser() -> argparse.ArgumentParser:
         "decision-payload": "Print the exact decision an approver signs in a project that requires signed approvals.",
         "show": "Print the task record as JSON.",
         "checks": "List the checks the approved task must report.",
-        "verify": "Run the project's check commands and record their results.",
+        "verify": "Run the project's check commands and the rules' machine checks, and record their results.",
         "result": "Record the delivered revision, criteria and check outcomes.",
         "complete": "Declare the task done once mandatory checks passed with evidence.",
         "runs": "Compare the last two ChaosFolk replays of the task.",
@@ -1314,6 +1317,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         for check in expected_checks(task, profile):
             if check["kind"] == "command":
                 print(f"{check['id']} is run and recorded by task verify: {check['command']}", file=sys.stderr)
+            elif check["kind"] == "machine":
+                print(f"{check['id']} is evaluated and recorded by task verify: {check['verification']}",
+                      file=sys.stderr)
     elif action in ("verify", "result", "complete"):
         if task["status"] != "approved":
             raise ValueError("Run checks for an approved task that is not done yet." if action == "verify"
@@ -1336,7 +1342,11 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 result = record_result(current_task, profile, payload, source="verify")
             elif action == "result":
                 with _input_file(args.file):
-                    result = record_result(current_task, profile, read_json(args.file))
+                    payload = read_json(args.file)
+                    missing = evidence_files_missing(root, payload, current_task, profile)
+                    if missing:
+                        raise ValueError("Named evidence not found:\n- " + "\n- ".join(missing))
+                    result = record_result(current_task, profile, payload)
             else:
                 blocking = blocking_alerts(load_register(state), current_task)
                 if blocking:
