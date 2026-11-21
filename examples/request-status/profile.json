@@ -3,6 +3,7 @@
   "sector": "general",
   "stack": ["Python", "FastAPI", "PostgreSQL", "TypeScript", "React"],
   "research": "local-only",
+  "guard": "off",
   "conventions": [
     "Use Conventional Commits for commit messages.",
     "Write user-facing text in French and English."

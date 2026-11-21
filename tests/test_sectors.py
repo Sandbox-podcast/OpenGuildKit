@@ -218,7 +218,10 @@ class SectorQuestionTests(unittest.TestCase):
 
     def test_interactive_init_shows_the_preselection_and_records_the_decline(self):
         questions = init_questions(self.catalog, "Ledger")
-        replies = ["Ledger", "financial-services", "Python", "", "no", "python-development", "", "", "", "", ""]
+        # name, sector, stack, roles, personal data, DORA, patterns, packs, boards, tools, host, guard, research,
+        # conventions, checks.
+        replies = ["Ledger", "financial-services", "Python", "", "no", "n", "python-development", "", "", "", "", "",
+                   "", "", ""]
         errors = io.StringIO()
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", side_effect=replies), \
                 contextlib.redirect_stderr(errors):
