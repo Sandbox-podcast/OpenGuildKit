@@ -522,9 +522,9 @@ def _write_host(root: Path, host: str, connections: list[dict], removed: set[str
             try:
                 data = json.loads(path.read_text(encoding="utf-8-sig"))
             except ValueError as error:
-                raise ValueError(f"{path} is not valid JSON: {error}") from error
+                raise ValueError(f"{path.as_posix()} is not valid JSON: {error}") from error
         if not isinstance(data, dict) or not isinstance(data.setdefault("mcpServers", {}), dict):
-            raise ValueError(f"{path} must hold a JSON object with mcpServers.")
+            raise ValueError(f"{path.as_posix()} must hold a JSON object with mcpServers.")
         servers = data["mcpServers"]
         for key in removed:
             servers.pop(key, None)
@@ -538,7 +538,7 @@ def _write_host(root: Path, host: str, connections: list[dict], removed: set[str
     try:
         own = tomllib.loads(before + after)
     except tomllib.TOMLDecodeError as error:
-        raise ValueError(f"{path} is not valid TOML: {error}") from error
+        raise ValueError(f"{path.as_posix()} is not valid TOML: {error}") from error
     taken = own.get("mcp_servers", {}) if isinstance(own.get("mcp_servers", {}), dict) else {}
     clash = sorted(set(managed) & set(taken))
     if clash:
