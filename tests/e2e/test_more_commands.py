@@ -7,6 +7,8 @@ deliverable list: each test checks the output and the exit code.
 import copy
 import json
 import os
+import runpy
+import shutil
 import subprocess
 import unittest
 from datetime import date, timedelta
@@ -15,7 +17,7 @@ from tests.e2e.test_cli_flow import ENV, EXAMPLE, TASK_ID, CliTestCase
 
 
 class ReviewedTaskTestCase(CliTestCase):
-    def review_with_blockers(self):
+    def review_with_blockers(self, phase=None):
         """The example review with a blocking security board, recorded through the CLI."""
         review = self.example_review()
         security = next(entry for entry in review["boards"] if entry["id"] == "security")
@@ -26,6 +28,9 @@ class ReviewedTaskTestCase(CliTestCase):
             {"finding": "Retention of request history is not decided.", "owner": "Data protection officer",
              "clears_when": "The retention period is recorded."},
         ]
+        if phase:
+            for blocker in security["challenge"]["blockers"]:
+                blocker["phase"] = phase
         self.run_cli("task", "review", TASK_ID, "--file", self.write_json("review.json", review))
 
 
@@ -50,6 +55,51 @@ class DeliberationCommandTests(ReviewedTaskTestCase):
 
 
 class BlockerCommandTests(ReviewedTaskTestCase):
+    @unittest.skipUnless(shutil.which("ssh-keygen"), "needs ssh-keygen")
+    def test_signed_verification_blockers_are_reported_and_clear_with_the_named_signature(self):
+        principal = "camille@example.org"
+        key = self.project / "synthetic-test-key"
+        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True)
+        allowed = self.project / "allowed_signers"
+        allowed.write_text(f"{principal} {key.with_suffix('.pub').read_text(encoding='utf-8')}", encoding="utf-8")
+
+        profile = json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8"))
+        profile.update(checks=[], approval={"mode": "signed", "allowed_signers": allowed.name, "approvers": [principal]})
+        self.run_cli("init", "--answers", self.write_json("profile.json", profile))
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK_ID)
+        self.run_cli("task", "consult", TASK_ID, "--answers", EXAMPLE / "answers.json")
+        self.review_with_blockers(phase="verification")
+
+        def sign(payload):
+            subprocess.run(["ssh-keygen", "-q", "-Y", "sign", "-f", str(key), "-n", "openguildkit-decision",
+                            str(payload)], check=True)
+            return ("--signature", payload.with_suffix(".json.sig"), "--signer", principal)
+
+        approval = self.project / "approval.json"
+        reason = "Scope agreed"
+        self.run_cli("task", "decision-payload", TASK_ID, "--by", principal, "--reason", reason, "--output", approval)
+        _, approval_signature, _, signer = sign(approval)
+        rehearsal = runpy.run_path(str(EXAMPLE.parent / "host-validation" / "rehearse.py"))
+        self.assertTrue(rehearsal["approve"](self.project, TASK_ID, by=principal, reason=reason,
+                                             signature=approval_signature, signer=signer))
+        self.assertIn("Verification blocker security:1 is open", self.run_cli("task", "verify", TASK_ID).stdout)
+        self.assertIn("Verification blocker security:1 is open", self.run_cli("task", "complete", TASK_ID, expect=1).stderr)
+
+        payload = self.project / "clearance.json"
+        clear = ("task", "clear", TASK_ID, "security:1", "--by", principal, "--evidence", "AGENTS.md")
+        supports = ("--supports", "The test with two accounts passed.")
+        refused = self.run_cli(*clear, *supports, expect=1)
+        self.assertIn("requires a signed clearance", refused.stderr)
+        self.run_cli(*clear, *supports, "--payload", payload)
+        signature = sign(payload)
+        tampered = self.run_cli(*clear, "--supports", "Different evidence.", *signature, expect=1)
+        self.assertIn("does not verify", tampered.stderr)
+        self.run_cli(*clear, *supports, *signature)
+        self.assertEqual(self.task_record()["verification_blocker_resolutions"]["security:1"]["signer"], principal)
+        verified = self.run_cli("task", "verify", TASK_ID)
+        self.assertNotIn("Verification blocker security:1", verified.stdout)
+        self.assertIn("Verification blocker security:2 is open", verified.stdout)
+
     def test_blockers_lists_each_blocker_and_clear_records_its_evidence(self):
         self.consult_example()
         self.review_with_blockers()

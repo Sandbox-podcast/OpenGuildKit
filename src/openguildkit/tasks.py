@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import clock
-from .decisions import check_decision_seal, decision_payload, seal, stale_approval_message
+from .decisions import approval_policy, check_decision_seal, decision_payload, seal, stale_approval_message, verify_signature
 from .project import profile_fingerprint, task_scope_profile
 from .results import completion_problems, expected_checks, merge_results, validate_result
 from .storage import read_json, write_json
@@ -85,7 +85,7 @@ _CONSULTATION = {
 _CHALLENGE = {
     "verdict": str,
     "specialists": [{"id": str, "basis": str, "evidence_refs": [int], "finding": str}],
-    "blockers": [({"finding": str}, str)],
+    "blockers": [({"finding": str, "phase?": frozenset({"approval", "verification"})}, str)],
 }
 _REVIEW = {
     "consultation_id": str, "summary": str, "warnings?": [str],
@@ -93,7 +93,7 @@ _REVIEW = {
                 "open_questions": [str], "challenge?": _CHALLENGE}],
 }
 _RESOLUTION = {"kind": frozenset({"cleared", "waived"}), "by": str, "evidence?": str, "supports?": str,
-               "reason?": str, "scope?": str, "until?": str}
+               "reason?": str, "scope?": str, "until?": str, "signer?": str, "signature?": str}
 _RECORD = {
     "created_at": str,
     "completed_at?": str,
@@ -109,6 +109,7 @@ _RECORD = {
         "agreed": [str], "open": [str], "decision_needed": str,
     },
     "blocker_resolutions?": {"*": _RESOLUTION},
+    "verification_blocker_resolutions?": {"*": _RESOLUTION},
     "result?": {
         "revision?": str, "pull_request?": str,
         "criteria?": [{"criterion": str, "status": str}],
@@ -174,10 +175,11 @@ def _record_problem(task: dict) -> str | None:
     problem = _shape_problem(task, _RECORD, "")
     if problem:
         return problem
-    for blocker, resolution in task.get("blocker_resolutions", {}).items():
-        missing = [field for field in _RESOLUTION_FIELDS[resolution["kind"]] if field not in resolution]
-        if missing:
-            return f"blocker_resolutions.{blocker}.{missing[0]} is missing"
+    for field in ("blocker_resolutions", "verification_blocker_resolutions"):
+        for blocker, resolution in task.get(field, {}).items():
+            missing = [key for key in _RESOLUTION_FIELDS[resolution["kind"]] if key not in resolution]
+            if missing:
+                return f"{field}.{blocker}.{missing[0]} is missing"
     return None
 
 
@@ -310,6 +312,7 @@ def record_consultation(
     result.pop("passes", None)
     result.pop("deliberation", None)
     result.pop("blocker_resolutions", None)
+    result.pop("verification_blocker_resolutions", None)
     return result
 
 
@@ -417,17 +420,44 @@ def _clearing_evidence(value: str, root: Path) -> str:
     )
 
 
-def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict, root: Path) -> dict:
+def _clearance_payload(task: dict, blocker_id: str, entry: dict) -> dict:
+    return {
+        "kind": "blocker-clearance",
+        "task": task["id"],
+        "consultation_id": task["consultation"]["id"],
+        "review_sha256": seal(task["review"]),
+        "blocker": blocker_id,
+        **{key: entry[key] for key in ("by", "evidence", "supports")},
+    }
+
+
+def _check_clearance_signature(task: dict, blocker_id: str, entry: dict, policy: dict, root: Path) -> None:
+    if not entry.get("signer") or not entry.get("signature"):
+        raise ValueError("This project requires a signed clearance. Run task clear with --payload FILE, "
+                         "sign the payload, then pass --signature FILE --signer PRINCIPAL.")
+    if entry["by"] != entry["signer"]:
+        raise ValueError("For a signed clearance, --by must match the signer principal.")
+    verify_signature(root, policy, _clearance_payload(task, blocker_id, entry), entry["signature"], entry["signer"])
+
+
+def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict, root: Path,
+                    *, signing_payload: bool = False) -> dict:
     """Clear a blocker with evidence, or cover it with a waiver the project's policy allows.
 
     The record says whether the command ran at a terminal, so the approver knows when an agent cleared it.
     """
-    if task["status"] != "reviewed":
-        raise ValueError("Resolve blockers after the review is recorded and before the decision.")
     known = {item["id"]: item for item in blocker_list(task)}
     if blocker_id not in known:
         listed = ", ".join(known) or "none"
         raise ValueError(f"Unknown blocker {blocker_id}. Blockers: {listed}.")
+    blocker = known[blocker_id]
+    if blocker["resolution"]:
+        raise ValueError(f"Blocker {blocker_id} already has a resolution. See task blockers.")
+    verification = blocker.get("phase") == "verification"
+    if verification and task["status"] != "approved":
+        raise ValueError("Resolve a verification blocker after approval and before completion.")
+    if not verification and task["status"] != "reviewed":
+        raise ValueError("Resolve approval blockers after the review is recorded and before the decision.")
     by = resolution.get("by", "").strip()
     if not by:
         raise ValueError("Name the person who resolves the blocker.")
@@ -439,6 +469,14 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
                 raise ValueError(f"Clearing a blocker needs --{field}.")
             entry[field] = resolution[field].strip()
         entry["evidence"] = _clearing_evidence(entry["evidence"], root)
+        policy = approval_policy(profile)
+        if signing_payload:
+            if policy["mode"] != "signed" or by not in policy["approvers"]:
+                raise ValueError("A clearance payload needs a signed project and --by set to an approver principal.")
+            return _clearance_payload(task, blocker_id, entry)
+        if policy["mode"] == "signed":
+            entry.update(signer=resolution.get("signer"), signature=resolution.get("signature"))
+            _check_clearance_signature(task, blocker_id, entry, policy, root)
     else:
         policy = waiver_policy(profile)
         if not policy:
@@ -456,11 +494,29 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
                 raise ValueError(f"A waiver needs --{field}.")
             entry[field] = resolution[field].strip()
         entry["until"] = until
-    return {**task, "blocker_resolutions": {**task.get("blocker_resolutions", {}), blocker_id: entry}}
+    field = "verification_blocker_resolutions" if verification else "blocker_resolutions"
+    return {**task, field: {**task.get(field, {}), blocker_id: entry}}
 
 
 def unresolved_blockers(task: dict) -> list[str]:
-    return [item["id"] for item in blocker_list(task) if not item["resolution"]]
+    return [item["id"] for item in blocker_list(task) if not item["resolution"] and item.get("phase") != "verification"]
+
+
+def verification_blocker_problems(task: dict, profile: dict, root: Path | None = None) -> list[str]:
+    policy = approval_policy(profile)
+    problems = []
+    for item in blocker_list(task):
+        if item.get("phase") != "verification":
+            continue
+        resolution = item["resolution"]
+        if not resolution:
+            problems.append(f"Verification blocker {item['id']} is open. Clear it when {item['clears_when']}")
+        elif root is not None and policy["mode"] == "signed" and resolution["kind"] == "cleared":
+            try:
+                _check_clearance_signature(task, item["id"], resolution, policy, root)
+            except ValueError as error:
+                problems.append(f"Verification blocker {item['id']}: {error}")
+    return problems
 
 
 def record_result(task: dict, profile: dict, payload: dict, source: str = "report") -> dict:
@@ -475,8 +531,8 @@ def record_result(task: dict, profile: dict, payload: dict, source: str = "repor
     return {**task, "result": result}
 
 
-def complete_task(task: dict, profile: dict) -> dict:
-    problems = completion_problems(task, profile)
+def complete_task(task: dict, profile: dict, root: Path | None = None) -> dict:
+    problems = verification_blocker_problems(task, profile, root) + completion_problems(task, profile)
     if problems:
         raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(problems))
     return {**task, "status": "done", "completed_at": timestamp()}

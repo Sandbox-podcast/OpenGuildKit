@@ -721,7 +721,8 @@ def _consultation_markdown(
             "blocking finding, say who can resolve it and what would clear it.",
             "",
             "Record each blocker as an object with finding, owner (who can resolve it) and "
-            "clears_when (the condition or evidence that would clear it).",
+            "clears_when (the condition or evidence that would clear it). A blocker must be verifiable before "
+            "implementation. If it needs code or a test result from implementation, set phase to verification.",
             "",
             "Record each evidence item as an object: source (" + ", ".join(EVIDENCE_SOURCES) + "), "
             "ref (a project path, a document title, an https link, or TOOL:RECORD for a connected tool), "
@@ -936,9 +937,15 @@ def _evidence_list(
 
 def _blocker(item: object, board_id: str) -> dict:
     """A blocking finding names who can resolve it and what would clear it."""
-    if not isinstance(item, dict) or item.keys() != {"finding", "owner", "clears_when"}:
+    required = {"finding", "owner", "clears_when"}
+    if not isinstance(item, dict) or not required <= item.keys() <= required | {"phase"}:
         raise ValueError(f"Each {board_id} blocker needs finding, owner and clears_when.")
-    return {key: _text(item[key], f"{board_id} blocker {key}") for key in ("finding", "owner", "clears_when")}
+    result = {key: _text(item[key], f"{board_id} blocker {key}") for key in ("finding", "owner", "clears_when")}
+    if "phase" in item:
+        if item["phase"] not in ("approval", "verification"):
+            raise ValueError(f"{board_id} blocker phase must be approval or verification.")
+        result["phase"] = item["phase"]
+    return result
 
 
 def _validate_challenge(
@@ -1002,7 +1009,9 @@ def _validate_challenge(
         blockers = _text_list(challenge["blockers"], f"{board_id} blockers")
     if verdict == "block" and not blockers:
         raise ValueError(f"{board_id} must name the blocking findings.")
-    if verdict == "proceed" and blockers:
+    if verdict == "proceed" and any(
+        not isinstance(blocker, dict) or blocker.get("phase") != "verification" for blocker in blockers
+    ):
         raise ValueError(f"{board_id} cannot recommend proceeding with unresolved blockers.")
     return {
         "specialists": [findings[specialist_id] for specialist_id in expected],
@@ -1360,7 +1369,8 @@ def _blocker_lines(task: dict) -> list[str]:
     for item in blocker_list(task):
         resolution = item["resolution"]
         if not resolution:
-            lines.append(f"Blocker {item['id']} open: {item['finding']}")
+            phase = " (due at verification)" if item.get("phase") == "verification" else ""
+            lines.append(f"Blocker {item['id']} open{phase}: {item['finding']}")
             continue
         line = f"Blocker {item['id']} {resolution['kind']} by {resolution['by']}"
         if resolution.get("recorded_from") == "no terminal":
@@ -1451,12 +1461,13 @@ def blocker_list(task: dict) -> list[dict]:
     """Every blocker of the recorded review, with how it was resolved so far."""
     if "review" not in task:
         return []
-    resolutions = task.get("blocker_resolutions", {})
     items = []
     for entry in task["review"]["boards"]:
         for index, blocker in enumerate(entry.get("challenge", {}).get("blockers", []), start=1):
             key = f"{entry['id']}:{index}"
             details = blocker if isinstance(blocker, dict) else {"finding": blocker}
+            field = "verification_blocker_resolutions" if details.get("phase") == "verification" else "blocker_resolutions"
+            resolutions = task.get(field, {})
             items.append({"id": key, "board": entry["id"], **details, "resolution": resolutions.get(key)})
     return items
 
@@ -1465,6 +1476,8 @@ def handoff(task: dict) -> str:
     """Render the authorized scope, decision and advisory findings."""
     if task.get("status") != "approved":
         raise ValueError("A human approval is required before implementation.")
+    pending_verification = [item for item in blocker_list(task) if item.get("phase") == "verification"
+                            and not item["resolution"]]
     consultation = task["consultation"]
     review = validate_review(consultation, task["review"])
     decision = task["decision"]
@@ -1508,6 +1521,12 @@ def handoff(task: dict) -> str:
             *(
                 ["## External actions decided by a person", "", _json_section(task["authorizations"]), ""]
                 if task.get("authorizations") else []
+            ),
+            *(
+                ["## Blockers due at verification", "",
+                 "Gather the evidence and use task clear before marking the work done.", "",
+                 _json_section(pending_verification), ""]
+                if pending_verification else []
             ),
             *(
                 [

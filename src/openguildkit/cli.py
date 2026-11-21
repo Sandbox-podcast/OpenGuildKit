@@ -84,6 +84,7 @@ from .tasks import (
     points_left_open,
     start_pass,
     submit_pass,
+    verification_blocker_problems,
     ACTIONS,
     record_authorization,
     create_task,
@@ -321,6 +322,10 @@ def _parser() -> argparse.ArgumentParser:
         if action == "clear":
             command.add_argument("--evidence", required=True, help="Path, document or link that clears it.")
             command.add_argument("--supports", required=True, help="What the evidence establishes.")
+            signing = command.add_mutually_exclusive_group()
+            signing.add_argument("--payload", type=Path, help="Write the exact clearance payload to sign.")
+            signing.add_argument("--signature", type=Path, help="SSH signature of the clearance payload.")
+            command.add_argument("--signer", help="Approver principal used to sign the clearance.")
         if action == "waive":
             command.add_argument("--reason", required=True, help="Why the risk is accepted.")
             command.add_argument("--scope", required=True, help="What the waiver covers.")
@@ -1328,7 +1333,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             for item in items:
                 resolution = item["resolution"]
                 state = f"{resolution['kind']} by {resolution['by']}" if resolution else "open"
-                print(f"{item['id']} [{state}] {item['finding']}")
+                phase = " (due at verification)" if item.get("phase") == "verification" else ""
+                print(f"{item['id']} [{state}]{phase} {item['finding']}")
                 if item.get("owner"):
                     print(f"    owner: {item['owner']}; clears when: {item['clears_when']}")
                 if resolution and resolution["kind"] == "cleared":
@@ -1336,12 +1342,26 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 if resolution and resolution.get("recorded_from") == "no terminal":
                     print("    recorded without a terminal")
     elif action in ("clear", "waive"):
+        if task["status"] == "approved":
+            require_current_scope(task, profile, catalog)
+            check_decision(task, root, profile)
         if action == "waive":
             if not sys.stdin.isatty():
                 raise ValueError("A waiver needs a person at an interactive terminal.")
             details = {"kind": "waived", "by": args.by, "reason": args.reason, "scope": args.scope, "until": args.until}
         else:
             details = {"kind": "cleared", "by": args.by, "evidence": args.evidence, "supports": args.supports}
+            if (args.signature is None) != (args.signer is None):
+                raise ValueError("Pass --signature and --signer together.")
+            if args.payload:
+                payload = resolve_blocker(task, args.blocker, details, profile, root, signing_payload=True)
+                args.payload.write_bytes(payload_text(payload).encode("utf-8"))
+                print(args.payload)
+                return
+            if args.signature:
+                if approval_policy(profile)["mode"] != "signed":
+                    raise ValueError("A clearance signature is only used in a project with signed approvals.")
+                details.update(signature=args.signature.read_text(encoding="utf-8"), signer=args.signer)
         details["terminal"] = sys.stdin.isatty()
         result = resolve_blocker(task, args.blocker, details, profile, root)
         if action == "waive":
@@ -1405,7 +1425,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 blocking = blocking_alerts(load_register(state), current_task)
                 if blocking:
                     raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(blocking))
-                result = complete_task(current_task, profile)
+                result = complete_task(current_task, profile, root)
             write_json(task_path(state, args.id), result)
         if action == "complete":
             print("done")
@@ -1418,7 +1438,11 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 print(f"{item['check']}: {item['status']}")
             for name in missing_scenarios(result):
                 print(f"chaosfolk:{name}: missing")
-            problems = completion_problems(result, profile) + blocking_alerts(load_register(state), result)
+            verification = verification_blocker_problems(result, profile, root)
+            if action == "verify":
+                for problem in verification:
+                    print(problem)
+            problems = completion_problems(result, profile) + blocking_alerts(load_register(state), result) + verification
             print(f"{len(problems)} point(s) before the task can be done." if problems else "Ready: run task complete.")
     elif action == "alerts":
         alerts_cli.task_command(args, state, task)
