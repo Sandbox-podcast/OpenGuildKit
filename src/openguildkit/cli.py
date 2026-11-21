@@ -19,7 +19,7 @@ from .brains import (
 from .detect import components_for_profile, detect_stack, detected_project_name
 from .publishing import add_share, export_docs, project_overview, revoke_share, share_status
 from . import tools_cli
-from .tools import connected_tools, load_tools
+from .tools import connected_tools, load_tools, tool_evidence_warnings
 from . import market_cli
 from .market import load_dossier
 from .market import scope_entry as market_scope_entry
@@ -69,6 +69,7 @@ from .project import (
 from .tools import HOSTS as TOOL_HOSTS
 from .tools import detect_tools, load_tools, match_tools
 from .references import english_title, find_references, load_references, with_pattern_references
+from .sensitive import contains_email, redact_credentials
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
     approval_problem,
@@ -1265,9 +1266,15 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         if (args.brief is None) == (args.file is None):
             raise ValueError("Supply either a task brief or --file PATH.")
         brief = args.file.read_text(encoding="utf-8-sig") if args.file else args.brief
+        redacted = redact_credentials(brief)
+        if redacted != brief:
+            print("Warning: replaced a possible credential in the task brief with a placeholder.", file=sys.stderr)
+        if contains_email(redacted):
+            print("Warning: the task brief contains an email address. "
+                  "Use a placeholder before sharing or exporting the task.", file=sys.stderr)
         check_instructions(root, profile, catalog)
         with project_lock(state):
-            print(create_task(state, brief, args.id, args.follows))
+            print(create_task(state, redacted, args.id, args.follows))
         return
     if action == "list":
         rows = list_tasks(state, args.status, args.owner, args.since, args.until,
@@ -1517,6 +1524,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 result = assemble_review(current_task, args.summary)
             write_json(task_path(state, args.id), result)
         print(result["status"])
+        if review is not None:
+            for warning in tool_evidence_warnings(root, state, result["review"]["boards"]):
+                print(f"Warning: {warning}", file=sys.stderr)
     elif action in ("pass", "submit"):
         entry = read_json(args.file) if action == "submit" else None
         with project_lock(state):
@@ -1534,6 +1544,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             raise ValueError(f"{args.file.as_posix()}: the pass is recorded as failed: {error} Start it again with task pass.")
         else:
             print("done")
+            saved_entry = result["passes"]["boards"][entry["id"].strip()]["entry"]
+            for warning in tool_evidence_warnings(root, state, [saved_entry]):
+                print(f"Warning: {warning}", file=sys.stderr)
     elif action == "progress":
         if "consultation" not in task:
             raise ValueError("Run task consult first.")

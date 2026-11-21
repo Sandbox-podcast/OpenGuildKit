@@ -18,6 +18,7 @@ from pathlib import Path
 from .catalog import CatalogError, _unique_fields, package_file
 from .detect import MAX_MANIFEST_BYTES, SKIPPED_DIRECTORIES
 from .mcp_mock import validate_mock
+from .sensitive import looks_like_credential
 from .storage import json_text, read_json, write_json, write_text
 
 CATEGORIES = (
@@ -412,6 +413,12 @@ def plan_connections(
     if host not in HOSTS:
         raise ValueError(f"Choose a host to write for: {', '.join(HOSTS)}.")
     settings, token_env, mocks = settings or {}, token_env or {}, mocks or []
+    if any(isinstance(value, str) and looks_like_credential(value)
+           for values in settings.values() for value in values.values()):
+        raise ValueError("--set must be a plain value such as a name or a host, never a credential.")
+    if any(not isinstance(name, str) or not _ENV.fullmatch(name) or looks_like_credential(name)
+           for name in token_env.values()):
+        raise ValueError("--token-env names an environment variable, for a remote server.")
     plan, by_key = [], {}
     for name in wanted:
         tool_id, _, server_id = name.partition("/")
@@ -442,7 +449,7 @@ def plan_connections(
         label = f"{tool_id}/{server['id']}"
         filled, missing = _settings(server, settings.get(tool_id, {}), label)
         bearer = token_env.get(tool_id)
-        if bearer is not None and (not _ENV.fullmatch(bearer) or server["transport"] == "stdio"):
+        if bearer is not None and server["transport"] == "stdio":
             raise ValueError(f"{label}: --token-env names an environment variable, for a remote server.")
         warnings, steps = [], []
         if server["publisher"] == "community":
@@ -685,6 +692,64 @@ def connected_tools(state: Path, tools: dict, board_id: str | None = None) -> li
             if entry not in connected:
                 connected.append(entry)
     return connected
+
+
+def _mock_call_logs(root: Path, connections: list[dict]) -> set[Path]:
+    """Only read journals from recorded mock connections inside the project."""
+    root = root.resolve()
+    logs = set()
+    for connection in connections:
+        args = connection.get("entry", {}).get("args", [])
+        if (connection["mode"] == "mock" and len(args) == 5 and args[:2] == ["tools", "mock"]
+                and args[3] == "--log"):
+            path = (root / args[4]).resolve()
+            if root in path.parents and path.is_file():
+                logs.add(path)
+    return logs
+
+
+def _recorded_tool_refs(logs: set[Path], wanted: set[str]) -> set[str]:
+    matched = set()
+    for path in logs:
+        try:
+            with path.open(encoding="utf-8", errors="replace") as journal:
+                for line in journal:
+                    try:
+                        call = json.loads(line)
+                    except (ValueError, RecursionError):
+                        continue
+                    if not isinstance(call, dict) or not isinstance(call.get("arguments"), dict):
+                        continue
+                    matched.update(f"{call.get('tool')}:{value}" for value in call["arguments"].values()
+                                   if isinstance(value, str) and f"{call.get('tool')}:{value}" in wanted)
+                    if wanted <= matched:
+                        return matched
+        except OSError:
+            continue
+    return matched
+
+
+def tool_evidence_warnings(root: Path, state: Path, boards: list[dict]) -> list[str]:
+    """Flag citations that have no recorded call or use a tool outside the board's remit."""
+    evidence = [
+        (entry["id"], index, item["ref"])
+        for entry in boards for index, item in enumerate(entry["evidence"], start=1)
+        if isinstance(item, dict) and item["source"] == "tool"
+    ]
+    if not evidence:
+        return []
+    registry = load_tools(state / "catalog" / "tools")
+    connections = read_manifest(state)["connections"]
+    connected = {tool for item in connections for tool in item.get("covers", [item["tool"]])}
+    matched = _recorded_tool_refs(_mock_call_logs(root, connections), {ref for _, _, ref in evidence})
+    warnings = []
+    for board, index, ref in evidence:
+        tool = ref.partition(":")[0]
+        if tool not in connected or board not in registry.get(tool, {}).get("brains", []):
+            warnings.append(f"{board} evidence #{index}: {tool} is not connected for this board.")
+        if ref not in matched:
+            warnings.append(f"{board} evidence #{index}: no recorded {tool} call matches the cited record. Verify it in the tool.")
+    return warnings
 
 
 def manifest_text(manifest: dict) -> str:

@@ -165,6 +165,19 @@ class PlanTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "names an environment variable"):
             plan_connections(TOOLS, ["linear"], "codex", token_env={"linear": "lin_api_abc123"})
 
+    def test_known_credential_formats_never_enter_a_plan(self):
+        formats = (
+            "sk_live_" + "s" * 24, "sk_test_" + "t" * 24, "ghp_" + "p" * 36, "gho_" + "o" * 36,
+            "github_pat_" + "x" * 24, "AKIA" + "A" * 16, "xoxb-" + "8" * 20,
+        )
+        for value in formats:
+            with self.assertRaisesRegex(ValueError, "never a credential") as error:
+                plan_connections(TOOLS, ["zendesk"], "claude-code", settings={"zendesk": {"subdomain": value}})
+            self.assertNotIn(value, str(error.exception))
+            with self.assertRaisesRegex(ValueError, "names an environment variable") as error:
+                plan_connections(TOOLS, ["jira"], "codex", mock=True, mocks=mock_ids(), token_env={"jira": value})
+            self.assertNotIn(value, str(error.exception))
+
     def test_mock_mode_replaces_every_server_with_a_local_one(self):
         plan = plan_connections(TOOLS, ["jira", "gryzzly"], "codex", mock=True, mocks=mock_ids(), log="calls.jsonl")
         self.assertEqual(plan[0]["entry"], {"command": "openguildkit", "args": ["tools", "mock", "jira", "--log", "calls.jsonl"]})
