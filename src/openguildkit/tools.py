@@ -420,7 +420,8 @@ def plan_connections(
         tool = tools[tool_id]
         if mock:
             if tool_id not in mocks:
-                plan.append({"tool": tool_id, "title": tool["title"], "skipped": "No mock is available for this tool."})
+                plan.append({"tool": tool_id, "title": tool["title"], "mode": "mock",
+                             "skipped": "No mock is available for this tool."})
                 continue
             plan.append({
                 "tool": tool_id, "title": tool["title"], "server": "mock", "key": tool_id, "mode": "mock",
@@ -490,6 +491,12 @@ def read_manifest(state: Path) -> dict:
     manifest = read_json(path)
     if not isinstance(manifest.get("connections"), list):
         raise ValueError(f"{path} is damaged: connections must be a list.")
+    unconnected = manifest.get("unconnected_mocks", [])
+    if not isinstance(unconnected, list) or any(
+        not isinstance(item, dict) or any(not isinstance(item.get(field), str) for field in ("host", "tool", "reason"))
+        or item["host"] not in HOSTS for item in unconnected
+    ):
+        raise ValueError(f"{path} is damaged: unconnected_mocks must contain a host, tool and reason per request.")
     return manifest
 
 
@@ -556,11 +563,12 @@ def apply_connections(root: Path, state: Path, host: str, plan: list[dict]) -> d
     """Record the accepted connections and write them to the host's configuration."""
     manifest = read_manifest(state)
     connections = {(item["host"], item["key"]): item for item in manifest["connections"]}
+    unconnected = {(item["host"], item["tool"]): item for item in manifest.get("unconnected_mocks", [])}
     accepted = [item for item in plan if "skipped" not in item]
     blocked = [f"{item['tool']}: provide {', '.join(item['needs']['settings'])}" for item in accepted if item["needs"]["settings"]]
     if blocked:
         raise ValueError("Settings are missing. " + "; ".join(blocked) + ".")
-    if host == "claude-code":
+    if accepted and host == "claude-code":
         path = root / CLAUDE_MCP_FILE
         if path.is_file():
             try:
@@ -579,8 +587,20 @@ def apply_connections(root: Path, state: Path, host: str, plan: list[dict]) -> d
                 record[key] = item[key]
         record["env"] = item["needs"]["env"]
         connections[(host, item["key"])] = record
+        if item["mode"] == "mock":
+            for covered in record["covers"]:
+                unconnected.pop((host, covered), None)
+    for item in plan:
+        if item.get("mode") == "mock" and "skipped" in item:
+            unconnected[(host, item["tool"])] = {"host": host, "tool": item["tool"], "reason": item["skipped"]}
     manifest["connections"] = [connections[key] for key in sorted(connections)]
-    file, _ = _write_host(root, host, manifest["connections"], set())
+    if unconnected:
+        manifest["unconnected_mocks"] = [unconnected[key] for key in sorted(unconnected)]
+    else:
+        manifest.pop("unconnected_mocks", None)
+    file = CLAUDE_MCP_FILE if host == "claude-code" else CODEX_CONFIG_FILE.as_posix()
+    if accepted:
+        file, _ = _write_host(root, host, manifest["connections"], set())
     write_json(state / MANIFEST, manifest)
     return {"file": file, "applied": [item["key"] for item in accepted],
             "skipped": [{"tool": item["tool"], "reason": item["skipped"]} for item in plan if "skipped" in item]}
@@ -591,12 +611,25 @@ def remove_connections(root: Path, state: Path, host: str, names: list[str]) -> 
     wanted = set(names)
     removed = {item["key"] for item in manifest["connections"]
                if item["host"] == host and (item["key"] in wanted or wanted & set(item.get("covers", [])))}
-    if not removed:
+    unconnected = manifest.get("unconnected_mocks", [])
+    forgotten = {item["tool"] for item in unconnected if item["host"] == host and item["tool"] in wanted}
+    if not removed and not forgotten:
         raise ValueError(f"No connection to remove for {', '.join(names)} on {host}. Run openguildkit tools status.")
+    if forgotten:
+        kept = [item for item in unconnected if not (item["host"] == host and item["tool"] in forgotten)]
+        if kept:
+            manifest["unconnected_mocks"] = kept
+        else:
+            manifest.pop("unconnected_mocks")
     manifest["connections"] = [item for item in manifest["connections"] if not (item["host"] == host and item["key"] in removed)]
-    file, _ = _write_host(root, host, manifest["connections"], removed)
+    file = None
+    if removed:
+        file, _ = _write_host(root, host, manifest["connections"], removed)
     write_json(state / MANIFEST, manifest)
-    return {"file": file, "removed": sorted(removed)}
+    result = {"file": file, "removed": sorted(removed)}
+    if forgotten:
+        result["forgotten"] = sorted(forgotten)
+    return result
 
 
 def _host_entries(root: Path, host: str) -> dict:
@@ -624,7 +657,8 @@ def connection_status(root: Path, state: Path, environment: dict | None = None) 
     environment = os.environ if environment is None else environment
     status = []
     entries = {host: _host_entries(root, host) for host in HOSTS}
-    for item in read_manifest(state)["connections"]:
+    manifest = read_manifest(state)
+    for item in manifest["connections"]:
         present = entries[item["host"]].get(item["key"])
         status.append({
             "key": item["key"], "host": item["host"], "mode": item["mode"], "covers": item.get("covers", [item["tool"]]),
@@ -632,6 +666,10 @@ def connection_status(root: Path, state: Path, environment: dict | None = None) 
             "changed": present is not None and present != item["entry"],
             "missing_env": [name for name in item.get("env", []) if not environment.get(name)],
         })
+    status.extend({
+        "key": item["tool"], "host": item["host"], "mode": "mock", "covers": [item["tool"]],
+        "configured": False, "changed": False, "missing_env": [], "reason": item["reason"],
+    } for item in manifest.get("unconnected_mocks", []))
     return status
 
 

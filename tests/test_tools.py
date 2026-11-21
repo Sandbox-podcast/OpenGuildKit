@@ -260,7 +260,8 @@ class CommandTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             code, out, _ = run("--project", directory, "tools", "call", "jira")
             self.assertEqual(code, 0)
-            self.assertIn("search_issues", out)
+            self.assertRegex(out, r"search_issues\s+\[read\]")
+            self.assertRegex(out, r"create_issue\s+\[write\]")
             code, out, _ = run("--project", directory, "tools", "call", "jira", "search_issues", "--args", '{"query": "export"}')
             self.assertEqual(code, 0)
             self.assertEqual(json.loads(out)["issues"][0]["key"], "SUP-142")
@@ -270,6 +271,11 @@ class CommandTests(unittest.TestCase):
             code, _, err = run("--project", directory, "tools", "call", "jira", "search_issues", "--args", "{not json")
             self.assertEqual(code, 1)
             self.assertIn("--args is not valid JSON", err)
+            code, out, err = run("--project", directory, "tools", "call", "hubspot", "create_note",
+                                 "--args", '{"deal_id": "deal-1", "body": "Synthetic note"}')
+            self.assertEqual(code, 0)
+            self.assertEqual(json.loads(out)["body"], "Synthetic note")
+            self.assertIn("openguildkit task authorize", err)
 
     def test_every_bundled_mock_loads_and_names_a_registry_tool(self):
         ids = mock_ids()

@@ -34,11 +34,11 @@ STEPS = [
 ]
 
 
-def cli(project: Path, *args: str) -> str:
+def cli(project: Path, *args: str, expected: int = 0) -> str:
     result = subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(project), *args],
                             env=ENV, text=True, encoding="utf-8", capture_output=True)
-    if result.returncode:
-        raise SystemExit(f"openguildkit {' '.join(args)} failed:\n{result.stderr}")
+    if result.returncode != expected:
+        raise SystemExit(f"openguildkit {' '.join(args)} returned {result.returncode}:\n{result.stderr}{result.stdout}")
     return result.stdout
 
 
@@ -69,8 +69,12 @@ def main() -> None:
     print(cli(project, "tools", "recommend"))
     tools = ["jira", "github", "snyk", "factorial", "tempo", "gryzzly"]
     print("# Mocks connected for Codex and for Claude Code\n")
-    print(cli(project, "tools", "apply", *tools, "--mock"))
-    cli(project, "tools", "apply", *tools, "--mock", "--host", "claude-code")
+    for host in ("codex", "claude-code"):
+        report = json.loads(cli(project, "tools", "apply", *tools, "--mock", "--host", host, "--json", expected=1))
+        skipped = [item["tool"] for item in report["skipped"]]
+        if skipped != ["gryzzly"] or set(report["applied"]) != set(tools) - set(skipped):
+            raise SystemExit(f"Unexpected mock connections for {host}.")
+        print(f"{host}: connected {', '.join(report['applied'])}. No mock for {', '.join(skipped)}.")
     print("# What an agent reads and does\n")
     for tool, name, arguments, why in STEPS:
         answer = call(project, tool, name, arguments)

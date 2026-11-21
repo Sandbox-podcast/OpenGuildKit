@@ -53,6 +53,8 @@ def validate_mock(mock: object, tool_id: str) -> dict:
         if not isinstance(name, str) or not name.replace("_", "").isalnum() or name in names:
             raise ValueError(f"Mock {tool_id}: tool names are unique words with underscores: {name!r}.")
         names.add(name)
+        if "read_only" in tool and not isinstance(tool["read_only"], bool):
+            raise ValueError(f"Mock {tool_id}/{name}: read_only must be true or false.")
         schema = tool["inputSchema"]
         if not isinstance(schema, dict) or schema.get("type") != "object" or not isinstance(schema.get("properties", {}), dict):
             raise ValueError(f"Mock {tool_id}/{name}: inputSchema is a JSON Schema object with properties.")

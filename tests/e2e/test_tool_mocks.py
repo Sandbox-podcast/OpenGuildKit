@@ -177,12 +177,26 @@ class ProjectConnectionTests(unittest.TestCase):
         self.assertFalse((self.project / ".codex" / "config.toml").exists())
         self.assertFalse((self.project / ".openguildkit" / "tools.json").exists())
 
-        applied = cli(self.project, "tools", "apply", "jira", "snyk", "gryzzly", "--mock", "--log", "mock-calls.jsonl")
+        applied = cli(self.project, "tools", "apply", "jira", "snyk", "gryzzly", "--mock", "--log", "mock-calls.jsonl",
+                      check=False)
+        self.assertEqual(applied.returncode, 1)
         self.assertIn("Wrote jira, snyk", applied.stdout)
+        self.assertIn("Connected mocks: jira, snyk. Tools without a mock: gryzzly.", applied.stdout)
         config = tomllib.loads((self.project / ".codex" / "config.toml").read_text(encoding="utf-8"))
         entry = config["mcp_servers"]["jira"]
         self.assertEqual((entry["command"], entry["args"][:3]), ("openguildkit", ["tools", "mock", "jira"]))
         self.assertEqual(cli(self.project, "tools", "status").returncode, 0)
+        statuses = json.loads(cli(self.project, "tools", "status", "--json").stdout)
+        skipped = next(item for item in statuses if item["key"] == "gryzzly")
+        self.assertFalse(skipped["configured"])
+        self.assertIn("No mock", skipped["reason"])
+        recommended = json.loads(cli(self.project, "tools", "recommend", "--json").stdout)
+        jira = next(item for item in recommended["tools"] if item["id"] == "jira")
+        self.assertEqual(jira["connections"], [{"host": "codex", "mode": "mock"}])
+        suggestion = next(line for line in cli(self.project, "tools", "recommend").stdout.splitlines()
+                          if line.startswith("Next:"))
+        self.assertNotIn("jira", suggestion)
+        self.assertNotIn("snyk", suggestion)
 
         command = [sys.executable, "-m", "openguildkit", "--project", str(self.project), *entry["args"][:3]]
         answer = exchange(command, [{"jsonrpc": "2.0", "id": 1, "method": "tools/call",
@@ -217,6 +231,18 @@ class ProjectConnectionTests(unittest.TestCase):
         removed = cli(self.project, "tools", "remove", "jira", "snyk")
         self.assertIn("Removed jira, snyk", removed.stdout)
         self.assertNotIn("mcp_servers", tomllib.loads((self.project / ".codex" / "config.toml").read_text(encoding="utf-8")))
+
+    def test_a_completely_unavailable_mock_request_only_writes_its_status(self):
+        result = cli(self.project, "tools", "apply", "gryzzly", "--mock", "--host", "claude-code", "--json", check=False)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(json.loads(result.stdout)["applied"], [])
+        config = self.project / ".mcp.json"
+        self.assertFalse(config.exists())
+        self.assertIn("gryzzly", cli(self.project, "tools", "status").stdout)
+        self.assertIn("No mock", cli(self.project, "tools", "status").stdout)
+        cli(self.project, "tools", "remove", "gryzzly", "--host", "claude-code")
+        self.assertEqual(json.loads(cli(self.project, "tools", "status", "--json").stdout), [])
+        self.assertFalse(config.exists())
 
     def test_live_connections_for_claude_code_name_variables_only(self):
         cli(self.project, "tools", "apply", "jira", "github/github-local", "linear", "--host", "claude-code",

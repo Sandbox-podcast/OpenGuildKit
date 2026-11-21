@@ -47,7 +47,7 @@ jira, confluence: server `atlassian-rovo` (vendor, streamable-http, status ga).
 | `--host claude-code` or `codex` | Write for another host than the project's |
 | `--mock` | Connect local mocks instead (see below) |
 
-`openguildkit tools status` lists the recorded connections, says whether the host file still holds them, and names the variables that are not set on this workstation. `openguildkit tools remove TOOL` takes a connection out.
+`openguildkit tools status` lists recorded connections, missing environment variables and mock requests that could not be connected. `openguildkit tools recommend` shows which host already has each tool configured and whether it uses a mock or a live server. `openguildkit tools remove TOOL` removes a connection or clears an unavailable mock request.
 
 ### What is written
 
@@ -72,7 +72,9 @@ A server is third-party code with access to company data. Before `apply`, read i
 openguildkit tools apply jira tempo snyk --mock --log mock-calls.jsonl
 ```
 
-The host then starts `openguildkit tools mock jira`, a local MCP server on stdio that answers with synthetic data: a fictional support portal, its tickets, its pull request, its time entries, its alerts. No network, no account, no key. `--log` appends every call the agent makes, so a test can assert what the agent did.
+`tools apply --mock` reports the tools it connected and the ones that have no mock. It exits with code 1 if any requested mock was unavailable, and keeps the connections it could make. If every mock was unavailable, only the status record is written.
+
+The host starts `openguildkit tools mock jira`, a local MCP server that answers with synthetic data over stdio. It runs offline. `--log` appends calls received by that server from an MCP client. A direct `tools call` runs outside the MCP server and does not add to its journal.
 
 Nineteen tools have a mock: Jira, GitHub, Slack, Notion, Factorial, Tempo, Toggl Track, Snyk, Sentry, SonarQube, HubSpot, Stripe, Pennylane, Zendesk, Google Analytics, Figma, Storybook, Obscura and Datadog (`openguildkit tools list --mocks`).
 
@@ -80,6 +82,8 @@ Nineteen tools have a mock: Jira, GitHub, Slack, Notion, Factorial, Tempo, Toggl
 openguildkit tools call jira                                            # the mock's tools
 openguildkit tools call jira search_issues --args '{"query": "export"}' # one call, no MCP client needed
 ```
+
+The list marks read and write operations. A simulated write prints a reminder to use `task authorize` before making a real write.
 
 A mock's tool names are its own. It rehearses the agent's flow (find the ticket, cite it, log the time); it does not imitate a publisher's API, and what works against a mock still has to be tried against the real server.
 
