@@ -1,0 +1,37 @@
+{
+  "id": "android-kotlin",
+  "title": "Android app in Kotlin",
+  "description": "Review the target API level, exported components, accessibility and store release of an Android app.",
+  "sources": [
+    {
+      "title": "Android Developers, meet Google Play's target API level requirement",
+      "url": "https://developer.android.com/google/play/requirements/target-sdk"
+    },
+    {
+      "title": "Android Developers, make apps more accessible",
+      "url": "https://developer.android.com/guide/topics/ui/accessibility/apps"
+    },
+    {
+      "title": "Play Console Help, provide information for Google Play's Data safety section",
+      "url": "https://support.google.com/googleplay/android-developer/answer/10787469"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "design",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "android-app",
+    "mobile-accessibility",
+    "mobile-store-release"
+  ],
+  "match": {
+    "stack": [
+      [
+        "android"
+      ]
+    ]
+  }
+}

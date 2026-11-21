@@ -1,0 +1,32 @@
+{
+  "id": "vue",
+  "title": "Vue",
+  "description": "Review props, events, composables and template safety in a Vue interface.",
+  "sources": [
+    {
+      "title": "Vue.js guide, props",
+      "url": "https://vuejs.org/guide/components/props.html"
+    },
+    {
+      "title": "Vue.js security best practices",
+      "url": "https://vuejs.org/guide/best-practices/security.html"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "design",
+    "qa"
+  ],
+  "packs": [
+    "vue"
+  ],
+  "match": {
+    "stack": [
+      [
+        "vue",
+        "vue.js",
+        "nuxt"
+      ]
+    ]
+  }
+}

@@ -10,9 +10,9 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 |---|---:|---:|---:|---:|---:|---:|---:|
 | communication | 22 | 4 | 18 | 2 | 0 | 3 | 8 |
 | data | 63 | 5 | 58 | 3 | 1 | 4 | 18 |
-| design | 26 | 2 | 24 | 8 | 2 | 10 | 24 |
-| devops | 69 | 22 | 47 | 6 | 3 | 9 | 34 |
-| engineering | 217 | 14 | 203 | 10 | 15 | 26 | 97 |
+| design | 26 | 2 | 24 | 8 | 5 | 15 | 50 |
+| devops | 69 | 22 | 47 | 6 | 6 | 12 | 50 |
+| engineering | 217 | 14 | 203 | 10 | 26 | 39 | 170 |
 | finance | 19 | 7 | 12 | 7 | 0 | 7 | 16 |
 | hr | 8 | 4 | 4 | 4 | 0 | 4 | 11 |
 | leadership | 25 | 8 | 17 | 11 | 0 | 11 | 24 |
@@ -22,30 +22,41 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | performance | 17 | 8 | 9 | 2 | 2 | 5 | 16 |
 | product | 23 | 6 | 17 | 14 | 0 | 14 | 35 |
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
-| qa | 50 | 4 | 46 | 3 | 12 | 17 | 67 |
+| qa | 50 | 4 | 46 | 3 | 20 | 27 | 124 |
 | sales | 11 | 3 | 8 | 7 | 0 | 7 | 14 |
-| security | 98 | 19 | 79 | 14 | 6 | 24 | 106 |
+| security | 98 | 19 | 79 | 14 | 16 | 37 | 176 |
 | support | 10 | 2 | 8 | 3 | 0 | 3 | 12 |
 
 ## By stack
 
 | Stack pattern | Technologies | Packs | Rules |
 |---|---|---|---:|
+| android-kotlin | android | android-app, mobile-accessibility, mobile-store-release | 15 |
+| angular | angular | angular, typescript | 9 |
+| aws-iam | aws / amazon web services | aws-iam | 5 |
 | chaosfolk-e2e | chaosfolk / chaos folk | chaosfolk-e2e | 10 |
+| django | django | django, python | 10 |
+| docker-images | docker / dockerfile / containerfile | container-images | 5 |
 | dotnet-aspnet-core | asp.net core | api-design, aspnet-core | 7 |
 | github-actions-ci | github actions / gh actions | github-actions-security | 3 |
+| gitlab-ci-security | gitlab ci / gitlab ci/cd | gitlab-ci-security | 6 |
 | go-postgresql | go / golang + postgresql / postgres | api-design, go-database, postgresql | 9 |
+| ios-swift | ios / ipados / swiftui / uikit | ios-app, mobile-accessibility, mobile-store-release | 14 |
 | java-spring-boot | spring boot | api-design, spring-boot | 6 |
 | kubernetes-gitops | kubernetes / k8s + gitops / argo cd / flux / fluxcd | kubernetes-gitops | 3 |
+| laravel | laravel | laravel | 6 |
 | nextjs-react | next.js | nextjs, react | 9 |
+| node-express | express / express.js | api-design, express | 9 |
 | playwright-web | playwright / playwright test | playwright | 4 |
 | postgresql-database | postgresql / postgres | postgresql | 3 |
 | python-development | python / python3 | python | 3 |
 | python-fastapi-postgresql | python / python3 + fastapi + postgresql / postgres | api-design, fastapi, postgresql, python | 12 |
 | python-pytest | python / python3 + pytest | pytest, python | 6 |
+| rails | rails / ruby on rails | rails | 6 |
 | react-web | react / react.js / next.js | react | 4 |
 | terraform-kubernetes | terraform + kubernetes / k8s | terraform-kubernetes | 3 |
 | typescript-development | typescript / ts | typescript | 3 |
+| vue | vue / vue.js / nuxt | vue | 6 |
 
 ## To cover
 

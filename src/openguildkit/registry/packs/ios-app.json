@@ -1,0 +1,55 @@
+{
+  "id": "ios-app",
+  "title": "iOS apps",
+  "version": "1.0.0",
+  "description": "For an iOS or iPadOS app: privacy manifest, purpose strings, keychain storage, App Transport Security and the SDK required for upload.",
+  "sources": [
+    {
+      "title": "Apple, privacy manifest files",
+      "url": "https://developer.apple.com/documentation/bundleresources/privacy-manifest-files"
+    },
+    {
+      "title": "Apple, requesting access to protected resources",
+      "url": "https://developer.apple.com/documentation/uikit/requesting-access-to-protected-resources"
+    },
+    {
+      "title": "Apple, keychain services",
+      "url": "https://developer.apple.com/documentation/security/keychain-services"
+    },
+    {
+      "title": "Apple, NSAppTransportSecurity",
+      "url": "https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity"
+    },
+    {
+      "title": "Apple, upcoming requirements for App Store Connect",
+      "url": "https://developer.apple.com/news/upcoming-requirements/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "maintain-privacy-manifest",
+      "instruction": "Keep `PrivacyInfo.xcprivacy` in the app target with the collected data types, tracking domains and required reasons APIs the change adds. Check that each third-party SDK ships its own manifest.",
+      "verification": "Generate the privacy report from an archive in Xcode and compare it with the change and the App Store privacy answers."
+    },
+    {
+      "id": "write-purpose-strings",
+      "instruction": "Add a purpose string in one complete sentence for each protected resource the change uses, localized for each supported locale.",
+      "verification": "Check the target's usage description keys in the Info.plist or build settings, and run the flow on a fresh install to see the prompt."
+    },
+    {
+      "id": "store-secrets-in-keychain",
+      "instruction": "Store tokens, passwords and keys in the keychain, not in UserDefaults, plist files or the app bundle.",
+      "verification": "Search the change for credentials written to UserDefaults or files, and test that sign-out removes the keychain items."
+    },
+    {
+      "id": "scope-transport-exceptions",
+      "instruction": "Keep App Transport Security on. Add a domain-specific exception only for a named server that cannot use HTTPS with modern TLS, and never set `NSAllowsArbitraryLoads` in release builds.",
+      "verification": "Review the `NSAppTransportSecurity` dictionary of the release Info.plist and record the owner and end date of each exception."
+    },
+    {
+      "id": "build-with-required-sdk",
+      "instruction": "Build release archives with the Xcode and SDK versions App Store Connect requires, and keep the minimum deployment target above Apple's announced floor.",
+      "verification": "Compare the CI Xcode version and the deployment target with Apple's upcoming requirements page before the release."
+    }
+  ]
+}

@@ -63,7 +63,7 @@ class DetectedVersionTests(unittest.TestCase):
         stacks = self.stacks()
         self.assertEqual(stacks["full"], ["PostgreSQL 16"])
         self.assertEqual(stacks["bare"], ["PostgreSQL"])
-        self.assertEqual(stacks["quoted"], ["PostgreSQL"])
+        self.assertEqual(stacks["quoted"], ["Docker", "PostgreSQL"])  # a Dockerfile also names Docker
 
     def run_cli(self, *arguments):
         stdout, stderr = io.StringIO(), io.StringIO()
