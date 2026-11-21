@@ -32,7 +32,13 @@
       "evidence": [
         {
           "id": "processing-record",
-          "title": "Record of processing activities"
+          "title": "Record of processing activities",
+          "when": {
+            "data": [
+              "personal",
+              "regulated"
+            ]
+          }
         }
       ]
     },
@@ -58,7 +64,13 @@
       "evidence": [
         {
           "id": "dpia-decision",
-          "title": "Recorded decision on the data protection impact assessment"
+          "title": "Recorded decision on the data protection impact assessment",
+          "when": {
+            "data": [
+              "personal",
+              "regulated"
+            ]
+          }
         }
       ]
     },

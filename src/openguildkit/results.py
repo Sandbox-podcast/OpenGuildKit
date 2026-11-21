@@ -42,13 +42,27 @@ def expected_checks(task: dict, profile: dict) -> list[dict]:
             if machine is not None:
                 check.update(kind="machine", check=machine)
             checks.append(check)
-            # A named evidence of an active pack is always due: the pack was accepted for the project.
-            checks.extend(
-                {"id": f"evidence:{name}/{item['id']}", "kind": "evidence", "title": item["title"],
-                 "verification": f"Supply {item['title']} as a project path or an https link.", "mandatory": True}
-                for item in rule.get("evidence", [])
-            )
+            for item in rule.get("evidence", []):
+                checks.append({
+                    "id": f"evidence:{name}/{item['id']}", "kind": "evidence", "title": item["title"],
+                    "verification": f"Supply {item['title']} as a project path or an https link.", "mandatory": True,
+                    "must_supply": _must_supply(item, check["mandatory"], scope),
+                })
     return checks
+
+
+def _must_supply(item: dict, required: bool, scope: dict) -> str | None:
+    """Why a named evidence must be supplied rather than declared not applicable, or None.
+
+    Every named evidence is answered on every task. It must be supplied when the project
+    requires its rule, or when the evidence applies to the task's data answer.
+    """
+    if required:
+        return "its rule or pack is listed in the profile's required_rules"
+    data = scope.get("answers", {}).get("data")
+    if data in item.get("when", {}).get("data", []):
+        return f"the task's data is {data}"
+    return None
 
 
 def _run_command(root: Path, state: Path, task: dict, check: dict, command: str, timeout: int) -> dict:
@@ -183,6 +197,12 @@ def validate_result(task: dict, profile: dict, payload: dict, source: str = "rep
         if item["status"] == "passed" and item.get("exit_code", 0) != 0:
             raise ValueError(f"{item['check']} has exit_code {item['exit_code']}: a check that exits non-zero cannot pass.")
         entry = {"check": item["check"], "status": item["status"]}
+        if item["status"] not in ("passed", "failed") and known.get(item["check"], {}).get("must_supply"):
+            raise _refusal(
+                task,
+                f"{item['check']} must be supplied because {known[item['check']]['must_supply']}: "
+                "give a project path or an https link with status passed.",
+            )
         fields = ("evidence",) if item["status"] in ("passed", "failed") else ("reason", "owner")
         try:
             entry.update({field: _text(item.get(field), f"{item['check']} {field}") for field in fields})
@@ -231,6 +251,18 @@ def merge_results(previous: dict | None, new: dict) -> dict:
     return merged
 
 
+def _evidence_problems(check: dict, outcome: dict | None) -> list[str]:
+    """A named evidence blocks completion until it is answered, or supplied when it must be."""
+    supply = f"supply {check['title']} as a project path or an https link"
+    if outcome is None:
+        if check["must_supply"]:
+            return [f"{check['id']} has no answer: {supply} (it must be supplied because {check['must_supply']})."]
+        return [f"{check['id']} has no answer: {supply}, or declare it not-applicable with a reason and an owner."]
+    if outcome["status"] == "passed" or (outcome["status"] == "not-applicable" and not check["must_supply"]):
+        return []
+    return [f"{check['id']} is {outcome['status']}: {supply}."]
+
+
 def completion_problems(task: dict, profile: dict) -> list[str]:
     """Why the task cannot be declared done yet."""
     result = task.get("result")
@@ -240,10 +272,8 @@ def completion_problems(task: dict, profile: dict) -> list[str]:
     reported = {item["check"]: item for item in result.get("checks", [])}
     for check in expected_checks(task, profile):
         outcome = reported.get(check["id"])
-        if check["kind"] == "evidence" and (outcome is None or outcome["status"] != "passed"):
-            problems.append(
-                f"{check['id']} needs {check['title']}: supply a project path or an https link with task result."
-            )
+        if check["kind"] == "evidence":
+            problems.extend(_evidence_problems(check, outcome))
         elif check["mandatory"]:
             if outcome is None:
                 problems.append(f"{check['id']} is mandatory and has no result.")
@@ -333,6 +363,14 @@ def missing_scenarios(task: dict) -> list[str]:
     return sorted(runs[-2]["outcomes"].keys() - runs[-1]["outcomes"].keys())
 
 
+def _evidence_answer(check: dict) -> str:
+    """How to answer a named evidence in the result file."""
+    supplied = 'Supply it: status "passed" and evidence a project path or an https link.'
+    if check["must_supply"]:
+        return f"{supplied} It must be supplied because {check['must_supply']}."
+    return f'{supplied} Or, when it does not apply to this task: status "not-applicable" with a reason and an owner.'
+
+
 def result_template(task: dict, profile: dict) -> dict:
     """A result file to fill: the acceptance criteria, every check a report covers and each named evidence."""
     outcome = task.get("answers", {}).get("outcome", "")
@@ -342,8 +380,11 @@ def result_template(task: dict, profile: dict) -> dict:
             checks.append({"check": check["id"], "mandatory": check["mandatory"], "verification": check["verification"],
                            "status": "", "evidence": "", "reason": "", "owner": ""})
         elif check["kind"] == "evidence":
-            checks.append({"check": check["id"], "mandatory": True, "evidence_name": check["title"],
-                           "verification": check["verification"], "status": "", "evidence": ""})
+            checks.append({
+                "check": check["id"], "mandatory": True, "evidence_name": check["title"],
+                "must_supply": bool(check["must_supply"]), "answer": _evidence_answer(check),
+                "status": "", "evidence": "", "reason": "", "owner": "",
+            })
     return {
         "revision": "",
         "pull_request": "",

@@ -919,7 +919,12 @@ def render_instructions(profile: dict, catalog: dict) -> str:
             if "check" in rule and "instruction" in rule:
                 lines.append(f"  Checked by task verify: {describe_check(rule_check(rule))}")
             for item in rule.get("evidence", []):
-                lines.append(f"  Evidence for task result: {item['title']} (a project path or an https link).")
+                when = item.get("when", {}).get("data")
+                applies = f" Supply it when the task's data is {' or '.join(when)}." if when else ""
+                lines.append(
+                    f"  Evidence for task result: {item['title']}, a project path or an https link, "
+                    f"or not-applicable with a reason and an owner.{applies}"
+                )
         if pack["sources"]:
             lines.extend(["", *_bullets([_source_link(source) for source in pack["sources"]])])
     lines.extend(["", f"<!-- openguildkit profile {profile_fingerprint(profile, catalog)} -->"])

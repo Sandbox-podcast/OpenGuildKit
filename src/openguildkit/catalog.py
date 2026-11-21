@@ -25,6 +25,8 @@ MIN_VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){0,3}
 EXPORT_EXPIRY_ID = "export-link-expiry"
 LEGACY_EXPORT_CHECK = {"kind": "field", "path": "export.json", "field": "downloadLinkMinutes", "integer": True, "min": 1}
 MAX_EVIDENCE = 5
+# The answers to a task's data question, which a named evidence can apply to.
+DATA_ANSWERS = ("none", "internal", "personal", "regulated", "unsure")
 # A method is preselected for its roles; a regulation only for its sectors or personal data.
 PATTERN_KINDS = ("method", "regulation")
 MAX_SAFE_INTEGER = (1 << 53) - 1
@@ -159,9 +161,16 @@ def _validate_evidence(evidence: Any, label: str) -> None:
         raise CatalogError(f"{label}.evidence names at most {MAX_EVIDENCE} pieces of evidence")
     seen = set()
     for item in evidence:
-        _validate_fields(item, f"{label}.evidence entry", {"id", "title"})
+        _validate_fields(item, f"{label}.evidence entry", {"id", "title"}, {"when"})
         _validate_id(item["id"], f"{label}.evidence id")
         _validate_text(item["title"], f"{label}.evidence title")
+        if "when" in item:
+            _validate_fields(item["when"], f"{label}.evidence when", {"data"})
+            values = item["when"]["data"]
+            _validate_list(values, f"{label}.evidence when.data")
+            known = [value for value in values if isinstance(value, str) and value in DATA_ANSWERS]
+            if len(known) != len(values) or len(set(known)) != len(known):
+                raise CatalogError(f"{label}.evidence when.data lists distinct answers among {', '.join(DATA_ANSWERS)}")
         if item["id"] in seen:
             raise CatalogError(f"{label}.evidence names {item['id']!r} twice")
         seen.add(item["id"])

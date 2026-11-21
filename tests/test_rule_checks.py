@@ -166,13 +166,15 @@ class VerifyAndEvidenceTests(unittest.TestCase):
         self.assertEqual(result, code, stderr.getvalue())
         return stdout.getvalue(), stderr.getvalue()
 
-    def approved(self, rules, **extra):
+    def approved(self, rules, data="personal", **extra):
         write_json(self.root / ".openguildkit" / "catalog" / "packs" / "team-rules.json", pack(rules))
         write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"], "packs": ["team-rules"],
                                                  "checks": [], **extra})
         self.run_cli("init", "--answers", self.root / "profile.json")
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
-        self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json")
+        answers = {**json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8")), "data": data}
+        write_json(self.root / "answers.json", answers)
+        self.run_cli("task", "consult", TASK, "--answers", self.root / "answers.json")
         template = json.loads(self.run_cli("task", "template", TASK)[0])
         review = {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text())}
         review["boards"] = [entry for entry in review["boards"] if entry["id"] in {b["id"] for b in template["boards"]}]
@@ -225,28 +227,62 @@ class VerifyAndEvidenceTests(unittest.TestCase):
         self.report()
         self.assertEqual(self.run_cli("task", "complete", TASK)[0].strip(), "done")
 
-    def test_a_named_evidence_is_required_before_the_task_completes(self):
-        self.approved([{"id": "record-processing", "instruction": "Update the record.", "verification": "Link it.",
-                        "evidence": [{"id": "processing-record", "title": "Record of processing activities"}]}])
-        check = "evidence:team-rules/record-processing/processing-record"
+    RECORD = {"id": "record-processing", "instruction": "Update the record.", "verification": "Link it.",
+              "evidence": [{"id": "processing-record", "title": "Record of processing activities"}]}
+    CHECK = "evidence:team-rules/record-processing/processing-record"
+    RULE = {"check": "rule:team-rules/record-processing", "status": "passed", "evidence": "Updated."}
+    NOT_APPLICABLE = {"check": CHECK, "status": "not-applicable", "reason": "Only a stylesheet changes.",
+                      "owner": "Camille"}
+
+    def test_a_named_evidence_is_answered_on_every_task_but_may_be_declared_not_applicable(self):
+        self.approved([self.RECORD], data="internal")
         output, _ = self.run_cli("task", "result", TASK, "--template")
-        entry = next(item for item in json.loads(output)["checks"] if item["check"] == check)
-        self.assertEqual((entry["evidence_name"], entry["mandatory"]), ("Record of processing activities", True))
-        rule = {"check": "rule:team-rules/record-processing", "status": "passed", "evidence": "Updated."}
-        self.report(rule)
+        entry = next(item for item in json.loads(output)["checks"] if item["check"] == self.CHECK)
+        self.assertEqual((entry["evidence_name"], entry["mandatory"], entry["must_supply"]),
+                         ("Record of processing activities", True, False))
+        self.assertIn("not-applicable", entry["answer"])
+        self.assertIn("https", entry["answer"])
+        self.report(self.RULE)
         _, error = self.run_cli("task", "complete", TASK, code=1)
-        self.assertIn(f"{check} needs Record of processing activities", error)
-        self.assertIn("1 point(s)", self.report(rule, {"check": check, "status": "not-applicable",
-                                                       "reason": "No change.", "owner": "Camille"})[0])
-        self.assertIn("project path", self.report({"check": check, "status": "passed", "evidence": "../record.md"},
+        self.assertIn(f"{self.CHECK} has no answer", error)
+        self.assertIn("project path or an https link", error)
+        self.assertIn("not-applicable with a reason and an owner", error)
+        self.assertIn("Ready: run task complete.", self.report(self.RULE, self.NOT_APPLICABLE)[0])
+        self.assertEqual(self.run_cli("task", "complete", TASK)[0].strip(), "done")
+        exported = self.run_cli("task", "export", TASK)[0].strip()
+        record = json.loads((self.root / exported).read_text(encoding="utf-8"))
+        self.assertEqual(record["result"]["evidence_not_applicable"],
+                         [{"check": self.CHECK, "reason": "Only a stylesheet changes.", "owner": "Camille"}])
+
+    def test_required_rules_make_the_evidence_a_must(self):
+        self.approved([self.RECORD], data="internal", required_rules=["team-rules/record-processing"])
+        _, error = self.report(self.RULE, self.NOT_APPLICABLE, code=1)
+        self.assertIn("required_rules", error)
+        self.assertIn("project path", self.report({"check": self.CHECK, "status": "passed", "evidence": "../record.md"},
                                                   code=1)[1])
-        self.assertIn("does not exist", self.report({"check": check, "status": "passed", "evidence": "docs/record.md"},
-                                                    code=1)[1])
+        self.assertIn("does not exist", self.report({"check": self.CHECK, "status": "passed",
+                                                     "evidence": "docs/record.md"}, code=1)[1])
         (self.root / "docs").mkdir()
         (self.root / "docs" / "record.md").write_text("Processing record", encoding="utf-8")
-        self.report({"check": check, "status": "passed", "evidence": "docs/record.md"})
+        self.report(self.RULE, {"check": self.CHECK, "status": "passed", "evidence": "docs/record.md"})
         self.assertEqual(self.run_cli("task", "complete", TASK)[0].strip(), "done")
-        self.assertEqual(self.checks()[check]["evidence"], "docs/record.md")
+        self.assertEqual(self.checks()[self.CHECK]["evidence"], "docs/record.md")
+
+    def test_an_evidence_that_applies_to_the_task_data_must_be_supplied(self):
+        when = {**self.RECORD, "evidence": [{**self.RECORD["evidence"][0], "when": {"data": ["personal", "regulated"]}}]}
+        self.approved([when], data="personal")
+        output, _ = self.run_cli("task", "result", TASK, "--template")
+        entry = next(item for item in json.loads(output)["checks"] if item["check"] == self.CHECK)
+        self.assertTrue(entry["must_supply"])
+        _, error = self.report(self.RULE, self.NOT_APPLICABLE, code=1)
+        self.assertIn("data is personal", error)
+
+    def test_an_evidence_condition_names_known_data_answers(self):
+        bad = {**self.RECORD, "evidence": [{**self.RECORD["evidence"][0], "when": {"data": ["secret"]}}]}
+        with self.assertRaisesRegex(CatalogError, "when.data"):
+            _validate_entry("packs", pack([bad]))
+        with self.assertRaisesRegex(CatalogError, "when"):
+            _validate_entry("packs", pack([{**self.RECORD, "evidence": [{**self.RECORD["evidence"][0], "when": {}}]}]))
 
     def test_a_named_evidence_can_be_an_https_link_and_appears_in_the_instructions(self):
         self.approved([{"id": "assess-dpia", "instruction": "Ask about the assessment.", "verification": "Link it.",
@@ -305,6 +341,9 @@ class RegulationPackTests(unittest.TestCase):
         evidence = {pack_id: {item["id"] for rule in packs[pack_id]["rules"] for item in rule.get("evidence", [])}
                     for pack_id in ("gdpr", "dora")}
         self.assertEqual(evidence["gdpr"], {"processing-record", "dpia-decision"})
+        for rule in packs["gdpr"]["rules"]:
+            for item in rule.get("evidence", []):
+                self.assertEqual(item["when"], {"data": ["personal", "regulated"]}, item["id"])
         self.assertIn("register-of-information", evidence["dora"])
         for pack_id in ("nis2", "cyber-resilience-act"):
             checks = [rule["check"] for rule in packs[pack_id]["rules"] if "check" in rule]
