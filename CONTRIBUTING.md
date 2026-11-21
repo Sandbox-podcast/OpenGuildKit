@@ -112,3 +112,5 @@ A maintainer validates every replacement in the pull request that makes it. Run 
 ## Conduct
 
 Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
+
+<!-- Temporary test of the required approval on main. -->
