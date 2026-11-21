@@ -449,8 +449,9 @@ test('searches the library and opens a reference', async ({ page }) => {
   await first.click();
   await expect(page.getByRole('heading', { name: 'Sources' })).toBeVisible();
   await page.goto('/#/bibliotheque/packs?q=python');
-  await page.locator('details.pack', { hasText: 'Python' }).first().locator('summary').click();
-  await expect(page.getByText('follow-python-style')).toBeVisible();
+  const pythonPack = page.locator('details.pack').filter({ has: page.locator('summary').getByText('Python', { exact: true }) });
+  await pythonPack.locator('summary').click();
+  await expect(pythonPack.getByText('follow-python-style')).toBeVisible();
 });
 
 test('finds a brain from the search and moves with the keyboard', async ({ page }) => {
