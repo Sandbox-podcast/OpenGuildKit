@@ -14,7 +14,6 @@ which change between versions, while the task pages depend only on this folder's
 """
 
 import argparse
-import filecmp
 import json
 import os
 import subprocess
@@ -93,13 +92,16 @@ def deliver(project: Path, approver: str) -> None:
     cli(project, "task", "complete", TASK_ID)
 
 
+def _files(folder: Path) -> dict[str, bytes]:
+    """Each file of a folder with Windows line endings folded: a checkout may have converted them."""
+    return {path.relative_to(folder).as_posix(): path.read_bytes().replace(b"\r\n", b"\n")
+            for path in folder.rglob("*") if path.is_file()}
+
+
 def compare(left: Path, right: Path) -> list[str]:
     """Paths that differ between two folders, or exist in only one of them."""
-    report = filecmp.dircmp(left, right)
-    found = [*report.left_only, *report.right_only, *report.diff_files, *report.funny_files]
-    for name in report.common_dirs:
-        found += [f"{name}/{item}" for item in compare(left / name, right / name)]
-    return sorted(found)
+    ours, theirs = _files(left), _files(right)
+    return sorted(name for name in ours.keys() | theirs.keys() if ours.get(name) != theirs.get(name))
 
 
 def main() -> None:

@@ -241,7 +241,9 @@ class PublishingTests(unittest.TestCase):
         produced, expected = project / "docs-site", DOCUMENTALIST / "docs-site"
 
         def tree(folder):
-            return {path.relative_to(folder).as_posix(): path.read_bytes() for path in sorted(folder.rglob("*")) if path.is_file()}
+            # A Windows checkout may hold the committed example with CRLF line endings.
+            return {path.relative_to(folder).as_posix(): path.read_bytes().replace(b"\r\n", b"\n")
+                    for path in sorted(folder.rglob("*")) if path.is_file()}
 
         self.assertEqual(tree(produced), tree(expected))
 
