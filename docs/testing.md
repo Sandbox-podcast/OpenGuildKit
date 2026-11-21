@@ -70,6 +70,8 @@ What is left: a command that needs the catalog still reads its 223 bundled files
 ## Not covered
 
 - Windows behaviour is covered by CI only: the lock on Windows (`msvcrt.locking`) has not been run by hand, and the approval, waiver and authorization prompts are tested through a pseudo-terminal on Linux and macOS only.
+
+On Linux or macOS, run `python -m unittest tests.e2e.test_more_commands.WaiverCommandTests` to repeat the waiver flow in a temporary project. The test exercises refusal of an unauthorized person and an incorrect confirmation before checking a valid waiver.
 - The concurrency tests run on one machine. A project on a network file system, where file locks may not hold, is not tested.
 - No test runs an agent host (Claude Code, Codex) for real; host settings and hooks are tested through the files they read and the input they send.
 - The robustness tests do not cover `.claude/settings.json`, `.codex/hooks.json`, market dossiers or the share register, whose known crashes are listed in #99.

@@ -141,7 +141,9 @@ openguildkit task decide request-status --approve --by "Camille Martin" --reason
 
 The CLI prints the same lines as the decision brief (starting with the verdict count), then the brief and the review, the verdict count again, and asks the person to type the task ID, then the name of each sensitive board the agent removed. The approval records the base Git revision and a seal over what was approved; a project that requires signed approvals verifies the approver's SSH signature instead of the typed ID ([details](architecture.md#design-decisions)). Approval fails when stdin is not a terminal, when the typed ID does not match, when the task changed during the decision, when the profile or catalog changed since the consultation, or when `AGENTS.md` is out of date.
 
-A blocker names the finding, its `owner` and `clears_when`, the condition that would clear it. Approval waits until each blocker is resolved:
+A blocker names the finding, its `owner` and `clears_when`, the condition that would clear it. Use a condition you can verify before implementation. If the evidence requires code or a test result from the implementation, set `"phase": "verification"` in the blocker. Approval can proceed while verification blockers are open. The handoff lists them, `task verify` reports them, and `task complete` waits for their resolution.
+
+Use these commands to list and resolve blockers.
 
 ```bash
 openguildkit task blockers ID
@@ -149,7 +151,11 @@ openguildkit task clear ID security:1 --evidence tests/test_access.py --supports
 openguildkit task waive ID security:2 --by "Camille Martin" --reason "Internal pilot only" --scope "Internal users" --until 2026-12-15
 ```
 
-Clearing records the evidence, which must be an existing file or folder of the project or an https link, and whether the command ran at a terminal; `task blockers`, the decision brief and the approval prompt show the evidence and what it supports. A waiver is possible only when the profile allows it, for example `"waivers": {"allowed_by": ["Camille Martin"], "max_days": 30}`; it needs the named person at a terminal, a reason, a scope and an end date within the limit. Otherwise send the task back with `--request-changes`. The handoff lists the cleared blockers and the waivers with their scope and end date. After upgrading the board catalog, run `openguildkit sync` and check whether a pending task needs another consultation under the new rules.
+Clearing records the evidence and what it establishes. Use an existing project file or folder, or an HTTPS link. The record shows whether the command ran at a terminal. A second attempt to resolve the same blocker leaves the first resolution in place. A waiver requires a project waiver policy, the named person at a terminal, a reason, a scope and an end date within the limit. The handoff lists each waiver with its scope and end date.
+
+In a project with signed approvals, use the approver's principal as `--by` for `task clear`. Run the command with `--payload clearance.json`, sign that file with `ssh-keygen -Y sign -n openguildkit-decision -f KEY clearance.json`, then rerun the same command with `--signature clearance.json.sig --signer PRINCIPAL` in place of `--payload`. The signature covers the blocker, its consultation, the evidence and what it establishes.
+
+After upgrading the board catalog, run `openguildkit sync` and check whether a pending task needs another consultation under the new rules.
 
 To send the task back:
 
