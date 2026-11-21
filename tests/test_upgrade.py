@@ -29,12 +29,15 @@ class UpgradeTestCase(CliTestCase):
     def assert_upgrades(self):
         """check names the next step, update and update --apply succeed, and the project is current after."""
         before = self.run_cli("check", expect=None)
+        self.assertIn(f"{self.approved}: This approval has no seal.", before.stderr)
         if before.returncode:
-            self.assertEqual(before.stderr.strip(), "OpenGuildKit: OpenGuildKit instructions are out of date. Run openguildkit sync.")
+            self.assertIn("OpenGuildKit: OpenGuildKit instructions are out of date. Run openguildkit sync.", before.stderr)
         self.assertIn("no catalog lock", self.run_cli("update").stdout)
         self.assertIn("now pins the installed catalog", self.run_cli("update", "--apply").stdout)
         self.assertTrue((self.project / ".openguildkit" / "catalog.lock.json").is_file())
-        self.assertEqual(self.run_cli("check").stdout.strip(), "OpenGuildKit instructions match the project profile.")
+        checked = self.run_cli("check")
+        self.assertEqual(checked.stdout.strip(), "OpenGuildKit instructions match the project profile.")
+        self.assertIn(f"{self.approved}: This approval has no seal.", checked.stderr)
         self.assertIn("match the installed catalog", self.run_cli("update").stdout)
         self.run_cli("sync")
         self.run_cli("check")

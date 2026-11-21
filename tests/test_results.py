@@ -232,7 +232,8 @@ class ResultTests(unittest.TestCase):
         write_json(path, profile)
         self.run_cli("sync")
         _, error = self.run_cli("task", "verify", TASK, code=1)
-        self.assertIn("changed", error)
+        self.assertIn("The approval for request-status was recorded under earlier rules.", error)
+        self.assertIn("--follows request-status", error)
 
     def test_the_result_template_lists_the_criteria_and_every_expected_check(self):
         outcome = "Customers see the status of their own requests."

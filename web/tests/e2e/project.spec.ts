@@ -150,15 +150,16 @@ test('passes each board, records its entry and assembles the review', async ({ p
   const missing = progress.filter((p) => p.status !== 'done').map((p) => p.board);
   expect(missing.length).toBeGreaterThan(0);
 
-  const seat = page.locator('.board-seat').filter({ hasText: 'En attente' }).first();
-  await seat.getByRole('button', { name: 'Préparer la passe' }).click();
-  const pass = page.getByRole('dialog', { name: /Passe du cerveau/ });
-  await expect(pass.getByRole('heading', { name: /Board pass/ })).toBeVisible();
-  await pass.getByRole('button', { name: 'Fermer' }).last().click();
-
+  let submitted = progress.length - missing.length;
   for (const board of missing) {
+    const seat = page.locator('.board-seat').filter({ hasText: 'En attente' }).first();
+    await seat.getByRole('button', { name: 'Préparer la passe' }).click();
+    const pass = page.getByRole('dialog', { name: /Passe du cerveau/ });
+    await expect(pass.getByRole('heading', { name: /Board pass/ })).toBeVisible();
+    await pass.getByRole('button', { name: 'Fermer' }).last().click();
     await page.getByLabel('Déposer l’avis d’un cerveau (JSON)').setInputFiles(join(root, '.sample', `status-labels-${board}.json`));
-    await expect(page.getByText('Avis déposé').last()).toBeVisible();
+    submitted += 1;
+    await expect(page.getByText(`${submitted}/${progress.length} avis déposés.`)).toBeVisible();
   }
   await expect(page.getByText(`${progress.length}/${progress.length} avis déposés.`)).toBeVisible();
   await page.getByLabel(/Synthèse pour assembler la revue/).fill('Map internal states to four customer labels; support owns the wording.');

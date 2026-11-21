@@ -186,7 +186,7 @@ class ProjectSetupTests(CliTestCase):
         web.mkdir(parents=True)
         (web / "package.json").write_text(json.dumps({"dependencies": {"next": "^14.2.0", "react": "^18.3.0"}}), encoding="utf-8")
         detected = json.loads(self.run_cli("detect", "--json").stdout)
-        self.assertEqual(detected["components"][0]["stack"], ["Next.js 14.2.0", "React 18.3.0"])
+        self.assertEqual(detected["components"][0]["stack"], ["Next.js ^14.2.0", "React ^18.3.0"])
 
         questions = {question["id"]: question for question in json.loads(self.run_cli("init", "--questions").stdout)}
         components = questions["components"]["default"]
