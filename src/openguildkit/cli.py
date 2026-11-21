@@ -515,7 +515,7 @@ def _prompt_components(question: dict) -> list[dict]:
     print(f"\n{question['prompt']}", file=sys.stderr)
     for component in detected:
         print(f"  {component['id']} ({component['path']}): {', '.join(component['stack'])}", file=sys.stderr)
-    print("  Keep these components? [Y/n] (edit .openguildkit/project.json later to correct them)", file=sys.stderr)
+    print("  Keep these components? [Y/n/e] (e corrects a component's stack and versions)", file=sys.stderr)
     while True:
         print("> ", end="", file=sys.stderr, flush=True)
         value = input().strip().casefold()
@@ -523,7 +523,22 @@ def _prompt_components(question: dict) -> list[dict]:
             return detected
         if value in ("n", "no", "non"):
             return []
-        print("  Answer y or n.", file=sys.stderr)
+        if value in ("e", "edit"):
+            return _edit_components(detected)
+        print("  Answer y, n or e.", file=sys.stderr)
+
+
+def _edit_components(detected: list[dict]) -> list[dict]:
+    """Ask for each component's stack, Enter keeping the detected one, so one wrong version costs one line."""
+    edited = []
+    for component in detected:
+        print(f"  {component['id']}: {', '.join(component['stack'])}", file=sys.stderr)
+        print("  Enter to keep, or the corrected stack separated by commas (for example PostgreSQL 16).", file=sys.stderr)
+        print("> ", end="", file=sys.stderr, flush=True)
+        value = input().strip()
+        stack = [item.strip() for item in value.split(",") if item.strip()]
+        edited.append({**component, "stack": stack or component["stack"]})
+    return edited
 
 
 def _scoped_patterns(selected: list, plan: dict) -> list:

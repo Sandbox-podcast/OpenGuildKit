@@ -33,7 +33,7 @@ The preview shows the matching technologies, the recommended packs and work meth
 
 ## Components and versions
 
-In an existing repository, `openguildkit detect` reads the manifests it knows (`package.json`, `pyproject.toml`, `requirements*.txt`, `go.mod`, `pom.xml`, Gradle builds, `.csproj`, Dockerfiles and Compose files, Terraform, Helm and Kustomize files, GitHub workflows) and proposes one component per folder, with the versions it found and the file behind each one. A database inferred from a client library, such as PostgreSQL from `psycopg`, is marked as inferred. Detection reads files only: it runs no package manager and opens no network connection.
+In an existing repository, `openguildkit detect` reads the manifests it knows (`package.json`, `pyproject.toml`, `requirements*.txt`, `go.mod`, `pom.xml`, Gradle builds, `.csproj`, Dockerfiles and Compose files, Terraform, Helm and Kustomize files, GitHub workflows) and proposes one component per folder, with the versions it found and the file behind each one. A database inferred from a client library, such as PostgreSQL from `psycopg` or `pg`, is marked as inferred and carries no version, since the library's version says nothing about the server; a Compose or Dockerfile image such as `postgres:16` or `docker.io/library/postgres:16` gives the server version. The interactive `init` shows the detected components and accepts `e` to correct a component's stack and versions without dropping the others. Detection reads files only: it runs no package manager and opens no network connection.
 
 ```text
 openguildkit detect
