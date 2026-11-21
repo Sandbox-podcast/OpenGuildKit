@@ -6,9 +6,9 @@ OpenGuildKit is a catalog maintained by practitioners and a small CLI maintained
 
 **Contributors** open issues and pull requests. Anyone can be one.
 
-**Domain stewards** review patterns, rules and sources for their domain, including engineering, security, finance, people operations and project management. A steward checks that rules are accurate, verifiable and sourced. A domain can have several stewards. Stewards are listed in `.github/CODEOWNERS` once named.
+**Domain stewards** review patterns, rules and sources for their domain, including engineering, security, finance, people operations and project management. A steward checks that rules are accurate, verifiable and sourced. A domain can have several stewards. Stewards are listed in `.github/CODEOWNERS` with the paths of their domain once named.
 
-**Maintainers** own the CLI, the schema and releases. A maintainer records the merge decision in the pull request.
+**Maintainers** own the CLI, the schema and releases. They are listed in `.github/CODEOWNERS`, so GitHub requests their review on every pull request. A maintainer records the merge decision in the pull request.
 
 ## Decisions
 

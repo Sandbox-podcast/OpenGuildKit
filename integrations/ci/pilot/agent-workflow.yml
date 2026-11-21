@@ -113,7 +113,7 @@ jobs:
           [[ "$issue" =~ ^[1-9][0-9]*$ && "$ticket" == "https://github.com/$GITHUB_REPOSITORY/issues/$issue" ]]
           rule=$(jq -r .policyCommit "$evidence")
           test "$(sha256sum proof/agent-bundle/brief.json | cut -d ' ' -f1)" = "$(jq -r .briefSha256 "$evidence")"
-          printf '## OpenGuildKit\n\n[Ouvrir le ticket #%s](%s)\n\nCommit vérifié : `%s`\n\nRègle : `%s`\n' "$issue" "$ticket" "$EXPECTED_HEAD" "$rule" >> "$GITHUB_STEP_SUMMARY"
+          printf '## OpenGuildKit\n\n[Open ticket #%s](%s)\n\nVerified commit: `%s`\n\nRule: `%s`\n' "$issue" "$ticket" "$EXPECTED_HEAD" "$rule" >> "$GITHUB_STEP_SUMMARY"
           gh api "repos/$GITHUB_REPOSITORY/statuses/$EXPECTED_HEAD" -f context="openguildkit/agent-brief-pr-$PR_NUMBER" \
-            -f state=success -f description="Ticket #$issue | preuve OpenGuildKit (obs.)" \
+            -f state=success -f description="Ticket #$issue | OpenGuildKit evidence (obs.)" \
             -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
