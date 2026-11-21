@@ -11,20 +11,20 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | backend | 12 | 5 | 7 | 2 | 0 | 3 | 11 |
 | communication | 22 | 9 | 13 | 2 | 0 | 3 | 8 |
 | customer-success | 5 | 2 | 3 | 1 | 0 | 1 | 4 |
-| data | 63 | 7 | 56 | 5 | 1 | 6 | 32 |
+| data | 63 | 7 | 56 | 5 | 1 | 7 | 38 |
 | design | 26 | 4 | 22 | 9 | 5 | 16 | 57 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
-| devops | 69 | 22 | 47 | 6 | 6 | 12 | 50 |
-| engineering | 217 | 24 | 193 | 11 | 26 | 40 | 180 |
+| devops | 69 | 22 | 47 | 7 | 6 | 13 | 54 |
+| engineering | 217 | 24 | 193 | 12 | 26 | 41 | 184 |
 | finance | 23 | 13 | 10 | 11 | 0 | 12 | 35 |
 | frontend | 8 | 3 | 5 | 2 | 0 | 4 | 15 |
-| hr | 10 | 7 | 3 | 6 | 0 | 6 | 20 |
-| it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 8 |
+| hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
+| it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 9 |
 | leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
-| legal | 56 | 20 | 36 | 16 | 0 | 17 | 105 |
+| legal | 56 | 20 | 36 | 16 | 0 | 18 | 107 |
 | localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
 | marketing | 22 | 7 | 15 | 8 | 0 | 8 | 17 |
-| operations | 21 | 6 | 15 | 11 | 0 | 11 | 25 |
+| operations | 21 | 6 | 15 | 11 | 0 | 11 | 26 |
 | partnerships | 5 | 3 | 2 | 1 | 0 | 1 | 4 |
 | performance | 17 | 8 | 9 | 2 | 2 | 5 | 16 |
 | procurement | 8 | 6 | 2 | 1 | 0 | 1 | 5 |
@@ -32,7 +32,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
 | qa | 50 | 6 | 44 | 4 | 20 | 28 | 131 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 103 | 26 | 77 | 18 | 16 | 41 | 201 |
+| security | 103 | 26 | 77 | 18 | 16 | 42 | 204 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -73,13 +73,13 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 | Sector | Preselected patterns | Packs | Rules |
 |---|---|---|---:|
-| critical-infrastructure | nis2-essential-entity | nis2 | 7 |
+| critical-infrastructure | nis2-essential-entity | incident-notification, nis2 | 12 |
 | e-commerce | online-consumer-sales | online-consumer-sales | 10 |
 | education | minors-data-protection | minors-data-protection | 7 |
-| financial-services | dora-financial-entity | dora | 8 |
+| financial-services | dora-financial-entity | dora, incident-notification | 13 |
 | general | none | none | 0 |
 | healthcare | health-data-protection | health-data-protection | 7 |
-| insurance | dora-financial-entity, insurance-distribution | dora, insurance-distribution | 14 |
+| insurance | dora-financial-entity, insurance-distribution | dora, incident-notification, insurance-distribution | 19 |
 | public-sector | public-sector-accessibility | public-sector-accessibility, web-accessibility | 10 |
 
 ## To cover

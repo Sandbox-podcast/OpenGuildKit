@@ -1,13 +1,16 @@
 {
   "id": "dora",
   "title": "DORA ICT risk evidence",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Questions for the ICT risk owner and evidence checks for financial entities under Regulation (EU) 2022/2554 (DORA). Apply the entity's approved interpretation and its competent authority's guidance; these rules do not establish compliance.",
   "sources": [
     {
       "title": "Regulation (EU) 2022/2554, Digital Operational Resilience Act",
       "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/fra"
     }
+  ],
+  "depends_on": [
+    "incident-notification"
   ],
   "rules": [
     {
@@ -29,11 +32,6 @@
       "id": "capture-incident-classification-data",
       "instruction": "Make the incident template of the changed service capture the criteria used to classify ICT-related incidents under Art. 18, such as clients affected, duration and data losses.",
       "verification": "Open the incident template and check that it records each Art. 18 criterion."
-    },
-    {
-      "id": "name-major-incident-reporter",
-      "instruction": "Ask the compliance owner who reports major ICT-related incidents to the competent authority under Art. 19, and record that person in the incident runbook.",
-      "verification": "Open the incident runbook and check that it names the reporter and the reporting steps."
     },
     {
       "id": "register-ict-third-party",

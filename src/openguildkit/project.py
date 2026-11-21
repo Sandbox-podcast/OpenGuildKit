@@ -647,14 +647,21 @@ def rule_conflicts(profile: dict, catalog: dict) -> list[dict]:
     selected = _selected_packs(profile, catalog)
     scopes = pack_scopes(profile, catalog)
     # A declaration on either pack is enough: conflicts are symmetric.
-    pairs = sorted(
-        {
-            tuple(sorted((pack_id, other)))
-            for pack_id in selected
-            for other in catalog["packs"][pack_id].get("conflicts_with", [])
-            if other in selected
-        }
-    )
+    declared = {
+        tuple(sorted((pack_id, other)))
+        for pack_id in selected
+        for other in catalog["packs"][pack_id].get("conflicts_with", [])
+        if other in selected
+    }
+    # A choice the team recorded stays in force when the catalog stops declaring the conflict.
+    recorded = {
+        tuple(sorted((first, second)))
+        for item in profile.get("resolutions", [])
+        for first in item["packs"]
+        for second in item["packs"]
+        if first != second and {first, second} <= set(selected)
+    }
+    pairs = sorted(declared | recorded)
     conflicts = []
     for first, second in pairs:
         left, right = scopes.get(first), scopes.get(second)

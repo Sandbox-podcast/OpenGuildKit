@@ -32,6 +32,7 @@
         "pd_immutable"
       ],
       "title": "Infrastructure immuable",
+      "title_en": "Immutable infrastructure",
       "category": "Infrastructure et conteneurs",
       "kind": "pratique",
       "brains": [
@@ -203,6 +204,7 @@
         "pd_ci"
       ],
       "title": "Intégration continue (CI)",
+      "title_en": "Continuous integration (CI)",
       "category": "Livraison et plateformes développeur",
       "kind": "pratique",
       "brains": [
@@ -224,6 +226,7 @@
         "pd_continuous_delivery"
       ],
       "title": "Livraison continue",
+      "title_en": "Continuous delivery",
       "category": "Livraison et plateformes développeur",
       "kind": "pratique",
       "brains": [
@@ -245,6 +248,7 @@
         "pd_continuous_deployment"
       ],
       "title": "Déploiement continu",
+      "title_en": "Continuous deployment",
       "category": "Livraison et plateformes développeur",
       "kind": "pratique",
       "brains": [
@@ -291,6 +295,7 @@
         "pd_blue_green"
       ],
       "title": "Déploiement blue-green",
+      "title_en": "Blue-green deployment",
       "category": "Livraison et plateformes développeur",
       "kind": "pratique",
       "brains": [
@@ -312,6 +317,7 @@
         "pd_canary"
       ],
       "title": "Déploiement canary",
+      "title_en": "Canary deployment",
       "category": "Livraison et plateformes développeur",
       "kind": "pratique",
       "brains": [
@@ -397,6 +403,7 @@
         "pd_dora_metrics"
       ],
       "title": "Métriques DORA de livraison logicielle",
+      "title_en": "DORA software delivery metrics",
       "category": "Livraison et plateformes développeur",
       "kind": "indicateur",
       "brains": [
@@ -512,6 +519,7 @@
         "pd_error_budget"
       ],
       "title": "Budget d'erreur",
+      "title_en": "Error budget",
       "category": "Fiabilité et SRE",
       "kind": "pratique",
       "brains": [
@@ -540,6 +548,7 @@
         "pd_incident_command"
       ],
       "title": "Organisation de réponse aux incidents",
+      "title_en": "Incident response organization",
       "category": "Fiabilité et SRE",
       "kind": "pratique",
       "brains": [
@@ -565,6 +574,7 @@
         "pd_postmortem"
       ],
       "title": "Postmortem sans recherche de blâme",
+      "title_en": "Blameless postmortem",
       "category": "Fiabilité et SRE",
       "kind": "pratique",
       "brains": [
@@ -589,6 +599,7 @@
         "pd_toil_reduction"
       ],
       "title": "Réduction du toil",
+      "title_en": "Toil reduction",
       "category": "Fiabilité et SRE",
       "kind": "pratique",
       "brains": [
@@ -829,6 +840,7 @@
         "pd_use_method"
       ],
       "title": "Méthode USE",
+      "title_en": "USE method",
       "category": "Observabilité et diagnostic",
       "kind": "méthode",
       "brains": [
@@ -850,6 +862,7 @@
         "pd_red_method"
       ],
       "title": "Méthode RED",
+      "title_en": "RED method",
       "category": "Observabilité et diagnostic",
       "kind": "méthode",
       "brains": [
@@ -917,6 +930,7 @@
         "pd_cost_allocation"
       ],
       "title": "Allocation des coûts",
+      "title_en": "Cost allocation",
       "category": "FinOps et sobriété numérique",
       "kind": "pratique",
       "brains": [
@@ -965,6 +979,7 @@
         "pd_cost_anomalies"
       ],
       "title": "Détection des anomalies de coûts",
+      "title_en": "Cost anomaly detection",
       "category": "FinOps et sobriété numérique",
       "kind": "pratique",
       "brains": [
@@ -989,6 +1004,7 @@
         "pd_usage_optimization"
       ],
       "title": "Optimisation de l'usage et rightsizing",
+      "title_en": "Usage optimization and rightsizing",
       "category": "FinOps et sobriété numérique",
       "kind": "pratique",
       "brains": [
@@ -1051,6 +1067,7 @@
         "pd_rgesn"
       ],
       "title": "Référentiel général d'écoconception de services numériques (RGESN)",
+      "title_en": "French general framework for the ecodesign of digital services (RGESN)",
       "category": "FinOps et sobriété numérique",
       "kind": "référentiel",
       "brains": [

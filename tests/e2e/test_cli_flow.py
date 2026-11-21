@@ -169,11 +169,10 @@ class ProjectSetupTests(CliTestCase):
         plan = json.loads(self.run_cli("recommend", "--answers", path, "--json").stdout)
         matched = [pattern["id"] for pattern in plan["matched"]]
         self.assertIn("python-fastapi-postgresql", matched)
-        self.assertIn("scrum", [pattern["id"] for pattern in plan["suggested"]])
-        self.assertNotIn("scrum", matched)
+        self.assertLessEqual({"scrum", "kanban"}, set(matched))
         self.assertIn("scrum", self.run_cli("patterns", "--role", "project-management").stdout)
         self.assertIn("openguildkit patterns --id scrum", self.run_cli("references", "--id", "pattern-scrum").stdout)
-        answers["patterns"] = [*matched, "scrum"]
+        answers["patterns"] = [pattern for pattern in matched if pattern != "kanban"]
         self.run_cli("init", "--answers", self.write_json("selected.json", answers))
         self.run_cli("check")
         instructions = (self.project / "AGENTS.md").read_text(encoding="utf-8")
@@ -207,20 +206,38 @@ class ProjectSetupTests(CliTestCase):
         plan = json.loads(self.run_cli("recommend", "--json").stdout)
         self.assertEqual(plan["review"][0]["id"], "nextjs-react")
 
+    def test_scrum_and_kanban_patterns_install_together(self):
+        answers = {"name": "Scrumban team", "patterns": ["scrum", "kanban"]}
+        self.run_cli("init", "--answers", self.write_json("answers.json", answers))
+        instructions = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("`scrum-delivery@", instructions)
+        self.assertIn("`kanban-delivery@", instructions)
+        self.run_cli("check")
+
     def test_preview_shows_the_rules_and_init_waits_for_a_conflict_resolution(self):
-        answers = {"name": "Team", "stack": ["Python", "FastAPI", "PostgreSQL"], "packs": ["kanban-delivery", "scrum-delivery"]}
+        packs = self.project / ".openguildkit" / "catalog" / "packs"
+        packs.mkdir(parents=True)
+        fixed_scope = {
+            "id": "fixed-sprint-scope", "title": "Fixed sprint scope", "version": "1.0.0",
+            "description": "For a team that freezes its work for the length of a sprint.", "sources": [],
+            "conflicts_with": ["kanban-delivery"],
+            "rules": [{"id": "freeze-sprint-scope", "instruction": "Start no new item before the sprint ends.",
+                       "verification": "Compare the items started with the sprint plan."}],
+        }
+        (packs / "fixed-sprint-scope.json").write_text(json.dumps(fixed_scope), encoding="utf-8")
+        answers = {"name": "Team", "stack": ["Python", "FastAPI", "PostgreSQL"], "packs": ["kanban-delivery", "fixed-sprint-scope"]}
         path = self.write_json("answers.json", answers)
         preview = self.run_cli("preview", "--answers", path).stdout
         self.assertIn("agent-workflow@", preview)
-        self.assertIn("kanban-delivery / scrum-delivery: unresolved", preview)
+        self.assertIn("fixed-sprint-scope / kanban-delivery: unresolved", preview)
         refused = self.run_cli("init", "--answers", path, expect=1)
         self.assertIn("Conflicting rule packs", refused.stderr)
         self.assertFalse((self.project / ".openguildkit" / "project.json").exists())
 
-        answers["resolutions"] = [{"packs": ["kanban-delivery", "scrum-delivery"], "keep": ["kanban-delivery"], "reason": "Continuous demand."}]
+        answers["resolutions"] = [{"packs": ["kanban-delivery", "fixed-sprint-scope"], "keep": ["kanban-delivery"], "reason": "Continuous demand."}]
         self.run_cli("init", "--answers", self.write_json("answers.json", answers))
         plan = json.loads(self.run_cli("preview", "--json").stdout)
-        self.assertEqual(plan["excluded"], ["scrum-delivery"])
+        self.assertEqual(plan["excluded"], ["fixed-sprint-scope"])
         self.assertIn("Reason: Continuous demand.", (self.project / "AGENTS.md").read_text(encoding="utf-8"))
         self.run_cli("check")
 

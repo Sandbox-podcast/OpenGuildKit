@@ -5,6 +5,7 @@
     {
       "id": "ifrs-15",
       "title": "IFRS 15 — Produits des activités ordinaires tirés de contrats avec des clients",
+      "title_en": "IFRS 15, Revenue from Contracts with Customers",
       "category": "Normes comptables",
       "kind": "norme",
       "brains": [
@@ -28,6 +29,7 @@
     {
       "id": "ias-38",
       "title": "IAS 38 — Immobilisations incorporelles",
+      "title_en": "IAS 38, Intangible Assets",
       "category": "Normes comptables",
       "kind": "norme",
       "brains": [
@@ -93,6 +95,7 @@
     {
       "id": "hm-treasury-business-case",
       "title": "HM Treasury — Business cases de projets et programmes",
+      "title_en": "HM Treasury, Business cases for projects and programmes",
       "category": "Décision d'investissement",
       "kind": "méthode",
       "brains": [
@@ -116,6 +119,7 @@
     {
       "id": "csrd",
       "title": "Directive (UE) 2022/2464 sur la publication d'informations en matière de durabilité (CSRD)",
+      "title_en": "Directive (EU) 2022/2464 on corporate sustainability reporting (CSRD)",
       "category": "Reporting de durabilité",
       "kind": "réglementation",
       "brains": [
@@ -135,6 +139,7 @@
     {
       "id": "late-payment-directive",
       "title": "Directive 2011/7/UE concernant la lutte contre le retard de paiement",
+      "title_en": "Directive 2011/7/EU on combating late payment in commercial transactions",
       "category": "Contrats et paiements",
       "kind": "réglementation",
       "brains": [
@@ -154,6 +159,7 @@
     {
       "id": "vat-directive",
       "title": "Directive 2006/112/CE — système commun de TVA (VAT Directive)",
+      "title_en": "Directive 2006/112/EC on the common system of value added tax (VAT Directive)",
       "category": "Fiscalité",
       "kind": "réglementation",
       "brains": [
@@ -175,6 +181,7 @@
     {
       "id": "vida",
       "title": "Directive (UE) 2025/516 — TVA à l'ère numérique (ViDA, VAT in the Digital Age)",
+      "title_en": "Directive (EU) 2025/516, VAT in the Digital Age (ViDA)",
       "category": "Fiscalité",
       "kind": "réglementation",
       "brains": [
@@ -193,6 +200,7 @@
     {
       "id": "facturation-electronique-france",
       "title": "Réforme française de la facturation électronique (e-invoicing, calendrier 2026-2027)",
+      "title_en": "French e-invoicing reform (2026-2027 timetable)",
       "category": "Fiscalité",
       "kind": "réglementation",
       "brains": [

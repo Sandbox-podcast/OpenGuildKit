@@ -5,6 +5,7 @@
     {
       "id": "pmbok",
       "title": "PMBOK Guide — huitième édition",
+      "title_en": "PMBOK Guide, eighth edition",
       "edition": "huitième édition (2025)",
       "category": "Gestion de projet",
       "kind": "référentiel",
@@ -87,6 +88,7 @@
     {
       "id": "critical-path-method",
       "title": "Méthode du chemin critique",
+      "title_en": "Critical path method",
       "category": "Planification",
       "kind": "méthode",
       "brains": [
@@ -108,6 +110,7 @@
     {
       "id": "raci",
       "title": "Matrice RACI",
+      "title_en": "RACI matrix",
       "category": "Planification",
       "kind": "méthode",
       "brains": [
@@ -130,6 +133,7 @@
     {
       "id": "value-stream-mapping",
       "title": "Value Stream Mapping (cartographie de la chaîne de valeur)",
+      "title_en": "Value Stream Mapping",
       "category": "Amélioration des opérations",
       "kind": "méthode",
       "brains": [
@@ -147,6 +151,7 @@
     {
       "id": "pdca",
       "title": "Cycle PDCA (Plan, Do, Check, Act)",
+      "title_en": "PDCA cycle (Plan, Do, Check, Act)",
       "category": "Amélioration des opérations",
       "kind": "méthode",
       "brains": [

@@ -85,6 +85,7 @@
     {
       "id": "cnil-guide-securite",
       "title": "CNIL — Guide de la sécurité des données personnelles",
+      "title_en": "CNIL, Personal data security guide",
       "category": "Vie privée et protection des données",
       "kind": "référentiel",
       "brains": [
@@ -103,6 +104,7 @@
     {
       "id": "aipd",
       "title": "Analyse d'impact relative à la protection des données (AIPD)",
+      "title_en": "Data protection impact assessment (DPIA)",
       "category": "Vie privée et protection des données",
       "kind": "pratique",
       "brains": [
@@ -124,6 +126,7 @@
     {
       "id": "privacy-by-design",
       "title": "Protection des données dès la conception et par défaut",
+      "title_en": "Data protection by design and by default",
       "category": "Vie privée et protection des données",
       "kind": "pratique",
       "brains": [
@@ -337,6 +340,7 @@
     {
       "id": "soc-2",
       "title": "SOC 2 — Examen et rapport d'attestation",
+      "title_en": "SOC 2, Examination and attestation report",
       "category": "Gouvernance, audit et management",
       "kind": "référentiel",
       "brains": [
@@ -356,6 +360,7 @@
     {
       "id": "soc-3",
       "title": "SOC 3 — Rapport à usage général",
+      "title_en": "SOC 3, General use report",
       "category": "Gouvernance, audit et management",
       "kind": "référentiel",
       "brains": [
@@ -410,6 +415,7 @@
     {
       "id": "rgpd",
       "title": "Règlement général sur la protection des données (UE 2016/679)",
+      "title_en": "General Data Protection Regulation (GDPR), Regulation (EU) 2016/679",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -433,6 +439,7 @@
     {
       "id": "nis-2",
       "title": "Directive NIS 2 (UE 2022/2555)",
+      "title_en": "NIS 2 Directive, Directive (EU) 2022/2555",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -456,6 +463,7 @@
     {
       "id": "dora",
       "title": "Digital Operational Resilience Act (UE 2022/2554)",
+      "title_en": "Digital Operational Resilience Act (DORA), Regulation (EU) 2022/2554",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -479,6 +487,7 @@
     {
       "id": "eu-ai-act",
       "title": "Règlement européen sur l'intelligence artificielle (UE 2024/1689)",
+      "title_en": "Artificial Intelligence Act, Regulation (EU) 2024/1689",
       "edition": "texte consolidé, modifié par le règlement (UE) 2026/1744",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
@@ -503,6 +512,7 @@
     {
       "id": "cyber-resilience-act",
       "title": "Cyber Resilience Act (UE 2024/2847)",
+      "title_en": "Cyber Resilience Act, Regulation (EU) 2024/2847",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -529,6 +539,7 @@
     {
       "id": "eidas",
       "title": "eIDAS et cadre européen d'identité numérique",
+      "title_en": "eIDAS and the European Digital Identity Framework",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -547,6 +558,7 @@
     {
       "id": "eu-data-act",
       "title": "Data Act (UE 2023/2854)",
+      "title_en": "Data Act, Regulation (EU) 2023/2854",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -566,6 +578,7 @@
     {
       "id": "eprivacy",
       "title": "Directive vie privée et communications électroniques (2002/58/CE)",
+      "title_en": "Directive 2002/58/EC on privacy and electronic communications (ePrivacy)",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -584,6 +597,7 @@
     {
       "id": "eu-accessibility-act",
       "title": "Directive européenne sur l'accessibilité (UE 2019/882)",
+      "title_en": "European Accessibility Act, Directive (EU) 2019/882",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -602,6 +616,7 @@
     {
       "id": "eu-mdr",
       "title": "Règlement sur les dispositifs médicaux (UE 2017/745)",
+      "title_en": "Medical Devices Regulation, Regulation (EU) 2017/745",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -623,6 +638,7 @@
     {
       "id": "eu-ivdr",
       "title": "Règlement sur les dispositifs de diagnostic in vitro (UE 2017/746)",
+      "title_en": "In Vitro Diagnostic Medical Devices Regulation, Regulation (EU) 2017/746",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -665,6 +681,7 @@
     {
       "id": "hds",
       "title": "Référentiel de certification Hébergeur de données de santé (HDS)",
+      "title_en": "French health data hosting certification framework (HDS)",
       "category": "Réglementations et exigences sectorielles",
       "kind": "référentiel",
       "brains": [
@@ -687,6 +704,7 @@
     {
       "id": "iec-62304",
       "title": "IEC 62304:2006 avec amendement 1:2015",
+      "title_en": "IEC 62304:2006 with Amendment 1:2015",
       "edition": "2006 avec amendement 1:2015",
       "category": "Qualité et sûreté sectorielles",
       "kind": "norme",
@@ -744,6 +762,7 @@
     {
       "id": "iec-62443",
       "title": "Série IEC 62443",
+      "title_en": "IEC 62443 series",
       "category": "Qualité et sûreté sectorielles",
       "kind": "norme",
       "brains": [
@@ -762,6 +781,7 @@
     {
       "id": "iso-26262",
       "title": "Série ISO 26262:2018",
+      "title_en": "ISO 26262:2018 series",
       "edition": "2018",
       "category": "Qualité et sûreté sectorielles",
       "kind": "norme",

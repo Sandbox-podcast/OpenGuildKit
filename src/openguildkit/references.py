@@ -23,7 +23,8 @@ LEGACY_ID = re.compile(r"[a-z0-9]+(?:[-_][a-z0-9]+)*")
 TEXT_FIELDS = ("title", "category", "kind", "summary", "applies_when")
 LINK_FIELDS = ("aliases", "brains", "pattern", "packs")
 # The edition or version the entry describes, when the source has several: "2022", "Rev. 5", "5.0.0".
-OPTIONAL_TEXT_FIELDS = ("edition",)
+# The English title, when the title is in another language: the CLI and the briefs are in English.
+OPTIONAL_TEXT_FIELDS = ("edition", "title_en")
 KINDS = {
     "norme": "standard published by a standards body (ISO, IEC, ETSI, NIST FIPS, Ecma, HL7, NEMA)",
     "spécification": "technical specification from a consortium, a community or the IETF",
@@ -239,6 +240,11 @@ def with_pattern_references(families: dict, patterns: dict) -> dict:
     return {**linked, PATTERN_FAMILY: {"id": PATTERN_FAMILY, "title": "Work and stack patterns", "references": records}}
 
 
+def english_title(record: dict) -> str:
+    """The title to show in English output: the English title when the entry has one."""
+    return record.get("title_en", record["title"])
+
+
 def find_references(
     families: dict, *, family_id: str | None = None, query: str | None = None, record_id: str | None = None
 ) -> list[dict]:
@@ -264,7 +270,7 @@ def find_references(
         raise ValueError("Supply at least one word to search the references.")
     ranked = []
     for record in records:
-        names = set(_words(f"{record['id']} {record['title']}"))
+        names = set(_words(" ".join([record["id"], record["title"], record.get("title_en", ""), *record.get("aliases", ())])))
         labels = set(_words(f"{record['kind']} {record['category']} {record['family_title']}"))
         context = set(_words(f"{record['summary']} {record['applies_when']}"))
         if terms.issubset(names | labels | context):

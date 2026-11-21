@@ -83,7 +83,7 @@ def brain_knowledge(board_id: str, catalog: dict, families: dict, active_packs: 
         ],
         "references": [
             {key: reference[key] for key in ("id", "title", "kind", "edition") if key in reference}
-            | {"url": reference["sources"][0]["url"]}
+            | {"title": reference.get("title_en", reference["title"]), "url": reference["sources"][0]["url"]}
             for reference in references
         ],
     }
@@ -147,7 +147,7 @@ def _task_words(context: str) -> set[str]:
 def _rank(reference: dict, words: set[str], active_packs: set[str]) -> tuple:
     """Active packs first, then the overlap with the task (names count double), then applied references."""
     names = _words(" ".join([reference["id"].replace("-", " "), reference.get("title", ""),
-                             *reference.get("aliases", [])]))
+                             reference.get("title_en", ""), *reference.get("aliases", [])]))
     labels = _words(f"{reference.get('category', '')} {reference.get('summary', '')}")
     overlap = 2 * len(words & names) + len(words & labels)
     applied = reference.get("status") == "applied" or bool(reference.get("packs"))

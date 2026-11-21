@@ -1,7 +1,7 @@
 {
   "id": "gdpr",
   "title": "GDPR personal data processing",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Questions for the privacy owner and repository checks when a change processes personal data under Regulation (EU) 2016/679. Apply the organization's approved interpretation; these rules do not establish compliance.",
   "sources": [
     {
@@ -20,6 +20,9 @@
       "title": "CNIL, Notifier une violation de données personnelles",
       "url": "https://www.cnil.fr/fr/services-en-ligne/notifier-une-violation-de-donnees-personnelles"
     }
+  ],
+  "depends_on": [
+    "incident-notification"
   ],
   "rules": [
     {
@@ -61,11 +64,6 @@
       "id": "keep-data-subject-rights-working",
       "instruction": "Make the new personal data reachable by the project's access, rectification and erasure procedures (Art. 15 to 17).",
       "verification": "Run the export and erasure procedures on a test account and confirm that they return or remove the new data."
-    },
-    {
-      "id": "prepare-breach-notification",
-      "instruction": "Ask the privacy owner who assesses a personal data breach and notifies the supervisory authority within 72 hours where required (Art. 33), and record that person in the incident runbook.",
-      "verification": "Open the incident runbook and check that it names the person and the steps for Art. 33 and Art. 34."
     }
   ]
 }
