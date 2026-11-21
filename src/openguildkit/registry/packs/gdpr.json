@@ -1,31 +1,51 @@
 {
   "id": "gdpr",
   "title": "GDPR personal data processing",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "Questions for the privacy owner and repository checks when a change processes personal data under Regulation (EU) 2016/679. Apply the organization's approved interpretation; these rules do not establish compliance.",
   "sources": [
     {
       "title": "Regulation (EU) 2016/679, General Data Protection Regulation",
-      "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra"
+      "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra",
+      "checked": "2026-11-20"
     },
     {
       "title": "CNIL, Le registre des activités de traitement",
-      "url": "https://www.cnil.fr/fr/RGPD-le-registre-des-activites-de-traitement"
+      "url": "https://www.cnil.fr/fr/RGPD-le-registre-des-activites-de-traitement",
+      "checked": "2026-11-21"
     },
     {
       "title": "CNIL, L'analyse d'impact relative à la protection des données (AIPD)",
-      "url": "https://www.cnil.fr/fr/RGPD-analyse-impact-protection-des-donnees-aipd"
+      "url": "https://www.cnil.fr/fr/RGPD-analyse-impact-protection-des-donnees-aipd",
+      "checked": "2026-11-21"
     },
     {
       "title": "CNIL, Notifier une violation de données personnelles",
-      "url": "https://www.cnil.fr/fr/services-en-ligne/notifier-une-violation-de-donnees-personnelles"
+      "url": "https://www.cnil.fr/fr/services-en-ligne/notifier-une-violation-de-donnees-personnelles",
+      "checked": "2026-11-21"
     }
+  ],
+  "depends_on": [
+    "incident-notification"
   ],
   "rules": [
     {
       "id": "update-processing-record",
       "instruction": "When the change creates or alters a processing of personal data, ask the privacy owner to update the record of processing activities (GDPR Art. 30) with the purpose, data categories, recipients and retention.",
-      "verification": "Link the updated entry of the record of processing activities from the change."
+      "verification": "Link the updated entry of the record of processing activities from the change.",
+      "evidence": [
+        {
+          "id": "processing-record",
+          "title": "Record of processing activities",
+          "when": {
+            "data": [
+              "personal",
+              "regulated",
+              "unsure"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "confirm-lawful-basis",
@@ -45,7 +65,20 @@
     {
       "id": "assess-dpia-need",
       "instruction": "Ask the data protection officer whether the change requires a data protection impact assessment under Art. 35, and record the decision with its reason.",
-      "verification": "Link the recorded decision or the completed assessment from the change."
+      "verification": "Link the recorded decision or the completed assessment from the change.",
+      "evidence": [
+        {
+          "id": "dpia-decision",
+          "title": "Recorded decision on the data protection impact assessment",
+          "when": {
+            "data": [
+              "personal",
+              "regulated",
+              "unsure"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "review-processor-terms",
@@ -61,11 +94,6 @@
       "id": "keep-data-subject-rights-working",
       "instruction": "Make the new personal data reachable by the project's access, rectification and erasure procedures (Art. 15 to 17).",
       "verification": "Run the export and erasure procedures on a test account and confirm that they return or remove the new data."
-    },
-    {
-      "id": "prepare-breach-notification",
-      "instruction": "Ask the privacy owner who assesses a personal data breach and notifies the supervisory authority within 72 hours where required (Art. 33), and record that person in the incident runbook.",
-      "verification": "Open the incident runbook and check that it names the person and the steps for Art. 33 and Art. 34."
     }
   ]
 }

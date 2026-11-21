@@ -1,17 +1,17 @@
-"""Read versioned evidence from Git and evaluate the supported catalog check."""
+"""Read versioned evidence from Git and evaluate the central policy's field check on it."""
 
 import os
 import re
 import subprocess
 from pathlib import Path
 
-from .catalog import EXPORT_EXPIRY_ID, is_positive_integer
+from .catalog import EXPORT_EXPIRY_ID, rule_check
 from .project import profile_fingerprint, resolved_profile, rule_text
+from .rule_checks import compare_field, parse_fields
 from .storage import parse_json
 
 
 POLICY_PATH = f"packs/{EXPORT_EXPIRY_ID}.json"
-EXPORT_PATH = "export.json"
 FULL_COMMIT = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
 
 
@@ -28,12 +28,16 @@ def _git(repo: Path, *args: str) -> bytes:
     return result.stdout
 
 
-def _committed_json(repo: Path, commit: str, path: str) -> dict:
+def _committed_file(repo: Path, commit: str, path: str) -> bytes:
     if not FULL_COMMIT.fullmatch(commit):
         raise ValueError("Use a full lowercase Git commit SHA.")
     if _git(repo, "rev-parse", "--verify", f"{commit}^{{commit}}").strip() != commit.encode("ascii"):
         raise ValueError("The supplied SHA must identify a commit directly.")
-    return parse_json(_git(repo, "show", f"{commit}:{path}"), f"{commit}:{path}")
+    return _git(repo, "show", f"{commit}:{path}")
+
+
+def _committed_json(repo: Path, commit: str, path: str) -> dict:
+    return parse_json(_committed_file(repo, commit, path), f"{commit}:{path}")
 
 
 def read_policy_pack(repo: Path, commit: str) -> dict:
@@ -41,26 +45,27 @@ def read_policy_pack(repo: Path, commit: str) -> dict:
 
 
 def check_export(profile: dict, catalog: dict, target: Path, commit: str) -> dict:
+    """Judge the target commit with the central rule's field check, read from the exact commit."""
     if EXPORT_EXPIRY_ID not in resolved_profile(profile, catalog)["packs"]:
         raise ValueError(f"Select the {EXPORT_EXPIRY_ID} pack in the trusted project profile.")
     pack = catalog["packs"][EXPORT_EXPIRY_ID]
     if "policy_commit" not in pack:
         raise ValueError("Supply the central policy repository and its commit.")
     rule = pack["rules"][0]
-    threshold = int(rule["check"]["max_minutes"])
+    check = rule_check(rule)
     instruction, _ = rule_text(rule)
-    config = _committed_json(target, commit, EXPORT_PATH)
-    minutes = config.get("downloadLinkMinutes")
-    valid_minutes = is_positive_integer(minutes)
+    data = parse_fields(_committed_file(target, commit, check["path"]), f"{commit}:{check['path']}")
+    outcome = compare_field(check, data)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "rule": rule["id"],
         "rule_version": pack["version"],
         "policy_commit": pack["policy_commit"],
         "profile_fingerprint": profile_fingerprint(profile, catalog),
         "commit": commit,
         "instruction": instruction,
-        "max_minutes": threshold,
-        "actual_minutes": int(minutes) if valid_minutes else None,
-        "status": "success" if valid_minutes and minutes <= threshold else "failure",
+        "check": check,
+        "actual": outcome["actual"],
+        "evidence": outcome["evidence"],
+        "status": "success" if outcome["passed"] else "failure",
     }

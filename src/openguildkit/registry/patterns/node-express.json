@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "Express security best practices",
-      "url": "https://expressjs.com/en/advanced/best-practice-security.html"
+      "url": "https://expressjs.com/en/advanced/best-practice-security.html",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

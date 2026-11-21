@@ -5,15 +5,18 @@
   "sources": [
     {
       "title": "Apple, privacy manifest files",
-      "url": "https://developer.apple.com/documentation/bundleresources/privacy-manifest-files"
+      "url": "https://developer.apple.com/documentation/bundleresources/privacy-manifest-files",
+      "checked": "2026-11-21"
     },
     {
       "title": "Apple Human Interface Guidelines, accessibility",
-      "url": "https://developer.apple.com/design/human-interface-guidelines/accessibility"
+      "url": "https://developer.apple.com/design/human-interface-guidelines/accessibility",
+      "checked": "2026-11-21"
     },
     {
       "title": "Apple, App privacy details on the App Store",
-      "url": "https://developer.apple.com/app-store/app-privacy-details/"
+      "url": "https://developer.apple.com/app-store/app-privacy-details/",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

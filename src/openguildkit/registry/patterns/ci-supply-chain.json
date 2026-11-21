@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "SLSA 1.2",
-      "url": "https://slsa.dev/spec/v1.2/"
+      "url": "https://slsa.dev/spec/v1.2/",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

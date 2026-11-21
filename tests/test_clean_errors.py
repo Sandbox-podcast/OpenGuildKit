@@ -238,7 +238,15 @@ class CleanErrorTests(unittest.TestCase):
                 target.unlink()
 
     def test_messages_point_to_a_step_that_can_be_taken(self):
-        write_json(self.root / "conflict.json", {"name": "c", "packs": ["kanban-delivery", "scrum-delivery"]})
+        # A project pack declares the conflict: no two bundled packs conflict any more.
+        write_json(self.root / ".openguildkit" / "catalog" / "packs" / "fixed-sprint-scope.json", {
+            "id": "fixed-sprint-scope", "title": "Fixed sprint scope", "version": "1.0.0",
+            "description": "For a team that freezes its work for the length of a sprint.", "sources": [],
+            "conflicts_with": ["kanban-delivery"],
+            "rules": [{"id": "freeze-sprint-scope", "instruction": "Start no new item before the sprint ends.",
+                       "verification": "Compare the items started with the sprint plan."}],
+        })
+        write_json(self.root / "conflict.json", {"name": "c", "packs": ["kanban-delivery", "fixed-sprint-scope"]})
         error = self.refusal("init", "--answers", self.root / "conflict.json")
         self.assertIn("the file passed to init --answers", error)
         self.assertFalse((self.root / ".openguildkit" / "project.json").exists())

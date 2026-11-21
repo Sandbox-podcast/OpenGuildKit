@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "ASP.NET Core integration tests",
-      "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests"
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

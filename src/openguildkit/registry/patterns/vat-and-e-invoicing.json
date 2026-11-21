@@ -5,11 +5,13 @@
   "sources": [
     {
       "title": "Council Directive 2006/112/EC on the common system of value added tax",
-      "url": "https://eur-lex.europa.eu/eli/dir/2006/112/oj"
+      "url": "https://eur-lex.europa.eu/eli/dir/2006/112/oj",
+      "checked": "2026-11-21"
     },
     {
       "title": "impots.gouv.fr, Je passe à la facturation électronique",
-      "url": "https://www.impots.gouv.fr/professionnel/je-passe-la-facturation-electronique"
+      "url": "https://www.impots.gouv.fr/professionnel/je-passe-la-facturation-electronique",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

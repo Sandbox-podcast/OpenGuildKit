@@ -6,15 +6,18 @@
   "sources": [
     {
       "title": "PEP 8, Python code style",
-      "url": "https://peps.python.org/pep-0008/"
+      "url": "https://peps.python.org/pep-0008/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Python typing guide for libraries",
-      "url": "https://typing.python.org/en/latest/guides/libraries.html"
+      "url": "https://typing.python.org/en/latest/guides/libraries.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "PyPA guide to pyproject.toml",
-      "url": "https://packaging.python.org/en/latest/guides/writing-pyproject-toml/"
+      "url": "https://packaging.python.org/en/latest/guides/writing-pyproject-toml/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

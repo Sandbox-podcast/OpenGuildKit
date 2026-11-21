@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "ISO/IEC 27001:2022 overview",
-      "url": "https://www.iso.org/standard/27001"
+      "url": "https://www.iso.org/standard/27001",
+      "checked": "2026-11-20"
     }
   ],
   "roles": [

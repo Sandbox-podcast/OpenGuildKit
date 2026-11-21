@@ -212,7 +212,7 @@ test('the CI coordinator uses the public catalog pack with its original Git comm
   assert.equal(before.status, 'success');
   assert.equal(before.policyCommit, initial);
   pack.version = '2.0.0';
-  pack.rules[0].check.max_minutes = 30;
+  pack.rules[0].check.max = 30;
   const updated = commitJson(policy, policyPath, pack);
   const after = run().current[0];
   assert.equal(after.commit, head);

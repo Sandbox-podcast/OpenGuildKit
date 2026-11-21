@@ -71,7 +71,8 @@ class HostControlTests(unittest.TestCase):
         return stdout.getvalue(), stderr.getvalue()
 
     def init(self, **extra):
-        write_json(self.root / "answers.json", {"name": "Portal", "stack": ["Python"], **extra})
+        # These checks cover the research and approval controls; the guard has its own tests.
+        write_json(self.root / "answers.json", {"name": "Portal", "stack": ["Python"], "guard": "off", **extra})
         self.run_cli("init", "--answers", self.root / "answers.json")
 
     def test_claude_code_settings_enforce_research_and_approval(self):

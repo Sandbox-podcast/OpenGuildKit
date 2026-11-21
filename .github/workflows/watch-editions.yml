@@ -1,0 +1,56 @@
+name: Watch reference editions
+
+# Every Monday, open the source page of each reference that declares an edition and look for
+# the edition's text. One issue per reference whose edition may have changed, never two open
+# for the same reference. The job changes no file in the repository: the updated
+# scripts/edition-watch.json is kept as an artifact for a maintainer to review and commit.
+
+on:
+  schedule:
+    - cron: "47 5 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  editions:
+    name: Watch the editions of the bundled references
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+
+      - name: Look for each edition on its page
+        run: |
+          python -I scripts/watch_editions.py --changes editions.json
+
+      - name: Open an issue per edition that may have changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          open_titles=$(gh issue list --state open --limit 500 --json title --jq '.[].title')
+          jq -c '.may_have_changed[]' editions.json | while read -r item; do
+            title=$(jq -r '.title' <<<"$item")
+            if grep -Fxq -- "$title" <<<"$open_titles"; then
+              echo "Already reported: $title"
+              continue
+            fi
+            gh issue create --title "$title" --body "$(jq -r '.body' <<<"$item")"
+          done
+
+      - name: Keep the updated watch file
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: edition-watch
+          path: scripts/edition-watch.json
+          retention-days: 90

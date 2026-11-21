@@ -104,15 +104,18 @@
   "sources": [
     {
       "title": "CNIL, Le règlement général sur la protection des données",
-      "url": "https://www.cnil.fr/fr/reglement-europeen-protection-donnees"
+      "url": "https://www.cnil.fr/fr/reglement-europeen-protection-donnees",
+      "checked": "2026-11-21"
     },
     {
       "title": "Open Source Initiative, Licenses",
-      "url": "https://opensource.org/licenses"
+      "url": "https://opensource.org/licenses",
+      "checked": "2026-11-21"
     },
     {
       "title": "SPDX License List",
-      "url": "https://spdx.org/licenses/"
+      "url": "https://spdx.org/licenses/",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

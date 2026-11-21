@@ -88,7 +88,7 @@ openguildkit task authorize ID --action external-api --target api.example.com --
 
 ## The board before every change
 
-With `"guard": "observe"` or `"guard": "enforce"` in the profile, `openguildkit host apply` installs hooks that run `openguildkit guard`:
+`openguildkit init` writes `"guard": "observe"` for a new project unless the person chooses another mode; a profile without `guard` (projects created before) stays `off`. With `"guard": "observe"` or `"guard": "enforce"` in the profile, `openguildkit host apply` installs hooks that run `openguildkit guard`:
 
 - on each request, the agent receives a reminder: either the approved tasks in progress, or the instruction to open a task and consult the boards before changing files;
 - before a file edit inside the project, `observe` adds a warning for the agent and `enforce` refuses the edit when no approved task covers the work. When a task covers it, the agent is told which one, with its brief, and an approval older than 14 days is flagged so the agent asks the person whether it still applies. One approved task covers every file: the guard does not check that an edit stays inside the task's scope.

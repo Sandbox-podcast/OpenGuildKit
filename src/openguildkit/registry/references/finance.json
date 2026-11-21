@@ -5,6 +5,7 @@
     {
       "id": "ifrs-15",
       "title": "IFRS 15 — Produits des activités ordinaires tirés de contrats avec des clients",
+      "title_en": "IFRS 15, Revenue from Contracts with Customers",
       "category": "Normes comptables",
       "kind": "norme",
       "brains": [
@@ -21,6 +22,7 @@
       "sources": [
         {
           "url": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-15-revenue-from-contracts-with-customers/",
+          "checked": "2026-11-21",
           "title": "IFRS Foundation — IFRS 15 Revenue from Contracts with Customers"
         }
       ]
@@ -28,6 +30,7 @@
     {
       "id": "ias-38",
       "title": "IAS 38 — Immobilisations incorporelles",
+      "title_en": "IAS 38, Intangible Assets",
       "category": "Normes comptables",
       "kind": "norme",
       "brains": [
@@ -39,6 +42,7 @@
       "sources": [
         {
           "url": "https://www.ifrs.org/issued-standards/list-of-standards/ias-38-intangible-assets/",
+          "checked": "2026-11-21",
           "title": "IFRS Foundation — IAS 38 Intangible Assets"
         }
       ]
@@ -62,6 +66,7 @@
       "sources": [
         {
           "url": "https://www.coso.org/internal-control",
+          "checked": "2026-11-21",
           "title": "COSO — Internal Control, Integrated Framework"
         }
       ]
@@ -86,6 +91,7 @@
       "sources": [
         {
           "url": "https://www.gov.uk/government/publications/the-green-book--2/the-green-book-2026",
+          "checked": "2026-11-21",
           "title": "HM Treasury, The Green Book (2026)"
         }
       ]
@@ -93,6 +99,7 @@
     {
       "id": "hm-treasury-business-case",
       "title": "HM Treasury — Business cases de projets et programmes",
+      "title_en": "HM Treasury, Business cases for projects and programmes",
       "category": "Décision d'investissement",
       "kind": "méthode",
       "brains": [
@@ -109,6 +116,7 @@
       "sources": [
         {
           "url": "https://www.gov.uk/government/publications/guidance-on-developing-business-cases/guidance-on-developing-business-cases-for-projects-and-programmes",
+          "checked": "2026-11-21",
           "title": "HM Treasury, Developing business cases for projects and programmes"
         }
       ]
@@ -116,6 +124,7 @@
     {
       "id": "csrd",
       "title": "Directive (UE) 2022/2464 sur la publication d'informations en matière de durabilité (CSRD)",
+      "title_en": "Directive (EU) 2022/2464 on corporate sustainability reporting (CSRD)",
       "category": "Reporting de durabilité",
       "kind": "réglementation",
       "brains": [
@@ -128,6 +137,7 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/dir/2022/2464/oj",
+          "checked": "2026-11-21",
           "title": "Directive (UE) 2022/2464 — CSRD"
         }
       ]
@@ -135,6 +145,7 @@
     {
       "id": "late-payment-directive",
       "title": "Directive 2011/7/UE concernant la lutte contre le retard de paiement",
+      "title_en": "Directive 2011/7/EU on combating late payment in commercial transactions",
       "category": "Contrats et paiements",
       "kind": "réglementation",
       "brains": [
@@ -147,6 +158,7 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/dir/2011/7/oj",
+          "checked": "2026-11-21",
           "title": "Directive 2011/7/UE — Retard de paiement dans les transactions commerciales"
         }
       ]
@@ -154,6 +166,7 @@
     {
       "id": "vat-directive",
       "title": "Directive 2006/112/CE — système commun de TVA (VAT Directive)",
+      "title_en": "Directive 2006/112/EC on the common system of value added tax (VAT Directive)",
       "category": "Fiscalité",
       "kind": "réglementation",
       "brains": [
@@ -168,6 +181,7 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/dir/2006/112/oj",
+          "checked": "2026-11-21",
           "title": "Council Directive 2006/112/EC on the common system of value added tax"
         }
       ]
@@ -175,6 +189,7 @@
     {
       "id": "vida",
       "title": "Directive (UE) 2025/516 — TVA à l'ère numérique (ViDA, VAT in the Digital Age)",
+      "title_en": "Directive (EU) 2025/516, VAT in the Digital Age (ViDA)",
       "category": "Fiscalité",
       "kind": "réglementation",
       "brains": [
@@ -186,6 +201,7 @@
       "sources": [
         {
           "url": "https://taxation-customs.ec.europa.eu/taxation/vat/vat-digital-age-vida_en",
+          "checked": "2026-11-21",
           "title": "European Commission, VAT in the Digital Age (ViDA)"
         }
       ]
@@ -193,6 +209,7 @@
     {
       "id": "facturation-electronique-france",
       "title": "Réforme française de la facturation électronique (e-invoicing, calendrier 2026-2027)",
+      "title_en": "French e-invoicing reform (2026-2027 timetable)",
       "category": "Fiscalité",
       "kind": "réglementation",
       "brains": [
@@ -207,10 +224,12 @@
       "sources": [
         {
           "url": "https://www.impots.gouv.fr/professionnel/je-passe-la-facturation-electronique",
+          "checked": "2026-11-21",
           "title": "impots.gouv.fr, Je passe à la facturation électronique"
         },
         {
           "url": "https://entreprendre.service-public.gouv.fr/actualites/A18953?lang=fr",
+          "checked": "2026-11-21",
           "title": "Service-Public Entreprendre, La facturation électronique est effective depuis le 1er septembre 2026"
         }
       ]

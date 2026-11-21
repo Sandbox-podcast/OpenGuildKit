@@ -1,17 +1,22 @@
 {
   "id": "nis2",
   "title": "NIS 2 cybersecurity measures",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "Questions for the security owner and evidence checks for essential and important entities under Directive (EU) 2022/2555 (NIS 2), as transposed into national law. These rules do not establish compliance.",
   "sources": [
     {
       "title": "Directive (EU) 2022/2555 (NIS 2)",
-      "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/en"
+      "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/en",
+      "checked": "2026-11-20"
     },
     {
       "title": "ANSSI, MesServicesCyber, NIS 2",
-      "url": "https://messervices.cyber.gouv.fr/nis2"
+      "url": "https://messervices.cyber.gouv.fr/nis2",
+      "checked": "2026-11-21"
     }
+  ],
+  "depends_on": [
+    "incident-notification"
   ],
   "rules": [
     {
@@ -22,7 +27,15 @@
     {
       "id": "publish-vulnerability-handling",
       "instruction": "Keep a vulnerability handling and disclosure process for the changed system, such as a SECURITY.md that names the reporting channel (Art. 21(2)(e)).",
-      "verification": "Open the repository's security policy and check the reporting channel and the triage owner."
+      "verification": "Open the repository's security policy and check the reporting channel and the triage owner.",
+      "check": {
+        "kind": "file-exists",
+        "paths": [
+          "SECURITY.md",
+          ".github/SECURITY.md",
+          "docs/SECURITY.md"
+        ]
+      }
     },
     {
       "id": "review-supplier-security",
@@ -43,11 +56,6 @@
       "id": "test-backup-and-recovery",
       "instruction": "Include the changed system in backup management and disaster recovery (Art. 21(2)(c)).",
       "verification": "Link the latest recovery test record that covers the system."
-    },
-    {
-      "id": "prepare-incident-notification",
-      "instruction": "Ask the security owner who sends, for a significant incident, the early warning within 24 hours, the notification within 72 hours and the final report within one month (Art. 23(4)), and record them in the incident runbook.",
-      "verification": "Open the incident runbook and check the names and deadlines of each step."
     }
   ]
 }

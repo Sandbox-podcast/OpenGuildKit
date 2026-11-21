@@ -24,7 +24,7 @@ This page separates what exists from what is planned. Open an issue to discuss o
 
 **Catalog**
 
-- Rule packs, patterns, references with editions and links to the rules that apply them, regulation packs (GDPR, DORA, NIS2, AI Act, Cyber Resilience Act), a weekly link check.
+- Rule packs, patterns, references with editions and links to the rules that apply them, regulation packs (GDPR, DORA, NIS2, AI Act, Cyber Resilience Act), a weekly link check, a verification date on every source and a weekly edition watch.
 - Sectors that preselect their regulation patterns for the person to confirm or decline: financial services, insurance, healthcare, public sector, e-commerce, education and critical infrastructure, with EU packs.
 
 ## Next

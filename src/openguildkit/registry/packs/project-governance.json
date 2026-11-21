@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "PeopleCert, PRINCE2 7: A Process of Evolution",
-      "url": "https://www.peoplecert.org/news-and-announcements/2023/PRINCE2%207%20-%20A%20Process%20of%20Evolution"
+      "url": "https://www.peoplecert.org/news-and-announcements/2023/PRINCE2%207%20-%20A%20Process%20of%20Evolution",
+      "checked": "2026-11-20"
     },
     {
       "title": "PeopleCert, Applying PRINCE2 7 principles",
-      "url": "https://www.peoplecert.org/news-and-announcements/2023/prince2-7-applying-universal-principles-for-companies-of-all-sizes"
+      "url": "https://www.peoplecert.org/news-and-announcements/2023/prince2-7-applying-universal-principles-for-companies-of-all-sizes",
+      "checked": "2026-11-20"
     }
   ],
   "rules": [

@@ -6,15 +6,18 @@
   "sources": [
     {
       "title": "Next.js Server and Client Components",
-      "url": "https://nextjs.org/docs/app/getting-started/server-and-client-components"
+      "url": "https://nextjs.org/docs/app/getting-started/server-and-client-components",
+      "checked": "2026-11-21"
     },
     {
       "title": "Next.js data security guide",
-      "url": "https://nextjs.org/docs/app/guides/data-security"
+      "url": "https://nextjs.org/docs/app/guides/data-security",
+      "checked": "2026-11-21"
     },
     {
       "title": "Next.js App Router revalidation",
-      "url": "https://nextjs.org/docs/app/getting-started/revalidating"
+      "url": "https://nextjs.org/docs/app/getting-started/revalidating",
+      "checked": "2026-11-21"
     }
   ],
   "depends_on": [

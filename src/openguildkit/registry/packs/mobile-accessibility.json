@@ -6,23 +6,28 @@
   "sources": [
     {
       "title": "Apple Human Interface Guidelines, accessibility",
-      "url": "https://developer.apple.com/design/human-interface-guidelines/accessibility"
+      "url": "https://developer.apple.com/design/human-interface-guidelines/accessibility",
+      "checked": "2026-11-21"
     },
     {
       "title": "Apple, scaling fonts automatically with Dynamic Type",
-      "url": "https://developer.apple.com/documentation/uikit/scaling-fonts-automatically"
+      "url": "https://developer.apple.com/documentation/uikit/scaling-fonts-automatically",
+      "checked": "2026-11-21"
     },
     {
       "title": "Apple, performAccessibilityAudit in UI tests",
-      "url": "https://developer.apple.com/documentation/xcuiautomation/xcuiapplication/performaccessibilityaudit(for:_:)"
+      "url": "https://developer.apple.com/documentation/xcuiautomation/xcuiapplication/performaccessibilityaudit(for:_:)",
+      "checked": "2026-11-21"
     },
     {
       "title": "Android Developers, make apps more accessible",
-      "url": "https://developer.android.com/guide/topics/ui/accessibility/apps"
+      "url": "https://developer.android.com/guide/topics/ui/accessibility/apps",
+      "checked": "2026-11-21"
     },
     {
       "title": "Android Developers, test your app's accessibility",
-      "url": "https://developer.android.com/guide/topics/ui/accessibility/testing"
+      "url": "https://developer.android.com/guide/topics/ui/accessibility/testing",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

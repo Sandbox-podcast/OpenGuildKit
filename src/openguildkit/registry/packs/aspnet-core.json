@@ -6,15 +6,18 @@
   "sources": [
     {
       "title": "ASP.NET Core configuration",
-      "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/"
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/",
+      "checked": "2026-11-21"
     },
     {
       "title": "ASP.NET Core request context",
-      "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/use-http-context#requestaborted"
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/use-http-context#requestaborted",
+      "checked": "2026-11-21"
     },
     {
       "title": "ASP.NET Core integration tests",
-      "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests"
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests",
+      "checked": "2026-11-21"
     }
   ],
   "depends_on": [
