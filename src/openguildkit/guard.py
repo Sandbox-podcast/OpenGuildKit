@@ -250,6 +250,11 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
             key: task["result"][key] for key in ("revision", "pull_request") if key in task["result"]
         }
         record["result"]["checks"] = {item["check"]: item["status"] for item in task["result"]["checks"]}
+        # A reviewer sees which named evidence was declared not applicable, by whom and why.
+        record["result"]["evidence_not_applicable"] = [
+            {key: item[key] for key in ("check", "reason", "owner")} for item in task["result"]["checks"]
+            if item["check"].startswith("evidence:") and item["status"] == "not-applicable"
+        ]
     if task.get("follows"):
         record["follows"] = task["follows"]["task"]
     path = output if output is not None else state / DECISIONS_DIR / f"{task['id']}.json"

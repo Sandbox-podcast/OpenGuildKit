@@ -1,7 +1,7 @@
 {
   "id": "dora",
   "title": "DORA ICT risk evidence",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Questions for the ICT risk owner and evidence checks for financial entities under Regulation (EU) 2022/2554 (DORA). Apply the entity's approved interpretation and its competent authority's guidance; these rules do not establish compliance.",
   "sources": [
     {
@@ -21,7 +21,13 @@
     {
       "id": "update-ict-asset-inventory",
       "instruction": "Add the new or changed ICT assets, the business functions they support and their dependencies to the inventory the entity keeps under Art. 8.",
-      "verification": "Find the inventory entry of each new component with its owner, classification and dependencies."
+      "verification": "Find the inventory entry of each new component with its owner, classification and dependencies.",
+      "evidence": [
+        {
+          "id": "ict-asset-inventory",
+          "title": "Inventory of ICT assets and the business functions they support"
+        }
+      ]
     },
     {
       "id": "test-backup-restoration",
@@ -36,7 +42,13 @@
     {
       "id": "register-ict-third-party",
       "instruction": "When the change adds an ICT third-party service, ask the procurement owner to add the contractual arrangement to the register of information (Art. 28(3)).",
-      "verification": "Check that the register lists the provider, the service and the business functions it supports."
+      "verification": "Check that the register lists the provider, the service and the business functions it supports.",
+      "evidence": [
+        {
+          "id": "register-of-information",
+          "title": "Register of information on ICT third-party contractual arrangements"
+        }
+      ]
     },
     {
       "id": "review-ict-contract-terms",

@@ -1,0 +1,35 @@
+{
+  "id": "pci-dss-cardholder-data",
+  "title": "PCI DSS for payment card data",
+  "description": "Proposed when the stack names a card payment provider, or to the security, finance and legal roles. Select when the project stores, processes or transmits payment card data, or can affect its security.",
+  "sources": [
+    {
+      "title": "PCI SSC, Just published: PCI DSS v4.0.1",
+      "url": "https://blog.pcisecuritystandards.org/just-published-pci-dss-v4-0-1"
+    }
+  ],
+  "roles": [
+    "finance",
+    "legal",
+    "security"
+  ],
+  "packs": [
+    "pci-dss"
+  ],
+  "kind": "regulation",
+  "match": {
+    "stack": [
+      [
+        "Stripe",
+        "Adyen",
+        "Braintree",
+        "Checkout.com",
+        "Worldpay",
+        "Mollie"
+      ]
+    ]
+  },
+  "references": [
+    "pci-dss"
+  ]
+}

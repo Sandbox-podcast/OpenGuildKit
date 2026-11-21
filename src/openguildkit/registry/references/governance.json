@@ -667,6 +667,10 @@
       ],
       "summary": "Définit les exigences sectorielles de sécurité pour les données de cartes de paiement.",
       "applies_when": "Pour les environnements et acteurs concernés par le paiement par carte, selon les exigences des réseaux et partenaires ; ce n'est pas une loi générale.",
+      "pattern": "pci-dss-cardholder-data",
+      "packs": [
+        "pci-dss"
+      ],
       "sources": [
         {
           "url": "https://www.pcisecuritystandards.org/document_library/?class=pcidss&doc=pci_dss",

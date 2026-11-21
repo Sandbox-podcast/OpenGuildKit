@@ -61,7 +61,7 @@ class RegulatoryPackTests(unittest.TestCase):
         )
         self.assertIn("dora", resolved_profile(profile, self.catalog)["packs"])
         instructions = render_instructions(profile, self.catalog)
-        self.assertIn("`dora@2.0.0`", instructions)
+        self.assertIn("`dora@2.1.0`", instructions)
         self.assertTrue(re.search(r"financial entity under DORA", instructions))
 
 
