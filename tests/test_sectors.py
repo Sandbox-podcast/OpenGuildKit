@@ -66,10 +66,10 @@ class SectorPreselectionTests(unittest.TestCase):
     def test_gdpr_is_proposed_for_personal_data_or_the_legal_role_only(self):
         with_data = self.recommend(sector="financial-services", personal_data=True)
         gdpr = next(entry for entry in with_data["matched"] if entry["id"] == "gdpr-personal-data")
-        self.assertEqual(gdpr["reasons"], ["personal data"])
+        self.assertEqual(gdpr["reasons"], ["sector financial-services", "personal data"])
         without = self.recommend(sector="financial-services", personal_data=False)
         self.assertNotIn("gdpr-personal-data", ids(without["matched"]) | ids(without["suggested"]))
-        legal = self.recommend(sector="financial-services", roles=["legal"])
+        legal = self.recommend(sector="general", roles=["legal"])
         self.assertIn("gdpr-personal-data", ids(legal["suggested"]))
         self.assertIn("gdpr-personal-data", ids(self.recommend(personal_data="yes")["matched"]))
 

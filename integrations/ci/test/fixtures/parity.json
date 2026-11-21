@@ -10,7 +10,12 @@
       {
         "id": "export-link-expiry",
         "check": {
-          "max_minutes": 60
+          "kind": "field",
+          "path": "export.json",
+          "field": "downloadLinkMinutes",
+          "integer": true,
+          "min": 1,
+          "max": 60
         }
       }
     ]
@@ -154,6 +159,11 @@
   ],
   "packs": [
     {
+      "name": "former max_minutes form",
+      "text": "{\n  \"id\": \"export-link-expiry\",\n  \"title\": \"Download link expiry\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Time limit for links used to download an export.\",\n  \"sources\": [],\n  \"rules\": [\n    {\n      \"id\": \"export-link-expiry\",\n      \"check\": {\n        \"max_minutes\": 60\n      }\n    }\n  ]\n}",
+      "verdict": "success"
+    },
+    {
       "name": "pack with a byte order mark",
       "base64": "77u/ewogICJpZCI6ICJleHBvcnQtbGluay1leHBpcnkiLAogICJ0aXRsZSI6ICJEb3dubG9hZCBsaW5rIGV4cGlyeSIsCiAgInZlcnNpb24iOiAiMS4wLjAiLAogICJkZXNjcmlwdGlvbiI6ICJUaW1lIGxpbWl0IGZvciBsaW5rcyB1c2VkIHRvIGRvd25sb2FkIGFuIGV4cG9ydC4iLAogICJzb3VyY2VzIjogW10sCiAgInJ1bGVzIjogWwogICAgewogICAgICAiaWQiOiAiZXhwb3J0LWxpbmstZXhwaXJ5IiwKICAgICAgImNoZWNrIjogewogICAgICAgICJtYXhfbWludXRlcyI6IDYwCiAgICAgIH0KICAgIH0KICBdCn0=",
       "verdict": "success"
@@ -161,6 +171,11 @@
     {
       "name": "pack with a duplicate key",
       "text": "{\n  \"id\": \"export-link-expiry\",\n  \"id\": \"export-link-expiry\",\n  \"title\": \"Download link expiry\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Time limit for links used to download an export.\",\n  \"sources\": [],\n  \"rules\": [\n    {\n      \"id\": \"export-link-expiry\",\n      \"check\": {\n        \"max_minutes\": 60\n      }\n    }\n  ]\n}",
+      "verdict": "error"
+    },
+    {
+      "name": "generic check with integer set to false",
+      "text": "{\n  \"id\": \"export-link-expiry\",\n  \"title\": \"Download link expiry\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Time limit for links used to download an export.\",\n  \"sources\": [],\n  \"rules\": [\n    {\n      \"id\": \"export-link-expiry\",\n      \"check\": {\n        \"kind\": \"field\",\n        \"path\": \"export.json\",\n        \"field\": \"downloadLinkMinutes\",\n        \"integer\": false,\n        \"min\": 1,\n        \"max\": 60\n      }\n    }\n  ]\n}",
       "verdict": "error"
     }
   ],
