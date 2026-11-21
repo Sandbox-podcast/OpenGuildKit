@@ -37,15 +37,18 @@
   "sources": [
     {
       "title": "Bain & Company, Measuring your Net Promoter Score",
-      "url": "https://www.netpromotersystem.com/about/measuring-your-net-promoter-score/"
+      "url": "https://www.netpromotersystem.com/about/measuring-your-net-promoter-score/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Consortium for Service Innovation, Knowledge-Centered Success (KCS)",
-      "url": "https://www.serviceinnovation.org/kcs/"
+      "url": "https://www.serviceinnovation.org/kcs/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Stripe, Billing analytics (MRR, churn and subscriber reports)",
-      "url": "https://support.stripe.com/questions/billing-analytics"
+      "url": "https://support.stripe.com/questions/billing-analytics",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

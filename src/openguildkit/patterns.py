@@ -124,8 +124,13 @@ def is_stack_pattern(pattern: dict) -> bool:
 
 
 def condition_reasons(pattern: dict, sector: str, personal_data: bool | None) -> list[str]:
-    """Why a pattern without a stack is preselected: the project's sector or its personal data."""
+    """Why a pattern without a stack is preselected: the project's sector or its personal data.
+
+    A personal data pattern is never preselected for a project that answered it processes none.
+    """
     match = pattern.get("match", {})
+    if match.get("personal_data") and personal_data is False:
+        return []
     reasons = []
     if sector in match.get("sectors", []):
         reasons.append(f"sector {sector}")
@@ -176,6 +181,9 @@ def recommend_patterns(
                 continue
             found = _stack_scopes(pattern, contexts, excluded)
             if found is None:
+                # A regulation that a stack preselects is still suggested to its roles without that stack.
+                if relevant and pattern.get("kind") == "regulation":
+                    suggested.append({**pattern, "matched_roles": relevant, "reasons": [_role_reason(relevant)]})
                 continue
             entry = {**pattern, "matched_stack": found["matched_stack"]}
             entry["reasons"] = [f"stack {', '.join(found['matched_stack'])}"]

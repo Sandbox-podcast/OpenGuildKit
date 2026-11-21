@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "Google SRE Workbook, Implementing SLOs",
-      "url": "https://sre.google/workbook/implementing-slos/"
+      "url": "https://sre.google/workbook/implementing-slos/",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

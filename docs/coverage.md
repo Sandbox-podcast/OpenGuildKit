@@ -11,20 +11,20 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | backend | 12 | 5 | 7 | 2 | 0 | 3 | 11 |
 | communication | 22 | 9 | 13 | 2 | 0 | 3 | 8 |
 | customer-success | 5 | 2 | 3 | 1 | 0 | 1 | 4 |
-| data | 63 | 7 | 56 | 5 | 1 | 6 | 32 |
+| data | 63 | 7 | 56 | 5 | 1 | 7 | 38 |
 | design | 26 | 4 | 22 | 9 | 5 | 16 | 57 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
-| devops | 69 | 22 | 47 | 6 | 6 | 12 | 50 |
-| engineering | 217 | 24 | 193 | 11 | 26 | 40 | 180 |
-| finance | 23 | 13 | 10 | 11 | 0 | 12 | 35 |
+| devops | 69 | 22 | 47 | 7 | 6 | 13 | 63 |
+| engineering | 217 | 24 | 193 | 12 | 26 | 41 | 193 |
+| finance | 23 | 14 | 9 | 11 | 1 | 13 | 45 |
 | frontend | 8 | 3 | 5 | 2 | 0 | 4 | 15 |
-| hr | 10 | 7 | 3 | 6 | 0 | 6 | 20 |
-| it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 8 |
+| hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
+| it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 9 |
 | leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
-| legal | 56 | 20 | 36 | 16 | 0 | 17 | 105 |
+| legal | 56 | 21 | 35 | 16 | 1 | 19 | 117 |
 | localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
 | marketing | 22 | 7 | 15 | 8 | 0 | 8 | 17 |
-| operations | 21 | 6 | 15 | 11 | 0 | 11 | 25 |
+| operations | 21 | 6 | 15 | 11 | 0 | 11 | 26 |
 | partnerships | 5 | 3 | 2 | 1 | 0 | 1 | 4 |
 | performance | 17 | 8 | 9 | 2 | 2 | 5 | 16 |
 | procurement | 8 | 6 | 2 | 1 | 0 | 1 | 5 |
@@ -32,7 +32,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
 | qa | 50 | 6 | 44 | 4 | 20 | 28 | 131 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 103 | 26 | 77 | 18 | 16 | 41 | 201 |
+| security | 103 | 27 | 76 | 18 | 17 | 43 | 223 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -56,6 +56,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | laravel | laravel | laravel | 6 |
 | nextjs-react | next.js | nextjs, react | 9 |
 | node-express | express / express.js | api-design, express | 9 |
+| pci-dss-cardholder-data | Stripe / Adyen / Braintree / Checkout.com / Worldpay / Mollie | pci-dss | 10 |
 | playwright-web | playwright / playwright test | playwright | 4 |
 | postgresql-database | postgresql / postgres | postgresql | 3 |
 | python-development | python / python3 | python | 3 |
@@ -73,13 +74,13 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 | Sector | Preselected patterns | Packs | Rules |
 |---|---|---|---:|
-| critical-infrastructure | nis2-essential-entity | nis2 | 7 |
+| critical-infrastructure | nis2-essential-entity | incident-notification, nis2 | 12 |
 | e-commerce | online-consumer-sales | online-consumer-sales | 10 |
 | education | minors-data-protection | minors-data-protection | 7 |
-| financial-services | dora-financial-entity | dora | 8 |
+| financial-services | dora-financial-entity, gdpr-personal-data | dora, gdpr, incident-notification | 21 |
 | general | none | none | 0 |
 | healthcare | health-data-protection | health-data-protection | 7 |
-| insurance | dora-financial-entity, insurance-distribution | dora, insurance-distribution | 14 |
+| insurance | dora-financial-entity, insurance-distribution | dora, incident-notification, insurance-distribution | 19 |
 | public-sector | public-sector-accessibility | public-sector-accessibility, web-accessibility | 10 |
 
 ## To cover
@@ -120,7 +121,7 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### finance
 
-`balanced-scorecard`, `csrd`, `finops-focus`, `ias-38`, `iso-4217`, `late-payment-directive`, `pci-dss`, `uk-corporate-governance-code`, `usage-optimization`, `vida`
+`balanced-scorecard`, `csrd`, `finops-focus`, `ias-38`, `iso-4217`, `late-payment-directive`, `uk-corporate-governance-code`, `usage-optimization`, `vida`
 
 ### frontend
 
@@ -140,7 +141,7 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### legal
 
-`cnil-cookies`, `cnil-guide-securite`, `consumer-adr-directive`, `csrd`, `developer-certificate-of-origin`, `digital-content-directive`, `eidas`, `eprivacy`, `eu-accessibility-act`, `eu-data-act`, `eu-ivdr`, `hds`, `hl7-fhir`, `iab-tcf`, `iec-62304`, `iso-13485`, `iso-14971`, `iso-37301`, `iso-iec-27018`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `nist-media-sanitization`, `nist-privacy-framework`, `osi-licenses`, `pci-dss`, `product-liability-directive`, `reuse`, `rgaa`, `scip-ethics`, `soc-2`, `spdx-license-list`, `uk-online-safety-act`, `vertical-guidelines`, `vida`
+`cnil-cookies`, `cnil-guide-securite`, `consumer-adr-directive`, `csrd`, `developer-certificate-of-origin`, `digital-content-directive`, `eidas`, `eprivacy`, `eu-accessibility-act`, `eu-data-act`, `eu-ivdr`, `hds`, `hl7-fhir`, `iab-tcf`, `iec-62304`, `iso-13485`, `iso-14971`, `iso-37301`, `iso-iec-27018`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `nist-media-sanitization`, `nist-privacy-framework`, `osi-licenses`, `product-liability-directive`, `reuse`, `rgaa`, `scip-ethics`, `soc-2`, `spdx-license-list`, `uk-online-safety-act`, `vertical-guidelines`, `vida`
 
 ### localisation
 
@@ -184,7 +185,7 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### security
 
-`abac`, `aes-fips-197`, `agent-tool-permissions`, `capec`, `cis-benchmarks`, `cisa-kev`, `cnil-guide-securite`, `csaf`, `cve`, `cvss`, `cwe`, `dast`, `dkim`, `dmarc`, `ebios-risk-manager`, `eidas`, `enisa-supply-chain-good-practices`, `epss`, `fido2`, `fips-140-3`, `hds`, `iec-62443`, `in-toto`, `iso-22301`, `iso-iec-23894`, `iso-iec-27002`, `iso-iec-27005`, `iso-iec-27017`, `iso-iec-27018`, `iso-iec-27034`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `jwe`, `jws`, `jwt`, `least-privilege`, `mitre-atlas`, `mitre-attack`, `nist-csf`, `nist-media-sanitization`, `nist-privacy-framework`, `nist-sp-800-63`, `nist-ssdf-ai-profile`, `nist-zero-trust`, `oauth-2`, `oauth-security-bcp`, `openid-connect`, `openssf-best-practices`, `openssf-osps-baseline`, `openssf-scorecard`, `openvex`, `oscal`, `osv`, `owasp-agent-control-standard`, `owasp-agentic-top-10`, `owasp-llm-top-10`, `owasp-masvs`, `owasp-samm`, `owasp-top-10`, `pci-dss`, `pkce`, `rbac`, `saml-2`, `sast`, `sca`, `secret-scanning`, `secure-by-design`, `sigstore`, `soc-2`, `soc-3`, `spf`, `tls-1-3`, `tuf`, `vex`, `webauthn`
+`abac`, `aes-fips-197`, `agent-tool-permissions`, `capec`, `cis-benchmarks`, `cisa-kev`, `cnil-guide-securite`, `csaf`, `cve`, `cvss`, `cwe`, `dast`, `dkim`, `dmarc`, `ebios-risk-manager`, `eidas`, `enisa-supply-chain-good-practices`, `epss`, `fido2`, `fips-140-3`, `hds`, `iec-62443`, `in-toto`, `iso-22301`, `iso-iec-23894`, `iso-iec-27002`, `iso-iec-27005`, `iso-iec-27017`, `iso-iec-27018`, `iso-iec-27034`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `jwe`, `jws`, `jwt`, `least-privilege`, `mitre-atlas`, `mitre-attack`, `nist-csf`, `nist-media-sanitization`, `nist-privacy-framework`, `nist-sp-800-63`, `nist-ssdf-ai-profile`, `nist-zero-trust`, `oauth-2`, `oauth-security-bcp`, `openid-connect`, `openssf-best-practices`, `openssf-osps-baseline`, `openssf-scorecard`, `openvex`, `oscal`, `osv`, `owasp-agent-control-standard`, `owasp-agentic-top-10`, `owasp-llm-top-10`, `owasp-masvs`, `owasp-samm`, `owasp-top-10`, `pkce`, `rbac`, `saml-2`, `sast`, `sca`, `secret-scanning`, `secure-by-design`, `sigstore`, `soc-2`, `soc-3`, `spf`, `tls-1-3`, `tuf`, `vex`, `webauthn`
 
 ### support
 

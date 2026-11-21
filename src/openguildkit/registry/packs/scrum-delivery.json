@@ -1,16 +1,14 @@
 {
   "id": "scrum-delivery",
   "title": "Scrum delivery",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Sprint planning, inspection and follow-through for teams that use Scrum.",
   "sources": [
     {
       "title": "The Scrum Guide, 2020",
-      "url": "https://scrumguides.org/scrum-guide.html"
+      "url": "https://scrumguides.org/scrum-guide.html",
+      "checked": "2026-11-21"
     }
-  ],
-  "conflicts_with": [
-    "kanban-delivery"
   ],
   "rules": [
     {

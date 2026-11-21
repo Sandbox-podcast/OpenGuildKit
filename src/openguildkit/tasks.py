@@ -61,7 +61,12 @@ STATUSES = {
 # whose "*" gives the shape of every value, a tuple one of several shapes, a frozenset the values allowed.
 _DECISION = {"outcome": str, "by": str, "reason": str, "at": str}
 _TEMPLATE_BOARD = {"id": str, "challenge?": {"specialists": [{"id": str}]}}
-_RULE = ({"id": str, "instruction": str, "verification": str}, {"id": str, "check": {"max_minutes": int}})
+# A rule states its text, or declares a machine check that stands in for it; either can name evidence.
+_EVIDENCE = [{"id": str, "title": str}]
+_RULE = (
+    {"id": str, "instruction": str, "verification": str, "check?": dict, "evidence?": _EVIDENCE},
+    {"id": str, "check": dict, "evidence?": _EVIDENCE},
+)
 _SCOPE = {
     "open_points?": [str],
     "checks?": [str],

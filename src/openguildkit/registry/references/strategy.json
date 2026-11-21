@@ -16,6 +16,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/65036.html",
+          "checked": "2026-11-21",
           "title": "ISO 37000:2021 — Governance of organizations, guidance"
         }
       ]
@@ -35,6 +36,7 @@
       "sources": [
         {
           "url": "https://www.frc.org.uk/library/standards-codes-policy/corporate-governance/uk-corporate-governance-code/",
+          "checked": "2026-11-21",
           "title": "Financial Reporting Council — UK Corporate Governance Code 2024"
         }
       ]
@@ -54,6 +56,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/65694.html",
+          "checked": "2026-11-21",
           "title": "ISO 31000:2018 — Risk management, guidelines"
         }
       ]
@@ -76,6 +79,7 @@
       "sources": [
         {
           "url": "https://www.coso.org/enterprise-risk-management",
+          "checked": "2026-11-21",
           "title": "COSO, Enterprise Risk Management"
         }
       ]
@@ -83,6 +87,7 @@
     {
       "id": "balanced-scorecard",
       "title": "Balanced Scorecard (Kaplan et Norton)",
+      "title_en": "Balanced Scorecard (Kaplan and Norton)",
       "category": "Stratégie et pilotage",
       "kind": "méthode",
       "brains": [
@@ -94,6 +99,7 @@
       "sources": [
         {
           "url": "https://hbr.org/1992/01/the-balanced-scorecard-measures-that-drive-performance-2",
+          "checked": "2026-11-21",
           "title": "Kaplan and Norton, The Balanced Scorecard, measures that drive performance"
         }
       ]
@@ -101,6 +107,7 @@
     {
       "id": "strategy-maps",
       "title": "Strategy maps (Kaplan et Norton)",
+      "title_en": "Strategy maps (Kaplan and Norton)",
       "category": "Stratégie et pilotage",
       "kind": "méthode",
       "brains": [
@@ -115,6 +122,7 @@
       "sources": [
         {
           "url": "https://www.library.hbs.edu/working-knowledge/mapping-your-corporate-strategy",
+          "checked": "2026-11-21",
           "title": "HBS Working Knowledge, Mapping Your Corporate Strategy: Robert S. Kaplan on Kaplan and Norton's Strategy Maps"
         }
       ]

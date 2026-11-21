@@ -46,15 +46,18 @@
   "sources": [
     {
       "title": "HM Treasury, Developing business cases for projects and programmes",
-      "url": "https://www.gov.uk/government/publications/guidance-on-developing-business-cases/guidance-on-developing-business-cases-for-projects-and-programmes"
+      "url": "https://www.gov.uk/government/publications/guidance-on-developing-business-cases/guidance-on-developing-business-cases-for-projects-and-programmes",
+      "checked": "2026-11-21"
     },
     {
       "title": "COSO, Enterprise Risk Management",
-      "url": "https://www.coso.org/enterprise-risk-management"
+      "url": "https://www.coso.org/enterprise-risk-management",
+      "checked": "2026-11-21"
     },
     {
       "title": "Kaplan and Norton, The Balanced Scorecard, measures that drive performance",
-      "url": "https://hbr.org/1992/01/the-balanced-scorecard-measures-that-drive-performance-2"
+      "url": "https://hbr.org/1992/01/the-balanced-scorecard-measures-that-drive-performance-2",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

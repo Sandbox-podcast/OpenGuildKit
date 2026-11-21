@@ -44,15 +44,18 @@
   "sources": [
     {
       "title": "WHATWG, HTML Living Standard",
-      "url": "https://html.spec.whatwg.org/multipage/"
+      "url": "https://html.spec.whatwg.org/multipage/",
+      "checked": "2026-11-21"
     },
     {
       "title": "W3C, Web Content Accessibility Guidelines (WCAG) 2.2",
-      "url": "https://www.w3.org/TR/WCAG22/"
+      "url": "https://www.w3.org/TR/WCAG22/",
+      "checked": "2026-11-20"
     },
     {
       "title": "web.dev, Web Vitals",
-      "url": "https://web.dev/articles/vitals"
+      "url": "https://web.dev/articles/vitals",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

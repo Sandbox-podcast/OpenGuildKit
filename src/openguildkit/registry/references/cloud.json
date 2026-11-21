@@ -18,10 +18,12 @@
       "sources": [
         {
           "url": "https://developer.hashicorp.com/terraform/intro",
+          "checked": "2026-11-21",
           "title": "HashiCorp — What is Terraform?"
         },
         {
           "url": "https://opentofu.org/docs/intro/",
+          "checked": "2026-11-21",
           "title": "OpenTofu — Introduction"
         }
       ]
@@ -32,6 +34,7 @@
         "pd_immutable"
       ],
       "title": "Infrastructure immuable",
+      "title_en": "Immutable infrastructure",
       "category": "Infrastructure et conteneurs",
       "kind": "pratique",
       "brains": [
@@ -42,6 +45,7 @@
       "sources": [
         {
           "url": "https://docs.aws.amazon.com/wellarchitected/latest/framework/rel08-bp04.html",
+          "checked": "2026-11-21",
           "title": "AWS Well-Architected — Deploy using immutable infrastructure"
         }
       ]
@@ -62,6 +66,7 @@
       "sources": [
         {
           "url": "https://specs.opencontainers.org/image-spec/",
+          "checked": "2026-11-21",
           "title": "OCI — Image Format Specification"
         }
       ]
@@ -82,10 +87,12 @@
       "sources": [
         {
           "url": "https://specs.opencontainers.org/runtime-spec/",
+          "checked": "2026-11-21",
           "title": "OCI — Runtime Specification"
         },
         {
           "url": "https://opencontainers.org/",
+          "checked": "2026-11-21",
           "title": "Open Container Initiative — Specifications"
         }
       ]
@@ -106,6 +113,7 @@
       "sources": [
         {
           "url": "https://specs.opencontainers.org/distribution-spec/",
+          "checked": "2026-11-21",
           "title": "OCI — Distribution Specification"
         }
       ]
@@ -130,6 +138,7 @@
       "sources": [
         {
           "url": "https://kubernetes.io/docs/concepts/overview/",
+          "checked": "2026-11-21",
           "title": "Kubernetes — Overview"
         }
       ]
@@ -153,6 +162,7 @@
       "sources": [
         {
           "url": "https://developer.hashicorp.com/terraform/intro",
+          "checked": "2026-11-21",
           "title": "HashiCorp — What is Terraform?"
         }
       ]
@@ -173,6 +183,7 @@
       "sources": [
         {
           "url": "https://opentofu.org/docs/intro/",
+          "checked": "2026-11-21",
           "title": "OpenTofu — Introduction"
         }
       ]
@@ -193,6 +204,7 @@
       "sources": [
         {
           "url": "https://helm.sh/docs/intro/using_helm/",
+          "checked": "2026-11-21",
           "title": "Helm — Using Helm"
         }
       ]
@@ -203,6 +215,7 @@
         "pd_ci"
       ],
       "title": "Intégration continue (CI)",
+      "title_en": "Continuous integration (CI)",
       "category": "Livraison et plateformes développeur",
       "kind": "pratique",
       "brains": [
@@ -214,6 +227,7 @@
       "sources": [
         {
           "url": "https://dora.dev/capabilities/continuous-integration/",
+          "checked": "2026-11-21",
           "title": "DORA — Continuous integration"
         }
       ]
@@ -224,6 +238,7 @@
         "pd_continuous_delivery"
       ],
       "title": "Livraison continue",
+      "title_en": "Continuous delivery",
       "category": "Livraison et plateformes développeur",
       "kind": "pratique",
       "brains": [
@@ -235,6 +250,7 @@
       "sources": [
         {
           "url": "https://dora.dev/capabilities/continuous-delivery/",
+          "checked": "2026-11-21",
           "title": "DORA — Continuous delivery"
         }
       ]
@@ -245,6 +261,7 @@
         "pd_continuous_deployment"
       ],
       "title": "Déploiement continu",
+      "title_en": "Continuous deployment",
       "category": "Livraison et plateformes développeur",
       "kind": "pratique",
       "brains": [
@@ -256,6 +273,7 @@
       "sources": [
         {
           "url": "https://martinfowler.com/bliki/ContinuousDelivery.html",
+          "checked": "2026-11-21",
           "title": "Martin Fowler — Continuous Delivery, and how it differs from Continuous Deployment"
         }
       ]
@@ -281,6 +299,7 @@
       "sources": [
         {
           "url": "https://opengitops.dev/",
+          "checked": "2026-11-21",
           "title": "OpenGitOps — Principles"
         }
       ]
@@ -291,6 +310,7 @@
         "pd_blue_green"
       ],
       "title": "Déploiement blue-green",
+      "title_en": "Blue-green deployment",
       "category": "Livraison et plateformes développeur",
       "kind": "pratique",
       "brains": [
@@ -302,6 +322,7 @@
       "sources": [
         {
           "url": "https://docs.aws.amazon.com/whitepapers/latest/introduction-devops-aws/deployment-strategies.html",
+          "checked": "2026-11-21",
           "title": "AWS — Deployment strategies"
         }
       ]
@@ -312,6 +333,7 @@
         "pd_canary"
       ],
       "title": "Déploiement canary",
+      "title_en": "Canary deployment",
       "category": "Livraison et plateformes développeur",
       "kind": "pratique",
       "brains": [
@@ -323,6 +345,7 @@
       "sources": [
         {
           "url": "https://docs.aws.amazon.com/whitepapers/latest/introduction-devops-aws/deployment-strategies.html",
+          "checked": "2026-11-21",
           "title": "AWS — Deployment strategies"
         }
       ]
@@ -345,6 +368,7 @@
       "sources": [
         {
           "url": "https://openfeature.dev/docs/reference/intro/",
+          "checked": "2026-11-21",
           "title": "OpenFeature — Introduction"
         }
       ]
@@ -366,6 +390,7 @@
       "sources": [
         {
           "url": "https://openfeature.dev/specification/",
+          "checked": "2026-11-21",
           "title": "OpenFeature — Specification"
         }
       ]
@@ -387,6 +412,7 @@
       "sources": [
         {
           "url": "https://backstage.io/docs/overview/what-is-backstage/",
+          "checked": "2026-11-21",
           "title": "Backstage — What is Backstage?"
         }
       ]
@@ -397,6 +423,7 @@
         "pd_dora_metrics"
       ],
       "title": "Métriques DORA de livraison logicielle",
+      "title_en": "DORA software delivery metrics",
       "category": "Livraison et plateformes développeur",
       "kind": "indicateur",
       "brains": [
@@ -408,6 +435,7 @@
       "sources": [
         {
           "url": "https://dora.dev/guides/dora-metrics/",
+          "checked": "2026-11-21",
           "title": "DORA — Software delivery performance metrics"
         }
       ]
@@ -429,6 +457,7 @@
       "sources": [
         {
           "url": "https://tag-app-delivery.cncf.io/whitepapers/platforms/",
+          "checked": "2026-11-21",
           "title": "CNCF — Platforms White Paper"
         }
       ]
@@ -454,6 +483,7 @@
       "sources": [
         {
           "url": "https://sre.google/sre-book/introduction/",
+          "checked": "2026-11-21",
           "title": "Google SRE — Introduction"
         }
       ]
@@ -478,6 +508,7 @@
       "sources": [
         {
           "url": "https://sre.google/workbook/implementing-slos/",
+          "checked": "2026-11-21",
           "title": "Google SRE Workbook — Implementing SLOs"
         }
       ]
@@ -502,6 +533,7 @@
       "sources": [
         {
           "url": "https://sre.google/workbook/implementing-slos/",
+          "checked": "2026-11-21",
           "title": "Google SRE Workbook — Implementing SLOs"
         }
       ]
@@ -512,6 +544,7 @@
         "pd_error_budget"
       ],
       "title": "Budget d'erreur",
+      "title_en": "Error budget",
       "category": "Fiabilité et SRE",
       "kind": "pratique",
       "brains": [
@@ -526,10 +559,12 @@
       "sources": [
         {
           "url": "https://sre.google/workbook/implementing-slos/",
+          "checked": "2026-11-21",
           "title": "Google SRE Workbook — Implementing SLOs"
         },
         {
           "url": "https://sre.google/workbook/error-budget-policy/",
+          "checked": "2026-11-21",
           "title": "Google SRE Workbook — Example Error Budget Policy"
         }
       ]
@@ -540,6 +575,7 @@
         "pd_incident_command"
       ],
       "title": "Organisation de réponse aux incidents",
+      "title_en": "Incident response organization",
       "category": "Fiabilité et SRE",
       "kind": "pratique",
       "brains": [
@@ -555,6 +591,7 @@
       "sources": [
         {
           "url": "https://sre.google/workbook/incident-response/",
+          "checked": "2026-11-21",
           "title": "Google SRE Workbook — Incident Response"
         }
       ]
@@ -565,6 +602,7 @@
         "pd_postmortem"
       ],
       "title": "Postmortem sans recherche de blâme",
+      "title_en": "Blameless postmortem",
       "category": "Fiabilité et SRE",
       "kind": "pratique",
       "brains": [
@@ -579,6 +617,7 @@
       "sources": [
         {
           "url": "https://sre.google/workbook/postmortem-culture/",
+          "checked": "2026-11-21",
           "title": "Google SRE Workbook — Postmortem Culture"
         }
       ]
@@ -589,6 +628,7 @@
         "pd_toil_reduction"
       ],
       "title": "Réduction du toil",
+      "title_en": "Toil reduction",
       "category": "Fiabilité et SRE",
       "kind": "pratique",
       "brains": [
@@ -600,6 +640,7 @@
       "sources": [
         {
           "url": "https://sre.google/workbook/eliminating-toil/",
+          "checked": "2026-11-21",
           "title": "Google SRE Workbook — Eliminating Toil"
         }
       ]
@@ -621,6 +662,7 @@
       "sources": [
         {
           "url": "https://docs.aws.amazon.com/wellarchitected/latest/framework/rel13-bp01.html",
+          "checked": "2026-11-21",
           "title": "AWS Well-Architected — Define recovery objectives for downtime and data loss"
         }
       ]
@@ -642,6 +684,7 @@
       "sources": [
         {
           "url": "https://docs.aws.amazon.com/wellarchitected/latest/framework/rel13-bp01.html",
+          "checked": "2026-11-21",
           "title": "AWS Well-Architected — Define recovery objectives for downtime and data loss"
         }
       ]
@@ -663,6 +706,7 @@
       "sources": [
         {
           "url": "https://principlesofchaos.org/",
+          "checked": "2026-11-21",
           "title": "Principles of Chaos Engineering"
         }
       ]
@@ -687,6 +731,7 @@
       "sources": [
         {
           "url": "https://opentelemetry.io/docs/what-is-opentelemetry/",
+          "checked": "2026-11-21",
           "title": "OpenTelemetry — What is OpenTelemetry?"
         }
       ]
@@ -711,6 +756,7 @@
       "sources": [
         {
           "url": "https://opentelemetry.io/docs/specs/otlp/",
+          "checked": "2026-11-21",
           "title": "OpenTelemetry — OTLP Specification"
         }
       ]
@@ -735,6 +781,7 @@
       "sources": [
         {
           "url": "https://opentelemetry.io/docs/specs/semconv/",
+          "checked": "2026-11-21",
           "title": "OpenTelemetry — Semantic Conventions"
         }
       ]
@@ -756,6 +803,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/TR/trace-context/",
+          "checked": "2026-11-20",
           "title": "W3C — Trace Context"
         }
       ]
@@ -777,6 +825,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/TR/baggage/",
+          "checked": "2026-11-20",
           "title": "W3C — Baggage (Candidate Recommendation)"
         }
       ]
@@ -798,6 +847,7 @@
       "sources": [
         {
           "url": "https://prometheus.io/docs/specs/om/open_metrics_spec/",
+          "checked": "2026-11-21",
           "title": "Prometheus — OpenMetrics Specification"
         }
       ]
@@ -819,6 +869,7 @@
       "sources": [
         {
           "url": "https://prometheus.io/docs/introduction/overview/",
+          "checked": "2026-11-21",
           "title": "Prometheus — Overview"
         }
       ]
@@ -829,6 +880,7 @@
         "pd_use_method"
       ],
       "title": "Méthode USE",
+      "title_en": "USE method",
       "category": "Observabilité et diagnostic",
       "kind": "méthode",
       "brains": [
@@ -840,6 +892,7 @@
       "sources": [
         {
           "url": "https://www.brendangregg.com/usemethod.html",
+          "checked": "2026-11-21",
           "title": "Brendan Gregg — The USE Method"
         }
       ]
@@ -850,6 +903,7 @@
         "pd_red_method"
       ],
       "title": "Méthode RED",
+      "title_en": "RED method",
       "category": "Observabilité et diagnostic",
       "kind": "méthode",
       "brains": [
@@ -861,6 +915,7 @@
       "sources": [
         {
           "url": "https://grafana.com/blog/the-red-method-how-to-instrument-your-services/",
+          "checked": "2026-11-21",
           "title": "Grafana — The RED Method: how to instrument your services"
         }
       ]
@@ -886,6 +941,7 @@
       "sources": [
         {
           "url": "https://www.finops.org/framework/",
+          "checked": "2026-11-21",
           "title": "FinOps Foundation — FinOps Framework"
         }
       ]
@@ -907,6 +963,7 @@
       "sources": [
         {
           "url": "https://focus.finops.org/what-is-focus/",
+          "checked": "2026-11-21",
           "title": "FinOps Foundation — What is FOCUS?"
         }
       ]
@@ -917,6 +974,7 @@
         "pd_cost_allocation"
       ],
       "title": "Allocation des coûts",
+      "title_en": "Cost allocation",
       "category": "FinOps et sobriété numérique",
       "kind": "pratique",
       "brains": [
@@ -931,6 +989,7 @@
       "sources": [
         {
           "url": "https://www.finops.org/framework/capabilities/allocation/",
+          "checked": "2026-11-21",
           "title": "FinOps Foundation — Allocation"
         }
       ]
@@ -955,6 +1014,7 @@
       "sources": [
         {
           "url": "https://www.finops.org/framework/capabilities/unit-economics/",
+          "checked": "2026-11-21",
           "title": "FinOps Foundation — Unit Economics"
         }
       ]
@@ -965,6 +1025,7 @@
         "pd_cost_anomalies"
       ],
       "title": "Détection des anomalies de coûts",
+      "title_en": "Cost anomaly detection",
       "category": "FinOps et sobriété numérique",
       "kind": "pratique",
       "brains": [
@@ -979,6 +1040,7 @@
       "sources": [
         {
           "url": "https://www.finops.org/framework/capabilities/anomaly-management/",
+          "checked": "2026-11-21",
           "title": "FinOps Foundation — Anomaly Management"
         }
       ]
@@ -989,6 +1051,7 @@
         "pd_usage_optimization"
       ],
       "title": "Optimisation de l'usage et rightsizing",
+      "title_en": "Usage optimization and rightsizing",
       "category": "FinOps et sobriété numérique",
       "kind": "pratique",
       "brains": [
@@ -1000,6 +1063,7 @@
       "sources": [
         {
           "url": "https://www.finops.org/framework/capabilities/usage-optimization/",
+          "checked": "2026-11-21",
           "title": "FinOps Foundation — Usage Optimization"
         }
       ]
@@ -1021,6 +1085,7 @@
       "sources": [
         {
           "url": "https://sci.greensoftware.foundation/",
+          "checked": "2026-11-21",
           "title": "Green Software Foundation — Software Carbon Intensity Specification"
         }
       ]
@@ -1041,6 +1106,7 @@
       "sources": [
         {
           "url": "https://github.com/Green-Software-Foundation/sci/blob/main/SPEC.md",
+          "checked": "2026-11-21",
           "title": "Green Software Foundation — SCI Specification, carbon-aware definition"
         }
       ]
@@ -1051,6 +1117,7 @@
         "pd_rgesn"
       ],
       "title": "Référentiel général d'écoconception de services numériques (RGESN)",
+      "title_en": "French general framework for the ecodesign of digital services (RGESN)",
       "category": "FinOps et sobriété numérique",
       "kind": "référentiel",
       "brains": [
@@ -1062,6 +1129,7 @@
       "sources": [
         {
           "url": "https://ecoresponsable.numerique.gouv.fr/publications/referentiel-general-ecoconception/",
+          "checked": "2026-11-21",
           "title": "Numérique écoresponsable — Référentiel général d'écoconception de services numériques"
         }
       ]

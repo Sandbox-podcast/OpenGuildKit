@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "Commission Regulation (EU) 2022/720, Vertical Block Exemption Regulation",
-      "url": "https://eur-lex.europa.eu/eli/reg/2022/720/oj"
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/720/oj",
+      "checked": "2026-11-21"
     },
     {
       "title": "European Commission, Vertical block exemptions and Guidelines on vertical restraints",
-      "url": "https://competition-policy.ec.europa.eu/antitrust-and-cartels/legislation/vertical-block-exemptions_en"
+      "url": "https://competition-policy.ec.europa.eu/antitrust-and-cartels/legislation/vertical-block-exemptions_en",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

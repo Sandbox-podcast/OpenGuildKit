@@ -78,15 +78,18 @@
   "sources": [
     {
       "title": "Google SRE, Monitoring Distributed Systems",
-      "url": "https://sre.google/sre-book/monitoring-distributed-systems/"
+      "url": "https://sre.google/sre-book/monitoring-distributed-systems/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Google SRE Workbook, Canarying Releases",
-      "url": "https://sre.google/workbook/canarying-releases/"
+      "url": "https://sre.google/workbook/canarying-releases/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Google SRE Workbook, Implementing SLOs",
-      "url": "https://sre.google/workbook/implementing-slos/"
+      "url": "https://sre.google/workbook/implementing-slos/",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

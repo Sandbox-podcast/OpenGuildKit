@@ -6,7 +6,8 @@
   "sources": [
     {
       "title": "Google Analytics Help, Collect campaign data with custom URLs",
-      "url": "https://support.google.com/analytics/answer/10917952"
+      "url": "https://support.google.com/analytics/answer/10917952",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

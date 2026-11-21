@@ -57,19 +57,23 @@
   "sources": [
     {
       "title": "NIST, AI Risk Management Framework",
-      "url": "https://www.nist.gov/itl/ai-risk-management-framework"
+      "url": "https://www.nist.gov/itl/ai-risk-management-framework",
+      "checked": "2026-11-21"
     },
     {
       "title": "DAMA International, Data Management Body of Knowledge (DAMA-DMBOK)",
-      "url": "https://dama.org/learning-resources/dama-data-management-body-of-knowledge-dmbok/"
+      "url": "https://dama.org/learning-resources/dama-data-management-body-of-knowledge-dmbok/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Mitchell et al., Model Cards for Model Reporting",
-      "url": "https://arxiv.org/abs/1810.03993"
+      "url": "https://arxiv.org/abs/1810.03993",
+      "checked": "2026-11-21"
     },
     {
       "title": "OpenLineage",
-      "url": "https://openlineage.io/"
+      "url": "https://openlineage.io/",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

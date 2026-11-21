@@ -5,6 +5,8 @@
     "Python"
   ],
   "packs": [],
+  "replace_default_packs": true,
+  "patterns": [],
   "boards": [
     "product",
     "engineering",
@@ -13,6 +15,7 @@
     "marketing"
   ],
   "research": "local-only",
+  "guard": "off",
   "checks": [
     "python -m unittest discover -s project -p \"test_*.py\""
   ]

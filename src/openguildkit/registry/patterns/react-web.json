@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "Rules of React",
-      "url": "https://react.dev/reference/rules"
+      "url": "https://react.dev/reference/rules",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

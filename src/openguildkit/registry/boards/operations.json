@@ -54,15 +54,18 @@
   "sources": [
     {
       "title": "Lean Enterprise Institute, Value Stream Mapping",
-      "url": "https://www.lean.org/lexicon-terms/value-stream-mapping/"
+      "url": "https://www.lean.org/lexicon-terms/value-stream-mapping/",
+      "checked": "2026-11-21"
     },
     {
       "title": "The Kanban Guide, May 2025",
-      "url": "https://kanbanguides.org/the-kanban-guide/2025.5/"
+      "url": "https://kanbanguides.org/the-kanban-guide/2025.5/",
+      "checked": "2026-11-21"
     },
     {
       "title": "ISO 9001, Quality management systems, requirements",
-      "url": "https://www.iso.org/standard/9001"
+      "url": "https://www.iso.org/standard/9001",
+      "checked": "2026-11-20"
     }
   ],
   "review": {

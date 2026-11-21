@@ -5,11 +5,13 @@
   "sources": [
     {
       "title": "Rails guides, Action Controller overview: strong parameters",
-      "url": "https://guides.rubyonrails.org/action_controller_overview.html"
+      "url": "https://guides.rubyonrails.org/action_controller_overview.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Brakeman documentation",
-      "url": "https://brakemanscanner.org/docs/"
+      "url": "https://brakemanscanner.org/docs/",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

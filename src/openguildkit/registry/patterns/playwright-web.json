@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "Playwright best practices",
-      "url": "https://playwright.dev/docs/best-practices"
+      "url": "https://playwright.dev/docs/best-practices",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [
