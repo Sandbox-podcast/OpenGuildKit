@@ -1,11 +1,12 @@
 # Host validation scenario
 
-A fictional support portal (`project/`, synthetic data only) and two tasks (`tasks.json`) to check that an agent host can run the whole OpenGuildKit flow: board passes with evidence, a disagreement between boards, a board without enough evidence, a person's decision and the results of the work.
+A fictional support portal (`project/`, synthetic data only) and three tasks (`tasks.json`) to check that an agent host can run the whole OpenGuildKit flow: board passes with evidence, a disagreement between boards, a board without enough evidence, a person's decision and the results of the work.
 
 | Task | What it exercises |
 |---|---|
 | `request-export` (feature, personal data) | Board passes with evidence on the project files, objections between boards, a blocker to clear, approval, `task verify`, `task result`, `task complete` |
 | `pricing-comparison` (decision, local research, no market data) | A board added by the requester, `insufficient-evidence` verdicts, the decision brief |
+| `request-share-link` (feature, personal data, with `project/research-notes.md`) | Product evidence that pulls one way and a security concern that pulls the other: a blocker, a change request, a second round, an objection and its answers |
 
 ## A blocker against a request to revise
 
@@ -29,5 +30,8 @@ The rehearsal plays a host without subagents: it runs `task pass ... --mode sequ
 
 ## Reports
 
-- [Claude Code, 2026-11-20](reports/claude-code-2026-11-20.md)
-- Codex: not run yet. Running it needs the Codex CLI and an OpenAI account, which the maintainers who prepared this scenario did not have on this machine.
+- [Claude Code, 2026-11-20](reports/claude-code-2026-11-20.md): board passes as subagents, up to the decision brief.
+- [Claude Code, 2026-11-21](reports/claude-code-2026-11-21.md): a host without subagents, a disagreement between two boards, a change request, the decision, the implementation and the results, to `done`.
+- [Codex, 2026-11-21](reports/codex-2026-11-21.md): the export task from the request to `done` with board passes as subagents, the case without evidence, and a case with blockers.
+
+Not yet observed in a live host: the controls that `host apply` writes (deny rules, hooks, Codex rules), which need a session opened in a trusted project.
