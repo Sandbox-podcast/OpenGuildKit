@@ -39,27 +39,33 @@ Every crash fails the run: none is tolerated. A task record edited by hand is ch
 
 ## Performance numbers
 
-`python scripts/bench.py` prints the times as a table and as JSON (`--json` for JSON only, `--repeat N` for more runs). Each command is a real process; the figure is the median of five runs after one warm-up. "x start" divides by `openguildkit --version` in the same run.
+`python scripts/bench.py` prints the times as a table and as JSON (`--json` for JSON only, `--repeat N` for more runs). Each command is a real process; the figure is the median of five runs after one warm-up. "x start" divides by `openguildkit --version` in the same run. The project with 500 tasks has 5 approved ones, so the hooks find tasks that cover the edit. Python caches the bytecode in the benchmark's temporary folder, as it does for an installed package, even when `PYTHONDONTWRITEBYTECODE` is set.
 
-Measured on 21 November 2026 on a laptop (macOS 26, Python 3.15) that was running other test suites at the same time (load average about 10). The last column gives the lowest and highest ratio over three runs of the script.
+Measured on 21 November 2026 on a laptop (macOS 26, Python 3.15) that was running other test suites at the same time, three runs of the script before and three after the changes of #135, with the same script. The load average was about 4.5 during the runs before and about 8 during the runs after, so the gains are, if anything, understated. Each figure is the median of the three runs; the last column gives the lowest and highest ratio over the three runs after.
 
-| Command | Median (s) | x start | x start, 3 runs |
+| Command | Before (s) | After (s) | x start, after |
 | --- | --- | --- | --- |
-| `python -c pass` | 0.025 | 0.1 | 0.1 to 0.2 |
-| `openguildkit --version` | 0.184 | 1.0 | 1.0 |
-| `catalog --json` | 0.276 | 1.5 | 1.5 to 4.9 |
-| `init` | 0.384 | 2.1 | 1.8 to 3.6 |
-| `task consult` | 0.460 | 2.5 | 2.3 to 2.8 |
-| `task list`, 500 tasks | 0.540 | 2.9 | 2.9 to 5.0 |
-| `references security` | 0.322 | 1.8 | 1.8 to 3.0 |
-| `guard --hook pre-edit`, 500 tasks | 0.544 | 3.0 | 3.0 to 5.1 |
-| `guard --hook prompt`, 500 tasks | 0.552 | 3.0 | 3.0 to 4.9 |
-| `detect`, monorepo of 200 packages | 0.459 | 2.5 | 2.1 to 3.2 |
-| `init`, monorepo of 200 packages | 0.581 | 3.2 | 3.2 to 3.9 |
+| `python -c pass` | 0.024 | 0.025 | 0.2 |
+| `openguildkit --version` | 0.102 | 0.122 | 1.0 |
+| `catalog --json` | 0.462 | 0.176 | 1.4 to 1.5 |
+| `init` | 0.525 | 0.196 | 1.6 |
+| `task consult` | 0.725 | 0.298 | 2.4 to 2.5 |
+| `task list`, 500 tasks | 1.003 | 0.439 | 3.4 to 3.8 |
+| `references security` | 0.510 | 0.206 | 1.6 to 1.7 |
+| `guard --hook pre-edit`, 500 tasks | 0.951 | 0.182 | 1.4 to 1.5 |
+| `guard --hook prompt`, 500 tasks | 0.964 | 0.182 | 1.4 to 1.6 |
+| `detect`, monorepo of 200 packages | 0.604 | 0.324 | 2.4 to 3.4 |
+| `init`, monorepo of 200 packages | 0.836 | 0.356 | 2.7 to 3.3 |
 
-Each budget in `tests/test_performance.py` is at least three times the highest ratio seen, so load on the machine passes, and at most ten times the lowest, so a tenfold slowdown fails. A run over budget is measured once more before the test fails. `--version` itself must stay under 25 times a bare `python -c pass`.
+Each budget in `tests/test_performance.py` is at least three times the highest ratio seen, so load on the machine passes, and at most ten times the lowest, so a tenfold slowdown fails. The edit hook's budget (5) also fails if the hook reads every task record again (8 to 9.5 times the start before #135). A run over budget is measured once more before the test fails. `--version` itself must stay under 25 times a bare `python -c pass`.
 
-Where the time goes: every command validates the bundled catalog twice (`load_catalog` for the live and the bundled records, about 70 ms each), and `guard --hook pre-edit` reads every task record to find approved ones, so the hook that runs before each agent edit grows with the number of tasks.
+Where the time went, and what changed:
+
+- Every command validated the bundled catalog twice, and `init`, `sync`, `check` and `task decide` four times, at about 50 ms each (more under load), most of it checking each character of each text for control characters. The bundled records are now validated once per process (they ship with the code that runs, so they cannot change during a command; project records are read again on every load), and text that `str.isprintable()` accepts skips the character-by-character check, which gives the same answer. `tests/test_performance.py` counts the reads per command.
+- `guard --hook pre-edit` and `--hook prompt` parsed every task record to find the approved ones. A status index in `.openguildkit/tasks/.status-index` (git-ignored and refused to agent edits like the records) now says which records cannot cover an edit; each entry holds the record file's size, times and inode, and is used only while the file still matches, so a record changed by any means is read again. The index only skips records: approved tasks are read and checked in full, and a missing, stale, corrupt or unwritable index costs time, not a decision (`tests/test_task_index.py`, and a concurrency test with hooks and writers at once).
+- `--version` no longer reads the package metadata for every command, and the catalog, the tool registry, references, deliverables and agent files are found next to the package instead of through `importlib.resources`, whose import cost every command about 14 ms.
+
+What is left: a command that needs the catalog still reads its 223 bundled files, about 40 ms on this laptop, and validates them, so the edit hook takes the start time plus about 60 ms. That is 0.18 s at the load of these runs and 0.17 s at a load average of 5.5, above the 0.15 s that #135 aimed for; reading fewer catalog files would need a catalog cache shared between processes, which this change does not add. Importing the CLI takes about 45 ms with cached bytecode: `argparse` on Python 3.15 alone takes 5 ms and imports `shutil`, and the `tools`, `market`, `alerts` and `storybook` modules are imported to build their sub-commands. In a Git repository, each approved task also runs `git merge-base` to check that its approved revision is still in the history.
 
 ## Not covered
 

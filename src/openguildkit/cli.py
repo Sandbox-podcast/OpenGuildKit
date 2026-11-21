@@ -84,9 +84,21 @@ from .tasks import (
 from .workflow import blocker_list, board_brief, challenge_report, decision_summary, deliberation_request, handoff, open_points, pending_removals, select_boards, task_questions, validate_answers, validate_review, verdict_lines
 
 
+class _Version(argparse.Action):
+    """Print the version and exit; reading the package metadata is slow, so only --version pays for it."""
+
+    def __init__(self, option_strings, dest=argparse.SUPPRESS, default=argparse.SUPPRESS, help=None):
+        super().__init__(option_strings, dest=dest, default=default, nargs=0,
+                         help=help or "show program's version number and exit")
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        print(f"openguildkit {package_version()}")
+        parser.exit()
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="openguildkit", description="Project rules and specialist reviews for AI-assisted work.")
-    parser.add_argument("--version", action="version", version=f"openguildkit {package_version()}")
+    parser.add_argument("--version", action=_Version)
     parser.add_argument("--project", type=Path, help="Project root (defaults to the closest configured ancestor).")
     parser.add_argument("--policy-repo", type=Path, help="Local Git repository with the central export rule.")
     parser.add_argument("--policy-commit", help="Full Git SHA of the central policy commit.")

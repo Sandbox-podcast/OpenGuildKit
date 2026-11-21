@@ -3,7 +3,6 @@
 import json
 import re
 import unicodedata
-from importlib.resources import files
 from pathlib import Path
 
 from .catalog import (
@@ -15,6 +14,7 @@ from .catalog import (
     _validate_list,
     _validate_sources,
     _validate_text,
+    package_file,
 )
 from .patterns import role_choices
 
@@ -95,7 +95,7 @@ def _validate_family(family, filename: str) -> None:
 
 def load_references(extra_dir: Path | None = None) -> dict[str, dict]:
     """Load the reference index and merge new project entries by stable ID."""
-    bundled = files("openguildkit").joinpath("registry", "references")
+    bundled = package_file("registry", "references")
     directories = [bundled]
     if extra_dir is not None and extra_dir.exists():
         directories.append(extra_dir)
