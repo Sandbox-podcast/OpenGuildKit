@@ -29,6 +29,11 @@ function watchesPullRequest(repo, number) {
   return pullRequests === undefined || pullRequests[repo]?.includes(number);
 }
 
+const configuredPullRequests = pullRequests === undefined ? null : Object.fromEntries(
+  repositories.map(repo => [repo, [...pullRequests[repo]].sort((left, right) => left - right)])
+    .sort(([left], [right]) => left.localeCompare(right)),
+);
+
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
@@ -52,18 +57,24 @@ const policyCommit = gh([
   '-f', `sha=${policyRef}`, '-f', `path=${policyPath}`, '-F', 'per_page=1', '--jq', '.[0].sha',
 ]);
 const previous = existsSync(statePath) ? readJson(statePath) : {};
-if (previous.policyCommit === policyCommit && previous.done) {
+const previousPullRequests = previous.pullRequests == null ? null : Object.fromEntries(
+  Object.entries(previous.pullRequests)
+    .map(([repo, numbers]) => [repo, [...numbers].sort((left, right) => left - right)])
+    .sort(([left], [right]) => left.localeCompare(right)),
+);
+const scopeChanged = JSON.stringify(previousPullRequests) !== JSON.stringify(configuredPullRequests);
+if (previous.policyCommit === policyCommit && previous.done && !scopeChanged) {
   console.log(`Règle inchangée : ${policyCommit}`);
   process.exit(0);
 }
 
 const rule = readFileAt(policyRepo, policyCommit, policyPath);
-const batch = previous.policyCommit === policyCommit ? {
-  ...previous,
-  targets: previous.targets.filter(({ repo, number }) => watchesPullRequest(repo, number)),
-} : {
-  policyCommit,
-  targets: repositories.flatMap(repo => {
+function targetKey({ repo, number }) {
+  return `${repo}#${number}`;
+}
+
+function currentTargets() {
+  return repositories.flatMap(repo => {
     const pages = JSON.parse(gh(['api', '--paginate', '--slurp', `repos/${repo}/pulls?state=open&per_page=100`]));
     return pages.flat().filter(pr => watchesPullRequest(repo, pr.number)).map(pr => {
       if (pr.head.repo?.full_name !== repo) {
@@ -71,7 +82,22 @@ const batch = previous.policyCommit === policyCommit ? {
       }
       return { repo, number: pr.number, commit: pr.head.sha };
     });
-  }),
+  });
+}
+
+const previousTargets = new Map((previous.targets ?? []).map(target => [targetKey(target), target]));
+const targets = previous.policyCommit !== policyCommit || scopeChanged
+  ? currentTargets().map(target => {
+    const previousTarget = previousTargets.get(targetKey(target));
+    return previousTarget?.commit === target.commit ? previousTarget : target;
+  })
+  : previous.targets;
+const batch = {
+  ...previous,
+  policyCommit,
+  pullRequests: configuredPullRequests,
+  targets,
+  done: false,
 };
 
 function saveBatch() {
