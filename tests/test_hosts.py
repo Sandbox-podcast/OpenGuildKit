@@ -161,8 +161,52 @@ class HostControlTests(unittest.TestCase):
         deny = json.loads((self.root / ".claude" / "settings.json").read_text(encoding="utf-8"))["permissions"]["deny"]
         for rule in CLAUDE_PROTECTED_RULES:
             self.assertIn(rule, deny)
-        self.assertIn("Edit(./.openguildkit/tasks/**)", deny)
-        self.assertIn("Edit(./.openguildkit/project.json)", deny)
+        self.assertIn("Edit(/.openguildkit/tasks/**)", deny)
+        self.assertIn("Edit(/.openguildkit/project.json)", deny)
+        self.assertFalse([rule for rule in deny if rule.startswith("Edit(./")])
+
+    def test_edit_rules_relative_to_the_current_directory_are_replaced(self):
+        settings = self.root / ".claude" / "settings.json"
+        settings.parent.mkdir()
+        old_rules = [f"Edit(./{rule[6:]}" for rule in CLAUDE_PROTECTED_RULES]
+        settings.write_text(json.dumps({"permissions": {"deny": ["Read(./.env)", *old_rules]}}), encoding="utf-8")
+        self.init(host="claude-code", guard="enforce")
+        with patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit"):
+            report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json")[0])}
+            self.assertEqual(report["board"]["status"], "missing")
+            self.run_cli("host", "apply")
+            report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json")[0])}
+        self.assertEqual(report["board"]["status"], "enforced")
+        deny = json.loads(settings.read_text(encoding="utf-8"))["permissions"]["deny"]
+        self.assertEqual([rule for rule in deny if rule.startswith("Edit(")], list(CLAUDE_PROTECTED_RULES))
+        self.assertIn("Read(./.env)", deny)
+
+    def edit_hook(self):
+        hooks = json.loads((self.root / ".claude" / "settings.json").read_text(encoding="utf-8"))["hooks"]
+        return hooks["PreToolUse"][0]["hooks"][0]
+
+    def test_in_enforce_a_guard_hook_that_cannot_start_blocks_the_edit(self):
+        self.init(host="claude-code", guard="enforce")
+        self.run_cli("host", "apply")
+        self.assertEqual(self.edit_hook()["onFailure"], "block")
+        settings = self.root / ".claude" / "settings.json"
+        written = json.loads(settings.read_text(encoding="utf-8"))
+        del written["hooks"]["PreToolUse"][0]["hooks"][0]["onFailure"]
+        settings.write_text(json.dumps(written), encoding="utf-8")
+        with patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit"):
+            report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json")[0])}
+        self.assertEqual(report["board"]["status"], "missing")
+        self.run_cli("host", "apply")
+        self.assertEqual(self.edit_hook()["onFailure"], "block")
+        self.assertEqual(len(json.loads(settings.read_text(encoding="utf-8"))["hooks"]["PreToolUse"]), 1)
+
+    def test_in_observe_a_failing_guard_hook_does_not_block(self):
+        self.init(host="claude-code", guard="observe")
+        self.run_cli("host", "apply")
+        self.assertNotIn("onFailure", self.edit_hook())
+        with patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit"):
+            report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json")[0])}
+        self.assertEqual(report["board"]["status"], "enforced")
 
     def test_the_guard_is_not_enforced_where_its_command_is_not_on_the_path(self):
         self.init(host="claude-code", guard="enforce")

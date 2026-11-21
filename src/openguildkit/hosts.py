@@ -28,11 +28,14 @@ CLAUDE_APPROVAL_RULES = (
     + tuple(f"Bash({tool}:*)" for tool in TERMINAL_EMULATORS)
     + tuple(f"Bash({pattern})" for pattern in CLAUDE_APPROVAL_PATTERNS)
 )
-# Files the guard relies on: the CLI writes them through its own commands.
-CLAUDE_PROTECTED_RULES = tuple(f"Edit(./{path})" for path in (
+# Files the guard relies on: the CLI writes them through its own commands. A leading / is relative
+# to the settings source, the project root for .claude/settings.json; ./ would follow the current directory.
+PROTECTED_PATHS = (
     ".openguildkit/tasks/**", ".openguildkit/decisions/**", ".openguildkit/project.json",
     ".openguildkit/catalog.lock.json", ".claude/settings.json", ".claude/settings.local.json",
-))
+)
+CLAUDE_PROTECTED_RULES = tuple(f"Edit(/{path})" for path in PROTECTED_PATHS)
+OUTDATED_PROTECTED_RULES = tuple(f"Edit(./{path})" for path in PROTECTED_PATHS)
 CODEX_RULES_FILE = Path(".codex") / "rules" / "openguildkit.rules"
 CODEX_CONFIG_FILE = Path(".codex") / "config.toml"
 CLAUDE_SETTINGS_FILE = Path(".claude") / "settings.json"
@@ -157,7 +160,22 @@ def _claude_hooks_present(hooks: object) -> bool:
     return {GUARD_PROMPT, GUARD_EDIT} <= commands
 
 
-def _merge_hooks(current: object, host: str) -> dict:
+def _edit_handlers(hooks: object) -> list[dict]:
+    """The PreToolUse handlers that run the pre-edit guard."""
+    groups = hooks.get("PreToolUse") if isinstance(hooks, dict) else None
+    return [
+        handler for group in (groups if isinstance(groups, list) else []) if isinstance(group, dict)
+        for handler in group.get("hooks", []) if isinstance(handler, dict) and handler.get("command") == GUARD_EDIT
+    ]
+
+
+def _blocks_on_failure(hooks: object) -> bool:
+    """Claude Code lets an edit through when a hook cannot start, unless the hook says onFailure: block."""
+    handlers = _edit_handlers(hooks)
+    return bool(handlers) and all(handler.get("onFailure") == "block" for handler in handlers)
+
+
+def _merge_hooks(current: object, host: str, block_on_failure: bool = False) -> dict:
     hooks = dict(current) if isinstance(current, dict) else {}
     for event, groups in _guard_hooks(host).items():
         existing = hooks.get(event) if isinstance(hooks.get(event), list) else []
@@ -166,6 +184,12 @@ def _merge_hooks(current: object, host: str) -> dict:
                    for handler in group.get("hooks", []) if isinstance(handler, dict)):
             existing = [*existing, *groups]
         hooks[event] = existing
+    if host == "claude-code":
+        for handler in _edit_handlers(hooks):
+            if block_on_failure:
+                handler["onFailure"] = "block"
+            else:
+                handler.pop("onFailure", None)
     return hooks
 
 
@@ -173,17 +197,21 @@ def _control(control_id: str, title: str, status: str, detail: str) -> dict:
     return {"id": control_id, "title": title, "status": status, "detail": detail}
 
 
-def _board_control(root: Path, host: str) -> dict:
+def _board_control(root: Path, host: str, guard: str) -> dict:
     """Whether the guard hooks are installed, protect the files they rely on, and can run on this workstation."""
     title = "The board is consulted before each change"
     shell = " Shell commands (sed -i, echo > file) do not go through the hook."
     if host == "claude-code":
         settings = _claude_settings(root)
         missing = [rule for rule in CLAUDE_PROTECTED_RULES if rule not in _claude_denied(root)]
-        present = _claude_hooks_present(settings.get("hooks", {})) and not missing
+        hooks = settings.get("hooks", {})
+        unblocked = guard == "enforce" and not _blocks_on_failure(hooks)
+        present = _claude_hooks_present(hooks) and not missing and not unblocked
         detail = (f"Claude Code hooks in {CLAUDE_SETTINGS_FILE.as_posix()} run openguildkit guard on each request and "
                   "before file edits, and file edits to the task records, the profile and the settings are denied."
-                  + (f" Missing: {', '.join(missing)}." if missing else "") + shell)
+                  + (f" Missing: {', '.join(missing)}." if missing else "")
+                  + (" The pre-edit hook lacks \"onFailure\": \"block\", so an edit goes through when the hook cannot start."
+                     if unblocked else "") + shell)
     elif host == "codex":
         path = root / CODEX_HOOKS_FILE
         present = path.is_file() and _claude_hooks_present(json.loads(path.read_text(encoding="utf-8-sig")).get("hooks", {}))
@@ -277,7 +305,7 @@ def host_controls(root: Path, profile: dict) -> list[dict]:
         ))
     guard = profile.get("guard", "off")
     if guard != "off":
-        controls.append(_board_control(root, host))
+        controls.append(_board_control(root, host, guard))
     controls.append(_control(
         "external-actions", "External actions outside the authorized scope need a recorded decision", "human",
         "The agent asks the requester, who records the decision with openguildkit task authorize.",
@@ -302,11 +330,12 @@ def apply_host_settings(root: Path, profile: dict) -> list[str]:
         wanted = list(CLAUDE_APPROVAL_RULES) + (list(CLAUDE_RESEARCH_RULES) if local_only else [])
         if profile.get("guard", "off") != "off":
             wanted += CLAUDE_PROTECTED_RULES
+        deny[:] = [rule for rule in deny if rule not in OUTDATED_PROTECTED_RULES]
         deny.extend(rule for rule in wanted if rule not in deny)
         if not local_only:
             deny[:] = [rule for rule in deny if rule not in CLAUDE_RESEARCH_RULES]
         if profile.get("guard", "off") != "off":
-            settings["hooks"] = _merge_hooks(settings.get("hooks"), host)
+            settings["hooks"] = _merge_hooks(settings.get("hooks"), host, profile.get("guard") == "enforce")
         write_text(path, json.dumps(settings, indent=2, ensure_ascii=False) + "\n")
         written.append(CLAUDE_SETTINGS_FILE.as_posix())
     elif host == "codex":
