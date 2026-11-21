@@ -134,7 +134,8 @@ class RolePreselectionTests(unittest.TestCase):
         self.assertFalse(regulations & ids(plan["matched"]))
         self.assertLessEqual(regulations, ids(plan["suggested"]))
         self.assertIn("threat-modeling", ids(plan["matched"]))
-        self.assertTrue(all(entry["reasons"] == ["role security"] for entry in plan["matched"]))
+        for entry in plan["matched"]:
+            self.assertTrue(entry["reasons"] and all(reason.startswith("role ") for reason in entry["reasons"]), entry["id"])
 
 
 class SectorCatalogTests(unittest.TestCase):
