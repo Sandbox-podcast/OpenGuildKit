@@ -104,7 +104,8 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
         mock = load_mock(args.id, mock_dir)
         if args.name is None:
             for tool in mock["tools"]:
-                print(f"{tool['name']:<28} {tool['description']}")
+                access = "read" if tool.get("read_only") else "write"
+                print(f"{tool['name']:<28} [{access}] {tool['description']}")
             return 0
         try:
             arguments = json.loads(args.args)
@@ -114,6 +115,10 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
             answer = call_tool(mock, args.name, arguments)
         except MockError as error:
             raise ValueError(f"{error}. Run openguildkit tools call {args.id} to list the tools.") from error
+        tool = next(item for item in mock["tools"] if item["name"] == args.name)
+        if not tool.get("read_only"):
+            print("Warning: this operation simulates a write. Use openguildkit task authorize before a real write.",
+                  file=sys.stderr)
         print(answer["content"][0]["text"])
         return 1 if answer["isError"] else 0
     tools = load_tools(state / "catalog" / "tools")
@@ -168,8 +173,14 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
     profile = load_profile(state, catalog)
     if action == "recommend":
         result = recommend_tools(profile, root, tools)
+        configured = {}
+        for connection in connection_status(root, state):
+            if connection["configured"]:
+                for tool in connection["covers"]:
+                    configured.setdefault(tool, []).append({"host": connection["host"], "mode": connection["mode"]})
         for item in result["tools"]:
             item["mock"] = item["id"] in mocks
+            item["connections"] = configured.get(item["id"], [])
         if args.json:
             print(json.dumps(result, indent=2, ensure_ascii=False))
             return 0
@@ -177,12 +188,15 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
             origin = "named in the profile" if item["named"] else "seen in the repository: " + ", ".join(item["signals"])
             servers = ", ".join(item["servers"]) or "no MCP server on record"
             print(f"{item['id']:<20} {origin}. Servers: {servers}{'; mock available' if item['mock'] else ''}")
+            if item["connections"]:
+                modes = ", ".join(f"{entry['host']} ({entry['mode']})" for entry in item["connections"])
+                print(f"    Configured for {modes}.")
         for name in result["unknown"]:
             print(f"{name}: not in the registry. Add it in .openguildkit/catalog/tools/ or connect it yourself.")
         if not result["tools"] and not result["unknown"]:
             print("No tool named in the profile and none detected. List them under tools in .openguildkit/project.json.")
-        elif result["tools"]:
-            print("Next: openguildkit tools plan " + " ".join(item["id"] for item in result["tools"]))
+        elif pending := [item["id"] for item in result["tools"] if not item["connections"]]:
+            print("Next: openguildkit tools plan " + " ".join(pending))
         return 0
     if action == "status":
         status = connection_status(root, state)
@@ -190,17 +204,23 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
             print(json.dumps(status, indent=2, ensure_ascii=False))
             return 0
         for item in status:
+            if "reason" in item:
+                print(f"{item['key']:<24} {item['host']:<12} {item['mode']:<5} not connected. {item['reason']}")
+                continue
             state_text = "configured" if item["configured"] else ("changed by hand" if item["changed"] else "missing from the host file")
             missing = f"; not set here: {', '.join(item['missing_env'])}" if item["missing_env"] else ""
             print(f"{item['key']:<24} {item['host']:<12} {item['mode']:<5} {state_text} ({', '.join(item['covers'])}){missing}")
         if not status:
             print("No connection recorded. Start with openguildkit tools recommend.")
-        return 0 if all(item["configured"] for item in status) else 1
+        return 0 if all(item["configured"] for item in status if "reason" not in item) else 1
     host = _host(args, profile)
     if action == "remove":
         with project_lock(state):
             result = remove_connections(root, state, host, args.tool)
-        print(f"Removed {', '.join(result['removed'])} from {result['file']}.")
+        if result["removed"]:
+            print(f"Removed {', '.join(result['removed'])} from {result['file']}.")
+        if result.get("forgotten"):
+            print(f"Cleared unavailable mock requests for {', '.join(result['forgotten'])}.")
         return 0
     plan = plan_connections(
         tools, args.tool, host, mock=args.mock, community=args.community,
@@ -216,14 +236,20 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
         return 0
     with project_lock(state):
         result = apply_connections(root, state, host, plan)
+    exit_code = 1 if args.mock and result["skipped"] else 0
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
-        return 0
+        return exit_code
     _print_plan([item for item in plan if "skipped" not in item], host)
-    for item in result["skipped"]:
-        print(f"{item['tool']}: skipped. {item['reason']}")
+    if not args.mock:
+        for item in result["skipped"]:
+            print(f"{item['tool']}: skipped. {item['reason']}")
     if result["applied"]:
         print(f"Wrote {', '.join(result['applied'])} to {result['file']} and recorded them in .openguildkit/tools.json.")
-    else:
+    elif not args.mock:
         print("Nothing to write.")
-    return 0
+    if args.mock:
+        connected = ", ".join(result["applied"]) or "none"
+        missing = ", ".join(item["tool"] for item in result["skipped"]) or "none"
+        print(f"Connected mocks: {connected}. Tools without a mock: {missing}.")
+    return exit_code
