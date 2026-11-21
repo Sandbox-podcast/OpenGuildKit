@@ -88,7 +88,7 @@ function SetupField({ q, value, onChange }: { q: Question & { type: string }; va
 
 function PlanView({ plan }: { plan: RulePlan }) {
   return <>
-    <ul className="plain stack tight">{plan.packs.map((p) => <li key={p.id} className="row between"><span><strong>{p.title}</strong> <span className="mono tiny">{p.id} {p.version}</span><span className="tiny muted block">{p.provenance.join(' · ')}</span></span><Badge>{p.rules.length} règle(s)</Badge></li>)}</ul>
+    <ul className="plain stack tight rule-plan">{plan.packs.map((p) => <li key={p.id} className="row between"><span><strong>{p.title}</strong> <span className="mono tiny">{p.id} {p.version}</span><span className="tiny muted block">{p.provenance.join(' · ')}</span></span><Badge>{p.rules.length} règle(s)</Badge></li>)}</ul>
     {plan.conflicts.length > 0 && <Notice tone="danger" title="Conflits :"><pre>{JSON.stringify(plan.conflicts, null, 2)}</pre></Notice>}
     {plan.conventions.length > 0 && <p className="small"><strong>Conventions :</strong> {plan.conventions.join(' · ')}</p>}
     {plan.checks.length > 0 && <p className="small"><strong>Vérifications :</strong> {plan.checks.map((c) => <code key={c}>{c} </code>)}</p>}

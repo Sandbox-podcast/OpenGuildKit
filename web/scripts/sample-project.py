@@ -93,6 +93,9 @@ def build(root: Path) -> None:
     })
     run(root, "init", "--answers", write(root, "profile.json", profile))
     (root / ".gitignore").write_text(".sample/\n", encoding="utf-8")
+    evidence = root / "tests" / "test_export_access.py"
+    evidence.parent.mkdir(parents=True, exist_ok=True)
+    evidence.write_text("# Synthetic evidence file for the sample project.\n", encoding="utf-8")
 
     # 1. Done: approved, verified, reported, completed, documented and shared.
     run(root, "task", "new", "--file", EXAMPLE / "brief.md", "--id", "request-status")
