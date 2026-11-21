@@ -86,6 +86,21 @@ class DecisionBriefTests(unittest.TestCase):
         brief, _ = self.run_cli("task", "challenge", TASK)
         self.assertIn("confirmed by Camille", brief)
 
+    def test_the_approval_covers_the_boards_removed_at_consultation(self):
+        self.reviewed("--remove", "security", "--reason", "not needed")
+        self.decide(TASK, "security")
+        self.run_cli("task", "handoff", TASK)
+        path = self.root / ".openguildkit" / "tasks" / f"{TASK}.json"
+        record = json.loads(path.read_text(encoding="utf-8"))
+        record["consultation"]["adjustments"][0]["reason"] = "The requester asked for it"
+        path.write_text(json.dumps(record), encoding="utf-8")
+        _, error = self.run_cli("task", "handoff", TASK, code=1)
+        self.assertIn("no longer matches what was approved", error)
+        record["consultation"]["adjustments"] = []
+        path.write_text(json.dumps(record), encoding="utf-8")
+        _, error = self.run_cli("task", "handoff", TASK, code=1)
+        self.assertIn("no longer matches what was approved", error)
+
     def test_only_a_board_routed_by_sensitive_data_is_protected(self):
         catalog = load_catalog()
         profile = resolved_profile(validate_profile(json.loads((EXAMPLE / "profile.json").read_text()), catalog), catalog)
