@@ -492,7 +492,8 @@ def _route_boards(profile: dict, catalog: dict, task: dict, answers: dict) -> di
 
 def suggested_patterns(profile: dict, catalog: dict, task: dict, answers: dict) -> list[dict]:
     """Patterns that the task's concepts call for and the project has not selected yet."""
-    active = set(profile.get("patterns", []))
+    # A pattern scoped to components is recorded as {"id": ..., "components": [...]}.
+    active = {entry["id"] if isinstance(entry, dict) else entry for entry in profile.get("patterns", [])}
     suggestions = {}
     for concept in task_concepts(_task_text(task, answers), answers):
         for pattern_id in concept["patterns"]:
