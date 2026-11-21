@@ -148,3 +148,44 @@ class ComponentPatternTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ComponentTaskTests(unittest.TestCase):
+    """A project with components scopes its patterns: every task command must read them."""
+
+    def test_a_task_is_routed_and_consulted_in_a_project_with_scoped_patterns(self):
+        import contextlib
+        import io
+
+        from openguildkit.cli import main
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write(root, "profile.json", {
+                "name": "Shop", "components": [
+                    {"id": "web", "path": "web", "stack": ["React", "TypeScript"]},
+                    {"id": "api", "path": "api", "stack": ["Python", "FastAPI", "PostgreSQL"]},
+                ],
+            })
+            write(root, "answers.json", {
+                "kind": "feature", "surface": ["customer", "service"], "data": "personal", "research": "local",
+                "outcome": "A customer is told when a product is back in stock.", "affected": "Customers",
+            })
+
+            def run(*arguments):
+                out, err = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                    code = main(["--project", str(root), *map(str, arguments)])
+                self.assertEqual(code, 0, f"{' '.join(map(str, arguments))}: {err.getvalue()}")
+                return out.getvalue()
+
+            run("init", "--answers", root / "profile.json")
+            profile = json.loads((root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
+            self.assertTrue(any(isinstance(entry, dict) for entry in profile["patterns"]), profile["patterns"])
+            run("task", "new", "Tell customers by email when a product is back in stock, with an AI model that ranks who to notify first.",
+                "--id", "back-in-stock")
+            route = run("task", "route", "back-in-stock", "--answers", root / "answers.json")
+            self.assertIn("security", route)
+            consultation = run("task", "consult", "back-in-stock", "--answers", root / "answers.json")
+            self.assertIn("# Board consultation request", consultation)
+            self.assertIn("Board pass", run("task", "pass", "back-in-stock", "security", "--mode", "sequential"))
