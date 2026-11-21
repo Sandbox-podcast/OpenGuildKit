@@ -2,6 +2,7 @@ import contextlib
 import copy
 import io
 import json
+import os
 import shutil
 import tempfile
 import unittest
@@ -29,6 +30,25 @@ class StorybookIndexTests(unittest.TestCase):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         self.root = Path(directory.name)
+
+    def test_import_warns_about_new_sources_until_the_project_index_is_rebuilt(self):
+        index = self.root / "storybook-static" / "index.json"
+        index.parent.mkdir()
+        shutil.copyfile(FIXTURES / "project-index.json", index)
+        source = self.root / "src" / "Loading.stories.tsx"
+        source.parent.mkdir()
+        source.write_text("export const Loading = {};", encoding="utf-8")
+        old, new = 1_700_000_000, 1_700_000_010
+        os.utime(index, (old, old))
+        os.utime(source, (new, new))
+        state = self.root / ".openguildkit"
+        report = import_indexes(self.root, state)
+        self.assertEqual(report["warnings"], [
+            "src/Loading.stories.tsx is newer than storybook-static/index.json. "
+            "Run npm run build-storybook, then import the project index again."])
+        self.assertTrue((state / "storybook.json").is_file())
+        os.utime(index, (new, new))
+        self.assertNotIn("warnings", import_indexes(self.root, state))
 
     def test_storybook_10_and_7_indexes_are_read_and_older_formats_refused(self):
         project = read_index(FIXTURES / "project-index.json")

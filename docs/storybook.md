@@ -68,7 +68,7 @@ openguildkit storybook import --company-index company/index.json \
 - Conflicts to resolve: a story ID or a title used by both.
 - The library's peer dependencies and shared dependencies against the project's versions. The command reads the installed version under `node_modules`, or the lowest version the project's range allows. A row is `ok`, `partial`, `conflict`, `duplicate` (two copies would be installed), `missing`, `optional` or `unknown`. Styling libraries are marked.
 
-The command records the known stories in `.openguildkit/storybook.json`: for each index, its source, its SHA-256, the date and the stories with their title. A new import replaces the entry of the same index and keeps the others. It writes nothing else, so the project's stories and configuration stay as they are. Commit the record so the whole team sees the same stories.
+The command records the known stories in `.openguildkit/storybook.json`: for each index, its source, its SHA-256, the date and the stories with their title. A new import replaces the entry of the same index and keeps the others. It writes nothing else, so the project's stories and configuration stay as they are. If a local source is newer than the project's index, the command warns you to run `npm run build-storybook` and import again. Commit the record so the whole team sees the same stories.
 
 ## Cite a story in a review
 
@@ -81,7 +81,7 @@ A team that already has a React application can derive a design system from the 
 | Supported | Not supported |
 | --- | --- |
 | React function components: function declarations, arrow functions, `forwardRef` and `memo` | Class components |
-| Props destructured in the first parameter, their literal defaults, and string-union types declared inline, in an interface or in a type alias of the same file | Props read from a `props` object, and types imported from another file |
+| Props destructured in the first parameter, their literal defaults, and types declared inline or in the same file. Samples cover primitive values, string unions, arrays and simple objects. | Props read from a `props` object, and automatic samples for callbacks or imported types |
 | Named and default exports, export aliases such as `export { Card as Panel }`, and re-exports from an index file | Imports renamed by the screen that uses the component (`import { Panel as Box }`) |
 | CSS and SCSS stylesheets | Vue, Angular and Svelte components, CSS-in-JS, utility classes such as Tailwind's |
 
@@ -107,14 +107,14 @@ A `--src` folder outside the project, such as another repository next to it, is 
 
 An item seen only once is a `hypothesis`. `--preview` records a screenshot with its hash. The CLI does not read images, so a state the team or the agent reads from a preview goes into the proposals with `"basis": "preview"` and stays a hypothesis.
 
-`propose` writes `.openguildkit/storybook/proposals.json`. Each component, variant and token has a `status` (`proposed`, `validated` or `rejected`) and a `name`. Components found under `pages`, `screens`, `views` or `routes` are marked `"kind": "screen"`. To group variants, set the props of one variant, such as `{"variant": "secondary", "size": "sm"}`, and reject the others. A token name is a dotted path that becomes the token's groups, such as `color.brand`. Running `propose` again after a new extraction keeps every status, name and props, and keeps the items no longer observed with `"observed": false`.
+`propose` writes `.openguildkit/storybook/proposals.json`. Each component, variant and token has a `status` (`proposed`, `validated` or `rejected`) and a `name`. Components found under `pages`, `screens`, `views` or `routes` are marked `"kind": "screen"`. To group variants, set the props of one variant, such as `{"variant": "secondary", "size": "sm"}`, and reject the others. A CSS variable such as `--space-panel` gives the token path `spacing.space-panel`. Running `propose` again after a new extraction keeps existing statuses, names, props and custom args. Items no longer observed get `"observed": false`.
 
 `generate` writes, for validated items only, into `src/design-system/` or `--out`:
 
 - `design.tokens.json`, in the [Design Tokens Format Module 2025.10](https://www.designtokens.org/TR/2025.10/format/): colors in sRGB with their hex value, dimensions in `px` or `rem`, and font families.
-- `COMPONENT.stories.tsx` in Component Story Format 3, one story per validated variant, or a `Default` story. The args are synthetic, such as `Sample label`, and never reuse the application's text. `parameters.openguildkit` gives the definition and the screens where each state was seen, with its confidence, to compare each story with the original screen.
+- `COMPONENT.stories.tsx` in Component Story Format 3, one story per validated variant, or a `Default` story. Required props with supported types get sample args, such as `Sample label` or a synthetic object, without copying text from the app's screens. To supply your own values, add an `args` object to the component proposal. The command names required props it could not fill and reports a missing framework dependency or `.storybook/main` file. `parameters.openguildkit` records where each state came from and its confidence.
 - `index.ts`, which exports the validated components from where they are defined, under the name the proposal gives them: `export { Panel as Card }` for a component exported as `Panel`, `export { default as Shelf }` for a default export. Each story imports the same export.
 
-Hashes in `.openguildkit/storybook/generated.json` let `generate` replace only the files it wrote. A file the team changed is kept, and a file no longer generated is left in place and listed. Import the application's global stylesheet in `.storybook/preview.ts` so that stories look like the screens.
+Hashes in `.openguildkit/storybook/generated.json` let `generate` replace only the files it wrote. A file the team changed is kept, and a file no longer generated is left in place and listed. If you already have proposals, rerun `extract` and `propose` to add required prop samples and pick up new variants for validation. Import the application's global stylesheet in `.storybook/preview.ts` so that stories look like the screens.
 
 The [example application](../examples/storybook-extract/) went through these steps on 20 November 2026, with the decisions listed in its README. `npm run build-storybook` with Storybook 10.6.6 built its 8 generated stories, and `npm run build` type-checked them with TypeScript 7.0.2 before the Vite 8.3.8 build. The extraction reads source text with patterns, not a full parser. It covers React function components, CSS and SCSS. Class components, CSS-in-JS and utility classes such as Tailwind's are not inventoried.
