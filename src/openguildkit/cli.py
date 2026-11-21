@@ -9,7 +9,8 @@ from pathlib import Path
 from .catalog import load_catalog
 from .ci import check_export, read_policy_pack
 from .decisions import NAMESPACE, approval_policy, check_decision, decision_payload, git_revision, payload_text, verify_signature
-from .alerts import alert_summary, import_alerts, set_alert_status
+from . import alerts_cli
+from .alerts import blocking_alerts, load_register
 from .deliverables import draft_problems, launch_notice, load_deliverables, new_draft
 from .brains import brain_knowledge, brief_knowledge, knowledge_gaps
 from .detect import components_for_profile, detect_stack
@@ -150,6 +151,7 @@ def _parser() -> argparse.ArgumentParser:
     share.add_argument("--by", help="Owner of the share (add, revoke).")
     share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
     tools_cli.add_parser(commands)
+    alerts_cli.add_parser(commands)
     market_cli.add_parser(commands)
     storybook = commands.add_parser(
         "storybook", help="Compose the company Storybook, record its stories and extract a design system.")
@@ -249,7 +251,7 @@ def _parser() -> argparse.ArgumentParser:
         "result": "Record the delivered revision, criteria and check outcomes.",
         "complete": "Declare the task done once mandatory checks passed with evidence.",
         "runs": "Compare the last two ChaosFolk replays of the task.",
-        "alerts": "Import dependency alerts from a scanner report and review them.",
+        "alerts": "Import dependency alerts for the task into the project register and review them.",
         "export": "Write a shareable decision record to .openguildkit/decisions for the pull request.",
         "authorize": "Record a person's decision on an external action outside the authorized scope.",
     }
@@ -302,7 +304,8 @@ def _parser() -> argparse.ArgumentParser:
             command.add_argument("--import", dest="import_file", type=Path, metavar="REPORT",
                                  help="npm audit, pip-audit, OSV-Scanner or Dependabot JSON report.")
             command.add_argument("--set", dest="alert_id", metavar="ALERT", help="Alert ID to review.")
-            command.add_argument("--status", choices=("to-verify", "confirmed", "dismissed"), help="Review status for --set.")
+            command.add_argument("--link", metavar="ALERT", help="Link an alert of the register to the task.")
+            command.add_argument("--status", choices=alerts_cli.STATUS_CHOICES, help="Review status for --set.")
             command.add_argument("--by", help="Reviewer's name for --set.")
             command.add_argument("--reason", default="", help="Reason, required to dismiss.")
             command.add_argument("--json", action="store_true", help="Print the alerts as JSON.")
@@ -944,6 +947,9 @@ def _decide(args, root: Path, state: Path, task: dict, profile: dict) -> None:
         text = args.signature.read_text(encoding="utf-8")
         verify_signature(root, policy, decision_payload(task, args.by, args.reason, base), text, args.signer)
         signature = {"signer": args.signer, "text": text}
+    blocking = blocking_alerts(load_register(state), task) if args.approve else []
+    if blocking:
+        raise ValueError("Approval is blocked:\n- " + "\n- ".join(blocking))
     result = record_decision(task, args.approve, args.by, args.reason, base, signature)
     if args.approve and signature is None:
         if not sys.stdin.isatty():
@@ -1076,6 +1082,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             elif action == "result":
                 result = record_result(current_task, profile, read_json(args.file))
             else:
+                blocking = blocking_alerts(load_register(state), current_task)
+                if blocking:
+                    raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(blocking))
                 result = complete_task(current_task, profile)
             write_json(task_path(state, args.id), result)
         if action == "complete":
@@ -1083,30 +1092,10 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         else:
             for item in result["result"]["checks"]:
                 print(f"{item['check']}: {item['status']}")
-            problems = completion_problems(result, profile)
+            problems = completion_problems(result, profile) + blocking_alerts(load_register(state), result)
             print(f"{len(problems)} point(s) before the task can be done." if problems else "Ready: run task complete.")
     elif action == "alerts":
-        if args.import_file or args.alert_id:
-            with project_lock(state):
-                current_task = read_task(state, args.id)
-                if args.import_file:
-                    current_task = import_alerts(current_task, args.import_file)
-                if args.alert_id:
-                    if not args.status:
-                        raise ValueError("Give --status with --set.")
-                    current_task = set_alert_status(current_task, args.alert_id, args.status, args.by or "", args.reason)
-                write_json(task_path(state, args.id), current_task)
-            task = current_task
-        summary = alert_summary(task)
-        if args.json:
-            _print_json({"summary": summary, "alerts": task.get("dependency_alerts", {}).get("alerts", [])})
-        else:
-            for item in summary["imports"]:
-                print(f"Imported {item['alerts']} alert(s) from {item['tool']} ({item['file']}, sha256 {item['sha256'][:12]})")
-            print(f"{summary['total']} alert(s): " + ", ".join(f"{count} {status}" for status, count in summary["by_status"].items()))
-            for alert in task.get("dependency_alerts", {}).get("alerts", []):
-                fix = f" fix: {alert['fix']}" if alert.get("fix") else ""
-                print(f"  [{alert['status']}] {alert['id']} {alert['severity']} {alert['version']}{fix}")
+        alerts_cli.task_command(args, state, task)
     elif action == "runs":
         comparison = compare_runs(task)
         if comparison is None:
@@ -1174,8 +1163,12 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 usable = connected_tools(state, registry, board_id)
                 if usable:
                     knowledge[board_id]["tools"] = usable
-            result = record_consultation(current_task, answers, profile, catalog, _selection(args), controls, market,
-                                         storybook_scope_entry(state), knowledge, connected_tools(state, registry))
+            result = record_consultation(alerts_cli.consultation_task(state, current_task), answers, profile, catalog,
+                                         _selection(args), controls, market, storybook_scope_entry(state), knowledge,
+                                         connected_tools(state, registry))
+            result.pop("dependency_alerts")
+            if "dependency_alerts" in current_task:
+                result["dependency_alerts"] = current_task["dependency_alerts"]
             write_json(task_path(state, args.id), result)
         print(result["consultation"]["markdown"])
     elif action == "review":
@@ -1280,6 +1273,8 @@ def _run(args) -> int | None:
         _print_catalog(catalog, args.json)
     elif args.command == "tools":
         return tools_cli.run(args, root, state, catalog, load_profile)
+    elif args.command == "alerts":
+        return alerts_cli.run(args, state)
     elif args.command == "init":
         detected = components_for_profile(detect_stack(root))
         questions = init_questions(catalog, root.name or "Project", detected)
