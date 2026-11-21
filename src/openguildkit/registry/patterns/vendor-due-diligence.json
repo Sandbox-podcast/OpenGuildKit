@@ -1,0 +1,27 @@
+{
+  "id": "vendor-due-diligence",
+  "title": "Vendor due diligence",
+  "description": "Classify vendors by risk, check their security and data terms, track renewals and plan the exit before buying.",
+  "sources": [
+    {
+      "title": "NIST SP 800-161 Rev. 1, Cybersecurity Supply Chain Risk Management Practices for Systems and Organizations",
+      "url": "https://csrc.nist.gov/pubs/sp/800/161/r1/upd1/final"
+    },
+    {
+      "title": "NCSC, Principles of supply chain security",
+      "url": "https://www.ncsc.gov.uk/collection/supply-chain-security/principles-supply-chain-security"
+    }
+  ],
+  "roles": [
+    "procurement",
+    "security",
+    "legal"
+  ],
+  "packs": [
+    "vendor-due-diligence"
+  ],
+  "references": [
+    "nist-sp-800-161",
+    "ncsc-supply-chain-principles"
+  ]
+}

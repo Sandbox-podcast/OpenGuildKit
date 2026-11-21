@@ -1,0 +1,21 @@
+{
+  "id": "nis2-essential-entity",
+  "title": "NIS 2 essential and important entities",
+  "description": "Select when the security owner has confirmed that the organization is an essential or important entity under the national law transposing NIS 2.",
+  "sources": [
+    {
+      "title": "Directive (EU) 2022/2555 (NIS 2)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/en"
+    }
+  ],
+  "roles": [
+    "legal",
+    "security"
+  ],
+  "packs": [
+    "nis2"
+  ],
+  "references": [
+    "nis-2"
+  ]
+}

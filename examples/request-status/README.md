@@ -26,7 +26,7 @@ The script copies the current `consultation_id` from `task template` before reco
 
 After `init`, `AGENTS.md` contains the workflow and packs from the matched stack patterns. The Python, FastAPI and PostgreSQL combination adds API and database checks. `CLAUDE.md` imports the generated instructions.
 
-`task consult` selects six boards and says why:
+`task consult` selects seven boards and says why:
 
 | Board | Reason |
 |---|---|
@@ -36,7 +36,8 @@ After `init`, `AGENTS.md` contains the workflow and packs from the matched stack
 | design | Customer experience |
 | marketing | Customer expectations and market evidence |
 | security | Personal data access |
+| legal | Lawful basis, notice and records for personal data |
 
-`review.json` records findings from 26 specialist lenses. The product board supports a read-only scope, security requests further access checks, and marketing reports insufficient evidence for a competitor comparison. The replay prints the decision brief so you can compare verdicts and see what would change them.
+`review.json` records findings from 30 specialist lenses. The product board supports a read-only scope, security requests further access checks, legal asks the data protection owner to confirm the privacy notice, and marketing reports insufficient evidence for a competitor comparison. The replay prints the decision brief so you can compare verdicts and see what would change them.
 
 `task decide --approve` asks you to type `request-status` in the terminal. Once approved, `task handoff` prints the scope.

@@ -1,0 +1,292 @@
+{
+  "id": "testing",
+  "title": "Testing",
+  "tools": [
+    {
+      "id": "browserstack",
+      "title": "BrowserStack",
+      "vendor": "BrowserStack",
+      "summary": "Cloud of real browsers and devices for manual and automated testing.",
+      "homepage": "https://www.browserstack.com",
+      "brains": [
+        "qa",
+        "engineering",
+        "frontend"
+      ],
+      "detect": {
+        "files": [
+          "browserstack.yml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "browserstack-remote",
+          "name": "BrowserStack MCP Server (remote)",
+          "publisher": "vendor",
+          "maintainer": "BrowserStack",
+          "transport": "streamable-http",
+          "url": "https://mcp.browserstack.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Manual and automated testing on real browsers and devices, test debugging, accessibility and test management.",
+          "source": "https://www.browserstack.com/docs/browserstack-mcp-server/get-started/remote-mcp-server",
+          "repository": "https://github.com/browserstack/mcp-server",
+          "license": "AGPL-3.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://www.browserstack.com/docs/automate/api-reference/selenium/introduction"
+      },
+      "notes": "A local npm package (@browserstack/mcp-server) also exists; its setup page was not checked here."
+    },
+    {
+      "id": "chaosfolk",
+      "title": "ChaosFolk",
+      "vendor": "loukan42",
+      "summary": "Replays browser journeys with simulated users and reports regressions.",
+      "homepage": "https://github.com/loukan42/chaosfolk",
+      "brains": [
+        "qa",
+        "engineering"
+      ],
+      "servers": [],
+      "notes": "No MCP server on record. OpenGuildKit reads a replay's summary.json as checks of a task with `openguildkit task verify ID --chaosfolk SUMMARY`: see the chaosfolk-e2e pack."
+    },
+    {
+      "id": "cypress",
+      "title": "Cypress",
+      "vendor": "Cypress.io",
+      "summary": "JavaScript end-to-end and component testing framework with Cypress Cloud.",
+      "homepage": "https://www.cypress.io",
+      "brains": [
+        "qa",
+        "engineering",
+        "frontend"
+      ],
+      "detect": {
+        "files": [
+          "cypress.config.*"
+        ],
+        "npm": [
+          "cypress"
+        ]
+      },
+      "servers": [
+        {
+          "id": "cypress-cloud-mcp",
+          "name": "Cypress Cloud MCP",
+          "publisher": "vendor",
+          "maintainer": "Cypress.io",
+          "transport": "streamable-http",
+          "url": "https://mcp.cypress.io/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "ga",
+          "capabilities": "Read Cypress Cloud runs, test results, flaky tests and accessibility reports for debugging; cannot change code or delete runs.",
+          "source": "https://docs.cypress.io/cloud/integrations/cloud-mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "other",
+        "docs": "https://docs.cypress.io/app/references/module-api"
+      },
+      "notes": "An admin must enable the integration for the organization; included in every Cypress Cloud plan. Without OAuth, send a personal token as Authorization: Bearer. Read-only."
+    },
+    {
+      "id": "k6",
+      "title": "k6",
+      "vendor": "Grafana Labs",
+      "summary": "Open-source load and performance testing tool.",
+      "homepage": "https://k6.io",
+      "brains": [
+        "performance",
+        "qa",
+        "devops",
+        "backend"
+      ],
+      "detect": {
+        "npm": [
+          "k6"
+        ]
+      },
+      "servers": [
+        {
+          "id": "mcp-k6",
+          "name": "mcp-k6",
+          "publisher": "vendor",
+          "maintainer": "Grafana Labs",
+          "transport": "stdio",
+          "command": "docker",
+          "args": [
+            "run",
+            "--rm",
+            "-i",
+            "grafana/mcp-k6"
+          ],
+          "package": {
+            "registry": "docker",
+            "name": "grafana/mcp-k6"
+          },
+          "auth": "none",
+          "env": [],
+          "status": "experimental",
+          "capabilities": "Validate and run k6 scripts, browse k6 docs, guided script generation.",
+          "source": "https://github.com/grafana/mcp-k6",
+          "repository": "https://github.com/grafana/mcp-k6",
+          "license": "AGPL-3.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "other",
+        "docs": "https://grafana.com/docs/k6/latest/"
+      },
+      "notes": "Also installable with Homebrew (brew tap grafana/grafana; brew install mcp-k6, command mcp-k6) and can serve streamable HTTP with -transport=http."
+    },
+    {
+      "id": "playwright",
+      "title": "Playwright",
+      "vendor": "Microsoft",
+      "summary": "End-to-end browser testing and automation framework.",
+      "homepage": "https://playwright.dev",
+      "brains": [
+        "qa",
+        "engineering",
+        "frontend"
+      ],
+      "detect": {
+        "files": [
+          "playwright.config.*"
+        ],
+        "npm": [
+          "@playwright/test",
+          "playwright"
+        ],
+        "pypi": [
+          "playwright",
+          "pytest-playwright"
+        ]
+      },
+      "servers": [
+        {
+          "id": "playwright-mcp",
+          "name": "Playwright MCP",
+          "publisher": "vendor",
+          "maintainer": "Microsoft",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "@playwright/mcp@latest"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@playwright/mcp"
+          },
+          "auth": "none",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Browser automation through accessibility snapshots: navigate, click, type, fill forms, screenshots, tabs.",
+          "source": "https://playwright.dev/docs/getting-started-mcp",
+          "repository": "https://github.com/microsoft/playwright-mcp",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "other",
+        "docs": "https://playwright.dev/docs/api/class-playwright"
+      },
+      "notes": "Can also run as an HTTP server with --port 8931 (endpoint http://localhost:8931/mcp). Microsoft also lists a Playwright Workspaces cloud-browsers server in the MCP registry, not verified here."
+    },
+    {
+      "id": "postman",
+      "title": "Postman",
+      "vendor": "Postman",
+      "summary": "API platform for designing, testing and documenting APIs.",
+      "homepage": "https://www.postman.com",
+      "brains": [
+        "engineering",
+        "qa",
+        "developer-relations-and-docs",
+        "backend"
+      ],
+      "servers": [
+        {
+          "id": "postman-remote",
+          "name": "Postman MCP Server (remote)",
+          "publisher": "vendor",
+          "maintainer": "Postman",
+          "transport": "streamable-http",
+          "url": "https://mcp.postman.com/minimal",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Manage workspaces, collections, specifications and environments; /code and /mcp give larger toolsets.",
+          "source": "https://github.com/postmanlabs/postman-mcp-server",
+          "repository": "https://github.com/postmanlabs/postman-mcp-server",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "postman-local",
+          "name": "Postman MCP Server (local)",
+          "publisher": "vendor",
+          "maintainer": "Postman",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "@postman/postman-mcp-server"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@postman/postman-mcp-server"
+          },
+          "auth": "api-token",
+          "env": [
+            "POSTMAN_API_KEY"
+          ],
+          "status": "unknown",
+          "capabilities": "Same tools run locally; add --code or --full for larger toolsets.",
+          "source": "https://github.com/postmanlabs/postman-mcp-server",
+          "repository": "https://github.com/postmanlabs/postman-mcp-server",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://learning.postman.com/docs/developer/postman-api/intro-api/"
+      },
+      "notes": "Replace /minimal with /code or /mcp (full). EU accounts use https://mcp.eu.postman.com/... with an API key only (local: --region eu)."
+    },
+    {
+      "id": "selenium",
+      "title": "Selenium",
+      "vendor": "Selenium project (Software Freedom Conservancy)",
+      "summary": "Browser automation and WebDriver standard implementation.",
+      "homepage": "https://www.selenium.dev",
+      "brains": [
+        "qa",
+        "engineering"
+      ],
+      "detect": {
+        "npm": [
+          "selenium-webdriver"
+        ],
+        "pypi": [
+          "selenium"
+        ]
+      },
+      "servers": [],
+      "api": {
+        "kind": "other",
+        "docs": "https://www.selenium.dev/documentation/webdriver/"
+      },
+      "notes": "No installable MCP server verified on 2026-11-21. SeleniumHQ/mcp (official, README says 'v1 in progress') documents npx @selenium/mcp@latest, but that package is not published on npm yet; community servers found were not clearly maintained."
+    }
+  ]
+}

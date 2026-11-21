@@ -10,6 +10,10 @@
       "title": "MLOps",
       "category": "ML et MLOps",
       "kind": "pratique",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Organiser le cycle de vie des modèles avec validation, versionnement et automatisation des données, de l'entraînement et du déploiement.",
       "applies_when": "Si le produit entraîne ou exploite des modèles qui doivent être maintenus et réévalués au fil du temps.",
       "sources": [
@@ -27,6 +31,10 @@
       "title": "MLflow",
       "category": "ML et MLOps",
       "kind": "outil",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Plateforme pour suivre les expériences, évaluer et versionner les modèles, puis organiser leur registre et leur déploiement.",
       "applies_when": "Quand les équipes doivent retrouver les paramètres, résultats et artefacts d'expériences et gérer les versions de modèles.",
       "sources": [
@@ -44,6 +52,10 @@
       "title": "DVC",
       "category": "ML et MLOps",
       "kind": "outil",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Outil de versionnement de données et de pipelines qui complète Git pour reproduire des traitements et suivre leurs artefacts.",
       "applies_when": "Quand les jeux de données ou modèles sont trop volumineux pour être gérés comme du code ordinaire dans Git.",
       "sources": [
@@ -61,6 +73,10 @@
       "title": "Open Neural Network Exchange (ONNX)",
       "category": "ML et MLOps",
       "kind": "format",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Représentation de modèles de machine learning destinée à faciliter leur échange et leur exécution entre outils compatibles.",
       "applies_when": "Pour porter un modèle entre environnements, après vérification des opérations et versions effectivement prises en charge.",
       "sources": [
@@ -78,6 +94,9 @@
       "title": "Model Cards",
       "category": "ML et MLOps",
       "kind": "pratique",
+      "brains": [
+        "data"
+      ],
       "summary": "Fiches qui décrivent les usages prévus d'un modèle, ses évaluations et ses limites pour aider à juger son adéquation à un contexte.",
       "applies_when": "Pour les modèles livrés ou réutilisés par des personnes qui ont besoin de comprendre leurs capacités et leurs restrictions.",
       "sources": [
@@ -95,6 +114,9 @@
       "title": "Datasheets for Datasets",
       "category": "ML et MLOps",
       "kind": "pratique",
+      "brains": [
+        "data"
+      ],
       "summary": "Documenter la motivation, la composition, la collecte et les usages d'un jeu de données afin de rendre sa réutilisation plus éclairée.",
       "applies_when": "Quand un jeu de données est partagé ou employé pour entraîner et évaluer des modèles.",
       "sources": [
@@ -112,6 +134,10 @@
       "title": "TensorFlow SavedModel",
       "category": "ML et MLOps",
       "kind": "format",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Conteneur d'export TensorFlow qui réunit les calculs et les paramètres nécessaires à l'utilisation d'un modèle.",
       "applies_when": "Pour conserver et déployer des modèles TensorFlow dans des environnements qui prennent en charge ce format.",
       "sources": [
@@ -127,8 +153,13 @@
         "pd_pmml"
       ],
       "title": "Predictive Model Markup Language (PMML)",
+      "edition": "4.4.1",
       "category": "ML et MLOps",
       "kind": "format",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Format XML décrivant des modèles prédictifs et leurs transformations pour permettre leur échange entre outils compatibles.",
       "applies_when": "Pour déplacer des modèles pris en charge par PMML entre solutions analytiques sans réécrire leur description.",
       "sources": [
@@ -146,6 +177,10 @@
       "title": "Feast",
       "category": "ML et MLOps",
       "kind": "outil",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Feature store qui organise l'accès aux caractéristiques utilisées par les modèles pour l'entraînement et la prédiction.",
       "applies_when": "Quand plusieurs modèles réutilisent des caractéristiques et doivent maintenir une cohérence entre entraînement et service en production.",
       "sources": [
@@ -163,6 +198,10 @@
       "title": "TensorFlow Data Validation (TFDV)",
       "category": "ML et MLOps",
       "kind": "outil",
+      "brains": [
+        "data",
+        "engineering"
+      ],
       "summary": "Analyse les données, leurs schémas et certaines différences de distribution, notamment les dérives et écarts entre entraînement et service.",
       "applies_when": "Pour détecter des anomalies de données dans les pipelines ML compatibles avant qu'elles ne dégradent les modèles.",
       "sources": [
@@ -175,8 +214,14 @@
     {
       "id": "nist-ai-rmf",
       "title": "NIST AI Risk Management Framework 1.0",
+      "edition": "1.0",
       "category": "IA responsable et sécurité des agents",
       "kind": "référentiel",
+      "brains": [
+        "data",
+        "security",
+        "leadership"
+      ],
       "summary": "Aide à identifier, mesurer et gérer les risques des systèmes d'intelligence artificielle.",
       "applies_when": "Pour les organisations qui conçoivent, déploient ou utilisent de l'IA et veulent structurer une démarche de confiance.",
       "pattern": "nist-ai-risk-management",
@@ -195,6 +240,10 @@
       "title": "NIST AI 600-1 — Generative AI Profile",
       "category": "IA responsable et sécurité des agents",
       "kind": "référentiel",
+      "brains": [
+        "data",
+        "security"
+      ],
       "summary": "Adapte le cadre de gestion des risques IA aux particularités de l'intelligence artificielle générative.",
       "applies_when": "Pour cadrer des usages génératifs, leurs risques spécifiques et les mesures à évaluer.",
       "packs": [
@@ -213,6 +262,10 @@
       "title": "OWASP Top 10 for LLM Applications",
       "category": "IA responsable et sécurité des agents",
       "kind": "taxonomie",
+      "brains": [
+        "data",
+        "security"
+      ],
       "summary": "Présente les grandes familles de risques des applications qui utilisent des modèles de langage.",
       "applies_when": "Pour orienter l'analyse des risques d'une application LLM ; choisir et documenter l'édition utilisée, sans assimiler cette liste à une certification de sécurité.",
       "sources": [
@@ -225,8 +278,13 @@
     {
       "id": "owasp-agentic-top-10",
       "title": "OWASP Top 10 for Agentic Applications 2026",
+      "edition": "2026",
       "category": "IA responsable et sécurité des agents",
       "kind": "taxonomie",
+      "brains": [
+        "data",
+        "security"
+      ],
       "summary": "Présente les risques spécifiques aux agents capables d'utiliser des outils et d'enchaîner des actions.",
       "applies_when": "Pour concevoir ou évaluer des agents autonomes, leurs permissions et leurs interactions avec des systèmes.",
       "sources": [
@@ -241,6 +299,10 @@
       "title": "MITRE ATLAS",
       "category": "IA responsable et sécurité des agents",
       "kind": "taxonomie",
+      "brains": [
+        "data",
+        "security"
+      ],
       "summary": "Décrit des tactiques et techniques adverses impliquant les systèmes d'intelligence artificielle.",
       "applies_when": "Pour cartographier les risques, choisir des protections et vérifier ce que les mécanismes de détection couvrent.",
       "sources": [
@@ -253,8 +315,13 @@
     {
       "id": "iso-iec-42001",
       "title": "ISO/IEC 42001:2023",
+      "edition": "2023",
       "category": "IA responsable et sécurité des agents",
       "kind": "norme",
+      "brains": [
+        "data",
+        "leadership"
+      ],
       "summary": "Définit les exigences d'un système de management de l'intelligence artificielle.",
       "applies_when": "Pour organiser les responsabilités, risques et améliorations autour de l'IA, sur un périmètre choisi.",
       "sources": [
@@ -267,8 +334,13 @@
     {
       "id": "iso-iec-23894",
       "title": "ISO/IEC 23894:2023",
+      "edition": "2023",
       "category": "IA responsable et sécurité des agents",
       "kind": "norme",
+      "brains": [
+        "data",
+        "security"
+      ],
       "summary": "Donne des recommandations de gestion des risques propres à l'intelligence artificielle.",
       "applies_when": "Pour les organisations qui développent, produisent, déploient ou utilisent des produits et services fondés sur l'IA.",
       "sources": [
@@ -283,6 +355,10 @@
       "title": "NIST SP 800-218A — SSDF Community Profile for AI",
       "category": "IA responsable et sécurité des agents",
       "kind": "référentiel",
+      "brains": [
+        "data",
+        "security"
+      ],
       "summary": "Complète les pratiques de développement sécurisé pour la création de modèles génératifs et de modèles de fondation.",
       "applies_when": "Pour le développement de ces modèles ; ce profil ne vise pas simplement tout code écrit avec un assistant IA.",
       "sources": [
@@ -297,6 +373,10 @@
       "title": "OWASP Agent Control Standard (ACS) - spécification émergente",
       "category": "IA responsable et sécurité des agents",
       "kind": "référentiel",
+      "brains": [
+        "data",
+        "security"
+      ],
       "summary": "Définit une approche ouverte pour observer et contrôler les actions des agents pendant leur exécution.",
       "applies_when": "Si la plateforme d'agents expose des points de contrôle compatibles ; évaluer cette spécification émergente en pilote, figer sa version et vérifier l'interopérabilité avant son adoption.",
       "sources": [
@@ -314,6 +394,10 @@
       "title": "Model Context Protocol (MCP)",
       "category": "Agents IA et orchestration",
       "kind": "protocole",
+      "brains": [
+        "engineering",
+        "data"
+      ],
       "summary": "Définit une interface commune pour qu'une application utilisant un modèle accède à des outils, ressources et modèles de prompts exposés par des serveurs.",
       "applies_when": "Quand les agents doivent utiliser des capacités externes via des intégrations interopérables, avec authentification et permissions adaptées.",
       "sources": [
@@ -331,6 +415,10 @@
       "title": "Agent2Agent (A2A)",
       "category": "Agents IA et orchestration",
       "kind": "protocole",
+      "brains": [
+        "engineering",
+        "data"
+      ],
       "summary": "Décrit la découverte des capacités d'agents et leurs échanges de messages, tâches et résultats pour coordonner des systèmes distincts.",
       "applies_when": "Quand des agents indépendants doivent coopérer au-delà d'une même application ou d'un même framework, avec des responsabilités explicites.",
       "sources": [
@@ -348,6 +436,10 @@
       "title": "Retrieval-Augmented Generation (RAG)",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
+      "brains": [
+        "engineering",
+        "data"
+      ],
       "summary": "Associe la recherche de documents à la génération de réponses afin de fournir au modèle des informations retrouvées dans un corpus.",
       "applies_when": "Pour exploiter des connaissances métier ou techniques maintenues hors du modèle, avec vérification de la pertinence des documents et des réponses.",
       "sources": [
@@ -365,6 +457,10 @@
       "title": "Évaluations de LLM et d'agents",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
+      "brains": [
+        "engineering",
+        "data"
+      ],
       "summary": "Tester des scénarios représentatifs et noter les résultats, les trajectoires et les appels d'outils selon des critères explicites, avec évaluateurs automatiques ou humains.",
       "applies_when": "Avant de changer modèles, consignes ou outils, puis régulièrement pour détecter des régressions sur les tâches réelles du produit.",
       "pattern": "llm-evaluation",
@@ -386,6 +482,10 @@
       "title": "Permissions et moindre privilège des outils",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
+      "brains": [
+        "security",
+        "engineering"
+      ],
       "summary": "Limiter les capacités d'un agent aux opérations et données nécessaires, avec des permissions minimales et une élévation ciblée lorsqu'elle est requise.",
       "applies_when": "Dès qu'un agent peut consulter des données privées, modifier un dépôt ou agir sur des systèmes externes.",
       "sources": [
@@ -403,6 +503,11 @@
       "title": "Validation humaine dans la boucle",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
+      "brains": [
+        "engineering",
+        "data",
+        "operations"
+      ],
       "summary": "Interrompre l'exécution à un point prévu pour permettre à une personne de valider, corriger ou refuser une action avant sa poursuite.",
       "applies_when": "Pour les décisions et actions dont l'organisation exige une validation humaine, avec un état sauvegardé et une reprise maîtrisée.",
       "sources": [
@@ -420,6 +525,10 @@
       "title": "Budgets et limites d'exécution des agents",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
+      "brains": [
+        "engineering",
+        "data"
+      ],
       "summary": "Fixer des conditions d'arrêt portant sur le nombre d'échanges, les jetons consommés ou la durée, et prévoir une interruption externe.",
       "applies_when": "Pour contenir les boucles, les délais et la consommation de ressources des agents ; les limites doivent être appliquées par l'orchestrateur.",
       "sources": [
@@ -437,6 +546,10 @@
       "title": "Context engineering",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
+      "brains": [
+        "engineering",
+        "data"
+      ],
       "summary": "Sélectionner, organiser et actualiser les instructions, outils, informations et historiques réellement utiles dans la fenêtre de contexte du modèle.",
       "applies_when": "Quand une tâche longue ou complexe accumule trop d'informations ; définir des règles de sélection, de synthèse et de récupération du contexte.",
       "sources": [
@@ -454,6 +567,10 @@
       "title": "Gestion de la mémoire des agents",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
+      "brains": [
+        "engineering",
+        "data"
+      ],
       "summary": "Distinguer l'état d'une conversation des informations conservées entre sessions, et organiser leur enregistrement puis leur récupération.",
       "applies_when": "Quand les agents doivent reprendre une tâche ou réutiliser des connaissances, avec un périmètre d'accès et des règles de conservation explicites.",
       "sources": [

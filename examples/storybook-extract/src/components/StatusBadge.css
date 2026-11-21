@@ -1,0 +1,9 @@
+.badge {
+  border-radius: 999px;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  color: #ffffff;
+}
+.badge--open { background: var(--color-brand); }
+.badge--waiting { background: #b26a00; }
+.badge--closed { background: rgb(95, 107, 122); }

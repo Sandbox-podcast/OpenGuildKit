@@ -1,0 +1,119 @@
+{
+  "id": "procurement",
+  "title": "Procurement and vendor management",
+  "description": "Review the purchase of software, services and data from third parties: need, selection, due diligence, contract and exit.",
+  "expertises": [
+    "Vendor selection and competitive bids",
+    "Third-party risk and due diligence",
+    "Contract terms, renewals and exit plans"
+  ],
+  "triggers": [
+    "vendor",
+    "fournisseur",
+    "supplier",
+    "vendor selection",
+    "choix du fournisseur",
+    "choose a vendor",
+    "vendor due diligence",
+    "third-party risk",
+    "risque tiers",
+    "supplier risk",
+    "procurement",
+    "achats",
+    "purchasing",
+    "purchase order",
+    "bon de commande",
+    "request for quotation",
+    "demande de devis",
+    "saas subscription",
+    "abonnement saas",
+    "vendor contract",
+    "contrat fournisseur",
+    "outsourcing",
+    "externalisation",
+    "exit plan",
+    "plan de réversibilité",
+    "réversibilité"
+  ],
+  "questions": [
+    "What need does the purchase answer, and which alternatives were compared?",
+    "What data, access and dependency does the vendor get, and how was its security checked?",
+    "How do we leave this vendor, and what does it cost?"
+  ],
+  "sources": [
+    {
+      "title": "NIST SP 800-161 Rev. 1, Cybersecurity Supply Chain Risk Management Practices for Systems and Organizations",
+      "url": "https://csrc.nist.gov/pubs/sp/800/161/r1/upd1/final"
+    },
+    {
+      "title": "NCSC, Principles of supply chain security",
+      "url": "https://www.ncsc.gov.uk/collection/supply-chain-security/principles-supply-chain-security"
+    },
+    {
+      "title": "ENISA, Good Practices for Supply Chain Cybersecurity (2023)",
+      "url": "https://www.enisa.europa.eu/publications/good-practices-for-supply-chain-cybersecurity"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "sourcing-lead",
+        "title": "Sourcing lead",
+        "focus": "Check that the need is written down, that more than one option was compared on the same criteria and that the total cost covers the whole term.",
+        "checks": [
+          "The comparison uses the same weighted criteria for every vendor, fixed before the offers were read.",
+          "Total cost covers licences, implementation, support, usage tiers and price increases over the contract term.",
+          "The internal owner and the budget line are named before the order is signed."
+        ]
+      },
+      {
+        "id": "third-party-risk",
+        "title": "Third-party risk analyst",
+        "focus": "Classify the vendor by the data and access it receives and run the due diligence that matches: security questionnaire, certifications, subprocessors and financial health.",
+        "checks": [
+          "The vendor's criticality is recorded with the reason: data handled, access granted, service dependency.",
+          "A certification report is read for its scope and period, not only its logo, and its exceptions are noted.",
+          "Subprocessors and data locations are listed and compared with what the company promised its own customers."
+        ]
+      },
+      {
+        "id": "contract-terms",
+        "title": "Contract terms specialist",
+        "focus": "Compare the vendor contract with the company's requirements: service levels, data processing, audit rights, liability, renewal and notice periods.",
+        "checks": [
+          "A data processing agreement is signed when the vendor processes personal data on the company's behalf.",
+          "Automatic renewal dates and notice periods are entered in a calendar with an owner.",
+          "Service levels have remedies, and the measurement method is defined in the contract."
+        ]
+      },
+      {
+        "id": "exit-and-continuity",
+        "title": "Exit and continuity planner",
+        "focus": "Write how the company would leave the vendor: data export format, transition period, replacement options and the cost and time to switch.",
+        "checks": [
+          "The contract gives a data export in a documented format and a transition period after termination.",
+          "The exit plan names an alternative vendor or an in-house fallback and the time to switch.",
+          "Critical vendors have a test of the export, not only a clause."
+        ]
+      }
+    ],
+    "evidence": [
+      "Written need, options compared and the scoring grid used.",
+      "Vendor security questionnaire, certification reports and subprocessor list, with dates.",
+      "Draft contract, data processing agreement, service levels and renewal terms.",
+      "Exit plan with data export format, transition period and alternatives."
+    ],
+    "challenge": [
+      "Was the vendor chosen before the comparison started, and does the grid reflect that?",
+      "What would happen to our customers if this vendor stopped service tomorrow?",
+      "Does the vendor get more data or access than the need requires?",
+      "Which renewal or price increase will surprise the budget owner next year?"
+    ],
+    "decision_criteria": [
+      "Proceed when the need, comparison, due diligence and contract terms are documented and the owner signs off.",
+      "Revise when the vendor's access or data exceeds the need, or the contract lacks a data processing agreement where one is required.",
+      "Escalate when a critical vendor has no tested exit or a due diligence finding stays open, to the risk owner who can accept it.",
+      "Record the renewal date, notice period and the review date for the vendor's risk rating."
+    ]
+  }
+}

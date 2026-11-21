@@ -1,0 +1,126 @@
+{
+  "id": "crm",
+  "title": "CRM and sales",
+  "tools": [
+    {
+      "id": "hubspot",
+      "title": "HubSpot",
+      "vendor": "HubSpot",
+      "summary": "CRM, marketing, sales and service hub.",
+      "homepage": "https://www.hubspot.com",
+      "brains": [
+        "sales",
+        "marketing",
+        "support",
+        "customer-success",
+        "partnerships"
+      ],
+      "aliases": [
+        "HubSpot CRM"
+      ],
+      "detect": {
+        "npm": [
+          "@hubspot/api-client"
+        ],
+        "pypi": [
+          "hubspot-api-client"
+        ]
+      },
+      "servers": [
+        {
+          "id": "hubspot-remote",
+          "name": "Remote HubSpot MCP server",
+          "publisher": "vendor",
+          "maintainer": "HubSpot",
+          "transport": "streamable-http",
+          "url": "https://mcp.hubspot.com",
+          "auth": "oauth",
+          "env": [],
+          "status": "ga",
+          "capabilities": "Read and write CRM records, activities, content, campaigns, marketing email drafts, pipelines and properties, acting with the user's HubSpot permissions.",
+          "source": "https://developers.hubspot.com/docs/apps/developer-platform/build-apps/integrate-with-the-remote-hubspot-mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.hubspot.com/docs/api-reference/latest/overview"
+      },
+      "notes": "OAuth 2.1 with PKCE through an MCP connector created in the HubSpot account; GA status comes from HubSpot's changelog. A separate Developer MCP server exists for building on HubSpot (not listed)."
+    },
+    {
+      "id": "pipedrive",
+      "title": "Pipedrive",
+      "vendor": "Pipedrive",
+      "summary": "Sales CRM and pipeline management.",
+      "homepage": "https://www.pipedrive.com",
+      "brains": [
+        "sales",
+        "partnerships"
+      ],
+      "servers": [
+        {
+          "id": "pipedrive-mcp",
+          "name": "Pipedrive MCP",
+          "publisher": "vendor",
+          "maintainer": "Pipedrive",
+          "transport": "streamable-http",
+          "url": "https://mcp.pipedrive.ai/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Find deals, contacts, organizations and leads; create or update records, add notes, create activities and move deals between stages, within the user's permissions.",
+          "source": "https://support.pipedrive.com/en/article/mcp-chatgpt",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.pipedrive.com/docs/api/v1"
+      },
+      "notes": "Available on all Pipedrive plans with plan-based token limits; the user needs permission to install apps in Pipedrive."
+    },
+    {
+      "id": "salesforce",
+      "title": "Salesforce",
+      "vendor": "Salesforce",
+      "summary": "CRM platform for sales, service and marketing.",
+      "homepage": "https://www.salesforce.com",
+      "brains": [
+        "sales",
+        "support",
+        "marketing",
+        "customer-success",
+        "partnerships"
+      ],
+      "detect": {
+        "files": [
+          "sfdx-project.json"
+        ]
+      },
+      "servers": [
+        {
+          "id": "salesforce-hosted-sobject-all",
+          "name": "Salesforce Hosted MCP Server (platform/sobject-all)",
+          "publisher": "vendor",
+          "maintainer": "Salesforce",
+          "transport": "streamable-http",
+          "url": "https://api.salesforce.com/platform/mcp/v1/platform/sobject-all",
+          "auth": "oauth",
+          "env": [],
+          "status": "ga",
+          "capabilities": "Read, create, update and delete standard and custom object records; platform/sobject-reads is the read-only variant.",
+          "source": "https://github.com/forcedotcom/mcp-hosted/wiki/Connecting-Your-MCP-Client",
+          "repository": "https://github.com/forcedotcom/mcp-hosted",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_rest.htm"
+      },
+      "notes": "Enterprise Edition or above (or Developer Edition); an admin enables each server in Setup > API Catalog > MCP Servers and creates an External Client App (scopes mcp_api, refresh_token). Sandbox URL: https://api.salesforce.com/platform/mcp/v1/sandbox/{servername}; the beta v1-beta.2 URLs no longer work. The local @salesforce/mcp DX server reached end of life on 2 Nov 2026."
+    }
+  ]
+}

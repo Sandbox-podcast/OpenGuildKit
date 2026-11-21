@@ -1,0 +1,22 @@
+{
+  "id": "cyber-resilience-act-product",
+  "title": "Cyber Resilience Act for products with digital elements",
+  "description": "Select when the organization places on the EU market software or hardware with digital elements covered by Regulation (EU) 2024/2847.",
+  "sources": [
+    {
+      "title": "Regulation (EU) 2024/2847, Cyber Resilience Act",
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847"
+    }
+  ],
+  "roles": [
+    "legal",
+    "security"
+  ],
+  "packs": [
+    "cyber-resilience-act"
+  ],
+  "references": [
+    "cyber-resilience-act",
+    "sbom"
+  ]
+}

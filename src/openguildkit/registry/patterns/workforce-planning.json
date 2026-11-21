@@ -16,5 +16,8 @@
   ],
   "packs": [
     "workforce-capacity"
+  ],
+  "references": [
+    "opm-workforce-planning"
   ]
 }

@@ -1,0 +1,42 @@
+{
+  "id": "vat-and-e-invoicing",
+  "title": "VAT and e-invoicing",
+  "version": "1.0.0",
+  "description": "For a change to checkout, billing or invoices: the VAT treatment per country and customer type, the content of invoices and the French e-invoicing calendar.",
+  "sources": [
+    {
+      "title": "Council Directive 2006/112/EC on the common system of value added tax",
+      "url": "https://eur-lex.europa.eu/eli/dir/2006/112/oj"
+    },
+    {
+      "title": "impots.gouv.fr, Je passe à la facturation électronique",
+      "url": "https://www.impots.gouv.fr/professionnel/je-passe-la-facturation-electronique"
+    },
+    {
+      "title": "Service-Public Entreprendre, La facturation électronique est effective depuis le 1er septembre 2026",
+      "url": "https://entreprendre.service-public.gouv.fr/actualites/A18953?lang=fr"
+    }
+  ],
+  "rules": [
+    {
+      "id": "map-vat-treatment",
+      "instruction": "Record in the billing configuration the VAT treatment for each country sold to and each customer type, business or consumer, as confirmed by the tax adviser.",
+      "verification": "Read the tax configuration export and check that each country and customer type sold to has a rule and the name of who confirmed it."
+    },
+    {
+      "id": "validate-business-vat-numbers",
+      "instruction": "Validate a business customer's VAT number, for example with the European Commission VIES service, before invoicing it without VAT, and keep the validation date.",
+      "verification": "In the customer records, check that every business customer invoiced without VAT has a VAT number and a validation date."
+    },
+    {
+      "id": "issue-compliant-invoices",
+      "instruction": "Generate invoices with the mandatory particulars that apply in the seller's country, including a sequential number, the VAT numbers, the rate and the VAT amount or the reason for exemption.",
+      "verification": "Compare a test invoice for each customer type with the list of mandatory particulars kept by finance."
+    },
+    {
+      "id": "meet-french-e-invoicing-dates",
+      "instruction": "For a company established in France, receive electronic invoices from 1 September 2026 and issue them from 1 September 2026 for large and mid-sized companies, or 1 September 2027 for SMEs and micro-enterprises, through the platform finance chose.",
+      "verification": "Check that the task record names the e-invoicing platform and links a test invoice received, and sent when the company's date has passed."
+    }
+  ]
+}

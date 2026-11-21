@@ -15,5 +15,8 @@
   ],
   "packs": [
     "strategy-map"
+  ],
+  "references": [
+    "strategy-maps"
   ]
 }

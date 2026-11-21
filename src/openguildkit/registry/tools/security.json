@@ -1,0 +1,251 @@
+{
+  "id": "security",
+  "title": "Security",
+  "tools": [
+    {
+      "id": "gitguardian",
+      "title": "GitGuardian",
+      "vendor": "GitGuardian",
+      "summary": "Secrets detection and incident remediation.",
+      "homepage": "https://www.gitguardian.com",
+      "brains": [
+        "security",
+        "engineering"
+      ],
+      "detect": {
+        "files": [
+          ".gitguardian.yaml",
+          ".gitguardian.yml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "gitguardian-hosted",
+          "name": "GitGuardian MCP Server (hosted)",
+          "publisher": "vendor",
+          "maintainer": "GitGuardian",
+          "transport": "streamable-http",
+          "url": "https://mcp.gitguardian.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "List, triage, assign and resolve secret incidents, revoke secrets, create honeytokens and scan code for leaked credentials.",
+          "source": "https://github.com/GitGuardian/ggmcp",
+          "repository": "https://github.com/GitGuardian/ggmcp",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "gitguardian-local",
+          "name": "GitGuardian MCP Server (local stdio)",
+          "publisher": "vendor",
+          "maintainer": "GitGuardian",
+          "transport": "stdio",
+          "command": "uvx",
+          "args": [
+            "--from",
+            "git+https://github.com/GitGuardian/ggmcp.git",
+            "gg-mcp-server"
+          ],
+          "package": {
+            "registry": "github-release",
+            "name": "GitGuardian/ggmcp"
+          },
+          "auth": "oauth-or-token",
+          "env": [
+            "GITGUARDIAN_URL",
+            "GITGUARDIAN_PERSONAL_ACCESS_TOKEN"
+          ],
+          "status": "unknown",
+          "capabilities": "Same tools run locally; browser login by default, or a personal access token with ENABLE_LOCAL_OAUTH=false for headless use.",
+          "source": "https://github.com/GitGuardian/ggmcp",
+          "repository": "https://github.com/GitGuardian/ggmcp",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://api.gitguardian.com/docs"
+      },
+      "notes": "EU workspaces use https://mcp.eu1.gitguardian.com/mcp. The local server is installed from the Git repository with uvx, not from a package registry."
+    },
+    {
+      "id": "semgrep",
+      "title": "Semgrep",
+      "vendor": "Semgrep",
+      "summary": "Static analysis (SAST), supply chain and secrets scanning.",
+      "homepage": "https://semgrep.dev",
+      "brains": [
+        "security",
+        "engineering"
+      ],
+      "detect": {
+        "files": [
+          ".semgrep.yml",
+          ".semgrep/*.yml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "semgrep-mcp",
+          "name": "Semgrep MCP Server (semgrep mcp)",
+          "publisher": "vendor",
+          "maintainer": "Semgrep",
+          "transport": "stdio",
+          "command": "semgrep",
+          "args": [
+            "mcp"
+          ],
+          "package": {
+            "registry": "pypi",
+            "name": "semgrep"
+          },
+          "auth": "api-token",
+          "env": [
+            "SEMGREP_APP_TOKEN"
+          ],
+          "status": "unknown",
+          "capabilities": "Scan code with Semgrep Code, Supply Chain and Secrets from the agent; stdio by default, streamable HTTP with -t streamable-http.",
+          "source": "https://github.com/semgrep/semgrep/tree/develop/cli/src/semgrep/mcp",
+          "repository": "https://github.com/semgrep/semgrep",
+          "license": "LGPL-2.1",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://semgrep.dev/api/v1/docs/"
+      },
+      "notes": "The standalone semgrep/mcp repository (uvx semgrep-mcp, mcp.semgrep.ai/sse) is archived and deprecated; the server now ships in the semgrep binary. SEMGREP_APP_TOKEN is only needed to connect to the Semgrep AppSec Platform."
+    },
+    {
+      "id": "snyk",
+      "title": "Snyk",
+      "vendor": "Snyk",
+      "summary": "Developer security platform: code, open source, container and IaC scanning.",
+      "homepage": "https://snyk.io",
+      "brains": [
+        "security",
+        "engineering"
+      ],
+      "detect": {
+        "files": [
+          ".snyk"
+        ]
+      },
+      "servers": [
+        {
+          "id": "snyk-cli-mcp",
+          "name": "Snyk MCP Server (Snyk CLI)",
+          "publisher": "vendor",
+          "maintainer": "Snyk",
+          "transport": "stdio",
+          "command": "snyk",
+          "args": [
+            "mcp",
+            "-t",
+            "stdio"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "snyk"
+          },
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Run Snyk Code, Open Source and IaC scans from the agent through the local Snyk CLI; optional SNYK_MCP_PROFILE selects the tool profile (lite, full, experimental).",
+          "source": "https://docs.snyk.io/agent-security/agentic-security-with-snyk-studio/getting-started-with-snyk-studio",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.snyk.io/snyk-api"
+      },
+      "notes": "Requires Snyk CLI 1.1307.4 or later and a prior `snyk auth` browser login; the docs use the absolute path to the snyk binary as command. Snyk states there is no hosted remote scanning MCP server."
+    },
+    {
+      "id": "socket",
+      "title": "Socket",
+      "vendor": "Socket",
+      "summary": "Supply chain security for open source dependencies.",
+      "homepage": "https://socket.dev",
+      "brains": [
+        "security",
+        "engineering"
+      ],
+      "detect": {
+        "files": [
+          "socket.yml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "socket-hosted",
+          "name": "Socket MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Socket",
+          "transport": "streamable-http",
+          "url": "https://mcp.socket.dev/",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Get security scores and metadata for packages across npm, PyPI, cargo, Maven, NuGet, Go and more, and audit dependency lists.",
+          "source": "https://github.com/SocketDev/socket-mcp",
+          "repository": "https://github.com/SocketDev/socket-mcp",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.socket.dev/reference/introduction-to-socket-api"
+      },
+      "notes": "The README says the project is in early development. It can also run locally from the npm package @socketsecurity/mcp."
+    },
+    {
+      "id": "trivy",
+      "title": "Trivy",
+      "vendor": "Aqua Security",
+      "summary": "Open source scanner for vulnerabilities and misconfigurations in images, filesystems and repositories.",
+      "homepage": "https://trivy.dev",
+      "brains": [
+        "security",
+        "devops"
+      ],
+      "detect": {
+        "files": [
+          "trivy.yaml",
+          ".trivyignore"
+        ]
+      },
+      "servers": [
+        {
+          "id": "trivy-mcp",
+          "name": "Trivy MCP Server Plugin",
+          "publisher": "vendor",
+          "maintainer": "Aqua Security",
+          "transport": "stdio",
+          "command": "trivy",
+          "args": [
+            "mcp"
+          ],
+          "package": {
+            "registry": "github-release",
+            "name": "aquasecurity/trivy-mcp"
+          },
+          "auth": "none",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Scan filesystems, container images and remote repositories for vulnerabilities and misconfigurations in natural language; optional Aqua Platform integration.",
+          "source": "https://github.com/aquasecurity/trivy-mcp",
+          "repository": "https://github.com/aquasecurity/trivy-mcp",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "notes": "Install first with `trivy plugin install mcp`. Last release v0.0.20 (December 2025), so activity is low. Aqua Platform credentials are optional."
+    }
+  ]
+}

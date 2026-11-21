@@ -28,7 +28,24 @@
     "communication interne",
     "plain language",
     "langage clair",
-    "wording"
+    "wording",
+    "translation",
+    "translate",
+    "traduction",
+    "traduire",
+    "localization",
+    "i18n",
+    "l10n",
+    "internationalization",
+    "internationalisation",
+    "right-to-left",
+    "documentation",
+    "api documentation",
+    "api reference",
+    "developer docs",
+    "documentation développeur",
+    "customer notification",
+    "notification aux clients"
   ],
   "questions": [
     "Who must learn about this change, before or after it ships, and through which channel?",
@@ -54,22 +71,38 @@
       {
         "id": "release-communicator",
         "title": "Release communication lead",
-        "focus": "Decide who must hear about the change, when and through which channel: release notes, in-product notice, customer email or account team. Match the timing to the rollout."
+        "focus": "Decide who must hear about the change, when and through which channel: release notes, in-product notice, customer email or account team. Match the timing to the rollout.",
+        "checks": [
+          "The message plan lists each audience, channel and send date aligned with each rollout stage.",
+          "Customers who must act get the message early enough to act before the change reaches them."
+        ]
       },
       {
         "id": "plain-language-editor",
         "title": "Plain language editor",
-        "focus": "Check that user-facing words say what changes, what the reader must do and by when, in the languages the project supports, without internal jargon."
+        "focus": "Check that user-facing words say what changes, what the reader must do and by when, in the languages the project supports, without internal jargon.",
+        "checks": [
+          "Each message says what changes, what the reader must do and by when, in the first lines.",
+          "Internal names, ticket numbers and jargon are replaced by words customers use."
+        ]
       },
       {
         "id": "crisis-communicator",
         "title": "Incident and crisis communicator",
-        "focus": "Prepare what the status page, support and account teams say if the change fails or exposes data, and who approves those messages."
+        "focus": "Prepare what the status page, support and account teams say if the change fails or exposes data, and who approves those messages.",
+        "checks": [
+          "Holding statements for failure and data exposure are drafted and their approver is named.",
+          "The status page owner and the time to first public update are agreed."
+        ]
       },
       {
         "id": "internal-communicator",
         "title": "Internal communication lead",
-        "focus": "Identify the teams whose work changes, such as support, sales and operations, and what they need to know before customers ask."
+        "focus": "Identify the teams whose work changes, such as support, sales and operations, and what they need to know before customers ask.",
+        "checks": [
+          "Support, sales and operations receive the change and the customer questions before release.",
+          "Internal notes say which claims may and may not be made to customers."
+        ]
       }
     ],
     "evidence": [

@@ -1,0 +1,38 @@
+{
+  "id": "deal-approval",
+  "title": "Deal approval",
+  "version": "1.0.0",
+  "description": "For quotes, discounts and contract terms: a written approval matrix, a named approver above each threshold and finance or legal review of non-standard terms.",
+  "sources": [
+    {
+      "title": "COSO, Internal Control, Integrated Framework",
+      "url": "https://www.coso.org/internal-control"
+    },
+    {
+      "title": "IFRS Foundation, IFRS 15 Revenue from Contracts with Customers",
+      "url": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-15-revenue-from-contracts-with-customers/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "keep-approval-matrix",
+      "instruction": "Keep a dated approval matrix that gives, for each discount level, payment term and clause deviation, the role that can approve it.",
+      "verification": "Open the approval matrix and check its date and that each threshold names an approving role."
+    },
+    {
+      "id": "approve-discounts-above-threshold",
+      "instruction": "Record on the quote the named approver and the approval date for every discount above the matrix threshold, before the quote is sent.",
+      "verification": "Export the quotes of the period and check that each one above the threshold has an approver and an approval date earlier than the sent date."
+    },
+    {
+      "id": "route-non-standard-terms",
+      "instruction": "Send non-standard terms, such as liability caps, extended payment terms or service credits, to legal or finance as the matrix requires before signature.",
+      "verification": "For each signed deal with a deviation from the standard terms, check that the deal record links the legal or finance approval."
+    },
+    {
+      "id": "check-revenue-impact",
+      "instruction": "Ask finance to review deals with free periods, ramps, bundles or side commitments for their revenue treatment before signature.",
+      "verification": "Check that each such deal record links a finance review dated before signature."
+    }
+  ]
+}

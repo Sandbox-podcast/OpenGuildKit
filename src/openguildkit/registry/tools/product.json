@@ -1,0 +1,77 @@
+{
+  "id": "product",
+  "title": "Product",
+  "tools": [
+    {
+      "id": "calendly",
+      "title": "Calendly",
+      "vendor": "Calendly",
+      "summary": "Meeting scheduling.",
+      "homepage": "https://calendly.com",
+      "brains": [
+        "sales",
+        "hr",
+        "operations"
+      ],
+      "servers": [
+        {
+          "id": "calendly-mcp",
+          "name": "Calendly MCP server",
+          "publisher": "vendor",
+          "maintainer": "Calendly",
+          "transport": "streamable-http",
+          "url": "https://mcp.calendly.com",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "List event types, find open slots, update availability, get scheduling links, book and cancel events, create one-time links.",
+          "source": "https://developer.calendly.com/calendly-mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.calendly.com/api-docs"
+      },
+      "notes": "OAuth 2.1 with dynamic client registration only; personal access tokens are not supported."
+    },
+    {
+      "id": "typeform",
+      "title": "Typeform",
+      "vendor": "Typeform",
+      "summary": "Online forms, surveys and quizzes.",
+      "homepage": "https://www.typeform.com",
+      "brains": [
+        "marketing",
+        "product",
+        "hr"
+      ],
+      "detect": {
+        "npm": [
+          "@typeform/embed"
+        ]
+      },
+      "servers": [
+        {
+          "id": "typeform-mcp",
+          "name": "Typeform MCP server",
+          "publisher": "vendor",
+          "maintainer": "Typeform",
+          "transport": "streamable-http",
+          "url": "https://api.typeform.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Create, edit and publish forms and pages, manage themes and custom domains, analyse responses through insights tools.",
+          "source": "https://www.typeform.com/developers/mcp/core-concepts/",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://www.typeform.com/developers/"
+      },
+      "notes": "EU accounts use https://api.eu.typeform.com/mcp or https://api.typeform.eu/mcp (not interchangeable). Streamable HTTP only, no SSE. Typeform's help center labels the Claude connection as beta."
+    }
+  ]
+}

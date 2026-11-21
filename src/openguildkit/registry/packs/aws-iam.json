@@ -1,0 +1,47 @@
+{
+  "id": "aws-iam",
+  "title": "AWS IAM permissions",
+  "version": "1.0.0",
+  "description": "For a workload or pipeline that uses AWS: temporary credentials, least-privilege policies, policy validation, trust conditions and unused access.",
+  "sources": [
+    {
+      "title": "AWS IAM, security best practices",
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html"
+    },
+    {
+      "title": "AWS IAM Access Analyzer, policy validation",
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-policy-validation.html"
+    },
+    {
+      "title": "AWS IAM, create a role for OpenID Connect federation",
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp_oidc.html"
+    }
+  ],
+  "rules": [
+    {
+      "id": "use-temporary-credentials",
+      "instruction": "Give workloads IAM roles and pipelines federated roles with temporary credentials. Do not add IAM user access keys for them.",
+      "verification": "Search the change and the CI configuration for `aws_access_key_id`, `AWS_SECRET_ACCESS_KEY` and `aws_iam_access_key` resources."
+    },
+    {
+      "id": "scope-actions-and-resources",
+      "instruction": "Grant the actions and resource ARNs the change needs. Do not add `\"Action\": \"*\"` or `\"Resource\": \"*\"` without a condition and a recorded reason.",
+      "verification": "Review each new or changed policy statement for wildcard actions and resources with the security owner."
+    },
+    {
+      "id": "validate-policies",
+      "instruction": "Validate new and changed policies with IAM Access Analyzer before applying them.",
+      "verification": "Run `aws accessanalyzer validate-policy` or the equivalent check in the infrastructure pipeline and attach the findings with their resolution."
+    },
+    {
+      "id": "restrict-role-trust",
+      "instruction": "Add conditions to role trust policies that limit who can assume the role, such as the audience and subject claims of a federated identity.",
+      "verification": "Review the trust policy of each new role for a condition on `aud` and on the subject or source claims."
+    },
+    {
+      "id": "remove-unused-access",
+      "instruction": "Remove roles, policies and permissions the change makes unused, using last accessed information to confirm.",
+      "verification": "Compare the permissions in the change with the service last accessed data and record the ones removed."
+    }
+  ]
+}

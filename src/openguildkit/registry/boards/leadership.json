@@ -33,7 +33,10 @@
     "codir",
     "comex",
     "fundraising",
-    "levée de fonds"
+    "levée de fonds",
+    "board meeting",
+    "board deck",
+    "runway"
   ],
   "questions": [
     "Which strategic objective does this decision serve, and what would change if the current approach continued?",
@@ -59,22 +62,38 @@
       {
         "id": "strategy",
         "title": "Strategic fit",
-        "focus": "Compare the change with current objectives and identify which intended result the proposal can affect."
+        "focus": "Compare the change with current objectives and identify which intended result the proposal can affect.",
+        "checks": [
+          "The proposal names the company objective it serves and the result it should move.",
+          "Work that stops or slows to fund it is listed."
+        ]
       },
       {
         "id": "portfolio",
         "title": "Portfolio and resources",
-        "focus": "Check the full demands on funds and people, including recurring costs and any work that loses resources."
+        "focus": "Check the full demands on funds and people, including recurring costs and any work that loses resources.",
+        "checks": [
+          "Recurring costs and people needed after launch are counted, not only the build.",
+          "The proposal is ranked against the other work competing for the same resources."
+        ]
       },
       {
         "id": "risk-governance",
         "title": "Risk and decision rights",
-        "focus": "Identify approvals and trade-offs that exceed the sponsor's authority or the organization's documented risk appetite."
+        "focus": "Identify approvals and trade-offs that exceed the sponsor's authority or the organization's documented risk appetite.",
+        "checks": [
+          "Risks above the sponsor's authority or the documented risk appetite are escalated to who can accept them.",
+          "Accepted risks have a review date."
+        ]
       },
       {
         "id": "benefits",
         "title": "Benefits tracking",
-        "focus": "Test whether the proposed measures track the intended result and name who will compare them with the current baseline."
+        "focus": "Test whether the proposed measures track the intended result and name who will compare them with the current baseline.",
+        "checks": [
+          "Each expected benefit has a baseline, a measure and an owner.",
+          "The date to compare results with the baseline is set before launch."
+        ]
       }
     ],
     "evidence": [

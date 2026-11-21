@@ -1,0 +1,87 @@
+{
+  "id": "pricing-page-brief",
+  "title": "Pricing page brief",
+  "description": "Brief the pricing page or a price change: plans and limits, how prices compare with alternatives, taxes and terms, and what existing customers see.",
+  "method": "market-competitor-analysis",
+  "market": true,
+  "brains": [
+    "product",
+    "marketing",
+    "finance",
+    "sales",
+    "legal"
+  ],
+  "inputs": [
+    {
+      "id": "plans",
+      "label": "Plans, prices, currencies and billing periods approved by finance",
+      "data": "internal"
+    },
+    {
+      "id": "changes",
+      "label": "Changes for existing customers and their notice period",
+      "data": "internal"
+    },
+    {
+      "id": "alternatives",
+      "label": "Competitor and substitute prices with their dates, from the market dossier",
+      "data": "none"
+    }
+  ],
+  "tool_actions": [
+    {
+      "action": "publish",
+      "description": "Publishing the pricing page."
+    },
+    {
+      "action": "send-message",
+      "description": "Notifying existing customers of a price change."
+    }
+  ],
+  "sections": [
+    {
+      "id": "plans",
+      "title": "Plans and limits",
+      "prompt": "Each plan, its price, what it includes and its limits."
+    },
+    {
+      "id": "comparison",
+      "title": "Comparison with alternatives",
+      "prompt": "How the plans compare with competitors and substitutes, each price with its date and source."
+    },
+    {
+      "id": "terms",
+      "title": "Taxes, currency and terms",
+      "prompt": "Whether prices include tax, the currencies, the billing periods and the link to the terms of sale."
+    },
+    {
+      "id": "existing-customers",
+      "title": "Existing customers",
+      "prompt": "What changes for current customers, when, and how they are told."
+    },
+    {
+      "id": "questions",
+      "title": "Questions",
+      "prompt": "The pricing questions sales and support hear, with their answers."
+    }
+  ],
+  "checks": [
+    {
+      "id": "prices-approved",
+      "verification": "Finance approved every price, currency and discount shown."
+    },
+    {
+      "id": "terms-consistent",
+      "verification": "The page matches the terms of sale and the billing system."
+    },
+    {
+      "id": "comparison-dated",
+      "verification": "Each competitor price used has a source and a date less than 180 days old."
+    },
+    {
+      "id": "customers-notified",
+      "verification": "Existing customers affected are told within their contractual notice period."
+    }
+  ],
+  "sources": []
+}

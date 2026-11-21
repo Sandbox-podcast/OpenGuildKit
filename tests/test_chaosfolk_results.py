@@ -82,5 +82,29 @@ class ChaosFolkResultTests(unittest.TestCase):
         self.assertIn("not a ChaosFolk regression summary", stderr.getvalue())
 
 
+    def complete_error(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(main(["--project", str(self.root), "task", "complete", TASK]), 1)
+        return stderr.getvalue()
+
+    def test_a_scenario_listed_twice_keeps_its_failure(self):
+        output = self.replay(("login", "failed", "500 on submit"), ("login", "passed", ""), ("checkout", "passed", ""))
+        self.assertIn("chaosfolk:login: failed", output)
+        self.assertNotIn("Ready", output)
+        record = json.loads(self.run_cli("task", "show", TASK))
+        self.assertEqual(record["result"]["runs"][-1]["outcomes"]["login"], "failed")
+        self.assertEqual([c["check"] for c in record["result"]["checks"]].count("chaosfolk:login"), 1)
+        self.assertIn("chaosfolk:login failed", self.complete_error())
+
+    def test_a_scenario_missing_from_the_last_replay_is_not_counted_as_passed(self):
+        self.replay(("a.json", "passed", ""), ("b.json", "passed", ""))
+        output = self.replay(("b.json", "passed", ""))
+        self.assertIn("chaosfolk:a.json: missing", output)
+        record = json.loads(self.run_cli("task", "show", TASK))
+        self.assertNotIn("chaosfolk:a.json", [c["check"] for c in record["result"]["checks"]])
+        self.assertIn("chaosfolk:a.json ran in the previous replay and is missing from the last one", self.complete_error())
+
+
 if __name__ == "__main__":
     unittest.main()

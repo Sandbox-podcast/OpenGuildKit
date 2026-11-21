@@ -1,0 +1,22 @@
+{
+  "id": "partner-program",
+  "title": "Partner programme",
+  "description": "Run a reseller, integrator or marketplace programme with written terms, lawful pricing rules and a channel conflict rule.",
+  "sources": [
+    {
+      "title": "Commission Regulation (EU) 2022/720, Vertical Block Exemption Regulation",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/720/oj"
+    }
+  ],
+  "roles": [
+    "partnerships",
+    "sales",
+    "legal"
+  ],
+  "packs": [
+    "partner-program"
+  ],
+  "references": [
+    "vertical-block-exemption"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "id": "pay-transparency",
+  "title": "Pay transparency",
+  "version": "1.0.0",
+  "description": "For a change to job postings, hiring forms, pay structures or HR reports: the obligations of Directive (EU) 2023/970, to transpose by 7 June 2026.",
+  "sources": [
+    {
+      "title": "Directive (EU) 2023/970 on pay transparency",
+      "url": "https://eur-lex.europa.eu/eli/dir/2023/970/oj"
+    }
+  ],
+  "rules": [
+    {
+      "id": "show-pay-before-interview",
+      "instruction": "Give applicants the starting pay or its range in the job posting or before the interview.",
+      "verification": "Open the job posting template and a recent posting and check that the pay or pay range is filled in."
+    },
+    {
+      "id": "remove-pay-history-questions",
+      "instruction": "Remove questions about current or previous pay from application forms, interview guides and recruiter scripts.",
+      "verification": "Search the application form, interview guide and scripts for questions on current or past pay and check that none remain."
+    },
+    {
+      "id": "document-pay-criteria",
+      "instruction": "Write the criteria used to set pay and pay progression, based on skills, effort, responsibility and working conditions, and make them accessible to employees.",
+      "verification": "Open the pay policy and check that it lists the criteria and where employees can read it."
+    },
+    {
+      "id": "report-and-assess-pay-gaps",
+      "instruction": "Compute the gender pay gap by category of workers; where a gap of at least 5 percent is not justified by objective, gender-neutral criteria, plan the joint pay assessment with workers' representatives.",
+      "verification": "Open the latest pay gap report and check the gap per category and the action recorded for each category at 5 percent or more."
+    }
+  ]
+}

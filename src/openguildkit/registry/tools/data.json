@@ -1,0 +1,729 @@
+{
+  "id": "data",
+  "title": "Data and databases",
+  "tools": [
+    {
+      "id": "airtable",
+      "title": "Airtable",
+      "vendor": "Airtable",
+      "summary": "Collaborative database and app builder.",
+      "homepage": "https://www.airtable.com",
+      "brains": [
+        "operations",
+        "data",
+        "project-management"
+      ],
+      "detect": {
+        "npm": [
+          "airtable"
+        ],
+        "pypi": [
+          "pyairtable"
+        ]
+      },
+      "servers": [
+        {
+          "id": "airtable-mcp",
+          "name": "Airtable MCP server",
+          "publisher": "vendor",
+          "maintainer": "Airtable",
+          "transport": "streamable-http",
+          "url": "https://mcp.airtable.com/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "List and search bases, change schema, read, create and update records, comment, manage disabled automations, within the user's permissions.",
+          "source": "https://airtable.com/developers/agents/mcp/getting-started",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://airtable.com/developers/web/api/introduction"
+      },
+      "notes": "All plans; calls count against Airtable API rate limits. Personal access tokens are the alternative to OAuth for CLI and server-side use."
+    },
+    {
+      "id": "bigquery",
+      "title": "BigQuery",
+      "vendor": "Google",
+      "summary": "Google Cloud serverless data warehouse.",
+      "homepage": "https://cloud.google.com/bigquery",
+      "brains": [
+        "data",
+        "engineering"
+      ],
+      "aliases": [
+        "Google BigQuery"
+      ],
+      "detect": {
+        "npm": [
+          "@google-cloud/bigquery"
+        ],
+        "pypi": [
+          "google-cloud-bigquery"
+        ]
+      },
+      "servers": [
+        {
+          "id": "bigquery-remote",
+          "name": "BigQuery remote MCP server",
+          "publisher": "vendor",
+          "maintainer": "Google",
+          "transport": "streamable-http",
+          "url": "https://bigquery.googleapis.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "List datasets and tables, read schemas and run SQL queries in BigQuery.",
+          "source": "https://docs.cloud.google.com/bigquery/docs/use-bigquery-mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://cloud.google.com/bigquery/docs/reference/rest"
+      },
+      "notes": "Enabled with the BigQuery API; the user needs the MCP Tool User, BigQuery Job User and BigQuery Data Viewer roles. Auth is OAuth 2.0 with IAM."
+    },
+    {
+      "id": "contentful",
+      "title": "Contentful",
+      "vendor": "Contentful",
+      "summary": "Headless content management platform.",
+      "homepage": "https://www.contentful.com",
+      "brains": [
+        "engineering",
+        "marketing",
+        "product"
+      ],
+      "detect": {
+        "npm": [
+          "contentful"
+        ]
+      },
+      "servers": [
+        {
+          "id": "contentful-remote",
+          "name": "Contentful Remote MCP",
+          "publisher": "vendor",
+          "maintainer": "Contentful",
+          "transport": "streamable-http",
+          "url": "https://mcp.contentful.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "ga",
+          "capabilities": "Manage entries, assets, content types and environments with the user's Contentful permissions.",
+          "source": "https://www.contentful.com/developers/docs/tools/mcp-server/",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "contentful-local",
+          "name": "Contentful MCP server (local)",
+          "publisher": "vendor",
+          "maintainer": "Contentful",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@contentful/mcp-server"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@contentful/mcp-server"
+          },
+          "auth": "api-token",
+          "env": [
+            "CONTENTFUL_MANAGEMENT_ACCESS_TOKEN",
+            "SPACE_ID",
+            "ENVIRONMENT_ID",
+            "CONTENTFUL_HOST"
+          ],
+          "status": "unknown",
+          "capabilities": "Same content management tools run locally with a Management API token.",
+          "source": "https://www.contentful.com/developers/docs/tools/mcp-server/",
+          "repository": "https://github.com/contentful/contentful-mcp-server",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://www.contentful.com/developers/docs/references/content-management-api/"
+      },
+      "notes": "The MCP app must be installed in each space/environment before the remote server works. EU organizations use https://mcp.eu.contentful.com/mcp. GA per Contentful's blog of 21 July 2026."
+    },
+    {
+      "id": "databricks",
+      "title": "Databricks",
+      "vendor": "Databricks",
+      "summary": "Data and AI platform (lakehouse, SQL warehouses, Unity Catalog).",
+      "homepage": "https://www.databricks.com",
+      "brains": [
+        "data",
+        "engineering"
+      ],
+      "detect": {
+        "files": [
+          "databricks.yml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "databricks-genie-one",
+          "name": "Databricks Unity Gateway MCP: system.ai.genie_one_mcp",
+          "publisher": "vendor",
+          "maintainer": "Databricks",
+          "transport": "streamable-http",
+          "url": "https://{workspace_host}/ai-gateway/mcp-services/system.ai.genie_one_mcp",
+          "auth": "oauth",
+          "env": [],
+          "settings": [
+            {
+              "name": "workspace_host",
+              "description": "Databricks: your workspace host, without https://"
+            }
+          ],
+          "status": "ga",
+          "capabilities": "Ask questions over governed data through Genie from an MCP client.",
+          "source": "https://docs.databricks.com/aws/en/generative-ai/mcp/managed-mcp",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "databricks-dbsql",
+          "name": "Databricks Unity Gateway MCP: system.ai.dbsql",
+          "publisher": "vendor",
+          "maintainer": "Databricks",
+          "transport": "streamable-http",
+          "url": "https://{workspace_host}/ai-gateway/mcp-services/system.ai.dbsql",
+          "auth": "oauth",
+          "env": [],
+          "settings": [
+            {
+              "name": "workspace_host",
+              "description": "Databricks: your workspace host, without https://"
+            }
+          ],
+          "status": "beta",
+          "capabilities": "Run SQL on Databricks SQL warehouses.",
+          "source": "https://docs.databricks.com/aws/en/generative-ai/mcp/managed-mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.databricks.com/api/workspace/introduction"
+      },
+      "notes": "Uses the ai-gateway OAuth scope; Beta servers need an account admin to enable the Enhanced Unity Gateway preview. Workspace endpoints under /api/2.0/mcp/ (Genie, AI Search, UC functions) are Public Preview."
+    },
+    {
+      "id": "dbt",
+      "title": "dbt",
+      "vendor": "dbt Labs",
+      "summary": "Data transformation framework (dbt Core, Fusion and the dbt platform).",
+      "homepage": "https://www.getdbt.com",
+      "brains": [
+        "data",
+        "engineering"
+      ],
+      "detect": {
+        "files": [
+          "dbt_project.yml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "dbt-mcp-local",
+          "name": "dbt MCP Server (local)",
+          "publisher": "vendor",
+          "maintainer": "dbt Labs",
+          "transport": "stdio",
+          "command": "uvx",
+          "args": [
+            "dbt-mcp"
+          ],
+          "package": {
+            "registry": "pypi",
+            "name": "dbt-mcp"
+          },
+          "auth": "api-token",
+          "env": [
+            "DBT_PROJECT_DIR",
+            "DBT_PATH",
+            "DBT_HOST",
+            "DBT_TOKEN",
+            "DBT_PROD_ENV_ID"
+          ],
+          "status": "unknown",
+          "capabilities": "Run dbt CLI commands, query the Semantic Layer, Discovery and Admin APIs, and execute or generate SQL.",
+          "source": "https://docs.getdbt.com/docs/dbt-ai/mcp-environment-variables",
+          "repository": "https://github.com/dbt-labs/dbt-mcp",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "dbt-mcp-remote",
+          "name": "dbt MCP Server (remote)",
+          "publisher": "vendor",
+          "maintainer": "dbt Labs",
+          "transport": "streamable-http",
+          "url": "https://{dbt_host}/api/ai/v1/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "settings": [
+            {
+              "name": "dbt_host",
+              "description": "dbt: your dbt host, without https://"
+            }
+          ],
+          "status": "unknown",
+          "capabilities": "Hosted dbt MCP on the dbt platform: Semantic Layer, Discovery and SQL tools without local install.",
+          "source": "https://docs.getdbt.com/docs/dbt-ai/setup-remote-mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.getdbt.com/docs/dbt-cloud-apis/overview"
+      },
+      "notes": "Local: DBT_PROJECT_DIR and DBT_PATH for CLI tools; DBT_HOST, DBT_TOKEN, DBT_PROD_ENV_ID for dbt platform features. Remote OAuth is public beta (Starter, Enterprise, Enterprise+); token auth needs the x-dbt-prod-environment-id header."
+    },
+    {
+      "id": "mongodb",
+      "title": "MongoDB",
+      "vendor": "MongoDB",
+      "summary": "Document database, self-managed or MongoDB Atlas.",
+      "homepage": "https://www.mongodb.com",
+      "brains": [
+        "data",
+        "engineering",
+        "backend"
+      ],
+      "detect": {
+        "npm": [
+          "mongodb",
+          "mongoose"
+        ],
+        "pypi": [
+          "pymongo",
+          "motor"
+        ]
+      },
+      "servers": [
+        {
+          "id": "mongodb-atlas-managed",
+          "name": "MongoDB Atlas Managed MCP Server",
+          "publisher": "vendor",
+          "maintainer": "MongoDB",
+          "transport": "streamable-http",
+          "url": "https://mcp.mongodb.com",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Query and manage Atlas clusters, databases and collections with OAuth sign-in.",
+          "source": "https://www.mongodb.com/docs/mcp-server/get-started/",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "mongodb-mcp-server",
+          "name": "MongoDB MCP Server (local)",
+          "publisher": "vendor",
+          "maintainer": "MongoDB",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "mongodb-mcp-server@latest",
+            "--readOnly"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "mongodb-mcp-server"
+          },
+          "auth": "api-token",
+          "env": [
+            "MDB_MCP_CONNECTION_STRING",
+            "MDB_MCP_API_CLIENT_ID",
+            "MDB_MCP_API_CLIENT_SECRET"
+          ],
+          "status": "unknown",
+          "capabilities": "Query and manage any MongoDB deployment by connection string, plus Atlas admin tools with service-account credentials.",
+          "source": "https://github.com/mongodb-js/mongodb-mcp-server",
+          "repository": "https://github.com/mongodb-js/mongodb-mcp-server",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://www.mongodb.com/docs/atlas/api/"
+      },
+      "notes": "The remote managed server cannot be used with a static API key over HTTP; clients without OAuth use the mongodb-atlas-mcp-remote stdio package with service-account credentials. --readOnly is the documented default example."
+    },
+    {
+      "id": "neon",
+      "title": "Neon",
+      "vendor": "Neon",
+      "summary": "Serverless Postgres with branching.",
+      "homepage": "https://neon.com",
+      "brains": [
+        "data",
+        "engineering",
+        "backend"
+      ],
+      "detect": {
+        "npm": [
+          "@neondatabase/serverless"
+        ]
+      },
+      "servers": [
+        {
+          "id": "neon-remote",
+          "name": "Neon MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Neon",
+          "transport": "streamable-http",
+          "url": "https://mcp.neon.tech/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Manage projects, branches and compute endpoints, run SQL and inspect schemas; ?readonly=true and category filters available.",
+          "source": "https://github.com/neondatabase/mcp-server-neon",
+          "repository": "https://github.com/neondatabase/mcp-server-neon",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://api-docs.neon.tech/reference/getting-started-with-neon-api"
+      },
+      "notes": "API-key auth sends a Neon API key as Bearer token. Observability tools need the Neon Platform Beta (aws-us-east-2 only)."
+    },
+    {
+      "id": "postgresql",
+      "title": "PostgreSQL",
+      "vendor": "PostgreSQL Global Development Group",
+      "summary": "Open source relational database.",
+      "homepage": "https://www.postgresql.org",
+      "brains": [
+        "data",
+        "engineering",
+        "backend"
+      ],
+      "aliases": [
+        "Postgres"
+      ],
+      "detect": {
+        "npm": [
+          "pg"
+        ],
+        "pypi": [
+          "psycopg",
+          "psycopg2",
+          "psycopg2-binary",
+          "asyncpg"
+        ]
+      },
+      "servers": [
+        {
+          "id": "mcp-toolbox-postgres",
+          "name": "MCP Toolbox for Databases (PostgreSQL prebuilt)",
+          "publisher": "community",
+          "maintainer": "Google (googleapis)",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@toolbox-sdk/server",
+            "--prebuilt=postgres",
+            "--stdio"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@toolbox-sdk/server"
+          },
+          "auth": "api-token",
+          "env": [
+            "POSTGRES_HOST",
+            "POSTGRES_PORT",
+            "POSTGRES_DATABASE",
+            "POSTGRES_USER",
+            "POSTGRES_PASSWORD"
+          ],
+          "status": "unknown",
+          "capabilities": "Explore schemas and run SQL against any PostgreSQL database with prebuilt tools.",
+          "source": "https://github.com/googleapis/mcp-toolbox",
+          "repository": "https://github.com/googleapis/mcp-toolbox",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "notes": "PostgreSQL has no vendor MCP server. This one is published by Google (about 16,900 stars, active), so it counts as community for PostgreSQL; database user/password are credentials, so use a dedicated least-privilege role. The archived reference server from modelcontextprotocol/servers should not be used."
+    },
+    {
+      "id": "redis",
+      "title": "Redis",
+      "vendor": "Redis",
+      "summary": "In-memory data store, cache and vector database.",
+      "homepage": "https://redis.io",
+      "brains": [
+        "data",
+        "engineering",
+        "performance",
+        "backend"
+      ],
+      "detect": {
+        "npm": [
+          "redis",
+          "ioredis"
+        ],
+        "pypi": [
+          "redis"
+        ]
+      },
+      "servers": [
+        {
+          "id": "redis-mcp-server",
+          "name": "Redis MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Redis",
+          "transport": "stdio",
+          "command": "uvx",
+          "args": [
+            "--from",
+            "redis-mcp-server@latest",
+            "redis-mcp-server",
+            "--url",
+            "redis://localhost:6379/0"
+          ],
+          "package": {
+            "registry": "pypi",
+            "name": "redis-mcp-server"
+          },
+          "auth": "api-token",
+          "env": [
+            "REDIS_HOST",
+            "REDIS_PORT",
+            "REDIS_USERNAME",
+            "REDIS_PWD"
+          ],
+          "status": "unknown",
+          "capabilities": "Read and write Redis data structures (strings, hashes, lists, sets, streams, JSON) and run vector search.",
+          "source": "https://github.com/redis/mcp-redis",
+          "repository": "https://github.com/redis/mcp-redis",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "other",
+        "docs": "https://redis.io/docs/latest/commands/"
+      },
+      "notes": "Connection can be given as --url or through the REDIS_* environment variables (TLS and Entra ID variables also supported)."
+    },
+    {
+      "id": "sanity",
+      "title": "Sanity",
+      "vendor": "Sanity",
+      "summary": "Headless content platform with structured content and GROQ queries.",
+      "homepage": "https://www.sanity.io",
+      "brains": [
+        "engineering",
+        "marketing",
+        "product"
+      ],
+      "detect": {
+        "npm": [
+          "sanity",
+          "@sanity/client"
+        ]
+      },
+      "servers": [
+        {
+          "id": "sanity-mcp",
+          "name": "Sanity MCP server",
+          "publisher": "vendor",
+          "maintainer": "Sanity",
+          "transport": "streamable-http",
+          "url": "https://mcp.sanity.io",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "ga",
+          "capabilities": "Content operations, GROQ queries, schema exploration and deployment, releases, datasets and project management.",
+          "source": "https://www.sanity.io/docs/ai/mcp-server",
+          "repository": "https://github.com/sanity-io/agent-toolkit",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://www.sanity.io/docs/http-reference"
+      },
+      "notes": "GA status is from Sanity's v2.6.0 changelog (11 Dec 2025). A Bearer API token in the Authorization header replaces OAuth; image generation tools consume AI credits."
+    },
+    {
+      "id": "segment",
+      "title": "Segment",
+      "vendor": "Twilio",
+      "summary": "Customer data platform for collecting and routing events.",
+      "homepage": "https://segment.com",
+      "brains": [
+        "data",
+        "marketing",
+        "engineering"
+      ],
+      "detect": {
+        "npm": [
+          "@segment/analytics-node",
+          "@segment/analytics-next"
+        ]
+      },
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.segmentapis.com/"
+      },
+      "notes": "No Segment MCP server for workspace data found on 2026-11-21; use the Segment Public API. Twilio's docs-only server (https://mcp.twilio.com/docs, public beta) searches Segment documentation."
+    },
+    {
+      "id": "snowflake",
+      "title": "Snowflake",
+      "vendor": "Snowflake",
+      "summary": "Cloud data platform and warehouse.",
+      "homepage": "https://www.snowflake.com",
+      "brains": [
+        "data",
+        "engineering"
+      ],
+      "detect": {
+        "pypi": [
+          "snowflake-connector-python"
+        ]
+      },
+      "servers": [
+        {
+          "id": "snowflake-managed-mcp",
+          "name": "Snowflake-managed MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Snowflake",
+          "transport": "streamable-http",
+          "url": "https://{account_host}/api/v2/databases/{database}/schemas/{schema}/mcp-servers/{name}",
+          "auth": "oauth-or-token",
+          "env": [],
+          "settings": [
+            {
+              "name": "account_host",
+              "description": "Snowflake: your account host, without https://"
+            },
+            {
+              "name": "database",
+              "description": "Snowflake: your database"
+            },
+            {
+              "name": "schema",
+              "description": "Snowflake: your schema"
+            },
+            {
+              "name": "name",
+              "description": "Snowflake: your name"
+            }
+          ],
+          "status": "unknown",
+          "capabilities": "Expose Cortex Search, Cortex Analyst, Cortex Agents, SQL execution and custom tools defined on an MCP server object.",
+          "source": "https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.snowflake.com/en/developer-guide/sql-api/index"
+      },
+      "notes": "An MCP server object must be created in Snowflake first (role needs USAGE on it). Auth by Snowflake OAuth (no dynamic registration) or a programmatic access token as Bearer. The Snowflake-Labs/mcp server is deprecated and archived."
+    },
+    {
+      "id": "strapi",
+      "title": "Strapi",
+      "vendor": "Strapi",
+      "summary": "Open-source headless CMS.",
+      "homepage": "https://strapi.io",
+      "brains": [
+        "engineering",
+        "marketing"
+      ],
+      "detect": {
+        "npm": [
+          "@strapi/strapi"
+        ]
+      },
+      "servers": [
+        {
+          "id": "strapi-mcp",
+          "name": "Strapi MCP server (built in)",
+          "publisher": "vendor",
+          "maintainer": "Strapi",
+          "transport": "streamable-http",
+          "url": "http://localhost:1337/mcp",
+          "auth": "api-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Manage content of a Strapi instance with an admin token's permissions.",
+          "source": "https://docs.strapi.io/cms/features/strapi-mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.strapi.io/cms/api/rest"
+      },
+      "notes": "Self-hosted: served at /mcp on your own Strapi (localhost URL is the docs' example). Needs Strapi 5.47.0+, mcp.enabled: true in config/server, and an Admin token as Authorization: Bearer."
+    },
+    {
+      "id": "supabase",
+      "title": "Supabase",
+      "vendor": "Supabase",
+      "summary": "Postgres development platform with auth, storage and edge functions.",
+      "homepage": "https://supabase.com",
+      "brains": [
+        "data",
+        "engineering",
+        "backend"
+      ],
+      "detect": {
+        "files": [
+          "supabase/config.toml"
+        ],
+        "npm": [
+          "@supabase/supabase-js"
+        ],
+        "pypi": [
+          "supabase"
+        ]
+      },
+      "servers": [
+        {
+          "id": "supabase-mcp",
+          "name": "Supabase MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Supabase",
+          "transport": "streamable-http",
+          "url": "https://mcp.supabase.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Manage tables, run SQL, fetch config, logs and docs for Supabase projects; can be scoped with project_ref, read_only and features parameters.",
+          "source": "https://github.com/supabase/mcp",
+          "repository": "https://github.com/supabase/mcp",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://supabase.com/docs/reference/api/introduction"
+      },
+      "notes": "Local Supabase CLI exposes http://localhost:54321/mcp and self-hosted instances offer a limited tool subset without OAuth."
+    }
+  ]
+}

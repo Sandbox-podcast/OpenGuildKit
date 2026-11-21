@@ -1,0 +1,72 @@
+{
+  "id": "django",
+  "title": "Django applications",
+  "version": "1.0.0",
+  "description": "For a Django project: migrations, deployment settings, form fields, raw SQL, CSRF exemptions and query counts.",
+  "sources": [
+    {
+      "title": "Django migrations",
+      "url": "https://docs.djangoproject.com/en/6.1/topics/migrations/"
+    },
+    {
+      "title": "Django deployment checklist",
+      "url": "https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/"
+    },
+    {
+      "title": "Django ModelForm, selecting the fields to use",
+      "url": "https://docs.djangoproject.com/en/6.1/topics/forms/modelforms/"
+    },
+    {
+      "title": "Django security overview",
+      "url": "https://docs.djangoproject.com/en/6.1/topics/security/"
+    },
+    {
+      "title": "Django database access optimization",
+      "url": "https://docs.djangoproject.com/en/6.1/topics/db/optimization/"
+    },
+    {
+      "title": "Django django-admin and manage.py reference",
+      "url": "https://docs.djangoproject.com/en/6.1/ref/django-admin/"
+    }
+  ],
+  "depends_on": [
+    "python"
+  ],
+  "rules": [
+    {
+      "id": "commit-migrations-with-models",
+      "instruction": "Generate the migration for each model change with makemigrations and commit it in the same change as the model.",
+      "verification": "Run `python manage.py makemigrations --check` in CI and confirm it exits with status 0 on the branch."
+    },
+    {
+      "id": "make-data-migrations-reversible",
+      "instruction": "Give each RunPython operation a reverse callable, or record in the migration why it cannot be reversed. Review the SQL of schema migrations on large tables before merging.",
+      "verification": "Migrate forward and back to the previous migration on a test database, and attach the `sqlmigrate` output for migrations that touch large tables."
+    },
+    {
+      "id": "pass-deployment-checks",
+      "instruction": "Keep DEBUG off, read SECRET_KEY from the environment and set ALLOWED_HOSTS in the production settings.",
+      "verification": "Run `python manage.py check --deploy` with the production settings module and record how each remaining warning is handled."
+    },
+    {
+      "id": "list-form-fields-explicitly",
+      "instruction": "List the editable fields of each ModelForm in `fields`. Do not use `__all__` or `exclude` on forms that users submit.",
+      "verification": "Search the changed forms for `__all__` and `exclude`, and test that a submitted field outside the list leaves the model unchanged."
+    },
+    {
+      "id": "parameterize-raw-sql",
+      "instruction": "Pass user-controlled values to raw(), RawSQL, extra() and cursor.execute() as query parameters, never by string formatting.",
+      "verification": "Search the change for raw SQL calls built with f-strings, % or format(), and test the query with a value containing a quote."
+    },
+    {
+      "id": "justify-csrf-exemptions",
+      "instruction": "Keep CsrfViewMiddleware enabled. Add `csrf_exempt` only to a view that authenticates without cookies, with the reason in the code review.",
+      "verification": "Search the change for `csrf_exempt` and test that a POST without the CSRF token is rejected on the changed cookie-authenticated views."
+    },
+    {
+      "id": "bound-query-counts",
+      "instruction": "Load the related objects a changed list view or serializer reads with the FETCH_PEERS fetch mode, select_related() or prefetch_related().",
+      "verification": "Assert the number of queries of the changed view with `assertNumQueries` on a fixture holding several related records."
+    }
+  ]
+}

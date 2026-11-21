@@ -1,0 +1,30 @@
+{
+  "id": "django",
+  "title": "Django",
+  "description": "Review migrations, deployment checks, form fields and query counts in a Django project.",
+  "sources": [
+    {
+      "title": "Django migrations",
+      "url": "https://docs.djangoproject.com/en/6.1/topics/migrations/"
+    },
+    {
+      "title": "Django deployment checklist",
+      "url": "https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "django"
+  ],
+  "match": {
+    "stack": [
+      [
+        "django"
+      ]
+    ]
+  }
+}

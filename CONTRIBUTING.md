@@ -14,13 +14,15 @@ OpenGuildKit is useful only if its catalog reflects how practitioners actually w
 | A coding agent | An integration in `integrations/` |
 | Python | CLI features, tests, bug fixes |
 
-Before large work, open an issue with the matching template so a steward or maintainer can confirm the scope.
+Before large work, open an issue with the matching template so a steward or maintainer can confirm the scope. [Your first contribution](docs/first-contribution.md) walks through one change from the fork to the merged pull request.
 
 ## Open a pull request
 
 For larger changes, use an issue to discuss scope. Fork the repository, create a branch for the change and open a pull request against `main`. Use `Closes #123` for the issue the PR resolves, or `Refs #123` for related work. Include the part of the catalog or workflow you exercised.
 
-GitHub labels PRs from their changed files. The `contribution-checks` status combines the test matrix and package build. Merges to `main` refresh a draft of the next release notes.
+GitHub labels PRs from their changed files and requests a review from the owners in `.github/CODEOWNERS`. The `contribution-checks` status combines the test matrix and package build. Merges to `main` refresh a draft of the next release notes. Maintainers publish versions with the [release steps](GOVERNANCE.md#releases).
+
+Everything you add to the repository, catalog content included (packs, references, patterns, boards, sectors and tools), is published under the MIT License in [LICENSE](LICENSE), like the code. Opening a pull request means you agree to that and that you have the right to contribute the content. Write rules and descriptions in your own words and never paste the text of a standard: only text you may license can be published under the MIT License.
 
 ## Set up
 
@@ -38,12 +40,14 @@ No runtime dependency. Tests use `unittest` from the standard library.
 
 ## Adding a pack
 
-1. Copy an existing pack, for example `src/openguildkit/registry/packs/api-design.json`, to `src/openguildkit/registry/packs/<your-id>.json`.
-2. Set `version` to `1.0.0`.
-3. Write each rule as an `instruction` the agent can follow and a `verification` a reviewer can check. See [writing good records](docs/catalog-format.md#writing-good-records).
-4. Link the official source for the pack. Paraphrase; never paste text from a paid standard.
-5. Run `python -m openguildkit catalog` and the tests.
-6. In the pull request, say which projects would use the pack and how you tested the rules on a real repository.
+1. Check [catalog coverage](docs/coverage.md) for your discipline: the brains with few packs and the documentary references that no pack applies yet show where a pack is missing.
+2. Copy an existing pack, for example `src/openguildkit/registry/packs/api-design.json`, to `src/openguildkit/registry/packs/<your-id>.json`.
+3. Set `version` to `1.0.0`. Start the description with the context the pack applies to, such as "For a service in production: ...".
+4. Write each rule as an `instruction` the agent can follow and a `verification` a reviewer can check. See [writing good records](docs/catalog-format.md#writing-good-records).
+5. Link the official source for the pack. Paraphrase; never paste text from a paid standard.
+6. Reach the pack from a pattern for the roles that use it, and add the pack to the `packs` of the references it applies.
+7. Run `python -m openguildkit catalog`, `python scripts/coverage.py` to refresh the coverage page, and the tests.
+8. In the pull request, say which projects would use the pack and how you tested the rules on a real repository.
 
 ## Adding a board
 
@@ -62,6 +66,19 @@ A catalog pull request is merged when:
 - sources are official or widely recognized, use HTTPS and link the canonical page without tracking parameters, with one address per document;
 - nothing claims compliance or certification;
 - a steward of the domain approved it (see [GOVERNANCE.md](GOVERNANCE.md)).
+
+## Reviewing source links
+
+The scheduled workflow `Check catalog links` runs every Monday and on demand. It runs `python3 -I scripts/check_links.py --out link-report`, uploads the dated `links-YYYY-MM-DD.md` and `.json` report as the `link-report` artifact, and fails only when a link is dead. It also opens the homepage, the API documentation and the source of each MCP server in the tool registry. The script reads the bundled catalog only: catalogs that projects keep in `.openguildkit/catalog/` stay in those projects and are never fetched.
+
+For each URL, the report gives its category and the records that cite it: references with their edition and the packs that apply them, packs with their version and rule IDs, patterns, boards and sectors. A maintainer reviews it as follows.
+
+- **Dead:** find the page that replaces it on the publisher's site, fetch it, and check its status and title. Replace the URL and the title in every record the report lists, so the document keeps one address.
+- **Redirected:** use the target when it is the publisher's new canonical page. Leave aliases such as `latest` when the catalog means to follow the current version.
+- **To recheck:** open the page in a browser. Some publishers (ISO, W3C, PMI, EUR-Lex) answer scripts with 403 or 202, and GitHub sometimes answers 503 under load; keep the URL when the page works.
+- **New edition:** the report lists the packs and rules that cite the old edition. Decide with the domain steward whether the rules change, bump the pack version (patch for a source or wording change, minor or major when rules change) and update the reference's `edition`. Projects see the change in `openguildkit update` before they apply it.
+
+A maintainer validates every replacement in the pull request that makes it. Run the script locally with the same command before proposing one.
 
 ## Code contributions
 

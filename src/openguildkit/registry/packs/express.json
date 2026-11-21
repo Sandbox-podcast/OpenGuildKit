@@ -1,0 +1,55 @@
+{
+  "id": "express",
+  "title": "Express on Node.js",
+  "version": "1.0.0",
+  "description": "For an HTTP service built with Express: supported versions, error handling, response headers, session cookies and login throttling.",
+  "sources": [
+    {
+      "title": "Express security best practices",
+      "url": "https://expressjs.com/en/advanced/best-practice-security.html"
+    },
+    {
+      "title": "Express error handling",
+      "url": "https://expressjs.com/en/guide/error-handling.html"
+    },
+    {
+      "title": "Node.js releases",
+      "url": "https://nodejs.org/en/about/previous-releases"
+    }
+  ],
+  "depends_on": [
+    "api-design"
+  ],
+  "rules": [
+    {
+      "id": "run-supported-versions",
+      "instruction": "Run the service on an Active or Maintenance LTS release of Node.js and a maintained Express major version. Declare the Node.js range in `engines`.",
+      "verification": "Compare `engines.node`, the CI image and the Express version in the lockfile with the Node.js release table and the Express support notes."
+    },
+    {
+      "id": "centralize-error-handling",
+      "instruction": "Let async handlers reject into a final four-argument error middleware that logs the error and returns a generic body. Run production with `NODE_ENV=production`.",
+      "verification": "Test a route that throws and assert a 500 response without a stack trace or internal message in the body."
+    },
+    {
+      "id": "set-security-headers",
+      "instruction": "Set security response headers with Helmet or equivalent middleware, and disable the `X-Powered-By` header.",
+      "verification": "Assert the headers of a representative response in an HTTP test, including the absence of `X-Powered-By`."
+    },
+    {
+      "id": "harden-session-cookies",
+      "instruction": "Give the session cookie a non-default name and set its `secure` and `httpOnly` options.",
+      "verification": "Inspect the `Set-Cookie` header returned by the login route in a test and check each attribute."
+    },
+    {
+      "id": "throttle-authentication",
+      "instruction": "Limit consecutive failed logins per user name and IP address, and failed attempts per IP address over a longer period.",
+      "verification": "Run a test that exceeds the limit and assert the blocked response, then check that a successful login is still possible after the window."
+    },
+    {
+      "id": "validate-redirect-targets",
+      "instruction": "Redirect only to paths or hosts on an allowlist when the target comes from the request.",
+      "verification": "Test the changed redirect with an external URL and assert that the response does not send the user there."
+    }
+  ]
+}

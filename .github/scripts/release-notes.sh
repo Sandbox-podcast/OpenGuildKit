@@ -37,8 +37,9 @@ draft() {
     endpoint="$releases"
   fi
 
-  # The draft tag does not exist in Git, so compare from the last published release to the commit.
-  previous=$(jq -r '[.[][] | select(.draft | not)] | sort_by(.published_at) | last | .tag_name // empty' <<< "$existing")
+  # The draft tag does not exist in Git, so compare from the last stable release to the commit.
+  # A pilot prerelease is skipped: the next stable notes must also list the changes it shipped.
+  previous=$(jq -r '[.[][] | select((.draft | not) and (.prerelease | not))] | sort_by(.published_at) | last | .tag_name // empty' <<< "$existing")
   local args=(-f tag_name="$draft_tag" -f target_commitish="$sha" -f configuration_file_path=.github/release.yml)
   if [[ -n "$previous" ]]; then
     args+=(-f previous_tag_name="$previous")

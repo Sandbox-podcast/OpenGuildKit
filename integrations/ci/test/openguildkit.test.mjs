@@ -488,3 +488,14 @@ test('gate applies an authorized waiver only during its scope and validity', t =
   assert.equal(corrected.status, 0, corrected.stderr);
   assert.equal(JSON.parse(corrected.stdout).current.decision.effectiveStatus, 'success');
 });
+
+test('the help and the usage errors are in English', () => {
+  const run = (...args) => spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8' });
+  const help = run('--help');
+  assert.equal(help.status, 0);
+  assert.match(help.stdout, /In observation mode, a deviation is recorded and the command returns 0\./);
+  assert.match(help.stdout, /With --enforce, a deviation returns 1\. A configuration or read error returns 2\./);
+  assert.doesNotMatch(help.stdout, /[^\x20-\x7e\n]/);
+  assert.match(run('frobnicate').stderr, /^Unknown command: frobnicate\. Use --help\.$/m);
+  assert.match(run('reconcile').stderr, /^Missing arguments\. Use --help\.$/m);
+});

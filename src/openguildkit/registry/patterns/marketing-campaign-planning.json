@@ -10,9 +10,13 @@
   ],
   "roles": [
     "marketing",
+    "communication",
     "project-management"
   ],
   "packs": [
     "campaign-planning"
+  ],
+  "references": [
+    "govs-011-communication"
   ]
 }

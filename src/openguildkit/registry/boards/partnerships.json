@@ -1,0 +1,117 @@
+{
+  "id": "partnerships",
+  "title": "Partnerships and channels",
+  "description": "Review how resellers, integrators, technology partners and marketplaces sell, deploy or extend the product, and what the partner agreement allows.",
+  "expertises": [
+    "Partner programme design, tiers and incentives",
+    "Reseller, distributor and marketplace agreements",
+    "Technology partnerships and integrations"
+  ],
+  "triggers": [
+    "partner",
+    "partenaire",
+    "partnership",
+    "partenariat",
+    "partner program",
+    "programme partenaire",
+    "reseller",
+    "revendeur",
+    "distributor",
+    "distributeur",
+    "system integrator",
+    "intégrateur",
+    "channel partner",
+    "partenaire de distribution",
+    "marketplace listing",
+    "app marketplace",
+    "place de marché",
+    "referral program",
+    "programme d'apporteurs d'affaires",
+    "white label",
+    "marque blanche",
+    "co-selling",
+    "technology partner",
+    "partenaire technologique"
+  ],
+  "questions": [
+    "Who sells, deploys or supports the product in this change: us, a partner or both?",
+    "What does the partner agreement allow on pricing, territory, branding and customer data?",
+    "How will partners learn about the change and who answers their questions?"
+  ],
+  "sources": [
+    {
+      "title": "Commission Regulation (EU) 2022/720, Vertical Block Exemption Regulation",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/720/oj"
+    },
+    {
+      "title": "European Commission, Vertical block exemptions and Guidelines on vertical restraints",
+      "url": "https://competition-policy.ec.europa.eu/antitrust-and-cartels/legislation/vertical-block-exemptions_en"
+    },
+    {
+      "title": "IFRS Foundation, IFRS 15 Revenue from Contracts with Customers",
+      "url": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-15-revenue-from-contracts-with-customers/"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "partner-programme-manager",
+        "title": "Partner programme manager",
+        "focus": "Define the partner tiers, entry criteria, benefits and obligations the change touches, and check that each tier can be measured.",
+        "checks": [
+          "Each tier has written entry criteria and the data that proves them, such as certified staff or sourced revenue.",
+          "Benefits and obligations are the same for every partner of a tier, or the exception is recorded.",
+          "The programme names who reviews tier status and how often."
+        ]
+      },
+      {
+        "id": "channel-economics",
+        "title": "Channel economics analyst",
+        "focus": "Check the margin, discount and referral fee each partner type receives and whether the deal still makes money for both sides.",
+        "checks": [
+          "Partner discounts and fees are compared with the direct price on the same scope and term.",
+          "Revenue presentation is checked with finance: whether the company acts as principal or agent changes revenue under IFRS 15.",
+          "Channel conflict rules say who owns a deal when a partner and the direct team meet the same customer."
+        ]
+      },
+      {
+        "id": "partner-agreement-specialist",
+        "title": "Partner agreement specialist",
+        "focus": "Compare the change with the reseller, referral or marketplace agreement: territory, resale price, branding, customer data and termination.",
+        "checks": [
+          "The agreement does not fix or impose a minimum resale price: under Regulation (EU) 2022/720 that removes the block exemption.",
+          "Territory or customer restrictions are checked with legal against the hardcore restrictions of the vertical rules.",
+          "Who is controller or processor of end-customer data is written in the agreement."
+        ]
+      },
+      {
+        "id": "partner-enablement",
+        "title": "Partner enablement and technical alliances lead",
+        "focus": "Plan the training, certification, sandbox and integration documentation partners need before they sell or deploy the change.",
+        "checks": [
+          "Partners get release information before end customers, with a date.",
+          "Integration partners have a test environment and the deprecation calendar of the APIs they use.",
+          "Marketplace listings are updated with the same claims as the product documentation."
+        ]
+      }
+    ],
+    "evidence": [
+      "Current partner agreements or programme guide for the partner types involved.",
+      "Price list, partner discount grid and referral fees, with their effective dates.",
+      "Partner-sourced and partner-influenced pipeline or revenue for the segment concerned.",
+      "Partner enablement material, certification requirements and integration documentation."
+    ],
+    "challenge": [
+      "Would the change put partners in competition with our own sales team on the same customers?",
+      "Does any clause or practice fix the price a reseller charges or restrict where it sells?",
+      "What happens to customers and their data when a partner leaves the programme?",
+      "Is a partner the right route, or would a direct offer or an integration serve the customer better?"
+    ],
+    "decision_criteria": [
+      "Proceed when partner terms, economics and enablement are defined and legal has checked the restrictions.",
+      "Revise when partner margins or fees make the deal unprofitable for either side at the expected volume.",
+      "Block when a term would fix resale prices or impose a restriction legal classifies as hardcore, until it is removed.",
+      "Name the partner metric, such as sourced pipeline or certified partners, and the review date."
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "id": "notice-and-action",
+  "title": "Notice and action",
+  "version": "1.0.0",
+  "description": "For a service that hosts or shares user content: reporting, reasoned decisions, appeals and the records transparency reports need.",
+  "sources": [
+    {
+      "title": "Regulation (EU) 2022/2065, Digital Services Act",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj"
+    },
+    {
+      "title": "Regulation (EU) 2021/784 on addressing the dissemination of terrorist content online",
+      "url": "https://eur-lex.europa.eu/eli/reg/2021/784/oj"
+    },
+    {
+      "title": "The Santa Clara Principles on Transparency and Accountability in Content Moderation",
+      "url": "https://santaclaraprinciples.org/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "offer-reporting",
+      "instruction": "Let anyone report content they consider illegal or against the rules, with the location of the content, a reason and an optional contact.",
+      "verification": "Open the reporting flow and check that it captures the location, the reason and a contact, and that reports reach a review queue."
+    },
+    {
+      "id": "send-statement-of-reasons",
+      "instruction": "When content is removed or restricted or an account is suspended, tell the affected user the facts, the rule applied, whether the decision was automated and how to contest it.",
+      "verification": "Read the statement of reasons template and a sent example and check the four elements."
+    },
+    {
+      "id": "handle-appeals",
+      "instruction": "Let affected users contest a decision and have the appeal reviewed by a person who did not take the first decision.",
+      "verification": "Check the appeal flow and that appeal records name a reviewer different from the first decision maker."
+    },
+    {
+      "id": "handle-removal-orders",
+      "instruction": "Name the contact point and the on-call owner who can act on a removal order for terrorist content within one hour of receipt.",
+      "verification": "Check the published contact point and the on-call schedule for removal orders."
+    },
+    {
+      "id": "record-moderation-data",
+      "instruction": "Record notices, decisions, automated actions, appeals and response times in a form that can be counted for transparency reports.",
+      "verification": "Run the report query for the last period and check that each category returns a count."
+    }
+  ]
+}

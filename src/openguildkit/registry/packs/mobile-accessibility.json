@@ -1,0 +1,50 @@
+{
+  "id": "mobile-accessibility",
+  "title": "Mobile app accessibility",
+  "version": "1.0.0",
+  "description": "For an iOS or Android app: screen reader labels, larger text, touch target size and accessibility checks in UI tests.",
+  "sources": [
+    {
+      "title": "Apple Human Interface Guidelines, accessibility",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/accessibility"
+    },
+    {
+      "title": "Apple, scaling fonts automatically with Dynamic Type",
+      "url": "https://developer.apple.com/documentation/uikit/scaling-fonts-automatically"
+    },
+    {
+      "title": "Apple, performAccessibilityAudit in UI tests",
+      "url": "https://developer.apple.com/documentation/xcuiautomation/xcuiapplication/performaccessibilityaudit(for:_:)"
+    },
+    {
+      "title": "Android Developers, make apps more accessible",
+      "url": "https://developer.android.com/guide/topics/ui/accessibility/apps"
+    },
+    {
+      "title": "Android Developers, test your app's accessibility",
+      "url": "https://developer.android.com/guide/topics/ui/accessibility/testing"
+    }
+  ],
+  "rules": [
+    {
+      "id": "label-interactive-elements",
+      "instruction": "Give each changed control and meaningful image an accessibility label (`accessibilityLabel` on iOS, `contentDescription` on Android) that says its purpose, and mark decorative images as hidden.",
+      "verification": "Complete the changed flow with VoiceOver and with TalkBack, and record any element announced without a purpose."
+    },
+    {
+      "id": "support-larger-text",
+      "instruction": "Use text styles that follow the system text size setting, and let layouts grow so text stays readable at the largest sizes.",
+      "verification": "Run the changed screens at the largest text size on both platforms and check for truncated, overlapping or clipped text."
+    },
+    {
+      "id": "size-touch-targets",
+      "instruction": "Give each tappable element a target of at least 44 by 44 points on iOS and 48 by 48 dp on Android, with spacing between adjacent targets.",
+      "verification": "Run Xcode's Accessibility Inspector audit and Android's Accessibility Scanner on the changed screens and fix target size findings."
+    },
+    {
+      "id": "audit-in-ui-tests",
+      "instruction": "Add an accessibility check to the UI tests of changed screens: `performAccessibilityAudit` in XCUITest, and checks built on the Compose testing APIs or the Accessibility Test Framework on Android.",
+      "verification": "Run the UI test suites in CI and confirm the accessibility checks execute on the changed screens."
+    }
+  ]
+}

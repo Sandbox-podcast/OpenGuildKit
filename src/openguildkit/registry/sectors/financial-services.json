@@ -1,0 +1,16 @@
+{
+  "id": "financial-services",
+  "title": "Financial services",
+  "description": "Adapt reviews to banks, insurers, payment and investment firms and the ICT providers that serve them.",
+  "context": [
+    "Ask the compliance owner whether the organization is a financial entity under DORA (Regulation (EU) 2022/2554) and which competent authority supervises it. When it is, select the dora-financial-entity pattern.",
+    "Name the owners of ICT risk, incident reporting and ICT third-party contracts before changing a system that supports a critical or important function.",
+    "Record which payment, customer or market data the change touches and the retention rules that apply to it."
+  ],
+  "sources": [
+    {
+      "title": "Regulation (EU) 2022/2554, Digital Operational Resilience Act",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/fra"
+    }
+  ]
+}

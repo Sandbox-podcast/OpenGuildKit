@@ -1,0 +1,43 @@
+{
+  "id": "container-images",
+  "title": "Container images",
+  "version": "1.0.0",
+  "description": "For a project that builds container images: pinned base images, non-root users, multi-stage builds, build secrets and the build context.",
+  "sources": [
+    {
+      "title": "Docker, building best practices",
+      "url": "https://docs.docker.com/build/building/best-practices/"
+    },
+    {
+      "title": "Docker, build secrets",
+      "url": "https://docs.docker.com/build/building/secrets/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "pin-base-images",
+      "instruction": "Pin each `FROM` image to a version tag and a digest, and update the digest through a reviewed change.",
+      "verification": "Search the Dockerfiles for `FROM` lines without `@sha256:` or with `latest`."
+    },
+    {
+      "id": "run-as-non-root",
+      "instruction": "Create a dedicated user with an explicit UID and switch to it with `USER` before the entrypoint when the service needs no privileges.",
+      "verification": "Run the built image and check that `id -u` inside the container is not 0."
+    },
+    {
+      "id": "separate-build-and-runtime-stages",
+      "instruction": "Use a multi-stage build so compilers, package managers and test files stay out of the final stage.",
+      "verification": "List the packages or files of the final image and confirm build tools are absent."
+    },
+    {
+      "id": "pass-secrets-as-mounts",
+      "instruction": "Pass credentials needed at build time through secret or SSH mounts, never through `ARG`, `ENV` or copied files.",
+      "verification": "Inspect the image history and configuration (`docker history`, `docker inspect`) for secret values or credential file names."
+    },
+    {
+      "id": "trim-the-build-context",
+      "instruction": "Exclude `.git`, local environment files, credentials and build output from the build context with `.dockerignore`.",
+      "verification": "Review `.dockerignore` and check that the context does not include `.env` files or keys."
+    }
+  ]
+}

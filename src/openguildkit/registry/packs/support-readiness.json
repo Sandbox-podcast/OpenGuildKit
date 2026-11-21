@@ -1,0 +1,34 @@
+{
+  "id": "support-readiness",
+  "title": "Support readiness",
+  "version": "1.0.0",
+  "description": "For a change that customers will use: a knowledge article, an escalation path and a ticket category ready before release.",
+  "sources": [
+    {
+      "title": "Consortium for Service Innovation, Knowledge-Centered Success (KCS)",
+      "url": "https://www.serviceinnovation.org/kcs/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "publish-knowledge-article",
+      "instruction": "Before release, write or update the knowledge base article that explains the changed behavior to support agents and customers.",
+      "verification": "Link the article from the change and check that it names the version it applies to."
+    },
+    {
+      "id": "record-known-issues",
+      "instruction": "List the known limitations of the change and their workarounds in the knowledge base article.",
+      "verification": "Compare the known issues in the task record with the article and check that each one appears with a workaround or a statement that none exists."
+    },
+    {
+      "id": "define-escalation-path",
+      "instruction": "Ask the support lead which tier answers questions about the change and who receives escalations, and record the path in the support runbook.",
+      "verification": "Open the support runbook and check the tier, the escalation contact and the expected response time."
+    },
+    {
+      "id": "tag-related-tickets",
+      "instruction": "Ask the support lead to add a ticket category or tag for the change before release.",
+      "verification": "Check that the help desk configuration or an export of it lists the new category."
+    }
+  ]
+}

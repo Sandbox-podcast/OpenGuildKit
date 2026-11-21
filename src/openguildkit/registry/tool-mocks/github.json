@@ -1,0 +1,115 @@
+{
+  "tool": "github",
+  "instructions": "Mock of a code hosting service with one fictional repository, acme/support-portal. Every answer is synthetic.",
+  "tools": [
+    {
+      "name": "list_pull_requests",
+      "description": "List pull requests of acme/support-portal. Returns number, title, state, author and branch.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"state": {"type": "string", "description": "Filter by state", "enum": ["open", "merged", "all"]}}},
+      "responses": [
+        {
+          "when": {"state": "open"},
+          "result": {"repository": "acme/support-portal", "pull_requests": [{"number": 87, "title": "Export a customer's own requests as CSV", "state": "open", "author": "Lin Sample", "branch": "feat/request-export"}]}
+        },
+        {
+          "when": {"state": "merged"},
+          "result": {"repository": "acme/support-portal", "pull_requests": [{"number": 85, "title": "Fix pagination on the requests list", "state": "merged", "author": "Lin Sample", "branch": "fix/requests-pagination"}]}
+        },
+        {
+          "result": {
+            "repository": "acme/support-portal",
+            "pull_requests": [
+              {"number": 87, "title": "Export a customer's own requests as CSV", "state": "open", "author": "Lin Sample", "branch": "feat/request-export"},
+              {"number": 85, "title": "Fix pagination on the requests list", "state": "merged", "author": "Lin Sample", "branch": "fix/requests-pagination"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "get_pull_request",
+      "description": "Get one pull request by number, with test results and reviewers.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"number": {"type": "integer", "description": "Pull request number"}}, "required": ["number"]},
+      "responses": [
+        {
+          "when": {"number": 87},
+          "result": {
+            "number": 87,
+            "title": "Export a customer's own requests as CSV",
+            "state": "open",
+            "author": "Lin Sample",
+            "branch": "feat/request-export",
+            "base": "main",
+            "tests": {"passing": 8, "failing": 0},
+            "created": "2026-11-18",
+            "reviewers": ["Ada Example", "Sam Placeholder"],
+            "changed_files": 6,
+            "additions": 214,
+            "deletions": 9
+          }
+        },
+        {
+          "when": {"number": 85},
+          "result": {
+            "number": 85,
+            "title": "Fix pagination on the requests list",
+            "state": "merged",
+            "author": "Lin Sample",
+            "branch": "fix/requests-pagination",
+            "base": "main",
+            "tests": {"passing": 21, "failing": 0},
+            "created": "2026-11-10",
+            "merged": "2026-11-12"
+          }
+        },
+        {"error": "Pull request not found in acme/support-portal. Known numbers in this mock: 85, 87."}
+      ]
+    },
+    {
+      "name": "list_check_runs",
+      "description": "List the check runs of a branch or commit reference.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"ref": {"type": "string", "description": "Branch name or commit"}}, "required": ["ref"]},
+      "responses": [
+        {
+          "when": {"ref": "feat/request-export"},
+          "result": {
+            "ref": "feat/request-export",
+            "check_runs": [
+              {"name": "unit-tests", "status": "completed", "conclusion": "success", "detail": "8 tests passing"},
+              {"name": "lint", "status": "completed", "conclusion": "success"},
+              {"name": "build", "status": "completed", "conclusion": "success"}
+            ]
+          }
+        },
+        {
+          "when": {"ref": "main"},
+          "result": {"ref": "main", "check_runs": [{"name": "unit-tests", "status": "completed", "conclusion": "success", "detail": "21 tests passing"}, {"name": "build", "status": "completed", "conclusion": "success"}]}
+        },
+        {"result": {"ref": "$arg:ref", "check_runs": []}}
+      ]
+    },
+    {
+      "name": "list_security_alerts",
+      "description": "List dependency security alerts of the repository.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"severity": {"type": "string", "description": "Optional severity filter", "enum": ["low", "medium", "high"]}}},
+      "responses": [
+        {
+          "when": {"severity": "high"},
+          "result": {
+            "alerts": [{"number": 3, "severity": "high", "package": "csv-helper", "installed": "1.2.0", "fixed_in": "1.2.4", "summary": "Crafted input can make csv-helper write unescaped cells", "opened": "2026-11-16"}]
+          }
+        },
+        {"when": {"severity": "medium"}, "result": {"alerts": []}},
+        {
+          "result": {
+            "alerts": [{"number": 3, "severity": "high", "package": "csv-helper", "installed": "1.2.0", "fixed_in": "1.2.4", "summary": "Crafted input can make csv-helper write unescaped cells", "opened": "2026-11-16"}]
+          }
+        }
+      ]
+    }
+  ]
+}

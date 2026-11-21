@@ -1,0 +1,29 @@
+{
+  "id": "device-and-access-lifecycle",
+  "title": "Device and access lifecycle",
+  "description": "Manage employee devices and SaaS access from arrival to departure through device management and the identity provider.",
+  "sources": [
+    {
+      "title": "NIST SP 800-124 Rev. 2, Guidelines for Managing the Security of Mobile Devices in the Enterprise",
+      "url": "https://csrc.nist.gov/pubs/sp/800/124/r2/final"
+    },
+    {
+      "title": "CIS Critical Security Controls Version 8.1",
+      "url": "https://www.cisecurity.org/controls/v8-1"
+    }
+  ],
+  "roles": [
+    "it-and-workplace",
+    "security",
+    "hr"
+  ],
+  "packs": [
+    "device-and-access-lifecycle",
+    "employee-offboarding"
+  ],
+  "references": [
+    "nist-sp-800-124",
+    "cis-controls",
+    "scim-2"
+  ]
+}

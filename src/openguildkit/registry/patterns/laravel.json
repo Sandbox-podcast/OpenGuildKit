@@ -1,0 +1,30 @@
+{
+  "id": "laravel",
+  "title": "Laravel",
+  "description": "Review mass assignment, policies, validated input and migrations in a Laravel application.",
+  "sources": [
+    {
+      "title": "Laravel 13.x, Eloquent: mass assignment",
+      "url": "https://laravel.com/docs/13.x/eloquent"
+    },
+    {
+      "title": "Laravel 13.x, authorization",
+      "url": "https://laravel.com/docs/13.x/authorization"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "laravel"
+  ],
+  "match": {
+    "stack": [
+      [
+        "laravel"
+      ]
+    ]
+  }
+}

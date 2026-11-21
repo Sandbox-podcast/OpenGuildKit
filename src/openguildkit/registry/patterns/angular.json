@@ -1,0 +1,30 @@
+{
+  "id": "angular",
+  "title": "Angular",
+  "description": "Review the supported version, sanitization, strict templates and subscriptions in an Angular application.",
+  "sources": [
+    {
+      "title": "Angular security best practices",
+      "url": "https://angular.dev/best-practices/security"
+    },
+    {
+      "title": "Angular versioning and releases",
+      "url": "https://angular.dev/reference/releases"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "angular"
+  ],
+  "match": {
+    "stack": [
+      [
+        "angular"
+      ]
+    ]
+  }
+}

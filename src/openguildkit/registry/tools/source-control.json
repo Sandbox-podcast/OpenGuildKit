@@ -1,0 +1,164 @@
+{
+  "id": "source-control",
+  "title": "Source control",
+  "tools": [
+    {
+      "id": "bitbucket",
+      "title": "Bitbucket",
+      "vendor": "Atlassian",
+      "summary": "Git hosting and code review integrated with Jira.",
+      "homepage": "https://bitbucket.org",
+      "brains": [
+        "engineering",
+        "devops"
+      ],
+      "detect": {
+        "files": [
+          "bitbucket-pipelines.yml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "atlassian-rovo",
+          "name": "Atlassian Rovo MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Atlassian",
+          "transport": "streamable-http",
+          "url": "https://mcp.atlassian.com/v2/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "ga",
+          "capabilities": "Scoped read and write on Bitbucket Cloud workspaces and repositories (permission groups read_bitbucket, write_bitbucket).",
+          "source": "https://github.com/atlassian/atlassian-mcp-server",
+          "repository": "https://github.com/atlassian/atlassian-mcp-server",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.atlassian.com/cloud/bitbucket/rest/"
+      },
+      "notes": "Bitbucket Cloud only, and only for workspaces linked to an Atlassian organization. Earlier Atlassian posts said Bitbucket tools needed an API token; the current README lists OAuth 2.1 and API token for Bitbucket."
+    },
+    {
+      "id": "github",
+      "title": "GitHub",
+      "vendor": "GitHub (Microsoft)",
+      "summary": "Git hosting with pull requests, issues and Actions CI.",
+      "homepage": "https://github.com",
+      "brains": [
+        "engineering",
+        "devops",
+        "security",
+        "project-management"
+      ],
+      "aliases": [
+        "GitHub Actions",
+        "GitHub Enterprise"
+      ],
+      "detect": {
+        "files": [
+          ".github/workflows/*.yml",
+          ".github/workflows/*.yaml",
+          ".github/dependabot.yml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "github-remote",
+          "name": "GitHub MCP Server (remote)",
+          "publisher": "vendor",
+          "maintainer": "GitHub",
+          "transport": "streamable-http",
+          "url": "https://api.githubcopilot.com/mcp/",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Repositories, code, issues, pull requests, Actions and security alerts, with toolsets to restrict exposed tools.",
+          "source": "https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/set-up-the-github-mcp-server",
+          "repository": "https://github.com/github/github-mcp-server",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "github-local",
+          "name": "GitHub MCP Server (local, Docker)",
+          "publisher": "vendor",
+          "maintainer": "GitHub",
+          "transport": "stdio",
+          "command": "docker",
+          "args": [
+            "run",
+            "-i",
+            "--rm",
+            "-e",
+            "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "ghcr.io/github/github-mcp-server"
+          ],
+          "package": {
+            "registry": "docker",
+            "name": "ghcr.io/github/github-mcp-server"
+          },
+          "auth": "oauth-or-token",
+          "env": [
+            "GITHUB_PERSONAL_ACCESS_TOKEN"
+          ],
+          "status": "unknown",
+          "capabilities": "Same tools as the remote server; GITHUB_HOST targets GitHub Enterprise Server or ghe.com, GITHUB_TOOLSETS limits tools.",
+          "source": "https://github.com/github/github-mcp-server",
+          "repository": "https://github.com/github/github-mcp-server",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.github.com/en/rest"
+      },
+      "notes": "Remote server is available on all GitHub plans, OAuth by default or a PAT as Bearer header. Use the local Docker server for GitHub Enterprise Server (set GITHUB_HOST)."
+    },
+    {
+      "id": "gitlab",
+      "title": "GitLab",
+      "vendor": "GitLab",
+      "summary": "DevSecOps platform with Git hosting, merge requests and CI/CD.",
+      "homepage": "https://about.gitlab.com",
+      "brains": [
+        "engineering",
+        "devops",
+        "security",
+        "project-management"
+      ],
+      "aliases": [
+        "GitLab CI"
+      ],
+      "detect": {
+        "files": [
+          ".gitlab-ci.yml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "gitlab-builtin",
+          "name": "GitLab MCP server",
+          "publisher": "vendor",
+          "maintainer": "GitLab",
+          "transport": "streamable-http",
+          "url": "https://gitlab.com/api/v4/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "ga",
+          "capabilities": "Issues, merge requests, pipelines and project data of the GitLab instance, with the user's permissions.",
+          "source": "https://docs.gitlab.com/user/gitlab_duo/model_context_protocol/mcp_server/",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.gitlab.com/api/rest/"
+      },
+      "notes": "Self-Managed and Dedicated use https://<your-instance>/api/v4/mcp. GA since GitLab 19.5 on Free, Premium and Ultimate; the server must be allowed for the top-level group (GitLab.com) or the instance. Auth is an OAuth token with the mcp scope or a fine-grained PAT; legacy access tokens get 403. stdio-only clients use npx -y mcp-remote <url>."
+    }
+  ]
+}

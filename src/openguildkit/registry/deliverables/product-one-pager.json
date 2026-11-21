@@ -1,0 +1,81 @@
+{
+  "id": "product-one-pager",
+  "title": "Product one-pager",
+  "description": "Summarise a product or feature on one page for prospects and the sales team: the problem, who it is for, what it does today, proof and the next step.",
+  "market": true,
+  "brains": [
+    "product",
+    "marketing",
+    "sales"
+  ],
+  "inputs": [
+    {
+      "id": "roles",
+      "label": "Buyer and user roles the page addresses",
+      "data": "internal"
+    },
+    {
+      "id": "capabilities",
+      "label": "Capabilities available in the released version, from the approved task",
+      "data": "none"
+    },
+    {
+      "id": "proof",
+      "label": "Customer results or measurements the team may quote",
+      "data": "internal"
+    }
+  ],
+  "tool_actions": [
+    {
+      "action": "publish",
+      "description": "Publishing the one-pager on the website or in the sales tool."
+    }
+  ],
+  "sections": [
+    {
+      "id": "problem",
+      "title": "Problem",
+      "prompt": "The problem in the buyer's words and what it costs them today."
+    },
+    {
+      "id": "audience",
+      "title": "Who it is for",
+      "prompt": "The roles and situations where the product fits, and where it does not."
+    },
+    {
+      "id": "capabilities",
+      "title": "What it does",
+      "prompt": "Three to five capabilities available today, each tied to the problem."
+    },
+    {
+      "id": "alternatives",
+      "title": "Why this rather than an alternative",
+      "prompt": "The difference with competitors and substitutes, from the market dossier."
+    },
+    {
+      "id": "proof",
+      "title": "Proof",
+      "prompt": "Results, quotes or certifications, each with its source."
+    },
+    {
+      "id": "next-step",
+      "title": "Next step",
+      "prompt": "The one action a prospect takes next and who answers."
+    }
+  ],
+  "checks": [
+    {
+      "id": "available-today",
+      "verification": "Every capability listed is available in the released version, not planned."
+    },
+    {
+      "id": "claims-substantiated",
+      "verification": "Each claim points to evidence the team can show: a measurement, a customer result or a dated source."
+    },
+    {
+      "id": "sales-reviewed",
+      "verification": "A salesperson used the page in a call or a rehearsal and their feedback is applied."
+    }
+  ],
+  "sources": []
+}

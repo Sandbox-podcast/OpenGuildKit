@@ -1,0 +1,232 @@
+{
+  "id": "ci-cd",
+  "title": "CI and delivery",
+  "tools": [
+    {
+      "id": "azure-devops",
+      "title": "Azure DevOps",
+      "vendor": "Microsoft",
+      "summary": "Boards, Repos, Pipelines, Test Plans and wikis from Microsoft.",
+      "homepage": "https://azure.microsoft.com/products/devops",
+      "brains": [
+        "engineering",
+        "devops",
+        "project-management",
+        "qa"
+      ],
+      "aliases": [
+        "Azure Pipelines",
+        "Azure Boards",
+        "ADO"
+      ],
+      "detect": {
+        "files": [
+          "azure-pipelines.yml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "azure-devops-remote",
+          "name": "Azure DevOps MCP Server (remote)",
+          "publisher": "vendor",
+          "maintainer": "Microsoft",
+          "transport": "streamable-http",
+          "url": "https://mcp.dev.azure.com/{organization}",
+          "auth": "oauth",
+          "env": [],
+          "settings": [
+            {
+              "name": "organization",
+              "description": "Azure DevOps: your organization"
+            }
+          ],
+          "status": "preview",
+          "capabilities": "Work items, repos and pull requests, pipelines, wikis, test plans, iterations and Advanced Security alerts; X-MCP-Toolsets and X-MCP-Readonly headers restrict tools.",
+          "source": "https://learn.microsoft.com/en-us/azure/devops/mcp-server/remote-mcp-server",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "azure-devops-local",
+          "name": "Azure DevOps MCP Server (local)",
+          "publisher": "vendor",
+          "maintainer": "Microsoft",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@azure-devops/mcp",
+            "{organization}"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@azure-devops/mcp"
+          },
+          "auth": "oauth-or-token",
+          "env": [],
+          "settings": [
+            {
+              "name": "organization",
+              "description": "Azure DevOps: your organization"
+            }
+          ],
+          "status": "unknown",
+          "capabilities": "Same domains as the remote server; -d flag loads only some domains (core, work-items...).",
+          "source": "https://github.com/microsoft/azure-devops-mcp",
+          "repository": "https://github.com/microsoft/azure-devops-mcp",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://learn.microsoft.com/en-us/rest/api/azure/devops/"
+      },
+      "notes": "Remote server (preview, recommended) needs Microsoft Entra auth and an Entra-backed organization; Claude Desktop and Codex cannot use it, Claude Code and Cursor need a custom Entra app registration. Local server needs Node.js 20+, signs in with a Microsoft account or a PAT; new development goes to the remote server."
+    },
+    {
+      "id": "buildkite",
+      "title": "Buildkite",
+      "vendor": "Buildkite",
+      "summary": "CI/CD platform with self-hosted agents.",
+      "homepage": "https://buildkite.com",
+      "brains": [
+        "devops",
+        "engineering"
+      ],
+      "detect": {
+        "files": [
+          ".buildkite/pipeline.yml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "buildkite-remote",
+          "name": "Buildkite remote MCP server",
+          "publisher": "vendor",
+          "maintainer": "Buildkite",
+          "transport": "streamable-http",
+          "url": "https://mcp.buildkite.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Pipelines, builds, jobs, logs and test data; read-only variant at /mcp/readonly, toolset scoping via /x/{toolset}.",
+          "source": "https://buildkite.com/docs/apis/mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://buildkite.com/docs/apis/rest-api"
+      },
+      "notes": "Headless agents with an API token use https://mcp.buildkite.com/direct (Authorization: Bearer, 50 requests/min per user). Docs say the server is under active development and hosted endpoints cannot be pinned to a version. A local Docker image (buildkite/mcp-server) also exists; its documented command passes the token as an argument, so it is not listed."
+    },
+    {
+      "id": "circleci",
+      "title": "CircleCI",
+      "vendor": "CircleCI",
+      "summary": "Hosted continuous integration and delivery.",
+      "homepage": "https://circleci.com",
+      "brains": [
+        "devops",
+        "engineering",
+        "qa"
+      ],
+      "detect": {
+        "files": [
+          ".circleci/config.yml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "circleci-hosted",
+          "name": "CircleCI MCP Server (hosted)",
+          "publisher": "vendor",
+          "maintainer": "CircleCI",
+          "transport": "streamable-http",
+          "url": "https://mcp.circleci.com/v1/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Pipeline and build status, failure logs and project data.",
+          "source": "https://circleci.com/product/mcp",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "circleci-cli",
+          "name": "CircleCI CLI MCP server",
+          "publisher": "vendor",
+          "maintainer": "CircleCI",
+          "transport": "stdio",
+          "command": "circleci",
+          "args": [
+            "mcp",
+            "start"
+          ],
+          "package": {
+            "registry": "other",
+            "name": "CircleCI CLI"
+          },
+          "auth": "api-token",
+          "env": [
+            "CIRCLE_TOKEN"
+          ],
+          "status": "unknown",
+          "capabilities": "Same CircleCI tools, run locally from the CircleCI CLI.",
+          "source": "https://circleci.com/product/mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://circleci.com/docs/api/v2/"
+      },
+      "notes": "Local CLI route: circleci auth login or CIRCLE_TOKEN, then circleci mcp claude|cursor|vscode enable. The old npx/Docker server (@circleci/mcp-server-circleci, CIRCLECI_TOKEN) is deprecated."
+    },
+    {
+      "id": "jenkins",
+      "title": "Jenkins",
+      "vendor": "Jenkins project",
+      "summary": "Open-source automation server for CI/CD.",
+      "homepage": "https://www.jenkins.io",
+      "brains": [
+        "devops",
+        "engineering",
+        "qa"
+      ],
+      "detect": {
+        "files": [
+          "Jenkinsfile"
+        ]
+      },
+      "servers": [
+        {
+          "id": "jenkins-mcp-server-plugin",
+          "name": "MCP Server plugin",
+          "publisher": "vendor",
+          "maintainer": "Jenkins project (jenkinsci)",
+          "transport": "streamable-http",
+          "url": "https://{jenkins_host}/mcp-server/mcp",
+          "auth": "api-token",
+          "env": [],
+          "settings": [
+            {
+              "name": "jenkins_host",
+              "description": "Jenkins: your jenkins host, without https://"
+            }
+          ],
+          "status": "unknown",
+          "capabilities": "Exposes Jenkins jobs, builds and logs as MCP tools and resources.",
+          "source": "https://plugins.jenkins.io/mcp-server/",
+          "repository": "https://github.com/jenkinsci/mcp-server-plugin",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://www.jenkins.io/doc/book/using/remote-access-api/"
+      },
+      "notes": "A plugin to install on the controller (version 0.228, needs Jenkins 2.541.3+). Auth is a Jenkins API token sent as HTTP Basic (username:token). Also serves SSE at /mcp-server/sse and a stateless endpoint at /mcp-server/stateless."
+    }
+  ]
+}

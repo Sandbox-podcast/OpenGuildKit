@@ -19,7 +19,7 @@ on:
         required: false
       expected:
         type: string
-        description: Entrées de la clé de travail calculées par le coordinateur (JSON), pour expliquer un écart
+        description: Inputs of the work key computed by the coordinator (JSON), to explain a deviation
         required: false
 
 permissions:
@@ -82,7 +82,7 @@ jobs:
           ref=$(jq -er '.policyRef' pilot/recheck.json)
           [[ "$repo" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]*/[a-zA-Z0-9_.-]+$ && "$ref" == refs/heads/* ]]
           git check-ref-format "$ref"
-          printf 'Source de règle %s · %s\n' "$repo" "$ref"
+          printf 'Rule source %s | %s\n' "$repo" "$ref"
           if [[ -n "$POLICY_DEPLOY_KEY" ]]; then
             key_dir=$(mktemp -d)
             trap 'rm -f -- "$key_dir/key" "$key_dir/known_hosts"; rmdir -- "$key_dir"' EXIT

@@ -1,0 +1,24 @@
+{
+  "id": "finops",
+  "title": "FinOps",
+  "description": "Allocate cloud and AI costs to owners, follow a unit cost and catch unexpected spend.",
+  "sources": [
+    {
+      "title": "FinOps Foundation, FinOps Framework",
+      "url": "https://www.finops.org/framework/"
+    }
+  ],
+  "roles": [
+    "finance",
+    "devops"
+  ],
+  "packs": [
+    "finops-cost-management"
+  ],
+  "references": [
+    "finops-framework",
+    "cost-allocation",
+    "cost-anomaly-detection",
+    "unit-economics"
+  ]
+}

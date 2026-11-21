@@ -12,7 +12,9 @@ The catalog has one brain per discipline of a software publisher:
 
 | Brain | ID | Brings |
 |---|---|---|
-| Software development (front-end and back-end) | `engineering` | Architecture, contracts, data consistency, maintainability, front-end rendering and browser support |
+| Software development | `engineering` | Architecture, contracts between tiers, data consistency, maintainability; the default reviewer of features, bugs and maintenance |
+| Front-end development | `frontend` | Rendering and state, semantic markup, front-end performance, browser support |
+| Back-end development | `backend` | API contracts, data integrity, schema migrations, server-side authorization |
 | Security and privacy | `security` | Application security, privacy engineering, release integrity, control ownership |
 | DevOps and reliability | `devops` | Delivery pipeline, progressive delivery, observability, recovery |
 | Quality assurance | `qa` | Test design, regressions, exploratory testing, release acceptance |
@@ -22,16 +24,43 @@ The catalog has one brain per discipline of a software publisher:
 | Data and AI | `data` | Data ownership and quality, analytics instrumentation, model evaluation, AI risk |
 | Marketing and market research | `marketing` | Market research, positioning, channels, measurement |
 | Communication | `communication` | Release and customer communication, crisis communication, plain language, internal communication |
-| Sales | `sales` | Discovery, qualification, enablement, procurement |
+| Sales | `sales` | Discovery, qualification, enablement, buyer procurement, deal desk, renewals and expansion |
+| Partnerships and channels | `partnerships` | Partner programme, channel economics, partner agreements, partner enablement |
 | Customer support and success | `support` | Support readiness, escalation, knowledge base, customer success |
-| Finance and FinOps | `finance` | Planning, FinOps, unit economics, budget ownership |
+| Customer success | `customer-success` | Account health, renewals, customer onboarding, voice of the customer |
+| Finance and FinOps | `finance` | Planning, FinOps, unit economics, budget ownership, revenue recognition, pricing and margin, VAT and invoicing |
+| Procurement and vendor management | `procurement` | Sourcing, third-party risk, contract terms, exit and continuity |
 | Legal and compliance | `legal` | Data protection, contracts, licences, sector regulations |
-| Human resources | `hr` | Hiring, employee experience, workforce planning, people data |
+| Human resources | `hr` | Hiring, employee experience, workforce planning, people data, compensation and pay equity, employment law, performance and development |
+| Internal IT and workplace | `it-and-workplace` | Devices, identity and SaaS access, licences, workplace support |
+| Localisation and internationalisation | `localisation` | Internationalisation of code, translation workflow, terminology, locale testing |
+| Developer relations and documentation | `developer-relations-and-docs` | API reference, documentation architecture, SDKs and samples, developer community |
+| Trust and safety | `trust-and-safety` | Abuse risk, moderation operations, policy and appeals, transparency reporting |
 | Project management | `project-management` | Delivery planning, capacity, governance, risk and change |
 | Business operations | `operations` | Process flow, queues, service quality, process change |
 | Executive leadership | `leadership` | Strategy, portfolio, risk governance, benefits |
 
 Each brain has at least four specialists, four evidence requests, four challenge questions, four decision criteria and three primary sources.
+
+`engineering` stays the brain that reviews features, bugs and maintenance across the code base, and every profile that names it keeps working. `frontend` and `backend` add the depth of each side: a brief that names browser support, a component library or the bundle size reaches `frontend`, one that names a migration, a webhook or idempotency reaches `backend`, and `frontend` or `backend` in a brief reaches both them and `engineering`. A profile that lists its boards gets them only once it adds them to `boards`.
+
+### What each brain knows
+
+A brain is more than its review grid. Each specialist lens carries `checks`: what an expert of that lens verifies and the mistakes they catch, such as "Multi-year and bundled contracts list each performance obligation and its standalone selling price" for the revenue accountant. `brains --id` prints them under each specialist, and the consultation brief gives them to the agent that plays the brain. Every lens of the 27 bundled brains has them.
+
+The rest of its knowledge comes from the catalog:
+
+- **methods**: the patterns whose `roles` name the brain, such as MEDDPICC for sales or the double diamond for design;
+- **rule packs**: the packs those methods apply, marked active when the project uses them;
+- **references and standards**: the entries of the reference library tagged with the brain in `brains`, with their edition and source.
+
+```text
+openguildkit brains --id legal
+openguildkit brains --id finance --json
+openguildkit brains --check
+```
+
+`brains --id` prints the specialists, review criteria and this knowledge, with every reference of the brain. Each consultation gives every selected brain its knowledge: the project's active packs first, then the other packs of its methods, and the twelve references that best fit the task. The references that the project's active packs apply come first; then those whose ID, title, category or summary share the most words with the brief, the answers, the sector and the stack, a word of the title counting double; then the references that packs turn into rules; then alphabetical order. A few English words reach the French summaries and the acronyms of the library, so "SSO with Okta" reaches SAML 2.0, OpenID Connect, OAuth 2.0 and OWASP ASVS. The same task always gets the same list. `brains --check`, run in CI, fails when a brain has no method or no tagged reference. To extend a brain, tag a pattern with its role or a reference with its ID; the catalog refuses an unknown brain.
 
 ### Where lenses meet
 
@@ -49,6 +78,33 @@ Some questions concern two brains. Each brain keeps its own angle:
 | Budgets and portfolio | finance, leadership | Finance models costs; leadership decides which work gets the resources |
 | Personal data | security, legal | Security protects it; legal confirms the obligations and records attached to it |
 | Customer messages | communication, support, marketing | Communication owns what is said and when, support answers the questions it raises, marketing owns promotion |
+| Discounts and contract terms | sales, finance, legal | The deal desk applies the approval matrix; finance confirms revenue and margin; legal approves non-standard clauses |
+| Buying from a vendor | procurement, security, legal | Procurement compares options and plans the exit; security checks the vendor's controls; legal signs the data processing terms |
+| Existing customers | customer-success, support, sales | Customer success follows account health and renewals; support answers tickets; sales owns the renewal and expansion deal |
+| Arrivals and departures | hr, it-and-workplace, security | HR owns the person's process; internal IT grants and removes devices and accounts; security defines the access rules |
+| User content | trust-and-safety, legal, support | Trust and safety designs reporting, moderation and appeals; legal confirms the obligations; support answers the people affected |
+
+## Complete or add a brain in a project
+
+A company completes a bundled brain without forking it. Write `.openguildkit/catalog/boards/legal.json` with the same `id` and only what to add:
+
+```json
+{
+  "id": "legal",
+  "review": {
+    "specialists": [
+      {"id": "export-control", "title": "Export control adviser", "focus": "Screen the destination countries against sanctions lists.", "checks": ["The screening log covers every new country."]}
+    ],
+    "decision_criteria": ["Block a sale to a sanctioned country."]
+  }
+}
+```
+
+Lists gain the new items, a specialist with a bundled `id` replaces it, and `title` or `description` replace the bundled text. A copy of the whole bundled file works too. The catalog lock does not pin a brain the project completes: the project owns it, and a newer OpenGuildKit release reaches it at once.
+
+To add a brain of its own, run `openguildkit brains --new risk-office`. It writes the board with its full review block, a method pattern, a rule pack and a reference family under `.openguildkit/catalog/`, with `TODO:` text to replace; `brains --check` reports the brain until none is left. A project board without a `review` block is refused, so that every brain has lenses.
+
+Adding or completing a brain changes the record that approvals are bound to. When the profile uses every board (`"boards": []`), the new brain becomes one of them: `brains --new` names each task consulted or approved without it, and `openguildkit sync` lists them again. Those tasks need a new review before work continues; open a new task for an approved one. A profile that lists its boards is not affected until the team adds the brain to `boards`.
 
 ## Run the review
 
@@ -94,7 +150,7 @@ The CLI validates the review record. The host agent or reviewer gathers and inte
 
 Each board has a JSON file in `src/openguildkit/registry/boards/`. In `review`, add:
 
-- `specialists`, each with a stable `id`, a `title` and a specific `focus`.
+- `specialists`, each with a stable `id`, a `title`, a specific `focus` and `checks`, two to four things an expert of that lens verifies.
 - `evidence`, the sources or observations that would support the recommendation.
 - `challenge`, questions about alternatives, failure modes and assumptions.
 - `decision_criteria`, conditions that change the board's verdict.

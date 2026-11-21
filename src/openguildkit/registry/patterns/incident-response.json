@@ -1,0 +1,32 @@
+{
+  "id": "incident-response",
+  "title": "Incident response",
+  "description": "Prepare roles and severity levels, keep the incident record and learn through blameless postmortems.",
+  "sources": [
+    {
+      "title": "Google SRE Workbook, Incident Response",
+      "url": "https://sre.google/workbook/incident-response/"
+    },
+    {
+      "title": "Google SRE Workbook, Postmortem Culture",
+      "url": "https://sre.google/workbook/postmortem-culture/"
+    },
+    {
+      "title": "NIST SP 800-61 Rev. 3, Incident Response Recommendations and Considerations for Cybersecurity Risk Management",
+      "url": "https://csrc.nist.gov/pubs/sp/800/61/r3/final"
+    }
+  ],
+  "roles": [
+    "devops",
+    "security",
+    "support"
+  ],
+  "packs": [
+    "incident-response"
+  ],
+  "references": [
+    "nist-sp-800-61",
+    "blameless-postmortem",
+    "incident-command"
+  ]
+}
