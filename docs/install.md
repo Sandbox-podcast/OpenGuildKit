@@ -52,7 +52,7 @@ Add `--user` to install them in your home folder for every project. A file you c
 
 1. Download and verify the new release assets as above, then `python -m pip install --upgrade ./openguildkit-NEW-py3-none-any.whl` and check `openguildkit --version`.
 2. Run `openguildkit integrations --host ...` again to update the skill and subagent.
-3. Run `openguildkit update` to see what the new catalog changes for the project, and `openguildkit update --apply` once the team agrees. Tasks consulted under the previous rules are listed.
+3. Run `openguildkit update` to see the date of the new catalog, the number of records it changes and what it changes for the project, and `openguildkit update --apply` once the team agrees. Tasks consulted under the previous rules are listed.
 4. Run `openguildkit check` and commit the updated files.
 
 ## Add the optional CI coordinator

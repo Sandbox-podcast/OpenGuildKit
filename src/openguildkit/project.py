@@ -787,16 +787,22 @@ def pack_scopes(profile: dict, catalog: dict) -> dict[str, list[str] | None]:
     return {pack_id: (sorted(scope) if scope is not None else None) for pack_id, scope in scopes.items()}
 
 
+def _without_dates(record: dict) -> dict:
+    """The record without its sources' checked dates: a page read again does not change the advice."""
+    sources = [{key: value for key, value in source.items() if key != "checked"} for source in record.get("sources", [])]
+    return {**record, "sources": sources} if "sources" in record else record
+
+
 def profile_fingerprint(profile: dict, catalog: dict) -> str:
     resolved = resolved_profile(profile, catalog)
     snapshot = {
         "profile": resolved,
-        "packs": [catalog["packs"][pack_id] for pack_id in resolved["packs"]],
-        "boards": [catalog["boards"][board_id] for board_id in resolved["boards"]],
-        "sector": catalog["sectors"][resolved["sector"]],
+        "packs": [_without_dates(catalog["packs"][pack_id]) for pack_id in resolved["packs"]],
+        "boards": [_without_dates(catalog["boards"][board_id]) for board_id in resolved["boards"]],
+        "sector": _without_dates(catalog["sectors"][resolved["sector"]]),
     }
     if profile.get("patterns"):
-        snapshot["patterns"] = [catalog["patterns"][pattern_id] for pattern_id in pattern_ids(profile)]
+        snapshot["patterns"] = [_without_dates(catalog["patterns"][pattern_id]) for pattern_id in pattern_ids(profile)]
     canonical = json.dumps(snapshot, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 

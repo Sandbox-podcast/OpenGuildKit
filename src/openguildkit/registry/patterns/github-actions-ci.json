@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "GitHub Actions secure use",
-      "url": "https://docs.github.com/en/actions/reference/security/secure-use"
+      "url": "https://docs.github.com/en/actions/reference/security/secure-use",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

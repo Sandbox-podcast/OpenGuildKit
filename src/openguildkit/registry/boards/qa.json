@@ -48,15 +48,18 @@
   "sources": [
     {
       "title": "ISTQB Foundation Level testing syllabus",
-      "url": "https://istqb.org/certifications/certified-tester-foundation-level-ctfl-v4-0/"
+      "url": "https://istqb.org/certifications/certified-tester-foundation-level-ctfl-v4-0/",
+      "checked": "2026-11-21"
     },
     {
       "title": "W3C WAI, Evaluating Web Accessibility",
-      "url": "https://www.w3.org/WAI/test-evaluate/"
+      "url": "https://www.w3.org/WAI/test-evaluate/",
+      "checked": "2026-11-20"
     },
     {
       "title": "OWASP, Web Security Testing Guide",
-      "url": "https://owasp.org/projects/web-security-testing-guide"
+      "url": "https://owasp.org/projects/web-security-testing-guide",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

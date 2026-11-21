@@ -10,15 +10,18 @@
   "sources": [
     {
       "title": "Directive 2011/83/EU on consumer rights",
-      "url": "https://eur-lex.europa.eu/eli/dir/2011/83/oj/eng"
+      "url": "https://eur-lex.europa.eu/eli/dir/2011/83/oj/eng",
+      "checked": "2026-11-21"
     },
     {
       "title": "Regulation (EU) 2022/2065, Digital Services Act",
-      "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj/eng"
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj/eng",
+      "checked": "2026-11-21"
     },
     {
       "title": "Directive (EU) 2015/2366 on payment services in the internal market (PSD2)",
-      "url": "https://eur-lex.europa.eu/eli/dir/2015/2366/oj/eng"
+      "url": "https://eur-lex.europa.eu/eli/dir/2015/2366/oj/eng",
+      "checked": "2026-11-21"
     }
   ]
 }

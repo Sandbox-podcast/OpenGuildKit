@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "Regulation (EU) 2016/679, General Data Protection Regulation",
-      "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra"
+      "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra",
+      "checked": "2026-11-20"
     }
   ],
   "roles": [

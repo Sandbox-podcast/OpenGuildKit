@@ -5,11 +5,13 @@
   "sources": [
     {
       "title": "Directive (EU) 2016/97 on insurance distribution (IDD)",
-      "url": "https://eur-lex.europa.eu/eli/dir/2016/97/oj/eng"
+      "url": "https://eur-lex.europa.eu/eli/dir/2016/97/oj/eng",
+      "checked": "2026-11-21"
     },
     {
       "title": "European Commission, AI Act Service Desk, Annex III: high-risk AI systems referred to in Article 6(2)",
-      "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/annex-3"
+      "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/annex-3",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

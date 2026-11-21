@@ -70,7 +70,7 @@ def _validate_links(record: dict, record_id: str) -> None:
             raise CatalogError(f"{record_id}.packs contains duplicates")
 
 
-def _validate_family(family, filename: str) -> None:
+def _validate_family(family, filename: str, bundled: bool = False) -> None:
     _validate_fields(family, "family", {"id", "title", "references"})
     _validate_id(family["id"], "family ID")
     if filename != f"{family['id']}.json":
@@ -91,7 +91,7 @@ def _validate_family(family, filename: str) -> None:
             raise CatalogError(f"{record_id}.kind must be one of: {', '.join(KINDS)}")
         _validate_links(record, record_id)
         _validate_list(record["sources"], f"{record_id}.sources")
-        _validate_sources(record["sources"])
+        _validate_sources(record["sources"], require_checked=bundled)
 
 
 def load_references(extra_dir: Path | None = None) -> dict[str, dict]:
@@ -112,7 +112,7 @@ def load_references(extra_dir: Path | None = None) -> dict[str, dict]:
                 incoming = json.loads(
                     path.read_text(encoding="utf-8-sig"), object_pairs_hook=_unique_fields
                 )
-                _validate_family(incoming, path.name)
+                _validate_family(incoming, path.name, directory == bundled)
                 family = families.setdefault(
                     incoming["id"], {"id": incoming["id"], "title": incoming["title"], "references": []}
                 )

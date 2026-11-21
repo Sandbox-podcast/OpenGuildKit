@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "web.dev, Web Vitals",
-      "url": "https://web.dev/articles/vitals"
+      "url": "https://web.dev/articles/vitals",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

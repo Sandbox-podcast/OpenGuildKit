@@ -17,6 +17,7 @@
       "sources": [
         {
           "url": "https://www.pmi.org/standards/pmbok",
+          "checked": "2026-11-21",
           "title": "PMI — PMBOK Guide"
         }
       ]
@@ -35,6 +36,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/74947.html",
+          "checked": "2026-11-20",
           "title": "ISO 21502:2020 — Project, programme and portfolio management, guidance on project management"
         }
       ]
@@ -58,10 +60,12 @@
       "sources": [
         {
           "url": "https://www.peoplecert.org/news-and-announcements/2023/PRINCE2%207%20-%20A%20Process%20of%20Evolution",
+          "checked": "2026-11-20",
           "title": "PeopleCert, PRINCE2 7: A Process of Evolution"
         },
         {
           "url": "https://www.peoplecert.org/news-and-announcements/2023/prince2-7-applying-universal-principles-for-companies-of-all-sizes",
+          "checked": "2026-11-20",
           "title": "PeopleCert, Applying PRINCE2 7 principles"
         }
       ]
@@ -81,6 +85,7 @@
       "sources": [
         {
           "url": "https://framework.scaledagile.com/",
+          "checked": "2026-11-21",
           "title": "Scaled Agile — SAFe 6.0 Framework"
         }
       ]
@@ -103,6 +108,7 @@
       "sources": [
         {
           "url": "https://www.pmi.org/learning/library/critical-path-method-calculations-scheduling-8040",
+          "checked": "2026-11-20",
           "title": "PMI, Critical path method calculations"
         }
       ]
@@ -126,6 +132,7 @@
       "sources": [
         {
           "url": "https://www.security.gov.uk/policy-and-guidance/secure-by-design/activities/agreeing-roles-and-responsibilities/",
+          "checked": "2026-11-21",
           "title": "UK Government Security, Agreeing roles and responsibilities with a RACI matrix"
         }
       ]
@@ -144,6 +151,7 @@
       "sources": [
         {
           "url": "https://www.lean.org/lexicon-terms/value-stream-mapping/",
+          "checked": "2026-11-21",
           "title": "Lean Enterprise Institute, Value Stream Mapping"
         }
       ]
@@ -163,6 +171,7 @@
       "sources": [
         {
           "url": "https://www.lean.org/lexicon-terms/pdca/",
+          "checked": "2026-11-21",
           "title": "Lean Enterprise Institute — Plan, Do, Check, Act (PDCA)"
         }
       ]

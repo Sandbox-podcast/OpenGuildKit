@@ -9,23 +9,28 @@
   "sources": [
     {
       "title": "SLSA 1.2 Build Track requirements",
-      "url": "https://slsa.dev/spec/v1.2/build-requirements"
+      "url": "https://slsa.dev/spec/v1.2/build-requirements",
+      "checked": "2026-11-21"
     },
     {
       "title": "SLSA 1.2 artifact verification",
-      "url": "https://slsa.dev/spec/v1.2/verifying-artifacts"
+      "url": "https://slsa.dev/spec/v1.2/verifying-artifacts",
+      "checked": "2026-11-21"
     },
     {
       "title": "ASD 2026 Minimum Elements for a Software Bill of Materials",
-      "url": "https://www.cyber.gov.au/publication/2026-minimum-elements-for-a-software-bill-of-materials-sbom"
+      "url": "https://www.cyber.gov.au/publication/2026-minimum-elements-for-a-software-bill-of-materials-sbom",
+      "checked": "2026-11-20"
     },
     {
       "title": "SPDX 3.0.1",
-      "url": "https://spdx.github.io/spdx-spec/v3.0.1/"
+      "url": "https://spdx.github.io/spdx-spec/v3.0.1/",
+      "checked": "2026-11-21"
     },
     {
       "title": "CycloneDX 1.7 JSON reference",
-      "url": "https://cyclonedx.org/docs/1.7/json/"
+      "url": "https://cyclonedx.org/docs/1.7/json/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

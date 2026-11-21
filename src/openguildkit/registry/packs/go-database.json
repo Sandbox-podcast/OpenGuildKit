@@ -6,15 +6,18 @@
   "sources": [
     {
       "title": "Go database transactions",
-      "url": "https://go.dev/doc/database/execute-transactions"
+      "url": "https://go.dev/doc/database/execute-transactions",
+      "checked": "2026-11-21"
     },
     {
       "title": "Go database cancellation",
-      "url": "https://go.dev/doc/database/cancel-operations"
+      "url": "https://go.dev/doc/database/cancel-operations",
+      "checked": "2026-11-21"
     },
     {
       "title": "Go database queries",
-      "url": "https://go.dev/doc/database/querying"
+      "url": "https://go.dev/doc/database/querying",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

@@ -17,6 +17,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/fr/standard/27701",
+          "checked": "2026-11-20",
           "title": "ISO/IEC 27701:2025 — Systèmes de management de la protection de la vie privée"
         }
       ]
@@ -36,6 +37,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/fr/standard/27018",
+          "checked": "2026-11-20",
           "title": "ISO/IEC 27018:2025 — Protection des informations personnelles dans le cloud public"
         }
       ]
@@ -55,6 +57,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/85938.html",
+          "checked": "2026-11-20",
           "title": "ISO/IEC 29100:2024 — Privacy framework"
         }
       ]
@@ -74,10 +77,12 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/Projects/cprt/catalog",
+          "checked": "2026-11-21",
           "title": "NIST Cybersecurity and Privacy Reference Tool — Catalog"
         },
         {
           "url": "https://www.nist.gov/privacy-framework",
+          "checked": "2026-11-21",
           "title": "NIST Privacy Framework"
         }
       ]
@@ -97,6 +102,7 @@
       "sources": [
         {
           "url": "https://www.cnil.fr/fr/guide-de-la-securite-des-donnees-personnelles",
+          "checked": "2026-11-21",
           "title": "CNIL — Guide de la sécurité des données personnelles"
         }
       ]
@@ -119,6 +125,7 @@
       "sources": [
         {
           "url": "https://www.cnil.fr/fr/RGPD-analyse-impact-protection-des-donnees-aipd",
+          "checked": "2026-11-21",
           "title": "CNIL — L'analyse d'impact relative à la protection des données (AIPD)"
         }
       ]
@@ -141,6 +148,7 @@
       "sources": [
         {
           "url": "https://www.cnil.fr/fr/reglement-europeen-protection-donnees/chapitre4",
+          "checked": "2026-11-21",
           "title": "CNIL — RGPD, chapitre IV, article 25 : protection dès la conception et par défaut"
         }
       ]
@@ -160,6 +168,7 @@
       "sources": [
         {
           "url": "https://www.nist.gov/news-events/news/2025/09/guidelines-media-sanitization-nist-publishes-sp-800-88r2",
+          "checked": "2026-11-21",
           "title": "NIST SP 800-88 Rev. 2 — Guidelines for Media Sanitization"
         }
       ]
@@ -179,6 +188,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/80194.html",
+          "checked": "2026-11-20",
           "title": "ISO/IEC 27040:2024 — Storage security"
         }
       ]
@@ -203,6 +213,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/27001",
+          "checked": "2026-11-20",
           "title": "ISO/IEC 27001:2022 — Information security management systems"
         }
       ]
@@ -221,6 +232,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/fr/standard/75652.html",
+          "checked": "2026-11-20",
           "title": "ISO/IEC 27002:2022 — Mesures de sécurité de l'information"
         }
       ]
@@ -239,6 +251,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/80585.html",
+          "checked": "2026-11-21",
           "title": "ISO/IEC 27005:2022 — Guidance on managing information security risks"
         }
       ]
@@ -257,6 +270,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/fr/standard/44378.html",
+          "checked": "2026-11-20",
           "title": "ISO/IEC 27034-1:2011 — Sécurité des applications, aperçu général et concepts"
         }
       ]
@@ -275,6 +289,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/fr/standard/27017",
+          "checked": "2026-11-20",
           "title": "ISO/IEC 27017:2026 — Contrôles de sécurité de l'information pour les services du nuage"
         }
       ]
@@ -294,6 +309,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/75106.html",
+          "checked": "2026-11-20",
           "title": "ISO 22301:2019 — Business continuity management systems"
         }
       ]
@@ -314,6 +330,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/fr/standard/70636.html",
+          "checked": "2026-11-20",
           "title": "ISO/IEC 20000-1:2018 — Exigences du système de management des services"
         }
       ]
@@ -333,6 +350,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/fr/standard/78176.html",
+          "checked": "2026-11-20",
           "title": "ISO/IEC 25010:2023 — Modèle de qualité du produit"
         }
       ]
@@ -353,6 +371,7 @@
       "sources": [
         {
           "url": "https://www.aicpa-cima.com/resources/download/get-description-criteria-for-your-organizations-soc-2-r-report",
+          "checked": "2026-11-21",
           "title": "AICPA — 2018 SOC 2 Description Criteria, Revised Implementation Guidance 2022"
         }
       ]
@@ -372,6 +391,7 @@
       "sources": [
         {
           "url": "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-3/",
+          "checked": "2026-11-21",
           "title": "AICPA — SOC 3: Trust Services Criteria for General Use Report"
         }
       ]
@@ -389,6 +409,7 @@
       "sources": [
         {
           "url": "https://pages.nist.gov/OSCAL/",
+          "checked": "2026-11-21",
           "title": "NIST — Open Security Controls Assessment Language"
         }
       ]
@@ -408,6 +429,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/9001",
+          "checked": "2026-11-20",
           "title": "ISO 9001:2026 - Quality management systems - Requirements"
         }
       ]
@@ -432,6 +454,7 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra",
+          "checked": "2026-11-20",
           "title": "Règlement (UE) 2016/679 — Règlement général sur la protection des données"
         }
       ]
@@ -456,6 +479,7 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/en",
+          "checked": "2026-11-20",
           "title": "Directive (UE) 2022/2555 — NIS 2"
         }
       ]
@@ -480,6 +504,7 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/fra",
+          "checked": "2026-11-20",
           "title": "Règlement (UE) 2022/2554 — Résilience opérationnelle numérique du secteur financier"
         }
       ]
@@ -505,6 +530,7 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/reg/2024/1689",
+          "checked": "2026-11-20",
           "title": "Règlement (UE) 2024/1689 — Règlement sur l'intelligence artificielle, texte consolidé"
         }
       ]
@@ -528,10 +554,12 @@
       "sources": [
         {
           "url": "https://digital-strategy.ec.europa.eu/en/policies/cra-summary",
+          "checked": "2026-11-21",
           "title": "Commission européenne — The Cyber Resilience Act: Summary of the legislative text"
         },
         {
           "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
+          "checked": "2026-11-20",
           "title": "Règlement (UE) 2024/2847 — Cyber Resilience Act"
         }
       ]
@@ -551,6 +579,7 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/legal-content/fr/TXT/?uri=CELEX%3A32024R1183",
+          "checked": "2026-11-20",
           "title": "Règlement (UE) 2024/1183 modifiant le règlement 910/2014 — European Digital Identity Framework"
         }
       ]
@@ -571,6 +600,7 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=legissum%3A4723374",
+          "checked": "2026-11-20",
           "title": "EUR-Lex — Rules on fair access to and use of data (Data Act)"
         }
       ]
@@ -590,6 +620,7 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/dir/2002/58/oj",
+          "checked": "2026-11-20",
           "title": "Directive 2002/58/CE — Vie privée et communications électroniques"
         }
       ]
@@ -609,6 +640,7 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/dir/2019/882/oj",
+          "checked": "2026-11-20",
           "title": "Directive (UE) 2019/882 — Exigences en matière d'accessibilité applicables aux produits et services"
         }
       ]
@@ -631,6 +663,7 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/reg/2017/745/oj/eng",
+          "checked": "2026-11-20",
           "title": "Règlement (UE) 2017/745 — Dispositifs médicaux"
         }
       ]
@@ -650,6 +683,7 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/reg/2017/746",
+          "checked": "2026-11-20",
           "title": "Règlement (UE) 2017/746 — Dispositifs médicaux de diagnostic in vitro"
         }
       ]
@@ -674,10 +708,12 @@
       "sources": [
         {
           "url": "https://www.pcisecuritystandards.org/document_library/?class=pcidss&doc=pci_dss",
+          "checked": "2026-11-21",
           "title": "PCI Security Standards Council — PCI DSS v4.0.1"
         },
         {
           "url": "https://www.pcisecuritystandards.org/standards/pci-dss/",
+          "checked": "2026-11-21",
           "title": "PCI Security Standards Council — PCI Data Security Standard"
         }
       ]
@@ -697,10 +733,12 @@
       "sources": [
         {
           "url": "https://esante.gouv.fr/services/hebergeurs-de-donnees-de-sante/les-referentiels-de-la-procedure-de-certification",
+          "checked": "2026-11-21",
           "title": "Agence du Numérique en Santé — Référentiels de certification HDS"
         },
         {
           "url": "https://gnius.esante.gouv.fr/fr/reglementation/fiches-reglementation/hebergement-des-donnees-de-sante-hds",
+          "checked": "2026-11-21",
           "title": "G_NIUS / ANS — Hébergement des données de santé (HDS)"
         }
       ]
@@ -721,6 +759,7 @@
       "sources": [
         {
           "url": "https://webstore.iec.ch/en/publication/6792",
+          "checked": "2026-11-21",
           "title": "IEC 62304:2006+AMD1:2015 — Medical device software: Software life cycle processes"
         }
       ]
@@ -740,6 +779,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/fr/standard/13485",
+          "checked": "2026-11-20",
           "title": "ISO 13485:2016 — Systèmes de management de la qualité des dispositifs médicaux"
         }
       ]
@@ -759,6 +799,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/72704.html",
+          "checked": "2026-11-20",
           "title": "ISO 14971:2019 — Application of risk management to medical devices"
         }
       ]
@@ -778,6 +819,7 @@
       "sources": [
         {
           "url": "https://syc-se.iec.ch/deliveries/cybersecurity-guidelines/security-standards-and-best-practices/iec-62443/",
+          "checked": "2026-11-21",
           "title": "IEC — IEC 62443 series"
         }
       ]
@@ -797,6 +839,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/publication/PUB200262.html",
+          "checked": "2026-11-20",
           "title": "ISO — ISO 26262 road vehicles functional safety"
         }
       ]
@@ -814,10 +857,12 @@
       "sources": [
         {
           "url": "https://www.rtca.org/do-178/",
+          "checked": "2026-11-21",
           "title": "RTCA — DO-178 Software Standards Documents"
         },
         {
           "url": "https://www.faa.gov/regulations_policies/advisory_circulars/index.cfm/go/document.information/documentNumber/20-115D",
+          "checked": "2026-11-21",
           "title": "FAA AC 20-115D — Airborne Software Development Assurance Using EUROCAE ED-12 and RTCA DO-178"
         }
       ]

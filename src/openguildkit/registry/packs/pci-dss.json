@@ -6,59 +6,73 @@
   "sources": [
     {
       "title": "PCI SSC, Just published: PCI DSS v4.0.1 (June 2024, no added or deleted requirements)",
-      "url": "https://blog.pcisecuritystandards.org/just-published-pci-dss-v4-0-1"
+      "url": "https://blog.pcisecuritystandards.org/just-published-pci-dss-v4-0-1",
+      "checked": "2026-11-21"
     },
     {
       "title": "PCI SSC FAQ 1154, storage of sensitive authentication data (Requirement 3.3.1)",
-      "url": "https://www.pcisecuritystandards.org/faqs/1154/"
+      "url": "https://www.pcisecuritystandards.org/faqs/1154/",
+      "checked": "2026-11-21"
     },
     {
       "title": "PCI SSC FAQ 1280, card verification codes for card-on-file transactions",
-      "url": "https://www.pcisecuritystandards.org/faqs/1280/"
+      "url": "https://www.pcisecuritystandards.org/faqs/1280/",
+      "checked": "2026-11-21"
     },
     {
       "title": "PCI SSC FAQ 1318, retention of cardholder data (Requirements 3.2.1 and 3.3.1)",
-      "url": "https://www.pcisecuritystandards.org/faqs/1318/"
+      "url": "https://www.pcisecuritystandards.org/faqs/1318/",
+      "checked": "2026-11-21"
     },
     {
       "title": "PCI SSC FAQ 1089, hashing of PANs (Requirement 3.5.1.1)",
-      "url": "https://www.pcisecuritystandards.org/faqs/1089/"
+      "url": "https://www.pcisecuritystandards.org/faqs/1089/",
+      "checked": "2026-11-21"
     },
     {
       "title": "PCI SSC FAQ 1308, correlation of hashed and truncated PANs (Requirement 3.5.1)",
-      "url": "https://www.pcisecuritystandards.org/faqs/1308/"
+      "url": "https://www.pcisecuritystandards.org/faqs/1308/",
+      "checked": "2026-11-21"
     },
     {
       "title": "PCI SSC FAQ 1085, PANs over end-user messaging (Requirements 4.2.1 and 4.2.2)",
-      "url": "https://www.pcisecuritystandards.org/faqs/1085/"
+      "url": "https://www.pcisecuritystandards.org/faqs/1085/",
+      "checked": "2026-11-21"
     },
     {
       "title": "PCI SSC FAQ 1581, Requirement 6.4.3 and payment page scripts",
-      "url": "https://www.pcisecuritystandards.org/faqs/1581/"
+      "url": "https://www.pcisecuritystandards.org/faqs/1581/",
+      "checked": "2026-11-21"
     },
     {
       "title": "PCI SSC FAQ 1588, scripts on e-commerce pages (Requirements 6.4.3 and 11.6.1)",
-      "url": "https://www.pcisecuritystandards.org/faqs/1588/"
+      "url": "https://www.pcisecuritystandards.org/faqs/1588/",
+      "checked": "2026-11-21"
     },
     {
       "title": "PCI SSC FAQ 1080, shared authentication credentials (Requirement 8.2.2)",
-      "url": "https://www.pcisecuritystandards.org/faqs/1080/"
+      "url": "https://www.pcisecuritystandards.org/faqs/1080/",
+      "checked": "2026-11-21"
     },
     {
       "title": "PCI SSC FAQ 1147, reauthentication after idle time (Requirement 8.2.8)",
-      "url": "https://www.pcisecuritystandards.org/faqs/1147/"
+      "url": "https://www.pcisecuritystandards.org/faqs/1147/",
+      "checked": "2026-11-21"
     },
     {
       "title": "PCI SSC FAQ 1253, password hashing (Requirement 8.3.2)",
-      "url": "https://www.pcisecuritystandards.org/faqs/1253/"
+      "url": "https://www.pcisecuritystandards.org/faqs/1253/",
+      "checked": "2026-11-21"
     },
     {
       "title": "PCI SSC FAQ 1081, database and application logging (Requirement 10)",
-      "url": "https://www.pcisecuritystandards.org/faqs/1081/"
+      "url": "https://www.pcisecuritystandards.org/faqs/1081/",
+      "checked": "2026-11-21"
     },
     {
       "title": "PCI SSC FAQ 1592, script providers and Requirements 12.8 and 12.9",
-      "url": "https://www.pcisecuritystandards.org/faqs/1592/"
+      "url": "https://www.pcisecuritystandards.org/faqs/1592/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

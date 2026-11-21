@@ -46,19 +46,23 @@
   "sources": [
     {
       "title": "Diátaxis, a systematic approach to technical documentation",
-      "url": "https://diataxis.fr/"
+      "url": "https://diataxis.fr/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Write the Docs, Docs as Code",
-      "url": "https://www.writethedocs.org/guide/docs-as-code/"
+      "url": "https://www.writethedocs.org/guide/docs-as-code/",
+      "checked": "2026-11-21"
     },
     {
       "title": "OpenAPI Specification",
-      "url": "https://spec.openapis.org/oas/latest.html"
+      "url": "https://spec.openapis.org/oas/latest.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Google developer documentation style guide",
-      "url": "https://developers.google.com/style"
+      "url": "https://developers.google.com/style",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

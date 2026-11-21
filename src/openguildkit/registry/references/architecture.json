@@ -15,6 +15,7 @@
       "sources": [
         {
           "url": "https://blog.cleancoder.com/uncle-bob/2020/10/18/Solid-Relevance.html",
+          "checked": "2026-11-21",
           "title": "Solid Relevance - Robert C. Martin"
         }
       ]
@@ -32,6 +33,7 @@
       "sources": [
         {
           "url": "https://www.domainlanguage.com/ddd/reference/",
+          "checked": "2026-11-21",
           "title": "Domain-Driven Design Reference - Eric Evans"
         }
       ]
@@ -49,6 +51,7 @@
       "sources": [
         {
           "url": "https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html",
+          "checked": "2026-11-21",
           "title": "The Clean Architecture - Robert C. Martin"
         }
       ]
@@ -66,6 +69,7 @@
       "sources": [
         {
           "url": "https://alistair.cockburn.us/hexagonal-architecture",
+          "checked": "2026-11-21",
           "title": "Alistair Cockburn — Hexagonal architecture"
         }
       ]
@@ -83,6 +87,7 @@
       "sources": [
         {
           "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs",
+          "checked": "2026-11-21",
           "title": "CQRS pattern - Azure Architecture Center"
         }
       ]
@@ -100,6 +105,7 @@
       "sources": [
         {
           "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing",
+          "checked": "2026-11-21",
           "title": "Event Sourcing pattern - Azure Architecture Center"
         }
       ]
@@ -117,6 +123,7 @@
       "sources": [
         {
           "url": "https://c4model.com/",
+          "checked": "2026-11-21",
           "title": "The C4 model for visualising software architecture"
         }
       ]
@@ -135,6 +142,7 @@
       "sources": [
         {
           "url": "https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions",
+          "checked": "2026-11-21",
           "title": "Documenting Architecture Decisions - Michael Nygard"
         }
       ]
@@ -153,6 +161,7 @@
       "sources": [
         {
           "url": "https://12factor.net/",
+          "checked": "2026-11-21",
           "title": "The Twelve-Factor App"
         }
       ]
@@ -170,6 +179,7 @@
       "sources": [
         {
           "url": "https://martinfowler.com/articles/microservices.html",
+          "checked": "2026-11-21",
           "title": "Microservices - James Lewis and Martin Fowler"
         }
       ]
@@ -187,10 +197,12 @@
       "sources": [
         {
           "url": "https://docs.spring.io/spring-modulith/reference/fundamentals.html",
+          "checked": "2026-11-21",
           "title": "Spring Modulith: Fundamentals"
         },
         {
           "url": "https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures",
+          "checked": "2026-11-21",
           "title": "Microsoft Learn — Common web application architectures"
         }
       ]
@@ -208,6 +220,7 @@
       "sources": [
         {
           "url": "https://www.omg.org/spec/UML/",
+          "checked": "2026-11-21",
           "title": "Unified Modeling Language - OMG"
         }
       ]
@@ -225,6 +238,7 @@
       "sources": [
         {
           "url": "https://arc42.org/overview/",
+          "checked": "2026-11-21",
           "title": "arc42 Template Overview"
         }
       ]
@@ -242,6 +256,7 @@
       "sources": [
         {
           "url": "https://www.eiffel.com/values/design-by-contract/",
+          "checked": "2026-11-21",
           "title": "Design by Contract - Eiffel Software"
         }
       ]
@@ -260,6 +275,7 @@
       "sources": [
         {
           "url": "https://help.opengroup.org/hc/en-us/articles/32726995273362-Understanding-the-TOGAF-Standard",
+          "checked": "2026-11-21",
           "title": "Understanding the TOGAF Standard - The Open Group"
         }
       ]
@@ -277,6 +293,7 @@
       "sources": [
         {
           "url": "https://help.opengroup.org/hc/en-us/articles/32115987894930-How-the-ArchiMate-Language-and-the-TOGAF-Standard-Complement-Each-Other",
+          "checked": "2026-11-21",
           "title": "How the ArchiMate Language and the TOGAF Standard Complement Each Other - The Open Group"
         }
       ]
@@ -295,6 +312,7 @@
       "sources": [
         {
           "url": "https://www.omg.org/spec/BPMN/",
+          "checked": "2026-11-21",
           "title": "Business Process Model and Notation - OMG"
         }
       ]
@@ -314,6 +332,7 @@
       "sources": [
         {
           "url": "https://www.omg.org/spec/DMN/1.5",
+          "checked": "2026-11-21",
           "title": "Decision Model and Notation 1.5 - OMG"
         }
       ]
@@ -334,6 +353,7 @@
       "sources": [
         {
           "url": "https://pragprog.com/tips/",
+          "checked": "2026-11-21",
           "title": "The Pragmatic Programmer — Tips"
         }
       ]
@@ -355,6 +375,7 @@
       "sources": [
         {
           "url": "https://public.isaqb.org/glossary/glossary-en.html",
+          "checked": "2026-11-21",
           "title": "iSAQB — Glossary of Software Architecture Terminology"
         }
       ]
@@ -375,6 +396,7 @@
       "sources": [
         {
           "url": "https://martinfowler.com/bliki/Yagni.html",
+          "checked": "2026-11-21",
           "title": "Martin Fowler — Yagni"
         }
       ]
@@ -398,6 +420,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "checked": "2026-11-21",
           "title": "IETF RFC 9110 — HTTP Semantics"
         }
       ]
@@ -416,6 +439,7 @@
       "sources": [
         {
           "url": "https://ics.uci.edu/~fielding/pubs/dissertation/rest_arch_style.htm",
+          "checked": "2026-11-21",
           "title": "Representational State Transfer (REST) - Roy Fielding"
         }
       ]
@@ -435,6 +459,7 @@
       "sources": [
         {
           "url": "https://spec.graphql.org/September2026/",
+          "checked": "2026-11-21",
           "title": "GraphQL Specification - September 2026 Edition"
         }
       ]
@@ -453,6 +478,7 @@
       "sources": [
         {
           "url": "https://grpc.io/docs/what-is-grpc/introduction/",
+          "checked": "2026-11-21",
           "title": "Introduction to gRPC"
         }
       ]
@@ -476,6 +502,7 @@
       "sources": [
         {
           "url": "https://spec.openapis.org/oas/latest.html",
+          "checked": "2026-11-21",
           "title": "OpenAPI Specification"
         }
       ]
@@ -496,6 +523,7 @@
       "sources": [
         {
           "url": "https://www.asyncapi.com/docs/reference/specification/v3.1.0",
+          "checked": "2026-11-21",
           "title": "AsyncAPI Specification 3.1.0"
         }
       ]
@@ -513,6 +541,7 @@
       "sources": [
         {
           "url": "https://datatracker.ietf.org/doc/html/rfc6455",
+          "checked": "2026-11-21",
           "title": "RFC 6455: The WebSocket Protocol - IETF"
         }
       ]
@@ -530,6 +559,7 @@
       "sources": [
         {
           "url": "https://html.spec.whatwg.org/multipage/server-sent-events.html",
+          "checked": "2026-11-21",
           "title": "HTML Living Standard: Server-sent events - WHATWG"
         }
       ]
@@ -547,6 +577,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/TR/soap12-part1/",
+          "checked": "2026-11-20",
           "title": "SOAP Version 1.2 Part 1: Messaging Framework - W3C"
         }
       ]
@@ -564,6 +595,7 @@
       "sources": [
         {
           "url": "https://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html",
+          "checked": "2026-11-21",
           "title": "OData Version 4.01. Part 1: Protocol - OASIS"
         }
       ]
@@ -581,6 +613,7 @@
       "sources": [
         {
           "url": "https://www.jsonrpc.org/specification",
+          "checked": "2026-11-21",
           "title": "JSON-RPC 2.0 Specification"
         }
       ]
@@ -598,6 +631,7 @@
       "sources": [
         {
           "url": "https://cloudevents.io/",
+          "checked": "2026-11-21",
           "title": "CloudEvents"
         }
       ]
@@ -617,6 +651,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/rfc/rfc8259.html",
+          "checked": "2026-11-21",
           "title": "IETF RFC 8259 — The JavaScript Object Notation (JSON) Data Interchange Format"
         }
       ]
@@ -636,6 +671,7 @@
       "sources": [
         {
           "url": "https://json-schema.org/specification",
+          "checked": "2026-11-21",
           "title": "JSON Schema Specification"
         }
       ]
@@ -655,6 +691,7 @@
       "sources": [
         {
           "url": "https://yaml.org/spec/1.2.2/",
+          "checked": "2026-11-21",
           "title": "YAML Ain't Markup Language (YAML) revision 1.2.2"
         }
       ]
@@ -674,6 +711,7 @@
       "sources": [
         {
           "url": "https://toml.io/en/v1.1.0",
+          "checked": "2026-11-21",
           "title": "TOML v1.1.0"
         }
       ]
@@ -692,6 +730,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/TR/xml/",
+          "checked": "2026-11-20",
           "title": "Extensible Markup Language (XML) 1.0 - W3C"
         }
       ]
@@ -710,6 +749,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/TR/xmlschema11-1/",
+          "checked": "2026-11-20",
           "title": "W3C XML Schema Definition Language (XSD) 1.1 Part 1: Structures"
         }
       ]
@@ -728,6 +768,7 @@
       "sources": [
         {
           "url": "https://protobuf.dev/overview/",
+          "checked": "2026-11-21",
           "title": "Protocol Buffers Overview"
         }
       ]
@@ -747,6 +788,7 @@
       "sources": [
         {
           "url": "https://avro.apache.org/docs/1.12.0/specification/",
+          "checked": "2026-11-21",
           "title": "Apache Avro 1.12.0 Specification"
         }
       ]
@@ -765,6 +807,7 @@
       "sources": [
         {
           "url": "https://msgpack.org/",
+          "checked": "2026-11-21",
           "title": "MessagePack"
         }
       ]
@@ -783,6 +826,7 @@
       "sources": [
         {
           "url": "https://datatracker.ietf.org/doc/html/rfc8949",
+          "checked": "2026-11-21",
           "title": "RFC 8949: Concise Binary Object Representation (CBOR) - IETF"
         }
       ]
@@ -808,6 +852,7 @@
       "sources": [
         {
           "url": "https://html.spec.whatwg.org/multipage/",
+          "checked": "2026-11-21",
           "title": "WHATWG — HTML Living Standard"
         }
       ]
@@ -831,6 +876,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/Style/CSS/",
+          "checked": "2026-11-20",
           "title": "W3C — Cascading Style Sheets"
         }
       ]

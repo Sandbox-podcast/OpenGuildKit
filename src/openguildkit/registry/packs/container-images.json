@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "Docker, building best practices",
-      "url": "https://docs.docker.com/build/building/best-practices/"
+      "url": "https://docs.docker.com/build/building/best-practices/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Docker, build secrets",
-      "url": "https://docs.docker.com/build/building/secrets/"
+      "url": "https://docs.docker.com/build/building/secrets/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "Anthropic, Demystifying evals for AI agents",
-      "url": "https://www.anthropic.com/research/demystifying-evals-for-ai-agents"
+      "url": "https://www.anthropic.com/research/demystifying-evals-for-ai-agents",
+      "checked": "2026-11-21"
     },
     {
       "title": "NIST AI 600-1 Generative AI Profile",
-      "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence"
+      "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

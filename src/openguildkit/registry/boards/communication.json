@@ -55,15 +55,18 @@
   "sources": [
     {
       "title": "AMEC, Barcelona Principles 3.0",
-      "url": "https://amecorg.com/amec-resources-centre-communication-measurement-evaluation-tools/barcelona-principles-3-0/"
+      "url": "https://amecorg.com/amec-resources-centre-communication-measurement-evaluation-tools/barcelona-principles-3-0/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Digital.gov, Plain language guide series",
-      "url": "https://digital.gov/guides/plain-language"
+      "url": "https://digital.gov/guides/plain-language",
+      "checked": "2026-11-21"
     },
     {
       "title": "PRSA Code of Ethics",
-      "url": "https://www.prsa.org/professional-development/prsa-resources/ethics"
+      "url": "https://www.prsa.org/professional-development/prsa-resources/ethics",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

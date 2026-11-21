@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "IFRS Foundation, IFRS 15 Revenue from Contracts with Customers",
-      "url": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-15-revenue-from-contracts-with-customers/"
+      "url": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-15-revenue-from-contracts-with-customers/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Stripe, Billing analytics (MRR, churn and subscriber reports)",
-      "url": "https://support.stripe.com/questions/billing-analytics"
+      "url": "https://support.stripe.com/questions/billing-analytics",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "Regulation (EU) 2024/2847, Cyber Resilience Act",
-      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847"
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
+      "checked": "2026-11-20"
     },
     {
       "title": "European Commission, The Cyber Resilience Act: summary of the legislative text",
-      "url": "https://digital-strategy.ec.europa.eu/en/policies/cra-summary"
+      "url": "https://digital-strategy.ec.europa.eu/en/policies/cra-summary",
+      "checked": "2026-11-21"
     }
   ],
   "depends_on": [

@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "pytest fixtures",
-      "url": "https://docs.pytest.org/en/stable/how-to/fixtures.html"
+      "url": "https://docs.pytest.org/en/stable/how-to/fixtures.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "pytest parametrization",
-      "url": "https://docs.pytest.org/en/stable/how-to/parametrize.html"
+      "url": "https://docs.pytest.org/en/stable/how-to/parametrize.html",
+      "checked": "2026-11-21"
     }
   ],
   "depends_on": [
