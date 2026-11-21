@@ -1,0 +1,38 @@
+{
+  "id": "public-sector-accessibility",
+  "title": "Public sector accessibility (EU)",
+  "description": "Preselected for the public sector: keep it when the product delivers websites or mobile applications to EU public sector bodies or answers their tenders.",
+  "sources": [
+    {
+      "title": "Directive (EU) 2016/2102 on the accessibility of the websites and mobile applications of public sector bodies",
+      "url": "https://eur-lex.europa.eu/eli/dir/2016/2102/oj/eng"
+    },
+    {
+      "title": "ETSI EN 301 549 V3.2.1 (2021-03), Accessibility requirements for ICT products and services",
+      "url": "https://www.etsi.org/deliver/etsi_en/301500_301599/301549/03.02.01_60/en_301549v030201p.pdf"
+    },
+    {
+      "title": "Directive 2014/24/EU on public procurement",
+      "url": "https://eur-lex.europa.eu/eli/dir/2014/24/oj/eng"
+    }
+  ],
+  "roles": [
+    "legal",
+    "design",
+    "qa"
+  ],
+  "packs": [
+    "public-sector-accessibility",
+    "web-accessibility"
+  ],
+  "kind": "regulation",
+  "match": {
+    "sectors": [
+      "public-sector"
+    ]
+  },
+  "references": [
+    "en-301549",
+    "eu-public-procurement-directive"
+  ]
+}

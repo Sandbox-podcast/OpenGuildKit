@@ -15,6 +15,7 @@
   "packs": [
     "cyber-resilience-act"
   ],
+  "kind": "regulation",
   "references": [
     "cyber-resilience-act",
     "sbom"

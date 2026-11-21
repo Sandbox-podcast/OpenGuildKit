@@ -1,0 +1,56 @@
+{
+  "id": "insurance-distribution",
+  "title": "Insurance distribution and pricing (EU)",
+  "version": "1.0.0",
+  "description": "Questions for the compliance, product, privacy and legal owners and repository checks for software that distributes or prices insurance in the EU: Directive (EU) 2016/97 (IDD), Regulation (EU) 2022/2554 (DORA) Art. 2 for scope, GDPR Art. 9 for health data and AI Act Annex III point 5(c). National transpositions of the IDD can add rules; these rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "Directive (EU) 2016/97 on insurance distribution (IDD)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2016/97/oj/eng"
+    },
+    {
+      "title": "Regulation (EU) 2022/2554, Digital Operational Resilience Act",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/eng"
+    },
+    {
+      "title": "Regulation (EU) 2016/679, General Data Protection Regulation",
+      "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng"
+    },
+    {
+      "title": "European Commission, AI Act Service Desk, Annex III: high-risk AI systems referred to in Article 6(2)",
+      "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/annex-3"
+    }
+  ],
+  "rules": [
+    {
+      "id": "confirm-dora-scope-for-insurers",
+      "instruction": "Ask the compliance owner whether the organization is an insurance or reinsurance undertaking or an insurance intermediary within DORA Art. 2(1)(n) or (o), or is excluded by Art. 2(3), and decline the dora-financial-entity pattern when it is out of scope.",
+      "verification": "Link the recorded answer from the change."
+    },
+    {
+      "id": "record-demands-and-needs",
+      "instruction": "When the change sells or proposes an insurance contract, make the flow record the customer's demands and needs before the contract is concluded and keep the proposed contract consistent with them (IDD Art. 20(1)).",
+      "verification": "Run the test where a quote cannot be concluded without recorded demands and needs."
+    },
+    {
+      "id": "present-product-information-document",
+      "instruction": "For a non-life insurance product, present the standardised insurance product information document before the contract is concluded (IDD Art. 20(5)), on paper, another durable medium or a website that meets Art. 23.",
+      "verification": "Run the test that finds the document offered and stored before the contract is concluded."
+    },
+    {
+      "id": "follow-product-approval",
+      "instruction": "Ask the product owner whether the change creates or changes an insurance product, which then goes through the manufacturer's product approval process (IDD Art. 25(1)) before it is marketed.",
+      "verification": "Link the approval record, or the owner's recorded reason it is not needed, from the change."
+    },
+    {
+      "id": "confirm-health-data-condition",
+      "instruction": "When the change processes the health data of applicants or policyholders, ask the privacy owner which condition of GDPR Art. 9(2) applies, and record it.",
+      "verification": "Link the privacy owner's recorded answer from the change."
+    },
+    {
+      "id": "classify-pricing-ai",
+      "instruction": "When an AI system assesses risk or sets prices for natural persons in life or health insurance, ask the legal owner whether it is high-risk under AI Act Annex III point 5(c), and select the eu-ai-act-system pattern when it is.",
+      "verification": "Link the recorded classification from the change."
+    }
+  ]
+}

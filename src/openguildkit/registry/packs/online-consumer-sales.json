@@ -1,0 +1,80 @@
+{
+  "id": "online-consumer-sales",
+  "title": "Online sales to consumers (EU)",
+  "version": "1.0.0",
+  "description": "Repository checks and questions for the legal and product owners when a shop or a marketplace sells to consumers in the EU: Directive 2011/83/EU on consumer rights as amended by Directives (EU) 2019/2161 and 2023/2673, Directive 98/6/EC on price indication, Regulation (EU) 2022/2065 (DSA) for online platforms and Directive (EU) 2015/2366 (PSD2) for payment authentication. Covers EU texts only; national transpositions can add rules, and card data security needs its own review. These rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "Directive 2011/83/EU on consumer rights",
+      "url": "https://eur-lex.europa.eu/eli/dir/2011/83/oj/eng"
+    },
+    {
+      "title": "Directive (EU) 2019/2161 on better enforcement and modernisation of Union consumer protection rules",
+      "url": "https://eur-lex.europa.eu/eli/dir/2019/2161/oj/eng"
+    },
+    {
+      "title": "Directive (EU) 2023/2673, withdrawal from distance contracts concluded by means of an online interface",
+      "url": "https://eur-lex.europa.eu/eli/dir/2023/2673/oj/eng"
+    },
+    {
+      "title": "Regulation (EU) 2022/2065, Digital Services Act",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj/eng"
+    },
+    {
+      "title": "Directive (EU) 2015/2366 on payment services in the internal market (PSD2)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2015/2366/oj/eng"
+    }
+  ],
+  "rules": [
+    {
+      "id": "label-order-button",
+      "instruction": "Label the button or function that places an order with an obligation to pay \"order with obligation to pay\" or an unambiguous equivalent (Directive 2011/83/EU Art. 8(2)).",
+      "verification": "Run the checkout test that asserts the label of the order button."
+    },
+    {
+      "id": "show-characteristics-and-total-price",
+      "instruction": "Show the main characteristics of the goods or services and the total price inclusive of taxes before the consumer places the order (Directive 2011/83/EU Art. 6(1)(a) and (e)).",
+      "verification": "Run the checkout test that finds the characteristics and the total price on the page of the order button."
+    },
+    {
+      "id": "show-delivery-and-payment-restrictions",
+      "instruction": "Show delivery restrictions and the accepted means of payment at the latest at the beginning of the ordering process (Directive 2011/83/EU Art. 8(3)).",
+      "verification": "Open the first page of the ordering process and find both pieces of information."
+    },
+    {
+      "id": "provide-withdrawal-function",
+      "instruction": "Provide, for contracts concluded through the online interface, a withdrawal function labelled \"withdraw from contract here\" or an unambiguous equivalent (Art. 11a of Directive 2011/83/EU, inserted by Directive (EU) 2023/2673 and applied from 19 June 2026).",
+      "verification": "Run the test that finds the labelled withdrawal function on a test order and completes a withdrawal."
+    },
+    {
+      "id": "apply-withdrawal-period",
+      "instruction": "Ask the legal owner which products the 14-day withdrawal period of Directive 2011/83/EU Art. 9(1) covers and which exceptions apply, and keep the returns logic to that answer.",
+      "verification": "Link the recorded answer and run the test of the withdrawal deadline."
+    },
+    {
+      "id": "show-prior-price",
+      "instruction": "When the shop announces a price reduction, show as prior price the lowest price applied during at least the 30 days before the reduction (Directive 98/6/EC Art. 6a, inserted by Directive (EU) 2019/2161).",
+      "verification": "Run the unit test that computes the prior price from a price history."
+    },
+    {
+      "id": "tell-trader-status",
+      "instruction": "When the product is a marketplace, tell the consumer whether the third party offering the goods or services is a trader before the contract is concluded (Directive 2011/83/EU Art. 6a(1)(b)).",
+      "verification": "Open a third-party offer and find the trader status."
+    },
+    {
+      "id": "collect-trader-traceability",
+      "instruction": "When the product is an online platform that lets traders conclude distance contracts with consumers, collect the trader information of Regulation (EU) 2022/2065 Art. 30(1) before a trader can offer in the EU, and ask the legal owner whether the platform is exempt as a micro or small enterprise.",
+      "verification": "Run the test that refuses a trader listing without each Art. 30(1) item, or link the recorded exemption."
+    },
+    {
+      "id": "review-interface-design",
+      "instruction": "When the product is an online platform, ask the product owner to review new checkout, subscription and cancellation screens against Regulation (EU) 2022/2065 Art. 25(1), which forbids interfaces that deceive or manipulate their users.",
+      "verification": "Link the recorded review of each new screen."
+    },
+    {
+      "id": "keep-strong-customer-authentication",
+      "instruction": "When the checkout initiates an electronic payment, keep the strong customer authentication step that the payment service provider applies under Directive (EU) 2015/2366 Art. 97(1), and handle its challenge and its failure in the order flow.",
+      "verification": "Run the checkout test with the provider's test authentication challenge and check that the order waits for its result."
+    }
+  ]
+}
