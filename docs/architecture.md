@@ -54,7 +54,7 @@ your-project/
     .gitignore                   created by init: tasks/, .lock, temp files
 ```
 
-The profile and the managed block are shared through git, so every person and every agent on the project gets the same rules. Task records stay local because they can contain unreleased product details, and `check` expects `tasks/` in `.openguildkit/.gitignore`. A team that needs an audit trail exports `task show ID` or the approved handoff to the evidence location it already uses.
+The profile and the managed block are shared through git, so every person and every agent on the project gets the same rules. Task records stay local because they can contain unreleased product details, and `check` expects `tasks/` in `.openguildkit/.gitignore`. A team that needs an audit trail exports `task show ID` or the approved handoff to the evidence location it already uses. The team's own text in `AGENTS.md` and `CLAUDE.md` stays around the block; `sync` refuses a file that is not UTF-8 or that ends inside an unclosed code block, since the rules would otherwise be read as code. In a monorepo, a language pack that a component's pattern brings applies only to that component.
 
 ## Data flow for one task
 
