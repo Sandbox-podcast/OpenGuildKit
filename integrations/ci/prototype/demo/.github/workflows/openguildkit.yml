@@ -37,7 +37,7 @@ jobs:
           POLICY_JSON: ${{ inputs.policy_json }}
         run: node check.mjs
       - name: Publish commit status
-        if: ${{ always() && steps.evaluate.outcome != 'skipped' }}
+        if: ${{ !cancelled() && (steps.evaluate.outcome == 'success' || steps.evaluate.outcome == 'failure') }}
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_COMMIT: ${{ inputs.target_commit }}
