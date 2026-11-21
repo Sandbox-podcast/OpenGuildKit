@@ -44,6 +44,24 @@ def json_text(data) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
 
 
+# Windows refuses to replace a file while another process reads it; POSIX systems do not.
+RETRIES_BUSY_TARGET = os.name == "nt"
+REPLACE_ATTEMPTS = 60
+REPLACE_PAUSE = 0.05
+
+
+def _replace(source: Path, target: Path) -> None:
+    """Put the new file in place, waiting up to three seconds for a reader to let go of the old one."""
+    for attempt in range(REPLACE_ATTEMPTS):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if not RETRIES_BUSY_TARGET or attempt == REPLACE_ATTEMPTS - 1:
+                raise
+            time.sleep(REPLACE_PAUSE)
+
+
 def write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.is_symlink():
@@ -62,7 +80,7 @@ def write_text(path: Path, content: str) -> None:
             else:
                 # Temporary files are private; a new file gets the usual permissions.
                 temporary_path.chmod(0o666 & ~_current_umask())
-            os.replace(temporary_path, path)
+            _replace(temporary_path, path)
         finally:
             temporary_path.unlink(missing_ok=True)
 

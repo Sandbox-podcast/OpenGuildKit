@@ -159,7 +159,9 @@ class FuzzTestCase(unittest.TestCase):
 
     @staticmethod
     def signature(error: Exception) -> tuple[str, str]:
-        frames = [frame for frame in traceback.extract_tb(error.__traceback__) if "openguildkit" in frame.filename]
+        # Before Python 3.12 a comprehension is a frame of its own (<listcomp>): name the function around it.
+        frames = [frame for frame in traceback.extract_tb(error.__traceback__)
+                  if "openguildkit" in frame.filename and not frame.name.startswith("<")]
         return type(error).__name__, frames[-1].name if frames else "?"
 
     def expect(self, *arguments, code=0, **options):
