@@ -106,11 +106,14 @@ test('clears a blocker with its evidence', async ({ page }) => {
   await open(page, '/conseil/request-export');
   await page.getByRole('button', { name: 'Lever avec une preuve' }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Preuve', { exact: true }).fill('tests/test_export_access.py');
+  const evidence = '.sample/request-export-evidence.md';
+  await dialog.getByLabel('Preuve', { exact: true }).fill(evidence);
   await dialog.getByLabel('Ce que la preuve établit').fill('The export only holds the requester’s own requests');
   await dialog.getByLabel('Votre nom').fill('Alex Moreau');
   await dialog.getByRole('button', { name: 'Enregistrer la preuve' }).click();
   await expect(page.getByText('levé par Alex Moreau')).toBeVisible();
+  const blockers = await cli<{ id: string; resolution: { evidence: string } }[]>(page, ['task', 'blockers', 'request-export', '--json']);
+  expect(blockers.json.find((blocker) => blocker.id === 'security:1')?.resolution.evidence).toBe(evidence);
   await page.goto('/#/royaume');
   await expect(page.getByText('Décider de request-export')).toBeVisible();
 });

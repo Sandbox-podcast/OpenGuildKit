@@ -129,6 +129,10 @@ def build(root: Path) -> None:
     run(root, "task", "review", "request-export", "--file",
         review_for(root, "request-export", "Proceed once cross-account access is proven impossible.", blocker))
 
+    # Local evidence for the blocker-clearing journey in this fictional project.
+    write(root, "request-export-evidence.md", "# Sample export access check\n\n"
+          "In the fixture, each of two accounts exported only its own requests.\n")
+
     # 4. Consulting: two boards have passed, the others are still missing.
     run(root, "task", "new", "Agree on the customer-facing status labels.", "--id", "status-labels")
     consult(root, "status-labels", {**ANSWERS, "kind": "decision", "options": "Keep internal labels, or map them to four customer labels."})
