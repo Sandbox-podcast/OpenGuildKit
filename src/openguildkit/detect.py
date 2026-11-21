@@ -52,6 +52,7 @@ GO_MODULES = {
     "github.com/lib/pq": "PostgreSQL",
 }
 IMAGES = {"postgres": "PostgreSQL", "postgis/postgis": "PostgreSQL"}
+IMAGE_PREFIXES = ("docker.io/library/", "docker.io/", "library/")
 INFERRED = {"PostgreSQL"}
 
 _VERSION = re.compile(r"\d+(?:\.\d+){0,2}")
@@ -78,6 +79,9 @@ class _Component:
         self.technologies: dict[str, dict] = {}
 
     def add(self, name: str, version: str | None, evidence: str, inferred: bool = False) -> None:
+        if inferred:
+            # A client library's version says nothing about the server it talks to.
+            version = None
         current = self.technologies.get(name)
         if current is None or (version and not current["version"]):
             self.technologies[name] = {
@@ -208,10 +212,15 @@ def _csproj(component: _Component, path: Path, label: str) -> None:
 
 def _container_images(component: _Component, path: Path, label: str) -> None:
     text = _read_text(path) or ""
-    for image, tag in re.findall(r"(?mi)(?:^\s*FROM\s+|image:\s*['\"]?)([a-z0-9./_-]+):([A-Za-z0-9._-]+)", text):
-        name = IMAGES.get(image.split("/", 1)[-1] if image.startswith("docker.io/") else image)
+    pattern = r"(?mi)(?:^\s*FROM\s+|image:\s*['\"]?)([a-z0-9./_-]+)(?::([A-Za-z0-9._-]+))?"
+    for image, tag in re.findall(pattern, text):
+        for prefix in IMAGE_PREFIXES:
+            if image.lower().startswith(prefix):
+                image = image[len(prefix):]
+                break
+        name = IMAGES.get(image.lower())
         if name:
-            component.add(name, _version(tag), label)
+            component.add(name, _version(tag) if tag else None, label)
 
 
 def _parse(component: _Component, path: Path, label: str) -> None:

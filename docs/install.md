@@ -42,7 +42,7 @@ openguildkit integrations --host claude-code   # .claude/skills/openguildkit and
 openguildkit integrations --host codex         # .agents/skills/openguildkit
 ```
 
-Add `--user` to install them in your home folder for every project. A file you changed is kept and reported; `--force` replaces it and saves your version as `.previous`. Each folder gets `openguildkit-version.txt`. Then set `"host"` in `.openguildkit/project.json` and run `openguildkit host apply` to install the host settings and hooks.
+Add `--user` to install them in your home folder for every project. A file you changed is kept and reported; `--force` replaces it and saves your version as `.previous`. Each folder gets `openguildkit-version.txt` with the installed version, or the name of the file kept at another version. Then set `"host"` in `.openguildkit/project.json` and run `openguildkit host apply` to install the host settings and hooks.
 
 ## Upgrade
 

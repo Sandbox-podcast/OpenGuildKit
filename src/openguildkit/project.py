@@ -147,6 +147,15 @@ def _recommended_packs(stack: list[str], catalog: dict) -> list[str]:
     return sorted(candidates & catalog["packs"].keys())
 
 
+def _default_packs(stack: list[str], components: list[dict], patterns: list, catalog: dict) -> list[str]:
+    """Recommended packs. In a monorepo a language pack that a selected pattern brings keeps that pattern's scope."""
+    packs = _recommended_packs(stack, catalog)
+    if not components:
+        return packs
+    brought = {pack_id for entry in patterns for pack_id in catalog["patterns"][pattern_selection(entry)[0]]["packs"]}
+    return [pack_id for pack_id in packs if pack_id not in brought]
+
+
 COMPONENT_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 
 
@@ -282,7 +291,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
             for record in recommend_patterns(catalog, stack, sector, roles, components)["matched"]
         ]
     check_pattern_choices([pattern_selection(entry)[0] for entry in patterns], catalog["patterns"])
-    packs = _ids(answers.get("packs", _recommended_packs(stack, catalog)), "packs", catalog["packs"])
+    packs = _ids(answers.get("packs", _default_packs(stack, components, patterns, catalog)), "packs", catalog["packs"])
     profile = {
         "schema_version": SCHEMA_VERSION,
         "name": name.strip(),
@@ -356,7 +365,28 @@ def load_profile(state: Path, catalog: dict) -> dict:
     path = state / "project.json"
     if not path.is_file():
         raise ValueError("Project is missing a profile. Run openguildkit init.")
-    return validate_profile(read_json(path), catalog)
+    answers = read_json(path)
+    missing = _missing_records(answers, catalog) if isinstance(answers, dict) else []
+    if missing:
+        entries = ", ".join(f'"{record_id}" from "{field}"' for field, record_id in missing)
+        raise ValueError(
+            f".openguildkit/project.json uses records that neither this release nor the catalog lock provides: "
+            f"remove {entries}, then run openguildkit sync."
+        )
+    return validate_profile(answers, catalog)
+
+
+def _missing_records(answers: dict, catalog: dict) -> list[tuple[str, str]]:
+    """Profile entries that name a pack, pattern or board no catalog in force provides."""
+    fields = (("packs", "packs"), ("patterns", "patterns"), ("boards", "boards"), ("required_boards", "boards"))
+    missing = []
+    for field, collection in fields:
+        entries = answers.get(field)
+        for entry in entries if isinstance(entries, list) else []:
+            record_id = entry.get("id") if isinstance(entry, dict) else entry
+            if isinstance(record_id, str) and record_id not in catalog[collection]:
+                missing.append((field, record_id))
+    return missing
 
 
 def _selected_packs(profile: dict, catalog: dict) -> list[str]:
@@ -637,14 +667,14 @@ _FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
 BOM = "\ufeff"
 
 
-def _marker_positions(text: str) -> list[tuple[str, int, int]]:
-    """Find the OpenGuildKit markers that stand on their own line outside fenced code blocks."""
-    found, fence, offset = [], None, 0
-    for line in text.splitlines(keepends=True):
+def _scan_markers(text: str) -> tuple[list[tuple[str, int, int]], int | None]:
+    """Find the markers outside fenced code blocks, and the line of a fence the text leaves open."""
+    found, fence, opened, offset = [], None, None, 0
+    for number, line in enumerate(text.splitlines(keepends=True), start=1):
         content = line.rstrip("\r\n")
         opening = _FENCE.match(content)
         if fence is None and opening:
-            fence = opening.group(1)
+            fence, opened = opening.group(1), number
         elif fence is not None:
             if opening and opening.group(1)[0] == fence[0] and len(opening.group(1)) >= len(fence) \
                     and not content[opening.end():].strip():
@@ -654,7 +684,12 @@ def _marker_positions(text: str) -> list[tuple[str, int, int]]:
             if match:
                 found.append((match.group(1), offset, offset + len(content)))
         offset += len(line)
-    return found
+    return found, opened if fence is not None else None
+
+
+def _marker_positions(text: str) -> list[tuple[str, int, int]]:
+    """Find the OpenGuildKit markers that stand on their own line outside fenced code blocks."""
+    return _scan_markers(text)[0]
 
 
 def merged_instructions(current: str, generated: str, label: str = "AGENTS.md") -> str:
@@ -662,9 +697,12 @@ def merged_instructions(current: str, generated: str, label: str = "AGENTS.md") 
     newline = "\r\n" if "\r\n" in current else "\n"
     if any(_MARKER_LINE.fullmatch(line.strip()) for line in generated.splitlines()):
         raise ValueError("Project instructions contain a reserved OpenGuildKit marker.")
-    matches = _marker_positions(current)
+    matches, open_fence = _scan_markers(current)
     block = newline.join([BEGIN, generated.replace("\n", newline), END])
     if not matches:
+        if open_fence is not None:
+            # Appending would put the rules inside the code block, and each sync would add another copy.
+            raise ValueError(f"{label} ends inside an unclosed code block at line {open_fence}. Close it and retry.")
         separator = newline if current.endswith(newline) else newline * 2
         return current + (separator if current else "") + block + newline
     if [kind for kind, _, _ in matches] != [BEGIN, END]:
@@ -678,7 +716,10 @@ def _read_instructions(path: Path) -> tuple[str, bool]:
         raise ValueError(f"Refusing a symbolic link as project instructions: {path}")
     if not path.exists():
         return "", False
-    text = path.read_bytes().decode("utf-8")
+    try:
+        text = path.read_bytes().decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ValueError(f"{path.name} is not UTF-8 (byte {error.start + 1}): convert it to UTF-8 and retry.") from error
     return (text[1:], True) if text.startswith(BOM) else (text, False)
 
 

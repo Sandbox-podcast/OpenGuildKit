@@ -3,6 +3,7 @@ import io
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from openguildkit.cli import main
 from openguildkit.integrations import HOST_FILES, packaged_file
@@ -41,6 +42,21 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(skill.with_name("SKILL.md.previous").read_text(encoding="utf-8"), "# Team version\n")
         self.run_cli("integrations", "--host", "codex")
         self.assertTrue((self.root / ".agents/skills/openguildkit/SKILL.md").is_file())
+
+    def test_the_version_file_names_a_file_kept_at_another_version(self):
+        self.run_cli("integrations", "--host", "claude-code")
+        skill = self.root / HOST_FILES["claude-code"]["skills/openguildkit/SKILL.md"]
+        agent = self.root / HOST_FILES["claude-code"]["agents/guild-board.md"]
+        skill.write_text("# Team version\n", encoding="utf-8")
+        with patch("openguildkit.integrations.package_version", return_value="9.9.9"):
+            self.assertIn("kept", self.run_cli("integrations", "--host", "claude-code"))
+        kept = (skill.parent / "openguildkit-version.txt").read_text(encoding="utf-8")
+        self.assertNotEqual(kept.strip(), "9.9.9")
+        self.assertIn("SKILL.md", kept)
+        self.assertEqual((agent.parent / "openguildkit-version.txt").read_text(encoding="utf-8"), "9.9.9\n")
+        with patch("openguildkit.integrations.package_version", return_value="9.9.9"):
+            self.run_cli("integrations", "--host", "claude-code", "--force")
+        self.assertEqual((skill.parent / "openguildkit-version.txt").read_text(encoding="utf-8"), "9.9.9\n")
 
     def test_version_is_printed(self):
         stdout = io.StringIO()
