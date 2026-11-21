@@ -1,0 +1,118 @@
+{
+  "id": "support",
+  "title": "Support client et service",
+  "references": [
+    {
+      "id": "kcs",
+      "title": "Knowledge-Centered Success (KCS)",
+      "category": "Gestion des connaissances",
+      "kind": "méthode",
+      "brains": [
+        "support"
+      ],
+      "summary": "Intègre la création et l'amélioration des articles de connaissance au traitement des demandes, pour que la base reflète les questions réelles.",
+      "applies_when": "Pour une équipe support qui veut capitaliser ses réponses dans une base de connaissances à jour.",
+      "packs": [
+        "support-readiness"
+      ],
+      "sources": [
+        {
+          "url": "https://www.serviceinnovation.org/kcs/",
+          "title": "Consortium for Service Innovation — Knowledge-Centered Success (KCS)"
+        }
+      ]
+    },
+    {
+      "id": "gov-uk-assisted-digital",
+      "title": "GOV.UK Service Manual — Accessibilité et accompagnement numérique",
+      "category": "Organisation du support",
+      "kind": "guide",
+      "brains": [
+        "support",
+        "design"
+      ],
+      "summary": "Explique comment aider les personnes qui ne peuvent pas utiliser seules un service en ligne et organiser le support aux utilisateurs.",
+      "applies_when": "Quand une partie des utilisateurs a besoin d'aide pour accéder au service ou le terminer.",
+      "sources": [
+        {
+          "url": "https://www.gov.uk/service-manual/helping-people-to-use-your-service",
+          "title": "GOV.UK Service Manual — Accessibility and assisted digital"
+        }
+      ]
+    },
+    {
+      "id": "iso-18295-1",
+      "title": "ISO 18295-1:2017",
+      "edition": "2017",
+      "category": "Organisation du support",
+      "kind": "norme",
+      "brains": [
+        "support",
+        "operations"
+      ],
+      "summary": "Définit les exigences de service d'un centre de contact client, interne ou externalisé, sur tous les canaux, avec des indicateurs de performance.",
+      "applies_when": "Pour fixer les engagements et indicateurs d'un centre de contact ; une nouvelle édition est en préparation.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/64739.html",
+          "title": "ISO 18295-1:2017 — Customer contact centres, requirements for customer contact centres"
+        }
+      ]
+    },
+    {
+      "id": "iso-10002",
+      "title": "ISO 10002",
+      "edition": "2018",
+      "category": "Réclamations et satisfaction client",
+      "kind": "norme",
+      "brains": [
+        "support"
+      ],
+      "summary": "Lignes directrices pour organiser le traitement des réclamations clients.",
+      "applies_when": "Pour structurer la relation client et la boucle d'amélioration.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/10002",
+          "title": "ISO 10002:2018 - Quality management — Customer satisfaction — Guidelines for complaints handling in organizations"
+        }
+      ]
+    },
+    {
+      "id": "iso-10004",
+      "title": "ISO 10004",
+      "edition": "2018",
+      "category": "Réclamations et satisfaction client",
+      "kind": "norme",
+      "brains": [
+        "support",
+        "product"
+      ],
+      "summary": "Lignes directrices pour surveiller et mesurer la satisfaction client.",
+      "applies_when": "Pour définir un dispositif de suivi de la satisfaction, adapté à l'organisation.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/71582.html",
+          "title": "ISO 10004:2018 - Quality management — Customer satisfaction — Guidelines for monitoring and measuring"
+        }
+      ]
+    },
+    {
+      "id": "consumer-adr-directive",
+      "title": "Directive 2013/11/UE relative au règlement extrajudiciaire des litiges de consommation",
+      "category": "Réclamations et satisfaction client",
+      "kind": "réglementation",
+      "brains": [
+        "support",
+        "legal"
+      ],
+      "summary": "Garantit aux consommateurs l'accès à un mode de règlement extrajudiciaire, comme la médiation, pour les litiges avec un professionnel.",
+      "applies_when": "Pour un service vendu aux consommateurs de l'UE ; informer le client du médiateur compétent selon la loi nationale.",
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/dir/2013/11/oj",
+          "title": "Directive 2013/11/UE — Règlement extrajudiciaire des litiges de consommation"
+        }
+      ]
+    }
+  ]
+}

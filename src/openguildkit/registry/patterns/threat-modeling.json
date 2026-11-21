@@ -1,0 +1,25 @@
+{
+  "id": "threat-modeling",
+  "title": "Threat modeling",
+  "description": "Model the data flows a change affects, list the threats and decide what to do about each one.",
+  "sources": [
+    {
+      "title": "OWASP Threat Modeling Cheat Sheet",
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html"
+    },
+    {
+      "title": "Threat Modeling Manifesto",
+      "url": "https://www.threatmodelingmanifesto.org/"
+    }
+  ],
+  "roles": [
+    "security",
+    "engineering"
+  ],
+  "packs": [
+    "threat-modeling"
+  ],
+  "references": [
+    "threat-modeling"
+  ]
+}

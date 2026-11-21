@@ -16,5 +16,8 @@
   ],
   "packs": [
     "market-evidence"
+  ],
+  "references": [
+    "sba-market-research"
   ]
 }

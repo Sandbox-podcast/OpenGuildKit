@@ -1,0 +1,29 @@
+{
+  "id": "employee-offboarding",
+  "title": "Employee offboarding",
+  "version": "1.0.0",
+  "description": "For a person leaving the organization or changing roles: access removed on time, responsibilities handed over and company assets returned.",
+  "sources": [
+    {
+      "title": "NIST SP 800-53 Rev. 5, Security and Privacy Controls for Information Systems and Organizations",
+      "url": "https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final"
+    }
+  ],
+  "rules": [
+    {
+      "id": "schedule-access-removal",
+      "instruction": "Ask the HR owner for the departure date, and list in the offboarding checklist every account and access to remove on that date (NIST SP 800-53, PS-4 Personnel Termination).",
+      "verification": "Compare the access review after the departure date with the checklist and confirm that each listed account is disabled."
+    },
+    {
+      "id": "reassign-owned-resources",
+      "instruction": "Before the departure, reassign the code ownership, on-call duties and shared credentials held by the departing person (NIST SP 800-53, PS-5 Personnel Transfer for a role change).",
+      "verification": "Check that CODEOWNERS, the on-call schedule and the secret store no longer name the departing person."
+    },
+    {
+      "id": "record-returned-assets",
+      "instruction": "Ask the manager to record the return of equipment and company data in the offboarding checklist.",
+      "verification": "Check that the checklist marks each listed item as returned or gives the follow-up owner."
+    }
+  ]
+}

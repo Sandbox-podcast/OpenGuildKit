@@ -18,5 +18,8 @@
   ],
   "packs": [
     "project-governance"
+  ],
+  "references": [
+    "prince2"
   ]
 }

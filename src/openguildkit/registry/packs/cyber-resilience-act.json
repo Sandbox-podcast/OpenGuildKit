@@ -1,0 +1,53 @@
+{
+  "id": "cyber-resilience-act",
+  "title": "Cyber Resilience Act product security",
+  "version": "1.0.0",
+  "description": "Questions for the product security owner and repository checks for products with digital elements under Regulation (EU) 2024/2847. These rules do not establish conformity.",
+  "sources": [
+    {
+      "title": "Regulation (EU) 2024/2847, Cyber Resilience Act",
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847"
+    },
+    {
+      "title": "European Commission, The Cyber Resilience Act: summary of the legislative text",
+      "url": "https://digital-strategy.ec.europa.eu/en/policies/cra-summary"
+    }
+  ],
+  "rules": [
+    {
+      "id": "confirm-cra-role",
+      "instruction": "Ask the legal owner whether the product is a product with digital elements made available on the EU market, and whether the organization acts as manufacturer, importer, distributor or open-source software steward (Art. 3).",
+      "verification": "Link the recorded answer from the change."
+    },
+    {
+      "id": "generate-release-sbom",
+      "instruction": "Generate for each release a software bill of materials in a commonly used machine-readable format that covers at least the top-level dependencies (Annex I, Part II, point 1).",
+      "verification": "Find the SBOM attached to the release and check that it lists the shipped top-level dependencies."
+    },
+    {
+      "id": "publish-disclosure-policy",
+      "instruction": "Keep a coordinated vulnerability disclosure policy and a contact address for reporting vulnerabilities (Annex I, Part II, points 5 and 6).",
+      "verification": "Open the published policy and check that it gives the contact address and the handling steps."
+    },
+    {
+      "id": "ship-secure-defaults",
+      "instruction": "Make the default configuration of the changed component secure, with a way to reset the product to its original state (Annex I, Part I, point 2(b)).",
+      "verification": "Install the release with default settings in a test and review the exposed services, credentials and permissions."
+    },
+    {
+      "id": "distribute-updates-securely",
+      "instruction": "Distribute security updates through a secure update mechanism, automatic where applicable (Annex I, Part II, point 7).",
+      "verification": "Check in a test that the client verifies the authenticity of an update artifact before installing it."
+    },
+    {
+      "id": "record-support-period",
+      "instruction": "Ask the product owner for the support period during which vulnerabilities will be handled (Art. 13(8)), and record it in the product documentation.",
+      "verification": "Check that the product documentation states the support period."
+    },
+    {
+      "id": "prepare-exploited-vulnerability-report",
+      "instruction": "Ask the product security owner who notifies an actively exploited vulnerability through the single reporting platform, with an early warning within 24 hours and a notification within 72 hours (Art. 14(1) and 14(2)), and record that person in the incident runbook.",
+      "verification": "Open the incident runbook and check the reporter, the platform and the deadlines."
+    }
+  ]
+}

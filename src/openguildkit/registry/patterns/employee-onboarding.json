@@ -15,5 +15,8 @@
   ],
   "packs": [
     "onboarding-practice"
+  ],
+  "references": [
+    "opm-onboarding-checklist"
   ]
 }

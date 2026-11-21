@@ -1,0 +1,190 @@
+{
+  "id": "legal",
+  "title": "Juridique, contrats et licences",
+  "references": [
+    {
+      "id": "dsa",
+      "title": "Règlement (UE) 2022/2065 sur les services numériques (DSA)",
+      "category": "Plateformes et services numériques",
+      "kind": "réglementation",
+      "brains": [
+        "legal",
+        "support"
+      ],
+      "summary": "Fixe les obligations des services intermédiaires en ligne : signalement des contenus illicites, motivation des décisions de modération et transparence.",
+      "applies_when": "Pour un service d'hébergement ou une plateforme accessible dans l'UE ; les obligations dépendent de la catégorie du service.",
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj",
+          "title": "Règlement (UE) 2022/2065 — Digital Services Act"
+        }
+      ]
+    },
+    {
+      "id": "digital-content-directive",
+      "title": "Directive (UE) 2019/770 sur la fourniture de contenus et de services numériques",
+      "category": "Contrats et consommateurs",
+      "kind": "réglementation",
+      "brains": [
+        "legal",
+        "product"
+      ],
+      "summary": "Définit la conformité des contenus et services numériques fournis aux consommateurs, y compris les mises à jour, et les recours en cas de défaut.",
+      "applies_when": "Pour les offres de logiciels, applications ou services en ligne aux consommateurs, selon la loi nationale de transposition.",
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/dir/2019/770/oj",
+          "title": "Directive (UE) 2019/770 — Contenus et services numériques"
+        }
+      ]
+    },
+    {
+      "id": "consumer-rights-directive",
+      "title": "Directive 2011/83/UE relative aux droits des consommateurs",
+      "category": "Contrats et consommateurs",
+      "kind": "réglementation",
+      "brains": [
+        "legal",
+        "sales"
+      ],
+      "summary": "Encadre l'information précontractuelle et le droit de rétractation pour les contrats conclus à distance avec des consommateurs.",
+      "applies_when": "Pour la vente en ligne aux consommateurs ; vérifier les règles nationales et les exceptions applicables aux contenus numériques.",
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/dir/2011/83/oj",
+          "title": "Directive 2011/83/UE — Droits des consommateurs"
+        }
+      ]
+    },
+    {
+      "id": "product-liability-directive",
+      "title": "Directive (UE) 2024/2853 relative à la responsabilité du fait des produits défectueux",
+      "category": "Contrats et consommateurs",
+      "kind": "réglementation",
+      "brains": [
+        "legal",
+        "qa"
+      ],
+      "summary": "Étend la responsabilité du fait des produits défectueux aux logiciels et fixe les règles d'indemnisation des dommages.",
+      "applies_when": "Pour les produits, logiciels compris, mis sur le marché de l'UE, selon la loi nationale de transposition ; à examiner avec le juriste produit.",
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/dir/2024/2853/oj",
+          "title": "Directive (UE) 2024/2853 — Responsabilité du fait des produits défectueux"
+        }
+      ]
+    },
+    {
+      "id": "standard-contractual-clauses",
+      "title": "Clauses contractuelles types (décision d'exécution (UE) 2021/914)",
+      "category": "Transferts et sous-traitance de données",
+      "kind": "réglementation",
+      "brains": [
+        "legal",
+        "security"
+      ],
+      "summary": "Fournit des clauses types pour encadrer les transferts de données personnelles vers des pays tiers, en quatre modules selon le rôle des parties.",
+      "applies_when": "Quand un fournisseur ou une filiale hors de l'Espace économique européen reçoit des données personnelles ; à compléter par une analyse du transfert.",
+      "packs": [
+        "gdpr"
+      ],
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/dec_impl/2021/914/oj",
+          "title": "Décision d'exécution (UE) 2021/914 — Clauses contractuelles types"
+        }
+      ]
+    },
+    {
+      "id": "cnil-cookies",
+      "title": "CNIL — Cookies et autres traceurs",
+      "category": "Transferts et sous-traitance de données",
+      "kind": "guide",
+      "brains": [
+        "legal",
+        "marketing"
+      ],
+      "summary": "Rassemble les règles et recommandations de la CNIL sur l'information et le consentement pour les cookies et autres traceurs.",
+      "applies_when": "Pour un site ou une application qui dépose des traceurs non strictement nécessaires.",
+      "sources": [
+        {
+          "url": "https://www.cnil.fr/fr/cookies-et-autres-traceurs",
+          "title": "CNIL — Site web, cookies et autres traceurs"
+        }
+      ]
+    },
+    {
+      "id": "osi-licenses",
+      "title": "Open Source Initiative — Licences approuvées",
+      "category": "Licences logicielles",
+      "kind": "référentiel",
+      "brains": [
+        "legal",
+        "engineering"
+      ],
+      "summary": "Liste les licences reconnues comme open source par l'OSI au regard de l'Open Source Definition.",
+      "applies_when": "Pour vérifier qu'une licence de dépendance ou de publication est une licence open source approuvée.",
+      "sources": [
+        {
+          "url": "https://opensource.org/licenses",
+          "title": "Open Source Initiative — Licenses"
+        }
+      ]
+    },
+    {
+      "id": "spdx-license-list",
+      "title": "SPDX License List",
+      "category": "Licences logicielles",
+      "kind": "référentiel",
+      "brains": [
+        "legal",
+        "engineering"
+      ],
+      "summary": "Attribue un identifiant court et stable à chaque licence courante, utilisé dans les métadonnées de paquets et les SBOM.",
+      "applies_when": "Pour déclarer sans ambiguïté la licence d'un fichier ou d'un paquet, par exemple MIT ou Apache-2.0.",
+      "sources": [
+        {
+          "url": "https://spdx.org/licenses/",
+          "title": "SPDX License List"
+        }
+      ]
+    },
+    {
+      "id": "reuse",
+      "title": "REUSE Specification",
+      "category": "Licences logicielles",
+      "kind": "spécification",
+      "brains": [
+        "legal",
+        "engineering"
+      ],
+      "summary": "Indique comment déclarer le copyright et la licence de chaque fichier d'un dépôt, avec des identifiants SPDX.",
+      "applies_when": "Pour un dépôt publié ou distribué dont chaque fichier doit porter une information de licence vérifiable.",
+      "sources": [
+        {
+          "url": "https://reuse.software/spec/",
+          "title": "FSFE — REUSE Specification"
+        }
+      ]
+    },
+    {
+      "id": "iso-37301",
+      "title": "ISO 37301:2021",
+      "edition": "2021",
+      "category": "Conformité et gouvernance",
+      "kind": "norme",
+      "brains": [
+        "legal",
+        "leadership"
+      ],
+      "summary": "Définit les exigences d'un système de management de la conformité : obligations, risques, contrôles et amélioration.",
+      "applies_when": "Pour organiser la conformité d'une organisation ou préparer une certification ; ne remplace pas l'analyse juridique de chaque obligation.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/75080.html",
+          "title": "ISO 37301:2021 — Compliance management systems, requirements with guidance for use"
+        }
+      ]
+    }
+  ]
+}

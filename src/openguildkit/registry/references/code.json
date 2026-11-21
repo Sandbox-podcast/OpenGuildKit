@@ -7,6 +7,9 @@
       "title": "EditorConfig",
       "category": "Nommage et formatage",
       "kind": "format",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Partage les réglages de base des fichiers, comme l'indentation et les fins de ligne, entre plusieurs éditeurs.",
       "applies_when": "Pour harmoniser les fichiers d'un dépôt ; complète le formateur propre au langage.",
       "sources": [
@@ -21,6 +24,9 @@
       "title": "camelCase",
       "category": "Nommage et formatage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Écrit un nom composé avec une première minuscule puis une majuscule à chaque nouveau mot, comme nomClient.",
       "applies_when": "Pour les éléments prévus par le guide du langage, par exemple les paramètres et variables locales en C#.",
       "sources": [
@@ -35,6 +41,9 @@
       "title": "PascalCase",
       "category": "Nommage et formatage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Écrit chaque mot d'un nom composé avec une majuscule initiale, comme CompteClient.",
       "applies_when": "Pour les éléments prévus par le guide du langage, par exemple les types et méthodes publics en C#.",
       "sources": [
@@ -49,6 +58,9 @@
       "title": "snake_case",
       "category": "Nommage et formatage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Sépare les mots d'un identifiant par des traits de soulignement, comme nom_client.",
       "applies_when": "Pour les éléments qui suivent cette convention, notamment les fonctions et variables Python ; ne remplace pas toutes les autres casses.",
       "sources": [
@@ -63,6 +75,9 @@
       "title": "kebab-case",
       "category": "Nommage et formatage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Sépare les mots par des tirets, comme fiche-client.",
       "applies_when": "Pour les noms qui autorisent les tirets, par exemple des classes CSS ou certains noms de fichiers ; pas pour tous les identifiants de code.",
       "sources": [
@@ -77,6 +92,9 @@
       "title": "SCREAMING_SNAKE_CASE",
       "category": "Nommage et formatage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Écrit des mots en majuscules séparés par des traits de soulignement, comme TAILLE_MAXIMALE.",
       "applies_when": "Pour les constantes lorsque le guide du langage le prévoit, notamment les constantes de module Python.",
       "sources": [
@@ -91,6 +109,9 @@
       "title": "Prettier",
       "category": "Nommage et formatage",
       "kind": "outil",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Reformate automatiquement le code et certains fichiers de configuration pour leur donner une présentation cohérente.",
       "applies_when": "Pour les langages pris en charge, avec une configuration commune ; choisir un formateur par périmètre pour éviter les conflits.",
       "sources": [
@@ -105,6 +126,9 @@
       "title": "ESLint",
       "category": "Nommage et formatage",
       "kind": "outil",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Analyse le JavaScript pour repérer des constructions problématiques et faire respecter des règles configurées.",
       "applies_when": "Pour les projets JavaScript et, avec les extensions adaptées, d'autres syntaxes ; sélectionner les règles pertinentes pour le projet.",
       "sources": [
@@ -119,6 +143,9 @@
       "title": "Checkstyle",
       "category": "Nommage et formatage",
       "kind": "outil",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Vérifie que le code Java respecte une sélection de règles de présentation et de structure.",
       "applies_when": "Pour un projet Java qui adopte un profil de style commun, éventuellement basé sur un guide existant.",
       "sources": [
@@ -133,6 +160,9 @@
       "title": "Ruff",
       "category": "Nommage et formatage",
       "kind": "outil",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Réunit un analyseur de règles et un formateur de code Python.",
       "applies_when": "Pour un projet Python qui choisit Ruff pour tout ou partie de ses contrôles ; coordonner son formatage avec les outils déjà présents.",
       "sources": [
@@ -147,6 +177,9 @@
       "title": "clang-format",
       "category": "Nommage et formatage",
       "kind": "outil",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Met en forme le code à partir d'un style prédéfini ou d'une configuration du dépôt.",
       "applies_when": "Notamment pour les projets C et C++ ; sélectionner un style adapté plutôt qu'activer plusieurs styles contradictoires.",
       "sources": [
@@ -161,6 +194,9 @@
       "title": "Black",
       "category": "Nommage et formatage",
       "kind": "outil",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Applique un style de formatage cohérent aux fichiers Python.",
       "applies_when": "Pour un projet Python qui choisit ce formateur ; alternative de formatage à évaluer avec l'outillage existant.",
       "sources": [
@@ -178,6 +214,9 @@
       "title": "BEM",
       "category": "Nommage et formatage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Organise le nommage des classes CSS autour de blocs, éléments et modificateurs.",
       "applies_when": "Pour les interfaces qui choisissent cette convention CSS ; ne pas l'imposer à toutes les stratégies de styles.",
       "sources": [
@@ -192,6 +231,9 @@
       "title": "Google JavaScript Style Guide",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Décrit les choix de Google pour l'écriture, l'organisation et le nommage du code JavaScript.",
       "applies_when": "Pour une équipe JavaScript qui décide d'adopter ce guide, en l'adaptant à son environnement ; ce n'est pas une obligation du langage.",
       "sources": [
@@ -206,6 +248,9 @@
       "title": "Google TS/JS Style Guide",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Propose un ensemble de conventions pour écrire et organiser le code TypeScript et JavaScript.",
       "applies_when": "Pour une équipe qui choisit ce guide, avec les adaptations nécessaires à ses bibliothèques et à son existant.",
       "sources": [
@@ -220,6 +265,9 @@
       "title": "PEP 8 - Style Guide for Python Code",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Décrit les conventions usuelles de présentation et de nommage du code Python.",
       "applies_when": "Pour le code Python, en tenant compte du style cohérent du projet et des contraintes de compatibilité.",
       "packs": [
@@ -237,6 +285,9 @@
       "title": "PEP 257 - Docstring Conventions",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Propose des conventions pour rédiger les textes de documentation intégrés au code Python.",
       "applies_when": "Pour documenter les modules, classes et fonctions Python ; compléter avec un format de documentation choisi par l'équipe.",
       "sources": [
@@ -251,6 +302,9 @@
       "title": "Effective Go",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Présente des habitudes d'écriture et de conception idiomatiques pour le langage Go.",
       "applies_when": "Pour comprendre les conventions de Go ; compléter avec sa documentation actuelle et les règles du projet.",
       "sources": [
@@ -265,6 +319,9 @@
       "title": "Go Code Review Comments",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Rassemble des conseils récurrents de relecture de code Go sur le nommage, les erreurs et la structure.",
       "applies_when": "Pour les développements Go, en complément d'Effective Go et des outils de formatage.",
       "sources": [
@@ -279,6 +336,9 @@
       "title": "The Rust Style Guide",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Décrit le style de formatage de référence du code Rust.",
       "applies_when": "Pour les projets Rust ; le profil retenu doit rester cohérent avec la configuration de rustfmt.",
       "sources": [
@@ -293,6 +353,9 @@
       "title": "Google Java Style Guide",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Décrit les conventions de Google pour la présentation, le nommage et l'organisation du code Java.",
       "applies_when": "Pour un projet Java qui choisit ce guide ; d'autres guides restent possibles si l'équipe les documente.",
       "sources": [
@@ -307,6 +370,9 @@
       "title": "Common C# code conventions",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Présente les conventions C# utilisées dans la documentation et les exemples de Microsoft.",
       "applies_when": "Pour une équipe .NET qui s'en sert comme base et précise ses propres choix ; ce n'est pas une règle universelle pour tous les projets C#.",
       "sources": [
@@ -321,6 +387,9 @@
       "title": "Kotlin Coding Conventions",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Décrit les conventions de structure, de nommage et de mise en forme du code Kotlin.",
       "applies_when": "Pour les projets Kotlin, avec une configuration d'éditeur et de contrôle cohérente avec les choix du projet.",
       "sources": [
@@ -335,6 +404,9 @@
       "title": "Swift API Design Guidelines",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Guide le choix des noms et la conception d'interfaces Swift lisibles à l'endroit où elles sont utilisées.",
       "applies_when": "Pour concevoir des API Swift, internes ou publiques ; complète les règles de présentation du code.",
       "sources": [
@@ -349,6 +421,9 @@
       "title": "PSR-12: Extended Coding Style",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Définit un style de présentation du code PHP partagé entre projets.",
       "applies_when": "Pour les bases PHP qui ont adopté PSR-12 ; examiner PER Coding Style pour les besoins plus récents, sans imposer les deux simultanément.",
       "sources": [
@@ -367,6 +442,9 @@
       "title": "PER Coding Style",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Fait évoluer les conventions de style PHP afin de couvrir les fonctionnalités plus récentes du langage.",
       "applies_when": "Pour une équipe PHP qui choisit ce référentiel, qui étend et remplace PSR-12 ; prévoir une migration explicite si nécessaire.",
       "sources": [
@@ -381,6 +459,9 @@
       "title": "The Ruby Style Guide",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Rassemble des conventions communautaires pour écrire du code Ruby cohérent et lisible.",
       "applies_when": "Pour les projets Ruby qui adoptent ce guide et les réglages correspondants de leurs outils ; les choix locaux restent explicites.",
       "sources": [
@@ -395,6 +476,9 @@
       "title": "C++ Core Guidelines",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Rassemble des recommandations de conception C++ sur les interfaces, les ressources et la sûreté du code.",
       "applies_when": "Pour le développement C++ ; sélectionner les recommandations adaptées et les contrôles disponibles, sans les confondre avec la norme ISO du langage.",
       "sources": [
@@ -409,6 +493,9 @@
       "title": "Linux kernel coding style",
       "category": "Conventions par langage",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Décrit les règles d'écriture du code utilisées dans le noyau Linux, principalement en C.",
       "applies_when": "Pour contribuer au noyau Linux ou pour un projet C qui adopte volontairement ce style ; ce n'est pas une convention universelle du C.",
       "sources": [
@@ -426,6 +513,9 @@
       "title": "ECMAScript / ECMA-262",
       "category": "Conventions par langage",
       "kind": "norme",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Spécifie le langage dont JavaScript est une implémentation.",
       "applies_when": "Choisir les fonctionnalités selon les environnements d'exécution et les cibles de compatibilité.",
       "sources": [
@@ -438,8 +528,13 @@
     {
       "id": "semver",
       "title": "Semantic Versioning",
+      "edition": "2.0.0",
       "category": "Git, versions et collaboration",
       "kind": "convention",
+      "brains": [
+        "engineering",
+        "devops"
+      ],
       "summary": "Utilise des numéros de version majeure, mineure et corrective pour annoncer la nature des changements d'une interface publique.",
       "applies_when": "Pour un produit ou une bibliothèque dont l'interface publique et les engagements de compatibilité sont définis.",
       "packs": [
@@ -457,6 +552,10 @@
       "title": "Conventional Commits",
       "category": "Git, versions et collaboration",
       "kind": "convention",
+      "brains": [
+        "engineering",
+        "devops"
+      ],
       "summary": "Structure les messages de commit avec des indications comme feat, fix ou changement incompatible.",
       "applies_when": "Pour les dépôts qui veulent un historique exploitable par les personnes et les automatisations ; ne prouve pas à lui seul la compatibilité.",
       "packs": [
@@ -472,8 +571,13 @@
     {
       "id": "keep-a-changelog",
       "title": "Keep a Changelog",
+      "edition": "1.1.0",
       "category": "Git, versions et collaboration",
       "kind": "convention",
+      "brains": [
+        "engineering",
+        "communication"
+      ],
       "summary": "Organise un historique lisible des changements importants pour les utilisateurs à chaque version.",
       "applies_when": "Pour les logiciels et bibliothèques qui publient des versions ; compléter l'historique Git par une sélection éditoriale.",
       "packs": [
@@ -491,6 +595,10 @@
       "title": "Gitflow",
       "category": "Git, versions et collaboration",
       "kind": "méthode",
+      "brains": [
+        "engineering",
+        "devops"
+      ],
       "summary": "Organise le développement avec des branches dédiées aux fonctionnalités, aux versions et aux correctifs.",
       "applies_when": "Pour des produits à versions explicites ou plusieurs versions maintenues ; évaluer une approche plus simple pour la livraison continue.",
       "sources": [
@@ -505,6 +613,10 @@
       "title": "GitHub flow",
       "category": "Git, versions et collaboration",
       "kind": "méthode",
+      "brains": [
+        "engineering",
+        "devops"
+      ],
       "summary": "Organise les changements autour de branches courtes, de pull requests et d'une intégration dans la branche principale.",
       "applies_when": "Pour une équipe qui peut maintenir sa branche principale prête à être livrée ; alternative à d'autres stratégies Git.",
       "sources": [
@@ -519,6 +631,10 @@
       "title": "Trunk-Based Development",
       "category": "Git, versions et collaboration",
       "kind": "méthode",
+      "brains": [
+        "engineering",
+        "devops"
+      ],
       "summary": "Fait converger fréquemment les changements vers une branche principale commune, avec peu de branches durables.",
       "applies_when": "Pour une équipe capable d'intégrer de petites modifications avec des contrôles rapides ; les fonctionnalités incomplètes demandent une stratégie explicite.",
       "sources": [
@@ -533,6 +649,10 @@
       "title": "Code Review",
       "category": "Git, versions et collaboration",
       "kind": "pratique",
+      "brains": [
+        "engineering",
+        "qa"
+      ],
       "summary": "Fait relire une modification par une autre personne pour examiner sa conception, sa clarté et ses effets.",
       "applies_when": "Pour les changements qui bénéficient d'un regard indépendant ; adapter les règles d'approbation au risque et au contexte.",
       "sources": [
@@ -547,6 +667,9 @@
       "title": "Pull Requests",
       "category": "Git, versions et collaboration",
       "kind": "pratique",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Présente une proposition de modification du code avec son contexte, sa discussion et ses résultats de vérification.",
       "applies_when": "Pour les plateformes de collaboration qui proposent ce mécanisme, ou son équivalent appelé merge request.",
       "sources": [
@@ -561,6 +684,9 @@
       "title": "CODEOWNERS",
       "category": "Git, versions et collaboration",
       "kind": "format",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Associe des chemins du dépôt à des personnes ou équipes responsables de leur relecture.",
       "applies_when": "Sur les plateformes compatibles ; l'obligation d'approbation dépend aussi de la configuration de protection des branches.",
       "sources": [
@@ -575,6 +701,10 @@
       "title": "Developer Certificate of Origin",
       "category": "Git, versions et collaboration",
       "kind": "convention",
+      "brains": [
+        "engineering",
+        "legal"
+      ],
       "summary": "Formalise la déclaration du contributeur selon laquelle il est en droit de soumettre sa contribution sous la licence du projet.",
       "applies_when": "Pour les projets qui choisissent ce mécanisme de contribution et son processus de signature ; ce n'est pas une licence logicielle.",
       "sources": [
@@ -589,6 +719,9 @@
       "title": "Conventional Comments",
       "category": "Git, versions et collaboration",
       "kind": "convention",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Préfixe les commentaires de relecture pour préciser leur intention, par exemple une suggestion ou un problème bloquant.",
       "applies_when": "Pour rendre les échanges de revue plus explicites lorsque l'équipe adopte cette convention.",
       "sources": [
@@ -603,6 +736,9 @@
       "title": "Git hooks",
       "category": "Git, versions et collaboration",
       "kind": "outil",
+      "brains": [
+        "engineering"
+      ],
       "summary": "Déclenche des scripts à certains moments du travail Git, comme avant un commit ou lors de la réception de changements.",
       "applies_when": "Pour automatiser des vérifications locales ou côté serveur ; les hooks locaux seuls ne constituent pas un contrôle imposé à tous.",
       "sources": [

@@ -15,5 +15,8 @@
   ],
   "packs": [
     "financial-planning"
+  ],
+  "references": [
+    "hm-treasury-green-book"
   ]
 }

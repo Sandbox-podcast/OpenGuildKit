@@ -1,0 +1,171 @@
+{
+  "id": "people",
+  "title": "Ressources humaines et organisation",
+  "references": [
+    {
+      "id": "iso-30414",
+      "title": "ISO 30414:2025",
+      "edition": "2025",
+      "category": "Pilotage RH et santé au travail",
+      "kind": "norme",
+      "brains": [
+        "hr",
+        "leadership"
+      ],
+      "summary": "Définit des exigences et recommandations pour mesurer et publier les données de capital humain : effectifs, coûts, recrutement, santé et bien-être.",
+      "applies_when": "Quand l'organisation publie ou pilote des indicateurs RH ; choisir avec la direction RH les mesures retenues et leur périmètre.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/30414",
+          "title": "ISO 30414:2025 — Human resource management, requirements and recommendations for human capital reporting and disclosure"
+        }
+      ]
+    },
+    {
+      "id": "iso-45003",
+      "title": "ISO 45003:2021",
+      "edition": "2021",
+      "category": "Pilotage RH et santé au travail",
+      "kind": "norme",
+      "brains": [
+        "hr",
+        "operations"
+      ],
+      "summary": "Donne des lignes directrices pour gérer les risques psychosociaux dans un système de management de la santé et de la sécurité au travail.",
+      "applies_when": "Quand l'organisation évalue la charge, l'organisation du travail ou d'autres facteurs psychosociaux ; s'articule avec ISO 45001.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/64283.html",
+          "title": "ISO 45003:2021 — Psychological health and safety at work, guidelines for managing psychosocial risks"
+        }
+      ]
+    },
+    {
+      "id": "iso-45001",
+      "title": "ISO 45001:2018",
+      "edition": "2018",
+      "category": "Pilotage RH et santé au travail",
+      "kind": "norme",
+      "brains": [
+        "hr",
+        "operations"
+      ],
+      "summary": "Définit les exigences d'un système de management de la santé et de la sécurité au travail.",
+      "applies_when": "Pour structurer la prévention des risques professionnels ou préparer une certification ; le périmètre se définit avec le responsable santé et sécurité.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/45001",
+          "title": "ISO 45001:2018 — Occupational health and safety management systems, requirements"
+        }
+      ]
+    },
+    {
+      "id": "opm-workforce-planning",
+      "title": "OPM — Modèle de planification des effectifs",
+      "category": "Pilotage RH et santé au travail",
+      "kind": "méthode",
+      "brains": [
+        "hr",
+        "operations"
+      ],
+      "summary": "Compare les besoins futurs en compétences aux effectifs disponibles et aide à choisir les actions pour combler les écarts.",
+      "applies_when": "Pour planifier les effectifs d'une équipe ou d'une organisation à partir de données agrégées.",
+      "pattern": "workforce-planning",
+      "packs": [
+        "workforce-capacity"
+      ],
+      "sources": [
+        {
+          "url": "https://www.opm.gov/policy-data-oversight/human-capital-framework/reference-materials/strategic-alignment/workforceplanning/",
+          "title": "U.S. Office of Personnel Management, Workforce Planning Model"
+        }
+      ]
+    },
+    {
+      "id": "opm-structured-interviews",
+      "title": "OPM — Entretiens structurés",
+      "category": "Recrutement et intégration",
+      "kind": "méthode",
+      "brains": [
+        "hr"
+      ],
+      "summary": "Pose à tous les candidats les mêmes questions liées au poste et les évalue avec une grille de notation commune.",
+      "applies_when": "Pour comparer des candidats sur des compétences définies à partir du poste ; la décision reste au jury désigné.",
+      "pattern": "structured-interviews",
+      "packs": [
+        "structured-hiring"
+      ],
+      "sources": [
+        {
+          "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/other-assessment-methods/structured-interviews/",
+          "title": "U.S. Office of Personnel Management, Structured Interviews"
+        },
+        {
+          "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/structured-interviews/guide.pdf",
+          "title": "U.S. Office of Personnel Management, Structured Interview Guide"
+        }
+      ]
+    },
+    {
+      "id": "opm-onboarding-checklist",
+      "title": "OPM — Liste d'intégration pour les managers",
+      "category": "Recrutement et intégration",
+      "kind": "guide",
+      "brains": [
+        "hr",
+        "operations"
+      ],
+      "summary": "Propose une liste d'actions pour préparer l'arrivée d'un nouveau salarié et suivre ses premières semaines.",
+      "applies_when": "Pour préparer l'intégration avec le manager et les équipes qui fournissent le matériel et les accès.",
+      "pattern": "employee-onboarding",
+      "packs": [
+        "onboarding-practice"
+      ],
+      "sources": [
+        {
+          "url": "https://www.opm.gov/policy-data-oversight/human-capital-management/hiring-reform/sample-supervisor-checklist.pdf",
+          "title": "U.S. Office of Personnel Management, Sample supervisor onboarding checklist"
+        }
+      ]
+    },
+    {
+      "id": "cnil-guide-recrutement",
+      "title": "CNIL — Guide du recrutement",
+      "category": "Droit du travail et données RH",
+      "kind": "guide",
+      "brains": [
+        "hr",
+        "legal"
+      ],
+      "summary": "Explique comment collecter, utiliser et conserver les données des candidats dans le respect du RGPD, de l'annonce à la décision.",
+      "applies_when": "Pour tout processus de recrutement qui traite des candidatures ; à appliquer avec le délégué à la protection des données.",
+      "packs": [
+        "structured-hiring"
+      ],
+      "sources": [
+        {
+          "url": "https://www.cnil.fr/fr/le-guide-du-recrutement",
+          "title": "CNIL — Le guide du recrutement"
+        }
+      ]
+    },
+    {
+      "id": "eu-pay-transparency",
+      "title": "Directive (UE) 2023/970 sur la transparence des rémunérations",
+      "category": "Droit du travail et données RH",
+      "kind": "réglementation",
+      "brains": [
+        "hr",
+        "legal"
+      ],
+      "summary": "Renforce l'égalité de rémunération entre femmes et hommes par la transparence salariale, l'information des candidats et des rapports sur les écarts.",
+      "applies_when": "Pour les employeurs de l'UE selon la loi nationale de transposition ; à vérifier avec le juriste social pour les offres d'emploi, les grilles et les rapports.",
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/dir/2023/970/oj",
+          "title": "Directive (UE) 2023/970 — Transparence des rémunérations"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "dora-financial-entity",
+  "title": "DORA for financial entities",
+  "description": "Select when the organization is a financial entity under Regulation (EU) 2022/2554 and the change touches an ICT system that supports its business functions.",
+  "sources": [
+    {
+      "title": "Regulation (EU) 2022/2554, Digital Operational Resilience Act",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/fra"
+    }
+  ],
+  "roles": [
+    "legal",
+    "security"
+  ],
+  "packs": [
+    "dora"
+  ],
+  "references": [
+    "dora"
+  ]
+}

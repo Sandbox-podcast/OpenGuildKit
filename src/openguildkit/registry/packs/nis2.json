@@ -1,0 +1,53 @@
+{
+  "id": "nis2",
+  "title": "NIS 2 cybersecurity measures",
+  "version": "1.0.0",
+  "description": "Questions for the security owner and evidence checks for essential and important entities under Directive (EU) 2022/2555 (NIS 2), as transposed into national law. These rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "Directive (EU) 2022/2555 (NIS 2)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/en"
+    },
+    {
+      "title": "ANSSI, MesServicesCyber, NIS 2",
+      "url": "https://messervices.cyber.gouv.fr/nis2"
+    }
+  ],
+  "rules": [
+    {
+      "id": "confirm-nis2-scope",
+      "instruction": "Ask the security owner whether the organization is an essential or important entity under the national law transposing NIS 2 (Art. 3), and record which national text applies.",
+      "verification": "Link the recorded answer and the national text from the change."
+    },
+    {
+      "id": "publish-vulnerability-handling",
+      "instruction": "Keep a vulnerability handling and disclosure process for the changed system, such as a SECURITY.md that names the reporting channel (Art. 21(2)(e)).",
+      "verification": "Open the repository's security policy and check the reporting channel and the triage owner."
+    },
+    {
+      "id": "review-supplier-security",
+      "instruction": "When the change adds a direct supplier or service provider, ask the security owner to record its security assessment (Art. 21(2)(d) and 21(3)).",
+      "verification": "Check that the supplier register links the assessment."
+    },
+    {
+      "id": "require-multi-factor-authentication",
+      "instruction": "Ask the security owner whether administrative access to the changed system requires multi-factor authentication (Art. 21(2)(j)), and configure it where required.",
+      "verification": "Inspect the identity provider or access configuration for the administrative roles of the changed system."
+    },
+    {
+      "id": "use-approved-cryptography",
+      "instruction": "Use the cryptography and encryption choices of the entity's policy (Art. 21(2)(h)) for the data the change stores or transmits.",
+      "verification": "Compare the configured algorithms, key lengths and TLS settings with the policy."
+    },
+    {
+      "id": "test-backup-and-recovery",
+      "instruction": "Include the changed system in backup management and disaster recovery (Art. 21(2)(c)).",
+      "verification": "Link the latest recovery test record that covers the system."
+    },
+    {
+      "id": "prepare-incident-notification",
+      "instruction": "Ask the security owner who sends, for a significant incident, the early warning within 24 hours, the notification within 72 hours and the final report within one month (Art. 23(4)), and record them in the incident runbook.",
+      "verification": "Open the incident runbook and check the names and deadlines of each step."
+    }
+  ]
+}

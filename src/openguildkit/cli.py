@@ -595,7 +595,17 @@ def _print_references(args, state: Path, catalog: dict) -> None:
         reference = matches[0]
         print(f"{reference['title']} [{reference['id']}]")
         print(f"{reference['family_title']} / {reference['category']} / {reference['kind']}")
+        if reference.get("edition"):
+            print(f"Edition: {reference['edition']}")
         print(f"\n{reference['summary']}\n{reference['applies_when']}\n")
+        if reference.get("pattern"):
+            print(f"Pattern: openguildkit patterns --id {reference['pattern']}")
+        packs = [catalog["packs"][pack_id] for pack_id in reference.get("packs", []) if pack_id in catalog["packs"]]
+        for pack in packs:
+            print(f"Pack {pack['id']}@{pack['version']}: {', '.join(rule['id'] for rule in pack['rules'])}")
+        if not packs:
+            print("Status: documentary reference. No pack turns it into rules yet.")
+        print()
         for source in reference["sources"]:
             print(f"- {source['title']}: {source['url']}")
     elif matches:
