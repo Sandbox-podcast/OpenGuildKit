@@ -112,7 +112,7 @@ jobs:
 
   contribution-checks:
     name: contribution-checks
-    if: ${{ always() }}
+    if: ${{ !cancelled() }}
     needs: [test, package, ci-coordinator]
     runs-on: ubuntu-latest
     permissions: {}
