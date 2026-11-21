@@ -62,6 +62,11 @@ class BlockerCommandTests(ReviewedTaskTestCase):
         unknown = self.run_cli("task", "clear", TASK_ID, "security:9", "--by", "Alex", "--evidence", "x", "--supports", "y",
                                expect=1)
         self.assertTrue(unknown.stderr.startswith("OpenGuildKit: "))
+        missing_file = self.run_cli("task", "clear", TASK_ID, "security:1", "--by", "Alex", "--evidence",
+                                    "tests/test_access.py", "--supports", "Cross-account access is refused.", expect=1)
+        self.assertIn("existing file or folder of the project, or an https link", missing_file.stderr)
+        (self.project / "tests").mkdir()
+        (self.project / "tests" / "test_access.py").write_text("def test_access(): pass\n", encoding="utf-8")
         cleared = self.run_cli("task", "clear", TASK_ID, "security:1", "--by", "Alex", "--evidence",
                                "tests/test_access.py", "--supports", "Cross-account access is refused.")
         self.assertEqual(cleared.stdout.strip(), "cleared")

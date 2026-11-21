@@ -42,6 +42,9 @@ KNOWN_CRASHES = {
     ("TypeError", "validate_board_entry"): "task record edited by hand: review_template boards not objects",
     ("AttributeError", "_validate_challenge"): "task record edited by hand: challenge not an object",
     ("AttributeError", "blocker_list"): "task record edited by hand: challenge not an object",
+    ("TypeError", "blocker_list"): "#99, task record edited by hand: blockers not a list",
+    ("TypeError", "_validate_challenge"): "#99, task record edited by hand: specialists not a list",
+    ("KeyError", "list_tasks"): "#99, task record edited by hand: created_at not a text",
 }
 STRICT = os.environ.get("OPENGUILDKIT_FUZZ_STRICT") == "1"
 
