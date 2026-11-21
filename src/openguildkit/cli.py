@@ -29,7 +29,8 @@ from .storybook import scope_entry as storybook_scope_entry
 from .integrations import install_agent_files
 from .guard import NO_TASK, STALE_DAYS, ci_guard, covering_approvals, export_decision, guard_mode, run_hook
 from .results import (
-    chaosfolk_checks, compare_runs, completion_problems, evidence_files_missing, expected_checks, missing_scenarios,
+    chaosfolk_checks, compare_runs, completion_problems, decision_changes, decision_revision_message,
+    evidence_files_missing, expected_checks, missing_scenarios,
     result_template, run_command_checks,
 )
 from .hosts import apply_host_settings, approval_warning, host_controls
@@ -91,7 +92,7 @@ from .tasks import (
     require_current_scope,
     task_path,
 )
-from .workflow import blocker_list, board_brief, challenge_report, decision_summary, deliberation_request, handoff, open_points, pending_removals, select_boards, task_questions, validate_answers, validate_review, verdict_lines
+from .workflow import blocker_list, board_brief, challenge_report, decision_summary, deliberation_request, handoff, is_decision_task, open_points, pending_removals, select_boards, task_questions, validate_answers, validate_review, verdict_lines
 
 
 class _Version(argparse.Action):
@@ -1341,7 +1342,10 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
     elif action == "result" and args.template:
         if task["status"] != "approved":
             raise ValueError("Results belong to an approved task that is not done yet.")
-        _print_json(result_template(task, profile))
+        changed = decision_changes(root, task)
+        _print_json(result_template(task, profile, changed=changed))
+        if changed:
+            print(decision_revision_message(changed), file=sys.stderr)
         for check in expected_checks(task, profile):
             if check["kind"] == "command":
                 print(f"{check['id']} is run and recorded by task verify: {check['command']}", file=sys.stderr)
@@ -1354,13 +1358,19 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                              else "Results belong to an approved task that is not done yet.")
         check_decision(task, root, profile)
         require_current_scope(task, profile, catalog)
+        decision = is_decision_task(task)
+        changed = decision_changes(root, task)
         if action == "verify":
-            revision = git_revision(root)
-            payload = {"revision": revision["commit"] if revision else "working tree"}
+            payload = {}
+            if not decision:
+                revision = git_revision(root)
+                payload["revision"] = revision["commit"] if revision else "working tree"
+            if decision and args.chaosfolk:
+                raise ValueError("ChaosFolk replays are for implementation tasks.")
             if args.chaosfolk:
                 imported = chaosfolk_checks(root, args.chaosfolk, args.tool_version)
                 payload.update(checks=imported["checks"], run={**imported["run"], "at": timestamp()})
-            else:
+            elif not decision:
                 payload["checks"] = run_command_checks(root, state, task, profile)
         with project_lock(state):
             current_task = read_task(state, args.id)
@@ -1374,12 +1384,12 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                     missing = evidence_files_missing(root, payload, current_task, profile)
                     if missing:
                         raise ValueError("Named evidence not found:\n- " + "\n- ".join(missing))
-                    result = record_result(current_task, profile, payload)
+                    result = record_result(current_task, profile, payload, changed=changed)
             else:
                 blocking = blocking_alerts(load_register(state), current_task)
                 if blocking:
                     raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(blocking))
-                result = complete_task(current_task, profile)
+                result = complete_task(current_task, profile, changed=changed)
             write_json(task_path(state, args.id), result)
         if action == "complete":
             print("done")
@@ -1387,12 +1397,16 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             if left:
                 print(f"Left open: {'; '.join(left)}. To follow up, open a task linked to this one: "
                       f'openguildkit task new "BRIEF" --follows {args.id}')
+            elif decision:
+                print(f'Open the implementation task with openguildkit task new "BRIEF" --follows {args.id}.')
         else:
             for item in result["result"]["checks"]:
                 print(f"{item['check']}: {item['status']}")
-            for name in missing_scenarios(result):
+            for name in (() if decision else missing_scenarios(result)):
                 print(f"chaosfolk:{name}: missing")
-            problems = completion_problems(result, profile) + blocking_alerts(load_register(state), result)
+            if changed and not (result["result"].get("revision") or result["result"].get("pull_request")):
+                print(decision_revision_message(changed))
+            problems = completion_problems(result, profile, changed=changed) + blocking_alerts(load_register(state), result)
             print(f"{len(problems)} point(s) before the task can be done." if problems else "Ready: run task complete.")
     elif action == "alerts":
         alerts_cli.task_command(args, state, task)
