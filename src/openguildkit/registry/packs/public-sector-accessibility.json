@@ -1,0 +1,61 @@
+{
+  "id": "public-sector-accessibility",
+  "title": "Public sector accessibility (EU)",
+  "version": "1.0.0",
+  "description": "Questions for the accessibility and bid owners and repository checks for websites and mobile applications delivered to EU public sector bodies under Directive (EU) 2016/2102, tested against EN 301 549 V3.2.1, the harmonised standard that Implementing Decision (EU) 2021/1339 references, and for contracts awarded under Directive 2014/24/EU. Covers EU law only; national transpositions such as France's RGAA add their own requirements. These rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "Directive (EU) 2016/2102 on the accessibility of the websites and mobile applications of public sector bodies",
+      "url": "https://eur-lex.europa.eu/eli/dir/2016/2102/oj/eng"
+    },
+    {
+      "title": "Commission Implementing Decision (EU) 2021/1339, harmonised standard EN 301 549 V3.2.1 for Directive (EU) 2016/2102",
+      "url": "https://eur-lex.europa.eu/eli/dec_impl/2021/1339/oj/eng"
+    },
+    {
+      "title": "ETSI EN 301 549 V3.2.1 (2021-03), Accessibility requirements for ICT products and services",
+      "url": "https://www.etsi.org/deliver/etsi_en/301500_301599/301549/03.02.01_60/en_301549v030201p.pdf"
+    },
+    {
+      "title": "Directive 2014/24/EU on public procurement",
+      "url": "https://eur-lex.europa.eu/eli/dir/2014/24/oj/eng"
+    }
+  ],
+  "rules": [
+    {
+      "id": "read-tender-accessibility-criteria",
+      "instruction": "Ask the bid owner which accessibility criteria the contracting authority set in the technical specifications of the contract (Directive 2014/24/EU Art. 42(1)), and record them with the change.",
+      "verification": "Link the recorded criteria and the contract clause they come from."
+    },
+    {
+      "id": "test-web-against-en-301-549",
+      "instruction": "Test each changed web page against EN 301 549 V3.2.1 clause 9 (Web), including the conformance requirements of clause 9.6.",
+      "verification": "Link the test report that lists each failed requirement with its fix or its open issue."
+    },
+    {
+      "id": "test-apps-against-en-301-549",
+      "instruction": "For a changed mobile or desktop application, test the changed screens against EN 301 549 V3.2.1 clause 11 (Software).",
+      "verification": "Link the test report for the changed screens."
+    },
+    {
+      "id": "keep-documentation-accessible",
+      "instruction": "When the change adds user documentation or a support channel, apply EN 301 549 V3.2.1 clause 12 (Documentation and support services) to it.",
+      "verification": "Check the new documentation and support pages against clause 12 and link the result."
+    },
+    {
+      "id": "update-accessibility-statement",
+      "instruction": "Ask the public body's accessibility owner to update the accessibility statement when the change adds, removes or fixes content that is not accessible (Directive (EU) 2016/2102 Art. 7(1)).",
+      "verification": "Open the statement and check that its date and its list of content that is not accessible follow the release."
+    },
+    {
+      "id": "keep-feedback-mechanism",
+      "instruction": "Keep the feedback mechanism of Directive (EU) 2016/2102 Art. 7(1)(b) reachable from the changed pages, so that users can report a failure and ask for content that is not accessible.",
+      "verification": "Open a changed page and follow its link to the feedback mechanism."
+    },
+    {
+      "id": "record-disproportionate-burden",
+      "instruction": "When content stays not accessible, ask the public body's owner whether they claim a disproportionate burden under Art. 5 of Directive (EU) 2016/2102, and record their assessment; the team does not decide it.",
+      "verification": "Link the owner's recorded assessment from the change."
+    }
+  ]
+}

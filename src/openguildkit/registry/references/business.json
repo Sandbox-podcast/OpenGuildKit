@@ -341,6 +341,9 @@
       ],
       "summary": "Fixe les procédures de passation des marchés publics dans l'UE, les critères d'attribution et les motifs d'exclusion des candidats.",
       "applies_when": "Pour répondre à un appel d'offres public ; vérifier le droit national et les documents de la consultation.",
+      "packs": [
+        "public-sector-accessibility"
+      ],
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/dir/2014/24/oj",

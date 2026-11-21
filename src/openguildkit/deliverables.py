@@ -8,12 +8,13 @@ is still missing before the brain and the owner review it.
 
 import json
 import re
-from importlib.resources import files
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from . import clock
-from .catalog import CatalogError, _unique_fields, _validate_fields, _validate_id, _validate_list, _validate_sources, _validate_text
+from .catalog import (
+    CatalogError, _unique_fields, _validate_fields, _validate_id, _validate_list, _validate_sources, _validate_text, package_file,
+)
 from .storage import write_text
 
 DATA_CLASSES = ("none", "internal", "personal", "regulated")
@@ -67,7 +68,7 @@ def _validate(record: dict, catalog: dict) -> None:
 
 
 def load_deliverables(catalog: dict, extra_dir: Path | None = None) -> dict[str, dict]:
-    roots = [files("openguildkit").joinpath("registry", "deliverables")]
+    roots = [package_file("registry", "deliverables")]
     if extra_dir is not None and extra_dir.is_dir():
         roots.append(extra_dir)
     found = {}

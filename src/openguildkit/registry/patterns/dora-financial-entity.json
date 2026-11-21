@@ -15,6 +15,13 @@
   "packs": [
     "dora"
   ],
+  "kind": "regulation",
+  "match": {
+    "sectors": [
+      "financial-services",
+      "insurance"
+    ]
+  },
   "references": [
     "dora"
   ]

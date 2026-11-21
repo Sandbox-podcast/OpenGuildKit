@@ -1,0 +1,37 @@
+{
+  "id": "online-consumer-sales",
+  "title": "Online sales to consumers (EU)",
+  "description": "Preselected for e-commerce: keep it when the product sells to consumers in the EU, as a shop or as a marketplace.",
+  "sources": [
+    {
+      "title": "Directive 2011/83/EU on consumer rights",
+      "url": "https://eur-lex.europa.eu/eli/dir/2011/83/oj/eng"
+    },
+    {
+      "title": "Regulation (EU) 2022/2065, Digital Services Act",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj/eng"
+    },
+    {
+      "title": "Directive (EU) 2015/2366 on payment services in the internal market (PSD2)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2015/2366/oj/eng"
+    }
+  ],
+  "roles": [
+    "legal",
+    "product",
+    "engineering"
+  ],
+  "packs": [
+    "online-consumer-sales"
+  ],
+  "kind": "regulation",
+  "match": {
+    "sectors": [
+      "e-commerce"
+    ]
+  },
+  "references": [
+    "consumer-rights-directive",
+    "dsa"
+  ]
+}

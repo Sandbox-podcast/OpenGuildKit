@@ -8,7 +8,7 @@ from pathlib import Path
 from . import clock
 from .decisions import decision_payload, seal
 from .project import profile_fingerprint, resolved_profile
-from .results import completion_problems, merge_results, validate_result
+from .results import completion_problems, expected_checks, merge_results, validate_result
 from .storage import read_json, write_json
 from .workflow import blocker_list, consult, pending_removals, validate_answers, validate_board_entry, validate_deliberation, validate_review
 
@@ -42,7 +42,8 @@ def read_task(state: Path, task_id: str) -> dict:
         raise ValueError(f"Unsupported or mismatched task record: {path}")
     problem = _record_problem(task)
     if problem:
-        raise ValueError(f"Task record {path} is inconsistent: {problem}. Restore it from version control or open a new task.")
+        # Task records are not under version control (.openguildkit/.gitignore lists tasks/).
+        raise ValueError(f"Task record {task_id} is damaged: {problem}. Restore it from a backup or open a new task.")
     return task
 
 
@@ -54,15 +55,110 @@ STATUSES = {
     "approved": ("answers", "consultation", "profile_fingerprint", "review", "decision"),
     "done": ("answers", "consultation", "profile_fingerprint", "review", "decision", "result"),
 }
-CONSULTATION_FIELDS = ("id", "boards", "routing", "scope", "markdown", "review_template")
+
+# The shape of every field the commands read, checked once when a record is loaded. A type is a
+# type, [shape] a list of that shape, a dict an object whose keys ending in "?" are optional and
+# whose "*" gives the shape of every value, a tuple one of several shapes, a frozenset the values allowed.
+_DECISION = {"outcome": str, "by": str, "reason": str, "at": str}
+_TEMPLATE_BOARD = {"id": str, "challenge?": {"specialists": [{"id": str}]}}
+_RULE = ({"id": str, "instruction": str, "verification": str}, {"id": str, "check": {"max_minutes": int}})
+_SCOPE = {
+    "open_points?": [str],
+    "checks?": [str],
+    "packs?": [{"id": str, "rules": [_RULE]}],
+    "market?": {"id": str, "observations": [{"id": str}], "changes?": [dict]},
+    "tools?": [{"id": str}],
+    "storybook?": {"indexes": [{"ref": str, "stories": [str]}]},
+    "host_controls?": [{"id": str, "status": str}],
+}
+_CONSULTATION = {
+    "id": str, "boards": [str], "routing": {"*": [str]}, "scope": _SCOPE, "markdown": str,
+    "review_template": {"boards": [_TEMPLATE_BOARD]},
+    "adjustments?": [{"board": str, "action": str, "reason": str}],
+    "delegations?": {"*": str},
+}
+_CHALLENGE = {
+    "verdict": str,
+    "specialists": [{"id": str, "basis": str, "evidence_refs": [int], "finding": str}],
+    "blockers": [({"finding": str}, str)],
+}
+_REVIEW = {
+    "consultation_id": str, "summary": str, "warnings?": [str],
+    "boards": [{"id": str, "recommendation": str, "evidence": [(str, {"source": str, "ref": str})],
+                "open_questions": [str], "challenge?": _CHALLENGE}],
+}
+_RESOLUTION = {"kind": frozenset({"cleared", "waived"}), "by": str, "evidence?": str, "supports?": str,
+               "reason?": str, "scope?": str, "until?": str}
+_RECORD = {
+    "created_at": str,
+    "completed_at?": str,
+    "profile_fingerprint?": str,
+    "answers?": {"*": (str, [str])},
+    "consultation?": _CONSULTATION,
+    "review?": _REVIEW,
+    "decision?": {**_DECISION, "confirmed_removals?": [str]},
+    "passes?": {"consultation_id": str, "boards": {"*": {"status": str, "mode?": str, "attempts?": int, "error?": str}}},
+    "deliberation?": {
+        "objections": [{"id": str, "from": str, "to": str, "point": str}],
+        "responses": [{"objection": str, "board": str}],
+        "agreed": [str], "open": [str], "decision_needed": str,
+    },
+    "blocker_resolutions?": {"*": _RESOLUTION},
+    "result?": {
+        "revision?": str, "pull_request?": str,
+        "criteria?": [{"criterion": str, "status": str}],
+        "checks?": [{"check": str, "status": str}],
+        "runs?": [{"tool": str, "outcomes": {"*": str}}],
+    },
+    "follows?": {"task": str, "brief": str, "status": str, "decision": _DECISION},
+    "authorizations?": [{"action": str, "target": str, "decision": str, "by": str, "reason": str}],
+    "dependency_alerts?": {"alerts?": [dict]},
+}
+_RESOLUTION_FIELDS = {"cleared": ("evidence", "supports"), "waived": ("reason", "scope", "until")}
+
+
+def _shape_problem(value: object, shape: object, field: str) -> str | None:
+    """Where value departs from shape (see _RECORD), named by its path such as review.boards[0].challenge."""
+    if isinstance(shape, tuple):
+        problems = [_shape_problem(value, option, field) for option in shape]
+        return None if None in problems else problems[-1]
+    if isinstance(shape, frozenset):
+        return None if value in shape else f"{field} must be one of {', '.join(sorted(shape))}"
+    if isinstance(shape, list):
+        if not isinstance(value, list):
+            return f"{field} must be a list"
+        problems = (_shape_problem(item, shape[0], f"{field}[{index}]") for index, item in enumerate(value))
+        return next((problem for problem in problems if problem), None)
+    if isinstance(shape, dict):
+        if not isinstance(value, dict):
+            return f"{field} must be an object"
+        for key, inner in shape.items():
+            if key == "*":
+                problems = (_shape_problem(item, inner, f"{field}.{name}") for name, item in value.items())
+            else:
+                name = key.rstrip("?")
+                if name not in value:
+                    if key.endswith("?"):
+                        continue
+                    return f"{field}.{name} is missing" if field else f"{name} is missing"
+                problems = iter([_shape_problem(value[name], inner, f"{field}.{name}" if field else name)])
+            problem = next((problem for problem in problems if problem), None)
+            if problem:
+                return problem
+        return None
+    if shape is int:
+        return None if type(value) is int else f"{field} must be a whole number"
+    if shape is str:
+        return None if isinstance(value, str) else f"{field} must be text"
+    return None if isinstance(value, shape) else f"{field} must be {'an object' if shape is dict else 'a list'}"
 
 
 def _record_problem(task: dict) -> str | None:
-    """Describe the first field of a task record that the CLI could not use, if any."""
+    """Describe the first field of a task record that the commands could not use, if any."""
     if not isinstance(task.get("brief"), str) or not task["brief"].strip():
         return "brief must be text"
     status = task.get("status")
-    if status not in STATUSES:
+    if not isinstance(status, str) or status not in STATUSES:
         return f"status must be one of {', '.join(STATUSES)}"
     rounds = task.get("rounds")
     if not isinstance(rounds, list) or any(not isinstance(entry, dict) for entry in rounds):
@@ -70,16 +166,13 @@ def _record_problem(task: dict) -> str | None:
     for field in STATUSES[status]:
         if field not in task:
             return f"a {status} task needs {field}"
-    for field in ("answers", "consultation", "review", "decision"):
-        if field in task and not isinstance(task[field], dict):
-            return f"{field} must be an object"
-    consultation = task.get("consultation")
-    if consultation is not None:
-        missing = [field for field in CONSULTATION_FIELDS if field not in consultation]
+    problem = _shape_problem(task, _RECORD, "")
+    if problem:
+        return problem
+    for blocker, resolution in task.get("blocker_resolutions", {}).items():
+        missing = [field for field in _RESOLUTION_FIELDS[resolution["kind"]] if field not in resolution]
         if missing:
-            return f"consultation needs {', '.join(missing)}"
-        if not isinstance(consultation["boards"], list) or not isinstance(consultation["markdown"], str):
-            return "consultation boards must be a list and markdown text"
+            return f"blocker_resolutions.{blocker}.{missing[0]} is missing"
     return None
 
 
@@ -196,10 +289,11 @@ def record_consultation(
     return result
 
 
-def record_review(task: dict, review: dict) -> dict:
+def record_review(task: dict, review: dict, root: Path | None = None) -> dict:
+    """Record the review; with the project root, the project files and tests it cites must exist."""
     if task["status"] != "consulting":
         raise ValueError("Run task consult before recording a review.")
-    review = validate_review(task["consultation"], review)
+    review = validate_review(task["consultation"], review, root)
     result = {**task, "status": "reviewed", "review": review}
     result.pop("passes", None)
     return result
@@ -216,25 +310,25 @@ def _passes(task: dict) -> dict:
 
 def start_pass(task: dict, board_id: str, mode: str) -> dict:
     """Mark a board's pass as started; starting again replaces a failed or interrupted pass."""
+    passes = _passes(task)
     if board_id not in task["consultation"]["boards"]:
         raise ValueError(f"Board {board_id!r} is not part of this consultation.")
     if mode not in ("subagent", "sequential"):
         raise ValueError("A pass runs as a subagent or in sequence.")
-    passes = _passes(task)
     previous = passes["boards"].get(board_id, {})
     passes["boards"][board_id] = {"status": "started", "mode": mode, "started_at": timestamp(),
                                   "attempts": previous.get("attempts", 0) + 1}
     return {**task, "passes": passes}
 
 
-def submit_pass(task: dict, entry: dict, mode: str | None = None) -> dict:
+def submit_pass(task: dict, entry: dict, mode: str | None = None, root: Path | None = None) -> dict:
     """Record one board's entry. An invalid entry is recorded as a failure to retry."""
     passes = _passes(task)
     board_id = entry.get("id") if isinstance(entry, dict) else None
     current = passes["boards"].get(board_id, {}) if isinstance(board_id, str) else {}
     mode = mode or current.get("mode", "sequential")
     try:
-        validated = validate_board_entry(task["consultation"], entry)
+        validated = validate_board_entry(task["consultation"], entry, root)
     except ValueError as error:
         if isinstance(board_id, str) and board_id in task["consultation"]["boards"]:
             passes["boards"][board_id] = {**current, "status": "failed", "mode": mode, "error": str(error),
@@ -362,6 +456,19 @@ def complete_task(task: dict, profile: dict) -> dict:
     if problems:
         raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(problems))
     return {**task, "status": "done", "completed_at": timestamp()}
+
+
+def points_left_open(task: dict, profile: dict) -> list[str]:
+    """What a completed task leaves for later: rules not passed, waived blockers, disagreements still open."""
+    mandatory = {check["id"] for check in expected_checks(task, profile) if check["mandatory"]}
+    points = [
+        f"{item['check']} is {item['status']}" for item in task.get("result", {}).get("checks", [])
+        if item["status"] != "passed" and item["check"] not in mandatory and item["status"] != "not-applicable"
+    ]
+    points += [f"blocker {item['id']} is waived until {item['resolution']['until']}"
+               for item in blocker_list(task) if item["resolution"] and item["resolution"]["kind"] == "waived"]
+    points += [f"disagreement {item_id} was left open" for item_id in task.get("deliberation", {}).get("open", [])]
+    return points
 
 
 def record_deliberation(task: dict, payload: dict) -> dict:

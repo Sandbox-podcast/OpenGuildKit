@@ -1,10 +1,10 @@
 """Load and validate OpenGuildKit's declarative knowledge catalog."""
 
+import copy
 import json
 import re
 import unicodedata
 from graphlib import CycleError, TopologicalSorter
-from importlib.resources import files
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlsplit
@@ -21,6 +21,8 @@ ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
 MIN_VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){0,3}")
 EXPORT_EXPIRY_ID = "export-link-expiry"
+# A method is preselected for its roles; a regulation only for its sectors or personal data.
+PATTERN_KINDS = ("method", "regulation")
 MAX_SAFE_INTEGER = (1 << 53) - 1
 # Query parameters that record how a visitor reached a page, never which page it is.
 TRACKING_PARAMETERS = frozenset({
@@ -62,7 +64,9 @@ def _validate_fields(
 def _validate_text(value: Any, label: str) -> None:
     if not isinstance(value, str) or not value.strip():
         raise CatalogError(f"{label} must be a non-empty string")
-    if any(unicodedata.category(character) in ("Cc", "Cs", "Zl", "Zp") for character in value):
+    # Printable text has no control, surrogate or line separator: only other text needs the slow check.
+    forbidden = ("Cc", "Cs", "Zl", "Zp")
+    if not value.isprintable() and any(unicodedata.category(character) in forbidden for character in value):
         raise CatalogError(f"{label} must be a single line of text without control characters")
 
 
@@ -162,12 +166,20 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
             _validate_id(reference_id, "references entry")
         if len(set(pattern["references"])) != len(pattern["references"]):
             raise CatalogError("references contains duplicate IDs")
+    if pattern.get("kind", "method") not in PATTERN_KINDS:
+        raise CatalogError(f"kind must be one of {', '.join(PATTERN_KINDS)}")
     if "match" not in pattern:
         return
     match = pattern["match"]
-    _validate_fields(match, "match", {"stack"}, {"sectors", "min_versions"})
-    _validate_list(match["stack"], "match.stack")
-    for group in match["stack"]:
+    _validate_fields(match, "match", set(), {"stack", "sectors", "min_versions", "personal_data"})
+    if not match.keys() & {"stack", "sectors", "personal_data"}:
+        raise CatalogError("match needs a stack, sectors or personal_data")
+    if "personal_data" in match and match["personal_data"] is not True:
+        raise CatalogError("match.personal_data must be true; omit it otherwise")
+    if "min_versions" in match and "stack" not in match:
+        raise CatalogError("match.min_versions needs a match.stack")
+    _validate_list(match.get("stack", []), "match.stack", allow_empty="stack" not in match)
+    for group in match.get("stack", []):
         _validate_list(group, "technology aliases")
         for alias in group:
             _validate_text(alias, "technology alias")
@@ -217,7 +229,7 @@ def _validate_entry(collection: str, entry: Any) -> None:
     required = ENTRY_FIELDS | COLLECTION_FIELDS[collection]
     optional = {
         "packs": {"depends_on", "conflicts_with"},
-        "patterns": {"match", "exclusive_group", "references"},
+        "patterns": {"match", "exclusive_group", "references", "kind"},
         "boards": {"review"},
     }.get(collection)
     _validate_fields(entry, "record", required, optional)
@@ -323,42 +335,86 @@ def _validate_dependencies(packs: dict[str, dict[str, Any]]) -> None:
         raise CatalogError(f"pack dependency cycle: {' -> '.join(exc.args[1])}") from exc
 
 
+def package_file(*parts: str):
+    """A file or folder shipped in the package: a plain path, unless the package is installed inside an archive.
+
+    importlib.resources takes longer to import than most commands need, so it serves only that rare case.
+    """
+    package = Path(__file__).parent
+    if package.joinpath("registry").is_dir():
+        return package.joinpath(*parts)
+    from importlib.resources import files
+
+    return files("openguildkit").joinpath(*parts)
+
+
+def _registry():
+    return package_file("registry")
+
+
+def _read_records(collection: str, directory, entries: dict, bundled: bool, overlays: list) -> None:
+    """Validate the record files of one folder and add them to entries."""
+    for path in sorted(directory.iterdir(), key=lambda item: item.name):
+        if not path.name.endswith(".json"):
+            continue
+        try:
+            entry = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=_unique_fields)
+            entry, overlay = _load_entry(collection, path, entry, entries, bundled)
+        except RecursionError as exc:
+            raise CatalogError(f"{path}: JSON nested too deeply") from exc
+        except (OSError, ValueError) as exc:
+            raise CatalogError(f"{path}: {exc}") from exc
+        entries[entry["id"]] = entry
+        if overlay:
+            overlays.append(entry["id"])
+
+
+def _read_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
+    """Read and validate the records that ship with OpenGuildKit, by collection."""
+    bundled = {}
+    for collection in COLLECTION_FIELDS:
+        directory = builtin.joinpath(collection)
+        if not directory.is_dir():
+            raise CatalogError(f"{directory} must be a directory")
+        entries: dict[str, dict[str, Any]] = {}
+        _read_records(collection, directory, entries, True, [])
+        if not entries:
+            raise CatalogError(f"{directory} has no bundled records")
+        bundled[collection] = entries
+    return bundled
+
+
+# Bundled records already validated in this process, by registry folder. They ship with the code that is
+# running, so they cannot change during a command; project records are read again on every load.
+_BUNDLED: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
+
+
+def _bundled_records(builtin) -> dict[str, dict[str, dict[str, Any]]]:
+    """A copy of the validated bundled records, read and validated once per process."""
+    key = str(builtin)
+    if key not in _BUNDLED:
+        _BUNDLED[key] = _read_bundled(builtin)
+    return copy.deepcopy(_BUNDLED[key])
+
+
 def load_catalog(
     extra_dir: Path | None = None, *, central_policy: tuple[str, dict] | None = None
 ) -> dict[str, dict[str, dict[str, Any]]]:
     """Load bundled records and optional project additions, ordered by ID."""
-    builtin = files("openguildkit").joinpath("registry")
-    roots = [builtin]
-    if extra_dir is not None and extra_dir.exists():
-        if not extra_dir.is_dir():
-            raise CatalogError(f"{extra_dir} must be a directory")
-        roots.append(extra_dir)
+    bundled = _bundled_records(_registry())
+    if extra_dir is not None and extra_dir.exists() and not extra_dir.is_dir():
+        raise CatalogError(f"{extra_dir} must be a directory")
+    project = extra_dir if extra_dir is not None and extra_dir.is_dir() else None
 
     catalog: dict[str, dict[str, dict[str, Any]]] = {}
     overlays: list[str] = []
     for collection in COLLECTION_FIELDS:
-        entries = {}
-        for root in roots:
-            directory = root.joinpath(collection)
-            if not directory.is_dir():
-                if root == builtin or directory.is_file():
-                    raise CatalogError(f"{directory} must be a directory")
-                continue
-            for path in sorted(directory.iterdir(), key=lambda item: item.name):
-                if not path.name.endswith(".json"):
-                    continue
-                try:
-                    entry = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=_unique_fields)
-                    entry, overlay = _load_entry(collection, path, entry, entries, root == builtin)
-                except RecursionError as exc:
-                    raise CatalogError(f"{path}: JSON nested too deeply") from exc
-                except (OSError, ValueError) as exc:
-                    raise CatalogError(f"{path}: {exc}") from exc
-                entries[entry["id"]] = entry
-                if overlay:
-                    overlays.append(entry["id"])
-            if root == builtin and not entries:
-                raise CatalogError(f"{directory} has no bundled records")
+        entries = bundled[collection]
+        directory = project.joinpath(collection) if project is not None else None
+        if directory is not None and directory.is_dir():
+            _read_records(collection, directory, entries, False, overlays)
+        elif directory is not None and directory.is_file():
+            raise CatalogError(f"{directory} must be a directory")
         catalog[collection] = dict(sorted(entries.items()))
 
     if central_policy is not None:

@@ -1,10 +1,14 @@
 """Scope project work and prepare board consultations for the host agent."""
 
 from copy import deepcopy
+from datetime import date, timedelta
 import json
+from pathlib import Path
 import re
 import unicodedata
 from uuid import uuid4
+
+from . import clock
 
 
 AGENT_WORKFLOW = """## OpenGuildKit task workflow
@@ -132,8 +136,8 @@ def _choice_question(question_id: str, prompt: str, choices) -> dict:
 
 def _follow_up_questions(answers: dict) -> list[dict]:
     """Questions that depend on the kind and impact of the change."""
-    kind = answers.get("kind")
-    surfaces = _as_list(answers.get("surface"))
+    kind = answers.get("kind") if isinstance(answers.get("kind"), str) else None
+    surfaces = [item for item in _as_list(answers.get("surface")) if isinstance(item, str)]
     questions = []
     outcome_prompts = {
         "feature": "What observable result shows that the feature works?",
@@ -609,8 +613,8 @@ def _consultation_markdown(
         control = next((item for item in scope.get("host_controls", []) if item["id"] == "research"), None)
         if control and control["status"] != "enforced":
             research += (
-                " The host agent does not block public research for this project: do not search, "
-                "and ask the requester before using any external source."
+                " Public research is off for this project and this host agent has no setting that enforces it: "
+                "do not search, and ask the requester before using any external source."
             )
 
     lines = [
@@ -776,6 +780,7 @@ def consult(
             "boards": [
                 _board_template(catalog["boards"][board_id], delegations.get(board_id)) for board_id in routing
             ],
+            "evidence_item": EVIDENCE_ITEM,
         },
     }
     if selected["adjustments"]:
@@ -806,14 +811,51 @@ _DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _REVISION = re.compile(r"[0-9a-f]{7,64}")
 
 
+EVIDENCE_ITEM = {
+    "source": " | ".join(EVIDENCE_SOURCES), "ref": "project path, document title, https link or TOOL:RECORD",
+    "supports": "what it establishes", "date": "YYYY-MM-DD, for public, measurement and interview (optional otherwise)",
+    "revision": "commit SHA (optional)",
+}
+_LOCATION = re.compile(r"(?:::.*|#.*|:\d+(?:-\d+)?)$")
+
+
+def _evidence_day(value: object, field: str) -> str:
+    """A real YYYY-MM-DD date that is not in the future (one day of margin for time zones)."""
+    if not isinstance(value, str) or not _DATE.fullmatch(value):
+        raise ValueError(f"{field}: date must be written YYYY-MM-DD.")
+    try:
+        day = date.fromisoformat(value)
+    except ValueError:
+        raise ValueError(f"{field}: date {value} is not a real date. Write it YYYY-MM-DD.") from None
+    if day > clock.today() + timedelta(days=1):
+        raise ValueError(f"{field}: date {value} is in the future. Write the day the evidence was observed.")
+    return value
+
+
+def _project_path(ref: str, field: str, root: Path) -> None:
+    """A project file or test cited as evidence exists in the project, with an optional :LINE, #anchor or ::test."""
+    if ref.startswith(("https://", "market:", "storybook:")):
+        return
+    project = root.resolve()
+    path = (project / _LOCATION.sub("", ref)).resolve()
+    if not path.exists() or (path != project and project not in path.parents):
+        raise ValueError(
+            f"{field}: {ref} is not a file or folder of the project. Cite a path relative to the project root, "
+            "optionally followed by :LINE."
+        )
+
+
 def _evidence_item(
     item: object, field: str, market_refs: frozenset = frozenset(), storybook_refs: frozenset = frozenset(),
-    tool_ids: frozenset = frozenset(),
+    tool_ids: frozenset = frozenset(), root: Path | None = None,
 ) -> dict:
     """An evidence item says where it comes from, what it supports and how to find it again."""
     if not isinstance(item, dict) or not {"source", "ref", "supports"} <= item.keys() \
             or not item.keys() <= {"source", "ref", "supports", "date", "revision"}:
-        raise ValueError(f"{field}: each item needs source, ref and supports, and can add date or revision.")
+        raise ValueError(
+            f"{field}: each item is an object with source, ref and supports, and can add date or revision, "
+            f"as in the template's evidence_item."
+        )
     source = item["source"]
     if source not in EVIDENCE_SOURCES:
         raise ValueError(f"{field}: source must be one of {', '.join(EVIDENCE_SOURCES)}.")
@@ -832,10 +874,10 @@ def _evidence_item(
             )
     if source == "public" and not result["ref"].startswith(("https://", "market:")):
         raise ValueError(f"{field}: a public source needs an https link in ref.")
+    if root is not None and source in ("project-file", "test"):
+        _project_path(result["ref"], field, root)
     if "date" in item:
-        if not isinstance(item["date"], str) or not _DATE.fullmatch(item["date"]):
-            raise ValueError(f"{field}: date must be written YYYY-MM-DD.")
-        result["date"] = item["date"]
+        result["date"] = _evidence_day(item["date"], field)
     if "revision" in item:
         if not isinstance(item["revision"], str) or not _REVISION.fullmatch(item["revision"]):
             raise ValueError(f"{field}: revision must be a commit SHA.")
@@ -872,14 +914,14 @@ def storybook_references(scope: dict) -> frozenset:
 
 def _evidence_list(
     value: object, field: str, structured: bool, market_refs: frozenset = frozenset(),
-    storybook_refs: frozenset = frozenset(), tool_ids: frozenset = frozenset(),
+    storybook_refs: frozenset = frozenset(), tool_ids: frozenset = frozenset(), root: Path | None = None,
 ) -> list:
     """Reviews made before structured evidence keep their text items."""
     if not structured:
         return _text_list(value, field)
     if not isinstance(value, list):
         raise ValueError(f"{field} must be a list.")
-    return [_evidence_item(item, field, market_refs, storybook_refs, tool_ids) for item in value]
+    return [_evidence_item(item, field, market_refs, storybook_refs, tool_ids, root) for item in value]
 
 
 def _blocker(item: object, board_id: str) -> dict:
@@ -966,8 +1008,11 @@ def _validate_challenge(
 EXECUTION_MODES = ("subagents", "sequential", "mixed", "unspecified")
 
 
-def validate_board_entry(consultation: dict, entry: object) -> dict:
-    """Validate one board's review entry against the consultation's template."""
+def validate_board_entry(consultation: dict, entry: object, root: Path | None = None) -> dict:
+    """Validate one board's review entry against the consultation's template.
+
+    With the project root, at recording time, a cited project file or test must exist.
+    """
     if not isinstance(entry, dict):
         raise ValueError("A board review must be a JSON object.")
     board_id = _text(entry.get("id"), "Board ID")
@@ -988,7 +1033,7 @@ def validate_board_entry(consultation: dict, entry: object) -> dict:
         "evidence": _evidence_list(
             entry["evidence"], f"{board_id} evidence", consultation.get("evidence_format") == "structured",
             market_references(consultation.get("scope", {})), storybook_references(consultation.get("scope", {})),
-            tool_references(consultation.get("scope", {})),
+            tool_references(consultation.get("scope", {})), root,
         ),
         "open_questions": _text_list(entry["open_questions"], f"{board_id} open questions"),
     }
@@ -1002,10 +1047,11 @@ def validate_board_entry(consultation: dict, entry: object) -> dict:
     return result
 
 
-def validate_review(consultation: dict, review: dict) -> dict:
-    """Require a recommendation for every board in the recorded consultation."""
+def validate_review(consultation: dict, review: dict, root: Path | None = None) -> dict:
+    """Require a recommendation for every board in the recorded consultation; report every board's problems at once."""
+    allowed = {"consultation_id", "summary", "boards", "execution", "warnings", "evidence_item"}
     if not isinstance(review, dict) or not {"consultation_id", "summary", "boards"} <= review.keys() \
-            or not review.keys() <= {"consultation_id", "summary", "boards", "execution", "warnings"}:
+            or not review.keys() <= allowed:
         raise ValueError("A review must contain consultation_id, summary and boards. Run task template.")
     execution = review.get("execution", "unspecified")
     if execution not in EXECUTION_MODES:
@@ -1017,16 +1063,24 @@ def validate_review(consultation: dict, review: dict) -> dict:
         raise ValueError("Review boards must be a list.")
 
     selected = consultation["boards"]
-    found = {}
+    found, problems = {}, []
     for entry in review["boards"]:
-        result = validate_board_entry(consultation, entry)
+        try:
+            result = validate_board_entry(consultation, entry, root)
+        except ValueError as error:
+            problems.append(str(error))
+            continue
         if result["id"] in found:
-            raise ValueError(f"Provide one review for board {result['id']!r}.")
+            problems.append(f"Provide one review for board {result['id']!r}.")
         found[result["id"]] = result
 
     missing = [board_id for board_id in selected if board_id not in found]
-    if missing:
-        raise ValueError(f"Board reviews are missing for {', '.join(missing)}.")
+    if missing and not problems:
+        problems.append(f"Board reviews are missing for {', '.join(missing)}.")
+    if len(problems) == 1:
+        raise ValueError(problems[0])
+    if problems:
+        raise ValueError(f"The review has {len(problems)} problems:\n- " + "\n- ".join(problems))
     validated = {
         "consultation_id": consultation["id"],
         "summary": summary,
@@ -1103,6 +1157,10 @@ def board_brief(consultation: dict, board_id: str) -> str:
             "",
             _json_section(template),
             "",
+            "Write each evidence item in this shape:",
+            "",
+            _json_section(EVIDENCE_ITEM),
+            "",
         ]
     )
 
@@ -1111,10 +1169,22 @@ OBJECTING_VERDICTS = ("revise", "block", "insufficient-evidence")
 POSITIONS = ("maintain", "concede", "amend")
 
 
+# Which verdicts each objecting verdict challenges: every objection challenges a board that would proceed,
+# and a board that blocks also challenges a board that only asks to revise, on the point of its blockers.
+CHALLENGED = {"revise": ("proceed",), "insufficient-evidence": ("proceed",), "block": ("proceed", "revise")}
+# Why two different verdicts meet in no objection, for the decision brief.
+UNCONFRONTED = {
+    frozenset({"revise", "insufficient-evidence"}): "both hold the work back and neither has a position to defend "
+                                                    "against the other",
+    frozenset({"block", "insufficient-evidence"}): "a board without enough evidence has no position to defend "
+                                                   "against a blocker",
+}
+
+
 def objections(review: dict) -> list[dict]:
-    """Each board that asks to revise, block or gather evidence objects to each board that would proceed."""
+    """Each board that asks to revise, block or gather evidence objects to each board that would proceed;
+    a board that blocks also objects to each board that asks to revise."""
     entries = [entry for entry in review["boards"] if "challenge" in entry]
-    proceeding = [entry for entry in entries if entry["challenge"]["verdict"] == "proceed"]
     result = []
     for objector in entries:
         challenge = objector["challenge"]
@@ -1122,16 +1192,36 @@ def objections(review: dict) -> list[dict]:
             continue
         findings = [item["finding"] if isinstance(item, dict) else item for item in challenge["blockers"]]
         point = "; ".join(findings) or challenge["failure_mode"]
-        for responder in proceeding:
+        for responder in entries:
+            verdict = responder["challenge"]["verdict"]
+            if verdict not in CHALLENGED[challenge["verdict"]]:
+                continue
             result.append({
                 "id": f"{objector['id']}-to-{responder['id']}",
                 "from": objector["id"],
                 "to": responder["id"],
                 "point": point,
                 "from_position": f"{challenge['verdict']}: {objector['recommendation']}",
-                "to_position": f"proceed: {responder['recommendation']}",
+                "to_position": f"{verdict}: {responder['recommendation']}",
             })
     return result
+
+
+def unconfronted_verdicts(review: dict) -> list[str]:
+    """Pairs of different verdicts that no objection confronts, each with the reason."""
+    boards = {}
+    for entry in review["boards"]:
+        if "challenge" in entry:
+            boards.setdefault(entry["challenge"]["verdict"], []).append(entry["id"])
+    lines = []
+    for pair, reason in UNCONFRONTED.items():
+        first, second = sorted(pair, key=("revise", "block", "insufficient-evidence").index)
+        if first in boards and second in boards:
+            lines.append(
+                f"Verdicts differ without a confrontation: {first} ({', '.join(boards[first])}) and {second} "
+                f"({', '.join(boards[second])}). No objection asks them to answer each other, because {reason}."
+            )
+    return lines
 
 
 def deliberation_request(task: dict) -> dict:
@@ -1168,13 +1258,15 @@ def validate_deliberation(task: dict, payload: dict) -> dict:
     for response in payload["responses"]:
         if not isinstance(response, dict) or response.keys() != {"objection", "board", "position", "response", "evidence_refs"}:
             raise ValueError("Each response needs objection, board, position, response and evidence_refs.")
+        if not isinstance(response["objection"], str) or not isinstance(response["board"], str):
+            raise ValueError("objection and board are written as text, as in the template of task deliberate.")
         item = items.get(response["objection"])
         if item is None or response["board"] not in (item["from"], item["to"]):
             raise ValueError(f"Unknown objection or board in response: {response.get('objection')}/{response.get('board')}.")
         key = (response["objection"], response["board"])
         if key in responses:
             raise ValueError(f"Repeated response for {key[0]} by {key[1]}.")
-        if response["position"] not in POSITIONS:
+        if not isinstance(response["position"], str) or response["position"] not in POSITIONS:
             raise ValueError("position must be maintain, concede or amend.")
         references = response["evidence_refs"]
         board_evidence = evidence[response["board"]]
@@ -1275,7 +1367,7 @@ def _blocker_lines(task: dict) -> list[str]:
 def decision_summary(task: dict) -> list[str]:
     """What the person approving must see before deciding, as plain lines."""
     review = validate_review(task["consultation"], task["review"])
-    lines = verdict_lines(review)
+    lines = verdict_lines(review) + unconfronted_verdicts(review)
     lines += [f"Review warning: {warning}" for warning in review.get("warnings", [])]
     lines += _board_change_lines(task)
     lines += [f"Open point: {point}" for point in task["consultation"]["scope"].get("open_points", [])]
@@ -1374,9 +1466,9 @@ def handoff(task: dict) -> str:
         heading = "# Approved decision record"
         instruction = (
             "Report this decision and its review to the user. Leave the project files "
-            "unchanged. To act on the decision, open a new task with "
-            f"`openguildkit task new BRIEF`, cite decision `{task['id']}` in its brief and "
-            "get that task's scope approved before implementing it."
+            "unchanged. To act on the decision, open a follow-up task with "
+            f"`openguildkit task new \"BRIEF\" --follows {task['id']}`, which records the link and carries this "
+            "decision into its consultation, and get that task's scope approved before implementing it."
         )
     else:
         heading = "# Approved task handoff"

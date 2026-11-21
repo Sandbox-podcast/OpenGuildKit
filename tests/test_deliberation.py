@@ -17,11 +17,21 @@ class DeliberationTests(unittest.TestCase):
         catalog = load_catalog()
         profile = resolved_profile(validate_profile(json.loads((EXAMPLE / "profile.json").read_text()), catalog), catalog)
         answers = json.loads((EXAMPLE / "answers.json").read_text())
-        task = {"id": "request-status", "brief": (EXAMPLE / "brief.md").read_text(), "answers": answers,
-                "status": "consulting", "rounds": []}
-        consultation = consult(profile, catalog, task)
-        review = {"consultation_id": consultation["id"], **json.loads((EXAMPLE / "review.json").read_text())}
-        self.task = record_review({**task, "consultation": consultation}, review)
+        self.draft = {"id": "request-status", "brief": (EXAMPLE / "brief.md").read_text(), "answers": answers,
+                      "status": "consulting", "rounds": []}
+        self.consultation = consult(profile, catalog, self.draft)
+        self.task = self.reviewed()
+
+    def reviewed(self, verdicts=None):
+        """The example review, with some boards' verdicts changed; a block carries one blocker."""
+        review = {"consultation_id": self.consultation["id"], **json.loads((EXAMPLE / "review.json").read_text())}
+        for entry in review["boards"]:
+            verdict = (verdicts or {}).get(entry["id"])
+            if verdict:
+                blockers = [{"finding": f"{entry['id']} finds no rate limit on exports.", "owner": "Security lead",
+                             "clears_when": "A limit exists."}] if verdict == "block" else []
+                entry["challenge"].update(verdict=verdict, blockers=blockers)
+        return record_review({**self.draft, "consultation": self.consultation}, review)
 
     def responses(self):
         request = deliberation_request(self.task)
@@ -78,6 +88,51 @@ class DeliberationTests(unittest.TestCase):
         with unittest.mock.patch("openguildkit.workflow.validate_review", return_value=review):
             items = deliberation_request(task)["objections"]
         self.assertEqual(next(item for item in items if item["from"] == "security")["point"], "No rate limit on exports.")
+
+    def test_a_board_that_blocks_confronts_a_board_that_asks_to_revise_on_its_blocker(self):
+        """Issue 129: Product said revise and Security block, and their opinions never met."""
+        task = self.reviewed({"product": "revise", "security": "block"})
+        request = deliberation_request(task)
+        item = next(item for item in request["objections"] if item["id"] == "security-to-product")
+        self.assertEqual(item["point"], "security finds no rate limit on exports.")
+        self.assertTrue(item["from_position"].startswith("block: "))
+        self.assertTrue(item["to_position"].startswith("revise: "))
+        self.assertNotIn("product-to-security", [entry["id"] for entry in request["objections"]])
+        payload = copy.deepcopy(request["template"])
+        boards = {r["board"] for r in payload["responses"] if r["objection"] == "security-to-product"}
+        self.assertEqual(boards, {"security", "product"})
+        for response in payload["responses"]:
+            concede = response["objection"] == "security-to-product" and response["board"] == "product"
+            response.update(position="concede" if concede else "maintain", response="On the rate limit: agreed.",
+                            evidence_refs=[] if concede else [1])
+        payload["decision_needed"] = "Decide on the remaining objections."
+        self.assertIn("security-to-product", record_deliberation(task, payload)["deliberation"]["agreed"])
+
+    def test_boards_that_all_give_the_same_verdict_have_no_objection(self):
+        for verdict in ("revise", "block", "proceed"):
+            with self.subTest(verdict=verdict):
+                verdicts = {board: verdict for board in self.consultation["boards"]}
+                if verdict == "proceed":
+                    verdicts = {board: "proceed" for board in ("engineering", "design", "security")}
+                    verdicts["marketing"] = None
+                task = self.reviewed(verdicts)
+                if verdict == "proceed":
+                    task["review"]["boards"] = [e for e in task["review"]["boards"] if e["id"] != "marketing"]
+                    task = {**task, "consultation": {**task["consultation"], "boards": [
+                        b for b in task["consultation"]["boards"] if b != "marketing"]}}
+                self.assertEqual(deliberation_request(task)["objections"], [])
+                with self.assertRaisesRegex(ValueError, "nothing to deliberate"):
+                    record_deliberation(task, deliberation_request(task)["template"])
+                self.assertNotIn("Verdicts differ", challenge_report(task))
+
+    def test_the_brief_says_when_verdicts_differ_without_a_confrontation_and_why(self):
+        brief = challenge_report(self.task)
+        self.assertIn("Verdicts differ without a confrontation: revise (engineering, design, security) and "
+                      "insufficient-evidence (marketing). No objection asks them to answer each other, because both "
+                      "hold the work back", brief)
+        blocked = challenge_report(self.reviewed({"security": "block"}))
+        self.assertIn("block (security) and insufficient-evidence (marketing)", blocked)
+        self.assertNotIn("revise (engineering, design) and block", blocked)
 
     def test_without_deliberation_the_brief_lists_open_objections(self):
         self.assertIn("objections_not_deliberated", challenge_report(self.task))

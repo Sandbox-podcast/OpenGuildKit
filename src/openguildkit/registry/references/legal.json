@@ -15,7 +15,8 @@
       "summary": "Fixe les obligations des services intermédiaires en ligne : signalement des contenus illicites, motivation des décisions de modération et transparence.",
       "applies_when": "Pour un service d'hébergement ou une plateforme accessible dans l'UE ; les obligations dépendent de la catégorie du service.",
       "packs": [
-        "notice-and-action"
+        "notice-and-action",
+        "online-consumer-sales"
       ],
       "sources": [
         {
@@ -54,6 +55,9 @@
       ],
       "summary": "Encadre l'information précontractuelle et le droit de rétractation pour les contrats conclus à distance avec des consommateurs.",
       "applies_when": "Pour la vente en ligne aux consommateurs ; vérifier les règles nationales et les exceptions applicables aux contenus numériques.",
+      "packs": [
+        "online-consumer-sales"
+      ],
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/dir/2011/83/oj",

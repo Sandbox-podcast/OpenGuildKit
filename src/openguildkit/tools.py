@@ -13,10 +13,9 @@ import json
 import os
 import re
 import tomllib
-from importlib.resources import files
 from pathlib import Path
 
-from .catalog import CatalogError, _unique_fields
+from .catalog import CatalogError, _unique_fields, package_file
 from .detect import MAX_MANIFEST_BYTES, SKIPPED_DIRECTORIES
 from .mcp_mock import validate_mock
 from .storage import json_text, read_json, write_json, write_text
@@ -187,7 +186,7 @@ def _endpoint(server: dict) -> tuple:
 
 def load_tools(extra_dir: Path | None = None) -> dict[str, dict]:
     """Every known tool by ID, with its category. A project can add its own in .openguildkit/catalog/tools/."""
-    roots = [files("openguildkit").joinpath("registry", "tools")]
+    roots = [package_file("registry", "tools")]
     if extra_dir is not None and extra_dir.is_dir():
         roots.append(extra_dir)
     tools, endpoints = {}, {}
@@ -229,7 +228,7 @@ def load_mock(tool_id: str, extra_dir: Path | None = None) -> dict:
     """The mock file of a tool: bundled, or the project's own in .openguildkit/catalog/tool-mocks/."""
     if not _ID.fullmatch(tool_id):
         raise ValueError("Use a tool ID of lowercase letters, digits and hyphens.")
-    candidates = [files("openguildkit").joinpath("registry", "tool-mocks", f"{tool_id}.json")]
+    candidates = [package_file("registry", "tool-mocks", f"{tool_id}.json")]
     if extra_dir is not None:
         candidates.insert(0, extra_dir / f"{tool_id}.json")
     for path in candidates:
@@ -242,7 +241,7 @@ def load_mock(tool_id: str, extra_dir: Path | None = None) -> dict:
 
 
 def mock_ids(extra_dir: Path | None = None) -> list[str]:
-    roots = [files("openguildkit").joinpath("registry", "tool-mocks")]
+    roots = [package_file("registry", "tool-mocks")]
     if extra_dir is not None and extra_dir.is_dir():
         roots.append(extra_dir)
     return sorted({path.name[:-5] for root in roots if root.is_dir() for path in root.iterdir() if path.name.endswith(".json")})
@@ -522,9 +521,9 @@ def _write_host(root: Path, host: str, connections: list[dict], removed: set[str
             try:
                 data = json.loads(path.read_text(encoding="utf-8-sig"))
             except ValueError as error:
-                raise ValueError(f"{path} is not valid JSON: {error}") from error
+                raise ValueError(f"{path.as_posix()} is not valid JSON: {error}") from error
         if not isinstance(data, dict) or not isinstance(data.setdefault("mcpServers", {}), dict):
-            raise ValueError(f"{path} must hold a JSON object with mcpServers.")
+            raise ValueError(f"{path.as_posix()} must hold a JSON object with mcpServers.")
         servers = data["mcpServers"]
         for key in removed:
             servers.pop(key, None)
@@ -538,7 +537,7 @@ def _write_host(root: Path, host: str, connections: list[dict], removed: set[str
     try:
         own = tomllib.loads(before + after)
     except tomllib.TOMLDecodeError as error:
-        raise ValueError(f"{path} is not valid TOML: {error}") from error
+        raise ValueError(f"{path.as_posix()} is not valid TOML: {error}") from error
     taken = own.get("mcp_servers", {}) if isinstance(own.get("mcp_servers", {}), dict) else {}
     clash = sorted(set(managed) & set(taken))
     if clash:
