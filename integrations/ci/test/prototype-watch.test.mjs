@@ -112,6 +112,26 @@ test('the prototype reapplies a changed scope to a completed policy batch', t =>
   assert.deepEqual(report.targets.map(({ repo, number, commit }) => ({ repo, number, commit })), targets);
 });
 
+test('the prototype clears prior dispatch state when the policy changes', t => {
+  const previous = {
+    policyCommit: 'f'.repeat(40),
+    pullRequests: config.pullRequests,
+    done: true,
+    targets: targets.map(target => ({
+      ...target,
+      result: { policyCommit: 'f'.repeat(40), version: 6, state: 'success', maxMinutes: 30 },
+      githubRun: { id: '99', url: `https://github.com/${target.repo}/actions/runs/99` },
+      jenkinsPublished: true,
+    })),
+  };
+  const run = runWatcher(t, config, { previous });
+  assert.equal(run.status, 1, run.stderr);
+  assert.equal(run.stderr, '');
+  const report = JSON.parse(run.stdout);
+  assert.deepEqual(report.targets.map(({ result }) => result.policyCommit), [policyCommit, policyCommit]);
+  assert.deepEqual(report.targets.map(({ result }) => result.version), [rule.version, rule.version]);
+});
+
 test('the prototype rejects a scope that omits a watched repository', t => {
   const run = runWatcher(t, { ...config, pullRequests: { [repositories[0]]: [1] } });
   assert.equal(run.status, 1);

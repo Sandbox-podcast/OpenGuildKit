@@ -86,7 +86,10 @@ function currentTargets() {
 }
 
 const previousTargets = new Map((previous.targets ?? []).map(target => [targetKey(target), target]));
-const targets = previous.policyCommit !== policyCommit || scopeChanged
+const policyChanged = previous.policyCommit !== policyCommit;
+const targets = policyChanged
+  ? currentTargets()
+  : scopeChanged
   ? currentTargets().map(target => {
     const previousTarget = previousTargets.get(targetKey(target));
     return previousTarget?.commit === target.commit ? previousTarget : target;
