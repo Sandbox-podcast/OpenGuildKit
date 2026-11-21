@@ -46,6 +46,18 @@ class CitationTests(unittest.TestCase):
         cls.catalog = load_catalog()
         cls.citations = check_links.collect_citations(cls.catalog, load_references())
 
+    def test_the_tool_registry_sources_are_checked_too(self):
+        from openguildkit.tools import load_tools
+
+        tools = load_tools()
+        citations = check_links.collect_citations(self.catalog, load_references(), tools)
+        server = tools["jira"]["servers"][0]
+        cited = [entry for entry in citations[server["source"]] if entry["collection"] == "tools"]
+        self.assertIn({"collection": "tools", "id": "jira", "server": server["id"]}, cited)
+        self.assertIn("tools/jira, server " + server["id"], [check_links._citation(entry) for entry in cited])
+        self.assertIn(tools["gryzzly"]["api"]["docs"], citations)
+        self.assertFalse([url for url in citations if not url.startswith("https://")])
+
     def test_every_bundled_source_is_indexed_with_the_records_citing_it(self):
         for collection in ("packs", "patterns", "boards", "sectors"):
             for record in self.catalog[collection].values():

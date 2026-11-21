@@ -1,0 +1,100 @@
+{
+  "tool": "obscura",
+  "instructions": "Mock of a browser an agent can drive. It serves one fictional page of the Acme Support Portal. No real browser opens.",
+  "tools": [
+    {
+      "name": "browser_navigate",
+      "description": "Open a URL. Returns the status and the title of the page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {"url": {"type": "string", "description": "Address to open"}},
+        "required": ["url"]
+      },
+      "responses": [
+        {
+          "when": {"url": "127.0.0.1:8000/requests/1001"},
+          "result": {
+            "status": 200,
+            "title": "Support Portal - Request 1001",
+            "url": "http://127.0.0.1:8000/requests/1001"
+          }
+        },
+        {
+          "when": {"url": "127.0.0.1:8000/requests"},
+          "result": {
+            "status": 200,
+            "title": "Support Portal - My requests",
+            "url": "http://127.0.0.1:8000/requests"
+          }
+        },
+        {
+          "error": "Not found (404): this mock only knows http://127.0.0.1:8000/requests and a request page under it."
+        }
+      ]
+    },
+    {
+      "name": "browser_snapshot",
+      "description": "Get a text snapshot of the current page, like an accessibility tree.",
+      "read_only": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "selector": {"type": "string", "description": "Optional element name to keep, for example button"}
+        }
+      },
+      "responses": [
+        {"when": {"selector": "button"}, "result": {"snapshot": "- button 'Export CSV' [ref=e12]\n"}},
+        {
+          "result": {
+            "snapshot": "page 'Support Portal - My requests' (http://127.0.0.1:8000/requests)\n- heading 'My requests' [level=1]\n- button 'Export CSV' [ref=e12]\n- textbox 'Filter requests' [ref=e14]\n- table 'Requests'\n  - row 'SUP-1001 Login code not received - Open - 2026-11-17'\n  - row 'SUP-1002 Invoice question - Solved - 2026-11-10'\n- link 'Next page' [ref=e20]\n"
+          }
+        }
+      ]
+    },
+    {
+      "name": "browser_click",
+      "description": "Click an element named in the snapshot. Returns what happened.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {"element": {"type": "string", "description": "Name of the element, for example Export CSV"}},
+        "required": ["element"]
+      },
+      "responses": [
+        {
+          "when": {"element": "Export CSV"},
+          "result": {
+            "clicked": "Export CSV",
+            "result": "A download started.",
+            "file": "requests-2026-11-21.csv",
+            "bytes": 2048
+          }
+        },
+        {
+          "when": {"element": "Next page"},
+          "result": {
+            "clicked": "Next page",
+            "result": "The list moved to page 2.",
+            "url": "http://127.0.0.1:8000/requests?page=2"
+          }
+        },
+        {"error": "No element with that name on the page."}
+      ]
+    },
+    {
+      "name": "browser_screenshot",
+      "description": "Take a screenshot of the current page. Returns a file name and size, no image data.",
+      "read_only": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {"full_page": {"type": "boolean", "description": "Capture the whole page when true"}}
+      },
+      "responses": [
+        {
+          "when": {"full_page": true},
+          "result": {"file": "screenshot-full-001.png", "width": 1280, "height": 1900, "bytes": 184320}
+        },
+        {"result": {"file": "screenshot-001.png", "width": 1280, "height": 800, "bytes": 96256}}
+      ]
+    }
+  ]
+}

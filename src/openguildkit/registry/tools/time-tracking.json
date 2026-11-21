@@ -1,0 +1,192 @@
+{
+  "id": "time-tracking",
+  "title": "Time tracking",
+  "tools": [
+    {
+      "id": "clockify",
+      "title": "Clockify",
+      "vendor": "CAKE.com",
+      "summary": "Time tracking and timesheets with projects, clients and reports.",
+      "homepage": "https://clockify.me",
+      "brains": [
+        "project-management",
+        "operations",
+        "finance"
+      ],
+      "servers": [
+        {
+          "id": "clockify-remote",
+          "name": "Clockify MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Clockify",
+          "transport": "streamable-http",
+          "url": "https://api.clockify.me/mcp-server/mcp",
+          "auth": "api-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Start and stop timers, log and edit time entries, create clients, projects, tasks and tags, summary, detailed and attendance reports.",
+          "source": "https://clockify.me/help/integrations/use-clockify-mcp-server-to-connect-to-ai-agent",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.clockify.me"
+      },
+      "notes": "The personal API key goes in an 'x-api-key' header, and EU workspaces add a 'region: EU' header. The help page carries a 'COMING SOON' banner, so availability may be partial."
+    },
+    {
+      "id": "gryzzly",
+      "title": "Gryzzly",
+      "vendor": "Gryzzly",
+      "summary": "Time, budget and project profitability tracking, with time entry from Slack and Microsoft Teams.",
+      "homepage": "https://www.gryzzly.io",
+      "brains": [
+        "project-management",
+        "finance",
+        "operations"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "other",
+        "docs": "https://help.gryzzly.io/en/api/"
+      },
+      "notes": "No MCP server found on 2026-11-21 (none on gryzzly.io, none in the MCP registry); use the public API. The site is gryzzly.io, not gryzzly.com (gryzzly.com serves a certificate for another host)."
+    },
+    {
+      "id": "harvest",
+      "title": "Harvest",
+      "vendor": "Harvest",
+      "summary": "Time tracking, expenses and invoicing for teams.",
+      "homepage": "https://www.getharvest.com",
+      "brains": [
+        "project-management",
+        "finance",
+        "operations"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://help.getharvest.com/api-v2/"
+      },
+      "notes": "Not verified: the Harvest support article returned 403 on 2026-11-21; URL and the 'claude mcp add --transport http' setup come from search excerpts of that vendor page, and the auth method (likely OAuth, added as a URL-only custom connector) is inferred. Harvest announces an MCP server (Harvest MCP); its endpoint could not be read on its own documentation on 2026-11-21, so it is not listed."
+    },
+    {
+      "id": "tempo",
+      "title": "Tempo Timesheets",
+      "vendor": "Tempo Software",
+      "summary": "Time tracking and timesheets inside Jira, with capacity planning and cost tracking add-ons.",
+      "homepage": "https://www.tempo.io",
+      "brains": [
+        "project-management",
+        "engineering",
+        "finance"
+      ],
+      "aliases": [
+        "Tempo Timesheets"
+      ],
+      "servers": [
+        {
+          "id": "tempo-remote",
+          "name": "Tempo MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Tempo Software",
+          "transport": "streamable-http",
+          "url": "https://{tempo_api_host}/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "settings": [
+            {
+              "name": "tempo_api_host",
+              "description": "Tempo Timesheets: your tempo api host, without https://"
+            }
+          ],
+          "status": "unknown",
+          "capabilities": "Read-only access to worklogs, timesheet approvals, accounts, customers, periods, teams; plus Capacity Planner and Financial Manager data when licensed.",
+          "source": "https://help.tempo.io/timesheets/latest/enabling-tempo-mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://apidocs.tempo.io"
+      },
+      "notes": "Tempo Cloud only; read-only. A Tempo admin requests enablement from Tempo Support, then copies the instance-specific address from Tempo Settings > Data Access > MCP Server and creates an OAuth app; API-token auth is optional. Pair with the Atlassian MCP server to resolve account IDs."
+    },
+    {
+      "id": "timely",
+      "title": "Timely",
+      "vendor": "Timely (Memory AS)",
+      "summary": "Automatic time tracking and timesheets.",
+      "homepage": "https://www.timely.com",
+      "brains": [
+        "project-management",
+        "operations"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.timely.com"
+      },
+      "notes": "No vendor MCP server found on 2026-11-21; only third-party hosted connectors (Zapier, Composio, Boomi) and a very small community server. Use the OAuth REST API (docs moved from dev.timelyapp.com to developer.timely.com in April 2026)."
+    },
+    {
+      "id": "toggl-track",
+      "title": "Toggl Track",
+      "vendor": "Toggl",
+      "summary": "Time tracking with timers, projects, clients and reports.",
+      "homepage": "https://toggl.com",
+      "brains": [
+        "project-management",
+        "operations",
+        "finance"
+      ],
+      "aliases": [
+        "Toggl"
+      ],
+      "servers": [
+        {
+          "id": "toggl-remote",
+          "name": "Toggl MCP Server (remote)",
+          "publisher": "vendor",
+          "maintainer": "Toggl",
+          "transport": "streamable-http",
+          "url": "https://focus.toggl.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Tasks, projects, time entries (start, stop, create, update), time blocks, reports and workspace members.",
+          "source": "https://docs.toggl.com/toggl-mcp-and-cl",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "toggl-local",
+          "name": "Toggl MCP Server (local)",
+          "publisher": "vendor",
+          "maintainer": "Toggl",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@togglhq/mcp"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@togglhq/mcp"
+          },
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Same tools as the remote server; browser sign-in, session stored locally.",
+          "source": "https://docs.toggl.com/toggl-mcp-and-cl",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://engineering.toggl.com/docs/track/"
+      },
+      "notes": "The official server is documented in the 'Toggl 2.0' knowledge base and the docs do not say it reads Toggl Track accounts; a Toggl Track community thread still requested a Track MCP server in 2026. Confirm before recommending it to Track users; otherwise use the Track API v9."
+    }
+  ]
+}

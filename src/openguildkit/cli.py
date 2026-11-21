@@ -14,6 +14,8 @@ from .deliverables import draft_problems, launch_notice, load_deliverables, new_
 from .brains import brain_knowledge, brief_knowledge, knowledge_gaps
 from .detect import components_for_profile, detect_stack
 from .publishing import add_share, export_docs, revoke_share, share_status
+from . import tools_cli
+from .tools import connected_tools, load_tools
 from .market import dossier_gaps, due_sources, load_dossier
 from .market import scope_entry as market_scope_entry
 from .storybook import STORYBOOK_VERSION
@@ -145,6 +147,7 @@ def _parser() -> argparse.ArgumentParser:
     share.add_argument("--id", dest="share_id", help="Share ID (revoke).")
     share.add_argument("--by", help="Owner of the share (add, revoke).")
     share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
+    tools_cli.add_parser(commands)
     market = commands.add_parser("market", help="Check a market dossier and the competitor sources due for review.")
     market.add_argument("mode", choices=("check", "due"), help="check validates and lists gaps; due lists watched sources to review.")
     market.add_argument("dossier", help="Dossier ID in .openguildkit/market/.")
@@ -895,6 +898,9 @@ def _print_brains(args, catalog: dict, families: dict) -> int:
         for item in knowledge["references"]:
             edition = f" ({item['edition']})" if item.get("edition") else ""
             print(f"  - {item['title']}{edition}: {item['url']}")
+        used = [tool["title"] for tool in load_tools().values() if args.id in tool["brains"]]
+        print(f"\nTools this brain can use ({len(used)}): {', '.join(used)}")
+        print(f"  Details: openguildkit tools list --brain {args.id}")
     else:
         for board in boards.values():
             reviewers = board.get("review", {}).get("specialists", [])
@@ -1141,8 +1147,13 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
             active = set(resolved_profile(profile, catalog)["packs"])
             knowledge = {board_id: brief_knowledge(board_id, catalog, families, active) for board_id in catalog["boards"]}
+            registry = load_tools(state / "catalog" / "tools")
+            for board_id in catalog["boards"]:
+                usable = connected_tools(state, registry, board_id)
+                if usable:
+                    knowledge[board_id]["tools"] = usable
             result = record_consultation(current_task, answers, profile, catalog, _selection(args), controls, market,
-                                         storybook_scope_entry(state), knowledge)
+                                         storybook_scope_entry(state), knowledge, connected_tools(state, registry))
             write_json(task_path(state, args.id), result)
         print(result["consultation"]["markdown"])
     elif action == "review":
@@ -1245,6 +1256,8 @@ def _run(args) -> int | None:
         _print_recommendations(plan, args.json)
     elif args.command == "catalog":
         _print_catalog(catalog, args.json)
+    elif args.command == "tools":
+        return tools_cli.run(args, root, state, catalog, load_profile)
     elif args.command == "init":
         detected = components_for_profile(detect_stack(root))
         questions = init_questions(catalog, root.name or "Project", detected)

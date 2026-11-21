@@ -1,0 +1,109 @@
+{
+  "id": "automation",
+  "title": "Automation",
+  "tools": [
+    {
+      "id": "make",
+      "title": "Make",
+      "vendor": "Make (Celonis)",
+      "summary": "Visual automation and integration platform.",
+      "homepage": "https://www.make.com",
+      "brains": [
+        "operations",
+        "marketing"
+      ],
+      "servers": [
+        {
+          "id": "make-mcp",
+          "name": "Make MCP server",
+          "publisher": "vendor",
+          "maintainer": "Make",
+          "transport": "streamable-http",
+          "url": "https://mcp.make.com/v2",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Run active and on-demand scenarios; view and modify scenarios, connections, webhooks, data stores, teams and organizations.",
+          "source": "https://developers.make.com/mcp-server/make-mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.make.com/api-documentation"
+      },
+      "notes": "OAuth at mcp.make.com; API-key access uses https://<MAKE_ZONE>/mcp/v2 with a Bearer header. Management tools need a paid plan."
+    },
+    {
+      "id": "n8n",
+      "title": "n8n",
+      "vendor": "n8n",
+      "summary": "Workflow automation, cloud or self-hosted.",
+      "homepage": "https://n8n.io",
+      "brains": [
+        "operations",
+        "engineering"
+      ],
+      "servers": [
+        {
+          "id": "n8n-instance-mcp",
+          "name": "n8n instance-level MCP server",
+          "publisher": "vendor",
+          "maintainer": "n8n",
+          "transport": "streamable-http",
+          "url": "https://{n8n_host}/mcp-server/http",
+          "auth": "oauth-or-token",
+          "env": [],
+          "settings": [
+            {
+              "name": "n8n_host",
+              "description": "n8n: your n8n host, without https://"
+            }
+          ],
+          "status": "unknown",
+          "capabilities": "Search workflows, run MCP-enabled workflows, create and edit workflows and data tables, manage agents.",
+          "source": "https://docs.n8n.io/connect/connect-to-n8n-mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.n8n.io/api/"
+      },
+      "notes": "An instance owner or admin enables it in Settings > Instance-level MCP, which shows the exact URL; each workflow must be enabled for MCP. Cloud and self-hosted; features depend on n8n version (2.13+ to 2.36)."
+    },
+    {
+      "id": "zapier",
+      "title": "Zapier",
+      "vendor": "Zapier",
+      "summary": "No-code automation across thousands of apps.",
+      "homepage": "https://zapier.com",
+      "brains": [
+        "operations",
+        "marketing",
+        "sales"
+      ],
+      "servers": [
+        {
+          "id": "zapier-mcp",
+          "name": "Zapier MCP",
+          "publisher": "vendor",
+          "maintainer": "Zapier",
+          "transport": "streamable-http",
+          "url": "https://mcp.zapier.com/api/v1/connect",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Expose actions from 9,000+ connected apps (send emails, create tasks, update records, search data) as MCP tools.",
+          "source": "https://docs.zapier.com/mcp/get-started/connect/claude-code",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "other",
+        "docs": "https://docs.zapier.com/"
+      },
+      "notes": "Each successful tool call uses two Zapier tasks from the plan. Clients without OAuth use a token-based server created at mcp.zapier.com."
+    }
+  ]
+}

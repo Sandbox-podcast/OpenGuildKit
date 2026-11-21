@@ -80,6 +80,7 @@ openguildkit patterns --id python-fastapi-postgresql
 - [Business deliverables from approved tasks](docs/deliverables.md)
 - [Project Storybook, company design system and extraction](docs/storybook.md)
 - [Project documentation and sharing with Documentalist](docs/documentation.md)
+- [Tools of the company stack, their MCP servers and mocks](docs/tools.md)
 - [Stack matching and work methods](docs/patterns.md)
 - [Optional ChaosFolk end-to-end replays](integrations/chaosfolk/)
 

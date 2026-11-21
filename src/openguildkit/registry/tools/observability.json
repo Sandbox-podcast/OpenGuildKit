@@ -1,0 +1,383 @@
+{
+  "id": "observability",
+  "title": "Observability and incidents",
+  "tools": [
+    {
+      "id": "datadog",
+      "title": "Datadog",
+      "vendor": "Datadog",
+      "summary": "Monitoring, APM, logs and security for cloud applications.",
+      "homepage": "https://www.datadoghq.com",
+      "brains": [
+        "devops",
+        "engineering",
+        "performance"
+      ],
+      "detect": {
+        "npm": [
+          "dd-trace"
+        ],
+        "pypi": [
+          "ddtrace"
+        ]
+      },
+      "servers": [
+        {
+          "id": "datadog-remote",
+          "name": "Datadog MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Datadog",
+          "transport": "streamable-http",
+          "url": "https://mcp.datadoghq.com/v1/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Query metrics, logs, traces, monitors, incidents and more; toolsets selectable with ?toolsets=.",
+          "source": "https://docs.datadoghq.com/mcp_server/setup.md",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.datadoghq.com/api/latest/"
+      },
+      "notes": "Endpoint differs per site (e.g. https://mcp.datadoghq.eu/v1/mcp, https://mcp.us3.datadoghq.com/v1/mcp); not available on US1-FED/US2-FED (GovCloud). Auth by OAuth, bearer access token, or DD_API_KEY/DD_APPLICATION_KEY headers; Datadog says the server is under significant development and some toolsets are Preview."
+    },
+    {
+      "id": "dynatrace",
+      "title": "Dynatrace",
+      "vendor": "Dynatrace",
+      "summary": "AI-powered observability and application security platform.",
+      "homepage": "https://www.dynatrace.com",
+      "brains": [
+        "devops",
+        "engineering",
+        "performance"
+      ],
+      "servers": [
+        {
+          "id": "dynatrace-remote",
+          "name": "Dynatrace MCP Server (remote)",
+          "publisher": "vendor",
+          "maintainer": "Dynatrace",
+          "transport": "streamable-http",
+          "url": "https://{environment_name}.apps.dynatrace.com/platform-reserved/mcp-gateway/v0.1/servers/dynatrace-mcp/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "settings": [
+            {
+              "name": "environment_name",
+              "description": "Dynatrace: your environment name"
+            }
+          ],
+          "status": "ga",
+          "capabilities": "Query Grail data with DQL, problems, vulnerabilities and Davis AI insights from the agent.",
+          "source": "https://docs.dynatrace.com/docs/dynatrace-intelligence/dynatrace-mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.dynatrace.com/docs/discover-dynatrace/references/dynatrace-api"
+      },
+      "notes": "Replace {environment-name} with your environment id. Platform token recommended (needs mcp-gateway:servers:invoke and mcp-gateway:servers:read); OAuth requires a confidential client, no dynamic registration. The local npm server @dynatrace-oss/dynatrace-mcp-server is deprecated (final 2.1.2). GA status read on the Dynatrace Hub page."
+    },
+    {
+      "id": "elastic",
+      "title": "Elastic",
+      "vendor": "Elastic",
+      "summary": "Elasticsearch, Kibana and the Elastic Stack for search, observability and security.",
+      "homepage": "https://www.elastic.co",
+      "brains": [
+        "data",
+        "devops",
+        "security"
+      ],
+      "detect": {
+        "npm": [
+          "@elastic/elasticsearch"
+        ],
+        "pypi": [
+          "elasticsearch"
+        ]
+      },
+      "servers": [
+        {
+          "id": "elastic-agent-builder-mcp",
+          "name": "Elastic Agent Builder MCP server",
+          "publisher": "vendor",
+          "maintainer": "Elastic",
+          "transport": "streamable-http",
+          "url": "https://{kibana_host}/api/agent_builder/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "settings": [
+            {
+              "name": "kibana_host",
+              "description": "Elastic: your kibana host, without https://"
+            }
+          ],
+          "status": "ga",
+          "capabilities": "Expose Agent Builder tools (search, ES|QL and custom tools over Elasticsearch data) to MCP clients.",
+          "source": "https://www.elastic.co/docs/solutions/search/agent-builder/mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://www.elastic.co/docs/api/doc/elasticsearch/"
+      },
+      "notes": "Requires Elastic Stack 9.3+ (preview in 9.2) or a Serverless project; OAuth is GA on Serverless only, API keys otherwise. The docs do not name the transport; streamable-http is assumed. The older elastic/mcp-server-elasticsearch is deprecated."
+    },
+    {
+      "id": "grafana",
+      "title": "Grafana",
+      "vendor": "Grafana Labs",
+      "summary": "Dashboards and observability stack (Prometheus, Loki, Tempo), self-hosted or Grafana Cloud.",
+      "homepage": "https://grafana.com",
+      "brains": [
+        "devops",
+        "engineering",
+        "performance"
+      ],
+      "detect": {
+        "files": [
+          "grafana/provisioning/*"
+        ]
+      },
+      "servers": [
+        {
+          "id": "mcp-grafana",
+          "name": "Grafana MCP server",
+          "publisher": "vendor",
+          "maintainer": "Grafana Labs",
+          "transport": "stdio",
+          "command": "uvx",
+          "args": [
+            "mcp-grafana"
+          ],
+          "package": {
+            "registry": "pypi",
+            "name": "mcp-grafana"
+          },
+          "auth": "api-token",
+          "env": [
+            "GRAFANA_URL",
+            "GRAFANA_SERVICE_ACCOUNT_TOKEN"
+          ],
+          "status": "unknown",
+          "capabilities": "Search and edit dashboards, query Prometheus and Loki datasources, alerting, incidents and on-call; also runs over SSE or streamable HTTP.",
+          "source": "https://github.com/grafana/mcp-grafana",
+          "repository": "https://github.com/grafana/mcp-grafana",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://grafana.com/docs/grafana/latest/developers/http_api/"
+      },
+      "notes": "Works with self-hosted Grafana and Grafana Cloud (set GRAFANA_URL to the instance URL). Also published as the Docker image grafana/mcp-grafana; GRAFANA_API_KEY is deprecated."
+    },
+    {
+      "id": "honeycomb",
+      "title": "Honeycomb",
+      "vendor": "Honeycomb",
+      "summary": "Observability for distributed systems based on high-cardinality events and traces.",
+      "homepage": "https://www.honeycomb.io",
+      "brains": [
+        "devops",
+        "engineering",
+        "performance"
+      ],
+      "servers": [
+        {
+          "id": "honeycomb-remote",
+          "name": "Honeycomb MCP",
+          "publisher": "vendor",
+          "maintainer": "Honeycomb",
+          "transport": "streamable-http",
+          "url": "https://mcp.honeycomb.io/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Query datasets, inspect traces, boards, triggers and SLOs; X-MCP-Toolset header limits loaded tools.",
+          "source": "https://docs.honeycomb.io/integrations/mcp/configuration-guide.md",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.honeycomb.io/api/"
+      },
+      "notes": "EU endpoint https://mcp.eu1.honeycomb.io/mcp. The team must have Honeycomb Intelligence enabled; only team owners can create API keys, so OAuth is preferred."
+    },
+    {
+      "id": "new-relic",
+      "title": "New Relic",
+      "vendor": "New Relic",
+      "summary": "Full-stack observability platform (APM, logs, infrastructure).",
+      "homepage": "https://newrelic.com",
+      "brains": [
+        "devops",
+        "engineering",
+        "performance"
+      ],
+      "aliases": [
+        "NewRelic"
+      ],
+      "detect": {
+        "npm": [
+          "newrelic"
+        ],
+        "pypi": [
+          "newrelic"
+        ]
+      },
+      "servers": [
+        {
+          "id": "newrelic-remote",
+          "name": "New Relic MCP Server",
+          "publisher": "vendor",
+          "maintainer": "New Relic",
+          "transport": "streamable-http",
+          "url": "https://mcp.newrelic.com/mcp/",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Run NRQL queries, inspect entities, alerts, deployments and traces; some AI analysis tools are OAuth-only.",
+          "source": "https://docs.newrelic.com/docs/agentic-ai/mcp/setup/",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "graphql",
+        "docs": "https://docs.newrelic.com/docs/apis/nerdgraph/get-started/introduction-new-relic-nerdgraph/"
+      },
+      "notes": "Paid plan required (not on free accounts); EU endpoint https://mcp.eu.newrelic.com/mcp/, JP https://mcp.jp.newrelic.com/mcp/. API-key auth uses the api-key header with a user key and must be enabled by an admin."
+    },
+    {
+      "id": "opsgenie",
+      "title": "Opsgenie",
+      "vendor": "Atlassian",
+      "summary": "Alerting and on-call management.",
+      "homepage": "https://www.atlassian.com/software/opsgenie",
+      "brains": [
+        "devops",
+        "operations",
+        "support"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.opsgenie.com/docs/api-overview"
+      },
+      "notes": "No vendor MCP server found on 2026-11-21: Atlassian's Rovo MCP server documentation lists Jira, Jira Service Management, Confluence, Bitbucket and others but not Opsgenie. REST API only; community servers exist but none was verified as clearly maintained."
+    },
+    {
+      "id": "pagerduty",
+      "title": "PagerDuty",
+      "vendor": "PagerDuty",
+      "summary": "Incident response and on-call management.",
+      "homepage": "https://www.pagerduty.com",
+      "brains": [
+        "devops",
+        "operations",
+        "support"
+      ],
+      "servers": [
+        {
+          "id": "pagerduty-remote",
+          "name": "PagerDuty MCP Server (hosted)",
+          "publisher": "vendor",
+          "maintainer": "PagerDuty",
+          "transport": "streamable-http",
+          "url": "https://mcp.pagerduty.com/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Manage incidents, services, schedules, on-call, escalation policies, event orchestrations and status pages.",
+          "source": "https://docs.pagerduty.com/ai-automation/advance/pagerduty-mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.pagerduty.com/api-reference/"
+      },
+      "notes": "EU accounts use https://mcp.eu.pagerduty.com/mcp. Requires Advanced Permissions; API-key auth sends `Authorization: Token token=...`. The local server (uvx pagerduty-mcp, repo PagerDuty/pagerduty-mcp-server) is deprecated and archived."
+    },
+    {
+      "id": "sentry",
+      "title": "Sentry",
+      "vendor": "Sentry",
+      "summary": "Application error monitoring, tracing and performance.",
+      "homepage": "https://sentry.io",
+      "brains": [
+        "engineering",
+        "qa",
+        "devops"
+      ],
+      "detect": {
+        "npm": [
+          "@sentry/node",
+          "@sentry/browser",
+          "@sentry/react",
+          "@sentry/nextjs"
+        ],
+        "pypi": [
+          "sentry-sdk"
+        ]
+      },
+      "servers": [
+        {
+          "id": "sentry-remote",
+          "name": "Sentry MCP",
+          "publisher": "vendor",
+          "maintainer": "Sentry",
+          "transport": "streamable-http",
+          "url": "https://mcp.sentry.dev/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Search errors, issues, traces and logs, inspect events and projects; endpoint can be scoped to /mcp/{organizationSlug}/{projectSlug}.",
+          "source": "https://mcp.sentry.dev/",
+          "repository": "https://github.com/getsentry/toolkit",
+          "license": "FSL-1.1-Apache-2.0",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "sentry-cli-mcp",
+          "name": "Sentry MCP (stdio via Sentry CLI)",
+          "publisher": "vendor",
+          "maintainer": "Sentry",
+          "transport": "stdio",
+          "command": "sentry",
+          "args": [
+            "mcp"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "sentry"
+          },
+          "auth": "oauth-or-token",
+          "env": [
+            "SENTRY_AUTH_TOKEN",
+            "SENTRY_HOST"
+          ],
+          "status": "unknown",
+          "capabilities": "Same tools over stdio using the Sentry CLI login; SENTRY_HOST targets a self-hosted Sentry.",
+          "source": "https://github.com/getsentry/toolkit",
+          "repository": "https://github.com/getsentry/toolkit",
+          "license": "FSL-1.1-Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.sentry.io/api/"
+      },
+      "notes": "AI-powered search tools need an LLM provider key configured on the stdio server. The older `npx @sentry/mcp-server` is described as legacy; getsentry/sentry-mcp now redirects to getsentry/toolkit."
+    }
+  ]
+}
