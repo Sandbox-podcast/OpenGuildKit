@@ -98,7 +98,7 @@ openguildkit task runs ID        # compare the last two replays after a fix
 openguildkit task complete ID
 ```
 
-Each scenario becomes a check `chaosfolk:<scenario file>` with ChaosFolk's own result. A product regression (`failed`) and a run that gave no verdict (`error`) are both recorded as failed checks with their reason, and `task complete` refuses to close the task until a later replay passes. The task keeps every replay with the ChaosFolk version you give and the path of the summary, so the QA board can compare the run before and after a fix. Only the summary path is recorded: screenshots and traces stay in the CI artifact storage.
+Each scenario becomes a check `chaosfolk:<scenario file>` with ChaosFolk's own result. A product regression (`failed`) and a run that gave no verdict (`error`) are both recorded as failed checks with their reason, and `task complete` refuses to close the task until a later replay passes. When a summary lists a scenario several times, its worst outcome counts. Each replay replaces the scenarios of the previous one: a scenario the previous replay ran and the last one did not is reported as missing and keeps the task open until it is replayed, or until a further replay confirms it was removed. The task keeps every replay with the ChaosFolk version you give and the path of the summary, so the QA board can compare the run before and after a fix. Only the summary path is recorded: screenshots and traces stay in the CI artifact storage.
 
 Start locally with synthetic data against a test environment the project authorizes, then run the same scenario files in CI. Screenshots can show the test app: keep test data synthetic and the raw evidence in your CI artifact storage.
 

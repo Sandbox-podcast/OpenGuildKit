@@ -1,0 +1,450 @@
+{
+  "id": "issue-tracking",
+  "title": "Issue tracking and work management",
+  "tools": [
+    {
+      "id": "asana",
+      "title": "Asana",
+      "vendor": "Asana",
+      "summary": "Work and project management for teams.",
+      "homepage": "https://asana.com",
+      "brains": [
+        "project-management",
+        "operations",
+        "product"
+      ],
+      "servers": [
+        {
+          "id": "asana-v2",
+          "name": "Asana MCP Server V2",
+          "publisher": "vendor",
+          "maintainer": "Asana",
+          "transport": "streamable-http",
+          "url": "https://mcp.asana.com/v2/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Read and act on Asana tasks, projects and workspaces with the signed-in user's access.",
+          "source": "https://developers.asana.com/docs/using-asanas-mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.asana.com/reference/rest-api-reference"
+      },
+      "notes": "The V1 beta SSE server (https://mcp.asana.com/sse) is deprecated; Asana's page gives its shutdown date as 05/11/2026."
+    },
+    {
+      "id": "basecamp",
+      "title": "Basecamp",
+      "vendor": "37signals",
+      "summary": "Project management and team communication.",
+      "homepage": "https://basecamp.com",
+      "brains": [
+        "project-management",
+        "communication",
+        "operations"
+      ],
+      "servers": [
+        {
+          "id": "basecamp-hosted",
+          "name": "Basecamp MCP server",
+          "publisher": "vendor",
+          "maintainer": "37signals",
+          "transport": "streamable-http",
+          "url": "https://mcp.basecamp.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Read or act on projects, to-dos, message boards, card tables, docs and chats as the signed-in user; read-only or full access chosen at approval.",
+          "source": "https://basecamp.com/mcp",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "basecamp-cli",
+          "name": "Basecamp CLI MCP server",
+          "publisher": "vendor",
+          "maintainer": "37signals",
+          "transport": "stdio",
+          "command": "basecamp",
+          "args": [
+            "mcp"
+          ],
+          "package": {
+            "registry": "other",
+            "name": "basecamp/basecamp-cli"
+          },
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Sixteen domain tools backed by the CLI's signed-in account; --read-only and --domains filters.",
+          "source": "https://github.com/basecamp/basecamp-cli",
+          "repository": "https://github.com/basecamp/basecamp-cli",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://github.com/basecamp/bc3-api"
+      },
+      "notes": "On Team or Enterprise plans an admin may have to allow the connector first. The CLI server uses the account signed in to the Basecamp CLI (no separate token)."
+    },
+    {
+      "id": "clickup",
+      "title": "ClickUp",
+      "vendor": "ClickUp",
+      "summary": "All-in-one work management: tasks, docs and goals.",
+      "homepage": "https://clickup.com",
+      "brains": [
+        "project-management",
+        "operations",
+        "product"
+      ],
+      "servers": [
+        {
+          "id": "clickup-remote",
+          "name": "ClickUp MCP Server",
+          "publisher": "vendor",
+          "maintainer": "ClickUp",
+          "transport": "streamable-http",
+          "url": "https://mcp.clickup.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Search, read, create and update ClickUp tasks, lists and docs in the user's workspace.",
+          "source": "https://developer.clickup.com/docs/connect-an-ai-assistant-to-clickups-mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.clickup.com/reference"
+      },
+      "notes": "OAuth only (personal API keys not accepted; custom clients need OAuth 2.1 with PKCE). Available on all plans, but rate limits go from 100 calls per 24 h on Free Forever up to Public API limits with the Everything AI add-on."
+    },
+    {
+      "id": "jira",
+      "title": "Jira",
+      "vendor": "Atlassian",
+      "summary": "Issue and project tracking for software teams.",
+      "homepage": "https://www.atlassian.com/software/jira",
+      "brains": [
+        "project-management",
+        "engineering",
+        "product",
+        "qa"
+      ],
+      "aliases": [
+        "Jira Cloud",
+        "Jira Software",
+        "Atlassian Jira"
+      ],
+      "servers": [
+        {
+          "id": "atlassian-rovo",
+          "name": "Atlassian Rovo MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Atlassian",
+          "transport": "streamable-http",
+          "url": "https://mcp.atlassian.com/v2/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "ga",
+          "capabilities": "Read, write and search Jira issues (delete and manage tools off by default, admin-enabled); same server also covers Confluence, Bitbucket Cloud, Compass, Jira Service Management and Loom.",
+          "source": "https://support.atlassian.com/atlassian-rovo-mcp-server/docs/getting-started-with-the-atlassian-remote-mcp-server/",
+          "repository": "https://github.com/atlassian/atlassian-mcp-server",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.atlassian.com/cloud/jira/platform/rest/v3/"
+      },
+      "notes": "Atlassian Cloud only. API token auth (Basic email:token or Bearer service-account key) must first be enabled by an org admin under Atlassian Administration > Rovo > Rovo MCP server. v1 endpoints (https://mcp.atlassian.com/v1/mcp) still work but switch to v2 tools on 1 March 2027; the SSE endpoint /v1/sse was retired after 30 June 2026."
+    },
+    {
+      "id": "linear",
+      "title": "Linear",
+      "vendor": "Linear",
+      "summary": "Issue tracking and product planning for software teams.",
+      "homepage": "https://linear.app",
+      "brains": [
+        "project-management",
+        "engineering",
+        "product"
+      ],
+      "servers": [
+        {
+          "id": "linear-remote",
+          "name": "Linear MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Linear",
+          "transport": "streamable-http",
+          "url": "https://mcp.linear.app/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Find, create and update Linear issues, projects and comments; read-only variant at https://mcp.linear.app/mcp/readonly.",
+          "source": "https://linear.app/docs/mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "graphql",
+        "docs": "https://linear.app/developers"
+      },
+      "notes": "OAuth 2.1 with dynamic client registration, or an OAuth token / Linear API key sent as Authorization: Bearer. The SSE endpoint https://mcp.linear.app/sse is deprecated."
+    },
+    {
+      "id": "monday",
+      "title": "monday.com",
+      "vendor": "monday.com",
+      "summary": "Work management platform with boards, items and automations.",
+      "homepage": "https://monday.com",
+      "brains": [
+        "project-management",
+        "operations",
+        "sales"
+      ],
+      "aliases": [
+        "monday.com",
+        "Monday"
+      ],
+      "servers": [
+        {
+          "id": "monday-hosted",
+          "name": "monday.com hosted MCP",
+          "publisher": "vendor",
+          "maintainer": "monday.com",
+          "transport": "streamable-http",
+          "url": "https://mcp.monday.com/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Read and manage monday.com boards, items and updates through the monday API.",
+          "source": "https://github.com/mondaycom/mcp",
+          "repository": "https://github.com/mondaycom/mcp",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "monday-api-mcp",
+          "name": "monday API MCP (local)",
+          "publisher": "vendor",
+          "maintainer": "monday.com",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "@mondaydotcomorg/monday-api-mcp@latest"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@mondaydotcomorg/monday-api-mcp"
+          },
+          "auth": "api-token",
+          "env": [
+            "MONDAY_TOKEN"
+          ],
+          "status": "beta",
+          "capabilities": "Board, item and column operations; optional dynamic GraphQL API tools (beta, off by default).",
+          "source": "https://github.com/mondaycom/mcp",
+          "repository": "https://github.com/mondaycom/mcp",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "graphql",
+        "docs": "https://developer.monday.com/api-reference/"
+      },
+      "notes": "The README recommends the hosted server; without OAuth it can be reached via mcp-remote with an Authorization Bearer header. monday's developer docs page shows the local server with a -t token flag and calls it in testing, and names the env var monday_token instead of MONDAY_TOKEN."
+    },
+    {
+      "id": "redmine",
+      "title": "Redmine",
+      "vendor": "Redmine (open source)",
+      "summary": "Open-source, self-hosted issue tracker and project management.",
+      "homepage": "https://www.redmine.org",
+      "brains": [
+        "project-management",
+        "engineering"
+      ],
+      "servers": [
+        {
+          "id": "redmine-mcp-server-jztan",
+          "name": "redmine-mcp-server",
+          "publisher": "community",
+          "maintainer": "jztan",
+          "transport": "stdio",
+          "command": "uvx",
+          "args": [
+            "redmine-mcp-server"
+          ],
+          "package": {
+            "registry": "pypi",
+            "name": "redmine-mcp-server"
+          },
+          "auth": "api-token",
+          "env": [
+            "REDMINE_URL",
+            "REDMINE_API_KEY",
+            "REDMINE_MCP_TRANSPORT"
+          ],
+          "status": "unknown",
+          "capabilities": "Projects, issues, time tracking, wiki pages and files through the Redmine REST API; REDMINE_MCP_READ_ONLY blocks writes.",
+          "source": "https://github.com/jztan/redmine-mcp-server",
+          "repository": "https://github.com/jztan/redmine-mcp-server",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://www.redmine.org/projects/redmine/wiki/Rest_api"
+      },
+      "notes": "No official Redmine MCP server found on 2026-11-21. This community server defaults to HTTP at http://localhost:8000/mcp (or Docker ghcr.io/jztan/redmine-mcp-server); stdio needs REDMINE_MCP_TRANSPORT=stdio and legacy auth (API key, or REDMINE_USERNAME/REDMINE_PASSWORD). Active (release 2.23.0 on 2026-11-21) but modest adoption (about 90 stars)."
+    },
+    {
+      "id": "shortcut",
+      "title": "Shortcut",
+      "vendor": "Shortcut Software",
+      "summary": "Project management for software teams: stories, epics, iterations.",
+      "homepage": "https://www.shortcut.com",
+      "brains": [
+        "project-management",
+        "engineering",
+        "product"
+      ],
+      "servers": [
+        {
+          "id": "shortcut-remote",
+          "name": "Shortcut MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Shortcut",
+          "transport": "streamable-http",
+          "url": "https://mcp.shortcut.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Find, create and update Stories, Epics and Docs.",
+          "source": "https://www.shortcut.com/help/integrations/mcp-server/",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.shortcut.com/api/rest/v3"
+      },
+      "notes": "The former local server (npx @shortcut/mcp, SHORTCUT_API_TOKEN) lives in useshortcut/mcp-server-shortcut, archived on 8 July 2026; use the hosted server."
+    },
+    {
+      "id": "trello",
+      "title": "Trello",
+      "vendor": "Atlassian",
+      "summary": "Kanban boards for lightweight task management.",
+      "homepage": "https://trello.com",
+      "brains": [
+        "project-management",
+        "operations"
+      ],
+      "servers": [
+        {
+          "id": "trello-remote",
+          "name": "Trello MCP",
+          "publisher": "vendor",
+          "maintainer": "Atlassian",
+          "transport": "streamable-http",
+          "url": "https://mcp.trello.com/v1",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Read and update Trello boards, lists and cards; Planner focus time on Premium and Enterprise.",
+          "source": "https://support.atlassian.com/trello/docs/connect-trello-to-ai-assistants-with-trello-mcp/",
+          "repository": "https://github.com/atlassian/trello-mcp-server",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.atlassian.com/cloud/trello/rest/"
+      },
+      "notes": "Hosted on Atlassian Cloud, all Trello plans, OAuth 2.0 only (no API token for MCP), one workspace per connection. Separate from the Atlassian Rovo MCP server. Repository badge says 'Available', docs say 'actively being developed'; transport is HTTP per the documented client config."
+    },
+    {
+      "id": "wrike",
+      "title": "Wrike",
+      "vendor": "Wrike",
+      "summary": "Work management for project and cross-team collaboration.",
+      "homepage": "https://www.wrike.com",
+      "brains": [
+        "project-management",
+        "operations",
+        "marketing"
+      ],
+      "servers": [
+        {
+          "id": "wrike-v2",
+          "name": "Wrike MCP v2",
+          "publisher": "vendor",
+          "maintainer": "Wrike",
+          "transport": "streamable-http",
+          "url": "https://mcp.wrike.com/v2",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Find work, read project context, create and update tasks within the user's Wrike permissions.",
+          "source": "https://developers.wrike.com/docs/wrike-mcp-server-overview",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.wrike.com/"
+      },
+      "notes": "OAuth 2.0 recommended, permanent access token for automation. MCP v1 (https://mcp.wrike.com/app/mcp/sse and /app/mcp/stream) is unsupported after 28 February 2027. Wrike's help center mentions an EU host (app-eu.wrike.com) for v1; no EU v2 URL was found on the developer page."
+    },
+    {
+      "id": "youtrack",
+      "title": "YouTrack",
+      "vendor": "JetBrains",
+      "summary": "Issue tracker, agile boards and knowledge base by JetBrains.",
+      "homepage": "https://www.jetbrains.com/youtrack/",
+      "brains": [
+        "project-management",
+        "engineering",
+        "support"
+      ],
+      "servers": [
+        {
+          "id": "youtrack-builtin",
+          "name": "YouTrack Remote MCP Server",
+          "publisher": "vendor",
+          "maintainer": "JetBrains",
+          "transport": "streamable-http",
+          "url": "https://{instance_name}.youtrack.cloud/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "settings": [
+            {
+              "name": "instance_name",
+              "description": "YouTrack: your instance name"
+            }
+          ],
+          "status": "unknown",
+          "capabilities": "Predefined tools for issues, projects, users, time tracking and knowledge-base articles, with the user's permissions.",
+          "source": "https://www.jetbrains.com/help/youtrack/cloud/model-context-protocol-server.html",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://www.jetbrains.com/help/youtrack/devportal/youtrack-rest-api.html"
+      },
+      "notes": "Built into YouTrack Cloud and Server (Server: <youtrack-base-url>/mcp). OAuth via CIMD (no dynamic client registration) or a permanent token as Authorization: Bearer; no stdio, stdio-only clients need the third-party mcp-remote proxy."
+    }
+  ]
+}

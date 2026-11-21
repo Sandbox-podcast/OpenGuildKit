@@ -1,0 +1,121 @@
+{
+  "id": "localisation",
+  "title": "Localisation and internationalisation",
+  "description": "Make the product work in every language, script and region it serves: translatable text, locale formats, right-to-left layouts and the translation workflow.",
+  "expertises": [
+    "Internationalisation of code and interfaces",
+    "Translation workflow and terminology",
+    "Locale formats, scripts and regional rules"
+  ],
+  "triggers": [
+    "translate",
+    "translation",
+    "traduire",
+    "traduction",
+    "localisation",
+    "localization",
+    "localiser",
+    "internationalisation",
+    "internationalization",
+    "i18n",
+    "l10n",
+    "locale",
+    "language support",
+    "multilingual",
+    "multilingue",
+    "right-to-left",
+    "rtl",
+    "de droite à gauche",
+    "pseudo-localisation",
+    "pseudo-localization",
+    "translation memory",
+    "mémoire de traduction",
+    "glossary",
+    "glossaire"
+  ],
+  "questions": [
+    "Which languages and regions must the change support at release, and which later?",
+    "Can every user-facing string be translated without changing code?",
+    "How do dates, numbers, currencies, names and addresses display in each supported locale?"
+  ],
+  "sources": [
+    {
+      "title": "W3C, Internationalization Quick Tips for the Web",
+      "url": "https://www.w3.org/International/quicktips/"
+    },
+    {
+      "title": "RFC 5646 (BCP 47), Tags for Identifying Languages",
+      "url": "https://www.rfc-editor.org/rfc/rfc5646.html"
+    },
+    {
+      "title": "Unicode CLDR, Common Locale Data Repository",
+      "url": "https://cldr.unicode.org/"
+    },
+    {
+      "title": "ICU User Guide, Formatting Messages",
+      "url": "https://unicode-org.github.io/icu/userguide/format_parse/messages/"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "i18n-engineer",
+        "title": "Internationalisation engineer",
+        "focus": "Check that user-facing text is externalised, that messages use full sentences with placeholders and that formats come from locale data, not from code.",
+        "checks": [
+          "No sentence is built by concatenating fragments; messages use ICU MessageFormat or an equivalent with plural and select.",
+          "Dates, numbers and currencies are formatted with locale data such as CLDR, not with hand-written patterns.",
+          "Locales are identified with BCP 47 language tags and the fallback chain is defined."
+        ]
+      },
+      {
+        "id": "localisation-manager",
+        "title": "Localisation manager",
+        "focus": "Plan the translation workflow: string freeze, context for translators, review by native speakers and the date each language ships.",
+        "checks": [
+          "Translators get context for each string: screenshot, maximum length and meaning of each placeholder.",
+          "The release plan says which languages ship with the change and what users see for missing translations.",
+          "Translated strings are reviewed in the product, not only in a spreadsheet."
+        ]
+      },
+      {
+        "id": "terminology-lead",
+        "title": "Terminology and style lead",
+        "focus": "Keep product terms consistent across languages with a glossary and a style guide per language, and flag terms with legal or regional meaning.",
+        "checks": [
+          "New product terms are added to the glossary with their approved translations before translation starts.",
+          "Terms with a legal meaning, such as invoice or consent wording, are checked by a qualified person in each market.",
+          "Tone and formality, such as tu or vous, are set per language."
+        ]
+      },
+      {
+        "id": "locale-qa",
+        "title": "Locale quality tester",
+        "focus": "Test the interface with pseudo-localisation, long translations, right-to-left scripts and non-Latin input before translation is final.",
+        "checks": [
+          "A pseudo-localised build shows no hard-coded text, truncation or broken layout with 30 to 40 percent longer strings.",
+          "Right-to-left languages are tested for layout mirroring and mixed-direction text.",
+          "Names, addresses and input in non-Latin scripts are accepted, stored and sorted correctly."
+        ]
+      }
+    ],
+    "evidence": [
+      "List of supported locales with their BCP 47 tags and fallback rules.",
+      "Extract of the message catalogue for the change, with placeholders and translator notes.",
+      "Pseudo-localisation or screenshot review of the changed screens in the longest and right-to-left languages.",
+      "Glossary and translation workflow, with the ship date of each language."
+    ],
+    "challenge": [
+      "Which string would read wrongly in a language where word order or plural forms differ from English?",
+      "What does a user see when a translation is missing on release day?",
+      "Does any date, price or number in the change assume one country's format?",
+      "Is machine translation used, and who reviews it before customers see it?"
+    ],
+    "decision_criteria": [
+      "Proceed when strings are externalised, formats come from locale data and each supported language has a reviewed translation or an agreed fallback.",
+      "Revise when messages are concatenated, formats are hard-coded or layouts break with longer or right-to-left text.",
+      "Delay a language rather than ship an unreviewed translation of legal, payment or safety text.",
+      "Name the locale coverage target and how missing or wrong translations are reported after release."
+    ]
+  }
+}

@@ -41,8 +41,8 @@ const help = `OpenGuildKit ${version}
   openguildkit-ci github-brief --repo OWNER/REPO --pr NUMBER --commit SHA
     --policy-repo DIR --policy-commit SHA --profile-commit SHA --output DIR [--target-repo DIR]
 
-En mode informatif, un écart est enregistré et la commande retourne 0.
-Avec --enforce, un écart retourne 1. Une erreur de configuration ou de lecture retourne 2.`;
+In observation mode, a deviation is recorded and the command returns 0.
+With --enforce, a deviation returns 1. A configuration or read error returns 2.`;
 
 const profileOption = { type: 'string', default: 'openguildkit.json' };
 
@@ -237,7 +237,7 @@ function coordinate(command, args) {
         },
   });
   if (!values.state || (command === 'record' ? !values.work || !values.evidence : !values.config)) {
-    throw new Error('Arguments incomplets. Utiliser --help.');
+    throw new Error('Missing arguments. Use --help.');
   }
   const options = {
     configPath: values.config, stateDir: values.state, run: values.run, kitVersion: version,
@@ -313,7 +313,7 @@ try {
     case 'github':
     case 'watch':
     case 'record': coordinate(command, args); break;
-    default: throw new Error(`Commande inconnue : ${command}. Utiliser --help.`);
+    default: throw new Error(`Unknown command: ${command}. Use --help.`);
   }
 } catch (error) {
   console.error(error.message);

@@ -1,0 +1,28 @@
+{
+  "id": "docker-images",
+  "title": "Docker images",
+  "description": "Check base image pins, the runtime user, build stages and build secrets of container images.",
+  "sources": [
+    {
+      "title": "Docker, building best practices",
+      "url": "https://docs.docker.com/build/building/best-practices/"
+    }
+  ],
+  "roles": [
+    "devops",
+    "security",
+    "engineering"
+  ],
+  "packs": [
+    "container-images"
+  ],
+  "match": {
+    "stack": [
+      [
+        "docker",
+        "dockerfile",
+        "containerfile"
+      ]
+    ]
+  }
+}

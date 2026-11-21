@@ -1,0 +1,113 @@
+{
+  "id": "customer-success",
+  "title": "Customer success",
+  "description": "Judge how the change affects the health, adoption and renewal of existing customer accounts, and who follows each account up.",
+  "expertises": [
+    "Account health scoring and renewal risk",
+    "Customer onboarding and adoption plans",
+    "Expansion, churn and retention analysis"
+  ],
+  "triggers": [
+    "customer success",
+    "succès client",
+    "account health",
+    "santé des comptes",
+    "health score",
+    "score de santé",
+    "churn",
+    "attrition",
+    "renewal risk",
+    "risque de renouvellement",
+    "customer retention",
+    "rétention client",
+    "customer onboarding",
+    "onboarding client",
+    "quarterly business review",
+    "qbr",
+    "net revenue retention",
+    "nrr",
+    "at-risk account",
+    "compte à risque"
+  ],
+  "questions": [
+    "Which accounts does the change touch, and how would their health score move?",
+    "What will a customer success manager tell each affected account, and when?",
+    "Which usage, ticket or renewal signal would show that an account is at risk because of the change?"
+  ],
+  "sources": [
+    {
+      "title": "Bain & Company, Measuring your Net Promoter Score",
+      "url": "https://www.netpromotersystem.com/about/measuring-your-net-promoter-score/"
+    },
+    {
+      "title": "Consortium for Service Innovation, Knowledge-Centered Success (KCS)",
+      "url": "https://www.serviceinnovation.org/kcs/"
+    },
+    {
+      "title": "Stripe, Billing analytics (MRR, churn and subscriber reports)",
+      "url": "https://support.stripe.com/questions/billing-analytics"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "account-health-analyst",
+        "title": "Account health analyst",
+        "focus": "Define the health score inputs the change affects, such as active users, key feature use, tickets and survey answers, and check that each input has a source and a refresh date.",
+        "checks": [
+          "Each health input names its system of record and the date it was last refreshed.",
+          "The score separates usage decline from seasonal patterns, such as holidays or fiscal year ends.",
+          "A red account has a named owner and an action due date, not only a colour."
+        ]
+      },
+      {
+        "id": "renewal-manager",
+        "title": "Renewal manager",
+        "focus": "List the renewals that fall inside the rollout window and judge whether the change raises the risk of a downgrade or a lost contract.",
+        "checks": [
+          "Renewals in the next 90 days are listed with their value and owner before the change ships.",
+          "Contract clauses that the change could breach, such as a removed feature or a changed limit, are flagged to legal.",
+          "Churn is reported as both logo churn and revenue churn, with the formula written down."
+        ]
+      },
+      {
+        "id": "onboarding-lead",
+        "title": "Customer onboarding lead",
+        "focus": "Check that new and existing accounts can reach first value with the change, and that the onboarding plan names the steps, owners and target dates.",
+        "checks": [
+          "The time-to-first-value milestone is defined as an observable event, not a call booked.",
+          "Onboarding material shows the changed flow, with screenshots of the released version.",
+          "Accounts in onboarding during the release get a heads-up and an adjusted plan."
+        ]
+      },
+      {
+        "id": "voice-of-customer",
+        "title": "Voice of the customer lead",
+        "focus": "Read survey answers, tickets and call notes for the area the change touches and separate what customers asked for from what the team assumes.",
+        "checks": [
+          "NPS is computed as promoters (9-10) minus detractors (0-6) on the same question and population over time.",
+          "Verbatims cited in a decision carry their date and account segment.",
+          "Feedback from a single large account is labelled as such and not generalised to a segment."
+        ]
+      }
+    ],
+    "evidence": [
+      "Current health scores and their inputs for the accounts or segment the change affects.",
+      "Renewal calendar with contract value, renewal date and owner for those accounts.",
+      "Recent tickets, survey answers and call notes about the area the change touches, with dates.",
+      "Adoption data before the change and the metric the team will follow after it."
+    ],
+    "challenge": [
+      "Which account would be the first to complain or downgrade, and has anyone told them?",
+      "Does the health score reflect real use of the product, or activity that looks good without delivering value?",
+      "Would a staged rollout by segment protect the renewals that fall in the next quarter?",
+      "Which commitments made in sales or QBR conversations does the change contradict?"
+    ],
+    "decision_criteria": [
+      "Proceed when affected accounts are identified, their owners briefed and the follow-up metric defined.",
+      "Revise when the change removes or limits something that renewing customers use, until the contract and communication impact is settled.",
+      "Ask for a staged rollout when renewals worth a material share of recurring revenue fall inside the rollout window.",
+      "Name the health signal and threshold that would trigger outreach to an account after release."
+    ]
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "tool": "sonarqube",
+  "instructions": "Mock of a code quality scanner for the fictional Acme Support Portal. Every answer is synthetic.",
+  "tools": [
+    {
+      "name": "get_quality_gate",
+      "description": "Get the quality gate result of a project, with each condition.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"project_key": {"type": "string", "description": "Project key"}}, "required": ["project_key"]},
+      "responses": [
+        {
+          "when": {"project_key": "support-portal-docs"},
+          "result": {
+            "project_key": "acme_support-portal-docs",
+            "status": "OK",
+            "conditions": [{"metric": "new_coverage", "status": "OK", "actual": "92.0", "threshold": "80"}]
+          }
+        },
+        {
+          "when": {"project_key": "support-portal"},
+          "result": {
+            "project_key": "acme_support-portal",
+            "status": "ERROR",
+            "conditions": [
+              {"metric": "new_coverage", "status": "ERROR", "actual": "74.0", "threshold": "80"},
+              {"metric": "new_duplicated_lines_density", "status": "OK", "actual": "1.8", "threshold": "3"},
+              {"metric": "new_bugs", "status": "ERROR", "actual": "1", "threshold": "0"}
+            ]
+          }
+        },
+        {"error": "Project not found. Known keys in this mock: acme_support-portal, acme_support-portal-docs."}
+      ]
+    },
+    {
+      "name": "search_issues",
+      "description": "Search code issues of a project. Returns rule, severity, file and line.",
+      "read_only": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project_key": {"type": "string", "description": "Project key"},
+          "type": {"type": "string", "description": "Issue type", "enum": ["BUG", "CODE_SMELL"]}
+        },
+        "required": ["project_key"]
+      },
+      "responses": [
+        {
+          "when": {"type": "BUG"},
+          "result": {
+            "issues": [
+              {
+                "type": "BUG",
+                "severity": "MAJOR",
+                "rule": "python:S2201",
+                "file": "portal/export.py",
+                "line": 58,
+                "message": "Encode the file as UTF-8, not latin-1."
+              }
+            ]
+          }
+        },
+        {
+          "when": {"type": "CODE_SMELL"},
+          "result": {
+            "issues": [
+              {
+                "type": "CODE_SMELL",
+                "severity": "MINOR",
+                "rule": "python:S1192",
+                "file": "portal/export.py",
+                "line": 21,
+                "message": "Define a constant for the repeated string 'status'."
+              },
+              {
+                "type": "CODE_SMELL",
+                "severity": "INFO",
+                "rule": "python:S1135",
+                "file": "portal/views.py",
+                "line": 130,
+                "message": "Complete the TODO about paging."
+              }
+            ]
+          }
+        },
+        {
+          "result": {
+            "issues": [
+              {
+                "type": "BUG",
+                "severity": "MAJOR",
+                "rule": "python:S2201",
+                "file": "portal/export.py",
+                "line": 58,
+                "message": "Encode the file as UTF-8, not latin-1."
+              },
+              {
+                "type": "CODE_SMELL",
+                "severity": "MINOR",
+                "rule": "python:S1192",
+                "file": "portal/export.py",
+                "line": 21,
+                "message": "Define a constant for the repeated string 'status'."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "get_measures",
+      "description": "Get measures of a project: coverage and duplications.",
+      "read_only": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {"project_key": {"type": "string", "description": "Project key"}, "metric": {"type": "string", "description": "coverage or duplications"}},
+        "required": ["project_key"]
+      },
+      "responses": [
+        {"when": {"metric": "coverage"}, "result": {"measures": [{"metric": "coverage", "value": "81.4", "unit": "percent"}]}},
+        {"when": {"metric": "duplications"}, "result": {"measures": [{"metric": "duplicated_lines_density", "value": "2.1", "unit": "percent"}]}},
+        {
+          "result": {
+            "measures": [{"metric": "coverage", "value": "81.4", "unit": "percent"}, {"metric": "duplicated_lines_density", "value": "2.1", "unit": "percent"}]
+          }
+        }
+      ]
+    }
+  ]
+}

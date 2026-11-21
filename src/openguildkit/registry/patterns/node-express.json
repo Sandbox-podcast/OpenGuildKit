@@ -1,0 +1,27 @@
+{
+  "id": "node-express",
+  "title": "Node.js and Express",
+  "description": "Review versions, error handling, headers, cookies and login throttling in an Express service.",
+  "sources": [
+    {
+      "title": "Express security best practices",
+      "url": "https://expressjs.com/en/advanced/best-practice-security.html"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "express"
+  ],
+  "match": {
+    "stack": [
+      [
+        "express",
+        "express.js"
+      ]
+    ]
+  }
+}

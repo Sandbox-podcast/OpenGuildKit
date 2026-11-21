@@ -1,0 +1,80 @@
+{
+  "tool": "storybook",
+  "instructions": "Mock of a component catalogue for the fictional Acme Support Portal front end. Every answer is synthetic.",
+  "tools": [
+    {
+      "name": "list_stories",
+      "description": "List stories. Returns id, component title and story name.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"component": {"type": "string", "description": "Optional component name"}}},
+      "responses": [
+        {
+          "when": {"component": "ExportButton"},
+          "result": {
+            "stories": [
+              {"story_id": "requests-exportbutton--default", "title": "Requests/ExportButton", "name": "Default"},
+              {"story_id": "requests-exportbutton--disabled", "title": "Requests/ExportButton", "name": "Disabled"}
+            ]
+          }
+        },
+        {
+          "when": {"component": "RequestsTable"},
+          "result": {"stories": [{"story_id": "requests-requeststable--default", "title": "Requests/RequestsTable", "name": "Default"}]}
+        },
+        {
+          "result": {
+            "stories": [
+              {"story_id": "requests-exportbutton--default", "title": "Requests/ExportButton", "name": "Default"},
+              {"story_id": "requests-exportbutton--disabled", "title": "Requests/ExportButton", "name": "Disabled"},
+              {"story_id": "requests-requeststable--default", "title": "Requests/RequestsTable", "name": "Default"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "get_story",
+      "description": "Get one story with its args and source file.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"story_id": {"type": "string", "description": "Story id such as requests-exportbutton--default"}}, "required": ["story_id"]},
+      "responses": [
+        {
+          "when": {"story_id": "requests-exportbutton--default"},
+          "result": {
+            "story_id": "requests-exportbutton--default",
+            "component": "ExportButton",
+            "args": {"label": "Export CSV", "disabled": false},
+            "source_file": "src/components/ExportButton.stories.tsx"
+          }
+        },
+        {
+          "when": {"story_id": "requests-exportbutton--disabled"},
+          "result": {
+            "story_id": "requests-exportbutton--disabled",
+            "component": "ExportButton",
+            "args": {"label": "Export CSV", "disabled": true},
+            "source_file": "src/components/ExportButton.stories.tsx"
+          }
+        },
+        {"error": "Story not found. Known ids in this mock: requests-exportbutton--default, requests-exportbutton--disabled, requests-requeststable--default."}
+      ]
+    },
+    {
+      "name": "list_components",
+      "description": "List components with their story counts.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"query": {"type": "string", "description": "Optional part of a component name"}}},
+      "responses": [
+        {"when": {"query": "button"}, "result": {"components": [{"name": "ExportButton", "stories": 2, "file": "src/components/ExportButton.tsx"}]}},
+        {
+          "result": {
+            "components": [
+              {"name": "ExportButton", "stories": 2, "file": "src/components/ExportButton.tsx"},
+              {"name": "RequestsTable", "stories": 1, "file": "src/components/RequestsTable.tsx"}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

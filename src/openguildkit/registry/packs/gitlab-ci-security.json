@@ -1,0 +1,60 @@
+{
+  "id": "gitlab-ci-security",
+  "title": "GitLab CI/CD pipeline security",
+  "version": "1.0.0",
+  "description": "For a project built with GitLab CI/CD: protected variables, pinned includes and images, short-lived cloud credentials, job token scope and protected environments.",
+  "sources": [
+    {
+      "title": "GitLab CI/CD variables",
+      "url": "https://docs.gitlab.com/ci/variables/"
+    },
+    {
+      "title": "GitLab CI/CD YAML syntax reference",
+      "url": "https://docs.gitlab.com/ci/yaml/"
+    },
+    {
+      "title": "GitLab, OpenID Connect (OIDC) authentication using ID tokens",
+      "url": "https://docs.gitlab.com/ci/secrets/id_token_authentication/"
+    },
+    {
+      "title": "GitLab, CI/CD job token",
+      "url": "https://docs.gitlab.com/ci/jobs/ci_job_token/"
+    },
+    {
+      "title": "GitLab, protected environments",
+      "url": "https://docs.gitlab.com/ci/environments/protected_environments/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "protect-deployment-variables",
+      "instruction": "Mark CI/CD variables that hold deployment credentials as protected and masked, so only pipelines on protected branches or tags receive them.",
+      "verification": "List the project and group variables in the CI/CD settings and check the protected and masked flags of each credential."
+    },
+    {
+      "id": "pin-included-configuration",
+      "instruction": "Pin `include:project` to a tag or commit SHA with a fully qualified `ref`, and add `integrity` to each `include:remote`.",
+      "verification": "Review `.gitlab-ci.yml` and its includes for refs without a pin and remote includes without an integrity hash."
+    },
+    {
+      "id": "pin-job-images",
+      "instruction": "Reference job images by digest (`image@sha256:...`) or by an immutable version tag approved by the team, never `latest`.",
+      "verification": "Search `.gitlab-ci.yml` for `image:` entries without a digest or version and for `:latest`."
+    },
+    {
+      "id": "use-id-tokens-for-cloud-access",
+      "instruction": "Authenticate deployment jobs to cloud providers with `id_tokens` and a role restricted to the project and branch, instead of stored access keys.",
+      "verification": "Check the deployment jobs for `id_tokens`, and review the cloud trust policy conditions on the token's project and ref claims."
+    },
+    {
+      "id": "limit-job-token-access",
+      "instruction": "Keep the CI/CD job token allowlist limited to the projects that need access to this project.",
+      "verification": "Review the job token allowlist in the project's CI/CD settings and remove entries without an owner."
+    },
+    {
+      "id": "protect-deployment-environments",
+      "instruction": "Mark production environments as protected and name the roles or groups allowed to deploy.",
+      "verification": "Check the protected environments settings and run a deployment job as a user outside the allowed list to confirm it is blocked."
+    }
+  ]
+}

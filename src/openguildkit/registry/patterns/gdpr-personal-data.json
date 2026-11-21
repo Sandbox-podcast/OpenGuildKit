@@ -1,0 +1,24 @@
+{
+  "id": "gdpr-personal-data",
+  "title": "GDPR personal data processing",
+  "description": "Select when the change processes personal data under Regulation (EU) 2016/679 and the privacy owner can answer for the processing record.",
+  "sources": [
+    {
+      "title": "Regulation (EU) 2016/679, General Data Protection Regulation",
+      "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra"
+    }
+  ],
+  "roles": [
+    "legal",
+    "security"
+  ],
+  "packs": [
+    "gdpr"
+  ],
+  "references": [
+    "rgpd",
+    "aipd",
+    "privacy-by-design",
+    "standard-contractual-clauses"
+  ]
+}

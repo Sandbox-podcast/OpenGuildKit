@@ -1,0 +1,58 @@
+{
+  "id": "eu-ai-act",
+  "title": "EU AI Act obligations",
+  "version": "1.1.0",
+  "description": "Questions for the legal and AI owners and evidence checks for AI systems under Regulation (EU) 2024/1689, as amended. Obligations depend on the organization's role and on the system's classification; these rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "Regulation (EU) 2024/1689, Artificial Intelligence Act, consolidated text",
+      "url": "https://eur-lex.europa.eu/eli/reg/2024/1689"
+    },
+    {
+      "title": "European Commission, AI Act",
+      "url": "https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai"
+    }
+  ],
+  "rules": [
+    {
+      "id": "classify-ai-system",
+      "instruction": "Ask the legal owner to classify the AI system as a prohibited practice (Art. 5), a high-risk system (Art. 6 and Annex III) or neither, and to record whether the organization acts as provider or deployer (Art. 3).",
+      "verification": "Link the recorded classification and role from the change."
+    },
+    {
+      "id": "classify-employment-use",
+      "instruction": "When the system recruits or selects people, filters job applications, evaluates candidates or informs decisions about workers (Annex III, point 4), ask the legal owner before the team builds it to record whether it is a high-risk system under Art. 6(2) or the documented reasons of an Art. 6(3) exception.",
+      "verification": "Link the legal owner's recorded classification of the employment use, or the Art. 6(3) assessment and its registration where Art. 6(4) requires it."
+    },
+    {
+      "id": "inform-people-of-ai-interaction",
+      "instruction": "When the system interacts directly with people, tell them that they are interacting with an AI system unless it is obvious (Art. 50(1)).",
+      "verification": "Show the notice in the interface and in a test of the first interaction."
+    },
+    {
+      "id": "mark-generated-content",
+      "instruction": "Ask the AI owner whether the system generates synthetic audio, image, video or text that Art. 50(2) requires to be marked, and implement machine-readable marking where it applies.",
+      "verification": "Check the marking on a generated sample, or link the owner's recorded reason why it does not apply."
+    },
+    {
+      "id": "keep-high-risk-logs",
+      "instruction": "For a high-risk system, record events automatically over its lifetime (Art. 12) and keep the logs for the period the owner sets.",
+      "verification": "Run the system in a test and confirm that the expected events appear in the logs."
+    },
+    {
+      "id": "enable-human-oversight",
+      "instruction": "For a high-risk system, give the people who oversee it the means to interpret, override or stop its output (Art. 14).",
+      "verification": "Demonstrate the override or stop control in a test and link the oversight procedure."
+    },
+    {
+      "id": "maintain-technical-documentation",
+      "instruction": "For a high-risk system the organization provides, update the technical documentation of Art. 11 and Annex IV with the change.",
+      "verification": "Link the updated technical documentation and the version it describes."
+    },
+    {
+      "id": "support-ai-literacy",
+      "instruction": "Ask the AI owner which measures support the AI literacy of the staff who operate or use the system (Art. 4).",
+      "verification": "Link the recorded measures, such as the training or guidance given to those staff."
+    }
+  ]
+}

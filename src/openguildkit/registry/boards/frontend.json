@@ -1,0 +1,120 @@
+{
+  "id": "frontend",
+  "title": "Front-end development",
+  "description": "Review the code that runs in the browser or the app: rendering, state, accessibility in code, performance and browser support.",
+  "expertises": [
+    "Rendering, routing and client state",
+    "Accessible, semantic markup and components",
+    "Browser support and front-end performance"
+  ],
+  "triggers": [
+    "frontend",
+    "front-end",
+    "front end",
+    "react",
+    "vue",
+    "angular",
+    "svelte",
+    "next.js",
+    "nuxt",
+    "single page application",
+    "spa",
+    "javascript",
+    "typescript",
+    "client-side",
+    "côté client",
+    "component library",
+    "bibliothèque de composants",
+    "browser support",
+    "compatibilité navigateur",
+    "server-side rendering",
+    "rendu côté serveur",
+    "hydration",
+    "bundle size",
+    "taille du bundle",
+    "web component",
+    "html",
+    "responsive"
+  ],
+  "questions": [
+    "Where does the interface render, and how does it load and update its state?",
+    "Which browsers, devices and assistive technologies must it support?",
+    "What does the change add to what users download and to the time before they can interact?"
+  ],
+  "sources": [
+    {
+      "title": "WHATWG, HTML Living Standard",
+      "url": "https://html.spec.whatwg.org/multipage/"
+    },
+    {
+      "title": "W3C, Web Content Accessibility Guidelines (WCAG) 2.2",
+      "url": "https://www.w3.org/TR/WCAG22/"
+    },
+    {
+      "title": "web.dev, Web Vitals",
+      "url": "https://web.dev/articles/vitals"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "rendering-and-state",
+        "title": "Rendering and state engineer",
+        "focus": "Check where each view renders, server or client, how data is fetched and cached, and that loading, empty and error states exist.",
+        "checks": [
+          "Each data-driven view has loading, empty, error and partial states.",
+          "Server state and local UI state are kept apart, and cache invalidation after a write is defined.",
+          "Hydration or client navigation does not show content that differs from the server render."
+        ]
+      },
+      {
+        "id": "semantic-markup",
+        "title": "Semantic markup and accessibility engineer",
+        "focus": "Check that components use native HTML elements and roles, have accessible names and manage focus as WCAG 2.2 requires.",
+        "checks": [
+          "Buttons and links are native elements, not clickable divs.",
+          "Every input has a programmatic label and errors are announced.",
+          "Focus moves to opened dialogs, returns on close and is never hidden behind sticky content (WCAG 2.2 criterion 2.4.11)."
+        ]
+      },
+      {
+        "id": "front-end-performance",
+        "title": "Front-end performance engineer",
+        "focus": "Measure what the change adds to the JavaScript, CSS and images users download and its effect on Core Web Vitals at the 75th percentile.",
+        "checks": [
+          "The bundle size difference of the change is measured and compared with the budget.",
+          "LCP stays at or under 2.5 s, INP at or under 200 ms and CLS at or under 0.1 for the affected pages at p75.",
+          "Images have dimensions set and are lazy-loaded below the fold."
+        ]
+      },
+      {
+        "id": "browser-support",
+        "title": "Browser and device support engineer",
+        "focus": "Check the change against the project's supported browsers and devices, and plan a fallback for platform features that are not available everywhere.",
+        "checks": [
+          "The supported browser list is written down and the features used are available in all of them, or have a fallback.",
+          "The change is tested on the smallest supported screen and with touch input.",
+          "Errors in the browser are reported to monitoring with the release version."
+        ]
+      }
+    ],
+    "evidence": [
+      "Component code and stories or screenshots of each state of the changed views.",
+      "Bundle size report and Core Web Vitals field or lab data before and after the change.",
+      "Accessibility check results: keyboard path, screen reader announcements and automated scan.",
+      "Supported browser and device list and the test results on them."
+    ],
+    "challenge": [
+      "What does a user on a slow phone and network see during the first three seconds?",
+      "Could the same result use an existing component instead of a new one?",
+      "Which state, such as an expired session or a failed save, has no designed screen?",
+      "Does a new dependency justify its weight compared with a few lines of code?"
+    ],
+    "decision_criteria": [
+      "Proceed when every state renders, the accessibility checks pass and the performance budget holds on the affected pages.",
+      "Revise when the change breaks keyboard use, exceeds the bundle budget or fails on a supported browser.",
+      "Ask for a feature flag or staged rollout when the change alters navigation or rendering for all pages.",
+      "Name the front-end metric, such as p75 INP or JavaScript error rate, and its threshold after release."
+    ]
+  }
+}

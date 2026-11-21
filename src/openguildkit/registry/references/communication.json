@@ -1,0 +1,122 @@
+{
+  "id": "communication",
+  "title": "Communication",
+  "references": [
+    {
+      "id": "govs-011-communication",
+      "title": "GovS 011: Communications (norme fonctionnelle du gouvernement britannique)",
+      "category": "Planification et évaluation",
+      "kind": "référentiel",
+      "brains": [
+        "communication",
+        "marketing"
+      ],
+      "summary": "Norme fonctionnelle de la communication publique britannique, avec le cycle de campagne OASIS : objectifs, audience, stratégie, mise en œuvre et évaluation.",
+      "applies_when": "Pour préparer une campagne avec un objectif mesurable et une évaluation prévue dès le départ.",
+      "pattern": "marketing-campaign-planning",
+      "packs": [
+        "campaign-planning",
+        "channel-selection"
+      ],
+      "sources": [
+        {
+          "url": "https://www.gov.uk/government/publications/government-functional-standard-govs-011-communication/government-functional-standard-govs-011-communications#the-campaign-lifecycle",
+          "title": "UK Government Communication Service, Campaign lifecycle"
+        }
+      ]
+    },
+    {
+      "id": "amec-barcelona-principles",
+      "title": "AMEC — Barcelona Principles 3.0",
+      "edition": "3.0",
+      "category": "Planification et évaluation",
+      "kind": "référentiel",
+      "brains": [
+        "communication",
+        "marketing"
+      ],
+      "summary": "Sept principes pour mesurer et évaluer la communication par ses effets sur les publics et l'organisation, pas seulement par sa production.",
+      "applies_when": "Pour fixer les indicateurs d'une campagne ou d'une communication de lancement.",
+      "packs": [
+        "release-communication"
+      ],
+      "sources": [
+        {
+          "url": "https://amecorg.com/amec-resources-centre-communication-measurement-evaluation-tools/barcelona-principles-3-0/",
+          "title": "AMEC, Barcelona Principles 3.0"
+        }
+      ]
+    },
+    {
+      "id": "digital-gov-plain-language",
+      "title": "Digital.gov — Guides du langage clair",
+      "category": "Rédaction",
+      "kind": "guide",
+      "brains": [
+        "communication"
+      ],
+      "summary": "Guides du gouvernement américain pour écrire des contenus clairs, organisés pour le lecteur et faciles à mettre en pratique.",
+      "applies_when": "Pour les notes de version, messages d'erreur, courriels aux clients et pages d'aide.",
+      "packs": [
+        "release-communication"
+      ],
+      "sources": [
+        {
+          "url": "https://digital.gov/guides/plain-language",
+          "title": "Digital.gov, Plain language guide series"
+        }
+      ]
+    },
+    {
+      "id": "gov-uk-style-guides",
+      "title": "GOV.UK — Guides de style",
+      "category": "Rédaction",
+      "kind": "guide",
+      "brains": [
+        "communication"
+      ],
+      "summary": "Règles de style des contenus GOV.UK : formulation, ponctuation, chiffres, dates et termes à éviter.",
+      "applies_when": "Pour harmoniser la rédaction des contenus produit et de l'aide en ligne en anglais.",
+      "sources": [
+        {
+          "url": "https://guidance.publishing.service.gov.uk/writing-to-gov-uk-standards/style-guides/",
+          "title": "GOV.UK content and publishing guidance — Style guides"
+        }
+      ]
+    },
+    {
+      "id": "eu-interinstitutional-style-guide",
+      "title": "Code de rédaction interinstitutionnel de l'UE",
+      "category": "Rédaction",
+      "kind": "guide",
+      "brains": [
+        "communication"
+      ],
+      "summary": "Règles de rédaction et de présentation communes aux institutions européennes, dans toutes les langues officielles.",
+      "applies_when": "Pour des contenus multilingues destinés à un public européen.",
+      "sources": [
+        {
+          "url": "https://style-guide.europa.eu/en/",
+          "title": "Publications Office of the EU — Interinstitutional Style Guide"
+        }
+      ]
+    },
+    {
+      "id": "prsa-code-of-ethics",
+      "title": "PRSA — Code of Ethics",
+      "category": "Déontologie",
+      "kind": "référentiel",
+      "brains": [
+        "communication"
+      ],
+      "summary": "Code de déontologie des relations publiques : honnêteté, libre circulation de l'information, divulgation et gestion des conflits d'intérêts.",
+      "applies_when": "Pour encadrer une communication publique, une relation presse ou une prise de parole au nom de l'organisation.",
+      "sources": [
+        {
+          "url": "https://www.prsa.org/professional-development/prsa-resources/ethics",
+          "title": "PRSA Code of Ethics"
+        }
+      ]
+    }
+  ]
+}

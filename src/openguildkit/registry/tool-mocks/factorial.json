@@ -1,0 +1,125 @@
+{
+  "tool": "factorial",
+  "instructions": "Mock of an HR tool for the fictional Acme Support Portal team. Every answer is synthetic.",
+  "tools": [
+    {
+      "name": "list_employees",
+      "description": "List employees with team and role.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"team": {"type": "string", "description": "Optional team name, for example Engineering"}}},
+      "responses": [
+        {
+          "when": {"team": "engineering"},
+          "result": {
+            "employees": [
+              {"employee_id": "emp-lin", "name": "Lin Sample", "role": "Back-end developer", "team": "Engineering"},
+              {"employee_id": "emp-sam", "name": "Sam Placeholder", "role": "QA engineer", "team": "Engineering"}
+            ]
+          }
+        },
+        {
+          "when": {"team": "product"},
+          "result": {
+            "employees": [
+              {"employee_id": "emp-ada", "name": "Ada Example", "role": "Product manager", "team": "Product"},
+              {"employee_id": "emp-noor", "name": "Noor Fixture", "role": "Designer", "team": "Product"}
+            ]
+          }
+        },
+        {
+          "result": {
+            "employees": [
+              {"employee_id": "emp-ada", "name": "Ada Example", "role": "Product manager", "team": "Product"},
+              {"employee_id": "emp-lin", "name": "Lin Sample", "role": "Back-end developer", "team": "Engineering"},
+              {"employee_id": "emp-sam", "name": "Sam Placeholder", "role": "QA engineer", "team": "Engineering"},
+              {"employee_id": "emp-noor", "name": "Noor Fixture", "role": "Designer", "team": "Product"},
+              {"employee_id": "emp-kai", "name": "Kai Demo", "role": "Support lead", "team": "Support"},
+              {"employee_id": "emp-remy", "name": "Remy Mock", "role": "Sales", "team": "Sales"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "list_time_off",
+      "description": "List approved time off. Filter by employee name or by sprint number.",
+      "read_only": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "employee": {"type": "string", "description": "Part of an employee name"},
+          "sprint": {"type": "string", "description": "Sprint number, for example 14"}
+        }
+      },
+      "responses": [
+        {
+          "when": {"employee": "Remy"},
+          "result": {"time_off": [{"employee": "Remy Mock", "type": "Paid leave", "from": "2026-11-19", "to": "2026-11-20", "status": "approved"}]}
+        },
+        {"when": {"employee": "Lin"}, "result": {"time_off": []}},
+        {
+          "when": {"sprint": "14"},
+          "result": {
+            "sprint": "Sprint 14 (2026-11-16 to 2026-11-27)",
+            "time_off": [
+              {"employee": "Kai Demo", "type": "Day off", "from": "2026-11-16", "to": "2026-11-16", "status": "approved"},
+              {"employee": "Sam Placeholder", "type": "Paid leave", "from": "2026-11-18", "to": "2026-11-18", "status": "approved"},
+              {"employee": "Remy Mock", "type": "Paid leave", "from": "2026-11-19", "to": "2026-11-20", "status": "approved"}
+            ]
+          }
+        },
+        {
+          "result": {
+            "time_off": [
+              {"employee": "Kai Demo", "type": "Day off", "from": "2026-11-16", "to": "2026-11-16", "status": "approved"},
+              {"employee": "Sam Placeholder", "type": "Paid leave", "from": "2026-11-18", "to": "2026-11-18", "status": "approved"},
+              {"employee": "Remy Mock", "type": "Paid leave", "from": "2026-11-19", "to": "2026-11-20", "status": "approved"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "get_employee",
+      "description": "Get one employee by id.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"employee_id": {"type": "string", "description": "Employee id such as emp-ada"}}, "required": ["employee_id"]},
+      "responses": [
+        {
+          "when": {"employee_id": "emp-ada"},
+          "result": {
+            "employee_id": "emp-ada",
+            "name": "Ada Example",
+            "role": "Product manager",
+            "team": "Product",
+            "email": "ada.example@example.test",
+            "start_date": "2024-03-04"
+          }
+        },
+        {
+          "when": {"employee_id": "emp-lin"},
+          "result": {
+            "employee_id": "emp-lin",
+            "name": "Lin Sample",
+            "role": "Back-end developer",
+            "team": "Engineering",
+            "email": "lin.sample@example.test",
+            "start_date": "2023-09-11"
+          }
+        },
+        {
+          "when": {"employee_id": "emp-kai"},
+          "result": {
+            "employee_id": "emp-kai",
+            "name": "Kai Demo",
+            "role": "Support lead",
+            "team": "Support",
+            "email": "kai.demo@example.test",
+            "start_date": "2022-11-07"
+          }
+        },
+        {"error": "Employee not found. Known ids in this mock: emp-ada, emp-lin, emp-sam, emp-noor, emp-kai, emp-remy."}
+      ]
+    }
+  ]
+}

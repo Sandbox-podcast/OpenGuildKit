@@ -1,0 +1,77 @@
+{
+  "id": "competitive-battle-card",
+  "title": "Competitive battle card",
+  "description": "Give sales a one-page answer to a competitor: where they are strong, where we win, objections, questions to ask and claims to avoid, from dated observations.",
+  "method": "market-competitor-analysis",
+  "market": true,
+  "brains": [
+    "sales",
+    "marketing",
+    "product",
+    "legal"
+  ],
+  "inputs": [
+    {
+      "id": "competitor",
+      "label": "Competitor or substitute and the deals where it appears",
+      "data": "internal"
+    },
+    {
+      "id": "observations",
+      "label": "Dated observations from the market dossier and win and loss notes",
+      "data": "internal"
+    }
+  ],
+  "tool_actions": [
+    {
+      "action": "public-research",
+      "description": "Reviewing the competitor's public pages, pricing and release notes."
+    },
+    {
+      "action": "publish",
+      "description": "Sharing the card in the sales tool."
+    }
+  ],
+  "sections": [
+    {
+      "id": "overview",
+      "title": "Competitor overview",
+      "prompt": "Who they sell to, how they price and where we meet them, with the date of each observation."
+    },
+    {
+      "id": "their-strengths",
+      "title": "Where they are strong",
+      "prompt": "What buyers value in their offer, stated fairly."
+    },
+    {
+      "id": "our-strengths",
+      "title": "Where we win",
+      "prompt": "The differences that matter to the buyer, each with proof."
+    },
+    {
+      "id": "objections",
+      "title": "Objections and answers",
+      "prompt": "What prospects say in favour of the competitor and the answer, with its evidence."
+    },
+    {
+      "id": "questions",
+      "title": "Questions to ask and claims to avoid",
+      "prompt": "Discovery questions that bring out our strengths, and statements sales must not make."
+    }
+  ],
+  "checks": [
+    {
+      "id": "observations-dated",
+      "verification": "Every statement about the competitor cites a market dossier observation or a public source with its date."
+    },
+    {
+      "id": "fair-comparison",
+      "verification": "Legal confirmed the card makes no disparaging or unverifiable claim about the competitor."
+    },
+    {
+      "id": "sales-tested",
+      "verification": "A salesperson used the card in a deal or a rehearsal and their feedback is applied."
+    }
+  ],
+  "sources": []
+}

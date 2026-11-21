@@ -43,7 +43,7 @@ def git_revision(root: Path) -> dict | None:
 
 def decision_payload(task: dict, by: str, reason: str, base_revision: dict | None) -> dict:
     """What an approval covers. The approver signs exactly this object in signed mode."""
-    return {
+    payload = {
         "task": task["id"],
         "outcome": "approved",
         "consultation_id": task["consultation"]["id"],
@@ -55,6 +55,15 @@ def decision_payload(task: dict, by: str, reason: str, base_revision: dict | Non
         "reason": reason.strip(),
         "base_revision": base_revision,
     }
+    # Boards added or removed at consultation are part of what the person approves: the
+    # approval names each protected board whose removal they confirmed.
+    adjustments = task["consultation"].get("adjustments")
+    if adjustments:
+        payload["adjustments_sha256"] = _sha256(adjustments)
+        confirmed = sorted(item["board"] for item in adjustments if item.get("confirmation") == "pending")
+        if confirmed:
+            payload["confirmed_removals"] = confirmed
+    return payload
 
 
 def payload_text(payload: dict) -> str:

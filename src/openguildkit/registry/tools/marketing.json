@@ -1,0 +1,147 @@
+{
+  "id": "marketing",
+  "title": "Marketing",
+  "tools": [
+    {
+      "id": "brevo",
+      "title": "Brevo",
+      "vendor": "Brevo",
+      "summary": "Email, SMS and WhatsApp marketing with a CRM.",
+      "homepage": "https://www.brevo.com",
+      "brains": [
+        "marketing",
+        "sales"
+      ],
+      "detect": {
+        "npm": [
+          "@getbrevo/brevo"
+        ]
+      },
+      "servers": [
+        {
+          "id": "brevo-mcp",
+          "name": "Brevo MCP server",
+          "publisher": "vendor",
+          "maintainer": "Brevo",
+          "transport": "streamable-http",
+          "url": "https://mcp.brevo.com/v1/brevo/mcp",
+          "auth": "api-token",
+          "env": [
+            "BREVO_MCP_TOKEN"
+          ],
+          "status": "unknown",
+          "capabilities": "Contacts, lists, email/SMS/WhatsApp campaigns, CRM deals, templates, analytics and account administration (27 modules).",
+          "source": "https://developers.brevo.com/docs/mcp-protocol",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.brevo.com/reference"
+      },
+      "notes": "Create an API key with the MCP option enabled; each module also has its own endpoint (for example /v1/brevo_contacts/mcp)."
+    },
+    {
+      "id": "mailchimp",
+      "title": "Mailchimp",
+      "vendor": "Intuit Mailchimp",
+      "summary": "Email marketing and automation.",
+      "homepage": "https://mailchimp.com",
+      "brains": [
+        "marketing"
+      ],
+      "detect": {
+        "npm": [
+          "@mailchimp/mailchimp_marketing"
+        ]
+      },
+      "servers": [
+        {
+          "id": "mailchimp-transactional-mcp",
+          "name": "Mailchimp Transactional (Mandrill) MCP",
+          "publisher": "vendor",
+          "maintainer": "Mailchimp",
+          "transport": "streamable-http",
+          "url": "https://mandrillapp.com/mcp",
+          "auth": "api-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Check account status, build templates, call and describe Transactional API endpoints, diagnose failed sends.",
+          "source": "https://mailchimp.com/developer/transactional/guides/how-to-use-mailchimps-transactional-messaging-mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://mailchimp.com/developer/marketing/api/"
+      },
+      "notes": "The documented server covers Mailchimp Transactional only. Marketing campaigns are reachable through Mailchimp's Claude and ChatGPT connectors, whose endpoint is not published in Mailchimp's docs; a docs-only server is at https://mailchimp.com/developer/_mcp/server."
+    },
+    {
+      "id": "wordpress",
+      "title": "WordPress",
+      "vendor": "WordPress (open source); WordPress.com by Automattic",
+      "summary": "Open-source CMS for websites and blogs.",
+      "homepage": "https://wordpress.org",
+      "brains": [
+        "marketing",
+        "engineering"
+      ],
+      "detect": {
+        "files": [
+          "wp-config.php",
+          "wp-content"
+        ]
+      },
+      "servers": [
+        {
+          "id": "wordpress-com",
+          "name": "WordPress.com MCP",
+          "publisher": "vendor",
+          "maintainer": "Automattic (WordPress.com)",
+          "transport": "streamable-http",
+          "url": "https://public-api.wordpress.com/wpcom/v2/mcp/v1",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Work with every WordPress.com or Jetpack-connected site on the account.",
+          "source": "https://developer.wordpress.com/docs/mcp/",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "wordpress-mcp-adapter",
+          "name": "WordPress MCP Adapter (self-hosted, via remote proxy)",
+          "publisher": "vendor",
+          "maintainer": "WordPress / Automattic",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@automattic/mcp-wordpress-remote@latest"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@automattic/mcp-wordpress-remote"
+          },
+          "auth": "api-token",
+          "env": [
+            "WP_API_URL",
+            "WP_API_USERNAME",
+            "WP_API_PASSWORD"
+          ],
+          "status": "unknown",
+          "capabilities": "Exposes WordPress Abilities as MCP tools from a self-hosted site with the mcp-adapter plugin.",
+          "source": "https://github.com/WordPress/mcp-adapter/blob/trunk/docs/guides/cli-usage.md",
+          "repository": "https://github.com/WordPress/mcp-adapter",
+          "license": "GPL-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.wordpress.org/rest-api/"
+      },
+      "notes": "WordPress.com MCP needs a paid plan (free sites and Jetpack sites without plan until 30 Nov 2026) and must be enabled in account settings. Self-hosted sites install the mcp-adapter plugin (endpoint /wp-json/mcp/mcp-adapter-default-server, set as WP_API_URL) and use an Application Password; abilities are private by default. Automattic/wordpress-mcp is deprecated."
+    }
+  ]
+}

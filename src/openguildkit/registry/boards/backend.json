@@ -1,0 +1,125 @@
+{
+  "id": "backend",
+  "title": "Back-end development",
+  "description": "Review the services, APIs, data stores and jobs behind the product: contracts, data integrity, failure handling and server-side security.",
+  "expertises": [
+    "API and service contracts",
+    "Data integrity, transactions and migrations",
+    "Background jobs, integrations and failure handling"
+  ],
+  "triggers": [
+    "backend",
+    "back-end",
+    "back end",
+    "server-side",
+    "côté serveur",
+    "rest api",
+    "graphql",
+    "grpc",
+    "webhook",
+    "background job",
+    "tâche de fond",
+    "message queue",
+    "file de messages",
+    "message broker",
+    "database migration",
+    "migration de base de données",
+    "schema migration",
+    "database transaction",
+    "idempotency",
+    "idempotence",
+    "rate limit",
+    "limitation de débit",
+    "cron job",
+    "batch job",
+    "traitement par lots",
+    "orm",
+    "sql query",
+    "requête sql"
+  ],
+  "questions": [
+    "Which services, endpoints, tables and jobs does the change touch, and who calls them?",
+    "What happens to data if a request is retried, interrupted or runs twice at the same time?",
+    "How is the change deployed and rolled back when the database schema changes?"
+  ],
+  "sources": [
+    {
+      "title": "RFC 9110, HTTP Semantics",
+      "url": "https://www.rfc-editor.org/rfc/rfc9110.html"
+    },
+    {
+      "title": "OpenAPI Specification",
+      "url": "https://spec.openapis.org/oas/latest.html"
+    },
+    {
+      "title": "OWASP API Security Top 10 (2023)",
+      "url": "https://api-security.owasp.org/editions/2023/en/0x11-t10/"
+    },
+    {
+      "title": "PostgreSQL documentation, Transaction Isolation",
+      "url": "https://www.postgresql.org/docs/current/transaction-iso.html"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "api-contract",
+        "title": "API contract engineer",
+        "focus": "Check changed endpoints, events and webhooks against their contract and their consumers, and decide whether the change is compatible or needs a new version.",
+        "checks": [
+          "The contract file is updated in the same change and validated in CI.",
+          "Removing or renaming a field, or making one required, is treated as breaking and versioned or deprecated.",
+          "Unsafe methods that clients retry are idempotent or take an idempotency key."
+        ]
+      },
+      {
+        "id": "data-integrity",
+        "title": "Data integrity engineer",
+        "focus": "Identify the invariants, the transaction boundaries and the isolation level each write needs, and what happens on retry, crash or concurrent writes.",
+        "checks": [
+          "Each multi-step write runs in one transaction or has a compensating action.",
+          "The isolation level is chosen on purpose; PostgreSQL's default is Read Committed.",
+          "Uniqueness and foreign keys are enforced by the database, not only by application code."
+        ]
+      },
+      {
+        "id": "migration-safety",
+        "title": "Schema migration engineer",
+        "focus": "Plan schema and data migrations that run without downtime and that the previous application version tolerates during the rollout.",
+        "checks": [
+          "Migrations follow expand then contract: add, backfill, switch readers, then remove.",
+          "Long locks are avoided on large tables; the migration is timed on a production-sized copy.",
+          "The rollback path is written, including what happens to data written by the new version."
+        ]
+      },
+      {
+        "id": "server-side-security",
+        "title": "Server-side security engineer",
+        "focus": "Check object-level and property-level authorization on each endpoint, input validation and resource limits, the top risks of the OWASP API Security Top 10.",
+        "checks": [
+          "Every endpoint that takes an object ID checks that the caller may access that object.",
+          "Responses return only the fields the caller may see; mass assignment of fields is blocked.",
+          "Pagination, request size and rate limits bound the resources one caller can consume."
+        ]
+      }
+    ],
+    "evidence": [
+      "API contract diff and the list of known consumers.",
+      "Migration scripts with their timing on a production-sized dataset and the rollback plan.",
+      "Tests for retries, concurrent writes and authorization on each changed endpoint.",
+      "Service metrics and logs for the endpoints and jobs the change touches."
+    ],
+    "challenge": [
+      "What happens if the same request arrives twice, or two requests change the same record at once?",
+      "Can the old and new application versions run against the migrated schema at the same time?",
+      "Which consumer of this endpoint did nobody ask about?",
+      "Would a simpler design, such as a synchronous call instead of a queue, meet the need?"
+    ],
+    "decision_criteria": [
+      "Proceed when contracts are compatible or versioned, writes keep their invariants under retry and concurrency, and migrations are reversible.",
+      "Revise when a migration locks a large table, a breaking contract change has no deprecation path or an endpoint lacks object-level authorization.",
+      "Ask for a staged rollout or a dual-write period when data moves between stores or schemas.",
+      "Name the back-end metric, such as error rate, p95 latency or queue age, and the threshold that triggers rollback."
+    ]
+  }
+}

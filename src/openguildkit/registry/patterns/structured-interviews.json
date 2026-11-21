@@ -18,5 +18,9 @@
   ],
   "packs": [
     "structured-hiring"
+  ],
+  "references": [
+    "opm-structured-interviews",
+    "cnil-guide-recrutement"
   ]
 }

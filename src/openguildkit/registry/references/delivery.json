@@ -1,0 +1,166 @@
+{
+  "id": "delivery",
+  "title": "Gestion de projet et opérations",
+  "references": [
+    {
+      "id": "pmbok",
+      "title": "PMBOK Guide — huitième édition",
+      "edition": "huitième édition (2025)",
+      "category": "Gestion de projet",
+      "kind": "référentiel",
+      "brains": [
+        "project-management"
+      ],
+      "summary": "Guide du PMI qui décrit les principes et les domaines de performance de la gestion de projet, quelle que soit l'approche de livraison.",
+      "applies_when": "Pour aligner le vocabulaire et les pratiques de pilotage d'un projet sur le référentiel du PMI.",
+      "sources": [
+        {
+          "url": "https://www.pmi.org/standards/pmbok",
+          "title": "PMI — PMBOK Guide"
+        }
+      ]
+    },
+    {
+      "id": "iso-21502",
+      "title": "ISO 21502:2020",
+      "edition": "2020",
+      "category": "Gestion de projet",
+      "kind": "norme",
+      "brains": [
+        "project-management"
+      ],
+      "summary": "Donne des lignes directrices sur la gestion de projet : gouvernance, cycle de vie, rôles, planification et clôture.",
+      "applies_when": "Pour structurer la gestion d'un projet, avec une approche prédictive ou agile ; ne traite pas des programmes ni des portefeuilles.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/74947.html",
+          "title": "ISO 21502:2020 — Project, programme and portfolio management, guidance on project management"
+        }
+      ]
+    },
+    {
+      "id": "prince2",
+      "title": "PRINCE2 7",
+      "edition": "7",
+      "category": "Gestion de projet",
+      "kind": "méthode",
+      "brains": [
+        "project-management",
+        "leadership"
+      ],
+      "summary": "Méthode de gestion de projet par étapes, avec une justification continue de l'investissement et une gestion par exception.",
+      "applies_when": "Pour un projet piloté par étapes avec un comité qui fixe les tolérances.",
+      "pattern": "prince2",
+      "packs": [
+        "project-governance"
+      ],
+      "sources": [
+        {
+          "url": "https://www.peoplecert.org/news-and-announcements/2023/PRINCE2%207%20-%20A%20Process%20of%20Evolution",
+          "title": "PeopleCert, PRINCE2 7: A Process of Evolution"
+        },
+        {
+          "url": "https://www.peoplecert.org/news-and-announcements/2023/prince2-7-applying-universal-principles-for-companies-of-all-sizes",
+          "title": "PeopleCert, Applying PRINCE2 7 principles"
+        }
+      ]
+    },
+    {
+      "id": "safe",
+      "title": "SAFe 6.0 (Scaled Agile Framework)",
+      "edition": "6.0",
+      "category": "Gestion de projet",
+      "kind": "méthode",
+      "brains": [
+        "project-management",
+        "product"
+      ],
+      "summary": "Cadre pour coordonner plusieurs équipes agiles autour de trains de livraison et d'une gestion de portefeuille lean.",
+      "applies_when": "Pour une organisation qui synchronise de nombreuses équipes ; à adapter à sa taille.",
+      "sources": [
+        {
+          "url": "https://framework.scaledagile.com/",
+          "title": "Scaled Agile — SAFe 6.0 Framework"
+        }
+      ]
+    },
+    {
+      "id": "critical-path-method",
+      "title": "Méthode du chemin critique",
+      "category": "Planification",
+      "kind": "méthode",
+      "brains": [
+        "project-management"
+      ],
+      "summary": "Calcule la chaîne de tâches dépendantes qui fixe la date de fin et la marge des autres tâches.",
+      "applies_when": "Pour un planning à dépendances fortes dont la date de fin est engagée.",
+      "pattern": "critical-path",
+      "packs": [
+        "project-planning"
+      ],
+      "sources": [
+        {
+          "url": "https://www.pmi.org/learning/library/critical-path-method-calculations-scheduling-8040",
+          "title": "PMI, Critical path method calculations"
+        }
+      ]
+    },
+    {
+      "id": "raci",
+      "title": "Matrice RACI",
+      "category": "Planification",
+      "kind": "méthode",
+      "brains": [
+        "project-management",
+        "operations"
+      ],
+      "summary": "Attribue pour chaque livrable ou décision les rôles de réalisation, d'approbation, de consultation et d'information.",
+      "applies_when": "Pour clarifier qui décide et qui contribue aux étapes critiques d'un projet ou d'un processus.",
+      "pattern": "raci",
+      "packs": [
+        "responsibility-matrix"
+      ],
+      "sources": [
+        {
+          "url": "https://www.security.gov.uk/policy-and-guidance/secure-by-design/activities/agreeing-roles-and-responsibilities/",
+          "title": "UK Government Security, Agreeing roles and responsibilities with a RACI matrix"
+        }
+      ]
+    },
+    {
+      "id": "value-stream-mapping",
+      "title": "Value Stream Mapping (cartographie de la chaîne de valeur)",
+      "category": "Amélioration des opérations",
+      "kind": "méthode",
+      "brains": [
+        "operations"
+      ],
+      "summary": "Cartographie les étapes, délais et attentes d'un flux de bout en bout pour repérer ce qui n'apporte pas de valeur.",
+      "applies_when": "Avant de modifier un processus qui traverse plusieurs équipes.",
+      "sources": [
+        {
+          "url": "https://www.lean.org/lexicon-terms/value-stream-mapping/",
+          "title": "Lean Enterprise Institute, Value Stream Mapping"
+        }
+      ]
+    },
+    {
+      "id": "pdca",
+      "title": "Cycle PDCA (Plan, Do, Check, Act)",
+      "category": "Amélioration des opérations",
+      "kind": "méthode",
+      "brains": [
+        "operations",
+        "qa"
+      ],
+      "summary": "Cycle d'amélioration en quatre temps : planifier un changement, l'essayer, vérifier le résultat, puis l'adopter ou l'ajuster.",
+      "applies_when": "Pour tester une amélioration de processus à petite échelle avant de la généraliser.",
+      "sources": [
+        {
+          "url": "https://www.lean.org/lexicon-terms/pdca/",
+          "title": "Lean Enterprise Institute — Plan, Do, Check, Act (PDCA)"
+        }
+      ]
+    }
+  ]
+}

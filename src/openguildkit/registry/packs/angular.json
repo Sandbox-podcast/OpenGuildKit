@@ -1,0 +1,63 @@
+{
+  "id": "angular",
+  "title": "Angular applications",
+  "version": "1.0.0",
+  "description": "For an Angular application: supported versions, sanitization, XSRF, strict templates, subscriptions and bundle budgets.",
+  "sources": [
+    {
+      "title": "Angular security best practices",
+      "url": "https://angular.dev/best-practices/security"
+    },
+    {
+      "title": "Angular versioning and releases",
+      "url": "https://angular.dev/reference/releases"
+    },
+    {
+      "title": "Angular template type checking",
+      "url": "https://angular.dev/tools/cli/template-typecheck"
+    },
+    {
+      "title": "Angular, takeUntilDestroyed",
+      "url": "https://angular.dev/ecosystem/rxjs-interop/take-until-destroyed"
+    },
+    {
+      "title": "Angular CLI, building applications: size budgets",
+      "url": "https://angular.dev/tools/cli/build"
+    }
+  ],
+  "depends_on": [
+    "typescript"
+  ],
+  "rules": [
+    {
+      "id": "stay-on-supported-major",
+      "instruction": "Keep the application on an Angular major version in active or long-term support, and upgrade with `ng update`.",
+      "verification": "Compare the `@angular/core` version in the lockfile with the support table of the Angular releases page."
+    },
+    {
+      "id": "avoid-bypassing-sanitization",
+      "instruction": "Do not call `bypassSecurityTrust*` or write to `innerHTML` through native DOM APIs with untrusted values. Bind through templates or call `DomSanitizer.sanitize`.",
+      "verification": "Search the change for `bypassSecurityTrust` and direct DOM writes, and record the review of each remaining call with the security owner."
+    },
+    {
+      "id": "pair-xsrf-with-the-server",
+      "instruction": "Keep HttpClient XSRF protection on, and confirm the backend sets the XSRF cookie and checks the header on state-changing requests.",
+      "verification": "Send a state-changing request without the XSRF header in an integration test and assert that the backend rejects it."
+    },
+    {
+      "id": "keep-strict-templates",
+      "instruction": "Keep `strictTemplates` enabled in `angularCompilerOptions`.",
+      "verification": "Check `tsconfig.json` for `strictTemplates: false` and run `ng build` on the branch."
+    },
+    {
+      "id": "end-subscriptions-with-the-component",
+      "instruction": "Subscribe in templates with the async pipe, or end manual subscriptions with `takeUntilDestroyed`.",
+      "verification": "Search the changed components for `subscribe(` without `takeUntilDestroyed`, and test that destroying the component stops the stream."
+    },
+    {
+      "id": "enforce-bundle-budgets",
+      "instruction": "Set `maximumWarning` and `maximumError` budgets for the initial bundle in `angular.json`.",
+      "verification": "Run the production build and compare the reported bundle sizes with the budgets."
+    }
+  ]
+}

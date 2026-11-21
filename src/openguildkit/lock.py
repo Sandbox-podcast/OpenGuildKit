@@ -9,7 +9,7 @@ from copy import deepcopy
 from importlib import metadata
 from pathlib import Path
 
-from .catalog import CatalogError, _validate_dependencies, _validate_entry
+from .catalog import CatalogError, _validate_dependencies, _validate_entry, overlaid_boards
 from .patterns import pattern_selection
 from .storage import read_json, write_json
 
@@ -61,8 +61,11 @@ def apply_lock(catalog: dict, lock: dict | None) -> dict:
     if not lock:
         return catalog
     effective = {collection: dict(entries) for collection, entries in catalog.items()}
+    overlaid = overlaid_boards(catalog)
     for collection, entries in lock["records"].items():
         for record_id, record in entries.items():
+            if collection == "boards" and record_id in overlaid:
+                continue
             effective[collection][record_id] = deepcopy(record)
         effective[collection] = dict(sorted(effective[collection].items()))
     try:
@@ -84,25 +87,44 @@ def _used_ids(profile: dict, catalog: dict) -> dict[str, list[str]]:
     }
 
 
-def locked_records(profile: dict, catalog: dict, bundled: dict[str, set[str]]) -> dict:
-    """The bundled records the profile uses, taken from the given catalog."""
+def _lockable(bundled: dict[str, set[str]], lock: dict | None) -> dict[str, set[str]]:
+    """Bundled IDs plus those already pinned: a release that drops a record must not break the project."""
+    pinned = lock["records"] if lock else {}
+    return {collection: bundled[collection] | set(pinned.get(collection, {})) for collection in COLLECTIONS}
+
+
+def locked_records(profile: dict, catalog: dict, bundled: dict[str, set[str]], lock: dict | None = None) -> dict:
+    """The bundled or already locked records the profile uses, taken from the given catalog."""
     used = _used_ids(profile, catalog)
+    lockable = _lockable(bundled, lock)
+    overlaid = overlaid_boards(catalog)
     return {
         collection: {
             record_id: deepcopy(catalog[collection][record_id])
             for record_id in sorted(used[collection])
-            if record_id in bundled[collection] and record_id in catalog[collection]
+            if record_id in lockable[collection] and record_id in catalog[collection]
+            and not (collection == "boards" and record_id in overlaid)
         }
         for collection in COLLECTIONS
     }
 
 
-def build_lock(profile: dict, catalog: dict, bundled: dict[str, set[str]]) -> dict:
+def build_lock(profile: dict, catalog: dict, bundled: dict[str, set[str]], lock: dict | None = None) -> dict:
     return {
         "schema_version": 1,
         "generated_by": f"openguildkit {package_version()}",
-        "records": locked_records(profile, catalog, bundled),
+        "records": locked_records(profile, catalog, bundled, lock),
     }
+
+
+def unshipped_records(lock: dict, bundled: dict[str, set[str]]) -> list[str]:
+    """Locked records that the installed release no longer ships, as collection/id."""
+    return [
+        f"{collection}/{record_id}"
+        for collection in COLLECTIONS
+        for record_id in lock["records"].get(collection, {})
+        if record_id not in bundled[collection]
+    ]
 
 
 def write_lock(state: Path, lock: dict) -> None:
@@ -111,7 +133,7 @@ def write_lock(state: Path, lock: dict) -> None:
 
 def lock_is_current(lock: dict | None, profile: dict, catalog: dict, bundled: dict[str, set[str]]) -> bool:
     """A project without a lock predates it; a lock must cover exactly what the profile uses."""
-    return lock is None or lock["records"] == locked_records(profile, catalog, bundled)
+    return lock is None or lock["records"] == locked_records(profile, catalog, bundled, lock)
 
 
 def _rule_text(rule: dict) -> str:
@@ -166,7 +188,7 @@ def update_target(live: dict, lock: dict) -> dict:
 def catalog_changes(lock: dict, live: dict, target: dict, profile: dict, bundled: dict[str, set[str]]) -> list[dict]:
     """Compare the locked records with what the installed catalog would now write."""
     changes = []
-    current = locked_records(profile, target, bundled | {c: bundled[c] | set(lock["records"].get(c, {})) for c in COLLECTIONS})
+    current = locked_records(profile, target, bundled, lock)
     for collection in COLLECTIONS:
         locked = lock["records"].get(collection, {})
         for record_id, record in locked.items():

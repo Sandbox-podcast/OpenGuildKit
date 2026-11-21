@@ -1,0 +1,15 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "form-parser": {
+      "name": "form-parser",
+      "severity": "critical",
+      "isDirect": true,
+      "via": [
+        {"source": 1109999, "name": "form-parser", "dependency": "form-parser", "title": "Synthetic example: crafted form fields run code", "url": "https://github.com/advisories/GHSA-xxxx-yyyy-zzzz", "severity": "critical", "range": "<2.0.1"}
+      ],
+      "range": "<2.0.1",
+      "fixAvailable": {"name": "form-parser", "version": "2.0.1", "isSemVerMajor": false}
+    }
+  }
+}

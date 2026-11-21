@@ -33,49 +33,54 @@ function archive(entry, branch, markdown) {
 }
 
 const verdict = {
-  success: 'Conforme', failure: 'Écart', waived: 'Dérogation', pending: 'En attente', error: 'Erreur',
+  success: 'Compliant', failure: 'Deviation', waived: 'Waived', pending: 'Pending', error: 'Error',
 };
 const literal = value => `\`${String(value).replace(/[`\r\n]/g, ' ')}\``;
 
 export function renderWatchReport(entry, ticket) {
   const { project, pullRequest, commit, profileCommit, policyCommit, rule, mode, actions, decision } = entry;
   const { proof } = actions.proof;
-  const actual = Number.isSafeInteger(proof.actualMinutes) ? `${proof.actualMinutes} min` : 'invalide';
+  const actual = Number.isSafeInteger(proof.actualMinutes) ? `${proof.actualMinutes} min` : 'invalid';
   const jenkins = actions.jenkinsUrl && /^https?:\/\/[^<>\s]+$/.test(actions.jenkinsUrl)
     ? `[Jenkins](<${actions.jenkinsUrl}>)`
     : `Jenkins${/^\d+$/.test(actions.jenkinsBuild) ? ` #${actions.jenkinsBuild}` : ''}`;
   const rows = [
-    '# Rapport OpenGuildKit', '',
+    '# OpenGuildKit report', '',
     `[PR #${pullRequest}](https://github.com/${project}/pull/${pullRequest})`,
     ticket ? ` · [Ticket #${ticket}](https://github.com/${project}/issues/${ticket})` : '', '',
-    `**${verdict[decision.effectiveStatus]}** · ${mode === 'observation' ? 'Observation' : 'Contrôle obligatoire'}`, '',
-    `- Commit évalué ${literal(commit)}`,
-    `- Profil approuvé ${literal(profileCommit)} · Responsable ${literal(proof.owner)}`,
-    `- Règle ${literal(rule)} · Révision ${literal(policyCommit)}`,
-    `- Seuil ${proof.maxMinutes} min · Valeur ${actual}`,
-    `- Consigne ${literal(proof.guidance)}`,
-    `- ${jenkins} et [GitHub Actions](${actions.url}) · ${verdict[proof.state]}`,
-    `- Vérifié le ${literal(actions.verifiedAt)}`,
+    `**${verdict[decision.effectiveStatus]}** · ${mode === 'observation' ? 'Observation' : 'Required check'}`, '',
+    `- Evaluated commit ${literal(commit)}`,
+    `- Approved profile ${literal(profileCommit)} · Owner ${literal(proof.owner)}`,
+    `- Rule ${literal(rule)} · Revision ${literal(policyCommit)}`,
+    `- Threshold ${proof.maxMinutes} min · Value ${actual}`,
+    `- Guidance ${literal(proof.guidance)}`,
+    `- ${jenkins} and [GitHub Actions](${actions.url}) · ${verdict[proof.state]}`,
+    `- Verified at ${literal(actions.verifiedAt)}`,
   ];
   if (decision.waiver) {
     const { id, reason, approver, expiresAt, registryCommit } = decision.waiver;
-    rows.push(`- Dérogation ${literal(id)} · ${literal(reason)} · ${literal(approver)} · ${literal(expiresAt)} · Registre ${literal(registryCommit)}`);
+    rows.push(`- Waiver ${literal(id)} · ${literal(reason)} · ${literal(approver)} · ${literal(expiresAt)} · Registry ${literal(registryCommit)}`);
   }
   return rows.join('\n') + '\n';
 }
 
+// The status of the PR report: verified, failed or still waiting for the Jenkins and GitHub Actions results.
+export function watchReportStatus({ work, policyCommit, actions, decision }) {
+  const verified = actions?.state === 'verified' && decision.effectiveStatus !== 'error';
+  const error = ['mismatch', 'retry', 'failed', 'error'].includes(actions?.state) || decision.effectiveStatus === 'error';
+  const state = verified ? 'success' : error ? 'error' : 'pending';
+  const label = verified ? verdict[decision.effectiveStatus] : error ? 'CI verification error' : 'Waiting for the reports of both CIs';
+  return { verified, state, description: `${label} (info) | rule ${policyCommit.slice(0, 12)} | ${work.slice(0, 12)}` };
+}
+
 export function publishWatchReport(entry, branch) {
-  const { project, pullRequest, commit, work, actions, decision } = entry;
+  const { project, pullRequest, commit, work } = entry;
   const pr = JSON.parse(gh('api', `repos/${project}/pulls/${pullRequest}`));
   if (pr.state !== 'open' || pr.head?.sha !== commit) return { work, posted: false };
   const tickets = [...(pr.body ?? '').matchAll(/^OpenGuildKit-Ticket:[ \t]*#([1-9]\d*)[ \t]*\r?$/gm)];
-  const verified = actions?.state === 'verified' && decision.effectiveStatus !== 'error';
+  const { verified, state, description } = watchReportStatus(entry);
   const url = verified ? archive(entry, branch, renderWatchReport(entry, tickets.length === 1 ? tickets[0][1] : null)) : undefined;
   const context = `openguildkit/report-pr-${pullRequest}`;
-  const error = ['mismatch', 'retry', 'failed', 'error'].includes(actions?.state) || decision.effectiveStatus === 'error';
-  const state = verified ? 'success' : error ? 'error' : 'pending';
-  const label = verified ? verdict[decision.effectiveStatus] : error ? 'Erreur de vérification CI' : 'Rapport des deux CI en attente';
-  const description = `${label} (info) | règle ${entry.policyCommit.slice(0, 12)} | ${work.slice(0, 12)}`;
   if (sameStatus(latestStatus(project, commit, context), { state, description, url })) {
     return { work, posted: false, url };
   }

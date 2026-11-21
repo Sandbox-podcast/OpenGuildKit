@@ -20,5 +20,9 @@
   ],
   "packs": [
     "business-case-review"
+  ],
+  "references": [
+    "hm-treasury-business-case",
+    "hm-treasury-green-book"
   ]
 }

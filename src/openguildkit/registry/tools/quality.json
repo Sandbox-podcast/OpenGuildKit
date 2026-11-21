@@ -1,0 +1,162 @@
+{
+  "id": "quality",
+  "title": "Code quality",
+  "tools": [
+    {
+      "id": "chromatic",
+      "title": "Chromatic",
+      "vendor": "Chromatic",
+      "summary": "Visual, interaction and accessibility testing and publishing for Storybook.",
+      "homepage": "https://www.chromatic.com",
+      "brains": [
+        "design",
+        "qa",
+        "engineering",
+        "frontend"
+      ],
+      "detect": {
+        "npm": [
+          "chromatic"
+        ]
+      },
+      "servers": [
+        {
+          "id": "chromatic-mcp",
+          "name": "Chromatic MCP",
+          "publisher": "vendor",
+          "maintainer": "Chromatic",
+          "transport": "streamable-http",
+          "url": "https://mcp.chromatic.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "beta",
+          "capabilities": "Read builds, tests and review state; chromatic_mutate can accept or deny tests, quarantine tests and create projects.",
+          "source": "https://www.chromatic.com/docs/mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "other",
+        "docs": "https://www.chromatic.com/docs/api/"
+      },
+      "notes": "On Team or Enterprise plans an owner adds the connector once, then each person connects. Chromatic also serves the Storybook MCP (docs tools only) for each published Storybook at <branch>--<appid>.chromatic.com/mcp."
+    },
+    {
+      "id": "lighthouse",
+      "title": "Lighthouse",
+      "vendor": "Google",
+      "summary": "Automated audits for performance, accessibility, SEO and best practices.",
+      "homepage": "https://developer.chrome.com/docs/lighthouse/overview",
+      "brains": [
+        "performance",
+        "qa",
+        "engineering",
+        "frontend"
+      ],
+      "detect": {
+        "files": [
+          "lighthouserc.*",
+          ".lighthouserc.*"
+        ],
+        "npm": [
+          "@lhci/cli"
+        ]
+      },
+      "servers": [
+        {
+          "id": "chrome-devtools-mcp",
+          "name": "Chrome DevTools MCP",
+          "publisher": "vendor",
+          "maintainer": "Google (Chrome DevTools team)",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "chrome-devtools-mcp@latest"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "chrome-devtools-mcp"
+          },
+          "auth": "none",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Drives a live Chrome browser through DevTools and Puppeteer: navigation, input, console and network inspection, performance traces, Lighthouse audits.",
+          "source": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+          "repository": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "other",
+        "docs": "https://developer.chrome.com/docs/lighthouse/overview"
+      },
+      "notes": "Lighthouse has no standalone MCP server; Chrome DevTools MCP bundles it (lighthouse_audit tool for accessibility, SEO and best practices; performance goes through its trace tools)."
+    },
+    {
+      "id": "sonarqube",
+      "title": "SonarQube",
+      "vendor": "SonarSource",
+      "summary": "Code quality and code security analysis (SonarQube Server and SonarQube Cloud).",
+      "homepage": "https://www.sonarsource.com/products/sonarqube/",
+      "brains": [
+        "engineering",
+        "qa",
+        "security"
+      ],
+      "aliases": [
+        "Sonar",
+        "SonarCloud",
+        "SonarQube Cloud"
+      ],
+      "detect": {
+        "files": [
+          "sonar-project.properties"
+        ]
+      },
+      "servers": [
+        {
+          "id": "sonarqube-mcp-server",
+          "name": "SonarQube MCP Server",
+          "publisher": "vendor",
+          "maintainer": "SonarSource",
+          "transport": "stdio",
+          "command": "docker",
+          "args": [
+            "run",
+            "--init",
+            "--pull=always",
+            "-i",
+            "--rm",
+            "-e",
+            "SONARQUBE_TOKEN",
+            "-e",
+            "SONARQUBE_ORG",
+            "sonarsource/sonarqube-mcp"
+          ],
+          "package": {
+            "registry": "docker",
+            "name": "sonarsource/sonarqube-mcp"
+          },
+          "auth": "api-token",
+          "env": [
+            "SONARQUBE_TOKEN",
+            "SONARQUBE_ORG",
+            "SONARQUBE_URL"
+          ],
+          "status": "unknown",
+          "capabilities": "Read issues, quality gates, metrics and rules from SonarQube Server or Cloud, and analyse code snippets in the agent context.",
+          "source": "https://github.com/SonarSource/sonarqube-mcp-server",
+          "repository": "https://github.com/SonarSource/sonarqube-mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://next.sonarqube.com/sonarqube/web_api"
+      },
+      "notes": "SonarQube Cloud uses SONARQUBE_TOKEN and SONARQUBE_ORG (SONARQUBE_URL=https://sonarqube.us for the US region); SonarQube Server uses SONARQUBE_TOKEN (user token) and SONARQUBE_URL. Licence is the Sonar Source-Available License v1.0, not an SPDX id."
+    }
+  ]
+}

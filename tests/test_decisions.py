@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.cli import main
+from openguildkit.decisions import decision_payload, seal
 from openguildkit.storage import write_json
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
@@ -115,6 +116,34 @@ class DecisionTests(unittest.TestCase):
         self.assertIn("does not verify", error)
         with patch("sys.stdin.isatty", return_value=False):
             self.run_cli(*common, "--signature", keys / "camille.sig")
+        self.run_cli("task", "handoff", TASK)
+
+    def forge_approval(self):
+        """What an agent can do with file access alone: approve the task and recompute its seal."""
+        record = json.loads(self.task_path().read_text())
+        payload = decision_payload(record, "Camille", "Looks fine", None)
+        record["status"] = "approved"
+        record["decision"] = {"outcome": "approved", "by": "Camille", "reason": "Looks fine",
+                              "at": "2026-11-20T00:00:00+00:00", "base_revision": None, "seal": seal(payload)}
+        self.task_path().write_text(json.dumps(record), encoding="utf-8")
+
+    def test_a_signed_project_refuses_an_approval_written_into_the_task_file(self):
+        (self.root / "allowed_signers").write_text("camille@example.org ssh-ed25519 AAAA\n", encoding="utf-8")
+        self.reviewed({"guard": "enforce", "approval": {
+            "mode": "signed", "allowed_signers": "allowed_signers", "approvers": ["camille@example.org"]}})
+        self.forge_approval()
+        for command in (("task", "handoff", TASK), ("task", "export", TASK)):
+            _, error = self.run_cli(*command, code=1)
+            self.assertIn("requires a signed approval", error)
+        self.assertEqual(json.loads(self.run_cli("guard", "--json")[0])["covered_by"], [])
+
+    def test_a_local_seal_does_not_prove_who_approved_so_the_guard_keeps_agents_out_of_task_files(self):
+        self.reviewed({"guard": "enforce"})
+        edit = json.dumps({"tool_name": "Write", "tool_input": {"file_path": str(self.task_path())}})
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr), patch("sys.stdin", io.StringIO(edit)):
+            self.assertEqual(main(["--project", str(self.root), "guard", "--hook", "pre-edit"]), 2)
+        self.forge_approval()
         self.run_cli("task", "handoff", TASK)
 
 

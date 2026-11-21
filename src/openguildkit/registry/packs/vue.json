@@ -1,0 +1,64 @@
+{
+  "id": "vue",
+  "title": "Vue components",
+  "version": "1.0.0",
+  "description": "For a Vue 3 interface: typed props and emits, composables, one-way data flow, list keys, v-html and type checking of single-file components.",
+  "sources": [
+    {
+      "title": "Vue.js guide, props",
+      "url": "https://vuejs.org/guide/components/props.html"
+    },
+    {
+      "title": "Vue.js guide, component events",
+      "url": "https://vuejs.org/guide/components/events.html"
+    },
+    {
+      "title": "Vue.js guide, composables",
+      "url": "https://vuejs.org/guide/reusability/composables.html"
+    },
+    {
+      "title": "Vue.js style guide, essential rules",
+      "url": "https://vuejs.org/style-guide/rules-essential.html"
+    },
+    {
+      "title": "Vue.js security best practices",
+      "url": "https://vuejs.org/guide/best-practices/security.html"
+    },
+    {
+      "title": "Vue.js guide, using Vue with TypeScript",
+      "url": "https://vuejs.org/guide/typescript/overview.html"
+    }
+  ],
+  "rules": [
+    {
+      "id": "type-props-and-emits",
+      "instruction": "Declare the props and emitted events of each changed component with `defineProps` and `defineEmits`, with a type or a runtime definition for each.",
+      "verification": "Search the changed components for array-only prop declarations and undeclared `emit` calls, and run the project's type check."
+    },
+    {
+      "id": "keep-props-one-way",
+      "instruction": "Do not mutate props in a child component. Copy them into local state or a computed value, or emit an event the parent handles.",
+      "verification": "Run the component tests with Vue warnings treated as failures, and review the change for assignments to props or their nested fields."
+    },
+    {
+      "id": "extract-composables",
+      "instruction": "Move stateful logic shared by components into a composable named `useX`, and remove its listeners and timers in `onUnmounted`.",
+      "verification": "Test the composable in a mounted host component and check that unmounting removes its listeners."
+    },
+    {
+      "id": "key-list-items",
+      "instruction": "Give each `v-for` a stable `:key`, and filter lists in a computed value rather than combining `v-if` with `v-for` on one element.",
+      "verification": "Run the project's Vue lint rules on the changed templates."
+    },
+    {
+      "id": "avoid-untrusted-html",
+      "instruction": "Do not pass user-provided content to `v-html` or use it as a component template. Render it as text or sanitize it with the approved library.",
+      "verification": "Search the change for `v-html` and dynamic templates, and test the component with content containing a script element."
+    },
+    {
+      "id": "type-check-single-file-components",
+      "instruction": "Type-check `.vue` files with `vue-tsc` in the build or CI step, since the development server does not type-check.",
+      "verification": "Run the project's `vue-tsc` command on the branch and confirm it reports no error."
+    }
+  ]
+}

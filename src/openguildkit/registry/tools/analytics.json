@@ -1,0 +1,263 @@
+{
+  "id": "analytics",
+  "title": "Analytics",
+  "tools": [
+    {
+      "id": "amplitude",
+      "title": "Amplitude",
+      "vendor": "Amplitude",
+      "summary": "Product analytics and experimentation.",
+      "homepage": "https://amplitude.com",
+      "brains": [
+        "product",
+        "data",
+        "marketing"
+      ],
+      "detect": {
+        "npm": [
+          "@amplitude/analytics-browser",
+          "@amplitude/analytics-node"
+        ]
+      },
+      "servers": [
+        {
+          "id": "amplitude-mcp",
+          "name": "Amplitude MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Amplitude",
+          "transport": "streamable-http",
+          "url": "https://mcp.amplitude.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Query analytics; read and create charts, dashboards, notebooks, experiments, cohorts, feature flags and metrics; manage taxonomy.",
+          "source": "https://amplitude.com/docs/amplitude-ai/amplitude-mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://amplitude.com/docs/apis"
+      },
+      "notes": "Included in Enterprise, add-on on Plus, not on Free or Growth. EU data uses https://mcp.eu.amplitude.com/mcp; writes need the 'Use MCP (write)' permission."
+    },
+    {
+      "id": "google-analytics",
+      "title": "Google Analytics",
+      "vendor": "Google",
+      "summary": "Web and app analytics (GA4).",
+      "homepage": "https://marketingplatform.google.com/about/analytics/",
+      "brains": [
+        "marketing",
+        "data",
+        "product"
+      ],
+      "aliases": [
+        "GA4"
+      ],
+      "detect": {
+        "npm": [
+          "react-ga4"
+        ]
+      },
+      "servers": [
+        {
+          "id": "google-analytics-mcp",
+          "name": "Google Analytics MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Google",
+          "transport": "stdio",
+          "command": "pipx",
+          "args": [
+            "run",
+            "analytics-mcp"
+          ],
+          "package": {
+            "registry": "pypi",
+            "name": "analytics-mcp"
+          },
+          "auth": "oauth",
+          "env": [
+            "GOOGLE_APPLICATION_CREDENTIALS",
+            "GOOGLE_CLOUD_PROJECT"
+          ],
+          "status": "unknown",
+          "capabilities": "Run reports and realtime reports, inspect account and property configuration; write tools only with --allow-write.",
+          "source": "https://github.com/googleanalytics/google-analytics-mcp",
+          "repository": "https://github.com/googleanalytics/google-analytics-mcp",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.google.com/analytics/devguides/reporting/data/v1"
+      },
+      "notes": "Read-only by default; uses Application Default Credentials with the analytics.readonly scope."
+    },
+    {
+      "id": "matomo",
+      "title": "Matomo",
+      "vendor": "InnoCraft (Matomo)",
+      "summary": "Privacy-focused open-source web analytics.",
+      "homepage": "https://matomo.org",
+      "brains": [
+        "marketing",
+        "data",
+        "product",
+        "legal"
+      ],
+      "detect": {
+        "npm": [
+          "@jonkoops/matomo-tracker"
+        ]
+      },
+      "servers": [
+        {
+          "id": "matomo-mcp-server",
+          "name": "Matomo MCP Server plugin",
+          "publisher": "vendor",
+          "maintainer": "Matomo",
+          "transport": "streamable-http",
+          "url": "https://{matomo_host}/index.php?module=API&method=McpServer.mcp&format=mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "settings": [
+            {
+              "name": "matomo_host",
+              "description": "Matomo: your matomo host, without https://"
+            }
+          ],
+          "status": "unknown",
+          "capabilities": "Read-oriented analytics reporting; optional segment writes and raw API access when an administrator enables them.",
+          "source": "https://plugins.matomo.org/McpServer",
+          "repository": "https://github.com/matomo-org/plugin-McpServer",
+          "license": "GPL-3.0-or-later",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.matomo.org/api-reference/reporting-api"
+      },
+      "notes": "Disabled by default: a superuser enables it under Administration > System > General Settings > McpServer. Included in Matomo Cloud; on-premise installs need the McpServer plugin (and the OAuth 2.0 plugin for OAuth), otherwise token_auth as a Bearer token."
+    },
+    {
+      "id": "mixpanel",
+      "title": "Mixpanel",
+      "vendor": "Mixpanel",
+      "summary": "Product analytics.",
+      "homepage": "https://mixpanel.com",
+      "brains": [
+        "product",
+        "data",
+        "marketing"
+      ],
+      "detect": {
+        "npm": [
+          "mixpanel-browser",
+          "mixpanel"
+        ]
+      },
+      "servers": [
+        {
+          "id": "mixpanel-mcp",
+          "name": "Mixpanel MCP server",
+          "publisher": "vendor",
+          "maintainer": "Mixpanel",
+          "transport": "streamable-http",
+          "url": "https://mcp.mixpanel.com/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Run queries, read reports and dashboards, manage dashboards, events and properties, cohorts, metrics, experiments and feature flags; all writes are audit-logged.",
+          "source": "https://docs.mixpanel.com/docs/mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.mixpanel.com/reference/overview"
+      },
+      "notes": "EU: https://mcp-eu.mixpanel.com/mcp, India: https://mcp-in.mixpanel.com/mcp. Orgs created before 1 Aug 2026 need an admin to enable MCP; service-account auth is beta."
+    },
+    {
+      "id": "plausible",
+      "title": "Plausible",
+      "vendor": "Plausible Insights",
+      "summary": "Lightweight, privacy-friendly web analytics.",
+      "homepage": "https://plausible.io",
+      "brains": [
+        "marketing",
+        "data",
+        "product"
+      ],
+      "servers": [
+        {
+          "id": "plausible-mcp-sentry",
+          "name": "plausible-mcp (by Sentry)",
+          "publisher": "community",
+          "maintainer": "Sentry",
+          "transport": "streamable-http",
+          "url": "https://plausible-mcp.sentry.dev/mcp",
+          "auth": "api-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Query Plausible stats through the Stats API.",
+          "source": "https://github.com/getsentry/plausible-mcp",
+          "repository": "https://github.com/getsentry/plausible-mcp",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://plausible.io/docs/stats-api"
+      },
+      "notes": "No official Plausible server found on 2026-11-21; Plausible's docs list this community server built by Sentry (Stats API key as Bearer header, or local stdio with PLAUSIBLE_API_KEY). Small project, tagged non-production."
+    },
+    {
+      "id": "posthog",
+      "title": "PostHog",
+      "vendor": "PostHog",
+      "summary": "Product analytics, feature flags, experiments and session replay.",
+      "homepage": "https://posthog.com",
+      "brains": [
+        "product",
+        "data",
+        "engineering",
+        "marketing"
+      ],
+      "detect": {
+        "npm": [
+          "posthog-js",
+          "posthog-node"
+        ],
+        "pypi": [
+          "posthog"
+        ]
+      },
+      "servers": [
+        {
+          "id": "posthog-mcp",
+          "name": "PostHog MCP server",
+          "publisher": "vendor",
+          "maintainer": "PostHog",
+          "transport": "streamable-http",
+          "url": "https://mcp.posthog.com/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Read and write across PostHog: analytics queries, HogQL, feature flags, experiments, error tracking, CDP destinations, docs search.",
+          "source": "https://posthog.com/docs/model-context-protocol",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://posthog.com/docs/api"
+      },
+      "notes": "One endpoint routes to the US or EU region from the signed-in account; personal API keys use the MCP Server preset. Rate limit 480 requests per minute."
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "id": "finops-cost-management",
+  "title": "FinOps cost management",
+  "version": "1.0.0",
+  "description": "For a change that adds or scales cloud or AI usage: costs allocated to an owner, a unit metric and an alert on unexpected spend.",
+  "sources": [
+    {
+      "title": "FinOps Foundation, Allocation",
+      "url": "https://www.finops.org/framework/capabilities/allocation/"
+    },
+    {
+      "title": "FinOps Foundation, Unit Economics",
+      "url": "https://www.finops.org/framework/capabilities/unit-economics/"
+    },
+    {
+      "title": "FinOps Foundation, Anomaly Management",
+      "url": "https://www.finops.org/framework/capabilities/anomaly-management/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "tag-cloud-costs",
+      "instruction": "Tag new cloud resources with the owner, product and environment keys of the project's allocation policy (FinOps Allocation).",
+      "verification": "Check the infrastructure code or the billing export for the allocation tags on each new resource."
+    },
+    {
+      "id": "estimate-run-cost",
+      "instruction": "Before release, estimate the monthly cost of running the change and ask the finance owner to approve it against the budget.",
+      "verification": "Link the estimate and the finance owner's recorded approval from the change."
+    },
+    {
+      "id": "track-unit-cost",
+      "instruction": "Ask the finance owner which unit metric the change should report, such as cost per active customer (FinOps Unit Economics).",
+      "verification": "Check that the cost report or dashboard shows the unit metric with its data source."
+    },
+    {
+      "id": "alert-on-cost-anomalies",
+      "instruction": "Configure a budget or anomaly alert for the new resources and route it to the cost owner (FinOps Anomaly Management).",
+      "verification": "Check the alert configuration and its recipient."
+    }
+  ]
+}

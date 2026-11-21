@@ -1,0 +1,21 @@
+{
+  "id": "support-readiness",
+  "title": "Support readiness",
+  "description": "Prepare the knowledge base, the escalation path and ticket tracking before customers use a change.",
+  "sources": [
+    {
+      "title": "Consortium for Service Innovation, Knowledge-Centered Success (KCS)",
+      "url": "https://www.serviceinnovation.org/kcs/"
+    }
+  ],
+  "roles": [
+    "support",
+    "product"
+  ],
+  "packs": [
+    "support-readiness"
+  ],
+  "references": [
+    "kcs"
+  ]
+}

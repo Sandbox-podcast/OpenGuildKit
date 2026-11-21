@@ -1,0 +1,33 @@
+{
+  "id": "saas-metrics",
+  "title": "SaaS metrics definitions",
+  "version": "1.0.0",
+  "description": "For a change to recurring revenue, plans or dashboards: one written definition per metric, computed from the billing system and reconciled with recognised revenue.",
+  "sources": [
+    {
+      "title": "IFRS Foundation, IFRS 15 Revenue from Contracts with Customers",
+      "url": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-15-revenue-from-contracts-with-customers/"
+    },
+    {
+      "title": "Stripe, Billing analytics (MRR, churn and subscriber reports)",
+      "url": "https://support.stripe.com/questions/billing-analytics"
+    }
+  ],
+  "rules": [
+    {
+      "id": "define-recurring-metrics",
+      "instruction": "Write the definition of MRR, ARR, logo churn, revenue churn and net revenue retention in the metrics glossary, with the formula, what is included and excluded, and the owner.",
+      "verification": "Open the metrics glossary and check that each metric the change touches has a formula, inclusions, exclusions and an owner."
+    },
+    {
+      "id": "compute-from-billing-records",
+      "instruction": "Compute recurring revenue metrics from the billing system of record named in the glossary, not from CRM opportunity amounts.",
+      "verification": "Read the dashboard query or export and check that its source is the billing table or report named in the glossary."
+    },
+    {
+      "id": "reconcile-with-recognised-revenue",
+      "instruction": "Each month, reconcile MRR with the recurring revenue recognised in the ledger and explain the difference.",
+      "verification": "Open the reconciliation for the last closed month and check that the difference is computed and explained."
+    }
+  ]
+}

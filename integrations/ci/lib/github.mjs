@@ -64,9 +64,11 @@ function validateRepo(id, path, ref) {
   git(path, 'check-ref-format', ref);
 }
 
-function listPullRequests(id, numbers, request, errors) {
-  const all = JSON.parse(request('api', '--paginate', '--slurp', `repos/${id}/pulls?state=open&per_page=100`)).flat();
-  return all.filter(pr => !numbers || numbers.includes(pr.number)).flatMap(pr => {
+// Only the PRs into the profile branch are judged by its profile. A PR into another branch follows that branch's rules.
+function listPullRequests(id, base, numbers, request, errors) {
+  const endpoint = `repos/${id}/pulls?state=open&base=${encodeURIComponent(base)}&per_page=100`;
+  const all = JSON.parse(request('api', '--paginate', '--slurp', endpoint)).flat();
+  return all.filter(pr => pr.base?.ref === base && (!numbers || numbers.includes(pr.number))).flatMap(pr => {
     const repository = pr.base?.repo?.full_name;
     if (pr.state !== 'open' || !Number.isSafeInteger(pr.number) || pr.number < 1 ||
         !gitSha.test(pr.head?.sha) || !sameRepository(repository, id)) {
@@ -87,7 +89,8 @@ function synchronizeProject(project, folder, { request, fetchRefs }, errors) {
   const target = resolve(folder, project.path);
   const namespace = `refs/openguildkit/projects/${sha256(`${project.id}:${project.profileRef}`)}`;
   let profileRef = `${namespace}/profile`;
-  const listed = listPullRequests(project.id, project.prNumbers, request, errors).map(pr => ({
+  const base = project.profileRef.slice('refs/heads/'.length);
+  const listed = listPullRequests(project.id, base, project.prNumbers, request, errors).map(pr => ({
     ...pr, ref: `${namespace}/pull/${pr.number}`,
   }));
   const refspecs = listed.map(pr => `+refs/pull/${pr.number}/head:${pr.ref}`);
@@ -102,7 +105,7 @@ function synchronizeProject(project, folder, { request, fetchRefs }, errors) {
   if (profile && project.profileMaintainer !== undefined) {
     const approved = approveGitHubProfile({
       repo: project.id, pullRequest: profile.adoption?.approval?.pullRequest,
-      base: project.profileRef.slice('refs/heads/'.length), maintainer: project.profileMaintainer,
+      base, maintainer: project.profileMaintainer,
     }, request);
     if (!isDeepStrictEqual(profile, approved)) {
       throw new Error(`Le profil actif de ${project.id} diffère de la proposition approuvée.`);
@@ -156,8 +159,8 @@ function publishObservation(entry, reportUrl, request) {
   if (pr.state !== 'open' || pr.head.sha !== commit) return { work, posted: false };
 
   const state = { success: 'success', failure: 'success', waived: 'success', pending: 'pending', error: 'error' }[status];
-  const label = { success: 'Conforme', failure: 'Écart', waived: 'Dérogation', pending: 'En attente', error: 'Contrôle indéterminé' }[status];
-  const description = `${label} (obs.) | règle ${policyCommit.slice(0, 12)} | profil ${profileCommit.slice(0, 12)} | ${work.slice(0, 12)}`;
+  const label = { success: 'Compliant', failure: 'Deviation', waived: 'Waived', pending: 'Pending', error: 'Undetermined' }[status];
+  const description = `${label} (obs.) | rule ${policyCommit.slice(0, 12)} | profile ${profileCommit.slice(0, 12)} | ${work.slice(0, 12)}`;
   const context = `openguildkit/observation-pr-${pullRequest}`;
   if (sameStatus(latestStatus(project, commit, context, request), { state, description, url: reportUrl })) {
     return { work, posted: false };

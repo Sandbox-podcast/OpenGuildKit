@@ -1,0 +1,46 @@
+# Copy to .github/workflows/openguildkit-market-watch.yml in a project that keeps market dossiers
+# in .openguildkit/market/. Every Monday it runs `openguildkit market due --all` and opens one issue
+# per watched competitor source whose review is due, unless an open issue already has that title.
+# The job only lists sources: it opens no competitor page. A person, or the market-analyst agent
+# under the project's research policy, reviews each source and records the result with
+# `openguildkit market checked` or `openguildkit market change`.
+name: OpenGuildKit market watch
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  due:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - name: Install OpenGuildKit
+        # Pin the version your project uses; see docs/install.md for verified release assets.
+        run: python -m pip install "openguildkit @ git+https://github.com/Sandbox-podcast/OpenGuildKit@main"
+      - name: List the sources due for review
+        run: openguildkit market due --all --json > due.json
+      - name: Open an issue per source to review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          open_titles=$(gh issue list --state open --limit 500 --json title --jq '.[].title')
+          jq -c '.due[]' due.json | while read -r item; do
+            title=$(jq -r '.issue.title' <<<"$item")
+            if grep -Fxq -- "$title" <<<"$open_titles"; then
+              echo "Already open: $title"
+              continue
+            fi
+            gh issue create --title "$title" --body "$(jq -r '.issue.body' <<<"$item")"
+          done

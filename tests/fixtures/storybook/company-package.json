@@ -1,0 +1,22 @@
+{
+  "name": "@acme/design-system",
+  "version": "4.2.0",
+  "exports": {
+    ".": "./dist/index.js",
+    "./theme.css": "./dist/theme.css",
+    "./tokens": "./dist/tokens.json"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0 || ^19.0.0",
+    "styled-components": "^6.1.0",
+    "@acme/icons": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@acme/icons": { "optional": true }
+  },
+  "dependencies": {
+    "vite": "^7.1.0",
+    "clsx": "^2.1.1"
+  }
+}

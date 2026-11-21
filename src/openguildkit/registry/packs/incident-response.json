@@ -1,0 +1,42 @@
+{
+  "id": "incident-response",
+  "title": "Incident response",
+  "version": "1.0.0",
+  "description": "For a service in production: roles, severity levels, preserved evidence and a blameless postmortem after a significant incident.",
+  "sources": [
+    {
+      "title": "Google SRE Workbook, Incident Response",
+      "url": "https://sre.google/workbook/incident-response/"
+    },
+    {
+      "title": "Google SRE Workbook, Postmortem Culture",
+      "url": "https://sre.google/workbook/postmortem-culture/"
+    },
+    {
+      "title": "NIST SP 800-61 Rev. 3, Incident Response Recommendations and Considerations for Cybersecurity Risk Management",
+      "url": "https://csrc.nist.gov/pubs/sp/800/61/r3/final"
+    }
+  ],
+  "rules": [
+    {
+      "id": "assign-incident-roles",
+      "instruction": "Make the incident runbook of the changed service name the incident commander role, the communications role and how to reach the on-call engineer.",
+      "verification": "Open the runbook and check the three entries."
+    },
+    {
+      "id": "define-severity-levels",
+      "instruction": "Ask the service owner which severity levels apply to incidents on the changed service and their response times, and record them in the runbook.",
+      "verification": "Check that the runbook defines each severity with its criteria and response time."
+    },
+    {
+      "id": "keep-incident-timeline",
+      "instruction": "During an incident, keep the timeline, decisions and links to the logs in the incident record.",
+      "verification": "Check that the incident record has a timeline and links to the preserved logs."
+    },
+    {
+      "id": "write-blameless-postmortem",
+      "instruction": "After a significant incident, write a blameless postmortem with the impact, the contributing causes and action items.",
+      "verification": "Link the postmortem and check that each action item has an owner and a tracking issue."
+    }
+  ]
+}
