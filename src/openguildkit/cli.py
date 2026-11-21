@@ -27,7 +27,7 @@ from .storybook import STORYBOOK_VERSION
 from .storybook import run as storybook_command
 from .storybook import scope_entry as storybook_scope_entry
 from .integrations import install_agent_files
-from .guard import NO_TASK, STALE_DAYS, ci_guard, covering_approvals, export_decision, guard_mode, run_hook
+from .guard import NO_TASK, STALE_DAYS, ci_guard, covering_approvals, export_decision, exported_decision_problems, guard_mode, run_hook
 from .results import (
     chaosfolk_checks, compare_runs, completion_problems, evidence_files_missing, expected_checks, missing_scenarios,
     result_template, run_command_checks,
@@ -63,6 +63,7 @@ from .project import (
     setup_profile,
     state_path,
     sync_instructions,
+    task_scope_profile,
     validate_profile,
 )
 from .tools import HOSTS as TOOL_HOSTS
@@ -70,6 +71,7 @@ from .tools import detect_tools, load_tools, match_tools
 from .references import english_title, find_references, load_references, with_pattern_references
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
+    approval_problem,
     timestamp,
     list_tasks,
     complete_task,
@@ -412,12 +414,13 @@ def _stale_tasks(state: Path, profile: dict, catalog: dict) -> list[dict]:
     directory = state / "tasks"
     if not directory.is_dir():
         return stale
+    fingerprint = profile_fingerprint(profile, catalog)
     for path in sorted(directory.glob("*.json")):
         try:
             task = read_task(state, path.stem)
         except ValueError:
             continue
-        if task.get("profile_fingerprint") and task["profile_fingerprint"] != profile_fingerprint(profile, catalog):
+        if task.get("profile_fingerprint") and task["profile_fingerprint"] != fingerprint:
             stale.append({"id": task["id"], "status": task["status"]})
     return stale
 
@@ -1257,7 +1260,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             print(create_task(state, brief, args.id, args.follows))
         return
     if action == "list":
-        rows = list_tasks(state, args.status, args.owner, args.since, args.until)
+        rows = list_tasks(state, args.status, args.owner, args.since, args.until,
+                          current_fingerprint=profile_fingerprint(profile, catalog))
         if args.json:
             _print_json(rows)
         elif not rows:
@@ -1271,6 +1275,12 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         return
 
     task = read_task(state, args.id)
+    if action in ("show", "handoff", "export", "verify", "result", "complete"):
+        problem = approval_problem(task, profile_fingerprint(profile, catalog))
+        if problem:
+            if action != "show":
+                raise ValueError(problem["message"])
+            print(f"Warning: {problem['message']}", file=sys.stderr)
     if action == "show":
         _print_json(task)
     elif action == "questions":
@@ -1353,7 +1363,6 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             raise ValueError("Run checks for an approved task that is not done yet." if action == "verify"
                              else "Results belong to an approved task that is not done yet.")
         check_decision(task, root, profile)
-        require_current_scope(task, profile, catalog)
         if action == "verify":
             revision = git_revision(root)
             payload = {"revision": revision["commit"] if revision else "working tree"}
@@ -1433,7 +1442,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         else:
             answers = validate_answers(task["answers"])
         selected = select_boards(
-            resolved_profile(profile, catalog), catalog, {**task, "answers": answers}, answers, _selection(args)
+            task_scope_profile(profile, catalog, answers.get("components", [])),
+            catalog, {**task, "answers": answers}, answers, _selection(args)
         )
         if args.json:
             _print_json(selected)
@@ -1466,8 +1476,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 research = "public-sources" if profile.get("research") == "public-sources" and answers.get("research") == "public" else "local-only"
                 market = market_scope_entry(load_dossier(state, args.market), research)
             families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
-            active = set(resolved_profile(profile, catalog)["packs"])
-            context = consultation_context(current_task, answers, profile, catalog)
+            scoped_profile = task_scope_profile(profile, catalog, answers.get("components", []))
+            active = set(scoped_profile["packs"])
+            context = consultation_context(current_task, answers, scoped_profile, catalog)
             knowledge = {board_id: brief_knowledge(board_id, catalog, families, active, context)
                          for board_id in catalog["boards"]}
             registry = load_tools(state / "catalog" / "tools")
@@ -1551,9 +1562,10 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             write_json(task_path(state, args.id), result)
         print(result["authorizations"][-1]["decision"])
     elif action == "handoff":
+        if task["status"] == "done":
+            raise ValueError(f"Task {task['id']} is complete. Use openguildkit task show {task['id']}.")
         output = handoff(task)
         check_decision(task, root, profile)
-        require_current_scope(task, profile, catalog)
         check_instructions(root, profile, catalog)
         print(output)
 
@@ -1668,6 +1680,12 @@ def _run(args) -> int | None:
                     print(f"[{control['status']}] {control['title']}\n    {control['detail']}")
             return
         if args.command == "check":
+            fingerprint = profile_fingerprint(profile, catalog)
+            for row in list_tasks(state, current_fingerprint=fingerprint):
+                if row["status"] == "unreadable" or row.get("approval_problem"):
+                    print(f"OpenGuildKit: {row['id']}: {row['next']}", file=sys.stderr)
+            for problem in exported_decision_problems(root, state, profile, fingerprint):
+                print(f"OpenGuildKit: {problem}", file=sys.stderr)
             check_instructions(root, profile, catalog)
             missing = [control["title"] for control in host_controls(root, profile) if control["status"] == "missing"]
             if missing:

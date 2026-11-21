@@ -120,12 +120,48 @@ class WorkflowTests(unittest.TestCase):
             self.run_cli(*decide)
         output, _ = self.run_cli("task", "handoff", self.task_id)
         self.assertIn("Approved task handoff", output)
+        exported, _ = self.run_cli("task", "export", self.task_id)
         profile = read_json(self.profile_path)
         profile["conventions"] = ["Write an audit event for each export."]
         write_json(self.profile_path, profile)
         self.run_cli("sync")
-        _, error = self.run_cli("task", "handoff", self.task_id, code=1)
-        self.assertIn("project profile or catalog changed", error)
+        message = f"The approval for {self.task_id} was recorded under earlier rules."
+        for action in ("handoff", "export"):
+            _, error = self.run_cli("task", action, self.task_id, code=1)
+            self.assertIn(message, error)
+            self.assertIn(f'--follows {self.task_id}', error)
+        output, error = self.run_cli("task", "show", self.task_id)
+        self.assertEqual(json.loads(output)["status"], "approved")
+        self.assertIn(message, error)
+        listing, _ = self.run_cli("task", "list", "--json")
+        row, = json.loads(listing)
+        self.assertEqual(row["approval_problem"], "earlier-rules")
+        self.assertIn(message, row["next"])
+        _, error = self.run_cli("check")
+        self.assertIn(message, error)
+        self.assertIn(exported.strip(), error)
+
+    def test_a_consultation_checks_only_the_components_named_in_its_answers(self):
+        profile = {"name": "Shop", "components": [
+            {"id": "web", "path": "apps/web", "stack": ["Next.js 14.2", "React 18"]},
+            {"id": "api", "path": "services/api", "stack": ["Python", "Django"]},
+        ]}
+        write_json(self.input_path, profile)
+        self.init()
+        self.run_cli("task", "new", "Adjust the request status form.", "--id", self.task_id)
+        self.answers["components"] = ["web"]
+        consultation = self.consult()
+        self.assertEqual([component["id"] for component in consultation["scope"]["components"]], ["web"])
+        scope_packs = {pack["id"] for pack in consultation["scope"]["packs"]}
+        self.assertIn("nextjs", scope_packs)
+        self.assertNotIn("django", scope_packs)
+        self.review()
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=self.task_id):
+            self.run_cli("task", "decide", self.task_id, "--approve", "--by", "Owner", "--reason", "Scope agreed")
+        checks, _ = self.run_cli("task", "checks", self.task_id, "--json")
+        ids = [check["id"] for check in json.loads(checks)]
+        self.assertTrue(any(item.startswith("rule:nextjs/") for item in ids))
+        self.assertFalse(any(item.startswith("rule:django/") for item in ids))
 
     def test_review_from_an_earlier_consultation_is_rejected(self):
         self.init()
@@ -141,6 +177,23 @@ class WorkflowTests(unittest.TestCase):
         _, error = self.run_cli("task", "review", self.task_id, "--file", self.review_path, code=1)
         self.assertIn("belongs to another consultation", error)
         self.assertEqual(self.task()["status"], "consulting")
+
+        self.review()
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=self.task_id):
+            self.run_cli("task", "decide", self.task_id, "--approve", "--by", "Owner", "--reason", "Scope agreed")
+        checks, _ = self.run_cli("task", "checks", self.task_id, "--json")
+        rule = next(item["id"] for item in json.loads(checks) if item["kind"] == "rule" and not item["mandatory"])
+        reason = "This rule applies after the deployment."
+        write_json(self.input_path, {"revision": "abc1234",
+                                    "checks": [{"check": rule, "status": "skipped", "reason": reason, "owner": "Owner"}]})
+        self.run_cli("task", "result", self.task_id, "--file", self.input_path)
+        output, _ = self.run_cli("task", "export", self.task_id)
+        exported = read_json(self.root / output.strip())
+        self.assertEqual(exported["boards"][0]["recommendation"], "Cover the approved scope with a synthetic fixture.")
+        self.assertNotIn("evidence", exported["boards"][0])
+        self.assertEqual(exported["rounds"][0]["decision"]["reason"], "Review retention")
+        self.assertEqual(exported["result"]["check_exceptions"],
+                         [{"check": rule, "status": "skipped", "reason": reason, "owner": "Owner"}])
 
     def test_catalog_dependencies_are_applied_before_dependent_rules(self):
         catalog = load_catalog()

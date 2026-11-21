@@ -224,6 +224,11 @@ def validate_answers(answers: dict) -> dict:
             raise ValueError(f"Choose {question_id} from {', '.join(allowed)}.")
         validated[question_id] = answer
     validated.update(_optional_answers(answers))
+    if "components" in answers:
+        selected = answers["components"]
+        if not isinstance(selected, list) or not all(isinstance(item, str) and item.strip() for item in selected):
+            raise ValueError("Task components must be a list of project component IDs.")
+        validated["components"] = list(dict.fromkeys(item.strip() for item in selected))
 
     unknown = answers.keys() - validated.keys() - {"context", *FOLLOW_UPS}
     if unknown:
@@ -492,7 +497,8 @@ def _route_boards(profile: dict, catalog: dict, task: dict, answers: dict) -> di
 
 def suggested_patterns(profile: dict, catalog: dict, task: dict, answers: dict) -> list[dict]:
     """Patterns that the task's concepts call for and the project has not selected yet."""
-    active = set(profile.get("patterns", []))
+    # A pattern scoped to components is recorded as {"id": ..., "components": [...]}.
+    active = {entry["id"] if isinstance(entry, dict) else entry for entry in profile.get("patterns", [])}
     suggestions = {}
     for concept in task_concepts(_task_text(task, answers), answers):
         for pattern_id in concept["patterns"]:

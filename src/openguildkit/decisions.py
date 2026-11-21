@@ -98,14 +98,26 @@ def verify_signature(root: Path, policy: dict, payload: dict, signature: str, si
         raise ValueError(f"The signature does not verify for {signer}: {result.stderr.decode(errors='replace').strip()}")
 
 
-def check_decision(task: dict, root: Path, profile: dict) -> None:
-    """Refuse an approval that no longer matches the record, its signature or the project history."""
+def stale_approval_message(task_id: str) -> str:
+    return (f"The approval for {task_id} was recorded under earlier rules. "
+            f'Open a new task with openguildkit task new "BRIEF" --follows {task_id}.')
+
+
+def check_decision_seal(task: dict) -> dict:
+    """Check the seal without launching Git or verifying an SSH signature."""
     decision = task["decision"]
     if "seal" not in decision:
         raise ValueError("This approval has no seal. It was edited outside the CLI or predates sealed decisions: open a new task.")
     payload = decision_payload(task, decision["by"], decision["reason"], decision.get("base_revision"))
     if seal(payload) != decision["seal"]:
         raise ValueError("The task record no longer matches what was approved. Open a new task for this work.")
+    return payload
+
+
+def check_decision(task: dict, root: Path, profile: dict) -> None:
+    """Refuse an approval that no longer matches the record, its signature or the project history."""
+    payload = check_decision_seal(task)
+    decision = task["decision"]
     policy = approval_policy(profile)
     if policy["mode"] == "signed":
         if "signature" not in decision:
