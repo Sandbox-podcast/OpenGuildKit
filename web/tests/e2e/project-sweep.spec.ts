@@ -56,6 +56,16 @@ for (const [label, viewport, mode] of [['bureau RPG', { width: 1440, height: 900
     page.on('requestfailed', () => { inflight--; });
     await page.setViewportSize(viewport);
     await page.addInitScript((m) => { localStorage.setItem('ogk-ui:prefs', JSON.stringify({ mode: m, motion: 'reduced' })); }, mode);
+    if (mode === 'focus') {
+      // Exercise a long interpreter path regardless of where Python is installed for this run.
+      await page.route('**/api/run', async (route) => {
+        if (route.request().postDataJSON()?.argv?.[0] !== 'preview') return route.continue();
+        const response = await route.fetch();
+        const body = await response.json();
+        body.json.checks.push(`"/opt/${'environment'.repeat(12)}/bin/python" -c "print('ok')"`);
+        await route.fulfill({ response, json: body });
+      });
+    }
     const problems: string[] = [];
     for (const route of ROUTES) {
       await page.goto(`/#${route}`);
