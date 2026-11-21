@@ -4,13 +4,17 @@
 
 Each command runs as a real process, as an agent or a hook runs it, in projects
 built in a temporary folder: the request status example, the same project with
-500 tasks, and a monorepo of 200 packages. The time of each command is the
+500 tasks of which 5 are approved, and a monorepo of 200 packages. Python caches
+the bytecode in that folder, as an installed package does, even when
+PYTHONDONTWRITEBYTECODE is set. The time of each command is the
 median of N runs; "x start" divides it by the time of openguildkit --version,
 so the figure stays comparable between a fast laptop and a slow CI runner.
 tests/test_performance.py runs the same measures with budgets.
 """
 
 import argparse
+import contextlib
+import io
 import json
 import os
 import platform
@@ -21,19 +25,22 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src"
 sys.path.insert(0, str(SOURCE))
 
+from openguildkit.cli import main as openguildkit_main  # noqa: E402
 from openguildkit.storage import write_json  # noqa: E402
 
 EXAMPLE = ROOT / "examples" / "request-status"
 TASK = "request-status"
 TASKS = 500
+APPROVED = 5
 PACKAGES = 200
 ENV = {
-    **os.environ,
+    **{key: value for key, value in os.environ.items() if key != "PYTHONDONTWRITEBYTECODE"},
     "PYTHONPATH": os.pathsep.join(filter(None, [str(SOURCE), os.environ.get("PYTHONPATH")])),
     "PYTHONIOENCODING": "utf-8",
     "PYTHONUTF8": "1",
@@ -67,15 +74,42 @@ def example_project(folder: Path, guard: str = "off") -> Path:
     return folder
 
 
+def in_process(project: Path, *args, typed: str | None = None) -> str:
+    """Run one command in this process, typing at a terminal when typed is given; return its output."""
+    stdout = io.StringIO()
+    terminal = patch("sys.stdin.isatty", return_value=True) if typed else contextlib.nullcontext()
+    answer = patch("builtins.input", return_value=typed) if typed else contextlib.nullcontext()
+    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(io.StringIO()), terminal, answer:
+        code = openguildkit_main(["--project", str(project), *map(str, args)])
+    if code:
+        raise RuntimeError(f"openguildkit {' '.join(map(str, args))} failed")
+    return stdout.getvalue()
+
+
+def approve(project: Path, task_id: str) -> None:
+    """Consult the example task, record the example review and approve it, as a person at a terminal does."""
+    in_process(project, "task", "new", "--file", EXAMPLE / "brief.md", "--id", task_id)
+    in_process(project, "task", "consult", task_id, "--answers", EXAMPLE / "answers.json")
+    template = json.loads(in_process(project, "task", "template", task_id))
+    review = {"consultation_id": template["consultation_id"],
+              **json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))}
+    write_json(project / "review.json", review)
+    in_process(project, "task", "review", task_id, "--file", project / "review.json")
+    in_process(project, "task", "decide", task_id, "--approve", "--by", "Camille Example", "--reason", "Agreed",
+               typed=task_id)
+
+
 def many_tasks(folder: Path) -> Path:
-    """The example project with TASKS records: half drafts, half consulted copies of the example task."""
+    """The example project with TASKS records: APPROVED approved, then drafts and consulted copies by halves."""
     project = example_project(folder, guard="enforce")
+    for index in range(APPROVED):
+        approve(project, f"approved-{index}")
     cli(project, "task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
     cli(project, "task", "consult", TASK, "--answers", EXAMPLE / "answers.json")
     tasks = project / ".openguildkit" / "tasks"
     consulted = json.loads((tasks / f"{TASK}.json").read_text(encoding="utf-8"))
     draft = {key: consulted[key] for key in ("schema_version", "brief", "created_at")}
-    for index in range(TASKS - 1):
+    for index in range(TASKS - APPROVED - 1):
         task_id = f"task-{index:04d}"
         record = {**consulted, "id": task_id} if index % 2 else {**draft, "id": task_id, "status": "draft", "rounds": []}
         write_json(tasks / f"{task_id}.json", record)
@@ -147,6 +181,7 @@ def scenarios(base: Path) -> list[tuple[str, callable]]:
 def measure(repeat: int = 3) -> dict:
     """Median seconds per scenario, the runs, and the ratio to the start time."""
     base = Path(tempfile.mkdtemp(prefix="ogk-bench-")).resolve()
+    ENV["PYTHONPYCACHEPREFIX"] = str(base / "bytecode")
     try:
         results = {}
         for name, run in scenarios(base):

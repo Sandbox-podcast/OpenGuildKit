@@ -17,7 +17,8 @@ from .decisions import approval_policy, check_decision, decision_payload, seal, 
 from .lock import LOCK_FILE, read_lock
 from .project import STATE_DIR, load_profile, profile_fingerprint
 from .storage import read_json, write_json
-from .tasks import read_task
+from .task_index import tasks_with_status
+from .tasks import STATUSES, read_task
 
 MODES = ("off", "observe", "enforce")
 DECISIONS_DIR = "decisions"
@@ -45,15 +46,19 @@ def _age_days(moment: str) -> int | None:
 
 
 def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) -> list[dict]:
-    """Approved tasks, not yet done, whose approval still matches the record and the rules."""
+    """Approved tasks, not yet done, whose approval still matches the record and the rules.
+
+    The status index skips the records that are not approved without parsing them; every other record is read
+    and checked in full, so the index never decides what is covered.
+    """
     directory = state / "tasks"
     if not directory.is_dir():
         return []
     fingerprint = profile_fingerprint(profile, catalog)
     covered = []
-    for path in sorted(directory.glob("*.json")):
+    for task_id in tasks_with_status(state, set(STATUSES) - {"approved"}):
         try:
-            task = read_task(state, path.stem)
+            task = read_task(state, task_id)
             if task["status"] != "approved" or task.get("profile_fingerprint") != fingerprint:
                 continue
             if task.get("answers", {}).get("kind") == "decision":

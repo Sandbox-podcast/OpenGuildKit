@@ -153,6 +153,23 @@ class ParallelWriteTests(ConcurrencyTestCase):
         self.assertEqual(loser_error.strip(), "OpenGuildKit: Task already exists: twin")
         self.assertEqual(self.task_record_of("twin")["brief"], winner)
 
+    def test_guards_and_writers_together_leave_a_whole_status_index(self):
+        self.consult_example()
+        ids = [f"parallel-{index}" for index in range(6)]
+        commands = [command for name in ids for command in (("task", "new", f"Brief {name}.", "--id", name),
+                                                           ("guard", "--json"))]
+        for command, (code, _, stderr) in zip(commands, self.run_together(commands)):
+            self.assertEqual(code, 0, f"{' '.join(command)}: {stderr}")
+        covered = json.loads(self.run_cli("guard", "--json").stdout)["covered_by"]
+        tasks = self.project / ".openguildkit" / "tasks"
+        index = json.loads((tasks / ".status-index").read_text(encoding="utf-8"))
+        self.assertEqual(sorted(index["tasks"]), sorted(path.name for path in self.task_files()))
+        self.assertEqual({name: entry["status"] for name, entry in index["tasks"].items()},
+                         {**{f"{name}.json": "draft" for name in ids}, f"{TASK_ID}.json": "consulting"})
+        (tasks / ".status-index").unlink()
+        self.assertEqual(json.loads(self.run_cli("guard", "--json").stdout)["covered_by"], covered)
+        self.assertEqual([path.name for path in tasks.iterdir() if path.name.endswith(".tmp")], [])
+
     def test_two_submissions_for_one_board_leave_one_whole_entry(self):
         self.consult_example()
         entry = next(item for item in json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))["boards"]
