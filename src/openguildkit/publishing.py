@@ -10,16 +10,21 @@ leave the project: no review, evidence or internal note.
 import json
 import re
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from .storage import read_json, write_json, write_text
+from .storage import project_lock, read_json, write_json, write_text
 from .tasks import read_task
 
 MANIFEST = ".openguildkit-export.json"
 SECTIONS = ("reference", "learn", "blog")
 SHARES_DIR = "shares"
 _EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
+_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
+# The only paths an export writes; a manifest entry of another shape is never removed.
+_EXPORTED = re.compile(r"(?:(?:reference|learn|blog)/[^/]+\.md|openapi/[^/]+|SUMMARY\.md|README\.md)")
+MAX_SHARE_DAYS = 366
 
 
 def _title(task: dict) -> str:
@@ -67,6 +72,17 @@ def _pages(task: dict, position: int, version: str, sections: tuple[str, ...]) -
     return pages
 
 
+def _inside(output: Path, relative: str) -> bool:
+    """True when the path stays in the output folder once links and `..` are resolved."""
+    if Path(relative).is_absolute() or Path(relative).anchor:
+        return False
+    try:
+        (output / relative).resolve().relative_to(output.resolve())
+    except ValueError:
+        return False
+    return True
+
+
 def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
                 sections: tuple[str, ...] = SECTIONS, openapi: Path | None = None, project: str = "Project") -> dict:
     """Write the selected completed tasks as documentation pages; return what was written."""
@@ -94,13 +110,19 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
     pages["README.md"] = f"# {project}\n\nDocumentation for version {version}, generated from completed OpenGuildKit tasks.\n"
     if openapi is not None:
         pages[f"openapi/{openapi.name}"] = openapi.read_text(encoding="utf-8")
+    escaping = sorted(path for path in pages if not _inside(output, path))
+    if escaping:
+        raise ValueError(f"{', '.join(escaping)} would be written outside {output}: remove the symbolic link and export again.")
     for relative, content in pages.items():
         write_text(output / relative, content)
-    removed = [path for path in previous if path not in pages]
+    stale = [path for path in previous if isinstance(path, str) and path not in pages]
+    # The manifest is committed with the pages: anyone can edit it, so only remove what an export wrote.
+    removed = [path for path in stale if _EXPORTED.fullmatch(path) and _inside(output, path)]
+    kept = [path for path in previous if path not in pages and path not in removed]
     for relative in removed:
         (output / relative).unlink(missing_ok=True)
     write_json(manifest_path, {"version": version, "tasks": task_ids, "files": sorted(pages)})
-    return {"written": sorted(pages), "removed": removed}
+    return {"written": sorted(pages), "removed": removed, "kept": kept}
 
 
 def _shares_path(state: Path) -> Path:
@@ -119,27 +141,48 @@ def add_share(state: Path, deliverable: str, recipients: list[str], until: str, 
     bad = [item for item in recipients if not _EMAIL.fullmatch(item)]
     if not recipients or bad:
         raise ValueError(f"List the recipients' email addresses{': ' + ', '.join(bad) if bad else ''}.")
-    end = date.fromisoformat(until)
-    if end <= date.today():
-        raise ValueError("A share ends after today.")
-    if not portal.startswith("https://"):
+    end = _share_end(until)
+    address = urlsplit(portal)
+    if address.scheme != "https" or not address.hostname:
         raise ValueError("Give the https address of the Documentalist portal.")
     share = {"id": uuid.uuid4().hex[:8], "deliverable": deliverable.strip(), "recipients": sorted(set(recipients)),
              "until": until, "portal": portal, "by": by.strip(),
              "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "revoked_at": None}
-    write_json(_shares_path(state), {"shares": [*_load_shares(state), share]})
+    with project_lock(state):
+        write_json(_shares_path(state), {"shares": [*_load_shares(state), share]})
     return share
 
 
+def _share_end(until: str) -> date:
+    """The last day of access: a real YYYY-MM-DD date, after today and within a year."""
+    try:
+        end = date.fromisoformat(until) if _DAY.fullmatch(until) else None
+    except ValueError:
+        end = None
+    if end is None:
+        raise ValueError(f"Give the last day of access as YYYY-MM-DD, not {until!r}.")
+    if end <= date.today():
+        raise ValueError("A share ends after today.")
+    if end > date.today() + timedelta(days=MAX_SHARE_DAYS):
+        raise ValueError(f"A share lasts at most {MAX_SHARE_DAYS} days. Record a new share when it ends to extend it.")
+    return end
+
+
 def revoke_share(state: Path, share_id: str, by: str) -> dict:
-    shares = _load_shares(state)
-    for share in shares:
-        if share["id"] == share_id:
-            share["revoked_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
-            share["revoked_by"] = by.strip()
-            write_json(_shares_path(state), {"shares": shares})
-            return share
-    raise ValueError(f"Unknown share {share_id}.")
+    """Record that the access was removed in Documentalist; the first revocation stays."""
+    if not by.strip():
+        raise ValueError("Name the person who removed the access with --by.")
+    with project_lock(state):
+        shares = _load_shares(state)
+        share = next((item for item in shares if item["id"] == share_id), None)
+        if share is None:
+            raise ValueError(f"Unknown share {share_id}. Run openguildkit docs share list.")
+        if share["revoked_at"]:
+            raise ValueError(f"Share {share_id} was already revoked by {share.get('revoked_by') or 'someone'} on {share['revoked_at'][:10]}.")
+        share["revoked_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        share["revoked_by"] = by.strip()
+        write_json(_shares_path(state), {"shares": shares})
+    return share
 
 
 def share_status(state: Path, today: date | None = None) -> list[dict]:

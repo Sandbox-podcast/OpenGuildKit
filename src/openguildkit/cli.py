@@ -871,6 +871,8 @@ def _docs(args, root: Path, state: Path, profile: dict) -> int:
             print(f"wrote {path}")
         for path in result["removed"]:
             print(f"removed {path}")
+        for path in result["kept"]:
+            print(f"kept {path}: not a page this export wrote inside {args.output.as_posix()}, left in place")
         return 0
     if args.share_action == "add":
         if not (args.deliverable and args.until and args.portal and args.by):

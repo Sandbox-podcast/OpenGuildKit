@@ -1,18 +1,27 @@
 import contextlib
 import io
 import json
+import os
+import shutil
+import subprocess
 import sys
 import tempfile
+import time
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
+from openguildkit import publishing
 from openguildkit.cli import main
 from openguildkit.storage import write_json
 
-EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
+REPO = Path(__file__).resolve().parents[1]
+EXAMPLE = REPO / "examples" / "request-status"
+DOCUMENTALIST = REPO / "examples" / "documentalist"
 TASK = "request-status"
+BUSY = "is writing this project"
 
 
 class PublishingTests(unittest.TestCase):
@@ -93,6 +102,150 @@ class PublishingTests(unittest.TestCase):
         self.run_cli("docs", "share", "revoke", "--id", data["shares"][0]["id"], "--by", "Camille")
         self.run_cli("docs", "share", "check")
         self.assertIn("shares/", (self.root / ".openguildkit" / ".gitignore").read_text())
+
+    def exported_site(self):
+        self.done_task()
+        self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0")
+        return self.root / "docs-site"
+
+    def add_to_manifest(self, site, entry):
+        manifest = json.loads((site / ".openguildkit-export.json").read_text(encoding="utf-8"))
+        manifest["files"].append(entry)
+        write_json(site / ".openguildkit-export.json", manifest)
+
+    def test_export_keeps_a_file_the_manifest_places_above_the_output_folder(self):
+        site = self.exported_site()
+        victim = self.root / "victim.txt"
+        victim.write_text("VICTIM\n", encoding="utf-8")
+        self.add_to_manifest(site, "../victim.txt")
+        output, _ = self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.1")
+        self.assertTrue(victim.is_file())
+        self.assertIn("kept ../victim.txt", output)
+        self.assertNotIn("removed ../victim.txt", output)
+        self.assertNotIn("../victim.txt", (site / ".openguildkit-export.json").read_text(encoding="utf-8"))
+
+    def test_export_keeps_a_file_the_manifest_names_by_absolute_path(self):
+        site = self.exported_site()
+        victim = self.root / "victim.txt"
+        victim.write_text("VICTIM\n", encoding="utf-8")
+        self.add_to_manifest(site, victim.as_posix())
+        output, _ = self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.1")
+        self.assertTrue(victim.is_file())
+        self.assertIn(f"kept {victim.as_posix()}", output)
+
+    def test_export_keeps_a_file_reached_through_a_symbolic_link_out_of_the_folder(self):
+        site = self.exported_site()
+        outside = self.root / "outside"
+        outside.mkdir()
+        (outside / "old.md").write_text("# Keep\n", encoding="utf-8")
+        try:
+            (site / "blog" / "linked").symlink_to(outside, target_is_directory=True)
+        except OSError as error:
+            self.skipTest(f"This account cannot create symbolic links: {error}")
+        self.add_to_manifest(site, "blog/linked/old.md")
+        output, _ = self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.1")
+        self.assertTrue((outside / "old.md").is_file())
+        self.assertIn("kept blog/linked/old.md", output)
+
+    def test_export_refuses_to_write_pages_through_a_link_out_of_the_folder(self):
+        site = self.exported_site()
+        outside = self.root / "outside"
+        outside.mkdir()
+        for page in (site / "learn").iterdir():
+            page.unlink()
+        (site / "learn").rmdir()
+        try:
+            (site / "learn").symlink_to(outside, target_is_directory=True)
+        except OSError as error:
+            self.skipTest(f"This account cannot create symbolic links: {error}")
+        _, error = self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.1", code=1)
+        self.assertIn("outside", error)
+        self.assertEqual(list(outside.iterdir()), [])
+
+    def test_twenty_shares_recorded_at_once_are_all_kept(self):
+        until = (date.today() + timedelta(days=30)).isoformat()
+        environment = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"), os.environ.get("PYTHONPATH")])),
+                       "PYTHONIOENCODING": "utf-8"}
+
+        def add(index):
+            command = [sys.executable, "-m", "openguildkit", "--project", str(self.root), "docs", "share", "add",
+                       "--deliverable", f"d{index}", "--recipient", f"reader{index}@example.test", "--until", until,
+                       "--portal", "https://docs.example.test/p/portal", "--by", "Camille"]
+            for _ in range(400):
+                done = subprocess.run(command, env=environment, capture_output=True, text=True, encoding="utf-8")
+                # The project lock may refuse a busy project instead of waiting: try again then.
+                if done.returncode == 0 or BUSY not in done.stderr:
+                    return done
+                time.sleep(0.05)
+            return done
+
+        with ThreadPoolExecutor(max_workers=20) as pool:
+            results = list(pool.map(add, range(20)))
+        self.assertEqual([item.returncode for item in results], [0] * 20, [item.stderr for item in results])
+        shares = json.loads((self.root / ".openguildkit" / "shares" / "shares.json").read_text(encoding="utf-8"))["shares"]
+        self.assertEqual(sorted(share["deliverable"] for share in shares), sorted(f"d{index}" for index in range(20)))
+
+    def test_revoking_a_share_holds_the_project_lock(self):
+        until = (date.today() + timedelta(days=30)).isoformat()
+        self.run_cli("docs", "share", "add", "--deliverable", "d", "--recipient", "reader@example.test", "--until", until,
+                     "--portal", "https://docs.example.test/p/portal", "--by", "Camille")
+        share_id = json.loads(self.run_cli("docs", "share", "list", "--json")[0])[0]["id"]
+        held = []
+        real_lock = publishing.project_lock
+
+        @contextlib.contextmanager
+        def recording_lock(state):
+            with real_lock(state):
+                held.append(True)
+                yield
+                held.append(False)
+
+        with patch.object(publishing, "project_lock", recording_lock), \
+                patch.object(publishing, "write_json", side_effect=lambda *args: self.assertEqual(held[-1:], [True]) or write_json(*args)):
+            self.run_cli("docs", "share", "revoke", "--id", share_id, "--by", "Camille")
+        self.assertEqual(held, [True, False])
+
+    def test_share_dates_portal_and_revocation_are_checked(self):
+        common = ["docs", "share", "add", "--deliverable", "d", "--recipient", "reader@example.test", "--by", "Camille"]
+        portal = ["--portal", "https://docs.example.test/p/portal"]
+        later = date.today() + timedelta(days=30)
+        for until in (later.strftime("%Y%m%d"), later.strftime("%G-W%V-%u"), "9999-12-31", "2026-02-30"):
+            _, error = self.run_cli(*common, *portal, "--until", until, code=1)
+            self.assertTrue(error.startswith("OpenGuildKit: "), error)
+        self.run_cli(*common, "--portal", "https://", "--until", later.isoformat(), code=1)
+        self.run_cli(*common, *portal, "--until", later.isoformat())
+        share_id = json.loads(self.run_cli("docs", "share", "list", "--json")[0])[0]["id"]
+        self.run_cli("docs", "share", "revoke", "--id", share_id, "--by", "   ", code=1)
+        self.run_cli("docs", "share", "revoke", "--id", share_id, "--by", "Camille")
+        _, error = self.run_cli("docs", "share", "revoke", "--id", share_id, "--by", "Mallory", code=1)
+        self.assertIn("already revoked", error)
+        share = json.loads(self.run_cli("docs", "share", "list", "--json")[0])[0]
+        self.assertEqual(share["revoked_by"], "Camille")
+
+    @unittest.skipIf(shutil.which("git") is None, "The example's only check command is git --version.")
+    def test_replaying_the_documentalist_example_gives_its_docs_site(self):
+        project = self.root / "replay"
+        command = [sys.executable, str(DOCUMENTALIST / "replay.py"), "--project", str(project)]
+        environment = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+        first = subprocess.run(command, env=environment, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertIn("Approval needs a person", first.stdout)
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK), \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(main(["--project", str(project), "task", "decide", TASK, "--approve", "--by", "Camille Martin",
+                                   "--reason", "Scope agreed"]), 0)
+        second = subprocess.run(command, env=environment, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(second.returncode, 0, second.stderr)
+        produced, expected = project / "docs-site", DOCUMENTALIST / "docs-site"
+        # The blog page is named and dated after the day of completion; every other byte must match.
+        expected_day = next((expected / "blog").glob("*.md")).name[:10]
+        produced_day = next((produced / "blog").glob("*.md")).name[:10]
+
+        def tree(folder, day):
+            return {path.relative_to(folder).as_posix().replace(day, "DAY"): path.read_text(encoding="utf-8").replace(day, "DAY")
+                    for path in sorted(folder.rglob("*")) if path.is_file()}
+
+        self.assertEqual(tree(produced, produced_day), tree(expected, expected_day))
 
 
 if __name__ == "__main__":
