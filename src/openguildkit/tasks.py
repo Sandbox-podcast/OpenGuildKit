@@ -380,6 +380,9 @@ def submit_pass(task: dict, entry: dict, mode: str | None = None, root: Path | N
             passes["boards"][board_id] = {**current, "status": "failed", "mode": mode, "error": message,
                                           "at": timestamp(), "attempts": current.get("attempts", 1)}
             return {**task, "passes": passes, "_error": message}
+        problems = entry_problems(task["consultation"], entry, root)
+        if problems:
+            raise ValueError(problems[0]) from None
         raise
     passes["boards"][validated["id"]] = {"status": "done", "mode": mode, "entry": validated, "at": timestamp(),
                                          "attempts": current.get("attempts", 1)}
