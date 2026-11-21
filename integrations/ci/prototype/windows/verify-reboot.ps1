@@ -21,9 +21,10 @@ function Find-RulePush($Report) {
     if ($ref -notlike 'refs/heads/*') { $ref = "refs/heads/$ref" }
     $encodedRef = [Uri]::EscapeDataString($ref)
     $endpoint = "repos/$($Report.policyRepo)/activity?ref=$encodedRef&activity_type=push&per_page=100"
-    $json = & $gh api --paginate --slurp $endpoint
+    $jsonLines = @(& $gh api --paginate --slurp $endpoint)
     if ($LASTEXITCODE -ne 0) { throw "GitHub request failed: $endpoint" }
-    $pages = (ConvertFrom-Json -InputObject ('{"pages":' + ($json -join "`n") + '}')).pages
+    $json = [string]::Join("`n", [string[]]$jsonLines)
+    $pages = (ConvertFrom-Json -InputObject ('{"pages":' + $json + '}')).pages
     $pushes = @(foreach ($page in $pages) {
         $page | Where-Object { $_.ref -eq $ref -and $_.after -eq $Report.policyCommit -and $_.activity_type -eq 'push' }
     })
