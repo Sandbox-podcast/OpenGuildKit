@@ -482,6 +482,12 @@ def _consultation_markdown(scope: dict, boards: dict, routing: dict, delegations
         }
         if "review" in board:
             brief["brain_review"] = board["review"]
+        if board_id == "design" and scope.get("storybook"):
+            brief["storybook"] = (
+                "The project records its Storybook stories in scope.storybook. Cite a component in a precise "
+                "state as evidence with ref storybook:STORY_ID, or storybook:REF_STORY_ID for a composed "
+                "Storybook, such as storybook:button--disabled. Only recorded story IDs are accepted."
+            )
         if delegations and board_id in delegations:
             brief["reviewer"] = (
                 f"{delegations[board_id]} reviews for this board. Prepare the brief for them and record "
@@ -552,7 +558,7 @@ def _board_template(board: dict, reviewer: str | None = None) -> dict:
 
 def consult(
     profile: dict, catalog: dict, task: dict, selection: dict | None = None, host_controls: list[dict] | None = None,
-    market: dict | None = None,
+    market: dict | None = None, storybook: dict | None = None,
 ) -> dict:
     """Route a scoped task and prepare a review request for the host agent."""
     answers = validate_answers(task["answers"])
@@ -563,6 +569,8 @@ def consult(
         scope["host_controls"] = host_controls
     if market:
         scope["market"] = market
+    if storybook:
+        scope["storybook"] = storybook
     consultation_id = uuid4().hex
     consultation = {
         "id": consultation_id,
@@ -606,7 +614,9 @@ _DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _REVISION = re.compile(r"[0-9a-f]{7,64}")
 
 
-def _evidence_item(item: object, field: str, market_refs: frozenset = frozenset()) -> dict:
+def _evidence_item(
+    item: object, field: str, market_refs: frozenset = frozenset(), storybook_refs: frozenset = frozenset()
+) -> dict:
     """An evidence item says where it comes from, what it supports and how to find it again."""
     if not isinstance(item, dict) or not {"source", "ref", "supports"} <= item.keys() \
             or not item.keys() <= {"source", "ref", "supports", "date", "revision"}:
@@ -617,6 +627,8 @@ def _evidence_item(item: object, field: str, market_refs: frozenset = frozenset(
     result = {"source": source, "ref": _text(item["ref"], f"{field} ref"), "supports": _text(item["supports"], f"{field} supports")}
     if result["ref"].startswith("market:") and result["ref"] not in market_refs:
         raise ValueError(f"{field}: {result['ref']} is not an observation or change of the attached market dossier.")
+    if result["ref"].startswith("storybook:") and result["ref"] not in storybook_refs:
+        raise ValueError(f"{field}: {result['ref']} is not a story of the Storybook indexes the project recorded.")
     if source == "public" and not result["ref"].startswith(("https://", "market:")):
         raise ValueError(f"{field}: a public source needs an https link in ref.")
     if "date" in item:
@@ -641,13 +653,27 @@ def market_references(scope: dict) -> frozenset:
     return frozenset(refs)
 
 
-def _evidence_list(value: object, field: str, structured: bool, market_refs: frozenset = frozenset()) -> list:
+def storybook_references(scope: dict) -> frozenset:
+    """storybook:ID for the project's stories, storybook:REF_ID for a composed Storybook's, as in its URL."""
+    storybook = scope.get("storybook")
+    if not storybook:
+        return frozenset()
+    return frozenset(
+        f"storybook:{story}" if index["ref"] == "project" else f"storybook:{index['ref']}_{story}"
+        for index in storybook["indexes"] for story in index["stories"]
+    )
+
+
+def _evidence_list(
+    value: object, field: str, structured: bool, market_refs: frozenset = frozenset(),
+    storybook_refs: frozenset = frozenset(),
+) -> list:
     """Reviews made before structured evidence keep their text items."""
     if not structured:
         return _text_list(value, field)
     if not isinstance(value, list):
         raise ValueError(f"{field} must be a list.")
-    return [_evidence_item(item, field, market_refs) for item in value]
+    return [_evidence_item(item, field, market_refs, storybook_refs) for item in value]
 
 
 def _blocker(item: object, board_id: str) -> dict:
@@ -755,7 +781,7 @@ def validate_board_entry(consultation: dict, entry: object) -> dict:
         "recommendation": _text(entry["recommendation"], f"{board_id} recommendation"),
         "evidence": _evidence_list(
             entry["evidence"], f"{board_id} evidence", consultation.get("evidence_format") == "structured",
-            market_references(consultation.get("scope", {})),
+            market_references(consultation.get("scope", {})), storybook_references(consultation.get("scope", {})),
         ),
         "open_questions": _text_list(entry["open_questions"], f"{board_id} open questions"),
     }

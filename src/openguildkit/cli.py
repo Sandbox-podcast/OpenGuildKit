@@ -15,6 +15,9 @@ from .detect import components_for_profile, detect_stack
 from .publishing import add_share, export_docs, revoke_share, share_status
 from .market import dossier_gaps, due_sources, load_dossier
 from .market import scope_entry as market_scope_entry
+from .storybook import STORYBOOK_VERSION
+from .storybook import run as storybook_command
+from .storybook import scope_entry as storybook_scope_entry
 from .integrations import install_agent_files
 from .guard import NO_TASK, ci_guard, covering_tasks, export_decision, guard_hook, guard_mode
 from .results import chaosfolk_checks, compare_runs, completion_problems, expected_checks, run_command_checks
@@ -144,6 +147,43 @@ def _parser() -> argparse.ArgumentParser:
     market.add_argument("mode", choices=("check", "due"), help="check validates and lists gaps; due lists watched sources to review.")
     market.add_argument("dossier", help="Dossier ID in .openguildkit/market/.")
     market.add_argument("--json", action="store_true", help="Print the result as JSON.")
+    storybook = commands.add_parser(
+        "storybook", help="Compose the company Storybook, record its stories and extract a design system.")
+    storybook_actions = storybook.add_subparsers(dest="action", required=True)
+    compose = storybook_actions.add_parser(
+        "compose", help="Add a published Storybook to the refs file that .storybook/main imports.")
+    compose.add_argument("ref", help="Ref ID, such as company; its stories are cited as storybook:REF_STORY_ID.")
+    compose.add_argument("--url", help="URL of the published Storybook.")
+    compose.add_argument("--title", help="Title shown in the Storybook sidebar.")
+    compose.add_argument("--remove", action="store_true", help="Remove this ref from the refs file.")
+    compose.add_argument("--config-dir", default=".storybook", help="Storybook configuration folder (default .storybook).")
+    sb_import = storybook_actions.add_parser(
+        "import", help="Compare Storybook index.json files, report what to map and record the known stories.")
+    sb_import.add_argument("--project-index", type=Path,
+                           help="The project's index.json or storybook-static folder (default storybook-static).")
+    sb_import.add_argument("--company-index", type=Path, help="The company Storybook's index.json or static folder.")
+    sb_import.add_argument("--ref", default="company", help="Ref ID of the company Storybook (default company).")
+    sb_import.add_argument("--library", type=Path, help="package.json of the company component library.")
+    sb_import.add_argument("--package", type=Path, help="The project's package.json (default package.json).")
+    sb_extract = storybook_actions.add_parser(
+        "extract", help="Inventory the components, variants and style tokens of an existing React application.")
+    sb_extract.add_argument("--src", type=Path, action="append", required=True,
+                         help="Source folder or file to scan, such as a screen; repeat to select several.")
+    sb_extract.add_argument("--preview", type=Path, action="append", default=[],
+                         help="Screenshot the team may reuse; recorded with its hash, never analyzed.")
+    sb_extract.add_argument("--output", type=Path, help="Inventory file (default .openguildkit/storybook/inventory.json).")
+    sb_propose = storybook_actions.add_parser(
+        "propose", help="Write the proposals to validate from the inventory, keeping the decisions already made.")
+    sb_propose.add_argument("--inventory", type=Path, help="Inventory file (default .openguildkit/storybook/inventory.json).")
+    sb_propose.add_argument("--proposals", type=Path, help="Proposals file (default .openguildkit/storybook/proposals.json).")
+    sb_generate = storybook_actions.add_parser(
+        "generate", help="Write tokens, stories and an index for the validated proposals; never overwrite edits.")
+    sb_generate.add_argument("--proposals", type=Path, help="Proposals file (default .openguildkit/storybook/proposals.json).")
+    sb_generate.add_argument("--out", type=Path, help="Output folder (default src/design-system).")
+    sb_generate.add_argument("--framework", default="@storybook/react-vite", help="Storybook framework package for the types.")
+    for storybook_action in (compose, sb_import, sb_extract, sb_propose, sb_generate):
+        storybook_action.add_argument("--json", action="store_true", help="Print the result as JSON.")
+    storybook.epilog = f"Create the project Storybook with npm create storybook@{STORYBOOK_VERSION}."
     agent = commands.add_parser("integrations", help="Install the agent skill and subagent of this version.")
     agent.add_argument("--host", required=True, choices=("claude-code", "codex"), help="Agent to configure.")
     agent.add_argument("--user", action="store_true", help="Install in the home folder for every project.")
@@ -1065,7 +1105,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             if args.market:
                 research = "public-sources" if profile.get("research") == "public-sources" and answers.get("research") == "public" else "local-only"
                 market = market_scope_entry(load_dossier(state, args.market), research)
-            result = record_consultation(current_task, answers, profile, catalog, _selection(args), controls, market)
+            result = record_consultation(current_task, answers, profile, catalog, _selection(args), controls, market,
+                                         storybook_scope_entry(state))
             write_json(task_path(state, args.id), result)
         print(result["consultation"]["markdown"])
     elif action == "review":
@@ -1216,6 +1257,8 @@ def _run(args) -> int | None:
             else:
                 print("\n".join(lines))
             return
+        if args.command == "storybook":
+            return storybook_command(args, root, state)
         if args.command == "guard":
             return _guard(args, root, state, profile, catalog)
         if args.command == "host":
