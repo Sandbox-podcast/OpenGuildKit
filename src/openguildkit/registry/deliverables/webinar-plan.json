@@ -1,0 +1,90 @@
+{
+  "id": "webinar-plan",
+  "title": "Webinar plan",
+  "description": "Plan a webinar or online event: topic, speakers, promotion, registration and consent, accessibility and follow-up.",
+  "method": "marketing-campaign-planning",
+  "brains": [
+    "marketing",
+    "product",
+    "sales",
+    "legal"
+  ],
+  "inputs": [
+    {
+      "id": "topic",
+      "label": "Topic and the audience problem it addresses",
+      "data": "none"
+    },
+    {
+      "id": "speakers",
+      "label": "Speakers and their consent to being recorded",
+      "data": "personal"
+    },
+    {
+      "id": "registration",
+      "label": "Registration fields and the tool that stores them",
+      "data": "personal"
+    },
+    {
+      "id": "schedule",
+      "label": "Date, time zone and duration",
+      "data": "internal"
+    }
+  ],
+  "tool_actions": [
+    {
+      "action": "publish",
+      "description": "Publishing the registration page."
+    },
+    {
+      "action": "send-message",
+      "description": "Sending invitations, reminders and the replay."
+    },
+    {
+      "action": "external-api",
+      "description": "Sending registrations to the CRM."
+    }
+  ],
+  "sections": [
+    {
+      "id": "agenda",
+      "title": "Agenda",
+      "prompt": "The sequence of the session, who speaks when, and the time kept for questions."
+    },
+    {
+      "id": "promotion",
+      "title": "Promotion",
+      "prompt": "The channels and dates that bring registrations, with tagged links. Build each tagged link with openguildkit deliverable utm."
+    },
+    {
+      "id": "registration",
+      "title": "Registration and consent",
+      "prompt": "The fields collected, their legal basis, the recording notice and what registrants receive."
+    },
+    {
+      "id": "accessibility",
+      "title": "Accessibility",
+      "prompt": "Captions, slides shared beforehand and a way to ask questions without speaking."
+    },
+    {
+      "id": "follow-up",
+      "title": "Follow-up",
+      "prompt": "The replay, answers to open questions, and what sales does with attendees who agreed to be contacted."
+    }
+  ],
+  "checks": [
+    {
+      "id": "rehearsal-done",
+      "verification": "The speakers rehearsed on the platform with the final slides."
+    },
+    {
+      "id": "consent-confirmed",
+      "verification": "The registration consent and the recording notice are confirmed by the data protection owner."
+    },
+    {
+      "id": "captions-ready",
+      "verification": "Captions were tested for the live session or the replay."
+    }
+  ],
+  "sources": []
+}

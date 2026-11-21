@@ -1,0 +1,80 @@
+{
+  "id": "social-media-plan",
+  "title": "Social media plan",
+  "description": "Plan the posts for a launch or a period: networks, messages, calendar, who answers comments and how results are measured.",
+  "method": "marketing-channel-planning",
+  "market": true,
+  "brains": [
+    "marketing",
+    "communication",
+    "legal"
+  ],
+  "inputs": [
+    {
+      "id": "goal",
+      "label": "Objective and the audience on each network",
+      "data": "internal"
+    },
+    {
+      "id": "messages",
+      "label": "Key messages and the visuals available",
+      "data": "none"
+    },
+    {
+      "id": "accounts",
+      "label": "Accounts that will post and who has access to them",
+      "data": "internal"
+    }
+  ],
+  "tool_actions": [
+    {
+      "action": "publish",
+      "description": "Publishing or scheduling posts on social networks."
+    },
+    {
+      "action": "send-message",
+      "description": "Replying to comments and direct messages."
+    }
+  ],
+  "sections": [
+    {
+      "id": "networks",
+      "title": "Networks and audience",
+      "prompt": "Why each network reaches the audience, with the evidence, and where competitors are present according to the market dossier."
+    },
+    {
+      "id": "calendar",
+      "title": "Calendar",
+      "prompt": "Each post with its date, network, text, visual and link."
+    },
+    {
+      "id": "moderation",
+      "title": "Moderation and replies",
+      "prompt": "Who answers comments, how fast, and what goes to support or legal."
+    },
+    {
+      "id": "measurement",
+      "title": "Measurement",
+      "prompt": "The metric per network, its baseline and how links are tagged. Build each tagged link with openguildkit deliverable utm."
+    }
+  ],
+  "checks": [
+    {
+      "id": "claims-substantiated",
+      "verification": "Each claim points to evidence the team can show: a measurement, a customer result or a dated source."
+    },
+    {
+      "id": "rights-cleared",
+      "verification": "Every image, video, music and quote is owned, licensed or approved for this use."
+    },
+    {
+      "id": "disclosure",
+      "verification": "Paid partnerships and sponsored posts are labelled as such."
+    },
+    {
+      "id": "tracking-ready",
+      "verification": "Tagged links and the metric per network are set up before the first post."
+    }
+  ],
+  "sources": []
+}

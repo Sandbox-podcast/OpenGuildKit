@@ -14,6 +14,7 @@ import re
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+from . import clock
 from .storage import read_json, write_json
 
 REGISTER_FILE = "alerts.json"
@@ -203,11 +204,11 @@ def save_register(state: Path, register: dict) -> None:
 
 
 def _today() -> str:
-    return date.today().isoformat()
+    return clock.today().isoformat()
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return clock.timestamp()
 
 
 def _status(alert: dict) -> str:

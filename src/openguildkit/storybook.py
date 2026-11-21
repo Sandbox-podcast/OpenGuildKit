@@ -17,6 +17,7 @@ from datetime import date
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from . import clock
 from .storage import json_text, project_lock, read_json, write_json, write_text
 
 STORYBOOK_VERSION = "10.6.6"
@@ -466,7 +467,7 @@ def import_indexes(root: Path, state: Path, project_index: Path | None = None, c
 
     Only .openguildkit/storybook.json is written: the project's stories and configuration stay as they are.
     """
-    today = today or date.today()
+    today = today or clock.today()
     ref = ref_id(ref)
     if ref == PROJECT_REF:
         raise ValueError(f"{PROJECT_REF} is reserved for the project's own Storybook.")
@@ -511,7 +512,7 @@ def scope_entry(state: Path, today: date | None = None) -> dict | None:
     record = load_record(state)
     if not record:
         return None
-    today = today or date.today()
+    today = today or clock.today()
     return {
         "record": f"{state.name}/{RECORD}",
         "cite": "storybook:STORY_ID for the project's stories, storybook:REF_STORY_ID for a composed Storybook. "
@@ -1100,7 +1101,7 @@ def _capped(origins: list[str], limit: int = 20) -> list[str]:
 
 def extract(root: Path, sources: list[Path], previews: list[Path] | None = None, today: date | None = None) -> dict:
     """Inventory React components, their variants and style token candidates, each tied to its origin."""
-    today = today or date.today()
+    today = today or clock.today()
     definitions, usages, tokens, variables = {}, {}, {}, {}
     modules, reexports = {}, []
     scanned = {"components": 0, "styles": 0}

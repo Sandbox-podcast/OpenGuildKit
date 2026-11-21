@@ -1,0 +1,80 @@
+{
+  "id": "press-release",
+  "title": "Press release",
+  "description": "Announce news to journalists: the fact, why it matters, approved quotes, figures the press can verify and a contact.",
+  "method": "release-and-incident-communication",
+  "brains": [
+    "communication",
+    "legal",
+    "leadership"
+  ],
+  "inputs": [
+    {
+      "id": "news",
+      "label": "The announcement and its date",
+      "data": "internal"
+    },
+    {
+      "id": "spokespeople",
+      "label": "People quoted and their approval of the quote",
+      "data": "personal"
+    },
+    {
+      "id": "embargo",
+      "label": "Embargo date and time, or none",
+      "data": "internal"
+    }
+  ],
+  "tool_actions": [
+    {
+      "action": "publish",
+      "description": "Publishing the release in the newsroom or through a wire service."
+    },
+    {
+      "action": "send-message",
+      "description": "Sending the release to journalists."
+    }
+  ],
+  "sections": [
+    {
+      "id": "headline",
+      "title": "Headline and summary",
+      "prompt": "The news in one sentence a journalist could reuse, then who, what, when and why it matters."
+    },
+    {
+      "id": "body",
+      "title": "Body",
+      "prompt": "Details in order of importance, with the figures and their sources."
+    },
+    {
+      "id": "quotes",
+      "title": "Quotes",
+      "prompt": "One or two quotes that add a view, not a repetition of the facts."
+    },
+    {
+      "id": "about",
+      "title": "About and key facts",
+      "prompt": "The company description and the facts the press can check."
+    },
+    {
+      "id": "contact",
+      "title": "Press contact",
+      "prompt": "A press office or role address, or a person who agreed to be listed."
+    }
+  ],
+  "checks": [
+    {
+      "id": "facts-verified",
+      "verification": "Every figure, name and date was checked against its source."
+    },
+    {
+      "id": "quotes-approved",
+      "verification": "Each quoted person approved their quote in writing."
+    },
+    {
+      "id": "disclosure-cleared",
+      "verification": "Legal confirmed the timing and content respect the embargo and any disclosure obligation."
+    }
+  ],
+  "sources": []
+}

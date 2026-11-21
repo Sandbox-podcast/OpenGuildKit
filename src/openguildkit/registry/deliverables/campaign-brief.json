@@ -3,6 +3,7 @@
   "title": "Campaign brief",
   "description": "Plan a marketing campaign with its audience, message, channels, measures and approvals before any tool sends or publishes.",
   "method": "marketing-campaign-planning",
+  "market": true,
   "brains": [
     "marketing",
     "communication",
@@ -54,7 +55,7 @@
     {
       "id": "measurement",
       "title": "Measurement",
-      "prompt": "The metric that shows success, its baseline, the target and how links are tagged."
+      "prompt": "The metric that shows success, its baseline, the target and how links are tagged. Build each tagged link with openguildkit deliverable utm."
     },
     {
       "id": "consent",

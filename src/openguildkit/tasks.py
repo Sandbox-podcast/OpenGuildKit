@@ -2,9 +2,10 @@
 
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
+from . import clock
 from .decisions import decision_payload, seal
 from .project import profile_fingerprint, resolved_profile
 from .results import completion_problems, merge_results, validate_result
@@ -18,7 +19,7 @@ WINDOWS_RESERVED_NAMES = {"con", "prn", "aux", "nul"} | {
 
 
 def timestamp() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return clock.timestamp()
 
 
 def task_path(state: Path, task_id: str) -> Path:
@@ -329,7 +330,7 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
         until = resolution.get("until", "")
         if not _DAY.fullmatch(until):
             raise ValueError("Give the waiver's end date as YYYY-MM-DD.")
-        days = (datetime.fromisoformat(until).date() - datetime.now(timezone.utc).date()).days
+        days = (datetime.fromisoformat(until).date() - clock.now().date()).days
         if days < 1 or days > policy["max_days"]:
             raise ValueError(f"A waiver lasts between 1 and {policy['max_days']} days.")
         for field in ("reason", "scope"):

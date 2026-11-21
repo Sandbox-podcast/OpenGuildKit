@@ -1,0 +1,16 @@
+{
+  "pull_request": "https://example.com/support-portal/pull/7",
+  "criteria": [
+    {
+      "criterion": "Signed-in users only see the requests they opened.",
+      "status": "met",
+      "evidence": "tests/test_request_access.py"
+    },
+    {
+      "criterion": "Status and next step are shown in French and English.",
+      "status": "met",
+      "evidence": "tests/test_request_labels.py"
+    }
+  ],
+  "checks": []
+}

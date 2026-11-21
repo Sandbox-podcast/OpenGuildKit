@@ -9,6 +9,7 @@ import re
 from datetime import date, timedelta
 from pathlib import Path
 
+from . import clock
 from .storage import read_json, write_json
 
 MARKET_DIR = "market"
@@ -39,7 +40,7 @@ def _day(value, field: str) -> str:
         day = date.fromisoformat(value)
     except ValueError as error:
         raise ValueError(f"{field} must be a real date written YYYY-MM-DD: {value}.") from error
-    if day > date.today() + timedelta(days=1):
+    if day > clock.today() + timedelta(days=1):
         raise ValueError(f"{field} is in the future ({value}): write the date the information dates from.")
     return value
 
@@ -226,7 +227,7 @@ def mark_checked(dossier: dict, url: str, day: str | None = None) -> dict:
     watch = _watch(dossier)
     if not any(item["url"] == url for item in watch["sources"]):
         raise ValueError(f"{url} is not a watched source of the dossier. Run market due to list them.")
-    day = _day(day or date.today().isoformat(), "date")
+    day = _day(day or clock.today().isoformat(), "date")
     return validate_dossier({**dossier, "watch": {**watch, "sources": _checked(watch["sources"], url, day)}}, dossier["id"])
 
 
@@ -234,7 +235,7 @@ def record_change(dossier: dict, change: dict, today: str | None = None) -> dict
     """Keep a verified change; when its source is a watched page, that page counts as checked today."""
     watch = _watch(dossier)
     entry = {key: change[key] for key in ("competitor", "what", "date", "source", "verified_by")}
-    today = today or date.today().isoformat()
+    today = today or clock.today().isoformat()
     watch = {**watch, "changes": [*watch["changes"], entry], "sources": _checked(watch["sources"], entry["source"], today)}
     return validate_dossier({**dossier, "watch": watch}, dossier["id"])
 
@@ -258,7 +259,7 @@ def due_issue(dossier_id: str, source: dict) -> dict:
 
 def dossier_gaps(dossier: dict, research: str, today: date | None = None) -> list[str]:
     """What the dossier still lacks before Product and Marketing can rely on it."""
-    today = today or date.today()
+    today = today or clock.today()
     gaps = list(dossier.get("unknowns", []))
     for field in ("market", "audience", "feature"):
         if dossier[field] == TO_DESCRIBE:
@@ -291,7 +292,7 @@ def due_sources(dossier: dict, today: date | None = None) -> list[dict]:
     watch = dossier.get("watch")
     if not watch or watch["paused"]:
         return []
-    today = today or date.today()
+    today = today or clock.today()
     due = []
     for source in watch["sources"]:
         last = source.get("last_checked")
@@ -302,7 +303,7 @@ def due_sources(dossier: dict, today: date | None = None) -> list[dict]:
 
 def scope_entry(dossier: dict, research: str, today: date | None = None) -> dict:
     """What a consultation carries: observations and verified changes with their age, and the gaps."""
-    today = today or date.today()
+    today = today or clock.today()
     entry = {key: dossier[key] for key in ("id", "market", "audience", "feature", "competitors")}
     entry["observations"] = [
         {**item, "age_days": (today - date.fromisoformat(item["source"]["date"])).days} for item in dossier["observations"]
