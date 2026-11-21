@@ -1,0 +1,60 @@
+{
+  "id": "laravel",
+  "title": "Laravel applications",
+  "version": "1.0.0",
+  "description": "For a Laravel application: mass assignment, policies, form requests, migrations, debug mode and lazy loading.",
+  "sources": [
+    {
+      "title": "Laravel 13.x, Eloquent: mass assignment",
+      "url": "https://laravel.com/docs/13.x/eloquent"
+    },
+    {
+      "title": "Laravel 13.x, authorization",
+      "url": "https://laravel.com/docs/13.x/authorization"
+    },
+    {
+      "title": "Laravel 13.x, validation and form requests",
+      "url": "https://laravel.com/docs/13.x/validation"
+    },
+    {
+      "title": "Laravel 13.x, database migrations",
+      "url": "https://laravel.com/docs/13.x/migrations"
+    },
+    {
+      "title": "Laravel 13.x, deployment",
+      "url": "https://laravel.com/docs/13.x/deployment"
+    }
+  ],
+  "rules": [
+    {
+      "id": "declare-fillable-attributes",
+      "instruction": "Declare the mass-assignable attributes of each changed model with `Fillable` or `$fillable`. Do not unguard models that receive request data.",
+      "verification": "Search the change for `Unguarded`, `$guarded = []` and `unguard(`, and test that a request field outside the list, such as `is_admin`, is not saved."
+    },
+    {
+      "id": "authorize-with-policies",
+      "instruction": "Authorize model actions in a policy, and call it from the controller, the `can` middleware or the form request's `authorize` method.",
+      "verification": "Run a feature test for the changed route as a user without the permission and assert a 403 response."
+    },
+    {
+      "id": "use-validated-input",
+      "instruction": "Validate request data in a form request or `validate` call and pass only `validated()` or `safe()` output to models.",
+      "verification": "Review the changed controllers for `$request->all()` passed to `create`, `update` or `fill`."
+    },
+    {
+      "id": "write-reversible-migrations",
+      "instruction": "Give each migration a `down` method that reverses `up`, or document why it cannot.",
+      "verification": "Run `php artisan migrate` then `php artisan migrate:rollback` on a test database, and attach `migrate --pretend` output for production changes."
+    },
+    {
+      "id": "disable-debug-in-production",
+      "instruction": "Keep `APP_DEBUG` false in production, read configuration through `config()` outside the config files, and run `php artisan optimize` during deployment.",
+      "verification": "Check the production environment definition for `APP_DEBUG=false` and search the change for `env(` calls outside `config/`."
+    },
+    {
+      "id": "prevent-lazy-loading",
+      "instruction": "Enable `Model::preventLazyLoading` outside production, and eager load the relations a changed view reads.",
+      "verification": "Run the feature tests for the changed routes with lazy loading prevented and confirm they pass."
+    }
+  ]
+}

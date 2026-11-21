@@ -1,0 +1,64 @@
+{
+  "id": "rails",
+  "title": "Ruby on Rails applications",
+  "version": "1.0.0",
+  "description": "For a Rails application: strong parameters, Brakeman, reversible migrations, SQL placeholders, credentials and eager loading.",
+  "sources": [
+    {
+      "title": "Rails guides, Action Controller overview: strong parameters",
+      "url": "https://guides.rubyonrails.org/action_controller_overview.html"
+    },
+    {
+      "title": "Brakeman documentation",
+      "url": "https://brakemanscanner.org/docs/"
+    },
+    {
+      "title": "Brakeman, ignoring false positives",
+      "url": "https://brakemanscanner.org/docs/ignoring_false_positives/"
+    },
+    {
+      "title": "Rails guides, Active Record migrations",
+      "url": "https://guides.rubyonrails.org/active_record_migrations.html"
+    },
+    {
+      "title": "Rails guides, securing Rails applications",
+      "url": "https://guides.rubyonrails.org/security.html"
+    },
+    {
+      "title": "Rails guides, Active Record query interface",
+      "url": "https://guides.rubyonrails.org/active_record_querying.html"
+    }
+  ],
+  "rules": [
+    {
+      "id": "permit-parameters-explicitly",
+      "instruction": "Require and permit the attributes of each changed action with `params.expect` or `require` and `permit`. Never call `permit!` or mass-assign `params` directly.",
+      "verification": "Write a request test that posts an attribute outside the permitted list, such as an admin flag, and assert that the record keeps its value."
+    },
+    {
+      "id": "scan-with-brakeman",
+      "instruction": "Run Brakeman on the application and fix new warnings. Record each accepted warning in `config/brakeman.ignore` with a note giving the reason.",
+      "verification": "Run `brakeman` from the application root in CI and check that it reports no warning absent from the reviewed ignore file."
+    },
+    {
+      "id": "write-reversible-migrations",
+      "instruction": "Write migrations with `change` where Active Record can reverse them, and `reversible` or `up` and `down` otherwise. Commit the regenerated schema file with the migration.",
+      "verification": "Run `bin/rails db:migrate` then `bin/rails db:rollback` on a test database, and check that `db/schema.rb` or `db/structure.sql` is part of the change."
+    },
+    {
+      "id": "use-query-placeholders",
+      "instruction": "Pass user input to `where`, `order` and SQL fragments through placeholders or hash conditions, never through string interpolation.",
+      "verification": "Search the change for interpolated strings inside Active Record query methods, and test the query with a value containing a quote."
+    },
+    {
+      "id": "keep-master-key-out-of-git",
+      "instruction": "Store application secrets in encrypted credentials. Provide the master key through `RAILS_MASTER_KEY` or a file kept out of version control.",
+      "verification": "Check that `config/master.key` and environment keys are listed in `.gitignore` and absent from `git ls-files`."
+    },
+    {
+      "id": "eager-load-associations",
+      "instruction": "Load the associations a changed view or serializer reads with `includes`, and enable `strict_loading` where the team uses it to catch lazy loads.",
+      "verification": "Run the changed request with strict loading on, or count queries in a test with several records, and confirm no query runs per record."
+    }
+  ]
+}
