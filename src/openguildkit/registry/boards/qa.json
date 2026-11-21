@@ -32,7 +32,13 @@
     "e2e",
     "flaky test",
     "unit test",
-    "test unitaire"
+    "test unitaire",
+    "wcag",
+    "rgaa",
+    "a11y",
+    "contract test",
+    "contract testing",
+    "test de contrat"
   ],
   "questions": [
     "Which user paths and boundary conditions need explicit tests?",

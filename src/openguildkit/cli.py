@@ -12,7 +12,9 @@ from .decisions import NAMESPACE, approval_policy, check_decision, decision_payl
 from . import alerts_cli
 from .alerts import blocking_alerts, load_register
 from .deliverables import draft_problems, launch_notice, load_deliverables, new_draft, utm_link
-from .brains import brain_knowledge, brief_knowledge, knowledge_gaps, write_brain_skeleton
+from .brains import (
+    brain_knowledge, brief_knowledge, consultation_context, knowledge_gaps, reading_list_note, write_brain_skeleton,
+)
 from .detect import components_for_profile, detect_stack
 from .publishing import add_share, export_docs, project_overview, revoke_share, share_status
 from . import tools_cli
@@ -956,6 +958,7 @@ def _print_brains(args, catalog: dict, families: dict) -> int:
         for item in knowledge["packs"]:
             print(f"  - {item['title']} [{item['id']}@{item['version']}]")
         print("\nReferences and standards")
+        print(f"  {reading_list_note(len(knowledge['references']))}")
         for item in knowledge["references"]:
             edition = f" ({item['edition']})" if item.get("edition") else ""
             print(f"  - {item['title']}{edition}: {item['url']}")
@@ -1224,6 +1227,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 print(f"{board_id}: {'; '.join(reasons)}")
             for item in selected["adjustments"]:
                 print(f"  {item['action']} {item['board']}: {item['reason']}")
+            for pattern in selected["patterns"]:
+                print(f"Suggested pattern {pattern['id']}: {pattern['reason']}. See openguildkit patterns --id {pattern['id']}.")
     elif action == "consult":
         answers = (
             read_json(args.answers)
@@ -1244,7 +1249,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 market = market_scope_entry(load_dossier(state, args.market), research)
             families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
             active = set(resolved_profile(profile, catalog)["packs"])
-            knowledge = {board_id: brief_knowledge(board_id, catalog, families, active) for board_id in catalog["boards"]}
+            context = consultation_context(current_task, answers, profile, catalog)
+            knowledge = {board_id: brief_knowledge(board_id, catalog, families, active, context)
+                         for board_id in catalog["boards"]}
             registry = load_tools(state / "catalog" / "tools")
             for board_id in catalog["boards"]:
                 usable = connected_tools(state, registry, board_id)

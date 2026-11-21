@@ -11,7 +11,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | backend | 12 | 5 | 7 | 2 | 0 | 3 | 11 |
 | communication | 22 | 9 | 13 | 2 | 0 | 3 | 8 |
 | customer-success | 5 | 2 | 3 | 1 | 0 | 1 | 4 |
-| data | 63 | 7 | 56 | 3 | 1 | 4 | 18 |
+| data | 63 | 7 | 56 | 3 | 1 | 4 | 19 |
 | design | 26 | 3 | 23 | 8 | 5 | 15 | 50 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
 | devops | 69 | 22 | 47 | 6 | 6 | 12 | 50 |
@@ -21,7 +21,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 20 |
 | it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 8 |
 | leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
-| legal | 56 | 16 | 40 | 11 | 0 | 11 | 64 |
+| legal | 56 | 16 | 40 | 11 | 0 | 11 | 65 |
 | localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
 | marketing | 22 | 7 | 15 | 8 | 0 | 8 | 17 |
 | operations | 21 | 6 | 15 | 11 | 0 | 11 | 25 |
@@ -32,7 +32,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
 | qa | 50 | 4 | 46 | 3 | 20 | 27 | 124 |
 | sales | 13 | 7 | 6 | 11 | 0 | 12 | 33 |
-| security | 103 | 26 | 77 | 16 | 16 | 39 | 186 |
+| security | 103 | 26 | 77 | 16 | 16 | 39 | 187 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 

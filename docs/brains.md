@@ -60,7 +60,7 @@ openguildkit brains --id finance --json
 openguildkit brains --check
 ```
 
-`brains --id` prints the specialists, review criteria and this knowledge. Each consultation gives every selected brain its knowledge: the project's active packs first, then the other packs of its methods, and up to twelve references to read. `brains --check`, run in CI, fails when a brain has no method or no tagged reference. To extend a brain, tag a pattern with its role or a reference with its ID; the catalog refuses an unknown brain.
+`brains --id` prints the specialists, review criteria and this knowledge, with every reference of the brain. Each consultation gives every selected brain its knowledge: the project's active packs first, then the other packs of its methods, and the twelve references that best fit the task. The references that the project's active packs apply come first; then those whose ID, title, category or summary share the most words with the brief, the answers, the sector and the stack, a word of the title counting double; then the references that packs turn into rules; then alphabetical order. A few English words reach the French summaries and the acronyms of the library, so "SSO with Okta" reaches SAML 2.0, OpenID Connect, OAuth 2.0 and OWASP ASVS. The same task always gets the same list. `brains --check`, run in CI, fails when a brain has no method or no tagged reference. To extend a brain, tag a pattern with its role or a reference with its ID; the catalog refuses an unknown brain.
 
 ### Where lenses meet
 

@@ -35,7 +35,16 @@
     "niveau de service",
     "support ticket",
     "ticket de support",
-    "back office"
+    "back office",
+    "laptop",
+    "laptop management",
+    "device management",
+    "mdm",
+    "jamf",
+    "intune",
+    "it equipment",
+    "parc informatique",
+    "poste de travail"
   ],
   "questions": [
     "What event starts the work, what counts as finished, and who accepts the result?",

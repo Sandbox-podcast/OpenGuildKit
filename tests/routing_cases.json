@@ -339,5 +339,722 @@
     "must": [
       "communication"
     ]
+  },
+  {
+    "brief": "Change our SaaS subscription prices from monthly to annual plans with a 15% discount",
+    "must": [
+      "sales",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Recognise revenue for multi-year contracts under IFRS 15",
+    "must": [
+      "finance",
+      "legal"
+    ]
+  },
+  {
+    "brief": "Add VAT handling for EU customers in the checkout",
+    "must": [
+      "finance",
+      "legal"
+    ]
+  },
+  {
+    "brief": "Hire three senior backend engineers this quarter",
+    "must": [
+      "hr"
+    ],
+    "must_not": [
+      "engineering"
+    ]
+  },
+  {
+    "brief": "Define the salary bands and equity grid for the engineering ladder",
+    "must": [
+      "hr",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Negotiate the master services agreement with a large bank customer",
+    "must": [
+      "legal",
+      "sales"
+    ]
+  },
+  {
+    "brief": "Reduce churn of mid-market customers before renewal",
+    "must": [
+      "support",
+      "sales"
+    ]
+  },
+  {
+    "brief": "Set up Datadog alerting and an on-call rotation for the payments API",
+    "must": [
+      "devops",
+      "engineering"
+    ]
+  },
+  {
+    "brief": "Our AWS bill doubled last month, find out why",
+    "must": [
+      "finance",
+      "devops"
+    ],
+    "must_not": [
+      "product"
+    ]
+  },
+  {
+    "brief": "Make the signup form accessible to screen reader users and pass WCAG 2.2 AA",
+    "must": [
+      "design",
+      "qa",
+      "legal"
+    ]
+  },
+  {
+    "brief": "Translate the app into German and Japanese",
+    "must": [
+      "communication",
+      "design"
+    ],
+    "must_not": [
+      "product"
+    ]
+  },
+  {
+    "brief": "Write a postmortem for yesterday's outage",
+    "must": [
+      "devops"
+    ]
+  },
+  {
+    "brief": "Add SSO with Okta for enterprise customers",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Store patient medical records for a hospital customer",
+    "must": [
+      "security",
+      "legal"
+    ],
+    "must_not": [
+      "product"
+    ]
+  },
+  {
+    "brief": "Answer a security questionnaire from a prospect",
+    "must": [
+      "sales",
+      "security"
+    ]
+  },
+  {
+    "brief": "Launch a partner program with resellers and system integrators",
+    "must": [
+      "sales",
+      "legal"
+    ],
+    "must_not": [
+      "product"
+    ]
+  },
+  {
+    "brief": "Choose a new laptop management tool for employees",
+    "must": [
+      "security",
+      "operations"
+    ],
+    "must_not": [
+      "hr"
+    ]
+  },
+  {
+    "brief": "Add Stripe payments to the checkout",
+    "must": [
+      "security",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Our Core Web Vitals LCP is 4 seconds on mobile, speed up the home page",
+    "must": [
+      "performance"
+    ]
+  },
+  {
+    "brief": "Build a chatbot that answers customer questions with an LLM",
+    "must": [
+      "data",
+      "security",
+      "legal",
+      "support"
+    ]
+  },
+  {
+    "brief": "Plan the Q3 roadmap",
+    "must": [
+      "product"
+    ]
+  },
+  {
+    "brief": "Run a bug bash before the 2.0 release",
+    "must": [
+      "qa"
+    ]
+  },
+  {
+    "brief": "Delete user accounts after 3 years of inactivity",
+    "must": [
+      "legal",
+      "security"
+    ]
+  },
+  {
+    "brief": "Respond to a data subject access request from a user",
+    "must": [
+      "legal",
+      "security"
+    ]
+  },
+  {
+    "brief": "Publish the public API documentation and SDK for developers",
+    "must": [
+      "engineering",
+      "communication"
+    ]
+  },
+  {
+    "brief": "Prepare the board meeting deck on cash runway",
+    "must": [
+      "leadership",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Evaluate whether to build or buy a search engine",
+    "must": [
+      "engineering",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Migrate the monolith to microservices",
+    "must": [
+      "engineering"
+    ]
+  },
+  {
+    "brief": "Write the job offer letter and employment contract for a new hire in France",
+    "must": [
+      "hr",
+      "legal"
+    ]
+  },
+  {
+    "brief": "Set up a status page and customer notification for planned maintenance",
+    "must": [
+      "communication",
+      "devops"
+    ]
+  },
+  {
+    "brief": "Choose a vendor for our customer data platform and sign the contract",
+    "must": [
+      "legal",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Implement dark mode",
+    "must": [
+      "design"
+    ],
+    "must_not": [
+      "product"
+    ]
+  },
+  {
+    "brief": "Add audit logs for admin actions",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Our sales team needs a quote template with discounts approved by finance",
+    "must": [
+      "sales",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Prepare SOC 2 Type II audit",
+    "must": [
+      "security",
+      "legal"
+    ]
+  },
+  {
+    "brief": "Implement a rate limiter on the public API",
+    "must": [
+      "engineering",
+      "security"
+    ]
+  },
+  {
+    "brief": "Calculer la TVA intracommunautaire sur les factures",
+    "must": [
+      "finance",
+      "legal"
+    ]
+  },
+  {
+    "brief": "Traduire l'application en allemand",
+    "must": [
+      "communication",
+      "design"
+    ]
+  },
+  {
+    "brief": "Mettre en conformité le site avec le RGAA",
+    "must": [
+      "legal",
+      "design",
+      "qa"
+    ]
+  },
+  {
+    "brief": "Héberger des données de santé chez un hébergeur HDS",
+    "must": [
+      "security",
+      "legal"
+    ]
+  },
+  {
+    "brief": "Fix the service discovery timeout in Consul",
+    "must": [
+      "devops"
+    ],
+    "must_not": [
+      "product"
+    ]
+  },
+  {
+    "brief": "Fix the broken link on the careers page",
+    "must": [
+      "hr"
+    ]
+  },
+  {
+    "brief": "Add a commercial licence option for our open source SDK",
+    "must": [
+      "legal",
+      "sales"
+    ]
+  },
+  {
+    "brief": "Enable MFA for all employee accounts",
+    "must": [
+      "security"
+    ],
+    "must_not": [
+      "hr"
+    ]
+  },
+  {
+    "brief": "Rotate the leaked AWS access key",
+    "must": [
+      "security",
+      "devops"
+    ]
+  },
+  {
+    "brief": "Reduce the cost of our cold storage by moving logs to Glacier",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Upgrade Django from 4.2 to 5.1",
+    "must": [
+      "engineering"
+    ]
+  },
+  {
+    "brief": "Add WCAG contrast checks to the design system",
+    "must": [
+      "design",
+      "qa"
+    ]
+  },
+  {
+    "brief": "Track DORA lead time for changes and deployment frequency",
+    "must": [
+      "devops"
+    ],
+    "must_not": [
+      "legal",
+      "security"
+    ]
+  },
+  {
+    "brief": "Track the deployment frequency of each team",
+    "must": [
+      "devops"
+    ],
+    "must_not": [
+      "legal",
+      "security"
+    ]
+  },
+  {
+    "brief": "Update our prices for 2027",
+    "must": [
+      "sales",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Change the price of the Pro plan",
+    "must": [
+      "sales",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Offer a free trial of 14 days",
+    "must": [
+      "sales",
+      "marketing"
+    ]
+  },
+  {
+    "brief": "Add Spanish translations (i18n) and right-to-left support",
+    "must": [
+      "communication",
+      "design"
+    ]
+  },
+  {
+    "brief": "Fix a11y issues reported by the RGAA audit",
+    "must": [
+      "design",
+      "qa",
+      "legal"
+    ]
+  },
+  {
+    "brief": "Rotate API keys and tokens after a credential leak",
+    "must": [
+      "security",
+      "devops"
+    ]
+  },
+  {
+    "brief": "Upgrade dependencies flagged by Dependabot",
+    "must": [
+      "engineering",
+      "security"
+    ]
+  },
+  {
+    "brief": "Add Google Analytics and a cookie banner",
+    "must": [
+      "data",
+      "legal"
+    ]
+  },
+  {
+    "brief": "Run the yearly penetration test",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Show the AI model performance on the eval set",
+    "must": [
+      "data",
+      "performance"
+    ]
+  },
+  {
+    "brief": "Cut our Snowflake spend",
+    "must": [
+      "finance",
+      "data"
+    ]
+  },
+  {
+    "brief": "Our ARR and MRR dashboards are wrong",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Design the referral program for partners",
+    "must": [
+      "marketing",
+      "sales"
+    ]
+  },
+  {
+    "brief": "Configure the Jamf MDM for company Macs",
+    "must": [
+      "security",
+      "operations"
+    ]
+  },
+  {
+    "brief": "Customer churn is up 3 points",
+    "must": [
+      "support",
+      "product"
+    ]
+  },
+  {
+    "brief": "Write the API reference docs with examples",
+    "must": [
+      "engineering",
+      "communication"
+    ]
+  },
+  {
+    "brief": "Handle a GDPR erasure request",
+    "must": [
+      "legal",
+      "security"
+    ]
+  },
+  {
+    "brief": "Close the books at month end",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Reply to the tender from the city council",
+    "must": [
+      "sales"
+    ]
+  },
+  {
+    "brief": "Use AI to screen and rank job applicants",
+    "must": [
+      "hr",
+      "legal",
+      "data"
+    ]
+  },
+  {
+    "brief": "Score loan applicants with a machine learning model",
+    "must": [
+      "legal",
+      "data",
+      "security"
+    ]
+  },
+  {
+    "brief": "Write the performance review template for managers",
+    "must": [
+      "hr"
+    ],
+    "must_not": [
+      "performance"
+    ]
+  },
+  {
+    "brief": "Mettre à jour nos prix et remises pour 2027",
+    "must": [
+      "sales",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Préparer la paie et les grilles de salaire",
+    "must": [
+      "hr",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Révoquer la clé d'API après une fuite",
+    "must": [
+      "security",
+      "devops"
+    ]
+  },
+  {
+    "brief": "Répondre à une demande d'accès d'une personne concernée",
+    "must": [
+      "legal",
+      "security"
+    ]
+  },
+  {
+    "brief": "Préparer l'audit SOC 2",
+    "must": [
+      "security",
+      "legal"
+    ]
+  },
+  {
+    "brief": "Lancer un programme partenaires avec des revendeurs",
+    "must": [
+      "sales",
+      "legal"
+    ]
+  },
+  {
+    "brief": "Trier les candidatures avec une IA",
+    "must": [
+      "hr",
+      "legal",
+      "data"
+    ]
+  },
+  {
+    "brief": "Mesurer le délai de mise en production avec les métriques DORA",
+    "must": [
+      "devops"
+    ],
+    "must_not": [
+      "security",
+      "legal"
+    ]
+  },
+  {
+    "brief": "Réduire l'attrition des clients",
+    "must": [
+      "support"
+    ]
+  },
+  {
+    "brief": "Négocier le contrat-cadre avec une banque",
+    "must": [
+      "legal"
+    ]
+  },
+  {
+    "brief": "Héberger les dossiers patients d'une clinique",
+    "must": [
+      "security",
+      "legal"
+    ]
+  },
+  {
+    "brief": "La facture AWS a doublé ce mois-ci",
+    "must": [
+      "finance",
+      "devops"
+    ]
+  },
+  {
+    "brief": "Planifier les jalons du lancement partenaires",
+    "must": [
+      "project-management",
+      "sales"
+    ]
+  },
+  {
+    "brief": "Préparer le conseil d'administration sur la trésorerie",
+    "must": [
+      "leadership",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Lancer une campagne d'emailing pour l'essai gratuit",
+    "must": [
+      "marketing",
+      "sales"
+    ]
+  },
+  {
+    "brief": "Add a contract test between the billing API and its clients",
+    "must": [
+      "qa"
+    ],
+    "must_not": [
+      "legal"
+    ]
+  },
+  {
+    "brief": "Fix the memory leak in the export worker",
+    "must": [
+      "performance"
+    ],
+    "must_not": [
+      "security",
+      "devops"
+    ]
+  },
+  {
+    "brief": "Model the database schema for orders",
+    "must": [
+      "engineering"
+    ],
+    "must_not": [
+      "data"
+    ]
+  },
+  {
+    "brief": "Run product discovery interviews with five customers",
+    "must": [
+      "product"
+    ]
+  },
+  {
+    "brief": "Update the employee handbook",
+    "must": [
+      "hr"
+    ]
+  },
+  {
+    "brief": "Choose a laptop for the new designer",
+    "must": [
+      "operations"
+    ],
+    "must_not": [
+      "hr"
+    ]
+  },
+  {
+    "brief": "Reduce support ticket backlog",
+    "must": [
+      "support",
+      "operations"
+    ]
+  },
+  {
+    "brief": "Add a feature flag for the new editor",
+    "must": [
+      "devops"
+    ]
+  },
+  {
+    "brief": "Add an onboarding checklist for new employees",
+    "must": [
+      "hr"
+    ]
+  },
+  {
+    "brief": "Prepare the annual budget",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Use AI to rank job applicants",
+    "must": [
+      "hr",
+      "legal",
+      "data"
+    ]
   }
 ]
