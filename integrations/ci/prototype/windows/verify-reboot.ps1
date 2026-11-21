@@ -115,7 +115,9 @@ try {
         publisherRun = $test.publisherRun
         report = $report
     }
-    ConvertTo-Json -InputObject $receipt -Depth 12 | Set-Content -LiteralPath $test.output -Encoding utf8
+    $receiptPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($test.output)
+    $receiptJson = ConvertTo-Json -InputObject $receipt -Depth 12
+    [System.IO.File]::WriteAllText($receiptPath, $receiptJson + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
 
     if ($PublishStatus) {
         $statusState = if ($duringRestart -and $afterShutdown -eq $true) { 'success' } else { 'error' }
