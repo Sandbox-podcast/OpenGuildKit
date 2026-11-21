@@ -343,7 +343,7 @@ class RegulationPackTests(unittest.TestCase):
         self.assertEqual(evidence["gdpr"], {"processing-record", "dpia-decision"})
         for rule in packs["gdpr"]["rules"]:
             for item in rule.get("evidence", []):
-                self.assertEqual(item["when"], {"data": ["personal", "regulated"]}, item["id"])
+                self.assertEqual(item["when"], {"data": ["personal", "regulated", "unsure"]}, item["id"])
         self.assertIn("register-of-information", evidence["dora"])
         for pack_id in ("nis2", "cyber-resilience-act"):
             checks = [rule["check"] for rule in packs[pack_id]["rules"] if "check" in rule]

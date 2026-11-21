@@ -36,7 +36,8 @@
           "when": {
             "data": [
               "personal",
-              "regulated"
+              "regulated",
+              "unsure"
             ]
           }
         }
@@ -68,7 +69,8 @@
           "when": {
             "data": [
               "personal",
-              "regulated"
+              "regulated",
+              "unsure"
             ]
           }
         }
