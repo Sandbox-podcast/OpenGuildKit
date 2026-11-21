@@ -27,7 +27,12 @@ export function Setup() {
   useEffect(() => {
     if (!questions.data) return;
     const initial: SetupAnswers = {};
-    questions.data.forEach((q) => { if (q.type !== 'norms' && q.default !== undefined && q.default !== null) initial[q.id] = q.default; });
+    for (const question of questions.data) {
+      // Norm defaults apply to individual prompts. The CLI selects applicable norms when no overrides are sent.
+      if (question.type !== 'norms' && question.default !== undefined && question.default !== null) {
+        initial[question.id] = question.default;
+      }
+    }
     setAnswers((a) => ({ ...initial, ...a }));
   }, [questions.data]);
   const json = JSON.stringify(answers);
