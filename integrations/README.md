@@ -51,11 +51,12 @@ openguildkit host apply
 | Rule | Claude Code | Codex | Other hosts |
 |---|---|---|---|
 | No public research when the policy is `local-only` | `.claude/settings.json` denies `WebSearch` and `WebFetch` | `.codex/config.toml` sets `web_search = "disabled"` and leaves sandbox network access off | Instruction only |
+| Public research stays available when the policy is `public-sources` | `host apply` removes the `WebSearch` and `WebFetch` denies | `host apply` removes the `web_search` line it wrote; a line the team wrote is reported for the team to remove | Instruction only |
 | The agent cannot run the approval command | `.claude/settings.json` denies `openguildkit task decide` and the `script`, `expect` and `unbuffer` terminal emulators | `.codex/rules/openguildkit.rules` forbids the same commands | Typed confirmation only |
 | The board before every change (`"guard": "observe"` or `"enforce"`) | Hooks in `.claude/settings.json` run `openguildkit guard` on each request and before `Edit`, `Write`, `MultiEdit` and `NotebookEdit` | `.codex/hooks.json` runs it on each request and before `apply_patch` | AGENTS.md instruction and the CI check |
 | External actions outside the authorized scope | Recorded decision with `openguildkit task authorize` | Same | Same |
 
-`host check` reports each rule as enforced, missing (the host could enforce it but the setting is absent), instruction (the agent follows the instruction and a person checks) or human (a person decides). When a project declares a host, `openguildkit check` fails while a setting is missing. Codex reads project settings only once the project is trusted. Denying the documented commands does not stop an agent with a shell from emulating a terminal another way; teams that need a verifiable approver use the team approval described in the task workflow.
+`host check` reports each rule as enforced, missing (the host could enforce it but the setting is absent), instruction (the agent follows the instruction and a person checks) or human (a person decides). When a project declares a host, `openguildkit check` fails while a setting is missing. Codex reads project settings only once the project is trusted. `host apply` adds its `web_search` line as a top-level key outside the `openguildkit tools` block and refuses to write when the result would not read back as `web_search = "disabled"`. Denying the documented commands does not stop an agent with a shell from emulating a terminal another way; teams that need a verifiable approver use the team approval described in the task workflow.
 
 When a consultation runs under `local-only` and the host does not block research, the consultation request says so and tells the agent to ask before using any external source.
 
