@@ -261,6 +261,10 @@ _STRUCTURED_ROUTES = {
 }
 
 
+# Data answers whose boards only the person approving can drop: they confirm it at the approval prompt.
+PROTECTED_DATA = ("personal", "regulated", "unsure")
+
+
 _APOSTROPHES = re.compile("[\u2019\u2018\u02bc\u00b4`]")
 _SEPARATORS = re.compile(r"[/_|]")
 _PLURAL = "(?:s|es|x)?"
@@ -373,8 +377,12 @@ def select_boards(profile: dict, catalog: dict, task: dict, answers: dict, selec
             raise ValueError(f"Board {board_id!r} was not proposed for this task.")
         if board_id in required:
             raise ValueError(f"The project requires the {board_id} review; it cannot be removed.")
+        adjustment = {"action": "remove", "board": board_id, "reason": reason}
+        protected = _STRUCTURED_ROUTES["data"].get(answers["data"], {}).get(board_id)
+        if answers["data"] in PROTECTED_DATA and protected in routing[board_id]:
+            adjustment.update(routed_for=protected, confirmation="pending")
         del routing[board_id]
-        adjustments.append({"action": "remove", "board": board_id, "reason": reason})
+        adjustments.append(adjustment)
     if not routing:
         raise ValueError("Keep at least one board for the consultation.")
     return {"routing": routing, "adjustments": adjustments, "delegations": delegations}
@@ -832,7 +840,7 @@ def validate_board_entry(consultation: dict, entry: object) -> dict:
 def validate_review(consultation: dict, review: dict) -> dict:
     """Require a recommendation for every board in the recorded consultation."""
     if not isinstance(review, dict) or not {"consultation_id", "summary", "boards"} <= review.keys() \
-            or not review.keys() <= {"consultation_id", "summary", "boards", "execution"}:
+            or not review.keys() <= {"consultation_id", "summary", "boards", "execution", "warnings"}:
         raise ValueError("A review must contain consultation_id, summary and boards. Run task template.")
     execution = review.get("execution", "unspecified")
     if execution not in EXECUTION_MODES:
@@ -861,7 +869,41 @@ def validate_review(consultation: dict, review: dict) -> dict:
     }
     if execution != "unspecified":
         validated["execution"] = execution
+    warnings = review_warnings(validated["boards"])
+    if warnings:
+        validated["warnings"] = warnings
     return validated
+
+
+def _same_text(value: str) -> str:
+    return " ".join(value.casefold().split())
+
+
+def review_warnings(boards: list[dict]) -> list[str]:
+    """Signs that the boards did not review the task independently. Computed, never taken from the review."""
+    warnings = []
+    recommendations = {}
+    for entry in boards:
+        recommendations.setdefault(_same_text(entry["recommendation"]), []).append(entry["id"])
+    for board_ids in recommendations.values():
+        if len(board_ids) > 1:
+            warnings.append(f"Boards {', '.join(board_ids)} give the same recommendation word for word.")
+    findings = {}
+    for entry in boards:
+        for lens in entry.get("challenge", {}).get("specialists", []):
+            findings.setdefault(_same_text(lens["finding"]), []).append(f"{entry['id']}/{lens['id']}")
+    for text, lenses in findings.items():
+        if len(lenses) > 1:
+            shown = ", ".join(lenses[:6]) + (f" and {len(lenses) - 6} more" if len(lenses) > 6 else "")
+            warnings.append(f"The same finding appears in {shown}: {text[:120]}")
+    unobserved = [
+        entry["id"] for entry in boards
+        if entry.get("challenge", {}).get("specialists")
+        and all(lens["basis"] != "observed" for lens in entry["challenge"]["specialists"])
+    ]
+    if unobserved:
+        warnings.append(f"No observed finding from {', '.join(unobserved)}: every lens is an assumption or missing.")
+    return warnings
 
 
 def board_brief(consultation: dict, board_id: str) -> str:
@@ -999,6 +1041,90 @@ def validate_deliberation(task: dict, payload: dict) -> dict:
     }
 
 
+def pending_removals(task: dict) -> list[str]:
+    """Boards routed for sensitive data that the agent removed and the person has not confirmed yet."""
+    return [
+        item["board"] for item in task.get("consultation", {}).get("adjustments", [])
+        if item.get("confirmation") == "pending"
+    ]
+
+
+def verdict_lines(review: dict) -> list[str]:
+    """The count of verdicts, and a warning when boards object to proceeding."""
+    entries = [entry for entry in review["boards"] if "challenge" in entry]
+    if not entries:
+        return ["Verdicts: none recorded."]
+    counts = {}
+    for entry in entries:
+        counts.setdefault(entry["challenge"]["verdict"], []).append(entry["id"])
+    lines = ["Verdicts: " + ", ".join(f"{len(boards)} {verdict}" for verdict, boards in counts.items()) + "."]
+    objecting = [board for verdict in OBJECTING_VERDICTS for board in counts.get(verdict, [])]
+    if objecting:
+        lines.append(
+            f"Warning: {len(objecting)} of {len(entries)} boards say revise, block or insufficient-evidence "
+            f"({', '.join(objecting)}). Approving goes against their advice."
+        )
+    return lines
+
+
+def _board_change_lines(task: dict) -> list[str]:
+    confirmed = task.get("decision", {}).get("confirmed_removals", [])
+    lines = []
+    for item in task["consultation"].get("adjustments", []):
+        if item["action"] == "add":
+            lines.append(f"Board added: {item['board']}. Reason: {item['reason']}; requested by the agent at consultation.")
+            continue
+        line = f"Board removed: {item['board']}"
+        if item.get("routed_for"):
+            line += f", routed for {item['routed_for']!r}"
+        line += f". Reason: {item['reason']}; requested by the agent at consultation"
+        if item["board"] in confirmed:
+            line += f"; removal confirmed by {task['decision']['by']} at approval."
+        elif item.get("confirmation") == "pending":
+            line += "; the person approving must confirm it by typing the board's name."
+        else:
+            line += "."
+        lines.append(line)
+    return lines
+
+
+def _blocker_lines(task: dict) -> list[str]:
+    lines = []
+    for item in blocker_list(task):
+        resolution = item["resolution"]
+        if not resolution:
+            lines.append(f"Blocker {item['id']} open: {item['finding']}")
+            continue
+        line = f"Blocker {item['id']} {resolution['kind']} by {resolution['by']}"
+        if resolution.get("recorded_from") == "no terminal":
+            line += " (recorded without a terminal)"
+        line += f": {item['finding']}"
+        if resolution["kind"] == "cleared":
+            line += f" Evidence: {resolution['evidence']}. Supports: {resolution['supports']}"
+        else:
+            line += f" Reason: {resolution['reason']}. Scope: {resolution['scope']}. Until: {resolution['until']}"
+        lines.append(line)
+    return lines
+
+
+def decision_summary(task: dict) -> list[str]:
+    """What the person approving must see before deciding, as plain lines."""
+    review = validate_review(task["consultation"], task["review"])
+    lines = verdict_lines(review)
+    lines += [f"Review warning: {warning}" for warning in review.get("warnings", [])]
+    lines += _board_change_lines(task)
+    lines += [f"Open point: {point}" for point in task["consultation"]["scope"].get("open_points", [])]
+    deliberation = task.get("deliberation")
+    if deliberation:
+        lines += [f"Disagreement left open: {item_id}." for item_id in deliberation["open"]]
+        if deliberation["open"]:
+            lines.append(f"Decision needed: {deliberation['decision_needed']}")
+    else:
+        lines += [f"Objection not deliberated: {item['id']}: {item['point']}" for item in objections(review)]
+    lines += _blocker_lines(task)
+    return lines
+
+
 def challenge_report(task: dict) -> str:
     if "review" not in task:
         raise ValueError("Record the board reviews before opening the decision brief.")
@@ -1021,6 +1147,10 @@ def challenge_report(task: dict) -> str:
             verdicts.setdefault(challenge["verdict"], []).append(entry["id"])
         findings.append(finding)
     report = {"summary": review["summary"], "verdicts": verdicts, "findings": findings}
+    if review.get("warnings"):
+        report["review_warnings"] = review["warnings"]
+    if task["consultation"].get("adjustments"):
+        report["board_changes"] = task["consultation"]["adjustments"]
     points = task["consultation"]["scope"].get("open_points")
     if points:
         report["open_points"] = points
@@ -1038,7 +1168,11 @@ def challenge_report(task: dict) -> str:
         pending = objections(review)
         if pending:
             report["objections_not_deliberated"] = [item["id"] for item in pending]
-    return "# Decision brief\n\n" + _json_section(report) + "\n"
+    resolved = [item for item in blocker_list(task) if item["resolution"]]
+    if resolved:
+        report["resolved_blockers"] = resolved
+    summary = "\n".join(f"- {line}" for line in decision_summary(task))
+    return "# Decision brief\n\n" + summary + "\n\n" + _json_section(report) + "\n"
 
 
 def is_decision_task(task: dict) -> bool:
