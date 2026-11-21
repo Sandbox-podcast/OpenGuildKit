@@ -1110,6 +1110,9 @@ def _identifier(name: str, taken: set) -> str:
     return candidate
 
 
+_JS_IDENTIFIER = re.compile(r"[A-Za-z_$][\w$]*")
+
+
 def _js(value) -> str:
     return json.dumps(value, ensure_ascii=False)
 
@@ -1117,8 +1120,7 @@ def _js(value) -> str:
 def _js_object(values: dict, indent: str) -> str:
     if not values:
         return "{}"
-    lines = [f"{indent}  {key if re.fullmatch(r'[A-Za-z_$][\w$]*', key) else _js(key)}: {_js(value)},"
-             for key, value in values.items()]
+    lines = [f"{indent}  {key if _JS_IDENTIFIER.fullmatch(key) else _js(key)}: {_js(value)}," for key, value in values.items()]
     return "{\n" + "\n".join(lines) + f"\n{indent}}}"
 
 
@@ -1223,7 +1225,7 @@ def generate(root: Path, state: Path, proposals_path: Path | None = None, out: P
     with project_lock(state):
         manifest = read_json(manifest_path) if manifest_path.exists() else {"schema_version": 1, "files": {}}
         result = {"written": [], "unchanged": [], "kept": [], "skipped": skipped}
-        for path, content in sorted(files.items()):
+        for path, content in sorted(files.items(), key=lambda item: item[0].as_posix()):
             relative = _relative(root, path)
             digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
             if path.exists():
