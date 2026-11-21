@@ -29,7 +29,7 @@ Pour chaque changement, OpenGuildKit réunit les brains concernés. Chacun relit
 
 ## Configurer ton projet
 
-Depuis ton dépôt, indique ta stack, ton secteur et les métiers concernés. Le questionnaire repère les combinaisons techniques connues, présélectionne les réglementations de ton secteur et les méthodes de tes métiers, et te laisse garder ou refuser chacune. Dans un dépôt existant, `openguildkit detect` propose d'abord tes composants et leurs versions, et chaque pattern s'applique au composant qui utilise ses technologies.
+Depuis ton dépôt, lance le questionnaire. Il demande ta stack, ton secteur, les métiers concernés et si le projet traite des données personnelles, puis chaque norme qui en découle (RGPD, DORA, NIS 2...) avec la raison pour laquelle elle est proposée, que tu gardes ou refuses une par une ; ensuite les autres patterns, les packs à ajouter aux packs recommandés, les boards, les outils de l'entreprise, l'agent hôte et le garde-fou du board. Chaque question affiche ce que la touche Entrée retient. Dans un dépôt existant, `openguildkit detect` propose d'abord tes composants et leurs versions, et chaque pattern s'applique au composant qui utilise ses technologies.
 
 ```bash
 openguildkit detect
@@ -38,7 +38,7 @@ openguildkit preview
 openguildkit check
 ```
 
-`init` enregistre ton profil dans `.openguildkit/project.json` et écrit les règles dans un bloc géré de `AGENTS.md`. Il ajoute un import dans `CLAUDE.md` pour Claude Code. Les règles en vigueur sont figées dans `.openguildkit/catalog.lock.json` : après une mise à jour d'OpenGuildKit, `openguildkit update` montre ce qui changerait et `openguildkit update --apply` l'adopte. [Installe le skill](integrations/) pour répondre au questionnaire dans Claude Code ou Codex et lancer des tâches depuis la conversation.
+`init` enregistre ton profil dans `.openguildkit/project.json` et écrit les règles dans un bloc géré de `AGENTS.md`. Il ajoute un import dans `CLAUDE.md` pour Claude Code. Les règles en vigueur sont figées dans `.openguildkit/catalog.lock.json` : après une mise à jour d'OpenGuildKit, `openguildkit update` montre ce qui changerait et `openguildkit update --apply` l'adopte. Il affiche ensuite les étapes suivantes qui s'appliquent, comme `openguildkit host apply` pour ton agent et `openguildkit tools plan ...` pour les outils que le registre connaît. [Installe le skill](integrations/) pour répondre au questionnaire dans Claude Code ou Codex et lancer des tâches depuis la conversation.
 
 ```mermaid
 flowchart TB
@@ -50,7 +50,7 @@ flowchart TB
     D -- valider --> H["Brief d'implémentation avec périmètre et contrôles"]
 ```
 
-Avec `"guard": "enforce"` dans le profil, le board n'est plus facultatif : les hooks de l'agent le rappellent à chaque demande, refusent les modifications faites par les outils d'édition de l'agent tant qu'aucune tâche n'est approuvée, et un contrôle CI exige la décision approuvée dans chaque PR. Les écritures par le shell ne passent pas par les hooks ; le contrôle CI les rattrape. Une approbation locale ne détecte que les modifications accidentelles : passez aux approbations signées si l'agent ne doit pas pouvoir approuver à votre place. [Board automatique](integrations/README.md#the-board-before-every-change)
+Un nouveau projet démarre en `"guard": "observe"` : une fois les hooks installés par `host apply`, le board est rappelé à l'agent à chaque demande et une modification sans tâche approuvée est signalée, sans être bloquée. Les projets créés avant gardent leur mode (`off` quand le profil n'en dit rien). Avec `"guard": "enforce"`, le board n'est plus facultatif : les hooks de l'agent le rappellent à chaque demande, refusent les modifications faites par les outils d'édition de l'agent tant qu'aucune tâche n'est approuvée, et un contrôle CI exige la décision approuvée dans chaque PR. Les écritures par le shell ne passent pas par les hooks ; le contrôle CI les rattrape. Une approbation locale ne détecte que les modifications accidentelles : passez aux approbations signées si l'agent ne doit pas pouvoir approuver à votre place. [Board automatique](integrations/README.md#the-board-before-every-change)
 
 La CLI choisit les boards et enregistre leurs avis en local. Ton agent rédige ces avis et utilise ses outils pour les recherches que tu autorises. Tu valides le périmètre dans ton terminal avant que la CLI affiche le brief d'implémentation.
 

@@ -40,7 +40,7 @@ class HostResearchTests(unittest.TestCase):
         if config is not None:
             self.config.parent.mkdir(parents=True, exist_ok=True)
             self.config.write_bytes(config.encode("utf-8"))
-        write_json(self.root / "answers.json", {"name": "Portal", "stack": ["Python"], "host": host})
+        write_json(self.root / "answers.json", {"name": "Portal", "stack": ["Python"], "host": host, "guard": "off"})
         self.run_cli("init", "--answers", self.root / "answers.json")
 
     def set_research(self, research):
