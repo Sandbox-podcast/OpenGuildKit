@@ -19,6 +19,7 @@
       "sources": [
         {
           "url": "https://cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning",
+          "checked": "2026-11-21",
           "title": "Google Cloud — MLOps: Continuous delivery and automation pipelines in machine learning"
         }
       ]
@@ -40,6 +41,7 @@
       "sources": [
         {
           "url": "https://mlflow.org/docs/latest/ml/",
+          "checked": "2026-11-21",
           "title": "MLflow — ML Models: Core Capabilities"
         }
       ]
@@ -61,6 +63,7 @@
       "sources": [
         {
           "url": "https://dvc.org/doc",
+          "checked": "2026-11-21",
           "title": "DVC — Data Version Control Documentation"
         }
       ]
@@ -82,6 +85,7 @@
       "sources": [
         {
           "url": "https://onnx.ai/",
+          "checked": "2026-11-21",
           "title": "ONNX — Open Neural Network Exchange"
         }
       ]
@@ -102,6 +106,7 @@
       "sources": [
         {
           "url": "https://research.google/pubs/model-cards-for-model-reporting/",
+          "checked": "2026-11-21",
           "title": "Mitchell et al. — Model Cards for Model Reporting"
         }
       ]
@@ -122,6 +127,7 @@
       "sources": [
         {
           "url": "https://arxiv.org/abs/1803.09010",
+          "checked": "2026-11-21",
           "title": "Gebru et al. — Datasheets for Datasets"
         }
       ]
@@ -143,6 +149,7 @@
       "sources": [
         {
           "url": "https://www.tensorflow.org/guide/saved_model",
+          "checked": "2026-11-21",
           "title": "TensorFlow — Using the SavedModel format"
         }
       ]
@@ -165,6 +172,7 @@
       "sources": [
         {
           "url": "https://dmg.org/pmml/v4-4-1/GeneralStructure.html",
+          "checked": "2026-11-21",
           "title": "Data Mining Group — PMML 4.4.1: General Structure"
         }
       ]
@@ -186,6 +194,7 @@
       "sources": [
         {
           "url": "https://docs.feast.dev/",
+          "checked": "2026-11-21",
           "title": "Feast — Feature Store Documentation"
         }
       ]
@@ -207,6 +216,7 @@
       "sources": [
         {
           "url": "https://www.tensorflow.org/tfx/data_validation/get_started",
+          "checked": "2026-11-21",
           "title": "TensorFlow — Get started with TensorFlow Data Validation"
         }
       ]
@@ -231,6 +241,7 @@
       "sources": [
         {
           "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10",
+          "checked": "2026-11-21",
           "title": "NIST — Artificial Intelligence Risk Management Framework (AI RMF 1.0)"
         }
       ]
@@ -253,6 +264,7 @@
       "sources": [
         {
           "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence",
+          "checked": "2026-11-21",
           "title": "NIST AI 600-1 — Generative Artificial Intelligence Profile"
         }
       ]
@@ -271,7 +283,8 @@
       "sources": [
         {
           "title": "OWASP Top 10 for LLM Applications, Risks and Mitigations",
-          "url": "https://genai.owasp.org/llm-top-10/"
+          "url": "https://genai.owasp.org/llm-top-10/",
+          "checked": "2026-11-21"
         }
       ]
     },
@@ -290,6 +303,7 @@
       "sources": [
         {
           "url": "https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/",
+          "checked": "2026-11-21",
           "title": "OWASP Top 10 for Agentic Applications for 2026"
         }
       ]
@@ -308,6 +322,7 @@
       "sources": [
         {
           "url": "https://atlas.mitre.org/",
+          "checked": "2026-11-21",
           "title": "MITRE ATLAS — Adversarial Threat Landscape for Artificial-Intelligence Systems"
         }
       ]
@@ -327,6 +342,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/42001",
+          "checked": "2026-11-21",
           "title": "ISO/IEC 42001:2023 — AI management systems"
         }
       ]
@@ -346,6 +362,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/77304.html",
+          "checked": "2026-11-20",
           "title": "ISO/IEC 23894:2023 — AI guidance on risk management"
         }
       ]
@@ -364,6 +381,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/sp/800/218/a/final",
+          "checked": "2026-11-21",
           "title": "NIST SP 800-218A — Secure Software Development Practices for Generative AI and Dual-Use Foundation Models"
         }
       ]
@@ -371,6 +389,7 @@
     {
       "id": "owasp-agent-control-standard",
       "title": "OWASP Agent Control Standard (ACS) - spécification émergente",
+      "title_en": "OWASP Agent Control Standard (ACS), emerging specification",
       "category": "IA responsable et sécurité des agents",
       "kind": "référentiel",
       "brains": [
@@ -382,6 +401,7 @@
       "sources": [
         {
           "url": "https://genai.owasp.org/resource/agent-control-standard-acs/",
+          "checked": "2026-11-21",
           "title": "OWASP — Agent Control Standard (ACS)"
         }
       ]
@@ -403,6 +423,7 @@
       "sources": [
         {
           "url": "https://modelcontextprotocol.io/specification/latest",
+          "checked": "2026-11-21",
           "title": "Model Context Protocol — Specification"
         }
       ]
@@ -424,6 +445,7 @@
       "sources": [
         {
           "url": "https://a2a-protocol.org/latest/specification/",
+          "checked": "2026-11-21",
           "title": "Agent2Agent — Protocol Specification"
         }
       ]
@@ -445,6 +467,7 @@
       "sources": [
         {
           "url": "https://arxiv.org/abs/2005.11401",
+          "checked": "2026-11-21",
           "title": "Lewis et al. — Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks"
         }
       ]
@@ -455,6 +478,7 @@
         "agent_evals"
       ],
       "title": "Évaluations de LLM et d'agents",
+      "title_en": "LLM and agent evaluations",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
       "brains": [
@@ -470,6 +494,7 @@
       "sources": [
         {
           "url": "https://www.anthropic.com/research/demystifying-evals-for-ai-agents",
+          "checked": "2026-11-21",
           "title": "Anthropic — Demystifying evals for AI agents"
         }
       ]
@@ -480,6 +505,7 @@
         "agent_tool_permissions"
       ],
       "title": "Permissions et moindre privilège des outils",
+      "title_en": "Tool permissions and least privilege for agents",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
       "brains": [
@@ -491,6 +517,7 @@
       "sources": [
         {
           "url": "https://modelcontextprotocol.io/specification/latest/basic/security_best_practices",
+          "checked": "2026-11-21",
           "title": "Model Context Protocol — Security Best Practices, Scope Minimization"
         }
       ]
@@ -501,6 +528,7 @@
         "agent_human_in_loop"
       ],
       "title": "Validation humaine dans la boucle",
+      "title_en": "Human-in-the-loop validation",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
       "brains": [
@@ -513,6 +541,7 @@
       "sources": [
         {
           "url": "https://docs.langchain.com/oss/python/langgraph/interrupts",
+          "checked": "2026-11-21",
           "title": "LangGraph — Interrupts"
         }
       ]
@@ -523,6 +552,7 @@
         "agent_execution_limits"
       ],
       "title": "Budgets et limites d'exécution des agents",
+      "title_en": "Agent execution budgets and limits",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
       "brains": [
@@ -534,6 +564,7 @@
       "sources": [
         {
           "url": "https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/tutorial/termination.html",
+          "checked": "2026-11-21",
           "title": "Microsoft AutoGen — Termination"
         }
       ]
@@ -555,6 +586,7 @@
       "sources": [
         {
           "url": "https://www.anthropic.com/research/effective-context-engineering-for-ai-agents",
+          "checked": "2026-11-21",
           "title": "Anthropic — Effective context engineering for AI agents"
         }
       ]
@@ -565,6 +597,7 @@
         "agent_agent_memory"
       ],
       "title": "Gestion de la mémoire des agents",
+      "title_en": "Agent memory management",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
       "brains": [
@@ -576,6 +609,7 @@
       "sources": [
         {
           "url": "https://docs.langchain.com/oss/python/concepts/memory",
+          "checked": "2026-11-21",
           "title": "LangChain — Memory overview"
         }
       ]

@@ -20,6 +20,7 @@
       "sources": [
         {
           "url": "https://www.serviceinnovation.org/kcs/",
+          "checked": "2026-11-21",
           "title": "Consortium for Service Innovation — Knowledge-Centered Success (KCS)"
         }
       ]
@@ -27,6 +28,7 @@
     {
       "id": "gov-uk-assisted-digital",
       "title": "GOV.UK Service Manual — Accessibilité et accompagnement numérique",
+      "title_en": "GOV.UK Service Manual, Accessibility and assisted digital",
       "category": "Organisation du support",
       "kind": "guide",
       "brains": [
@@ -38,6 +40,7 @@
       "sources": [
         {
           "url": "https://www.gov.uk/service-manual/helping-people-to-use-your-service",
+          "checked": "2026-11-21",
           "title": "GOV.UK Service Manual — Accessibility and assisted digital"
         }
       ]
@@ -57,6 +60,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/64739.html",
+          "checked": "2026-11-21",
           "title": "ISO 18295-1:2017 — Customer contact centres, requirements for customer contact centres"
         }
       ]
@@ -76,6 +80,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/10002",
+          "checked": "2026-11-20",
           "title": "ISO 10002:2018 - Quality management — Customer satisfaction — Guidelines for complaints handling in organizations"
         }
       ]
@@ -96,6 +101,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/71582.html",
+          "checked": "2026-11-20",
           "title": "ISO 10004:2018 - Quality management — Customer satisfaction — Guidelines for monitoring and measuring"
         }
       ]
@@ -103,6 +109,7 @@
     {
       "id": "consumer-adr-directive",
       "title": "Directive 2013/11/UE relative au règlement extrajudiciaire des litiges de consommation",
+      "title_en": "Directive 2013/11/EU on alternative dispute resolution for consumer disputes",
       "category": "Réclamations et satisfaction client",
       "kind": "réglementation",
       "brains": [
@@ -114,6 +121,7 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/dir/2013/11/oj",
+          "checked": "2026-11-21",
           "title": "Directive 2013/11/UE — Règlement extrajudiciaire des litiges de consommation"
         }
       ]

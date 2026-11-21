@@ -1,0 +1,75 @@
+{
+  "id": "incident-notification",
+  "title": "Incident notification matrix",
+  "version": "1.0.0",
+  "description": "For an organization subject to EU incident reporting: one matrix with the authority, trigger and deadlines of each regulation, shared by the GDPR, NIS 2, DORA, Cyber Resilience Act and AI Act packs. These rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "Regulation (EU) 2016/679, General Data Protection Regulation",
+      "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra",
+      "checked": "2026-11-20"
+    },
+    {
+      "title": "Directive (EU) 2022/2555 (NIS 2)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/en",
+      "checked": "2026-11-20"
+    },
+    {
+      "title": "Regulation (EU) 2022/2554, Digital Operational Resilience Act",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/fra",
+      "checked": "2026-11-20"
+    },
+    {
+      "title": "Commission Delegated Regulation (EU) 2025/301, content and time limits of major ICT-related incident reports under DORA",
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32025R0301",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "Regulation (EU) 2024/2847, Cyber Resilience Act",
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
+      "checked": "2026-11-20"
+    },
+    {
+      "title": "Regulation (EU) 2024/1689, Artificial Intelligence Act, consolidated text",
+      "url": "https://eur-lex.europa.eu/eli/reg/2024/1689",
+      "checked": "2026-11-20"
+    },
+    {
+      "title": "European Commission, AI Act Service Desk, Article 73: Reporting of serious incidents",
+      "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-73",
+      "checked": "2026-11-21"
+    }
+  ],
+  "rules": [
+    {
+      "id": "keep-notification-matrix",
+      "instruction": "Ask the compliance owner which of the regulations below apply to the organization, and keep in the incident runbook one notification matrix with a row for each: the authority, the trigger, each deadline and the named person who notifies.",
+      "verification": "Open the incident runbook and check that each regulation the compliance owner recorded as applicable has a row with its authority, trigger, deadlines and named notifier."
+    },
+    {
+      "id": "gdpr-personal-data-breach",
+      "instruction": "When the organization is a controller under the GDPR, record in the matrix: the supervisory authority competent under Art. 55, notified of a personal data breach unless the breach is unlikely to result in a risk to people, without undue delay and where feasible within 72 hours of becoming aware of it (Art. 33(1)); the data subjects, informed without undue delay when the risk is high (Art. 34(1)). As a processor, record that the controller is notified without undue delay (Art. 33(2)).",
+      "verification": "Check that the GDPR row of the matrix names the authority, the trigger, each deadline above and the person who notifies."
+    },
+    {
+      "id": "nis2-significant-incident",
+      "instruction": "When the organization is an essential or important entity under NIS 2, record in the matrix: the CSIRT or, where the national law says so, the competent authority, notified of a significant incident (Art. 23(1) and 23(3)) with an early warning within 24 hours of becoming aware of it, an incident notification within 72 hours and a final report within one month of that notification (Art. 23(4)).",
+      "verification": "Check that the NIS 2 row of the matrix names the authority, the trigger, each deadline above and the person who notifies."
+    },
+    {
+      "id": "dora-major-ict-incident",
+      "instruction": "When the organization is a financial entity under DORA, record in the matrix: the relevant competent authority (Art. 19(1)), notified of a major ICT-related incident classified under Art. 18 with an initial notification within four hours of the classification and no later than 24 hours after becoming aware of the incident, an intermediate report within 72 hours of the initial notification and a final report within one month of the latest intermediate report (Art. 19(4) and Delegated Regulation (EU) 2025/301, Art. 5(1)).",
+      "verification": "Check that the DORA row of the matrix names the authority, the trigger, each deadline above and the person who notifies."
+    },
+    {
+      "id": "cra-actively-exploited-vulnerability",
+      "instruction": "When the organization manufactures a product with digital elements under the Cyber Resilience Act, record in the matrix: the CSIRT designated as coordinator and ENISA, notified through the single reporting platform (Art. 14(1) and 14(7)); for an actively exploited vulnerability, an early warning within 24 hours of becoming aware of it, a vulnerability notification within 72 hours and a final report within 14 days after a corrective or mitigating measure is available (Art. 14(2)); for a severe incident affecting the product's security, the same 24 and 72 hours and a final report within one month of the incident notification (Art. 14(3) and 14(4)).",
+      "verification": "Check that the Cyber Resilience Act row of the matrix names the authority, the trigger, each deadline above and the person who notifies."
+    },
+    {
+      "id": "ai-act-serious-incident",
+      "instruction": "When the organization provides a high-risk AI system under the AI Act, record in the matrix: the market surveillance authorities of the Member States where a serious incident occurred (Art. 73(1)), notified immediately after a causal link is established and within 15 days of becoming aware of the incident (Art. 73(2)), within two days for a widespread infringement or a serious incident under Art. 3(49)(b) (Art. 73(3)) and within 10 days after a person's death (Art. 73(4)). As a deployer, record that the provider is informed first and immediately, then the importer or distributor and the market surveillance authorities (Art. 26(5)).",
+      "verification": "Check that the AI Act row of the matrix names the authority, the trigger, each deadline above and the person who notifies."
+    }
+  ]
+}

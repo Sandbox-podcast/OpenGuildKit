@@ -5,6 +5,7 @@ import json
 import re
 from pathlib import Path
 
+from .catalog import rule_check
 from .patterns import (
     check_pattern_choices,
     condition_reasons,
@@ -13,6 +14,7 @@ from .patterns import (
     recommend_patterns,
     role_choices,
 )
+from .rule_checks import describe_check
 from .storage import read_json, write_json, write_text
 from .workflow import AGENT_WORKFLOW
 
@@ -63,14 +65,106 @@ SECTOR_PROMPT = (
 
 def _personal_data_question() -> dict:
     """Personal data preselects the GDPR pattern; the answer is stored as personal_data."""
-    return _select(
+    question = _select(
         "personal_data",
         "Does the project process personal data, such as names, emails, health or payment data?",
         [{"id": "yes", "title": "Yes"}, {"id": "no", "title": "No"}],
     )
+    return {**question, "required": True}
 
 
-def init_questions(catalog: dict, project_name: str, detected: list[dict] | None = None) -> list[dict]:
+DEFAULT_GUARD = "observe"
+GUARD_MODES = {
+    "off": "Off: nothing reminds the agent to consult the board and no edit is checked; it depends on the agent "
+           "following AGENTS.md.",
+    "observe": "Observe: each request reminds the agent to open a task and consult the board; an edit without an "
+               "approved task is flagged to the agent, not blocked.",
+    "enforce": "Enforce: each request reminds the agent, and edits through its edit tools are refused until a person "
+               "approves a task. Use signed approvals with it: a local approval can be forged by an agent that writes files.",
+}
+HOST_CHOICES = (
+    ("claude-code", "Claude Code"),
+    ("codex", "Codex"),
+    ("other", "Another agent, or none: the rules stay in AGENTS.md and no host setting is written"),
+)
+
+
+def is_norm(pattern: dict) -> bool:
+    """A regulation that the sector or personal data preselects, confirmed one by one at setup."""
+    match = pattern.get("match", {})
+    return pattern.get("kind") == "regulation" and not match.get("stack") and bool(
+        match.get("sectors") or match.get("personal_data")
+    )
+
+
+def norm_reason(pattern: dict) -> str:
+    """Why a norm is proposed, in the words of its condition."""
+    match = pattern["match"]
+    reasons = [f"the sector is {' or '.join(match['sectors'])}"] if match.get("sectors") else []
+    if match.get("personal_data"):
+        reasons.append("the project processes personal data")
+    return " or ".join(reasons)
+
+
+def _norms_question(catalog: dict) -> dict:
+    """One sub-question per norm, asked only when its condition holds; a no is recorded in declined."""
+    norms = [
+        {
+            "id": pattern["id"],
+            "title": pattern["title"],
+            "when": {key: pattern["match"][key] for key in ("sectors", "personal_data") if key in pattern["match"]},
+            "prompt": f"{pattern['title']} ({pattern['id']}) is proposed because {norm_reason(pattern)}. Does it apply?",
+        }
+        for pattern in catalog["patterns"].values() if is_norm(pattern)
+    ]
+    return {
+        "id": "norms",
+        "type": "norms",
+        "prompt": (
+            "Ask each norm below whose condition the project meets (its sector, or personal data), one at a time. "
+            'Record the answers as {"norms": {"ID": "yes" or "no"}}: a yes keeps the pattern, a no records it in '
+            "declined so that it is not proposed again. Enter keeps the norm."
+        ),
+        "norms": norms,
+        "default": "yes",
+    }
+
+
+def _tools_question(detected: list[dict]) -> dict:
+    question = {
+        "id": "tools",
+        "type": "list",
+        "prompt": (
+            "Which tools does the company work with: tracker, documentation, CI, chat, time tracking, HR, security "
+            "scanner? Use the names the team uses. openguildkit tools list shows the tools the registry knows; a name "
+            "it does not know is kept as written."
+        ),
+        "examples": ["Jira", "Confluence", "GitHub Actions", "Slack"],
+        "default": [item["tool"] for item in detected],
+    }
+    if detected:
+        question["detected"] = detected
+    return question
+
+
+def _host_question(detected: str | None) -> dict:
+    """The default stays other: choosing a host makes check require its settings, so the person names it."""
+    prompt = "Which agent host does the team use?"
+    if detected:
+        prompt += f" The repository has {dict(HOST_CHOICES)[detected]} files."
+    question = _select("host", prompt, [{"id": key, "title": title} for key, title in HOST_CHOICES], "other")
+    return {**question, "detected": detected} if detected else question
+
+
+def init_questions(
+    catalog: dict, project_name: str, detected: list[dict] | None = None, tools: list[dict] | None = None,
+    host: str | None = None,
+) -> list[dict]:
+    """The setup questionnaire, in the order it is asked. Every question has a default or is marked required.
+
+    detected: components found in the repository; tools: registry tools it shows signs of; host: the agent
+    host its files point to.
+    """
     components = {
         "id": "components",
         "type": "components",
@@ -80,8 +174,33 @@ def init_questions(catalog: dict, project_name: str, detected: list[dict] | None
         ),
         "examples": [{"id": "web", "path": "apps/web", "stack": ["Next.js 14.2", "React 18.3", "TypeScript"]}],
     }
-    if detected:
-        components["default"] = detected
+    components["default"] = detected or []
+    patterns = _select(
+        "patterns",
+        "Which other patterns should apply? Enter keeps those preselected by the stack and the roles; "
+        "openguildkit recommend --answers FILE shows why each one is preselected.",
+        catalog["patterns"].values(),
+        multiple=True,
+    )
+    patterns["default_label"] = "the preselected patterns (leave patterns out of an answers file)"
+    packs = _select(
+        "packs",
+        "Which packs should apply in addition to the recommended baseline and language packs and the packs of "
+        'the selected patterns? Enter adds none. In an answers file, "replace_default_packs": true makes this '
+        "list replace the recommended packs.",
+        catalog["packs"].values(),
+        [],
+        multiple=True,
+    )
+    packs["default_label"] = "none beyond the recommended packs"
+    boards = _select(
+        "boards",
+        "Which boards can advise? An empty list lets every board advise, including boards added later.",
+        catalog["boards"].values(),
+        [],
+        multiple=True,
+    )
+    boards["default_label"] = "all boards (saved as an empty list)"
     return [
         {"id": "name", "type": "text", "prompt": "Project name", "default": project_name},
         _select("sector", SECTOR_PROMPT, catalog["sectors"].values(), "general"),
@@ -90,34 +209,25 @@ def init_questions(catalog: dict, project_name: str, detected: list[dict] | None
             "type": "list",
             "prompt": "Which languages, frameworks and services are in the stack? Add a version where it matters.",
             "examples": ["Python 3.12", "FastAPI", "PostgreSQL 16"],
+            "default": [],
         },
         components,
         _select(
             "roles",
             "Which roles should this project support?",
             role_choices(catalog["patterns"]).values(),
+            [],
             multiple=True,
         ),
         _personal_data_question(),
-        _select(
-            "patterns",
-            "Which patterns should apply? Enter for those preselected by the stack, the sector, personal data "
-            "and the roles; openguildkit recommend --answers FILE shows why each one is preselected.",
-            catalog["patterns"].values(),
-            multiple=True,
-        ),
-        _select(
-            "packs",
-            "Which additional packs should apply? Enter for recommended baseline and language packs.",
-            catalog["packs"].values(),
-            multiple=True,
-        ),
-        _select(
-            "boards",
-            "Which boards can advise? Enter to enable all available boards.",
-            catalog["boards"].values(),
-            multiple=True,
-        ),
+        _norms_question(catalog),
+        patterns,
+        packs,
+        boards,
+        _tools_question(tools or []),
+        _host_question(host),
+        _select("guard", "Should the board be brought to the agent before each change?",
+                [{"id": key, "title": text} for key, text in GUARD_MODES.items()], DEFAULT_GUARD),
         _select(
             "research",
             "Can the host agent consult public sources when you approve it for a task?",
@@ -127,8 +237,8 @@ def init_questions(catalog: dict, project_name: str, detected: list[dict] | None
             ],
             "local-only",
         ),
-        {"id": "conventions", "type": "list", "prompt": "Which team conventions should the agent follow?"},
-        {"id": "checks", "type": "list", "prompt": "Which project checks should the agent or CI run?"},
+        {"id": "conventions", "type": "list", "prompt": "Which team conventions should the agent follow?", "default": []},
+        {"id": "checks", "type": "list", "prompt": "Which project checks should the agent or CI run?", "default": []},
     ]
 
 
@@ -408,6 +518,74 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     return profile
 
 
+SETUP_ONLY_FIELDS = ("norms", "replace_default_packs")
+
+
+def _norm_answers(value, catalog: dict) -> dict[str, bool]:
+    """The answers to the norms question: {"ID": "yes" or "no"}, booleans accepted."""
+    if not isinstance(value, dict):
+        raise ValueError('norms must be an object such as {"gdpr-personal-data": "yes"}')
+    answers = {}
+    for pattern_id, answer in value.items():
+        if pattern_id not in catalog["patterns"] or not is_norm(catalog["patterns"][pattern_id]):
+            raise ValueError(f"Unknown norm: {pattern_id}. Use the IDs listed in the norms question of init --questions.")
+        if answer not in ("yes", "no", True, False):
+            raise ValueError(f"The answer for norm {pattern_id} must be yes or no")
+        answers[pattern_id] = answer in ("yes", True)
+    return answers
+
+
+def complete_answers(answers: object, questions: list[dict], catalog: dict) -> tuple[dict, list[dict], list[str]]:
+    """Give each omitted question its default and record the norms answered no in declined.
+
+    Returns the answers, the detected components left aside (the default only applies when the
+    answers give no stack either) and the norms answered yes.
+    """
+    if not isinstance(answers, dict):
+        raise ValueError("Setup answers must be a JSON object, such as {} or {\"name\": \"Portal\"}.")
+    completed = dict(answers)
+    defaults = {question["id"]: question["default"] for question in questions if "default" in question}
+    detected = defaults.pop("components", [])
+    for field in ("name", "sector", "boards", "tools", "host", "guard", "research"):
+        if field in defaults:
+            completed.setdefault(field, defaults[field])
+    if "components" not in completed and "stack" not in completed and detected:
+        completed["components"] = detected
+    left_aside = detected if detected and not completed.get("components") else []
+    norms = _norm_answers(completed.pop("norms", {}), catalog)
+    declined = [pattern_id for pattern_id, kept in norms.items() if not kept]
+    if declined:
+        completed["declined"] = list(dict.fromkeys([*_texts(completed.get("declined", []), "declined"), *declined]))
+    return completed, left_aside, [pattern_id for pattern_id, keep in norms.items() if keep]
+
+
+def setup_profile(answers: object, catalog: dict, questions: list[dict]) -> tuple[dict, list[dict]]:
+    """The profile that init writes from setup answers, and the detected components the answers leave aside.
+
+    Unlike a saved profile, setup answers add their packs to the recommended ones unless
+    "replace_default_packs" is true, and omitted patterns are preselected even when packs are given.
+    """
+    completed, left_aside, kept_norms = complete_answers(answers, questions, catalog)
+    replace = completed.pop("replace_default_packs", False)
+    if not isinstance(replace, bool):
+        raise ValueError("replace_default_packs must be true or false")
+    sector, stack, roles, components = _project_context(completed, catalog)
+    if "patterns" not in completed:
+        inputs = _recommendation_inputs(completed, catalog)
+        completed["patterns"] = [
+            {"id": record["id"], "components": record["components"]} if record.get("components") else record["id"]
+            for record in recommend_patterns(catalog, stack, sector, roles, components, **inputs)["matched"]
+        ]
+    patterns = _pattern_entries(completed["patterns"], catalog, components)
+    selected = {pattern_selection(entry)[0] for entry in patterns}
+    completed["patterns"] = [*(pattern_id for pattern_id in kept_norms if pattern_id not in selected), *patterns]
+    chosen = _ids(completed.get("packs", []), "packs", catalog["packs"])
+    if not replace:
+        chosen = [*_default_packs(stack, components, completed["patterns"], catalog), *chosen]
+    completed["packs"] = list(dict.fromkeys(chosen))
+    return validate_profile(completed, catalog), left_aside
+
+
 def load_profile(state: Path, catalog: dict) -> dict:
     path = state / "project.json"
     if not path.is_file():
@@ -471,14 +649,21 @@ def rule_conflicts(profile: dict, catalog: dict) -> list[dict]:
     selected = _selected_packs(profile, catalog)
     scopes = pack_scopes(profile, catalog)
     # A declaration on either pack is enough: conflicts are symmetric.
-    pairs = sorted(
-        {
-            tuple(sorted((pack_id, other)))
-            for pack_id in selected
-            for other in catalog["packs"][pack_id].get("conflicts_with", [])
-            if other in selected
-        }
-    )
+    declared = {
+        tuple(sorted((pack_id, other)))
+        for pack_id in selected
+        for other in catalog["packs"][pack_id].get("conflicts_with", [])
+        if other in selected
+    }
+    # A choice the team recorded stays in force when the catalog stops declaring the conflict.
+    recorded = {
+        tuple(sorted((first, second)))
+        for item in profile.get("resolutions", [])
+        for first in item["packs"]
+        for second in item["packs"]
+        if first != second and {first, second} <= set(selected)
+    }
+    pairs = sorted(declared | recorded)
     conflicts = []
     for first, second in pairs:
         left, right = scopes.get(first), scopes.get(second)
@@ -602,16 +787,22 @@ def pack_scopes(profile: dict, catalog: dict) -> dict[str, list[str] | None]:
     return {pack_id: (sorted(scope) if scope is not None else None) for pack_id, scope in scopes.items()}
 
 
+def _without_dates(record: dict) -> dict:
+    """The record without its sources' checked dates: a page read again does not change the advice."""
+    sources = [{key: value for key, value in source.items() if key != "checked"} for source in record.get("sources", [])]
+    return {**record, "sources": sources} if "sources" in record else record
+
+
 def profile_fingerprint(profile: dict, catalog: dict) -> str:
     resolved = resolved_profile(profile, catalog)
     snapshot = {
         "profile": resolved,
-        "packs": [catalog["packs"][pack_id] for pack_id in resolved["packs"]],
-        "boards": [catalog["boards"][board_id] for board_id in resolved["boards"]],
-        "sector": catalog["sectors"][resolved["sector"]],
+        "packs": [_without_dates(catalog["packs"][pack_id]) for pack_id in resolved["packs"]],
+        "boards": [_without_dates(catalog["boards"][board_id]) for board_id in resolved["boards"]],
+        "sector": _without_dates(catalog["sectors"][resolved["sector"]]),
     }
     if profile.get("patterns"):
-        snapshot["patterns"] = [catalog["patterns"][pattern_id] for pattern_id in pattern_ids(profile)]
+        snapshot["patterns"] = [_without_dates(catalog["patterns"][pattern_id]) for pattern_id in pattern_ids(profile)]
     canonical = json.dumps(snapshot, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
@@ -625,13 +816,17 @@ def _source_link(source: dict) -> str:
     return f"[{title}](<{source['url']}>)"
 
 
+CHECK_VERIFICATION = "OpenGuildKit evaluates the check: task verify in the project, ci-check on a commit."
+
+
 def rule_text(rule: dict) -> tuple[str, str]:
-    if "check" not in rule:
+    """The rule's instruction and verification; a machine check fills in the text a rule leaves out."""
+    check = rule_check(rule)
+    if check is None:
         return rule["instruction"], rule["verification"]
-    threshold = int(rule["check"]["max_minutes"])
     return (
-        f"Limit downloadLinkMinutes in export.json to {threshold} minutes.",
-        "Run the CI check on the target commit.",
+        rule.get("instruction", describe_check(check)),
+        rule.get("verification", CHECK_VERIFICATION),
     )
 
 
@@ -727,6 +922,15 @@ def render_instructions(profile: dict, catalog: dict) -> str:
         for rule in pack["rules"]:
             instruction, verification = rule_text(rule)
             lines.extend([f"- `{rule['id']}` {instruction}", f"  Verify: {verification}"])
+            if "check" in rule and "instruction" in rule:
+                lines.append(f"  Checked by task verify: {describe_check(rule_check(rule))}")
+            for item in rule.get("evidence", []):
+                when = item.get("when", {}).get("data")
+                applies = f" Supply it when the task's data is {' or '.join(when)}." if when else ""
+                lines.append(
+                    f"  Evidence for task result: {item['title']}, a project path or an https link, "
+                    f"or not-applicable with a reason and an owner.{applies}"
+                )
         if pack["sources"]:
             lines.extend(["", *_bullets([_source_link(source) for source in pack["sources"]])])
     lines.extend(["", f"<!-- openguildkit profile {profile_fingerprint(profile, catalog)} -->"])

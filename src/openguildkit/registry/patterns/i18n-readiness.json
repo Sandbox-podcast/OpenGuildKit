@@ -5,11 +5,13 @@
   "sources": [
     {
       "title": "W3C, Internationalization Quick Tips for the Web",
-      "url": "https://www.w3.org/International/quicktips/"
+      "url": "https://www.w3.org/International/quicktips/",
+      "checked": "2026-11-21"
     },
     {
       "title": "ICU User Guide, Formatting Messages",
-      "url": "https://unicode-org.github.io/icu/userguide/format_parse/messages/"
+      "url": "https://unicode-org.github.io/icu/userguide/format_parse/messages/",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

@@ -1,6 +1,6 @@
 # Reference library
 
-The library starts from the French SOCLE catalog dated 20 November 2026 (`Socle_Catalogue_References.json`). Each entry keeps its family, category, type, description, applicability notes and public source links. Entries whose source ID did not follow the ID convention were renamed and keep that ID as an alias. The descriptions are in French. The library includes conventions, technical specifications, practices, tools and regulations. Families added since then cover the non-technical disciplines: `people` (human resources), `finance`, `legal`, `support`, `communication`, `delivery` (project management and operations) and `strategy` (leadership and governance). [Browse the family files](../src/openguildkit/registry/references/).
+The library starts from the French SOCLE catalog dated 20 November 2026 (`Socle_Catalogue_References.json`). Each entry keeps its family, category, type, description, applicability notes and public source links. Entries whose source ID did not follow the ID convention were renamed and keep that ID as an alias. The descriptions are in French; an entry whose title is French, or an acronym only, also has an English title in `title_en`, which the CLI and the brain briefs show. The library includes conventions, technical specifications, practices, tools and regulations. Families added since then cover the non-technical disciplines: `people` (human resources), `finance`, `legal`, `support`, `communication`, `delivery` (project management and operations) and `strategy` (leadership and governance). [Browse the family files](../src/openguildkit/registry/references/).
 
 ## Find a reference
 
@@ -12,7 +12,7 @@ openguildkit references --id conventional-commits
 openguildkit references --family cloud "observabilite" --json
 ```
 
-Without options, the command lists the families and their counts. Search matches whole words across names, categories and descriptions, ignoring accents and case. Results with terms in the title or ID appear first. Use `--id` for the full entry and its source links; a former ID such as `pd_iac` or `agent_agent_memory` finds the renamed entry. With `--json`, the command returns an array of matching records. The CLI reads the index locally.
+Without options, the command lists the families and their counts. Search matches whole words across names, categories and descriptions, ignoring accents and case. Names are the ID, the title, the English title and the former IDs, so `references GDPR` and `references RGPD` both find `rgpd`, and `references accessibility` finds `wcag-22`. Results with terms in a name appear first. Use `--id` for the full entry and its source links; a former ID such as `pd_iac` or `agent_agent_memory` finds the renamed entry. With `--json`, the command returns an array of matching records. The CLI reads the index locally.
 
 The `work-patterns` family comes from the [pattern catalog](patterns.md). A pattern appears once in the index. When a reference presents it, such as `scrum` for the Scrum pattern, the index shows that reference, which also answers to `pattern-scrum` and ends with the pattern and packs to apply. Other patterns get a generated entry such as `pattern-search-engine-optimization`; edit the pattern record to change it.
 
@@ -22,14 +22,15 @@ The `work-patterns` family comes from the [pattern catalog](patterns.md). A patt
 
 | Optional pack | References used | Evidence to keep |
 | --- | --- | --- |
-| `release-management` | Conventional Commits, SemVer, Keep a Changelog | Version decision, compatibility checks, release notes |
+| `release-management` (pattern `release-versioning`) | Conventional Commits, SemVer, Keep a Changelog | Version decision, compatibility checks, release notes |
 | `supply-chain` | SLSA, SBOM, SPDX, CycloneDX | Artifact provenance, verification result, SBOM for the shipped version |
 | `service-reliability` | SLI, SLO, error budgets, OpenTelemetry, OTLP | SLO definition, dashboard or query, telemetry test |
 | `gdpr` | GDPR (Regulation (EU) 2016/679), CNIL guidance, standard contractual clauses | Processing record entry, lawful basis, retention job, DPIA decision |
-| `dora` | DORA (Regulation (EU) 2022/2554) | ICT asset inventory, restoration test, register of information, incident runbook |
-| `nis2` | NIS 2 (Directive (EU) 2022/2555) and its national transposition | Scope decision, security policy, supplier assessment, incident runbook |
-| `eu-ai-act` | AI Act (Regulation (EU) 2024/1689, as amended) | Classification and role, employment use (Annex III, point 4), AI interaction notice, logs, oversight procedure |
-| `cyber-resilience-act` | Cyber Resilience Act (Regulation (EU) 2024/2847) | Role decision, release SBOM, disclosure policy, support period, reporting runbook |
+| `dora` | DORA (Regulation (EU) 2022/2554) | ICT asset inventory, restoration test, register of information |
+| `nis2` | NIS 2 (Directive (EU) 2022/2555) and its national transposition | Scope decision, security policy, supplier assessment |
+| `eu-ai-act` | AI Act (Regulation (EU) 2024/1689, as amended) | Classification and role, employment use (Annex III, point 4), AI interaction notice, logs kept at least six months, oversight procedure |
+| `cyber-resilience-act` | Cyber Resilience Act (Regulation (EU) 2024/2847) | Role decision, release SBOM, disclosure policy, support period |
+| `incident-notification` (a dependency of the five packs above) | GDPR Art. 33-34, NIS 2 Art. 23, DORA Art. 19 and Delegated Regulation (EU) 2025/301, Cyber Resilience Act Art. 14, AI Act Art. 73 | One notification matrix in the incident runbook: authority, trigger, deadlines and notifier for each regulation that applies |
 
 When turning a new reference into a pack, confirm its edition, the conditions where it applies and the team that owns it. Write the action to take, how to verify it and what evidence to keep. Use your organization's approved interpretation for regulatory requirements and licensed standards.
 
@@ -94,7 +95,7 @@ Contribute a JSON family file in `src/openguildkit/registry/references/`. For in
       "summary": "Record the owner, impact and verification results of a production change.",
       "applies_when": "A change affects an interface or operation used by another team.",
       "sources": [
-        {"title": "Team engineering handbook", "url": "https://example.org/engineering/change-records"}
+        {"title": "Team engineering handbook", "url": "https://example.org/engineering/change-records", "checked": "2026-11-21"}
       ]
     }
   ]
@@ -106,8 +107,9 @@ Contribute a JSON family file in `src/openguildkit/registry/references/`. For in
 | Field | Constraint |
 | --- | --- |
 | `id` | Lowercase letters, digits and single hyphens, without a source prefix (`infrastructure-as-code`, not `pd_iac`). Unique across IDs and aliases of all families. |
-| `aliases` | Optional. Former IDs that `references --id` still resolves. Use it when you rename an entry. |
+| `aliases` | Optional. Former IDs that `references --id` still resolves and search still finds. Use it when you rename an entry. |
 | `title`, `category`, `summary`, `applies_when` | Single lines. French for the bundled entries. |
+| `title_en` | Optional. The English title, when `title` is in another language or gives only an acronym (`Web Content Accessibility Guidelines (WCAG) 2.2` for `WCAG 2.2`). The CLI and the brain briefs show it, and search reads both titles. Every bundled entry has an English title, in one field or the other. |
 | `kind` | One of the types below. |
 | `edition` | Optional. The edition or version the entry describes when the source has several, such as `2022`, `Rev. 5` or `5.0.0`. Set it for standards and specifications. |
 | `brains` | Optional for project entries, set on every bundled entry. One to three [brain](brains.md) IDs whose work the reference supports, such as `["legal", "security"]`. The tests check that each ID is a bundled board. |
@@ -139,6 +141,6 @@ Generated `work-patterns` entries use `Stack pattern` or `Work method`.
 
 A reference, the packs built on it and the pattern that applies them name each other: the reference lists `pattern` and `packs`, and the pattern lists the reference in `references`. `tests/test_references.py` checks these links for the bundled catalog. Place each entry in the family of its discipline: Core Web Vitals sits under quality, SPF, DKIM and DMARC under security.
 
-Save this example as `team-practices.json` and replace the example URL with the source your team uses. Sources follow the [catalog rules](catalog-format.md#rules-common-to-all-records): HTTPS, the canonical page, no tracking parameter. To extend a bundled family locally, use its existing family ID and title in your file, and include only the new entries. Reference IDs must be unique across all families. Run `openguildkit references` to validate the result.
+Save this example as `team-practices.json` and replace the example URL with the source your team uses. Sources follow the [catalog rules](catalog-format.md#rules-common-to-all-records): HTTPS, the canonical page, no tracking parameter, and `checked`, the day you opened the page and checked the entry against it ([source dates](catalog-format.md#source-dates)). To extend a bundled family locally, use its existing family ID and title in your file, and include only the new entries. Reference IDs must be unique across all families. Run `openguildkit references` to validate the result.
 
 For pack fields and verification examples, see the [catalog format](catalog-format.md).

@@ -21,6 +21,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/sp/800/218/final",
+          "checked": "2026-11-21",
           "title": "NIST SP 800-218 — Secure Software Development Framework (SSDF) Version 1.1"
         }
       ]
@@ -44,6 +45,7 @@
       "sources": [
         {
           "url": "https://asvs.owasp.org/",
+          "checked": "2026-11-21",
           "title": "OWASP Application Security Verification Standard — ASVS 5.0.0"
         }
       ]
@@ -62,6 +64,7 @@
       "sources": [
         {
           "url": "https://owaspsamm.org/",
+          "checked": "2026-11-21",
           "title": "OWASP SAMM — Software Assurance Maturity Model"
         }
       ]
@@ -80,6 +83,7 @@
       "sources": [
         {
           "url": "https://mas.owasp.org/MASVS/",
+          "checked": "2026-11-21",
           "title": "OWASP MASVS — Mobile Application Security Verification Standard"
         }
       ]
@@ -99,6 +103,7 @@
       "sources": [
         {
           "url": "https://top10.owasp.org/",
+          "checked": "2026-11-21",
           "title": "OWASP Top 10:2025"
         }
       ]
@@ -122,6 +127,7 @@
       "sources": [
         {
           "url": "https://api-security.owasp.org/editions/2023/en/0x11-t10/",
+          "checked": "2026-11-21",
           "title": "OWASP Top 10 API Security Risks – 2023"
         }
       ]
@@ -129,6 +135,7 @@
     {
       "id": "threat-modeling",
       "title": "Modélisation des menaces (Threat Modeling)",
+      "title_en": "Threat modeling",
       "category": "Sécurité applicative",
       "kind": "pratique",
       "brains": [
@@ -144,6 +151,7 @@
       "sources": [
         {
           "url": "https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html",
+          "checked": "2026-11-21",
           "title": "OWASP Threat Modeling Cheat Sheet"
         }
       ]
@@ -151,6 +159,7 @@
     {
       "id": "secure-by-design",
       "title": "Secure by Design et Secure by Default",
+      "title_en": "Secure by Design and Secure by Default",
       "category": "Sécurité applicative",
       "kind": "pratique",
       "brains": [
@@ -162,6 +171,7 @@
       "sources": [
         {
           "url": "https://www.cisa.gov/sites/default/files/2023-06/principles_approaches_for_security-by-design-default_508c.pdf",
+          "checked": "2026-11-21",
           "title": "CISA — Shifting the Balance of Cybersecurity Risk: Principles and Approaches for Security-by-Design and -Default"
         }
       ]
@@ -180,7 +190,8 @@
       "sources": [
         {
           "title": "OWASP Developer Guide, Static Application Security Testing",
-          "url": "https://devguide.owasp.org/en/05-implementation/05-static-analysis/"
+          "url": "https://devguide.owasp.org/en/05-implementation/05-static-analysis/",
+          "checked": "2026-11-21"
         }
       ]
     },
@@ -198,13 +209,15 @@
       "sources": [
         {
           "title": "OWASP Developer Guide, Secure development and integration",
-          "url": "https://devguide.owasp.org/en/02-foundations/02-secure-development/"
+          "url": "https://devguide.owasp.org/en/02-foundations/02-secure-development/",
+          "checked": "2026-11-21"
         }
       ]
     },
     {
       "id": "secret-scanning",
       "title": "Secret scanning - détection de secrets exposés",
+      "title_en": "Secret scanning, detection of exposed secrets",
       "category": "Sécurité applicative",
       "kind": "pratique",
       "brains": [
@@ -216,6 +229,7 @@
       "sources": [
         {
           "url": "https://owasp.github.io/secure-agent-playbook/plugins/code-security-skills/plays/secrets-scan.html",
+          "checked": "2026-11-21",
           "title": "OWASP secure-agent-playbook - Play: Secrets Scan"
         }
       ]
@@ -239,6 +253,7 @@
       "sources": [
         {
           "url": "https://slsa.dev/spec/v1.2/",
+          "checked": "2026-11-21",
           "title": "SLSA specification Version 1.2"
         }
       ]
@@ -261,6 +276,7 @@
       "sources": [
         {
           "url": "https://www.cyber.gov.au/publication/2026-minimum-elements-for-a-software-bill-of-materials-sbom",
+          "checked": "2026-11-20",
           "title": "2026 Minimum Elements for a Software Bill of Materials (SBOM)"
         }
       ]
@@ -282,6 +298,7 @@
       "sources": [
         {
           "url": "https://spdx.dev/about/overview/",
+          "checked": "2026-11-21",
           "title": "SPDX — Overview"
         }
       ]
@@ -304,6 +321,7 @@
       "sources": [
         {
           "url": "https://cyclonedx.org/specification/overview/",
+          "checked": "2026-11-21",
           "title": "CycloneDX — Specification Overview"
         }
       ]
@@ -322,6 +340,7 @@
       "sources": [
         {
           "url": "https://www.cisa.gov/sites/default/files/2024-07/SBOM%20FAQ%202024.pdf",
+          "checked": "2026-11-21",
           "title": "CISA — SBOM FAQ 2024"
         }
       ]
@@ -341,10 +360,12 @@
       "sources": [
         {
           "url": "https://github.com/openvex/spec",
+          "checked": "2026-11-21",
           "title": "OpenVEX Specification — draft"
         },
         {
           "url": "https://github.com/openvex/spec/blob/main/OPENVEX-SPEC.md",
+          "checked": "2026-11-21",
           "title": "OpenVEX Specification v0.2.0"
         }
       ]
@@ -364,6 +385,7 @@
       "sources": [
         {
           "url": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf-v2.0.html",
+          "checked": "2026-11-21",
           "title": "Common Security Advisory Framework Version 2.0 Errata 01"
         }
       ]
@@ -382,6 +404,7 @@
       "sources": [
         {
           "url": "https://ossf.github.io/osv-schema/",
+          "checked": "2026-11-21",
           "title": "Open Source Vulnerability format — OSV schema"
         }
       ]
@@ -400,6 +423,7 @@
       "sources": [
         {
           "url": "https://docs.sigstore.dev/",
+          "checked": "2026-11-21",
           "title": "Sigstore — Overview"
         }
       ]
@@ -418,6 +442,7 @@
       "sources": [
         {
           "url": "https://theupdateframework.io/docs/overview/",
+          "checked": "2026-11-21",
           "title": "The Update Framework — Overview"
         }
       ]
@@ -436,6 +461,7 @@
       "sources": [
         {
           "url": "https://in-toto.io/",
+          "checked": "2026-11-21",
           "title": "in-toto — A framework to secure the integrity of software supply chains"
         }
       ]
@@ -454,6 +480,7 @@
       "sources": [
         {
           "url": "https://openssf.org/projects/scorecard/",
+          "checked": "2026-11-21",
           "title": "OpenSSF Scorecard"
         }
       ]
@@ -472,6 +499,7 @@
       "sources": [
         {
           "url": "https://openssf.org/projects/best-practices-badge/",
+          "checked": "2026-11-21",
           "title": "OpenSSF Best Practices Badge Program"
         }
       ]
@@ -490,6 +518,7 @@
       "sources": [
         {
           "url": "https://openchainproject.org/license-compliance",
+          "checked": "2026-11-21",
           "title": "OpenChain ISO/IEC 5230 — License Compliance"
         }
       ]
@@ -508,6 +537,7 @@
       "sources": [
         {
           "url": "https://openssf.org/blog/2026/01/07/your-guide-to-the-openssf-osps-baseline-for-more-secure-open-source-projects/",
+          "checked": "2026-11-21",
           "title": "OpenSSF — Your Guide to the OpenSSF OSPS Baseline"
         }
       ]
@@ -526,7 +556,8 @@
       "sources": [
         {
           "title": "OWASP Developer Guide, Secure development and integration",
-          "url": "https://devguide.owasp.org/en/02-foundations/02-secure-development/"
+          "url": "https://devguide.owasp.org/en/02-foundations/02-secure-development/",
+          "checked": "2026-11-21"
         }
       ]
     },
@@ -545,10 +576,12 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/info/rfc6749/",
+          "checked": "2026-11-21",
           "title": "RFC 6749 — The OAuth 2.0 Authorization Framework"
         },
         {
           "url": "https://www.rfc-editor.org/info/rfc9700/",
+          "checked": "2026-11-21",
           "title": "RFC 9700 / BCP 240 — Best Current Practice for OAuth 2.0 Security"
         }
       ]
@@ -568,6 +601,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/info/rfc9700/",
+          "checked": "2026-11-21",
           "title": "RFC 9700 / BCP 240 — Best Current Practice for OAuth 2.0 Security"
         }
       ]
@@ -587,6 +621,7 @@
       "sources": [
         {
           "url": "https://openid.net/specs/openid-connect-core-1_0.html",
+          "checked": "2026-11-21",
           "title": "OpenID Connect Core 1.0 incorporating errata set 2"
         }
       ]
@@ -606,6 +641,7 @@
       "sources": [
         {
           "url": "https://docs.oasis-open.org/security/saml/Post2.0/sstc-saml-tech-overview-2.0.html",
+          "checked": "2026-11-21",
           "title": "OASIS — SAML 2.0 Technical Overview"
         }
       ]
@@ -624,6 +660,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/TR/webauthn/",
+          "checked": "2026-11-20",
           "title": "W3C — Web Authentication: An API for accessing Public Key Credentials"
         }
       ]
@@ -642,6 +679,7 @@
       "sources": [
         {
           "url": "https://fidoalliance.org/specifications/",
+          "checked": "2026-11-21",
           "title": "FIDO Alliance — User Authentication Specifications Overview"
         }
       ]
@@ -660,10 +698,12 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/info/rfc7636/",
+          "checked": "2026-11-21",
           "title": "RFC 7636 — Proof Key for Code Exchange by OAuth Public Clients"
         },
         {
           "url": "https://www.rfc-editor.org/info/rfc9700/",
+          "checked": "2026-11-21",
           "title": "RFC 9700 / BCP 240 — Best Current Practice for OAuth 2.0 Security"
         }
       ]
@@ -682,6 +722,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/info/rfc7519/",
+          "checked": "2026-11-21",
           "title": "RFC 7519 — JSON Web Token (JWT)"
         }
       ]
@@ -700,6 +741,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/info/rfc7515/",
+          "checked": "2026-11-21",
           "title": "RFC 7515 — JSON Web Signature (JWS)"
         }
       ]
@@ -718,6 +760,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/info/rfc7516/",
+          "checked": "2026-11-21",
           "title": "RFC 7516 — JSON Web Encryption (JWE)"
         }
       ]
@@ -737,6 +780,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/info/rfc8446/",
+          "checked": "2026-11-21",
           "title": "RFC 8446 — The Transport Layer Security Protocol Version 1.3"
         }
       ]
@@ -760,6 +804,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/info/rfc7644/",
+          "checked": "2026-11-21",
           "title": "RFC 7644 — System for Cross-domain Identity Management: Protocol"
         }
       ]
@@ -780,6 +825,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/sp/800/63/4/final",
+          "checked": "2026-11-21",
           "title": "NIST SP 800-63-4 — Digital Identity Guidelines"
         }
       ]
@@ -798,6 +844,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/fips/197/final",
+          "checked": "2026-11-21",
           "title": "NIST FIPS 197 — Advanced Encryption Standard (AES)"
         }
       ]
@@ -816,6 +863,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/fips/140-3/final",
+          "checked": "2026-11-21",
           "title": "NIST FIPS 140-3 — Security Requirements for Cryptographic Modules"
         }
       ]
@@ -834,6 +882,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/glossary/term/role_based_access_control",
+          "checked": "2026-11-21",
           "title": "NIST CSRC Glossary - role-based access control (RBAC)"
         }
       ]
@@ -852,6 +901,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/sp/800/162/upd2/final",
+          "checked": "2026-11-21",
           "title": "NIST SP 800-162 - Guide to Attribute Based Access Control (ABAC) Definition and Considerations"
         }
       ]
@@ -859,6 +909,7 @@
     {
       "id": "least-privilege",
       "title": "Principe du moindre privilège",
+      "title_en": "Principle of least privilege",
       "category": "Identité, accès et cryptographie",
       "kind": "pratique",
       "brains": [
@@ -870,6 +921,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/glossary/term/least_privilege",
+          "checked": "2026-11-21",
           "title": "NIST CSRC Glossary - least privilege"
         }
       ]
@@ -888,6 +940,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/rfc/rfc7208.html",
+          "checked": "2026-11-21",
           "title": "IETF RFC 7208 — Sender Policy Framework (SPF)"
         }
       ]
@@ -906,6 +959,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/rfc/rfc6376.html",
+          "checked": "2026-11-21",
           "title": "IETF RFC 6376 — DomainKeys Identified Mail (DKIM) Signatures"
         }
       ]
@@ -924,6 +978,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/info/rfc9989/",
+          "checked": "2026-11-21",
           "title": "IETF RFC 9989 — Domain-Based Message Authentication, Reporting, and Conformance (DMARC)"
         }
       ]
@@ -943,6 +998,7 @@
       "sources": [
         {
           "url": "https://www.nist.gov/publications/nist-cybersecurity-framework-csf-20",
+          "checked": "2026-11-21",
           "title": "The NIST Cybersecurity Framework (CSF) 2.0"
         }
       ]
@@ -964,6 +1020,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final",
+          "checked": "2026-11-21",
           "title": "NIST SP 800-53 Rev. 5 — Security and Privacy Controls for Information Systems and Organizations"
         }
       ]
@@ -987,6 +1044,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/sp/800/61/r3/final",
+          "checked": "2026-11-21",
           "title": "NIST SP 800-61 Rev. 3 — Incident Response Recommendations and Considerations for Cybersecurity Risk Management"
         }
       ]
@@ -1004,6 +1062,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/sp/800/207/final",
+          "checked": "2026-11-21",
           "title": "NIST SP 800-207 — Zero Trust Architecture"
         }
       ]
@@ -1021,6 +1080,7 @@
       "sources": [
         {
           "url": "https://www.cve.org/",
+          "checked": "2026-11-21",
           "title": "CVE — Common Vulnerabilities and Exposures"
         }
       ]
@@ -1038,6 +1098,7 @@
       "sources": [
         {
           "url": "https://cwe.mitre.org/about/faq",
+          "checked": "2026-11-21",
           "title": "MITRE CWE — Frequently Asked Questions"
         }
       ]
@@ -1055,6 +1116,7 @@
       "sources": [
         {
           "url": "https://capec.mitre.org/about/new_to_capec.html",
+          "checked": "2026-11-21",
           "title": "MITRE CAPEC — New to CAPEC?"
         }
       ]
@@ -1072,6 +1134,7 @@
       "sources": [
         {
           "url": "https://www.first.org/cvss/",
+          "checked": "2026-11-21",
           "title": "FIRST — Common Vulnerability Scoring System"
         }
       ]
@@ -1089,6 +1152,7 @@
       "sources": [
         {
           "url": "https://www.first.org/epss/",
+          "checked": "2026-11-21",
           "title": "FIRST — Exploit Prediction Scoring System"
         }
       ]
@@ -1106,6 +1170,7 @@
       "sources": [
         {
           "url": "https://attack.mitre.org/",
+          "checked": "2026-11-21",
           "title": "MITRE ATT&CK"
         }
       ]
@@ -1123,6 +1188,7 @@
       "sources": [
         {
           "url": "https://github.com/cisagov/kev-data",
+          "checked": "2026-11-21",
           "title": "CISA — Known Exploited Vulnerabilities catalog data"
         }
       ]
@@ -1145,6 +1211,7 @@
       "sources": [
         {
           "url": "https://www.cisecurity.org/controls/v8-1",
+          "checked": "2026-11-21",
           "title": "CIS Critical Security Controls Version 8.1"
         }
       ]
@@ -1163,6 +1230,7 @@
       "sources": [
         {
           "url": "https://www.cisecurity.org/cis-benchmarks-overview",
+          "checked": "2026-11-21",
           "title": "CIS Benchmarks — Overview"
         }
       ]
@@ -1181,6 +1249,7 @@
       "sources": [
         {
           "url": "https://cyber.gouv.fr/securisation/analyse-des-risques/methode-ebios-rm/",
+          "checked": "2026-11-21",
           "title": "ANSSI — La méthode EBIOS Risk Manager"
         }
       ]
@@ -1188,6 +1257,7 @@
     {
       "id": "nist-sp-800-161",
       "title": "NIST SP 800-161 Rev. 1 — gestion des risques cyber de la chaîne d'approvisionnement",
+      "title_en": "NIST SP 800-161 Rev. 1, Cybersecurity supply chain risk management",
       "edition": "Rev. 1",
       "category": "Chaîne logicielle et dépendances",
       "kind": "référentiel",
@@ -1203,6 +1273,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/sp/800/161/r1/upd1/final",
+          "checked": "2026-11-21",
           "title": "NIST SP 800-161 Rev. 1, Cybersecurity Supply Chain Risk Management Practices for Systems and Organizations"
         }
       ]
@@ -1224,6 +1295,7 @@
       "sources": [
         {
           "url": "https://www.ncsc.gov.uk/collection/supply-chain-security/principles-supply-chain-security",
+          "checked": "2026-11-21",
           "title": "NCSC, Principles of supply chain security"
         }
       ]
@@ -1243,6 +1315,7 @@
       "sources": [
         {
           "url": "https://www.enisa.europa.eu/publications/good-practices-for-supply-chain-cybersecurity",
+          "checked": "2026-11-21",
           "title": "ENISA, Good Practices for Supply Chain Cybersecurity (2023)"
         }
       ]
@@ -1250,6 +1323,7 @@
     {
       "id": "nist-sp-800-124",
       "title": "NIST SP 800-124 Rev. 2 — sécurité des appareils mobiles en entreprise",
+      "title_en": "NIST SP 800-124 Rev. 2, Security of mobile devices in the enterprise",
       "edition": "Rev. 2",
       "category": "Identité, accès et cryptographie",
       "kind": "guide",
@@ -1265,6 +1339,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/sp/800/124/r2/final",
+          "checked": "2026-11-21",
           "title": "NIST SP 800-124 Rev. 2, Guidelines for Managing the Security of Mobile Devices in the Enterprise"
         }
       ]
@@ -1272,6 +1347,7 @@
     {
       "id": "nist-sp-800-46",
       "title": "NIST SP 800-46 Rev. 2 — télétravail, accès distant et BYOD",
+      "title_en": "NIST SP 800-46 Rev. 2, Telework, remote access and BYOD security",
       "edition": "Rev. 2",
       "category": "Identité, accès et cryptographie",
       "kind": "guide",
@@ -1287,6 +1363,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/sp/800/46/r2/final",
+          "checked": "2026-11-21",
           "title": "NIST SP 800-46 Rev. 2, Guide to Enterprise Telework, Remote Access, and Bring Your Own Device (BYOD) Security"
         }
       ]

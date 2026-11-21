@@ -1,0 +1,136 @@
+{
+  "id": "pci-dss",
+  "title": "PCI DSS for software teams",
+  "version": "1.0.0",
+  "description": "Requirements of PCI DSS v4.0.1 that a software team acts on in a repository that stores, processes or transmits payment card data. The organization's assessor decides scope and applicability.",
+  "sources": [
+    {
+      "title": "PCI SSC, Just published: PCI DSS v4.0.1 (June 2024, no added or deleted requirements)",
+      "url": "https://blog.pcisecuritystandards.org/just-published-pci-dss-v4-0-1",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "PCI SSC FAQ 1154, storage of sensitive authentication data (Requirement 3.3.1)",
+      "url": "https://www.pcisecuritystandards.org/faqs/1154/",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "PCI SSC FAQ 1280, card verification codes for card-on-file transactions",
+      "url": "https://www.pcisecuritystandards.org/faqs/1280/",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "PCI SSC FAQ 1318, retention of cardholder data (Requirements 3.2.1 and 3.3.1)",
+      "url": "https://www.pcisecuritystandards.org/faqs/1318/",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "PCI SSC FAQ 1089, hashing of PANs (Requirement 3.5.1.1)",
+      "url": "https://www.pcisecuritystandards.org/faqs/1089/",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "PCI SSC FAQ 1308, correlation of hashed and truncated PANs (Requirement 3.5.1)",
+      "url": "https://www.pcisecuritystandards.org/faqs/1308/",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "PCI SSC FAQ 1085, PANs over end-user messaging (Requirements 4.2.1 and 4.2.2)",
+      "url": "https://www.pcisecuritystandards.org/faqs/1085/",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "PCI SSC FAQ 1581, Requirement 6.4.3 and payment page scripts",
+      "url": "https://www.pcisecuritystandards.org/faqs/1581/",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "PCI SSC FAQ 1588, scripts on e-commerce pages (Requirements 6.4.3 and 11.6.1)",
+      "url": "https://www.pcisecuritystandards.org/faqs/1588/",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "PCI SSC FAQ 1080, shared authentication credentials (Requirement 8.2.2)",
+      "url": "https://www.pcisecuritystandards.org/faqs/1080/",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "PCI SSC FAQ 1147, reauthentication after idle time (Requirement 8.2.8)",
+      "url": "https://www.pcisecuritystandards.org/faqs/1147/",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "PCI SSC FAQ 1253, password hashing (Requirement 8.3.2)",
+      "url": "https://www.pcisecuritystandards.org/faqs/1253/",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "PCI SSC FAQ 1081, database and application logging (Requirement 10)",
+      "url": "https://www.pcisecuritystandards.org/faqs/1081/",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "PCI SSC FAQ 1592, script providers and Requirements 12.8 and 12.9",
+      "url": "https://www.pcisecuritystandards.org/faqs/1592/",
+      "checked": "2026-11-21"
+    }
+  ],
+  "rules": [
+    {
+      "id": "no-sensitive-authentication-data-after-authorization",
+      "instruction": "Do not keep sensitive authentication data, such as card verification codes, after authorization, even encrypted, and not for card-on-file or recurring payments (PCI DSS v4.0.1 Requirement 3.3.1).",
+      "verification": "Search the schemas, logs, caches and queues the change touches for card verification codes and full track data, and confirm none is kept after authorization."
+    },
+    {
+      "id": "limit-cardholder-data-retention",
+      "instruction": "Keep cardholder data only for the period the data retention and disposal policy sets, and securely delete it afterwards (Requirement 3.2.1).",
+      "verification": "Find the deletion job or procedure that applies the policy's period to the cardholder data the change stores.",
+      "evidence": [
+        {
+          "id": "retention-policy",
+          "title": "Data retention and disposal policy for cardholder data"
+        }
+      ]
+    },
+    {
+      "id": "render-pan-unreadable",
+      "instruction": "When the change stores a primary account number, render it unreadable; a hash covers the entire PAN with keyed cryptographic hashing (Requirement 3.5.1.1), and hashed and truncated versions of a PAN cannot be correlated (Requirement 3.5.1).",
+      "verification": "Inspect the storage code and schema for each PAN field and check the hashing key management or the encryption used."
+    },
+    {
+      "id": "protect-pan-in-transit",
+      "instruction": "Send cardholder data over open, public networks only with strong cryptography (Requirement 4.2.1), and never send an unprotected PAN through e-mail, chat, SMS or other end-user messaging (Requirement 4.2.2).",
+      "verification": "Review the TLS settings of each new endpoint or client and search notifications and support flows for PANs."
+    },
+    {
+      "id": "authorize-payment-page-scripts",
+      "instruction": "When the change adds or alters a script on a payment page, make sure no unauthorized code can run in the page as the customer's browser renders it, using the techniques of Requirements 6.4.3 and 11.6.1.",
+      "verification": "List the scripts the payment page loads after the change and show that each one is authorized and that the protection against script changes covers it."
+    },
+    {
+      "id": "no-shared-accounts",
+      "instruction": "Give each user and administrator an individual ID; allow a shared or generic account only for an exceptional need and manage it under Requirement 8.2.2.",
+      "verification": "Review the accounts and service credentials the change adds and name the person accountable for each shared one."
+    },
+    {
+      "id": "reauthenticate-after-idle",
+      "instruction": "Require users to authenticate again after 15 minutes of idle time on sessions that reach the cardholder data environment (Requirement 8.2.8).",
+      "verification": "Test that an idle session of the changed application asks for authentication again after 15 minutes."
+    },
+    {
+      "id": "hash-authentication-factors",
+      "instruction": "Render passwords and other authentication factors unreadable in storage and transmission with strong cryptography, such as a strong password hash (Requirement 8.3.2).",
+      "verification": "Inspect how the change stores and transmits passwords or tokens and name the hashing or encryption used."
+    },
+    {
+      "id": "log-cardholder-data-access",
+      "instruction": "Log individual access to cardholder data in the application, the database or the operating system, so that the logs required by Requirement 10 show who did what, where, when and how.",
+      "verification": "Run the changed access path in a test and find the resulting log entry with the user, action, target and time."
+    },
+    {
+      "id": "review-payment-service-providers",
+      "instruction": "When the change adds a third party that can affect the security of cardholder data, such as a payment script provider, ask the compliance owner to manage it as a service provider under Requirements 12.8 and 12.9.",
+      "verification": "Link the compliance owner's recorded decision for each new provider."
+    }
+  ]
+}

@@ -5,11 +5,13 @@
   "sources": [
     {
       "title": "U.S. Office of Personnel Management, Structured Interviews",
-      "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/other-assessment-methods/structured-interviews/"
+      "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/other-assessment-methods/structured-interviews/",
+      "checked": "2026-11-21"
     },
     {
       "title": "U.S. Office of Personnel Management, Structured Interview Guide",
-      "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/structured-interviews/guide.pdf"
+      "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/structured-interviews/guide.pdf",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

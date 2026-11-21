@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "IETF RFC 9110, HTTP semantics",
-      "url": "https://www.rfc-editor.org/rfc/rfc9110.html"
+      "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "OpenAPI Specification 3.2.1",
-      "url": "https://spec.openapis.org/oas/v3.2.1.html"
+      "url": "https://spec.openapis.org/oas/v3.2.1.html",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

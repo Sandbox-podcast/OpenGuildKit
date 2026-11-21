@@ -6,15 +6,18 @@
   "sources": [
     {
       "title": "Express security best practices",
-      "url": "https://expressjs.com/en/advanced/best-practice-security.html"
+      "url": "https://expressjs.com/en/advanced/best-practice-security.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Express error handling",
-      "url": "https://expressjs.com/en/guide/error-handling.html"
+      "url": "https://expressjs.com/en/guide/error-handling.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Node.js releases",
-      "url": "https://nodejs.org/en/about/previous-releases"
+      "url": "https://nodejs.org/en/about/previous-releases",
+      "checked": "2026-11-21"
     }
   ],
   "depends_on": [

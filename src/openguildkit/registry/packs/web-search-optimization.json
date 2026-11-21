@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "Google Search Central, SEO Starter Guide",
-      "url": "https://developers.google.com/search/docs/fundamentals/seo-starter-guide"
+      "url": "https://developers.google.com/search/docs/fundamentals/seo-starter-guide",
+      "checked": "2026-11-21"
     },
     {
       "title": "Google Search Central, How to use Search Console",
-      "url": "https://developers.google.com/search/docs/monitor-debug/search-console-start"
+      "url": "https://developers.google.com/search/docs/monitor-debug/search-console-start",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

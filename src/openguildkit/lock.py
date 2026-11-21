@@ -5,10 +5,11 @@ uses. Commands read the locked copy instead of the bundled one. `openguildkit up
 shows what a newer catalog would change and applies it only when asked.
 """
 
+import json
 from copy import deepcopy
 from pathlib import Path
 
-from .catalog import CatalogError, _validate_dependencies, _validate_entry, overlaid_boards
+from .catalog import CatalogError, _validate_dependencies, _validate_entry, latest_checked, load_catalog, overlaid_boards
 from .patterns import pattern_selection
 from .storage import read_json, write_json
 
@@ -138,13 +139,39 @@ def lock_is_current(lock: dict | None, profile: dict, catalog: dict, bundled: di
 
 
 def _rule_text(rule: dict) -> str:
+    text = f"{rule.get('instruction', '')} Verify: {rule.get('verification', '')}".strip()
     if "check" in rule:
-        return f"check {rule['check']}"
-    return f"{rule['instruction']} Verify: {rule['verification']}"
+        text = f"{text} Check: {json.dumps(rule['check'], sort_keys=True)}"
+    if "evidence" in rule:
+        text = f"{text} Evidence: {', '.join(item['id'] for item in rule['evidence'])}"
+    return text
 
 
 def _source_urls(record: dict) -> list[str]:
     return [source["url"] for source in record.get("sources", [])]
+
+
+def _redated(old: dict, new: dict) -> list[dict]:
+    """Sources kept by the new record whose checked date differs from the locked one."""
+    before = {source["url"]: source.get("checked") for source in old.get("sources", [])}
+    return [
+        {"url": source["url"], "checked": [before[source["url"]], source.get("checked")]}
+        for source in new.get("sources", [])
+        if source["url"] in before and before[source["url"]] != source.get("checked")
+    ]
+
+
+def installed_catalog_date() -> str | None:
+    """The date of the installed catalog: the most recent checked date among its bundled sources."""
+    from .deliverables import load_deliverables  # Only update needs them; keep other commands fast.
+    from .references import load_references
+
+    catalog = load_catalog()
+    references = [record for family in load_references().values() for record in family["references"]]
+    return latest_checked(
+        *(catalog[collection].values() for collection in COLLECTIONS), references,
+        load_deliverables(catalog).values(),
+    )
 
 
 def record_changes(collection: str, old: dict, new: dict | None) -> dict | None:
@@ -171,6 +198,7 @@ def record_changes(collection: str, old: dict, new: dict | None) -> dict | None:
     change["sources"] = {
         "added": [url for url in new_urls if url not in old_urls],
         "removed": [url for url in old_urls if url not in new_urls],
+        "redated": _redated(old, new),
     }
     change["fields"] = sorted(key for key in old.keys() | new.keys() if old.get(key) != new.get(key))
     return change

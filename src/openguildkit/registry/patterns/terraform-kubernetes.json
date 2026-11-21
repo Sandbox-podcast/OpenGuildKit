@@ -5,11 +5,13 @@
   "sources": [
     {
       "title": "Terraform plan",
-      "url": "https://developer.hashicorp.com/terraform/cli/commands/plan"
+      "url": "https://developer.hashicorp.com/terraform/cli/commands/plan",
+      "checked": "2026-11-21"
     },
     {
       "title": "Kubernetes workload probes",
-      "url": "https://kubernetes.io/docs/concepts/workloads/pods/probes/"
+      "url": "https://kubernetes.io/docs/concepts/workloads/pods/probes/",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

@@ -5,11 +5,13 @@
   "sources": [
     {
       "title": "Angular security best practices",
-      "url": "https://angular.dev/best-practices/security"
+      "url": "https://angular.dev/best-practices/security",
+      "checked": "2026-11-21"
     },
     {
       "title": "Angular versioning and releases",
-      "url": "https://angular.dev/reference/releases"
+      "url": "https://angular.dev/reference/releases",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

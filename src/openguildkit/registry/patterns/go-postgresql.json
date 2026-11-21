@@ -5,11 +5,13 @@
   "sources": [
     {
       "title": "Go database transactions",
-      "url": "https://go.dev/doc/database/execute-transactions"
+      "url": "https://go.dev/doc/database/execute-transactions",
+      "checked": "2026-11-21"
     },
     {
       "title": "PostgreSQL transactions",
-      "url": "https://www.postgresql.org/docs/current/tutorial-transactions.html"
+      "url": "https://www.postgresql.org/docs/current/tutorial-transactions.html",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

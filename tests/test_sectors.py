@@ -66,10 +66,10 @@ class SectorPreselectionTests(unittest.TestCase):
     def test_gdpr_is_proposed_for_personal_data_or_the_legal_role_only(self):
         with_data = self.recommend(sector="financial-services", personal_data=True)
         gdpr = next(entry for entry in with_data["matched"] if entry["id"] == "gdpr-personal-data")
-        self.assertEqual(gdpr["reasons"], ["personal data"])
+        self.assertEqual(gdpr["reasons"], ["sector financial-services", "personal data"])
         without = self.recommend(sector="financial-services", personal_data=False)
         self.assertNotIn("gdpr-personal-data", ids(without["matched"]) | ids(without["suggested"]))
-        legal = self.recommend(sector="financial-services", roles=["legal"])
+        legal = self.recommend(sector="general", roles=["legal"])
         self.assertIn("gdpr-personal-data", ids(legal["suggested"]))
         self.assertIn("gdpr-personal-data", ids(self.recommend(personal_data="yes")["matched"]))
 
@@ -218,7 +218,10 @@ class SectorQuestionTests(unittest.TestCase):
 
     def test_interactive_init_shows_the_preselection_and_records_the_decline(self):
         questions = init_questions(self.catalog, "Ledger")
-        replies = ["Ledger", "financial-services", "Python", "", "no", "python-development", "", "", "", "", ""]
+        # name, sector, stack, roles, personal data, DORA, patterns, packs, boards, tools, host, guard, research,
+        # conventions, checks.
+        replies = ["Ledger", "financial-services", "Python", "", "no", "n", "python-development", "", "", "", "", "",
+                   "", "", ""]
         errors = io.StringIO()
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", side_effect=replies), \
                 contextlib.redirect_stderr(errors):

@@ -5,15 +5,18 @@
   "sources": [
     {
       "title": "Google SRE Workbook, Incident Response",
-      "url": "https://sre.google/workbook/incident-response/"
+      "url": "https://sre.google/workbook/incident-response/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Google SRE Workbook, Postmortem Culture",
-      "url": "https://sre.google/workbook/postmortem-culture/"
+      "url": "https://sre.google/workbook/postmortem-culture/",
+      "checked": "2026-11-21"
     },
     {
       "title": "NIST SP 800-61 Rev. 3, Incident Response Recommendations and Considerations for Cybersecurity Risk Management",
-      "url": "https://csrc.nist.gov/pubs/sp/800/61/r3/final"
+      "url": "https://csrc.nist.gov/pubs/sp/800/61/r3/final",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

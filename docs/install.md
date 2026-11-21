@@ -46,13 +46,13 @@ openguildkit integrations --host claude-code   # .claude/skills/openguildkit and
 openguildkit integrations --host codex         # .agents/skills/openguildkit
 ```
 
-Add `--user` to install them in your home folder for every project. A file you changed is kept and reported; `--force` replaces it and saves your version as `.previous`. Each folder gets `openguildkit-version.txt` with the installed version, or the name of the file kept at another version. Then set `"host"` in `.openguildkit/project.json` and run `openguildkit host apply` to install the host settings and hooks. The hooks of the board guard call `openguildkit` by name: start the agent from the activated environment, or install the CLI on the PATH (for example with `pipx`). `openguildkit host check` reports the guard as `missing` when the command is not on the PATH.
+Add `--user` to install them in your home folder for every project. A file you changed is kept and reported; `--force` replaces it and saves your version as `.previous`. Each folder gets `openguildkit-version.txt` with the installed version, or the name of the file kept at another version. `openguildkit init` asks for the agent host and the board guard (`observe` unless you choose otherwise) and, when the host is Claude Code or Codex, prints `openguildkit host apply` as the next step: it installs the host settings and hooks. For a project set up before, set `"host"` in `.openguildkit/project.json` and run the same command. The hooks of the board guard call `openguildkit` by name: start the agent from the activated environment, or install the CLI on the PATH (for example with `pipx`). `openguildkit host check` reports the guard as `missing` when the command is not on the PATH.
 
 ## Upgrade
 
 1. Download and verify the new release assets as above, then `python -m pip install --upgrade ./openguildkit-NEW-py3-none-any.whl` and check `openguildkit --version`.
 2. Run `openguildkit integrations --host ...` again to update the skill and subagent.
-3. Run `openguildkit update` to see what the new catalog changes for the project, and `openguildkit update --apply` once the team agrees. Tasks consulted under the previous rules are listed.
+3. Run `openguildkit update` to see the date of the new catalog, the number of records it changes and what it changes for the project, and `openguildkit update --apply` once the team agrees. Tasks consulted under the previous rules are listed.
 4. Run `openguildkit check` and commit the updated files.
 
 ## Add the optional CI coordinator

@@ -6,39 +6,48 @@
   "sources": [
     {
       "title": "Apple, App privacy details on the App Store",
-      "url": "https://developer.apple.com/app-store/app-privacy-details/"
+      "url": "https://developer.apple.com/app-store/app-privacy-details/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Play Console Help, provide information for Google Play's Data safety section",
-      "url": "https://support.google.com/googleplay/android-developer/answer/10787469"
+      "url": "https://support.google.com/googleplay/android-developer/answer/10787469",
+      "checked": "2026-11-21"
     },
     {
       "title": "Apple, App Review Guidelines",
-      "url": "https://developer.apple.com/app-store/review/guidelines/"
+      "url": "https://developer.apple.com/app-store/review/guidelines/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Play Console Help, understanding Google Play's app account deletion requirements",
-      "url": "https://support.google.com/googleplay/android-developer/answer/13327111"
+      "url": "https://support.google.com/googleplay/android-developer/answer/13327111",
+      "checked": "2026-11-21"
     },
     {
       "title": "Android Developers, version your app",
-      "url": "https://developer.android.com/studio/publish/versioning"
+      "url": "https://developer.android.com/studio/publish/versioning",
+      "checked": "2026-11-21"
     },
     {
       "title": "Apple, CFBundleVersion",
-      "url": "https://developer.apple.com/documentation/bundleresources/information-property-list/cfbundleversion"
+      "url": "https://developer.apple.com/documentation/bundleresources/information-property-list/cfbundleversion",
+      "checked": "2026-11-21"
     },
     {
       "title": "Android Developers, sign your app",
-      "url": "https://developer.android.com/studio/publish/app-signing"
+      "url": "https://developer.android.com/studio/publish/app-signing",
+      "checked": "2026-11-21"
     },
     {
       "title": "App Store Connect Help, release a version update in phases",
-      "url": "https://developer.apple.com/help/app-store-connect/update-your-app/release-a-version-update-in-phases"
+      "url": "https://developer.apple.com/help/app-store-connect/update-your-app/release-a-version-update-in-phases",
+      "checked": "2026-11-21"
     },
     {
       "title": "Play Console Help, release app updates with staged rollouts",
-      "url": "https://support.google.com/googleplay/android-developer/answer/6346149"
+      "url": "https://support.google.com/googleplay/android-developer/answer/6346149",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

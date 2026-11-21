@@ -7,7 +7,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from .catalog import load_catalog
+from .catalog import load_catalog, undated_sources
 from .ci import check_export, read_policy_pack
 from .decisions import NAMESPACE, approval_policy, check_decision, decision_payload, git_revision, payload_text, verify_signature
 from . import alerts_cli
@@ -28,13 +28,17 @@ from .storybook import run as storybook_command
 from .storybook import scope_entry as storybook_scope_entry
 from .integrations import install_agent_files
 from .guard import NO_TASK, STALE_DAYS, ci_guard, covering_approvals, export_decision, guard_mode, run_hook
-from .results import chaosfolk_checks, compare_runs, completion_problems, expected_checks, missing_scenarios, result_template, run_command_checks
+from .results import (
+    chaosfolk_checks, compare_runs, completion_problems, evidence_files_missing, expected_checks, missing_scenarios,
+    result_template, run_command_checks,
+)
 from .hosts import apply_host_settings, approval_warning, host_controls
 from .lock import (
     package_version,
     apply_lock,
     build_lock,
     catalog_changes,
+    installed_catalog_date,
     lock_is_current,
     read_lock,
     unshipped_records,
@@ -43,9 +47,12 @@ from .lock import (
 )
 from .patterns import patterns_to_review, role_choices
 from .project import (
+    GUARD_MODES,
     check_instructions,
+    complete_answers,
     init_questions,
     initialize,
+    is_norm,
     load_profile,
     profile_recommendations,
     profile_fingerprint,
@@ -53,11 +60,14 @@ from .project import (
     resolved_profile,
     rule_conflicts,
     rule_plan,
+    setup_profile,
     state_path,
     sync_instructions,
     validate_profile,
 )
-from .references import find_references, load_references, with_pattern_references
+from .tools import HOSTS as TOOL_HOSTS
+from .tools import detect_tools, load_tools, match_tools
+from .references import english_title, find_references, load_references, with_pattern_references
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
     timestamp,
@@ -270,7 +280,7 @@ def _parser() -> argparse.ArgumentParser:
         "decision-payload": "Print the exact decision an approver signs in a project that requires signed approvals.",
         "show": "Print the task record as JSON.",
         "checks": "List the checks the approved task must report.",
-        "verify": "Run the project's check commands and record their results.",
+        "verify": "Run the project's check commands and the rules' machine checks, and record their results.",
         "result": "Record the delivered revision, criteria and check outcomes.",
         "complete": "Declare the task done once mandatory checks passed with evidence.",
         "runs": "Compare the last two ChaosFolk replays of the task.",
@@ -412,6 +422,17 @@ def _stale_tasks(state: Path, profile: dict, catalog: dict) -> list[dict]:
     return stale
 
 
+def _undated_project_sources(state: Path, live: dict) -> list[str]:
+    """Project records that cite a source without a checked date; bundled sources always carry one."""
+    project = state / "catalog"
+    references = {
+        "references": {record["id"]: record for family in load_references(project / "references").values()
+                       for record in family["references"]},
+        "deliverables": load_deliverables(live, project / "deliverables"),
+    }
+    return undated_sources({**live, **references})
+
+
 def _update_catalog(args, root: Path, state: Path) -> None:
     with project_lock(state):
         live, bundled = _installed_catalog(args, state)
@@ -437,6 +458,7 @@ def _update_catalog(args, root: Path, state: Path) -> None:
                 write_lock(state, build_lock(profile, target, bundled, lock))
                 result["applied"] = True
                 result["stale_tasks"] = _stale_tasks(state, profile, target)
+        result["catalog_date"] = installed_catalog_date()
     _print_update(result, args.json)
 
 
@@ -444,9 +466,14 @@ def _print_update(result: dict, as_json: bool) -> None:
     if as_json:
         _print_json(result)
         return
+    date = result.get("catalog_date") or "unknown"
     if result.get("note"):
+        print(f"Installed catalog: sources checked up to {date}.")
         print(result["note"])
         return
+    count = len(result["changes"])
+    print(f"Installed catalog: sources checked up to {date}. "
+          f"{count} {'record' if count == 1 else 'records'} changed since the project's lock.")
     if not result["changes"]:
         print("The project's rules match the installed catalog.")
         return
@@ -470,6 +497,10 @@ def _print_update(result: dict, as_json: bool) -> None:
             print(f"    + source {url}")
         for url in change["sources"]["removed"]:
             print(f"    - source {url}")
+        redated = change["sources"].get("redated", [])
+        if redated:
+            latest = max((item["checked"][1] or "" for item in redated), default="")
+            print(f"    ~ {len(redated)} {'source' if len(redated) == 1 else 'sources'} checked again, latest {latest}")
     for conflict in result["conflicts"]:
         print(f"! {' and '.join(conflict['packs'])} conflict: record a resolution before applying.")
     if not result["applied"]:
@@ -507,13 +538,18 @@ def _prompt_questions(questions: list[dict], command: str) -> dict:
         if kind in {"list", "multi-select"}:
             print("  Separate multiple entries with commas.", file=sys.stderr)
         if question["id"] == "packs":
-            print("  Enter '-' for the required workflow pack and any selected pattern packs.", file=sys.stderr)
+            print("  Enter '-' to replace the recommended packs: only the required workflow pack and the packs "
+                  "of the selected patterns apply.", file=sys.stderr)
         if question["id"] == "patterns":
-            print("  Enter '-' to skip patterns, or select all the IDs you want to apply.", file=sys.stderr)
-        if "default" in question:
+            print("  Enter '-' to select none of these, or list all the IDs you want to apply.", file=sys.stderr)
+        if "default_label" in question:
+            print(f"  Default: {question['default_label']}", file=sys.stderr)
+        elif "default" in question:
             default = question["default"]
             shown = ", ".join(map(str, default)) if isinstance(default, list) else default
             print(f"  Default: {shown or 'none'}", file=sys.stderr)
+        else:
+            print("  No default: choose an answer.", file=sys.stderr)
         while True:
             print("> ", end="", file=sys.stderr, flush=True)
             value = input().strip()
@@ -524,6 +560,8 @@ def _prompt_questions(questions: list[dict], command: str) -> dict:
                 break
             if value == "-" and question["id"] in {"packs", "patterns"}:
                 answers[question["id"]] = []
+                if question["id"] == "packs":
+                    answers["replace_default_packs"] = True
                 break
             if not value:
                 print("  Choose an answer.", file=sys.stderr)
@@ -607,7 +645,8 @@ def _prompt_task_questions(brief: str) -> dict:
     return answers
 
 
-def _interactive_init(questions: list[dict], catalog: dict) -> dict:
+def _interactive_init(questions: list[dict], catalog: dict, registry: dict | None = None) -> dict:
+    """Ask the setup questions in order; each norm is confirmed on its own, with the reason it is proposed."""
     by_id = {question["id"]: question for question in questions}
     answers = _prompt_questions([by_id["name"], by_id["sector"]], "init")
     components = _prompt_components(by_id["components"])
@@ -617,46 +656,127 @@ def _interactive_init(questions: list[dict], catalog: dict) -> dict:
         answers.update(_prompt_questions([by_id["stack"]], "init"))
     answers.update(_prompt_questions([by_id["roles"], by_id["personal_data"]], "init"))
     answers["personal_data"] = answers["personal_data"] == "yes"
-    asked = {"name", "sector", "stack", "components", "roles", "personal_data"}
-    pending = [question for question in questions if question["id"] not in asked]
     plan = profile_recommendations(answers, catalog)
     _print_plan_notes(plan)
-    _print_preselection(plan)
-    matched = [pattern["id"] for pattern in plan["matched"]]
-    suggested = [pattern["id"] for pattern in plan["suggested"]]
-    for question in pending:
-        if question["id"] == "patterns":
-            question["default"] = matched
-            position = {pattern_id: index for index, pattern_id in enumerate([*matched, *suggested])}
-            question["choices"].sort(key=lambda choice: position.get(choice["id"], len(position)))
-    answers.update(_prompt_questions(pending, "init"))
-    if "patterns" in answers:
-        answers["patterns"] = _scoped_patterns(answers["patterns"], plan)
-        declined = _declined_regulations(answers["patterns"], plan)
-        if declined:
-            answers["declined"] = declined
-            print(f"  Declined, not proposed again: {', '.join(declined)}", file=sys.stderr)
+    kept, declined = _prompt_norms(plan, catalog)
+    if declined:
+        answers["declined"] = declined
+    _print_preselection(plan, catalog)
+    patterns = _patterns_question(by_id["patterns"], plan, catalog)
+    answers.update(_prompt_questions([patterns], "init"))
+    answers["patterns"] = [*kept, *_scoped_patterns(answers.get("patterns", []), plan)]
+    recommended = [pack["id"] for pack in rule_plan(setup_profile(answers, catalog, questions)[0], catalog)["packs"]]
+    packs = {**by_id["packs"], "default_label": f"none beyond the recommended packs: {', '.join(recommended)}"}
+    answers.update(_prompt_questions([packs, by_id["boards"]], "init"))
+    answers.update(_prompt_tools(by_id["tools"], load_tools() if registry is None else registry))
+    rest = [by_id[question_id] for question_id in ("host", "guard", "research", "conventions", "checks")]
+    answers.update(_prompt_questions(rest, "init"))
     return answers
 
 
-def _print_preselection(plan: dict) -> None:
-    """Show what is preselected and why, so the person can keep or remove each pattern."""
-    if plan["matched"]:
+def _prompt_norms(plan: dict, catalog: dict) -> tuple[list[str], list[str]]:
+    """Ask, one norm at a time, whether each regulation preselected by the sector or personal data applies."""
+    norms = [pattern for pattern in plan["matched"] if is_norm(catalog["patterns"][pattern["id"]])]
+    kept, declined = [], []
+    if norms:
+        print("\nNorms proposed for this project. Enter keeps a norm; n declines it and it is not proposed again.",
+              file=sys.stderr)
+    for pattern in norms:
+        print(f"  {pattern['id']}: {'; '.join(pattern['reasons'])} ({pattern['title']}). Does it apply? [Y/n]",
+              file=sys.stderr)
+        while True:
+            print("> ", end="", file=sys.stderr, flush=True)
+            value = input().strip().casefold()
+            if value in ("", "y", "yes", "o", "oui", "n", "no", "non"):
+                break
+            print("  Answer y or n.", file=sys.stderr)
+        (kept if value in ("", "y", "yes", "o", "oui") else declined).append(pattern["id"])
+    if declined:
+        print(f"  Declined, not proposed again: {', '.join(declined)}", file=sys.stderr)
+    return kept, declined
+
+
+def _patterns_question(question: dict, plan: dict, catalog: dict) -> dict:
+    """The patterns question with the preselected stack and role patterns as its default, listed first."""
+    matched = [pattern["id"] for pattern in plan["matched"] if not is_norm(catalog["patterns"][pattern["id"]])]
+    suggested = [pattern["id"] for pattern in plan["suggested"]]
+    position = {pattern_id: index for index, pattern_id in enumerate([*matched, *suggested])}
+    choices = sorted(question["choices"], key=lambda choice: position.get(choice["id"], len(position)))
+    question = {key: value for key, value in question.items() if key != "default_label"}
+    return {**question, "choices": choices, "default": matched}
+
+
+def _prompt_tools(question: dict, registry: dict) -> dict:
+    """Ask for the team's tools, then say which ones the registry knows and which are kept as written."""
+    print(f"\nThe registry knows {len(registry)} tools: openguildkit tools list shows them.", file=sys.stderr)
+    for item in question.get("detected", []):
+        print(f"  The repository shows signs of {item['tool']}: {', '.join(item['signals'])}", file=sys.stderr)
+    answers = _prompt_questions([question], "init")
+    known, unknown = match_tools(answers.get("tools", []), registry)
+    if known:
+        print(f"  Known to the registry: {', '.join(known)}", file=sys.stderr)
+    if unknown:
+        print(f"  Not in the registry, kept as written: {', '.join(unknown)}", file=sys.stderr)
+    return answers
+
+
+def _print_preselection(plan: dict, catalog: dict) -> None:
+    """Show the other preselected patterns and why, so the person can keep or remove each one."""
+    others = [pattern for pattern in plan["matched"] if not is_norm(catalog["patterns"][pattern["id"]])]
+    if others:
         print("\nPreselected patterns, keep or remove them at the next question:", file=sys.stderr)
-        for pattern in plan["matched"]:
+        for pattern in others:
             print(f"  {pattern['id']}: {'; '.join(pattern['reasons'])}", file=sys.stderr)
-    if plan["suggested"]:
-        names = ", ".join(pattern["id"] for pattern in plan["suggested"])
-        print(f"Methods and alternatives to consider: {names}", file=sys.stderr)
+    regulations = [pattern["id"] for pattern in plan["suggested"] if pattern.get("kind") == "regulation"]
+    methods = [pattern["id"] for pattern in plan["suggested"] if pattern.get("kind") != "regulation"]
+    if regulations:
+        print(f"Regulations to consider for your roles: {', '.join(regulations)}", file=sys.stderr)
+    if methods:
+        print(f"Methods and alternatives to consider: {', '.join(methods)}", file=sys.stderr)
 
 
-def _declined_regulations(selected: list, plan: dict) -> list[str]:
-    """Preselected regulation patterns the person removed: recorded so recommend stops proposing them."""
-    chosen = {entry["id"] if isinstance(entry, dict) else entry for entry in selected}
-    return [
-        pattern["id"] for pattern in plan["matched"]
-        if pattern.get("kind") == "regulation" and pattern["id"] not in chosen
-    ]
+def _detected_host(root: Path) -> str | None:
+    """The agent host whose files the repository already has, offered as the default answer."""
+    if (root / ".claude").is_dir() or (root / "CLAUDE.md").is_file():
+        return "claude-code"
+    if (root / ".codex").is_dir():
+        return "codex"
+    return None
+
+
+def _setup_questions(root: Path, state: Path, catalog: dict) -> tuple[list[dict], dict]:
+    """The questionnaire with the defaults this repository shows: components, tools and host."""
+    registry = load_tools(state / "catalog" / "tools")
+    detected = components_for_profile(detect_stack(root))
+    questions = init_questions(catalog, root.name or "Project", detected, detect_tools(root, registry), _detected_host(root))
+    return questions, registry
+
+
+def _print_setup_notes(profile: dict, left_aside: list[dict], registry: dict) -> None:
+    """After init: what the guard lets the agent do, the components left aside and the next steps that apply."""
+    mode = profile.get("guard", "off")
+    host = profile.get("host", "other")
+    print(f"Board guard: {GUARD_MODES[mode]}")
+    if mode != "off" and host not in ("claude-code", "codex"):
+        print("  This host has no hook: the reminder is the AGENTS.md instruction, and the CI check catches the rest.")
+    print('  To change it, set "guard" to off, observe or enforce in .openguildkit/project.json and run openguildkit sync.')
+    if left_aside:
+        names = "; ".join(f"{item['id']} ({item.get('path', '.')}): {', '.join(item['stack'])}" for item in left_aside)
+        print(f"OpenGuildKit: the answers give no components, so these detected ones are left aside: {names}. "
+              'Add them under "components" to scope the rules to them.', file=sys.stderr)
+    known, unknown = match_tools(profile.get("tools", []), registry)
+    steps = []
+    if host in ("claude-code", "codex"):
+        steps.append(f"openguildkit host apply    install the {host} settings and hooks, then openguildkit host check")
+    if known and host in TOOL_HOSTS:
+        steps.append(f"openguildkit tools plan {' '.join(known)}    see the MCP servers for the team's tools")
+    if steps:
+        print("Next steps:")
+        for step in steps:
+            print(f"  {step}")
+    if unknown:
+        print(f"Tools not in the registry, kept in the profile: {', '.join(unknown)}. "
+              "Describe them in .openguildkit/catalog/tools/ or connect them yourself.")
 
 
 def _print_catalog(catalog: dict, as_json: bool) -> None:
@@ -694,7 +814,9 @@ def _print_references(args, state: Path, catalog: dict) -> None:
         _print_json(matches)
     elif args.id:
         reference = matches[0]
-        print(f"{reference['title']} [{reference['id']}]")
+        print(f"{english_title(reference)} [{reference['id']}]")
+        if english_title(reference) != reference["title"]:
+            print(f"Original title: {reference['title']}")
         print(f"{reference['family_title']} / {reference['category']} / {reference['kind']}")
         if reference.get("edition"):
             print(f"Edition: {reference['edition']}")
@@ -708,12 +830,18 @@ def _print_references(args, state: Path, catalog: dict) -> None:
             print("Status: documentary reference. No pack turns it into rules yet.")
         print()
         for source in reference["sources"]:
-            print(f"- {source['title']}: {source['url']}")
+            print(_source_line(source))
     elif matches:
         for reference in matches:
-            print(f"  {reference['id']:<34} {reference['title']} [{reference['family']}]")
+            print(f"  {reference['id']:<34} {english_title(reference)} [{reference['family']}]")
     else:
         print("No references matched.")
+
+
+def _source_line(source: dict) -> str:
+    """A source as printed for a person, with the day its page was last checked."""
+    checked = f" (checked {source['checked']})" if "checked" in source else ""
+    return f"- {source['title']}: {source['url']}{checked}"
 
 
 def _print_patterns(args, patterns: dict) -> None:
@@ -744,7 +872,7 @@ def _print_patterns(args, patterns: dict) -> None:
         if match.get("personal_data"):
             print("Preselected when the project processes personal data")
         for source in pattern["sources"]:
-            print(f"- {source['title']}: {source['url']}")
+            print(_source_line(source))
         return
     print(f"{len(matches)} patterns")
     for pattern in matches:
@@ -781,7 +909,8 @@ def _print_recommendations(plan: dict, as_json: bool) -> None:
             print(f"  {item['id']}: {'; '.join(item['reasons'])}")
 
 
-def _print_rule_plan(plan: dict, as_json: bool, file=sys.stdout) -> None:
+def _print_rule_plan(plan: dict, as_json: bool, file=None) -> None:
+    file = file or sys.stdout
     if as_json:
         print(json_text(plan), end="", file=file)
         return
@@ -1216,6 +1345,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         for check in expected_checks(task, profile):
             if check["kind"] == "command":
                 print(f"{check['id']} is run and recorded by task verify: {check['command']}", file=sys.stderr)
+            elif check["kind"] == "machine":
+                print(f"{check['id']} is evaluated and recorded by task verify: {check['verification']}",
+                      file=sys.stderr)
     elif action in ("verify", "result", "complete"):
         if task["status"] != "approved":
             raise ValueError("Run checks for an approved task that is not done yet." if action == "verify"
@@ -1238,7 +1370,11 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 result = record_result(current_task, profile, payload, source="verify")
             elif action == "result":
                 with _input_file(args.file):
-                    result = record_result(current_task, profile, read_json(args.file))
+                    payload = read_json(args.file)
+                    missing = evidence_files_missing(root, payload, current_task, profile)
+                    if missing:
+                        raise ValueError("Named evidence not found:\n- " + "\n- ".join(missing))
+                    result = record_result(current_task, profile, payload)
             else:
                 blocking = blocking_alerts(load_register(state), current_task)
                 if blocking:
@@ -1447,11 +1583,15 @@ def _run(args) -> int | None:
     elif args.command == "detect":
         _print_detection(detect_stack(root), args.json)
     elif args.command == "preview":
-        profile = validate_profile(read_json(args.answers), catalog) if args.answers else load_profile(state, catalog)
+        if args.answers:
+            profile = setup_profile(read_json(args.answers), catalog, _setup_questions(root, state, catalog)[0])[0]
+        else:
+            profile = load_profile(state, catalog)
         _print_rule_plan(rule_plan(profile, catalog), args.json)
     elif args.command == "recommend":
         if args.answers:
-            plan = profile_recommendations(read_json(args.answers), catalog)
+            questions = _setup_questions(root, state, catalog)[0]
+            plan = profile_recommendations(complete_answers(read_json(args.answers), questions, catalog)[0], catalog)
         else:
             profile = load_profile(state, catalog)
             plan = {**profile_recommendations(profile, catalog), "review": patterns_to_review(profile, catalog)}
@@ -1463,22 +1603,22 @@ def _run(args) -> int | None:
     elif args.command == "alerts":
         return alerts_cli.run(args, state)
     elif args.command == "init":
-        detected = components_for_profile(detect_stack(root))
-        questions = init_questions(catalog, root.name or "Project", detected)
+        questions, registry = _setup_questions(root, state, catalog)
         if args.questions:
             _print_json(questions)
             return
         if (state / "project.json").exists():
             raise ValueError("Project is already initialized. Edit .openguildkit/project.json and run openguildkit sync.")
-        answers = read_json(args.answers) if args.answers else _interactive_init(questions, catalog)
+        answers = read_json(args.answers) if args.answers else _interactive_init(questions, catalog, registry)
         if not args.answers:
-            _confirm_rule_plan(rule_plan(validate_profile(answers, catalog), catalog))
+            _confirm_rule_plan(rule_plan(setup_profile(answers, catalog, questions)[0], catalog))
         with project_lock(state):
             live, bundled = _installed_catalog(args, state)
-            profile = validate_profile(answers, live)
+            profile, left_aside = setup_profile(answers, live, questions)
             initialize(root, state, profile, live)
             write_lock(state, build_lock(profile, live, bundled))
         print(f"Initialized {root}")
+        _print_setup_notes(profile, left_aside if args.answers else [], registry)
         warning = approval_warning(profile)
         if warning:
             print(warning, file=sys.stderr)
@@ -1536,10 +1676,16 @@ def _run(args) -> int | None:
             warning = approval_warning(profile)
             if warning:
                 print(warning, file=sys.stderr)
-            _, bundled = _installed_catalog(args, state)
+            live, bundled = _installed_catalog(args, state)
             if not lock_is_current(read_lock(state), profile, catalog, bundled):
                 raise ValueError("The catalog lock does not match the profile. Run openguildkit sync.")
             print("OpenGuildKit instructions match the project profile.")
+            undated = _undated_project_sources(state, live)
+            if undated:
+                print(f"OpenGuildKit: date the sources of {len(undated)} project "
+                      f"{'record' if len(undated) == 1 else 'records'}: {', '.join(undated)}. Open each page, then "
+                      'add "checked": "YYYY-MM-DD" after its url with that day\'s date (see docs/catalog-format.md).',
+                      file=sys.stderr)
         elif args.command == "ci-check":
             result = check_export(profile, catalog, args.target_repo, args.commit)
             _print_json(result)

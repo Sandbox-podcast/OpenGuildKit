@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "Anthropic, Demystifying evals for AI agents",
-      "url": "https://www.anthropic.com/research/demystifying-evals-for-ai-agents"
+      "url": "https://www.anthropic.com/research/demystifying-evals-for-ai-agents",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

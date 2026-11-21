@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "W3C Web Content Accessibility Guidelines 2.2",
-      "url": "https://www.w3.org/TR/WCAG22/"
+      "url": "https://www.w3.org/TR/WCAG22/",
+      "checked": "2026-11-20"
     }
   ],
   "roles": [

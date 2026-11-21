@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "TypeScript strict mode",
-      "url": "https://www.typescriptlang.org/tsconfig/strict.html"
+      "url": "https://www.typescriptlang.org/tsconfig/strict.html",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

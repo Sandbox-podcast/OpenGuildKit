@@ -6,7 +6,8 @@
   "sources": [
     {
       "title": "UK Government Security, Agreeing roles and responsibilities with a RACI matrix",
-      "url": "https://www.security.gov.uk/policy-and-guidance/secure-by-design/activities/agreeing-roles-and-responsibilities/"
+      "url": "https://www.security.gov.uk/policy-and-guidance/secure-by-design/activities/agreeing-roles-and-responsibilities/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

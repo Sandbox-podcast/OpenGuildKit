@@ -5,15 +5,18 @@
   "sources": [
     {
       "title": "Android Developers, meet Google Play's target API level requirement",
-      "url": "https://developer.android.com/google/play/requirements/target-sdk"
+      "url": "https://developer.android.com/google/play/requirements/target-sdk",
+      "checked": "2026-11-21"
     },
     {
       "title": "Android Developers, make apps more accessible",
-      "url": "https://developer.android.com/guide/topics/ui/accessibility/apps"
+      "url": "https://developer.android.com/guide/topics/ui/accessibility/apps",
+      "checked": "2026-11-21"
     },
     {
       "title": "Play Console Help, provide information for Google Play's Data safety section",
-      "url": "https://support.google.com/googleplay/android-developer/answer/10787469"
+      "url": "https://support.google.com/googleplay/android-developer/answer/10787469",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [
