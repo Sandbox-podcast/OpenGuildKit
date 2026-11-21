@@ -84,6 +84,10 @@ def check_request(args, argv: list[str], root: Path) -> None:
     human = None
     if command == "task" and action == "decide" and args.approve and not args.signature:
         human = "Approving a task needs a person at a terminal, or a signature in a project with signed approvals."
+    elif command == "task" and action == "verify" and args.unavailable:
+        human = "Recording an environment reservation needs a person at a terminal."
+    elif command == "tools" and action == "apply" and not args.mock:
+        human = "Applying a live MCP plan needs confirmation at a terminal."
     elif command == "task" and action == "waive":
         human = "A waiver needs the named person at a terminal."
     elif command == "task" and action == "authorize" and args.allow:
@@ -534,7 +538,8 @@ class WebApp:
             "token": self.token,
             "project": {"root": str(self.root), "name": self.root.name,
                         "initialized": (self.root / ".openguildkit" / "project.json").is_file()},
-            "human_only": ["task decide --approve", "task waive", "task authorize --allow", "alerts accept"],
+            "human_only": ["task decide --approve", "task waive", "task authorize --allow", "alerts accept",
+                           "task verify --unavailable", "tools apply (live)"],
         }
 
     def handle(self, path: str, body: dict):

@@ -72,7 +72,8 @@ class DeliverableTests(unittest.TestCase):
         output, _ = self.run_cli("deliverable", "new", "campaign-brief", "--task", "launch", "--tool", "Brevo", "--output", "brief.md")
         self.assertIn("Audience segment, described without personal data (internal data)", output)
         draft = (self.root / "brief.md").read_text(encoding="utf-8")
-        self.assertIn('approved_by: "Camille Martin"', draft)
+        self.assertNotIn("approved_by:", draft)
+        self.assertNotIn("decision_reason:", draft)
         self.assertEqual(json.loads(self.run_cli("task", "show", "launch")[0])["deliverables"][0]["tool"], "Brevo")
 
         problems, _ = self.run_cli("deliverable", "check", "brief.md", code=1)
@@ -85,6 +86,13 @@ class DeliverableTests(unittest.TestCase):
         (self.root / "brief.md").write_text(filled, encoding="utf-8")
         output, _ = self.run_cli("deliverable", "check", "brief.md")
         self.assertIn("Ready for review by marketing, communication, legal", output)
+        old_draft = filled.replace("task: ", "approved_by: \"Camille Martin\"\ntask: ", 1)
+        (self.root / "brief.md").write_text(old_draft, encoding="utf-8")
+        problems, _ = self.run_cli("deliverable", "check", "brief.md", code=1)
+        self.assertIn("approved_by", problems)
+
+        self.run_cli("deliverable", "new", "social-media-plan", "--task", "launch", "--output", "social.md")
+        self.assertNotIn("tool:", (self.root / "social.md").read_text(encoding="utf-8"))
 
     def filled(self, draft):
         """A draft with every placeholder, source and check completed."""
@@ -98,7 +106,6 @@ class DeliverableTests(unittest.TestCase):
         for section in ("Inputs", "Message", "Channels and calendar", "Measurement", "Consent and data", "Sources", "Checks"):
             self.assertIn(f'Section "{section}" is missing.', problems)
         self.assertIn("task", problems)
-        self.assertIn("approved_by", problems)
         for check in ("claim-substantiated", "consent-confirmed", "measurement-ready"):
             self.assertIn(f"Check {check} is not ticked", problems)
         self.assertNotIn("Ready for review", problems)

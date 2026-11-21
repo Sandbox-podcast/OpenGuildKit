@@ -27,13 +27,13 @@ openguildkit deliverable utm --url https://www.example.test/pricing --campaign s
 
 The method is a pattern of the bundled catalog (see [patterns](patterns.md)): its rules and its sources apply to the deliverable. A template without a method relies on its sections and checks only; none of the new marketing templates cites a source of its own.
 
-`deliverable show` and `deliverable new` list, before anyone opens the tool, the data each input needs (`none`, `internal`, `personal` or `regulated`) and the actions that need the requester's recorded approval, such as sending messages or publishing; record those with `openguildkit task authorize`. `new` starts from an approved or completed task (`approved` or `done`) and, when the profile lists approved tools in `"tools"`, only with one of them. The draft carries the task, the approver and the decision reason in its front matter, the inputs, a section per part of the method, a Sources section and the checks as a checklist.
+`deliverable show` and `deliverable new` list, before anyone opens the tool, the data each input needs (`none`, `internal`, `personal` or `regulated`) and the actions that need the requester's recorded approval, such as sending messages or publishing; record those with `openguildkit task authorize`. `new` starts from an approved or completed task (`approved` or `done`) and, when the profile lists approved tools in `"tools"`, only with one of them. The draft links to the task in its front matter. The approval and its reason stay with the task. The draft contains inputs, one section for each part of the method, sources and a checklist for review. Pass `--tool` when the template declares `requires_tool`, or to record a tool the team chose.
 
 A template marked "Market dossier" uses the [market dossier](market.md) the task was consulted with (`task consult --market ID`): the draft records `market: "ID"` in its front matter and lists the dossier file under Inputs, so its observations can be cited as `market:ID/OBSERVATION`. When the task has no dossier, the Inputs say how to attach one.
 
 `check` lists what keeps a draft from review:
 
-- the front matter fields `deliverable`, `task` or `approved_by` missing;
+- the front matter fields `deliverable` or `task` missing, a required tool missing, or internal approval fields present;
 - a section of the template, `Inputs`, `Sources` or `Checks` missing or empty, each named;
 - placeholders that still say TODO;
 - no source listed under `## Sources`;
@@ -52,4 +52,4 @@ openguildkit deliverable utm --url "https://www.example.test/pricing?plan=team" 
 
 `--campaign`, `--source` and `--medium` are required; `--content` and `--term` are optional. The pack asks for the values agreed with the analytics owner, in the same case on every link, and for no personal data in them. Since analytics tools treat `Email` and `email` as two mediums, the command trims each value and accepts only lowercase letters, digits, `.`, `-` and `_`: a value with a capital or a space is refused rather than rewritten, so you correct it to the agreed spelling. A value that looks like an email address is refused. The landing URL must be an https address with a host; one that already carries `utm_` parameters is refused, its other parameters and its `#fragment` are kept. The command prints the link and opens nothing. The templates that publish links (`campaign-brief`, `landing-page-brief`, `newsletter-issue`, `social-media-plan`, `webinar-plan`) point to it in their measurement or promotion section.
 
-A project adds its own templates in `.openguildkit/catalog/deliverables/`, in the same format as `src/openguildkit/registry/deliverables/`. Set `"market": true` on a template that should carry the task's market dossier.
+A project adds its own templates in `.openguildkit/catalog/deliverables/`, in the same format as `src/openguildkit/registry/deliverables/`. Set `"market": true` on a template that should carry the task's market dossier and `"requires_tool": true` when its draft needs a named tool.

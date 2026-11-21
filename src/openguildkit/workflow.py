@@ -1213,7 +1213,8 @@ def entry_problems(consultation: dict, entry: object, root: Path | None = None) 
                     problems.append(f"{where}.evidence_refs: {_refs_hint(refs, count)}")
                 elif lens.get("basis") == "observed" and not refs:
                     problems.append(f"{where}.evidence_refs: an observed finding cites at least one position.")
-            present = {lens.get("id") for lens in specialists if isinstance(lens, dict)}
+            present = {lens["id"] for lens in specialists
+                       if isinstance(lens, dict) and isinstance(lens.get("id"), str)}
             for missing in sorted(set(expected) - present):
                 problems.append(f"challenge.specialists: no finding for {missing}.")
         elif "specialists" in challenge:
@@ -1452,6 +1453,13 @@ def _task_domains(task: dict) -> dict:
     return {board: set(words) for board, words in task["consultation"].get("domains", {}).items()}
 
 
+def open_objection_count(task: dict) -> int:
+    if "deliberation" in task:
+        return len(task["deliberation"]["open"])
+    review = task.get("review")
+    return len(objections(review, _task_domains(task))) if review else 0
+
+
 def deliberation_request(task: dict) -> dict:
     """What each board must answer, on the same point, before the person decides."""
     if task.get("status") != "reviewed":
@@ -1614,7 +1622,14 @@ def _blocker_lines(task: dict) -> list[str]:
 def decision_summary(task: dict) -> list[str]:
     """What the person approving must see before deciding, as plain lines."""
     review = validate_review(task["consultation"], task["review"])
-    lines = verdict_lines(review, conceded_boards(task)) + unconfronted_verdicts(review)
+    lines = []
+    rounds = task.get("rounds", [])
+    if rounds:
+        previous = rounds[-1].get("decision", {})
+        if previous.get("outcome") == "changes-requested":
+            reason = " ".join(previous["reason"].split())
+            lines.append(f"Previous decision: changes requested. Reason: {reason}")
+    lines += verdict_lines(review, conceded_boards(task)) + unconfronted_verdicts(review)
     lines += [f"Review warning: {warning}" for warning in review.get("warnings", [])]
     lines += _board_change_lines(task)
     lines += [f"Open point: {point}" for point in task["consultation"]["scope"].get("open_points", [])]
@@ -1743,6 +1758,12 @@ def handoff(task: dict) -> str:
             "",
             _json_section(consultation["scope"]),
             "",
+            *(
+                ["## Project check commands", "",
+                 *[f"- {command}" for command in consultation["scope"].get("checks", [])],
+                 "", "Run these from the project root with the declared toolchains and dependencies installed.", ""]
+                if not is_decision_task(task) and consultation["scope"].get("checks") else []
+            ),
             "## Advisory review",
             "",
             _json_section(review),
