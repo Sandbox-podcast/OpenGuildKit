@@ -51,7 +51,8 @@ TOOL_OPTIONAL = {"aliases", "detect", "api", "notes"}
 SERVER_FIELDS = {
     "id", "name", "publisher", "maintainer", "transport", "auth", "env", "status", "capabilities", "source", "verified",
 }
-SERVER_OPTIONAL = {"url", "command", "args", "package", "repository", "license", "settings"}
+SERVER_OPTIONAL = {"url", "command", "args", "package", "repository", "license", "settings", "access", "read_only"}
+ACCESS_MODES = ("read-only", "read-write", "unknown")
 DETECT_FIELDS = {"files", "npm", "pypi"}
 
 
@@ -137,6 +138,35 @@ def _validate_server(server: object, label: str) -> None:
         used = {name for arg in server["args"] for name in _SETTING.findall(arg)}
     if used != declared:
         raise CatalogError(f"{label}: settings must declare exactly the placeholders used: {', '.join(sorted(used)) or 'none'}")
+    access = server.get("access", {})
+    if not isinstance(access, dict) or not access.keys() <= {"mode", "consent", "scopes"} \
+            or access.get("mode", "unknown") not in ACCESS_MODES:
+        raise CatalogError(f"{label}: access describes the mode, consent and scopes")
+    if "consent" in access:
+        _text(access["consent"], f"{label} consent")
+    if "scopes" in access:
+        if not isinstance(access["scopes"], list):
+            raise CatalogError(f"{label}: scopes must be a list")
+        for scope in access["scopes"]:
+            _text(scope, f"{label} scope")
+    if "read_only" in server:
+        _validate_read_only(server, label, declared)
+
+
+def _validate_read_only(server: dict, label: str, settings: set[str]) -> None:
+    mode = server["read_only"]
+    if not isinstance(mode, dict) or len(mode) != 1:
+        raise CatalogError(f"{label}: read_only needs an endpoint, read-only header or Docker environment flag")
+    kind, value = next(iter(mode.items()))
+    if server["transport"] != "stdio":
+        if kind == "header" and value == "X-MCP-Readonly":
+            return
+        if kind == "url" and set(_SETTING.findall(_https(value, f"{label} read-only URL", placeholders=True))) == settings:
+            return
+    elif kind == "docker_env" and server["command"] == "docker" and isinstance(value, str) \
+            and re.fullmatch(r"[A-Z][A-Z0-9_]*READ_?ONLY", value) and server["package"]["name"] in server["args"]:
+        return
+    raise CatalogError(f"{label}: invalid read-only configuration for {server['transport']}")
 
 
 def _validate_tool(tool: object, label: str) -> None:
@@ -340,7 +370,12 @@ def recommend_tools(profile: dict, root: Path, tools: dict) -> dict:
     }
 
 
-def choose_server(tool: dict, server_id: str | None = None, community: bool = False) -> dict | None:
+def _supports_read_only(server: dict) -> bool:
+    return bool(server.get("read_only")) or server.get("access", {}).get("mode") == "read-only"
+
+
+def choose_server(tool: dict, server_id: str | None = None, community: bool = False, *,
+                  read_only: bool = False) -> dict | None:
     """The publisher's own server first, remote before local; a community server only on request."""
     servers = tool["servers"]
     if server_id:
@@ -349,8 +384,13 @@ def choose_server(tool: dict, server_id: str | None = None, community: bool = Fa
             raise ValueError(f"{tool['id']} has no server {server_id}. Known: {', '.join(s['id'] for s in servers) or 'none'}.")
         if server["publisher"] == "community" and not community:
             raise ValueError(f"{tool['id']}/{server_id} is a community server: review its source, then pass --community.")
+        if read_only and not _supports_read_only(server):
+            raise ValueError(f"{tool['id']}/{server_id} has no documented read-only mode.")
         return server
-    usable = [item for item in servers if item["status"] != "deprecated" and (community or item["publisher"] == "vendor")]
+    usable = [
+        item for item in servers if item["status"] != "deprecated" and (community or item["publisher"] == "vendor")
+        and (not read_only or _supports_read_only(item))
+    ]
     usable.sort(key=lambda item: (item["publisher"] != "vendor", TRANSPORTS.index(item["transport"])))
     return usable[0] if usable else None
 
@@ -375,10 +415,14 @@ def _fill(text: str, values: dict) -> str:
     return _SETTING.sub(lambda match: values.get(match.group(1), match.group(0)), text)
 
 
-def host_entry(host: str, server: dict, settings: dict, token_env: str | None) -> dict:
+def host_entry(host: str, server: dict, settings: dict, token_env: str | None, *, read_only: bool = False) -> dict:
     """The host's own configuration entry for a server. Variables are named, never resolved."""
+    restriction = server.get("read_only", {}) if read_only else {}
     if server["transport"] == "stdio":
         args = [_fill(arg, settings) for arg in server["args"]]
+        if "docker_env" in restriction:
+            image = args.index(server["package"]["name"])
+            args[image:image] = ["-e", restriction["docker_env"] + "=true"]
         if host == "codex":
             entry = {"command": server["command"], "args": args}
             if server["env"]:
@@ -388,15 +432,20 @@ def host_entry(host: str, server: dict, settings: dict, token_env: str | None) -
         if server["env"]:
             entry["env"] = {name: "${" + name + "}" for name in server["env"]}
         return entry
-    url = _fill(server["url"], settings)
+    url = _fill(restriction.get("url", server["url"]), settings)
+    headers = {restriction["header"]: "true"} if "header" in restriction else {}
     if host == "codex":
         entry = {"url": url}
         if token_env:
             entry["bearer_token_env_var"] = token_env
+        if headers:
+            entry["http_headers"] = headers
         return entry
     entry = {"type": "sse" if server["transport"] == "sse" else "http", "url": url}
     if token_env:
-        entry["headers"] = {"Authorization": "Bearer ${" + token_env + "}"}
+        headers["Authorization"] = "Bearer ${" + token_env + "}"
+    if headers:
+        entry["headers"] = headers
     return entry
 
 
@@ -408,11 +457,16 @@ def mock_entry(host: str, tool_id: str, log: str | None = None) -> dict:
 def plan_connections(
     tools: dict, wanted: list[str], host: str, *, mock: bool = False, community: bool = False,
     settings: dict | None = None, token_env: dict | None = None, mocks: list[str] | None = None, log: str | None = None,
+    read_only: bool = False,
 ) -> list[dict]:
     """One connection per server for the wanted tools ("jira" or "jira/atlassian-rovo")."""
     if host not in HOSTS:
         raise ValueError(f"Choose a host to write for: {', '.join(HOSTS)}.")
-    settings, token_env, mocks = settings or {}, token_env or {}, mocks or []
+    if read_only and mock:
+        raise ValueError("--read-only selects a live server. Use --mock separately for synthetic data.")
+    settings = {key.casefold(): value for key, value in (settings or {}).items()}
+    token_env = {key.casefold(): value for key, value in (token_env or {}).items()}
+    mocks = mocks or []
     if any(isinstance(value, str) and looks_like_credential(value)
            for values in settings.values() for value in values.values()):
         raise ValueError("--set must be a plain value such as a name or a host, never a credential.")
@@ -421,7 +475,7 @@ def plan_connections(
         raise ValueError("--token-env names an environment variable, for a remote server.")
     plan, by_key = [], {}
     for name in wanted:
-        tool_id, _, server_id = name.partition("/")
+        tool_id, _, server_id = name.casefold().partition("/")
         if tool_id not in tools:
             raise ValueError(f"Unknown tool: {tool_id}. Run openguildkit tools list.")
         tool = tools[tool_id]
@@ -436,15 +490,22 @@ def plan_connections(
                 "steps": ["Synthetic data only: no account, no network."], "entry": mock_entry(host, tool_id, log),
             })
             continue
-        server = choose_server(tool, server_id or None, community)
+        server = choose_server(tool, server_id or None, community, read_only=read_only)
         if server is None:
+            if read_only:
+                raise ValueError(f"{tool_id} has no eligible server with a documented read-only mode.")
             reason = "It has no MCP server on record." if not tool["servers"] else (
                 "Its only servers are community-maintained: review their source, then pass --community.")
             plan.append({"tool": tool_id, "title": tool["title"], "skipped": reason + (
                 f" API: {tool['api']['docs']}" if "api" in tool else "")})
             continue
         if server["id"] in by_key:
-            by_key[server["id"]]["covers"].append(tool_id)
+            existing = by_key[server["id"]]
+            if tool_id not in existing["covers"]:
+                existing["covers"].append(tool_id)
+                existing["alternatives"][tool_id] = _alternatives(tool, server["id"])
+                if tool.get("notes"):
+                    existing["notes"][tool_id] = tool["notes"]
             continue
         label = f"{tool_id}/{server['id']}"
         filled, missing = _settings(server, settings.get(tool_id, {}), label)
@@ -457,6 +518,8 @@ def plan_connections(
         if server["status"] in ("beta", "preview", "experimental"):
             warnings.append(f"The publisher marks this server as {server['status']}.")
         if host == "codex" and server["transport"] == "sse":
+            if read_only:
+                raise ValueError(f"{label} uses SSE, which Codex does not support.")
             plan.append({"tool": tool_id, "title": tool["title"], "skipped": "Codex connects to streamable HTTP and stdio servers; this one is SSE only."})
             continue
         if server["transport"] == "sse":
@@ -474,14 +537,32 @@ def plan_connections(
             warnings.append("This server needs a token: pass --token-env TOOL=VARIABLE, or see its source for the header it expects.")
         if missing:
             steps.append("Still to provide: " + ", ".join(f"--set {tool_id}.{name}=VALUE" for name in missing) + ".")
+        access = server.get("access", {})
+        scope = "No credentials required" if server["auth"] == "none" else "See the publisher's source and credential permissions"
         item = {
             "tool": tool_id, "title": tool["title"], "server": server["id"], "key": server["id"], "mode": "live",
+            "maintainer": server["maintainer"], "capabilities": server["capabilities"],
+            "access": {
+                "mode": "read-only" if read_only else access.get("mode", "unknown"),
+                "consent": access.get("consent", "None" if server["auth"] == "none" else "See the publisher's source"),
+                "scopes": access.get("scopes") or [scope],
+                "read_only_available": _supports_read_only(server),
+            },
+            "alternatives": {tool_id: _alternatives(tool, server["id"])},
+            "notes": {tool_id: tool["notes"]} if tool.get("notes") else {},
             "covers": [tool_id], "publisher": server["publisher"], "transport": server["transport"], "auth": server["auth"],
             "status": server["status"], "source": server["source"], "verified": server["verified"],
             "needs": {"env": list(server["env"]) + ([bearer] if bearer else []), "settings": missing},
             "settings": filled, "warnings": warnings, "steps": steps,
-            "entry": host_entry(host, server, filled, bearer),
+            "entry": host_entry(host, server, filled, bearer, read_only=read_only),
         }
+        if server.get("package", {}).get("registry") == "docker":
+            image = server["package"]["name"]
+            item["image"] = {
+                "name": image,
+                "digest_pinned": bool(re.search(r"@sha256:[0-9a-f]{64}$", image)),
+                "pull_always": "--pull=always" in server["args"],
+            }
         if bearer:
             item["token_env"] = bearer
         if "license" in server:
@@ -489,6 +570,14 @@ def plan_connections(
         by_key[server["id"]] = item
         plan.append(item)
     return plan
+
+
+def _alternatives(tool: dict, selected: str) -> list[dict]:
+    return [
+        {**{field: server[field] for field in ("id", "capabilities", "status", "publisher")},
+         "read_only_available": _supports_read_only(server)}
+        for server in tool["servers"] if server["id"] != selected
+    ]
 
 
 def read_manifest(state: Path) -> dict:
@@ -510,7 +599,12 @@ def read_manifest(state: Path) -> dict:
 def _codex_table(key: str, entry: dict) -> str:
     lines = [f"[mcp_servers.{key}]"]
     for name, value in entry.items():
-        lines.append(f"{name} = {json.dumps(value, ensure_ascii=False)}")
+        if isinstance(value, dict):
+            pairs = [f"{json.dumps(key)} = {json.dumps(setting)}" for key, setting in value.items()]
+            value_text = "{ " + ", ".join(pairs) + " }"
+        else:
+            value_text = json.dumps(value, ensure_ascii=False)
+        lines.append(f"{name} = {value_text}")
     return "\n".join(lines) + "\n"
 
 

@@ -36,7 +36,7 @@ jira, confluence: server `atlassian-rovo` (vendor, streamable-http, status ga).
     claude-code: {"type": "http", "url": "https://mcp.atlassian.com/v2/mcp"}
 ```
 
-4. The team reviews the plan. `openguildkit tools apply ...` with the same arguments writes the entries and records them in `.openguildkit/tools.json`, which is committed.
+4. The team reviews data coverage, access, consent, documented scopes and alternatives in the plan. Use `--read-only` on both commands to select a documented read-only server or restriction. If the server lists scopes it can request, verify the actual consent screen and credential permissions. Use a credential with the same read-only permissions independently of the MCP setting. In scripts, use `--yes` after reviewing the live plan. `openguildkit tools apply ...` with the same arguments asks you to confirm a live plan in your terminal and writes the entries and records them in `.openguildkit/tools.json`, which is committed.
 
 | Option | Use |
 |---|---|

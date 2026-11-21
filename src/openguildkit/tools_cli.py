@@ -33,6 +33,9 @@ def add_parser(commands) -> None:
         command.add_argument("--host", choices=HOSTS, help="Agent host to write for (defaults to the project's host).")
         command.add_argument("--mock", action="store_true", help="Connect local mocks with synthetic data instead.")
         command.add_argument("--community", action="store_true", help="Allow community-maintained servers.")
+        command.add_argument("--read-only", action="store_true", help="Select a documented read-only server or mode.")
+        if name == "apply":
+            command.add_argument("--yes", action="store_true", help="Accept this live plan for non-interactive use.")
         command.add_argument("--set", action="append", default=[], metavar="TOOL.NAME=VALUE", dest="settings",
                              help="A setting a server needs, such as a subdomain (repeatable).")
         command.add_argument("--token-env", action="append", default=[], metavar="TOOL=VARIABLE",
@@ -64,9 +67,9 @@ def _pairs(values: list[str], separator: str, label: str) -> dict:
             tool, dot, name = left.partition(separator)
             if not dot or not tool or not name:
                 raise ValueError(f"Write {label}.")
-            parsed.setdefault(tool, {})[name] = right
+            parsed.setdefault(tool.casefold(), {})[name] = right
         else:
-            parsed[left] = right
+            parsed[left.casefold()] = right
     return parsed
 
 
@@ -93,6 +96,26 @@ def _print_plan(plan: list[dict], host: str) -> None:
         else:
             print(f"{covers}: server `{item['key']}` ({item['publisher']}, {item['transport']}, status {item['status']}).")
             print(f"    Verified {item['verified']} on {item['source']}")
+            print(f"    Maintainer: {item['maintainer']}. Authentication: {item['auth']}.")
+            print(f"    Covers: {item['capabilities']}")
+            access = item["access"]
+            mode = "not documented" if access["mode"] == "unknown" else access["mode"]
+            print(f"    Access: {mode}. Consent: {access['consent']}.")
+            print(f"    Scopes: {', '.join(access['scopes'])}.")
+            if access["mode"] != "read-only" and access["read_only_available"]:
+                print("    Read-only mode available: pass --read-only.")
+            if "image" in item:
+                image = item["image"]
+                pin = "digest pinned" if image["digest_pinned"] else "not pinned by digest"
+                pull = "; pulled on every launch" if image["pull_always"] else ""
+                print(f"    Docker image: {image['name']} ({pin}{pull}).")
+            for tool, alternatives in item["alternatives"].items():
+                for server in alternatives:
+                    readonly = ", read-only available" if server["read_only_available"] else ""
+                    print(f"    Alternative {tool}/{server['id']} ({server['publisher']}, {server['status']}{readonly}):"
+                          f" {server['capabilities']}")
+            for tool, notes in item["notes"].items():
+                print(f"    {tool}: {notes}")
         for warning in item["warnings"]:
             print(f"    Warning: {warning}")
         for step in item["steps"]:
@@ -104,9 +127,9 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
     action = args.tools_action
     mock_dir = state / "catalog" / "tool-mocks"
     if action == "mock":
-        return serve(load_mock(args.id, mock_dir), log=args.log)
+        return serve(load_mock(args.id.casefold(), mock_dir), log=args.log)
     if action == "call":
-        mock = load_mock(args.id, mock_dir)
+        mock = load_mock(args.id.casefold(), mock_dir)
         if args.name is None:
             for tool in mock["tools"]:
                 access = "read" if tool.get("read_only") else "write"
@@ -147,9 +170,9 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
         print(f"{len(entries)} tool(s). Details: openguildkit tools show ID")
         return 0
     if action == "show":
-        if args.id not in tools:
+        tool = tools.get(args.id.casefold())
+        if tool is None:
             raise ValueError(f"Unknown tool: {args.id}. Run openguildkit tools list.")
-        tool = tools[args.id]
         if args.json:
             print(json.dumps({**tool, "mock": tool["id"] in mocks}, indent=2, ensure_ascii=False))
             return 0
@@ -221,7 +244,7 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
     host = _host(args, profile)
     if action == "remove":
         with project_lock(state):
-            result = remove_connections(root, state, host, args.tool)
+            result = remove_connections(root, state, host, [name.casefold() for name in args.tool])
         if result["removed"]:
             print(f"Removed {', '.join(result['removed'])} from {result['file']}.")
         if result.get("forgotten"):
@@ -231,6 +254,7 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
         tools, args.tool, host, mock=args.mock, community=args.community,
         settings=_pairs(args.settings, ".", "--set TOOL.NAME=VALUE"),
         token_env=_pairs(args.token_env, "", "--token-env TOOL=VARIABLE"), mocks=mocks, log=args.log,
+        read_only=args.read_only,
     )
     if action == "plan":
         if args.json:
@@ -239,6 +263,14 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
             _print_plan(plan, host)
             print("Nothing is written. Review the plan with the team, then run the same command with apply.", file=sys.stderr)
         return 0
+    live = any(item.get("mode") == "live" for item in plan)
+    if live and not args.yes:
+        if not sys.stdin.isatty():
+            raise ValueError("A live MCP plan needs confirmation. Review tools plan, then pass --yes or use a terminal.")
+        _print_plan(plan, host)
+        print("Type yes to apply this live MCP plan: ", end="", file=sys.stderr, flush=True)
+        if sys.stdin.readline().strip().casefold() != "yes":
+            raise ValueError("Live MCP configuration cancelled.")
     with project_lock(state):
         result = apply_connections(root, state, host, plan)
     exit_code = 1 if args.mock and result["skipped"] else 0

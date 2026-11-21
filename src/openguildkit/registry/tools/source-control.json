@@ -79,7 +79,17 @@
           "source": "https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/set-up-the-github-mcp-server",
           "repository": "https://github.com/github/github-mcp-server",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write",
+            "consent": "Authorize the OAuth app or use a repository-scoped GitHub token",
+            "scopes": [
+              "Depends on the active toolsets and GitHub credential"
+            ]
+          },
+          "read_only": {
+            "header": "X-MCP-Readonly"
+          }
         },
         {
           "id": "github-local",
@@ -109,7 +119,17 @@
           "source": "https://github.com/github/github-mcp-server",
           "repository": "https://github.com/github/github-mcp-server",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write",
+            "consent": "Provide a GitHub personal access token",
+            "scopes": [
+              "Depends on the active toolsets and token permissions"
+            ]
+          },
+          "read_only": {
+            "docker_env": "GITHUB_READ_ONLY"
+          }
         }
       ],
       "api": {

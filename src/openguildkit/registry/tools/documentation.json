@@ -106,7 +106,14 @@
           "capabilities": "Read-only access to published documentation: list_spaces, list_pages, search_docs and read_page. Bearer keys grant access to explicitly selected private spaces.",
           "source": "https://github.com/azerothl/documentalist/blob/947429b19da6f4e409738fd195960ae99e99c4ef/README.md",
           "repository": "https://github.com/azerothl/documentalist",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-only",
+            "consent": "Public publications require no consent; private publications require a scoped Documentalist key",
+            "scopes": [
+              "Public publications or private publications allowed by the key"
+            ]
+          }
         }
       ],
       "notes": "Public publications are accessible without authentication. Use --token-env for private publications with a scoped Documentalist key. OpenGuildKit also prepares the folders Documentalist imports with `openguildkit docs export` and keeps the share register with `openguildkit docs share`."

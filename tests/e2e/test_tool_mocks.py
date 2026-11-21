@@ -253,7 +253,10 @@ class ProjectConnectionTests(unittest.TestCase):
         self.assertFalse(config.exists())
 
     def test_live_connections_for_claude_code_name_variables_only(self):
-        cli(self.project, "tools", "apply", "jira", "github/github-local", "linear", "--host", "claude-code",
+        refused = cli(self.project, "tools", "apply", "jira", "--host", "claude-code", check=False)
+        self.assertRegex(refused.stderr, "needs confirmation|configuration cancelled")
+        self.assertFalse((self.project / ".mcp.json").exists())
+        cli(self.project, "tools", "apply", "jira", "github/github-local", "linear", "--host", "claude-code", "--yes",
             "--token-env", "linear=LINEAR_API_KEY")
         servers = json.loads((self.project / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"]
         self.assertEqual(servers["atlassian-rovo"]["type"], "http")
@@ -263,7 +266,7 @@ class ProjectConnectionTests(unittest.TestCase):
         missing = {item["key"]: item["missing_env"] for item in json.loads(status)}
         if not os.environ.get("LINEAR_API_KEY"):
             self.assertEqual(missing["linear-remote"], ["LINEAR_API_KEY"])
-        refused = cli(self.project, "tools", "apply", "zendesk", "--host", "claude-code", check=False)
+        refused = cli(self.project, "tools", "apply", "zendesk", "--host", "claude-code", "--yes", check=False)
         self.assertEqual(refused.returncode, 1)
         self.assertIn("Settings are missing", refused.stderr)
         self.assertNotIn("Traceback", refused.stderr)

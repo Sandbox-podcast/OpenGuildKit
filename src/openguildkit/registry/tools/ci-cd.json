@@ -43,7 +43,17 @@
           "status": "preview",
           "capabilities": "Work items, repos and pull requests, pipelines, wikis, test plans, iterations and Advanced Security alerts; X-MCP-Toolsets and X-MCP-Readonly headers restrict tools.",
           "source": "https://learn.microsoft.com/en-us/azure/devops/mcp-server/remote-mcp-server",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write",
+            "consent": "Sign in with Microsoft Entra for the selected Azure DevOps organization",
+            "scopes": [
+              "Operations are limited by the signed-in user's Azure DevOps permissions"
+            ]
+          },
+          "read_only": {
+            "header": "X-MCP-Readonly"
+          }
         },
         {
           "id": "azure-devops-local",

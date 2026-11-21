@@ -35,7 +35,16 @@
           "status": "preview",
           "capabilities": "Read and act on Gmail messages.",
           "source": "https://developers.google.com/workspace/guides/configure-mcp-servers",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write",
+            "consent": "Configure a Google Cloud OAuth client, enable the API and obtain user consent",
+            "scopes": [
+              "https://www.googleapis.com/auth/gmail.readonly",
+              "https://www.googleapis.com/auth/gmail.compose",
+              "https://www.googleapis.com/auth/gmail.modify"
+            ]
+          }
         },
         {
           "id": "calendar-mcp",
@@ -49,7 +58,17 @@
           "status": "preview",
           "capabilities": "Read and manage Google Calendar events.",
           "source": "https://developers.google.com/workspace/guides/configure-mcp-servers",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write",
+            "consent": "Configure a Google Cloud OAuth client, enable the API and obtain user consent",
+            "scopes": [
+              "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+              "https://www.googleapis.com/auth/calendar.events.freebusy",
+              "https://www.googleapis.com/auth/calendar.events.readonly",
+              "https://www.googleapis.com/auth/calendar.events"
+            ]
+          }
         },
         {
           "id": "drive-mcp",
@@ -61,9 +80,17 @@
           "auth": "oauth",
           "env": [],
           "status": "preview",
-          "capabilities": "Search and read Google Drive files.",
+          "capabilities": "Search and read Drive files; the drive.file scope can grant write access to specific files.",
           "source": "https://developers.google.com/workspace/guides/configure-mcp-servers",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write",
+            "consent": "Configure a Google Cloud OAuth client, enable the API and obtain user consent",
+            "scopes": [
+              "https://www.googleapis.com/auth/drive.readonly",
+              "https://www.googleapis.com/auth/drive.file"
+            ]
+          }
         },
         {
           "id": "workspace-universal-search-mcp",
@@ -77,7 +104,19 @@
           "status": "preview",
           "capabilities": "One search_corpus tool searching across Drive, Gmail, Calendar and Chat.",
           "source": "https://developers.google.com/workspace/guides/configure-mcp-servers",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-only",
+            "consent": "Configure a Google Cloud OAuth client, enable the API and obtain user consent",
+            "scopes": [
+              "https://www.googleapis.com/auth/gmail.readonly",
+              "https://www.googleapis.com/auth/drive.readonly",
+              "https://www.googleapis.com/auth/calendar.readonly",
+              "https://www.googleapis.com/auth/chat.messages.readonly",
+              "https://www.googleapis.com/auth/chat.spaces.readonly",
+              "https://www.googleapis.com/auth/chat.memberships.readonly"
+            ]
+          }
         }
       ],
       "api": {
@@ -119,7 +158,14 @@
           "status": "ga",
           "capabilities": "Single endpoint with generic tools to read, create, update and delete Microsoft 365 entities (mail, meetings, files, Teams chats, people); the retrieve tool is still in preview.",
           "source": "https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/work-iq",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write",
+            "consent": "Tenant-wide Entra administrator consent and delegated sign-in with the user's Microsoft 365 permissions",
+            "scopes": [
+              "api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask"
+            ]
+          }
         },
         {
           "id": "work-iq-cli",
@@ -181,7 +227,14 @@
           "status": "ga",
           "capabilities": "Single endpoint with generic tools to read, create, update and delete Microsoft 365 entities (mail, meetings, files, Teams chats, people); the retrieve tool is still in preview.",
           "source": "https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/work-iq",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write",
+            "consent": "Tenant-wide Entra administrator consent and delegated sign-in with the user's Microsoft 365 permissions",
+            "scopes": [
+              "api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask"
+            ]
+          }
         },
         {
           "id": "work-iq-cli",
