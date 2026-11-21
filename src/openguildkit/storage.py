@@ -9,6 +9,13 @@ from contextlib import contextmanager
 from pathlib import Path
 
 
+# Windows refuses to replace a file while another process reads it, and to read it while it is
+# being replaced; POSIX systems do neither.
+RETRIES_BUSY_TARGET = os.name == "nt"
+REPLACE_ATTEMPTS = 60
+REPLACE_PAUSE = 0.05
+
+
 def _current_umask() -> int:
     mask = os.umask(0o022)
     os.umask(mask)
@@ -36,18 +43,24 @@ def parse_json(content: bytes, label: str) -> dict:
     return data
 
 
+def read_bytes(path: Path) -> bytes:
+    """Read a project file, waiting up to three seconds while another process replaces it on Windows."""
+    for attempt in range(REPLACE_ATTEMPTS):
+        try:
+            return path.read_bytes()
+        except PermissionError:
+            if not RETRIES_BUSY_TARGET or attempt == REPLACE_ATTEMPTS - 1:
+                raise
+            time.sleep(REPLACE_PAUSE)
+    raise AssertionError("unreachable")
+
+
 def read_json(path: Path) -> dict:
-    return parse_json(path.read_bytes(), str(path))
+    return parse_json(read_bytes(path), str(path))
 
 
 def json_text(data) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
-
-
-# Windows refuses to replace a file while another process reads it; POSIX systems do not.
-RETRIES_BUSY_TARGET = os.name == "nt"
-REPLACE_ATTEMPTS = 60
-REPLACE_PAUSE = 0.05
 
 
 def _replace(source: Path, target: Path) -> None:
@@ -66,7 +79,7 @@ def write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.is_symlink():
         raise ValueError(f"Refusing to replace a symbolic link: {path}")
-    if path.exists() and path.read_bytes() == content.encode("utf-8"):
+    if path.exists() and read_bytes(path) == content.encode("utf-8"):
         return
     with tempfile.NamedTemporaryFile(
         dir=path.parent, prefix=f".{path.name}.", suffix=".tmp", delete=False

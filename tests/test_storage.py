@@ -43,6 +43,36 @@ class BusyTargetTests(unittest.TestCase):
         self.assertEqual(self.target.read_text(encoding="utf-8"), "old")
         self.assertEqual([path.name for path in self.target.parent.iterdir()], ["record.json"])
 
+    def test_a_read_waits_while_the_file_is_being_replaced(self):
+        real, calls = Path.read_bytes, []
+
+        def read(path):
+            calls.append(path)
+            if len(calls) <= 2:
+                raise PermissionError(13, "Permission denied")
+            return real(path)
+
+        with patch.object(storage, "RETRIES_BUSY_TARGET", True), patch.object(Path, "read_bytes", read), \
+                patch.object(storage.time, "sleep", lambda seconds: None):
+            self.assertEqual(storage.read_bytes(self.target), b"old")
+        self.assertEqual(len(calls), 3)
+        self.target.write_text('{"status": "draft"}', encoding="utf-8")
+        calls.clear()
+        with patch.object(storage, "RETRIES_BUSY_TARGET", True), patch.object(Path, "read_bytes", read), \
+                patch.object(storage.time, "sleep", lambda seconds: None):
+            self.assertEqual(storage.read_json(self.target), {"status": "draft"})
+
+    def test_a_read_refused_for_good_is_reported(self):
+        def read(path):
+            raise PermissionError(13, "Permission denied")
+
+        with patch.object(storage, "RETRIES_BUSY_TARGET", True), patch.object(Path, "read_bytes", read), \
+                patch.object(storage.time, "sleep", lambda seconds: None), self.assertRaises(PermissionError):
+            storage.read_bytes(self.target)
+        with patch.object(storage, "RETRIES_BUSY_TARGET", False), patch.object(Path, "read_bytes", read), \
+                self.assertRaises(PermissionError):
+            storage.read_bytes(self.target)
+
     def test_where_readers_never_block_a_refusal_is_not_retried(self):
         with patch.object(storage, "RETRIES_BUSY_TARGET", False), patch.object(storage.os, "replace", self.refuse(1)), \
                 self.assertRaises(PermissionError):
