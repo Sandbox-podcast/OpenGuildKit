@@ -1180,13 +1180,20 @@ def entry_problems(consultation: dict, entry: object, root: Path | None = None) 
         count = len(entry["evidence"]) if isinstance(entry.get("evidence"), list) else 0
         if isinstance(specialists, list):
             expected = [item["id"] for item in shape["specialists"]]
+            present = set()
             for position, lens in enumerate(specialists, start=1):
                 where = f"challenge.specialists[{position}]"
                 if not isinstance(lens, dict):
                     problems.append(f"{where}: must be an object.")
                     continue
-                if lens.get("id") not in expected:
-                    problems.append(f"{where}.id: {lens.get('id')!r} is not one of {', '.join(expected)}.")
+                specialist_id = lens.get("id")
+                if not isinstance(specialist_id, str) or specialist_id not in expected:
+                    problems.append(f"{where}.id: {specialist_id!r} is not one of {', '.join(expected)}.")
+                elif specialist_id in present:
+                    problems.append(f"{where}.id: {specialist_id!r} is repeated.")
+                else:
+                    present.add(specialist_id)
+                collect(f"{where}.finding", lambda lens=lens: _text(lens.get("finding"), "Specialist finding"))
                 if lens.get("basis") not in BASES:
                     problems.append(f"{where}.basis: must be one of {', '.join(BASES)} (got {lens.get('basis')!r}).")
                 refs = lens.get("evidence_refs")
@@ -1194,11 +1201,12 @@ def entry_problems(consultation: dict, entry: object, root: Path | None = None) 
                     problems.append(f"{where}.evidence_refs: {_refs_hint(refs, count)}")
                 elif lens.get("basis") == "observed" and not refs:
                     problems.append(f"{where}.evidence_refs: an observed finding cites at least one position.")
-            present = {lens.get("id") for lens in specialists if isinstance(lens, dict)}
             for missing in sorted(set(expected) - present):
                 problems.append(f"challenge.specialists: no finding for {missing}.")
         elif "specialists" in challenge:
             problems.append("challenge.specialists: must be a list.")
+    elif "challenge" in entry and "challenge" in template:
+        problems.append("challenge: must be an object.")
     return problems
 
 
