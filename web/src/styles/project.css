@@ -1,0 +1,169 @@
+/* Project interface (openguildkit ui). Same tokens as the demo, so RPG and Pro both apply. */
+
+.splash { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 12px; color: var(--text-2); background: var(--bg); font-family: var(--font-body); }
+.page-grid { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+.block { display: block; }
+.pre-line { white-space: pre-line; }
+.clamp-1, .clamp-2, .clamp-3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.clamp-1 { -webkit-line-clamp: 1; } .clamp-2 { -webkit-line-clamp: 2; } .clamp-3 { -webkit-line-clamp: 3; }
+.loading-line { display: flex; align-items: center; gap: 6px; padding: 12px 0; }
+.h-title { font-size: 1.35rem; margin: 2px 0 8px; line-height: 1.25; }
+.h-card { font-size: 0.95rem; margin: 12px 0 6px; display: flex; align-items: center; gap: 6px; }
+
+/* Inputs outside a .field (toolbars, tables) */
+.input { --edge: var(--border); background: var(--bg-deep); color: var(--text); border: 0; padding: 7px 10px; margin: var(--px); font: inherit; min-height: 36px; min-width: 0;
+  box-shadow: 0 calc(-1 * var(--px)) 0 0 var(--edge), 0 var(--px) 0 0 var(--edge), calc(-1 * var(--px)) 0 0 0 var(--edge), var(--px) 0 0 0 var(--edge); }
+.input:hover { --edge: var(--border-strong); }
+.input:focus { --edge: var(--data); outline: none; }
+.mode-focus .input { border-radius: 8px; box-shadow: inset 0 0 0 1px var(--edge); }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.toolbar > input[type='search'] { flex: 1 1 260px; }
+
+/* Topbar project chip */
+.project-chip { display: flex; align-items: center; gap: 8px; padding: 4px 10px; background: var(--surface-2); min-width: 0; max-width: 320px; }
+.project-chip-name { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.project-chip-live { flex: none; }
+.mode-focus .project-chip { border-radius: 999px; }
+@media (max-width: 900px) { .project-chip-live { display: none; } }
+@media (max-width: 640px) { .project-chip { display: none; } }
+
+/* Command to type in a terminal */
+.command-line { display: flex; align-items: center; gap: 8px; background: var(--bg-deep); padding: 8px 10px; margin: 8px 0; box-shadow: inset 0 0 0 1px var(--border); }
+.command-line code { flex: 1 1 auto; font-family: var(--font-mono); font-size: 0.85rem; white-space: pre-wrap; overflow-wrap: anywhere; user-select: all; }
+.mode-focus .command-line { border-radius: 8px; }
+.code-block { background: var(--bg-deep); padding: 12px; overflow: auto; font: 0.82rem/1.5 var(--font-mono); max-height: 420px; box-shadow: inset 0 0 0 1px var(--border); margin: 8px 0; }
+.code-block.pre-wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+.json-details > summary { cursor: pointer; color: var(--data); font-size: var(--fs-small); padding: 4px 0; }
+.scroll-box { max-height: 60vh; overflow: auto; padding-right: 6px; }
+.mono-area textarea { font-family: var(--font-mono); font-size: 0.85rem; white-space: pre; }
+
+/* Workflow rail */
+.step-rail { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; counter-reset: step; }
+.step-rail-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface); color: var(--text-3); font-size: var(--fs-small); font-weight: 600; min-width: 0; }
+.step-rail-item span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.step-rail-dot { flex: none; display: grid; place-items: center; width: 26px; height: 26px; background: var(--surface-3); }
+.step-rail-item.done { color: var(--text-2); }
+.step-rail-item.done .step-rail-dot { background: var(--tint-success); color: var(--success); }
+.step-rail-item.current { color: var(--text); background: var(--surface-2); box-shadow: inset 0 -3px 0 var(--accent); }
+.step-rail-item.current .step-rail-dot { background: var(--accent); color: var(--accent-ink); }
+.mode-focus .step-rail-item { border-radius: 8px; }
+.mode-focus .step-rail-dot { border-radius: 999px; }
+@media (max-width: 900px) { .step-rail { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* Lists, chips and forms */
+.list-editor { border: 0; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.list-editor legend { font-weight: 600; font-size: 0.9rem; padding: 0; margin-bottom: 4px; }
+.list-editor .hint { font-size: var(--fs-tiny); color: var(--text-2); margin: 0; }
+.list-editor .row > .input { flex: 1 1 200px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-remove { background: none; border: 0; color: inherit; cursor: pointer; padding: 0 0 0 2px; display: inline-flex; }
+.chip-remove:hover { color: var(--danger); }
+.action-form { margin-top: 4px; }
+.choices { border: 0; padding: 0; margin: 0; min-width: 0; }
+.choices legend { font-weight: 600; font-size: 0.9rem; padding: 0; margin-bottom: 6px; }
+.choice-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.choice-cloud { display: flex; flex-wrap: wrap; gap: 4px 14px; max-height: 220px; overflow: auto; padding: 6px 0; }
+.field.multi > summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+.criteria-row > .input:first-child { flex: 2 1 240px; }
+.sticky-actions { position: sticky; bottom: 0; background: var(--bg); padding: 10px 0; z-index: 3; border-top: 1px solid var(--border); }
+
+/* Home */
+.todo { display: flex; align-items: center; gap: 10px; }
+.todo.tone-danger { --edge: rgba(242, 140, 114, 0.55); }
+.todo.tone-warning { --edge: rgba(232, 184, 109, 0.5); }
+.stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.stat-link { display: block; padding: 10px 12px; background: var(--surface-2); color: inherit; text-decoration: none; }
+.stat-link:hover { background: var(--surface-3); }
+.mode-focus .stat-link { border-radius: 10px; }
+@media (max-width: 900px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.loop-steps { margin: 0; padding-left: 1.3rem; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 24px; }
+.loop-steps li { font-size: var(--fs-small); }
+@media (max-width: 900px) { .loop-steps { grid-template-columns: 1fr; } }
+table.data.compact td { padding: 6px 8px; }
+.table-wrap { overflow: auto; }
+.table-wrap.tall { max-height: 520px; }
+
+/* Quests */
+.kanban { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+.kanban-col { background: var(--surface); padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 160px; }
+.kanban-col > header { display: flex; justify-content: space-between; align-items: center; }
+.mode-focus .kanban-col { border-radius: 12px; }
+.task-card { display: flex; flex-direction: column; gap: 4px; }
+.task-card.blocked { --edge: rgba(242, 140, 114, 0.7); }
+.quest-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+
+/* Council */
+.board-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.board-grid > li, .board-pick { display: flex; flex-direction: column; gap: 4px; }
+.board-seats { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; margin: 12px 0; }
+.board-seat { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px; background: var(--surface-2); position: relative; }
+.board-seat-icon { display: grid; place-items: center; width: 36px; height: 36px; background: var(--surface-3); color: var(--text-2); }
+.board-seat-done .board-seat-icon { background: var(--tint-success); color: var(--success); }
+.board-seat-started .board-seat-icon { background: var(--tint-ai); color: var(--ai); }
+.board-seat-failed .board-seat-icon { background: var(--tint-danger); color: var(--danger); }
+.board-seats.rpg .board-seat { background: linear-gradient(180deg, var(--surface-2), var(--surface)); box-shadow: inset 0 -4px 0 var(--room-line); }
+.board-seats.rpg .board-seat-done { box-shadow: inset 0 -4px 0 var(--accent); }
+.mode-focus .board-seat { border-radius: 12px; }
+.mode-focus .board-seat-icon { border-radius: 999px; }
+.review-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.review-card { display: flex; flex-direction: column; gap: 6px; }
+.review-card.verdict-block { --edge: rgba(242, 140, 114, 0.7); }
+.review-card.verdict-revise, .review-card.verdict-insufficient-evidence { --edge: rgba(232, 184, 109, 0.55); }
+.review-card details > summary { cursor: pointer; font-size: var(--fs-small); color: var(--data); }
+.review-card p { margin: 0; }
+.blocker { display: flex; flex-direction: column; gap: 6px; --edge: rgba(242, 140, 114, 0.6); }
+.blocker.resolved { --edge: var(--border); opacity: 0.85; }
+.decision-grid .card { display: flex; flex-direction: column; gap: 8px; }
+
+/* Library and guild */
+.ref-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.ref-card { display: flex; flex-direction: column; gap: 6px; height: calc(100% - 2 * var(--px)); }
+.ref-card.active, .pack.active { --edge: var(--accent); }
+.pack > summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pager { margin-top: 12px; }
+.brain-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.brain-card { display: flex; flex-direction: column; gap: 6px; height: calc(100% - 2 * var(--px)); }
+.brain-card.off { opacity: 0.6; }
+.brain-emblem { display: grid; place-items: center; width: 34px; height: 34px; background: var(--tint-success); color: var(--accent); }
+.brain-grid.rpg .brain-emblem { background: var(--bg-deep); box-shadow: 0 0 0 2px var(--room-line); }
+.mode-focus .brain-emblem { border-radius: 10px; }
+
+/* Chronicles */
+.chronicle { position: relative; display: flex; flex-direction: column; gap: 4px; }
+.chronicle::before { content: ''; position: absolute; left: 15px; top: 6px; bottom: 6px; width: 2px; background: var(--border); }
+.chronicle-item { display: flex; gap: 12px; position: relative; padding: 6px 0; }
+.chronicle-item p { margin: 0 0 2px; }
+.chronicle-dot { flex: none; display: grid; place-items: center; width: 32px; height: 32px; background: var(--surface-3); color: var(--text-2); z-index: 1; }
+.chronicle-item.tone-success .chronicle-dot { background: var(--tint-success); color: var(--success); }
+.chronicle-item.tone-warning .chronicle-dot { background: var(--tint-warning); color: var(--warning); }
+.chronicle-item.tone-info .chronicle-dot { background: var(--tint-data); color: var(--data); }
+.mode-focus .chronicle-dot { border-radius: 999px; }
+
+/* Setup */
+.setup-page { max-width: 1180px; margin: 0 auto; padding: 32px 20px 64px; display: flex; flex-direction: column; gap: var(--gap); }
+.setup-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.setup-hero h1 { margin: 8px 0 0; }
+.setup-hero p { max-width: 70ch; margin: 0; color: var(--text-2); }
+.setup-grid { align-items: start; }
+
+/* Search */
+.palette-results { margin: 10px 0 0; max-height: 60vh; overflow: auto; display: flex; flex-direction: column; gap: 2px; }
+.palette-hit { display: flex; align-items: center; gap: 10px; padding: 8px 10px; color: inherit; text-decoration: none; }
+.palette-hit:hover, .palette-hit:focus-visible { background: var(--surface-3); }
+
+@media (max-width: 760px) {
+  .project-app .grid-2, .project-app .grid-3 { grid-template-columns: minmax(0, 1fr); }
+  .kanban { grid-auto-columns: minmax(78vw, 1fr); }
+}
+
+/* Cards of the project interface stack their lines; a few lay out in a row. */
+.project-app .card { display: flex; flex-direction: column; gap: 4px; }
+.project-app .card.todo { flex-direction: row; align-items: center; gap: 10px; }
+.project-app .card > .row { flex-wrap: wrap; }
+
+.swatch { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; box-shadow: 0 0 0 1px var(--border-strong); }
+tr.muted td { opacity: 0.7; }
+
+/* A long command or address in a chip wraps instead of widening the page (a fieldset takes its content's width by default). */
+.chips .chip { max-width: 100%; }
+.chips .chip > span { overflow-wrap: anywhere; min-width: 0; }

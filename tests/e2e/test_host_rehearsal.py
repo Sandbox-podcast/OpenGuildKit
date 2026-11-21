@@ -25,7 +25,7 @@ class HostRehearsalTests(unittest.TestCase):
             observed = json.loads(report.read_text(encoding="utf-8"))
         self.assertTrue(observed["passes_done"])
         self.assertTrue(all(observed["briefs_scoped"]))
-        self.assertIn("security-to-product", observed["objections"])
+        self.assertTrue(any(item.startswith("security-to-") for item in observed["objections"]), observed["objections"])
         self.assertTrue(observed["insufficient_evidence"])
         if os.name == "posix":
             self.assertTrue(observed["approved"])

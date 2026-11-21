@@ -140,6 +140,32 @@ class RoutingTests(unittest.TestCase):
         self.assertIn("product", text_routes(self.boards, "Plan the product discovery interviews"))
         self.assertNotIn("discovery", self.boards["product"]["triggers"])
 
+    def test_a_negated_word_routes_no_brain(self):
+        text = "No personal data, no payments, no AI model, no customer screen"
+        self.assertEqual(text_routes(self.boards, text), {})
+        for brief in ("Sans paiement ni budget", "Pas de paiement, aucun budget", "without any payment"):
+            with self.subTest(brief=brief):
+                self.assertNotIn("finance", text_routes(self.boards, brief))
+
+    def test_a_comma_or_but_ends_the_negation(self):
+        self.assertIn("finance", text_routes(self.boards, "No customer screen, but a payment retry"))
+        self.assertIn("finance", text_routes(self.boards, "Users must not exceed the budget"))
+
+    def test_the_reason_quotes_the_passage_that_routes_a_brain(self):
+        reasons = text_routes(self.boards, "Add billing and payment retries")["finance"]
+        self.assertTrue(all("add billing and payment retries" in reason for reason in reasons), reasons)
+
+    def test_the_route_lists_the_boards_it_leaves_out_and_how_to_change_them(self):
+        profile = {"name": "Portal", "sector": "general", "packs": [], "boards": [], "roles": ["support"]}
+        routed = self.route("A weekly report for the support team", profile=profile)
+        self.assertIn("support", routed["routing"])
+        self.assertIn("Declared role", routed["routing"]["support"][0])
+        left_out = {item["board"]: item["reason"] for item in routed["not_selected"]}
+        self.assertNotIn("support", left_out)
+        self.assertIn("finance", left_out)
+        self.assertEqual(set(left_out) | set(routed["routing"]), set(self.boards))
+        self.assertIn("--add BOARD --reason", routed["commands"]["add"])
+
 
 if __name__ == "__main__":
     unittest.main()

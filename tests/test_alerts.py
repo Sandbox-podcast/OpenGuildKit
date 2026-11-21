@@ -181,9 +181,12 @@ class AlertFlowTests(unittest.TestCase):
         self.init()
         self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json")
         self.cli("alerts", "set", CRITICAL, "--status", "confirmed", "--by", "Alex")
-        self.assertIn("interactive terminal", self.cli("alerts", "set", CRITICAL, "--status", "dismissed", "--by", "Bot",
-                                                       "--reason", "noise", code=1))
-        self.assertIn("interactive terminal", self.cli("alerts", "accept", CRITICAL, "--by", "Bot", "--reason", "x", code=1))
+        # Without a terminal (an agent, a pipe), whatever stdin the test runner was given.
+        with patch("sys.stdin.isatty", return_value=False):
+            self.assertIn("interactive terminal", self.cli("alerts", "set", CRITICAL, "--status", "dismissed",
+                                                           "--by", "Bot", "--reason", "noise", code=1))
+            self.assertIn("interactive terminal", self.cli("alerts", "accept", CRITICAL, "--by", "Bot", "--reason", "x",
+                                                           code=1))
         new = json.loads(self.cli("alerts", "list", "--status", "confirmed", "--without-task", "--json"))
         self.assertEqual([alert["id"] for alert in new["alerts"]], [CRITICAL])
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=CRITICAL):

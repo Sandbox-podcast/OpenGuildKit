@@ -43,7 +43,7 @@ openguildkit market change ID --competitor vendor-a --what "Added priority label
 openguildkit market pause ID               # resume restarts the watch
 ```
 
-`market due` lists the sources whose last check is older than the interval. The sources are reviewed only when the project's research policy allows public sources. `market checked` records a review with nothing to keep; `market change` records a retained change with what changed, its date, the source link and the person who verified it. Both set `last_checked` of the watched source to today (for `market change`, when its `--source` is a watched page). Consultations carry the changes with their age; a board cites one with `market:ID/change-N`. The CLI itself never opens the network.
+`market due` lists the sources whose last check is older than the interval. Under the `local-only` research policy the agent does not open the page: a person gives it to the agent, who records it with `market checked` or `market change`, and `market due` stops listing it until the interval passes again. A consultation flags a dossier whose subject shares no word with the task, so its gaps are read as background. The sources are reviewed only when the project's research policy allows public sources. `market checked` records a review with nothing to keep; `market change` records a retained change with what changed, its date, the source link and the person who verified it. Both set `last_checked` of the watched source to today (for `market change`, when its `--source` is a watched page). Consultations carry the changes with their age; a board cites one with `market:ID/change-N`. The CLI itself never opens the network.
 
 ## The `market-analyst` agent
 

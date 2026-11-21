@@ -1,0 +1,88 @@
+.guild-workshop {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--room-edge);
+  background: var(--bg-deep);
+  box-shadow: 0 3px 0 var(--bg-deep), inset 0 0 0 2px var(--room-line);
+}
+
+.guild-workshop-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1900 / 828;
+  object-fit: cover;
+}
+
+.guild-workshop-stations {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.guild-station {
+  position: absolute;
+  bottom: 10%;
+  transform: translateX(-50%);
+}
+.guild-station-1 { left: 16%; }
+.guild-station-2 { left: 40%; }
+.guild-station-3 { left: 63%; }
+.guild-station-4 { left: 86%; }
+
+.guild-station-link {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: end;
+  min-height: 44px;
+  color: var(--text);
+  text-decoration: none;
+  transition: transform var(--t-fast);
+}
+
+.guild-station-sprite {
+  display: block;
+  width: clamp(38px, 5.15vw, 76px);
+  height: auto;
+  filter: drop-shadow(0 3px 3px #020508);
+}
+
+.guild-station-sign {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  border: 1px solid var(--room-edge);
+  background: var(--bg-deep);
+  color: var(--text-2);
+  padding: 5px 10px 6px;
+  line-height: 1.15;
+  white-space: nowrap;
+  box-shadow: 0 2px 0 #0a080d;
+}
+.guild-station-sign strong { color: var(--text); font-size: 0.875rem; }
+.guild-station-sign > span { font-size: 0.73rem; }
+.guild-station-link:is(:hover, :focus-visible) .guild-station-sign { border-color: var(--accent); }
+.guild-station-link:hover { transform: translateY(-3px); }
+.guild-roster-title { margin: 4px 0 0; }
+
+@media (max-width: 680px) {
+  .guild-workshop-image { min-height: 128px; }
+  .guild-workshop-stations {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    border-top: 1px solid var(--room-edge);
+    background: var(--room-line);
+  }
+  .guild-station { position: static; transform: none; min-width: 0; }
+  .guild-station-link { flex-direction: row; justify-content: start; min-height: 52px; padding: 6px; background: var(--bg-deep); }
+  .guild-station-link:hover { transform: none; }
+  .guild-station-link:focus-visible { outline-offset: -3px; }
+  .guild-station-sign { justify-items: start; background: none; border: 0; box-shadow: none; padding: 0 4px; white-space: normal; overflow-wrap: anywhere; }
+  .guild-station-sign > span { line-height: 1.2; }
+  .guild-station-sprite { width: 20px; flex: 0 0 auto; }
+  .guild-station-art { flex: 0 0 auto; }
+}

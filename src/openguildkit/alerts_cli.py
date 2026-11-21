@@ -112,9 +112,20 @@ def run(args, state: Path) -> None:
         save_register(state, register)
     if action == "import":
         _print_changes(changes, args.json)
+        _consulted_note(state, args.task, args.json)
     else:
         alert = find_alert(register, args.alert)
         print(f"{alert['id']}: {alert['status']}" + (" (accepted)" if alert.get("accepted") else ""))
+
+
+def _consulted_note(state: Path, task_id: str | None, as_json: bool) -> None:
+    """The boards read the alerts of a task when it is consulted: say so when it already was."""
+    if not task_id or as_json:
+        return
+    task = read_task(state, task_id)
+    if "consultation" in task and task.get("status") != "done":
+        print(f"{task_id} was already consulted: run openguildkit task consult {task_id} again so that the boards "
+              "see these alerts.", file=sys.stderr)
 
 
 def task_command(args, state: Path, task: dict) -> None:
@@ -135,6 +146,8 @@ def task_command(args, state: Path, task: dict) -> None:
         if migrated != current:
             write_json(task_path(state, args.id), migrated)
     alerts = task_alerts(register, migrated, tuple(STATUSES))
+    if args.import_file:
+        _consulted_note(state, args.id, args.json)
     imports = register.get("imports", [])[-1:] if args.import_file else []
     _print_alerts(alerts, {"summary": summary(alerts, imports)} if args.json else {"imports": imports}, args.json)
 

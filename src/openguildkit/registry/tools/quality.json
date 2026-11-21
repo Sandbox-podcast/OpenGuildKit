@@ -133,6 +133,8 @@
             "SONARQUBE_TOKEN",
             "-e",
             "SONARQUBE_ORG",
+            "-e",
+            "SONARQUBE_URL",
             "sonarsource/sonarqube-mcp"
           ],
           "package": {

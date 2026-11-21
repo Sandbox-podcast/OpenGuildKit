@@ -1,0 +1,126 @@
+/* Pro uses the same workspace and native controls on a light, neutral surface. */
+:root:has(.app.mode-focus) {
+  color-scheme: light;
+  --bg: #f4f7f5;
+  --bg-deep: #fdfdfd;
+  --surface: #ffffff;
+  --surface-2: #eef4f0;
+  --surface-3: #e4eee8;
+  --border: #d8e3dd;
+  --border-strong: #758d83;
+  --text: #14231d;
+  --text-2: #3d5148;
+  --text-3: #4b6358;
+  --muted: #577064;
+  --accent: #17654e;
+  --accent-strong: #0e4f3c;
+  --accent-ink: #fdfdfd;
+  --data: #17654e;
+  --success: #205b46;
+  --warning: #6b4e20;
+  --danger: #9c313b;
+  --ai: #365651;
+  --tint-success: #e4f4eb;
+  --tint-warning: #f9f0dc;
+  --tint-danger: #faecee;
+  --tint-ai: #e9f1ef;
+  --tint-data: #e7f4ee;
+  --tint-neutral: #e9efeb;
+  --font-pixel: var(--font-body);
+  --radius: 12px;
+  --px: 1px;
+}
+
+.mode-focus .main { padding: 28px clamp(18px, 3vw, 52px) 70px; }
+.mode-focus .main > .stack { gap: 18px; }
+.mode-focus .topbar { background: var(--surface); }
+.mode-focus .topbar .identity { min-height: 36px; border-radius: 8px; }
+.mode-focus .topbar .searchbox, .mode-focus .pickers select { border: 1px solid var(--border); border-radius: 8px; box-shadow: none; }
+.mode-focus .topbar .searchbox { cursor: pointer; }
+.mode-focus .searchbox:hover, .mode-focus .pickers select:hover { border-color: var(--border-strong); }
+.mode-focus .sidebar { padding: 20px 10px; gap: 18px; background: var(--surface); }
+.mode-focus .nav-item { border: 0; border-radius: 8px; min-height: 39px; padding: 5px 10px; }
+.mode-focus .nav-item:hover { background: var(--surface-2); }
+.mode-focus .nav-item[aria-current='page'] { background: var(--tint-data); color: var(--accent-strong); }
+.mode-focus .nav-line-icon { flex: 0 0 auto; }
+.mode-focus .nav-group-label { font-size: 0.69rem; letter-spacing: 0.06em; }
+.mode-focus .nav-room-note { font-weight: 500; }
+.mode-focus .guide-link { border-radius: 8px; background: var(--surface); color: var(--text-2); }
+.mode-focus .guide-link:hover { background: var(--surface-2); }
+.mode-focus .guide { box-shadow: -10px 0 32px rgb(15 36 30 / 10%); }
+.mode-focus .place-heading { padding: 0 0 15px; margin-bottom: 18px; }
+.mode-focus .place-heading h1 { font-weight: 660; font-size: clamp(1.62rem, 3vw, 2.15rem); letter-spacing: -0.035em; line-height: 1.15; }
+.mode-focus .resume-work { border-radius: var(--radius); background: var(--surface); overflow: hidden; box-shadow: 0 1px 3px rgb(15 36 30 / 4%); }
+.mode-focus .resume-primary { background: #edf8f1; border: 0; }
+.mode-focus .resume-primary, .mode-focus .resume-project { padding: 16px 20px; }
+.mode-focus .resume-action, .mode-focus .resume-project > a { text-decoration: none; }
+.mode-focus .resume-project > .resume-all-projects { display: inline-flex; align-items: center; gap: 6px; margin-top: 5px; width: fit-content; color: var(--accent); }
+.mode-focus :is(.resume-action, .resume-project > a):is(:hover, :focus-visible) { text-decoration: underline; }
+
+.mode-focus .pixel-font { letter-spacing: -0.015em; }
+.mode-focus :is(.panel, .card, .tabs, .dialog, .toast, .menu-pop) { border: 1px solid var(--edge, var(--border)); box-shadow: 0 1px 3px rgb(15 36 30 / 5%); border-radius: var(--radius); }
+.mode-focus .panel { padding: 18px; margin: 0; }
+.mode-focus .panel > header { gap: 12px; margin-bottom: 16px; }
+.mode-focus .panel h2 { font-size: 1.09rem; letter-spacing: -0.02em; }
+.mode-focus .card { margin: 0; }
+.mode-focus .card:hover { --edge: var(--border-strong); background-color: var(--surface-2); }
+.mode-focus .btn { border: 1px solid var(--border); border-radius: 8px; box-shadow: none; margin: 0; min-height: 36px; }
+.mode-focus .btn.small { min-height: 32px; }
+.mode-focus .btn.ghost { border-color: transparent; }
+.mode-focus .btn::after { display: none; }
+.mode-focus .btn.primary { border-color: var(--accent); }
+.mode-focus .btn.danger { color: var(--danger); background: var(--tint-danger); border-color: #e8c8ce; }
+.mode-focus .btn.ai { color: var(--ai); background: var(--tint-ai); border-color: var(--border); }
+.mode-focus .btn:is(:disabled, [aria-disabled='true']) { color: var(--muted); background: var(--surface-2); border-color: var(--border); }
+.mode-focus .field :is(input, select, textarea) { width: 100%; margin: 0; border: 1px solid var(--edge); border-radius: 8px; box-shadow: none; }
+.mode-focus .field :is(input, select, textarea):focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mode-focus .field :is(input, select, textarea):disabled { background: var(--surface-2); }
+.mode-focus :is(.seg, .appearance-compact) { background: var(--surface-2); border-radius: 9px; }
+.mode-focus .seg button { border-radius: 6px; }
+.mode-focus .seg button[aria-pressed='true'] { color: var(--text); background: var(--surface); box-shadow: 0 1px 3px rgb(18 41 32 / 16%); }
+.mode-focus .tabs { margin: 0; padding: 4px 7px; background: var(--bg-deep); }
+.mode-focus .tabs [aria-selected='true'] { color: var(--accent-strong); }
+.mode-focus .badge { border-left: 0; border-radius: 5px; }
+.mode-focus .badge.count { color: var(--accent-strong); background: var(--tint-data); font-variant-numeric: tabular-nums; }
+.mode-focus .badge.count.danger { color: var(--danger); background: var(--tint-danger); }
+.mode-focus .badge.count.warning { color: var(--warning); background: var(--tint-warning); }
+.mode-focus :is(.badge.tone-ai, .badge.sim, .ai-mark, .chip.ai) { color: var(--ai); background: var(--tint-ai); }
+.mode-focus .badge.sim { border: 1px solid var(--border); }
+.mode-focus .badge.tone-muted { color: var(--text-3); background: var(--tint-neutral); }
+.mode-focus .version { border-radius: 4px; background: var(--tint-data); }
+.mode-focus table.data tr:hover td { background: var(--surface-2); }
+.mode-focus .tooltip [role='tooltip'] { color: var(--text); background: var(--surface); }
+.mode-focus .progress > span { background: var(--success); }
+.mode-focus .diff .add { color: var(--success); background: var(--tint-success); }
+.mode-focus .diff .del { color: var(--danger); background: var(--tint-danger); }
+.mode-focus .notice { border-radius: 6px; }
+.mode-focus .timeline li { border-color: var(--border); }
+.mode-focus .board-col, .mode-focus .calendar .day { box-shadow: inset 0 0 0 1px var(--border); border-radius: 8px; }
+.mode-focus .board-col.drop { box-shadow: inset 0 0 0 2px var(--accent); background: var(--tint-data); }
+.mode-focus :is(.gallery-canvas, .slide-stage, .landing-frame, .timeline-bar span:nth-child(2n)) { background: var(--surface-2); }
+.mode-focus .expert-card { text-align: left; align-items: flex-start; padding: 16px; }
+.mode-focus .expert-card .portrait-frame { padding: 0; box-shadow: none; border-radius: 8px; }
+.mode-focus .expert-card .portrait-frame img { width: 44px; height: 44px; border-radius: 8px; }
+.mode-focus .expert-card .class { color: var(--text); }
+.mode-focus .expert-profile-art { border: 0; padding: 0; min-width: 0; background: none; }
+.mode-focus .expert-profile-art img { border-radius: 12px; }
+.mode-focus .council-table .seat-name { border: 0; }
+.mode-focus .seat .portrait-frame { box-shadow: none; border-radius: 8px; }
+.mode-focus .entry-home { padding: 74px clamp(16px, 4vw, 48px) 42px; }
+.mode-focus :is(.entry-hero, .entry-grid) { max-width: 1120px; }
+.mode-focus .entry-hero { min-height: auto; border-radius: 18px; background: var(--surface); box-shadow: 0 1px 3px rgb(15 36 30 / 5%); }
+.mode-focus .entry-copy { padding: clamp(20px, 5vw, 60px); }
+.mode-focus .entry-copy h1 { max-width: 18ch; font-size: clamp(1.9rem, 4vw, 3.15rem); font-weight: 660; letter-spacing: -0.045em; }
+.mode-focus .entry-copy p { max-width: 48ch; }
+.mode-focus .entry-copy .brand-hero { margin-bottom: 20px; }
+.mode-focus .entry-actions .btn { min-height: 44px; }
+
+@media (max-width: 900px) {
+  .mode-focus .main { padding: 16px 12px 62px; }
+  .mode-focus .sidebar { background: var(--surface); }
+}
+
+@media (max-width: 480px) {
+  .mode-focus .panel { padding: 13px; }
+  .mode-focus .resume-primary, .mode-focus .resume-project { padding: 12px; }
+}

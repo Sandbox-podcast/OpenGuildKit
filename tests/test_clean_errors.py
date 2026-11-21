@@ -154,7 +154,7 @@ class CleanErrorTests(unittest.TestCase):
         self.reviewed()
         payload = json.loads(self.output("task", "deliberate", TASK))["template"]
         path = self.root / "deliberation.json"
-        for field, value in (("objection", ["x"]), ("board", {"id": "x"}), ("position", ["maintain"])):
+        for field, value in (("objection", 7), ("board", {"id": "x"}), ("position", ["maintain"])):
             broken = json.loads(json.dumps(payload))
             broken["responses"][0][field] = value
             write_json(path, broken)
