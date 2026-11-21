@@ -57,7 +57,7 @@ function githubFixture(t) {
     const head = commitJson(origin, 'export.json', { downloadLinkMinutes: minutes });
     git(origin, 'update-ref', `refs/pull/${number}/head`, head);
     git(origin, 'switch', '-q', 'main');
-    pulls.push({ number, state: 'open', head: { sha: head }, base: { repo: { full_name: 'team/repo' } } });
+    pulls.push({ number, state: 'open', head: { sha: head }, base: { ref: 'main', repo: { full_name: 'team/repo' } } });
     return head;
   };
   execFileSync('git', ['clone', '-q', origin, join(root, 'clone')]);
@@ -68,7 +68,7 @@ function githubFixture(t) {
   const request = (...args) => {
     const endpoint = args.at(-1);
     if (api.responses.has(endpoint)) return JSON.stringify(api.responses.get(endpoint)());
-    if (endpoint === 'repos/team/repo/pulls?state=open&per_page=100') return JSON.stringify([pulls]);
+    if (endpoint === 'repos/team/repo/pulls?state=open&base=main&per_page=100') return JSON.stringify([pulls]);
     if (endpoint === 'repos/team/repo/pulls/3') {
       return JSON.stringify({
         merged: true, merged_by: { login: api.mergedBy }, merge_commit_sha: mergeCommit,
@@ -126,16 +126,16 @@ test('an error limited to one project or one PR is reported without stopping the
   const { root, origin, api, addPull, pulls, configure, sync } = githubFixture(t);
   const head = addPull(7, 45);
   const moved = addPull(8, 20);
-  pulls.push({ number: 9, state: 'open', head: { sha: 'not-a-commit' }, base: { repo: { full_name: 'team/repo' } } });
-  api.responses.set('repos/team/repo/pulls?state=open&per_page=100',
+  pulls.push({ number: 9, state: 'open', head: { sha: 'not-a-commit' }, base: { ref: 'main', repo: { full_name: 'team/repo' } } });
+  api.responses.set('repos/team/repo/pulls?state=open&base=main&per_page=100',
     () => [pulls.map(pr => pr.number === 8 ? { ...pr, head: { sha: '0'.repeat(40) } } : pr)]);
   git(origin, 'switch', '-q', '-c', 'broken');
   writeFileSync(join(origin, 'openguildkit.json'),
     '{"schemaVersion": 1, "owner": "@x", "owner": "@y", "policyPath": "policy/export-link.json", "targetPath": "export.json"}');
   git(origin, 'commit', '-qam', 'Duplicate a key');
   git(origin, 'switch', '-q', 'main');
-  api.responses.set('repos/team/broken/pulls?state=open&per_page=100',
-    () => [[{ number: 7, state: 'open', head: { sha: head }, base: { repo: { full_name: 'team/broken' } } }]]);
+  api.responses.set('repos/team/broken/pulls?state=open&base=broken&per_page=100',
+    () => [[{ number: 7, state: 'open', head: { sha: head }, base: { ref: 'broken', repo: { full_name: 'team/broken' } } }]]);
   configure({ profileMaintainer: 'lead' }, { others: [{ id: 'team/broken', path: 'clone', profileRef: 'refs/heads/broken' }] });
 
   const result = sync({ run: true });
@@ -165,6 +165,34 @@ test('an error limited to one project or one PR is reported without stopping the
   git(origin, 'commit', '-qm', 'Add an invalid waiver');
   configure({ profileMaintainer: 'lead' }, { policy: { waiversPath: 'policy/waivers.json' } });
   assert.throws(() => sync(), /Dérogation invalide : incomplete/);
+});
+
+test('only the PRs into the profile branch are evaluated, and their statuses are in English', t => {
+  const { root, addPull, pulls, configure, request, fetchRefs, configPath } = githubFixture(t);
+  const head = addPull(7, 45);
+  addPull(8, 20);
+  pulls[1] = { ...pulls[1], base: { ...pulls[1].base, ref: 'release/1' } };
+  configure({ profileMaintainer: 'lead' });
+  const endpoints = [];
+  const posted = [];
+  const spy = (...args) => {
+    endpoints.push(args.at(-1));
+    if (args[1] === `repos/team/repo/statuses/${head}`) {
+      posted.push(args.find(arg => arg.startsWith('description=')));
+      return '{}';
+    }
+    if (args.at(-1) === 'repos/team/repo/pulls/7') return JSON.stringify({ state: 'open', head: { sha: head } });
+    if (args.at(-1) === `repos/team/repo/commits/${head}/status?per_page=100`) return JSON.stringify([{ statuses: [] }]);
+    return request(...args);
+  };
+  const result = reconcileGithub({ configPath, stateDir: join(root, 'state'), kitVersion: '0.16.1', run: true, publish: true },
+    { request: spy, fetchRefs });
+
+  assert.ok(endpoints.includes('repos/team/repo/pulls?state=open&base=main&per_page=100'));
+  assert.deepEqual(result.current.map(row => [row.pullRequest, row.status]), [[7, 'failure']]);
+  assert.deepEqual(result.errors, []);
+  assert.equal(posted.length, 1);
+  assert.match(posted[0], /^description=Deviation \(obs\.\) \| rule [a-f0-9]{12} \| profile [a-f0-9]{12} \| [a-f0-9]{12}$/);
 });
 
 test('the merge rechecks that the merge application is the only bypass actor', () => {
@@ -209,4 +237,10 @@ test('the enforcement templates guard organization repositories and verifiable s
   const posts = [...required.matchAll(/(.*)gh api "repos\/\$GITHUB_REPOSITORY\/statuses\//g)];
   assert.equal(posts.length, 2);
   assert.ok(posts.every(([, prefix]) => prefix.includes('GH_TOKEN="$STATUS_TOKEN"')));
+  assert.match(required, /description='OpenGuildKit is checking the current commit'/);
+  assert.match(required, /description='OpenGuildKit check incomplete'/);
+  assert.match(required, /effectiveStatus \+ " \| rule " \+/);
+  for (const name of ['agent-workflow.yml', 'broker-workflow.yml', 'recheck-workflow.yml', 'required-workflow.yml']) {
+    assert.doesNotMatch(read(name), /[^\x00-\x7f]/, name);
+  }
 });

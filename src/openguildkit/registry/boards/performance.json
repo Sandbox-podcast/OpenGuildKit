@@ -60,22 +60,38 @@
       {
         "id": "client-responsiveness",
         "title": "Client performance engineer",
-        "focus": "Choose a user-visible interaction and measure it across the devices, browsers and network conditions that matter to the audience."
+        "focus": "Choose a user-visible interaction and measure it across the devices, browsers and network conditions that matter to the audience.",
+        "checks": [
+          "The interaction is measured on the devices and networks of real users, at the 75th percentile.",
+          "Field data is preferred to lab data when both exist."
+        ]
       },
       {
         "id": "service-latency",
         "title": "Service performance engineer",
-        "focus": "Break down time across queueing, service work, storage and upstream calls. Identify the bottleneck that the proposal addresses."
+        "focus": "Break down time across queueing, service work, storage and upstream calls. Identify the bottleneck that the proposal addresses.",
+        "checks": [
+          "Latency is broken down into queueing, service work, storage and upstream calls.",
+          "Percentiles, not averages, are compared before and after."
+        ]
       },
       {
         "id": "capacity",
         "title": "Capacity engineer",
-        "focus": "Compare expected concurrency and growth with measured saturation. Quantify headroom, cost and behavior when an upstream service slows."
+        "focus": "Compare expected concurrency and growth with measured saturation. Quantify headroom, cost and behavior when an upstream service slows.",
+        "checks": [
+          "Expected peak load is compared with measured saturation points.",
+          "Behaviour when an upstream service slows down is tested."
+        ]
       },
       {
         "id": "benchmark-review",
         "title": "Benchmark reviewer",
-        "focus": "Check that baseline and candidate runs are comparable. Examine sample size, cache state and variance before interpreting an apparent improvement."
+        "focus": "Check that baseline and candidate runs are comparable. Examine sample size, cache state and variance before interpreting an apparent improvement.",
+        "checks": [
+          "Baseline and candidate runs use the same data, cache state and environment.",
+          "Variance and sample size are reported with any improvement."
+        ]
       }
     ],
     "evidence": [

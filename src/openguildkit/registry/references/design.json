@@ -7,6 +7,10 @@
       "title": "Double Diamond",
       "category": "Design UX et systèmes de composants",
       "kind": "méthode",
+      "brains": [
+        "design",
+        "product"
+      ],
       "summary": "Structure la recherche du problème puis l'exploration et la validation de solutions.",
       "applies_when": "Pour organiser un travail de conception et de recherche utilisateur.",
       "pattern": "double-diamond",
@@ -23,8 +27,12 @@
     {
       "id": "iso-9241-210",
       "title": "ISO 9241-210",
+      "edition": "2019",
       "category": "Design UX et systèmes de composants",
       "kind": "norme",
+      "brains": [
+        "design"
+      ],
       "summary": "Principes et activités de conception centrée sur les personnes pour les systèmes interactifs.",
       "applies_when": "Pour cadrer le processus de conception, pas pour certifier automatiquement une interface.",
       "sources": [
@@ -37,8 +45,12 @@
     {
       "id": "iso-9241-11",
       "title": "ISO 9241-11",
+      "edition": "2018",
       "category": "Design UX et systèmes de composants",
       "kind": "norme",
+      "brains": [
+        "design"
+      ],
       "summary": "Définit l'utilisabilité en tenant compte des utilisateurs, des objectifs et du contexte d'usage.",
       "applies_when": "Pour définir et évaluer l'efficacité, l'efficience et la satisfaction en contexte.",
       "sources": [
@@ -53,6 +65,9 @@
       "title": "Heuristiques de Nielsen",
       "category": "Design UX et systèmes de composants",
       "kind": "principe",
+      "brains": [
+        "design"
+      ],
       "summary": "Repères d'évaluation ergonomique des interfaces et de la compréhension du système.",
       "applies_when": "Pour une revue UX ; ne remplace pas les tests avec des utilisateurs.",
       "sources": [
@@ -67,6 +82,11 @@
       "title": "HEART",
       "category": "Design UX et systèmes de composants",
       "kind": "méthode",
+      "brains": [
+        "design",
+        "product",
+        "customer-success"
+      ],
       "summary": "Cadre de mesure de l'expérience : satisfaction, engagement, adoption, rétention et réussite des tâches.",
       "applies_when": "Choisir les dimensions pertinentes selon les objectifs du produit.",
       "sources": [
@@ -81,6 +101,9 @@
       "title": "Atomic Design",
       "category": "Design UX et systèmes de composants",
       "kind": "méthode",
+      "brains": [
+        "design"
+      ],
       "summary": "Organise les éléments d'interface en composants composables jusqu'aux écrans.",
       "applies_when": "Pour structurer un design system et favoriser la réutilisation.",
       "sources": [
@@ -93,8 +116,13 @@
     {
       "id": "dtcg-design-tokens",
       "title": "DTCG Design Tokens",
+      "edition": "2025.10",
       "category": "Design UX et systèmes de composants",
       "kind": "spécification",
+      "brains": [
+        "design",
+        "engineering"
+      ],
       "summary": "Format d'échange des valeurs de design comme couleurs, espacements et typographie.",
       "applies_when": "Choisir une version publiée du format ; ce rapport communautaire n'est pas une recommandation W3C.",
       "sources": [
@@ -109,6 +137,9 @@
       "title": "Material Design",
       "category": "Design UX et systèmes de composants",
       "kind": "référentiel",
+      "brains": [
+        "design"
+      ],
       "summary": "Langage de design et composants documentés pour des interfaces cohérentes.",
       "applies_when": "Option de design system à adapter à la plateforme et à la marque.",
       "sources": [
@@ -123,6 +154,9 @@
       "title": "Apple Human Interface Guidelines",
       "category": "Design UX et systèmes de composants",
       "kind": "guide",
+      "brains": [
+        "design"
+      ],
       "summary": "Recommandations de conception pour les plateformes Apple.",
       "applies_when": "Pour les applications Apple ; ne se transpose pas automatiquement à tous les produits.",
       "sources": [
@@ -137,6 +171,9 @@
       "title": "Fluent 2",
       "category": "Design UX et systèmes de composants",
       "kind": "référentiel",
+      "brains": [
+        "design"
+      ],
       "summary": "Système de styles, composants et recommandations de Microsoft.",
       "applies_when": "Option de bibliothèque et de langage visuel selon la plateforme.",
       "sources": [
@@ -151,6 +188,9 @@
       "title": "Carbon Design System",
       "category": "Design UX et systèmes de composants",
       "kind": "référentiel",
+      "brains": [
+        "design"
+      ],
       "summary": "Système de composants et de recommandations maintenu par IBM.",
       "applies_when": "Option de système de design à évaluer selon les besoins et licences.",
       "sources": [
@@ -165,6 +205,9 @@
       "title": "GOV.UK Design System",
       "category": "Design UX et systèmes de composants",
       "kind": "référentiel",
+      "brains": [
+        "design"
+      ],
       "summary": "Styles, composants et parcours de référence pour les services publics britanniques.",
       "applies_when": "Pour les services concernés ou comme référence d'étude, en respectant les conditions de réutilisation.",
       "sources": [
@@ -179,6 +222,9 @@
       "title": "Système de Design de l'État",
       "category": "Design UX et systèmes de composants",
       "kind": "référentiel",
+      "brains": [
+        "design"
+      ],
       "summary": "Composants et principes visuels des interfaces officielles de l'État français.",
       "applies_when": "Pour les services autorisés à utiliser le DSFR ; sa marque n'est pas libre d'usage universel.",
       "sources": [
@@ -193,6 +239,11 @@
       "title": "Storybook",
       "category": "Design UX et systèmes de composants",
       "kind": "outil",
+      "brains": [
+        "design",
+        "engineering",
+        "frontend"
+      ],
       "summary": "Catalogue exécutable des composants et de leurs états pour documenter et tester l'interface.",
       "applies_when": "Quand l'équipe documente et teste ses composants isolément, avec un framework d'interface pris en charge par Storybook.",
       "sources": [
@@ -205,8 +256,14 @@
     {
       "id": "wcag-22",
       "title": "WCAG 2.2",
+      "edition": "2.2",
       "category": "Accessibilité numérique",
       "kind": "spécification",
+      "brains": [
+        "design",
+        "qa",
+        "frontend"
+      ],
       "summary": "Critères de réussite pour rendre les contenus web accessibles.",
       "applies_when": "Choisir le niveau visé et le périmètre d'évaluation ; les obligations locales peuvent référencer d'autres versions.",
       "pattern": "wcag-web-accessibility",
@@ -223,8 +280,14 @@
     {
       "id": "wai-aria",
       "title": "WAI-ARIA 1.2",
+      "edition": "1.2",
       "category": "Accessibilité numérique",
       "kind": "spécification",
+      "brains": [
+        "design",
+        "qa",
+        "frontend"
+      ],
       "summary": "Rôles, états et propriétés qui rendent les composants compréhensibles par les technologies d'assistance.",
       "applies_when": "Pour les interfaces web interactives, en privilégiant les éléments HTML natifs appropriés.",
       "sources": [
@@ -239,6 +302,10 @@
       "title": "ARIA Authoring Practices Guide",
       "category": "Accessibilité numérique",
       "kind": "guide",
+      "brains": [
+        "design",
+        "qa"
+      ],
       "summary": "Modèles de comportements et d'usage des attributs ARIA pour les composants interactifs.",
       "applies_when": "Guide de mise en œuvre ; les exemples demandent validation dans le contexte réel.",
       "sources": [
@@ -253,6 +320,11 @@
       "title": "RGAA",
       "category": "Accessibilité numérique",
       "kind": "référentiel",
+      "brains": [
+        "design",
+        "qa",
+        "legal"
+      ],
       "summary": "Méthode française d'évaluation de l'accessibilité des services numériques.",
       "applies_when": "Pour les organismes et services concernés, selon la version de référence applicable.",
       "sources": [
@@ -265,8 +337,14 @@
     {
       "id": "en-301549",
       "title": "EN 301 549",
+      "edition": "V4.1.1",
       "category": "Accessibilité numérique",
       "kind": "norme",
+      "brains": [
+        "design",
+        "qa",
+        "legal"
+      ],
       "summary": "Exigences d'accessibilité applicables aux produits et services des technologies de l'information.",
       "applies_when": "Édition et portée à déterminer selon le contrat et le cadre réglementaire ; publication ne signifie pas harmonisation automatique.",
       "sources": [
@@ -279,8 +357,13 @@
     {
       "id": "pdf-ua",
       "title": "PDF/UA",
+      "edition": "ISO 14289-1:2014 (PDF/UA-1)",
       "category": "Accessibilité numérique",
       "kind": "norme",
+      "brains": [
+        "design",
+        "communication"
+      ],
       "summary": "Exigences techniques pour produire des documents PDF accessibles.",
       "applies_when": "Choisir le profil et la version adaptés au PDF produit ; référence PDF/UA-1 liée ici.",
       "sources": [
@@ -293,8 +376,13 @@
     {
       "id": "epub-accessibility",
       "title": "EPUB Accessibility",
+      "edition": "1.1",
       "category": "Accessibilité numérique",
       "kind": "spécification",
+      "brains": [
+        "design",
+        "communication"
+      ],
       "summary": "Exigences d'accessibilité et de description de cette accessibilité pour les publications EPUB.",
       "applies_when": "Pour les livres et documents numériques distribués en EPUB.",
       "sources": [

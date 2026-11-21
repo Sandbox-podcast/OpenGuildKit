@@ -1,0 +1,31 @@
+{
+  "id": "gitlab-ci-security",
+  "title": "GitLab CI/CD pipelines",
+  "description": "Check protected variables, pinned includes and images, and deployment identity in GitLab CI/CD.",
+  "sources": [
+    {
+      "title": "GitLab CI/CD variables",
+      "url": "https://docs.gitlab.com/ci/variables/"
+    },
+    {
+      "title": "GitLab CI/CD YAML syntax reference",
+      "url": "https://docs.gitlab.com/ci/yaml/"
+    }
+  ],
+  "roles": [
+    "devops",
+    "security",
+    "engineering"
+  ],
+  "packs": [
+    "gitlab-ci-security"
+  ],
+  "match": {
+    "stack": [
+      [
+        "gitlab ci",
+        "gitlab ci/cd"
+      ]
+    ]
+  }
+}

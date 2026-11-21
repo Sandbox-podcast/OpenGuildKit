@@ -1,0 +1,72 @@
+# Copy to .github/workflows/openguildkit-dependency-watch.yml in a project that uses OpenGuildKit.
+# Every Monday it runs the project's scanner, imports the report into the alert register
+# (.openguildkit/alerts.json) and opens one issue per confirmed alert that has no issue yet.
+# New alerts stay "open" until a person reviews them: the job lists them in its summary and keeps
+# the updated register as an artifact, so the team can confirm or dismiss them and commit the file.
+# The job changes no dependency: a fix goes through an OpenGuildKit task and its approval.
+name: OpenGuildKit dependency watch
+
+on:
+  schedule:
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - name: Install OpenGuildKit
+        # Pin the version your project uses; see docs/install.md for verified release assets.
+        run: python -m pip install "openguildkit @ git+https://github.com/Sandbox-podcast/OpenGuildKit@main"
+      - name: Run the scanner
+        # Use the scanner your project already approves and pin its version, for example
+        # `npm audit --json > report.json` or `osv-scanner --format json -r . > report.json`.
+        # A scanner exits with an error code when it finds vulnerabilities; the report is what counts.
+        run: |
+          python -m pip install "pip-audit==2.7.3"
+          pip-audit -r requirements.txt -f json -o report.json || test -s report.json
+      - name: Import the report into the alert register
+        run: |
+          openguildkit alerts import report.json --json > changes.json
+          {
+            echo "## Dependency alerts"
+            echo
+            echo "New or reopened alerts to review (confirm or dismiss them, then commit .openguildkit/alerts.json):"
+            jq -r '(.new + .reopened)[] | "- " + .' changes.json
+            echo
+            echo "Resolved:"
+            jq -r '.resolved[] | "- " + .' changes.json
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Open an issue per new confirmed alert
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          openguildkit alerts list --status confirmed --json > confirmed.json
+          known_titles=$(gh issue list --state all --limit 500 --json title --jq '.[].title')
+          jq -c '.alerts[] | select(.accepted == null)' confirmed.json | while read -r alert; do
+            title="Dependency alert: $(jq -r '.id' <<<"$alert")"
+            if grep -Fxq -- "$title" <<<"$known_titles"; then
+              echo "Already reported: $title"
+              continue
+            fi
+            body=$(jq -r '"\(.package) \(.version) is affected by \(.advisory) (\(.severity)), confirmed by \(.by). Fixed version: \(.fix // "unknown").\n\nOpen a task for the fix and link the alert:\n\n    openguildkit task new \"Fix \(.advisory) in \(.package)\" --id TASK\n    openguildkit task alerts TASK --link \(.id)\n\nA confirmed critical alert blocks the approval and the completion of its tasks until a report shows it resolved or a person records why it is accepted."' <<<"$alert")
+            gh issue create --title "$title" --body "$body"
+          done
+      - name: Keep the updated register
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: alert-register
+          path: .openguildkit/alerts.json
+          retention-days: 30

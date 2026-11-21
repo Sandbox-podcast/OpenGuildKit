@@ -14,5 +14,8 @@
   ],
   "packs": [
     "channel-selection"
+  ],
+  "references": [
+    "govs-011-communication"
   ]
 }

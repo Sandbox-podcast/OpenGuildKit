@@ -74,12 +74,17 @@ def _text(value: object, field: str) -> str:
     return value.strip()
 
 
-def validate_result(task: dict, profile: dict, payload: dict) -> dict:
-    """A result names the delivered revision or PR, the acceptance criteria and each check's outcome."""
+def validate_result(task: dict, profile: dict, payload: dict, source: str = "report") -> dict:
+    """A result names the delivered revision or PR, the acceptance criteria and each check's outcome.
+
+    A report written by the agent (`source` "report") covers rules and criteria only: command
+    checks and ChaosFolk replays are recorded by `task verify` ("verify"), which runs or reads them.
+    """
     if task.get("status") not in ("approved", "done"):
         raise ValueError("Record results for an approved task.")
-    if not isinstance(payload, dict) or not payload.keys() <= {"revision", "pull_request", "criteria", "checks", "run"}:
-        raise ValueError("A result has revision or pull_request, criteria and checks.")
+    fields = {"revision", "pull_request", "criteria", "checks"} | ({"run"} if source == "verify" else set())
+    if not isinstance(payload, dict) or not payload.keys() <= fields:
+        raise ValueError("A result has revision or pull_request, criteria and checks. Run task result ID --template.")
     if not payload.get("revision") and not payload.get("pull_request"):
         raise ValueError("Name the delivered revision or pull request.")
     known = {check["id"]: check for check in expected_checks(task, profile)}
@@ -103,10 +108,11 @@ def validate_result(task: dict, profile: dict, payload: dict) -> dict:
     for item in checks:
         if not isinstance(item, dict) or "check" not in item or "status" not in item:
             raise ValueError("Each check has check and status.")
-        if item["check"] not in known and not item["check"].startswith("chaosfolk:"):
-            raise ValueError(f"Unknown check {item['check']}. Run task checks for the expected IDs.")
+        _check_source(item["check"], known, source)
         if item["status"] not in RESULT_STATUSES:
             raise ValueError(f"A check status is one of {', '.join(RESULT_STATUSES)}.")
+        if item["status"] == "passed" and item.get("exit_code", 0) != 0:
+            raise ValueError(f"{item['check']} has exit_code {item['exit_code']}: a check that exits non-zero cannot pass.")
         entry = {"check": item["check"], "status": item["status"]}
         if item["status"] in ("passed", "failed"):
             entry["evidence"] = _text(item.get("evidence"), f"{item['check']} evidence")
@@ -120,11 +126,27 @@ def validate_result(task: dict, profile: dict, payload: dict) -> dict:
     return result
 
 
+def _check_source(check_id: object, known: dict, source: str) -> None:
+    """Command checks and ChaosFolk scenarios are recorded by task verify only, never from a report."""
+    if not isinstance(check_id, str):
+        raise ValueError("Each check names its ID as text. Run task checks for the expected IDs.")
+    if check_id.startswith("chaosfolk:"):
+        if source != "verify":
+            raise ValueError(f"{check_id} comes from a replay: run task verify --chaosfolk SUMMARY.")
+        return
+    if check_id not in known:
+        raise ValueError(f"Unknown check {check_id}. Run task checks for the expected IDs.")
+    if known[check_id]["kind"] == "command" and source != "verify":
+        raise ValueError(f"{check_id} is recorded by task verify, which runs the command. Run task verify.")
+
+
 def merge_results(previous: dict | None, new: dict) -> dict:
-    """Later reports replace earlier outcomes check by check."""
+    """Later reports replace earlier outcomes check by check; a new replay replaces every earlier scenario."""
     if not previous:
         return new
-    checks = {item["check"]: item for item in previous.get("checks", [])}
+    replayed = any(run.get("tool") == "chaosfolk" for run in new.get("runs", []))
+    checks = {item["check"]: item for item in previous.get("checks", [])
+              if not (replayed and item["check"].startswith("chaosfolk:"))}
     checks.update({item["check"]: item for item in new.get("checks", [])})
     merged = {**previous, **{key: new[key] for key in ("revision", "pull_request") if key in new}}
     merged["criteria"] = new["criteria"] or previous.get("criteria", [])
@@ -155,6 +177,13 @@ def completion_problems(task: dict, profile: dict) -> list[str]:
         if name.startswith("chaosfolk:") and outcome["status"] != "passed":
             reason = "gave no verdict" if outcome.get("chaosfolk_status") == "error" else "failed"
             problems.append(f"{name} {reason} in the last replay.")
+    for name in missing_scenarios(task):
+        problems.append(
+            f"chaosfolk:{name} ran in the previous replay and is missing from the last one. "
+            "Replay it, or replay again if it was removed on purpose."
+        )
+    if task.get("answers", {}).get("outcome") and not result.get("criteria"):
+        problems.append("The task has an expected outcome: report at least one acceptance criterion with task result.")
     for criterion in result.get("criteria", []):
         if criterion["status"] != "met":
             problems.append(f"Criterion not met: {criterion['criterion']}")
@@ -162,6 +191,7 @@ def completion_problems(task: dict, profile: dict) -> list[str]:
 
 
 CHAOSFOLK_STATUSES = {"passed": "passed", "failed": "failed", "error": "failed"}
+CHAOSFOLK_SEVERITY = {"passed": 0, "error": 1, "failed": 2}
 
 
 def chaosfolk_checks(root: Path, summary_path: Path, tool_version: str | None = None) -> dict:
@@ -180,12 +210,18 @@ def chaosfolk_checks(root: Path, summary_path: Path, tool_version: str | None = 
         evidence = summary_path.resolve().relative_to(root.resolve()).as_posix()
     except ValueError:
         evidence = str(summary_path)
-    checks, outcomes = [], {}
+    worst = {}
     for item in results:
         if not isinstance(item, dict) or item.get("status") not in CHAOSFOLK_STATUSES or not isinstance(item.get("name"), str):
             raise ValueError(f"{summary_path} has a result without a name or a known status.")
-        outcomes[item["name"]] = item["status"]
-        entry = {"check": f"chaosfolk:{item['name']}", "status": CHAOSFOLK_STATUSES[item["status"]],
+        # A scenario listed several times keeps its worst outcome: a failure is never hidden by a later pass.
+        previous = worst.get(item["name"])
+        if previous is None or CHAOSFOLK_SEVERITY[item["status"]] > CHAOSFOLK_SEVERITY[previous["status"]]:
+            worst[item["name"]] = item
+    checks, outcomes = [], {}
+    for name, item in worst.items():
+        outcomes[name] = item["status"]
+        entry = {"check": f"chaosfolk:{name}", "status": CHAOSFOLK_STATUSES[item["status"]],
                  "evidence": evidence, "chaosfolk_status": item["status"]}
         if item.get("message"):
             entry["message"] = str(item["message"])[:500]
@@ -208,4 +244,27 @@ def compare_runs(task: dict, tool: str = "chaosfolk") -> dict | None:
         "changed": {name: [before.get(name), after.get(name)] for name in sorted(before.keys() | after.keys())
                     if before.get(name) != after.get(name)},
         "unchanged": sorted(name for name in before.keys() & after.keys() if before[name] == after[name]),
+    }
+
+
+def missing_scenarios(task: dict) -> list[str]:
+    """Scenarios of the previous ChaosFolk replay that the last replay no longer ran."""
+    runs = [run for run in task.get("result", {}).get("runs", []) if run.get("tool") == "chaosfolk"]
+    if len(runs) < 2:
+        return []
+    return sorted(runs[-2]["outcomes"].keys() - runs[-1]["outcomes"].keys())
+
+
+def result_template(task: dict, profile: dict) -> dict:
+    """A result file to fill: the acceptance criteria and every check a report must cover."""
+    outcome = task.get("answers", {}).get("outcome", "")
+    return {
+        "revision": "",
+        "pull_request": "",
+        "criteria": [{"criterion": outcome, "status": "", "evidence": ""}],
+        "checks": [
+            {"check": check["id"], "mandatory": check["mandatory"], "verification": check["verification"],
+             "status": "", "evidence": "", "reason": "", "owner": ""}
+            for check in expected_checks(task, profile) if check["kind"] == "rule"
+        ],
     }

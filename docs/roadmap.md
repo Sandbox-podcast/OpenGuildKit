@@ -1,44 +1,37 @@
 # Roadmap
 
-This page separates what exists from what is planned. Items under "Next" and "Later" are not built. Open an issue to discuss or claim one.
+This page separates what exists from what is planned. Open an issue to discuss or claim an item.
 
 ## Available
 
-- Catalog of rule packs, specialist boards and sector profiles in validated JSON.
-- Searchable [reference library](references.md) from the SOCLE catalog. Opt-in packs for releases, the software supply chain and service reliability.
-- [Work and stack patterns](patterns.md) link project context to rule packs and surface methods by role.
-- Pull requests carry path-based labels. A required CI check protects `main`, and the release workflow refreshes a changelog draft after merges.
-- CLI: `init` questionnaire, managed `AGENTS.md` block, `sync`, `check`, project-level catalog additions.
-- Task flow: scoping QCM, deterministic board routing, consultation request, review validation, human approval at a terminal, handoff bound to the rules in force.
-- Skills for Claude Code and Codex that drive the flow.
-- Optional [ChaosFolk end-to-end replays](../integrations/chaosfolk/): the `chaosfolk-e2e` pack and CI guide, pinned to ChaosFolk commit `b406600`. Storing replay results in the task record waits for post-handoff checks (#16).
-- Tests, cross-platform CI and a reproducible support request example.
+**Project setup**
 
-## Next: breadth of the catalog
+- Questionnaire with detected components and versions, stack patterns by component, preview of the rules with their origin and scope, resolution of conflicting packs.
+- Managed `AGENTS.md` block, catalog lock and explicit `openguildkit update`, host settings and hooks for Claude Code and Codex, board guard in the agent and in CI.
+- Installable wheel with the agent skill and subagent, Linux and Windows checked in CI.
 
-The catalog is where most contributions will go. Priorities, by domain:
+**Brains and consultation**
 
-- **Security and compliance context:** OWASP ASVS levels, OWASP Top 10 for LLM applications, GDPR, DORA, NIS2, SOC 2, PCI DSS. Each pack asks the owner and gathers evidence; none claims compliance.
-- **Engineering conventions:** twelve-factor apps, Go, Java, Kotlin, C#, Swift, Terraform, Kubernetes, containers.
-- **Agentic work:** prompt-injection handling, tool and permission scoping, MCP server hygiene, evaluation before release, AI cost budgets.
-- **Sectors:** banking, healthcare, retail, public sector, industry, education.
-- **Boards:** legal, data and AI, customer support, people and HR.
+- Twenty-seven brains, one per discipline of a software publisher, each with specialists and what each verifies, evidence requests, challenges, decision criteria and a knowledge base of methods, packs and references.
+- Adaptive questionnaire, routing tested on a corpus of French and English briefs, preview and adjustment of the brains, required reviews and delegation.
+- One pass per brain (subagents or sequential), structured evidence, deliberation between brains, blockers cleared or waived, sealed and optionally signed approvals.
+- Market dossiers and competitor watch, dependency alerts, ChaosFolk replays.
 
-## Next: depth of the review
+**After the decision**
 
-- Board rounds: boards read each other's recommendations and record agreement or dissent before the person decides.
-- Evidence requirements per board (for example, security must cite the permission model it inspected).
-- `task list` and a project summary of consulted, approved and pending tasks.
+- Results and checks before a task is done, task list and follow-up links, decision export for pull requests.
+- Documentation export for Documentalist and a share register, business deliverables (campaign brief, landing page, product one-pager, case study, newsletter, social media plan, press release, webinar, pricing page, competitive battle card, release announcement, support article) and tagged campaign links, Storybook composition and extraction.
 
-## Later
+**Catalog**
 
-- **Market intelligence:** agents that follow direct and indirect competitors in public sources (product pages, release notes, social posts, funding announcements) and feed the product and marketing boards. Runs only under the `public-sources` research policy.
-- **Generated documentation:** API reference, changelog, roadmap and component catalog (Storybook) produced from the approved handoffs, with access links to share them with customers.
-- **Dependency watch:** checks the libraries in use against vulnerability databases and proposes fixes or alternatives through the normal task flow.
-- **Distribution:** PyPI package, an MCP server exposing the CLI to any MCP-capable agent, a community registry of signed packs, and `openguildkit update` to pull newer catalog versions.
-- **Catalog upkeep:** scheduled checks for broken source links and new versions of the standards packs refer to.
-- **Beyond software teams:** profiles and boards for marketing, sales and finance teams running their own projects with agents.
+- Rule packs, patterns, references with editions and links to the rules that apply them, regulation packs (GDPR, DORA, NIS2, AI Act, Cyber Resilience Act), a weekly link check.
+
+## Next
+
+- Validate the whole flow in Codex with the [host validation scenario](../examples/host-validation/) and publish the report ([#23](https://github.com/Sandbox-podcast/OpenGuildKit/issues/23)).
+- More sectors (banking, healthcare, public sector, retail) and more stacks (Kotlin, Rust, PHP, Ruby).
+- An MCP server exposing the CLI to MCP-capable agents.
 
 ## How items move up
 
-A roadmap item moves to "Next" when someone volunteers to own it and a steward of the domain agrees with the scope (see [GOVERNANCE.md](../GOVERNANCE.md)). Schema changes go through an RFC issue first.
+An item moves to "Next" when someone volunteers to own it and a steward of the domain agrees with the scope (see [GOVERNANCE.md](../GOVERNANCE.md)). Schema changes go through an RFC issue first. Open issues track the work in progress.

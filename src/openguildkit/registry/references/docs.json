@@ -7,8 +7,16 @@
       "title": "Diátaxis",
       "category": "Documentation et rédaction",
       "kind": "méthode",
+      "brains": [
+        "engineering",
+        "communication",
+        "developer-relations-and-docs"
+      ],
       "summary": "Sépare tutoriels, guides pratiques, références et explications selon le besoin du lecteur.",
       "applies_when": "Pour structurer une documentation produit, API ou technique.",
+      "packs": [
+        "public-api-docs"
+      ],
       "sources": [
         {
           "url": "https://diataxis.fr/",
@@ -21,8 +29,16 @@
       "title": "Docs as Code",
       "category": "Documentation et rédaction",
       "kind": "pratique",
+      "brains": [
+        "engineering",
+        "communication",
+        "developer-relations-and-docs"
+      ],
       "summary": "Gère la documentation avec versionnement, revue et automatisation proches de ceux du code.",
       "applies_when": "Pour garder les documents reliés aux changements du produit.",
+      "packs": [
+        "public-api-docs"
+      ],
       "sources": [
         {
           "url": "https://www.writethedocs.org/guide/docs-as-code/",
@@ -35,6 +51,10 @@
       "title": "Google Developer Documentation Style Guide",
       "category": "Documentation et rédaction",
       "kind": "guide",
+      "brains": [
+        "communication",
+        "developer-relations-and-docs"
+      ],
       "summary": "Conventions éditoriales pour une documentation technique claire et cohérente.",
       "applies_when": "Option de guide rédactionnel, à adapter aux langues et à la voix de la marque.",
       "sources": [
@@ -49,6 +69,10 @@
       "title": "Microsoft Writing Style Guide",
       "category": "Documentation et rédaction",
       "kind": "guide",
+      "brains": [
+        "communication",
+        "developer-relations-and-docs"
+      ],
       "summary": "Recommandations de rédaction et de terminologie pour les contenus numériques.",
       "applies_when": "Autre guide éditorial possible ; décider du guide retenu et des adaptations locales.",
       "sources": [
@@ -63,6 +87,11 @@
       "title": "CommonMark",
       "category": "Documentation et rédaction",
       "kind": "spécification",
+      "brains": [
+        "engineering",
+        "communication",
+        "developer-relations-and-docs"
+      ],
       "summary": "Définit une syntaxe Markdown et son interprétation pour améliorer l'interopérabilité.",
       "applies_when": "Pour les documents Markdown et les moteurs de rendu qui suivent cette spécification.",
       "sources": [
@@ -77,6 +106,10 @@
       "title": "GitHub Flavored Markdown",
       "category": "Documentation et rédaction",
       "kind": "spécification",
+      "brains": [
+        "engineering",
+        "communication"
+      ],
       "summary": "Dialecte Markdown avec extensions utilisées par GitHub.",
       "applies_when": "Pour les contenus rendus avec GFM ; vérifier les différences avec les autres moteurs.",
       "sources": [
@@ -91,6 +124,10 @@
       "title": "AsciiDoc",
       "category": "Documentation et rédaction",
       "kind": "format",
+      "brains": [
+        "engineering",
+        "communication"
+      ],
       "summary": "Langage de balisage adapté à la rédaction et à la réutilisation de contenus techniques.",
       "applies_when": "Alternative à Markdown ou à d'autres formats selon la chaîne documentaire.",
       "sources": [
@@ -103,8 +140,13 @@
     {
       "id": "dita",
       "title": "DITA",
+      "edition": "1.3",
       "category": "Documentation et rédaction",
       "kind": "spécification",
+      "brains": [
+        "engineering",
+        "communication"
+      ],
       "summary": "Architecture XML de contenus documentaires modulaires et réutilisables.",
       "applies_when": "Pour les chaînes éditoriales structurées qui ont besoin de réutilisation et de publications multiples.",
       "sources": [
@@ -117,8 +159,12 @@
     {
       "id": "iso-24495-1",
       "title": "ISO 24495-1",
+      "edition": "2023",
       "category": "Documentation et rédaction",
       "kind": "norme",
+      "brains": [
+        "communication"
+      ],
       "summary": "Principes pour rédiger des documents que leurs lecteurs peuvent trouver, comprendre et utiliser.",
       "applies_when": "Pour les contenus qui nécessitent un langage clair ; adapter à l'audience.",
       "sources": [
@@ -131,8 +177,13 @@
     {
       "id": "pdf-a",
       "title": "PDF/A",
+      "edition": "ISO 19005-1:2005 (PDF/A-1)",
       "category": "Documentation et rédaction",
       "kind": "norme",
+      "brains": [
+        "communication",
+        "operations"
+      ],
       "summary": "Profils PDF destinés à la conservation à long terme des documents.",
       "applies_when": "Choisir le profil d'archivage adapté ; référence PDF/A-1 liée ici, distinct de l'accessibilité PDF/UA.",
       "sources": [
@@ -147,8 +198,16 @@
       "title": "BCP 47",
       "category": "Internationalisation et conventions de référence",
       "kind": "spécification",
+      "brains": [
+        "engineering",
+        "communication",
+        "localisation"
+      ],
       "summary": "Étiquettes pour identifier les langues et leurs variantes, par exemple fr-FR.",
       "applies_when": "Pour les contenus multilingues, API et métadonnées linguistiques.",
+      "packs": [
+        "i18n-readiness"
+      ],
       "sources": [
         {
           "url": "https://www.rfc-editor.org/rfc/rfc5646.html",
@@ -161,8 +220,16 @@
       "title": "Unicode CLDR",
       "category": "Internationalisation et conventions de référence",
       "kind": "référentiel",
+      "brains": [
+        "engineering",
+        "communication",
+        "localisation"
+      ],
       "summary": "Données de langues et de régions pour dates, nombres, monnaies et autres présentations locales.",
       "applies_when": "Pour localiser une application avec des données partagées plutôt que des règles improvisées.",
+      "packs": [
+        "i18n-readiness"
+      ],
       "sources": [
         {
           "url": "https://cldr.unicode.org/",
@@ -175,8 +242,16 @@
       "title": "ICU MessageFormat",
       "category": "Internationalisation et conventions de référence",
       "kind": "format",
+      "brains": [
+        "engineering",
+        "communication",
+        "localisation"
+      ],
       "summary": "Syntaxe de messages traduisibles avec variables, pluriels et variantes.",
       "applies_when": "Pour les interfaces multilingues ; fixer le dialecte pris en charge par l'outillage.",
+      "packs": [
+        "i18n-readiness"
+      ],
       "sources": [
         {
           "url": "https://unicode-org.github.io/icu/userguide/format_parse/messages/",
@@ -189,6 +264,11 @@
       "title": "IANA Time Zone Database",
       "category": "Internationalisation et conventions de référence",
       "kind": "référentiel",
+      "brains": [
+        "engineering",
+        "localisation",
+        "backend"
+      ],
       "summary": "Identifiants et règles historiques des fuseaux horaires et changements d'heure.",
       "applies_when": "Pour stocker et afficher des heures selon la zone de l'utilisateur.",
       "sources": [
@@ -203,6 +283,10 @@
       "title": "Unicode Normalization UAX 15",
       "category": "Internationalisation et conventions de référence",
       "kind": "spécification",
+      "brains": [
+        "engineering",
+        "localisation"
+      ],
       "summary": "Définit des formes normalisées de texte Unicode pour comparer et traiter les caractères.",
       "applies_when": "Pour les recherches, échanges et identifiants sensibles aux représentations des caractères.",
       "sources": [
@@ -217,6 +301,11 @@
       "title": "ISO 4217",
       "category": "Internationalisation et conventions de référence",
       "kind": "norme",
+      "brains": [
+        "engineering",
+        "finance",
+        "localisation"
+      ],
       "summary": "Codes de monnaies comme EUR ou USD.",
       "applies_when": "Pour les prix, paiements, reporting et échanges de données monétaires.",
       "sources": [
@@ -231,12 +320,55 @@
       "title": "ISO 3166",
       "category": "Internationalisation et conventions de référence",
       "kind": "norme",
+      "brains": [
+        "engineering",
+        "localisation"
+      ],
       "summary": "Codes de pays et subdivisions pour représenter des territoires.",
       "applies_when": "Pour les adresses, paramètres régionaux, analyses et échanges de données.",
       "sources": [
         {
           "url": "https://www.iso.org/iso-3166-country-codes.html",
           "title": "ISO - ISO 3166 — Country Codes"
+        }
+      ]
+    },
+    {
+      "id": "w3c-i18n-quicktips",
+      "title": "W3C — Internationalization Quick Tips for the Web",
+      "category": "Internationalisation et conventions de référence",
+      "kind": "guide",
+      "brains": [
+        "localisation",
+        "frontend"
+      ],
+      "summary": "Conseils du W3C pour internationaliser le web : déclarer la langue, ne pas assembler les messages à partir de fragments, prévoir l'allongement des textes traduits.",
+      "applies_when": "Pour une interface traduite ou destinée à plusieurs régions.",
+      "packs": [
+        "i18n-readiness"
+      ],
+      "sources": [
+        {
+          "url": "https://www.w3.org/International/quicktips/",
+          "title": "W3C, Internationalization Quick Tips for the Web"
+        }
+      ]
+    },
+    {
+      "id": "unicode-bidi",
+      "title": "Unicode UAX #9 — algorithme bidirectionnel",
+      "category": "Internationalisation et conventions de référence",
+      "kind": "norme",
+      "brains": [
+        "localisation",
+        "frontend"
+      ],
+      "summary": "Détermine l'ordre d'affichage d'un texte qui mêle écritures de droite à gauche, comme l'arabe ou l'hébreu, et de gauche à droite.",
+      "applies_when": "Pour une interface qui affiche des langues de droite à gauche ou des contenus de sens mixte.",
+      "sources": [
+        {
+          "url": "https://www.unicode.org/reports/tr9/",
+          "title": "Unicode Standard Annex #9, Unicode Bidirectional Algorithm"
         }
       ]
     }

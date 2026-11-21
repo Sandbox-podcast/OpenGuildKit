@@ -1,0 +1,317 @@
+{
+  "id": "legal",
+  "title": "Juridique, contrats et licences",
+  "references": [
+    {
+      "id": "dsa",
+      "title": "Règlement (UE) 2022/2065 sur les services numériques (DSA)",
+      "category": "Plateformes et services numériques",
+      "kind": "réglementation",
+      "brains": [
+        "legal",
+        "support",
+        "trust-and-safety"
+      ],
+      "summary": "Fixe les obligations des services intermédiaires en ligne : signalement des contenus illicites, motivation des décisions de modération et transparence.",
+      "applies_when": "Pour un service d'hébergement ou une plateforme accessible dans l'UE ; les obligations dépendent de la catégorie du service.",
+      "packs": [
+        "notice-and-action"
+      ],
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj",
+          "title": "Règlement (UE) 2022/2065 — Digital Services Act"
+        }
+      ]
+    },
+    {
+      "id": "digital-content-directive",
+      "title": "Directive (UE) 2019/770 sur la fourniture de contenus et de services numériques",
+      "category": "Contrats et consommateurs",
+      "kind": "réglementation",
+      "brains": [
+        "legal",
+        "product"
+      ],
+      "summary": "Définit la conformité des contenus et services numériques fournis aux consommateurs, y compris les mises à jour, et les recours en cas de défaut.",
+      "applies_when": "Pour les offres de logiciels, applications ou services en ligne aux consommateurs, selon la loi nationale de transposition.",
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/dir/2019/770/oj",
+          "title": "Directive (UE) 2019/770 — Contenus et services numériques"
+        }
+      ]
+    },
+    {
+      "id": "consumer-rights-directive",
+      "title": "Directive 2011/83/UE relative aux droits des consommateurs",
+      "category": "Contrats et consommateurs",
+      "kind": "réglementation",
+      "brains": [
+        "legal",
+        "sales",
+        "partnerships"
+      ],
+      "summary": "Encadre l'information précontractuelle et le droit de rétractation pour les contrats conclus à distance avec des consommateurs.",
+      "applies_when": "Pour la vente en ligne aux consommateurs ; vérifier les règles nationales et les exceptions applicables aux contenus numériques.",
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/dir/2011/83/oj",
+          "title": "Directive 2011/83/UE — Droits des consommateurs"
+        }
+      ]
+    },
+    {
+      "id": "product-liability-directive",
+      "title": "Directive (UE) 2024/2853 relative à la responsabilité du fait des produits défectueux",
+      "category": "Contrats et consommateurs",
+      "kind": "réglementation",
+      "brains": [
+        "legal",
+        "qa"
+      ],
+      "summary": "Étend la responsabilité du fait des produits défectueux aux logiciels et fixe les règles d'indemnisation des dommages.",
+      "applies_when": "Pour les produits, logiciels compris, mis sur le marché de l'UE, selon la loi nationale de transposition ; à examiner avec le juriste produit.",
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/dir/2024/2853/oj",
+          "title": "Directive (UE) 2024/2853 — Responsabilité du fait des produits défectueux"
+        }
+      ]
+    },
+    {
+      "id": "standard-contractual-clauses",
+      "title": "Clauses contractuelles types (décision d'exécution (UE) 2021/914)",
+      "category": "Transferts et sous-traitance de données",
+      "kind": "réglementation",
+      "brains": [
+        "legal",
+        "security",
+        "procurement"
+      ],
+      "summary": "Fournit des clauses types pour encadrer les transferts de données personnelles vers des pays tiers, en quatre modules selon le rôle des parties.",
+      "applies_when": "Quand un fournisseur ou une filiale hors de l'Espace économique européen reçoit des données personnelles ; à compléter par une analyse du transfert.",
+      "packs": [
+        "gdpr"
+      ],
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/dec_impl/2021/914/oj",
+          "title": "Décision d'exécution (UE) 2021/914 — Clauses contractuelles types"
+        }
+      ]
+    },
+    {
+      "id": "cnil-cookies",
+      "title": "CNIL — Cookies et autres traceurs",
+      "category": "Transferts et sous-traitance de données",
+      "kind": "guide",
+      "brains": [
+        "legal",
+        "marketing"
+      ],
+      "summary": "Rassemble les règles et recommandations de la CNIL sur l'information et le consentement pour les cookies et autres traceurs.",
+      "applies_when": "Pour un site ou une application qui dépose des traceurs non strictement nécessaires.",
+      "sources": [
+        {
+          "url": "https://www.cnil.fr/fr/cookies-et-autres-traceurs",
+          "title": "CNIL — Site web, cookies et autres traceurs"
+        }
+      ]
+    },
+    {
+      "id": "osi-licenses",
+      "title": "Open Source Initiative — Licences approuvées",
+      "category": "Licences logicielles",
+      "kind": "référentiel",
+      "brains": [
+        "legal",
+        "engineering"
+      ],
+      "summary": "Liste les licences reconnues comme open source par l'OSI au regard de l'Open Source Definition.",
+      "applies_when": "Pour vérifier qu'une licence de dépendance ou de publication est une licence open source approuvée.",
+      "sources": [
+        {
+          "url": "https://opensource.org/licenses",
+          "title": "Open Source Initiative — Licenses"
+        }
+      ]
+    },
+    {
+      "id": "spdx-license-list",
+      "title": "SPDX License List",
+      "category": "Licences logicielles",
+      "kind": "référentiel",
+      "brains": [
+        "legal",
+        "engineering"
+      ],
+      "summary": "Attribue un identifiant court et stable à chaque licence courante, utilisé dans les métadonnées de paquets et les SBOM.",
+      "applies_when": "Pour déclarer sans ambiguïté la licence d'un fichier ou d'un paquet, par exemple MIT ou Apache-2.0.",
+      "sources": [
+        {
+          "url": "https://spdx.org/licenses/",
+          "title": "SPDX License List"
+        }
+      ]
+    },
+    {
+      "id": "reuse",
+      "title": "REUSE Specification",
+      "category": "Licences logicielles",
+      "kind": "spécification",
+      "brains": [
+        "legal",
+        "engineering"
+      ],
+      "summary": "Indique comment déclarer le copyright et la licence de chaque fichier d'un dépôt, avec des identifiants SPDX.",
+      "applies_when": "Pour un dépôt publié ou distribué dont chaque fichier doit porter une information de licence vérifiable.",
+      "sources": [
+        {
+          "url": "https://reuse.software/spec/",
+          "title": "FSFE — REUSE Specification"
+        }
+      ]
+    },
+    {
+      "id": "iso-37301",
+      "title": "ISO 37301:2021",
+      "edition": "2021",
+      "category": "Conformité et gouvernance",
+      "kind": "norme",
+      "brains": [
+        "legal",
+        "leadership"
+      ],
+      "summary": "Définit les exigences d'un système de management de la conformité : obligations, risques, contrôles et amélioration.",
+      "applies_when": "Pour organiser la conformité d'une organisation ou préparer une certification ; ne remplace pas l'analyse juridique de chaque obligation.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/75080.html",
+          "title": "ISO 37301:2021 — Compliance management systems, requirements with guidance for use"
+        }
+      ]
+    },
+    {
+      "id": "vertical-block-exemption",
+      "title": "Règlement (UE) 2022/720 d'exemption par catégorie des accords verticaux",
+      "category": "Contrats et consommateurs",
+      "kind": "réglementation",
+      "brains": [
+        "partnerships",
+        "legal",
+        "sales"
+      ],
+      "summary": "Exempte les accords de distribution entre fournisseur et revendeur sous un seuil de 30 % de part de marché, sauf restrictions caractérisées comme l'imposition d'un prix de revente fixe ou minimal.",
+      "applies_when": "Pour un contrat de revendeur, de distributeur ou de place de marché ; les clauses de prix, de territoire et de clientèle se vérifient avec le juridique.",
+      "packs": [
+        "partner-program"
+      ],
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/reg/2022/720/oj",
+          "title": "Commission Regulation (EU) 2022/720, Vertical Block Exemption Regulation"
+        },
+        {
+          "url": "https://competition-policy.ec.europa.eu/antitrust-and-cartels/legislation/vertical-block-exemptions_en",
+          "title": "European Commission, Vertical block exemptions and Guidelines on vertical restraints"
+        }
+      ]
+    },
+    {
+      "id": "vertical-guidelines",
+      "title": "Lignes directrices de la Commission sur les restrictions verticales (2022/C 248/01)",
+      "edition": "2022",
+      "category": "Contrats et consommateurs",
+      "kind": "guide",
+      "brains": [
+        "partnerships",
+        "legal"
+      ],
+      "summary": "Expliquent comment la Commission applique le règlement 2022/720 : distribution sélective, ventes en ligne, places de marché et accords d'agence.",
+      "applies_when": "Pour rédiger ou revoir les règles d'un programme de revendeurs, de distribution sélective ou de vente sur une place de marché.",
+      "sources": [
+        {
+          "url": "https://competition-policy.ec.europa.eu/antitrust-and-cartels/legislation/vertical-block-exemptions_en",
+          "title": "European Commission, Vertical block exemptions and Guidelines on vertical restraints"
+        }
+      ]
+    },
+    {
+      "id": "eu-tco-regulation",
+      "title": "Règlement (UE) 2021/784 relatif aux contenus à caractère terroriste en ligne",
+      "category": "Plateformes et services numériques",
+      "kind": "réglementation",
+      "brains": [
+        "trust-and-safety",
+        "legal"
+      ],
+      "summary": "Oblige les fournisseurs de services d'hébergement à retirer un contenu terroriste ou à en bloquer l'accès dans l'heure qui suit la réception d'une injonction de retrait.",
+      "applies_when": "Pour un service qui héberge des contenus publiés par ses utilisateurs et proposé dans l'UE.",
+      "packs": [
+        "notice-and-action"
+      ],
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/reg/2021/784/oj",
+          "title": "Regulation (EU) 2021/784 on addressing the dissemination of terrorist content online"
+        }
+      ]
+    },
+    {
+      "id": "uk-online-safety-act",
+      "title": "Online Safety Act 2023 (Royaume-Uni)",
+      "category": "Plateformes et services numériques",
+      "kind": "réglementation",
+      "brains": [
+        "trust-and-safety",
+        "legal"
+      ],
+      "summary": "Impose aux services de partage entre utilisateurs et aux moteurs de recherche des évaluations des risques de contenus illégaux, des mécanismes de signalement et des procédures de réclamation.",
+      "applies_when": "Pour un service accessible au Royaume-Uni qui permet aux utilisateurs de partager des contenus ou d'interagir.",
+      "sources": [
+        {
+          "url": "https://www.legislation.gov.uk/ukpga/2023/50/contents",
+          "title": "UK Online Safety Act 2023"
+        }
+      ]
+    },
+    {
+      "id": "santa-clara-principles",
+      "title": "Principes de Santa Clara sur la transparence et la responsabilité de la modération",
+      "category": "Plateformes et services numériques",
+      "kind": "référentiel",
+      "brains": [
+        "trust-and-safety"
+      ],
+      "summary": "Recommandations d'organisations de défense des droits : publier les chiffres de la modération, notifier les personnes concernées avec la règle appliquée et offrir un recours examiné par une autre personne.",
+      "applies_when": "Pour concevoir la notification et le recours d'une décision de modération, au-delà des obligations légales.",
+      "packs": [
+        "notice-and-action"
+      ],
+      "sources": [
+        {
+          "url": "https://santaclaraprinciples.org/",
+          "title": "The Santa Clara Principles on Transparency and Accountability in Content Moderation"
+        }
+      ]
+    },
+    {
+      "id": "dtsp-best-practices",
+      "title": "Digital Trust & Safety Partnership — Best Practices Framework",
+      "category": "Plateformes et services numériques",
+      "kind": "référentiel",
+      "brains": [
+        "trust-and-safety"
+      ],
+      "summary": "Cinq engagements pour traiter les risques de contenus et de comportements : développement produit, gouvernance des règles, application, amélioration et transparence.",
+      "applies_when": "Pour structurer le programme de confiance et sécurité d'un service qui accueille des contenus ou des échanges entre utilisateurs.",
+      "sources": [
+        {
+          "url": "https://dtspartnership.org/best-practices/",
+          "title": "Digital Trust & Safety Partnership, Best Practices Framework"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "id": "threat-modeling",
+  "title": "Threat modeling",
+  "version": "1.0.0",
+  "description": "For a change to data flows, trust boundaries or authentication: a diagram, the threats it raises and a decision for each one.",
+  "sources": [
+    {
+      "title": "OWASP Threat Modeling Cheat Sheet",
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html"
+    },
+    {
+      "title": "Threat Modeling Manifesto",
+      "url": "https://www.threatmodelingmanifesto.org/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "model-the-change",
+      "instruction": "Draw or update the data flow diagram of the components the change affects, with their trust boundaries.",
+      "verification": "Link the diagram from the change and check that it shows the new flows and trust boundaries."
+    },
+    {
+      "id": "list-threats",
+      "instruction": "For each new flow or boundary, list what can go wrong using a method the security owner approves, such as STRIDE.",
+      "verification": "Check that the threat list gives, for each new flow, a threat or the reason none applies."
+    },
+    {
+      "id": "decide-each-threat",
+      "instruction": "Record for each threat its mitigation, the risk acceptance by the security owner or a follow-up issue.",
+      "verification": "Check that each threat links to code or a test, a recorded acceptance or an issue."
+    }
+  ]
+}

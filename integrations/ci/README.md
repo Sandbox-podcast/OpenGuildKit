@@ -125,7 +125,7 @@ Paths are relative to the configuration file.
 | `projects[].id` | All | `OWNER/REPO`, distinct for each project. |
 | `projects[].path` | All | Local clone of the project with its full history. |
 | `projects[].profileRef` | All | Trusted branch that holds `openguildkit.json`. |
-| `projects[].pullRequests` | `reconcile`, `gate` | Local PRs to evaluate, `[{"number": 7, "ref": "refs/…", "sha": "…"}]`. The GitHub commands list open PRs themselves. |
+| `projects[].pullRequests` | `reconcile`, `gate` | Local PRs to evaluate, `[{"number": 7, "ref": "refs/…", "sha": "…"}]`. The GitHub commands list the open PRs whose base is the `profileRef` branch. A PR into another branch is not evaluated, since the profile of one branch does not apply to it. |
 | `projects[].prNumbers` | GitHub commands, optional | Limits the evaluation to these open PRs. |
 | `projects[].profileMaintainer` | GitHub commands | GitHub login that merges profile proposals. Required when the profile has an `adoption` block. |
 | `projects[].waiverApprovers` | All, optional | Approvers whose waivers apply to the project, for instance `["@security"]`. |

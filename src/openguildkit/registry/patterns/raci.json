@@ -15,5 +15,8 @@
   ],
   "packs": [
     "responsibility-matrix"
+  ],
+  "references": [
+    "raci"
   ]
 }

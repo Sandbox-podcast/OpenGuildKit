@@ -50,10 +50,10 @@ function publish([repo, file, context = 'openguildkit/pilot-jenkins']) {
       JSON.stringify({ branch, message: 'Archive OpenGuildKit Jenkins evidence', content }));
     evidenceCommit = JSON.parse(created).commit.sha;
   }
-  const observation = report.state === 'success' ? 'Conforme' : 'Écart';
+  const observation = report.state === 'success' ? 'Compliant' : 'Deviation';
   const url = `https://github.com/${repo}/blob/${evidenceCommit}/${path}`;
   if (agentProof) verifyAgentPull();
-  const description = `${observation} (obs.) | règle ${report.policyCommit}`;
+  const description = `${observation} (obs.) | rule ${report.policyCommit}`;
   if (!sameStatus(latestStatus(repo, report.commit, context), { state: 'success', description, url })) {
     gh(['api', `repos/${repo}/statuses/${report.commit}`, '-f', `context=${context}`,
       '-f', 'state=success', '-f', `description=${description}`, '-f', `target_url=${url}`]);

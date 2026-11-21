@@ -21,6 +21,12 @@ python examples/request-status/replay.py
 
 La [démo](examples/request-status/) crée un projet temporaire et utilise des avis préparés sur le suivi des demandes support. Lance-la dans un terminal pour comparer les avis, valider le périmètre et lire le brief d'implémentation.
 
+## Le board des brains
+
+Chaque métier d'un éditeur de logiciels a son brain : développement logiciel, front-end, back-end, sécurité, DevOps, QA, performance, produit, design, données et IA, marketing, communication, vente, partenariats, support client, succès client, finance, achats, juridique et conformité, RH, informatique interne, localisation, relations développeurs et documentation, confiance et sécurité des contenus, gestion de projet, opérations et direction. Un brain apporte des spécialistes avec ce que chacun vérifie, les preuves qu'il demande, les objections qu'il soulève, ses critères de décision, et les méthodes, packs de règles et normes de son métier.
+
+Pour chaque changement, OpenGuildKit réunit les brains concernés. Chacun relit la tâche séparément, les brains répondent aux objections des autres, et tu décides avec leurs verdicts, leurs preuves et les désaccords qui restent. `openguildkit brains` les liste ; `openguildkit brains --id legal` montre ce qu'un brain connaît. Une entreprise complète un brain avec un fichier dans `.openguildkit/catalog/boards/`, ou ajoute le sien avec `openguildkit brains --new ID`. [Brains métier](docs/brains.md)
+
 ## Configurer ton projet
 
 Depuis ton dépôt, indique ta stack, ton secteur et les métiers concernés. Le questionnaire repère les combinaisons techniques connues et te laisse choisir les méthodes que ton équipe applique. Dans un dépôt existant, `openguildkit detect` propose d'abord tes composants et leurs versions, et chaque pattern s'applique au composant qui utilise ses technologies.
@@ -44,7 +50,7 @@ flowchart TB
     D -- valider --> H["Brief d'implémentation avec périmètre et contrôles"]
 ```
 
-Avec `"guard": "enforce"` dans le profil, le board n'est plus facultatif : les hooks de l'agent le rappellent à chaque demande, refusent toute modification de fichier tant qu'aucune tâche n'est approuvée, et un contrôle CI exige la décision approuvée dans chaque PR. [Board automatique](integrations/README.md#the-board-before-every-change)
+Avec `"guard": "enforce"` dans le profil, le board n'est plus facultatif : les hooks de l'agent le rappellent à chaque demande, refusent les modifications faites par les outils d'édition de l'agent tant qu'aucune tâche n'est approuvée, et un contrôle CI exige la décision approuvée dans chaque PR. Les écritures par le shell ne passent pas par les hooks ; le contrôle CI les rattrape. Une approbation locale ne détecte que les modifications accidentelles : passez aux approbations signées si l'agent ne doit pas pouvoir approuver à votre place. [Board automatique](integrations/README.md#the-board-before-every-change)
 
 La CLI choisit les boards et enregistre leurs avis en local. Ton agent rédige ces avis et utilise ses outils pour les recherches que tu autorises. Tu valides le périmètre dans ton terminal avant que la CLI affiche le brief d'implémentation.
 
@@ -72,8 +78,11 @@ openguildkit brains --id product
 
 - [Architecture](docs/architecture.md) et [parcours d'une tâche](docs/workflow.md)
 - [Dossiers marché et veille concurrentielle](docs/market.md)
+- [Alertes de dépendances et veille des vulnérabilités](docs/alerts.md)
 - [Livrables métier issus des tâches approuvées](docs/deliverables.md)
+- [Storybook du projet, design system de l’entreprise et extraction](docs/storybook.md)
 - [Documentation du projet et partage avec Documentalist](docs/documentation.md)
+- [Outils de la stack d'entreprise, leurs serveurs MCP et leurs simulations](docs/tools.md)
 - [Tests de bout en bout avec ChaosFolk, en option](integrations/chaosfolk/)
 - [Contribuer](CONTRIBUTING.md) et [format du catalogue](docs/catalog-format.md)
 - [Feuille de route](docs/roadmap.md) et [licence MIT](LICENSE)

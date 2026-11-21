@@ -1,0 +1,79 @@
+{
+  "tool": "slack",
+  "instructions": "Mock of a team chat for the fictional Acme Support Portal. Every answer is synthetic.",
+  "tools": [
+    {
+      "name": "search_messages",
+      "description": "Search messages by text. Returns channel, author, date and text.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"query": {"type": "string", "description": "Words to look for"}}, "required": ["query"]},
+      "responses": [
+        {
+          "when": {"query": "export"},
+          "result": {
+            "messages": [
+              {
+                "channel": "#support-portal",
+                "author": "Kai Demo",
+                "date": "2026-11-17",
+                "text": "Three customers asked again for a CSV export of their requests."
+              },
+              {
+                "channel": "#dev",
+                "author": "Lin Sample",
+                "date": "2026-11-18",
+                "text": "PR #87 is open: customers can export their own requests as CSV."
+              }
+            ]
+          }
+        },
+        {
+          "when": {"query": "sprint"},
+          "result": {
+            "messages": [
+              {
+                "channel": "#support-portal",
+                "author": "Ada Example",
+                "date": "2026-11-16",
+                "text": "Sprint 14 starts today and ends on 2026-11-27. The CSV export is the main goal."
+              }
+            ]
+          }
+        },
+        {"result": {"messages": []}}
+      ]
+    },
+    {
+      "name": "list_channels",
+      "description": "List channels. Returns name, visibility and member count.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"visibility": {"type": "string", "description": "Optional filter", "enum": ["public", "private"]}}},
+      "responses": [
+        {"when": {"visibility": "private"}, "result": {"channels": [{"name": "#security-review", "visibility": "private", "members": 4}]}},
+        {
+          "when": {"visibility": "public"},
+          "result": {"channels": [{"name": "#support-portal", "visibility": "public", "members": 12}, {"name": "#dev", "visibility": "public", "members": 7}]}
+        },
+        {
+          "result": {
+            "channels": [
+              {"name": "#support-portal", "visibility": "public", "members": 12},
+              {"name": "#dev", "visibility": "public", "members": 7},
+              {"name": "#security-review", "visibility": "private", "members": 4}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "post_message",
+      "description": "Post a message in a channel. Returns the message that was posted.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {"channel": {"type": "string", "description": "Channel name, for example #dev"}, "text": {"type": "string", "description": "Message text"}},
+        "required": ["channel", "text"]
+      },
+      "responses": [{"result": {"ok": true, "channel": "$arg:channel", "text": "$arg:text", "author": "Ada Example", "date": "2026-11-21"}}]
+    }
+  ]
+}

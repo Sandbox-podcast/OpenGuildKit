@@ -14,7 +14,6 @@
     "roadmap",
     "feuille de route",
     "product discovery",
-    "discovery",
     "onboarding",
     "critères d'acceptation",
     "acceptance criteria",
@@ -26,7 +25,9 @@
     "backlog produit",
     "user need",
     "besoin utilisateur",
-    "adoption"
+    "adoption",
+    "churn",
+    "attrition"
   ],
   "questions": [
     "Who faces this problem and what do they do today?",
@@ -52,22 +53,38 @@
       {
         "id": "discovery-lead",
         "title": "Product discovery lead",
-        "focus": "Identify the affected user and their progress in a concrete situation. Compare the observed problem with the proposed solution and the workaround users already use."
+        "focus": "Identify the affected user and their progress in a concrete situation. Compare the observed problem with the proposed solution and the workaround users already use.",
+        "checks": [
+          "The problem is observed in real users' situations, not only requested.",
+          "The current workaround and its cost are described."
+        ]
       },
       {
         "id": "product-analyst",
         "title": "Product analyst",
-        "focus": "Specify the outcome event, eligible population, baseline and decision window. Identify signals that would distinguish adoption from sustained improvement."
+        "focus": "Specify the outcome event, eligible population, baseline and decision window. Identify signals that would distinguish adoption from sustained improvement.",
+        "checks": [
+          "The outcome event, eligible population, baseline and decision window are written before launch.",
+          "Adoption is distinguished from lasting improvement of the outcome."
+        ]
       },
       {
         "id": "scope-lead",
         "title": "Scope and prioritization lead",
-        "focus": "Define the smallest complete user flow that could test the main assumption. Identify dependencies, deferred cases and the cost of leaving the current flow in place."
+        "focus": "Define the smallest complete user flow that could test the main assumption. Identify dependencies, deferred cases and the cost of leaving the current flow in place.",
+        "checks": [
+          "The smallest complete flow that tests the main assumption is defined.",
+          "Deferred cases are listed with what happens to users who meet them."
+        ]
       },
       {
         "id": "rollout-lead",
         "title": "Adoption and rollout lead",
-        "focus": "Identify groups whose work changes, what support they need and how the team would pause or reverse rollout if friction rises."
+        "focus": "Identify groups whose work changes, what support they need and how the team would pause or reverse rollout if friction rises.",
+        "checks": [
+          "Groups whose work changes are identified with the support they need.",
+          "Pause and reversal conditions are written."
+        ]
       }
     ],
     "evidence": [

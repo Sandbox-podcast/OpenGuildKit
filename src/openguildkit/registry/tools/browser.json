@@ -1,0 +1,176 @@
+{
+  "id": "browser",
+  "title": "Browsers for agents",
+  "tools": [
+    {
+      "id": "browserbase",
+      "title": "Browserbase",
+      "vendor": "Browserbase",
+      "summary": "Hosted headless browsers for agents and automation.",
+      "homepage": "https://www.browserbase.com",
+      "brains": [
+        "engineering",
+        "qa"
+      ],
+      "servers": [
+        {
+          "id": "browserbase-hosted",
+          "name": "Browserbase MCP (hosted)",
+          "publisher": "vendor",
+          "maintainer": "Browserbase",
+          "transport": "streamable-http",
+          "url": "https://mcp.browserbase.com/mcp",
+          "auth": "api-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Cloud browser sessions driven by Stagehand: start, navigate, act, observe, extract, end.",
+          "source": "https://docs.browserbase.com/integrations/mcp/setup",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.browserbase.com/reference/introduction"
+      },
+      "notes": "The API key goes in the browserbaseApiKey query parameter of the URL. The self-hostable repo browserbase/mcp-server-browserbase is archived and its npm package @browserbasehq/mcp-server-browserbase is deprecated."
+    },
+    {
+      "id": "chrome-devtools",
+      "title": "Chrome DevTools",
+      "vendor": "Google",
+      "summary": "Browser developer tools for debugging, profiling and auditing web pages in Chrome.",
+      "homepage": "https://developer.chrome.com/docs/devtools",
+      "brains": [
+        "engineering",
+        "performance",
+        "qa",
+        "frontend"
+      ],
+      "aliases": [
+        "Chrome DevTools MCP"
+      ],
+      "servers": [
+        {
+          "id": "chrome-devtools-mcp",
+          "name": "Chrome DevTools MCP",
+          "publisher": "vendor",
+          "maintainer": "Google (Chrome DevTools team)",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "chrome-devtools-mcp@latest"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "chrome-devtools-mcp"
+          },
+          "auth": "none",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Drives a live Chrome browser through DevTools and Puppeteer: navigation, input, console and network inspection, performance traces, Lighthouse audits.",
+          "source": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+          "repository": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "other",
+        "docs": "https://chromedevtools.github.io/devtools-protocol/"
+      },
+      "notes": "Sends usage statistics to Google by default (disable with --no-usage-statistics) and may send trace URLs to the CrUX API (disable with --no-performance-crux)."
+    },
+    {
+      "id": "obscura",
+      "title": "Obscura",
+      "vendor": "Obscura (h4ckf0r0day)",
+      "summary": "Headless browser engine built for AI agents, driven over MCP or the Chrome DevTools Protocol.",
+      "homepage": "https://obscura.sh",
+      "brains": [
+        "qa",
+        "engineering",
+        "product",
+        "marketing"
+      ],
+      "servers": [
+        {
+          "id": "obscura",
+          "name": "Obscura MCP server",
+          "publisher": "vendor",
+          "maintainer": "Obscura",
+          "transport": "stdio",
+          "command": "obscura",
+          "args": [
+            "mcp"
+          ],
+          "package": {
+            "registry": "github-release",
+            "name": "h4ckf0r0day/obscura"
+          },
+          "auth": "none",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Navigate, read a page as a snapshot or Markdown, click, fill forms, take screenshots and evaluate JavaScript in a headless browser.",
+          "source": "https://github.com/h4ckf0r0day/obscura",
+          "repository": "https://github.com/h4ckf0r0day/obscura",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "other",
+        "docs": "https://github.com/h4ckf0r0day/obscura"
+      },
+      "notes": "Localhost and private networks are blocked by default: to test an application on your workstation, start it with OBSCURA_ALLOW_PRIVATE_NETWORK=1 in the environment. Page JavaScript runs inside the Obscura process, and the project recommends a container or a virtual machine. Use the standard build on your own applications and on sites whose terms allow automated access; the stealth build and proxies are outside what OpenGuildKit sets up. Also serves the Chrome DevTools Protocol with `obscura serve --port 9222` for Playwright (connectOverCDP) and Puppeteer."
+    },
+    {
+      "id": "puppeteer",
+      "title": "Puppeteer",
+      "vendor": "Google",
+      "summary": "Node.js library to control Chrome and Firefox over DevTools Protocol or WebDriver BiDi.",
+      "homepage": "https://pptr.dev",
+      "brains": [
+        "engineering",
+        "qa"
+      ],
+      "detect": {
+        "npm": [
+          "puppeteer",
+          "puppeteer-core"
+        ]
+      },
+      "servers": [
+        {
+          "id": "chrome-devtools-mcp",
+          "name": "Chrome DevTools MCP",
+          "publisher": "vendor",
+          "maintainer": "Google (Chrome DevTools team)",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "chrome-devtools-mcp@latest"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "chrome-devtools-mcp"
+          },
+          "auth": "none",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Drives a live Chrome browser through DevTools and Puppeteer: navigation, input, console and network inspection, performance traces, Lighthouse audits.",
+          "source": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+          "repository": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "other",
+        "docs": "https://pptr.dev/api"
+      },
+      "notes": "Puppeteer's README points to chrome-devtools-mcp, a Puppeteer-based server. The old reference server @modelcontextprotocol/server-puppeteer is archived and deprecated on npm; do not use it."
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "web-performance",
+  "title": "Core Web Vitals",
+  "description": "Set Core Web Vitals targets for affected pages, measure them with real users and catch lab regressions.",
+  "sources": [
+    {
+      "title": "web.dev, Web Vitals",
+      "url": "https://web.dev/articles/vitals"
+    }
+  ],
+  "roles": [
+    "performance",
+    "engineering"
+  ],
+  "packs": [
+    "web-performance"
+  ],
+  "references": [
+    "core-web-vitals"
+  ]
+}

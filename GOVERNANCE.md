@@ -6,9 +6,9 @@ OpenGuildKit is a catalog maintained by practitioners and a small CLI maintained
 
 **Contributors** open issues and pull requests. Anyone can be one.
 
-**Domain stewards** review patterns, rules and sources for their domain, including engineering, security, finance, people operations and project management. A steward checks that rules are accurate, verifiable and sourced. A domain can have several stewards. Stewards are listed in `.github/CODEOWNERS` once named.
+**Domain stewards** review patterns, rules and sources for their domain, including engineering, security, finance, people operations and project management. A steward checks that rules are accurate, verifiable and sourced. A domain can have several stewards. Stewards are listed in `.github/CODEOWNERS` with the paths of their domain once named.
 
-**Maintainers** own the CLI, the schema and releases. A maintainer records the merge decision in the pull request.
+**Maintainers** own the CLI, the schema and releases. They are listed in `.github/CODEOWNERS`, so GitHub requests their review on every pull request. A maintainer records the merge decision in the pull request.
 
 ## Decisions
 
@@ -26,7 +26,16 @@ A contributor with several merged pull requests in a domain can ask, or be propo
 
 Versions follow Semantic Versioning for the CLI. Packs carry their own versions. [Catalog format](docs/catalog-format.md)
 
-GitHub refreshes the `openguildkit-next` release draft after changes reach `main`. It groups merged pull requests by label. When preparing a version, copy the generated notes into a versioned release, review them and list each pack whose version changed. A maintainer publishes the release. [GitHub release notes](https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes)
+GitHub refreshes the `openguildkit-next` release draft after changes reach `main`. It groups merged pull requests by label and compares from the last stable release. [GitHub release notes](https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes)
+
+A maintainer publishes a version in these steps:
+
+1. In a pull request to `main`, set the new version `X.Y.Z` in `pyproject.toml`, `integrations/ci/package.json`, `docs/install.md`, `integrations/ci/README.md` and the guard template `integrations/github/openguildkit-guard.yml`. The test suite fails while they differ.
+2. Once it is merged and `contribution-checks` passes on `main`, tag that commit and push the tag: `git tag -s vX.Y.Z COMMIT` then `git push origin vX.Y.Z`.
+3. The tag runs `.github/workflows/release.yml`. It refuses a tag that differs from the versions, builds the wheel and the Node archive from the tagged commit, writes `SHA256SUMS.txt` and attaches the three files to the release `vX.Y.Z`, created as a draft when it does not exist. It never replaces a file already attached.
+4. Download the three files from the draft and check them with `sha256sum -c SHA256SUMS.txt`. Compare the hashes with those printed in the workflow log.
+5. Copy the notes of the `openguildkit-next` draft into the release, review them and list each pack whose version changed. Tick "Set as a pre-release" for a version of the `pilot` channel.
+6. Publish the release. The `Draft release notes` workflow then ends its comparison link on the tag.
 
 ## Neutrality
 

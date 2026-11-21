@@ -35,7 +35,16 @@
     "niveau de service",
     "support ticket",
     "ticket de support",
-    "back office"
+    "back office",
+    "laptop",
+    "laptop management",
+    "device management",
+    "mdm",
+    "jamf",
+    "intune",
+    "it equipment",
+    "parc informatique",
+    "poste de travail"
   ],
   "questions": [
     "What event starts the work, what counts as finished, and who accepts the result?",
@@ -61,22 +70,38 @@
       {
         "id": "process-flow",
         "title": "Process and handoffs",
-        "focus": "Trace a typical request and an exception through the real handoffs, including what each team needs before it can act."
+        "focus": "Trace a typical request and an exception through the real handoffs, including what each team needs before it can act.",
+        "checks": [
+          "A normal request and an exception are traced through every handoff.",
+          "Each handoff states what the next team needs before it can act."
+        ]
       },
       {
         "id": "capacity-and-queues",
         "title": "Capacity and queues",
-        "focus": "Locate the step where incoming work exceeds completion capacity and compare the effect of changing intake, batch size or staffing."
+        "focus": "Locate the step where incoming work exceeds completion capacity and compare the effect of changing intake, batch size or staffing.",
+        "checks": [
+          "Arrival and completion rates are measured at the step where work piles up.",
+          "Changes to intake, batch size or staffing are compared on the same measure."
+        ]
       },
       {
         "id": "service-quality",
         "title": "Service quality and controls",
-        "focus": "Check which reviews prevent incomplete or incorrect work and define who handles exceptions when those checks fail."
+        "focus": "Check which reviews prevent incomplete or incorrect work and define who handles exceptions when those checks fail.",
+        "checks": [
+          "Checks that prevent incorrect work are placed before the costly step.",
+          "Exceptions have an owner and a resolution time."
+        ]
       },
       {
         "id": "change-adoption",
         "title": "Process change lead",
-        "focus": "Plan how the people who run the process learn the new steps, when the old way stops and how the change is measured after rollout."
+        "focus": "Plan how the people who run the process learn the new steps, when the old way stops and how the change is measured after rollout.",
+        "checks": [
+          "People who run the process are trained before the old way stops.",
+          "The date the old process stops and the measure of adoption are set."
+        ]
       }
     ],
     "evidence": [

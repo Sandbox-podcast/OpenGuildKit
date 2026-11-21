@@ -1,0 +1,51 @@
+{
+  "id": "i18n-readiness",
+  "title": "Internationalisation readiness",
+  "version": "1.0.0",
+  "description": "For user-facing text and formats: externalised messages, no concatenated sentences, locale data for formats, language tags and a pseudo-localisation test.",
+  "sources": [
+    {
+      "title": "W3C, Internationalization Quick Tips for the Web",
+      "url": "https://www.w3.org/International/quicktips/"
+    },
+    {
+      "title": "ICU User Guide, Formatting Messages",
+      "url": "https://unicode-org.github.io/icu/userguide/format_parse/messages/"
+    },
+    {
+      "title": "Unicode CLDR, Common Locale Data Repository",
+      "url": "https://cldr.unicode.org/"
+    },
+    {
+      "title": "RFC 5646 (BCP 47), Tags for Identifying Languages",
+      "url": "https://www.rfc-editor.org/rfc/rfc5646.html"
+    }
+  ],
+  "rules": [
+    {
+      "id": "externalise-strings",
+      "instruction": "Put every user-facing string of the change in the message catalogue, with a note for translators on context and placeholders.",
+      "verification": "Search the changed code for user-facing literals outside the catalogue and check that each catalogue entry has a translator note."
+    },
+    {
+      "id": "use-full-messages",
+      "instruction": "Write each message as a full sentence with named placeholders, and use plural and select arguments instead of concatenating fragments.",
+      "verification": "Read the changed catalogue entries and check that no sentence is assembled from several entries in code."
+    },
+    {
+      "id": "format-with-locale-data",
+      "instruction": "Format dates, times, numbers, currencies and lists with the locale data of the platform or library, not with fixed patterns.",
+      "verification": "Search the change for hard-coded date or number patterns and check that formatting calls take the user's locale."
+    },
+    {
+      "id": "tag-locales-with-bcp47",
+      "instruction": "Identify locales with BCP 47 language tags and define the fallback when a translation is missing.",
+      "verification": "Check the locale configuration for the tags and the fallback chain."
+    },
+    {
+      "id": "test-pseudo-localisation",
+      "instruction": "Run the changed screens with a pseudo-localised build that lengthens strings and adds accents, and with a right-to-left locale if one is supported.",
+      "verification": "Check the screenshots or test results for truncation, hard-coded text and broken layout."
+    }
+  ]
+}

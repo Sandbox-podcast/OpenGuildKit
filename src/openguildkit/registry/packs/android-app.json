@@ -1,0 +1,64 @@
+{
+  "id": "android-app",
+  "title": "Android apps",
+  "version": "1.0.0",
+  "description": "For an Android app in Kotlin or Java: Play target API level, exported components, cleartext traffic, runtime permissions, release optimization and lint.",
+  "sources": [
+    {
+      "title": "Android Developers, meet Google Play's target API level requirement",
+      "url": "https://developer.android.com/google/play/requirements/target-sdk"
+    },
+    {
+      "title": "Android Developers, android:exported risk",
+      "url": "https://developer.android.com/privacy-and-security/risks/android-exported"
+    },
+    {
+      "title": "Android Developers, network security configuration",
+      "url": "https://developer.android.com/privacy-and-security/security-config"
+    },
+    {
+      "title": "Android Developers, request runtime permissions",
+      "url": "https://developer.android.com/training/permissions/requesting"
+    },
+    {
+      "title": "Android Developers, enable app optimization",
+      "url": "https://developer.android.com/topic/performance/app-optimization/enable-app-optimization"
+    },
+    {
+      "title": "Android Developers, improve your code with lint checks",
+      "url": "https://developer.android.com/studio/write/lint"
+    }
+  ],
+  "rules": [
+    {
+      "id": "meet-play-target-api",
+      "instruction": "Set `targetSdk` to the API level Google Play requires for new apps and updates, and review the behavior changes of each level crossed.",
+      "verification": "Compare `targetSdk` in the app module's Gradle file with the current requirement on the Play target API page, and run the instrumented tests on that API level."
+    },
+    {
+      "id": "declare-exported-explicitly",
+      "instruction": "Set `android:exported` explicitly on every activity, service, receiver and provider, and export only components other apps must start.",
+      "verification": "Review the merged manifest of the release build for components without `android:exported` or exported without a reason."
+    },
+    {
+      "id": "block-cleartext-traffic",
+      "instruction": "Keep cleartext traffic disabled. Allow it only for named domains in the network security configuration, never in `base-config` of a release build.",
+      "verification": "Inspect `network_security_config.xml` and the merged manifest for `cleartextTrafficPermitted=\"true\"` and `usesCleartextTraffic`."
+    },
+    {
+      "id": "request-permissions-in-context",
+      "instruction": "Request each dangerous permission when the user starts the feature that needs it, and keep the app usable when the user denies it.",
+      "verification": "Deny each new permission on a test device, run the feature, and confirm the app explains what is unavailable without crashing or blocking."
+    },
+    {
+      "id": "optimize-release-builds",
+      "instruction": "Enable R8 code and resource optimization for the release build type, with keep rules for code reached by reflection.",
+      "verification": "Build the release variant and run the smoke tests on that build, not only on the debug build."
+    },
+    {
+      "id": "pass-android-lint",
+      "instruction": "Run Android lint on the changed modules and fix new errors, or record them in the lint baseline with a reason.",
+      "verification": "Run `./gradlew lint` in CI and check that the report shows no new error compared with the baseline."
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "aws-iam",
+  "title": "AWS IAM",
+  "description": "Check temporary credentials, least-privilege policies and role trust for workloads and pipelines on AWS.",
+  "sources": [
+    {
+      "title": "AWS IAM, security best practices",
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html"
+    }
+  ],
+  "roles": [
+    "devops",
+    "security",
+    "engineering"
+  ],
+  "packs": [
+    "aws-iam"
+  ],
+  "match": {
+    "stack": [
+      [
+        "aws",
+        "amazon web services"
+      ]
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "revenue-recognition",
+  "title": "Revenue recognition",
+  "version": "1.0.0",
+  "description": "For a change to contracts, plans or billing: apply the five steps of IFRS 15 and have finance approve the revenue treatment before release.",
+  "sources": [
+    {
+      "title": "IFRS Foundation, IFRS 15 Revenue from Contracts with Customers",
+      "url": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-15-revenue-from-contracts-with-customers/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "identify-performance-obligations",
+      "instruction": "For each new or changed contract or plan, list in the revenue memo the performance obligations it contains and the standalone selling price of each.",
+      "verification": "Open the revenue memo and check that every product line of the contract template appears as an obligation or is explained as part of another."
+    },
+    {
+      "id": "include-variable-consideration",
+      "instruction": "Record discounts, free periods, credits, refunds and usage-based fees in the transaction price of the revenue memo instead of leaving them out.",
+      "verification": "Compare the price terms of the contract template with the memo and check that each one is reflected in the transaction price."
+    },
+    {
+      "id": "recognise-as-obligations-are-satisfied",
+      "instruction": "Configure the revenue schedule so that revenue follows the satisfaction of each obligation, over the service period for a subscription, not the invoice or payment date.",
+      "verification": "Export the revenue schedule of a test contract and check that monthly revenue equals the allocated price spread over the service period."
+    },
+    {
+      "id": "finance-approves-revenue-treatment",
+      "instruction": "Ask the finance owner to approve the revenue treatment of new or changed contract templates before they are used with customers.",
+      "verification": "Check that the task record names the finance approver and the approval date, earlier than the first contract signed on the template."
+    }
+  ]
+}

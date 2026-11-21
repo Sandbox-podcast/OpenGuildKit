@@ -1,0 +1,22 @@
+{
+  "id": "employee-offboarding",
+  "title": "Employee offboarding",
+  "description": "Remove access, hand over responsibilities and recover assets when a person leaves or changes role.",
+  "sources": [
+    {
+      "title": "NIST SP 800-53 Rev. 5, Security and Privacy Controls for Information Systems and Organizations",
+      "url": "https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final"
+    }
+  ],
+  "roles": [
+    "hr",
+    "security",
+    "operations"
+  ],
+  "packs": [
+    "employee-offboarding"
+  ],
+  "references": [
+    "nist-sp-800-53"
+  ]
+}

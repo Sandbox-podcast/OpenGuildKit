@@ -47,7 +47,73 @@
     "xss",
     "csrf",
     "sql injection",
-    "injection sql"
+    "injection sql",
+    "soc 2",
+    "soc2",
+    "audit log",
+    "audit trail",
+    "journal d'audit",
+    "pci",
+    "pci dss",
+    "stripe",
+    "card data",
+    "cardholder data",
+    "credit card",
+    "carte bancaire",
+    "patient",
+    "patient data",
+    "medical record",
+    "health data",
+    "données de santé",
+    "hds",
+    "dossier patient",
+    "hipaa",
+    "data subject",
+    "data subject request",
+    "data subject access request",
+    "dsar",
+    "subject access request",
+    "erasure",
+    "right to erasure",
+    "droit à l'effacement",
+    "demande d'accès",
+    "personne concernée",
+    "data retention",
+    "retention period",
+    "durée de conservation",
+    "conservation des données",
+    "inactivity",
+    "inactivité",
+    "account deletion",
+    "leak",
+    "leaked",
+    "credential",
+    "credential leak",
+    "leaked credential",
+    "access key",
+    "api key",
+    "clé d'api",
+    "secret key",
+    "key rotation",
+    "secret rotation",
+    "fuite de clé",
+    "fuite d'identifiants",
+    "fuite de données",
+    "data leak",
+    "dependabot",
+    "vulnerable dependency",
+    "software supply chain",
+    "sbom",
+    "rate limit",
+    "rate limiter",
+    "rate limiting",
+    "laptop",
+    "device management",
+    "mdm",
+    "jamf",
+    "intune",
+    "security questionnaire",
+    "laptop management"
   ],
   "questions": [
     "Which actors, permissions and data classes does the change affect?",
@@ -73,22 +139,38 @@
       {
         "id": "application-security",
         "title": "Application security reviewer",
-        "focus": "Trace authorization from each affected entry point to the resource it protects. Verify the expected access rules for users, services and background jobs."
+        "focus": "Trace authorization from each affected entry point to the resource it protects. Verify the expected access rules for users, services and background jobs.",
+        "checks": [
+          "Every entry point checks authorization on the server for the resource it returns or changes.",
+          "Inputs are validated and outputs encoded for their context."
+        ]
       },
       {
         "id": "privacy-engineering",
         "title": "Privacy engineer",
-        "focus": "Map personal and sensitive data to its purpose, recipients and retention. Flag fields or transfers that require the data owner's decision."
+        "focus": "Map personal and sensitive data to its purpose, recipients and retention. Flag fields or transfers that require the data owner's decision.",
+        "checks": [
+          "Personal data fields are mapped to purpose, recipients and retention.",
+          "Data collected is limited to what the purpose needs."
+        ]
       },
       {
         "id": "release-integrity",
         "title": "Software supply chain reviewer",
-        "focus": "Review changed dependencies, identity scopes and artifact provenance. Determine whether the release evidence applies to the exact build under review."
+        "focus": "Review changed dependencies, identity scopes and artifact provenance. Determine whether the release evidence applies to the exact build under review.",
+        "checks": [
+          "Dependency changes, identity scopes and build provenance are reviewed for the exact build.",
+          "Secrets are not in code or logs and are rotated when exposed."
+        ]
       },
       {
         "id": "control-ownership",
         "title": "Security control owner",
-        "focus": "Match the proposed change to approved controls, available evidence and open exceptions. Identify who can accept a residual risk and when it must be revisited."
+        "focus": "Match the proposed change to approved controls, available evidence and open exceptions. Identify who can accept a residual risk and when it must be revisited.",
+        "checks": [
+          "The change maps to approved controls and the evidence each needs.",
+          "Residual risks have a named owner who accepted them and a review date."
+        ]
       }
     ],
     "evidence": [

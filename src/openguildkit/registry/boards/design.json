@@ -32,7 +32,23 @@
     "design system",
     "css",
     "usability",
-    "utilisabilité"
+    "utilisabilité",
+    "dark mode",
+    "mode sombre",
+    "wcag",
+    "rgaa",
+    "a11y",
+    "color contrast",
+    "contrast check",
+    "contraste",
+    "translation",
+    "translate",
+    "traduction",
+    "traduire",
+    "localization",
+    "i18n",
+    "l10n",
+    "right-to-left"
   ],
   "questions": [
     "Which component or pattern in the chosen design system fits this interaction?",
@@ -66,22 +82,38 @@
       {
         "id": "interaction-designer",
         "title": "Interaction designer",
-        "focus": "Map the task across entry, decision, completion and recovery. Find steps where users could misunderstand scope, status or consequences."
+        "focus": "Map the task across entry, decision, completion and recovery. Find steps where users could misunderstand scope, status or consequences.",
+        "checks": [
+          "Each step shows status, consequences and a way back before an irreversible action.",
+          "Error and empty states are designed, not left to default messages."
+        ]
       },
       {
         "id": "systems-designer",
         "title": "Design systems designer",
-        "focus": "Locate components and tokens in the project's chosen system. Compare composition and extension against adding a new pattern the team would need to maintain."
+        "focus": "Locate components and tokens in the project's chosen system. Compare composition and extension against adding a new pattern the team would need to maintain.",
+        "checks": [
+          "Existing components and tokens are used before a new pattern is proposed.",
+          "A new component is documented with its states and usage rules in the design system."
+        ]
       },
       {
         "id": "accessibility-specialist",
         "title": "Accessibility specialist",
-        "focus": "Examine how keyboard, zoom and assistive technologies handle the relevant tasks. Identify focus behavior, accessible names and announcements in state changes."
+        "focus": "Examine how keyboard, zoom and assistive technologies handle the relevant tasks. Identify focus behavior, accessible names and announcements in state changes.",
+        "checks": [
+          "The task can be completed with keyboard only and at 200 percent zoom.",
+          "State changes are announced to screen readers and focus order follows the visual order."
+        ]
       },
       {
         "id": "usability-researcher",
         "title": "Usability researcher",
-        "focus": "Define representative participants and realistic tasks the team can observe. Separate usability observations from issues caused by prototype or test conditions."
+        "focus": "Define representative participants and realistic tasks the team can observe. Separate usability observations from issues caused by prototype or test conditions.",
+        "checks": [
+          "Participants match the target users and tasks are realistic, not leading.",
+          "Findings separate observed behaviour from participant opinions and prototype artefacts."
+        ]
       }
     ],
     "evidence": [

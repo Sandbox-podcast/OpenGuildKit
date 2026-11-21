@@ -36,7 +36,18 @@
     "etl",
     "dbt",
     "model evaluation",
-    "évaluation du modèle"
+    "évaluation du modèle",
+    "ai",
+    "ia",
+    "ai model",
+    "ml model",
+    "eval set",
+    "evaluation set",
+    "jeu d'évaluation",
+    "snowflake",
+    "bigquery",
+    "databricks",
+    "google analytics"
   ],
   "questions": [
     "Which data does the change create, transform or rely on, and who owns its definition and quality?",
@@ -66,22 +77,38 @@
       {
         "id": "data-steward",
         "title": "Data steward",
-        "focus": "Name the owner and definition of each dataset or metric the change touches, and the quality checks it needs: completeness, freshness and validity."
+        "focus": "Name the owner and definition of each dataset or metric the change touches, and the quality checks it needs: completeness, freshness and validity.",
+        "checks": [
+          "Each metric the change touches has one written definition and an owner.",
+          "Freshness, completeness and validity checks run on the affected tables with alert thresholds."
+        ]
       },
       {
         "id": "analytics-engineer",
         "title": "Analytics engineer",
-        "focus": "Check the events, schemas and transformations that measure the change, and that existing dashboards and reports keep working."
+        "focus": "Check the events, schemas and transformations that measure the change, and that existing dashboards and reports keep working.",
+        "checks": [
+          "New events follow the tracking plan naming and carry a schema version.",
+          "Dashboards and models that read changed fields are listed and tested before release."
+        ]
       },
       {
         "id": "ml-evaluator",
         "title": "ML and AI evaluator",
-        "focus": "For a model or AI feature, define the evaluation set, the quality and safety metrics and the threshold that blocks release."
+        "focus": "For a model or AI feature, define the evaluation set, the quality and safety metrics and the threshold that blocks release.",
+        "checks": [
+          "The evaluation set is separate from training data and represents the users the model serves.",
+          "The release threshold for quality and safety metrics is set before results are seen."
+        ]
       },
       {
         "id": "ai-risk-lead",
         "title": "AI risk lead",
-        "focus": "Document the model's intended use, limits and failure modes, the human oversight in place and the obligations that apply to the use case."
+        "focus": "Document the model's intended use, limits and failure modes, the human oversight in place and the obligations that apply to the use case.",
+        "checks": [
+          "Intended use, known limits and prohibited uses are written in a model or system card.",
+          "The use case is classified against the AI Act risk categories with legal."
+        ]
       }
     ],
     "evidence": [

@@ -1,0 +1,345 @@
+{
+  "id": "documentation",
+  "title": "Documentation and knowledge",
+  "tools": [
+    {
+      "id": "confluence",
+      "title": "Confluence",
+      "vendor": "Atlassian",
+      "summary": "Team wiki and documentation workspace.",
+      "homepage": "https://www.atlassian.com/software/confluence",
+      "brains": [
+        "project-management",
+        "engineering",
+        "product",
+        "operations"
+      ],
+      "servers": [
+        {
+          "id": "atlassian-rovo",
+          "name": "Atlassian Rovo MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Atlassian",
+          "transport": "streamable-http",
+          "url": "https://mcp.atlassian.com/v2/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "ga",
+          "capabilities": "Read, write and search Confluence pages; same server also covers Jira, Bitbucket Cloud, Compass and Loom.",
+          "source": "https://support.atlassian.com/atlassian-rovo-mcp-server/docs/getting-started-with-the-atlassian-remote-mcp-server/",
+          "repository": "https://github.com/atlassian/atlassian-mcp-server",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.atlassian.com/cloud/confluence/rest/v2/"
+      },
+      "notes": "Confluence Cloud only, same server as Jira. API token auth must be enabled by an org admin; the legacy SSE endpoint /v1/sse was retired after 30 June 2026."
+    },
+    {
+      "id": "context7",
+      "title": "Context7",
+      "vendor": "Upstash",
+      "summary": "Up-to-date, version-specific library documentation for coding agents.",
+      "homepage": "https://context7.com",
+      "brains": [
+        "engineering",
+        "frontend",
+        "backend"
+      ],
+      "servers": [
+        {
+          "id": "context7-remote",
+          "name": "Context7 MCP",
+          "publisher": "vendor",
+          "maintainer": "Upstash",
+          "transport": "streamable-http",
+          "url": "https://mcp.context7.com/mcp",
+          "auth": "api-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "resolve-library-id and query-docs: fetch current documentation and code examples for libraries.",
+          "source": "https://github.com/upstash/context7",
+          "repository": "https://github.com/upstash/context7",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://context7.com/docs/api-guide"
+      },
+      "notes": "The API key (Authorization: Bearer) is recommended for higher rate limits rather than mandatory; npx ctx7 setup can configure it."
+    },
+    {
+      "id": "documentalist",
+      "title": "Documentalist",
+      "vendor": "azerothl",
+      "summary": "Documentation portal that imports and synchronises Markdown, MDX and OpenAPI files from a repository.",
+      "homepage": "https://github.com/azerothl/documentalist",
+      "brains": [
+        "communication",
+        "engineering",
+        "product",
+        "support",
+        "developer-relations-and-docs"
+      ],
+      "servers": [],
+      "notes": "No MCP server on record. OpenGuildKit prepares the folders Documentalist imports with `openguildkit docs export` and keeps the register of shares with `openguildkit docs share`: see docs/documentation.md."
+    },
+    {
+      "id": "docusaurus",
+      "title": "Docusaurus",
+      "vendor": "Meta (open source)",
+      "summary": "Static site generator for documentation websites.",
+      "homepage": "https://docusaurus.io",
+      "brains": [
+        "engineering",
+        "product",
+        "developer-relations-and-docs",
+        "frontend"
+      ],
+      "detect": {
+        "files": [
+          "docusaurus.config.*"
+        ],
+        "npm": [
+          "@docusaurus/core"
+        ]
+      },
+      "servers": [],
+      "api": {
+        "kind": "other",
+        "docs": "https://docusaurus.io/docs/api/docusaurus-config"
+      },
+      "notes": "No official MCP server found on 2026-11-21. Third-party plugins exist (for example docusaurus-plugin-mcp-server) but none is clearly established."
+    },
+    {
+      "id": "gitbook",
+      "title": "GitBook",
+      "vendor": "GitBook",
+      "summary": "Documentation and knowledge base platform.",
+      "homepage": "https://www.gitbook.com",
+      "brains": [
+        "engineering",
+        "product",
+        "support",
+        "developer-relations-and-docs"
+      ],
+      "servers": [
+        {
+          "id": "gitbook-mcp",
+          "name": "GitBook MCP",
+          "publisher": "vendor",
+          "maintainer": "GitBook",
+          "transport": "streamable-http",
+          "url": "https://mcp.gitbook.com/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Create and configure sites, open change requests, draft and edit pages, restructure docs.",
+          "source": "https://gitbook.com/docs/docs-as-code/gitbook-mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://gitbook.com/docs/developers/gitbook-api/overview"
+      },
+      "notes": "Personal access token goes in Authorization: Bearer; limit 5,000 requests per hour per token. Published GitBook sites also expose a read-only MCP at <site>/~gitbook/mcp."
+    },
+    {
+      "id": "mintlify",
+      "title": "Mintlify",
+      "vendor": "Mintlify",
+      "summary": "Hosted documentation platform for developer docs.",
+      "homepage": "https://www.mintlify.com",
+      "brains": [
+        "engineering",
+        "product",
+        "developer-relations-and-docs"
+      ],
+      "detect": {
+        "files": [
+          "mint.json"
+        ]
+      },
+      "servers": [
+        {
+          "id": "mintlify-admin",
+          "name": "Mintlify admin MCP",
+          "publisher": "vendor",
+          "maintainer": "Mintlify",
+          "transport": "streamable-http",
+          "url": "https://mcp.mintlify.com",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Read, edit, restructure and publish docs, create automations and manage settings.",
+          "source": "https://www.mintlify.com/docs/ai/mintlify-mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://www.mintlify.com/docs/api/introduction"
+      },
+      "notes": "Non-interactive credentials are read-only; edits need OAuth and write access to the deploy branch. Every Mintlify site also exposes a read-only search MCP at <site>/mcp (and /authed/mcp for protected docs)."
+    },
+    {
+      "id": "notion",
+      "title": "Notion",
+      "vendor": "Notion Labs",
+      "summary": "Connected workspace for docs, wikis and databases.",
+      "homepage": "https://www.notion.com",
+      "brains": [
+        "product",
+        "project-management",
+        "operations",
+        "engineering"
+      ],
+      "detect": {
+        "npm": [
+          "@notionhq/client"
+        ]
+      },
+      "servers": [
+        {
+          "id": "notion-remote",
+          "name": "Notion MCP",
+          "publisher": "vendor",
+          "maintainer": "Notion",
+          "transport": "streamable-http",
+          "url": "https://mcp.notion.com/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Search and fetch pages, create and update pages, comments, databases and views, file uploads.",
+          "source": "https://developers.notion.com/guides/mcp/get-started-with-mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.notion.com/reference/intro"
+      },
+      "notes": "OAuth by default; MCP bearer tokens can be created by workspace owners on Business and Enterprise. Legacy SSE endpoint https://mcp.notion.com/sse retires in February 2027. The open-source local server (makenotion/notion-mcp-server) is no longer actively maintained and only a last resort."
+    },
+    {
+      "id": "readme",
+      "title": "ReadMe",
+      "vendor": "ReadMe",
+      "summary": "Hosted API documentation and developer hub platform.",
+      "homepage": "https://readme.com",
+      "brains": [
+        "engineering",
+        "product",
+        "developer-relations-and-docs",
+        "backend"
+      ],
+      "servers": [
+        {
+          "id": "readme-mcp",
+          "name": "ReadMe's MCP Server",
+          "publisher": "vendor",
+          "maintainer": "ReadMe",
+          "transport": "streamable-http",
+          "url": "https://docs.readme.com/mcp",
+          "auth": "api-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Search ReadMe docs, read and update project pages, branches, settings and API specs, draft changelogs.",
+          "source": "https://docs.readme.com/main/docs/readmes-mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.readme.com/main/reference/intro-to-the-readme-api"
+      },
+      "notes": "Authenticates with a project API key (Authorization: Bearer rdme_...), one key per project. Separately, each ReadMe project can enable an MCP server for its own readers."
+    },
+    {
+      "id": "swagger",
+      "title": "Swagger / OpenAPI tooling",
+      "vendor": "SmartBear",
+      "summary": "API design, documentation and portal tools around the OpenAPI specification.",
+      "homepage": "https://swagger.io",
+      "brains": [
+        "engineering",
+        "product",
+        "developer-relations-and-docs",
+        "backend"
+      ],
+      "aliases": [
+        "OpenAPI",
+        "SwaggerHub"
+      ],
+      "detect": {
+        "files": [
+          "openapi.yaml",
+          "openapi.yml",
+          "openapi.json",
+          "swagger.json",
+          "swagger.yaml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "swagger-remote",
+          "name": "Swagger MCP (SmartBear remote)",
+          "publisher": "vendor",
+          "maintainer": "SmartBear",
+          "transport": "streamable-http",
+          "url": "https://swagger.mcp.smartbear.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Swagger Portal and Studio management: APIs, domains, AI-assisted API generation and standardization.",
+          "source": "https://developer.smartbear.com/smartbear-mcp/docs/remote-mcp-servers",
+          "repository": "https://github.com/SmartBear/smartbear-mcp",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "smartbear-local",
+          "name": "SmartBear MCP (local, all products)",
+          "publisher": "vendor",
+          "maintainer": "SmartBear",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@smartbear/mcp@latest"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@smartbear/mcp"
+          },
+          "auth": "api-token",
+          "env": [
+            "SWAGGER_API_KEY",
+            "SWAGGER_PORTAL_BASE_PATH",
+            "SWAGGER_REGISTRY_BASE_PATH",
+            "SWAGGER_UI_BASE_PATH",
+            "SWAGGER_FUNCTIONAL_TESTING_API_TOKEN",
+            "SWAGGER_FUNCTIONAL_TESTING_BASE_PATH"
+          ],
+          "status": "unknown",
+          "capabilities": "Single server for SmartBear products; Swagger tools need SWAGGER_API_KEY, functional testing its own token.",
+          "source": "https://github.com/SmartBear/smartbear-mcp",
+          "repository": "https://github.com/SmartBear/smartbear-mcp",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.smartbear.com/"
+      },
+      "notes": "Covers SmartBear's Swagger products, not the open-source Swagger UI/Editor alone. The remote transport is not named in SmartBear's page; its registry entry says streamable HTTP. Base path variables are optional settings for on-premise installs."
+    }
+  ]
+}

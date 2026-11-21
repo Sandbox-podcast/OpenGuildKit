@@ -1,0 +1,123 @@
+{
+  "id": "strategy",
+  "title": "Direction et gouvernance",
+  "references": [
+    {
+      "id": "iso-37000",
+      "title": "ISO 37000:2021",
+      "edition": "2021",
+      "category": "Gouvernance des organisations",
+      "kind": "norme",
+      "brains": [
+        "leadership"
+      ],
+      "summary": "Donne aux organes de gouvernance des lignes directrices, articulées autour de onze principes, pour diriger et superviser une organisation de façon responsable.",
+      "applies_when": "Pour un conseil ou une direction qui revoit ses responsabilités, ses délégations et la façon dont elle rend des comptes.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/65036.html",
+          "title": "ISO 37000:2021 — Governance of organizations, guidance"
+        }
+      ]
+    },
+    {
+      "id": "uk-corporate-governance-code",
+      "title": "UK Corporate Governance Code 2024",
+      "edition": "2024",
+      "category": "Gouvernance des organisations",
+      "kind": "référentiel",
+      "brains": [
+        "leadership",
+        "finance"
+      ],
+      "summary": "Code de gouvernance des sociétés cotées britanniques : rôle et composition du conseil, audit, risques, contrôle interne et rémunération, selon le principe « appliquer ou expliquer ».",
+      "applies_when": "Comme référence de gouvernance d'un conseil d'administration ; il ne s'impose qu'aux sociétés qui y sont soumises.",
+      "sources": [
+        {
+          "url": "https://www.frc.org.uk/library/standards-codes-policy/corporate-governance/uk-corporate-governance-code/",
+          "title": "Financial Reporting Council — UK Corporate Governance Code 2024"
+        }
+      ]
+    },
+    {
+      "id": "iso-31000",
+      "title": "ISO 31000:2018",
+      "edition": "2018",
+      "category": "Risques",
+      "kind": "norme",
+      "brains": [
+        "leadership",
+        "project-management"
+      ],
+      "summary": "Lignes directrices de management du risque : principes, cadre et processus pour identifier, analyser, évaluer et traiter les risques.",
+      "applies_when": "Pour structurer l'analyse des risques d'un projet ou d'une organisation ; norme de lignes directrices, non destinée à la certification.",
+      "sources": [
+        {
+          "url": "https://www.iso.org/standard/65694.html",
+          "title": "ISO 31000:2018 — Risk management, guidelines"
+        }
+      ]
+    },
+    {
+      "id": "coso-erm",
+      "title": "COSO — Enterprise Risk Management, Integrating with Strategy and Performance",
+      "category": "Risques",
+      "kind": "référentiel",
+      "brains": [
+        "leadership",
+        "finance"
+      ],
+      "summary": "Relie le management des risques à la définition de la stratégie et au pilotage de la performance.",
+      "applies_when": "Pour fixer l'appétence au risque et suivre les risques majeurs au niveau de la direction.",
+      "pattern": "enterprise-risk",
+      "packs": [
+        "enterprise-risk-review"
+      ],
+      "sources": [
+        {
+          "url": "https://www.coso.org/enterprise-risk-management",
+          "title": "COSO, Enterprise Risk Management"
+        }
+      ]
+    },
+    {
+      "id": "balanced-scorecard",
+      "title": "Balanced Scorecard (Kaplan et Norton)",
+      "category": "Stratégie et pilotage",
+      "kind": "méthode",
+      "brains": [
+        "leadership",
+        "finance"
+      ],
+      "summary": "Suit l'exécution de la stratégie selon quatre perspectives : financière, clients, processus internes, apprentissage et croissance.",
+      "applies_when": "Pour piloter une stratégie avec des indicateurs équilibrés plutôt qu'avec les seuls résultats financiers.",
+      "sources": [
+        {
+          "url": "https://hbr.org/1992/01/the-balanced-scorecard-measures-that-drive-performance-2",
+          "title": "Kaplan and Norton, The Balanced Scorecard, measures that drive performance"
+        }
+      ]
+    },
+    {
+      "id": "strategy-maps",
+      "title": "Strategy maps (Kaplan et Norton)",
+      "category": "Stratégie et pilotage",
+      "kind": "méthode",
+      "brains": [
+        "leadership"
+      ],
+      "summary": "Représente les liens de cause à effet supposés entre capacités, processus, clients et résultats financiers.",
+      "applies_when": "Pour expliciter les hypothèses d'une stratégie et choisir lesquelles tester en premier.",
+      "pattern": "strategy-mapping",
+      "packs": [
+        "strategy-map"
+      ],
+      "sources": [
+        {
+          "url": "https://www.library.hbs.edu/working-knowledge/mapping-your-corporate-strategy",
+          "title": "HBS Working Knowledge, Mapping Your Corporate Strategy: Robert S. Kaplan on Kaplan and Norton's Strategy Maps"
+        }
+      ]
+    }
+  ]
+}

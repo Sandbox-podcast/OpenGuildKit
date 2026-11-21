@@ -5,7 +5,7 @@ import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { acquireWatchLock, watchGithub } from '../lib/watch.mjs';
-import { renderWatchReport } from '../lib/github-report.mjs';
+import { renderWatchReport, watchReportStatus } from '../lib/github-report.mjs';
 import { latestStatus } from '../lib/github.mjs';
 
 const kitVersion = '0.16.1';
@@ -111,8 +111,32 @@ test('the PR report treats malformed export values as an invalid measurement', (
     actions: { proof: { proof: { actualMinutes: '[untrusted](https://example.org)', maxMinutes: 30 } } },
     decision: { effectiveStatus: 'failure' },
   });
-  assert.match(body, /Seuil 30 min · Valeur invalide/);
+  assert.match(body, /Threshold 30 min · Value invalid/);
+  assert.match(body, /^\*\*Deviation\*\* · Observation$/m);
   assert.doesNotMatch(body, /untrusted|example\.org/);
+});
+
+test('the PR report and its status are written in English', () => {
+  const work = 'c'.repeat(64);
+  const entry = {
+    project: 'team/repo', pullRequest: 7, commit: 'a'.repeat(40), profileCommit: 'b'.repeat(40),
+    policyCommit: 'd'.repeat(40), rule: 'export-link-expiry', mode: 'required', work,
+    actions: { state: 'verified', url: 'https://github.com/team/repo/actions/runs/1', verifiedAt: '2026-11-21T00:00:00Z',
+      proof: { proof: { actualMinutes: 20, maxMinutes: 30, owner: '@lead', guidance: 'Keep links short.', state: 'success' } } },
+    decision: { effectiveStatus: 'waived', waiver: { id: 'w1', reason: 'Migration', approver: '@lead',
+      expiresAt: '2026-12-01T00:00:00Z', registryCommit: 'e'.repeat(40) } },
+  };
+  const body = renderWatchReport(entry, '3');
+  assert.match(body, /^# OpenGuildKit report$/m);
+  assert.match(body, /^\*\*Waived\*\* · Required check$/m);
+  assert.match(body, /^- Evaluated commit `a{40}`$/m);
+  assert.match(body, /^- Waiver `w1` · `Migration`/m);
+  assert.doesNotMatch(body, /[éèàêç]|Conforme|Règle|Dérogation/);
+  assert.deepEqual(watchReportStatus(entry), { verified: true, state: 'success', description: `Waived (info) | rule ${'d'.repeat(12)} | ${'c'.repeat(12)}` });
+  assert.equal(watchReportStatus({ ...entry, actions: { state: 'failed' } }).description,
+    `CI verification error (info) | rule ${'d'.repeat(12)} | ${'c'.repeat(12)}`);
+  assert.equal(watchReportStatus({ ...entry, actions: { state: 'running' } }).description,
+    `Waiting for the reports of both CIs (info) | rule ${'d'.repeat(12)} | ${'c'.repeat(12)}`);
 });
 
 test('a lost dispatch response is recovered by attempt before another dispatch', t => {

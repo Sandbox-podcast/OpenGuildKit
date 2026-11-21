@@ -1,0 +1,494 @@
+{
+  "id": "cloud",
+  "title": "Cloud and infrastructure",
+  "tools": [
+    {
+      "id": "aws",
+      "title": "AWS",
+      "vendor": "Amazon Web Services",
+      "summary": "Amazon Web Services cloud platform.",
+      "homepage": "https://aws.amazon.com",
+      "brains": [
+        "devops",
+        "engineering",
+        "security"
+      ],
+      "aliases": [
+        "Amazon Web Services"
+      ],
+      "detect": {
+        "npm": [
+          "aws-sdk",
+          "aws-cdk-lib"
+        ],
+        "pypi": [
+          "boto3"
+        ]
+      },
+      "servers": [
+        {
+          "id": "aws-mcp-server",
+          "name": "AWS MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Amazon Web Services",
+          "transport": "streamable-http",
+          "url": "https://aws-mcp.us-east-1.api.aws/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "preview",
+          "capabilities": "Call AWS APIs across services with IAM permissions and CloudTrail logging, search AWS documentation and follow Agent SOPs.",
+          "source": "https://docs.aws.amazon.com/aws-mcp/latest/userguide/getting-started-aws-mcp-server.html",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.aws.amazon.com/"
+      },
+      "notes": "Regional endpoints also in us-west-2, ap-southeast-1/2, ap-northeast-1, eu-central-1, eu-west-1, eu-west-2. OAuth needs the AWSMCPSignInOAuthAccessPolicy; SigV4 via `uvx mcp-proxy-for-aws-cli@latest <endpoint>`. Preview status taken from the awslabs/mcp README; awslabs also publishes many per-service local servers."
+    },
+    {
+      "id": "azure",
+      "title": "Microsoft Azure",
+      "vendor": "Microsoft",
+      "summary": "Microsoft's cloud platform.",
+      "homepage": "https://azure.microsoft.com",
+      "brains": [
+        "devops",
+        "engineering",
+        "security"
+      ],
+      "aliases": [
+        "Microsoft Azure"
+      ],
+      "detect": {
+        "files": [
+          "azure.yaml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "azure-mcp",
+          "name": "Azure MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Microsoft",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@azure/mcp@latest",
+            "server",
+            "start"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@azure/mcp"
+          },
+          "auth": "oauth",
+          "env": [],
+          "status": "ga",
+          "capabilities": "Manage and query Azure resources (storage, Cosmos DB, Key Vault, monitoring, AKS and more) using the signed-in Azure identity.",
+          "source": "https://github.com/microsoft/mcp/tree/main/servers/Azure.Mcp.Server",
+          "repository": "https://github.com/microsoft/mcp",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://learn.microsoft.com/en-us/rest/api/azure/"
+      },
+      "notes": "Azure MCP Server 2.0 is generally available. It authenticates with your local Azure credentials (for example Azure CLI sign-in); also published on NuGet and PyPI."
+    },
+    {
+      "id": "cloudflare",
+      "title": "Cloudflare",
+      "vendor": "Cloudflare",
+      "summary": "Edge network, CDN, security and developer platform (Workers, R2, DNS).",
+      "homepage": "https://www.cloudflare.com",
+      "brains": [
+        "devops",
+        "engineering",
+        "security"
+      ],
+      "detect": {
+        "files": [
+          "wrangler.toml",
+          "wrangler.jsonc",
+          "wrangler.json"
+        ]
+      },
+      "servers": [
+        {
+          "id": "cloudflare-api",
+          "name": "Cloudflare API MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Cloudflare",
+          "transport": "streamable-http",
+          "url": "https://mcp.cloudflare.com/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Access the whole Cloudflare API (about 2,500 endpoints) through code mode tools.",
+          "source": "https://github.com/cloudflare/mcp",
+          "repository": "https://github.com/cloudflare/mcp",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.cloudflare.com/api/"
+      },
+      "notes": "Cloudflare also hosts product-specific servers (docs, observability, browser, containers, audit logs...) listed in cloudflare/mcp-server-cloudflare, and asks users of the deprecated ones to migrate to this API server. Token auth uses a Cloudflare API token as Bearer."
+    },
+    {
+      "id": "docker",
+      "title": "Docker",
+      "vendor": "Docker",
+      "summary": "Container build and runtime tooling (Docker Desktop, Docker Hub).",
+      "homepage": "https://www.docker.com",
+      "brains": [
+        "devops",
+        "engineering"
+      ],
+      "detect": {
+        "files": [
+          "Dockerfile",
+          "docker-compose.yml",
+          "docker-compose.yaml",
+          "compose.yaml",
+          "compose.yml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "docker-mcp-gateway",
+          "name": "Docker MCP Gateway",
+          "publisher": "vendor",
+          "maintainer": "Docker",
+          "transport": "stdio",
+          "command": "docker",
+          "args": [
+            "mcp",
+            "gateway",
+            "run"
+          ],
+          "package": {
+            "registry": "github-release",
+            "name": "docker/mcp-gateway"
+          },
+          "auth": "none",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Single MCP endpoint that runs and proxies containerised MCP servers from the Docker MCP Catalog, with secrets and OAuth handling.",
+          "source": "https://github.com/docker/mcp-gateway",
+          "repository": "https://github.com/docker/mcp-gateway",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.docker.com/reference/api/engine/"
+      },
+      "notes": "This is a gateway to other MCP servers, not a server for managing Docker itself; it needs Docker Desktop 4.59+ with MCP Toolkit enabled, or the docker-mcp CLI plugin. No official Docker-management MCP server was found."
+    },
+    {
+      "id": "google-cloud",
+      "title": "Google Cloud",
+      "vendor": "Google",
+      "summary": "Google's cloud platform.",
+      "homepage": "https://cloud.google.com",
+      "brains": [
+        "devops",
+        "engineering",
+        "data"
+      ],
+      "aliases": [
+        "GCP",
+        "Google Cloud Platform"
+      ],
+      "detect": {
+        "files": [
+          "app.yaml",
+          "cloudbuild.yaml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "gcloud-mcp",
+          "name": "gcloud MCP server",
+          "publisher": "vendor",
+          "maintainer": "Google",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@google-cloud/gcloud-mcp"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@google-cloud/gcloud-mcp"
+          },
+          "auth": "oauth",
+          "env": [],
+          "status": "preview",
+          "capabilities": "Run gcloud CLI commands from the agent to manage Google Cloud resources.",
+          "source": "https://github.com/googleapis/gcloud-mcp",
+          "repository": "https://github.com/googleapis/gcloud-mcp",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "gcp-cloud-run-remote",
+          "name": "Cloud Run remote MCP server",
+          "publisher": "vendor",
+          "maintainer": "Google",
+          "transport": "streamable-http",
+          "url": "https://run.googleapis.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Google-managed remote MCP server for Cloud Run.",
+          "source": "https://docs.cloud.google.com/mcp/supported-products",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://cloud.google.com/apis/docs/overview"
+      },
+      "notes": "Uses the local gcloud credentials. Google also hosts remote MCP servers per product (e.g. GKE https://container.googleapis.com/mcp, Compute Engine https://compute.googleapis.com/mcp, Logging https://logging.googleapis.com/mcp, Monitoring https://monitoring.googleapis.com/mcp), governed by IAM."
+    },
+    {
+      "id": "kubernetes",
+      "title": "Kubernetes",
+      "vendor": "CNCF",
+      "summary": "Open source container orchestration.",
+      "homepage": "https://kubernetes.io",
+      "brains": [
+        "devops",
+        "engineering"
+      ],
+      "aliases": [
+        "k8s"
+      ],
+      "detect": {
+        "files": [
+          "k8s/*.yaml",
+          "kubernetes/*.yaml",
+          "charts/*/Chart.yaml",
+          "helm/*/Chart.yaml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "kubernetes-mcp-server",
+          "name": "Kubernetes MCP Server",
+          "publisher": "community",
+          "maintainer": "containers (GitHub organisation)",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "kubernetes-mcp-server@latest"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "kubernetes-mcp-server"
+          },
+          "auth": "none",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Manage pods, resources, Helm releases, events and logs across clusters defined in kubeconfig or in-cluster config.",
+          "source": "https://github.com/containers/kubernetes-mcp-server",
+          "repository": "https://github.com/containers/kubernetes-mcp-server",
+          "license": "Apache-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://kubernetes.io/docs/reference/kubernetes-api/"
+      },
+      "notes": "No MCP server published by the Kubernetes project was found. This community server (about 2,270 stars, commits on 2026-11-20) uses the local kubeconfig credentials; also on PyPI."
+    },
+    {
+      "id": "netlify",
+      "title": "Netlify",
+      "vendor": "Netlify",
+      "summary": "Web platform to build, deploy and host sites and apps.",
+      "homepage": "https://www.netlify.com",
+      "brains": [
+        "devops",
+        "engineering",
+        "frontend"
+      ],
+      "detect": {
+        "files": [
+          "netlify.toml"
+        ]
+      },
+      "servers": [
+        {
+          "id": "netlify-remote",
+          "name": "Netlify MCP Server (remote)",
+          "publisher": "vendor",
+          "maintainer": "Netlify",
+          "transport": "streamable-http",
+          "url": "https://mcp.netlify.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Create, build, deploy and manage Netlify projects, environment variables, forms and extensions.",
+          "source": "https://docs.netlify.com/build/build-with-ai/netlify-mcp-server/",
+          "repository": "https://github.com/netlify/netlify-mcp",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "netlify-local",
+          "name": "Netlify MCP Server (local)",
+          "publisher": "vendor",
+          "maintainer": "Netlify",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@netlify/mcp"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@netlify/mcp"
+          },
+          "auth": "oauth-or-token",
+          "env": [
+            "NETLIFY_PERSONAL_ACCESS_TOKEN"
+          ],
+          "status": "unknown",
+          "capabilities": "Same capabilities run locally; needs Node.js 22+.",
+          "source": "https://github.com/netlify/netlify-mcp",
+          "repository": "https://github.com/netlify/netlify-mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.netlify.com/api/get-started/"
+      },
+      "notes": "Netlify recommends the remote server; the previous URL https://netlify-mcp.netlify.app/mcp still works. The docs do not name the remote transport (streamable-http assumed). The repository shows no licence."
+    },
+    {
+      "id": "terraform",
+      "title": "Terraform",
+      "vendor": "HashiCorp",
+      "summary": "Infrastructure as code, with HCP Terraform and Terraform Enterprise.",
+      "homepage": "https://developer.hashicorp.com/terraform",
+      "brains": [
+        "devops",
+        "engineering"
+      ],
+      "detect": {
+        "files": [
+          "*.tf",
+          "terraform/*.tf",
+          "infra/*.tf"
+        ]
+      },
+      "servers": [
+        {
+          "id": "terraform-mcp-server",
+          "name": "Terraform MCP Server",
+          "publisher": "vendor",
+          "maintainer": "HashiCorp",
+          "transport": "stdio",
+          "command": "docker",
+          "args": [
+            "run",
+            "-i",
+            "--rm",
+            "-e",
+            "TFE_ADDRESS",
+            "-e",
+            "TFE_TOKEN",
+            "hashicorp/terraform-mcp-server:1.4.1"
+          ],
+          "package": {
+            "registry": "docker",
+            "name": "hashicorp/terraform-mcp-server"
+          },
+          "auth": "api-token",
+          "env": [
+            "TFE_TOKEN",
+            "TFE_ADDRESS"
+          ],
+          "status": "unknown",
+          "capabilities": "Search Terraform Registry providers and modules, manage HCP Terraform/Terraform Enterprise workspaces, runs and private registry.",
+          "source": "https://github.com/hashicorp/terraform-mcp-server",
+          "repository": "https://github.com/hashicorp/terraform-mcp-server",
+          "license": "MPL-2.0",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "terraform-remote",
+          "name": "Terraform MCP Server (hosted)",
+          "publisher": "vendor",
+          "maintainer": "HashiCorp",
+          "transport": "streamable-http",
+          "url": "https://mcp.terraform.io/mcp",
+          "auth": "api-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Hosted version of the same server, authenticated with an HCP Terraform token as Bearer.",
+          "source": "https://github.com/hashicorp/terraform-mcp-server",
+          "repository": "https://github.com/hashicorp/terraform-mcp-server",
+          "license": "MPL-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.hashicorp.com/terraform/cloud-docs/api-docs"
+      },
+      "notes": "TFE_TOKEN and TFE_ADDRESS are only needed for HCP Terraform/Terraform Enterprise tools; registry search works without them. The README passes them as -e NAME=value; here the variables are passed from the environment."
+    },
+    {
+      "id": "vercel",
+      "title": "Vercel",
+      "vendor": "Vercel",
+      "summary": "Frontend cloud for deploying web apps and serverless functions.",
+      "homepage": "https://vercel.com",
+      "brains": [
+        "devops",
+        "engineering",
+        "frontend"
+      ],
+      "detect": {
+        "files": [
+          "vercel.json"
+        ]
+      },
+      "servers": [
+        {
+          "id": "vercel-mcp",
+          "name": "Vercel MCP",
+          "publisher": "vendor",
+          "maintainer": "Vercel",
+          "transport": "streamable-http",
+          "url": "https://mcp.vercel.com",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Search Vercel docs, manage teams, projects and deployments, read deployment logs and query Web Analytics.",
+          "source": "https://vercel.com/docs/agent-resources/vercel-mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://vercel.com/docs/rest-api"
+      },
+      "notes": "Available on all plans; only reviewed clients or clients using CIMD can connect."
+    }
+  ]
+}

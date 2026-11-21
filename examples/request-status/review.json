@@ -398,6 +398,67 @@
         "verification": "Get the approved access and field matrix. Run authorized checks with synthetic accounts and inspect controlled test logs before the change exposes real records.",
         "blockers": []
       }
+    },
+    {
+      "id": "legal",
+      "recommendation": "Keep the customer view within the purposes already given to customers for their support requests. Have the data protection owner confirm that the privacy notice and the record of processing cover the new view before release.",
+      "evidence": [
+        {
+          "source": "requester",
+          "ref": "examples/request-status/answers.json",
+          "supports": "answers.json labels the task as involving personal data and limits the view to the customer's own requests."
+        },
+        {
+          "source": "project-file",
+          "ref": "AGENTS.md",
+          "supports": "The project rules contain no privacy notice, record of processing or retention rule for support requests."
+        }
+      ],
+      "open_questions": [
+        "Who confirms that showing request status to the customer stays within the purpose stated in the privacy notice?",
+        "Which retention period applies to support requests shown in the portal?"
+      ],
+      "challenge": {
+        "specialists": [
+          {
+            "id": "privacy-counsel",
+            "finding": "The view shows customers their own personal data, which is consistent with the stated purpose, but the example holds no privacy notice or record of processing to check it against.",
+            "basis": "missing",
+            "evidence_refs": [
+              1,
+              2
+            ]
+          },
+          {
+            "id": "contracts-counsel",
+            "finding": "The task does not change customer terms or subprocessors according to the answers.",
+            "basis": "observed",
+            "evidence_refs": [
+              1
+            ]
+          },
+          {
+            "id": "licence-compliance",
+            "finding": "No new dependency or licensed content is named; there is nothing to check yet.",
+            "basis": "missing",
+            "evidence_refs": []
+          },
+          {
+            "id": "regulatory-specialist",
+            "finding": "No sector regulation is named for the project; the general sector context asks the owner to record open legal obligations.",
+            "basis": "observed",
+            "evidence_refs": [
+              2
+            ]
+          }
+        ],
+        "verdict": "proceed",
+        "confidence": "medium",
+        "alternative": "Show only status labels and the next step, without the support agents' internal notes, until the data protection owner confirms the notice.",
+        "failure_mode": "The view exposes fields, such as internal notes, that the privacy notice never announced to customers.",
+        "verification": "Link the data protection owner's confirmation and the privacy notice section that covers the customer view.",
+        "blockers": []
+      }
     }
   ]
 }

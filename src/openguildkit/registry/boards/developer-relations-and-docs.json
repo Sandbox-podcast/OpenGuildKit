@@ -1,0 +1,126 @@
+{
+  "id": "developer-relations-and-docs",
+  "title": "Developer relations and documentation",
+  "description": "Review what developers and users read to adopt the product: API reference, SDKs, guides, tutorials, changelogs and the community around them.",
+  "expertises": [
+    "Public API reference, SDKs and code samples",
+    "Product and technical documentation",
+    "Developer community and feedback"
+  ],
+  "triggers": [
+    "sdk",
+    "developer portal",
+    "portail développeur",
+    "developer documentation",
+    "documentation développeur",
+    "developer experience",
+    "expérience développeur",
+    "developer relations",
+    "devrel",
+    "developer advocate",
+    "technical writing",
+    "rédaction technique",
+    "user guide",
+    "guide utilisateur",
+    "documentation site",
+    "site de documentation",
+    "tutorial",
+    "tutoriel",
+    "how-to guide",
+    "code sample",
+    "exemple de code",
+    "public documentation",
+    "documentation publique",
+    "docs as code",
+    "api reference documentation",
+    "documentation",
+    "api documentation",
+    "api reference",
+    "developer docs"
+  ],
+  "questions": [
+    "Who reads the documentation for this change, and what must they be able to do after reading it?",
+    "Is the reference generated from the contract, and do the examples run against the released version?",
+    "How will developers learn about breaking changes and deprecations, and with how much notice?"
+  ],
+  "sources": [
+    {
+      "title": "Diátaxis, a systematic approach to technical documentation",
+      "url": "https://diataxis.fr/"
+    },
+    {
+      "title": "Write the Docs, Docs as Code",
+      "url": "https://www.writethedocs.org/guide/docs-as-code/"
+    },
+    {
+      "title": "OpenAPI Specification",
+      "url": "https://spec.openapis.org/oas/latest.html"
+    },
+    {
+      "title": "Google developer documentation style guide",
+      "url": "https://developers.google.com/style"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "api-reference-writer",
+        "title": "API reference writer",
+        "focus": "Check that the reference is generated from the API contract, covers every public operation, error and limit, and matches the released version.",
+        "checks": [
+          "The reference is built from the OpenAPI or schema file in the repository, not written by hand.",
+          "Every operation documents authentication, errors, rate limits and at least one request and response example.",
+          "Deprecated operations are marked deprecated in the contract and in the reference, with the removal date."
+        ]
+      },
+      {
+        "id": "docs-architect",
+        "title": "Documentation architect",
+        "focus": "Place each new page in the right type: tutorial, how-to guide, reference or explanation, and check that readers can find it from where they start.",
+        "checks": [
+          "Each page serves one documentation type and does not mix a tutorial with reference tables.",
+          "The change updates every existing page that described the old behaviour.",
+          "Documentation lives in version control and is reviewed with the code change."
+        ]
+      },
+      {
+        "id": "sdk-and-samples",
+        "title": "SDK and code samples maintainer",
+        "focus": "Check that SDKs, snippets and sample apps compile and run against the released API, and that their versions follow the API's compatibility policy.",
+        "checks": [
+          "Code samples are tested in CI against the release candidate.",
+          "SDK versions follow semantic versioning and the changelog lists breaking changes first.",
+          "Samples contain no real keys or customer data; placeholders are obvious."
+        ]
+      },
+      {
+        "id": "developer-advocate",
+        "title": "Developer advocate",
+        "focus": "Plan how developers hear about the change, where they ask questions and how their feedback reaches the product team.",
+        "checks": [
+          "Breaking changes are announced with a migration guide before the deprecation period starts.",
+          "Questions from the forum, issues or support are tagged so they reach the owning team.",
+          "Time to first successful call is measured for new developers."
+        ]
+      }
+    ],
+    "evidence": [
+      "API contract file and the generated reference for the change.",
+      "Documentation pull request with the pages added and updated.",
+      "Results of the code sample and SDK tests against the release candidate.",
+      "Changelog entry, deprecation notice and migration guide when behaviour changes."
+    ],
+    "challenge": [
+      "Could a developer who has never seen the product complete the main task using only the documentation?",
+      "Which example in the docs would fail if copied today?",
+      "Is the breaking change necessary, or can the old behaviour stay available during a deprecation period?",
+      "Does the documentation promise a behaviour, limit or service level the product does not guarantee?"
+    ],
+    "decision_criteria": [
+      "Proceed when the reference is generated from the contract, examples run and the changelog describes the change.",
+      "Revise when documentation is missing, contradicts the released behaviour or examples fail.",
+      "Block a breaking change to a public API until a migration guide and a deprecation period are published.",
+      "Name the documentation measure, such as failed sample runs or search queries without results, and its review date."
+    ]
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "tool": "snyk",
+  "instructions": "Mock of a dependency security scanner for the fictional Acme Support Portal. Every answer is synthetic.",
+  "tools": [
+    {
+      "name": "list_projects",
+      "description": "List scanned projects with their issue counts.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"query": {"type": "string", "description": "Optional part of a project name"}}},
+      "responses": [
+        {
+          "when": {"query": "docs"},
+          "result": {"projects": [{"name": "support-portal-docs", "issues": {"high": 0, "medium": 0}, "last_scan": "2026-11-20"}]}
+        },
+        {
+          "result": {
+            "projects": [
+              {"name": "support-portal", "issues": {"high": 1, "medium": 1}, "last_scan": "2026-11-21"},
+              {"name": "support-portal-docs", "issues": {"high": 0, "medium": 0}, "last_scan": "2026-11-20"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "list_issues",
+      "description": "List the issues of a project. Returns id, title, severity, type and package.",
+      "read_only": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {"type": "string", "description": "Project name"},
+          "severity": {"type": "string", "description": "Optional severity", "enum": ["medium", "high"]}
+        },
+        "required": ["project"]
+      },
+      "responses": [
+        {"when": {"project": "docs"}, "result": {"project": "support-portal-docs", "issues": []}},
+        {
+          "when": {"project": "portal", "severity": "high"},
+          "result": {
+            "project": "support-portal",
+            "issues": [
+              {
+                "issue_id": "SNYK-JS-CSVHELPER-1",
+                "title": "Formula injection in csv-helper",
+                "severity": "high",
+                "type": "vulnerability",
+                "package": "csv-helper"
+              }
+            ]
+          }
+        },
+        {
+          "when": {"project": "portal"},
+          "result": {
+            "project": "support-portal",
+            "issues": [
+              {
+                "issue_id": "SNYK-JS-CSVHELPER-1",
+                "title": "Formula injection in csv-helper",
+                "severity": "high",
+                "type": "vulnerability",
+                "package": "csv-helper"
+              },
+              {
+                "issue_id": "SNYK-LIC-1",
+                "title": "Licence needs a review: Example-Copyleft-1.0",
+                "severity": "medium",
+                "type": "licence",
+                "package": "table-layout-sample"
+              }
+            ]
+          }
+        },
+        {"error": "Project not found. Known projects in this mock: support-portal, support-portal-docs."}
+      ]
+    },
+    {
+      "name": "get_issue",
+      "description": "Get one issue by id, with the fixed version when there is one.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"issue_id": {"type": "string", "description": "Issue id from list_issues"}}, "required": ["issue_id"]},
+      "responses": [
+        {
+          "when": {"issue_id": "SNYK-JS-CSVHELPER-1"},
+          "result": {
+            "issue_id": "SNYK-JS-CSVHELPER-1",
+            "title": "Formula injection in csv-helper",
+            "severity": "high",
+            "type": "vulnerability",
+            "package": "csv-helper",
+            "installed": "1.2.0",
+            "fixed_in": "1.2.4",
+            "project": "support-portal",
+            "description": "Cells that start with = are written without protection, so a spreadsheet can run them as formulas.",
+            "introduced_by": "feat/request-export"
+          }
+        },
+        {
+          "when": {"issue_id": "SNYK-LIC-1"},
+          "result": {
+            "issue_id": "SNYK-LIC-1",
+            "title": "Licence needs a review: Example-Copyleft-1.0",
+            "severity": "medium",
+            "type": "licence",
+            "package": "table-layout-sample",
+            "installed": "3.1.0",
+            "fixed_in": null,
+            "project": "support-portal",
+            "description": "The licence of this package asks for a legal review before the portal ships it."
+          }
+        },
+        {"error": "Issue not found. Known ids in this mock: SNYK-JS-CSVHELPER-1, SNYK-LIC-1."}
+      ]
+    }
+  ]
+}

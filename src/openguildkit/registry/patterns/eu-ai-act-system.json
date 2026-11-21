@@ -1,0 +1,22 @@
+{
+  "id": "eu-ai-act-system",
+  "title": "EU AI Act for AI systems",
+  "description": "Select when the project provides or deploys an AI system that the legal owner must classify under Regulation (EU) 2024/1689.",
+  "sources": [
+    {
+      "title": "Regulation (EU) 2024/1689, Artificial Intelligence Act, consolidated text",
+      "url": "https://eur-lex.europa.eu/eli/reg/2024/1689"
+    }
+  ],
+  "roles": [
+    "legal",
+    "data",
+    "security"
+  ],
+  "packs": [
+    "eu-ai-act"
+  ],
+  "references": [
+    "eu-ai-act"
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "id": "device-and-access-lifecycle",
+  "title": "Device and access lifecycle",
+  "version": "1.0.0",
+  "description": "For employee devices and SaaS tools: managed and encrypted devices, single sign-on, automated provisioning and same-day removal of access on departure.",
+  "sources": [
+    {
+      "title": "NIST SP 800-124 Rev. 2, Guidelines for Managing the Security of Mobile Devices in the Enterprise",
+      "url": "https://csrc.nist.gov/pubs/sp/800/124/r2/final"
+    },
+    {
+      "title": "CIS Critical Security Controls Version 8.1",
+      "url": "https://www.cisecurity.org/controls/v8-1"
+    },
+    {
+      "title": "RFC 7644, System for Cross-domain Identity Management: Protocol",
+      "url": "https://www.rfc-editor.org/info/rfc7644/"
+    },
+    {
+      "title": "NIST SP 800-46 Rev. 2, Guide to Enterprise Telework, Remote Access, and Bring Your Own Device (BYOD) Security",
+      "url": "https://csrc.nist.gov/pubs/sp/800/46/r2/final"
+    }
+  ],
+  "rules": [
+    {
+      "id": "enrol-devices",
+      "instruction": "Enrol every device that reaches company data in device management, including personally owned devices through a managed profile or app.",
+      "verification": "Compare the device management export with the list of employees and check that unmanaged devices are listed with an action."
+    },
+    {
+      "id": "enforce-device-baseline",
+      "instruction": "Enforce disk encryption, screen lock, automatic updates and remote wipe through device management policies.",
+      "verification": "Read the policy export and check each of the four settings is enforced for the device types in use."
+    },
+    {
+      "id": "connect-saas-to-sso",
+      "instruction": "Connect each SaaS tool to the identity provider with single sign-on, or record the exception and its owner.",
+      "verification": "Compare the SaaS inventory with the identity provider's application list and check that each exception has an owner."
+    },
+    {
+      "id": "automate-provisioning",
+      "instruction": "Provision and deprovision accounts automatically from the identity provider, for example through SCIM, where the tool supports it.",
+      "verification": "Check the provisioning settings of the tools that support it."
+    },
+    {
+      "id": "remove-access-on-departure",
+      "instruction": "Disable a leaver's accounts and devices on their last working day and keep the record.",
+      "verification": "For the last leavers, compare the departure date with the account disable dates in the identity provider log."
+    }
+  ]
+}

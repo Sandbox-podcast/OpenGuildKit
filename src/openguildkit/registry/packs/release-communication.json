@@ -1,0 +1,38 @@
+{
+  "id": "release-communication",
+  "title": "Release and incident communication",
+  "version": "1.0.0",
+  "description": "For a change or an incident that users must hear about: a named approver, a plain-language message and an outcome to measure.",
+  "sources": [
+    {
+      "title": "Digital.gov, Plain language guide series",
+      "url": "https://digital.gov/guides/plain-language"
+    },
+    {
+      "title": "AMEC, Barcelona Principles 3.0",
+      "url": "https://amecorg.com/amec-resources-centre-communication-measurement-evaluation-tools/barcelona-principles-3-0/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "name-message-approver",
+      "instruction": "Ask the communication owner who approves external messages about the change, and record that person in the task.",
+      "verification": "Check that the task record names the approver of external messages."
+    },
+    {
+      "id": "write-plain-release-note",
+      "instruction": "Draft a user-facing release note in plain language that says who is affected, what changes and what they need to do.",
+      "verification": "Check that the approved release note answers these three questions."
+    },
+    {
+      "id": "prepare-incident-status-template",
+      "instruction": "Add to the incident runbook a status message template that gives the impact, the affected users and the time of the next update.",
+      "verification": "Open the runbook and check that the template has these three fields."
+    },
+    {
+      "id": "measure-communication-outcome",
+      "instruction": "Ask the communication owner which outcome, beyond the number of messages sent, shows that the communication worked, such as fewer related support tickets (Barcelona Principles 3.0).",
+      "verification": "Check that the communication plan records the outcome measure and its data source."
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-"""Install the agent skill and the board subagent shipped with this version of OpenGuildKit."""
+"""Install the agent skill and the subagents (board, market analyst, dependency watch) shipped with this version."""
 
 from importlib.resources import files
 from pathlib import Path
@@ -10,6 +10,8 @@ HOST_FILES = {
     "claude-code": {
         "skills/openguildkit/SKILL.md": Path(".claude") / "skills" / "openguildkit" / "SKILL.md",
         "agents/guild-board.md": Path(".claude") / "agents" / "guild-board.md",
+        "agents/market-analyst.md": Path(".claude") / "agents" / "market-analyst.md",
+        "agents/dependency-watch.md": Path(".claude") / "agents" / "dependency-watch.md",
     },
     "codex": {
         "skills/openguildkit/SKILL.md": Path(".agents") / "skills" / "openguildkit" / "SKILL.md",
@@ -28,6 +30,7 @@ def install_agent_files(base: Path, host: str, force: bool = False) -> list[dict
     if host not in HOST_FILES:
         raise ValueError(f"Choose the host from {', '.join(HOST_FILES)}.")
     report = []
+    kept: dict[Path, list[str]] = {path.parent: [] for path in HOST_FILES[host].values()}
     for name, relative in HOST_FILES[host].items():
         target = base / relative
         content = packaged_file(name)
@@ -46,7 +49,14 @@ def install_agent_files(base: Path, host: str, force: bool = False) -> list[dict
             report.append({"file": str(relative), "action": "replaced, previous version saved"})
         else:
             report.append({"file": str(relative), "action": "kept: differs from this version, use --force to replace"})
-        write_text(target.parent / VERSION_FILE, package_version() + "\n")
-    for relative in {path.parent for path in HOST_FILES[host].values()}:
-        write_text(base / relative / VERSION_FILE, package_version() + "\n")
+            kept[relative.parent].append(relative.name)
+    for folder, names in kept.items():
+        write_text(base / folder / VERSION_FILE, _version_note(names))
     return report
+
+
+def _version_note(kept: list[str]) -> str:
+    """The installed version, or which kept files are not at this version, so the file never overstates it."""
+    if not kept:
+        return package_version() + "\n"
+    return f"{', '.join(kept)} kept: differs from openguildkit {package_version()}, use --force to replace\n"

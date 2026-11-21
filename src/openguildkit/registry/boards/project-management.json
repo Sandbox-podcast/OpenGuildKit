@@ -63,22 +63,38 @@
       {
         "id": "delivery-planner",
         "title": "Delivery planning",
-        "focus": "Find the longest chain of unfinished dependencies and compare the proposed sequence with a smaller increment the team can deliver independently."
+        "focus": "Find the longest chain of unfinished dependencies and compare the proposed sequence with a smaller increment the team can deliver independently.",
+        "checks": [
+          "The critical path is identified and a smaller independent increment is considered.",
+          "Dependencies have owners and dates confirmed by those owners."
+        ]
       },
       {
         "id": "capacity-coordinator",
         "title": "Capacity and dependencies",
-        "focus": "Check availability and handoff dates with the teams that own shared people, environments, vendors or approvals."
+        "focus": "Check availability and handoff dates with the teams that own shared people, environments, vendors or approvals.",
+        "checks": [
+          "Shared people, environments and vendors are booked with the teams that own them.",
+          "Holidays and other commitments are counted in the capacity."
+        ]
       },
       {
         "id": "decision-owner",
         "title": "Governance and escalation",
-        "focus": "Identify who can change scope, dates or staffing and when that person needs to decide to protect delivery."
+        "focus": "Identify who can change scope, dates or staffing and when that person needs to decide to protect delivery.",
+        "checks": [
+          "The person who can change scope, dates or staffing is named.",
+          "The last date for each decision that protects delivery is known."
+        ]
       },
       {
         "id": "risk-coordinator",
         "title": "Risk and change coordinator",
-        "focus": "Keep the risk and change log current for the work, and check that each risk that can move the date has an owner, a response and a review date."
+        "focus": "Keep the risk and change log current for the work, and check that each risk that can move the date has an owner, a response and a review date.",
+        "checks": [
+          "Each risk that can move the date has an owner, a response and a review date.",
+          "Changes to scope or dates are logged with who approved them."
+        ]
       }
     ],
     "evidence": [

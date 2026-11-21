@@ -33,6 +33,7 @@ NPM_PACKAGES = {
     "pg": "PostgreSQL",
     "postgres": "PostgreSQL",
     "prisma": "Prisma",
+    "aws-cdk-lib": "AWS",
 }
 PYTHON_PACKAGES = {
     "fastapi": "FastAPI",
@@ -51,10 +52,17 @@ GO_MODULES = {
     "github.com/jackc/pgx": "PostgreSQL",
     "github.com/lib/pq": "PostgreSQL",
 }
+RUBY_GEMS = {"rails": "Rails", "pg": "PostgreSQL", "mysql2": "MySQL"}
+COMPOSER_PACKAGES = {"laravel/framework": "Laravel"}
 IMAGES = {"postgres": "PostgreSQL", "postgis/postgis": "PostgreSQL"}
-INFERRED = {"PostgreSQL"}
+IMAGE_PREFIXES = ("docker.io/library/", "docker.io/", "library/")
+INFERRED = {"PostgreSQL", "MySQL"}
+UNVERSIONED = {"AWS"}  # The AWS CDK version is the library's, not the platform's.
 
 _VERSION = re.compile(r"\d+(?:\.\d+){0,2}")
+_GEM = re.compile(r"""(?m)^\s*gem\s+["']([\w.-]+)["'](?:\s*,\s*["']([^"']+)["'])?""")
+_ANDROID_PLUGIN = re.compile(r"com\.android\.(?:application|library)|libs\.plugins\.android\.(?:application|library)")
+_KOTLIN_PLUGIN = re.compile(r"org\.jetbrains\.kotlin|kotlin\(\s*[\"']|kotlin-android|libs\.plugins\.kotlin")
 _REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])?\s*(?:(==|~=|>=|===)\s*([0-9][^,;\s]*))?")
 
 
@@ -78,6 +86,9 @@ class _Component:
         self.technologies: dict[str, dict] = {}
 
     def add(self, name: str, version: str | None, evidence: str, inferred: bool = False) -> None:
+        if inferred:
+            # A client library's version says nothing about the server it talks to.
+            version = None
         current = self.technologies.get(name)
         if current is None or (version and not current["version"]):
             self.technologies[name] = {
@@ -112,7 +123,8 @@ def _package_json(component: _Component, path: Path, label: str) -> None:
         for package, spec in dependencies.items():
             name = NPM_PACKAGES.get(package)
             if name:
-                component.add(name, _version(spec), label, inferred=name in INFERRED)
+                version = None if name in UNVERSIONED else _version(spec)
+                component.add(name, version, label, inferred=name in INFERRED)
     engines = data.get("engines")
     if isinstance(engines, dict) and "node" in engines:
         component.add("Node.js", _version(engines["node"]), label)
@@ -187,7 +199,9 @@ def _maven(component: _Component, path: Path, label: str) -> None:
 
 def _gradle(component: _Component, path: Path, label: str) -> None:
     text = _read_text(path) or ""
-    component.add("Java", None, label)
+    component.add("Kotlin" if _KOTLIN_PLUGIN.search(text) else "Java", None, label)
+    if _ANDROID_PLUGIN.search(text):
+        component.add("Android", None, label)
     plugin = re.search(r"org\.springframework\.boot['\"]?\)?\s*version\s*['\"]([^'\"]+)", text)
     if plugin or "spring-boot" in text:
         component.add("Spring Boot", _version(plugin.group(1)) if plugin else None, label)
@@ -206,12 +220,68 @@ def _csproj(component: _Component, path: Path, label: str) -> None:
         component.add("ASP.NET Core", framework.group(1) if framework else None, label)
 
 
+def _gemfile(component: _Component, path: Path, label: str) -> None:
+    """A Gemfile names the Ruby version and the gems; Rails comes from its gem."""
+    text = _read_text(path) or ""
+    ruby = re.search(r"""(?m)^\s*ruby\s+["']([^"']+)["']""", text)
+    component.add("Ruby", _version(ruby.group(1)) if ruby else None, label)
+    for gem, spec in _GEM.findall(text):
+        name = RUBY_GEMS.get(gem)
+        if name:
+            component.add(name, _version(spec or None), label, inferred=name in INFERRED)
+
+
+def _composer(component: _Component, path: Path, label: str) -> None:
+    text = _read_text(path)
+    try:
+        data = json.loads(text) if text else None
+    except ValueError:
+        return
+    if not isinstance(data, dict):
+        return
+    requirements = data.get("require") if isinstance(data.get("require"), dict) else {}
+    component.add("PHP", _version(requirements.get("php")), label)
+    for package, spec in requirements.items():
+        name = COMPOSER_PACKAGES.get(package)
+        if name:
+            component.add(name, _version(spec), label)
+
+
+def _xcode_project(component: _Component, path: Path, label: str) -> None:
+    """An Xcode project builds Swift code; its SDK setting tells an iOS app from a Mac one."""
+    text = _read_text(path / "project.pbxproj") or ""
+    swift = re.search(r"SWIFT_VERSION\s*=\s*\"?(\d+(?:\.\d+)?)", text)
+    component.add("Swift", swift.group(1) if swift else None, label)
+    if re.search(r"SDKROOT\s*=\s*\"?iphoneos", text):
+        component.add("iOS", None, label)
+
+
+def _swift_package(component: _Component, path: Path, label: str) -> None:
+    text = _read_text(path) or ""
+    tools = re.search(r"swift-tools-version:\s*(\d+(?:\.\d+){0,2})", text)
+    component.add("Swift", tools.group(1) if tools else None, label)
+    if ".iOS(" in text:
+        component.add("iOS", None, label)
+
+
+def _terraform(component: _Component, path: Path, label: str) -> None:
+    text = _read_text(path) or ""
+    component.add("Terraform", None, label)
+    if re.search(r"""provider\s+"aws"|hashicorp/aws""", text):
+        component.add("AWS", None, label)
+
+
 def _container_images(component: _Component, path: Path, label: str) -> None:
     text = _read_text(path) or ""
-    for image, tag in re.findall(r"(?mi)(?:^\s*FROM\s+|image:\s*['\"]?)([a-z0-9./_-]+):([A-Za-z0-9._-]+)", text):
-        name = IMAGES.get(image.split("/", 1)[-1] if image.startswith("docker.io/") else image)
+    pattern = r"(?mi)(?:^\s*FROM\s+|image:\s*['\"]?)([a-z0-9./_-]+)(?::([A-Za-z0-9._-]+))?"
+    for image, tag in re.findall(pattern, text):
+        for prefix in IMAGE_PREFIXES:
+            if image.lower().startswith(prefix):
+                image = image[len(prefix):]
+                break
+        name = IMAGES.get(image.lower())
         if name:
-            component.add(name, _version(tag), label)
+            component.add(name, _version(tag) if tag else None, label)
 
 
 def _parse(component: _Component, path: Path, label: str) -> None:
@@ -230,12 +300,26 @@ def _parse(component: _Component, path: Path, label: str) -> None:
         _gradle(component, path, label)
     elif name.endswith(".csproj"):
         _csproj(component, path, label)
-    elif name == "Dockerfile" or re.fullmatch(r"(docker-)?compose[\w.-]*\.ya?ml", name):
+    elif name in ("Dockerfile", "Containerfile") or re.fullmatch(r"Dockerfile\.[\w.-]+|[\w.-]+\.Dockerfile", name):
+        component.add("Docker", None, label)
         _container_images(component, path, label)
+    elif re.fullmatch(r"(docker-)?compose[\w.-]*\.ya?ml", name):
+        _container_images(component, path, label)
+    elif name == "Gemfile":
+        _gemfile(component, path, label)
+    elif name == "composer.json":
+        _composer(component, path, label)
+    elif name == "Package.swift":
+        _swift_package(component, path, label)
+    elif name == "manage.py" and "django" in (_read_text(path) or ""):
+        component.add("Python", None, label)
+        component.add("Django", None, label)
+    elif name == ".gitlab-ci.yml":
+        component.add("GitLab CI", None, label)
     elif name == "tsconfig.json":
         component.add("TypeScript", None, label)
     elif name.endswith(".tf"):
-        component.add("Terraform", None, label)
+        _terraform(component, path, label)
     elif name in ("Chart.yaml", "kustomization.yaml", "kustomization.yml"):
         component.add("Kubernetes", None, label)
 
@@ -268,6 +352,9 @@ def detect_stack(root: Path) -> dict:
                 component = components.setdefault(relative, _Component(relative))
                 label = entry.relative_to(root).as_posix()
                 _parse(component, entry, label)
+            elif entry.is_dir() and entry.name.endswith(".xcodeproj"):
+                component = components.setdefault(relative, _Component(relative))
+                _xcode_project(component, entry, entry.relative_to(root).as_posix())
             elif entry.is_dir() and depth < MAX_DEPTH and entry.name not in SKIPPED_DIRECTORIES:
                 visit(entry, depth + 1)
 

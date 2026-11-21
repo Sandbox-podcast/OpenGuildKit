@@ -1,0 +1,40 @@
+{
+  "id": "ios-swift",
+  "title": "iOS app in Swift",
+  "description": "Review the privacy manifest, purpose strings, accessibility and store release of an iOS app.",
+  "sources": [
+    {
+      "title": "Apple, privacy manifest files",
+      "url": "https://developer.apple.com/documentation/bundleresources/privacy-manifest-files"
+    },
+    {
+      "title": "Apple Human Interface Guidelines, accessibility",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/accessibility"
+    },
+    {
+      "title": "Apple, App privacy details on the App Store",
+      "url": "https://developer.apple.com/app-store/app-privacy-details/"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "design",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "ios-app",
+    "mobile-accessibility",
+    "mobile-store-release"
+  ],
+  "match": {
+    "stack": [
+      [
+        "ios",
+        "ipados",
+        "swiftui",
+        "uikit"
+      ]
+    ]
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "tool": "tempo",
+  "instructions": "Mock of a timesheet tool linked to the issue tracker of the fictional Acme Support Portal. Every answer is synthetic.",
+  "tools": [
+    {
+      "name": "list_worklogs",
+      "description": "List worklogs, by issue key or by user name.",
+      "read_only": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {"issue_key": {"type": "string", "description": "Issue key such as SUP-142"}, "user": {"type": "string", "description": "Part of a user name"}}
+      },
+      "responses": [
+        {
+          "when": {"issue_key": "SUP-142"},
+          "result": {
+            "worklogs": [
+              {"worklog_id": "wl-1", "issue_key": "SUP-142", "user": "Lin Sample", "hours": 6, "date": "2026-11-18", "description": "CSV export endpoint"},
+              {"worklog_id": "wl-2", "issue_key": "SUP-142", "user": "Lin Sample", "hours": 4, "date": "2026-11-19", "description": "Export button on the requests list"}
+            ],
+            "total_hours": 10
+          }
+        },
+        {
+          "when": {"issue_key": "SUP-143"},
+          "result": {
+            "worklogs": [{"worklog_id": "wl-3", "issue_key": "SUP-143", "user": "Sam Placeholder", "hours": 2, "date": "2026-11-20", "description": "Test cases for formula cells"}],
+            "total_hours": 2
+          }
+        },
+        {
+          "when": {"user": "Lin"},
+          "result": {
+            "worklogs": [
+              {"worklog_id": "wl-1", "issue_key": "SUP-142", "user": "Lin Sample", "hours": 6, "date": "2026-11-18", "description": "CSV export endpoint"},
+              {"worklog_id": "wl-2", "issue_key": "SUP-142", "user": "Lin Sample", "hours": 4, "date": "2026-11-19", "description": "Export button on the requests list"}
+            ],
+            "total_hours": 10
+          }
+        },
+        {
+          "result": {
+            "worklogs": [
+              {"worklog_id": "wl-1", "issue_key": "SUP-142", "user": "Lin Sample", "hours": 6, "date": "2026-11-18", "description": "CSV export endpoint"},
+              {"worklog_id": "wl-2", "issue_key": "SUP-142", "user": "Lin Sample", "hours": 4, "date": "2026-11-19", "description": "Export button on the requests list"},
+              {"worklog_id": "wl-3", "issue_key": "SUP-143", "user": "Sam Placeholder", "hours": 2, "date": "2026-11-20", "description": "Test cases for formula cells"}
+            ],
+            "total_hours": 12
+          }
+        }
+      ]
+    },
+    {
+      "name": "log_work",
+      "description": "Log hours on an issue. Returns the new worklog.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "issue_key": {"type": "string", "description": "Issue key"},
+          "hours": {"type": "number", "description": "Hours worked"},
+          "date": {"type": "string", "description": "Date as YYYY-MM-DD"},
+          "description": {"type": "string", "description": "What was done"}
+        },
+        "required": ["issue_key", "hours", "date"]
+      },
+      "responses": [
+        {
+          "result": {"worklog_id": "wl-100", "issue_key": "$arg:issue_key", "hours": "$arg:hours", "date": "$arg:date", "description": "$arg:description", "user": "Lin Sample"}
+        }
+      ]
+    },
+    {
+      "name": "get_capacity",
+      "description": "Get the team capacity in hours for one week.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"week": {"type": "string", "description": "First day of the week, for example 2026-11-16"}}},
+      "responses": [
+        {"when": {"week": "2026-11-09"}, "result": {"week": "2026-11-09", "capacity_hours": 140, "planned_hours": 132, "members": 5}},
+        {
+          "when": {"week": "2026-11-16"},
+          "result": {"week": "2026-11-16", "capacity_hours": 118, "planned_hours": 126, "members": 5, "note": "Kai Demo, Sam Placeholder and Remy Mock have time off this week."}
+        },
+        {"result": {"week": "2026-11-16", "capacity_hours": 118, "planned_hours": 126, "members": 5}}
+      ]
+    }
+  ]
+}

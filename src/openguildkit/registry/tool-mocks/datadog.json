@@ -1,0 +1,95 @@
+{
+  "tool": "datadog",
+  "instructions": "Mock of a monitoring platform for the fictional Acme Support Portal. Every answer is synthetic.",
+  "tools": [
+    {
+      "name": "list_monitors",
+      "description": "List monitors with their status.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"status": {"type": "string", "description": "Monitor status", "enum": ["Alert", "OK"]}}},
+      "responses": [
+        {
+          "when": {"status": "Alert"},
+          "result": {
+            "monitors": [{"monitor_id": 501, "name": "Export latency p95 above 2 s", "status": "Alert", "since": "2026-11-19T14:10:00Z", "query": "p95:portal.export.latency > 2"}]
+          }
+        },
+        {
+          "when": {"status": "OK"},
+          "result": {
+            "monitors": [
+              {"monitor_id": 502, "name": "Portal error rate above 2 percent", "status": "OK", "since": "2026-11-12T08:00:00Z", "query": "errors:portal.requests > 2"},
+              {"monitor_id": 503, "name": "Database connections near limit", "status": "OK", "since": "2026-10-30T09:30:00Z", "query": "max:portal.db.connections > 90"}
+            ]
+          }
+        },
+        {
+          "result": {
+            "monitors": [
+              {"monitor_id": 501, "name": "Export latency p95 above 2 s", "status": "Alert", "since": "2026-11-19T14:10:00Z", "query": "p95:portal.export.latency > 2"},
+              {"monitor_id": 502, "name": "Portal error rate above 2 percent", "status": "OK", "since": "2026-11-12T08:00:00Z", "query": "errors:portal.requests > 2"},
+              {"monitor_id": 503, "name": "Database connections near limit", "status": "OK", "since": "2026-10-30T09:30:00Z", "query": "max:portal.db.connections > 90"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "query_metrics",
+      "description": "Query a metric over the last 24 hours. Returns hourly points.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"metric": {"type": "string", "description": "Metric name such as portal.export.latency.p95"}}, "required": ["metric"]},
+      "responses": [
+        {
+          "when": {"metric": "portal.export.latency.p95"},
+          "result": {
+            "metric": "portal.export.latency.p95",
+            "unit": "seconds",
+            "period": "2026-11-20 to 2026-11-21",
+            "points": [
+              {"hour": "2026-11-20T18:00:00Z", "value": 1.1},
+              {"hour": "2026-11-20T21:00:00Z", "value": 1.9},
+              {"hour": "2026-11-21T00:00:00Z", "value": 2.6},
+              {"hour": "2026-11-21T03:00:00Z", "value": 2.4},
+              {"hour": "2026-11-21T06:00:00Z", "value": 2.2}
+            ]
+          }
+        },
+        {
+          "when": {"metric": "portal.export.requests"},
+          "result": {
+            "metric": "portal.export.requests",
+            "unit": "count",
+            "period": "2026-11-20 to 2026-11-21",
+            "points": [{"hour": "2026-11-20T18:00:00Z", "value": 12}, {"hour": "2026-11-21T06:00:00Z", "value": 3}]
+          }
+        },
+        {"error": "Metric not found. Known metrics in this mock: portal.export.latency.p95, portal.export.requests."}
+      ]
+    },
+    {
+      "name": "list_incidents",
+      "description": "List incidents.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"status": {"type": "string", "description": "Incident status", "enum": ["active", "resolved"]}}},
+      "responses": [
+        {
+          "when": {"status": "active"},
+          "result": {"incidents": [{"incident_id": "INC-9", "title": "Slow CSV export", "severity": "SEV-3", "status": "active", "started": "2026-11-19"}]}
+        },
+        {
+          "when": {"status": "resolved"},
+          "result": {"incidents": [{"incident_id": "INC-7", "title": "Attachments timing out", "severity": "SEV-2", "status": "resolved", "started": "2026-10-22"}]}
+        },
+        {
+          "result": {
+            "incidents": [
+              {"incident_id": "INC-9", "title": "Slow CSV export", "severity": "SEV-3", "status": "active"},
+              {"incident_id": "INC-7", "title": "Attachments timing out", "severity": "SEV-2", "status": "resolved"}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
