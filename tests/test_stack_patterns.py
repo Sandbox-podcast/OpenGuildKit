@@ -137,8 +137,8 @@ class StackDetectionTests(unittest.TestCase):
 
     def test_versions_and_evidence_come_from_the_manifests(self):
         stacks = {
-            "rails": {"Ruby 3.3.4", "Rails 8.1.0"},
-            "laravel": {"PHP 8.3", "Laravel 13.0"},
+            "rails": {"Ruby 3.3.4", "Rails ~> 8.1.0"},
+            "laravel": {"PHP ^8.3", "Laravel ^13.0"},
             "ios-swift": {"Swift 6.0", "iOS"},
             "android-kotlin": {"Android", "Kotlin"},
             "django": {"Python", "Django"},
@@ -166,7 +166,7 @@ class StackDetectionTests(unittest.TestCase):
     def test_swift_packages_for_ios_and_aws_cdk_apps_are_recognised(self):
         manifest = "// swift-tools-version: 6.0\nlet p = Package(platforms: [.iOS(.v17)])\n"
         package = self.detect({"Package.swift": manifest})
-        self.assertLessEqual({"Swift 6.0", "iOS"}, set(package["components"][0]["stack"]))
+        self.assertLessEqual({"Swift 6.0", "iOS 17"}, set(package["components"][0]["stack"]))
         cdk = self.detect({"package.json": {"dependencies": {"aws-cdk-lib": "^2.200.0"}}})
         self.assertIn("AWS", cdk["components"][0]["stack"])
 

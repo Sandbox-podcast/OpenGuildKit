@@ -34,10 +34,10 @@ class DetectionTests(unittest.TestCase):
         components = {component["path"]: component for component in detected["components"]}
         self.assertEqual(set(components), {".", "apps/web", "services/api"})
         self.assertEqual(components["apps/web"]["id"], "apps-web")
-        self.assertIn("Next.js 14.2.3", components["apps/web"]["stack"])
-        self.assertIn("TypeScript 5.4.0", components["apps/web"]["stack"])
-        self.assertIn("Python 3.12", components["services/api"]["stack"])
-        self.assertIn("FastAPI 0.115", components["services/api"]["stack"])
+        self.assertIn("Next.js ^14.2.3", components["apps/web"]["stack"])
+        self.assertIn("TypeScript ~5.4.0", components["apps/web"]["stack"])
+        self.assertIn("Python >=3.12", components["services/api"]["stack"])
+        self.assertIn("FastAPI >=0.115", components["services/api"]["stack"])
         postgres = next(item for item in components["services/api"]["evidence"] if item["name"] == "PostgreSQL")
         self.assertTrue(postgres["inferred"])
         self.assertEqual(postgres["evidence"], "services/api/pyproject.toml")
@@ -60,6 +60,9 @@ class ComponentPatternTests(unittest.TestCase):
         self.assertEqual(technology_version("Next.js 14.2"), "14.2")
         self.assertEqual(technology_version("Postgres@16"), "16")
         self.assertEqual(technology_version("next@v13.4.1"), "13.4.1")
+        self.assertEqual(technology_version("Next.js >= 14.2.3 < 16 || ^16.1"), "14.2.3")
+        self.assertEqual(technology_version("Next.js >=14, >=14.3"), "14.3")
+        self.assertIsNone(technology_version("Next.js < 16"))
         self.assertIsNone(technology_version("Next.js"))
 
     def test_app_router_rules_skip_next_10_and_flag_an_unknown_version(self):
@@ -71,6 +74,8 @@ class ComponentPatternTests(unittest.TestCase):
 
         recent = recommend_patterns(self.catalog, ["Next.js 14.2", "React"], "general", [])
         self.assertIn("nextjs-react", [pattern["id"] for pattern in recent["matched"]])
+        ranged = recommend_patterns(self.catalog, ["Next.js >=14.2.3 <16", "React"], "general", [])
+        self.assertIn("nextjs-react", [pattern["id"] for pattern in ranged["matched"]])
 
         unknown = recommend_patterns(self.catalog, ["Next.js", "React"], "general", [])
         pattern = next(pattern for pattern in unknown["matched"] if pattern["id"] == "nextjs-react")
