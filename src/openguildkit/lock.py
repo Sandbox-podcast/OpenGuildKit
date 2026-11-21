@@ -6,7 +6,6 @@ shows what a newer catalog would change and applies it only when asked.
 """
 
 from copy import deepcopy
-from importlib import metadata
 from pathlib import Path
 
 from .catalog import CatalogError, _validate_dependencies, _validate_entry, overlaid_boards
@@ -19,6 +18,8 @@ COLLECTIONS = ("packs", "boards", "sectors", "patterns")
 
 def package_version() -> str:
     """The installed version, or the version of the source checkout the CLI runs from."""
+    from importlib import metadata  # Slow to import, and only the version needs it.
+
     try:
         return metadata.version("openguildkit")
     except metadata.PackageNotFoundError:
