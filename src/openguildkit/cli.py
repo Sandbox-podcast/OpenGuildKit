@@ -24,9 +24,9 @@ from .storybook import STORYBOOK_VERSION
 from .storybook import run as storybook_command
 from .storybook import scope_entry as storybook_scope_entry
 from .integrations import install_agent_files
-from .guard import NO_TASK, ci_guard, covering_tasks, export_decision, guard_hook, guard_mode
+from .guard import NO_TASK, STALE_DAYS, ci_guard, covering_approvals, export_decision, guard_mode, run_hook
 from .results import chaosfolk_checks, compare_runs, completion_problems, expected_checks, missing_scenarios, result_template, run_command_checks
-from .hosts import apply_host_settings, host_controls
+from .hosts import apply_host_settings, approval_warning, host_controls
 from .lock import (
     package_version,
     apply_lock,
@@ -766,36 +766,54 @@ def _selection(args) -> dict:
     return {"add": args.add, "remove": args.remove, "reason": args.reason, "delegate": delegate}
 
 
-def _guard(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
-    if args.hook:
+def _guard_hook(args) -> int:
+    """Run as a host hook: in enforce mode, an edit the guard cannot check is refused."""
+    try:
         raw = "" if sys.stdin.isatty() else sys.stdin.read()
-        try:
-            hook_input = json.loads(raw) if raw.strip() else {}
-        except ValueError:
-            hook_input = {}
-        code, out, err = guard_hook(args.hook, root, state, profile, catalog, hook_input if isinstance(hook_input, dict) else {})
-        if out:
-            print(out)
-        if err:
-            print(err, file=sys.stderr)
-        return code
+    except (OSError, UnicodeError):
+        raw = None
+
+    def load():
+        root = project_root(args.project)
+        state = state_path(root)
+        catalog = _load_project_catalog(args, state)
+        return root, state, load_profile(state, catalog), catalog
+
+    code, out, err = run_hook(args.hook, raw, args.project, load)
+    if out:
+        print(out)
+    if err:
+        print(err, file=sys.stderr)
+    return code
+
+
+def _guard(args, root: Path, state: Path) -> int:
     if args.ci:
-        result = ci_guard(root, state, profile, catalog, args.base)
+        result = ci_guard(root, args.base, lambda base_state: _load_project_catalog(args, base_state))
         if args.json:
             _print_json(result)
         else:
-            print(f"{result['changed']} changed file(s); decisions: {', '.join(result['decisions']) or 'none'}")
+            print(f"Guard mode on {args.base}: {result['mode']}. {result['changed']} changed file(s).")
+            for task_id in result["decisions"]:
+                print(f"  Covered by the decision of task {task_id} (.openguildkit/decisions/{task_id}.json).")
             for problem in result["problems"]:
                 print(f"  {problem}")
         if result["ok"] or result["mode"] != "enforce":
             return 0
         return 1
-    covered = covering_tasks(root, state, profile, catalog)
-    result = {"mode": guard_mode(profile), "covered_by": covered}
+    catalog = _load_project_catalog(args, state)
+    profile = load_profile(state, catalog)
+    approvals = covering_approvals(root, state, profile, catalog)
+    result = {"mode": guard_mode(profile), "covered_by": [item["task"] for item in approvals], "approvals": approvals}
     if args.json:
         _print_json(result)
+    elif not approvals:
+        print(NO_TASK)
     else:
-        print(f"Approved task(s) in progress: {', '.join(covered)}" if covered else NO_TASK)
+        print("Approved task(s) in progress:")
+        for item in approvals:
+            stale = f" (approved more than {STALE_DAYS} days ago: confirm it still applies)" if item["stale"] else ""
+            print(f"  {item['task']}: {item['brief']}{stale}")
     return 0
 
 
@@ -1270,8 +1288,12 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
 
 
 def _run(args) -> int | None:
+    if args.command == "guard" and args.hook:
+        return _guard_hook(args)
     root = project_root(args.project)
     state = state_path(root)
+    if args.command == "guard":
+        return _guard(args, root, state)
     catalog = _load_project_catalog(args, state)
     if args.command == "references":
         _print_references(args, state, catalog)
@@ -1320,6 +1342,9 @@ def _run(args) -> int | None:
             initialize(root, state, profile, live)
             write_lock(state, build_lock(profile, live, bundled))
         print(f"Initialized {root}")
+        warning = approval_warning(profile)
+        if warning:
+            print(warning, file=sys.stderr)
     elif args.command == "update":
         _update_catalog(args, root, state)
     elif args.command == "sync":
@@ -1347,9 +1372,10 @@ def _run(args) -> int | None:
             return market_cli.run(args, state, profile)
         if args.command == "storybook":
             return storybook_command(args, root, state)
-        if args.command == "guard":
-            return _guard(args, root, state, profile, catalog)
         if args.command == "host":
+            warning = approval_warning(profile)
+            if warning:
+                print(warning, file=sys.stderr)
             controls = host_controls(root, profile)
             if args.mode == "apply":
                 for path in apply_host_settings(root, profile):
@@ -1365,7 +1391,11 @@ def _run(args) -> int | None:
             check_instructions(root, profile, catalog)
             missing = [control["title"] for control in host_controls(root, profile) if control["status"] == "missing"]
             if missing:
-                raise ValueError(f"The host settings do not enforce: {'; '.join(missing)}. Run openguildkit host apply.")
+                raise ValueError(f"The host settings do not enforce: {'; '.join(missing)}. "
+                                 "Run openguildkit host check for the cause, then openguildkit host apply.")
+            warning = approval_warning(profile)
+            if warning:
+                print(warning, file=sys.stderr)
             _, bundled = _installed_catalog(args, state)
             if not lock_is_current(read_lock(state), profile, catalog, bundled):
                 raise ValueError("The catalog lock does not match the profile. Run openguildkit sync.")

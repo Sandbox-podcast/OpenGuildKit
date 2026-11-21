@@ -103,7 +103,7 @@ During a board pass, query the connected tools read-only and cite what you read 
 
 ## Board guard
 
-When a hook reminds you that no approved task covers the work, open a task before changing project files, even for a small change, unless the user only asked a question. When an edit is refused by the guard, explain it to the user and continue the task flow. After the user approves, run `openguildkit task export ID` and commit the decision record with the change.
+When a hook reminds you that no approved task covers the work, open a task before changing project files, even for a small change, unless the user only asked a question. When an edit is refused by the guard, explain it to the user and continue the task flow. After the user approves, run `openguildkit task export ID` and commit the decision record with the change. Never write task records, decision records, `.openguildkit/project.json` or the host settings yourself, with an edit tool or the shell: the openguildkit commands and the person change them. When the hook names the task that covers an edit, keep the edit within that task; when it says the approval is old, ask the user whether it still applies.
 
 ## External actions
 

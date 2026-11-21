@@ -1,7 +1,11 @@
 # Copy to .github/workflows/openguildkit-guard.yml in a project that uses OpenGuildKit.
 # It checks that a pull request carries a decision exported with `openguildkit task export ID`
-# and approved under the project's current rules. With "guard": "observe" in the profile it
-# only reports; with "guard": "enforce" a pull request without a valid decision fails.
+# and approved under the rules of the base revision: the guard mode, the profile, the catalog
+# lock and the allowed signers are read from the base commit, so the pull request cannot weaken
+# them. With "guard": "observe" on the base it only reports; with "guard": "enforce" a pull
+# request without a valid decision fails. Each record's seal is recomputed and, when the base
+# profile requires signed approvals, its signature is verified. fetch-depth: 0 keeps the base
+# commit available.
 name: OpenGuildKit guard
 
 on:
