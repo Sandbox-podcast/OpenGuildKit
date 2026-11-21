@@ -21,6 +21,8 @@ ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
 MIN_VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){0,3}")
 EXPORT_EXPIRY_ID = "export-link-expiry"
+# A method is preselected for its roles; a regulation only for its sectors or personal data.
+PATTERN_KINDS = ("method", "regulation")
 MAX_SAFE_INTEGER = (1 << 53) - 1
 # Query parameters that record how a visitor reached a page, never which page it is.
 TRACKING_PARAMETERS = frozenset({
@@ -162,12 +164,20 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
             _validate_id(reference_id, "references entry")
         if len(set(pattern["references"])) != len(pattern["references"]):
             raise CatalogError("references contains duplicate IDs")
+    if pattern.get("kind", "method") not in PATTERN_KINDS:
+        raise CatalogError(f"kind must be one of {', '.join(PATTERN_KINDS)}")
     if "match" not in pattern:
         return
     match = pattern["match"]
-    _validate_fields(match, "match", {"stack"}, {"sectors", "min_versions"})
-    _validate_list(match["stack"], "match.stack")
-    for group in match["stack"]:
+    _validate_fields(match, "match", set(), {"stack", "sectors", "min_versions", "personal_data"})
+    if not match.keys() & {"stack", "sectors", "personal_data"}:
+        raise CatalogError("match needs a stack, sectors or personal_data")
+    if "personal_data" in match and match["personal_data"] is not True:
+        raise CatalogError("match.personal_data must be true; omit it otherwise")
+    if "min_versions" in match and "stack" not in match:
+        raise CatalogError("match.min_versions needs a match.stack")
+    _validate_list(match.get("stack", []), "match.stack", allow_empty="stack" not in match)
+    for group in match.get("stack", []):
         _validate_list(group, "technology aliases")
         for alias in group:
             _validate_text(alias, "technology alias")
@@ -217,7 +227,7 @@ def _validate_entry(collection: str, entry: Any) -> None:
     required = ENTRY_FIELDS | COLLECTION_FIELDS[collection]
     optional = {
         "packs": {"depends_on", "conflicts_with"},
-        "patterns": {"match", "exclusive_group", "references"},
+        "patterns": {"match", "exclusive_group", "references", "kind"},
         "boards": {"review"},
     }.get(collection)
     _validate_fields(entry, "record", required, optional)

@@ -120,6 +120,17 @@ A sector adds domain context to every consultation and to `AGENTS.md`.
 |---|---|
 | `context` | Non-empty list of instructions specific to the sector. |
 
+A sector selects rules through the patterns that list it in `match.sectors`: `init` and `recommend` preselect them for the person to confirm or decline (see [patterns](patterns.md#browse-and-preview)). The bundled sectors are `general`, `financial-services`, `insurance`, `healthcare`, `public-sector`, `e-commerce`, `education` and `critical-infrastructure`; `openguildkit catalog` prints the packs each one preselects. Their packs cover EU law and name the jurisdiction in their description; national rules come on top.
+
+To add a sector of your own, put its record in the project catalog and a pattern that names it, then answer the sector question with its ID:
+
+```text
+.openguildkit/catalog/sectors/internal-tools.json
+.openguildkit/catalog/patterns/internal-tools-access.json   "match": {"sectors": ["internal-tools"]}
+```
+
+The pattern can reuse bundled packs or packs from `.openguildkit/catalog/packs/`. A pattern that names a sector absent from the catalog is refused when the catalog loads.
+
 `general` is the default. If a saved profile uses a sector absent from the current catalog, add that sector to the project's local catalog or set `sector` to an available ID in `.openguildkit/project.json`, then run `openguildkit sync`.
 
 ## Tools

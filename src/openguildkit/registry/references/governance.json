@@ -610,6 +610,9 @@
       ],
       "summary": "Encadre la mise sur le marché et le suivi des dispositifs médicaux.",
       "applies_when": "Si le logiciel possède une destination médicale qui le fait entrer dans ce régime ; un simple logiciel de santé n'y entre pas automatiquement.",
+      "packs": [
+        "health-data-protection"
+      ],
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/reg/2017/745/oj/eng",

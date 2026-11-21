@@ -592,15 +592,15 @@ def _interactive_init(questions: list[dict], catalog: dict) -> dict:
         answers["components"] = components
     else:
         answers.update(_prompt_questions([by_id["stack"]], "init"))
-    answers.update(_prompt_questions([by_id["roles"]], "init"))
-    asked = {"name", "sector", "stack", "components", "roles"}
+    answers.update(_prompt_questions([by_id["roles"], by_id["personal_data"]], "init"))
+    answers["personal_data"] = answers["personal_data"] == "yes"
+    asked = {"name", "sector", "stack", "components", "roles", "personal_data"}
     pending = [question for question in questions if question["id"] not in asked]
     plan = profile_recommendations(answers, catalog)
     _print_plan_notes(plan)
+    _print_preselection(plan)
     matched = [pattern["id"] for pattern in plan["matched"]]
     suggested = [pattern["id"] for pattern in plan["suggested"]]
-    if suggested:
-        print(f"\nMethods and alternatives to consider: {', '.join(suggested)}", file=sys.stderr)
     for question in pending:
         if question["id"] == "patterns":
             question["default"] = matched
@@ -609,7 +609,31 @@ def _interactive_init(questions: list[dict], catalog: dict) -> dict:
     answers.update(_prompt_questions(pending, "init"))
     if "patterns" in answers:
         answers["patterns"] = _scoped_patterns(answers["patterns"], plan)
+        declined = _declined_regulations(answers["patterns"], plan)
+        if declined:
+            answers["declined"] = declined
+            print(f"  Declined, not proposed again: {', '.join(declined)}", file=sys.stderr)
     return answers
+
+
+def _print_preselection(plan: dict) -> None:
+    """Show what is preselected and why, so the person can keep or remove each pattern."""
+    if plan["matched"]:
+        print("\nPreselected patterns, keep or remove them at the next question:", file=sys.stderr)
+        for pattern in plan["matched"]:
+            print(f"  {pattern['id']}: {'; '.join(pattern['reasons'])}", file=sys.stderr)
+    if plan["suggested"]:
+        names = ", ".join(pattern["id"] for pattern in plan["suggested"])
+        print(f"Methods and alternatives to consider: {names}", file=sys.stderr)
+
+
+def _declined_regulations(selected: list, plan: dict) -> list[str]:
+    """Preselected regulation patterns the person removed: recorded so recommend stops proposing them."""
+    chosen = {entry["id"] if isinstance(entry, dict) else entry for entry in selected}
+    return [
+        pattern["id"] for pattern in plan["matched"]
+        if pattern.get("kind") == "regulation" and pattern["id"] not in chosen
+    ]
 
 
 def _print_catalog(catalog: dict, as_json: bool) -> None:
@@ -620,7 +644,19 @@ def _print_catalog(catalog: dict, as_json: bool) -> None:
     for group in groups:
         print(group.capitalize())
         for entry in catalog[group].values():
-            print(f"  {entry['id']:<24} {entry['title']}")
+            preselected = _sector_packs(catalog, entry["id"]) if group == "sectors" else []
+            suffix = f" (preselects {', '.join(preselected)})" if preselected else ""
+            print(f"  {entry['id']:<24} {entry['title']}{suffix}")
+
+
+def _sector_packs(catalog: dict, sector_id: str) -> list[str]:
+    """The packs of the patterns that a sector preselects without a stack."""
+    return [
+        pack_id
+        for pattern in catalog["patterns"].values()
+        if sector_id in pattern.get("match", {}).get("sectors", []) and not pattern["match"].get("stack")
+        for pack_id in pattern["packs"]
+    ]
 
 
 def _print_references(args, state: Path, catalog: dict) -> None:
@@ -676,11 +712,14 @@ def _print_patterns(args, patterns: dict) -> None:
         print(pattern["description"])
         print(f"Roles: {', '.join(pattern['roles'])}")
         print(f"Packs: {', '.join(pattern['packs'])}")
-        if "match" in pattern:
-            requirements = [" / ".join(group) for group in pattern["match"]["stack"]]
+        match = pattern.get("match", {})
+        if match.get("stack"):
+            requirements = [" / ".join(group) for group in match["stack"]]
             print(f"Stack requirements: {' + '.join(requirements)}")
-            if pattern["match"].get("sectors"):
-                print(f"Sectors: {', '.join(pattern['match']['sectors'])}")
+        if match.get("sectors"):
+            print(f"Sectors: {', '.join(match['sectors'])}")
+        if match.get("personal_data"):
+            print("Preselected when the project processes personal data")
         for source in pattern["sources"]:
             print(f"- {source['title']}: {source['url']}")
         return
@@ -693,10 +732,10 @@ def _print_recommendations(plan: dict, as_json: bool) -> None:
     if as_json:
         _print_json(plan)
         return
-    print("Matched stack patterns")
+    print("Preselected patterns, confirm or remove them")
     for pattern in plan["matched"]:
         where = f" [{', '.join(pattern['components'])}]" if pattern.get("components") else ""
-        print(f"  {pattern['id']}{where}: {', '.join(pattern['matched_stack'])}")
+        print(f"  {pattern['id']}{where}: {'; '.join(pattern['reasons'])}")
         if pattern.get("version_unknown"):
             print(f"    version unknown, confirm {', '.join(pattern['version_unknown'])}")
     if plan.get("excluded"):
@@ -706,9 +745,13 @@ def _print_recommendations(plan: dict, as_json: bool) -> None:
             print(f"  {item['id']}{where}: {'; '.join(item['reasons'])}")
     print("Methods and alternatives to consider")
     for pattern in plan["suggested"]:
-        reason = ", ".join(pattern.get("matched_roles", [])) or "choose one overlapping pattern"
+        reason = "choose one overlapping pattern" if pattern.get("choice_required") else "; ".join(pattern["reasons"])
         print(f"  {pattern['id']}: {reason}")
     print(f"Recommended packs: {', '.join(plan['recommended_packs'])}")
+    if plan.get("declined"):
+        print("Declined in the profile, remove from declined to see them again")
+        for pattern_id in plan["declined"]:
+            print(f"  {pattern_id}")
     if plan.get("review"):
         print("Selected patterns to review")
         for item in plan["review"]:

@@ -15,6 +15,12 @@
   "packs": [
     "nis2"
   ],
+  "kind": "regulation",
+  "match": {
+    "sectors": [
+      "critical-infrastructure"
+    ]
+  },
   "references": [
     "nis-2"
   ]
