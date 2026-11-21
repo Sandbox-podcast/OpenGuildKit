@@ -87,7 +87,9 @@
         "legal",
         "sales",
         "hr",
-        "operations"
+        "operations",
+        "procurement",
+        "partnerships"
       ],
       "aliases": [
         "DocuSign"
@@ -168,7 +170,8 @@
       "summary": "French accounting and financial management platform for companies and accounting firms.",
       "homepage": "https://www.pennylane.com",
       "brains": [
-        "finance"
+        "finance",
+        "procurement"
       ],
       "servers": [
         {
@@ -200,7 +203,8 @@
       "homepage": "https://qonto.com",
       "brains": [
         "finance",
-        "operations"
+        "operations",
+        "procurement"
       ],
       "servers": [
         {
@@ -278,7 +282,8 @@
       "homepage": "https://www.spendesk.com",
       "brains": [
         "finance",
-        "operations"
+        "operations",
+        "procurement"
       ],
       "servers": [],
       "api": {
@@ -296,7 +301,8 @@
       "brains": [
         "finance",
         "engineering",
-        "sales"
+        "sales",
+        "backend"
       ],
       "detect": {
         "npm": [
@@ -398,7 +404,9 @@
         "legal",
         "sales",
         "hr",
-        "operations"
+        "operations",
+        "procurement",
+        "partnerships"
       ],
       "servers": [],
       "api": {

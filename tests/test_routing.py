@@ -7,7 +7,12 @@ from pathlib import Path
 from openguildkit.catalog import load_catalog
 from openguildkit.workflow import normalize_text, trigger_matches
 
-CASES = json.loads((Path(__file__).with_name("routing_cases.json")).read_text(encoding="utf-8"))
+# routing_cases_new_brains.json holds the cases of the brains added after the first eighteen.
+CASES = [
+    case
+    for name in ("routing_cases.json", "routing_cases_new_brains.json")
+    for case in json.loads(Path(__file__).with_name(name).read_text(encoding="utf-8"))
+]
 
 
 class RoutingTests(unittest.TestCase):

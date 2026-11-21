@@ -1,0 +1,42 @@
+{
+  "id": "public-api-docs",
+  "title": "Public API documentation",
+  "version": "1.0.0",
+  "description": "For a change to a public API or SDK: a reference generated from the contract, examples that run, a changelog and a deprecation notice before removal.",
+  "sources": [
+    {
+      "title": "OpenAPI Specification",
+      "url": "https://spec.openapis.org/oas/latest.html"
+    },
+    {
+      "title": "Diátaxis, a systematic approach to technical documentation",
+      "url": "https://diataxis.fr/"
+    },
+    {
+      "title": "Write the Docs, Docs as Code",
+      "url": "https://www.writethedocs.org/guide/docs-as-code/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "generate-reference-from-contract",
+      "instruction": "Build the API reference from the contract file in the repository instead of writing it by hand.",
+      "verification": "Check that the documentation build reads the contract file and that the published reference matches its version."
+    },
+    {
+      "id": "test-code-examples",
+      "instruction": "Run the code examples and SDK samples of the documentation in CI against the release candidate.",
+      "verification": "Check the CI job that runs the examples and its result for the release candidate."
+    },
+    {
+      "id": "record-changes-in-changelog",
+      "instruction": "Add an entry to the public changelog for each change of behaviour, listing breaking changes first with a migration path.",
+      "verification": "Open the changelog and check the entry for the change."
+    },
+    {
+      "id": "announce-deprecations",
+      "instruction": "Mark a deprecated operation as deprecated in the contract and publish its removal date and migration guide before the deprecation period starts.",
+      "verification": "Check the deprecated flag in the contract, the removal date in the reference and the link to the migration guide."
+    }
+  ]
+}

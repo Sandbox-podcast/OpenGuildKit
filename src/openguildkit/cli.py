@@ -12,7 +12,7 @@ from .decisions import NAMESPACE, approval_policy, check_decision, decision_payl
 from . import alerts_cli
 from .alerts import blocking_alerts, load_register
 from .deliverables import draft_problems, launch_notice, load_deliverables, new_draft, utm_link
-from .brains import brain_knowledge, brief_knowledge, knowledge_gaps
+from .brains import brain_knowledge, brief_knowledge, knowledge_gaps, write_brain_skeleton
 from .detect import components_for_profile, detect_stack
 from .publishing import add_share, export_docs, project_overview, revoke_share, share_status
 from . import tools_cli
@@ -110,6 +110,7 @@ def _parser() -> argparse.ArgumentParser:
     brains.add_argument("--id", help="Show a brain's specialist lenses and review criteria.")
     brains.add_argument("--json", action="store_true", help="Print the board definitions as JSON.")
     brains.add_argument("--check", action="store_true", help="Fail when a brain has no method or no reference.")
+    brains.add_argument("--new", metavar="ID", help="Write the skeleton of a project brain in .openguildkit/catalog.")
     init = commands.add_parser("init", help="Initialize a project profile and agent instructions.")
     init_mode = init.add_mutually_exclusive_group()
     init_mode.add_argument("--questions", action="store_true", help="Print the setup questionnaire as JSON.")
@@ -937,6 +938,8 @@ def _print_brains(args, catalog: dict, families: dict) -> int:
             plan = board["review"]
             for specialist in plan["specialists"]:
                 print(f"  {specialist['title']}: {specialist['focus']}")
+                for check in specialist.get("checks", []):
+                    print(f"    - {check}")
             for heading, key in (
                 ("Evidence to inspect", "evidence"),
                 ("Challenge questions", "challenge"),
@@ -964,6 +967,31 @@ def _print_brains(args, catalog: dict, families: dict) -> int:
             reviewers = board.get("review", {}).get("specialists", [])
             count = f" ({len(reviewers)} specialists)" if reviewers else ""
             print(f"  {board['id']:<23} {board['title']}{count}")
+    return 0
+
+
+def _new_brain(args, state: Path, catalog: dict) -> int:
+    """Write a project brain's skeleton and say which tasks the new brain makes stale."""
+    with project_lock(state):
+        written = write_brain_skeleton(state / "catalog", args.new, catalog)
+        updated = _load_project_catalog(args, state)
+    for path in written:
+        print(f"Wrote {path.as_posix()}")
+    print("Replace each TODO, then run openguildkit brains --check and openguildkit sync.")
+    if not (state / "project.json").is_file():
+        return 0
+    profile = load_profile(state, catalog)
+    if profile["boards"]:
+        print(f"The profile lists its boards: add {args.new} to boards in .openguildkit/project.json for it to review tasks.")
+        return 0
+    already = {task["id"] for task in _stale_tasks(state, profile, catalog)}
+    stale = [task for task in _stale_tasks(state, profile, updated)
+             if task["id"] not in already and task["status"] != "done"]
+    for task in stale:
+        print(f"Task {task['id']} ({task['status']}) was consulted without {args.new}: once you sync, "
+              "it needs a new review before work continues.")
+    if not stale:
+        print(f"No task was reviewed under the previous board. New tasks will be routed to {args.new} by its triggers.")
     return 0
 
 
@@ -1313,6 +1341,8 @@ def _run(args) -> int | None:
     elif args.command == "patterns":
         _print_patterns(args, catalog["patterns"])
     elif args.command == "brains":
+        if args.new:
+            return _new_brain(args, state, catalog)
         families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
         return _print_brains(args, catalog, families)
     elif args.command == "integrations":
@@ -1373,6 +1403,9 @@ def _run(args) -> int | None:
         for record in unshipped_records(lock, bundled):
             print(f"OpenGuildKit: {record} is no longer shipped; it is kept from the catalog lock until you remove it "
                   "from .openguildkit/project.json.", file=sys.stderr)
+        for task in _stale_tasks(state, profile, catalog):
+            if task["status"] in ("approved", "reviewed", "consulting"):
+                print(f"  Task {task['id']} ({task['status']}) was consulted under the previous rules or boards: review it again.")
         for item in patterns_to_review(profile, catalog):
             print(f"OpenGuildKit: review pattern {item['id']}: {'; '.join(item['reasons'])}", file=sys.stderr)
     else:

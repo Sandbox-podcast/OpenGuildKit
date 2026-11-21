@@ -23,6 +23,15 @@ ROLE_TITLES = {
     "qa": "Quality assurance / QA",
     "sales": "Sales / Commerce",
     "security": "Cybersecurity / Cybersécurité",
+    "backend": "Back-end development / Développement back-end",
+    "customer-success": "Customer success / Succès client",
+    "developer-relations-and-docs": "Developer relations and documentation / Relations développeurs et documentation",
+    "frontend": "Front-end development / Développement front-end",
+    "it-and-workplace": "Internal IT and workplace / Informatique interne",
+    "localisation": "Localisation / Traduction et internationalisation",
+    "partnerships": "Partnerships and channels / Partenariats",
+    "procurement": "Procurement / Achats",
+    "trust-and-safety": "Trust and safety / Confiance et sécurité des contenus",
 }
 
 _VERSION_SUFFIX = re.compile(r"(?:@|\s+)v?(\d+(?:\.\d+)*)(?:[-+][\w.-]+)?$", flags=re.IGNORECASE)

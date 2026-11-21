@@ -322,7 +322,8 @@
       "homepage": "https://www.netlify.com",
       "brains": [
         "devops",
-        "engineering"
+        "engineering",
+        "frontend"
       ],
       "detect": {
         "files": [
@@ -459,7 +460,8 @@
       "homepage": "https://vercel.com",
       "brains": [
         "devops",
-        "engineering"
+        "engineering",
+        "frontend"
       ],
       "detect": {
         "files": [

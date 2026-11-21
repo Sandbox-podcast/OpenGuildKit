@@ -1,0 +1,38 @@
+{
+  "id": "frontend-delivery",
+  "title": "Front-end delivery",
+  "version": "1.0.0",
+  "description": "For a change to the user interface: every state designed and built, a supported browser list, a bundle size budget and client error reporting.",
+  "sources": [
+    {
+      "title": "WHATWG, HTML Living Standard",
+      "url": "https://html.spec.whatwg.org/multipage/"
+    },
+    {
+      "title": "web.dev, Web Vitals",
+      "url": "https://web.dev/articles/vitals"
+    }
+  ],
+  "rules": [
+    {
+      "id": "build-every-state",
+      "instruction": "Build the loading, empty, error and partial states of each data-driven view the change adds or modifies.",
+      "verification": "Check the component stories or screenshots for each of the four states."
+    },
+    {
+      "id": "keep-supported-browser-list",
+      "instruction": "Keep the list of supported browsers and devices in the repository and check that the platform features the change uses work in all of them or have a fallback.",
+      "verification": "Open the supported browser list and check the test results or fallback for features the change uses."
+    },
+    {
+      "id": "hold-bundle-budget",
+      "instruction": "Measure the JavaScript and CSS the change adds and compare it with the budget set for the affected pages.",
+      "verification": "Read the bundle size report in CI for the change and compare it with the budget."
+    },
+    {
+      "id": "report-client-errors",
+      "instruction": "Send browser errors to the monitoring service with the release version.",
+      "verification": "Trigger a test error in a staging build and check that it appears in monitoring with the version."
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "id": "trust-and-safety",
+  "title": "Trust and safety",
+  "description": "Review how the product prevents, detects and handles abuse, illegal content and harmful behaviour by its users, and how affected people can report and appeal.",
+  "expertises": [
+    "Content moderation and abuse handling",
+    "Notice and action, statements of reasons and appeals",
+    "Platform policies and transparency reporting"
+  ],
+  "triggers": [
+    "trust and safety",
+    "confiance et sécurité",
+    "content moderation",
+    "modération de contenu",
+    "moderation",
+    "modération",
+    "abuse",
+    "abus",
+    "report abuse",
+    "signalement",
+    "illegal content",
+    "contenu illicite",
+    "user-generated content",
+    "contenu généré par les utilisateurs",
+    "spam",
+    "fraud",
+    "fraude",
+    "harassment",
+    "harcèlement",
+    "digital services act",
+    "dsa",
+    "community guidelines",
+    "règles de la communauté",
+    "account suspension",
+    "suspension de compte",
+    "notice and action",
+    "terrorist content"
+  ],
+  "questions": [
+    "What could a user publish, send or do with this change that harms another person or breaks the law?",
+    "How does someone report it, who reviews the report and how fast?",
+    "How is the affected user told about a decision, and how can they contest it?"
+  ],
+  "sources": [
+    {
+      "title": "Regulation (EU) 2022/2065, Digital Services Act",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj"
+    },
+    {
+      "title": "Regulation (EU) 2021/784 on addressing the dissemination of terrorist content online",
+      "url": "https://eur-lex.europa.eu/eli/reg/2021/784/oj"
+    },
+    {
+      "title": "The Santa Clara Principles on Transparency and Accountability in Content Moderation",
+      "url": "https://santaclaraprinciples.org/"
+    },
+    {
+      "title": "Digital Trust & Safety Partnership, Best Practices Framework",
+      "url": "https://dtspartnership.org/best-practices/"
+    },
+    {
+      "title": "UK Online Safety Act 2023",
+      "url": "https://www.legislation.gov.uk/ukpga/2023/50/contents"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "abuse-risk-analyst",
+        "title": "Abuse risk analyst",
+        "focus": "List how the change could be misused: spam, fraud, harassment, illegal content, impersonation or evasion of a ban, and estimate the scale.",
+        "checks": [
+          "Each new way to publish, message or invite is listed with the abuse it enables.",
+          "Rate limits and verification steps are defined for new accounts and bulk actions.",
+          "The risk assessment is dated and reviewed when the feature changes."
+        ]
+      },
+      {
+        "id": "moderation-operations",
+        "title": "Moderation operations lead",
+        "focus": "Design the reporting flow, the review queue, the response times and the escalation for urgent cases such as threats to life or child safety.",
+        "checks": [
+          "Any user, logged in or not, can report content with a reason and a location in the product.",
+          "Urgent categories have a separate queue, a response target and an on-call owner.",
+          "Removal orders from authorities for terrorist content can be handled within one hour, as Regulation (EU) 2021/784 requires of hosting services."
+        ]
+      },
+      {
+        "id": "policy-and-appeals",
+        "title": "Policy and appeals specialist",
+        "focus": "Write the rule the decision applies, the statement of reasons sent to the affected user and the appeal path reviewed by a different person.",
+        "checks": [
+          "Every action on content or an account cites the rule it applies.",
+          "The affected user receives a statement of reasons with the facts, the rule and how to appeal.",
+          "Appeals are reviewed by someone not involved in the first decision, and reinstatements are counted."
+        ]
+      },
+      {
+        "id": "safety-transparency",
+        "title": "Transparency and regulatory reporting lead",
+        "focus": "Check which reporting obligations apply, such as Digital Services Act transparency reports, and that the data needed to produce them is recorded.",
+        "checks": [
+          "Notices, actions, appeals and response times are recorded in a form that can be counted.",
+          "Automated moderation is identified as such in the records and its error rate is sampled by people.",
+          "The service's status under the Digital Services Act, or other applicable law, is confirmed with legal."
+        ]
+      }
+    ],
+    "evidence": [
+      "Abuse risk assessment for the change, with the scenarios and their mitigations.",
+      "Reporting flow, moderation queue design and response time targets.",
+      "Policy text, statement of reasons template and appeal procedure.",
+      "Current moderation metrics: reports, actions, appeals, reinstatements and response times."
+    ],
+    "challenge": [
+      "How would a determined abuser use this feature at scale, and what stops them?",
+      "What happens to a report sent on a Saturday night about a threat to someone's safety?",
+      "Could automated moderation remove lawful content without a person able to reverse it?",
+      "Does the policy say clearly enough what is not allowed for a user to understand a decision?"
+    ],
+    "decision_criteria": [
+      "Proceed when abuse scenarios have mitigations, reports reach a staffed queue and users receive reasons and an appeal.",
+      "Revise when a new way to publish or message ships without reporting, rate limits or a review queue.",
+      "Block when the service cannot meet a legal removal or reporting deadline that applies to it, until legal confirms the plan.",
+      "Name the safety metrics, such as response time to urgent reports and appeal reversal rate, and their thresholds."
+    ]
+  }
+}

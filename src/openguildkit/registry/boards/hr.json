@@ -68,6 +68,10 @@
     {
       "title": "ISO 30414, Human resource management, human capital reporting and disclosure",
       "url": "https://www.iso.org/standard/30414"
+    },
+    {
+      "title": "Directive (EU) 2023/970 on pay transparency",
+      "url": "https://eur-lex.europa.eu/eli/dir/2023/970/oj"
     }
   ],
   "review": {
@@ -75,41 +79,90 @@
       {
         "id": "hiring-process",
         "title": "Hiring process",
-        "focus": "Check whether the role requirements can be observed through the same job-related questions and scoring rubric for each candidate."
+        "focus": "Check whether the role requirements can be observed through the same job-related questions and scoring rubric for each candidate.",
+        "checks": [
+          "Every candidate for a role gets the same job-related questions and scoring rubric.",
+          "Scores are recorded before interviewers discuss a candidate."
+        ]
       },
       {
         "id": "employee-experience",
         "title": "Employee experience",
-        "focus": "Identify what a new hire needs to do in their first weeks and assign each access, training and manager handoff to an owner."
+        "focus": "Identify what a new hire needs to do in their first weeks and assign each access, training and manager handoff to an owner.",
+        "checks": [
+          "Each access, equipment and training item for a new hire has an owner and a due date.",
+          "The manager's first-week tasks are written and checked after the first week."
+        ]
       },
       {
         "id": "workforce-planning",
         "title": "Workforce planning",
-        "focus": "Compare aggregate demand and available skills by team before recommending staffing, training or workload changes."
+        "focus": "Compare aggregate demand and available skills by team before recommending staffing, training or workload changes.",
+        "checks": [
+          "Demand and available skills are compared by team on aggregate data.",
+          "Options such as hiring, training or reprioritising are compared on cost and lead time."
+        ]
       },
       {
         "id": "people-data",
         "title": "People data and oversight",
-        "focus": "Check which steps need personal data, who can access it and when the responsible HR or privacy owner should intervene."
+        "focus": "Check which steps need personal data, who can access it and when the responsible HR or privacy owner should intervene.",
+        "checks": [
+          "Each personal data field has a purpose, a retention period and a list of who can see it.",
+          "Decisions about a person are made by a named human who can explain them."
+        ]
+      },
+      {
+        "id": "compensation-and-pay-equity",
+        "title": "Compensation and pay equity specialist",
+        "focus": "Check pay structures, salary bands and pay decisions against objective, gender-neutral criteria and the pay transparency rules of Directive (EU) 2023/970.",
+        "checks": [
+          "Each job sits in a pay band built on skills, effort, responsibility and working conditions, the criteria of Directive (EU) 2023/970.",
+          "Job offers and postings give the starting pay or its range before the interview, and do not ask for pay history.",
+          "The gender pay gap per category of workers is computed; a gap of 5 percent or more that is not justified leads to a joint pay assessment."
+        ]
+      },
+      {
+        "id": "employment-law-and-employee-relations",
+        "title": "Employment law and employee relations adviser",
+        "focus": "Identify the labour law, collective agreement and works council steps the change triggers in each country, and refer interpretations to a qualified employment lawyer.",
+        "checks": [
+          "The applicable labour code and collective agreement are named for each country and population concerned.",
+          "Changes to working time, monitoring of employees or contracts are checked for prior information or consultation of employee representatives.",
+          "Employee monitoring or AI used in HR decisions is checked against data protection rules and, for AI, the high-risk employment cases of the AI Act."
+        ]
+      },
+      {
+        "id": "performance-and-development",
+        "title": "Performance and development lead",
+        "focus": "Review performance reviews, goals, feedback and training so that ratings rest on observable work, are calibrated across managers and lead to development actions.",
+        "checks": [
+          "Review criteria describe observable behaviours and results, the same for everyone in a role.",
+          "Ratings are calibrated across teams and their distribution is checked by gender and other protected groups.",
+          "Each review ends with development actions, an owner and a date, and the employee can comment on it."
+        ]
       }
     ],
     "evidence": [
       "Review the approved job description, blank interview guide and scoring rubric for alignment with the work.",
       "Inspect the onboarding checklist, access request flow and role-based permissions for missing handoffs or overlapping ownership.",
       "Use authorized aggregate staffing, workload or time-to-completion data. Leave identifiable personnel records outside the consultation.",
-      "Check documented access, retention and escalation responsibilities with the authorized HR or privacy owner."
+      "Check documented access, retention and escalation responsibilities with the authorized HR or privacy owner.",
+      "Pay bands, job architecture and aggregate pay gap figures by category of workers, without identifiable salaries in the consultation."
     ],
     "challenge": [
       "Question any criterion based on a vague notion of fit. Identify the work requirement and the evidence that would substantiate it.",
       "Check whether the proposed process collects information that the next person in the workflow can do without.",
       "When the team needs a legal interpretation or a decision about an identifiable person, refer it to the authorized human owner and keep the board focused on process design.",
-      "Would a candidate or employee affected by this process understand how a decision about them was made, and how to contest it?"
+      "Would a candidate or employee affected by this process understand how a decision about them was made, and how to contest it?",
+      "Could the change create a pay difference, a rating or a working condition that the company could not justify with objective criteria?"
     ],
     "decision_criteria": [
       "Prefer a documented process with observable job requirements and the same assessment steps for candidates for the same role.",
       "Name the human decision owner, the people who can access each data category and the point at which the record should be removed or reviewed.",
       "Choose a way to measure the process with authorized aggregate data, such as whether new hires receive required access by the agreed date.",
-      "Revise a process when an automated step could decide about a person without a named human able to review it."
+      "Revise a process when an automated step could decide about a person without a named human able to review it.",
+      "Refer to a qualified employment lawyer and the employee representatives when the change touches pay, working time, monitoring or dismissal rules."
     ]
   }
 }

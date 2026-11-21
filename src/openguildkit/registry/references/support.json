@@ -8,7 +8,9 @@
       "category": "Gestion des connaissances",
       "kind": "méthode",
       "brains": [
-        "support"
+        "support",
+        "customer-success",
+        "developer-relations-and-docs"
       ],
       "summary": "Intègre la création et l'amélioration des articles de connaissance au traitement des demandes, pour que la base reflète les questions réelles.",
       "applies_when": "Pour une équipe support qui veut capitaliser ses réponses dans une base de connaissances à jour.",
@@ -66,7 +68,8 @@
       "category": "Réclamations et satisfaction client",
       "kind": "norme",
       "brains": [
-        "support"
+        "support",
+        "customer-success"
       ],
       "summary": "Lignes directrices pour organiser le traitement des réclamations clients.",
       "applies_when": "Pour structurer la relation client et la boucle d'amélioration.",
@@ -85,7 +88,8 @@
       "kind": "norme",
       "brains": [
         "support",
-        "product"
+        "product",
+        "customer-success"
       ],
       "summary": "Lignes directrices pour surveiller et mesurer la satisfaction client.",
       "applies_when": "Pour définir un dispositif de suivi de la satisfaction, adapté à l'organisation.",

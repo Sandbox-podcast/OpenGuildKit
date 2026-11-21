@@ -1,0 +1,124 @@
+{
+  "id": "it-and-workplace",
+  "title": "Internal IT and workplace",
+  "description": "Review the tools, devices and access employees use every day: device management, SaaS access, joiners, movers and leavers, and internal support.",
+  "expertises": [
+    "Device management and endpoint security",
+    "SaaS access, identity and licence lifecycle",
+    "Internal IT support and workplace tools"
+  ],
+  "triggers": [
+    "laptop",
+    "ordinateur portable",
+    "device management",
+    "gestion des appareils",
+    "mdm",
+    "mobile device management",
+    "endpoint management",
+    "endpoint security",
+    "poste de travail",
+    "workstation",
+    "it support",
+    "support informatique",
+    "internal it",
+    "informatique interne",
+    "helpdesk interne",
+    "byod",
+    "saas access",
+    "accès saas",
+    "licence management",
+    "gestion des licences",
+    "joiner mover leaver",
+    "arrivées et départs",
+    "single sign-on",
+    "google workspace",
+    "microsoft 365",
+    "it asset",
+    "parc informatique"
+  ],
+  "questions": [
+    "Which devices, accounts and SaaS tools does the change add, move or remove for employees?",
+    "How is access granted on arrival, changed on a move and removed on departure?",
+    "Who supports employees when the tool or device fails, and in what time?"
+  ],
+  "sources": [
+    {
+      "title": "NIST SP 800-124 Rev. 2, Guidelines for Managing the Security of Mobile Devices in the Enterprise",
+      "url": "https://csrc.nist.gov/pubs/sp/800/124/r2/final"
+    },
+    {
+      "title": "NIST SP 800-46 Rev. 2, Guide to Enterprise Telework, Remote Access, and Bring Your Own Device (BYOD) Security",
+      "url": "https://csrc.nist.gov/pubs/sp/800/46/r2/final"
+    },
+    {
+      "title": "CIS Critical Security Controls Version 8.1",
+      "url": "https://www.cisecurity.org/controls/v8-1"
+    },
+    {
+      "title": "RFC 7644, System for Cross-domain Identity Management: Protocol",
+      "url": "https://www.rfc-editor.org/info/rfc7644/"
+    }
+  ],
+  "review": {
+    "specialists": [
+      {
+        "id": "endpoint-manager",
+        "title": "Endpoint and device manager",
+        "focus": "Check that every device that reaches company data is enrolled, encrypted, patched and can be locked or wiped remotely, including personally owned devices.",
+        "checks": [
+          "The device inventory matches the people who hold devices; unknown devices are listed.",
+          "Disk encryption, screen lock and automatic updates are enforced by policy, not by instruction.",
+          "Personally owned devices reach company data only through a managed app or profile that can be removed."
+        ]
+      },
+      {
+        "id": "identity-and-access",
+        "title": "Identity and access administrator",
+        "focus": "Map who gets which SaaS account and role, through which identity provider, and how access follows a joiner, a mover and a leaver.",
+        "checks": [
+          "Each SaaS tool is connected to single sign-on, or the exception and its owner are recorded.",
+          "Provisioning and deprovisioning are automated where the tool supports it, for example through SCIM.",
+          "A leaver's accounts are disabled on the last day and the evidence is kept."
+        ]
+      },
+      {
+        "id": "saas-and-licences",
+        "title": "SaaS and licence manager",
+        "focus": "Inventory the SaaS tools, their owners, licence counts and renewal dates, and find unused or duplicated subscriptions.",
+        "checks": [
+          "Every tool has a business owner and a renewal date.",
+          "Assigned licences are compared with active users over the last 90 days.",
+          "A new tool is checked for data handling before employees can sign up with a company account."
+        ]
+      },
+      {
+        "id": "workplace-support",
+        "title": "Workplace support lead",
+        "focus": "Define how employees ask for help, the response times, the self-service articles and what changes for the support team.",
+        "checks": [
+          "Employees have one place to ask for help, and requests are tracked.",
+          "The change comes with a how-to article and a known-issues list for the internal helpdesk.",
+          "Loaner devices or a fallback exist for the people whose work stops when a device fails."
+        ]
+      }
+    ],
+    "evidence": [
+      "Device inventory and management console export for the population concerned.",
+      "List of SaaS tools with owners, licence counts, single sign-on status and renewal dates.",
+      "Joiner, mover and leaver procedure and a recent leaver's deprovisioning record.",
+      "Internal support request volumes and response times for the tools affected."
+    ],
+    "challenge": [
+      "Which device or account would still reach company data after an employee leaves?",
+      "Does the change add a tool outside single sign-on that someone will forget to deprovision?",
+      "Can a lost laptop be wiped today, and who would do it on a weekend?",
+      "Is a new tool needed, or does an existing one already cover the need?"
+    ],
+    "decision_criteria": [
+      "Proceed when devices are managed, access follows the identity provider and the leaver process covers the new tool.",
+      "Revise when a tool or device reaches company data without enrolment, single sign-on or a named owner.",
+      "Ask for a pilot group when the change affects how everyone signs in or works on their device.",
+      "Name the measure, such as accounts open after departure or unmanaged devices, and its target."
+    ]
+  }
+}

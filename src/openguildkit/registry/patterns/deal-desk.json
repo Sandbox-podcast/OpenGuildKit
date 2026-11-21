@@ -1,0 +1,26 @@
+{
+  "id": "deal-desk",
+  "title": "Deal desk",
+  "description": "Approve discounts and non-standard terms through a written matrix before a quote or contract goes to the customer.",
+  "sources": [
+    {
+      "title": "COSO, Internal Control, Integrated Framework",
+      "url": "https://www.coso.org/internal-control"
+    },
+    {
+      "title": "IFRS Foundation, IFRS 15 Revenue from Contracts with Customers",
+      "url": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-15-revenue-from-contracts-with-customers/"
+    }
+  ],
+  "roles": [
+    "sales",
+    "finance",
+    "legal"
+  ],
+  "packs": [
+    "deal-approval"
+  ],
+  "references": [
+    "coso-internal-control"
+  ]
+}

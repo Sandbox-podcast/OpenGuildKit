@@ -11,7 +11,8 @@
       "brains": [
         "design",
         "qa",
-        "engineering"
+        "engineering",
+        "frontend"
       ],
       "detect": {
         "npm": [
@@ -49,7 +50,8 @@
       "brains": [
         "performance",
         "qa",
-        "engineering"
+        "engineering",
+        "frontend"
       ],
       "detect": {
         "files": [

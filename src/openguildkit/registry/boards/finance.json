@@ -55,6 +55,18 @@
     {
       "title": "HM Treasury, The Green Book (2026)",
       "url": "https://www.gov.uk/government/publications/the-green-book--2/the-green-book-2026"
+    },
+    {
+      "title": "IFRS Foundation, IFRS 15 Revenue from Contracts with Customers",
+      "url": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-15-revenue-from-contracts-with-customers/"
+    },
+    {
+      "title": "Council Directive 2006/112/EC on the common system of value added tax",
+      "url": "https://eur-lex.europa.eu/eli/dir/2006/112/oj"
+    },
+    {
+      "title": "impots.gouv.fr, Je passe à la facturation électronique",
+      "url": "https://www.impots.gouv.fr/professionnel/je-passe-la-facturation-electronique"
     }
   ],
   "review": {
@@ -62,41 +74,90 @@
       {
         "id": "planning-analyst",
         "title": "Financial planning analyst",
-        "focus": "Compare options on the same period and units. Separate one-time delivery and migration costs from recurring operations, support and maintenance."
+        "focus": "Compare options on the same period and units. Separate one-time delivery and migration costs from recurring operations, support and maintenance.",
+        "checks": [
+          "Options are compared on the same period, scope and units.",
+          "One-time costs are separated from recurring run, support and maintenance costs."
+        ]
       },
       {
         "id": "finops-lead",
         "title": "FinOps lead",
-        "focus": "Trace workload and vendor costs to measured usage and a price basis. Account for shared allocations, tier boundaries, peak capacity and what cannot be measured yet."
+        "focus": "Trace workload and vendor costs to measured usage and a price basis. Account for shared allocations, tier boundaries, peak capacity and what cannot be measured yet.",
+        "checks": [
+          "Each cost line traces to measured usage and a dated price, with tier boundaries shown.",
+          "Shared costs use a written allocation key that the budget owner accepts."
+        ]
       },
       {
         "id": "unit-economics-analyst",
         "title": "Unit economics analyst",
-        "focus": "Define a meaningful denominator such as a completed case or supported customer. Compare cost per unit at expected and constrained volumes."
+        "focus": "Define a meaningful denominator such as a completed case or supported customer. Compare cost per unit at expected and constrained volumes.",
+        "checks": [
+          "The unit is a business outcome, such as a supported customer, and its volume is measured.",
+          "Cost per unit is shown at expected and constrained volumes, including failed work and support time."
+        ]
       },
       {
         "id": "budget-owner-adviser",
         "title": "Budget review adviser",
-        "focus": "Identify who can validate the model, own material assumptions and make a budget decision. Propose review and alert thresholds tied to those assumptions."
+        "focus": "Identify who can validate the model, own material assumptions and make a budget decision. Propose review and alert thresholds tied to those assumptions.",
+        "checks": [
+          "The budget owner and the person who validates each material assumption are named.",
+          "A cost or usage threshold triggers a review, with an alert configured."
+        ]
+      },
+      {
+        "id": "revenue-accountant",
+        "title": "Revenue accountant",
+        "focus": "Apply the five steps of IFRS 15, or ASC 606 for US GAAP reporters, to the contracts the change creates or modifies: performance obligations, transaction price, allocation and timing.",
+        "checks": [
+          "Multi-year and bundled contracts list each performance obligation and its standalone selling price.",
+          "Discounts, free months, credits and usage fees are treated as variable consideration or allocated, not ignored.",
+          "Revenue is recognised over time or at a point in time as each obligation is satisfied, not on invoicing or payment."
+        ]
+      },
+      {
+        "id": "pricing-and-margin-analyst",
+        "title": "Pricing and margin analyst",
+        "focus": "Check the price, discount and packaging change against gross margin per plan and per customer segment, including the cost to serve.",
+        "checks": [
+          "Gross margin per plan includes hosting, third-party fees, payment fees and support time.",
+          "The price change is simulated on the current customer base: who pays more, who pays less, who may leave.",
+          "Grandfathering, notice periods and price-increase clauses in existing contracts are checked before the change."
+        ]
+      },
+      {
+        "id": "tax-and-invoicing-specialist",
+        "title": "Tax and invoicing specialist",
+        "focus": "Check VAT treatment, invoice content and e-invoicing obligations for each country the change sells to, and the data the billing system needs to apply them.",
+        "checks": [
+          "B2B and B2C sales are told apart, and the VAT place of supply is determined for electronically supplied services.",
+          "Invoices carry the mandatory particulars of Directive 2006/112/EC as transposed in each country, including VAT numbers and rates.",
+          "For French customers, the billing flow can receive and issue electronic invoices on the dates of the French e-invoicing reform."
+        ]
       }
     ],
     "evidence": [
       "Approved current cost baseline, actual usage or a representative measurement and the period and units used for each.",
       "Dated vendor quotes, pricing schedules or internal allocation assumptions, including when commitments or tier changes take effect.",
       "Engineering, migration, support and ongoing operating estimates with owners and stated uncertainty.",
-      "A consistent base and downside scenario, with demand and unit cost drivers, along with the budget owner and any agreed constraints."
+      "A consistent base and downside scenario, with demand and unit cost drivers, along with the budget owner and any agreed constraints.",
+      "Signed contract terms, price book and billing configuration for the plans and countries concerned, with the revenue treatment finance applies to them."
     ],
     "challenge": [
       "Compare keep as is, pilot and full implementation over the same period. Identify one-time reversibility costs and long-term cost drivers.",
       "Vary volume and cost inputs enough to find an assumption or threshold that would change the recommended option.",
       "Check whether the per-unit result hides idle capacity, failed work, retries or support time. Show how the decision changes if these are included.",
-      "Separate modeled savings from verified savings and confirm who can approve treating released capacity or cash as a realized benefit."
+      "Separate modeled savings from verified savings and confirm who can approve treating released capacity or cash as a realized benefit.",
+      "Does the change alter when revenue is recognised, the VAT due or the invoice content, and has finance confirmed it with the auditors or tax advisers?"
     ],
     "decision_criteria": [
       "Recommend an option when its total cost and unit cost fit the approved assumptions and the budget owner can validate the main drivers.",
       "Recommend a pilot when measurement or utilization uncertainty could change the option ranking. Define which unit metric and volume range the pilot must establish.",
       "Escalate when the chosen scenario exceeds a recorded constraint or assumptions rely on unconfirmed quotes, commitments or shared cost allocations.",
-      "Bind the recommendation to the measured period, scope and assumptions. Name the cost or usage threshold that should trigger a review."
+      "Bind the recommendation to the measured period, scope and assumptions. Name the cost or usage threshold that should trigger a review.",
+      "Escalate to the finance owner when a contract, price or invoicing change alters revenue recognition or VAT treatment, before the change ships."
     ]
   }
 }

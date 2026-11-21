@@ -1,0 +1,22 @@
+{
+  "id": "account-health-review",
+  "title": "Account health review",
+  "description": "Score account health, review upcoming renewals and act on accounts at risk before they churn.",
+  "sources": [
+    {
+      "title": "Bain & Company, Measuring your Net Promoter Score",
+      "url": "https://www.netpromotersystem.com/about/measuring-your-net-promoter-score/"
+    }
+  ],
+  "roles": [
+    "customer-success",
+    "support",
+    "sales"
+  ],
+  "packs": [
+    "account-health-review"
+  ],
+  "references": [
+    "nps"
+  ]
+}

@@ -145,7 +145,8 @@
       "category": "Architecture et modélisation",
       "kind": "méthode",
       "brains": [
-        "engineering"
+        "engineering",
+        "backend"
       ],
       "summary": "Propose douze principes pour organiser la construction, la configuration et l'exploitation d'applications de service.",
       "applies_when": "Pour des applications livrées comme services, avec adaptation aux contraintes réelles de déploiement et d'exploitation.",
@@ -384,12 +385,14 @@
       "category": "API, protocoles et interopérabilité",
       "kind": "protocole",
       "brains": [
-        "engineering"
+        "engineering",
+        "backend"
       ],
       "summary": "Définit la manière dont clients et serveurs échangent des requêtes et des réponses sur le Web.",
       "applies_when": "Pour les sites, API et autres échanges qui utilisent HTTP ; préciser les méthodes, statuts et comportements attendus.",
       "packs": [
-        "api-design"
+        "api-design",
+        "backend-data-safety"
       ],
       "sources": [
         {
@@ -404,7 +407,8 @@
       "category": "API, protocoles et interopérabilité",
       "kind": "pratique",
       "brains": [
-        "engineering"
+        "engineering",
+        "backend"
       ],
       "summary": "Décrit un style d'architecture fondé notamment sur des ressources, une interface uniforme et des échanges sans état de session côté serveur.",
       "applies_when": "Pour concevoir une API suivant ces contraintes ; ce n'est ni un protocole autonome ni un simple synonyme d'API JSON.",
@@ -422,7 +426,8 @@
       "category": "API, protocoles et interopérabilité",
       "kind": "spécification",
       "brains": [
-        "engineering"
+        "engineering",
+        "backend"
       ],
       "summary": "Définit un langage de requête et un système de types permettant au client de demander les données dont il a besoin.",
       "applies_when": "Pour les API qui choisissent ce modèle d'accès aux données ; alternative ou complément à d'autres styles d'API.",
@@ -439,7 +444,8 @@
       "category": "API, protocoles et interopérabilité",
       "kind": "outil",
       "brains": [
-        "engineering"
+        "engineering",
+        "backend"
       ],
       "summary": "Fournit un cadre d'appels de procédures distantes à partir de services et de messages définis explicitement.",
       "applies_when": "Pour les échanges entre composants et langages compatibles ; choisir les adaptateurs nécessaires selon les clients, notamment les navigateurs.",
@@ -456,12 +462,15 @@
       "category": "API, protocoles et interopérabilité",
       "kind": "spécification",
       "brains": [
-        "engineering"
+        "engineering",
+        "developer-relations-and-docs",
+        "backend"
       ],
       "summary": "Décrit les opérations, paramètres et réponses d'une API HTTP dans un document exploitable par des outils.",
       "applies_when": "Pour documenter, générer ou vérifier des interfaces HTTP ; le document doit rester cohérent avec leur comportement réel.",
       "packs": [
-        "api-design"
+        "api-design",
+        "public-api-docs"
       ],
       "sources": [
         {
@@ -477,7 +486,9 @@
       "category": "API, protocoles et interopérabilité",
       "kind": "spécification",
       "brains": [
-        "engineering"
+        "engineering",
+        "developer-relations-and-docs",
+        "backend"
       ],
       "summary": "Décrit les canaux, messages et opérations d'interfaces utilisant des échanges asynchrones.",
       "applies_when": "Pour les architectures à messages ou événements ; compléter la description avec les protocoles et conventions réellement utilisés.",
@@ -616,7 +627,8 @@
       "kind": "spécification",
       "brains": [
         "engineering",
-        "data"
+        "data",
+        "backend"
       ],
       "summary": "Décrit la structure et les contraintes attendues d'un document JSON pour permettre sa validation.",
       "applies_when": "Pour vérifier des configurations ou des messages JSON ; préciser le dialecte utilisé et les règles réellement prises en charge.",
@@ -784,10 +796,14 @@
       "kind": "spécification",
       "brains": [
         "engineering",
-        "design"
+        "design",
+        "frontend"
       ],
       "summary": "Définit la structure et les comportements du langage HTML et de nombreuses fonctions de la plateforme web.",
       "applies_when": "Pour les produits web ; compléter par les exigences d'accessibilité et de compatibilité des navigateurs.",
+      "packs": [
+        "frontend-delivery"
+      ],
       "sources": [
         {
           "url": "https://html.spec.whatwg.org/multipage/",
@@ -805,7 +821,8 @@
       "kind": "spécification",
       "brains": [
         "engineering",
-        "design"
+        "design",
+        "frontend"
       ],
       "summary": "Décrivent les mécanismes de présentation, de mise en page et de styles des documents web.",
       "applies_when": "Vérifier le statut des modules et leur prise en charge par les navigateurs ciblés.",

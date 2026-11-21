@@ -25,9 +25,9 @@ The [request status demo](examples/request-status/) creates a temporary project 
 
 ## The board of brains
 
-Each discipline of a software publisher has a brain: development (front-end and back-end), security, DevOps, QA, performance, product, design, data and AI, marketing, communication, sales, customer support, finance, legal and compliance, HR, project management, operations and executive leadership. A brain brings specialist lenses, the evidence it asks for, the objections it raises, its decision criteria and the methods, rule packs and standards of its discipline.
+Each discipline of a software publisher has a brain: software development, front-end, back-end, security, DevOps, QA, performance, product, design, data and AI, marketing, communication, sales, partnerships, customer support, customer success, finance, procurement, legal and compliance, HR, internal IT, localisation, developer relations and documentation, trust and safety, project management, operations and executive leadership. A brain brings specialist lenses with what an expert of each verifies, the evidence it asks for, the objections it raises, its decision criteria and the methods, rule packs and standards of its discipline.
 
-For every change, OpenGuildKit convenes the brains it concerns. Each one reviews the task separately, the brains answer each other's objections, and you decide with their verdicts, evidence and remaining disagreements in front of you. `openguildkit brains` lists them; `openguildkit brains --id legal` shows what one knows. [Specialist brains](docs/brains.md)
+For every change, OpenGuildKit convenes the brains it concerns. Each one reviews the task separately, the brains answer each other's objections, and you decide with their verdicts, evidence and remaining disagreements in front of you. `openguildkit brains` lists them; `openguildkit brains --id legal` shows what one knows. A company completes a brain with a file in `.openguildkit/catalog/boards/`, or adds its own with `openguildkit brains --new ID`. [Specialist brains](docs/brains.md)
 
 ## Set up your project
 

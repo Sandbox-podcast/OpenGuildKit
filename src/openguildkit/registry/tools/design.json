@@ -66,7 +66,8 @@
       "brains": [
         "design",
         "product",
-        "engineering"
+        "engineering",
+        "frontend"
       ],
       "servers": [
         {
@@ -147,7 +148,8 @@
       "homepage": "https://penpot.app",
       "brains": [
         "design",
-        "engineering"
+        "engineering",
+        "frontend"
       ],
       "servers": [
         {
@@ -182,7 +184,8 @@
       "brains": [
         "design",
         "engineering",
-        "qa"
+        "qa",
+        "frontend"
       ],
       "detect": {
         "files": [

@@ -58,22 +58,38 @@
       {
         "id": "test-design",
         "title": "Test design lead",
-        "focus": "Map each important acceptance criterion to an observable result. Prioritize boundary cases and recovery paths that could change the release decision."
+        "focus": "Map each important acceptance criterion to an observable result. Prioritize boundary cases and recovery paths that could change the release decision.",
+        "checks": [
+          "Each acceptance criterion maps to a test with an observable result.",
+          "Boundary values and recovery paths are covered first."
+        ]
       },
       {
         "id": "compatibility",
         "title": "Regression engineer",
-        "focus": "Choose representative legacy data and supported versions. Verify that existing users and integrations can continue through the change."
+        "focus": "Choose representative legacy data and supported versions. Verify that existing users and integrations can continue through the change.",
+        "checks": [
+          "Legacy data and every supported version are part of the test set.",
+          "Existing integrations are run through the change."
+        ]
       },
       {
         "id": "exploratory-testing",
         "title": "Exploratory tester",
-        "focus": "Exercise the user journey with realistic interruptions, partial progress and varied input. Include keyboard or assistive technology checks when the changed interface requires them."
+        "focus": "Exercise the user journey with realistic interruptions, partial progress and varied input. Include keyboard or assistive technology checks when the changed interface requires them.",
+        "checks": [
+          "Sessions include interruptions, partial progress and unusual input.",
+          "Findings are recorded with steps to reproduce."
+        ]
       },
       {
         "id": "release-acceptance",
         "title": "Release QA lead",
-        "focus": "Assess which results are trustworthy for the candidate revision. Triage defects by user impact and decide which unmet criteria block shipment."
+        "focus": "Assess which results are trustworthy for the candidate revision. Triage defects by user impact and decide which unmet criteria block shipment.",
+        "checks": [
+          "Results apply to the exact revision being released.",
+          "Each open defect is classified as blocking or not with its user impact."
+        ]
       }
     ],
     "evidence": [

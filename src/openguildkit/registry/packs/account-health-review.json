@@ -1,0 +1,38 @@
+{
+  "id": "account-health-review",
+  "title": "Account health review",
+  "version": "1.0.0",
+  "description": "For a change that affects existing customers: a written health score, a monthly review of upcoming renewals and an action plan for each account at risk.",
+  "sources": [
+    {
+      "title": "Bain & Company, Measuring your Net Promoter Score",
+      "url": "https://www.netpromotersystem.com/about/measuring-your-net-promoter-score/"
+    },
+    {
+      "title": "Stripe, Billing analytics (MRR, churn and subscriber reports)",
+      "url": "https://support.stripe.com/questions/billing-analytics"
+    }
+  ],
+  "rules": [
+    {
+      "id": "define-health-score",
+      "instruction": "Write the inputs, weights and data sources of the account health score and the thresholds for each status.",
+      "verification": "Open the health score definition and check each input, weight, source and threshold."
+    },
+    {
+      "id": "review-upcoming-renewals",
+      "instruction": "Each month, review the renewals of the next 90 days with their health status, value and owner.",
+      "verification": "Check that the last renewal review is less than 31 days old and that every renewal listed has an owner."
+    },
+    {
+      "id": "plan-for-accounts-at-risk",
+      "instruction": "Give every account at risk an action plan with an action, an owner and a due date.",
+      "verification": "Export the accounts at risk from the CRM and check that none lacks a plan, owner or due date."
+    },
+    {
+      "id": "measure-churn-consistently",
+      "instruction": "Compute churn and net revenue retention with the formula written in the metrics glossary, the same way each period.",
+      "verification": "Compare the dashboard formula with the glossary definition."
+    }
+  ]
+}

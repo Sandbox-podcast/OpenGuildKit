@@ -59,22 +59,38 @@
       {
         "id": "market-researcher",
         "title": "Market researcher",
-        "focus": "Define the buyer problem, geography and review period. Compare dated evidence for direct competitors, substitutes and the option of doing nothing."
+        "focus": "Define the buyer problem, geography and review period. Compare dated evidence for direct competitors, substitutes and the option of doing nothing.",
+        "checks": [
+          "Evidence is dated and covers competitors, substitutes and doing nothing.",
+          "Sample, geography and period are stated for every figure cited."
+        ]
       },
       {
         "id": "positioning-lead",
         "title": "Positioning lead",
-        "focus": "Connect audience needs to a specific value proposition. Identify the proof, scope and qualifications needed for claims about capability, outcomes or differentiation."
+        "focus": "Connect audience needs to a specific value proposition. Identify the proof, scope and qualifications needed for claims about capability, outcomes or differentiation.",
+        "checks": [
+          "Each claim has proof the company can show and the conditions under which it holds.",
+          "The value proposition names the audience and the problem in their words."
+        ]
       },
       {
         "id": "channel-planner",
         "title": "Channel planner",
-        "focus": "Compare how the target audience discovers and evaluates options across channels. Propose a sequence and pilot that fit the budget and production effort."
+        "focus": "Compare how the target audience discovers and evaluates options across channels. Propose a sequence and pilot that fit the budget and production effort.",
+        "checks": [
+          "Channels are chosen from how the audience discovers and evaluates options, with a pilot budget.",
+          "Production effort and timing fit the launch date."
+        ]
       },
       {
         "id": "measurement-analyst",
         "title": "Marketing measurement analyst",
-        "focus": "Define the observable action and attribution limits. Select a baseline or comparison that can distinguish campaign effects from seasonality and other launches."
+        "focus": "Define the observable action and attribution limits. Select a baseline or comparison that can distinguish campaign effects from seasonality and other launches.",
+        "checks": [
+          "The success action, baseline and attribution limits are written before launch.",
+          "A comparison period or control separates campaign effects from seasonality."
+        ]
       }
     ],
     "evidence": [

@@ -296,7 +296,8 @@
       "homepage": "https://www.mongodb.com",
       "brains": [
         "data",
-        "engineering"
+        "engineering",
+        "backend"
       ],
       "detect": {
         "npm": [
@@ -367,7 +368,8 @@
       "homepage": "https://neon.com",
       "brains": [
         "data",
-        "engineering"
+        "engineering",
+        "backend"
       ],
       "detect": {
         "npm": [
@@ -406,7 +408,8 @@
       "homepage": "https://www.postgresql.org",
       "brains": [
         "data",
-        "engineering"
+        "engineering",
+        "backend"
       ],
       "aliases": [
         "Postgres"
@@ -467,7 +470,8 @@
       "brains": [
         "data",
         "engineering",
-        "performance"
+        "performance",
+        "backend"
       ],
       "detect": {
         "npm": [
@@ -683,7 +687,8 @@
       "homepage": "https://supabase.com",
       "brains": [
         "data",
-        "engineering"
+        "engineering",
+        "backend"
       ],
       "detect": {
         "files": [

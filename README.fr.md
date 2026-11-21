@@ -23,9 +23,9 @@ La [démo](examples/request-status/) crée un projet temporaire et utilise des a
 
 ## Le board des brains
 
-Chaque métier d'un éditeur de logiciels a son brain : développement (front-end et back-end), sécurité, DevOps, QA, performance, produit, design, données et IA, marketing, communication, vente, support client, finance, juridique et conformité, RH, gestion de projet, opérations et direction. Un brain apporte des spécialistes, les preuves qu'il demande, les objections qu'il soulève, ses critères de décision, et les méthodes, packs de règles et normes de son métier.
+Chaque métier d'un éditeur de logiciels a son brain : développement logiciel, front-end, back-end, sécurité, DevOps, QA, performance, produit, design, données et IA, marketing, communication, vente, partenariats, support client, succès client, finance, achats, juridique et conformité, RH, informatique interne, localisation, relations développeurs et documentation, confiance et sécurité des contenus, gestion de projet, opérations et direction. Un brain apporte des spécialistes avec ce que chacun vérifie, les preuves qu'il demande, les objections qu'il soulève, ses critères de décision, et les méthodes, packs de règles et normes de son métier.
 
-Pour chaque changement, OpenGuildKit réunit les brains concernés. Chacun relit la tâche séparément, les brains répondent aux objections des autres, et tu décides avec leurs verdicts, leurs preuves et les désaccords qui restent. `openguildkit brains` les liste ; `openguildkit brains --id legal` montre ce qu'un brain connaît. [Brains métier](docs/brains.md)
+Pour chaque changement, OpenGuildKit réunit les brains concernés. Chacun relit la tâche séparément, les brains répondent aux objections des autres, et tu décides avec leurs verdicts, leurs preuves et les désaccords qui restent. `openguildkit brains` les liste ; `openguildkit brains --id legal` montre ce qu'un brain connaît. Une entreprise complète un brain avec un fichier dans `.openguildkit/catalog/boards/`, ou ajoute le sien avec `openguildkit brains --new ID`. [Brains métier](docs/brains.md)
 
 ## Configurer ton projet
 

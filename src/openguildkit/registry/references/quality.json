@@ -249,7 +249,8 @@
       "applies_when": "À mesurer dans des conditions et sur des populations définies.",
       "pattern": "web-performance",
       "packs": [
-        "web-performance"
+        "web-performance",
+        "frontend-delivery"
       ],
       "sources": [
         {

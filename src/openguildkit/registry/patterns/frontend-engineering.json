@@ -1,0 +1,30 @@
+{
+  "id": "frontend-engineering",
+  "title": "Front-end engineering",
+  "description": "Build interfaces with every state, accessible markup, a performance budget and a supported browser list.",
+  "sources": [
+    {
+      "title": "WHATWG, HTML Living Standard",
+      "url": "https://html.spec.whatwg.org/multipage/"
+    },
+    {
+      "title": "W3C, Web Content Accessibility Guidelines (WCAG) 2.2",
+      "url": "https://www.w3.org/TR/WCAG22/"
+    },
+    {
+      "title": "web.dev, Web Vitals",
+      "url": "https://web.dev/articles/vitals"
+    }
+  ],
+  "roles": [
+    "frontend"
+  ],
+  "packs": [
+    "frontend-delivery",
+    "web-accessibility",
+    "web-performance"
+  ],
+  "references": [
+    "html"
+  ]
+}

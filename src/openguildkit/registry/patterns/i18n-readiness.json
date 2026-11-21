@@ -1,0 +1,29 @@
+{
+  "id": "i18n-readiness",
+  "title": "Internationalisation readiness",
+  "description": "Prepare code and interfaces for translation and local formats before the first translation starts.",
+  "sources": [
+    {
+      "title": "W3C, Internationalization Quick Tips for the Web",
+      "url": "https://www.w3.org/International/quicktips/"
+    },
+    {
+      "title": "ICU User Guide, Formatting Messages",
+      "url": "https://unicode-org.github.io/icu/userguide/format_parse/messages/"
+    }
+  ],
+  "roles": [
+    "localisation",
+    "frontend",
+    "product"
+  ],
+  "packs": [
+    "i18n-readiness"
+  ],
+  "references": [
+    "w3c-i18n-quicktips",
+    "icu-messageformat",
+    "unicode-cldr",
+    "bcp47"
+  ]
+}

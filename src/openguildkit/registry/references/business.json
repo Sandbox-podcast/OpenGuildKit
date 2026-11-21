@@ -236,6 +236,9 @@
       ],
       "summary": "Mesure une intention de recommandation à partir d'une enquête structurée.",
       "applies_when": "À interpréter avec le contexte, l'échantillon et les autres retours clients.",
+      "packs": [
+        "account-health-review"
+      ],
       "sources": [
         {
           "url": "https://www.netpromotersystem.com/about/measuring-your-net-promoter-score/",
@@ -250,10 +253,14 @@
       "kind": "indicateur",
       "brains": [
         "finance",
-        "sales"
+        "sales",
+        "customer-success"
       ],
       "summary": "Conventions de mesure du revenu récurrent mensuel et de la perte de clients ou revenus.",
       "applies_when": "Fixer les définitions, périodes et exclusions avant de comparer des résultats.",
+      "packs": [
+        "saas-metrics"
+      ],
       "sources": [
         {
           "url": "https://support.stripe.com/questions/billing-analytics",
@@ -329,7 +336,8 @@
       "kind": "réglementation",
       "brains": [
         "sales",
-        "legal"
+        "legal",
+        "procurement"
       ],
       "summary": "Fixe les procédures de passation des marchés publics dans l'UE, les critères d'attribution et les motifs d'exclusion des candidats.",
       "applies_when": "Pour répondre à un appel d'offres public ; vérifier le droit national et les documents de la consultation.",

@@ -9,10 +9,15 @@
       "kind": "norme",
       "brains": [
         "finance",
-        "sales"
+        "sales",
+        "partnerships"
       ],
       "summary": "Fixe la comptabilisation du chiffre d'affaires selon le transfert au client des biens ou services promis, en cinq étapes.",
       "applies_when": "Pour les abonnements, licences et services vendus par un éditeur ; les choix comptables relèvent de la direction financière et des commissaires aux comptes.",
+      "packs": [
+        "revenue-recognition",
+        "deal-approval"
+      ],
       "sources": [
         {
           "url": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-15-revenue-from-contracts-with-customers/",
@@ -46,10 +51,14 @@
       "kind": "référentiel",
       "brains": [
         "finance",
-        "leadership"
+        "leadership",
+        "sales"
       ],
       "summary": "Organise le contrôle interne en cinq composantes, de l'environnement de contrôle au pilotage, pour fiabiliser l'information et les opérations.",
       "applies_when": "Pour concevoir ou documenter des contrôles financiers et opérationnels ; ce cadre ne vaut pas audit.",
+      "packs": [
+        "deal-approval"
+      ],
       "sources": [
         {
           "url": "https://www.coso.org/internal-control",
@@ -130,7 +139,8 @@
       "kind": "réglementation",
       "brains": [
         "finance",
-        "sales"
+        "sales",
+        "procurement"
       ],
       "summary": "Encadre les délais de paiement entre entreprises et avec les pouvoirs publics, ainsi que les intérêts de retard.",
       "applies_when": "Pour les conditions de paiement des contrats entre professionnels et des marchés publics ; les délais exacts dépendent de la loi nationale.",
@@ -138,6 +148,70 @@
         {
           "url": "https://eur-lex.europa.eu/eli/dir/2011/7/oj",
           "title": "Directive 2011/7/UE — Retard de paiement dans les transactions commerciales"
+        }
+      ]
+    },
+    {
+      "id": "vat-directive",
+      "title": "Directive 2006/112/CE — système commun de TVA (VAT Directive)",
+      "category": "Fiscalité",
+      "kind": "réglementation",
+      "brains": [
+        "finance",
+        "legal"
+      ],
+      "summary": "Fixe le système commun de taxe sur la valeur ajoutée (TVA, VAT) dans l'UE : lieu des prestations, taux, redevable et mentions obligatoires des factures.",
+      "applies_when": "Pour toute vente ou facturation dans l'UE ; le traitement exact se confirme avec la direction financière ou un conseil fiscal, pays par pays.",
+      "packs": [
+        "vat-and-e-invoicing"
+      ],
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/dir/2006/112/oj",
+          "title": "Council Directive 2006/112/EC on the common system of value added tax"
+        }
+      ]
+    },
+    {
+      "id": "vida",
+      "title": "Directive (UE) 2025/516 — TVA à l'ère numérique (ViDA, VAT in the Digital Age)",
+      "category": "Fiscalité",
+      "kind": "réglementation",
+      "brains": [
+        "finance",
+        "legal"
+      ],
+      "summary": "Modernise la TVA dans l'UE : facturation électronique et déclarations numériques des opérations transfrontalières entre entreprises à partir du 1er juillet 2030.",
+      "applies_when": "Pour planifier l'évolution de la facturation et des déclarations de TVA d'une entreprise qui vend dans plusieurs États membres.",
+      "sources": [
+        {
+          "url": "https://taxation-customs.ec.europa.eu/taxation/vat/vat-digital-age-vida_en",
+          "title": "European Commission, VAT in the Digital Age (ViDA)"
+        }
+      ]
+    },
+    {
+      "id": "facturation-electronique-france",
+      "title": "Réforme française de la facturation électronique (e-invoicing, calendrier 2026-2027)",
+      "category": "Fiscalité",
+      "kind": "réglementation",
+      "brains": [
+        "finance",
+        "legal"
+      ],
+      "summary": "Toutes les entreprises établies en France reçoivent les factures électroniques depuis le 1er septembre 2026 ; l'émission s'applique aux grandes entreprises et ETI depuis cette date, aux PME et micro-entreprises à partir du 1er septembre 2027.",
+      "applies_when": "Pour une entreprise établie en France qui achète ou vend à d'autres entreprises ; vérifier sa date d'émission selon sa taille.",
+      "packs": [
+        "vat-and-e-invoicing"
+      ],
+      "sources": [
+        {
+          "url": "https://www.impots.gouv.fr/professionnel/je-passe-la-facturation-electronique",
+          "title": "impots.gouv.fr, Je passe à la facturation électronique"
+        },
+        {
+          "url": "https://entreprendre.service-public.gouv.fr/actualites/A18953?lang=fr",
+          "title": "Service-Public Entreprendre, La facturation électronique est effective depuis le 1er septembre 2026"
         }
       ]
     }

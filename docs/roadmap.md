@@ -12,7 +12,7 @@ This page separates what exists from what is planned. Open an issue to discuss o
 
 **Brains and consultation**
 
-- Eighteen brains, one per discipline of a software publisher, each with specialists, evidence requests, challenges, decision criteria and a knowledge base of methods, packs and references.
+- Twenty-seven brains, one per discipline of a software publisher, each with specialists and what each verifies, evidence requests, challenges, decision criteria and a knowledge base of methods, packs and references.
 - Adaptive questionnaire, routing tested on a corpus of French and English briefs, preview and adjustment of the brains, required reviews and delegation.
 - One pass per brain (subagents or sequential), structured evidence, deliberation between brains, blockers cleared or waived, sealed and optionally signed approvals.
 - Market dossiers and competitor watch, dependency alerts, ChaosFolk replays.

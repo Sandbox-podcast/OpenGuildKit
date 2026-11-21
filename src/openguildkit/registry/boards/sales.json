@@ -54,6 +54,10 @@
     {
       "title": "European Commission, Public procurement",
       "url": "https://single-market-economy.ec.europa.eu/single-market/public-procurement_en"
+    },
+    {
+      "title": "COSO, Internal Control, Integrated Framework",
+      "url": "https://www.coso.org/internal-control"
     }
   ],
   "review": {
@@ -61,41 +65,80 @@
       {
         "id": "discovery-specialist",
         "title": "Sales discovery specialist",
-        "focus": "Identify the customer's current process, cost of the problem and expected outcome. Choose questions that check assumptions without leading the buyer."
+        "focus": "Identify the customer's current process, cost of the problem and expected outcome. Choose questions that check assumptions without leading the buyer.",
+        "checks": [
+          "The customer's current process, cost of the problem and expected outcome are recorded in their words.",
+          "Questions test assumptions without suggesting the answer."
+        ]
       },
       {
         "id": "qualification-lead",
         "title": "Opportunity qualification lead",
-        "focus": "Separate user, sponsor, economic buyer and decision authority. Distinguish buyer-confirmed criteria and milestones from seller expectations."
+        "focus": "Separate user, sponsor, economic buyer and decision authority. Distinguish buyer-confirmed criteria and milestones from seller expectations.",
+        "checks": [
+          "Economic buyer, decision process and criteria are confirmed by the buyer, not inferred.",
+          "The next milestone has a date and an owner on the buyer's side."
+        ]
       },
       {
         "id": "sales-enablement-lead",
         "title": "Sales enablement lead",
-        "focus": "Map known objections to evidence the seller can show. Design a demo around one buyer workflow and identify claims the demo cannot substantiate."
+        "focus": "Map known objections to evidence the seller can show. Design a demo around one buyer workflow and identify claims the demo cannot substantiate.",
+        "checks": [
+          "Each common objection has evidence the seller may show.",
+          "Demos follow one buyer workflow and label anything not yet released."
+        ]
       },
       {
         "id": "procurement-specialist",
         "title": "Procurement specialist",
-        "focus": "Identify buyer-side procurement stages, technical and security documentation, dependencies and handoffs that can delay a decision."
+        "focus": "Identify buyer-side procurement stages, technical and security documentation, dependencies and handoffs that can delay a decision.",
+        "checks": [
+          "Buyer-side procurement, security review and legal steps are mapped with their lead times.",
+          "Security questionnaires are answered from approved, current documentation."
+        ]
+      },
+      {
+        "id": "deal-desk",
+        "title": "Deal desk analyst",
+        "focus": "Check quotes, discounts and non-standard terms against the approval matrix: who can approve what discount, payment term or clause, and what finance and legal must see.",
+        "checks": [
+          "Every discount above the agreed threshold has a named approver at the level the matrix requires.",
+          "Non-standard payment terms, caps on liability or service level credits go to finance or legal before the quote is sent.",
+          "Quotes are generated from the price book, and manual line items are flagged for review."
+        ]
+      },
+      {
+        "id": "renewals-and-expansion",
+        "title": "Renewals and expansion manager",
+        "focus": "Plan renewals, upsells and price increases: notice periods, uplift clauses, the renewal date and the usage that justifies an expansion.",
+        "checks": [
+          "Renewal dates, notice periods and uplift clauses are read from the signed contract, not from the CRM alone.",
+          "An expansion proposal rests on measured usage or a confirmed new need.",
+          "Price increases at renewal respect the contract and the notice the customer must receive."
+        ]
       }
     ],
     "evidence": [
       "Approved discovery or CRM records confirming the customer problem, stakeholder roles, expected outcomes and known alternatives.",
       "Buyer-provided criteria, milestones or procurement documents with a named source and date. Label any seller estimates.",
       "Current product documentation, demo environment and approved proof points for claims about available capabilities.",
-      "Agreed pricing, implementation and support boundaries from the responsible internal owners if they are relevant to the buyer conversation."
+      "Agreed pricing, implementation and support boundaries from the responsible internal owners if they are relevant to the buyer conversation.",
+      "Discount approval matrix, standard terms and the quote or order form template in force."
     ],
     "challenge": [
       "Compare a targeted demo, a discovery follow-up and pausing qualification. Identify the evidence that would justify each next step.",
       "Test whether the apparent champion has access to the decision maker and whether budget, approval and procurement milestones come from the buyer.",
       "Check that the demo uses the buyer's actual task and distinguishes released functions, planned work and elements shown only in the demo environment.",
-      "Challenge proposed dates or commitments that omit buyer-side approval, security review, implementation capacity or dependencies."
+      "Challenge proposed dates or commitments that omit buyer-side approval, security review, implementation capacity or dependencies.",
+      "Which discount or clause in this deal would the company not accept if it became the standard for every customer?"
     ],
     "decision_criteria": [
       "Advance when the buyer confirms the problem, a relevant next milestone and who on their side owns it.",
       "Keep in discovery when a decision criterion, stakeholder or business impact is still a seller assumption. Name the next question and who can answer it.",
       "Recommend a demo or proof of value when it directly tests a buyer-confirmed criterion using approved evidence and realistic constraints.",
-      "Route terms, delivery guarantees and commitments outside the team's agreed scope to the responsible internal owner before quoting them."
+      "Route terms, delivery guarantees and commitments outside the team's agreed scope to the responsible internal owner before quoting them.",
+      "Hold a quote until discounts and non-standard terms above the agreed threshold have the approvals the matrix requires."
     ]
   }
 }

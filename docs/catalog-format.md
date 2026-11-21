@@ -94,9 +94,11 @@ A board is a discipline's review lens.
 | Field | Constraint |
 |---|---|
 | `expertises` | Non-empty list. The specialties the board brings. |
-| `review` | Optional [brain review](brains.md) with specialists, evidence requests, challenge prompts and decision criteria. |
+| `review` | [Brain review](brains.md) with specialists, evidence requests, challenge prompts and decision criteria. Each specialist has an `id`, a `title`, a `focus` and optional `checks`: a list of what an expert of that lens verifies. Required for a board added by a project; every bundled board has one. |
 | `triggers` | Non-empty list. Words or phrases that select the board when they appear as whole words in a brief. Matching ignores case, accents, the kind of apostrophe and regular plurals; the longest overlapping phrase wins. Add translations (`sécurité`, `rgpd`) so non-English briefs route correctly, and avoid words that are common in other disciplines. |
 | `questions` | Non-empty list. What the board asks of every task it reviews. |
+
+A project file in `.openguildkit/catalog/boards/` whose `id` is a bundled board completes that board instead of being refused as a duplicate. It may hold only the fields it changes: `title` and `description` replace the bundled text, the lists (`expertises`, `triggers`, `questions`, `sources`, and in `review` the `evidence`, `challenge` and `decision_criteria`) gain the new items, and a specialist replaces the bundled one with the same `id` or is added. The merged board is validated like any other. `openguildkit brains --new ID` writes the skeleton of a new project board, with its pattern, pack and reference.
 
 ## Sectors
 
