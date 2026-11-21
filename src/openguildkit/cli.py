@@ -31,7 +31,7 @@ from .storybook import scope_entry as storybook_scope_entry
 from .integrations import install_agent_files
 from .guard import NO_TASK, STALE_DAYS, ci_guard, covering_approvals, export_decision, guard_mode, run_hook
 from .results import (
-    chaosfolk_checks, compare_runs, completion_problems, evidence_files_missing, expected_checks, missing_scenarios,
+    chaosfolk_checks, command_diagnostics, compare_runs, completion_problems, evidence_files_missing, expected_checks, missing_scenarios,
     result_template, run_command_checks,
 )
 from .hosts import apply_host_settings, approval_warning, host_controls
@@ -87,6 +87,7 @@ from .tasks import (
     record_authorization,
     create_task,
     read_task,
+    consultation_brief,
     record_consultation,
     record_decision,
     record_review,
@@ -158,7 +159,7 @@ def _parser() -> argparse.ArgumentParser:
     new_deliverable = deliverable_actions.add_parser("new", help="Write a draft for an approved task.")
     new_deliverable.add_argument("id")
     new_deliverable.add_argument("--task", required=True, help="Approved task the deliverable comes from.")
-    new_deliverable.add_argument("--tool", required=True, help="Tool the team uses, from the profile's approved tools.")
+    new_deliverable.add_argument("--tool", help="Tool used by the team, when the template requires one.")
     new_deliverable.add_argument("--output", type=Path, required=True, help="Markdown file to write.")
     check_deliverable = deliverable_actions.add_parser("check", help="List what keeps a draft from review.")
     check_deliverable.add_argument("path", type=Path)
@@ -300,6 +301,9 @@ def _parser() -> argparse.ArgumentParser:
         if action in ("consult", "questions", "route"):
             command.add_argument("--answers", type=Path, help="Read task answers from a JSON file.")
         if action == "consult":
+            brief = command.add_mutually_exclusive_group()
+            brief.add_argument("--brief", help="Revised brief after a request for changes.")
+            brief.add_argument("--brief-file", type=Path, help="Read a revised brief from a text file.")
             command.add_argument("--market", metavar="DOSSIER", help="Attach a market dossier from .openguildkit/market/.")
         if action in ("consult", "route"):
             command.add_argument("--add", action="append", default=[], metavar="BOARD", help="Add a board to the consultation.")
@@ -343,6 +347,9 @@ def _parser() -> argparse.ArgumentParser:
             source.add_argument("--file", type=Path, help="Result JSON.")
             source.add_argument("--template", action="store_true", help="Print a result file to fill in.")
         if action == "verify":
+            command.add_argument("--unavailable", action="append", default=[], metavar="CHECK=REASON",
+                                 help="Record a project command that cannot run here (needs a terminal and --by).")
+            command.add_argument("--by", help="Person recording an environment reservation.")
             command.add_argument("--chaosfolk", type=Path, metavar="SUMMARY",
                                  help="Record a ChaosFolk regression summary.json instead of running the check commands.")
             command.add_argument("--tool-version", help="ChaosFolk version or commit that produced the summary.")
@@ -1269,6 +1276,28 @@ def _decide(args, root: Path, state: Path, task: dict, profile: dict) -> None:
     print(result["status"])
 
 
+def _environment_reservations(args, task: dict, profile: dict) -> dict[str, str]:
+    if not args.unavailable:
+        if args.by:
+            raise ValueError("--by belongs with --unavailable.")
+        return {}
+    if args.chaosfolk or not args.by or not args.by.strip() or not sys.stdin.isatty():
+        raise ValueError("--unavailable needs a person at an interactive terminal and --by, without --chaosfolk.")
+    commands = {check["id"]: check["command"] for check in expected_checks(task, profile) if check["kind"] == "command"}
+    reservations = {}
+    for item in args.unavailable:
+        check_id, delimiter, reason = item.partition("=")
+        if not delimiter or not reason.strip() or check_id not in commands or check_id in reservations:
+            raise ValueError("Use --unavailable CHECK=REASON once per existing project command; see task checks.")
+        reservations[check_id] = reason.strip()
+    for check_id, reason in reservations.items():
+        print(f"{check_id} ({commands[check_id]}) cannot run here: {reason}", file=sys.stderr)
+    print(f"Type {task['id']} to record these environment reservations: ", end="", file=sys.stderr, flush=True)
+    if input().strip() != task["id"]:
+        raise ValueError("Environment reservation cancelled.")
+    return reservations
+
+
 def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     action = args.action
     if action == "new":
@@ -1382,13 +1411,19 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         check_decision(task, root, profile)
         require_current_scope(task, profile, catalog)
         if action == "verify":
+            unavailable = _environment_reservations(args, task, profile)
             revision = git_revision(root)
             payload = {"revision": revision["commit"] if revision else "working tree"}
             if args.chaosfolk:
                 imported = chaosfolk_checks(root, args.chaosfolk, args.tool_version)
                 payload.update(checks=imported["checks"], run={**imported["run"], "at": timestamp()})
             else:
-                payload["checks"] = run_command_checks(root, state, task, profile)
+                if not any(check["kind"] == "command" for check in expected_checks(task, profile)):
+                    print("No project check command is configured. Ask the project owner to add one to "
+                          ".openguildkit/project.json (checks), then consult the task again before approval.")
+                payload["checks"] = run_command_checks(
+                    root, state, task, profile, unavailable=unavailable, by=(args.by or "").strip(),
+                )
         with project_lock(state):
             current_task = read_task(state, args.id)
             if current_task != task:
@@ -1406,7 +1441,12 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 blocking = blocking_alerts(load_register(state), current_task)
                 if blocking:
                     raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(blocking))
-                result = complete_task(current_task, profile)
+                try:
+                    result = complete_task(current_task, profile)
+                except ValueError:
+                    for line in command_diagnostics(root, state, current_task, profile):
+                        print(line, file=sys.stderr)
+                    raise
             write_json(task_path(state, args.id), result)
         if action == "complete":
             print("done")
@@ -1417,10 +1457,17 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         else:
             for item in result["result"]["checks"]:
                 print(f"{item['check']}: {item['status']}")
+                if item.get("environment_unavailable"):
+                    print(f"  Environment reservation by {item['owner']}: {item['reason']}")
             for name in missing_scenarios(result):
                 print(f"chaosfolk:{name}: missing")
             problems = completion_problems(result, profile) + blocking_alerts(load_register(state), result)
             print(f"{len(problems)} point(s) before the task can be done." if problems else "Ready: run task complete.")
+            if action == "verify":
+                for line in command_diagnostics(root, state, result, profile):
+                    print(line)
+                for problem in problems:
+                    print(f"- {problem}")
     elif action == "alerts":
         alerts_cli.task_command(args, state, task)
     elif action == "runs":
@@ -1478,10 +1525,12 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             for pattern in selected["patterns"]:
                 print(f"Suggested pattern {pattern['id']}: {pattern['reason']}. See openguildkit patterns --id {pattern['id']}.")
     elif action == "consult":
+        revised_brief = args.brief_file.read_text(encoding="utf-8-sig") if args.brief_file else args.brief
+        brief = consultation_brief(task, revised_brief)
         answers = (
             read_json(args.answers)
             if args.answers is not None
-            else _prompt_task_questions(task["brief"])
+            else _prompt_task_questions(brief)
         )
         if args.answers is not None:
             with _input_file(args.answers):
@@ -1501,7 +1550,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                                             task_text=" ".join([current_task["brief"], answers.get("context", "")]))
             families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
             active = set(resolved_profile(profile, catalog)["packs"])
-            context = consultation_context(current_task, answers, profile, catalog)
+            context = consultation_context({**current_task, "brief": brief}, answers, profile, catalog)
             knowledge = {board_id: brief_knowledge(board_id, catalog, families, active, context)
                          for board_id in catalog["boards"]}
             registry = load_tools(state / "catalog" / "tools")
@@ -1511,7 +1560,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                     knowledge[board_id]["tools"] = usable
             result = record_consultation(alerts_cli.consultation_task(state, current_task), answers, profile, catalog,
                                          _selection(args), controls, market, storybook_scope_entry(state), knowledge,
-                                         connected_tools(state, registry))
+                                         connected_tools(state, registry), revised_brief=revised_brief)
             result.pop("dependency_alerts")
             if "dependency_alerts" in current_task:
                 result["dependency_alerts"] = current_task["dependency_alerts"]

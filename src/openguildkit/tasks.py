@@ -264,21 +264,33 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
     return rows
 
 
+def consultation_brief(task: dict, revised_brief: str | None = None) -> str:
+    if revised_brief is None:
+        return task["brief"]
+    if task["status"] != "changes-requested":
+        raise ValueError("Revise a task brief after a request for changes.")
+    brief = revised_brief.strip()
+    if not brief:
+        raise ValueError("Supply a revised task brief.")
+    return brief
+
+
 def record_consultation(
     task: dict, answers: dict, profile: dict, catalog: dict, selection: dict | None = None,
     host_controls: list[dict] | None = None, market: dict | None = None, storybook: dict | None = None,
-    knowledge: dict | None = None, tools: list[dict] | None = None,
+    knowledge: dict | None = None, tools: list[dict] | None = None, *, revised_brief: str | None = None,
 ) -> dict:
+    brief = consultation_brief(task, revised_brief)
     if task["status"] not in {"draft", "consulting", "changes-requested"}:
         raise ValueError("Start a new task or request changes before consulting again.")
     rounds = list(task["rounds"])
     if task["status"] == "changes-requested":
-        archived = {key: task[key] for key in ("answers", "consultation", "review", "decision", "profile_fingerprint")}
+        archived = {key: task[key] for key in ("brief", "answers", "consultation", "review", "decision", "profile_fingerprint")}
         for key in ("deliberation", "blocker_resolutions"):
             if key in task:
                 archived[key] = task[key]
         rounds.append(archived)
-    result = {**task, "answers": validate_answers(answers), "rounds": rounds}
+    result = {**task, "brief": brief, "answers": validate_answers(answers), "rounds": rounds}
     result.update(
         status="consulting",
         consultation=consult(
@@ -479,6 +491,11 @@ def points_left_open(task: dict, profile: dict) -> list[str]:
     ]
     points += [f"blocker {item['id']} is waived until {item['resolution']['until']}"
                for item in blocker_list(task) if item["resolution"] and item["resolution"]["kind"] == "waived"]
+    points += [
+        f"{item['check']} was unavailable ({item['owner']}): {item['reason']}"
+        for item in task.get("result", {}).get("checks", [])
+        if item.get("environment_unavailable") is True and item["status"] == "skipped"
+    ]
     points += [f"disagreement {item_id} was left open" for item_id in task.get("deliberation", {}).get("open", [])]
     return points
 

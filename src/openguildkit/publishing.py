@@ -10,6 +10,7 @@ leave the project: no review, evidence or internal note.
 import json
 import re
 import uuid
+from collections import Counter
 from datetime import date, timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -18,6 +19,7 @@ from . import clock
 from .project import STATE_DIR, pack_scopes, rule_plan, rule_text
 from .storage import project_lock, read_json, write_json, write_text
 from .tasks import read_task
+from .workflow import open_objection_count
 
 MANIFEST = ".openguildkit-export.json"
 SECTIONS = ("project", "reference", "learn", "blog")
@@ -38,26 +40,45 @@ def _frontmatter(fields: dict) -> str:
     return "---\n" + "".join(f"{key}: {json.dumps(value, ensure_ascii=False)}\n" for key, value in fields.items()) + "---\n\n"
 
 
+def _unique_points(values: list[str]) -> list[str]:
+    points = {}
+    for value in values:
+        text = value.strip()
+        if text:
+            points.setdefault(" ".join(text.rstrip(".").lower().split()), text)
+    return list(points.values())
+
+
 def _criteria(task: dict) -> list[str]:
-    return [item["criterion"] for item in task.get("result", {}).get("criteria", []) if item["status"] == "met"]
+    return _unique_points([item["criterion"] for item in task.get("result", {}).get("criteria", [])
+                           if item["status"] == "met"])
+
+
+def _verification(task: dict) -> str:
+    checks = Counter(item["status"] for item in task.get("result", {}).get("checks", []))
+    return (f"{checks['passed']} check(s) passed, {checks['not-applicable']} not applicable, "
+            f"{checks['failed']} failed, {checks['skipped']} skipped. "
+            f"{open_objection_count(task)} disagreement(s) remained open.")
 
 
 def _pages(task: dict, position: int, version: str, sections: tuple[str, ...]) -> dict[str, str]:
     title = _title(task)
     result = task.get("result", {})
     delivered = result.get("pull_request") or result.get("revision") or "not recorded"
-    passed = sorted(item["check"] for item in result.get("checks", []) if item["status"] == "passed")
     outcome = task.get("answers", {}).get("outcome")
+    brief = task["brief"].strip()
+    first, _, details = brief.partition("\n")
+    body = details.strip() if first.rstrip(".") == title else brief
+    behaviour = _unique_points(([outcome] if outcome else []) + _criteria(task))
     common = {"title": title, "source_task": task["id"], "project_version": version}
     pages = {}
     if "reference" in sections:
-        lines = [f"# {title}", "", task["brief"].strip(), ""]
-        if outcome or _criteria(task):
-            lines += ["## Behaviour", ""]
-            lines += [f"- {outcome}"] if outcome else []
-            lines += [f"- {criterion}" for criterion in _criteria(task)]
-            lines.append("")
-        lines += ["## Verification", "", f"{len(passed)} check(s) passed before release.", "",
+        lines = [f"# {title}", ""]
+        if body:
+            lines += [body, ""]
+        if behaviour:
+            lines += ["## Behaviour", "", *[f"- {point}" for point in behaviour], ""]
+        lines += ["## Verification", "", _verification(task), "",
                   "## Source", "", f"Delivered in {delivered}, project version {version}.", ""]
         pages[f"reference/{task['id']}.md"] = _frontmatter({**common, "sidebar_position": position}) + "\n".join(lines)
     if "learn" in sections:
@@ -70,7 +91,10 @@ def _pages(task: dict, position: int, version: str, sections: tuple[str, ...]) -
         pages[f"learn/{task['id']}.md"] = _frontmatter({**common, "sidebar_position": position}) + "\n".join(lines)
     if "blog" in sections:
         day = (task.get("completed_at") or task["created_at"])[:10]
-        lines = [f"# {title}", "", task["brief"].strip(), "", f"Available in version {version}.", ""]
+        lines = [f"# {title}", ""]
+        if body:
+            lines += [body, ""]
+        lines += [f"Available in version {version}.", ""]
         pages[f"blog/{day}-{task['id']}.md"] = _frontmatter({**common, "date": day}) + "\n".join(lines)
     return pages
 
@@ -83,14 +107,14 @@ def project_overview(profile: dict, catalog: dict) -> dict:
     plan, scopes = rule_plan(profile, catalog), pack_scopes(profile, catalog)
     packs = [{"id": item["id"], "title": item["title"], "version": item["version"], "components": scopes.get(item["id"]),
               "rules": [rule_text(rule)[0] for rule in catalog["packs"][item["id"]]["rules"]]} for item in plan["packs"]]
-    boards = profile.get("boards") or sorted(catalog["boards"])
+    boards = sorted(catalog["boards"])
     return {"name": profile["name"], "sector": profile.get("sector"), "stack": profile.get("stack", []),
             "components": [{"id": item["id"], "stack": item["stack"]} for item in profile.get("components", [])],
             "conventions": profile.get("conventions", []), "packs": packs,
             "boards": [{"id": board_id, "title": catalog["boards"][board_id]["title"]} for board_id in boards]}
 
 
-def _project_page(overview: dict, version: str) -> str:
+def _project_page(overview: dict, version: str, consulted: set[str]) -> str:
     lines = [f"# {overview['name']}", "", "<!-- Generated from the OpenGuildKit project profile. Review before publishing. -->", ""]
     lines += [f"Sector: {overview['sector']}", ""] if overview["sector"] else []
     lines += [f"Stack: {', '.join(overview['stack'])}", ""] if overview["stack"] else []
@@ -103,8 +127,9 @@ def _project_page(overview: dict, version: str) -> str:
         lines += [f"### {pack['title']} ({pack['id']}, version {pack['version']})", ""]
         lines += [f"Applies to: {', '.join(pack['components'])}", ""] if pack["components"] else []
         lines += [*[f"- {rule}" for rule in pack["rules"]], ""]
-    lines += ["## Boards consulted", "", "The boards a change can be routed to for review before a person approves it.", "",
-              *[f"- {item['title']} ({item['id']})" for item in overview["boards"]], ""]
+    labels = {item["id"]: item["title"] for item in overview["boards"]}
+    boards = [f"- {labels.get(board_id, board_id)} ({board_id})" for board_id in sorted(consulted)]
+    lines += ["## Boards consulted", "", *(boards or ["No board reviews are recorded for the selected tasks."]), ""]
     front = {"title": overview["name"], "project_version": version, "sidebar_position": 0}
     return _frontmatter(front) + "\n".join(lines)
 
@@ -140,7 +165,8 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
         pages.update(_pages(task, position, version, sections))
     summary = [f"# {project}", ""]
     if "project" in sections and overview is not None:
-        pages[PROJECT_PAGE] = _project_page(overview, version)
+        consulted = {entry["id"] for task in tasks for entry in task.get("review", {}).get("boards", [])}
+        pages[PROJECT_PAGE] = _project_page(overview, version, consulted)
         summary += ["## Project", "", f"- [Overview]({PROJECT_PAGE})", ""]
     for section in ("reference", "learn"):
         entries = [path for path in pages if path.startswith(f"{section}/")]

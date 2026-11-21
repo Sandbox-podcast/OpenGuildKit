@@ -74,12 +74,39 @@ class ResultTests(unittest.TestCase):
 
     def test_a_failed_or_unproven_mandatory_check_blocks_completion(self):
         self.approved(exit_code=1, required_rules=["python"])
-        self.run_cli("task", "verify", TASK)
+        output, _ = self.run_cli("task", "verify", TASK)
+        self.assertIn("checked", output)
+        self.assertIn(".openguildkit/tasks/", output)
+        self.assertIn("command:1 is mandatory and failed", output)
         write_json(self.root / "result.json", {"revision": "abc1234", "criteria": [], "checks": self.rule_outcomes()})
         self.run_cli("task", "result", TASK, "--file", self.root / "result.json")
         _, error = self.run_cli("task", "complete", TASK, code=1)
         self.assertIn("command:1 is mandatory and failed", error)
         self.assertIn("rule:python/", error)
+        self.assertIn("checked", error)
+
+    def test_a_person_can_record_an_environment_reservation_for_a_project_command(self):
+        self.approved(exit_code=1)
+        options = ("--unavailable", "command:1=Dependencies unavailable offline", "--by", "Camille")
+        with patch("sys.stdin.isatty", return_value=False):
+            _, error = self.run_cli("task", "verify", TASK, *options, code=1)
+        self.assertIn("interactive terminal", error)
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            _, error = self.run_cli("task", "verify", TASK, *options, "--chaosfolk", "unused.json", code=1)
+            self.assertIn("without --chaosfolk", error)
+            output, _ = self.run_cli("task", "verify", TASK, *options)
+        self.assertIn("command:1: skipped", output)
+        self.assertIn("Dependencies unavailable offline", output)
+        self.report(*self.rule_outcomes())
+        output, _ = self.run_cli("task", "complete", TASK)
+        self.assertIn("done", output)
+        self.assertIn("Dependencies unavailable offline", output)
+
+    def test_task_verify_explains_how_to_add_project_commands(self):
+        self.approved(checks=[])
+        output, _ = self.run_cli("task", "verify", TASK)
+        self.assertIn("No project check command is configured", output)
+        self.assertIn(".openguildkit/project.json (checks)", output)
 
     def test_skipped_checks_need_a_reason_and_an_owner(self):
         self.approved()

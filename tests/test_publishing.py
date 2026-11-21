@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -71,7 +72,9 @@ class PublishingTests(unittest.TestCase):
         site = self.root / "docs-site"
         reference = (site / "reference" / f"{TASK}.md").read_text(encoding="utf-8")
         self.assertIn('project_version: "1.4.0"', reference)
-        self.assertIn("Users only see their own requests.", reference)
+        self.assertEqual(reference.count("- Users only see their own requests."), 1)
+        self.assertRegex(reference, r"1 check\(s\) passed, [1-9][0-9]* not applicable")
+        self.assertRegex(reference, r"[1-9][0-9]* disagreement\(s\) remained open")
         self.assertNotIn("tests/test_access.py", reference)
         self.assertNotIn("recommendation", reference)
         blog = next((site / "blog").glob(f"*-{TASK}.md"))
@@ -315,6 +318,10 @@ class PublishingTests(unittest.TestCase):
         self.assertIn(f"{workflow['title']} (agent-workflow, version {workflow['version']})", page)
         self.assertIn(workflow["rules"][0]["instruction"], page)
         self.assertIn("Marketing and market research", page)
+        task = json.loads(self.run_cli("task", "show", TASK)[0])
+        consulted = {entry["id"] for entry in task["review"]["boards"]}
+        listed = set(re.findall(r"\(([a-z-]+)\)$", page.split("## Boards consulted", 1)[1], re.M))
+        self.assertEqual(listed, consulted)
         for private in ("services/api", str(self.root), self.root.as_posix(), "print(1)", "Camille"):
             self.assertNotIn(private, page)
 

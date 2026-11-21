@@ -177,6 +177,8 @@ class WebInterfaceTests(unittest.TestCase):
             ["task", "authorize", "request-status", "--action", "send-message", "--target", "Brevo", "--allow",
              "--by", "Camille", "--reason", "Launch"],
             ["alerts", "accept", "npm:semver:1", "--by", "Camille", "--reason", "Build time only"],
+            ["task", "verify", "request-status", "--unavailable", "command:1=Offline", "--by", "Camille"],
+            ["tools", "apply", "sentry", "--host", "codex"],
         ):
             with self.subTest(argv=argv[:2]):
                 status, result = self.run_cli(*argv)

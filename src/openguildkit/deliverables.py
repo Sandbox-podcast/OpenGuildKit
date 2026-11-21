@@ -23,7 +23,7 @@ _CHECKED = re.compile(r"^- \[x\] (?P<id>[a-z0-9-]+): .+? Evidence: (?P<evidence>
 _COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 _FENCE = re.compile(r"^\s{0,3}(```|~~~)")
 _FIELD = re.compile(r'^(?P<key>[a-z_]+): (?P<value>".*")$')
-FRONT_MATTER = ("deliverable", "task", "approved_by")
+FRONT_MATTER = ("deliverable", "task")
 # The campaign-measurement pack asks for the agreed values in the same case on every link;
 # lowercase letters, digits, dots, hyphens and underscores keep one spelling per value.
 _UTM_VALUE = re.compile(r"[a-z0-9][a-z0-9._-]*")
@@ -31,9 +31,10 @@ UTM_ORDER = ("source", "medium", "campaign", "content", "term")
 
 
 def _validate(record: dict, catalog: dict, bundled: bool = False) -> None:
-    _validate_fields(record, "deliverable", {"id", "title", "description", "brains", "inputs", "tool_actions", "sections", "checks", "sources"}, {"method", "market"})
-    if "market" in record and not isinstance(record["market"], bool):
-        raise CatalogError("market must be true or false")
+    _validate_fields(record, "deliverable", {"id", "title", "description", "brains", "inputs", "tool_actions", "sections", "checks", "sources"}, {"method", "market", "requires_tool"})
+    for flag in ("market", "requires_tool"):
+        if flag in record and not isinstance(record[flag], bool):
+            raise CatalogError(f"{flag} must be true or false")
     _validate_id(record["id"], "id")
     for field in ("title", "description"):
         _validate_text(record[field], field)
@@ -134,22 +135,22 @@ def _market_lines(deliverable: dict, task: dict) -> tuple[list[str], list[str]]:
         f"cite observations as market:{dossier['id']}/ID"]
 
 
-def new_draft(deliverable: dict, task: dict, tool: str, approved_tools: list[str], output: Path) -> dict:
+def new_draft(deliverable: dict, task: dict, tool: str | None, approved_tools: list[str], output: Path) -> dict:
     if task["status"] not in ("approved", "done"):
         raise ValueError("Start a deliverable from an approved or completed task.")
-    if approved_tools and tool not in approved_tools:
+    if deliverable.get("requires_tool") and not tool:
+        raise ValueError("This template needs --tool.")
+    if tool and approved_tools and tool not in approved_tools:
         raise ValueError(f"{tool} is not an approved tool for this project. Approved: {', '.join(approved_tools)}.")
     if output.exists():
         raise ValueError(f"{output} already exists.")
-    decision = task["decision"]
+    tool_fields = [f"tool: {json.dumps(tool)}"] if tool else []
     market_fields, market_inputs = _market_lines(deliverable, task)
     lines = [
         "---",
         f"deliverable: {json.dumps(deliverable['id'])}",
         f"task: {json.dumps(task['id'])}",
-        f"tool: {json.dumps(tool)}",
-        f"approved_by: {json.dumps(decision['by'])}",
-        f"decision_reason: {json.dumps(decision['reason'])}",
+        *tool_fields,
         *market_fields,
         "---",
         "",
@@ -219,8 +220,12 @@ def draft_problems(deliverable: dict, text: str) -> list[str]:
     or a code block is ignored, so an empty draft cannot pass.
     """
     fields, body = _front_matter(text)
+    required = (*FRONT_MATTER, "tool") if deliverable.get("requires_tool") else FRONT_MATTER
     problems = [f"The front matter has no {field}: start the draft with openguildkit deliverable new."
-                for field in FRONT_MATTER if not str(fields.get(field, "")).strip()]
+                for field in required if not str(fields.get(field, "")).strip()]
+    for field in ("approved_by", "decision_reason"):
+        if field in fields:
+            problems.append(f"Remove the internal {field} field before sharing this draft.")
     visible = _visible(body)
     sections = _sections(visible)
     for title in ["Inputs", *[section["title"] for section in deliverable["sections"]], "Sources", "Checks"]:

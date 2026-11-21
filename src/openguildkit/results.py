@@ -65,6 +65,10 @@ def _must_supply(item: dict, required: bool, scope: dict) -> str | None:
     return None
 
 
+def _command_log(state: Path, task: dict, check_id: str) -> Path:
+    return state / "tasks" / f"{task['id']}-checks" / f"{check_id.replace(':', '-').replace('/', '-')}.log"
+
+
 def _run_command(root: Path, state: Path, task: dict, check: dict, command: str, timeout: int) -> dict:
     """Run one command in the project root and keep its log as evidence."""
     started = time.monotonic()
@@ -77,7 +81,7 @@ def _run_command(root: Path, state: Path, task: dict, check: dict, command: str,
         code, output = completed.returncode, completed.stdout + completed.stderr
     except subprocess.TimeoutExpired as error:
         code, output = None, f"Timed out after {timeout} seconds.\n{error.stdout or ''}{error.stderr or ''}"
-    log = state / "tasks" / f"{task['id']}-checks" / f"{check['id'].replace(':', '-').replace('/', '-')}.log"
+    log = _command_log(state, task, check["id"])
     write_text(log, f"$ {command}\n{output[-LOG_TAIL:]}")
     return {
         "check": check["id"],
@@ -88,13 +92,20 @@ def _run_command(root: Path, state: Path, task: dict, check: dict, command: str,
     }
 
 
-def run_command_checks(root: Path, state: Path, task: dict, profile: dict, timeout: int = 1800) -> list[dict]:
+def run_command_checks(root: Path, state: Path, task: dict, profile: dict, timeout: int = 1800, *,
+                       unavailable: dict[str, str] | None = None, by: str = "") -> list[dict]:
     """Run the project's check commands and evaluate the rules' machine checks, with their evidence."""
     revision = git_revision(root)
     results = []
     for check in expected_checks(task, profile):
         if check["kind"] == "command":
-            outcome = _run_command(root, state, task, check, check["command"], timeout)
+            if unavailable and check["id"] in unavailable:
+                outcome = {
+                    "check": check["id"], "status": "skipped", "reason": unavailable[check["id"]],
+                    "owner": by, "environment_unavailable": True,
+                }
+            else:
+                outcome = _run_command(root, state, task, check, check["command"], timeout)
         elif check["kind"] == "machine" and check["check"]["kind"] == "command":
             outcome = _run_command(root, state, task, check, check["check"]["command"], timeout)
         elif check["kind"] == "machine":
@@ -103,6 +114,24 @@ def run_command_checks(root: Path, state: Path, task: dict, profile: dict, timeo
             continue
         results.append({**outcome, **({"revision": revision["commit"]} if revision else {})})
     return results
+
+
+def command_diagnostics(root: Path, state: Path, task: dict, profile: dict) -> list[str]:
+    """Give the log and a short terminal-safe excerpt for failed checks that ran a command."""
+    outcomes = {item["check"]: item for item in task.get("result", {}).get("checks", [])}
+    lines = []
+    for check in expected_checks(task, profile):
+        command = check.get("command") or check.get("check", {}).get("command")
+        if not command or outcomes.get(check["id"], {}).get("status") != "failed":
+            continue
+        log = _command_log(state, task, check["id"])
+        lines.append(f"{check['id']} ({command}): log {log.relative_to(root).as_posix()}")
+        if log.is_file() and log.resolve().is_relative_to(state.resolve()):
+            tail = log.read_text(encoding="utf-8", errors="replace").splitlines()[1:][-6:]
+            for line in tail:
+                safe_line = "".join(character for character in line if character.isprintable() or character == "\t")
+                lines.append(f"    {safe_line[:300]}")
+    return lines
 
 
 def _evidence_reference(value: str, check_id: str) -> str:
@@ -211,6 +240,10 @@ def validate_result(task: dict, profile: dict, payload: dict, source: str = "rep
             raise _refusal(task, f"{error} A {item['status']} check needs {needed}.") from None
         if known.get(item["check"], {}).get("kind") == "evidence" and "evidence" in entry:
             entry["evidence"] = _evidence_reference(entry["evidence"], item["check"])
+        if item.get("environment_unavailable") is True:
+            if source != "verify" or known.get(item["check"], {}).get("kind") != "command" or item["status"] != "skipped":
+                raise _refusal(task, f"{item['check']}: only a project command can be recorded as unavailable in task verify.")
+            entry["environment_unavailable"] = True
         for key in ("exit_code", "seconds", "revision", "chaosfolk_status", "message"):
             if key in item:
                 entry[key] = item[key]
@@ -277,7 +310,10 @@ def completion_problems(task: dict, profile: dict) -> list[str]:
         elif check["mandatory"]:
             if outcome is None:
                 problems.append(f"{check['id']} is mandatory and has no result.")
-            elif outcome["status"] != "passed":
+            elif outcome["status"] != "passed" and not (
+                check["kind"] == "command" and outcome["status"] == "skipped"
+                and outcome.get("environment_unavailable") is True and outcome.get("reason") and outcome.get("owner")
+            ):
                 problems.append(f"{check['id']} is mandatory and {outcome['status']}.")
         elif outcome is None:
             problems.append(f"{check['id']} is not reported: pass, fail, skip or mark it not applicable.")
