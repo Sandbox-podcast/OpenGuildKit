@@ -38,7 +38,7 @@ openguildkit preview
 openguildkit check
 ```
 
-`init` enregistre ton profil dans `.openguildkit/project.json` et écrit les règles dans un bloc géré de `AGENTS.md`. Il ajoute un import dans `CLAUDE.md` pour Claude Code. Les règles en vigueur sont figées dans `.openguildkit/catalog.lock.json` : après une mise à jour d'OpenGuildKit, `openguildkit update` montre ce qui changerait et `openguildkit update --apply` l'adopte. Il affiche ensuite les étapes suivantes qui s'appliquent, comme `openguildkit host apply` pour ton agent et `openguildkit tools plan ...` pour les outils que le registre connaît. [Installe le skill](integrations/) pour répondre au questionnaire dans Claude Code ou Codex et lancer des tâches depuis la conversation.
+`init` enregistre ton profil dans `.openguildkit/project.json` et écrit les règles dans un bloc géré de `AGENTS.md`. Il ajoute un import dans `CLAUDE.md` pour Claude Code. Les règles en vigueur sont figées dans `.openguildkit/catalog.lock.json` : après une mise à jour d'OpenGuildKit, `openguildkit update` montre la date du catalogue installé (le jour où ses sources ont été vérifiées pour la dernière fois), le nombre d'enregistrements modifiés et ce qui changerait, et `openguildkit update --apply` l'adopte. Il affiche ensuite les étapes suivantes qui s'appliquent, comme `openguildkit host apply` pour ton agent et `openguildkit tools plan ...` pour les outils que le registre connaît. [Installe le skill](integrations/) pour répondre au questionnaire dans Claude Code ou Codex et lancer des tâches depuis la conversation.
 
 ```mermaid
 flowchart TB

@@ -40,15 +40,18 @@
   "sources": [
     {
       "title": "Consortium for Service Innovation, Knowledge-Centered Success (KCS)",
-      "url": "https://www.serviceinnovation.org/kcs/"
+      "url": "https://www.serviceinnovation.org/kcs/",
+      "checked": "2026-11-21"
     },
     {
       "title": "ISO 10002, Customer satisfaction, guidelines for complaints handling",
-      "url": "https://www.iso.org/standard/10002"
+      "url": "https://www.iso.org/standard/10002",
+      "checked": "2026-11-20"
     },
     {
       "title": "ISO 18295-1:2017, Customer contact centres, requirements for customer contact centres",
-      "url": "https://www.iso.org/standard/64739.html"
+      "url": "https://www.iso.org/standard/64739.html",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

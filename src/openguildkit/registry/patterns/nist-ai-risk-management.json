@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "NIST AI Risk Management Framework 1.0",
-      "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10"
+      "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

@@ -6,7 +6,8 @@
   "sources": [
     {
       "title": "UK Government Communication Service, Campaign lifecycle",
-      "url": "https://www.gov.uk/government/publications/government-functional-standard-govs-011-communication/government-functional-standard-govs-011-communications#the-campaign-lifecycle"
+      "url": "https://www.gov.uk/government/publications/government-functional-standard-govs-011-communication/government-functional-standard-govs-011-communications#the-campaign-lifecycle",
+      "checked": "2026-11-21"
     }
   ],
   "depends_on": [

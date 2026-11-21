@@ -17,6 +17,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/30414",
+          "checked": "2026-11-20",
           "title": "ISO 30414:2025 — Human resource management, requirements and recommendations for human capital reporting and disclosure"
         }
       ]
@@ -36,6 +37,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/64283.html",
+          "checked": "2026-11-21",
           "title": "ISO 45003:2021 — Psychological health and safety at work, guidelines for managing psychosocial risks"
         }
       ]
@@ -55,6 +57,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/45001",
+          "checked": "2026-11-21",
           "title": "ISO 45001:2018 — Occupational health and safety management systems, requirements"
         }
       ]
@@ -78,6 +81,7 @@
       "sources": [
         {
           "url": "https://www.opm.gov/policy-data-oversight/human-capital-framework/reference-materials/strategic-alignment/workforceplanning/",
+          "checked": "2026-11-21",
           "title": "U.S. Office of Personnel Management, Workforce Planning Model"
         }
       ]
@@ -100,10 +104,12 @@
       "sources": [
         {
           "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/other-assessment-methods/structured-interviews/",
+          "checked": "2026-11-21",
           "title": "U.S. Office of Personnel Management, Structured Interviews"
         },
         {
           "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/structured-interviews/guide.pdf",
+          "checked": "2026-11-21",
           "title": "U.S. Office of Personnel Management, Structured Interview Guide"
         }
       ]
@@ -127,6 +133,7 @@
       "sources": [
         {
           "url": "https://www.opm.gov/policy-data-oversight/human-capital-management/hiring-reform/sample-supervisor-checklist.pdf",
+          "checked": "2026-11-21",
           "title": "U.S. Office of Personnel Management, Sample supervisor onboarding checklist"
         }
       ]
@@ -149,6 +156,7 @@
       "sources": [
         {
           "url": "https://www.cnil.fr/fr/le-guide-du-recrutement",
+          "checked": "2026-11-21",
           "title": "CNIL — Le guide du recrutement"
         }
       ]
@@ -172,6 +180,7 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/dir/2023/970/oj",
+          "checked": "2026-11-21",
           "title": "Directive (UE) 2023/970 — Transparence des rémunérations"
         }
       ]

@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "Bain & Company, Measuring your Net Promoter Score",
-      "url": "https://www.netpromotersystem.com/about/measuring-your-net-promoter-score/"
+      "url": "https://www.netpromotersystem.com/about/measuring-your-net-promoter-score/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Stripe, Billing analytics (MRR, churn and subscriber reports)",
-      "url": "https://support.stripe.com/questions/billing-analytics"
+      "url": "https://support.stripe.com/questions/billing-analytics",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

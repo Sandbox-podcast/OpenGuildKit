@@ -64,19 +64,23 @@
   "sources": [
     {
       "title": "Huthwaite International, The SPIN Methodology",
-      "url": "https://www.huthwaiteinternational.com/spin-methodology"
+      "url": "https://www.huthwaiteinternational.com/spin-methodology",
+      "checked": "2026-11-21"
     },
     {
       "title": "MEDDICC, MEDDPICC Sales Methodology",
-      "url": "https://meddicc.com/meddpicc-sales-methodology-and-process"
+      "url": "https://meddicc.com/meddpicc-sales-methodology-and-process",
+      "checked": "2026-11-21"
     },
     {
       "title": "European Commission, Public procurement",
-      "url": "https://single-market-economy.ec.europa.eu/single-market/public-procurement_en"
+      "url": "https://single-market-economy.ec.europa.eu/single-market/public-procurement_en",
+      "checked": "2026-11-21"
     },
     {
       "title": "COSO, Internal Control, Integrated Framework",
-      "url": "https://www.coso.org/internal-control"
+      "url": "https://www.coso.org/internal-control",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

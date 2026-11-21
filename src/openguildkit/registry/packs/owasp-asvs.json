@@ -6,7 +6,8 @@
   "sources": [
     {
       "title": "OWASP Application Security Verification Standard",
-      "url": "https://asvs.owasp.org/"
+      "url": "https://asvs.owasp.org/",
+      "checked": "2026-11-21"
     }
   ],
   "depends_on": [

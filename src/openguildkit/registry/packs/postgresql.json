@@ -6,15 +6,18 @@
   "sources": [
     {
       "title": "PostgreSQL transactions",
-      "url": "https://www.postgresql.org/docs/current/tutorial-transactions.html"
+      "url": "https://www.postgresql.org/docs/current/tutorial-transactions.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "PostgreSQL constraints",
-      "url": "https://www.postgresql.org/docs/current/ddl-constraints.html"
+      "url": "https://www.postgresql.org/docs/current/ddl-constraints.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "PostgreSQL EXPLAIN",
-      "url": "https://www.postgresql.org/docs/current/using-explain.html"
+      "url": "https://www.postgresql.org/docs/current/using-explain.html",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

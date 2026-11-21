@@ -5,11 +5,13 @@
   "sources": [
     {
       "title": "FastAPI response models",
-      "url": "https://fastapi.tiangolo.com/tutorial/response-model/"
+      "url": "https://fastapi.tiangolo.com/tutorial/response-model/",
+      "checked": "2026-11-21"
     },
     {
       "title": "PostgreSQL transactions",
-      "url": "https://www.postgresql.org/docs/current/tutorial-transactions.html"
+      "url": "https://www.postgresql.org/docs/current/tutorial-transactions.html",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

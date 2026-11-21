@@ -15,6 +15,7 @@
       "sources": [
         {
           "url": "https://spec.editorconfig.org/",
+          "checked": "2026-11-21",
           "title": "EditorConfig Specification"
         }
       ]
@@ -32,6 +33,7 @@
       "sources": [
         {
           "url": "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/identifier-names",
+          "checked": "2026-11-21",
           "title": "C# identifier naming rules and conventions"
         }
       ]
@@ -49,6 +51,7 @@
       "sources": [
         {
           "url": "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/identifier-names",
+          "checked": "2026-11-21",
           "title": "C# identifier naming rules and conventions"
         }
       ]
@@ -66,6 +69,7 @@
       "sources": [
         {
           "url": "https://peps.python.org/pep-0008/",
+          "checked": "2026-11-21",
           "title": "PEP 8 - Style Guide for Python Code"
         }
       ]
@@ -83,6 +87,7 @@
       "sources": [
         {
           "url": "https://developer.mozilla.org/en-US/docs/Glossary/Kebab_case",
+          "checked": "2026-11-21",
           "title": "MDN Web Docs Glossary — Kebab case"
         }
       ]
@@ -100,6 +105,7 @@
       "sources": [
         {
           "url": "https://peps.python.org/pep-0008/",
+          "checked": "2026-11-21",
           "title": "PEP 8 - Style Guide for Python Code"
         }
       ]
@@ -117,6 +123,7 @@
       "sources": [
         {
           "url": "https://prettier.io/docs/",
+          "checked": "2026-11-21",
           "title": "What is Prettier?"
         }
       ]
@@ -134,6 +141,7 @@
       "sources": [
         {
           "url": "https://eslint.org/docs/latest/",
+          "checked": "2026-11-21",
           "title": "ESLint Documentation"
         }
       ]
@@ -151,6 +159,7 @@
       "sources": [
         {
           "url": "https://checkstyle.org/",
+          "checked": "2026-11-21",
           "title": "Checkstyle"
         }
       ]
@@ -168,6 +177,7 @@
       "sources": [
         {
           "url": "https://docs.astral.sh/ruff/",
+          "checked": "2026-11-21",
           "title": "Ruff"
         }
       ]
@@ -185,6 +195,7 @@
       "sources": [
         {
           "url": "https://clang.llvm.org/docs/ClangFormatStyleOptions.html",
+          "checked": "2026-11-21",
           "title": "Clang-Format Style Options"
         }
       ]
@@ -202,6 +213,7 @@
       "sources": [
         {
           "url": "https://black.readthedocs.io/en/stable/",
+          "checked": "2026-11-21",
           "title": "Black documentation"
         }
       ]
@@ -222,6 +234,7 @@
       "sources": [
         {
           "url": "https://getbem.com/naming/",
+          "checked": "2026-11-20",
           "title": "BEM — Naming"
         }
       ]
@@ -239,6 +252,7 @@
       "sources": [
         {
           "url": "https://google.github.io/styleguide/jsguide.html",
+          "checked": "2026-11-21",
           "title": "Google JavaScript Style Guide"
         }
       ]
@@ -256,6 +270,7 @@
       "sources": [
         {
           "url": "https://google.github.io/styleguide/tsguide.html",
+          "checked": "2026-11-21",
           "title": "Google TS/JS Style Guide"
         }
       ]
@@ -276,6 +291,7 @@
       "sources": [
         {
           "url": "https://peps.python.org/pep-0008/",
+          "checked": "2026-11-21",
           "title": "PEP 8 - Style Guide for Python Code"
         }
       ]
@@ -293,6 +309,7 @@
       "sources": [
         {
           "url": "https://peps.python.org/pep-0257/",
+          "checked": "2026-11-21",
           "title": "PEP 257 - Docstring Conventions"
         }
       ]
@@ -310,6 +327,7 @@
       "sources": [
         {
           "url": "https://go.dev/doc/effective_go",
+          "checked": "2026-11-21",
           "title": "Effective Go"
         }
       ]
@@ -327,6 +345,7 @@
       "sources": [
         {
           "url": "https://go.dev/wiki/CodeReviewComments",
+          "checked": "2026-11-21",
           "title": "Go Wiki: Go Code Review Comments"
         }
       ]
@@ -344,6 +363,7 @@
       "sources": [
         {
           "url": "https://doc.rust-lang.org/style-guide/",
+          "checked": "2026-11-21",
           "title": "The Rust Style Guide"
         }
       ]
@@ -361,6 +381,7 @@
       "sources": [
         {
           "url": "https://google.github.io/styleguide/javaguide.html",
+          "checked": "2026-11-21",
           "title": "Google Java Style Guide"
         }
       ]
@@ -378,6 +399,7 @@
       "sources": [
         {
           "url": "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions",
+          "checked": "2026-11-21",
           "title": "Common C# code conventions"
         }
       ]
@@ -395,6 +417,7 @@
       "sources": [
         {
           "url": "https://kotlinlang.org/docs/coding-conventions.html",
+          "checked": "2026-11-21",
           "title": "Kotlin Coding conventions"
         }
       ]
@@ -412,6 +435,7 @@
       "sources": [
         {
           "url": "https://www.swift.org/documentation/api-design-guidelines/",
+          "checked": "2026-11-21",
           "title": "Swift API Design Guidelines"
         }
       ]
@@ -429,10 +453,12 @@
       "sources": [
         {
           "url": "https://www.php-fig.org/psr/psr-12/",
+          "checked": "2026-11-21",
           "title": "PSR-12: Extended Coding Style"
         },
         {
           "url": "https://www.php-fig.org/per/coding-style/",
+          "checked": "2026-11-21",
           "title": "PER Coding Style"
         }
       ]
@@ -450,6 +476,7 @@
       "sources": [
         {
           "url": "https://www.php-fig.org/per/coding-style/",
+          "checked": "2026-11-21",
           "title": "PER Coding Style"
         }
       ]
@@ -467,6 +494,7 @@
       "sources": [
         {
           "url": "https://rubystyle.guide/",
+          "checked": "2026-11-21",
           "title": "The Ruby Style Guide"
         }
       ]
@@ -484,6 +512,7 @@
       "sources": [
         {
           "url": "https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines",
+          "checked": "2026-11-21",
           "title": "C++ Core Guidelines"
         }
       ]
@@ -501,6 +530,7 @@
       "sources": [
         {
           "url": "https://docs.kernel.org/process/coding-style.html",
+          "checked": "2026-11-21",
           "title": "Linux kernel coding style"
         }
       ]
@@ -522,6 +552,7 @@
       "sources": [
         {
           "url": "https://ecma-international.org/publications-and-standards/standards/ecma-262/",
+          "checked": "2026-11-21",
           "title": "Ecma International — ECMA-262"
         }
       ]
@@ -545,6 +576,7 @@
       "sources": [
         {
           "url": "https://semver.org/spec/v2.0.0.html",
+          "checked": "2026-11-21",
           "title": "Semantic Versioning 2.0.0"
         }
       ]
@@ -566,6 +598,7 @@
       "sources": [
         {
           "url": "https://www.conventionalcommits.org/",
+          "checked": "2026-11-21",
           "title": "Conventional Commits"
         }
       ]
@@ -589,6 +622,7 @@
       "sources": [
         {
           "url": "https://keepachangelog.com/en/1.1.0/",
+          "checked": "2026-11-21",
           "title": "Keep a Changelog 1.1.0"
         }
       ]
@@ -607,6 +641,7 @@
       "sources": [
         {
           "url": "https://nvie.com/posts/a-successful-git-branching-model/",
+          "checked": "2026-11-21",
           "title": "A successful Git branching model - Vincent Driessen"
         }
       ]
@@ -625,6 +660,7 @@
       "sources": [
         {
           "url": "https://docs.github.com/en/get-started/using-github/github-flow",
+          "checked": "2026-11-21",
           "title": "GitHub flow"
         }
       ]
@@ -643,6 +679,7 @@
       "sources": [
         {
           "url": "https://trunkbaseddevelopment.com/",
+          "checked": "2026-11-21",
           "title": "Trunk Based Development"
         }
       ]
@@ -661,6 +698,7 @@
       "sources": [
         {
           "url": "https://google.github.io/eng-practices/review/",
+          "checked": "2026-11-21",
           "title": "Google Engineering Practices: Code Review"
         }
       ]
@@ -678,6 +716,7 @@
       "sources": [
         {
           "url": "https://docs.github.com/en/pull-requests/reference/pull-requests",
+          "checked": "2026-11-21",
           "title": "GitHub Docs — Pull requests"
         }
       ]
@@ -695,6 +734,7 @@
       "sources": [
         {
           "url": "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners",
+          "checked": "2026-11-21",
           "title": "GitHub Docs — About code owners"
         }
       ]
@@ -713,6 +753,7 @@
       "sources": [
         {
           "url": "https://developercertificate.org/",
+          "checked": "2026-11-21",
           "title": "Developer Certificate of Origin"
         }
       ]
@@ -730,6 +771,7 @@
       "sources": [
         {
           "url": "https://conventionalcomments.org/",
+          "checked": "2026-11-21",
           "title": "Conventional Comments"
         }
       ]
@@ -747,6 +789,7 @@
       "sources": [
         {
           "url": "https://git-scm.com/docs/githooks",
+          "checked": "2026-11-21",
           "title": "Git documentation — githooks"
         }
       ]

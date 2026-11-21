@@ -6,31 +6,38 @@
   "sources": [
     {
       "title": "Google SRE Workbook, Implementing SLOs",
-      "url": "https://sre.google/workbook/implementing-slos/"
+      "url": "https://sre.google/workbook/implementing-slos/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Google SRE Workbook, Example Error Budget Policy",
-      "url": "https://sre.google/workbook/error-budget-policy/"
+      "url": "https://sre.google/workbook/error-budget-policy/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Google SRE Workbook, Alerting on SLOs",
-      "url": "https://sre.google/workbook/alerting-on-slos/"
+      "url": "https://sre.google/workbook/alerting-on-slos/",
+      "checked": "2026-11-21"
     },
     {
       "title": "OpenTelemetry Specification 1.62.0",
-      "url": "https://github.com/open-telemetry/opentelemetry-specification/releases/tag/v1.62.0"
+      "url": "https://github.com/open-telemetry/opentelemetry-specification/releases/tag/v1.62.0",
+      "checked": "2026-11-21"
     },
     {
       "title": "OpenTelemetry Semantic Conventions 1.45.0",
-      "url": "https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.45.0"
+      "url": "https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.45.0",
+      "checked": "2026-11-21"
     },
     {
       "title": "OpenTelemetry Protocol 1.11.1",
-      "url": "https://github.com/open-telemetry/opentelemetry-proto/blob/v1.11.1/docs/specification.md"
+      "url": "https://github.com/open-telemetry/opentelemetry-proto/blob/v1.11.1/docs/specification.md",
+      "checked": "2026-11-21"
     },
     {
       "title": "OpenTelemetry, Handling sensitive data",
-      "url": "https://opentelemetry.io/docs/security/handling-sensitive-data/"
+      "url": "https://opentelemetry.io/docs/security/handling-sensitive-data/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

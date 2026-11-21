@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "Directive (EU) 2022/2555 (NIS 2)",
-      "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/en"
+      "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/en",
+      "checked": "2026-11-20"
     },
     {
       "title": "ANSSI, MesServicesCyber, NIS 2",
-      "url": "https://messervices.cyber.gouv.fr/nis2"
+      "url": "https://messervices.cyber.gouv.fr/nis2",
+      "checked": "2026-11-21"
     }
   ],
   "depends_on": [

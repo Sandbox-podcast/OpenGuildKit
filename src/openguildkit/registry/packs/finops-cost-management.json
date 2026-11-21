@@ -6,15 +6,18 @@
   "sources": [
     {
       "title": "FinOps Foundation, Allocation",
-      "url": "https://www.finops.org/framework/capabilities/allocation/"
+      "url": "https://www.finops.org/framework/capabilities/allocation/",
+      "checked": "2026-11-21"
     },
     {
       "title": "FinOps Foundation, Unit Economics",
-      "url": "https://www.finops.org/framework/capabilities/unit-economics/"
+      "url": "https://www.finops.org/framework/capabilities/unit-economics/",
+      "checked": "2026-11-21"
     },
     {
       "title": "FinOps Foundation, Anomaly Management",
-      "url": "https://www.finops.org/framework/capabilities/anomaly-management/"
+      "url": "https://www.finops.org/framework/capabilities/anomaly-management/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

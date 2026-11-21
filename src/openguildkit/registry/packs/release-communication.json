@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "Digital.gov, Plain language guide series",
-      "url": "https://digital.gov/guides/plain-language"
+      "url": "https://digital.gov/guides/plain-language",
+      "checked": "2026-11-21"
     },
     {
       "title": "AMEC, Barcelona Principles 3.0",
-      "url": "https://amecorg.com/amec-resources-centre-communication-measurement-evaluation-tools/barcelona-principles-3-0/"
+      "url": "https://amecorg.com/amec-resources-centre-communication-measurement-evaluation-tools/barcelona-principles-3-0/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [
