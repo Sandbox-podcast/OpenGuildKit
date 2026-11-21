@@ -356,7 +356,28 @@ def load_profile(state: Path, catalog: dict) -> dict:
     path = state / "project.json"
     if not path.is_file():
         raise ValueError("Project is missing a profile. Run openguildkit init.")
-    return validate_profile(read_json(path), catalog)
+    answers = read_json(path)
+    missing = _missing_records(answers, catalog) if isinstance(answers, dict) else []
+    if missing:
+        entries = ", ".join(f'"{record_id}" from "{field}"' for field, record_id in missing)
+        raise ValueError(
+            f".openguildkit/project.json uses records that neither this release nor the catalog lock provides: "
+            f"remove {entries}, then run openguildkit sync."
+        )
+    return validate_profile(answers, catalog)
+
+
+def _missing_records(answers: dict, catalog: dict) -> list[tuple[str, str]]:
+    """Profile entries that name a pack, pattern or board no catalog in force provides."""
+    fields = (("packs", "packs"), ("patterns", "patterns"), ("boards", "boards"), ("required_boards", "boards"))
+    missing = []
+    for field, collection in fields:
+        entries = answers.get(field)
+        for entry in entries if isinstance(entries, list) else []:
+            record_id = entry.get("id") if isinstance(entry, dict) else entry
+            if isinstance(record_id, str) and record_id not in catalog[collection]:
+                missing.append((field, record_id))
+    return missing
 
 
 def _selected_packs(profile: dict, catalog: dict) -> list[str]:

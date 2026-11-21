@@ -32,6 +32,7 @@ from .lock import (
     catalog_changes,
     lock_is_current,
     read_lock,
+    unshipped_records,
     update_target,
     write_lock,
 )
@@ -397,7 +398,7 @@ def _update_catalog(args, root: Path, state: Path) -> None:
             result = {"changes": changes, "conflicts": conflicts, "applied": False, "stale_tasks": []}
             if args.apply and changes:
                 sync_instructions(root, profile, target)
-                write_lock(state, build_lock(profile, target, bundled))
+                write_lock(state, build_lock(profile, target, bundled, lock))
                 result["applied"] = True
                 result["stale_tasks"] = _stale_tasks(state, profile, target)
     _print_update(result, args.json)
@@ -419,7 +420,7 @@ def _print_update(result: dict, as_json: bool) -> None:
             print(f"+ {label} {change.get('version') or ''}".rstrip())
             continue
         if change["status"] != "changed":
-            print(f"- {label}: {change['status']}, kept from the lock")
+            print(f"- {label}: {change['status']}, kept from the lock until you remove it from .openguildkit/project.json")
             continue
         version = f" {change['version'][0]} -> {change['version'][1]}" if "version" in change else ""
         print(f"~ {label}{version} ({', '.join(change['fields'])})")
@@ -1288,11 +1289,16 @@ def _run(args) -> int | None:
     elif args.command == "sync":
         with project_lock(state):
             live, bundled = _installed_catalog(args, state)
-            catalog = apply_lock(live, read_lock(state))
+            lock = read_lock(state)
+            catalog = apply_lock(live, lock)
             profile = load_profile(state, catalog)
             sync_instructions(root, profile, catalog)
-            write_lock(state, build_lock(profile, catalog, bundled))
+            lock = build_lock(profile, catalog, bundled, lock)
+            write_lock(state, lock)
         print("OpenGuildKit instructions updated.")
+        for record in unshipped_records(lock, bundled):
+            print(f"OpenGuildKit: {record} is no longer shipped; it is kept from the catalog lock until you remove it "
+                  "from .openguildkit/project.json.", file=sys.stderr)
         for item in patterns_to_review(profile, catalog):
             print(f"OpenGuildKit: review pattern {item['id']}: {'; '.join(item['reasons'])}", file=sys.stderr)
     else:
