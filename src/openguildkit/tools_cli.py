@@ -77,7 +77,7 @@ def _host(args, profile: dict) -> str:
             f"OpenGuildKit writes MCP settings for {' and '.join(HOSTS)}, and the project's host is {host or 'not set'}. "
             f"Add --host {HOSTS[0]} or --host {HOSTS[1]} to this command to write them for that agent, "
             'or set "host" in .openguildkit/project.json and run openguildkit sync. For another agent, '
-            "run openguildkit tools plan ID and copy the server it prints into that agent's settings."
+            "run openguildkit tools plan ID --host codex and adapt the server settings to that agent."
         )
     return host
 
