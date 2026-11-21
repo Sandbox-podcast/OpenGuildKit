@@ -43,6 +43,8 @@ Save the first answers and run `task questions ID --answers answers.json`. The C
 |---|---|---|
 | `outcome` | feature, bug, maintenance, other, unsure | The observable result, the expected behaviour and how to reproduce a defect, or what must keep working |
 | `affected` | feature, decision, other or unsure work, customer or business areas, personal or regulated data | Who is affected: users, customers, teams or partners |
+
+In a project with components, `answers.json` can include `"components": ["web"]` to limit the consultation, handoff and checks to that component and the project-wide rules. Use the IDs from the project profile. Leave `components` out to consult for the whole project.
 | `options` | decision | The options on the table and what would make you choose one |
 
 A question is essential for the cases where the boards cannot review without it: the outcome of a feature or a bug, who is affected by a customer-facing change, the options of a decision. A short brief, an `unsure` answer or an unanswered essential question is an **open point**. Open points do not block the consultation: they appear in it, each board says how they affect its recommendation, and the decision brief repeats them. A well-described local bug gets no question about customers or options.
@@ -225,7 +227,9 @@ openguildkit task new "Add request history" --follows request-status
 openguildkit task export request-status --output shared/request-status.json
 ```
 
-`task list` gives each task's next open point: questions to answer, board reviews pending, blockers to resolve, a decision awaited, results to record. `--follows` links a new task to an earlier decision: the consultation carries that decision so the boards see what was already agreed. The handoff of a decision task gives that command. A task record edited by hand is checked when it is loaded; a damaged one gives `Task record ID is damaged: FIELD ...` and `task list` shows it as `unreadable`. Task records are not under version control: restore one from a backup or open a new task. `task export` writes a record the team can share: the brief, each board's verdict and the sealed approval, without evidence, findings or internal notes.
+`task list` gives each task's next step. For a task approved under earlier rules, `task list`, `task show` and `check` give the command for opening a linked task with `--follows`. `check` also names any exports under earlier rules. `handoff` and `export` refuse approvals whose rules or seal have changed. `task list` marks an unreadable task record so the team can restore it from a backup.
+
+`task export` writes the brief, the board recommendations and verdicts, the sealed approval, and the decisions from earlier review rounds. It includes the recorded reasons and owners for checks marked skipped or not applicable. Review the file before sharing it. Detailed evidence and specialist findings stay in the local task record.
 
 ## Inspecting a task
 

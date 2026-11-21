@@ -224,6 +224,11 @@ def validate_answers(answers: dict) -> dict:
             raise ValueError(f"Choose {question_id} from {', '.join(allowed)}.")
         validated[question_id] = answer
     validated.update(_optional_answers(answers))
+    if "components" in answers:
+        selected = answers["components"]
+        if not isinstance(selected, list) or not all(isinstance(item, str) and item.strip() for item in selected):
+            raise ValueError("Task components must be a list of project component IDs.")
+        validated["components"] = list(dict.fromkeys(item.strip() for item in selected))
 
     unknown = answers.keys() - validated.keys() - {"context", *FOLLOW_UPS}
     if unknown:

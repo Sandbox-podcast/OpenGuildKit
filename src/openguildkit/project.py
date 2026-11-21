@@ -787,6 +787,34 @@ def pack_scopes(profile: dict, catalog: dict) -> dict[str, list[str] | None]:
     return {pack_id: (sorted(scope) if scope is not None else None) for pack_id, scope in scopes.items()}
 
 
+def task_scope_profile(profile: dict, catalog: dict, component_ids: list[str]) -> dict:
+    """Resolve the project rules for all components or the ones named in the task answers."""
+    resolved = resolved_profile(profile, catalog)
+    if not component_ids:
+        return resolved
+    selected = set(component_ids)
+    components = [component for component in resolved.get("components", []) if component["id"] in selected]
+    available = {component["id"] for component in resolved.get("components", [])}
+    if unknown := selected - available:
+        raise ValueError(f"Unknown task components: {', '.join(sorted(unknown))}. "
+                         f"Use project component IDs: {', '.join(sorted(available)) or 'none'}.")
+    scopes = pack_scopes(profile, catalog)
+    resolved["packs"] = [
+        pack for pack in resolved["packs"] if scopes.get(pack) is None or selected.intersection(scopes[pack])
+    ]
+    patterns = []
+    for entry in resolved.get("patterns", []):
+        pattern, scope = pattern_selection(entry)
+        if not scope:
+            patterns.append(entry)
+        elif scoped := [name for name in scope if name in selected]:
+            patterns.append({"id": pattern, "components": scoped})
+    resolved["components"] = components
+    resolved["stack"] = list(dict.fromkeys(technology for component in components for technology in component["stack"]))
+    resolved["patterns"] = patterns
+    return resolved
+
+
 def profile_fingerprint(profile: dict, catalog: dict) -> str:
     resolved = resolved_profile(profile, catalog)
     snapshot = {

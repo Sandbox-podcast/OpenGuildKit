@@ -6,8 +6,8 @@ from datetime import datetime
 from pathlib import Path
 
 from . import clock
-from .decisions import decision_payload, seal
-from .project import profile_fingerprint, resolved_profile
+from .decisions import check_decision_seal, decision_payload, seal, stale_approval_message
+from .project import profile_fingerprint, task_scope_profile
 from .results import completion_problems, expected_checks, merge_results, validate_result
 from .storage import read_json, write_json
 from .workflow import blocker_list, consult, pending_removals, validate_answers, validate_board_entry, validate_deliberation, validate_review
@@ -234,8 +234,20 @@ def next_step(task: dict) -> str:
     return "Done."
 
 
+def approval_problem(task: dict, current_fingerprint: str) -> dict | None:
+    if task["status"] not in ("approved", "done"):
+        return None
+    try:
+        check_decision_seal(task)
+    except ValueError as error:
+        return {"kind": "invalid-seal", "message": str(error)}
+    if task.get("profile_fingerprint") != current_fingerprint:
+        return {"kind": "earlier-rules", "message": stale_approval_message(task["id"])}
+    return None
+
+
 def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
-               since: str | None = None, until: str | None = None) -> list[dict]:
+               since: str | None = None, until: str | None = None, *, current_fingerprint: str | None = None) -> list[dict]:
     """Every task of the project with its status, decision owner and next open point."""
     directory = state / "tasks"
     rows = []
@@ -247,16 +259,21 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
         except ValueError as error:
             rows.append({"id": path.stem, "status": "unreadable", "next": str(error)})
             continue
-        decided_by = task.get("decision", {}).get("by")
         day = task["created_at"][:10]
         if status and task["status"] != status:
             continue
-        if owner and (decided_by or "").casefold() != owner.casefold():
-            continue
         if (since and day < since) or (until and day > until):
             continue
+        problem = approval_problem(task, current_fingerprint) if current_fingerprint is not None else None
+        decided_by = task.get("decision", {}).get("by")
+        if problem and problem["kind"] == "invalid-seal":
+            decided_by = None
+        if owner and (decided_by or "").casefold() != owner.casefold():
+            continue
         row = {"id": task["id"], "status": task["status"], "created": day, "owner": decided_by,
-               "brief": task["brief"].splitlines()[0][:80], "next": next_step(task)}
+               "brief": task["brief"].splitlines()[0][:80], "next": problem["message"] if problem else next_step(task)}
+        if problem:
+            row["approval_problem"] = problem["kind"]
         if task.get("follows"):
             row["follows"] = task["follows"]["task"]
         rows.append(row)
@@ -277,11 +294,13 @@ def record_consultation(
             if key in task:
                 archived[key] = task[key]
         rounds.append(archived)
-    result = {**task, "answers": validate_answers(answers), "rounds": rounds}
+    validated = validate_answers(answers)
+    result = {**task, "answers": validated, "rounds": rounds}
     result.update(
         status="consulting",
         consultation=consult(
-            resolved_profile(profile, catalog), catalog, result, selection, host_controls, market, storybook,
+            task_scope_profile(profile, catalog, validated.get("components", [])),
+            catalog, result, selection, host_controls, market, storybook,
             knowledge, tools,
         ),
         profile_fingerprint=profile_fingerprint(profile, catalog),
@@ -534,5 +553,6 @@ def record_authorization(task: dict, action: str, target: str, allow: bool, by: 
 
 def require_current_scope(task: dict, profile: dict, catalog: dict) -> None:
     if task.get("profile_fingerprint") != profile_fingerprint(profile, catalog):
-        next_step = "Open a new task." if task["status"] == "approved" else "Request changes and consult again."
-        raise ValueError(f"The project profile or catalog changed. {next_step}")
+        if task["status"] in ("approved", "done"):
+            raise ValueError(stale_approval_message(task["id"]))
+        raise ValueError("The project profile or catalog changed. Request changes and consult again.")
