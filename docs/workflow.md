@@ -148,6 +148,24 @@ openguildkit task decide request-status --request-changes --by "Camille Martin" 
 
 This works without a terminal. The next `task consult` archives the previous answers, consultation, review and decision in `rounds`, so the history of the task is kept.
 
+### Signed approvals
+
+A local approval is sealed with a SHA-256 of data that all sits in the task file. The seal detects an accidental edit; it does not prove who approved, because anyone who can write the file can recompute it. With `"guard": "enforce"`, `init`, `host check` and `check` say so in one line until the project requires signed approvals:
+
+```json
+"approval": {"mode": "signed", "allowed_signers": ".openguildkit/allowed_signers", "approvers": ["camille@example.org"]}
+```
+
+The allowed signers file uses the `ssh-keygen` format, one line per approver: `camille@example.org ssh-ed25519 AAAA...`. The approver then decides in three steps:
+
+```bash
+openguildkit task decision-payload request-status --by "Camille Martin" --reason "Read-only scope agreed" --output decision.json
+ssh-keygen -Y sign -f ~/.ssh/id_ed25519 -n openguildkit-decision decision.json
+openguildkit task decide request-status --approve --by "Camille Martin" --reason "Read-only scope agreed" --signature decision.json.sig --signer camille@example.org
+```
+
+A key protected by a passphrase or a hardware token keeps the agent from signing. The handoff, `task export`, the guard and the CI check refuse an approval without a valid signature; CI verifies it against the allowed signers of the pull request's base revision.
+
 ## 5. Hand off
 
 ```bash

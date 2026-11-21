@@ -7,22 +7,32 @@ and tells the requester which rules remain instructions or human checks.
 
 import json
 import re
+import shutil
 import tomllib
 from pathlib import Path
 
 from .storage import write_text
 
 HOSTS = ("claude-code", "codex", "other")
-APPROVAL_COMMANDS = (
-    ("openguildkit", "task", "decide"),
-    ("python", "-m", "openguildkit", "task", "decide"),
-    ("python3", "-m", "openguildkit", "task", "decide"),
-)
-TERMINAL_EMULATORS = ("script", "expect", "unbuffer")
+LAUNCHERS = (("openguildkit",), ("python", "-m", "openguildkit"), ("python3", "-m", "openguildkit"), ("py", "-m", "openguildkit"))
+APPROVAL_COMMANDS = tuple((*launcher, "task", "decide") for launcher in LAUNCHERS[:3])
+TERMINAL_EMULATORS = ("script", "expect", "unbuffer", "tmux", "screen")
 CLAUDE_RESEARCH_RULES = ("WebSearch", "WebFetch")
-CLAUDE_APPROVAL_RULES = tuple(f"Bash({' '.join(command)}:*)" for command in APPROVAL_COMMANDS) + tuple(
-    f"Bash({tool}:*)" for tool in TERMINAL_EMULATORS
+# Wildcards match every launcher (a venv path, python -m) and --project before the subcommand.
+CLAUDE_APPROVAL_PATTERNS = (
+    "*openguildkit* task decide*", "*openguildkit* task waive*", "*openguildkit* task authorize *--allow*",
+    "*import pty*", "*pty.spawn*", "*pty.fork*", "*openpty*", "*pexpect*", "*ptyprocess*",
 )
+CLAUDE_APPROVAL_RULES = (
+    tuple(f"Bash({' '.join(command)}:*)" for command in APPROVAL_COMMANDS)
+    + tuple(f"Bash({tool}:*)" for tool in TERMINAL_EMULATORS)
+    + tuple(f"Bash({pattern})" for pattern in CLAUDE_APPROVAL_PATTERNS)
+)
+# Files the guard relies on: the CLI writes them through its own commands.
+CLAUDE_PROTECTED_RULES = tuple(f"Edit(./{path})" for path in (
+    ".openguildkit/tasks/**", ".openguildkit/decisions/**", ".openguildkit/project.json",
+    ".openguildkit/catalog.lock.json", ".claude/settings.json", ".claude/settings.local.json",
+))
 CODEX_RULES_FILE = Path(".codex") / "rules" / "openguildkit.rules"
 CODEX_CONFIG_FILE = Path(".codex") / "config.toml"
 CLAUDE_SETTINGS_FILE = Path(".claude") / "settings.json"
@@ -107,12 +117,13 @@ def _codex_lift_web_search(path: Path, current: str, config: dict) -> str | None
 
 def _codex_rules() -> str:
     rules = [CODEX_RULES_HEADER]
-    for command in APPROVAL_COMMANDS:
-        pattern = ", ".join(json.dumps(part) for part in command)
-        rules.append(
-            f"prefix_rule(pattern = [{pattern}], decision = \"forbidden\", "
-            "justification = \"A person approves OpenGuildKit tasks in their own terminal.\")\n"
-        )
+    for launcher in LAUNCHERS:
+        for project in ((), ("--project", [".", "./"])):
+            pattern = ", ".join(json.dumps(part) for part in (*launcher, *project, "task", ["decide", "waive", "authorize"]))
+            rules.append(
+                f"prefix_rule(pattern = [{pattern}], decision = \"forbidden\", "
+                "justification = \"A person approves OpenGuildKit tasks in their own terminal.\")\n"
+            )
     for tool in TERMINAL_EMULATORS:
         rules.append(
             f"prefix_rule(pattern = [{json.dumps(tool)}], decision = \"forbidden\", "
@@ -162,6 +173,41 @@ def _control(control_id: str, title: str, status: str, detail: str) -> dict:
     return {"id": control_id, "title": title, "status": status, "detail": detail}
 
 
+def _board_control(root: Path, host: str) -> dict:
+    """Whether the guard hooks are installed, protect the files they rely on, and can run on this workstation."""
+    title = "The board is consulted before each change"
+    shell = " Shell commands (sed -i, echo > file) do not go through the hook."
+    if host == "claude-code":
+        settings = _claude_settings(root)
+        missing = [rule for rule in CLAUDE_PROTECTED_RULES if rule not in _claude_denied(root)]
+        present = _claude_hooks_present(settings.get("hooks", {})) and not missing
+        detail = (f"Claude Code hooks in {CLAUDE_SETTINGS_FILE.as_posix()} run openguildkit guard on each request and "
+                  "before file edits, and file edits to the task records, the profile and the settings are denied."
+                  + (f" Missing: {', '.join(missing)}." if missing else "") + shell)
+    elif host == "codex":
+        path = root / CODEX_HOOKS_FILE
+        present = path.is_file() and _claude_hooks_present(json.loads(path.read_text(encoding="utf-8-sig")).get("hooks", {}))
+        detail = (f"{CODEX_HOOKS_FILE.as_posix()} runs openguildkit guard on each request and before patches. "
+                  "Codex reads it only once the project is trusted and its hooks reviewed." + shell)
+    else:
+        return _control("board", title, "instruction",
+                        "This host has no known hook: AGENTS.md tells the agent to open a task, and CI checks decisions.")
+    if present and shutil.which("openguildkit") is None:
+        return _control("board", title, "missing",
+                        "The hooks call openguildkit, which is not on this workstation's PATH: the guard is not enforced "
+                        "here. Install it on the PATH (for example with pipx) or activate its environment before starting the agent.")
+    return _control("board", title, "enforced" if present else "missing", detail)
+
+
+def approval_warning(profile: dict) -> str | None:
+    """One line when the guard enforces but approvals are only sealed locally."""
+    if profile.get("guard", "off") != "enforce" or (profile.get("approval") or {}).get("mode") == "signed":
+        return None
+    return ("OpenGuildKit: guard is enforce but approvals are not signed: a local seal only detects accidental edits, "
+            "and an agent that can write files could forge one. Set \"approval\": {\"mode\": \"signed\", ...} "
+            "(docs/workflow.md#signed-approvals).")
+
+
 def host_controls(root: Path, profile: dict) -> list[dict]:
     """Say, for each project rule, whether the host enforces it, could but does not, or cannot."""
     host = profile.get("host", "other")
@@ -189,8 +235,9 @@ def host_controls(root: Path, profile: dict) -> list[dict]:
         missing = [rule for rule in CLAUDE_APPROVAL_RULES if rule not in denied]
         controls.append(_control(
             "approval", approval_title, "missing" if missing else "enforced",
-            "Claude Code denies the approval command and terminal emulators"
-            + (f"; missing: {', '.join(missing)}" if missing else ". Other ways to emulate a terminal stay possible."),
+            "Claude Code denies the approval, waiver and allow commands in every documented form, terminal emulators "
+            "and Python pseudo-terminals"
+            + (f"; missing: {', '.join(missing)}" if missing else ". A script file or a shell redirect can still get around them."),
         ))
     elif host == "codex":
         config = _codex_config(root)
@@ -215,8 +262,8 @@ def host_controls(root: Path, profile: dict) -> list[dict]:
         current = rules_path.read_text(encoding="utf-8") if rules_path.is_file() else ""
         controls.append(_control(
             "approval", approval_title, "enforced" if current == _codex_rules() else "missing",
-            f"{CODEX_RULES_FILE.as_posix()} forbids the approval command and terminal emulators. "
-            "Codex reads it only once the project is trusted.",
+            f"{CODEX_RULES_FILE.as_posix()} forbids the approval, waiver and authorization commands and terminal emulators. "
+            "Codex reads it only once the project is trusted; a script file or a Python pseudo-terminal can still get around it.",
         ))
     else:
         if local_only:
@@ -230,20 +277,7 @@ def host_controls(root: Path, profile: dict) -> list[dict]:
         ))
     guard = profile.get("guard", "off")
     if guard != "off":
-        hooks_title = "The board is consulted before each change"
-        if host == "claude-code":
-            present = _claude_hooks_present(_claude_settings(root).get("hooks", {}))
-            controls.append(_control("board", hooks_title, "enforced" if present else "missing",
-                                     f"Claude Code hooks in {CLAUDE_SETTINGS_FILE.as_posix()} run openguildkit guard on each request and before file edits."))
-        elif host == "codex":
-            path = root / CODEX_HOOKS_FILE
-            present = path.is_file() and _claude_hooks_present(json.loads(path.read_text(encoding="utf-8-sig")).get("hooks", {}))
-            controls.append(_control("board", hooks_title, "enforced" if present else "missing",
-                                     f"{CODEX_HOOKS_FILE.as_posix()} runs openguildkit guard on each request and before patches. "
-                                     "Codex reads it only once the project is trusted and its hooks reviewed."))
-        else:
-            controls.append(_control("board", hooks_title, "instruction",
-                                     "This host has no known hook: AGENTS.md tells the agent to open a task, and CI checks decisions."))
+        controls.append(_board_control(root, host))
     controls.append(_control(
         "external-actions", "External actions outside the authorized scope need a recorded decision", "human",
         "The agent asks the requester, who records the decision with openguildkit task authorize.",
@@ -266,6 +300,8 @@ def apply_host_settings(root: Path, profile: dict) -> list[str]:
         if not isinstance(deny, list):
             raise ValueError(f"{path}: permissions.deny must be a list.")
         wanted = list(CLAUDE_APPROVAL_RULES) + (list(CLAUDE_RESEARCH_RULES) if local_only else [])
+        if profile.get("guard", "off") != "off":
+            wanted += CLAUDE_PROTECTED_RULES
         deny.extend(rule for rule in wanted if rule not in deny)
         if not local_only:
             deny[:] = [rule for rule in deny if rule not in CLAUDE_RESEARCH_RULES]
