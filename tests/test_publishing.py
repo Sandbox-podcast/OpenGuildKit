@@ -221,34 +221,46 @@ class PublishingTests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, outside, True)
         (outside / "secret.md").write_text("outside", encoding="utf-8")
         refused = {
-            "a page that is not in an export folder": "notes.md",
-            "a task record": ".openguildkit/tasks/report.json",
-            "the state folder through a detour": "docs-site/../.openguildkit/tasks/report.json",
-            "a path that climbs out of the project": "../outside/f.md",
-            "an absolute path outside the project": str(outside / "secret.md"),
+            "notes.md": "not inside a docs export folder",
+            ".openguildkit/tasks/report.json": "under .openguildkit",
+            "docs-site/../.openguildkit/tasks/report.json": "under .openguildkit",
+            "../outside/f.md": "outside the project",
+            str(outside / "secret.md"): "outside the project",
         }
-        for label, path in refused.items():
-            with self.subTest(label):
-                self.run_cli("docs", "share", "add", "--deliverable", path, "--recipient", "reader@example.test",
-                             "--until", until, "--portal", "https://docs.example.test/p/portal", "--by", "Camille", code=1)
-        link = self.root / "docs-site" / "leak.md"
-        try:
-            link.symlink_to(outside / "secret.md")
-        except (OSError, NotImplementedError):
-            pass  # Windows without the privilege to create links: the other refusals cover the rule
-        else:
-            self.run_cli("docs", "share", "add", "--deliverable", "docs-site/leak.md", "--recipient",
-                         "reader@example.test", "--until", until, "--portal", "https://docs.example.test/p/portal",
-                         "--by", "Camille", code=1)
+        for path, reason in refused.items():
+            with self.subTest(path=path):
+                _, error = self.run_cli("docs", "share", "add", "--deliverable", path, "--recipient", "reader@example.test",
+                                        "--until", until, "--portal", "https://docs.example.test/p/portal", "--by", "Camille", code=1)
+                self.assertIn(reason, error)
         self.assertEqual(json.loads(self.run_cli("docs", "share", "list", "--json")[0]), [])
         self.run_cli("docs", "share", "add", "--deliverable", "docs-site", "--recipient", "reader@example.test",
                      "--until", until, "--portal", "https://docs.example.test/p/portal", "--by", "Camille")
 
-    def test_a_deliverable_is_written_inside_the_project_and_outside_the_state_folder(self):
-        for output in ("../elsewhere.md", ".openguildkit/draft.md"):
-            with self.subTest(output=output):
-                self.run_cli("deliverable", "new", "support-article", "--task", "none", "--tool", "Notion",
-                             "--output", output, code=1)
+    def test_a_share_refuses_a_path_through_a_link_out_of_the_export(self):
+        outside = self.root / "private"
+        outside.mkdir()
+        (outside / "page.md").write_text("outside the export", encoding="utf-8")
+        link = self.root / "docs-site" / "linked-folder"
+        try:
+            link.symlink_to(outside, target_is_directory=True)
+        except OSError:
+            if os.name != "nt":
+                raise
+            # A directory junction does not require Windows symlink privileges.
+            subprocess.run(["cmd.exe", "/d", "/c", "mklink", "/J", r"docs-site\linked-folder", "private"],
+                           cwd=self.root, capture_output=True, check=True)
+        try:
+            until = (date.today() + timedelta(days=30)).isoformat()
+            _, error = self.run_cli("docs", "share", "add", "--deliverable", "docs-site/linked-folder/page.md",
+                                    "--recipient", "reader@example.test", "--until", until,
+                                    "--portal", "https://docs.example.test/p/portal", "--by", "Camille", code=1)
+            self.assertIn("not inside a docs export folder", error)
+            self.assertEqual(json.loads(self.run_cli("docs", "share", "list", "--json")[0]), [])
+        finally:
+            if link.is_symlink():
+                link.unlink()
+            else:
+                link.rmdir()
 
     def test_share_dates_portal_and_revocation_are_checked(self):
         common = ["docs", "share", "add", "--deliverable", "docs-site/d.md", "--recipient", "reader@example.test",

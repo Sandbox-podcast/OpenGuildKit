@@ -94,6 +94,21 @@ class DeliverableTests(unittest.TestCase):
         self.run_cli("deliverable", "new", "social-media-plan", "--task", "launch", "--output", "social.md")
         self.assertNotIn("tool:", (self.root / "social.md").read_text(encoding="utf-8"))
 
+    def test_an_approved_task_cannot_write_a_draft_outside_the_project_or_to_task_records(self):
+        self.approved_task()
+        escape = f"../{self.root.name}-outside.md"
+        self.addCleanup((self.root / escape).unlink, missing_ok=True)
+        for output, reason in (
+            (escape, "--output must name a file inside the project"),
+            (".openguildkit/draft.md", "--output cannot be under .openguildkit"),
+        ):
+            with self.subTest(output=output):
+                _, error = self.run_cli("deliverable", "new", "social-media-plan", "--task", "launch", "--output", output, code=1)
+                self.assertIn(reason, error)
+                self.assertFalse((self.root / output).exists())
+        record = json.loads(self.run_cli("task", "show", "launch")[0])
+        self.assertFalse(record.get("deliverables"))
+
     def filled(self, draft):
         """A draft with every placeholder, source and check completed."""
         text = draft.replace("TODO: each source with its date or link", "Customer interviews, 2026-11-02").replace("TODO", "Filled.")

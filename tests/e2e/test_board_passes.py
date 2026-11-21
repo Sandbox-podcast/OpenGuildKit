@@ -66,18 +66,28 @@ class BoardPassTests(CliTestCase):
     def test_one_submission_reports_every_problem_and_the_corrected_file_goes_through(self):
         self.consult_example()
         entry = copy.deepcopy(self.entries()["security"])
-        path = self.write_json("security.json", entry)
-        refused = self.run_cli("task", "submit", TASK_ID, "--file", path, expect=1)
-        self.assertIn("pass was not started", refused.stderr)
+        for board_id in ("security", " security "):
+            with self.subTest(board_id=board_id):
+                path = self.write_json("security.json", {**entry, "id": board_id})
+                refused = self.run_cli("task", "submit", TASK_ID, "--file", path, expect=1)
+                self.assertIn("pass was not started", refused.stderr)
 
         self.run_cli("task", "pass", TASK_ID, "security", "--mode", "subagent")
         entry["challenge"]["confidence"] = "top"
         entry["challenge"]["specialists"][0]["basis"] = "seen"
         entry["challenge"]["specialists"][1]["evidence_refs"] = [0]
+        entry["challenge"]["blockers"] = [{"owner": " ", "phase": "deploy"}]
+        entry["evidence"][0].update(source="rumour", ref=" ", supports=" ", date="yesterday", revision="short")
         failed = self.run_cli("task", "submit", TASK_ID, "--file", self.write_json("bad.json", entry), expect=1).stderr
         for expected in ("challenge.confidence: must be one of low, medium, high (got 'top')",
                          "challenge.specialists[1].basis: must be one of observed, assumption, missing (got 'seen')",
                          "challenge.specialists[2].evidence_refs: [0] is not a valid position",
+                         "challenge.blockers[1].finding: missing key",
+                         "challenge.blockers[1].clears_when: missing key",
+                         "challenge.blockers[1].owner:",
+                         "challenge.blockers[1].phase: must be one of approval, verification",
+                         "evidence[1].source: must be one of", "evidence[1].ref:", "evidence[1].supports:",
+                         "evidence[1].date:", "evidence[1].revision:",
                          "counted from 1", "Correct the file and send it again", "no new pass is needed"):
             self.assertIn(expected, failed)
 

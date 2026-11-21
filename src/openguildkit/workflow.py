@@ -927,34 +927,45 @@ def _evidence_item(
     if source not in EVIDENCE_SOURCES:
         raise ValueError(f"{field}: source must be one of {', '.join(EVIDENCE_SOURCES)}.")
     result = {"source": source, "ref": _text(item["ref"], f"{field} ref"), "supports": _text(item["supports"], f"{field} supports")}
-    if result["ref"].startswith("market:") and result["ref"] not in market_refs:
-        raise ValueError(f"{field}: {result['ref']} is not an observation or change of the attached market dossier.")
-    if result["ref"].startswith("storybook:") and result["ref"] not in storybook_refs:
-        raise ValueError(f"{field}: {result['ref']} is not a story of the Storybook indexes the project recorded.")
+    _validate_evidence_ref(result["ref"], source, field, market_refs, storybook_refs, tool_ids, root)
+    if "date" in item:
+        result["date"] = _evidence_day(item["date"], field)
+    if "revision" in item:
+        result["revision"] = _evidence_revision(item["revision"], field)
+    if source in DATED_SOURCES and "date" not in result and not result["ref"].startswith("market:"):
+        raise ValueError(f"{field}: a {source} source needs the date it was observed.")
+    return result
+
+
+def _evidence_revision(value: object, field: str) -> str:
+    if not isinstance(value, str) or not _REVISION.fullmatch(value):
+        raise ValueError(f"{field}: revision must be a commit SHA.")
+    return value
+
+
+def _validate_evidence_ref(
+    ref: str, source: str, field: str, market_refs: frozenset, storybook_refs: frozenset,
+    tool_ids: frozenset, root: Path | None,
+) -> None:
+    if ref.startswith("market:") and ref not in market_refs:
+        raise ValueError(f"{field}: {ref} is not an observation or change of the attached market dossier.")
+    if ref.startswith("storybook:") and ref not in storybook_refs:
+        raise ValueError(f"{field}: {ref} is not a story of the Storybook indexes the project recorded.")
     if source == "tool":
-        tool_id, separator, record = result["ref"].partition(":")
+        tool_id, separator, record = ref.partition(":")
         if not separator or not record.strip() or tool_id not in tool_ids:
             connected = ", ".join(sorted(tool_ids)) or "none"
             raise ValueError(
                 f"{field}: a tool source is written TOOL:RECORD (for example jira:SUP-142) for a tool connected to the "
                 f"project. Connected: {connected}."
             )
-    if source == "public" and not result["ref"].startswith("market:"):
-        if not result["ref"].startswith("https://"):
+    if source == "public" and not ref.startswith("market:"):
+        if not ref.startswith("https://"):
             raise ValueError(f"{field}: a public source needs an https link in ref.")
         if root is not None:
-            public_evidence_url(result["ref"], field)
+            public_evidence_url(ref, field)
     if root is not None and source in ("project-file", "test"):
-        _project_path(result["ref"], field, root)
-    if "date" in item:
-        result["date"] = _evidence_day(item["date"], field)
-    if "revision" in item:
-        if not isinstance(item["revision"], str) or not _REVISION.fullmatch(item["revision"]):
-            raise ValueError(f"{field}: revision must be a commit SHA.")
-        result["revision"] = item["revision"]
-    if source in DATED_SOURCES and "date" not in result and not result["ref"].startswith("market:"):
-        raise ValueError(f"{field}: a {source} source needs the date it was observed.")
-    return result
+        _project_path(ref, field, root)
 
 
 def market_references(scope: dict) -> frozenset:
@@ -994,14 +1005,18 @@ def _evidence_list(
     return [_evidence_item(item, field, market_refs, storybook_refs, tool_ids, root) for item in value]
 
 
+BLOCKER_FIELDS = ("finding", "owner", "clears_when")
+BLOCKER_PHASES = ("approval", "verification")
+
+
 def _blocker(item: object, board_id: str) -> dict:
     """A blocking finding names who can resolve it and what would clear it."""
-    required = {"finding", "owner", "clears_when"}
+    required = set(BLOCKER_FIELDS)
     if not isinstance(item, dict) or not required <= item.keys() <= required | {"phase"}:
         raise ValueError(f"Each {board_id} blocker needs finding, owner and clears_when.")
-    result = {key: _text(item[key], f"{board_id} blocker {key}") for key in ("finding", "owner", "clears_when")}
+    result = {key: _text(item[key], f"{board_id} blocker {key}") for key in BLOCKER_FIELDS}
     if "phase" in item:
-        if item["phase"] not in ("approval", "verification"):
+        if item["phase"] not in BLOCKER_PHASES:
             raise ValueError(f"{board_id} blocker phase must be approval or verification.")
         result["phase"] = item["phase"]
     return result
@@ -1065,18 +1080,10 @@ def _validate_challenge(
     missing = [specialist_id for specialist_id in expected if specialist_id not in findings]
     if missing:
         raise ValueError(f"{board_id} specialist findings are missing for {', '.join(missing)}.")
-    observed = any(finding["basis"] == "observed" for finding in findings.values())
-    if (verdict == "proceed" or confidence == "high") and not observed:
-        raise ValueError(f"{board_id} needs an observed finding and cited evidence for this review.")
-    if (verdict == "proceed" or confidence == "high") and evidence and isinstance(evidence[0], dict):
-        cited = {
-            index for finding in findings.values() if finding["basis"] == "observed" for index in finding["evidence_refs"]
-        }
-        if all(evidence[index - 1]["source"] == "requester" for index in cited):
-            raise ValueError(
-                f"{board_id}: the requester's own words cannot be the only evidence for this verdict. "
-                "Cite a project file, test, measurement or other inspected source."
-            )
+    cited = {
+        index for finding in findings.values() if finding["basis"] == "observed" for index in finding["evidence_refs"]
+    }
+    _require_observed_evidence(board_id, verdict, confidence, cited, evidence)
     if structured:
         if not isinstance(challenge["blockers"], list):
             raise ValueError(f"{board_id} blockers must be a list.")
@@ -1098,6 +1105,18 @@ def _validate_challenge(
         "verification": _text(challenge["verification"], f"{board_id} verification"),
         "blockers": blockers,
     }
+
+
+def _require_observed_evidence(board: str, verdict: object, confidence: object, cited: set[int], evidence: list) -> None:
+    if verdict != "proceed" and confidence != "high":
+        return
+    if not cited:
+        raise ValueError(f"{board} needs an observed finding and cited evidence for this review.")
+    if evidence and isinstance(evidence[0], dict) and all(evidence[index - 1]["source"] == "requester" for index in cited):
+        raise ValueError(
+            f"{board}: the requester's own words cannot be the only evidence for this verdict. "
+            "Cite a project file, test, measurement or other inspected source."
+        )
 
 
 EXECUTION_MODES = ("subagents", "sequential", "mixed", "unspecified")
@@ -1143,89 +1162,158 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
 
 
 def entry_problems(consultation: dict, entry: object, root: Path | None = None) -> list[str]:
-    """Every problem of a board entry, each with the path of its key and the values allowed, so that one
-    submission is enough to fix a file. Used after validate_board_entry has refused the entry."""
+    """Report independent problems with their JSON field paths after a board entry is refused."""
     if not isinstance(entry, dict):
         return ["A board review must be a JSON object."]
-    board_id = entry.get("id") if isinstance(entry.get("id"), str) else "?"
-    problems: list[str] = []
-
-    def collect(path: str, check) -> None:
-        try:
-            check()
-        except ValueError as error:
-            problems.append(f"{path}: {error}")
-
+    raw_id = entry.get("id")
+    board_id = raw_id.strip() if isinstance(raw_id, str) else None
     if board_id not in consultation["boards"]:
-        return [f"id: Board {board_id!r} was not selected for this consultation: {', '.join(consultation['boards'])}."]
-    templates = {item["id"]: item for item in consultation.get("review_template", {}).get("boards", [])}
+        return [f"id: Board {raw_id!r} was not selected for this consultation: {', '.join(consultation['boards'])}."]
+
+    class Problems(list):
+        def check(self, path: str, validator, *args):
+            try:
+                return validator(*args)
+            except ValueError as error:
+                self.append(f"{path}: {error}")
+                return None
+
+        def fields(self, obj: dict, path: str, required, optional=()) -> None:
+            expected = set(required)
+            allowed = expected | set(optional)
+            prefix = f"{path}." if path else ""
+            for key in sorted(expected - obj.keys()):
+                self.append(f"{prefix}{key}: missing key.")
+            for key in sorted(obj.keys() - allowed):
+                self.append(f"{prefix}{key}: unexpected key. The keys are {', '.join(sorted(allowed))}.")
+
+        def choice(self, obj: dict, key: str, path: str, allowed) -> None:
+            if key in obj and obj[key] not in allowed:
+                self.append(f"{path}.{key}: must be one of {', '.join(allowed)} (got {obj[key]!r}).")
+
+        def text_fields(self, obj: dict, prefix: str, fields) -> None:
+            for key in fields:
+                if key in obj:
+                    self.check(f"{prefix}.{key}" if prefix else key, _text, obj[key], key)
+
+        def text_list(self, items: object, path: str) -> None:
+            if not isinstance(items, list):
+                self.append(f"{path}: must be a list.")
+                return
+            for index, item in enumerate(items, start=1):
+                self.check(f"{path}[{index}]", _text, item, "Item")
+
+    problems = Problems()
+    templates = {template["id"]: template for template in consultation.get("review_template", {}).get("boards", [])}
     template = templates.get(board_id, {})
-    fields = {"id", "recommendation", "evidence", "open_questions"}
-    if "challenge" in template:
-        fields.add("challenge")
-    if "reviewer" in template:
-        fields.add("reviewer")
-    for key in sorted(fields - entry.keys()):
-        problems.append(f"{key}: missing key.")
-    for key in sorted(entry.keys() - fields):
-        problems.append(f"{key}: unexpected key. The keys are {', '.join(sorted(fields))}.")
-    if "recommendation" in entry:
-        collect("recommendation", lambda: _text(entry["recommendation"], "Recommendation"))
+    fields = {"id", "recommendation", "evidence", "open_questions"} | ({"challenge", "reviewer"} & template.keys())
+    problems.fields(entry, "", fields)
+    problems.text_fields(entry, "", ("recommendation", "reviewer"))
     if "open_questions" in entry:
-        collect("open_questions", lambda: _text_list(entry["open_questions"], "Open questions"))
+        problems.text_list(entry["open_questions"], "open_questions")
+
+    structured = consultation.get("evidence_format") == "structured"
+    evidence = entry.get("evidence")
+    first_evidence_problem = len(problems)
     if "evidence" in entry:
-        structured = consultation.get("evidence_format") == "structured"
-        scope = consultation.get("scope", {})
-        extra = (market_references(scope), storybook_references(scope), tool_references(scope), root)
-        if isinstance(entry["evidence"], list):
-            for position, item in enumerate(entry["evidence"], start=1):
-                collect(f"evidence[{position}]", lambda item=item: _evidence_list([item], "evidence", structured, *extra))
+        if not structured or not isinstance(evidence, list):
+            problems.text_list(evidence, "evidence")
         else:
-            collect("evidence", lambda: _evidence_list(entry["evidence"], "evidence", structured, *extra))
-    challenge = entry.get("challenge")
-    if "challenge" in template and isinstance(challenge, dict):
-        shape = template["challenge"]
-        for key in sorted(shape.keys() - challenge.keys()):
-            problems.append(f"challenge.{key}: missing key.")
-        for key in sorted(challenge.keys() - shape.keys()):
-            problems.append(f"challenge.{key}: unexpected key.")
-        for field, allowed in (("verdict", VERDICTS), ("confidence", CONFIDENCES)):
-            if field in challenge and challenge[field] not in allowed:
-                problems.append(f"challenge.{field}: must be one of {', '.join(allowed)} (got {challenge[field]!r}).")
-        for field in ("alternative", "failure_mode", "verification"):
-            if field in challenge:
-                collect(f"challenge.{field}", lambda field=field: _text(challenge[field], field))
-        specialists = challenge.get("specialists")
-        count = len(entry["evidence"]) if isinstance(entry.get("evidence"), list) else 0
-        if isinstance(specialists, list):
-            expected = [item["id"] for item in shape["specialists"]]
-            present = set()
-            for position, lens in enumerate(specialists, start=1):
-                where = f"challenge.specialists[{position}]"
-                if not isinstance(lens, dict):
-                    problems.append(f"{where}: must be an object.")
+            scope = consultation.get("scope", {})
+            context = (market_references(scope), storybook_references(scope), tool_references(scope), root)
+            for index, item in enumerate(evidence, start=1):
+                field = f"evidence[{index}]"
+                if not isinstance(item, dict):
+                    problems.append(f"{field}: must be an object with source, ref and supports.")
                     continue
-                specialist_id = lens.get("id")
-                if not isinstance(specialist_id, str) or specialist_id not in expected:
-                    problems.append(f"{where}.id: {specialist_id!r} is not one of {', '.join(expected)}.")
-                elif specialist_id in present:
-                    problems.append(f"{where}.id: {specialist_id!r} is repeated.")
-                else:
-                    present.add(specialist_id)
-                collect(f"{where}.finding", lambda lens=lens: _text(lens.get("finding"), "Specialist finding"))
-                if lens.get("basis") not in BASES:
-                    problems.append(f"{where}.basis: must be one of {', '.join(BASES)} (got {lens.get('basis')!r}).")
-                refs = lens.get("evidence_refs")
-                if not isinstance(refs, list) or any(type(r) is not int or not 1 <= r <= count for r in refs):
-                    problems.append(f"{where}.evidence_refs: {_refs_hint(refs, count)}")
-                elif lens.get("basis") == "observed" and not refs:
-                    problems.append(f"{where}.evidence_refs: an observed finding cites at least one position.")
-            for missing in sorted(set(expected) - present):
-                problems.append(f"challenge.specialists: no finding for {missing}.")
-        elif "specialists" in challenge:
-            problems.append("challenge.specialists: must be a list.")
-    elif "challenge" in entry and "challenge" in template:
+                problems.fields(item, field, ("source", "ref", "supports"), ("date", "revision"))
+                problems.choice(item, "source", field, EVIDENCE_SOURCES)
+                problems.text_fields(item, field, ("supports",))
+                ref = problems.check(f"{field}.ref", _text, item["ref"], "Reference") if "ref" in item else None
+                source = item.get("source")
+                if ref and source in EVIDENCE_SOURCES:
+                    problems.check(f"{field}.ref", _validate_evidence_ref, ref, source, "Reference", *context)
+                if "date" in item:
+                    problems.check(f"{field}.date", _evidence_day, item["date"], "Evidence")
+                elif ref and source in DATED_SOURCES and not ref.startswith("market:"):
+                    problems.append(f"{field}.date: a {source} source needs the date it was observed.")
+                if "revision" in item:
+                    problems.check(f"{field}.revision", _evidence_revision, item["revision"], "Evidence")
+    evidence_valid = isinstance(evidence, list) and len(problems) == first_evidence_problem
+
+    if "challenge" not in template or "challenge" not in entry:
+        return problems
+    challenge = entry["challenge"]
+    if not isinstance(challenge, dict):
         problems.append("challenge: must be an object.")
+        return problems
+    shape = template["challenge"]
+    problems.fields(challenge, "challenge", shape)
+    problems.choice(challenge, "verdict", "challenge", VERDICTS)
+    problems.choice(challenge, "confidence", "challenge", CONFIDENCES)
+    problems.text_fields(challenge, "challenge", ("alternative", "failure_mode", "verification"))
+    verdict, confidence = challenge.get("verdict"), challenge.get("confidence")
+    if verdict == "insufficient-evidence" and confidence in ("medium", "high"):
+        problems.append("challenge.confidence: must be low when the verdict is insufficient-evidence.")
+
+    specialists = challenge.get("specialists")
+    count = len(evidence) if isinstance(evidence, list) else 0
+    if isinstance(specialists, list):
+        first_specialist_problem = len(problems)
+        expected = [item["id"] for item in shape["specialists"]]
+        present, cited = set(), set()
+        for position, lens in enumerate(specialists, start=1):
+            field = f"challenge.specialists[{position}]"
+            if not isinstance(lens, dict):
+                problems.append(f"{field}: must be an object.")
+                continue
+            problems.fields(lens, field, ("id", "finding", "basis", "evidence_refs"))
+            if "id" in lens:
+                specialist_id = problems.check(f"{field}.id", _text, lens["id"], "Specialist ID")
+                if specialist_id is not None:
+                    if specialist_id not in expected:
+                        problems.append(f"{field}.id: must be one of {', '.join(expected)} (got {specialist_id!r}).")
+                    elif specialist_id in present:
+                        problems.append(f"{field}.id: {specialist_id!r} is repeated.")
+                    else:
+                        present.add(specialist_id)
+            problems.text_fields(lens, field, ("finding",))
+            problems.choice(lens, "basis", field, BASES)
+            if "evidence_refs" not in lens:
+                continue
+            refs = lens["evidence_refs"]
+            if not isinstance(refs, list) or any(type(ref) is not int or not 1 <= ref <= count for ref in refs):
+                problems.append(f"{field}.evidence_refs: {_refs_hint(refs, count)}")
+            elif lens.get("basis") == "observed":
+                if not refs:
+                    problems.append(f"{field}.evidence_refs: an observed finding cites at least one position.")
+                cited.update(refs)
+        for missing in sorted(set(expected) - present):
+            problems.append(f"challenge.specialists: no finding for {missing}.")
+        if evidence_valid and len(problems) == first_specialist_problem:
+            problems.check("challenge.specialists", _require_observed_evidence, board_id, verdict, confidence, cited, evidence)
+    elif "specialists" in challenge:
+        problems.append("challenge.specialists: must be a list.")
+
+    if "blockers" in challenge:
+        blockers = challenge["blockers"]
+        if not structured or not isinstance(blockers, list):
+            problems.text_list(blockers, "challenge.blockers")
+        else:
+            for position, blocker in enumerate(blockers, start=1):
+                field = f"challenge.blockers[{position}]"
+                if not isinstance(blocker, dict):
+                    problems.append(f"{field}: must be an object.")
+                    continue
+                problems.fields(blocker, field, BLOCKER_FIELDS, ("phase",))
+                problems.text_fields(blocker, field, BLOCKER_FIELDS)
+                problems.choice(blocker, "phase", field, BLOCKER_PHASES)
+        if isinstance(blockers, list) and verdict == "block" and not blockers:
+            problems.append("challenge.blockers: must name the blocking findings when the verdict is block.")
+        if isinstance(blockers, list) and verdict == "proceed" and any(
+            not isinstance(blocker, dict) or blocker.get("phase") != "verification" for blocker in blockers
+        ):
+            problems.append("challenge.blockers: proceed permits only verification blockers.")
     return problems
 
 
@@ -1348,6 +1436,7 @@ def board_brief(consultation: dict, board_id: str) -> str:
             "",
             "Allowed values: verdict is one of " + ", ".join(VERDICTS) + "; confidence is one of "
             + ", ".join(CONFIDENCES) + "; a specialist's basis is one of " + ", ".join(BASES)
+            + "; blocker phase is one of " + ", ".join(BLOCKER_PHASES)
             + ". evidence_refs lists positions counted from 1 in this entry's own evidence array "
             "(with 2 evidence items, the valid positions are 1 and 2; 0 is never valid).",
             "",

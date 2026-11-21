@@ -364,8 +364,9 @@ def start_pass(task: dict, board_id: str, mode: str) -> dict:
 def submit_pass(task: dict, entry: dict, mode: str | None = None, root: Path | None = None) -> dict:
     """Record one board's entry. An invalid entry is recorded as a failure to retry."""
     passes = _passes(task)
-    board_id = entry.get("id") if isinstance(entry, dict) else None
-    current = passes["boards"].get(board_id, {}) if isinstance(board_id, str) else {}
+    raw_id = entry.get("id") if isinstance(entry, dict) else None
+    board_id = raw_id.strip() if isinstance(raw_id, str) else None
+    current = passes["boards"].get(board_id, {})
     mode = mode or current.get("mode", "sequential")
     if isinstance(board_id, str) and board_id in task["consultation"]["boards"] and current.get("status") not in (
             "started", "failed", "done"):

@@ -3,6 +3,8 @@
 import contextlib
 import io
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -102,6 +104,19 @@ class SuggestedChecksTests(unittest.TestCase):
             json.dumps({"scripts": {"test": 'echo "Error: no test specified" && exit 1'}}), encoding="utf-8")
         (root / "pyproject.toml").write_text("[tool.pytest.ini_options]\n", encoding="utf-8")
         self.assertEqual(suggest_checks(root), ["python -m pytest"])
+
+    def test_the_suggested_unittest_command_runs_tests_at_the_project_root(self):
+        root = self.folder()
+        (root / "test_root.py").write_text(
+            "import unittest\n"
+            "class RootTest(unittest.TestCase):\n"
+            "    def test_root(self): pass\n",
+            encoding="utf-8",
+        )
+        (command,) = suggest_checks(root)
+        result = subprocess.run([sys.executable, *command.split()[1:]], cwd=root, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Ran 1 test", result.stderr)
 
     def test_init_offers_them_as_the_default_of_the_checks_question(self):
         root = self.folder()

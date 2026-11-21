@@ -48,11 +48,12 @@ def suggest_checks(root: Path) -> list[str]:
         if isinstance(scripts, dict) and isinstance(scripts.get("lint"), str):
             found.append("npm run lint")
     pyproject = _read(root / "pyproject.toml")
-    has_python_tests = any(root.glob("tests/**/test_*.py")) or any(root.glob("test_*.py"))
     if "pytest" in pyproject or (root / "pytest.ini").is_file() or "pytest" in _read(root / "tox.ini"):
         found.append("python -m pytest")
-    elif has_python_tests:
+    elif any(path.is_file() for path in root.glob("tests/**/test_*.py")):
         found.append("python -m unittest discover -s tests")
+    elif any(path.is_file() for path in root.glob("test_*.py")):
+        found.append("python -m unittest discover")
     if _find(root, "*.sln") or _find(root, "*.csproj"):
         found.append("dotnet test")
     if (root / "pom.xml").is_file():
