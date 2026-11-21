@@ -78,6 +78,7 @@ openguildkit brains --id product
 
 - [Architecture](docs/architecture.md) et [parcours d'une tâche](docs/workflow.md)
 - [Dossiers marché et veille concurrentielle](docs/market.md)
+- [Alertes de dépendances et veille des vulnérabilités](docs/alerts.md)
 - [Livrables métier issus des tâches approuvées](docs/deliverables.md)
 - [Storybook du projet, design system de l’entreprise et extraction](docs/storybook.md)
 - [Documentation du projet et partage avec Documentalist](docs/documentation.md)

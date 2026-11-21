@@ -11,19 +11,44 @@ A dossier is a JSON file in `.openguildkit/market/ID.json`, shared through git. 
 - `observations` record what a competitor offers, each with a `source` (`ref` and `date`): a public page, a sales call note, an interview.
 - `unknowns` lists what the team still needs to find out.
 
+Dates are written `YYYY-MM-DD` and cannot be in the future (one day of margin for time zones). Each list field must be a JSON list and `paused` is `true` or `false`; a malformed dossier gets a one-line error.
+
+## Record through commands
+
+The commands below create and update a dossier without editing the JSON; each one validates the whole dossier before writing it.
+
 ```bash
+openguildkit market new ID --market "B2B software vendors" --audience "Support leads" --feature "Request status"
+openguildkit market describe ID --feature "Request status and next step"
+openguildkit market competitor ID --competitor vendor-a --name "Vendor A" --kind direct --url https://example.com/vendor-a
+openguildkit market observe ID --competitor vendor-a --observation a-status-page --claim "Shows a status per request." --source "Sales call notes" --date 2026-11-02
+openguildkit market unknown ID --text "Prices of the portal option."      # --remove once it is known
 openguildkit market check ID
 openguildkit task consult TASK --answers answers.json --market ID
 ```
 
-`market check` validates the dossier and lists its gaps: a missing kind of competitor, a competitor without an observation, observations older than 180 days, and, under the `local-only` research policy, public pages to confirm and public research still to do. With `--market`, the consultation carries the observations with their age and the gaps. A board cites an observation as evidence with `"ref": "market:ID/OBSERVATION"`; the CLI refuses a reference that is not in the attached dossier. Under `local-only`, the dossier only holds material the team provided, and the gaps say what remains to document.
+`market new` creates a dossier that `market check` accepts; what is not given yet is marked "To describe." and listed as a gap. `market observe` with an existing observation ID replaces it, so a refresh keeps one entry.
+
+`market check` validates the dossier and lists its gaps: a field to describe, a missing kind of competitor, a competitor without an observation, observations older than 180 days, and, under the `local-only` research policy, observations and changes that cite a public page (to confirm a person provided them) and public research still to do. With `--market`, the consultation carries the observations with their age and the gaps. A board cites an observation as evidence with `"ref": "market:ID/OBSERVATION"`; the CLI refuses a reference that is not in the attached dossier. Under `local-only`, the dossier only holds material the team provided, and the gaps say what remains to document.
 
 ## Competitor watch
 
 A dossier can keep a `watch`: the public pages to follow per competitor (release notes, pricing, announcements, funding news), the review interval `every_days`, and `paused` to suspend it.
 
 ```bash
-openguildkit market due ID
+openguildkit market watch ID --competitor vendor-a --url https://example.com/vendor-a/release-notes --kind "release notes" --every-days 30
+openguildkit market due ID                 # or --all for every dossier, --json for a script
+openguildkit market checked ID --url https://example.com/vendor-a/release-notes
+openguildkit market change ID --competitor vendor-a --what "Added priority labels." --source https://example.com/vendor-a/release-notes --date 2026-11-10 --verified-by "Camille Martin"
+openguildkit market pause ID               # resume restarts the watch
 ```
 
-`market due` lists the sources whose last check is older than the interval. The host agent reviews them only when the project's research policy allows public sources, then records each change it retains in `watch.changes` with what changed, its date, the source link and the person who verified it, and updates `last_checked`. Consultations carry the changes with their age; a board cites one with `market:ID/change-N`. The CLI itself never opens the network.
+`market due` lists the sources whose last check is older than the interval. The sources are reviewed only when the project's research policy allows public sources. `market checked` records a review with nothing to keep; `market change` records a retained change with what changed, its date, the source link and the person who verified it. Both set `last_checked` of the watched source to today (for `market change`, when its `--source` is a watched page). Consultations carry the changes with their age; a board cites one with `market:ID/change-N`. The CLI itself never opens the network.
+
+## The `market-analyst` agent
+
+`openguildkit integrations --host claude-code` installs `.claude/agents/market-analyst.md` next to `guild-board`. It fills and refreshes a dossier through the commands above only. Under `local-only` it works from the documents the team provides and records what needs a public page as an unknown. Under `public-sources` it may also read the approved public pages of the dossier, dates and sources each observation, reads nothing behind a login, collects no personal data and respects the sites' terms. When the project connected a browser tool from the [tool registry](tools.md) (Obscura or Playwright), it may read public pages with it, within the same limits.
+
+## Scheduled watch
+
+[`integrations/github/openguildkit-market-watch.yml`](../integrations/github/openguildkit-market-watch.yml) runs `openguildkit market due --all --json` every Monday and opens one issue per source to review, unless an open issue already has its title. The issue says which command records the result. The job opens no competitor page itself. Its actions are pinned by commit SHA.

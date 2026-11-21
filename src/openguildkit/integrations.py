@@ -1,4 +1,4 @@
-"""Install the agent skill and the board subagent shipped with this version of OpenGuildKit."""
+"""Install the agent skill and the subagents (board, market analyst, dependency watch) shipped with this version."""
 
 from importlib.resources import files
 from pathlib import Path
@@ -10,6 +10,8 @@ HOST_FILES = {
     "claude-code": {
         "skills/openguildkit/SKILL.md": Path(".claude") / "skills" / "openguildkit" / "SKILL.md",
         "agents/guild-board.md": Path(".claude") / "agents" / "guild-board.md",
+        "agents/market-analyst.md": Path(".claude") / "agents" / "market-analyst.md",
+        "agents/dependency-watch.md": Path(".claude") / "agents" / "dependency-watch.md",
     },
     "codex": {
         "skills/openguildkit/SKILL.md": Path(".agents") / "skills" / "openguildkit" / "SKILL.md",

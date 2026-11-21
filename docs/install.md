@@ -35,10 +35,10 @@ Check the version you installed with `openguildkit --version`. From the project 
 
 ## Set up the agent
 
-The wheel ships the agent skill and the board subagent of the same version. From the project:
+The wheel ships the agent skill and the subagents (board, market analyst, dependency watch) of the same version. From the project:
 
 ```sh
-openguildkit integrations --host claude-code   # .claude/skills/openguildkit and .claude/agents/guild-board.md
+openguildkit integrations --host claude-code   # .claude/skills/openguildkit and .claude/agents/ (guild-board, market-analyst, dependency-watch)
 openguildkit integrations --host codex         # .agents/skills/openguildkit
 ```
 

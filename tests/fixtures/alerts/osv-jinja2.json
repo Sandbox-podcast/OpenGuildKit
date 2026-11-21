@@ -1,0 +1,4 @@
+{"results": [{"source": {"path": "requirements.txt", "type": "lockfile"}, "packages": [
+  {"package": {"name": "Jinja2", "version": "3.1.2", "ecosystem": "PyPI"},
+   "vulnerabilities": [{"id": "PYSEC-2024-1", "aliases": ["CVE-2024-22195", "GHSA-h5c8-rqwp-cp95"], "summary": "Jinja vulnerable to HTML attribute injection", "database_specific": {"severity": "MODERATE"}}]}
+]}]}
