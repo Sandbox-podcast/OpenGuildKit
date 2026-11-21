@@ -10,7 +10,7 @@ from .decisions import approval_policy, check_decision_seal, decision_payload, s
 from .project import profile_fingerprint, task_scope_profile
 from .results import completion_problems, expected_checks, merge_results, validate_result
 from .storage import read_json, write_json
-from .workflow import blocker_list, consult, is_decision_task, pending_removals, validate_answers, validate_board_entry, validate_deliberation, validate_review
+from .workflow import blocker_list, consult, entry_problems, is_decision_task, pending_removals, validate_answers, validate_board_entry, validate_deliberation, validate_review
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 WINDOWS_RESERVED_NAMES = {"con", "prn", "aux", "nul"} | {
@@ -71,7 +71,7 @@ _SCOPE = {
     "open_points?": [str],
     "checks?": [str],
     "packs?": [{"id": str, "rules": [_RULE]}],
-    "market?": {"id": str, "observations": [{"id": str}], "changes?": [dict]},
+    "market?": {"id": str, "observations": [{"id": str}], "changes?": [dict], "relevance?": str},
     "tools?": [{"id": str}],
     "storybook?": {"indexes": [{"ref": str, "stories": [str]}]},
     "host_controls?": [{"id": str, "status": str}],
@@ -81,6 +81,7 @@ _CONSULTATION = {
     "review_template": {"boards": [_TEMPLATE_BOARD]},
     "adjustments?": [{"board": str, "action": str, "reason": str}],
     "delegations?": {"*": str},
+    "domains?": {"*": [str]},
 }
 _CHALLENGE = {
     "verdict": str,
@@ -354,13 +355,19 @@ def submit_pass(task: dict, entry: dict, mode: str | None = None, root: Path | N
     board_id = entry.get("id") if isinstance(entry, dict) else None
     current = passes["boards"].get(board_id, {}) if isinstance(board_id, str) else {}
     mode = mode or current.get("mode", "sequential")
+    if isinstance(board_id, str) and board_id in task["consultation"]["boards"] and current.get("status") not in (
+            "started", "failed", "done"):
+        raise ValueError(f"The {board_id} pass was not started: run openguildkit task pass {task['id']} {board_id} "
+                         "first, so that the entry belongs to a pass of this consultation.")
     try:
         validated = validate_board_entry(task["consultation"], entry, root)
     except ValueError as error:
         if isinstance(board_id, str) and board_id in task["consultation"]["boards"]:
-            passes["boards"][board_id] = {**current, "status": "failed", "mode": mode, "error": str(error),
+            problems = entry_problems(task["consultation"], entry, root) or [str(error)]
+            message = "; ".join(problems) if len(problems) == 1 else "\n  - " + "\n  - ".join(problems)
+            passes["boards"][board_id] = {**current, "status": "failed", "mode": mode, "error": message,
                                           "at": timestamp(), "attempts": current.get("attempts", 1)}
-            return {**task, "passes": passes, "_error": str(error)}
+            return {**task, "passes": passes, "_error": message}
         raise
     passes["boards"][validated["id"]] = {"status": "done", "mode": mode, "entry": validated, "at": timestamp(),
                                          "attempts": current.get("attempts", 1)}

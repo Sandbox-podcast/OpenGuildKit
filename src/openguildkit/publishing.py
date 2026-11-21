@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from . import clock
-from .project import pack_scopes, rule_plan, rule_text
+from .project import STATE_DIR, pack_scopes, rule_plan, rule_text
 from .storage import project_lock, read_json, write_json, write_text
 from .tasks import read_task
 
@@ -175,10 +175,34 @@ def _load_shares(state: Path) -> list[dict]:
     return read_json(path)["shares"] if path.is_file() else []
 
 
+def shareable_path(root: Path, deliverable: str) -> None:
+    """A share names a page or a folder of a docs export: inside the project, never under .openguildkit
+    (task records, shares and decisions stay local) and never through a link that leaves the folder."""
+    named = Path(deliverable.strip())
+    candidate = named if named.is_absolute() else root / named
+    resolved, project = candidate.resolve(), root.resolve()
+    try:
+        relative = resolved.relative_to(project)
+    except ValueError:
+        raise ValueError(f"{deliverable} is outside the project: share a page of a docs export.") from None
+    if STATE_DIR in relative.parts or STATE_DIR in named.parts:
+        raise ValueError(f"{deliverable} is under {STATE_DIR}, which holds the local task records and reviews: "
+                         "they are never shared. Share a page that docs export wrote.")
+    folder = resolved if resolved.is_dir() else resolved.parent
+    for ancestor in (folder, *folder.parents):
+        if (ancestor / MANIFEST).is_file():
+            return
+        if ancestor == project:
+            break
+    raise ValueError(f"{deliverable} is not inside a docs export folder: run openguildkit docs export, "
+                     "then share one of its pages or folders.")
+
+
 def add_share(state: Path, deliverable: str, recipients: list[str], until: str, portal: str, by: str) -> dict:
     """Record a share before creating it in Documentalist: what, for whom, until when."""
     if not deliverable.strip() or not by.strip():
         raise ValueError("Name the deliverable and the owner of the share.")
+    shareable_path(state.parent, deliverable)
     bad = [item for item in recipients if not _EMAIL.fullmatch(item)]
     if not recipients or bad:
         raise ValueError(f"List the recipients' email addresses{': ' + ', '.join(bad) if bad else ''}.")

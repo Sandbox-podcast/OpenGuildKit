@@ -158,12 +158,12 @@ def _host_question(detected: str | None) -> dict:
 
 def init_questions(
     catalog: dict, project_name: str, detected: list[dict] | None = None, tools: list[dict] | None = None,
-    host: str | None = None,
+    host: str | None = None, checks: list[str] | None = None,
 ) -> list[dict]:
     """The setup questionnaire, in the order it is asked. Every question has a default or is marked required.
 
     detected: components found in the repository; tools: registry tools it shows signs of; host: the agent
-    host its files point to.
+    host its files point to; checks: test and lint commands the repository's files point to.
     """
     components = {
         "id": "components",
@@ -238,7 +238,14 @@ def init_questions(
             "local-only",
         ),
         {"id": "conventions", "type": "list", "prompt": "Which team conventions should the agent follow?", "default": []},
-        {"id": "checks", "type": "list", "prompt": "Which project checks should the agent or CI run?", "default": []},
+        {
+            "id": "checks",
+            "type": "list",
+            "prompt": "Which project checks should the agent or CI run? Each one is run by task verify and must pass "
+                      "before a task is done." + (" The repository points to the commands proposed here: keep or remove "
+                                                  "each." if checks else ""),
+            "default": list(checks or []),
+        },
     ]
 
 

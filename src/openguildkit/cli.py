@@ -19,6 +19,8 @@ from .brains import (
 from .detect import components_for_profile, detect_stack, detected_project_name
 from .publishing import add_share, export_docs, project_overview, revoke_share, share_status
 from . import tools_cli
+from .test_commands import suggest_checks
+from . import webui
 from .tools import connected_tools, load_tools, tool_evidence_warnings
 from . import market_cli
 from .market import load_dossier
@@ -96,7 +98,7 @@ from .tasks import (
     require_current_scope,
     task_path,
 )
-from .workflow import blocker_list, board_brief, challenge_report, decision_summary, deliberation_request, handoff, is_decision_task, open_points, pending_removals, select_boards, task_questions, validate_answers, validate_review, verdict_lines
+from .workflow import blocker_list, board_brief, challenge_report, decision_summary, deliberation_request, handoff, is_decision_task, open_points, pending_removals, select_boards, task_questions, validate_answers
 
 
 class _Version(argparse.Action):
@@ -248,6 +250,10 @@ def _parser() -> argparse.ArgumentParser:
     update.add_argument("--apply", action="store_true", help="Adopt the installed catalog's records for this project.")
     update.add_argument("--json", action="store_true", help="Print the changes as JSON.")
     commands.add_parser("check", help="Check that the instructions match the project profile.")
+    ui = commands.add_parser("ui", help="Open the web interface of this project on 127.0.0.1.")
+    ui.add_argument("--port", type=int, default=webui.DEFAULT_PORT, help=f"Port (default {webui.DEFAULT_PORT}; 0 picks a free one).")
+    ui.add_argument("--no-browser", action="store_true", help="Print the address without opening a browser.")
+    ui.add_argument("--static", type=Path, help="Folder of a built front end (default: the one installed with the package).")
     ci = commands.add_parser("ci-check", help="Evaluate the central export rule on an exact Git commit.")
     ci.add_argument("--target-repo", type=Path, required=True, help="Local Git repository with the target commit.")
     ci.add_argument("--commit", required=True, help="Full Git SHA of the target commit.")
@@ -313,8 +319,13 @@ def _parser() -> argparse.ArgumentParser:
             source = command.add_mutually_exclusive_group(required=True)
             source.add_argument("--file", type=Path, help="Completed review JSON.")
             source.add_argument("--summary", help="Assemble the review from completed board passes with this summary.")
+        if action == "brief":
+            command.add_argument("--scope", action="store_true",
+                                 help="Print only the project scope and active rules shared by every board.")
         if action == "pass":
             command.add_argument("board", help="Board ID.")
+            command.add_argument("--show", action="store_true",
+                                 help="Print the pass again without counting a new attempt.")
         if action in ("pass", "submit"):
             command.add_argument("--mode", choices=("subagent", "sequential"), help="How the host runs this pass.")
         if action in ("clear", "waive"):
@@ -463,12 +474,13 @@ def _update_catalog(args, root: Path, state: Path) -> None:
             target = update_target(live, lock)
             changes = catalog_changes(lock, live, target, profile, bundled)
             conflicts = [conflict for conflict in rule_conflicts(profile, target) if conflict["resolution"] is None]
-            result = {"changes": changes, "conflicts": conflicts, "applied": False, "stale_tasks": []}
+            # The tasks the new rules would leave consulted under the previous ones, shown before --apply.
+            result = {"changes": changes, "conflicts": conflicts, "applied": False,
+                      "stale_tasks": _stale_tasks(state, profile, target) if changes else []}
             if args.apply and changes:
                 sync_instructions(root, profile, target)
                 write_lock(state, build_lock(profile, target, bundled, lock))
                 result["applied"] = True
-                result["stale_tasks"] = _stale_tasks(state, profile, target)
         result["catalog_date"] = installed_catalog_date()
     _print_update(result, args.json)
 
@@ -503,7 +515,9 @@ def _print_update(result: dict, as_json: bool) -> None:
         for rule_id in change.get("rules", {}).get("removed", []):
             print(f"    - rule {rule_id}")
         for rule in change.get("rules", {}).get("changed", []):
-            print(f"    ~ rule {rule['id']}: {rule['after']}")
+            print(f"    ~ rule {rule['id']}")
+            print(f"        was: {rule['before']}")
+            print(f"        now: {rule['after']}")
         for url in change["sources"]["added"]:
             print(f"    + source {url}")
         for url in change["sources"]["removed"]:
@@ -515,6 +529,10 @@ def _print_update(result: dict, as_json: bool) -> None:
     for conflict in result["conflicts"]:
         print(f"! {' and '.join(conflict['packs'])} conflict: record a resolution before applying.")
     if not result["applied"]:
+        if result["stale_tasks"]:
+            print("Adopting these rules would leave these tasks consulted under the previous ones:")
+            for task in result["stale_tasks"]:
+                print(f"  Task {task['id']} ({task['status']}): review it again after the update.")
         print("Nothing changed. Run openguildkit update --apply to adopt these rules.")
         return
     print("Applied. The next consultations use these rules.")
@@ -768,7 +786,8 @@ def _setup_questions(root: Path, state: Path, catalog: dict) -> tuple[list[dict]
     """The questionnaire with the defaults this repository shows: components, tools and host."""
     registry = load_tools(state / "catalog" / "tools")
     detected = components_for_profile(detect_stack(root))
-    questions = init_questions(catalog, detected_project_name(root), detected, detect_tools(root, registry), _detected_host(root))
+    questions = init_questions(catalog, detected_project_name(root), detected, detect_tools(root, registry), _detected_host(root),
+                               suggest_checks(root))
     return questions, registry
 
 
@@ -1079,6 +1098,12 @@ def _deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) ->
         return 0
     task = read_task(state, args.task)
     output = args.output if args.output.is_absolute() else root / args.output
+    try:
+        inside = output.resolve().relative_to(root.resolve())
+    except ValueError:
+        raise ValueError(f"--output must name a file inside the project, not {args.output}.") from None
+    if ".openguildkit" in inside.parts or ".openguildkit" in args.output.parts:
+        raise ValueError("--output cannot be under .openguildkit: it holds the local task records. Write the draft in your own folder.")
     entry = new_draft(template, task, args.tool, profile.get("tools", []), output)
     with project_lock(state):
         current = read_task(state, args.task)
@@ -1237,12 +1262,10 @@ def _decide(args, root: Path, state: Path, task: dict, profile: dict) -> None:
             raise ValueError("Approval requires a person at an interactive terminal.")
         print("\n".join(decision_summary(task)), file=sys.stderr)
         if signature is None:
-            print(
-                json_text({"brief": task["brief"], "answers": task["answers"], "review": task["review"]}),
-                file=sys.stderr,
-                end="",
-            )
-            print("\n".join(verdict_lines(validate_review(task["consultation"], task["review"]))), file=sys.stderr)
+            print(json_text({"brief": task["brief"], "answers": task["answers"]}), file=sys.stderr, end="")
+            print(f"The review is {len(task['review']['boards'])} board entries. Read the decision brief with "
+                  f"`openguildkit task challenge {args.id}` and the full record with "
+                  f"`openguildkit task show {args.id}`.", file=sys.stderr)
             print(f"Type {args.id} to approve the reviewed scope: ", end="", file=sys.stderr, flush=True)
             if input().strip() != args.id:
                 raise ValueError("Approval cancelled.")
@@ -1321,7 +1344,11 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 "open_points": open_points(task["brief"], validated),
             })
     elif action == "brief":
-        print(_read_consultation(task)["markdown"])
+        markdown = _read_consultation(task)["markdown"]
+        if args.scope:
+            start = markdown.index("## Project scope and active rules")
+            markdown = markdown[start:markdown.index("## Board briefs")].rstrip() + "\n"
+        print(markdown)
     elif action == "template":
         _print_json(_read_consultation(task)["review_template"])
     elif action == "blockers":
@@ -1508,6 +1535,12 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 print(f"{board_id}: {'; '.join(reasons)}")
             for item in selected["adjustments"]:
                 print(f"  {item['action']} {item['board']}: {item['reason']}")
+            if selected["not_selected"]:
+                print("Not selected (enabled in the profile):")
+                for item in selected["not_selected"]:
+                    print(f"  {item['board']}: {item['reason']}")
+            print(f"Add a board: openguildkit {selected['commands']['add'].replace('ID', args.id)}")
+            print(f"Remove a board: openguildkit {selected['commands']['remove'].replace('ID', args.id)}")
             for pattern in selected["patterns"]:
                 print(f"Suggested pattern {pattern['id']}: {pattern['reason']}. See openguildkit patterns --id {pattern['id']}.")
     elif action == "consult":
@@ -1530,7 +1563,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             market = None
             if args.market:
                 research = "public-sources" if profile.get("research") == "public-sources" and answers.get("research") == "public" else "local-only"
-                market = market_scope_entry(load_dossier(state, args.market), research)
+                market = market_scope_entry(load_dossier(state, args.market), research,
+                                            task_text=" ".join([current_task["brief"], answers.get("context", "")]))
             families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
             scoped_profile = task_scope_profile(profile, catalog, answers.get("components", []))
             active = set(scoped_profile["packs"])
@@ -1570,6 +1604,11 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         entry = read_json(args.file) if action == "submit" else None
         with project_lock(state):
             current_task = read_task(state, args.id)
+            if action == "pass" and args.show:
+                if "consultation" not in current_task:
+                    raise ValueError("Consult the task first.")
+                print(board_brief(current_task["consultation"], args.board))
+                return
             if action == "pass":
                 result = start_pass(current_task, args.board, args.mode or "sequential")
             else:
@@ -1580,7 +1619,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         if action == "pass":
             print(board_brief(result["consultation"], args.board))
         elif error:
-            raise ValueError(f"{args.file.as_posix()}: the pass is recorded as failed: {error} Start it again with task pass.")
+            raise ValueError(f"{args.file.as_posix()}: the entry is recorded as failed: {error}\nCorrect the file and send it "
+                             f"again with task submit {args.id} --file {args.file.as_posix()}; no new pass is needed.")
         else:
             print("done")
             saved_entry = result["passes"]["boards"][entry["id"].strip()]["entry"]
@@ -1639,6 +1679,8 @@ def _run(args) -> int | None:
     state = state_path(root)
     if args.command == "guard":
         return _guard(args, root, state)
+    if args.command == "ui":
+        return webui.serve(root, args.port, args.static, not args.no_browser)
     catalog = _load_project_catalog(args, state)
     if args.command == "references":
         _print_references(args, state, catalog)

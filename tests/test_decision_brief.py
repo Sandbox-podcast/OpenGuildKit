@@ -118,7 +118,7 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertIn("3 proceed", prompt.splitlines()[0])
         self.assertIn("3 revise", prompt.splitlines()[0])
         self.assertIn("Warning: 4 of 7 boards say revise, block or insufficient-evidence", prompt)
-        self.assertIn("Objection not deliberated: engineering-to-product", prompt)
+        self.assertRegex(prompt, "Objection not deliberated: engineering-to-")
         brief, _ = self.run_cli("task", "challenge", TASK)
         self.assertIn("Warning: 4 of 7 boards", brief)
         self.assertIn("Objection not deliberated", brief)

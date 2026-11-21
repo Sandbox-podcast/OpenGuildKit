@@ -1,0 +1,52 @@
+/* Semantic tokens (brief §3.2). Contrast of every text/background pair used is documented
+   in docs/accessibilite.md; secondary and disabled texts stay above 4.5:1 on surfaces. */
+:root {
+  color-scheme: dark;
+  --bg: #101719;
+  --bg-deep: #020508;
+  --surface: #172225;
+  --surface-2: #1e2f32;
+  --surface-3: #273b3e;
+  --border: #34474a;
+  --border-strong: #637c7e;
+  --text: #fdfdfd;
+  --text-2: #becdc9;
+  --text-3: #9fb3b0;
+  --accent: #6ef7c4;
+  --accent-strong: #a4ffda;
+  --accent-ink: #0c2523;
+  --ai: #b6ddd3;
+  --success: #7dd3a8;
+  --warning: #efbb81;
+  --danger: #f28c72;
+  --data: #a2ddd9;
+  --room-edge: #82beab;
+  --room-line: #496d62;
+  --muted: #a4b4b2;
+
+  --tint-success: rgba(125, 211, 168, 0.13);
+  --tint-warning: rgba(232, 184, 109, 0.14);
+  --tint-danger: rgba(242, 140, 114, 0.14);
+  --tint-ai: rgba(158, 215, 199, 0.13);
+  --tint-data: rgba(105, 196, 212, 0.13);
+  --tint-neutral: rgba(185, 189, 201, 0.1);
+
+  --font-pixel: 'Pixelify Sans', 'Courier New', monospace;
+  --font-body: 'Inter Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  --fs-body: 1rem;
+  --fs-small: 0.875rem;
+  --fs-tiny: 0.8125rem;
+  --px: 2px;
+  --radius: 0;
+  --gap: 16px;
+  --header-h: 64px;
+  --sidebar-w: 218px;
+  --t-fast: 120ms;
+  --t-med: 220ms;
+}
+
+[data-motion='reduced'] {
+  --t-fast: 0ms;
+  --t-med: 0ms;
+}

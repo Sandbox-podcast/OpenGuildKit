@@ -123,7 +123,7 @@ openguildkit task respond ID --file deliberation.json
 openguildkit task challenge ID       # agreement reached, remaining disagreements, decision needed
 ```
 
-For each objection, both boards record a `position` (`maintain`, `concede` or `amend`), a `response` and the positions in their own evidence list that support it; maintaining or amending a position needs evidence. An objection one board concedes is resolved. When disagreements remain, `decision_needed` says which decision the responsible person must take. The first reviews stay as recorded, and the decision brief lists objections that were not deliberated.
+An objection goes to the boards that would proceed and whose domain its point touches, at most two, or to the one board with the most confidence when it touches none; a board that blocks always meets the boards that ask to revise. For each objection, both boards record a `position` (`maintain`, `concede` or `amend`), a `response` and the positions in their own evidence list that support it; maintaining or amending a position needs evidence. One response can answer several objections: write `objection` as a list of IDs. An objection is resolved when one board concedes or both amend. When disagreements remain, `decision_needed` says which decision the responsible person must take. `task deliberate` prints these rules with the template. A board that conceded all its objections no longer counts as objecting in the approval warning. The first reviews stay as recorded, and the decision brief lists objections that were not deliberated.
 
 ## What the verdict means
 

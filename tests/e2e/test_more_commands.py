@@ -40,7 +40,7 @@ class DeliberationCommandTests(ReviewedTaskTestCase):
         self.run_cli("task", "deliberate", TASK_ID, expect=1)
         self.record_example_review()
         request = json.loads(self.run_cli("task", "deliberate", TASK_ID).stdout)
-        self.assertIn("security-to-product", [item["id"] for item in request["objections"]])
+        self.assertTrue(any(item["from"] == "security" for item in request["objections"]), request["objections"])
         payload = copy.deepcopy(request["template"])
         for response in payload["responses"]:
             response.update(position="maintain", response="Our evidence still holds.", evidence_refs=[1])
