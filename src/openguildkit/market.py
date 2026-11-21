@@ -40,7 +40,7 @@ def _day(value, field: str) -> str:
         day = date.fromisoformat(value)
     except ValueError as error:
         raise ValueError(f"{field} must be a real date written YYYY-MM-DD: {value}.") from error
-    if day > date.today() + timedelta(days=1):
+    if day > clock.today() + timedelta(days=1):
         raise ValueError(f"{field} is in the future ({value}): write the date the information dates from.")
     return value
 
@@ -227,7 +227,7 @@ def mark_checked(dossier: dict, url: str, day: str | None = None) -> dict:
     watch = _watch(dossier)
     if not any(item["url"] == url for item in watch["sources"]):
         raise ValueError(f"{url} is not a watched source of the dossier. Run market due to list them.")
-    day = _day(day or date.today().isoformat(), "date")
+    day = _day(day or clock.today().isoformat(), "date")
     return validate_dossier({**dossier, "watch": {**watch, "sources": _checked(watch["sources"], url, day)}}, dossier["id"])
 
 
@@ -235,7 +235,7 @@ def record_change(dossier: dict, change: dict, today: str | None = None) -> dict
     """Keep a verified change; when its source is a watched page, that page counts as checked today."""
     watch = _watch(dossier)
     entry = {key: change[key] for key in ("competitor", "what", "date", "source", "verified_by")}
-    today = today or date.today().isoformat()
+    today = today or clock.today().isoformat()
     watch = {**watch, "changes": [*watch["changes"], entry], "sources": _checked(watch["sources"], entry["source"], today)}
     return validate_dossier({**dossier, "watch": watch}, dossier["id"])
 

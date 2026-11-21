@@ -12,6 +12,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
+from . import clock
 from .decisions import approval_policy, check_decision, decision_payload, seal, verify_signature
 from .lock import LOCK_FILE, read_lock
 from .project import STATE_DIR, load_profile, profile_fingerprint
@@ -40,7 +41,7 @@ def _age_days(moment: str) -> int | None:
         return None
     if approved.tzinfo is None:
         approved = approved.replace(tzinfo=timezone.utc)
-    return (datetime.now(timezone.utc) - approved).days
+    return (clock.now() - approved).days
 
 
 def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) -> list[dict]:
