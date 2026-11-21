@@ -10,7 +10,7 @@ from .decisions import approval_policy, check_decision_seal, decision_payload, s
 from .project import profile_fingerprint, task_scope_profile
 from .results import completion_problems, expected_checks, merge_results, validate_result
 from .storage import read_json, write_json
-from .workflow import blocker_list, consult, pending_removals, validate_answers, validate_board_entry, validate_deliberation, validate_review
+from .workflow import blocker_list, consult, is_decision_task, pending_removals, validate_answers, validate_board_entry, validate_deliberation, validate_review
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 WINDOWS_RESERVED_NAMES = {"con", "prn", "aux", "nul"} | {
@@ -519,11 +519,12 @@ def verification_blocker_problems(task: dict, profile: dict, root: Path | None =
     return problems
 
 
-def record_result(task: dict, profile: dict, payload: dict, source: str = "report") -> dict:
+def record_result(task: dict, profile: dict, payload: dict, source: str = "report",
+                  *, changed: list[str] | None = None) -> dict:
     """Add a delivery report to an approved task; later reports update earlier checks."""
     if task["status"] != "approved":
         raise ValueError("Results belong to an approved task that is not done yet.")
-    result = merge_results(task.get("result"), validate_result(task, profile, payload, source))
+    result = merge_results(task.get("result"), validate_result(task, profile, payload, source, changed=changed))
     if source == "report" and task.get("answers", {}).get("outcome") and not result["criteria"]:
         raise ValueError(
             "The task has an expected outcome: report at least one acceptance criterion. Run task result ID --template."
@@ -531,8 +532,8 @@ def record_result(task: dict, profile: dict, payload: dict, source: str = "repor
     return {**task, "result": result}
 
 
-def complete_task(task: dict, profile: dict, root: Path | None = None) -> dict:
-    problems = verification_blocker_problems(task, profile, root) + completion_problems(task, profile)
+def complete_task(task: dict, profile: dict, root: Path | None = None, *, changed: list[str] | None = None) -> dict:
+    problems = verification_blocker_problems(task, profile, root) + completion_problems(task, profile, changed=changed)
     if problems:
         raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(problems))
     return {**task, "status": "done", "completed_at": timestamp()}
@@ -541,8 +542,9 @@ def complete_task(task: dict, profile: dict, root: Path | None = None) -> dict:
 def points_left_open(task: dict, profile: dict) -> list[str]:
     """What a completed task leaves for later: rules not passed, waived blockers, disagreements still open."""
     mandatory = {check["id"] for check in expected_checks(task, profile) if check["mandatory"]}
+    checks = [] if is_decision_task(task) else task.get("result", {}).get("checks", [])
     points = [
-        f"{item['check']} is {item['status']}" for item in task.get("result", {}).get("checks", [])
+        f"{item['check']} is {item['status']}" for item in checks
         if item["status"] != "passed" and item["check"] not in mandatory and item["status"] != "not-applicable"
     ]
     points += [f"blocker {item['id']} is waived until {item['resolution']['until']}"

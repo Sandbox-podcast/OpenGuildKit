@@ -41,6 +41,14 @@ def git_revision(root: Path) -> dict | None:
     return {"commit": head.stdout.strip(), "dirty": dirty}
 
 
+def changed_paths_since(root: Path, commit: str) -> list[str]:
+    """Changes to tracked and staged files between an approved commit and the working tree."""
+    change = _git(root, "diff", "--name-only", "--no-renames", commit, "--")
+    if change is None or change.returncode:
+        raise ValueError("Could not compare the project files with the approved Git revision.")
+    return change.stdout.splitlines()
+
+
 def decision_payload(task: dict, by: str, reason: str, base_revision: dict | None) -> dict:
     """What an approval covers. The approver signs exactly this object in signed mode."""
     payload = {
