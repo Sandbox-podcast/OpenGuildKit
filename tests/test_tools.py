@@ -309,6 +309,14 @@ class CommandTests(unittest.TestCase):
                 self.assertIn("Covers:", plan)
                 self.assertEqual(config.exists(), expected == 0)
 
+            stdin = io.StringIO("yes\n")
+            with patch("sys.stdin", stdin), patch.object(stdin, "isatty", return_value=True):
+                code, output, prompt = run(*apply, "--json")
+            self.assertEqual(code, 0, prompt)
+            self.assertEqual(json.loads(output)["applied"], ["sentry-remote"])
+            self.assertIn("Covers:", prompt)
+            self.assertIn("Type yes", prompt)
+
     def test_call_lists_a_mocks_tools_and_answers_one_call(self):
         with tempfile.TemporaryDirectory() as directory:
             code, out, _ = run("--project", directory, "tools", "call", "jira")

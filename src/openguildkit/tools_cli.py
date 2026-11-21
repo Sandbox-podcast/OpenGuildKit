@@ -2,7 +2,9 @@
 
 import json
 import sys
+from functools import partial
 from pathlib import Path
+from typing import TextIO
 
 from .mcp_mock import MockError, call_tool, serve
 from .storage import project_lock
@@ -85,42 +87,43 @@ def _host(args, profile: dict) -> str:
     return host
 
 
-def _print_plan(plan: list[dict], host: str) -> None:
+def _print_plan(plan: list[dict], host: str, *, stream: TextIO | None = None) -> None:
+    emit = partial(print, file=stream)
     for item in plan:
         if "skipped" in item:
-            print(f"{item['title']}: skipped. {item['skipped']}")
+            emit(f"{item['title']}: skipped. {item['skipped']}")
             continue
         covers = ", ".join(item.get("covers", [item["tool"]]))
         if item["mode"] == "mock":
-            print(f"{item['title']}: mock server `{item['key']}` (synthetic data).")
+            emit(f"{item['title']}: mock server `{item['key']}` (synthetic data).")
         else:
-            print(f"{covers}: server `{item['key']}` ({item['publisher']}, {item['transport']}, status {item['status']}).")
-            print(f"    Verified {item['verified']} on {item['source']}")
-            print(f"    Maintainer: {item['maintainer']}. Authentication: {item['auth']}.")
-            print(f"    Covers: {item['capabilities']}")
+            emit(f"{covers}: server `{item['key']}` ({item['publisher']}, {item['transport']}, status {item['status']}).")
+            emit(f"    Verified {item['verified']} on {item['source']}")
+            emit(f"    Maintainer: {item['maintainer']}. Authentication: {item['auth']}.")
+            emit(f"    Covers: {item['capabilities']}")
             access = item["access"]
             mode = "not documented" if access["mode"] == "unknown" else access["mode"]
-            print(f"    Access: {mode}. Consent: {access['consent']}.")
-            print(f"    Scopes: {', '.join(access['scopes'])}.")
+            emit(f"    Access: {mode}. Consent: {access['consent']}.")
+            emit(f"    Scopes: {', '.join(access['scopes'])}.")
             if access["mode"] != "read-only" and access["read_only_available"]:
-                print("    Read-only mode available: pass --read-only.")
+                emit("    Read-only mode available: pass --read-only.")
             if "image" in item:
                 image = item["image"]
                 pin = "digest pinned" if image["digest_pinned"] else "not pinned by digest"
                 pull = "; pulled on every launch" if image["pull_always"] else ""
-                print(f"    Docker image: {image['name']} ({pin}{pull}).")
+                emit(f"    Docker image: {image['name']} ({pin}{pull}).")
             for tool, alternatives in item["alternatives"].items():
                 for server in alternatives:
                     readonly = ", read-only available" if server["read_only_available"] else ""
-                    print(f"    Alternative {tool}/{server['id']} ({server['publisher']}, {server['status']}{readonly}):"
+                    emit(f"    Alternative {tool}/{server['id']} ({server['publisher']}, {server['status']}{readonly}):"
                           f" {server['capabilities']}")
             for tool, notes in item["notes"].items():
-                print(f"    {tool}: {notes}")
+                emit(f"    {tool}: {notes}")
         for warning in item["warnings"]:
-            print(f"    Warning: {warning}")
+            emit(f"    Warning: {warning}")
         for step in item["steps"]:
-            print(f"    {step}")
-        print(f"    {host}: {json.dumps(item['entry'], ensure_ascii=False)}")
+            emit(f"    {step}")
+        emit(f"    {host}: {json.dumps(item['entry'], ensure_ascii=False)}")
 
 
 def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
@@ -267,7 +270,7 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
     if live and not args.yes:
         if not sys.stdin.isatty():
             raise ValueError("A live MCP plan needs confirmation. Review tools plan, then pass --yes or use a terminal.")
-        _print_plan(plan, host)
+        _print_plan(plan, host, stream=sys.stderr if args.json else None)
         print("Type yes to apply this live MCP plan: ", end="", file=sys.stderr, flush=True)
         if sys.stdin.readline().strip().casefold() != "yes":
             raise ValueError("Live MCP configuration cancelled.")
