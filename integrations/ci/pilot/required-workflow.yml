@@ -11,7 +11,7 @@ on:
     inputs:
       pr:
         type: string
-        description: PR à évaluer. Sans PR ni commit, toutes les PR ouvertes sont réévaluées.
+        description: PR to evaluate. Without a PR or a commit, every open PR is evaluated again.
         required: false
       commit:
         type: string
@@ -95,7 +95,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
             jq -e --arg base "$EXPECTED_BASE" --arg head "$EXPECTED_HEAD" '.state == "open" and .base.ref == $base and .head.sha == $head' >/dev/null
           if [[ "$EVENT_NAME" != schedule ]]; then
-            GH_TOKEN="$STATUS_TOKEN" gh api "repos/$GITHUB_REPOSITORY/statuses/$EXPECTED_HEAD" -f context="$STATUS_CONTEXT" -f state=pending -f description='OpenGuildKit vérifie le commit courant'
+            GH_TOKEN="$STATUS_TOKEN" gh api "repos/$GITHUB_REPOSITORY/statuses/$EXPECTED_HEAD" -f context="$STATUS_CONTEXT" -f state=pending -f description='OpenGuildKit is checking the current commit'
           fi
       - name: Install and run the required gate
         id: gate
@@ -141,9 +141,9 @@ jobs:
             jq -e --arg base "$EXPECTED_BASE" --arg head "$EXPECTED_HEAD" '.state == "open" and .base.ref == $base and .head.sha == $head' >/dev/null
           state=failure
           if [[ "$GATE_OUTCOME" == success ]]; then state=success; fi
-          description='Contrôle OpenGuildKit incomplet'
+          description='OpenGuildKit check incomplete'
           if [[ -s proof/result.json ]]; then
-            description=$(jq -r '.current.decision.effectiveStatus + " | règle " + .current.policyCommit' proof/result.json)
+            description=$(jq -r '.current.decision.effectiveStatus + " | rule " + .current.policyCommit' proof/result.json)
           fi
           # A scheduled run only adds a status when the verdict changed, which keeps under GitHub's status limit.
           latest=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_HEAD/status?per_page=100" |

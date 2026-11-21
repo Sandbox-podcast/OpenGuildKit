@@ -20,7 +20,9 @@ Before large work, open an issue with the matching template so a steward or main
 
 For larger changes, use an issue to discuss scope. Fork the repository, create a branch for the change and open a pull request against `main`. Use `Closes #123` for the issue the PR resolves, or `Refs #123` for related work. Include the part of the catalog or workflow you exercised.
 
-GitHub labels PRs from their changed files. The `contribution-checks` status combines the test matrix and package build. Merges to `main` refresh a draft of the next release notes.
+GitHub labels PRs from their changed files and requests a review from the owners in `.github/CODEOWNERS`. The `contribution-checks` status combines the test matrix and package build. Merges to `main` refresh a draft of the next release notes. Maintainers publish versions with the [release steps](GOVERNANCE.md#releases).
+
+Everything you add to the repository, catalog content included (packs, references, patterns, boards, sectors and tools), is published under the MIT License in [LICENSE](LICENSE), like the code. Opening a pull request means you agree to that and that you have the right to contribute the content. Write rules and descriptions in your own words and never paste the text of a standard: only text you may license can be published under the MIT License.
 
 ## Set up
 
