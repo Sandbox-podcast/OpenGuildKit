@@ -23,6 +23,12 @@ To install a published version instead, with its verified wheel and agent files,
 
 The [request status demo](examples/request-status/) creates a temporary project and uses prepared reviews for tracking support requests. Run it in a terminal to compare the findings, approve the scope and see the implementation brief.
 
+## The board of brains
+
+Each discipline of a software publisher has a brain: development (front-end and back-end), security, DevOps, QA, performance, product, design, data and AI, marketing, communication, sales, customer support, finance, legal and compliance, HR, project management, operations and executive leadership. A brain brings specialist lenses, the evidence it asks for, the objections it raises, its decision criteria and the methods, rule packs and standards of its discipline.
+
+For every change, OpenGuildKit convenes the brains it concerns. Each one reviews the task separately, the brains answer each other's objections, and you decide with their verdicts, evidence and remaining disagreements in front of you. `openguildkit brains` lists them; `openguildkit brains --id legal` shows what one knows. [Specialist brains](docs/brains.md)
+
 ## Set up your project
 
 From your own repository, launch the interactive questionnaire. Pick your stack, sector, rule packs and boards. In an existing repository, `openguildkit detect` proposes your components and versions first, and each pattern applies to the component where its technologies are used.
