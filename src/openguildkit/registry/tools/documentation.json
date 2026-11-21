@@ -77,7 +77,7 @@
       "id": "documentalist",
       "title": "Documentalist",
       "vendor": "azerothl",
-      "summary": "Documentation portal that imports and synchronises Markdown, MDX and OpenAPI files from a repository.",
+      "summary": "Documentation portal that synchronises Markdown and MDX from a repository and imports OpenAPI.",
       "homepage": "https://github.com/azerothl/documentalist",
       "brains": [
         "communication",
@@ -86,8 +86,30 @@
         "support",
         "developer-relations-and-docs"
       ],
-      "servers": [],
-      "notes": "No MCP server on record. OpenGuildKit prepares the folders Documentalist imports with `openguildkit docs export` and keeps the register of shares with `openguildkit docs share`: see docs/documentation.md."
+      "servers": [
+        {
+          "id": "documentalist-mcp",
+          "name": "Documentalist MCP",
+          "publisher": "vendor",
+          "maintainer": "azerothl",
+          "transport": "streamable-http",
+          "url": "https://{domain}/mcp",
+          "settings": [
+            {
+              "name": "domain",
+              "description": "Hostname of the HTTPS Documentalist instance, such as docs.example.org, without the scheme or /mcp."
+            }
+          ],
+          "auth": "none",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Read-only access to published documentation: list_spaces, list_pages, search_docs and read_page. Bearer keys grant access to explicitly selected private spaces.",
+          "source": "https://github.com/azerothl/documentalist/blob/947429b19da6f4e409738fd195960ae99e99c4ef/README.md",
+          "repository": "https://github.com/azerothl/documentalist",
+          "verified": "2026-11-21"
+        }
+      ],
+      "notes": "Public publications are accessible without authentication. Use --token-env for private publications with a scoped Documentalist key. OpenGuildKit also prepares the folders Documentalist imports with `openguildkit docs export` and keeps the share register with `openguildkit docs share`."
     },
     {
       "id": "docusaurus",

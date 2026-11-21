@@ -43,6 +43,19 @@ In a Documentalist space, an administrator opens Tools → Integrations → Impo
 
 The folder layout, the order rules and the blog dating follow the Documentalist README at commit [`947429b`](https://github.com/azerothl/documentalist/tree/947429b19da6) (2026-11-11). Documentalist publishes no licence file: its code is not redistributed by OpenGuildKit, and reusing it beyond running it requires its author's permission. The exported Markdown belongs to your project.
 
+## Read published pages through MCP
+
+Documentalist's [MCP server](https://github.com/azerothl/documentalist/blob/947429b19da6f4e409738fd195960ae99e99c4ef/README.md#L240-L267) lets agents list, search and read published pages. Set `documentalist.domain` to your instance's HTTPS hostname. OpenGuildKit builds the endpoint as `https://<hostname>/mcp`.
+
+```bash
+openguildkit tools plan documentalist --host codex --set documentalist.domain=docs.example.org
+openguildkit tools apply documentalist --host codex --set documentalist.domain=docs.example.org
+```
+
+For private publications, an administrator issues a scoped MCP key in Documentalist. Put it in the host's environment and add `--token-env documentalist=DOCUMENTALIST_MCP_TOKEN` to the plan and apply commands. Public publications can be read without a key. Use `--host claude-code` for Claude Code with the same settings.
+
+The MCP connection is read-only. Import and publication stay in Documentalist, as does granting or revoking portal access.
+
 ## Share a deliverable
 
 Documentalist controls access: a portal can be public, protected by a shared code, or limited to invited addresses with magic links, and "Retirer l'accès" revokes an address. OpenGuildKit keeps the register of what you shared, with whom and until when, so expired access does not stay open:
@@ -56,6 +69,6 @@ openguildkit docs share revoke --id ID --by "Camille Martin"
 
 The owner chooses the deliverable, the recipients and the last day of access (`YYYY-MM-DD`, after today and at most 366 days ahead) before inviting them in the portal. A revocation records who removed the access and when; a second revocation of the same share is refused, so the first record stays.
 
-What OpenGuildKit does not do: it creates no magic link and revokes no access in Documentalist. Inviting the recipients and pressing "Retirer l'accès" happen by hand in the portal's reader settings; `share add` and `share revoke` only record that you did it. Keeping the portal and the register in step is your job until a Documentalist connector exists, and the live import into Documentalist is not part of OpenGuildKit either.
+What OpenGuildKit does not do: it creates no magic link and revokes no access in Documentalist. Inviting the recipients and pressing "Retirer l'accès" happen by hand in the portal's reader settings; `share add` and `share revoke` only record that you did it. Keep the portal and the register in step. Import and share management happen in Documentalist.
 
 What `share check` reads: only the local register, `.openguildkit/shares/shares.json`. It lists every share and exits with code 1 when a share that is not recorded as revoked has a last day of access before today. It does not contact Documentalist, so it cannot see an access removed in the portal without `share revoke`, nor an invitation sent without `share add`. The register is ignored by Git because it contains email addresses: the check runs where the register is, usually the owner's machine (for example from a scheduled task there), not in CI on a fresh clone, where it finds no share and passes. Writes to the register hold the project lock, so shares recorded at the same time are all kept. The boards' reviews stay in the local task records and are never part of a share.
