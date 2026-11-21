@@ -1,0 +1,95 @@
+{
+  "id": "landing-page-brief",
+  "title": "Landing page brief",
+  "description": "Brief a landing page for one audience and one offer: the promise, the proof, the call to action, how visitors find it and how it is measured.",
+  "method": "search-engine-optimization",
+  "market": true,
+  "brains": [
+    "marketing",
+    "design",
+    "communication"
+  ],
+  "inputs": [
+    {
+      "id": "audience",
+      "label": "Audience segment and the problem it searches for, described without personal data",
+      "data": "internal"
+    },
+    {
+      "id": "offer",
+      "label": "Product, feature or plan the page offers",
+      "data": "none"
+    },
+    {
+      "id": "traffic",
+      "label": "Channels that will send visitors and the search queries targeted",
+      "data": "internal"
+    },
+    {
+      "id": "baseline",
+      "label": "Conversion goal and its current baseline",
+      "data": "internal"
+    }
+  ],
+  "tool_actions": [
+    {
+      "action": "publish",
+      "description": "Publishing the page on the website or in a landing page builder."
+    },
+    {
+      "action": "external-api",
+      "description": "Connecting the page's form to the CRM or marketing automation tool."
+    }
+  ],
+  "sections": [
+    {
+      "id": "promise",
+      "title": "Promise and audience",
+      "prompt": "Who the page is for and the outcome it promises, in the words that audience uses."
+    },
+    {
+      "id": "proof",
+      "title": "Proof",
+      "prompt": "Customer results, figures or quotes, each with the evidence behind it."
+    },
+    {
+      "id": "alternatives",
+      "title": "Why this rather than an alternative",
+      "prompt": "How the offer compares with the competitors and substitutes the visitor knows, from the market dossier."
+    },
+    {
+      "id": "call-to-action",
+      "title": "Call to action and form",
+      "prompt": "The single action asked of the visitor, each form field and why the follow-up needs it."
+    },
+    {
+      "id": "search",
+      "title": "Search and metadata",
+      "prompt": "Target query, page title, meta description and the internal links that lead to the page."
+    },
+    {
+      "id": "measurement",
+      "title": "Measurement",
+      "prompt": "Conversion event, tagged links, and the target compared with the baseline."
+    }
+  ],
+  "checks": [
+    {
+      "id": "claims-substantiated",
+      "verification": "Each claim points to evidence the team can show: a measurement, a customer result or a dated source."
+    },
+    {
+      "id": "form-minimal",
+      "verification": "The form collects only what the follow-up needs and links to the privacy notice."
+    },
+    {
+      "id": "accessible",
+      "verification": "Keyboard navigation, contrast and form labels were checked against the WCAG 2.2 AA criteria the team applies."
+    },
+    {
+      "id": "tracking-tested",
+      "verification": "A test conversion was recorded through a tagged link before launch."
+    }
+  ],
+  "sources": []
+}

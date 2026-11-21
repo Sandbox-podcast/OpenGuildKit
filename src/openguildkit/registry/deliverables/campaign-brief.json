@@ -3,6 +3,7 @@
   "title": "Campaign brief",
   "description": "Plan a marketing campaign with its audience, message, channels, measures and approvals before any tool sends or publishes.",
   "method": "marketing-campaign-planning",
+  "market": true,
   "brains": [
     "marketing",
     "communication",

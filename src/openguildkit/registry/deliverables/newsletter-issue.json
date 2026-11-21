@@ -1,0 +1,75 @@
+{
+  "id": "newsletter-issue",
+  "title": "Newsletter issue",
+  "description": "Prepare one issue of a customer or prospect newsletter: subject, content, the list it goes to and its consent, and how it is measured.",
+  "method": "utm-campaign-measurement",
+  "brains": [
+    "marketing",
+    "communication",
+    "legal"
+  ],
+  "inputs": [
+    {
+      "id": "list",
+      "label": "Mailing list or segment and the legal basis for contacting it",
+      "data": "personal"
+    },
+    {
+      "id": "topics",
+      "label": "Releases, articles or events this issue covers",
+      "data": "none"
+    },
+    {
+      "id": "send-date",
+      "label": "Send date and time zone",
+      "data": "internal"
+    }
+  ],
+  "tool_actions": [
+    {
+      "action": "send-message",
+      "description": "Sending the issue through the email tool."
+    },
+    {
+      "action": "publish",
+      "description": "Publishing the web version of the issue."
+    }
+  ],
+  "sections": [
+    {
+      "id": "subject",
+      "title": "Subject and preview text",
+      "prompt": "The subject line and preview text, and the one thing the reader should take away."
+    },
+    {
+      "id": "content",
+      "title": "Content blocks",
+      "prompt": "Each block with its headline, two or three sentences and one link."
+    },
+    {
+      "id": "audience",
+      "title": "Audience and consent",
+      "prompt": "The list or segment, its legal basis, the sender identity and the unsubscribe link."
+    },
+    {
+      "id": "measurement",
+      "title": "Measurement",
+      "prompt": "Tagged links, the metric that matters for this issue and the previous issue's result."
+    }
+  ],
+  "checks": [
+    {
+      "id": "consent-confirmed",
+      "verification": "The list and its legal basis are confirmed by the data protection owner."
+    },
+    {
+      "id": "unsubscribe-works",
+      "verification": "A test send shows the sender, the required legal mentions and a working unsubscribe link."
+    },
+    {
+      "id": "links-tagged",
+      "verification": "Every link opens and carries the campaign parameters agreed for the issue."
+    }
+  ],
+  "sources": []
+}

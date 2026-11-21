@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,7 +12,22 @@ from openguildkit.cli import main
 from openguildkit.deliverables import load_deliverables
 from openguildkit.storage import write_json
 
-EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
+REPO = Path(__file__).resolve().parents[1]
+EXAMPLE = REPO / "examples" / "request-status"
+MARKETING = ("landing-page-brief", "product-one-pager", "case-study", "newsletter-issue", "social-media-plan",
+             "press-release", "webinar-plan", "pricing-page-brief", "competitive-battle-card")
+BYPASS = """---
+deliverable: "campaign-brief"
+---
+
+- Objective: grow.
+
+<!--
+- [x] claim-substantiated: x Evidence: none
+- [x] consent-confirmed: x Evidence: none
+- [x] measurement-ready: x Evidence: none
+-->
+"""
 
 
 class DeliverableTests(unittest.TestCase):
@@ -29,9 +45,9 @@ class DeliverableTests(unittest.TestCase):
         self.assertEqual(result, code, stderr.getvalue())
         return stdout.getvalue(), stderr.getvalue()
 
-    def approved_task(self):
+    def approved_task(self, *consult_options):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "launch")
-        self.run_cli("task", "consult", "launch", "--answers", EXAMPLE / "answers.json")
+        self.run_cli("task", "consult", "launch", "--answers", EXAMPLE / "answers.json", *consult_options)
         template = json.loads(self.run_cli("task", "template", "launch")[0])
         write_json(self.root / "r.json", {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text())})
         self.run_cli("task", "review", "launch", "--file", self.root / "r.json")
@@ -69,6 +85,90 @@ class DeliverableTests(unittest.TestCase):
         (self.root / "brief.md").write_text(filled, encoding="utf-8")
         output, _ = self.run_cli("deliverable", "check", "brief.md")
         self.assertIn("Ready for review by marketing, communication, legal", output)
+
+    def filled(self, draft):
+        """A draft with every placeholder, source and check completed."""
+        text = draft.replace("TODO: each source with its date or link", "Customer interviews, 2026-11-02").replace("TODO", "Filled.")
+        return "\n".join(line.replace("- [ ] ", "- [x] ") + "docs/evidence.md" if line.startswith("- [ ] ") else line
+                         for line in text.splitlines()) + "\n"
+
+    def test_the_audit_bypass_draft_is_refused_with_what_is_missing(self):
+        (self.root / "bypass.md").write_text(BYPASS, encoding="utf-8")
+        problems, _ = self.run_cli("deliverable", "check", "bypass.md", code=1)
+        for section in ("Inputs", "Message", "Channels and calendar", "Measurement", "Consent and data", "Sources", "Checks"):
+            self.assertIn(f'Section "{section}" is missing.', problems)
+        self.assertIn("task", problems)
+        self.assertIn("approved_by", problems)
+        for check in ("claim-substantiated", "consent-confirmed", "measurement-ready"):
+            self.assertIn(f"Check {check} is not ticked", problems)
+        self.assertNotIn("Ready for review", problems)
+
+    def test_an_empty_draft_is_refused(self):
+        (self.root / "empty.md").write_text('---\ndeliverable: "support-article"\n---\n', encoding="utf-8")
+        problems, _ = self.run_cli("deliverable", "check", "empty.md", code=1)
+        self.assertIn('Section "Problem" is missing.', problems)
+
+    def test_checks_ticked_in_a_comment_or_a_code_block_do_not_count(self):
+        self.approved_task()
+        self.run_cli("deliverable", "new", "support-article", "--task", "launch", "--tool", "Brevo", "--output", "article.md")
+        draft = self.filled((self.root / "article.md").read_text(encoding="utf-8"))
+        self.assertIn("Ready for review", self.write_and_check(draft, 0))
+        ticked = [line for line in draft.splitlines() if line.startswith("- [x] ")]
+        unticked = "\n".join(line.replace("- [x] ", "- [ ] ") if line in ticked else line for line in draft.splitlines()) + "\n"
+        in_comment = unticked + "\n<!--\n" + "\n".join(ticked) + "\n-->\n"
+        self.assertIn("Check steps-tested is not ticked", self.write_and_check(in_comment, 1))
+        in_code = unticked + "\n```\n" + "\n".join(ticked) + "\n```\n"
+        self.assertIn("Check no-personal-data is not ticked", self.write_and_check(in_code, 1))
+        hidden_section = draft.replace("## Resolution", "<!-- ## Resolution -->")
+        self.assertIn('Section "Resolution" is missing.', self.write_and_check(hidden_section, 1))
+        empty_section = draft.replace("## When to contact support\n", "## When to contact support\n<!-- nothing -->\n## Ignored\n", 1)
+        self.assertIn('Section "When to contact support" is empty.', self.write_and_check(empty_section, 1))
+
+    def write_and_check(self, text, code):
+        (self.root / "article.md").write_text(text, encoding="utf-8")
+        return self.run_cli("deliverable", "check", "article.md", code=code)[0]
+
+    def test_documentation_and_command_agree_on_the_task_states_accepted(self):
+        self.run_cli("task", "new", "Plan the spring campaign.", "--id", "draft-task")
+        _, error = self.run_cli("deliverable", "new", "campaign-brief", "--task", "draft-task", "--tool", "Brevo", "--output", "b.md", code=1)
+        self.assertIn("approved or completed task", error)
+        self.assertIn("approved or completed task", (REPO / "docs" / "deliverables.md").read_text(encoding="utf-8"))
+
+    def test_marketing_templates_cover_the_work_of_a_software_publisher(self):
+        catalog = load_catalog()
+        templates = load_deliverables(catalog)
+        listing, _ = self.run_cli("deliverable", "list")
+        documented = (REPO / "docs" / "deliverables.md").read_text(encoding="utf-8")
+        for template_id in MARKETING:
+            with self.subTest(template=template_id):
+                template = templates[template_id]
+                self.assertIn(template_id, listing)
+                self.assertIn(f"`{template_id}`", documented)
+                self.assertGreaterEqual(len(template["sections"]), 3)
+                self.assertGreaterEqual(len(template["checks"]), 2)
+                self.assertTrue(set(template["brains"]) & {"marketing", "communication", "sales"})
+                self.assertIn(template.get("method", "marketing-campaign-planning"), catalog["patterns"])
+                cited = {source["url"] for pattern in catalog["patterns"].values() for source in pattern.get("sources", [])}
+                self.assertLessEqual({source["url"] for source in template["sources"]}, cited)
+
+    def test_market_templates_carry_the_dossier_the_task_was_consulted_with(self):
+        (self.root / ".openguildkit" / "market").mkdir()
+        shutil.copy(REPO / "examples" / "market-dossier" / "support-portals.json", self.root / ".openguildkit" / "market")
+        self.approved_task("--market", "support-portals")
+        templates = load_deliverables(load_catalog())
+        for template_id in ("landing-page-brief", "competitive-battle-card", "case-study", "social-media-plan"):
+            self.assertTrue(templates[template_id].get("market"), template_id)
+        self.run_cli("deliverable", "new", "competitive-battle-card", "--task", "launch", "--tool", "Brevo", "--output", "card.md")
+        draft = (self.root / "card.md").read_text(encoding="utf-8")
+        self.assertIn('market: "support-portals"', draft)
+        self.assertIn(".openguildkit/market/support-portals.json", draft)
+
+    def test_without_a_dossier_a_market_template_says_how_to_attach_one(self):
+        self.approved_task()
+        self.run_cli("deliverable", "new", "landing-page-brief", "--task", "launch", "--tool", "Brevo", "--output", "landing.md")
+        draft = (self.root / "landing.md").read_text(encoding="utf-8")
+        self.assertIn("--market", draft)
+        self.assertNotIn("market:", draft.split("---", 2)[1])
 
 
 if __name__ == "__main__":

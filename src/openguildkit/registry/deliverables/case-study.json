@@ -1,0 +1,86 @@
+{
+  "id": "case-study",
+  "title": "Customer case study",
+  "description": "Tell how a customer solved a problem with the product, with measured results and the customer's written approval to publish.",
+  "market": true,
+  "brains": [
+    "marketing",
+    "sales",
+    "communication",
+    "legal"
+  ],
+  "inputs": [
+    {
+      "id": "customer",
+      "label": "Customer organisation and the contact who agreed to take part",
+      "data": "personal"
+    },
+    {
+      "id": "results",
+      "label": "Results measured before and after, with their period",
+      "data": "internal"
+    },
+    {
+      "id": "approval",
+      "label": "The customer's written approval of the text, the quote and the use of their name and logo",
+      "data": "personal"
+    }
+  ],
+  "tool_actions": [
+    {
+      "action": "send-message",
+      "description": "Sending the draft to the customer for approval."
+    },
+    {
+      "action": "publish",
+      "description": "Publishing the case study on the website or in sales material."
+    }
+  ],
+  "sections": [
+    {
+      "id": "context",
+      "title": "Customer and context",
+      "prompt": "Who the customer is, their size and sector, and the team that uses the product."
+    },
+    {
+      "id": "challenge",
+      "title": "Challenge",
+      "prompt": "The problem before the product, in the customer's words."
+    },
+    {
+      "id": "alternatives",
+      "title": "Alternatives considered",
+      "prompt": "What the customer used or evaluated before, from their account or the market dossier."
+    },
+    {
+      "id": "solution",
+      "title": "Solution",
+      "prompt": "How the customer uses the product, including what they had to change."
+    },
+    {
+      "id": "results",
+      "title": "Results",
+      "prompt": "Each result with its baseline, its period and how it was measured."
+    },
+    {
+      "id": "quote",
+      "title": "Customer quote",
+      "prompt": "A quote from the contact who approved it."
+    }
+  ],
+  "checks": [
+    {
+      "id": "customer-approved",
+      "verification": "The customer approved the final text, the quote and the use of their name and logo in writing."
+    },
+    {
+      "id": "results-verified",
+      "verification": "Each figure matches data the customer or the team can show, with its period."
+    },
+    {
+      "id": "personal-data-minimal",
+      "verification": "Only people who agreed are named, and no other personal data appears."
+    }
+  ],
+  "sources": []
+}

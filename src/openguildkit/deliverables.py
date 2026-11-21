@@ -18,10 +18,16 @@ from .storage import write_text
 DATA_CLASSES = ("none", "internal", "personal", "regulated")
 ACTIONS = ("public-research", "external-api", "send-message", "publish", "install-dependency", "other")
 _CHECKED = re.compile(r"^- \[x\] (?P<id>[a-z0-9-]+): .+? Evidence: (?P<evidence>\S.*)$", re.MULTILINE)
+_COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
+_FENCE = re.compile(r"^\s{0,3}(```|~~~)")
+_FIELD = re.compile(r'^(?P<key>[a-z_]+): (?P<value>".*")$')
+FRONT_MATTER = ("deliverable", "task", "approved_by")
 
 
 def _validate(record: dict, catalog: dict) -> None:
-    _validate_fields(record, "deliverable", {"id", "title", "description", "brains", "inputs", "tool_actions", "sections", "checks", "sources"}, {"method"})
+    _validate_fields(record, "deliverable", {"id", "title", "description", "brains", "inputs", "tool_actions", "sections", "checks", "sources"}, {"method", "market"})
+    if "market" in record and not isinstance(record["market"], bool):
+        raise CatalogError("market must be true or false")
     _validate_id(record["id"], "id")
     for field in ("title", "description"):
         _validate_text(record[field], field)
@@ -82,14 +88,28 @@ def launch_notice(deliverable: dict) -> list[str]:
     return lines
 
 
+def _market_lines(deliverable: dict, task: dict) -> tuple[list[str], list[str]]:
+    """Front matter and input lines linking a market template to the dossier the task was consulted with."""
+    if not deliverable.get("market"):
+        return [], []
+    dossier = task.get("consultation", {}).get("scope", {}).get("market")
+    if not dossier:
+        return [], ["- Market dossier: none attached. Create one in .openguildkit/market/ and consult the task with --market ID."]
+    gaps = f", {len(dossier.get('gaps', []))} gap(s)" if dossier.get("gaps") else ""
+    return [f"market: {json.dumps(dossier['id'])}"], [
+        f"- Market dossier: .openguildkit/market/{dossier['id']}.json ({len(dossier.get('observations', []))} observation(s){gaps}); "
+        f"cite observations as market:{dossier['id']}/ID"]
+
+
 def new_draft(deliverable: dict, task: dict, tool: str, approved_tools: list[str], output: Path) -> dict:
     if task["status"] not in ("approved", "done"):
-        raise ValueError("Start a deliverable from an approved task.")
+        raise ValueError("Start a deliverable from an approved or completed task.")
     if approved_tools and tool not in approved_tools:
         raise ValueError(f"{tool} is not an approved tool for this project. Approved: {', '.join(approved_tools)}.")
     if output.exists():
         raise ValueError(f"{output} already exists.")
     decision = task["decision"]
+    market_fields, market_inputs = _market_lines(deliverable, task)
     lines = [
         "---",
         f"deliverable: {json.dumps(deliverable['id'])}",
@@ -97,6 +117,7 @@ def new_draft(deliverable: dict, task: dict, tool: str, approved_tools: list[str
         f"tool: {json.dumps(tool)}",
         f"approved_by: {json.dumps(decision['by'])}",
         f"decision_reason: {json.dumps(decision['reason'])}",
+        *market_fields,
         "---",
         "",
         f"# {deliverable['title']}",
@@ -104,6 +125,7 @@ def new_draft(deliverable: dict, task: dict, tool: str, approved_tools: list[str
         "## Inputs",
         "",
         *[f"- {item['label']}: TODO" for item in deliverable["inputs"]],
+        *market_inputs,
         "",
     ]
     for section in deliverable["sections"]:
@@ -115,15 +137,69 @@ def new_draft(deliverable: dict, task: dict, tool: str, approved_tools: list[str
             "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
 
 
+def _front_matter(text: str) -> tuple[dict, str]:
+    """The draft's front matter fields and the body after it."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---" or "---" not in [line.strip() for line in lines[1:]]:
+        return {}, text
+    end = [line.strip() for line in lines].index("---", 1)
+    fields = {}
+    for line in lines[1:end]:
+        match = _FIELD.match(line.strip())
+        if match:
+            try:
+                fields[match["key"]] = json.loads(match["value"])
+            except ValueError:
+                continue
+    return fields, "\n".join(lines[end + 1:])
+
+
+def _visible(text: str) -> str:
+    """The text a reader sees: HTML comments and fenced code blocks do not count."""
+    kept, fenced = [], False
+    for line in _COMMENT.sub("", text).splitlines():
+        if _FENCE.match(line):
+            fenced = not fenced
+        elif not fenced:
+            kept.append(line)
+    return "\n".join(kept)
+
+
+def _sections(body: str) -> dict[str, list[str]]:
+    """The non-blank lines under each level-two heading, by heading title."""
+    found, current = {}, None
+    for line in body.splitlines():
+        if line.startswith("## "):
+            current = line[3:].strip()
+            found.setdefault(current, [])
+        elif line.startswith("# "):
+            current = None
+        elif current is not None and line.strip():
+            found[current].append(line.strip())
+    return found
+
+
 def draft_problems(deliverable: dict, text: str) -> list[str]:
-    """What keeps a draft from review: placeholders, missing sources, unchecked controls."""
-    problems = []
-    if "TODO" in text:
-        problems.append(f"{text.count('TODO')} placeholder(s) still say TODO.")
-    sources = text.split("## Sources", 1)[-1].split("## Checks", 1)[0]
-    if not any(line.strip().startswith("- ") and "TODO" not in line for line in sources.splitlines()):
+    """What keeps a draft from review: front matter, sections, placeholders, sources and checks.
+
+    Only what a reader sees counts: a section, source or ticked check inside an HTML comment
+    or a code block is ignored, so an empty draft cannot pass.
+    """
+    fields, body = _front_matter(text)
+    problems = [f"The front matter has no {field}: start the draft with openguildkit deliverable new."
+                for field in FRONT_MATTER if not str(fields.get(field, "")).strip()]
+    visible = _visible(body)
+    sections = _sections(visible)
+    for title in ["Inputs", *[section["title"] for section in deliverable["sections"]], "Sources", "Checks"]:
+        if title not in sections:
+            problems.append(f'Section "{title}" is missing.')
+        elif not sections[title]:
+            problems.append(f'Section "{title}" is empty.')
+    if "TODO" in visible:
+        problems.append(f"{visible.count('TODO')} placeholder(s) still say TODO.")
+    if "Sources" in sections and not any(line.startswith("- ") and "TODO" not in line for line in sections["Sources"]):
         problems.append("List at least one source.")
-    checked = {match["id"] for match in _CHECKED.finditer(text)}
+    checked = {match["id"] for match in _CHECKED.finditer("\n".join(sections.get("Checks", [])))}
     for check in deliverable["checks"]:
         if check["id"] not in checked:
             problems.append(f"Check {check['id']} is not ticked with its evidence.")
