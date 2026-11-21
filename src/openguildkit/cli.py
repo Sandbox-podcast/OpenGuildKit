@@ -26,7 +26,7 @@ from .market import scope_entry as market_scope_entry
 from .storybook import STORYBOOK_VERSION
 from .storybook import run as storybook_command
 from .storybook import scope_entry as storybook_scope_entry
-from .integrations import install_agent_files
+from .integrations import OTHER_HOST_NOTE, install_agent_files
 from .guard import NO_TASK, STALE_DAYS, ci_guard, covering_approvals, export_decision, exported_decision_problems, guard_mode, run_hook
 from .results import (
     chaosfolk_checks, compare_runs, completion_problems, evidence_files_missing, expected_checks, missing_scenarios,
@@ -234,7 +234,8 @@ def _parser() -> argparse.ArgumentParser:
     storybook.epilog = (f"Create the project Storybook with npm create storybook@{STORYBOOK_VERSION}. "
                         "storybook compose prints a minimal .storybook/main.ts when the project has none.")
     agent = commands.add_parser("integrations", help="Install the agent skill and subagent of this version.")
-    agent.add_argument("--host", required=True, choices=("claude-code", "codex"), help="Agent to configure.")
+    agent.add_argument("--host", required=True, choices=("claude-code", "codex", "other"),
+                       help="Agent to configure (other: the Agent Skills folder .agents/skills/).")
     agent.add_argument("--user", action="store_true", help="Install in the home folder for every project.")
     agent.add_argument("--force", action="store_true", help="Replace modified files, keeping a .previous copy.")
     host = commands.add_parser("host", help="Show or apply the rules the host agent can enforce.")
@@ -736,6 +737,15 @@ def _print_preselection(plan: dict, catalog: dict) -> None:
         print(f"Regulations to consider for your roles: {', '.join(regulations)}", file=sys.stderr)
     if methods:
         print(f"Methods and alternatives to consider: {', '.join(methods)}", file=sys.stderr)
+
+
+HOST_STATUS_LABELS = {"instruction": "by instruction", "human": "by a person"}
+NO_HOST_SETTINGS = (
+    "the project's host is other, so host apply wrote nothing: OpenGuildKit writes host settings only for "
+    "claude-code and codex. The rules above stay with the AGENTS.md instructions and the CI check. To install "
+    'the settings and hooks for one of these agents, set "host" in .openguildkit/project.json, run openguildkit sync, '
+    "then openguildkit host apply."
+)
 
 
 def _detected_host(root: Path) -> str | None:
@@ -1590,8 +1600,9 @@ def _run(args) -> int | None:
     elif args.command == "integrations":
         base = Path.home() if args.user else root
         for item in install_agent_files(base, args.host, args.force):
-            print(f"{item['file']}: {item['action']}")
-        print(f"openguildkit {package_version()}")
+            print(f"{item['file']}: {item['action']} (openguildkit {package_version()})")
+        if args.host == "other":
+            print(OTHER_HOST_NOTE)
     elif args.command == "detect":
         _print_detection(detect_stack(root), args.json)
     elif args.command == "preview":
@@ -1630,6 +1641,8 @@ def _run(args) -> int | None:
             initialize(root, state, profile, live)
             write_lock(state, build_lock(profile, live, bundled))
         print(f"Initialized {root}")
+        print("Wrote AGENTS.md, the project rules every agent reads, and CLAUDE.md, one line that imports "
+              "AGENTS.md for Claude Code. Delete CLAUDE.md if nobody uses Claude Code: check does not require it.")
         _print_setup_notes(profile, left_aside if args.answers else [], registry)
         warning = approval_warning(profile)
         if warning:
@@ -1670,15 +1683,25 @@ def _run(args) -> int | None:
                 print(warning, file=sys.stderr)
             controls = host_controls(root, profile)
             if args.mode == "apply":
-                for path in apply_host_settings(root, profile):
+                written = apply_host_settings(root, profile)
+                for path in written:
                     print(f"Wrote {path}", file=sys.stderr)
+                if not written and profile.get("host", "other") not in ("claude-code", "codex"):
+                    print(f"OpenGuildKit: {NO_HOST_SETTINGS}", file=sys.stderr)
                 controls = host_controls(root, profile)
+            missing = [control for control in controls if control["status"] == "missing"]
             if args.json:
                 _print_json(controls)
             else:
                 for control in controls:
-                    print(f"[{control['status']}] {control['title']}\n    {control['detail']}")
-            return
+                    print(f"[{HOST_STATUS_LABELS.get(control['status'], control['status'])}] {control['title']}"
+                          f"\n    {control['detail']}")
+                if missing:
+                    print(f"{len(missing)} setting(s) missing. Run openguildkit host apply, then openguildkit host check.")
+                else:
+                    print("Nothing missing. A rule marked 'by instruction' or 'by a person' is left to the agent's "
+                          "instructions or to a person on purpose: no setting of this host can enforce it.")
+            return 1 if missing and args.mode == "check" else 0
         if args.command == "check":
             fingerprint = profile_fingerprint(profile, catalog)
             for row in list_tasks(state, current_fingerprint=fingerprint):

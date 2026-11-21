@@ -16,7 +16,16 @@ HOST_FILES = {
     "codex": {
         "skills/openguildkit/SKILL.md": Path(".agents") / "skills" / "openguildkit" / "SKILL.md",
     },
+    # Other agents: the folder of the Agent Skills format, which Codex and other agents read.
+    "other": {
+        "skills/openguildkit/SKILL.md": Path(".agents") / "skills" / "openguildkit" / "SKILL.md",
+    },
 }
+OTHER_HOST_NOTE = (
+    "Other agents: the skill is in .agents/skills/openguildkit/, the folder of the Agent Skills format. "
+    "If your agent reads its skills or instructions from another folder, copy SKILL.md there; "
+    "AGENTS.md already carries the same workflow."
+)
 VERSION_FILE = "openguildkit-version.txt"
 
 
