@@ -1,7 +1,7 @@
 {
   "id": "cyber-resilience-act",
   "title": "Cyber Resilience Act product security",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Questions for the product security owner and repository checks for products with digital elements under Regulation (EU) 2024/2847. These rules do not establish conformity.",
   "sources": [
     {
@@ -30,7 +30,15 @@
     {
       "id": "publish-disclosure-policy",
       "instruction": "Keep a coordinated vulnerability disclosure policy and a contact address for reporting vulnerabilities (Annex I, Part II, points 5 and 6).",
-      "verification": "Open the published policy and check that it gives the contact address and the handling steps."
+      "verification": "Open the published policy and check that it gives the contact address and the handling steps.",
+      "check": {
+        "kind": "file-exists",
+        "paths": [
+          "SECURITY.md",
+          ".github/SECURITY.md",
+          "docs/SECURITY.md"
+        ]
+      }
     },
     {
       "id": "ship-secure-defaults",

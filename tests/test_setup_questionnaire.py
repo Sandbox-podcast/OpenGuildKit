@@ -47,7 +47,7 @@ class QuestionnaireTests(unittest.TestCase):
         self.assertIn("signed", labels["enforce"])
         norms = {norm["id"]: norm for norm in questions["norms"]["norms"]}
         self.assertEqual(norms["dora-financial-entity"]["when"], {"sectors": ["financial-services", "insurance"]})
-        self.assertEqual(norms["gdpr-personal-data"]["when"], {"personal_data": True})
+        self.assertEqual(norms["gdpr-personal-data"]["when"], {"sectors": ["financial-services"], "personal_data": True})
         self.assertIn("nis2-essential-entity", norms)
         self.assertNotIn("eu-ai-act-system", norms)
         self.assertTrue(all(norm["prompt"].endswith("?") for norm in norms.values()))

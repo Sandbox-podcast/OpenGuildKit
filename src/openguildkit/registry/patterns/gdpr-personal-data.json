@@ -1,7 +1,7 @@
 {
   "id": "gdpr-personal-data",
   "title": "GDPR personal data processing",
-  "description": "Select when the change processes personal data under Regulation (EU) 2016/679 and the privacy owner can answer for the processing record.",
+  "description": "Select when the change processes personal data under Regulation (EU) 2016/679 and the privacy owner can answer for the processing record. Preselected for personal data and for financial services unless the project answers that it processes none.",
   "sources": [
     {
       "title": "Regulation (EU) 2016/679, General Data Protection Regulation",
@@ -17,6 +17,9 @@
   ],
   "kind": "regulation",
   "match": {
+    "sectors": [
+      "financial-services"
+    ],
     "personal_data": true
   },
   "references": [
