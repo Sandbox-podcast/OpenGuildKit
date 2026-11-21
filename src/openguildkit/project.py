@@ -538,8 +538,7 @@ def _norm_answers(value, catalog: dict) -> dict[str, bool]:
 def complete_answers(answers: object, questions: list[dict], catalog: dict) -> tuple[dict, list[dict], list[str]]:
     """Give each omitted question its default and record the norms answered no in declined.
 
-    Returns the answers, the detected components left aside (the default only applies when the
-    answers give no stack either) and the norms answered yes.
+    Returns the answers, the detected components left aside and the norms answered yes.
     """
     if not isinstance(answers, dict):
         raise ValueError("Setup answers must be a JSON object, such as {} or {\"name\": \"Portal\"}.")
@@ -549,7 +548,8 @@ def complete_answers(answers: object, questions: list[dict], catalog: dict) -> t
     for field in ("name", "sector", "boards", "tools", "host", "guard", "research"):
         if field in defaults:
             completed.setdefault(field, defaults[field])
-    if "components" not in completed and "stack" not in completed and detected:
+    root_only = len(detected) == 1 and detected[0].get("path") == "."
+    if "components" not in completed and detected and ("stack" not in completed or (root_only and completed["stack"] == [])):
         completed["components"] = detected
     left_aside = detected if detected and not completed.get("components") else []
     norms = _norm_answers(completed.pop("norms", {}), catalog)

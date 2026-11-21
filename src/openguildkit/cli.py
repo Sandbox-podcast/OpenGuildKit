@@ -16,7 +16,7 @@ from .deliverables import draft_problems, launch_notice, load_deliverables, new_
 from .brains import (
     brain_knowledge, brief_knowledge, consultation_context, knowledge_gaps, reading_list_note, write_brain_skeleton,
 )
-from .detect import components_for_profile, detect_stack
+from .detect import components_for_profile, detect_stack, detected_project_name
 from .publishing import add_share, export_docs, project_overview, revoke_share, share_status
 from . import tools_cli
 from .tools import connected_tools, load_tools
@@ -748,7 +748,7 @@ def _setup_questions(root: Path, state: Path, catalog: dict) -> tuple[list[dict]
     """The questionnaire with the defaults this repository shows: components, tools and host."""
     registry = load_tools(state / "catalog" / "tools")
     detected = components_for_profile(detect_stack(root))
-    questions = init_questions(catalog, root.name or "Project", detected, detect_tools(root, registry), _detected_host(root))
+    questions = init_questions(catalog, detected_project_name(root), detected, detect_tools(root, registry), _detected_host(root))
     return questions, registry
 
 
