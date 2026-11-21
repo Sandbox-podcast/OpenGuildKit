@@ -35,7 +35,7 @@ The robustness tests use a fixed seed, so a failure names the seed, the command 
 OPENGUILDKIT_FUZZ_SEED=7 PYTHONPATH=src python -m unittest tests.test_robustness
 ```
 
-Crashes already reported elsewhere are listed in `KNOWN_CRASHES` with their issue (#99 for malformed inputs, #95 for the edit hook) and do not fail the run. `OPENGUILDKIT_FUZZ_STRICT=1` fails on them too; remove an entry once its issue is closed. Other seeds still find crashes on task records edited by hand (a challenge or a date replaced by a list or an object): `read_task` checks which keys a record has, not their types.
+Every crash fails the run: none is tolerated. A task record edited by hand is checked once when it is loaded, field by field, and a damaged one is reported as `Task record ID is damaged: FIELD ...` instead of crashing a later command. The suite passes with the default seed and with seeds 1, 2 and 3 (`OPENGUILDKIT_FUZZ_SEED=N`).
 
 ## Performance numbers
 

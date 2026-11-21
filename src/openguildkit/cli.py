@@ -4,6 +4,7 @@ import argparse
 import json
 import re
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 from .catalog import load_catalog
@@ -67,6 +68,7 @@ from .tasks import (
     record_deliberation,
     assemble_review,
     pass_progress,
+    points_left_open,
     start_pass,
     submit_pass,
     ACTIONS,
@@ -354,6 +356,15 @@ def _parser() -> argparse.ArgumentParser:
 
 def _print_json(data) -> None:
     print(json_text(data), end="")
+
+
+@contextmanager
+def _input_file(path: Path):
+    """Name the file a refusal comes from, so the person knows which file to correct."""
+    try:
+        yield
+    except ValueError as error:
+        raise ValueError(f"{path.as_posix()}: {error}") from error
 
 
 def _installed_catalog(args, state: Path) -> tuple[dict, dict[str, set[str]]]:
@@ -1126,12 +1137,14 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             _print_json(task_questions(task["brief"]))
         else:
             answers = read_json(args.answers)
-            questions = task_questions(task["brief"], answers)
+            with _input_file(args.answers):
+                validated = validate_answers(answers)
+            questions = task_questions(task["brief"], validated)
             asked = {question["id"] for question in questions if question.get("essential") is not None}
             _print_json({
                 "questions": questions,
                 "follow_ups": sorted(asked - answers.keys()),
-                "open_points": open_points(task["brief"], validate_answers(answers)),
+                "open_points": open_points(task["brief"], validated),
             })
     elif action == "brief":
         print(_read_consultation(task)["markdown"])
@@ -1212,7 +1225,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             if action == "verify":
                 result = record_result(current_task, profile, payload, source="verify")
             elif action == "result":
-                result = record_result(current_task, profile, read_json(args.file))
+                with _input_file(args.file):
+                    result = record_result(current_task, profile, read_json(args.file))
             else:
                 blocking = blocking_alerts(load_register(state), current_task)
                 if blocking:
@@ -1221,6 +1235,10 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             write_json(task_path(state, args.id), result)
         if action == "complete":
             print("done")
+            left = points_left_open(result, profile)
+            if left:
+                print(f"Left open: {'; '.join(left)}. To follow up, open a task linked to this one: "
+                      f'openguildkit task new "BRIEF" --follows {args.id}')
         else:
             for item in result["result"]["checks"]:
                 print(f"{item['check']}: {item['status']}")
@@ -1251,7 +1269,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             current_task = read_task(state, args.id)
             if current_task != task:
                 raise ValueError("The task changed while you were deliberating. Run task deliberate again.")
-            result = record_deliberation(current_task, payload)
+            with _input_file(args.file):
+                result = record_deliberation(current_task, payload)
             write_json(task_path(state, args.id), result)
         deliberation = result["deliberation"]
         print(f"{len(deliberation['agreed'])} resolved, {len(deliberation['open'])} open")
@@ -1260,7 +1279,11 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
     elif action == "route":
         if args.answers is None and "answers" not in task:
             raise ValueError("Pass --answers FILE, or consult the task first.")
-        answers = validate_answers(read_json(args.answers) if args.answers else task["answers"])
+        if args.answers:
+            with _input_file(args.answers):
+                answers = validate_answers(read_json(args.answers))
+        else:
+            answers = validate_answers(task["answers"])
         selected = select_boards(
             resolved_profile(profile, catalog), catalog, {**task, "answers": answers}, answers, _selection(args)
         )
@@ -1279,6 +1302,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             if args.answers is not None
             else _prompt_task_questions(task["brief"])
         )
+        if args.answers is not None:
+            with _input_file(args.answers):
+                validate_answers(answers)
         with project_lock(state):
             current_task = read_task(state, args.id)
             if current_task != task:
@@ -1315,7 +1341,11 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             current_task = read_task(state, args.id)
             if current_task != task:
                 raise ValueError("The task changed while you were reviewing. Read the consultation and retry.")
-            result = record_review(current_task, review) if review is not None else assemble_review(current_task, args.summary)
+            if review is not None:
+                with _input_file(args.file):
+                    result = record_review(current_task, review, root)
+            else:
+                result = assemble_review(current_task, args.summary)
             write_json(task_path(state, args.id), result)
         print(result["status"])
     elif action in ("pass", "submit"):
@@ -1325,13 +1355,14 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             if action == "pass":
                 result = start_pass(current_task, args.board, args.mode or "sequential")
             else:
-                result = submit_pass(current_task, entry, args.mode)
+                with _input_file(args.file):
+                    result = submit_pass(current_task, entry, args.mode, root)
             error = result.pop("_error", None)
             write_json(task_path(state, args.id), result)
         if action == "pass":
             print(board_brief(result["consultation"], args.board))
         elif error:
-            raise ValueError(f"The pass is recorded as failed: {error} Start it again with task pass.")
+            raise ValueError(f"{args.file.as_posix()}: the pass is recorded as failed: {error} Start it again with task pass.")
         else:
             print("done")
     elif action == "progress":

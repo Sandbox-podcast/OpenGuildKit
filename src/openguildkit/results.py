@@ -15,6 +15,7 @@ from .project import rule_text
 from .storage import write_text
 
 RESULT_STATUSES = ("passed", "failed", "skipped", "not-applicable")
+CRITERION_STATUSES = ("met", "not-met")
 LOG_TAIL = 4000
 
 
@@ -74,6 +75,11 @@ def _text(value: object, field: str) -> str:
     return value.strip()
 
 
+def _refusal(task: dict, message: str) -> ValueError:
+    """A refused result names what is accepted and the template that shows it."""
+    return ValueError(f"{message} Run openguildkit task result {task['id']} --template for the shape.")
+
+
 def validate_result(task: dict, profile: dict, payload: dict, source: str = "report") -> dict:
     """A result names the delivered revision or PR, the acceptance criteria and each check's outcome.
 
@@ -84,41 +90,51 @@ def validate_result(task: dict, profile: dict, payload: dict, source: str = "rep
         raise ValueError("Record results for an approved task.")
     fields = {"revision", "pull_request", "criteria", "checks"} | ({"run"} if source == "verify" else set())
     if not isinstance(payload, dict) or not payload.keys() <= fields:
-        raise ValueError("A result has revision or pull_request, criteria and checks. Run task result ID --template.")
+        raise _refusal(task, "A result has revision or pull_request, criteria and checks.")
     if not payload.get("revision") and not payload.get("pull_request"):
-        raise ValueError("Name the delivered revision or pull request.")
+        raise _refusal(task, "Name the delivered revision or pull request: revision (a commit SHA) or pull_request.")
     known = {check["id"]: check for check in expected_checks(task, profile)}
-    result = {key: _text(payload[key], key) for key in ("revision", "pull_request") if payload.get(key)}
+    try:
+        result = {key: _text(payload[key], key) for key in ("revision", "pull_request") if payload.get(key)}
+    except ValueError as error:
+        raise _refusal(task, str(error)) from None
     if "run" in payload:
         result["runs"] = [payload["run"]]
     criteria = payload.get("criteria", [])
     if not isinstance(criteria, list):
-        raise ValueError("criteria must be a list.")
+        raise _refusal(task, "criteria must be a list of objects with criterion, status and evidence.")
     result["criteria"] = []
     for item in criteria:
         if not isinstance(item, dict) or item.keys() != {"criterion", "status", "evidence"}:
-            raise ValueError("Each criterion has criterion, status (met or not-met) and evidence.")
-        if item["status"] not in ("met", "not-met"):
-            raise ValueError("A criterion is met or not-met.")
-        result["criteria"].append({key: _text(item[key], f"criterion {key}") for key in item})
+            raise _refusal(task, "Each criterion has criterion, status (met or not-met) and evidence.")
+        if item["status"] not in CRITERION_STATUSES:
+            raise _refusal(task, f"A criterion status is met or not-met, not {item['status']!r}.")
+        try:
+            result["criteria"].append({key: _text(item[key], f"criterion {key}") for key in item})
+        except ValueError as error:
+            raise _refusal(task, str(error)) from None
     checks = payload.get("checks", [])
     if not isinstance(checks, list):
-        raise ValueError("checks must be a list.")
+        raise _refusal(task, "checks must be a list of objects with check and status.")
     result["checks"] = []
     for item in checks:
         if not isinstance(item, dict) or "check" not in item or "status" not in item:
-            raise ValueError("Each check has check and status.")
-        _check_source(item["check"], known, source)
-        if item["status"] not in RESULT_STATUSES:
-            raise ValueError(f"A check status is one of {', '.join(RESULT_STATUSES)}.")
+            raise _refusal(task, f"Each check has check and status ({', '.join(RESULT_STATUSES)}).")
+        try:
+            _check_source(item["check"], known, source)
+        except ValueError as error:
+            raise _refusal(task, str(error)) from None
+        if not isinstance(item["status"], str) or item["status"] not in RESULT_STATUSES:
+            raise _refusal(task, f"A check status is one of {', '.join(RESULT_STATUSES)}, not {item['status']!r}.")
         if item["status"] == "passed" and item.get("exit_code", 0) != 0:
             raise ValueError(f"{item['check']} has exit_code {item['exit_code']}: a check that exits non-zero cannot pass.")
         entry = {"check": item["check"], "status": item["status"]}
-        if item["status"] in ("passed", "failed"):
-            entry["evidence"] = _text(item.get("evidence"), f"{item['check']} evidence")
-        else:
-            entry["reason"] = _text(item.get("reason"), f"{item['check']} reason")
-            entry["owner"] = _text(item.get("owner"), f"{item['check']} owner")
+        fields = ("evidence",) if item["status"] in ("passed", "failed") else ("reason", "owner")
+        try:
+            entry.update({field: _text(item.get(field), f"{item['check']} {field}") for field in fields})
+        except ValueError as error:
+            needed = " and ".join(fields)
+            raise _refusal(task, f"{error} A {item['status']} check needs {needed}.") from None
         for key in ("exit_code", "seconds", "revision", "chaosfolk_status", "message"):
             if key in item:
                 entry[key] = item[key]

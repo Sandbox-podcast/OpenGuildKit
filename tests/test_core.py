@@ -68,6 +68,8 @@ class WorkflowTests(unittest.TestCase):
     def review(self):
         review = self.task()["consultation"]["review_template"]
         review["summary"] = "Export only the visible fields and test cross-account access."
+        (self.root / "docs").mkdir(exist_ok=True)
+        (self.root / "docs" / "permissions.md").write_text("# Permissions\n", encoding="utf-8")
         for board in review["boards"]:
             board["recommendation"] = "Cover the approved scope with a synthetic fixture."
             board["evidence"] = [{"source": "project-file", "ref": "docs/permissions.md", "supports": "The permission policy."}]

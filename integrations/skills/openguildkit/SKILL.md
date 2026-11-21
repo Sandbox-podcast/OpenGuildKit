@@ -47,7 +47,7 @@ Save each returned entry and run `openguildkit task submit ID --file ENTRY`. Che
 1. When every pass is done, write the summary yourself: where the boards agree, where they conflict, and the smallest next step you propose.
 2. Run `openguildkit task review ID --summary "SUMMARY"`. It assembles the entries from the passes and records how they ran.
 3. Without passes, fill `openguildkit task template ID` (keep its `consultation_id`), save it and run `openguildkit task review ID --file FILE`.
-4. Run `openguildkit task deliberate ID`. When it lists objections, give each board the objection, its own first review and the other board's position, and get its answer on the same point with evidence from its list. Record them with `openguildkit task respond ID --file FILE`, with `decision_needed` when disagreements remain.
+4. Run `openguildkit task deliberate ID`. It lists an objection from each board that does not proceed to each board that proceeds, and from each board that blocks to each board that asks to revise. When it lists objections, give each board the objection, its own first review and the other board's position, and get its answer on the same point with evidence from its list. Record them with `openguildkit task respond ID --file FILE`, with `decision_needed` when disagreements remain.
 5. Run `openguildkit task challenge ID`. Show the user its first lines as they are (verdict count and warnings, review warnings, boards added or removed, open points, objections not deliberated, blockers with their evidence), then the recommendation, disagreements and the checks that could change the decision.
 
 ### 4. Stop for the decision
@@ -69,9 +69,9 @@ Never run `task decide --approve` yourself, and never try to feed it input. Run 
 
 When the user says they approved, run `openguildkit task handoff ID`. Implement only the approved scope, follow the rule packs and conventions in the handoff, run the project checks it lists and report their results. If the handoff fails because the rules changed, explain it and open a new task. Bring any scope change back to the user before doing it.
 
-When the work is implemented, run `openguildkit task verify ID`: only it records the project's check commands, and `task verify ID --chaosfolk SUMMARY` the ChaosFolk replays. Then run `openguildkit task result ID --template`, fill in the file it prints (one entry per acceptance criterion, an outcome for every rule) and record it with `openguildkit task result ID --file FILE`. Run `openguildkit task complete ID` and show the user what is still missing if it refuses. Never mark a check passed without evidence.
+When the work is implemented, run `openguildkit task verify ID`: only it records the project's check commands, and `task verify ID --chaosfolk SUMMARY` the ChaosFolk replays. Then run `openguildkit task result ID --template`, fill in the file it prints (one entry per acceptance criterion, an outcome for every rule) and record it with `openguildkit task result ID --file FILE`. Write criteria `status` as `met` or `not-met` and checks as `passed`, `failed`, `skipped` or `not-applicable`, as the template says. Run `openguildkit task complete ID` and show the user what is still missing if it refuses. When it lists points left open, offer a follow-up task linked with `openguildkit task new "BRIEF" --follows ID`. Never mark a check passed without evidence.
 
-A task of kind `decision` returns an "Approved decision record" instead. Report the decision and stop: do not change project files. If the user wants to act on it, open a new task whose brief cites the decision ID, and take that task through consultation and approval.
+A task of kind `decision` returns an "Approved decision record" instead. Report the decision and stop: do not change project files. If the user wants to act on it, open a follow-up task with `openguildkit task new "BRIEF" --follows ID` (the decision task's ID), which records the link, and take that task through consultation and approval.
 
 ## Catalog updates
 

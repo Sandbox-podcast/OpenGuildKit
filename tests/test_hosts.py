@@ -123,7 +123,8 @@ class HostControlTests(unittest.TestCase):
         self.run_cli("task", "new", "Show statuses.", "--id", "status")
         write_json(self.root / "a.json", {"kind": "bug", "surface": ["service"], "data": "none", "research": "local"})
         consultation, _ = self.run_cli("task", "consult", "status", "--answers", self.root / "a.json")
-        self.assertIn("does not block public research", consultation)
+        self.assertIn("Public research is off for this project and this host agent has no setting that enforces it",
+                      consultation)
 
     def test_external_actions_need_a_recorded_decision(self):
         self.init()

@@ -55,7 +55,32 @@ def _claude_settings(root: Path) -> dict:
         raise ValueError(f"{path} is not valid JSON: {error}") from error
     if not isinstance(settings, dict):
         raise ValueError(f"{path} must hold a JSON object.")
+    _check_hook_groups(settings.get("hooks"), path)
     return settings
+
+
+def _codex_hooks(root: Path) -> dict:
+    """The Codex hooks file, refused with its name when it is not a JSON object the hooks can be read from."""
+    path = root / CODEX_HOOKS_FILE
+    if not path.is_file():
+        return {}
+    try:
+        current = json.loads(path.read_text(encoding="utf-8-sig"))
+    except ValueError as error:
+        raise ValueError(f"{path} is not valid JSON: {error}") from error
+    if not isinstance(current, dict):
+        raise ValueError(f"{path} must hold a JSON object.")
+    _check_hook_groups(current.get("hooks"), path)
+    return current
+
+
+def _check_hook_groups(hooks: object, path: Path) -> None:
+    """Each hook group lists its handlers: the host could not run a group whose hooks are not a list."""
+    for event, groups in hooks.items() if isinstance(hooks, dict) else ():
+        for index, group in enumerate(groups if isinstance(groups, list) else []):
+            if isinstance(group, dict) and not isinstance(group.get("hooks", []), list):
+                raise ValueError(f"{path}: hooks.{event}[{index}].hooks must be a list of handlers. Fix or remove it, "
+                                 "then run openguildkit host apply.")
 
 
 def _claude_denied(root: Path) -> set[str]:
@@ -213,8 +238,7 @@ def _board_control(root: Path, host: str, guard: str) -> dict:
                   + (" The pre-edit hook lacks \"onFailure\": \"block\", so an edit goes through when the hook cannot start."
                      if unblocked else "") + shell)
     elif host == "codex":
-        path = root / CODEX_HOOKS_FILE
-        present = path.is_file() and _claude_hooks_present(json.loads(path.read_text(encoding="utf-8-sig")).get("hooks", {}))
+        present = _claude_hooks_present(_codex_hooks(root).get("hooks", {}))
         detail = (f"{CODEX_HOOKS_FILE.as_posix()} runs openguildkit guard on each request and before patches. "
                   "Codex reads it only once the project is trusted and its hooks reviewed." + shell)
     else:
@@ -343,9 +367,7 @@ def apply_host_settings(root: Path, profile: dict) -> list[str]:
         written.append(CODEX_RULES_FILE.as_posix())
         if profile.get("guard", "off") != "off":
             hooks_path = root / CODEX_HOOKS_FILE
-            current = json.loads(hooks_path.read_text(encoding="utf-8-sig")) if hooks_path.is_file() else {}
-            if not isinstance(current, dict):
-                raise ValueError(f"{hooks_path} must hold a JSON object.")
+            current = _codex_hooks(root)
             current["hooks"] = _merge_hooks(current.get("hooks"), host)
             write_text(hooks_path, json.dumps(current, indent=2, ensure_ascii=False) + "\n")
             written.append(CODEX_HOOKS_FILE.as_posix())
