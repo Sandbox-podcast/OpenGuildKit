@@ -45,7 +45,7 @@ def add_parser(commands) -> None:
     status = actions.add_parser("status", help="Show the recorded connections and what is missing on this workstation.")
     status.add_argument("--json", action="store_true", help="Print the status as JSON.")
     remove = actions.add_parser("remove", help="Remove connections from the host's project configuration.")
-    remove.add_argument("tool", nargs="+", metavar="TOOL", help="Tool ID or server name.")
+    remove.add_argument("tool", nargs="+", type=str.casefold, metavar="TOOL", help="Tool ID or server name.")
     remove.add_argument("--host", choices=HOSTS, help="Agent host (defaults to the project's host).")
     mock = actions.add_parser("mock", help="Run a tool's mock MCP server on stdio: synthetic data, no network.")
     mock.add_argument("id", help="Tool ID.")
@@ -244,7 +244,7 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
     host = _host(args, profile)
     if action == "remove":
         with project_lock(state):
-            result = remove_connections(root, state, host, [name.casefold() for name in args.tool])
+            result = remove_connections(root, state, host, args.tool)
         if result["removed"]:
             print(f"Removed {', '.join(result['removed'])} from {result['file']}.")
         if result.get("forgotten"):
