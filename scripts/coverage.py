@@ -28,6 +28,10 @@ def active_packs(pack_ids, packs):
     return active
 
 
+def is_stack_pattern(pattern):
+    return bool(pattern.get("match", {}).get("stack"))
+
+
 def brain_rows(catalog, families):
     references = [record for family in families.values() for record in family["references"]]
     rows = []
@@ -43,8 +47,8 @@ def brain_rows(catalog, families):
             "references": len(tagged),
             "applied": len(applied),
             "documentary": sorted(record["id"] for record in tagged if not record.get("packs")),
-            "methods": sum(1 for pattern in patterns if "match" not in pattern),
-            "stack_patterns": sum(1 for pattern in patterns if "match" in pattern),
+            "methods": sum(1 for pattern in patterns if not is_stack_pattern(pattern)),
+            "stack_patterns": sum(1 for pattern in patterns if is_stack_pattern(pattern)),
             "packs": len(packs),
             "rules": sum(len(catalog["packs"][pack_id]["rules"]) for pack_id in packs),
         })
@@ -54,7 +58,7 @@ def brain_rows(catalog, families):
 def stack_rows(catalog):
     rows = []
     for pattern in catalog["patterns"].values():
-        if "match" not in pattern:
+        if not is_stack_pattern(pattern):
             continue
         packs = active_packs(pattern["packs"], catalog["packs"])
         rows.append({
@@ -66,6 +70,26 @@ def stack_rows(catalog):
     return sorted(rows, key=lambda row: row["pattern"])
 
 
+def sector_rows(catalog):
+    """The patterns each sector preselects without a stack, and the rules they activate."""
+    rows = []
+    for sector_id in sorted(catalog["sectors"]):
+        patterns = [
+            pattern for pattern in catalog["patterns"].values()
+            if sector_id in pattern.get("match", {}).get("sectors", []) and not is_stack_pattern(pattern)
+        ]
+        packs = set()
+        for pattern in patterns:
+            packs |= active_packs(pattern["packs"], catalog["packs"])
+        rows.append({
+            "sector": sector_id,
+            "patterns": ", ".join(sorted(pattern["id"] for pattern in patterns)) or "none",
+            "packs": ", ".join(sorted(packs)) or "none",
+            "rules": sum(len(catalog["packs"][pack_id]["rules"]) for pack_id in packs),
+        })
+    return rows
+
+
 def render(catalog, families):
     brains = brain_rows(catalog, families)
     lines = [
@@ -75,7 +99,8 @@ def render(catalog, families):
         "`tests/test_coverage.py` fails when it is out of date.",
         "",
         "A reference is *applied* when at least one pack names it, and *documentary* otherwise. "
-        "A method is a pattern a role chooses; a stack pattern matches technologies. "
+        "A method is a pattern without a stack, preselected for its roles or, for a regulation, for its sectors; "
+        "a stack pattern matches technologies. "
         "Packs and rules count what the brain's patterns activate, dependencies included.",
         "",
         "## By brain",
@@ -97,6 +122,17 @@ def render(catalog, families):
     ]
     for row in stack_rows(catalog):
         lines.append(f"| {row['pattern']} | {row['stack']} | {row['packs']} | {row['rules']} |")
+    lines += [
+        "",
+        "## By sector",
+        "",
+        "Patterns that a sector preselects at `init` and in `recommend`, for the person to confirm or decline.",
+        "",
+        "| Sector | Preselected patterns | Packs | Rules |",
+        "|---|---|---|---:|",
+    ]
+    for row in sector_rows(catalog):
+        lines.append(f"| {row['sector']} | {row['patterns']} | {row['packs']} | {row['rules']} |")
     lines += [
         "",
         "## To cover",

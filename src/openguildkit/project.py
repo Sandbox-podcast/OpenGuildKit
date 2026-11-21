@@ -7,6 +7,8 @@ from pathlib import Path
 
 from .patterns import (
     check_pattern_choices,
+    condition_reasons,
+    is_stack_pattern,
     pattern_selection,
     recommend_patterns,
     role_choices,
@@ -53,6 +55,21 @@ def _select(question_id, prompt, choices, default=None, multiple=False):
     return question
 
 
+SECTOR_PROMPT = (
+    "Which sector describes the project? Its regulation patterns are preselected for you to confirm. "
+    "A project catalog can add its own sector in .openguildkit/catalog/sectors/."
+)
+
+
+def _personal_data_question() -> dict:
+    """Personal data preselects the GDPR pattern; the answer is stored as personal_data."""
+    return _select(
+        "personal_data",
+        "Does the project process personal data, such as names, emails, health or payment data?",
+        [{"id": "yes", "title": "Yes"}, {"id": "no", "title": "No"}],
+    )
+
+
 def init_questions(catalog: dict, project_name: str, detected: list[dict] | None = None) -> list[dict]:
     components = {
         "id": "components",
@@ -67,7 +84,7 @@ def init_questions(catalog: dict, project_name: str, detected: list[dict] | None
         components["default"] = detected
     return [
         {"id": "name", "type": "text", "prompt": "Project name", "default": project_name},
-        _select("sector", "Which sector describes the project?", catalog["sectors"].values(), "general"),
+        _select("sector", SECTOR_PROMPT, catalog["sectors"].values(), "general"),
         {
             "id": "stack",
             "type": "list",
@@ -81,9 +98,11 @@ def init_questions(catalog: dict, project_name: str, detected: list[dict] | None
             role_choices(catalog["patterns"]).values(),
             multiple=True,
         ),
+        _personal_data_question(),
         _select(
             "patterns",
-            "Which patterns should apply? Enter for matches from the stack.",
+            "Which patterns should apply? Enter for those preselected by the stack, the sector, personal data "
+            "and the roles; openguildkit recommend --answers FILE shows why each one is preselected.",
             catalog["patterns"].values(),
             multiple=True,
         ),
@@ -200,9 +219,29 @@ def _project_context(answers: dict, catalog: dict) -> tuple[str, list[str], list
     return sector, stack, roles, components
 
 
+def _personal_data(value) -> bool | None:
+    """The answer to the personal data question: true, false, or None when it was not asked."""
+    if value is None or isinstance(value, bool):
+        return value
+    if value in ("yes", "no"):
+        return value == "yes"
+    raise ValueError("personal_data must be yes, no, true or false")
+
+
+def _recommendation_inputs(answers: dict, catalog: dict) -> dict:
+    """Everything that preselects patterns besides the stack: personal data and declined patterns."""
+    return {
+        "personal_data": _personal_data(answers.get("personal_data")),
+        "declined": _ids(answers.get("declined", []), "declined", catalog["patterns"]),
+    }
+
+
 def profile_recommendations(answers: dict, catalog: dict) -> dict:
+    """Preselected and suggested patterns for setup answers or a saved profile, and the packs they bring."""
     sector, stack, roles, components = _project_context(answers, catalog)
-    result = recommend_patterns(catalog, stack, sector, roles, components)
+    inputs = _recommendation_inputs(answers, catalog)
+    result = recommend_patterns(catalog, stack, sector, roles, components, **inputs)
+    result["declined"] = inputs["declined"]
     base_packs = ["agent-workflow", *_recommended_packs(stack, catalog)]
     result["recommended_packs"] = list(
         dict.fromkeys([*base_packs, *(pack for pattern in result["matched"] for pack in pattern["packs"])])
@@ -269,7 +308,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     fields = {
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
         "resolutions", "boards", "required_boards", "required_rules", "research", "host", "guard", "waivers", "approval", "tools",
-        "conventions", "checks",
+        "conventions", "checks", "personal_data", "declined",
     }
     unknown = sorted(answers.keys() - fields)
     if unknown:
@@ -284,12 +323,16 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     research = answers.get("research", "local-only")
     if research not in ("local-only", "public-sources"):
         raise ValueError("research must be local-only or public-sources")
+    inputs = _recommendation_inputs(answers, catalog)
     patterns = _pattern_entries(answers.get("patterns", []), catalog, components)
     if "patterns" not in answers and "packs" not in answers:
         patterns = [
             {"id": record["id"], "components": record["components"]} if record.get("components") else record["id"]
-            for record in recommend_patterns(catalog, stack, sector, roles, components)["matched"]
+            for record in recommend_patterns(catalog, stack, sector, roles, components, **inputs)["matched"]
         ]
+    both = sorted(set(inputs["declined"]) & {pattern_selection(entry)[0] for entry in patterns})
+    if both:
+        raise ValueError(f"Pattern {', '.join(both)} is both selected and declined: remove it from one of the lists.")
     check_pattern_choices([pattern_selection(entry)[0] for entry in patterns], catalog["patterns"])
     packs = _ids(answers.get("packs", _default_packs(stack, components, patterns, catalog)), "packs", catalog["packs"])
     profile = {
@@ -306,8 +349,12 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     }
     if roles:
         profile["roles"] = roles
+    if inputs["personal_data"] is not None:
+        profile["personal_data"] = inputs["personal_data"]
     if patterns:
         profile["patterns"] = patterns
+    if inputs["declined"]:
+        profile["declined"] = inputs["declined"]
     host = answers.get("host")
     if host is not None:
         from .hosts import HOSTS
@@ -378,7 +425,10 @@ def load_profile(state: Path, catalog: dict) -> dict:
 
 def _missing_records(answers: dict, catalog: dict) -> list[tuple[str, str]]:
     """Profile entries that name a pack, pattern or board no catalog in force provides."""
-    fields = (("packs", "packs"), ("patterns", "patterns"), ("boards", "boards"), ("required_boards", "boards"))
+    fields = (
+        ("packs", "packs"), ("patterns", "patterns"), ("declined", "patterns"), ("boards", "boards"),
+        ("required_boards", "boards"),
+    )
     missing = []
     for field, collection in fields:
         entries = answers.get(field)
@@ -468,9 +518,21 @@ def pack_provenance(profile: dict, catalog: dict) -> dict[str, list[str]]:
     for pack_id in profile["packs"]:
         add(pack_id, "required by OpenGuildKit" if pack_id == "agent-workflow" else "selected")
     for pattern_id in pattern_ids(profile):
+        origin = pattern_origin(catalog["patterns"][pattern_id], profile)
         for pack_id in catalog["patterns"][pattern_id]["packs"]:
-            add(pack_id, f"pattern {pattern_id}")
+            add(pack_id, f"pattern {pattern_id}" + (f" ({origin})" if origin else ""))
     return reasons
+
+
+def pattern_origin(pattern: dict, profile: dict) -> str:
+    """Why a selected pattern without a stack concerns the project: its sector, personal data or roles."""
+    if is_stack_pattern(pattern):
+        return ""
+    reasons = condition_reasons(pattern, profile["sector"], profile.get("personal_data"))
+    roles = [role for role in pattern["roles"] if role in profile.get("roles", [])]
+    if roles:
+        reasons.append(f"role {', '.join(roles)}")
+    return "; ".join(reasons)
 
 
 def rule_plan(profile: dict, catalog: dict) -> dict:

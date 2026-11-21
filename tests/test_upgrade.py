@@ -76,21 +76,21 @@ class PreviousReleaseTests(UpgradeTestCase):
 
 
 class FirstReleaseTests(UpgradeTestCase):
-    """v0.1.0, the oldest release; its insurance sector has since left the catalog."""
+    """v0.1.0, the oldest release. Its insurance sector left the catalog for a time and is bundled again."""
 
     release = "v0.1.0"
 
-    def test_a_removed_sector_is_a_clean_error_naming_the_sector(self):
+    def test_a_sector_missing_from_the_catalog_is_a_clean_error_naming_the_sector(self):
+        profile = self.project / ".openguildkit" / "project.json"
+        profile.write_text(profile.read_text(encoding="utf-8").replace('"insurance"', '"retired-sector"'), encoding="utf-8")
         for command in (("check",), ("update",), ("task", "list")):
             result = self.run_cli(*command, expect=1)
-            self.assertEqual(result.stderr.strip(), "OpenGuildKit: Unknown sector: insurance. Run openguildkit catalog.")
+            self.assertEqual(result.stderr.strip(), "OpenGuildKit: Unknown sector: retired-sector. Run openguildkit catalog.")
             self.assertNotIn("Traceback", result.stderr)
 
-    def test_once_the_sector_is_replaced_the_project_upgrades_and_its_tasks_load(self):
-        profile = self.project / ".openguildkit" / "project.json"
+    def test_the_first_release_project_upgrades_and_its_tasks_load(self):
         sectors = json.loads(self.run_cli("catalog", "--json").stdout)["sectors"]
-        self.assertNotIn("insurance", sectors)
-        profile.write_text(profile.read_text(encoding="utf-8").replace('"insurance"', '"general"'), encoding="utf-8")
+        self.assertIn("insurance", sectors)
         self.assert_upgrades()
         self.assert_tasks_still_load()
         self.assert_old_draft_continues()

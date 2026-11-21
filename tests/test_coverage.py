@@ -44,11 +44,11 @@ class CoverageTests(unittest.TestCase):
                 self.assertGreater(row["packs"], 0)
                 self.assertEqual(row["applied"] + len(row["documentary"]), row["references"])
 
-    def test_thin_disciplines_reach_their_new_pack_through_a_role(self):
+    def test_thin_disciplines_get_their_new_pack_preselected_by_a_role(self):
         for role, pack_id in NEW_PACKS.items():
             with self.subTest(role=role):
-                suggested = recommend_patterns(self.catalog, [], "general", [role])["suggested"]
-                self.assertIn(pack_id, {pack for pattern in suggested for pack in pattern["packs"]})
+                preselected = recommend_patterns(self.catalog, [], "general", [role])["matched"]
+                self.assertIn(pack_id, {pack for pattern in preselected for pack in pattern["packs"]})
                 pack = self.catalog["packs"][pack_id]
                 self.assertTrue(pack["description"].startswith("For "))
                 self.assertTrue(pack["sources"])

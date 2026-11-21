@@ -1,0 +1,24 @@
+{
+  "id": "e-commerce",
+  "title": "E-commerce",
+  "description": "Adapt reviews to online shops and marketplaces that sell goods, services or digital content to consumers in the EU.",
+  "context": [
+    "Ask the legal owner which countries the shop sells to: EU consumer directives apply through national law, and each country can add rules. This sector preselects the online-consumer-sales pattern.",
+    "Record whether the product is a merchant's own shop or a marketplace where third-party traders sell, since DSA Art. 30 and Art. 6a of Directive 2011/83/EU bind marketplaces only.",
+    "Leave card numbers to the payment service provider, which applies strong customer authentication under Directive (EU) 2015/2366 Art. 97; card data security needs its own review."
+  ],
+  "sources": [
+    {
+      "title": "Directive 2011/83/EU on consumer rights",
+      "url": "https://eur-lex.europa.eu/eli/dir/2011/83/oj/eng"
+    },
+    {
+      "title": "Regulation (EU) 2022/2065, Digital Services Act",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj/eng"
+    },
+    {
+      "title": "Directive (EU) 2015/2366 on payment services in the internal market (PSD2)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2015/2366/oj/eng"
+    }
+  ]
+}

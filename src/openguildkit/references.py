@@ -223,7 +223,7 @@ def with_pattern_references(families: dict, patterns: dict) -> dict:
                 "id": reference_id,
                 "title": pattern["title"],
                 "category": ", ".join(roles[role]["title"] for role in pattern["roles"]),
-                "kind": "Stack pattern" if "match" in pattern else "Work method",
+                "kind": "Stack pattern" if pattern.get("match", {}).get("stack") else "Work method",
                 "summary": pattern["description"],
                 "applies_when": f"Inspect the match and rule packs with openguildkit patterns --id {pattern_id}.",
                 "sources": pattern["sources"],
