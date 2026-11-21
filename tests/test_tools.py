@@ -9,6 +9,7 @@ import tempfile
 import tomllib
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from openguildkit.catalog import CatalogError, load_catalog
 from openguildkit.cli import main
@@ -165,6 +166,20 @@ class PlanTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "names an environment variable"):
             plan_connections(TOOLS, ["linear"], "codex", token_env={"linear": "lin_api_abc123"})
 
+    def test_plan_exposes_scope_alternatives_and_read_only_configuration(self):
+        workspace = plan_connections(TOOLS, ["Google-Workspace"], "codex")[0]
+        self.assertEqual(workspace["access"]["mode"], "read-write")
+        self.assertIn("https://www.googleapis.com/auth/gmail.modify", workspace["access"]["scopes"])
+        self.assertIn("calendar-mcp", {item["id"] for item in workspace["alternatives"]["google-workspace"]})
+        search = plan_connections(TOOLS, ["Google-Workspace"], "codex", read_only=True)[0]
+        self.assertEqual(search["server"], "workspace-universal-search-mcp")
+        self.assertEqual(search["access"]["mode"], "read-only")
+        sonar = plan_connections(TOOLS, ["sonarqube"], "codex", read_only=True)[0]
+        self.assertFalse(sonar["image"]["digest_pinned"])
+        self.assertEqual(sonar["entry"]["args"][-3:], ["-e", "SONARQUBE_READ_ONLY=true", "sonarsource/sonarqube-mcp"])
+        with self.assertRaisesRegex(ValueError, "no documented read-only mode"):
+            plan_connections(TOOLS, ["google-workspace/gmail-mcp"], "codex", read_only=True)
+
     def test_mock_mode_replaces_every_server_with_a_local_one(self):
         plan = plan_connections(TOOLS, ["jira", "gryzzly"], "codex", mock=True, mocks=mock_ids(), log="calls.jsonl")
         self.assertEqual(plan[0]["entry"], {"command": "openguildkit", "args": ["tools", "mock", "jira", "--log", "calls.jsonl"]})
@@ -218,6 +233,14 @@ class ApplyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             apply_connections(self.root, self.state, "codex", plan)
 
+    def test_applied_read_only_headers_are_preserved_in_both_host_formats(self):
+        for host, header_key in (("codex", "http_headers"), ("claude-code", "headers")):
+            plan = plan_connections(TOOLS, ["Azure-DevOps"], host, read_only=True,
+                                    settings={"Azure-DevOps": {"organization": "my-organization"}})
+            self.assertEqual(plan[0]["entry"][header_key], {"X-MCP-Readonly": "true"})
+            apply_connections(self.root, self.state, host, plan)
+        self.assertTrue(all(item["configured"] for item in connection_status(self.root, self.state)))
+
     def test_missing_settings_block_the_write(self):
         with self.assertRaisesRegex(ValueError, "Settings are missing"):
             apply_connections(self.root, self.state, "claude-code", plan_connections(TOOLS, ["zendesk"], "claude-code"))
@@ -255,6 +278,23 @@ class CommandTests(unittest.TestCase):
             code, _, err = run("--project", directory, "tools", "show", "nope")
             self.assertEqual(code, 1)
             self.assertIn("Unknown tool", err)
+
+    def test_applying_live_connections_can_be_confirmed_in_the_terminal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            answers = root / "profile.json"
+            answers.write_text(json.dumps({"name": "Portal", "host": "claude-code"}), encoding="utf-8")
+            self.assertEqual(run("--project", root, "init", "--answers", answers)[0], 0)
+            apply = ("--project", root, "tools", "apply", "Sentry")
+            config = root / ".mcp.json"
+            for response, expected in (("no\n", 1), ("yes\n", 0)):
+                stdin = io.StringIO(response)
+                with patch("sys.stdin", stdin), patch.object(stdin, "isatty", return_value=True):
+                    code, plan, prompt = run(*apply)
+                self.assertEqual(code, expected, prompt)
+                self.assertIn("Type yes", prompt)
+                self.assertIn("Covers:", plan)
+                self.assertEqual(config.exists(), expected == 0)
 
     def test_call_lists_a_mocks_tools_and_answers_one_call(self):
         with tempfile.TemporaryDirectory() as directory:

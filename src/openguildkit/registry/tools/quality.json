@@ -146,10 +146,20 @@
             "SONARQUBE_URL"
           ],
           "status": "unknown",
-          "capabilities": "Read issues, quality gates, metrics and rules from SonarQube Server or Cloud, and analyse code snippets in the agent context.",
+          "capabilities": "Inspect issues, hotspots, projects, source, quality gates, metrics and rules, run analysis, and update issues as permitted.",
           "source": "https://github.com/SonarSource/sonarqube-mcp-server",
           "repository": "https://github.com/SonarSource/sonarqube-mcp-server",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write",
+            "consent": "Provide the SonarQube credential for the selected instance or organization",
+            "scopes": [
+              "Limited by the SonarQube token owner's permissions"
+            ]
+          },
+          "read_only": {
+            "docker_env": "SONARQUBE_READ_ONLY"
+          }
         }
       ],
       "api": {
