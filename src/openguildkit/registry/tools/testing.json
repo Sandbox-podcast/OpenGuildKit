@@ -10,7 +10,8 @@
       "homepage": "https://www.browserstack.com",
       "brains": [
         "qa",
-        "engineering"
+        "engineering",
+        "frontend"
       ],
       "detect": {
         "files": [
@@ -62,7 +63,8 @@
       "homepage": "https://www.cypress.io",
       "brains": [
         "qa",
-        "engineering"
+        "engineering",
+        "frontend"
       ],
       "detect": {
         "files": [
@@ -103,7 +105,8 @@
       "brains": [
         "performance",
         "qa",
-        "devops"
+        "devops",
+        "backend"
       ],
       "detect": {
         "npm": [
@@ -152,7 +155,8 @@
       "homepage": "https://playwright.dev",
       "brains": [
         "qa",
-        "engineering"
+        "engineering",
+        "frontend"
       ],
       "detect": {
         "files": [
@@ -206,7 +210,9 @@
       "homepage": "https://www.postman.com",
       "brains": [
         "engineering",
-        "qa"
+        "qa",
+        "developer-relations-and-docs",
+        "backend"
       ],
       "servers": [
         {

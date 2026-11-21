@@ -43,7 +43,8 @@
       "brains": [
         "engineering",
         "performance",
-        "qa"
+        "qa",
+        "frontend"
       ],
       "aliases": [
         "Chrome DevTools MCP"

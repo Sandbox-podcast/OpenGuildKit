@@ -53,7 +53,8 @@
       "category": "Formats et échanges de données",
       "kind": "format",
       "brains": [
-        "engineering"
+        "engineering",
+        "localisation"
       ],
       "summary": "Représente les caractères Unicode dans une suite d'octets et permet d'échanger des textes de nombreuses langues.",
       "applies_when": "Pour harmoniser l'encodage des fichiers, API et données textuelles, avec une déclaration explicite là où le protocole l'exige.",
@@ -413,10 +414,14 @@
       "kind": "pratique",
       "brains": [
         "data",
-        "engineering"
+        "engineering",
+        "backend"
       ],
       "summary": "Versionner les changements de structure ou de données et les appliquer dans un ordre maîtrisé entre environnements.",
       "applies_when": "Pour faire évoluer une base existante avec une trace des changements et une stratégie de compatibilité avec les versions applicatives.",
+      "packs": [
+        "backend-data-safety"
+      ],
       "sources": [
         {
           "url": "https://documentation.red-gate.com/flyway/flyway-concepts/migrations",
@@ -434,10 +439,14 @@
       "kind": "concept",
       "brains": [
         "data",
-        "engineering"
+        "engineering",
+        "backend"
       ],
       "summary": "Définissent ce qu'une transaction peut observer des opérations concurrentes et les anomalies que le moteur doit empêcher.",
       "applies_when": "Quand des accès simultanés peuvent modifier les mêmes données ; le niveau choisi doit correspondre aux invariants métier.",
+      "packs": [
+        "backend-data-safety"
+      ],
       "sources": [
         {
           "url": "https://www.postgresql.org/docs/current/transaction-iso.html",

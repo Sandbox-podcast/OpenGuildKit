@@ -1,0 +1,26 @@
+{
+  "id": "vat-and-e-invoicing",
+  "title": "VAT and e-invoicing",
+  "description": "Apply the right VAT per country and customer type, issue compliant invoices and meet the French e-invoicing calendar.",
+  "sources": [
+    {
+      "title": "Council Directive 2006/112/EC on the common system of value added tax",
+      "url": "https://eur-lex.europa.eu/eli/dir/2006/112/oj"
+    },
+    {
+      "title": "impots.gouv.fr, Je passe à la facturation électronique",
+      "url": "https://www.impots.gouv.fr/professionnel/je-passe-la-facturation-electronique"
+    }
+  ],
+  "roles": [
+    "finance",
+    "legal"
+  ],
+  "packs": [
+    "vat-and-e-invoicing"
+  ],
+  "references": [
+    "vat-directive",
+    "facturation-electronique-france"
+  ]
+}

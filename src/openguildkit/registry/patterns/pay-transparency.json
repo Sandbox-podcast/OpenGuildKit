@@ -1,0 +1,22 @@
+{
+  "id": "pay-transparency",
+  "title": "Pay transparency",
+  "description": "Set pay on objective criteria, inform applicants of pay and report and correct pay gaps under Directive (EU) 2023/970.",
+  "sources": [
+    {
+      "title": "Directive (EU) 2023/970 on pay transparency",
+      "url": "https://eur-lex.europa.eu/eli/dir/2023/970/oj"
+    }
+  ],
+  "roles": [
+    "hr",
+    "legal",
+    "finance"
+  ],
+  "packs": [
+    "pay-transparency"
+  ],
+  "references": [
+    "eu-pay-transparency"
+  ]
+}

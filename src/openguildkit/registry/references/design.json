@@ -84,7 +84,8 @@
       "kind": "méthode",
       "brains": [
         "design",
-        "product"
+        "product",
+        "customer-success"
       ],
       "summary": "Cadre de mesure de l'expérience : satisfaction, engagement, adoption, rétention et réussite des tâches.",
       "applies_when": "Choisir les dimensions pertinentes selon les objectifs du produit.",
@@ -240,7 +241,8 @@
       "kind": "outil",
       "brains": [
         "design",
-        "engineering"
+        "engineering",
+        "frontend"
       ],
       "summary": "Catalogue exécutable des composants et de leurs états pour documenter et tester l'interface.",
       "applies_when": "Quand l'équipe documente et teste ses composants isolément, avec un framework d'interface pris en charge par Storybook.",
@@ -259,7 +261,8 @@
       "kind": "spécification",
       "brains": [
         "design",
-        "qa"
+        "qa",
+        "frontend"
       ],
       "summary": "Critères de réussite pour rendre les contenus web accessibles.",
       "applies_when": "Choisir le niveau visé et le périmètre d'évaluation ; les obligations locales peuvent référencer d'autres versions.",
@@ -282,7 +285,8 @@
       "kind": "spécification",
       "brains": [
         "design",
-        "qa"
+        "qa",
+        "frontend"
       ],
       "summary": "Rôles, états et propriétés qui rendent les composants compréhensibles par les technologies d'assistance.",
       "applies_when": "Pour les interfaces web interactives, en privilégiant les éléments HTML natifs appropriés.",

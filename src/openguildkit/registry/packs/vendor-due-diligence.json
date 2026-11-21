@@ -1,0 +1,47 @@
+{
+  "id": "vendor-due-diligence",
+  "title": "Vendor due diligence",
+  "version": "1.0.0",
+  "description": "Before buying software, data or services: classify the vendor, run the checks its criticality requires, sign the right terms and plan the exit.",
+  "sources": [
+    {
+      "title": "NIST SP 800-161 Rev. 1, Cybersecurity Supply Chain Risk Management Practices for Systems and Organizations",
+      "url": "https://csrc.nist.gov/pubs/sp/800/161/r1/upd1/final"
+    },
+    {
+      "title": "NCSC, Principles of supply chain security",
+      "url": "https://www.ncsc.gov.uk/collection/supply-chain-security/principles-supply-chain-security"
+    },
+    {
+      "title": "ENISA, Good Practices for Supply Chain Cybersecurity (2023)",
+      "url": "https://www.enisa.europa.eu/publications/good-practices-for-supply-chain-cybersecurity"
+    }
+  ],
+  "rules": [
+    {
+      "id": "classify-vendor-criticality",
+      "instruction": "Classify the vendor by the data it receives, the access it gets and the service that depends on it, and record the reason.",
+      "verification": "Open the vendor record and check the criticality and its reason."
+    },
+    {
+      "id": "review-security-evidence",
+      "instruction": "For a vendor that handles company or customer data, read its security questionnaire and certification report, including the scope, period and exceptions.",
+      "verification": "Check that the vendor record links the questionnaire and report with their dates and lists the exceptions found."
+    },
+    {
+      "id": "sign-data-processing-terms",
+      "instruction": "Sign a data processing agreement and record the subprocessors and data locations when the vendor processes personal data for the company.",
+      "verification": "Check that the vendor record links the signed agreement and the subprocessor list."
+    },
+    {
+      "id": "calendar-renewal-and-notice",
+      "instruction": "Enter the renewal date and notice period of the contract in the team calendar with an owner.",
+      "verification": "Check the calendar entry, its owner and the date the notice must be sent."
+    },
+    {
+      "id": "write-exit-plan",
+      "instruction": "For a critical vendor, write the exit plan: data export format, transition period, alternative and time to switch, and test the export.",
+      "verification": "Open the exit plan and check its four parts and the date of the last export test."
+    }
+  ]
+}

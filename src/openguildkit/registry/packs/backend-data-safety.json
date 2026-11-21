@@ -1,0 +1,42 @@
+{
+  "id": "backend-data-safety",
+  "title": "Back-end data safety",
+  "version": "1.0.0",
+  "description": "For a change to services, data stores or jobs: idempotent retries, invariants enforced by the database, reversible migrations and object-level authorization.",
+  "sources": [
+    {
+      "title": "RFC 9110, HTTP Semantics",
+      "url": "https://www.rfc-editor.org/rfc/rfc9110.html"
+    },
+    {
+      "title": "PostgreSQL documentation, Transaction Isolation",
+      "url": "https://www.postgresql.org/docs/current/transaction-iso.html"
+    },
+    {
+      "title": "OWASP API Security Top 10 (2023)",
+      "url": "https://api-security.owasp.org/editions/2023/en/0x11-t10/"
+    }
+  ],
+  "rules": [
+    {
+      "id": "make-retries-idempotent",
+      "instruction": "Make operations that clients or jobs retry idempotent, or require an idempotency key, so that a repeated request does not repeat its effect.",
+      "verification": "Check the test that sends the same request twice and asserts a single effect."
+    },
+    {
+      "id": "enforce-invariants-in-database",
+      "instruction": "Enforce uniqueness, references and required values with database constraints in addition to application checks.",
+      "verification": "Read the migration or schema for the constraints that back each invariant of the change."
+    },
+    {
+      "id": "expand-then-contract",
+      "instruction": "Split schema changes into expand, migrate and contract steps so that the previous application version keeps working during rollout, and time them on a production-sized copy.",
+      "verification": "Check that the migration plan lists the steps, the timing measured and the rollback for each."
+    },
+    {
+      "id": "authorize-each-object",
+      "instruction": "Check on each endpoint that takes an object identifier that the caller may access that object and the fields returned or changed.",
+      "verification": "Check the tests that call each changed endpoint with another user's object identifier and expect a refusal."
+    }
+  ]
+}

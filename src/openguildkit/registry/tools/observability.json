@@ -11,7 +11,8 @@
       "brains": [
         "devops",
         "engineering",
-        "performance"
+        "performance",
+        "backend"
       ],
       "detect": {
         "npm": [
@@ -316,7 +317,9 @@
       "brains": [
         "engineering",
         "qa",
-        "devops"
+        "devops",
+        "frontend",
+        "backend"
       ],
       "detect": {
         "npm": [

@@ -45,7 +45,9 @@
       "summary": "Up-to-date, version-specific library documentation for coding agents.",
       "homepage": "https://context7.com",
       "brains": [
-        "engineering"
+        "engineering",
+        "frontend",
+        "backend"
       ],
       "servers": [
         {
@@ -81,7 +83,8 @@
         "communication",
         "engineering",
         "product",
-        "support"
+        "support",
+        "developer-relations-and-docs"
       ],
       "servers": [],
       "notes": "No MCP server on record. OpenGuildKit prepares the folders Documentalist imports with `openguildkit docs export` and keeps the register of shares with `openguildkit docs share`: see docs/documentation.md."
@@ -94,7 +97,9 @@
       "homepage": "https://docusaurus.io",
       "brains": [
         "engineering",
-        "product"
+        "product",
+        "developer-relations-and-docs",
+        "frontend"
       ],
       "detect": {
         "files": [
@@ -120,7 +125,8 @@
       "brains": [
         "engineering",
         "product",
-        "support"
+        "support",
+        "developer-relations-and-docs"
       ],
       "servers": [
         {
@@ -152,7 +158,8 @@
       "homepage": "https://www.mintlify.com",
       "brains": [
         "engineering",
-        "product"
+        "product",
+        "developer-relations-and-docs"
       ],
       "detect": {
         "files": [
@@ -228,7 +235,9 @@
       "homepage": "https://readme.com",
       "brains": [
         "engineering",
-        "product"
+        "product",
+        "developer-relations-and-docs",
+        "backend"
       ],
       "servers": [
         {
@@ -260,7 +269,9 @@
       "homepage": "https://swagger.io",
       "brains": [
         "engineering",
-        "product"
+        "product",
+        "developer-relations-and-docs",
+        "backend"
       ],
       "aliases": [
         "OpenAPI",

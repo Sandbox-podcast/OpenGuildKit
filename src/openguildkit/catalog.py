@@ -194,7 +194,7 @@ def _validate_board_review(review: Any) -> None:
     _validate_list(review["specialists"], "review.specialists")
     seen = set()
     for specialist in review["specialists"]:
-        _validate_fields(specialist, "specialist", {"id", "title", "focus"})
+        _validate_fields(specialist, "specialist", {"id", "title", "focus"}, {"checks"})
         specialist_id = specialist["id"]
         _validate_id(specialist_id, "specialist ID")
         if specialist_id in seen:
@@ -202,6 +202,11 @@ def _validate_board_review(review: Any) -> None:
         seen.add(specialist_id)
         _validate_text(specialist["title"], "specialist title")
         _validate_text(specialist["focus"], "specialist focus")
+        # What an expert of this lens verifies: the discipline's knowledge carried into each consultation.
+        if "checks" in specialist:
+            _validate_list(specialist["checks"], f"specialist {specialist_id} checks")
+            for check in specialist["checks"]:
+                _validate_text(check, f"specialist {specialist_id} check")
     for key in ("evidence", "challenge", "decision_criteria"):
         _validate_list(review[key], f"review.{key}")
         for prompt in review[key]:
@@ -234,6 +239,75 @@ def _validate_entry(collection: str, entry: Any) -> None:
             _validate_text(item, f"{field}[{index}]")
 
 
+BOARD_LIST_FIELDS = ("expertises", "triggers", "questions", "sources")
+REVIEW_LIST_FIELDS = ("evidence", "challenge", "decision_criteria")
+MISSING_REVIEW = (
+    "a project brain needs a review block with specialists, evidence, challenge and decision_criteria. "
+    "Run openguildkit brains --new ID to start from a complete skeleton"
+)
+
+
+def _append_new(items: list, additions: list) -> list:
+    return items + [item for item in additions if item not in items]
+
+
+def merge_board(bundled: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+    """Complete a bundled brain with a project file: lists grow, a specialist with the same ID is replaced."""
+    merged = json.loads(json.dumps(bundled))
+    for key in ("title", "description"):
+        if key in overlay:
+            merged[key] = overlay[key]
+    for key in BOARD_LIST_FIELDS:
+        merged[key] = _append_new(merged[key], overlay.get(key, []))
+    review = overlay.get("review", {})
+    if review:
+        base = merged.setdefault("review", {"specialists": [], "evidence": [], "challenge": [], "decision_criteria": []})
+        specialists = {specialist["id"]: specialist for specialist in base["specialists"]}
+        for specialist in review.get("specialists", []):
+            specialists[specialist["id"]] = specialist
+        base["specialists"] = list(specialists.values())
+        for key in REVIEW_LIST_FIELDS:
+            base[key] = _append_new(base[key], review.get(key, []))
+    return merged
+
+
+def _validate_overlay(overlay: Any) -> None:
+    """A project file that completes a bundled brain may carry any board field; the merged board is validated."""
+    fields = ENTRY_FIELDS | COLLECTION_FIELDS["boards"] | {"review"}
+    _validate_fields(overlay, "record", {"id"}, fields - {"id"})
+    review = overlay.get("review", {})
+    _validate_fields(review, "review", set(), {"specialists", *REVIEW_LIST_FIELDS})
+    for key in (*BOARD_LIST_FIELDS, "specialists"):
+        source = review if key == "specialists" else overlay
+        if key in source:
+            _validate_list(source[key], key)
+
+
+def _load_entry(collection: str, path: Path, entry: Any, entries: dict, bundled: bool) -> tuple[dict, bool]:
+    """Validate one record file. A project board with the ID of a bundled one completes it."""
+    record_id = entry.get("id") if isinstance(entry, dict) else None
+    overlay = collection == "boards" and not bundled and record_id in entries
+    if overlay:
+        _validate_overlay(entry)
+        merged = merge_board(entries[record_id], entry)
+        _validate_entry(collection, merged)
+    else:
+        _validate_entry(collection, entry)
+        merged = entry
+        if record_id in entries:
+            raise CatalogError(f"duplicate {collection} ID {record_id!r}")
+        if collection == "boards" and not bundled and "review" not in entry:
+            raise CatalogError(MISSING_REVIEW)
+    if path.name != f"{record_id}.json":
+        raise CatalogError(f"name the file {record_id}.json after its id")
+    return merged, overlay
+
+
+def overlaid_boards(catalog: dict) -> set[str]:
+    """Bundled brains that a project file completes. The project owns them, so the lock does not pin them."""
+    return set(catalog.get("overlays", {}).get("boards", []))
+
+
 def _validate_dependencies(packs: dict[str, dict[str, Any]]) -> None:
     graph = {pack_id: pack.get("depends_on", []) for pack_id, pack in packs.items()}
     for pack_id, dependencies in graph.items():
@@ -261,6 +335,7 @@ def load_catalog(
         roots.append(extra_dir)
 
     catalog: dict[str, dict[str, dict[str, Any]]] = {}
+    overlays: list[str] = []
     for collection in COLLECTION_FIELDS:
         entries = {}
         for root in roots:
@@ -274,17 +349,14 @@ def load_catalog(
                     continue
                 try:
                     entry = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=_unique_fields)
-                    _validate_entry(collection, entry)
-                    record_id = entry["id"]
-                    if record_id in entries:
-                        raise CatalogError(f"duplicate {collection} ID {record_id!r}")
-                    if path.name != f"{record_id}.json":
-                        raise CatalogError(f"name the file {record_id}.json after its id")
+                    entry, overlay = _load_entry(collection, path, entry, entries, root == builtin)
                 except RecursionError as exc:
                     raise CatalogError(f"{path}: JSON nested too deeply") from exc
                 except (OSError, ValueError) as exc:
                     raise CatalogError(f"{path}: {exc}") from exc
-                entries[record_id] = entry
+                entries[entry["id"]] = entry
+                if overlay:
+                    overlays.append(entry["id"])
             if root == builtin and not entries:
                 raise CatalogError(f"{directory} has no bundled records")
         catalog[collection] = dict(sorted(entries.items()))
@@ -300,6 +372,8 @@ def load_catalog(
         catalog["packs"][EXPORT_EXPIRY_ID] = {**pack, "policy_commit": commit}
         catalog["packs"] = dict(sorted(catalog["packs"].items()))
 
+    if overlays:
+        catalog["overlays"] = {"boards": sorted(overlays)}
     _validate_dependencies(catalog["packs"])
     for pattern_id, pattern in catalog["patterns"].items():
         unknown_packs = set(pattern["packs"]) - catalog["packs"].keys()

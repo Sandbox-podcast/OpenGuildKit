@@ -51,22 +51,38 @@
       {
         "id": "support-readiness",
         "title": "Support readiness lead",
-        "focus": "List the questions and errors customers will raise and check that support has an article, a macro or a script for each before release."
+        "focus": "List the questions and errors customers will raise and check that support has an article, a macro or a script for each before release.",
+        "checks": [
+          "Each expected question or error has an article, macro or script before release.",
+          "Agents can see the customer's state needed to diagnose the problem."
+        ]
       },
       {
         "id": "escalation-manager",
         "title": "Escalation manager",
-        "focus": "Define what support collects before escalating, who receives the escalation and the response time for each severity."
+        "focus": "Define what support collects before escalating, who receives the escalation and the response time for each severity.",
+        "checks": [
+          "The data support collects before escalating is listed.",
+          "Each severity has a recipient and a response time."
+        ]
       },
       {
         "id": "knowledge-manager",
         "title": "Knowledge manager",
-        "focus": "Plan the knowledge base articles to create or update, their owner and how agents improve them from real tickets."
+        "focus": "Plan the knowledge base articles to create or update, their owner and how agents improve them from real tickets.",
+        "checks": [
+          "Articles to create or update have an owner and name the version they apply to.",
+          "Articles are improved from real tickets after release."
+        ]
       },
       {
         "id": "customer-success",
         "title": "Customer success manager",
-        "focus": "Identify the accounts most affected and how adoption or dissatisfaction will show in usage, tickets and renewals."
+        "focus": "Identify the accounts most affected and how adoption or dissatisfaction will show in usage, tickets and renewals.",
+        "checks": [
+          "The most affected accounts are listed with their owner.",
+          "Usage, ticket and renewal signals to watch are named."
+        ]
       }
     ],
     "evidence": [

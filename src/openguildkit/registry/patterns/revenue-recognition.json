@@ -1,0 +1,23 @@
+{
+  "id": "revenue-recognition",
+  "title": "Revenue recognition and SaaS metrics",
+  "description": "Recognise revenue from subscriptions and contracts under IFRS 15 and keep recurring revenue metrics defined and reconciled.",
+  "sources": [
+    {
+      "title": "IFRS Foundation, IFRS 15 Revenue from Contracts with Customers",
+      "url": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-15-revenue-from-contracts-with-customers/"
+    }
+  ],
+  "roles": [
+    "finance",
+    "sales"
+  ],
+  "packs": [
+    "revenue-recognition",
+    "saas-metrics"
+  ],
+  "references": [
+    "ifrs-15",
+    "saas-billing-metrics"
+  ]
+}

@@ -9,10 +9,14 @@
       "kind": "réglementation",
       "brains": [
         "legal",
-        "support"
+        "support",
+        "trust-and-safety"
       ],
       "summary": "Fixe les obligations des services intermédiaires en ligne : signalement des contenus illicites, motivation des décisions de modération et transparence.",
       "applies_when": "Pour un service d'hébergement ou une plateforme accessible dans l'UE ; les obligations dépendent de la catégorie du service.",
+      "packs": [
+        "notice-and-action"
+      ],
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj",
@@ -45,7 +49,8 @@
       "kind": "réglementation",
       "brains": [
         "legal",
-        "sales"
+        "sales",
+        "partnerships"
       ],
       "summary": "Encadre l'information précontractuelle et le droit de rétractation pour les contrats conclus à distance avec des consommateurs.",
       "applies_when": "Pour la vente en ligne aux consommateurs ; vérifier les règles nationales et les exceptions applicables aux contenus numériques.",
@@ -81,7 +86,8 @@
       "kind": "réglementation",
       "brains": [
         "legal",
-        "security"
+        "security",
+        "procurement"
       ],
       "summary": "Fournit des clauses types pour encadrer les transferts de données personnelles vers des pays tiers, en quatre modules selon le rôle des parties.",
       "applies_when": "Quand un fournisseur ou une filiale hors de l'Espace économique européen reçoit des données personnelles ; à compléter par une analyse du transfert.",
@@ -183,6 +189,127 @@
         {
           "url": "https://www.iso.org/standard/75080.html",
           "title": "ISO 37301:2021 — Compliance management systems, requirements with guidance for use"
+        }
+      ]
+    },
+    {
+      "id": "vertical-block-exemption",
+      "title": "Règlement (UE) 2022/720 d'exemption par catégorie des accords verticaux",
+      "category": "Contrats et consommateurs",
+      "kind": "réglementation",
+      "brains": [
+        "partnerships",
+        "legal",
+        "sales"
+      ],
+      "summary": "Exempte les accords de distribution entre fournisseur et revendeur sous un seuil de 30 % de part de marché, sauf restrictions caractérisées comme l'imposition d'un prix de revente fixe ou minimal.",
+      "applies_when": "Pour un contrat de revendeur, de distributeur ou de place de marché ; les clauses de prix, de territoire et de clientèle se vérifient avec le juridique.",
+      "packs": [
+        "partner-program"
+      ],
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/reg/2022/720/oj",
+          "title": "Commission Regulation (EU) 2022/720, Vertical Block Exemption Regulation"
+        },
+        {
+          "url": "https://competition-policy.ec.europa.eu/antitrust-and-cartels/legislation/vertical-block-exemptions_en",
+          "title": "European Commission, Vertical block exemptions and Guidelines on vertical restraints"
+        }
+      ]
+    },
+    {
+      "id": "vertical-guidelines",
+      "title": "Lignes directrices de la Commission sur les restrictions verticales (2022/C 248/01)",
+      "edition": "2022",
+      "category": "Contrats et consommateurs",
+      "kind": "guide",
+      "brains": [
+        "partnerships",
+        "legal"
+      ],
+      "summary": "Expliquent comment la Commission applique le règlement 2022/720 : distribution sélective, ventes en ligne, places de marché et accords d'agence.",
+      "applies_when": "Pour rédiger ou revoir les règles d'un programme de revendeurs, de distribution sélective ou de vente sur une place de marché.",
+      "sources": [
+        {
+          "url": "https://competition-policy.ec.europa.eu/antitrust-and-cartels/legislation/vertical-block-exemptions_en",
+          "title": "European Commission, Vertical block exemptions and Guidelines on vertical restraints"
+        }
+      ]
+    },
+    {
+      "id": "eu-tco-regulation",
+      "title": "Règlement (UE) 2021/784 relatif aux contenus à caractère terroriste en ligne",
+      "category": "Plateformes et services numériques",
+      "kind": "réglementation",
+      "brains": [
+        "trust-and-safety",
+        "legal"
+      ],
+      "summary": "Oblige les fournisseurs de services d'hébergement à retirer un contenu terroriste ou à en bloquer l'accès dans l'heure qui suit la réception d'une injonction de retrait.",
+      "applies_when": "Pour un service qui héberge des contenus publiés par ses utilisateurs et proposé dans l'UE.",
+      "packs": [
+        "notice-and-action"
+      ],
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/reg/2021/784/oj",
+          "title": "Regulation (EU) 2021/784 on addressing the dissemination of terrorist content online"
+        }
+      ]
+    },
+    {
+      "id": "uk-online-safety-act",
+      "title": "Online Safety Act 2023 (Royaume-Uni)",
+      "category": "Plateformes et services numériques",
+      "kind": "réglementation",
+      "brains": [
+        "trust-and-safety",
+        "legal"
+      ],
+      "summary": "Impose aux services de partage entre utilisateurs et aux moteurs de recherche des évaluations des risques de contenus illégaux, des mécanismes de signalement et des procédures de réclamation.",
+      "applies_when": "Pour un service accessible au Royaume-Uni qui permet aux utilisateurs de partager des contenus ou d'interagir.",
+      "sources": [
+        {
+          "url": "https://www.legislation.gov.uk/ukpga/2023/50/contents",
+          "title": "UK Online Safety Act 2023"
+        }
+      ]
+    },
+    {
+      "id": "santa-clara-principles",
+      "title": "Principes de Santa Clara sur la transparence et la responsabilité de la modération",
+      "category": "Plateformes et services numériques",
+      "kind": "référentiel",
+      "brains": [
+        "trust-and-safety"
+      ],
+      "summary": "Recommandations d'organisations de défense des droits : publier les chiffres de la modération, notifier les personnes concernées avec la règle appliquée et offrir un recours examiné par une autre personne.",
+      "applies_when": "Pour concevoir la notification et le recours d'une décision de modération, au-delà des obligations légales.",
+      "packs": [
+        "notice-and-action"
+      ],
+      "sources": [
+        {
+          "url": "https://santaclaraprinciples.org/",
+          "title": "The Santa Clara Principles on Transparency and Accountability in Content Moderation"
+        }
+      ]
+    },
+    {
+      "id": "dtsp-best-practices",
+      "title": "Digital Trust & Safety Partnership — Best Practices Framework",
+      "category": "Plateformes et services numériques",
+      "kind": "référentiel",
+      "brains": [
+        "trust-and-safety"
+      ],
+      "summary": "Cinq engagements pour traiter les risques de contenus et de comportements : développement produit, gouvernance des règles, application, amélioration et transparence.",
+      "applies_when": "Pour structurer le programme de confiance et sécurité d'un service qui accueille des contenus ou des échanges entre utilisateurs.",
+      "sources": [
+        {
+          "url": "https://dtspartnership.org/best-practices/",
+          "title": "Digital Trust & Safety Partnership, Best Practices Framework"
         }
       ]
     }

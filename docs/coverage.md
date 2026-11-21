@@ -8,24 +8,33 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 
 | Brain | References | Applied | Documentary | Methods | Stack patterns | Packs | Rules |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| communication | 22 | 4 | 18 | 2 | 0 | 3 | 8 |
-| data | 63 | 5 | 58 | 3 | 1 | 4 | 18 |
-| design | 26 | 2 | 24 | 8 | 5 | 15 | 50 |
+| backend | 12 | 5 | 7 | 2 | 0 | 3 | 11 |
+| communication | 22 | 9 | 13 | 2 | 0 | 3 | 8 |
+| customer-success | 5 | 2 | 3 | 1 | 0 | 1 | 4 |
+| data | 63 | 7 | 56 | 3 | 1 | 4 | 18 |
+| design | 26 | 3 | 23 | 8 | 5 | 15 | 50 |
+| developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
 | devops | 69 | 22 | 47 | 6 | 6 | 12 | 50 |
-| engineering | 217 | 14 | 203 | 10 | 26 | 39 | 170 |
-| finance | 19 | 7 | 12 | 7 | 0 | 7 | 16 |
-| hr | 8 | 4 | 4 | 4 | 0 | 4 | 11 |
-| leadership | 25 | 8 | 17 | 11 | 0 | 11 | 24 |
-| legal | 49 | 10 | 39 | 5 | 0 | 5 | 38 |
-| marketing | 22 | 6 | 16 | 8 | 0 | 8 | 17 |
+| engineering | 217 | 24 | 193 | 10 | 26 | 39 | 170 |
+| finance | 23 | 13 | 10 | 11 | 0 | 12 | 35 |
+| frontend | 8 | 3 | 5 | 2 | 0 | 4 | 15 |
+| hr | 10 | 7 | 3 | 6 | 0 | 6 | 20 |
+| it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 8 |
+| leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
+| legal | 56 | 16 | 40 | 11 | 0 | 11 | 64 |
+| localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
+| marketing | 22 | 7 | 15 | 8 | 0 | 8 | 17 |
 | operations | 21 | 6 | 15 | 11 | 0 | 11 | 25 |
+| partnerships | 5 | 2 | 3 | 1 | 0 | 1 | 4 |
 | performance | 17 | 8 | 9 | 2 | 2 | 5 | 16 |
-| product | 23 | 6 | 17 | 14 | 0 | 14 | 35 |
+| procurement | 8 | 5 | 3 | 1 | 0 | 1 | 5 |
+| product | 23 | 7 | 16 | 15 | 0 | 15 | 40 |
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
 | qa | 50 | 4 | 46 | 3 | 20 | 27 | 124 |
-| sales | 11 | 3 | 8 | 7 | 0 | 7 | 14 |
-| security | 98 | 19 | 79 | 14 | 16 | 37 | 176 |
-| support | 10 | 2 | 8 | 3 | 0 | 3 | 12 |
+| sales | 13 | 7 | 6 | 11 | 0 | 12 | 33 |
+| security | 103 | 26 | 77 | 16 | 16 | 39 | 186 |
+| support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
+| trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
 ## By stack
 
@@ -62,17 +71,29 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 
 Documentary references of each brain: sources that no pack turns into rules yet. Start a new pack from a real use, name its context, its primary source and at least one piece of evidence the team can check.
 
+### backend
+
+`asyncapi`, `graphql`, `grpc`, `iana-timezones`, `json-schema`, `rest`, `twelve-factor-app`
+
 ### communication
 
-`asciidoc`, `bcp47`, `commonmark`, `diataxis`, `dita`, `docs-as-code`, `epub-accessibility`, `eu-interinstitutional-style-guide`, `gfm`, `google-doc-style`, `gov-uk-style-guides`, `icu-messageformat`, `iso-24495-1`, `microsoft-writing-style`, `pdf-a`, `pdf-ua`, `prsa-code-of-ethics`, `unicode-cldr`
+`asciidoc`, `commonmark`, `dita`, `epub-accessibility`, `eu-interinstitutional-style-guide`, `gfm`, `google-doc-style`, `gov-uk-style-guides`, `iso-24495-1`, `microsoft-writing-style`, `pdf-a`, `pdf-ua`, `prsa-code-of-ethics`
+
+### customer-success
+
+`heart`, `iso-10002`, `iso-10004`
 
 ### data
 
-`acid`, `agent-execution-limits`, `agent-memory`, `agent2agent`, `amqp`, `apache-arrow`, `apache-avro`, `apache-iceberg`, `apache-parquet`, `cap-theorem`, `cbor`, `context-engineering`, `csv`, `database-migrations`, `database-normalization`, `datasheets-for-datasets`, `dbt`, `dbt-model-contracts`, `delta-lake-protocol`, `dicom`, `dvc`, `eu-data-act`, `feast`, `great-expectations`, `hl7-fhir`, `human-in-the-loop`, `iso-8601`, `iso-iec-23894`, `iso-iec-25012`, `iso-iec-42001`, `json`, `json-schema`, `messagepack`, `mitre-atlas`, `mlflow`, `mlops`, `model-cards`, `model-context-protocol`, `mqtt`, `nist-ssdf-ai-profile`, `onnx`, `open-data-contract-standard`, `openlineage`, `owasp-agent-control-standard`, `owasp-agentic-top-10`, `owasp-llm-top-10`, `pmml`, `protocol-buffers`, `retrieval-augmented-generation`, `rfc-3339`, `sql`, `tensorflow-data-validation`, `tensorflow-savedmodel`, `toml`, `transaction-isolation`, `xml`, `xsd`, `yaml`
+`acid`, `agent-execution-limits`, `agent-memory`, `agent2agent`, `amqp`, `apache-arrow`, `apache-avro`, `apache-iceberg`, `apache-parquet`, `cap-theorem`, `cbor`, `context-engineering`, `csv`, `database-normalization`, `datasheets-for-datasets`, `dbt`, `dbt-model-contracts`, `delta-lake-protocol`, `dicom`, `dvc`, `eu-data-act`, `feast`, `great-expectations`, `hl7-fhir`, `human-in-the-loop`, `iso-8601`, `iso-iec-23894`, `iso-iec-25012`, `iso-iec-42001`, `json`, `json-schema`, `messagepack`, `mitre-atlas`, `mlflow`, `mlops`, `model-cards`, `model-context-protocol`, `mqtt`, `nist-ssdf-ai-profile`, `onnx`, `open-data-contract-standard`, `openlineage`, `owasp-agent-control-standard`, `owasp-agentic-top-10`, `owasp-llm-top-10`, `pmml`, `protocol-buffers`, `retrieval-augmented-generation`, `rfc-3339`, `sql`, `tensorflow-data-validation`, `tensorflow-savedmodel`, `toml`, `xml`, `xsd`, `yaml`
 
 ### design
 
-`apple-hig`, `aria-apg`, `atomic-design`, `carbon-design`, `css`, `dsfr`, `dtcg-design-tokens`, `en-301549`, `epub-accessibility`, `eu-accessibility-act`, `fluent-design`, `gov-uk-assisted-digital`, `govuk-design`, `heart`, `html`, `iso-9241-11`, `iso-9241-210`, `material-design`, `nielsen-heuristics`, `pdf-ua`, `rgaa`, `rgesn`, `storybook`, `wai-aria`
+`apple-hig`, `aria-apg`, `atomic-design`, `carbon-design`, `css`, `dsfr`, `dtcg-design-tokens`, `en-301549`, `epub-accessibility`, `eu-accessibility-act`, `fluent-design`, `gov-uk-assisted-digital`, `govuk-design`, `heart`, `iso-9241-11`, `iso-9241-210`, `material-design`, `nielsen-heuristics`, `pdf-ua`, `rgaa`, `rgesn`, `storybook`, `wai-aria`
+
+### developer-relations-and-docs
+
+`asyncapi`, `commonmark`, `google-doc-style`, `microsoft-writing-style`
 
 ### devops
 
@@ -80,39 +101,59 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### engineering
 
-`abac`, `acid`, `aes-fips-197`, `agent-execution-limits`, `agent-memory`, `agent-tool-permissions`, `agent2agent`, `amqp`, `apache-arrow`, `apache-avro`, `apache-iceberg`, `apache-parquet`, `arc42`, `archimate`, `architecture-decision-records`, `asciidoc`, `asyncapi`, `backstage`, `bcp47`, `behaviour-driven-development`, `bem`, `black`, `blue-green-deployment`, `bpmn`, `c4-model`, `camel-case`, `canary-deployment`, `cap-theorem`, `cbor`, `checkstyle`, `clang-format`, `clean-architecture`, `cloudevents`, `code-review`, `codeowners`, `commonmark`, `context-engineering`, `continuous-delivery`, `continuous-deployment`, `continuous-integration`, `contract-testing`, `conventional-comments`, `cpp-core-guidelines`, `cqrs`, `csharp-code-conventions`, `css`, `csv`, `cypress`, `dast`, `database-migrations`, `database-normalization`, `dbt`, `dbt-model-contracts`, `delta-lake-protocol`, `design-by-contract`, `developer-certificate-of-origin`, `diataxis`, `dicom`, `dita`, `dmn`, `docs-as-code`, `domain-driven-design`, `dry`, `dtcg-design-tokens`, `dvc`, `ecmascript`, `editorconfig`, `effective-go`, `end-to-end-testing`, `eslint`, `event-sourcing`, `feast`, `feature-flags`, `fido2`, `fips-140-3`, `fuzzing`, `gfm`, `gherkin`, `git-hooks`, `gitflow`, `github-flow`, `go-code-review-comments`, `google-java-style`, `google-javascript-style`, `google-search-essentials`, `google-typescript-style`, `graphql`, `great-expectations`, `grpc`, `hexagonal-architecture`, `hl7-fhir`, `html`, `human-in-the-loop`, `hypothesis`, `iana-timezones`, `ias-38`, `icu-messageformat`, `integration-testing`, `iso-3166`, `iso-4217`, `iso-8601`, `iso-iec-25010`, `iso-iec-ieee-12207`, `iso-iec-ieee-29119`, `iso-iec-ieee-42010`, `jest`, `json`, `json-ld`, `json-rpc`, `json-schema`, `junit`, `jwe`, `jws`, `jwt`, `kebab-case`, `kiss`, `kotlin-coding-conventions`, `least-privilege`, `linux-kernel-coding-style`, `messagepack`, `microservices`, `mlflow`, `mlops`, `model-context-protocol`, `modular-monolith`, `mqtt`, `mutation-testing`, `nist-sp-800-63`, `nunit`, `oauth-2`, `oauth-security-bcp`, `odata`, `onnx`, `open-data-contract-standard`, `openfeature`, `openid-connect`, `openlineage`, `osi-licenses`, `owasp-api-top-10`, `owasp-masvs`, `owasp-samm`, `owasp-top-10`, `pact`, `pascal-case`, `php-per-coding-style`, `php-psr12`, `pkce`, `platform-engineering`, `pmml`, `prettier`, `property-based-testing`, `protocol-buffers`, `pull-requests`, `python-pep257`, `rbac`, `regression-testing`, `rest`, `retrieval-augmented-generation`, `reuse`, `rfc-3339`, `robots-txt`, `ruby-style-guide`, `ruff`, `rust-style-guide`, `saml-2`, `sast`, `scim-2`, `screaming-snake-case`, `secret-scanning`, `secure-by-design`, `selenium`, `server-sent-events`, `sitemaps`, `snake-case`, `soap`, `solid`, `spdx-license-list`, `sql`, `storybook`, `swift-api-design-guidelines`, `tensorflow-data-validation`, `tensorflow-savedmodel`, `test-driven-development`, `test-pyramid`, `testcontainers`, `tls-1-3`, `togaf`, `toml`, `transaction-isolation`, `trunk-based-development`, `twelve-factor-app`, `uml`, `unicode-cldr`, `unicode-normalization`, `unit-testing`, `utf-8`, `vitest`, `webauthn`, `websocket`, `xml`, `xsd`, `yagni`, `yaml`
+`abac`, `acid`, `aes-fips-197`, `agent-execution-limits`, `agent-memory`, `agent-tool-permissions`, `agent2agent`, `amqp`, `apache-arrow`, `apache-avro`, `apache-iceberg`, `apache-parquet`, `arc42`, `archimate`, `architecture-decision-records`, `asciidoc`, `asyncapi`, `backstage`, `behaviour-driven-development`, `bem`, `black`, `blue-green-deployment`, `bpmn`, `c4-model`, `camel-case`, `canary-deployment`, `cap-theorem`, `cbor`, `checkstyle`, `clang-format`, `clean-architecture`, `cloudevents`, `code-review`, `codeowners`, `commonmark`, `context-engineering`, `continuous-delivery`, `continuous-deployment`, `continuous-integration`, `contract-testing`, `conventional-comments`, `cpp-core-guidelines`, `cqrs`, `csharp-code-conventions`, `css`, `csv`, `cypress`, `dast`, `database-normalization`, `dbt`, `dbt-model-contracts`, `delta-lake-protocol`, `design-by-contract`, `developer-certificate-of-origin`, `dicom`, `dita`, `dmn`, `domain-driven-design`, `dry`, `dtcg-design-tokens`, `dvc`, `ecmascript`, `editorconfig`, `effective-go`, `end-to-end-testing`, `eslint`, `event-sourcing`, `feast`, `feature-flags`, `fido2`, `fips-140-3`, `fuzzing`, `gfm`, `gherkin`, `git-hooks`, `gitflow`, `github-flow`, `go-code-review-comments`, `google-java-style`, `google-javascript-style`, `google-search-essentials`, `google-typescript-style`, `graphql`, `great-expectations`, `grpc`, `hexagonal-architecture`, `hl7-fhir`, `human-in-the-loop`, `hypothesis`, `iana-timezones`, `ias-38`, `integration-testing`, `iso-3166`, `iso-4217`, `iso-8601`, `iso-iec-25010`, `iso-iec-ieee-12207`, `iso-iec-ieee-29119`, `iso-iec-ieee-42010`, `jest`, `json`, `json-ld`, `json-rpc`, `json-schema`, `junit`, `jwe`, `jws`, `jwt`, `kebab-case`, `kiss`, `kotlin-coding-conventions`, `least-privilege`, `linux-kernel-coding-style`, `messagepack`, `microservices`, `mlflow`, `mlops`, `model-context-protocol`, `modular-monolith`, `mqtt`, `mutation-testing`, `nist-sp-800-63`, `nunit`, `oauth-2`, `oauth-security-bcp`, `odata`, `onnx`, `open-data-contract-standard`, `openfeature`, `openid-connect`, `openlineage`, `osi-licenses`, `owasp-masvs`, `owasp-samm`, `owasp-top-10`, `pact`, `pascal-case`, `php-per-coding-style`, `php-psr12`, `pkce`, `platform-engineering`, `pmml`, `prettier`, `property-based-testing`, `protocol-buffers`, `pull-requests`, `python-pep257`, `rbac`, `regression-testing`, `rest`, `retrieval-augmented-generation`, `reuse`, `rfc-3339`, `robots-txt`, `ruby-style-guide`, `ruff`, `rust-style-guide`, `saml-2`, `sast`, `screaming-snake-case`, `secret-scanning`, `secure-by-design`, `selenium`, `server-sent-events`, `sitemaps`, `snake-case`, `soap`, `solid`, `spdx-license-list`, `sql`, `storybook`, `swift-api-design-guidelines`, `tensorflow-data-validation`, `tensorflow-savedmodel`, `test-driven-development`, `test-pyramid`, `testcontainers`, `tls-1-3`, `togaf`, `toml`, `trunk-based-development`, `twelve-factor-app`, `uml`, `unicode-normalization`, `unit-testing`, `utf-8`, `vitest`, `webauthn`, `websocket`, `xml`, `xsd`, `yagni`, `yaml`
 
 ### finance
 
-`balanced-scorecard`, `coso-internal-control`, `csrd`, `finops-focus`, `ias-38`, `ifrs-15`, `iso-4217`, `late-payment-directive`, `pci-dss`, `saas-billing-metrics`, `uk-corporate-governance-code`, `usage-optimization`
+`balanced-scorecard`, `csrd`, `finops-focus`, `ias-38`, `iso-4217`, `late-payment-directive`, `pci-dss`, `uk-corporate-governance-code`, `usage-optimization`, `vida`
+
+### frontend
+
+`css`, `ecmascript`, `storybook`, `unicode-bidi`, `wai-aria`
 
 ### hr
 
-`eu-pay-transparency`, `iso-30414`, `iso-45001`, `iso-45003`
+`iso-30414`, `iso-45001`, `iso-45003`
+
+### it-and-workplace
+
+`iso-iec-20000-1`, `nist-sp-800-63`
 
 ### leadership
 
-`balanced-scorecard`, `business-model-canvas`, `coso-internal-control`, `csrd`, `daci`, `dora-metrics`, `ebios-risk-manager`, `iso-30414`, `iso-31000`, `iso-37000`, `iso-37301`, `iso-56001`, `iso-iec-42001`, `nist-csf`, `north-star`, `togaf`, `uk-corporate-governance-code`
+`balanced-scorecard`, `business-model-canvas`, `csrd`, `daci`, `dora-metrics`, `ebios-risk-manager`, `iso-30414`, `iso-31000`, `iso-37000`, `iso-37301`, `iso-56001`, `iso-iec-42001`, `nist-csf`, `north-star`, `togaf`, `uk-corporate-governance-code`
 
 ### legal
 
-`cnil-cookies`, `cnil-guide-securite`, `consumer-adr-directive`, `consumer-rights-directive`, `csrd`, `developer-certificate-of-origin`, `digital-content-directive`, `dsa`, `eidas`, `en-301549`, `eprivacy`, `eu-accessibility-act`, `eu-data-act`, `eu-ivdr`, `eu-mdr`, `eu-pay-transparency`, `eu-public-procurement-directive`, `hds`, `hl7-fhir`, `iab-tcf`, `iec-62304`, `iso-13485`, `iso-14971`, `iso-37301`, `iso-iec-27018`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `nist-media-sanitization`, `nist-privacy-framework`, `osi-licenses`, `pci-dss`, `product-liability-directive`, `reuse`, `rgaa`, `scip-ethics`, `soc-2`, `spdx-license-list`
+`cnil-cookies`, `cnil-guide-securite`, `consumer-adr-directive`, `consumer-rights-directive`, `csrd`, `developer-certificate-of-origin`, `digital-content-directive`, `eidas`, `en-301549`, `eprivacy`, `eu-accessibility-act`, `eu-data-act`, `eu-ivdr`, `eu-mdr`, `eu-public-procurement-directive`, `hds`, `hl7-fhir`, `iab-tcf`, `iec-62304`, `iso-13485`, `iso-14971`, `iso-37301`, `iso-iec-27018`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `nist-media-sanitization`, `nist-privacy-framework`, `osi-licenses`, `pci-dss`, `product-liability-directive`, `reuse`, `rgaa`, `scip-ethics`, `soc-2`, `spdx-license-list`, `uk-online-safety-act`, `vertical-guidelines`, `vida`
+
+### localisation
+
+`iana-timezones`, `iso-3166`, `iso-4217`, `unicode-bidi`, `unicode-normalization`, `utf-8`
 
 ### marketing
 
-`cnil-cookies`, `dkim`, `dmarc`, `eprivacy`, `google-search-essentials`, `iab-tcf`, `json-ld`, `nps`, `open-graph`, `robots-txt`, `schema-org`, `scip-ethics`, `sitemaps`, `sostac`, `spf`, `value-proposition-canvas`
+`cnil-cookies`, `dkim`, `dmarc`, `eprivacy`, `google-search-essentials`, `iab-tcf`, `json-ld`, `open-graph`, `robots-txt`, `schema-org`, `scip-ethics`, `sitemaps`, `sostac`, `spf`, `value-proposition-canvas`
 
 ### operations
 
 `bpmn`, `dmn`, `human-in-the-loop`, `iso-18295-1`, `iso-22301`, `iso-45001`, `iso-45003`, `iso-9001`, `iso-iec-20000-1`, `pdca`, `pdf-a`, `recovery-point-objective`, `recovery-time-objective`, `toil-reduction`, `value-stream-mapping`
 
+### partnerships
+
+`consumer-rights-directive`, `eu-data-act`, `vertical-guidelines`
+
 ### performance
 
 `grafana-k6`, `load-testing`, `openmetrics`, `prometheus`, `red-method`, `software-carbon-intensity`, `use-method`, `w3c-baggage`, `w3c-trace-context`
 
+### procurement
+
+`enisa-supply-chain-good-practices`, `eu-public-procurement-directive`, `late-payment-directive`
+
 ### product
 
-`agile-manifesto`, `business-model-canvas`, `digital-content-directive`, `feature-flags`, `heart`, `invest`, `iso-10004`, `iso-56001`, `iso-iec-ieee-29148`, `moscow`, `north-star`, `nps`, `rice`, `safe`, `smart`, `value-proposition-canvas`, `wsjf`
+`agile-manifesto`, `business-model-canvas`, `digital-content-directive`, `feature-flags`, `heart`, `invest`, `iso-10004`, `iso-56001`, `iso-iec-ieee-29148`, `moscow`, `north-star`, `rice`, `safe`, `smart`, `value-proposition-canvas`, `wsjf`
 
 ### project-management
 
@@ -124,12 +165,16 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### sales
 
-`consumer-rights-directive`, `eu-public-procurement-directive`, `ifrs-15`, `late-payment-directive`, `saas-billing-metrics`, `soc-2`, `soc-3`, `spiced`
+`consumer-rights-directive`, `eu-public-procurement-directive`, `late-payment-directive`, `soc-2`, `soc-3`, `spiced`
 
 ### security
 
-`abac`, `aes-fips-197`, `agent-tool-permissions`, `capec`, `cis-benchmarks`, `cis-controls`, `cisa-kev`, `cnil-guide-securite`, `csaf`, `cve`, `cvss`, `cwe`, `dast`, `dkim`, `dmarc`, `ebios-risk-manager`, `eidas`, `epss`, `fido2`, `fips-140-3`, `hds`, `iec-62443`, `in-toto`, `iso-22301`, `iso-iec-23894`, `iso-iec-27002`, `iso-iec-27005`, `iso-iec-27017`, `iso-iec-27018`, `iso-iec-27034`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `jwe`, `jws`, `jwt`, `least-privilege`, `mitre-atlas`, `mitre-attack`, `nist-csf`, `nist-media-sanitization`, `nist-privacy-framework`, `nist-sp-800-63`, `nist-ssdf-ai-profile`, `nist-zero-trust`, `oauth-2`, `oauth-security-bcp`, `openid-connect`, `openssf-best-practices`, `openssf-osps-baseline`, `openssf-scorecard`, `openvex`, `oscal`, `osv`, `owasp-agent-control-standard`, `owasp-agentic-top-10`, `owasp-api-top-10`, `owasp-llm-top-10`, `owasp-masvs`, `owasp-samm`, `owasp-top-10`, `pci-dss`, `pkce`, `rbac`, `saml-2`, `sast`, `sca`, `scim-2`, `secret-scanning`, `secure-by-design`, `sigstore`, `soc-2`, `soc-3`, `spf`, `tls-1-3`, `tuf`, `vex`, `webauthn`
+`abac`, `aes-fips-197`, `agent-tool-permissions`, `capec`, `cis-benchmarks`, `cisa-kev`, `cnil-guide-securite`, `csaf`, `cve`, `cvss`, `cwe`, `dast`, `dkim`, `dmarc`, `ebios-risk-manager`, `eidas`, `enisa-supply-chain-good-practices`, `epss`, `fido2`, `fips-140-3`, `hds`, `iec-62443`, `in-toto`, `iso-22301`, `iso-iec-23894`, `iso-iec-27002`, `iso-iec-27005`, `iso-iec-27017`, `iso-iec-27018`, `iso-iec-27034`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `jwe`, `jws`, `jwt`, `least-privilege`, `mitre-atlas`, `mitre-attack`, `nist-csf`, `nist-media-sanitization`, `nist-privacy-framework`, `nist-sp-800-63`, `nist-ssdf-ai-profile`, `nist-zero-trust`, `oauth-2`, `oauth-security-bcp`, `openid-connect`, `openssf-best-practices`, `openssf-osps-baseline`, `openssf-scorecard`, `openvex`, `oscal`, `osv`, `owasp-agent-control-standard`, `owasp-agentic-top-10`, `owasp-llm-top-10`, `owasp-masvs`, `owasp-samm`, `owasp-top-10`, `pci-dss`, `pkce`, `rbac`, `saml-2`, `sast`, `sca`, `secret-scanning`, `secure-by-design`, `sigstore`, `soc-2`, `soc-3`, `spf`, `tls-1-3`, `tuf`, `vex`, `webauthn`
 
 ### support
 
-`consumer-adr-directive`, `dsa`, `gov-uk-assisted-digital`, `iso-10002`, `iso-10004`, `iso-18295-1`, `iso-iec-20000-1`, `nps`
+`consumer-adr-directive`, `gov-uk-assisted-digital`, `iso-10002`, `iso-10004`, `iso-18295-1`, `iso-iec-20000-1`
+
+### trust-and-safety
+
+`dtsp-best-practices`, `uk-online-safety-act`

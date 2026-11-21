@@ -514,7 +514,8 @@
       "category": "Conventions par langage",
       "kind": "norme",
       "brains": [
-        "engineering"
+        "engineering",
+        "frontend"
       ],
       "summary": "Spécifie le langage dont JavaScript est une implémentation.",
       "applies_when": "Choisir les fonctionnalités selon les environnements d'exécution et les cibles de compatibilité.",
@@ -533,7 +534,8 @@
       "kind": "convention",
       "brains": [
         "engineering",
-        "devops"
+        "devops",
+        "developer-relations-and-docs"
       ],
       "summary": "Utilise des numéros de version majeure, mineure et corrective pour annoncer la nature des changements d'une interface publique.",
       "applies_when": "Pour un produit ou une bibliothèque dont l'interface publique et les engagements de compatibilité sont définis.",
@@ -576,7 +578,8 @@
       "kind": "convention",
       "brains": [
         "engineering",
-        "communication"
+        "communication",
+        "developer-relations-and-docs"
       ],
       "summary": "Organise un historique lisible des changements importants pour les utilisateurs à chaque version.",
       "applies_when": "Pour les logiciels et bibliothèques qui publient des versions ; compléter l'historique Git par une sélection éditoriale.",

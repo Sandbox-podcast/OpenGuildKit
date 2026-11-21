@@ -156,10 +156,14 @@
       "kind": "réglementation",
       "brains": [
         "hr",
-        "legal"
+        "legal",
+        "finance"
       ],
       "summary": "Renforce l'égalité de rémunération entre femmes et hommes par la transparence salariale, l'information des candidats et des rapports sur les écarts.",
       "applies_when": "Pour les employeurs de l'UE selon la loi nationale de transposition ; à vérifier avec le juriste social pour les offres d'emploi, les grilles et les rapports.",
+      "packs": [
+        "pay-transparency"
+      ],
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/dir/2023/970/oj",

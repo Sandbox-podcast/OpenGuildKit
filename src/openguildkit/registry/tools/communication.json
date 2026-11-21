@@ -12,7 +12,8 @@
         "communication",
         "operations",
         "project-management",
-        "leadership"
+        "leadership",
+        "it-and-workplace"
       ],
       "aliases": [
         "Gmail",
@@ -95,7 +96,8 @@
         "communication",
         "operations",
         "project-management",
-        "leadership"
+        "leadership",
+        "it-and-workplace"
       ],
       "aliases": [
         "Office 365",
@@ -159,7 +161,8 @@
       "brains": [
         "communication",
         "project-management",
-        "operations"
+        "operations",
+        "it-and-workplace"
       ],
       "aliases": [
         "Teams",
@@ -221,7 +224,8 @@
         "communication",
         "project-management",
         "operations",
-        "support"
+        "support",
+        "it-and-workplace"
       ],
       "detect": {
         "npm": [

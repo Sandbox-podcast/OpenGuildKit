@@ -64,22 +64,38 @@
       {
         "id": "delivery-pipeline",
         "title": "Release engineer",
-        "focus": "Verify how the build becomes the deployed artifact. Find changes to permissions, configuration and promotion gates that affect the release."
+        "focus": "Verify how the build becomes the deployed artifact. Find changes to permissions, configuration and promotion gates that affect the release.",
+        "checks": [
+          "The deployed artifact is the one built and tested by the pipeline, identified by digest.",
+          "Changes to pipeline permissions, secrets or promotion gates are reviewed separately."
+        ]
       },
       {
         "id": "progressive-delivery",
         "title": "Rollout owner",
-        "focus": "Choose initial exposure, a representative comparison population and the conditions for advancing, pausing or stopping the rollout."
+        "focus": "Choose initial exposure, a representative comparison population and the conditions for advancing, pausing or stopping the rollout.",
+        "checks": [
+          "The rollout starts with a small exposure and has written advance, pause and stop conditions.",
+          "The comparison population is representative of the users who will get the change."
+        ]
       },
       {
         "id": "service-observability",
         "title": "Site reliability engineer",
-        "focus": "Check that service indicators surface user impact and that missing telemetry has a defined response. Confirm alert delivery and on-call ownership."
+        "focus": "Check that service indicators surface user impact and that missing telemetry has a defined response. Confirm alert delivery and on-call ownership.",
+        "checks": [
+          "Service level indicators measure user impact, and alerts reach an on-call person.",
+          "New code paths emit logs, metrics or traces that show their failures."
+        ]
       },
       {
         "id": "recovery-operations",
         "title": "Recovery engineer",
-        "focus": "Determine what persists after rollback. Check that the team can restore the service within its agreed recovery objectives."
+        "focus": "Determine what persists after rollback. Check that the team can restore the service within its agreed recovery objectives.",
+        "checks": [
+          "Rollback was rehearsed, and what persists after it, such as migrated data, is known.",
+          "Restore time from backup is measured against the recovery time objective."
+        ]
       }
     ],
     "evidence": [

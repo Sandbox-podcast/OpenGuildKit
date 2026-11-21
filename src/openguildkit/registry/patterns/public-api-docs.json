@@ -1,0 +1,26 @@
+{
+  "id": "public-api-docs",
+  "title": "Public API documentation",
+  "description": "Publish API references generated from the contract, tested examples, a changelog and deprecation notices.",
+  "sources": [
+    {
+      "title": "OpenAPI Specification",
+      "url": "https://spec.openapis.org/oas/latest.html"
+    },
+    {
+      "title": "Diátaxis, a systematic approach to technical documentation",
+      "url": "https://diataxis.fr/"
+    }
+  ],
+  "roles": [
+    "developer-relations-and-docs",
+    "backend"
+  ],
+  "packs": [
+    "public-api-docs"
+  ],
+  "references": [
+    "diataxis",
+    "docs-as-code"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "id": "backend-services",
+  "title": "Back-end services",
+  "description": "Change services, APIs and data stores with compatible contracts, safe retries, reversible migrations and object-level authorization.",
+  "sources": [
+    {
+      "title": "RFC 9110, HTTP Semantics",
+      "url": "https://www.rfc-editor.org/rfc/rfc9110.html"
+    },
+    {
+      "title": "OWASP API Security Top 10 (2023)",
+      "url": "https://api-security.owasp.org/editions/2023/en/0x11-t10/"
+    }
+  ],
+  "roles": [
+    "backend"
+  ],
+  "packs": [
+    "backend-data-safety",
+    "api-design"
+  ],
+  "references": [
+    "transaction-isolation",
+    "owasp-api-top-10"
+  ]
+}

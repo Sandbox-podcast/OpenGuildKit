@@ -1,0 +1,139 @@
+[
+  {
+    "brief": "Launch a partner program with resellers and system integrators",
+    "must": [
+      "partnerships"
+    ]
+  },
+  {
+    "brief": "Choose a new laptop management tool for employees",
+    "must": [
+      "it-and-workplace"
+    ]
+  },
+  {
+    "brief": "Translate the app into German and Japanese",
+    "must": [
+      "localisation"
+    ]
+  },
+  {
+    "brief": "Traduire l'application en allemand",
+    "must": [
+      "localisation"
+    ]
+  },
+  {
+    "brief": "Choose a vendor for our customer data platform and sign the contract",
+    "must": [
+      "procurement",
+      "legal"
+    ]
+  },
+  {
+    "brief": "Publish the public API documentation and SDK for developers",
+    "must": [
+      "developer-relations-and-docs"
+    ]
+  },
+  {
+    "brief": "Reduce churn of mid-market customers before renewal",
+    "must": [
+      "customer-success"
+    ]
+  },
+  {
+    "brief": "Add a report abuse button and a moderation queue for user comments",
+    "must": [
+      "trust-and-safety"
+    ]
+  },
+  {
+    "brief": "Mettre en place la modération des contenus publiés par les utilisateurs",
+    "must": [
+      "trust-and-safety"
+    ]
+  },
+  {
+    "brief": "Revoir le score de santé des comptes clients",
+    "must": [
+      "customer-success"
+    ]
+  },
+  {
+    "brief": "Évaluer le risque tiers d'un nouveau fournisseur",
+    "must": [
+      "procurement"
+    ]
+  },
+  {
+    "brief": "Gérer les arrivées et départs dans les accès SaaS",
+    "must": [
+      "it-and-workplace"
+    ]
+  },
+  {
+    "brief": "Recruter des revendeurs pour le programme partenaire",
+    "must": [
+      "partnerships"
+    ]
+  },
+  {
+    "brief": "Écrire le tutoriel du portail développeur",
+    "must": [
+      "developer-relations-and-docs"
+    ]
+  },
+  {
+    "brief": "Reduce the bundle size of the React single page application",
+    "must": [
+      "frontend"
+    ],
+    "must_not": [
+      "backend"
+    ]
+  },
+  {
+    "brief": "Corriger l'hydratation du rendu côté serveur",
+    "must": [
+      "frontend"
+    ]
+  },
+  {
+    "brief": "Make the webhook handler idempotent when the message queue redelivers",
+    "must": [
+      "backend"
+    ],
+    "must_not": [
+      "frontend"
+    ]
+  },
+  {
+    "brief": "Écrire la migration de base de données pour la nouvelle table",
+    "must": [
+      "backend"
+    ]
+  },
+  {
+    "brief": "Recognise revenue for multi-year contracts under IFRS 15",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Write the performance review template for managers",
+    "must": [
+      "hr"
+    ],
+    "must_not": [
+      "performance"
+    ]
+  },
+  {
+    "brief": "Our sales team needs a quote template with discounts approved by finance",
+    "must": [
+      "sales",
+      "finance"
+    ]
+  }
+]

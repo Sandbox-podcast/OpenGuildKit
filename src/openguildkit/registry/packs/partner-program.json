@@ -1,0 +1,38 @@
+{
+  "id": "partner-program",
+  "title": "Partner programme",
+  "version": "1.0.0",
+  "description": "For a programme with resellers, integrators, referral partners or marketplaces: written terms, no imposed resale prices, a channel conflict rule and clear data roles.",
+  "sources": [
+    {
+      "title": "Commission Regulation (EU) 2022/720, Vertical Block Exemption Regulation",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/720/oj"
+    },
+    {
+      "title": "European Commission, Vertical block exemptions and Guidelines on vertical restraints",
+      "url": "https://competition-policy.ec.europa.eu/antitrust-and-cartels/legislation/vertical-block-exemptions_en"
+    }
+  ],
+  "rules": [
+    {
+      "id": "publish-programme-terms",
+      "instruction": "Write the partner tiers, entry criteria, benefits and obligations in a programme guide shared with partners.",
+      "verification": "Open the programme guide and check that each tier has criteria, benefits and obligations."
+    },
+    {
+      "id": "no-imposed-resale-prices",
+      "instruction": "Have legal review the partner agreement template so that it may recommend or cap resale prices but never fixes them or imposes a minimum.",
+      "verification": "Check that the task record links legal's review of the template and that no clause sets a fixed or minimum resale price."
+    },
+    {
+      "id": "define-channel-conflict-rule",
+      "instruction": "Write how deals are registered and who owns a deal when a partner and the direct team meet the same customer.",
+      "verification": "Check that the rule is in the programme guide and that the CRM has a deal registration field."
+    },
+    {
+      "id": "assign-customer-data-roles",
+      "instruction": "State in the partner agreement who is controller and who is processor of end-customer data, and sign a data processing agreement where one is required.",
+      "verification": "Open the agreement template and check the data roles clause and the data processing agreement annex."
+    }
+  ]
+}

@@ -11,7 +11,9 @@
       "brains": [
         "sales",
         "marketing",
-        "support"
+        "support",
+        "customer-success",
+        "partnerships"
       ],
       "aliases": [
         "HubSpot CRM"
@@ -53,7 +55,8 @@
       "summary": "Sales CRM and pipeline management.",
       "homepage": "https://www.pipedrive.com",
       "brains": [
-        "sales"
+        "sales",
+        "partnerships"
       ],
       "servers": [
         {
@@ -86,7 +89,9 @@
       "brains": [
         "sales",
         "support",
-        "marketing"
+        "marketing",
+        "customer-success",
+        "partnerships"
       ],
       "detect": {
         "files": [

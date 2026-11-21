@@ -111,10 +111,14 @@
       "kind": "taxonomie",
       "brains": [
         "security",
-        "engineering"
+        "engineering",
+        "backend"
       ],
       "summary": "Présente les principales familles de risques propres aux interfaces API.",
       "applies_when": "Pour concevoir, exposer ou auditer des API ; à compléter par des exigences et des tests précis.",
+      "packs": [
+        "backend-data-safety"
+      ],
       "sources": [
         {
           "url": "https://api-security.owasp.org/editions/2023/en/0x11-t10/",
@@ -745,10 +749,14 @@
       "kind": "protocole",
       "brains": [
         "security",
-        "engineering"
+        "engineering",
+        "it-and-workplace"
       ],
       "summary": "Automatise la création, la mise à jour et la désactivation des comptes entre systèmes.",
       "applies_when": "Pour relier les comptes applicatifs à la gestion des identités de l'organisation.",
+      "packs": [
+        "device-and-access-lifecycle"
+      ],
       "sources": [
         {
           "url": "https://www.rfc-editor.org/info/rfc7644/",
@@ -764,7 +772,8 @@
       "kind": "référentiel",
       "brains": [
         "security",
-        "engineering"
+        "engineering",
+        "it-and-workplace"
       ],
       "summary": "Organise les exigences de preuve d'identité, d'authentification et de fédération selon les besoins d'assurance.",
       "applies_when": "Pour définir un niveau d'assurance d'identité ou répondre à un cadre contractuel qui le retient.",
@@ -1125,10 +1134,14 @@
       "category": "Risques, vulnérabilités et incidents",
       "kind": "référentiel",
       "brains": [
-        "security"
+        "security",
+        "it-and-workplace"
       ],
       "summary": "Propose des mesures de sécurité priorisées pour réduire les attaques courantes.",
       "applies_when": "Pour choisir un socle de protections proportionné à la taille, aux moyens et aux risques de l'organisation.",
+      "packs": [
+        "device-and-access-lifecycle"
+      ],
       "sources": [
         {
           "url": "https://www.cisecurity.org/controls/v8-1",
@@ -1169,6 +1182,112 @@
         {
           "url": "https://cyber.gouv.fr/securisation/analyse-des-risques/methode-ebios-rm/",
           "title": "ANSSI — La méthode EBIOS Risk Manager"
+        }
+      ]
+    },
+    {
+      "id": "nist-sp-800-161",
+      "title": "NIST SP 800-161 Rev. 1 — gestion des risques cyber de la chaîne d'approvisionnement",
+      "edition": "Rev. 1",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "référentiel",
+      "brains": [
+        "procurement",
+        "security"
+      ],
+      "summary": "Guide pour identifier, évaluer et réduire les risques cyber liés aux fournisseurs et aux produits achetés, intégré à la gestion des risques de l'organisation.",
+      "applies_when": "Pour l'achat d'un logiciel, d'un service cloud ou d'un prestataire qui accède aux données ou aux systèmes.",
+      "packs": [
+        "vendor-due-diligence"
+      ],
+      "sources": [
+        {
+          "url": "https://csrc.nist.gov/pubs/sp/800/161/r1/upd1/final",
+          "title": "NIST SP 800-161 Rev. 1, Cybersecurity Supply Chain Risk Management Practices for Systems and Organizations"
+        }
+      ]
+    },
+    {
+      "id": "ncsc-supply-chain-principles",
+      "title": "NCSC — Principles of supply chain security",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "guide",
+      "brains": [
+        "procurement",
+        "security"
+      ],
+      "summary": "Douze principes du NCSC britannique regroupés en quatre étapes : comprendre les risques, établir le contrôle, vérifier les dispositions, améliorer en continu.",
+      "applies_when": "Pour organiser la revue de sécurité des fournisseurs et leur suivi dans le temps.",
+      "packs": [
+        "vendor-due-diligence"
+      ],
+      "sources": [
+        {
+          "url": "https://www.ncsc.gov.uk/collection/supply-chain-security/principles-supply-chain-security",
+          "title": "NCSC, Principles of supply chain security"
+        }
+      ]
+    },
+    {
+      "id": "enisa-supply-chain-good-practices",
+      "title": "ENISA — Good Practices for Supply Chain Cybersecurity",
+      "edition": "2023",
+      "category": "Chaîne logicielle et dépendances",
+      "kind": "guide",
+      "brains": [
+        "procurement",
+        "security"
+      ],
+      "summary": "État des pratiques de cybersécurité de la chaîne d'approvisionnement chez les entités essentielles et importantes de l'UE.",
+      "applies_when": "Pour une entité soumise à NIS 2 qui doit maîtriser les risques de ses fournisseurs.",
+      "sources": [
+        {
+          "url": "https://www.enisa.europa.eu/publications/good-practices-for-supply-chain-cybersecurity",
+          "title": "ENISA, Good Practices for Supply Chain Cybersecurity (2023)"
+        }
+      ]
+    },
+    {
+      "id": "nist-sp-800-124",
+      "title": "NIST SP 800-124 Rev. 2 — sécurité des appareils mobiles en entreprise",
+      "edition": "Rev. 2",
+      "category": "Identité, accès et cryptographie",
+      "kind": "guide",
+      "brains": [
+        "it-and-workplace",
+        "security"
+      ],
+      "summary": "Recommandations pour gérer de façon centralisée les appareils mobiles fournis par l'entreprise ou personnels, de leur déploiement à leur mise au rebut.",
+      "applies_when": "Pour choisir et configurer une solution de gestion des appareils (MDM) et ses politiques.",
+      "packs": [
+        "device-and-access-lifecycle"
+      ],
+      "sources": [
+        {
+          "url": "https://csrc.nist.gov/pubs/sp/800/124/r2/final",
+          "title": "NIST SP 800-124 Rev. 2, Guidelines for Managing the Security of Mobile Devices in the Enterprise"
+        }
+      ]
+    },
+    {
+      "id": "nist-sp-800-46",
+      "title": "NIST SP 800-46 Rev. 2 — télétravail, accès distant et BYOD",
+      "edition": "Rev. 2",
+      "category": "Identité, accès et cryptographie",
+      "kind": "guide",
+      "brains": [
+        "it-and-workplace",
+        "security"
+      ],
+      "summary": "Sécurité des solutions d'accès distant, du télétravail et des appareils personnels (BYOD), et politiques associées.",
+      "applies_when": "Pour définir comment les employés accèdent aux outils de l'entreprise hors du bureau ou depuis leurs propres appareils.",
+      "packs": [
+        "device-and-access-lifecycle"
+      ],
+      "sources": [
+        {
+          "url": "https://csrc.nist.gov/pubs/sp/800/46/r2/final",
+          "title": "NIST SP 800-46 Rev. 2, Guide to Enterprise Telework, Remote Access, and Bring Your Own Device (BYOD) Security"
         }
       ]
     }

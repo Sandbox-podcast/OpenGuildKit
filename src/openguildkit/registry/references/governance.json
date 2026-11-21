@@ -188,7 +188,8 @@
       "kind": "norme",
       "brains": [
         "security",
-        "leadership"
+        "leadership",
+        "it-and-workplace"
       ],
       "summary": "Définit les exigences d'un système de management de la sécurité de l'information.",
       "applies_when": "Pour organiser un système de management de la sécurité de l'information et, si l'organisation le décide, le faire certifier par un organisme accrédité.",
@@ -302,7 +303,8 @@
       "kind": "norme",
       "brains": [
         "operations",
-        "support"
+        "support",
+        "it-and-workplace"
       ],
       "summary": "Définit les exigences de management des services, de leur conception à leur amélioration.",
       "applies_when": "Pour les organisations qui fournissent des services et veulent maîtriser leur qualité sur tout leur cycle de vie.",
@@ -412,7 +414,8 @@
       "kind": "réglementation",
       "brains": [
         "legal",
-        "security"
+        "security",
+        "hr"
       ],
       "summary": "Encadre le traitement des données personnelles et les droits des personnes concernées.",
       "applies_when": "Lorsque les traitements et acteurs entrent dans son champ matériel et territorial ; les obligations dépendent notamment du rôle tenu.",
@@ -434,7 +437,8 @@
       "kind": "réglementation",
       "brains": [
         "legal",
-        "security"
+        "security",
+        "procurement"
       ],
       "summary": "Renforce la cybersécurité et la gestion des incidents des entités appartenant à des secteurs visés.",
       "applies_when": "Selon le secteur, la taille, le statut de l'entité et les règles nationales de transposition applicables.",
@@ -456,7 +460,8 @@
       "kind": "réglementation",
       "brains": [
         "legal",
-        "security"
+        "security",
+        "procurement"
       ],
       "summary": "Organise la résilience numérique du secteur financier et la maîtrise des risques liés aux prestataires informatiques.",
       "applies_when": "Pour les entités financières couvertes et les rôles de prestataires concernés ; les engagements d'un éditeur dépendent de son contexte.",
@@ -479,7 +484,8 @@
       "kind": "réglementation",
       "brains": [
         "legal",
-        "data"
+        "data",
+        "hr"
       ],
       "summary": "Encadre les usages et acteurs de l'IA selon les risques, les rôles et les catégories de systèmes ou modèles.",
       "applies_when": "Si l'activité entre dans son champ ; qualifier le rôle, le système, les exceptions et le calendrier des dispositions pertinentes.",
@@ -545,7 +551,8 @@
       "kind": "réglementation",
       "brains": [
         "legal",
-        "data"
+        "data",
+        "partnerships"
       ],
       "summary": "Encadre l'accès et l'utilisation de certaines données ainsi que le changement de fournisseur de services de traitement de données.",
       "applies_when": "Pour les produits connectés, services associés ou services de traitement entrant dans son champ.",

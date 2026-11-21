@@ -9,7 +9,7 @@ from copy import deepcopy
 from importlib import metadata
 from pathlib import Path
 
-from .catalog import CatalogError, _validate_dependencies, _validate_entry
+from .catalog import CatalogError, _validate_dependencies, _validate_entry, overlaid_boards
 from .patterns import pattern_selection
 from .storage import read_json, write_json
 
@@ -61,8 +61,11 @@ def apply_lock(catalog: dict, lock: dict | None) -> dict:
     if not lock:
         return catalog
     effective = {collection: dict(entries) for collection, entries in catalog.items()}
+    overlaid = overlaid_boards(catalog)
     for collection, entries in lock["records"].items():
         for record_id, record in entries.items():
+            if collection == "boards" and record_id in overlaid:
+                continue
             effective[collection][record_id] = deepcopy(record)
         effective[collection] = dict(sorted(effective[collection].items()))
     try:
@@ -94,11 +97,13 @@ def locked_records(profile: dict, catalog: dict, bundled: dict[str, set[str]], l
     """The bundled or already locked records the profile uses, taken from the given catalog."""
     used = _used_ids(profile, catalog)
     lockable = _lockable(bundled, lock)
+    overlaid = overlaid_boards(catalog)
     return {
         collection: {
             record_id: deepcopy(catalog[collection][record_id])
             for record_id in sorted(used[collection])
             if record_id in lockable[collection] and record_id in catalog[collection]
+            and not (collection == "boards" and record_id in overlaid)
         }
         for collection in COLLECTIONS
     }

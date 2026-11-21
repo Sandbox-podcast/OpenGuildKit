@@ -10,7 +10,8 @@
       "homepage": "https://crisp.chat",
       "brains": [
         "support",
-        "sales"
+        "sales",
+        "customer-success"
       ],
       "servers": [
         {
@@ -41,7 +42,8 @@
       "summary": "Customer support ticketing.",
       "homepage": "https://www.freshworks.com/freshdesk/",
       "brains": [
-        "support"
+        "support",
+        "customer-success"
       ],
       "servers": [
         {
@@ -80,7 +82,8 @@
       "brains": [
         "support",
         "sales",
-        "operations"
+        "operations",
+        "customer-success"
       ],
       "servers": [
         {
@@ -113,7 +116,8 @@
       "brains": [
         "support",
         "sales",
-        "product"
+        "product",
+        "customer-success"
       ],
       "detect": {
         "npm": [
@@ -150,7 +154,9 @@
       "homepage": "https://www.zendesk.com",
       "brains": [
         "support",
-        "operations"
+        "operations",
+        "customer-success",
+        "trust-and-safety"
       ],
       "servers": [
         {
