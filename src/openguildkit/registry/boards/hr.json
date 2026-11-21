@@ -90,19 +90,23 @@
   "sources": [
     {
       "title": "U.S. Office of Personnel Management, Structured Interviews",
-      "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/other-assessment-methods/structured-interviews/"
+      "url": "https://www.opm.gov/policy-data-oversight/assessment-and-selection/other-assessment-methods/structured-interviews/",
+      "checked": "2026-11-21"
     },
     {
       "title": "CNIL, Le guide du recrutement",
-      "url": "https://www.cnil.fr/fr/le-guide-du-recrutement"
+      "url": "https://www.cnil.fr/fr/le-guide-du-recrutement",
+      "checked": "2026-11-21"
     },
     {
       "title": "ISO 30414, Human resource management, human capital reporting and disclosure",
-      "url": "https://www.iso.org/standard/30414"
+      "url": "https://www.iso.org/standard/30414",
+      "checked": "2026-11-20"
     },
     {
       "title": "Directive (EU) 2023/970 on pay transparency",
-      "url": "https://eur-lex.europa.eu/eli/dir/2023/970/oj"
+      "url": "https://eur-lex.europa.eu/eli/dir/2023/970/oj",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

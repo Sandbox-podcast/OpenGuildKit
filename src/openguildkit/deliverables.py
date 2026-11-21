@@ -30,14 +30,14 @@ _UTM_VALUE = re.compile(r"[a-z0-9][a-z0-9._-]*")
 UTM_ORDER = ("source", "medium", "campaign", "content", "term")
 
 
-def _validate(record: dict, catalog: dict) -> None:
+def _validate(record: dict, catalog: dict, bundled: bool = False) -> None:
     _validate_fields(record, "deliverable", {"id", "title", "description", "brains", "inputs", "tool_actions", "sections", "checks", "sources"}, {"method", "market"})
     if "market" in record and not isinstance(record["market"], bool):
         raise CatalogError("market must be true or false")
     _validate_id(record["id"], "id")
     for field in ("title", "description"):
         _validate_text(record[field], field)
-    _validate_sources(record["sources"])
+    _validate_sources(record["sources"], require_checked=bundled)
     if "method" in record and record["method"] not in catalog["patterns"]:
         raise CatalogError(f"Unknown method pattern {record['method']!r}")
     _validate_list(record["brains"], "brains")
@@ -78,7 +78,7 @@ def load_deliverables(catalog: dict, extra_dir: Path | None = None) -> dict[str,
                 continue
             try:
                 record = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=_unique_fields)
-                _validate(record, catalog)
+                _validate(record, catalog, root == roots[0])
                 if path.name != f"{record['id']}.json" or record["id"] in found:
                     raise CatalogError(f"name the file {record['id']}.json and keep IDs unique")
             except (OSError, ValueError) as error:

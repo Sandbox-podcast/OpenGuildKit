@@ -123,15 +123,18 @@
   "sources": [
     {
       "title": "OWASP Application Security Verification Standard",
-      "url": "https://asvs.owasp.org/"
+      "url": "https://asvs.owasp.org/",
+      "checked": "2026-11-21"
     },
     {
       "title": "NIST SP 800-218, Secure Software Development Framework 1.1",
-      "url": "https://csrc.nist.gov/pubs/sp/800/218/final"
+      "url": "https://csrc.nist.gov/pubs/sp/800/218/final",
+      "checked": "2026-11-21"
     },
     {
       "title": "CNIL, Guide de la sécurité des données personnelles",
-      "url": "https://www.cnil.fr/fr/guide-de-la-securite-des-donnees-personnelles"
+      "url": "https://www.cnil.fr/fr/guide-de-la-securite-des-donnees-personnelles",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

@@ -44,7 +44,7 @@ No runtime dependency. Tests use `unittest` from the standard library. [Testing]
 2. Copy an existing pack, for example `src/openguildkit/registry/packs/api-design.json`, to `src/openguildkit/registry/packs/<your-id>.json`.
 3. Set `version` to `1.0.0`. Start the description with the context the pack applies to, such as "For a service in production: ...".
 4. Write each rule as an `instruction` the agent can follow and a `verification` a reviewer can check. See [writing good records](docs/catalog-format.md#writing-good-records).
-5. Link the official source for the pack. Paraphrase; never paste text from a paid standard.
+5. Link the official source for the pack, with the day you checked the rule against it: `"checked": "YYYY-MM-DD"` right after its `url` (see [source dates](#source-dates)). Paraphrase; never paste text from a paid standard.
 6. Reach the pack from a pattern for the roles that use it, and add the pack to the `packs` of the references it applies.
 7. Run `python -m openguildkit catalog`, `python scripts/coverage.py` to refresh the coverage page, and the tests.
 8. In the pull request, say which projects would use the pack and how you tested the rules on a real repository.
@@ -64,19 +64,32 @@ A catalog pull request is merged when:
 - the JSON validates (CI runs it on Linux, macOS and Windows);
 - every rule has a verification a reviewer could actually perform;
 - sources are official or widely recognized, use HTTPS and link the canonical page without tracking parameters, with one address per document;
+- every source carries its `checked` date, and a changed rule has its source re-read and re-dated;
 - nothing claims compliance or certification;
 - a steward of the domain approved it (see [GOVERNANCE.md](GOVERNANCE.md)).
 
+## Source dates
+
+Every source of the bundled catalog carries `checked`, a date `YYYY-MM-DD` placed right after its `url`. It is the day the page was last opened and answered; a contributor who writes or changes a rule re-reads its source and sets the date to that day. It does not certify that someone re-read the whole document on that day. The loader refuses a bundled source without it.
+
+To refresh the dates, a maintainer runs the link check with `--stamp`, from a full clone (not a shallow one):
+
+```bash
+python3 -I scripts/check_links.py --out link-report --stamp
+```
+
+A page that answered (available, or redirected to a page that answered) gets the day of the report. A page that did not answer or refused the script keeps its date; a source that has none gets the day its URL entered the catalog, read from the Git history, and the script lists it to open by hand. Never give today's date to a page that did not answer. After a merge that adds sources, run `python3 -I scripts/check_links.py --stamp-from link-report/links-DATE.json` again, or a new `--stamp`: the result depends only on the report and the history. The diff adds one `checked` line per source and a comma after the `url`; review the pull request for any other change.
+
 ## Reviewing source links
 
-The scheduled workflow `Check catalog links` runs every Monday and on demand. It runs `python3 -I scripts/check_links.py --out link-report`, uploads the dated `links-YYYY-MM-DD.md` and `.json` report as the `link-report` artifact, and fails only when a link is dead. It also opens the homepage, the API documentation and the source of each MCP server in the tool registry. The script reads the bundled catalog only: catalogs that projects keep in `.openguildkit/catalog/` stay in those projects and are never fetched.
+The scheduled workflow `Check catalog links` runs every Monday and on demand. It runs `python3 -I scripts/check_links.py --out link-report`, uploads the dated `links-YYYY-MM-DD.md` and `.json` report as the `link-report` artifact, and fails only when a link is dead. The report also lists the sources whose `checked` date is older than 180 days (`--max-age DAYS`), with the records that cite them: re-read each one and re-date it. It also opens the homepage, the API documentation and the source of each MCP server in the tool registry. The script reads the bundled catalog only: catalogs that projects keep in `.openguildkit/catalog/` stay in those projects and are never fetched.
 
 For each URL, the report gives its category and the records that cite it: references with their edition and the packs that apply them, packs with their version and rule IDs, patterns, boards and sectors. A maintainer reviews it as follows.
 
 - **Dead:** find the page that replaces it on the publisher's site, fetch it, and check its status and title. Replace the URL and the title in every record the report lists, so the document keeps one address.
 - **Redirected:** use the target when it is the publisher's new canonical page. Leave aliases such as `latest` when the catalog means to follow the current version.
 - **To recheck:** open the page in a browser. Some publishers (ISO, W3C, PMI, EUR-Lex) answer scripts with 403 or 202, and GitHub sometimes answers 503 under load; keep the URL when the page works.
-- **New edition:** the report lists the packs and rules that cite the old edition. Decide with the domain steward whether the rules change, bump the pack version (patch for a source or wording change, minor or major when rules change) and update the reference's `edition`. Projects see the change in `openguildkit update` before they apply it.
+- **New edition:** the `Watch reference editions` workflow opens an issue titled `Edition may have changed: ID` when the edition a reference cites is no longer on its page (see [source dates](docs/catalog-format.md#source-dates) for what this check can miss or raise by mistake). Open the page. The link report lists the packs and rules that cite the old edition. Decide with the domain steward whether the rules change, bump the pack version (patch for a source or wording change, minor or major when rules change) and update the reference's `edition` and the source's `checked` date. Then run `python3 -I scripts/watch_editions.py` and commit `scripts/edition-watch.json`, which also takes the updated watch file the workflow keeps as an artifact. Projects see the change in `openguildkit update` before they apply it.
 
 A maintainer validates every replacement in the pull request that makes it. Run the script locally with the same command before proposing one.
 

@@ -6,15 +6,18 @@
   "sources": [
     {
       "title": "FastAPI response models",
-      "url": "https://fastapi.tiangolo.com/tutorial/response-model/"
+      "url": "https://fastapi.tiangolo.com/tutorial/response-model/",
+      "checked": "2026-11-21"
     },
     {
       "title": "FastAPI lifespan events",
-      "url": "https://fastapi.tiangolo.com/advanced/events/"
+      "url": "https://fastapi.tiangolo.com/advanced/events/",
+      "checked": "2026-11-21"
     },
     {
       "title": "FastAPI testing",
-      "url": "https://fastapi.tiangolo.com/tutorial/testing/"
+      "url": "https://fastapi.tiangolo.com/tutorial/testing/",
+      "checked": "2026-11-21"
     }
   ],
   "depends_on": [

@@ -5,11 +5,13 @@
   "sources": [
     {
       "title": "Next.js Server and Client Components",
-      "url": "https://nextjs.org/docs/app/getting-started/server-and-client-components"
+      "url": "https://nextjs.org/docs/app/getting-started/server-and-client-components",
+      "checked": "2026-11-21"
     },
     {
       "title": "Rules of React",
-      "url": "https://react.dev/reference/rules"
+      "url": "https://react.dev/reference/rules",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

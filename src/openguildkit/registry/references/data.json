@@ -19,6 +19,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/iso-8601-date-and-time-format.html",
+          "checked": "2026-11-20",
           "title": "ISO — ISO 8601: Date and time format"
         }
       ]
@@ -40,6 +41,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/rfc/rfc3339",
+          "checked": "2026-11-21",
           "title": "IETF RFC 3339 — Date and Time on the Internet: Timestamps"
         }
       ]
@@ -61,6 +63,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/rfc/rfc3629",
+          "checked": "2026-11-21",
           "title": "IETF RFC 3629 — UTF-8, a transformation format of ISO 10646"
         }
       ]
@@ -82,6 +85,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/rfc/rfc4180",
+          "checked": "2026-11-21",
           "title": "RFC 4180 — Common Format and MIME Type for CSV Files (Informational)"
         }
       ]
@@ -103,6 +107,7 @@
       "sources": [
         {
           "url": "https://parquet.apache.org/docs/overview/",
+          "checked": "2026-11-21",
           "title": "Apache Parquet — Overview"
         }
       ]
@@ -124,6 +129,7 @@
       "sources": [
         {
           "url": "https://arrow.apache.org/docs/format/Columnar.html",
+          "checked": "2026-11-21",
           "title": "Apache Arrow — Columnar Format"
         }
       ]
@@ -146,6 +152,7 @@
       "sources": [
         {
           "url": "https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html",
+          "checked": "2026-11-21",
           "title": "OASIS — MQTT Version 5.0"
         }
       ]
@@ -168,6 +175,7 @@
       "sources": [
         {
           "url": "https://docs.oasis-open.org/amqp/core/v1.0/os/amqp-core-overview-v1.0-os.html",
+          "checked": "2026-11-21",
           "title": "OASIS — Advanced Message Queuing Protocol (AMQP) Version 1.0"
         }
       ]
@@ -191,6 +199,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/76583.html",
+          "checked": "2026-11-20",
           "title": "ISO/IEC 9075-1:2023 — SQL Framework"
         }
       ]
@@ -213,6 +222,7 @@
       "sources": [
         {
           "url": "https://dev.mysql.com/doc/refman/8.4/en/mysql-acid.html",
+          "checked": "2026-11-20",
           "title": "MySQL — InnoDB and the ACID Model"
         }
       ]
@@ -235,6 +245,7 @@
       "sources": [
         {
           "url": "https://www.comp.nus.edu.sg/~gilbert/pubs/BrewersConjecture-SigAct.pdf",
+          "checked": "2026-11-21",
           "title": "Seth Gilbert et Nancy Lynch — Brewer's Conjecture and the Feasibility of Consistent, Available, Partition-Tolerant Web Services"
         }
       ]
@@ -257,6 +268,7 @@
       "sources": [
         {
           "url": "https://learn.microsoft.com/en-us/previous-versions/troubleshoot/microsoft-365/microsoft-365-apps/access/database-normalization-description",
+          "checked": "2026-11-21",
           "title": "Microsoft Learn — Database normalization description"
         }
       ]
@@ -278,6 +290,7 @@
       "sources": [
         {
           "url": "https://bitol-io.github.io/open-data-contract-standard/latest/",
+          "checked": "2026-11-21",
           "title": "Bitol — Open Data Contract Standard (ODCS)"
         }
       ]
@@ -300,6 +313,7 @@
       "sources": [
         {
           "url": "https://docs.getdbt.com/docs/mesh/govern/model-contracts",
+          "checked": "2026-11-21",
           "title": "dbt Developer Hub — Model contracts"
         }
       ]
@@ -321,6 +335,7 @@
       "sources": [
         {
           "url": "https://docs.getdbt.com/docs/introduction",
+          "checked": "2026-11-21",
           "title": "dbt Developer Hub — What is dbt?"
         }
       ]
@@ -342,6 +357,7 @@
       "sources": [
         {
           "url": "https://docs.greatexpectations.io/docs/core/introduction/",
+          "checked": "2026-11-21",
           "title": "Great Expectations — Introduction to GX Core"
         }
       ]
@@ -363,6 +379,7 @@
       "sources": [
         {
           "url": "https://openlineage.io/docs/spec/object-model/",
+          "checked": "2026-11-21",
           "title": "OpenLineage — Object Model"
         }
       ]
@@ -384,6 +401,7 @@
       "sources": [
         {
           "url": "https://iceberg.apache.org/spec/",
+          "checked": "2026-11-21",
           "title": "Apache Iceberg — Table Specification"
         }
       ]
@@ -405,6 +423,7 @@
       "sources": [
         {
           "url": "https://github.com/delta-io/delta/blob/master/PROTOCOL.md",
+          "checked": "2026-11-21",
           "title": "Delta Lake — Transaction Log Protocol"
         }
       ]
@@ -431,6 +450,7 @@
       "sources": [
         {
           "url": "https://documentation.red-gate.com/flyway/flyway-concepts/migrations",
+          "checked": "2026-11-21",
           "title": "Redgate Flyway — Migrations"
         }
       ]
@@ -457,6 +477,7 @@
       "sources": [
         {
           "url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "checked": "2026-11-21",
           "title": "PostgreSQL — Transaction Isolation"
         }
       ]
@@ -477,6 +498,7 @@
       "sources": [
         {
           "url": "https://hl7.org/fhir/overview.html",
+          "checked": "2026-11-21",
           "title": "HL7 FHIR v5.0.0 — Overview"
         }
       ]
@@ -496,6 +518,7 @@
       "sources": [
         {
           "url": "https://dicom.nema.org/medical/dicom/2026b/output/html/part01.html",
+          "checked": "2026-11-21",
           "title": "DICOM PS3.1 2026b — Introduction and Overview"
         }
       ]

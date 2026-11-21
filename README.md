@@ -40,7 +40,7 @@ openguildkit preview
 openguildkit check
 ```
 
-`init` saves the profile in `.openguildkit/project.json` and writes the rules in a managed block in `AGENTS.md`. It adds an import to `CLAUDE.md` for Claude Code. The catalog records in force are pinned in `.openguildkit/catalog.lock.json`: after upgrading OpenGuildKit, `openguildkit update` shows what would change and `openguildkit update --apply` adopts it. It then prints the next steps that apply, such as `openguildkit host apply` for your agent host and `openguildkit tools plan ...` for the tools the registry knows. [Install the agent skill](integrations/) to answer the questionnaire in Claude Code or Codex and run tasks from the conversation.
+`init` saves the profile in `.openguildkit/project.json` and writes the rules in a managed block in `AGENTS.md`. It adds an import to `CLAUDE.md` for Claude Code. The catalog records in force are pinned in `.openguildkit/catalog.lock.json`: after upgrading OpenGuildKit, `openguildkit update` shows the date of the installed catalog (the day its sources were last checked), how many records changed and what would change, and `openguildkit update --apply` adopts it. It then prints the next steps that apply, such as `openguildkit host apply` for your agent host and `openguildkit tools plan ...` for the tools the registry knows. [Install the agent skill](integrations/) to answer the questionnaire in Claude Code or Codex and run tasks from the conversation.
 
 ```mermaid
 flowchart TB

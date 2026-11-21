@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "OpenGitOps principles",
-      "url": "https://opengitops.dev/"
+      "url": "https://opengitops.dev/",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

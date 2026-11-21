@@ -6,23 +6,28 @@
   "sources": [
     {
       "title": "Angular security best practices",
-      "url": "https://angular.dev/best-practices/security"
+      "url": "https://angular.dev/best-practices/security",
+      "checked": "2026-11-21"
     },
     {
       "title": "Angular versioning and releases",
-      "url": "https://angular.dev/reference/releases"
+      "url": "https://angular.dev/reference/releases",
+      "checked": "2026-11-21"
     },
     {
       "title": "Angular template type checking",
-      "url": "https://angular.dev/tools/cli/template-typecheck"
+      "url": "https://angular.dev/tools/cli/template-typecheck",
+      "checked": "2026-11-21"
     },
     {
       "title": "Angular, takeUntilDestroyed",
-      "url": "https://angular.dev/ecosystem/rxjs-interop/take-until-destroyed"
+      "url": "https://angular.dev/ecosystem/rxjs-interop/take-until-destroyed",
+      "checked": "2026-11-21"
     },
     {
       "title": "Angular CLI, building applications: size budgets",
-      "url": "https://angular.dev/tools/cli/build"
+      "url": "https://angular.dev/tools/cli/build",
+      "checked": "2026-11-21"
     }
   ],
   "depends_on": [

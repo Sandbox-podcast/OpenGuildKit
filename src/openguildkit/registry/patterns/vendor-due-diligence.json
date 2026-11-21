@@ -5,11 +5,13 @@
   "sources": [
     {
       "title": "NIST SP 800-161 Rev. 1, Cybersecurity Supply Chain Risk Management Practices for Systems and Organizations",
-      "url": "https://csrc.nist.gov/pubs/sp/800/161/r1/upd1/final"
+      "url": "https://csrc.nist.gov/pubs/sp/800/161/r1/upd1/final",
+      "checked": "2026-11-21"
     },
     {
       "title": "NCSC, Principles of supply chain security",
-      "url": "https://www.ncsc.gov.uk/collection/supply-chain-security/principles-supply-chain-security"
+      "url": "https://www.ncsc.gov.uk/collection/supply-chain-security/principles-supply-chain-security",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

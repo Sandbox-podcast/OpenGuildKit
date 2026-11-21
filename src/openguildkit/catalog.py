@@ -4,6 +4,7 @@ import copy
 import json
 import re
 import unicodedata
+from datetime import date
 from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,11 @@ DATA_ANSWERS = ("none", "internal", "personal", "regulated", "unsure")
 # A method is preselected for its roles; a regulation only for its sectors or personal data.
 PATTERN_KINDS = ("method", "regulation")
 MAX_SAFE_INTEGER = (1 << 53) - 1
+CHECKED_PATTERN = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+UNDATED_SOURCE = (
+    "{label}.checked is missing: open the page, check what the record says against it, "
+    'then add "checked": "YYYY-MM-DD" with that day\'s date after its url'
+)
 # Query parameters that record how a visitor reached a page, never which page it is.
 TRACKING_PARAMETERS = frozenset({
     "_hsenc", "_hsmi", "_src_ref", "dclid", "fbclid", "gbraid", "gclid", "igshid", "mc_cid",
@@ -97,12 +103,27 @@ def tracking_parameters(url: str) -> list[str]:
     return found
 
 
-def _validate_sources(sources: Any) -> None:
+def _validate_checked(value: Any, label: str) -> None:
+    """A source's verification day: an ISO date such as 2026-11-21."""
+    try:
+        if not isinstance(value, str) or not CHECKED_PATTERN.fullmatch(value):
+            raise ValueError
+        date.fromisoformat(value)
+    except ValueError:
+        raise CatalogError(f"{label} must be a date written YYYY-MM-DD, such as 2026-11-21") from None
+
+
+def _validate_sources(sources: Any, *, require_checked: bool = False) -> None:
+    """Bundled sources must carry the day they were last checked; a project's own sources may not yet."""
     _validate_list(sources, "sources", allow_empty=True)
     seen_urls = set()
     for index, source in enumerate(sources):
         label = f"sources[{index}]"
-        _validate_fields(source, label, {"title", "url"})
+        _validate_fields(source, label, {"title", "url"}, {"checked"})
+        if "checked" in source:
+            _validate_checked(source["checked"], f"{label}.checked")
+        elif require_checked:
+            raise CatalogError(UNDATED_SOURCE.format(label=label))
         _validate_text(source["title"], f"{label}.title")
         url = source["url"]
         _validate_text(url, f"{label}.url")
@@ -272,7 +293,7 @@ def _validate_board_review(review: Any) -> None:
             _validate_text(prompt, f"review.{key} entry")
 
 
-def _validate_entry(collection: str, entry: Any, *, allow_command: bool = False) -> None:
+def _validate_entry(collection: str, entry: Any, *, bundled: bool = False, allow_command: bool = False) -> None:
     required = ENTRY_FIELDS | COLLECTION_FIELDS[collection]
     optional = {
         "packs": {"depends_on", "conflicts_with"},
@@ -283,7 +304,7 @@ def _validate_entry(collection: str, entry: Any, *, allow_command: bool = False)
     _validate_id(entry["id"], "id")
     _validate_text(entry["title"], "title")
     _validate_text(entry["description"], "description")
-    _validate_sources(entry["sources"])
+    _validate_sources(entry["sources"], require_checked=bundled)
     if collection == "packs":
         _validate_pack(entry, allow_command)
         return
@@ -352,7 +373,7 @@ def _load_entry(collection: str, path: Path, entry: Any, entries: dict, bundled:
         _validate_entry(collection, merged)
     else:
         # Only the project's own catalog may run commands: it already controls its check commands.
-        _validate_entry(collection, entry, allow_command=not bundled)
+        _validate_entry(collection, entry, bundled=bundled, allow_command=not bundled)
         merged = entry
         if record_id in entries:
             raise CatalogError(f"duplicate {collection} ID {record_id!r}")
@@ -488,3 +509,23 @@ def load_catalog(
         if unknown_sectors:
             raise CatalogError(f"Pattern {pattern_id!r} links unknown sectors: {', '.join(sorted(unknown_sectors))}")
     return catalog
+
+
+def undated_sources(records: dict[str, dict[str, dict[str, Any]]]) -> list[str]:
+    """The records, as collection/id, that cite a source without a checked date."""
+    return [
+        f"{collection}/{record_id}"
+        for collection, entries in records.items()
+        if collection != "overlays"
+        for record_id, record in entries.items()
+        if any("checked" not in source for source in record.get("sources", []))
+    ]
+
+
+def latest_checked(*record_lists) -> str | None:
+    """The most recent checked date among the sources of the given records."""
+    dates = [
+        source["checked"] for records in record_lists for record in records
+        for source in record.get("sources", []) if "checked" in source
+    ]
+    return max(dates, default=None)

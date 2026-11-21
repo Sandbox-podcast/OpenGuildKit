@@ -5,11 +5,13 @@
   "sources": [
     {
       "title": "Django migrations",
-      "url": "https://docs.djangoproject.com/en/6.1/topics/migrations/"
+      "url": "https://docs.djangoproject.com/en/6.1/topics/migrations/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Django deployment checklist",
-      "url": "https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/"
+      "url": "https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

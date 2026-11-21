@@ -6,27 +6,33 @@
   "sources": [
     {
       "title": "Rails guides, Action Controller overview: strong parameters",
-      "url": "https://guides.rubyonrails.org/action_controller_overview.html"
+      "url": "https://guides.rubyonrails.org/action_controller_overview.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Brakeman documentation",
-      "url": "https://brakemanscanner.org/docs/"
+      "url": "https://brakemanscanner.org/docs/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Brakeman, ignoring false positives",
-      "url": "https://brakemanscanner.org/docs/ignoring_false_positives/"
+      "url": "https://brakemanscanner.org/docs/ignoring_false_positives/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Rails guides, Active Record migrations",
-      "url": "https://guides.rubyonrails.org/active_record_migrations.html"
+      "url": "https://guides.rubyonrails.org/active_record_migrations.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Rails guides, securing Rails applications",
-      "url": "https://guides.rubyonrails.org/security.html"
+      "url": "https://guides.rubyonrails.org/security.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Rails guides, Active Record query interface",
-      "url": "https://guides.rubyonrails.org/active_record_querying.html"
+      "url": "https://guides.rubyonrails.org/active_record_querying.html",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

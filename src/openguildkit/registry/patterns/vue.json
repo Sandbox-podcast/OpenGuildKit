@@ -5,11 +5,13 @@
   "sources": [
     {
       "title": "Vue.js guide, props",
-      "url": "https://vuejs.org/guide/components/props.html"
+      "url": "https://vuejs.org/guide/components/props.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Vue.js security best practices",
-      "url": "https://vuejs.org/guide/best-practices/security.html"
+      "url": "https://vuejs.org/guide/best-practices/security.html",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

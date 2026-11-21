@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "HM Treasury, Developing business cases for projects and programmes",
-      "url": "https://www.gov.uk/government/publications/guidance-on-developing-business-cases/guidance-on-developing-business-cases-for-projects-and-programmes"
+      "url": "https://www.gov.uk/government/publications/guidance-on-developing-business-cases/guidance-on-developing-business-cases-for-projects-and-programmes",
+      "checked": "2026-11-21"
     },
     {
       "title": "HM Treasury, The Green Book (2026)",
-      "url": "https://www.gov.uk/government/publications/the-green-book--2/the-green-book-2026"
+      "url": "https://www.gov.uk/government/publications/the-green-book--2/the-green-book-2026",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

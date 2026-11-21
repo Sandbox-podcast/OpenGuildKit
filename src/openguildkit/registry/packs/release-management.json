@@ -6,15 +6,18 @@
   "sources": [
     {
       "title": "Conventional Commits 1.0.0",
-      "url": "https://www.conventionalcommits.org/en/v1.0.0/"
+      "url": "https://www.conventionalcommits.org/en/v1.0.0/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Semantic Versioning 2.0.0",
-      "url": "https://semver.org/spec/v2.0.0.html"
+      "url": "https://semver.org/spec/v2.0.0.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Keep a Changelog 1.1.0",
-      "url": "https://keepachangelog.com/en/1.1.0/"
+      "url": "https://keepachangelog.com/en/1.1.0/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

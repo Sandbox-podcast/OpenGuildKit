@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "OWASP Threat Modeling Cheat Sheet",
-      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html"
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Threat Modeling Manifesto",
-      "url": "https://www.threatmodelingmanifesto.org/"
+      "url": "https://www.threatmodelingmanifesto.org/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

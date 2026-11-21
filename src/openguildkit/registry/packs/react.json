@@ -6,15 +6,18 @@
   "sources": [
     {
       "title": "Rules of React",
-      "url": "https://react.dev/reference/rules"
+      "url": "https://react.dev/reference/rules",
+      "checked": "2026-11-21"
     },
     {
       "title": "React rules-of-hooks lint documentation",
-      "url": "https://react.dev/reference/eslint-plugin-react-hooks/lints/rules-of-hooks"
+      "url": "https://react.dev/reference/eslint-plugin-react-hooks/lints/rules-of-hooks",
+      "checked": "2026-11-21"
     },
     {
       "title": "Storybook guide to writing stories",
-      "url": "https://storybook.js.org/docs/writing-stories"
+      "url": "https://storybook.js.org/docs/writing-stories",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

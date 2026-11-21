@@ -6,23 +6,28 @@
   "sources": [
     {
       "title": "ISO/IEC 27001:2022 overview",
-      "url": "https://www.iso.org/standard/27001"
+      "url": "https://www.iso.org/standard/27001",
+      "checked": "2026-11-20"
     },
     {
       "title": "ISO/IEC 27001 Auditing Practices Group, Statement of Applicability note",
-      "url": "https://committee.iso.org/files/live/sites/jtc1sc27/files/resources/ISO-IECJTC1-SC27-WG1_N3298_Auditing%20Practices%20Note%20-%20SoA.pdf"
+      "url": "https://committee.iso.org/files/live/sites/jtc1sc27/files/resources/ISO-IECJTC1-SC27-WG1_N3298_Auditing%20Practices%20Note%20-%20SoA.pdf",
+      "checked": "2026-11-21"
     },
     {
       "title": "ISO/IEC JTC 1/SC 27 Journal, July 2022, ISO/IEC 27002:2022 (93 controls that form Annex A of ISO/IEC 27001)",
-      "url": "https://committee.iso.org/files/live/sites/jtc1sc27/files/resources/ISO-IEC%20JTC%201-SC%2027_N22755_SC27%20Journal%20Vol%202%20Issue%202%20(update%20Dec%202022).pdf"
+      "url": "https://committee.iso.org/files/live/sites/jtc1sc27/files/resources/ISO-IEC%20JTC%201-SC%2027_N22755_SC27%20Journal%20Vol%202%20Issue%202%20(update%20Dec%202022).pdf",
+      "checked": "2026-11-21"
     },
     {
       "title": "ISO/IEC JTC 1/SC 27 Journal 2025, controls in a cybersecurity risk treatment plan",
-      "url": "https://committee.iso.org/files/live/sites/jtc1sc27/files/resources/Journal%202025.pdf"
+      "url": "https://committee.iso.org/files/live/sites/jtc1sc27/files/resources/Journal%202025.pdf",
+      "checked": "2026-11-21"
     },
     {
       "title": "ISO/IEC JTC 1/SC 27 Journal, September 2026, recent SC 27 standards (control 8.24)",
-      "url": "https://committee.iso.org/files/live/sites/jtc1sc27/files/resources/Journal-2026-issue-2.pdf"
+      "url": "https://committee.iso.org/files/live/sites/jtc1sc27/files/resources/Journal-2026-issue-2.pdf",
+      "checked": "2026-11-21"
     }
   ],
   "depends_on": [
