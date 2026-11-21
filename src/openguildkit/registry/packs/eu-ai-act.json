@@ -1,7 +1,7 @@
 {
   "id": "eu-ai-act",
   "title": "EU AI Act obligations",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Questions for the legal and AI owners and evidence checks for AI systems under Regulation (EU) 2024/1689, as amended. Obligations depend on the organization's role and on the system's classification; these rules do not establish compliance.",
   "sources": [
     {
@@ -12,6 +12,9 @@
       "title": "European Commission, AI Act",
       "url": "https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai"
     }
+  ],
+  "depends_on": [
+    "incident-notification"
   ],
   "rules": [
     {
@@ -36,8 +39,8 @@
     },
     {
       "id": "keep-high-risk-logs",
-      "instruction": "For a high-risk system, record events automatically over its lifetime (Art. 12) and keep the logs for the period the owner sets.",
-      "verification": "Run the system in a test and confirm that the expected events appear in the logs."
+      "instruction": "For a high-risk system, record events automatically over its lifetime (Art. 12) and keep the logs under the organization's control for a period suited to the system's intended purpose and of at least six months, unless Union or national law, in particular on personal data, provides otherwise (Art. 19(1) for providers, Art. 26(6) for deployers).",
+      "verification": "Run the system in a test and confirm that the expected events appear in the logs, and check that the log retention setting is at least six months or names the law that sets another period."
     },
     {
       "id": "enable-human-oversight",

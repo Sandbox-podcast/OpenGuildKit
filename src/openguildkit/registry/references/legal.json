@@ -5,6 +5,7 @@
     {
       "id": "dsa",
       "title": "Règlement (UE) 2022/2065 sur les services numériques (DSA)",
+      "title_en": "Regulation (EU) 2022/2065 on digital services (Digital Services Act, DSA)",
       "category": "Plateformes et services numériques",
       "kind": "réglementation",
       "brains": [
@@ -28,6 +29,7 @@
     {
       "id": "digital-content-directive",
       "title": "Directive (UE) 2019/770 sur la fourniture de contenus et de services numériques",
+      "title_en": "Directive (EU) 2019/770 on the supply of digital content and digital services",
       "category": "Contrats et consommateurs",
       "kind": "réglementation",
       "brains": [
@@ -46,6 +48,7 @@
     {
       "id": "consumer-rights-directive",
       "title": "Directive 2011/83/UE relative aux droits des consommateurs",
+      "title_en": "Directive 2011/83/EU on consumer rights",
       "category": "Contrats et consommateurs",
       "kind": "réglementation",
       "brains": [
@@ -68,6 +71,7 @@
     {
       "id": "product-liability-directive",
       "title": "Directive (UE) 2024/2853 relative à la responsabilité du fait des produits défectueux",
+      "title_en": "Directive (EU) 2024/2853 on liability for defective products",
       "category": "Contrats et consommateurs",
       "kind": "réglementation",
       "brains": [
@@ -86,6 +90,7 @@
     {
       "id": "standard-contractual-clauses",
       "title": "Clauses contractuelles types (décision d'exécution (UE) 2021/914)",
+      "title_en": "Standard contractual clauses (Implementing Decision (EU) 2021/914)",
       "category": "Transferts et sous-traitance de données",
       "kind": "réglementation",
       "brains": [
@@ -108,6 +113,7 @@
     {
       "id": "cnil-cookies",
       "title": "CNIL — Cookies et autres traceurs",
+      "title_en": "CNIL, Cookies and other trackers",
       "category": "Transferts et sous-traitance de données",
       "kind": "guide",
       "brains": [
@@ -126,6 +132,7 @@
     {
       "id": "osi-licenses",
       "title": "Open Source Initiative — Licences approuvées",
+      "title_en": "Open Source Initiative, Approved licenses",
       "category": "Licences logicielles",
       "kind": "référentiel",
       "brains": [
@@ -199,6 +206,7 @@
     {
       "id": "vertical-block-exemption",
       "title": "Règlement (UE) 2022/720 d'exemption par catégorie des accords verticaux",
+      "title_en": "Regulation (EU) 2022/720, vertical block exemption",
       "category": "Contrats et consommateurs",
       "kind": "réglementation",
       "brains": [
@@ -225,6 +233,7 @@
     {
       "id": "vertical-guidelines",
       "title": "Lignes directrices de la Commission sur les restrictions verticales (2022/C 248/01)",
+      "title_en": "Commission Guidelines on vertical restraints (2022/C 248/01)",
       "edition": "2022",
       "category": "Contrats et consommateurs",
       "kind": "guide",
@@ -244,6 +253,7 @@
     {
       "id": "eu-tco-regulation",
       "title": "Règlement (UE) 2021/784 relatif aux contenus à caractère terroriste en ligne",
+      "title_en": "Regulation (EU) 2021/784 on terrorist content online",
       "category": "Plateformes et services numériques",
       "kind": "réglementation",
       "brains": [
@@ -265,6 +275,7 @@
     {
       "id": "uk-online-safety-act",
       "title": "Online Safety Act 2023 (Royaume-Uni)",
+      "title_en": "Online Safety Act 2023 (United Kingdom)",
       "category": "Plateformes et services numériques",
       "kind": "réglementation",
       "brains": [
@@ -283,6 +294,7 @@
     {
       "id": "santa-clara-principles",
       "title": "Principes de Santa Clara sur la transparence et la responsabilité de la modération",
+      "title_en": "Santa Clara Principles on Transparency and Accountability in Content Moderation",
       "category": "Plateformes et services numériques",
       "kind": "référentiel",
       "brains": [

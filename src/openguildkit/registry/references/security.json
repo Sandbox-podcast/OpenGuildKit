@@ -129,6 +129,7 @@
     {
       "id": "threat-modeling",
       "title": "Modélisation des menaces (Threat Modeling)",
+      "title_en": "Threat modeling",
       "category": "Sécurité applicative",
       "kind": "pratique",
       "brains": [
@@ -151,6 +152,7 @@
     {
       "id": "secure-by-design",
       "title": "Secure by Design et Secure by Default",
+      "title_en": "Secure by Design and Secure by Default",
       "category": "Sécurité applicative",
       "kind": "pratique",
       "brains": [
@@ -205,6 +207,7 @@
     {
       "id": "secret-scanning",
       "title": "Secret scanning - détection de secrets exposés",
+      "title_en": "Secret scanning, detection of exposed secrets",
       "category": "Sécurité applicative",
       "kind": "pratique",
       "brains": [
@@ -859,6 +862,7 @@
     {
       "id": "least-privilege",
       "title": "Principe du moindre privilège",
+      "title_en": "Principle of least privilege",
       "category": "Identité, accès et cryptographie",
       "kind": "pratique",
       "brains": [
@@ -1188,6 +1192,7 @@
     {
       "id": "nist-sp-800-161",
       "title": "NIST SP 800-161 Rev. 1 — gestion des risques cyber de la chaîne d'approvisionnement",
+      "title_en": "NIST SP 800-161 Rev. 1, Cybersecurity supply chain risk management",
       "edition": "Rev. 1",
       "category": "Chaîne logicielle et dépendances",
       "kind": "référentiel",
@@ -1250,6 +1255,7 @@
     {
       "id": "nist-sp-800-124",
       "title": "NIST SP 800-124 Rev. 2 — sécurité des appareils mobiles en entreprise",
+      "title_en": "NIST SP 800-124 Rev. 2, Security of mobile devices in the enterprise",
       "edition": "Rev. 2",
       "category": "Identité, accès et cryptographie",
       "kind": "guide",
@@ -1272,6 +1278,7 @@
     {
       "id": "nist-sp-800-46",
       "title": "NIST SP 800-46 Rev. 2 — télétravail, accès distant et BYOD",
+      "title_en": "NIST SP 800-46 Rev. 2, Telework, remote access and BYOD security",
       "edition": "Rev. 2",
       "category": "Identité, accès et cryptographie",
       "kind": "guide",

@@ -5,6 +5,7 @@
     {
       "id": "govs-011-communication",
       "title": "GovS 011: Communications (norme fonctionnelle du gouvernement britannique)",
+      "title_en": "GovS 011: Communications (UK government functional standard)",
       "category": "Planification et évaluation",
       "kind": "référentiel",
       "brains": [
@@ -50,6 +51,7 @@
     {
       "id": "digital-gov-plain-language",
       "title": "Digital.gov — Guides du langage clair",
+      "title_en": "Digital.gov, Plain language guides",
       "category": "Rédaction",
       "kind": "guide",
       "brains": [
@@ -70,6 +72,7 @@
     {
       "id": "gov-uk-style-guides",
       "title": "GOV.UK — Guides de style",
+      "title_en": "GOV.UK style guides",
       "category": "Rédaction",
       "kind": "guide",
       "brains": [
@@ -87,6 +90,7 @@
     {
       "id": "eu-interinstitutional-style-guide",
       "title": "Code de rédaction interinstitutionnel de l'UE",
+      "title_en": "EU Interinstitutional Style Guide",
       "category": "Rédaction",
       "kind": "guide",
       "brains": [

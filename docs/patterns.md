@@ -1,6 +1,6 @@
 # Work and stack patterns
 
-A pattern links a recurring project context or team method to versioned rule packs. A Python API with FastAPI and PostgreSQL can reuse instructions for interface compatibility, data access and migrations. A project manager can select Scrum or Kanban according to how the team delivers work.
+A pattern links a recurring project context or team method to versioned rule packs. A Python API with FastAPI and PostgreSQL can reuse instructions for interface compatibility, data access and migrations. A project manager can select Scrum, Kanban or both, as a team that runs Scrumban does.
 
 ## Browse and preview
 
@@ -34,7 +34,7 @@ The preview lists the preselected patterns with the reason of each one, then the
 - `stack Python, FastAPI, PostgreSQL`: its technologies match the stack (in its sectors, when it lists some).
 - `sector financial-services`: the project's sector is in its `match.sectors`. `dora-financial-entity` is preselected for financial services and insurance whatever the roles, `nis2-essential-entity` for critical infrastructure, and each other sector preselects its own regulation pattern (`openguildkit catalog` shows which).
 - `personal data`: the project answered yes to the personal data question, which preselects `gdpr-personal-data`.
-- `role security`: a work method linked to a selected role. Two methods whose packs conflict, such as Scrum and Kanban, stay under the patterns to consider until the team picks one.
+- `role security`: a work method linked to a selected role. Two methods whose packs conflict stay under the patterns to consider until the team picks one. Scrum and Kanban do not conflict: a team can keep both.
 
 A regulation pattern (`"kind": "regulation"`) is never preselected because of a role: it appears under the patterns to consider for its roles, so a legal role still sees GDPR, DORA, NIS 2, the AI Act and the Cyber Resilience Act without any of them being imposed.
 
@@ -81,15 +81,15 @@ The selected pattern IDs go into `.openguildkit/project.json`. During `init` or 
 
 `openguildkit preview --answers answers.json` shows what `init` would write, before anything changes in the repository: each pack with its version, why it is active (required, selected, from a pattern, or a dependency of another pack; a pattern without a stack says what brought it, such as `pattern threat-modeling (role security)` or `pattern dora-financial-entity (sector financial-services)`) and the components it applies to, then the team conventions and checks. On an initialized project, `openguildkit preview` reads the saved profile. Add `--json` for the agent. The interactive `init` shows the same preview and asks for confirmation.
 
-Some packs declare that they conflict with another, for example Scrum Sprint planning and Kanban flow for the same team. When both apply to a common scope, whether they come from a pattern or from a direct selection, the preview lists the conflict and `init`, `sync` and `check` stop until the team records its choice in the profile:
+A pack can declare that it conflicts with another when their rules cannot both apply to the same scope, for example a project pack that freezes the work of a sprint next to `kanban-delivery`, which lets new items start whenever work in progress allows. When both apply to a common scope, whether they come from a pattern or from a direct selection, the preview lists the conflict and `init`, `sync` and `check` stop until the team records its choice in the profile:
 
 ```json
 "resolutions": [
-  {"packs": ["kanban-delivery", "scrum-delivery"], "keep": ["kanban-delivery"], "reason": "Support work arrives continuously."}
+  {"packs": ["fixed-sprint-scope", "kanban-delivery"], "keep": ["kanban-delivery"], "reason": "Support work arrives continuously."}
 ]
 ```
 
-`keep` can name one pack or both. `AGENTS.md` lists the decision and its reason under "Rule decisions", leaves out the pack that was not kept, and the consultation and handoff carry the same choice. Packs that apply to different components do not conflict.
+`keep` can name one pack or both. `AGENTS.md` lists the decision and its reason under "Rule decisions", leaves out the pack that was not kept, and the consultation and handoff carry the same choice. Packs that apply to different components do not conflict. A recorded choice stays in force when a catalog update stops declaring the conflict: a team that kept `kanban-delivery` instead of `scrum-delivery` before the two packs became compatible keeps that choice until it removes the resolution.
 
 ## Contribute a pattern
 

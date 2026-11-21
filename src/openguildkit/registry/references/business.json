@@ -93,6 +93,7 @@
     {
       "id": "sitemaps",
       "title": "Sitemaps XML",
+      "title_en": "XML sitemaps",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "protocole",
       "brains": [
@@ -111,6 +112,7 @@
     {
       "id": "utm",
       "title": "Paramètres UTM",
+      "title_en": "UTM parameters",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "convention",
       "brains": [
@@ -249,6 +251,7 @@
     {
       "id": "saas-billing-metrics",
       "title": "MRR et churn",
+      "title_en": "MRR and churn",
       "category": "Commerce et relation client",
       "kind": "indicateur",
       "brains": [
@@ -271,6 +274,7 @@
     {
       "id": "sba-market-research",
       "title": "SBA — Étude de marché et analyse concurrentielle",
+      "title_en": "SBA, Market research and competitive analysis",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "guide",
       "brains": [
@@ -311,6 +315,7 @@
     {
       "id": "sales-pipeline-stages",
       "title": "Étapes du pipeline commercial",
+      "title_en": "Sales pipeline stages",
       "category": "Commerce et relation client",
       "kind": "guide",
       "brains": [
@@ -332,6 +337,7 @@
     {
       "id": "eu-public-procurement-directive",
       "title": "Directive 2014/24/UE sur la passation des marchés publics",
+      "title_en": "Directive 2014/24/EU on public procurement",
       "category": "Commerce et relation client",
       "kind": "réglementation",
       "brains": [

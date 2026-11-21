@@ -357,6 +357,7 @@
     {
       "id": "unicode-bidi",
       "title": "Unicode UAX #9 — algorithme bidirectionnel",
+      "title_en": "Unicode UAX #9, Bidirectional Algorithm",
       "category": "Internationalisation et conventions de référence",
       "kind": "norme",
       "brains": [

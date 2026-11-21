@@ -83,6 +83,7 @@
     {
       "id": "balanced-scorecard",
       "title": "Balanced Scorecard (Kaplan et Norton)",
+      "title_en": "Balanced Scorecard (Kaplan and Norton)",
       "category": "Stratégie et pilotage",
       "kind": "méthode",
       "brains": [
@@ -101,6 +102,7 @@
     {
       "id": "strategy-maps",
       "title": "Strategy maps (Kaplan et Norton)",
+      "title_en": "Strategy maps (Kaplan and Norton)",
       "category": "Stratégie et pilotage",
       "kind": "méthode",
       "brains": [

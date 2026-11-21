@@ -5,6 +5,7 @@
     {
       "id": "agile-manifesto",
       "title": "Manifeste Agile",
+      "title_en": "Manifesto for Agile Software Development",
       "category": "Produit et organisation",
       "kind": "référentiel",
       "brains": [

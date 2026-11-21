@@ -63,6 +63,7 @@
     {
       "id": "nielsen-heuristics",
       "title": "Heuristiques de Nielsen",
+      "title_en": "Nielsen's usability heuristics",
       "category": "Design UX et systèmes de composants",
       "kind": "principe",
       "brains": [
@@ -220,6 +221,7 @@
     {
       "id": "dsfr",
       "title": "Système de Design de l'État",
+      "title_en": "French State Design System (DSFR)",
       "category": "Design UX et systèmes de composants",
       "kind": "référentiel",
       "brains": [
@@ -256,6 +258,7 @@
     {
       "id": "wcag-22",
       "title": "WCAG 2.2",
+      "title_en": "Web Content Accessibility Guidelines (WCAG) 2.2",
       "edition": "2.2",
       "category": "Accessibilité numérique",
       "kind": "spécification",
@@ -318,6 +321,7 @@
     {
       "id": "rgaa",
       "title": "RGAA",
+      "title_en": "French general accessibility framework (RGAA)",
       "category": "Accessibilité numérique",
       "kind": "référentiel",
       "brains": [
@@ -337,6 +341,7 @@
     {
       "id": "en-301549",
       "title": "EN 301 549",
+      "title_en": "EN 301 549, European accessibility standard for ICT",
       "edition": "V4.1.1",
       "category": "Accessibilité numérique",
       "kind": "norme",

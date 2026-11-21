@@ -62,6 +62,7 @@
     {
       "id": "opm-workforce-planning",
       "title": "OPM — Modèle de planification des effectifs",
+      "title_en": "OPM, Workforce planning model",
       "category": "Pilotage RH et santé au travail",
       "kind": "méthode",
       "brains": [
@@ -84,6 +85,7 @@
     {
       "id": "opm-structured-interviews",
       "title": "OPM — Entretiens structurés",
+      "title_en": "OPM, Structured interviews",
       "category": "Recrutement et intégration",
       "kind": "méthode",
       "brains": [
@@ -109,6 +111,7 @@
     {
       "id": "opm-onboarding-checklist",
       "title": "OPM — Liste d'intégration pour les managers",
+      "title_en": "OPM, Onboarding checklist for managers",
       "category": "Recrutement et intégration",
       "kind": "guide",
       "brains": [
@@ -131,6 +134,7 @@
     {
       "id": "cnil-guide-recrutement",
       "title": "CNIL — Guide du recrutement",
+      "title_en": "CNIL, Recruitment guide",
       "category": "Droit du travail et données RH",
       "kind": "guide",
       "brains": [
@@ -152,6 +156,7 @@
     {
       "id": "eu-pay-transparency",
       "title": "Directive (UE) 2023/970 sur la transparence des rémunérations",
+      "title_en": "Directive (EU) 2023/970 on pay transparency",
       "category": "Droit du travail et données RH",
       "kind": "réglementation",
       "brains": [

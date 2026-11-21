@@ -63,7 +63,7 @@ from .project import (
 )
 from .tools import HOSTS as TOOL_HOSTS
 from .tools import detect_tools, load_tools, match_tools
-from .references import find_references, load_references, with_pattern_references
+from .references import english_title, find_references, load_references, with_pattern_references
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
     timestamp,
@@ -789,7 +789,9 @@ def _print_references(args, state: Path, catalog: dict) -> None:
         _print_json(matches)
     elif args.id:
         reference = matches[0]
-        print(f"{reference['title']} [{reference['id']}]")
+        print(f"{english_title(reference)} [{reference['id']}]")
+        if english_title(reference) != reference["title"]:
+            print(f"Original title: {reference['title']}")
         print(f"{reference['family_title']} / {reference['category']} / {reference['kind']}")
         if reference.get("edition"):
             print(f"Edition: {reference['edition']}")
@@ -806,7 +808,7 @@ def _print_references(args, state: Path, catalog: dict) -> None:
             print(f"- {source['title']}: {source['url']}")
     elif matches:
         for reference in matches:
-            print(f"  {reference['id']:<34} {reference['title']} [{reference['family']}]")
+            print(f"  {reference['id']:<34} {english_title(reference)} [{reference['family']}]")
     else:
         print("No references matched.")
 

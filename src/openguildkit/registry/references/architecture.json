@@ -344,6 +344,7 @@
         "root-add-simple"
       ],
       "title": "KISS / simplicité de conception",
+      "title_en": "KISS, design simplicity",
       "category": "Architecture et modélisation",
       "kind": "principe",
       "brains": [
@@ -817,6 +818,7 @@
         "root-add-css"
       ],
       "title": "Spécifications CSS",
+      "title_en": "CSS specifications",
       "category": "Standards de la plateforme web",
       "kind": "spécification",
       "brains": [

@@ -1,0 +1,31 @@
+{
+  "id": "release-versioning",
+  "title": "Release versioning",
+  "description": "Classify commits, version the public contract, write release notes and keep published releases immutable when a project ships versions to its users.",
+  "sources": [
+    {
+      "title": "Conventional Commits 1.0.0",
+      "url": "https://www.conventionalcommits.org/en/v1.0.0/"
+    },
+    {
+      "title": "Semantic Versioning 2.0.0",
+      "url": "https://semver.org/spec/v2.0.0.html"
+    },
+    {
+      "title": "Keep a Changelog 1.1.0",
+      "url": "https://keepachangelog.com/en/1.1.0/"
+    }
+  ],
+  "roles": [
+    "devops",
+    "engineering"
+  ],
+  "packs": [
+    "release-management"
+  ],
+  "references": [
+    "semver",
+    "conventional-commits",
+    "keep-a-changelog"
+  ]
+}

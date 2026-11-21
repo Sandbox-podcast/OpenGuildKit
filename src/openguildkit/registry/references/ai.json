@@ -371,6 +371,7 @@
     {
       "id": "owasp-agent-control-standard",
       "title": "OWASP Agent Control Standard (ACS) - spécification émergente",
+      "title_en": "OWASP Agent Control Standard (ACS), emerging specification",
       "category": "IA responsable et sécurité des agents",
       "kind": "référentiel",
       "brains": [
@@ -455,6 +456,7 @@
         "agent_evals"
       ],
       "title": "Évaluations de LLM et d'agents",
+      "title_en": "LLM and agent evaluations",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
       "brains": [
@@ -480,6 +482,7 @@
         "agent_tool_permissions"
       ],
       "title": "Permissions et moindre privilège des outils",
+      "title_en": "Tool permissions and least privilege for agents",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
       "brains": [
@@ -501,6 +504,7 @@
         "agent_human_in_loop"
       ],
       "title": "Validation humaine dans la boucle",
+      "title_en": "Human-in-the-loop validation",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
       "brains": [
@@ -523,6 +527,7 @@
         "agent_execution_limits"
       ],
       "title": "Budgets et limites d'exécution des agents",
+      "title_en": "Agent execution budgets and limits",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
       "brains": [
@@ -565,6 +570,7 @@
         "agent_agent_memory"
       ],
       "title": "Gestion de la mémoire des agents",
+      "title_en": "Agent memory management",
       "category": "Agents IA et orchestration",
       "kind": "pratique",
       "brains": [

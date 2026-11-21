@@ -580,6 +580,7 @@
     {
       "id": "iso-iec-ieee-29119",
       "title": "ISO/IEC/IEEE 29119 - série sur les tests logiciels",
+      "title_en": "ISO/IEC/IEEE 29119 software testing series",
       "category": "Qualité et cycle de vie",
       "kind": "norme",
       "brains": [
