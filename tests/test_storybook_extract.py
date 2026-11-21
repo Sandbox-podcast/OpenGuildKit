@@ -1,12 +1,15 @@
 import contextlib
 import io
 import json
+import re
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from openguildkit.cli import main
+from openguildkit import storybook
 from openguildkit.storage import read_json, write_json
 from openguildkit.storybook import (
     PROPOSALS, _strip_js_comments, extract, generate, normalize_color, propose, validate_proposals,
@@ -34,7 +37,8 @@ class ExtractTests(unittest.TestCase):
                          {"file": "src/components/Button.tsx", "line": 12, "export": "named", "usages": 5,
                           "confidence": "observed"})
         self.assertTrue(components["Button"]["children"])
-        self.assertEqual(components["StatusBadge"]["props"], [{"name": "status"}, {"name": "label"}])
+        self.assertEqual(components["StatusBadge"]["props"],
+                         [{"name": "status", "options": ["open", "waiting", "closed"]}, {"name": "label"}])
         variants = by_key(inventory["variants"])
         self.assertEqual(variants['Button:variant="danger"']["confidence"], "hypothesis")
         self.assertEqual(variants['Button:variant="danger"']["origins"], ["src/pages/RequestDetail.tsx:9"])
@@ -213,6 +217,196 @@ class ProposalTests(unittest.TestCase):
         self.assertIn("Written: src/design-system/Button.stories.tsx", cli("storybook", "generate"))
         self.assertIn("Unchanged: src/design-system/Button.stories.tsx", cli("storybook", "generate"))
 
+
+
+def write_files(base, files):
+    for name, text in files.items():
+        path = base / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+
+def validate_all(state, keys):
+    data = read_json(state / PROPOSALS)
+    for field in ("components", "variants", "tokens"):
+        for item in data[field]:
+            if item["key"] in keys or (field == "variants" and item["component"] in keys):
+                item["status"] = "validated"
+    write_json(state / PROPOSALS, data)
+
+
+def exported_names(source: str) -> set:
+    """The names a module exports, read the way a bundler would for these small synthetic files."""
+    names = set(re.findall(r"export\s+(?:const|function)\s+(\w+)", source))
+    if re.search(r"export\s+default\b", source):
+        names.add("default")
+    for listed in re.findall(r"export\s*\{([^}]*)\}", source):
+        names.update(item.split(" as ")[-1].strip() for item in listed.split(",") if item.strip())
+    return names
+
+
+class GeneratedCodeTests(unittest.TestCase):
+    """Generated stories and index import names that exist; nothing generated holds an absolute path."""
+
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.root = Path(directory.name).resolve()
+
+    def assert_imports_exist(self, out, text):
+        """Every import or re-export in a generated file names something its target module exports."""
+        statements = re.findall(r'(?:import|export)\s+(\{[^}]*\}|\w+)\s+from\s+"([^"]+)"', text)
+        self.assertTrue(statements)
+        for clause, target in statements:
+            if target.startswith("@storybook/"):
+                continue
+            source = next((out / (target + suffix)).resolve() for suffix in (".tsx", ".jsx")
+                          if (out / (target + suffix)).exists())
+            exports = exported_names(source.read_text(encoding="utf-8"))
+            wanted = ["default"] if not clause.startswith("{") else [
+                item.split(" as ")[0].strip() for item in clause.strip("{} ").split(",")]
+            for name in wanted:
+                self.assertIn(name, exports, f"{clause} from {target}")
+
+    def test_a_component_exported_under_another_name_is_imported_by_that_name(self):
+        write_files(self.root / "src", {
+            "components/Card.tsx": "function Card({ title, elevated = false }) { return <div>{title}</div>; }\n"
+                                   "export { Card as Panel };\n",
+            "components/Tile.tsx": "export function Tile({ tone = 'quiet' }) { return <b>{tone}</b>; }\n",
+            "components/Shelf.tsx": "const Shelf = ({ dense = false }) => <ul />;\nexport default Shelf;\n",
+            "components/Both.tsx": "function Both({ open = false }) { return <i/>; }\nexport { Both, Both as Twin };\n",
+            "components/index.ts": "export { Tile as Badge } from './Tile';\n"
+                                   "export { default as Rack } from './Shelf';\n",
+            "pages/Home.tsx": "import { Panel } from '../components/Card';\n"
+                              "import { Badge, Rack } from '../components';\n"
+                              "export function Home() {\n"
+                              "  return <main><Panel title=\"x\" elevated /><Badge tone=\"loud\" /><Rack dense />"
+                              "<Twin open /><Both /></main>;\n}\n",
+        })
+        inventory = extract(self.root, [self.root / "src"])
+        components = by_key(inventory["components"], "name")
+        self.assertEqual({name: components[name]["usages"] for name in ("Card", "Tile", "Shelf", "Both")},
+                         {"Card": 1, "Tile": 1, "Shelf": 1, "Both": 2})
+        self.assertEqual((components["Card"]["export"], components["Card"]["public"]), ("named", "Panel"))
+        self.assertNotIn("public", components["Both"])
+        self.assertEqual(inventory["external_components"], [])
+        variants = by_key(inventory["variants"])
+        for key in ("Card:elevated=true", 'Tile:tone="loud"', "Shelf:dense=true", "Both:open=true"):
+            self.assertIn(key, variants)
+        self.assertEqual(variants["Card:elevated=true"]["origins"], ["src/pages/Home.tsx:4"])
+
+        state = self.root / ".openguildkit"
+        write_json(state / "storybook" / "inventory.json", inventory)
+        propose(self.root, state)
+        validate_all(state, {"component:Card", "component:Tile", "component:Shelf", "component:Both"})
+        generate(self.root, state)
+        out = self.root / "src" / "design-system"
+        card = (out / "Card.stories.tsx").read_text(encoding="utf-8")
+        self.assertIn('import { Panel as Card } from "../components/Card";', card)
+        self.assertIn("component: Card,", card)
+        self.assertIn("elevated: true", card)
+        index = (out / "index.ts").read_text(encoding="utf-8")
+        self.assertIn('export { Panel as Card } from "../components/Card";', index)
+        self.assertIn('export { default as Shelf } from "../components/Shelf";', index)
+        self.assertIn('export { Tile } from "../components/Tile";', index)
+        self.assertIn('export { Both } from "../components/Both";', index)
+        for path in sorted(out.glob("*.ts*")):
+            with self.subTest(file=path.name):
+                self.assert_imports_exist(out, path.read_text(encoding="utf-8"))
+
+    def test_a_public_name_that_is_not_an_identifier_is_refused(self):
+        data = {"schema_version": 1, "variants": [], "tokens": [], "components": [
+            {"key": "component:Card", "name": "Card", "status": "validated", "file": "src/Card.tsx", "line": 1,
+             "export": "named", "public": "Panel } from 'x'; //"}]}
+        with self.assertRaisesRegex(ValueError, "public"):
+            validate_proposals(data)
+
+    def test_typed_string_unions_give_their_variants_without_any_usage(self):
+        write_files(self.root / "src", {
+            "Button.tsx": 'type Variant = "primary" | "ghost";\n'
+                          'export function Button({ variant = "primary", label }: '
+                          '{ variant?: Variant; label: string }) {\n'
+                          "  return <button className={variant}>{label}</button>;\n}\n",
+            "Chip.tsx": "type Size = 'sm' | 'lg';\n"
+                        "interface ChipProps {\n  tone?: 'info' | 'warn';\n  size?: Size;\n"
+                        "  type?: 'button' | 'submit';\n}\n"
+                        "export const Chip = ({ tone = 'info', size, type }: ChipProps) => <i>{tone}</i>;\n",
+            "Tag.tsx": "import type { FC } from 'react';\n"
+                       "export type TagProps = { kind?: 'new' | 'old' };\n"
+                       "export const Tag: FC<TagProps> = ({ kind = 'new' }) => <b>{kind}</b>;\n",
+        })
+        inventory = extract(self.root, [self.root / "src"])
+        components = by_key(inventory["components"], "name")
+        self.assertEqual(components["Button"]["props"][0], {"name": "variant", "default": "primary",
+                                                            "options": ["primary", "ghost"]})
+        variants = by_key(inventory["variants"])
+        self.assertEqual(sorted(key for key in variants if key.startswith("Button")),
+                         ['Button:variant="ghost"', 'Button:variant="primary"'])
+        self.assertEqual(variants['Button:variant="ghost"']["basis"], "type")
+        self.assertEqual(variants['Button:variant="primary"']["basis"], "default")
+        self.assertEqual(variants['Button:variant="ghost"']["origins"], ["src/Button.tsx:2"])
+        self.assertEqual(variants['Button:variant="ghost"']["confidence"], "hypothesis")
+        for key in ('Chip:tone="info"', 'Chip:tone="warn"', 'Chip:size="sm"', 'Chip:size="lg"',
+                    'Tag:kind="new"', 'Tag:kind="old"'):
+            self.assertIn(key, variants)
+        self.assertNotIn('Chip:type="submit"', variants)
+        self.assertIn("4 variants", "\n".join(storybook._print_extract(
+            {**inventory, "variants": inventory["variants"][:4]}, "inventory.json")))
+
+    def test_a_source_outside_the_project_leaves_no_absolute_path_in_what_is_generated(self):
+        project, other = self.root / "project", self.root / "other-app"
+        write_files(other / "src", {
+            "Button.tsx": "export function Button({ tone = 'calm' }) { return <button>{tone}</button>; }\n",
+            "Page.tsx": "export function Page() { return <Button tone=\"loud\" />; }\n",
+            "theme.css": ":root { --color-brand: #0a66c2; }\n.a { color: var(--color-brand); }\n",
+        })
+        project.mkdir()
+        state = project / ".openguildkit"
+        inventory = extract(project, [other / "src"])
+        self.assertEqual(inventory["sources"], ["../other-app/src"])
+        self.assertEqual(by_key(inventory["components"], "name")["Button"]["file"], "../other-app/src/Button.tsx")
+        write_json(state / "storybook" / "inventory.json", inventory)
+        propose(project, state)
+        validate_all(state, {"component:Button", "token:color:#0a66c2"})
+        result = generate(project, state)
+        self.assertIn("src/design-system/Button.stories.tsx", result["written"])
+        story = (project / "src" / "design-system" / "Button.stories.tsx").read_text(encoding="utf-8")
+        self.assertIn('definition: "../other-app/src/Button.tsx:1"', story)
+        self.assertIn('from "../../../other-app/src/Button";', story)
+        self.assert_imports_exist(project / "src" / "design-system", story)
+        for path in [*project.rglob("*.json"), *project.rglob("*.ts*")]:
+            with self.subTest(file=path.name):
+                self.assertNotIn(self.root.as_posix(), path.read_text(encoding="utf-8"))
+
+    def test_a_source_whose_relative_path_would_name_the_home_folder_is_recorded_by_base_name(self):
+        project, home = self.root / "work" / "project", self.root / "home" / "someone"
+        write_files(home / "app" / "src", {
+            "Button.tsx": "export function Button({ tone = 'calm' }) { return <button>{tone}</button>; }\n"})
+        project.mkdir(parents=True)
+        state = project / ".openguildkit"
+        with mock.patch.object(storybook, "_home", return_value=home):
+            inventory = extract(project, [home / "app" / "src"])
+            write_json(state / "storybook" / "inventory.json", inventory)
+            propose(project, state)
+            validate_all(state, {"component:Button"})
+            result = generate(project, state)
+        self.assertEqual(inventory["sources"], ["outside:src"])
+        self.assertEqual(by_key(inventory["components"], "name")["Button"]["file"], "outside:src/Button.tsx")
+        self.assertIn("outside the project", " ".join(inventory["notes"]))
+        self.assertEqual(result["written"], [])
+        self.assertIn("outside the project", result["skipped"][0]["reason"])
+        for path in project.rglob("*.json"):
+            self.assertNotIn("someone", path.read_text(encoding="utf-8"))
+
+    def test_extract_help_names_what_is_supported_and_what_is_not(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as exit_:
+            main(["storybook", "extract", "--help"])
+        self.assertEqual(exit_.exception.code, 0)
+        text = " ".join(out.getvalue().split())
+        for words in ("React function components", "CSS and SCSS", "class components", "CSS-in-JS", "Tailwind",
+                      "Vue, Angular and Svelte"):
+            self.assertIn(words, text)
 
 if __name__ == "__main__":
     unittest.main()

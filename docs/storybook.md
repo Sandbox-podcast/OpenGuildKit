@@ -32,6 +32,23 @@ import refs from './openguildkit-refs.json' with { type: 'json' };
   refs,
 ```
 
+The URL may not carry a user name or a password: the refs file is committed, so the command refuses `https://user:password@...`. Let the company Storybook authenticate the browser with its own sign-in.
+
+When the configuration folder has no `main` file yet, the command prints this minimal `.storybook/main.ts`, which loads the refs file. It needs `@storybook/react-vite` and `@storybook/addon-docs`, which `npm create storybook` installs. It was not built with Storybook when written: run `npm run build-storybook` to check it in the project.
+
+```ts
+import type { StorybookConfig } from '@storybook/react-vite';
+import refs from './openguildkit-refs.json' with { type: 'json' };
+
+const config: StorybookConfig = {
+  framework: '@storybook/react-vite',
+  stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|mjs|ts|tsx)'],
+  addons: ['@storybook/addon-docs'],
+  refs,
+};
+export default config;
+```
+
 The project's Storybook then shows the company's components, stories and documentation pages in a separate section of its sidebar. The browser loads them from the published Storybook. It sends credentials, so that server must answer the project's origin with `Access-Control-Allow-Origin` set to that origin and `Access-Control-Allow-Credentials: true`. A wildcard origin is refused.
 
 When the company distributes a component library, install it with npm as for any dependency and write the project's stories against it. Its `package.json` is enough to check the versions it expects.
@@ -59,7 +76,16 @@ When the record exists, `task consult` adds the story IDs to the consultation sc
 
 ## Extract a design system from an existing application
 
-A team that already has a React application can derive a design system from the code it is allowed to reuse. The extraction reads `.tsx`, `.jsx`, `.css` and `.scss` files and runs offline. It skips stories, tests, `node_modules` and build folders.
+A team that already has a React application can derive a design system from the code it is allowed to reuse. The extraction reads `.tsx`, `.jsx`, `.css` and `.scss` files, and the export lists of `.ts` and `.js` index files, and runs offline. It skips stories, tests, `node_modules` and build folders.
+
+| Supported | Not supported |
+| --- | --- |
+| React function components: function declarations, arrow functions, `forwardRef` and `memo` | Class components |
+| Props destructured in the first parameter, their literal defaults, and string-union types declared inline, in an interface or in a type alias of the same file | Props read from a `props` object, and types imported from another file |
+| Named and default exports, export aliases such as `export { Card as Panel }`, and re-exports from an index file | Imports renamed by the screen that uses the component (`import { Panel as Box }`) |
+| CSS and SCSS stylesheets | Vue, Angular and Svelte components, CSS-in-JS, utility classes such as Tailwind's |
+
+`openguildkit storybook extract --help` gives the same list.
 
 ```bash
 openguildkit storybook extract --src src/pages/RequestList.tsx --src src/components --preview screens/list.png
@@ -72,7 +98,11 @@ npm run build-storybook
 `extract` writes `.openguildkit/storybook/inventory.json`. Repeat `--src` to select the screens and folders to scan. The inventory lists:
 
 - The components: exported functions or constants with a PascalCase name that render JSX, with their definition file and line, their props and literal defaults, and every use with its file and line.
-- The variants: literal props such as `variant="danger"` or `disabled`, and the default values of props a use omits.
+- The variants: literal props such as `variant="danger"` or `disabled`, the default values of props a use omits, and each value of a typed string union such as `variant?: "primary" | "ghost"`, even when no screen uses it (`"basis": "type"`, a hypothesis tied to the definition line).
+
+A component exported under another name, such as `export { Card as Panel }` or a re-export from `index.ts`, counts its uses under every name. The inventory keeps the name to import in `public`.
+
+A `--src` folder outside the project, such as another repository next to it, is recorded relative to the project, such as `../other-app/src/Button.tsx`. When that path would climb to the drive or through the home folder, it is recorded as `outside:FOLDER/...` with a note, and `generate` writes no story for its components: copy them into the project first. No generated file holds an absolute path.
 - The token candidates: colors in hex, `rgb()` or `hsl()` notation, font sizes, spacing, radii and font families, with the custom properties and Sass variables that name them and each `var()` that uses them.
 
 An item seen only once is a `hypothesis`. `--preview` records a screenshot with its hash. The CLI does not read images, so a state the team or the agent reads from a preview goes into the proposals with `"basis": "preview"` and stays a hypothesis.
@@ -83,7 +113,7 @@ An item seen only once is a `hypothesis`. `--preview` records a screenshot with 
 
 - `design.tokens.json`, in the [Design Tokens Format Module 2025.10](https://www.designtokens.org/TR/2025.10/format/): colors in sRGB with their hex value, dimensions in `px` or `rem`, and font families.
 - `COMPONENT.stories.tsx` in Component Story Format 3, one story per validated variant, or a `Default` story. The args are synthetic, such as `Sample label`, and never reuse the application's text. `parameters.openguildkit` gives the definition and the screens where each state was seen, with its confidence, to compare each story with the original screen.
-- `index.ts`, which exports the validated components from where they are defined.
+- `index.ts`, which exports the validated components from where they are defined, under the name the proposal gives them: `export { Panel as Card }` for a component exported as `Panel`, `export { default as Shelf }` for a default export. Each story imports the same export.
 
 Hashes in `.openguildkit/storybook/generated.json` let `generate` replace only the files it wrote. A file the team changed is kept, and a file no longer generated is left in place and listed. Import the application's global stylesheet in `.storybook/preview.ts` so that stories look like the screens.
 

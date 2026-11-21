@@ -171,7 +171,14 @@ def _parser() -> argparse.ArgumentParser:
     sb_import.add_argument("--library", type=Path, help="package.json of the company component library.")
     sb_import.add_argument("--package", type=Path, help="The project's package.json (default package.json).")
     sb_extract = storybook_actions.add_parser(
-        "extract", help="Inventory the components, variants and style tokens of an existing React application.")
+        "extract", help="Inventory the components, variants and style tokens of an existing React application.",
+        description="Inventory the components, variants and style tokens of an existing React application. "
+                    "Supported: React function components (function declarations, arrow functions, forwardRef and "
+                    "memo) in .tsx and .jsx files, their props, literal defaults and string-union prop types, the "
+                    "export aliases and re-exports of .ts and .js index files, and CSS and SCSS stylesheets. "
+                    "Not supported: class components, Vue, Angular and Svelte components, CSS-in-JS and utility "
+                    "classes such as Tailwind's. The sources are read with text patterns, not a full parser: "
+                    "check the inventory before proposing.")
     sb_extract.add_argument("--src", type=Path, action="append", required=True,
                          help="Source folder or file to scan, such as a screen; repeat to select several.")
     sb_extract.add_argument("--preview", type=Path, action="append", default=[],
@@ -188,7 +195,8 @@ def _parser() -> argparse.ArgumentParser:
     sb_generate.add_argument("--framework", default="@storybook/react-vite", help="Storybook framework package for the types.")
     for storybook_action in (compose, sb_import, sb_extract, sb_propose, sb_generate):
         storybook_action.add_argument("--json", action="store_true", help="Print the result as JSON.")
-    storybook.epilog = f"Create the project Storybook with npm create storybook@{STORYBOOK_VERSION}."
+    storybook.epilog = (f"Create the project Storybook with npm create storybook@{STORYBOOK_VERSION}. "
+                        "storybook compose prints a minimal .storybook/main.ts when the project has none.")
     agent = commands.add_parser("integrations", help="Install the agent skill and subagent of this version.")
     agent.add_argument("--host", required=True, choices=("claude-code", "codex"), help="Agent to configure.")
     agent.add_argument("--user", action="store_true", help="Install in the home folder for every project.")
