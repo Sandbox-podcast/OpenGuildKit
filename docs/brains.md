@@ -33,6 +33,22 @@ The catalog has one brain per discipline of a software publisher:
 
 Each brain has at least four specialists, four evidence requests, four challenge questions, four decision criteria and three primary sources.
 
+### What each brain knows
+
+A brain is more than its review grid. Its knowledge comes from the catalog:
+
+- **methods**: the patterns whose `roles` name the brain, such as MEDDPICC for sales or the double diamond for design;
+- **rule packs**: the packs those methods apply, marked active when the project uses them;
+- **references and standards**: the entries of the reference library tagged with the brain in `brains`, with their edition and source.
+
+```text
+openguildkit brains --id legal
+openguildkit brains --id finance --json
+openguildkit brains --check
+```
+
+`brains --id` prints the specialists, review criteria and this knowledge. Each consultation gives every selected brain its knowledge: the project's active packs first, then the other packs of its methods, and up to twelve references to read. `brains --check`, run in CI, fails when a brain has no method or no tagged reference. To extend a brain, tag a pattern with its role or a reference with its ID; the catalog refuses an unknown brain.
+
 ### Where lenses meet
 
 Some questions concern two brains. Each brain keeps its own angle:
