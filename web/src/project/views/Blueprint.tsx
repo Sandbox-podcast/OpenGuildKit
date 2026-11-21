@@ -27,7 +27,7 @@ export function Setup() {
   useEffect(() => {
     if (!questions.data) return;
     const initial: SetupAnswers = {};
-    questions.data.forEach((q) => { if (q.default !== undefined && q.default !== null) initial[q.id] = q.default; });
+    questions.data.forEach((q) => { if (q.type !== 'norms' && q.default !== undefined && q.default !== null) initial[q.id] = q.default; });
     setAnswers((a) => ({ ...initial, ...a }));
   }, [questions.data]);
   const json = JSON.stringify(answers);
