@@ -29,7 +29,10 @@
           "source": "https://support.atlassian.com/atlassian-rovo-mcp-server/docs/getting-started-with-the-atlassian-remote-mcp-server/",
           "repository": "https://github.com/atlassian/atlassian-mcp-server",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {
@@ -64,7 +67,10 @@
           "source": "https://github.com/upstash/context7",
           "repository": "https://github.com/upstash/context7",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read"
+          }
         }
       ],
       "api": {
@@ -170,7 +176,10 @@
           "status": "unknown",
           "capabilities": "Create and configure sites, open change requests, draft and edit pages, restructure docs.",
           "source": "https://gitbook.com/docs/docs-as-code/gitbook-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {
@@ -208,7 +217,10 @@
           "status": "unknown",
           "capabilities": "Read, edit, restructure and publish docs, create automations and manage settings.",
           "source": "https://www.mintlify.com/docs/ai/mintlify-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {
@@ -247,7 +259,14 @@
           "status": "unknown",
           "capabilities": "Search and fetch pages, create and update pages, comments, databases and views, file uploads.",
           "source": "https://developers.notion.com/guides/mcp/get-started-with-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write",
+            "consent": "Sign in to Notion and approve the connection for the intended workspace",
+            "scopes": [
+              "Pages and databases reachable through the signed-in user's Notion permissions"
+            ]
+          }
         }
       ],
       "api": {
@@ -281,7 +300,10 @@
           "status": "unknown",
           "capabilities": "Search ReadMe docs, read and update project pages, branches, settings and API specs, draft changelogs.",
           "source": "https://docs.readme.com/main/docs/readmes-mcp-server",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {
@@ -330,7 +352,10 @@
           "source": "https://developer.smartbear.com/smartbear-mcp/docs/remote-mcp-servers",
           "repository": "https://github.com/SmartBear/smartbear-mcp",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         },
         {
           "id": "smartbear-local",
@@ -361,7 +386,10 @@
           "source": "https://github.com/SmartBear/smartbear-mcp",
           "repository": "https://github.com/SmartBear/smartbear-mcp",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "configurable"
+          }
         }
       ],
       "api": {

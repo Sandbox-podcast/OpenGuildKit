@@ -36,7 +36,9 @@ jira, confluence: server `atlassian-rovo` (vendor, streamable-http, status ga).
     claude-code: {"type": "http", "url": "https://mcp.atlassian.com/v2/mcp"}
 ```
 
-4. The team reviews data coverage, access, consent, documented scopes and alternatives in the plan. Use `--read-only` on both commands to select a documented read-only server or restriction. If the server lists scopes it can request, verify the actual consent screen and credential permissions. Use a credential with the same read-only permissions independently of the MCP setting. In scripts, use `--yes` after reviewing the live plan. `openguildkit tools apply ...` with the same arguments asks you to confirm a live plan in your terminal and writes the entries and records them in `.openguildkit/tools.json`, which is committed.
+4. The team reviews data coverage, access, consent, documented scopes and alternatives in the plan. Use `--read-only` on both commands to select a documented read-only server or restriction. The access line describes the registered tools. Some servers describe read operations without providing a verified restriction, and others vary with the selected tools, server settings or consent. The scopes line lists documented grants where available and tells you where to check the actual permissions. Use a credential with the same read-only permissions independently of the MCP setting. In scripts, use `--yes` after reviewing the live plan. `openguildkit tools apply ...` with the same arguments asks you to confirm a live plan in your terminal and writes the entries and records them in `.openguildkit/tools.json`, which is committed.
+
+For example, `openguildkit tools plan supabase buildkite --read-only` uses the publishers' restricted endpoints. To browse newsletter audiences, use `openguildkit tools plan mailchimp/mailchimp-marketing-local --community --read-only`. Review the community server's source before supplying a Marketing API key. The default Mailchimp entry uses Mandrill for transactional mail, and `mailchimp/mailchimp-docs-mcp` searches the public Marketing API documentation.
 
 | Option | Use |
 |---|---|

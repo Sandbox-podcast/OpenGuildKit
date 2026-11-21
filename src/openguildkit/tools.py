@@ -52,7 +52,19 @@ SERVER_FIELDS = {
     "id", "name", "publisher", "maintainer", "transport", "auth", "env", "status", "capabilities", "source", "verified",
 }
 SERVER_OPTIONAL = {"url", "command", "args", "package", "repository", "license", "settings", "access", "read_only"}
-ACCESS_MODES = ("read-only", "read-write", "unknown")
+ACCESS_MODES = ("read-only", "read", "read-write", "configurable", "unknown")
+ACCESS_CONSENT = {
+    "oauth": "Sign in and review the publisher's consent screen",
+    "oauth-or-token": "Sign in and review consent, or provide an authorized token",
+    "api-token": "Provide a token authorized for the intended account and operations",
+    "none": "No separate MCP sign-in",
+}
+ACCESS_SCOPES = {
+    "oauth": "Exact scopes not catalogued. Check the consent screen and account grants",
+    "oauth-or-token": "Exact scopes not catalogued. Check the consent screen or the supplied token's grants",
+    "api-token": "Effective permissions depend on the supplied credential. Check its grants",
+    "none": "No OAuth scopes requested by the MCP configuration. Check any local or instance permissions",
+}
 DETECT_FIELDS = {"files", "npm", "pypi"}
 
 
@@ -139,16 +151,17 @@ def _validate_server(server: object, label: str) -> None:
     if used != declared:
         raise CatalogError(f"{label}: settings must declare exactly the placeholders used: {', '.join(sorted(used)) or 'none'}")
     access = server.get("access", {})
-    if not isinstance(access, dict) or not access.keys() <= {"mode", "consent", "scopes"} \
+    if not isinstance(access, dict) or not access.keys() <= {"mode", "consent", "scopes", "read_only_scopes"} \
             or access.get("mode", "unknown") not in ACCESS_MODES:
         raise CatalogError(f"{label}: access describes the mode, consent and scopes")
     if "consent" in access:
         _text(access["consent"], f"{label} consent")
-    if "scopes" in access:
-        if not isinstance(access["scopes"], list):
-            raise CatalogError(f"{label}: scopes must be a list")
-        for scope in access["scopes"]:
-            _text(scope, f"{label} scope")
+    for field in ("scopes", "read_only_scopes"):
+        if field in access:
+            if not isinstance(access[field], list):
+                raise CatalogError(f"{label}: {field} must be a list")
+            for scope in access[field]:
+                _text(scope, f"{label} {field}")
     if "read_only" in server:
         _validate_read_only(server, label, declared)
 
@@ -156,16 +169,25 @@ def _validate_server(server: object, label: str) -> None:
 def _validate_read_only(server: dict, label: str, settings: set[str]) -> None:
     mode = server["read_only"]
     if not isinstance(mode, dict) or len(mode) != 1:
-        raise CatalogError(f"{label}: read_only needs an endpoint, read-only header or Docker environment flag")
+        raise CatalogError(f"{label}: read_only needs an endpoint, read-only header, command flag or environment setting")
     kind, value = next(iter(mode.items()))
     if server["transport"] != "stdio":
         if kind == "header" and value == "X-MCP-Readonly":
             return
         if kind == "url" and set(_SETTING.findall(_https(value, f"{label} read-only URL", placeholders=True))) == settings:
             return
-    elif kind == "docker_env" and server["command"] == "docker" and isinstance(value, str) \
-            and re.fullmatch(r"[A-Z][A-Z0-9_]*READ_?ONLY", value) and server["package"]["name"] in server["args"]:
-        return
+    else:
+        if kind == "arg" and value in ("--read-only", "--disable-write"):
+            return
+        if isinstance(value, str) and re.fullmatch(r"[A-Z][A-Z0-9_]*READ_?ONLY", value):
+            if kind == "docker_env" and server["command"] == "docker" and server["package"]["name"] in server["args"]:
+                return
+        if kind == "env_vars" and server["command"] != "docker" and isinstance(value, list) and value \
+                and all(isinstance(name, str) and name not in server["env"] and (
+                    re.fullmatch(r"[A-Z][A-Z0-9_]*READ_?ONLY", name)
+                    or name in ("QUICKBOOKS_DISABLE_WRITE", "QUICKBOOKS_DISABLE_UPDATE", "QUICKBOOKS_DISABLE_DELETE")
+                ) for name in value):
+            return
     raise CatalogError(f"{label}: invalid read-only configuration for {server['transport']}")
 
 
@@ -423,14 +445,16 @@ def host_entry(host: str, server: dict, settings: dict, token_env: str | None, *
         if "docker_env" in restriction:
             image = args.index(server["package"]["name"])
             args[image:image] = ["-e", restriction["docker_env"] + "=true"]
-        if host == "codex":
-            entry = {"command": server["command"], "args": args}
-            if server["env"]:
-                entry["env_vars"] = list(server["env"])
-            return entry
+        if "arg" in restriction:
+            args.append(restriction["arg"])
         entry = {"command": server["command"], "args": args}
         if server["env"]:
-            entry["env"] = {name: "${" + name + "}" for name in server["env"]}
+            if host == "codex":
+                entry["env_vars"] = list(server["env"])
+            else:
+                entry["env"] = {name: "${" + name + "}" for name in server["env"]}
+        if "env_vars" in restriction:
+            entry.setdefault("env", {}).update(dict.fromkeys(restriction["env_vars"], "true"))
         return entry
     url = _fill(restriction.get("url", server["url"]), settings)
     headers = {restriction["header"]: "true"} if "header" in restriction else {}
@@ -537,17 +561,10 @@ def plan_connections(
             warnings.append("This server needs a token: pass --token-env TOOL=VARIABLE, or see its source for the header it expects.")
         if missing:
             steps.append("Still to provide: " + ", ".join(f"--set {tool_id}.{name}=VALUE" for name in missing) + ".")
-        access = server.get("access", {})
-        scope = "No credentials required" if server["auth"] == "none" else "See the publisher's source and credential permissions"
         item = {
             "tool": tool_id, "title": tool["title"], "server": server["id"], "key": server["id"], "mode": "live",
             "maintainer": server["maintainer"], "capabilities": server["capabilities"],
-            "access": {
-                "mode": "read-only" if read_only else access.get("mode", "unknown"),
-                "consent": access.get("consent", "None" if server["auth"] == "none" else "See the publisher's source"),
-                "scopes": access.get("scopes") or [scope],
-                "read_only_available": _supports_read_only(server),
-            },
+            "access": _access_report(server, read_only=read_only, bearer=bool(bearer)),
             "alternatives": {tool_id: _alternatives(tool, server["id"])},
             "notes": {tool_id: tool["notes"]} if tool.get("notes") else {},
             "covers": [tool_id], "publisher": server["publisher"], "transport": server["transport"], "auth": server["auth"],
@@ -572,13 +589,25 @@ def plan_connections(
     return plan
 
 
+def _access_report(server: dict, *, read_only: bool = False, bearer: bool = False) -> dict:
+    access = server.get("access", {})
+    auth = "api-token" if bearer else server["auth"]
+    scopes = access.get("read_only_scopes") if read_only else None
+    return {
+        "mode": "read-only" if read_only else access.get("mode", "unknown"),
+        "consent": access.get("consent", ACCESS_CONSENT[auth]),
+        "scopes": scopes or access.get("scopes") or [ACCESS_SCOPES[auth]],
+        "read_only_available": _supports_read_only(server),
+    }
+
+
 def _alternatives(tool: dict, selected: str) -> list[dict]:
     return [
-        {**{field: server[field] for field in ("id", "capabilities", "status", "publisher")},
+        {**{field: server[field] for field in ("id", "capabilities", "status", "publisher", "maintainer", "source")},
+         "mode": server.get("access", {}).get("mode", "unknown"),
          "read_only_available": _supports_read_only(server)}
         for server in tool["servers"] if server["id"] != selected
     ]
-
 
 def read_manifest(state: Path) -> dict:
     path = state / MANIFEST

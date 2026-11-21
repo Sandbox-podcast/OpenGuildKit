@@ -1,11 +1,25 @@
-"""The tool registry describes servers that really start: what a docker server declares reaches the container."""
+"""Check access metadata and environment forwarding in the bundled registry."""
 
 import unittest
 
-from openguildkit.tools import load_tools
+from openguildkit.tools import load_tools, plan_connections
 
 
-class DockerServerTests(unittest.TestCase):
+class ToolRegistryTests(unittest.TestCase):
+    def test_every_bundled_server_reports_access_and_consent(self):
+        catalog = load_tools()
+        for tool_id, tool in catalog.items():
+            for server in tool["servers"]:
+                key = f"{tool_id}/{server['id']}"
+                with self.subTest(server=key):
+                    host = "claude-code" if server["transport"] == "sse" else "codex"
+                    plan = plan_connections(catalog, [key], host, community=True)[0]
+                    self.assertIn(plan["access"]["mode"], ("read", "read-only", "read-write", "configurable"))
+                    self.assertTrue(plan["access"]["consent"])
+                    self.assertTrue(plan["access"]["scopes"])
+                    for field in ("capabilities", "maintainer", "status", "source"):
+                        self.assertTrue(plan[field], field)
+
     def test_every_variable_a_docker_server_declares_is_passed_to_its_container(self):
         missing = []
         for tool in load_tools().values():

@@ -32,7 +32,10 @@
           "status": "unknown",
           "capabilities": "Contacts, lists, email/SMS/WhatsApp campaigns, CRM deals, templates, analytics and account administration (27 modules).",
           "source": "https://developers.brevo.com/docs/mcp-protocol",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {
@@ -73,7 +76,65 @@
             "mode": "read-write",
             "consent": "Use a Mailchimp Transactional (Mandrill) API key",
             "scopes": [
-              "Transactional messages and templates"
+              "Transactional API operations allowed by the key. Restricted keys need the AI Agents permission group"
+            ]
+          }
+        },
+        {
+          "id": "mailchimp-docs-mcp",
+          "name": "Mailchimp Marketing API documentation",
+          "publisher": "vendor",
+          "maintainer": "Intuit Mailchimp",
+          "transport": "streamable-http",
+          "url": "https://mailchimp.com/developer/_mcp/server",
+          "auth": "none",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Search public Marketing API documentation. No account, audience or campaign data is exposed.",
+          "source": "https://mailchimp.com/developer/marketing/build/ai-tools/mcp-server/",
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-only",
+            "consent": "No account or consent required",
+            "scopes": [
+              "Public developer documentation"
+            ]
+          }
+        },
+        {
+          "id": "mailchimp-marketing-local",
+          "name": "Mailchimp Marketing API MCP (community, local)",
+          "publisher": "community",
+          "maintainer": "Damien Tilman",
+          "transport": "stdio",
+          "command": "uvx",
+          "args": [
+            "mailchimp-mcp==1.3.0"
+          ],
+          "package": {
+            "registry": "pypi",
+            "name": "mailchimp-mcp"
+          },
+          "auth": "api-token",
+          "env": [
+            "MAILCHIMP_API_KEY"
+          ],
+          "status": "unknown",
+          "capabilities": "Browse or manage marketing audiences, subscribers, segments, campaigns and reports. Select read-only mode to block mutations.",
+          "source": "https://pypi.org/project/mailchimp-mcp/1.3.0/",
+          "repository": "https://github.com/damientilman/mailchimp-mcp-server",
+          "license": "MIT",
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write",
+            "consent": "Review the community server and supply a Mailchimp Marketing API key",
+            "scopes": [
+              "Marketing API permissions of the supplied key, including access to account audiences"
+            ]
+          },
+          "read_only": {
+            "env_vars": [
+              "MAILCHIMP_READ_ONLY"
             ]
           }
         }
@@ -82,7 +143,7 @@
         "kind": "rest",
         "docs": "https://mailchimp.com/developer/marketing/api/"
       },
-      "notes": "The documented server covers Mailchimp Transactional only. Marketing campaigns are reachable through Mailchimp's Claude and ChatGPT connectors, whose endpoint is not published in Mailchimp's docs; a docs-only server is at https://mailchimp.com/developer/_mcp/server."
+      "notes": "Mandrill is the Transactional API. For newsletter audiences, select mailchimp/mailchimp-marketing-local --community --read-only or use the Marketing API. Intuit also offers a separate Claude campaign connector: https://claude.com/marketplace/connectors/intuit-mailchimp."
     },
     {
       "id": "wordpress",
@@ -113,7 +174,10 @@
           "status": "unknown",
           "capabilities": "Work with every WordPress.com or Jetpack-connected site on the account.",
           "source": "https://developer.wordpress.com/docs/mcp/",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "configurable"
+          }
         },
         {
           "id": "wordpress-mcp-adapter",
@@ -141,7 +205,10 @@
           "source": "https://github.com/WordPress/mcp-adapter/blob/trunk/docs/guides/cli-usage.md",
           "repository": "https://github.com/WordPress/mcp-adapter",
           "license": "GPL-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "configurable"
+          }
         }
       ],
       "api": {

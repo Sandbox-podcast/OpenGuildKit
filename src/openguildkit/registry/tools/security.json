@@ -33,7 +33,10 @@
           "source": "https://github.com/GitGuardian/ggmcp",
           "repository": "https://github.com/GitGuardian/ggmcp",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         },
         {
           "id": "gitguardian-local",
@@ -61,7 +64,10 @@
           "source": "https://github.com/GitGuardian/ggmcp",
           "repository": "https://github.com/GitGuardian/ggmcp",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {
@@ -110,7 +116,10 @@
           "source": "https://github.com/semgrep/semgrep/tree/develop/cli/src/semgrep/mcp",
           "repository": "https://github.com/semgrep/semgrep",
           "license": "LGPL-2.1",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read"
+          }
         }
       ],
       "api": {
@@ -156,7 +165,10 @@
           "status": "unknown",
           "capabilities": "Run Snyk Code, Open Source and IaC scans from the agent through the local Snyk CLI; optional SNYK_MCP_PROFILE selects the tool profile (lite, full, experimental).",
           "source": "https://docs.snyk.io/agent-security/agentic-security-with-snyk-studio/getting-started-with-snyk-studio",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read"
+          }
         }
       ],
       "api": {
@@ -195,7 +207,10 @@
           "source": "https://github.com/SocketDev/socket-mcp",
           "repository": "https://github.com/SocketDev/socket-mcp",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read"
+          }
         }
       ],
       "api": {
@@ -242,7 +257,10 @@
           "source": "https://github.com/aquasecurity/trivy-mcp",
           "repository": "https://github.com/aquasecurity/trivy-mcp",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read"
+          }
         }
       ],
       "notes": "Install first with `trivy plugin install mcp`. Last release v0.0.20 (December 2025), so activity is low. Aqua Platform credentials are optional."

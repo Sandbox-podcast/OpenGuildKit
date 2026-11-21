@@ -87,6 +87,13 @@ def _host(args, profile: dict) -> str:
     return host
 
 
+ACCESS_LABELS = {
+    "read": "read operations described; no enforced read-only mode recorded",
+    "configurable": "depends on the server configuration, installed tools or consent",
+    "unknown": "not documented",
+}
+
+
 def _print_plan(plan: list[dict], host: str, *, stream: TextIO | None = None) -> None:
     emit = partial(print, file=stream)
     for item in plan:
@@ -102,7 +109,7 @@ def _print_plan(plan: list[dict], host: str, *, stream: TextIO | None = None) ->
             emit(f"    Maintainer: {item['maintainer']}. Authentication: {item['auth']}.")
             emit(f"    Covers: {item['capabilities']}")
             access = item["access"]
-            mode = "not documented" if access["mode"] == "unknown" else access["mode"]
+            mode = ACCESS_LABELS.get(access["mode"], access["mode"])
             emit(f"    Access: {mode}. Consent: {access['consent']}.")
             emit(f"    Scopes: {', '.join(access['scopes'])}.")
             if access["mode"] != "read-only" and access["read_only_available"]:
@@ -115,7 +122,8 @@ def _print_plan(plan: list[dict], host: str, *, stream: TextIO | None = None) ->
             for tool, alternatives in item["alternatives"].items():
                 for server in alternatives:
                     readonly = ", read-only available" if server["read_only_available"] else ""
-                    emit(f"    Alternative {tool}/{server['id']} ({server['publisher']}, {server['status']}{readonly}):"
+                    mode = ACCESS_LABELS.get(server["mode"], server["mode"])
+                    emit(f"    Alternative {tool}/{server['id']} ({server['publisher']}, {server['status']}, {mode}{readonly}):"
                           f" {server['capabilities']}")
             for tool, notes in item["notes"].items():
                 emit(f"    {tool}: {notes}")

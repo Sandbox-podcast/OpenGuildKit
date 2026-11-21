@@ -48,7 +48,10 @@
           "status": "unknown",
           "capabilities": "Read subscriptions, customers, catalog, entitlements, invoices, quotes, credit notes, transactions, events, orders, coupons; bulk export jobs.",
           "source": "https://www.chargebee.com/docs/billing/2.0/ai-in-chargebee/data-lookup-agent",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read"
+          }
         },
         {
           "id": "chargebee-knowledge-base",
@@ -68,7 +71,10 @@
           "status": "unknown",
           "capabilities": "Answers product questions and generates code snippets from Chargebee docs and API references.",
           "source": "https://www.chargebee.com/docs/billing/2.0/ai-in-chargebee/knowledge-base-agent",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read"
+          }
         }
       ],
       "api": {
@@ -107,7 +113,10 @@
           "status": "ga",
           "capabilities": "Prepare and send envelopes, track envelope and recipient status, run Workflow Builder and CLM workflows, query agreements by provisions.",
           "source": "https://www.docusign.com/blog/developers/docusign-mcp-server-general-availability",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {
@@ -140,7 +149,10 @@
           "status": "unknown",
           "capabilities": "Codemode interface: search Paddle API methods, execute JavaScript chaining API calls, metrics charts.",
           "source": "https://developer.paddle.com/build/tools/ai/mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         },
         {
           "id": "paddle-sandbox",
@@ -154,7 +166,10 @@
           "status": "unknown",
           "capabilities": "Same tools against the sandbox environment; sandbox API key (pdl_sdbx_) as Bearer token only.",
           "source": "https://developer.paddle.com/build/tools/ai/mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {
@@ -186,7 +201,10 @@
           "status": "unknown",
           "capabilities": "Read-only access to companies, customers and sales invoices, suppliers and purchase invoices, accounting and transactions, products, tax filings and change history.",
           "source": "https://pennylane-mcp.readme.io/docs/getting-started",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-only"
+          }
         }
       ],
       "api": {
@@ -219,7 +237,10 @@
           "status": "unknown",
           "capabilities": "Read transactions, statements, invoices, quotes, clients and cards; create and manage cards, draft and send invoices and quotes, create card and transfer requests.",
           "source": "https://docs.qonto.com/mcp/overview",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {
@@ -265,7 +286,21 @@
           "source": "https://github.com/intuit/quickbooks-online-mcp-server",
           "repository": "https://github.com/intuit/quickbooks-online-mcp-server",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write",
+            "consent": "Register an Intuit app and complete the OAuth handshake for the intended company",
+            "scopes": [
+              "com.intuit.quickbooks.accounting"
+            ]
+          },
+          "read_only": {
+            "env_vars": [
+              "QUICKBOOKS_DISABLE_WRITE",
+              "QUICKBOOKS_DISABLE_UPDATE",
+              "QUICKBOOKS_DISABLE_DELETE"
+            ]
+          }
         }
       ],
       "api": {
@@ -325,7 +360,10 @@
           "status": "unknown",
           "capabilities": "Search and call the Stripe API (read and write), account info, analytics, documentation search, integration planning; some write actions require human confirmation in the Dashboard.",
           "source": "https://docs.stripe.com/mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {
@@ -356,7 +394,10 @@
           "status": "unknown",
           "capabilities": "Tools that read and write Xero data across one or more consented organisations, one organisation per call.",
           "source": "https://developer.xero.com/faq/remote-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         },
         {
           "id": "xero-local",
@@ -385,7 +426,10 @@
           "source": "https://github.com/XeroAPI/xero-mcp-server",
           "repository": "https://github.com/XeroAPI/xero-mcp-server",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {

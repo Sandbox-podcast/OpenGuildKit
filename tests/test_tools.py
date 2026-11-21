@@ -193,6 +193,56 @@ class PlanTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "no documented read-only mode"):
             plan_connections(TOOLS, ["google-workspace/gmail-mcp"], "codex", read_only=True)
 
+    def test_remote_read_only_variants_change_the_endpoint_for_both_hosts(self):
+        endpoints = {
+            "buildkite": "https://mcp.buildkite.com/mcp/readonly",
+            "neon": "https://mcp.neon.tech/mcp?readonly=true",
+            "salesforce": "https://api.salesforce.com/platform/mcp/v1/platform/sobject-reads",
+            "supabase": "https://mcp.supabase.com/mcp?read_only=true",
+        }
+        for host in ("codex", "claude-code"):
+            for tool_id, endpoint in endpoints.items():
+                with self.subTest(tool=tool_id, host=host):
+                    regular = plan_connections(TOOLS, [tool_id], host)[0]
+                    restricted = plan_connections(TOOLS, [tool_id], host, read_only=True)[0]
+                    self.assertNotEqual(regular["entry"]["url"], endpoint)
+                    self.assertEqual(restricted["entry"]["url"], endpoint)
+                    self.assertEqual(restricted["access"]["mode"], "read-only")
+        self.assertIn("read-only Postgres", plan_connections(TOOLS, ["supabase"], "codex",
+                      read_only=True)[0]["access"]["scopes"][0])
+
+    def test_local_read_only_flags_preserve_the_original_invocation(self):
+        for tool_id, flag in (("azure", "--read-only"), ("basecamp/basecamp-cli", "--read-only"),
+                              ("grafana", "--disable-write"), ("kubernetes", "--read-only")):
+            with self.subTest(tool=tool_id):
+                normal = plan_connections(TOOLS, [tool_id], "codex", community=True)[0]
+                restricted = plan_connections(TOOLS, [tool_id], "codex", community=True, read_only=True)[0]
+                self.assertEqual(restricted["entry"]["args"], normal["entry"]["args"] + [flag])
+        basecamp = plan_connections(TOOLS, ["basecamp"], "codex", read_only=True)[0]
+        self.assertEqual(basecamp["server"], "basecamp-cli")
+
+    def test_read_coverage_is_not_an_enforced_read_only_mode(self):
+        plan = plan_connections(TOOLS, ["cypress"], "codex")[0]
+        self.assertEqual(plan["access"]["mode"], "read")
+        self.assertFalse(plan["access"]["read_only_available"])
+        with self.assertRaisesRegex(ValueError, "no eligible server with a documented read-only mode"):
+            plan_connections(TOOLS, ["cypress"], "codex", read_only=True)
+        mongo = plan_connections(TOOLS, ["mongodb"], "codex", read_only=True)[0]
+        self.assertEqual(mongo["entry"]["args"].count("--readOnly"), 1)
+
+    def test_mailchimp_plan_names_newsletter_alternative_and_requires_community_opt_in(self):
+        plan = plan_connections(TOOLS, ["mailchimp"], "codex")[0]
+        self.assertEqual(plan["server"], "mailchimp-transactional-mcp")
+        alternatives = {item["id"]: item for item in plan["alternatives"]["mailchimp"]}
+        self.assertIn("public Marketing API documentation", alternatives["mailchimp-docs-mcp"]["capabilities"])
+        marketing = alternatives["mailchimp-marketing-local"]
+        self.assertEqual(marketing["publisher"], "community")
+        self.assertIn("audiences", marketing["capabilities"])
+        self.assertTrue(marketing["read_only_available"])
+        self.assertIn("--community --read-only", plan["notes"]["mailchimp"])
+        with self.assertRaisesRegex(ValueError, "review its source, then pass --community"):
+            plan_connections(TOOLS, ["mailchimp/mailchimp-marketing-local"], "codex", read_only=True)
+
     def test_mock_mode_replaces_every_server_with_a_local_one(self):
         plan = plan_connections(TOOLS, ["jira", "gryzzly"], "codex", mock=True, mocks=mock_ids(), log="calls.jsonl")
         self.assertEqual(plan[0]["entry"], {"command": "openguildkit", "args": ["tools", "mock", "jira", "--log", "calls.jsonl"]})
@@ -253,6 +303,27 @@ class ApplyTests(unittest.TestCase):
             self.assertEqual(plan[0]["entry"][header_key], {"X-MCP-Readonly": "true"})
             apply_connections(self.root, self.state, host, plan)
         self.assertTrue(all(item["configured"] for item in connection_status(self.root, self.state)))
+
+    def test_applied_read_only_environment_preserves_credential_references(self):
+        target = "mailchimp/mailchimp-marketing-local"
+        server_id = "mailchimp-marketing-local"
+        for host in ("codex", "claude-code"):
+            plan = plan_connections(TOOLS, [target], host, community=True, read_only=True)
+            apply_connections(self.root, self.state, host, plan)
+        config = (self.root / ".codex" / "config.toml").read_text(encoding="utf-8")
+        codex = tomllib.loads(config)["mcp_servers"][server_id]
+        self.assertEqual(codex["env"], {"MAILCHIMP_READ_ONLY": "true"})
+        self.assertEqual(codex["env_vars"], ["MAILCHIMP_API_KEY"])
+        config = (self.root / ".mcp.json").read_text(encoding="utf-8")
+        claude = json.loads(config)["mcpServers"][server_id]
+        self.assertEqual(claude["env"], {
+            "MAILCHIMP_READ_ONLY": "true", "MAILCHIMP_API_KEY": "${MAILCHIMP_API_KEY}",
+        })
+        quickbooks = plan_connections(TOOLS, ["quickbooks"], "codex", read_only=True)[0]
+        self.assertEqual(quickbooks["entry"]["env"], {
+            "QUICKBOOKS_DISABLE_WRITE": "true", "QUICKBOOKS_DISABLE_UPDATE": "true",
+            "QUICKBOOKS_DISABLE_DELETE": "true",
+        })
 
     def test_missing_settings_block_the_write(self):
         with self.assertRaisesRegex(ValueError, "Settings are missing"):

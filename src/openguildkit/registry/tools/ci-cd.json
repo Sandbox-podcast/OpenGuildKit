@@ -84,7 +84,10 @@
           "source": "https://github.com/microsoft/azure-devops-mcp",
           "repository": "https://github.com/microsoft/azure-devops-mcp",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {
@@ -121,7 +124,20 @@
           "status": "unknown",
           "capabilities": "Pipelines, builds, jobs, logs and test data; read-only variant at /mcp/readonly, toolset scoping via /x/{toolset}.",
           "source": "https://buildkite.com/docs/apis/mcp-server",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write",
+            "consent": "Sign in to Buildkite and approve access for the selected organization",
+            "scopes": [
+              "Buildkite permissions in the authorized organization"
+            ],
+            "read_only_scopes": [
+              "Resources in the authorized organization exposed by the read-only endpoint"
+            ]
+          },
+          "read_only": {
+            "url": "https://mcp.buildkite.com/mcp/readonly"
+          }
         }
       ],
       "api": {
@@ -159,7 +175,10 @@
           "status": "unknown",
           "capabilities": "Pipeline and build status, failure logs and project data.",
           "source": "https://circleci.com/product/mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read"
+          }
         },
         {
           "id": "circleci-cli",
@@ -183,7 +202,10 @@
           "status": "unknown",
           "capabilities": "Same CircleCI tools, run locally from the CircleCI CLI.",
           "source": "https://circleci.com/product/mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read"
+          }
         }
       ],
       "api": {
@@ -229,7 +251,10 @@
           "source": "https://plugins.jenkins.io/mcp-server/",
           "repository": "https://github.com/jenkinsci/mcp-server-plugin",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "configurable"
+          }
         }
       ],
       "api": {

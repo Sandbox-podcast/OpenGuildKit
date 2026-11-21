@@ -32,7 +32,10 @@
           "status": "beta",
           "capabilities": "Read builds, tests and review state; chromatic_mutate can accept or deny tests, quarantine tests and create projects.",
           "source": "https://www.chromatic.com/docs/mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {
@@ -85,7 +88,10 @@
           "source": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
           "repository": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {

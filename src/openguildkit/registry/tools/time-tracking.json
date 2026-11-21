@@ -26,7 +26,10 @@
           "status": "unknown",
           "capabilities": "Start and stop timers, log and edit time entries, create clients, projects, tasks and tags, summary, detailed and attendance reports.",
           "source": "https://clockify.me/help/integrations/use-clockify-mcp-server-to-connect-to-ai-agent",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {
@@ -104,7 +107,10 @@
           "status": "unknown",
           "capabilities": "Read-only access to worklogs, timesheet approvals, accounts, customers, periods, teams; plus Capacity Planner and Financial Manager data when licensed.",
           "source": "https://help.tempo.io/timesheets/latest/enabling-tempo-mcp-server",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-only"
+          }
         }
       ],
       "api": {
@@ -157,7 +163,10 @@
           "status": "unknown",
           "capabilities": "Tasks, projects, time entries (start, stop, create, update), time blocks, reports and workspace members.",
           "source": "https://docs.toggl.com/toggl-mcp-and-cl",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         },
         {
           "id": "toggl-local",
@@ -179,7 +188,10 @@
           "status": "unknown",
           "capabilities": "Same tools as the remote server; browser sign-in, session stored locally.",
           "source": "https://docs.toggl.com/toggl-mcp-and-cl",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {

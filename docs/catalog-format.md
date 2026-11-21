@@ -241,6 +241,8 @@ The pattern can reuse bundled packs or packs from `.openguildkit/catalog/packs/`
 | `servers[].transport` | `streamable-http`, `sse` or `stdio`. A remote server has a `url`; a `stdio` server has `command`, `args` and `package` (`registry` and `name`). |
 | `servers[].env` | Names of the environment variables the server reads. Never a value: an argument such as `TOKEN=...` is refused, and so is a credential in a URL. |
 | `servers[].settings` | `name` and `description` of each `{placeholder}` used in the `url` or the `args`, such as a subdomain. |
+| `servers[].access` | `mode` describes the registered invocation: `read-only` for a documented restriction, `read` for described read operations without that guarantee, `read-write`, or `configurable` when it depends on settings or consent. Project entries can omit it when unknown. Add documented `consent`, `scopes` and, if different, `read_only_scopes`. |
+| `servers[].read_only` | A documented restriction for an otherwise broader invocation. Use one of `url` or `header` for HTTP, or `arg`, `env_vars` or `docker_env` for supported local flags. An already restricted invocation just declares `access.mode: read-only`. |
 | `servers[].status` | `ga`, `beta`, `preview`, `experimental` or `deprecated` as the publisher states it, `unknown` otherwise. |
 | `servers[].source`, `verified` | The publisher's page or the server's repository where the endpoint or the command was read, and the day it was read. A directory site or a blog post is not a source. |
 | `api` | Optional. The tool's main public API: `kind` (`rest`, `graphql`, `other`) and `docs`. |

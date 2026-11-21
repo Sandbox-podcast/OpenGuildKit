@@ -189,7 +189,10 @@
           "capabilities": "Query emails, meetings, documents, Teams messages, people and business-app data from Microsoft 365 Copilot in natural language.",
           "source": "https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/work-iq/cli",
           "repository": "https://github.com/microsoft/work-iq-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read"
+          }
         }
       ],
       "api": {
@@ -258,7 +261,10 @@
           "capabilities": "Query emails, meetings, documents, Teams messages, people and business-app data from Microsoft 365 Copilot in natural language.",
           "source": "https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/work-iq/cli",
           "repository": "https://github.com/microsoft/work-iq-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read"
+          }
         }
       ],
       "api": {
@@ -303,7 +309,10 @@
           "status": "unknown",
           "capabilities": "Search messages, files, users and channels; read channel history and threads; send, schedule and draft messages; create and update canvases and lists; upload files.",
           "source": "https://docs.slack.dev/ai/slack-mcp-server/",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write"
+          }
         }
       ],
       "api": {
