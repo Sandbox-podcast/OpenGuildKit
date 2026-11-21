@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "Regulation (EU) 2024/2847, Cyber Resilience Act",
-      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847"
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
+      "checked": "2026-11-20"
     }
   ],
   "roles": [
@@ -15,6 +16,7 @@
   "packs": [
     "cyber-resilience-act"
   ],
+  "kind": "regulation",
   "references": [
     "cyber-resilience-act",
     "sbom"

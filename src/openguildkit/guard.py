@@ -13,11 +13,12 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
 from . import clock
-from .decisions import approval_policy, check_decision, decision_payload, seal, verify_signature
+from .decisions import approval_policy, check_decision, decision_payload, seal, stale_approval_message, verify_signature
 from .lock import LOCK_FILE, read_lock
 from .project import STATE_DIR, load_profile, profile_fingerprint
 from .storage import read_json, write_json
-from .tasks import read_task
+from .task_index import tasks_with_status
+from .tasks import STATUSES, read_task
 
 MODES = ("off", "observe", "enforce")
 DECISIONS_DIR = "decisions"
@@ -45,15 +46,19 @@ def _age_days(moment: str) -> int | None:
 
 
 def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) -> list[dict]:
-    """Approved tasks, not yet done, whose approval still matches the record and the rules."""
+    """Approved tasks, not yet done, whose approval still matches the record and the rules.
+
+    The status index skips the records that are not approved without parsing them; every other record is read
+    and checked in full, so the index never decides what is covered.
+    """
     directory = state / "tasks"
     if not directory.is_dir():
         return []
     fingerprint = profile_fingerprint(profile, catalog)
     covered = []
-    for path in sorted(directory.glob("*.json")):
+    for task_id in tasks_with_status(state, set(STATUSES) - {"approved"}):
         try:
-            task = read_task(state, path.stem)
+            task = read_task(state, task_id)
             if task["status"] != "approved" or task.get("profile_fingerprint") != fingerprint:
                 continue
             if task.get("answers", {}).get("kind") == "decision":
@@ -215,6 +220,14 @@ def run_hook(event: str, raw: str | None, project: Path | None, load) -> tuple[i
         return 0, _context(event, message), ""
 
 
+def _exported_boards(review: dict) -> list[dict]:
+    return [
+        {"id": entry["id"], "verdict": entry.get("challenge", {}).get("verdict"),
+         "recommendation": entry["recommendation"]}
+        for entry in review.get("boards", [])
+    ]
+
+
 def export_decision(root: Path, state: Path, task: dict, profile: dict, output: Path | None = None) -> Path:
     """Write a shareable record of an approved decision: no evidence details, no internal notes.
 
@@ -230,21 +243,37 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
         "brief": task["brief"],
         "status": task["status"],
         "profile_fingerprint": task["profile_fingerprint"],
-        "boards": [
-            {"id": entry["id"], "verdict": entry.get("challenge", {}).get("verdict")}
-            for entry in task["review"]["boards"]
-        ],
+        "summary": task["review"]["summary"],
+        "boards": _exported_boards(task["review"]),
         "decision": {key: decision[key] for key in ("by", "reason", "at", "seal", "base_revision") if key in decision},
     }
     record["decision"]["payload"] = decision_payload(task, decision["by"], decision["reason"], decision.get("base_revision"))
     for key in ("signer", "signature"):
         if key in decision:
             record["decision"][key] = decision[key]
+    if task.get("rounds"):
+        record["rounds"] = [
+            {"consultation_id": previous.get("consultation", {}).get("id"),
+             "summary": previous.get("review", {}).get("summary"),
+             "boards": _exported_boards(previous.get("review", {})),
+             "decision": {key: value for key, value in previous.get("decision", {}).items()
+                          if key in ("outcome", "by", "reason", "at")}}
+            for previous in task["rounds"]
+        ]
     if task.get("result"):
         record["result"] = {
             key: task["result"][key] for key in ("revision", "pull_request") if key in task["result"]
         }
         record["result"]["checks"] = {item["check"]: item["status"] for item in task["result"]["checks"]}
+        record["result"]["check_exceptions"] = [
+            {key: item[key] for key in ("check", "status", "reason", "owner") if key in item}
+            for item in task["result"]["checks"] if item["status"] in ("skipped", "not-applicable")
+        ]
+        # A reviewer sees which named evidence was declared not applicable, by whom and why.
+        record["result"]["evidence_not_applicable"] = [
+            {key: item[key] for key in ("check", "reason", "owner")} for item in task["result"]["checks"]
+            if item["check"].startswith("evidence:") and item["status"] == "not-applicable"
+        ]
     if task.get("follows"):
         record["follows"] = task["follows"]["task"]
     path = output if output is not None else state / DECISIONS_DIR / f"{task['id']}.json"
@@ -306,7 +335,7 @@ def _record_problem(record: dict, relative: str, fingerprint: str, policy: dict,
     if any(payload.get(key) != value for key, value in expected.items()) or seal(payload) != decision["seal"]:
         return f"{relative}: the seal does not match the approval it records. Export the decision again from the task."
     if record["profile_fingerprint"] != fingerprint:
-        return f"{relative} was approved under other rules than those of the base revision."
+        return f"{relative}: {stale_approval_message(record['task'])}"
     if policy["mode"] == "signed":
         if not isinstance(decision.get("signature"), str) or not isinstance(decision.get("signer"), str):
             return f"{relative}: the project requires signed approvals and this decision is not signed."
@@ -315,6 +344,23 @@ def _record_problem(record: dict, relative: str, fingerprint: str, policy: dict,
         except ValueError as error:
             return f"{relative}: {error}"
     return None
+
+
+def exported_decision_problems(root: Path, state: Path, profile: dict, fingerprint: str) -> list[str]:
+    """Check the exports kept in this project against the rules currently in use."""
+    problems = []
+    policy = approval_policy(profile)
+    for path in sorted((state / DECISIONS_DIR).glob("*.json")):
+        relative = path.relative_to(root).as_posix()
+        try:
+            record = read_json(path)
+            _record_shape(record, relative)
+            problem = _record_problem(record, relative, fingerprint, policy, root, set())
+        except (OSError, ValueError) as error:
+            problem = str(error)
+        if problem:
+            problems.append(problem)
+    return problems
 
 
 def _earlier_tasks(directory: Path) -> set:

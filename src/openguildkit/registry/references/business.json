@@ -16,6 +16,7 @@
       "sources": [
         {
           "url": "https://developers.google.com/search/docs/essentials",
+          "checked": "2026-11-21",
           "title": "Google Search Central — Google Search Essentials"
         }
       ]
@@ -33,6 +34,7 @@
       "sources": [
         {
           "url": "https://schema.org/docs/gs.html",
+          "checked": "2026-11-21",
           "title": "Schema.org — Getting started"
         }
       ]
@@ -51,6 +53,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/TR/json-ld11/",
+          "checked": "2026-11-20",
           "title": "JSON-LD 1.1"
         }
       ]
@@ -68,6 +71,7 @@
       "sources": [
         {
           "url": "https://ogp.me/",
+          "checked": "2026-11-21",
           "title": "The Open Graph protocol"
         }
       ]
@@ -86,6 +90,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/rfc/rfc9309.html",
+          "checked": "2026-11-21",
           "title": "RFC 9309: Robots Exclusion Protocol"
         }
       ]
@@ -93,6 +98,7 @@
     {
       "id": "sitemaps",
       "title": "Sitemaps XML",
+      "title_en": "XML sitemaps",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "protocole",
       "brains": [
@@ -104,6 +110,7 @@
       "sources": [
         {
           "url": "https://www.sitemaps.org/protocol.html",
+          "checked": "2026-11-21",
           "title": "sitemaps.org - Protocol"
         }
       ]
@@ -111,6 +118,7 @@
     {
       "id": "utm",
       "title": "Paramètres UTM",
+      "title_en": "UTM parameters",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "convention",
       "brains": [
@@ -126,6 +134,7 @@
       "sources": [
         {
           "url": "https://support.google.com/analytics/answer/10917952",
+          "checked": "2026-11-21",
           "title": "Google Analytics Help — Collect campaign data with custom URLs"
         }
       ]
@@ -143,6 +152,7 @@
       "sources": [
         {
           "url": "https://prsmith.org/sostac/",
+          "checked": "2026-11-21",
           "title": "PR Smith — SOSTAC planning methodology"
         }
       ]
@@ -161,6 +171,7 @@
       "sources": [
         {
           "url": "https://scip.world/ethics/",
+          "checked": "2026-11-21",
           "title": "SCIP — Code of Ethics"
         }
       ]
@@ -182,6 +193,7 @@
       "sources": [
         {
           "url": "https://meddicc.com/meddpicc-sales-methodology-and-process",
+          "checked": "2026-11-21",
           "title": "MEDDICC — MEDDPICC Sales Methodology"
         }
       ]
@@ -203,6 +215,7 @@
       "sources": [
         {
           "url": "https://www.huthwaiteinternational.com/spin-methodology",
+          "checked": "2026-11-21",
           "title": "Huthwaite International — The SPIN Methodology"
         }
       ]
@@ -220,6 +233,7 @@
       "sources": [
         {
           "url": "https://winningbydesign.com/resources/blueprints/the-spiced-framework/",
+          "checked": "2026-11-21",
           "title": "Winning by Design — The SPICED Framework"
         }
       ]
@@ -242,6 +256,7 @@
       "sources": [
         {
           "url": "https://www.netpromotersystem.com/about/measuring-your-net-promoter-score/",
+          "checked": "2026-11-21",
           "title": "Bain & Company — Measuring Your Net Promoter Score"
         }
       ]
@@ -249,6 +264,7 @@
     {
       "id": "saas-billing-metrics",
       "title": "MRR et churn",
+      "title_en": "MRR and churn",
       "category": "Commerce et relation client",
       "kind": "indicateur",
       "brains": [
@@ -264,6 +280,7 @@
       "sources": [
         {
           "url": "https://support.stripe.com/questions/billing-analytics",
+          "checked": "2026-11-21",
           "title": "Stripe Support — Billing analytics"
         }
       ]
@@ -271,6 +288,7 @@
     {
       "id": "sba-market-research",
       "title": "SBA — Étude de marché et analyse concurrentielle",
+      "title_en": "SBA, Market research and competitive analysis",
       "category": "Marketing SEO et mesure des campagnes",
       "kind": "guide",
       "brains": [
@@ -286,6 +304,7 @@
       "sources": [
         {
           "url": "https://www.sba.gov/counseling/plan-your-business/",
+          "checked": "2026-11-21",
           "title": "U.S. Small Business Administration, Plan your business: market research and competitive analysis"
         }
       ]
@@ -304,6 +323,7 @@
       "sources": [
         {
           "url": "https://iabeurope.eu/transparency-consent-framework/",
+          "checked": "2026-11-21",
           "title": "IAB Europe, Transparency and Consent Framework"
         }
       ]
@@ -311,6 +331,7 @@
     {
       "id": "sales-pipeline-stages",
       "title": "Étapes du pipeline commercial",
+      "title_en": "Sales pipeline stages",
       "category": "Commerce et relation client",
       "kind": "guide",
       "brains": [
@@ -325,6 +346,7 @@
       "sources": [
         {
           "url": "https://www.salesforce.com/sales/pipeline/stages/",
+          "checked": "2026-11-21",
           "title": "Salesforce, Sales Pipeline Stages"
         }
       ]
@@ -332,6 +354,7 @@
     {
       "id": "eu-public-procurement-directive",
       "title": "Directive 2014/24/UE sur la passation des marchés publics",
+      "title_en": "Directive 2014/24/EU on public procurement",
       "category": "Commerce et relation client",
       "kind": "réglementation",
       "brains": [
@@ -341,13 +364,18 @@
       ],
       "summary": "Fixe les procédures de passation des marchés publics dans l'UE, les critères d'attribution et les motifs d'exclusion des candidats.",
       "applies_when": "Pour répondre à un appel d'offres public ; vérifier le droit national et les documents de la consultation.",
+      "packs": [
+        "public-sector-accessibility"
+      ],
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/dir/2014/24/oj",
+          "checked": "2026-11-21",
           "title": "Directive 2014/24/UE — Passation des marchés publics"
         },
         {
           "url": "https://single-market-economy.ec.europa.eu/single-market/public-procurement_en",
+          "checked": "2026-11-21",
           "title": "European Commission, Public procurement"
         }
       ]

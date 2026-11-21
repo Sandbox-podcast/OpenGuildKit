@@ -41,19 +41,23 @@
   "sources": [
     {
       "title": "W3C, Internationalization Quick Tips for the Web",
-      "url": "https://www.w3.org/International/quicktips/"
+      "url": "https://www.w3.org/International/quicktips/",
+      "checked": "2026-11-21"
     },
     {
       "title": "RFC 5646 (BCP 47), Tags for Identifying Languages",
-      "url": "https://www.rfc-editor.org/rfc/rfc5646.html"
+      "url": "https://www.rfc-editor.org/rfc/rfc5646.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Unicode CLDR, Common Locale Data Repository",
-      "url": "https://cldr.unicode.org/"
+      "url": "https://cldr.unicode.org/",
+      "checked": "2026-11-21"
     },
     {
       "title": "ICU User Guide, Formatting Messages",
-      "url": "https://unicode-org.github.io/icu/userguide/format_parse/messages/"
+      "url": "https://unicode-org.github.io/icu/userguide/format_parse/messages/",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

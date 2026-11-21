@@ -5,6 +5,7 @@
     {
       "id": "pmbok",
       "title": "PMBOK Guide — huitième édition",
+      "title_en": "PMBOK Guide, eighth edition",
       "edition": "huitième édition (2025)",
       "category": "Gestion de projet",
       "kind": "référentiel",
@@ -16,6 +17,7 @@
       "sources": [
         {
           "url": "https://www.pmi.org/standards/pmbok",
+          "checked": "2026-11-21",
           "title": "PMI — PMBOK Guide"
         }
       ]
@@ -34,6 +36,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/74947.html",
+          "checked": "2026-11-20",
           "title": "ISO 21502:2020 — Project, programme and portfolio management, guidance on project management"
         }
       ]
@@ -57,10 +60,12 @@
       "sources": [
         {
           "url": "https://www.peoplecert.org/news-and-announcements/2023/PRINCE2%207%20-%20A%20Process%20of%20Evolution",
+          "checked": "2026-11-20",
           "title": "PeopleCert, PRINCE2 7: A Process of Evolution"
         },
         {
           "url": "https://www.peoplecert.org/news-and-announcements/2023/prince2-7-applying-universal-principles-for-companies-of-all-sizes",
+          "checked": "2026-11-20",
           "title": "PeopleCert, Applying PRINCE2 7 principles"
         }
       ]
@@ -80,6 +85,7 @@
       "sources": [
         {
           "url": "https://framework.scaledagile.com/",
+          "checked": "2026-11-21",
           "title": "Scaled Agile — SAFe 6.0 Framework"
         }
       ]
@@ -87,6 +93,7 @@
     {
       "id": "critical-path-method",
       "title": "Méthode du chemin critique",
+      "title_en": "Critical path method",
       "category": "Planification",
       "kind": "méthode",
       "brains": [
@@ -101,6 +108,7 @@
       "sources": [
         {
           "url": "https://www.pmi.org/learning/library/critical-path-method-calculations-scheduling-8040",
+          "checked": "2026-11-20",
           "title": "PMI, Critical path method calculations"
         }
       ]
@@ -108,6 +116,7 @@
     {
       "id": "raci",
       "title": "Matrice RACI",
+      "title_en": "RACI matrix",
       "category": "Planification",
       "kind": "méthode",
       "brains": [
@@ -123,6 +132,7 @@
       "sources": [
         {
           "url": "https://www.security.gov.uk/policy-and-guidance/secure-by-design/activities/agreeing-roles-and-responsibilities/",
+          "checked": "2026-11-21",
           "title": "UK Government Security, Agreeing roles and responsibilities with a RACI matrix"
         }
       ]
@@ -130,6 +140,7 @@
     {
       "id": "value-stream-mapping",
       "title": "Value Stream Mapping (cartographie de la chaîne de valeur)",
+      "title_en": "Value Stream Mapping",
       "category": "Amélioration des opérations",
       "kind": "méthode",
       "brains": [
@@ -140,6 +151,7 @@
       "sources": [
         {
           "url": "https://www.lean.org/lexicon-terms/value-stream-mapping/",
+          "checked": "2026-11-21",
           "title": "Lean Enterprise Institute, Value Stream Mapping"
         }
       ]
@@ -147,6 +159,7 @@
     {
       "id": "pdca",
       "title": "Cycle PDCA (Plan, Do, Check, Act)",
+      "title_en": "PDCA cycle (Plan, Do, Check, Act)",
       "category": "Amélioration des opérations",
       "kind": "méthode",
       "brains": [
@@ -158,6 +171,7 @@
       "sources": [
         {
           "url": "https://www.lean.org/lexicon-terms/pdca/",
+          "checked": "2026-11-21",
           "title": "Lean Enterprise Institute — Plan, Do, Check, Act (PDCA)"
         }
       ]

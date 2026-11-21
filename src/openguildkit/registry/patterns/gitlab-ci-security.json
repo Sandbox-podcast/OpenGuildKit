@@ -5,11 +5,13 @@
   "sources": [
     {
       "title": "GitLab CI/CD variables",
-      "url": "https://docs.gitlab.com/ci/variables/"
+      "url": "https://docs.gitlab.com/ci/variables/",
+      "checked": "2026-11-21"
     },
     {
       "title": "GitLab CI/CD YAML syntax reference",
-      "url": "https://docs.gitlab.com/ci/yaml/"
+      "url": "https://docs.gitlab.com/ci/yaml/",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

@@ -43,6 +43,8 @@ Save the first answers and run `task questions ID --answers answers.json`. The C
 |---|---|---|
 | `outcome` | feature, bug, maintenance, other, unsure | The observable result, the expected behaviour and how to reproduce a defect, or what must keep working |
 | `affected` | feature, decision, other or unsure work, customer or business areas, personal or regulated data | Who is affected: users, customers, teams or partners |
+
+In a project with components, `answers.json` can include `"components": ["web"]` to limit the consultation, handoff and checks to that component and the project-wide rules. Use the IDs from the project profile. Leave `components` out to consult for the whole project.
 | `options` | decision | The options on the table and what would make you choose one |
 
 A question is essential for the cases where the boards cannot review without it: the outcome of a feature or a bug, who is affected by a customer-facing change, the options of a decision. A short brief, an `unsure` answer or an unanswered essential question is an **open point**. Open points do not block the consultation: they appear in it, each board says how they affect its recommendation, and the decision brief repeats them. A well-described local bug gets no question about customers or options.
@@ -57,7 +59,7 @@ A question is essential for the cases where the boards cannot review without it:
 }
 ```
 
-`task consult ID --answers answers.json` validates the answers, selects the boards and prints the consultation request in Markdown. Without `--answers`, the CLI asks the questions in the terminal. `task brief ID` prints the same request again later.
+`task consult ID --answers answers.json` validates the answers, selects the boards and prints the consultation request in Markdown. Without `--answers`, the CLI asks the questions in the terminal. `task brief ID` prints the same request again later. After a request for changes, pass `--brief "REVISED BRIEF"` or `--brief-file FILE` to the next consultation. The task keeps its previous brief and decision in the round history, and the next decision brief and approval prompt show why changes were requested.
 
 ### How boards are selected
 
@@ -116,19 +118,20 @@ openguildkit task progress ID                         # done, failed, started or
 openguildkit task review ID --summary "Where the boards agree and disagree, and the next step"
 ```
 
-`task pass` gives each board the project scope, its own brief and its own template entry, nothing from the other boards. `task submit` validates the entry against the template; an invalid entry is recorded as a failed pass with the reason. A pass that was started and never submitted shows as `started`: treat it as interrupted. Run `task pass` again for that board only; the other boards keep their entries. Once every board is done, `task review --summary` assembles the review and records whether the passes ran as subagents, in sequence or both (`execution`). A new consultation starts the passes again. Writing the whole review in one file with `task review --file` still works.
+`task pass` gives each board the project scope, its own brief and its own template entry, nothing from the other boards. `task submit` validates the entry against the template; an invalid entry is recorded as a failed pass with the reason. A pass that was started and never submitted shows as `started`: treat it as interrupted. Run `task pass` again for that board only; the other boards keep their entries. Once every board is done, `task review --summary` assembles the review and records whether the passes ran as subagents, in sequence or both (`execution`). A new consultation starts the passes again. Passes can run at the same time: each `task pass` and `task submit` waits its turn for the project lock, up to 10 seconds by default. Set `OPENGUILDKIT_LOCK_TIMEOUT` to another number of seconds (0 to 3600) when a slow disk or many boards need longer. Writing the whole review in one file with `task review --file` still works.
 
 Rules enforced by `task review ID --file review.json`:
 
 - `consultation_id` must match the current consultation.
 - `summary` and every `recommendation` must contain text.
 - There must be exactly one entry per selected board, and no other board.
-- `evidence` and `open_questions` are lists of non-empty strings (they can be empty lists).
+- `open_questions` is a list of non-empty strings and `evidence` a list of evidence items in the shape of the template's `evidence_item` (both can be empty lists). A `project-file` or `test` item must name a file or folder of the project, and a `date` must be a real day, not in the future.
+- The refusal names the file and lists the problems of every board at once.
 - For a brain, each specialist needs exactly one finding with an evidence basis. An observed finding cites positions in that board's evidence list. A board records its verdict, confidence, alternative, failure mode, verification and blockers.
 
 A well-formed review is recorded, but the CLI adds `warnings` to it when the boards do not look independent: two boards with the same recommendation word for word, the same finding in several lenses, or a board whose every finding is an assumption or missing. The decision brief and the approval prompt list them.
 
-Run `openguildkit task challenge ID` to show how the verdicts differ, what each board recommends and which checks can change the decision. It starts with plain lines: the count of verdicts and a warning when boards say revise, block or insufficient-evidence, the review warnings, the boards added or removed with their reason, the open points of the scoping, the objections never deliberated and each blocker with how it was resolved and the evidence given. The agent shows this brief to the person before implementation.
+Run `openguildkit task challenge ID` to show how the verdicts differ, what each board recommends and which checks can change the decision. It starts with plain lines: the count of verdicts and a warning when boards say revise, block or insufficient-evidence, the review warnings, the boards added or removed with their reason, the open points of the scoping, the objections never deliberated, the verdicts that differ without any objection between them and why, and each blocker with how it was resolved and the evidence given. The agent shows this brief to the person before implementation.
 
 ## 4. Decide
 
@@ -140,7 +143,9 @@ openguildkit task decide request-status --approve --by "Camille Martin" --reason
 
 The CLI prints the same lines as the decision brief (starting with the verdict count), then the brief and the review, the verdict count again, and asks the person to type the task ID, then the name of each sensitive board the agent removed. The approval records the base Git revision and a seal over what was approved; a project that requires signed approvals verifies the approver's SSH signature instead of the typed ID ([details](architecture.md#design-decisions)). Approval fails when stdin is not a terminal, when the typed ID does not match, when the task changed during the decision, when the profile or catalog changed since the consultation, or when `AGENTS.md` is out of date.
 
-A blocker names the finding, its `owner` and `clears_when`, the condition that would clear it. Approval waits until each blocker is resolved:
+A blocker names the finding, its `owner` and `clears_when`, the condition that would clear it. Use a condition you can verify before implementation. If the evidence requires code or a test result from the implementation, set `"phase": "verification"` in the blocker. Approval can proceed while verification blockers are open. The handoff lists them, `task verify` reports them, and `task complete` waits for their resolution.
+
+Use these commands to list and resolve blockers.
 
 ```bash
 openguildkit task blockers ID
@@ -148,7 +153,11 @@ openguildkit task clear ID security:1 --evidence tests/test_access.py --supports
 openguildkit task waive ID security:2 --by "Camille Martin" --reason "Internal pilot only" --scope "Internal users" --until 2026-12-15
 ```
 
-Clearing records the evidence, which must be an existing file or folder of the project or an https link, and whether the command ran at a terminal; `task blockers`, the decision brief and the approval prompt show the evidence and what it supports. A waiver is possible only when the profile allows it, for example `"waivers": {"allowed_by": ["Camille Martin"], "max_days": 30}`; it needs the named person at a terminal, a reason, a scope and an end date within the limit. Otherwise send the task back with `--request-changes`. The handoff lists the cleared blockers and the waivers with their scope and end date. After upgrading the board catalog, run `openguildkit sync` and check whether a pending task needs another consultation under the new rules.
+Clearing records the evidence and what it establishes. Use an existing project file or folder, or an HTTPS link. The record shows whether the command ran at a terminal. A second attempt to resolve the same blocker leaves the first resolution in place. A waiver requires a project waiver policy, the named person at a terminal, a reason, a scope and an end date within the limit. The handoff lists each waiver with its scope and end date.
+
+In a project with signed approvals, use the approver's principal as `--by` for `task clear`. Run the command with `--payload clearance.json`, sign that file with `ssh-keygen -Y sign -n openguildkit-decision -f KEY clearance.json`, then rerun the same command with `--signature clearance.json.sig --signer PRINCIPAL` in place of `--payload`. The signature covers the blocker, its consultation, the evidence and what it establishes.
+
+After upgrading the board catalog, run `openguildkit sync` and check whether a pending task needs another consultation under the new rules.
 
 To send the task back:
 
@@ -184,23 +193,25 @@ openguildkit task handoff request-status
 
 The handoff exists only for approved tasks whose fingerprint still matches the project. If the profile or catalog changed after approval, the handoff fails and the task cannot be consulted again: open a new task for the same work. It contains the approval (who and why), the approved scope snapshot with the rules in force, and the board review. The agent implements that scope, runs the project checks and brings any scope change back to the person.
 
-A task answered with `kind: decision` asks for a recommendation. Its handoff is an **approved decision record**: the same approval, scope and review, with an instruction to report the decision and leave the project unchanged. To act on the decision, open a new task that cites it, so the implementation scope gets its own consultation and approval.
+A task answered with `kind: decision` asks for a recommendation. Its handoff contains the approved decision, scope and review. `task result --template` lists its acceptance criterion when the answers name an outcome. The approval already records the process evidence, so the decision has no implementation checks to fill in. After recording the criterion, run `task complete`. When the answers give no outcome, you can complete the task directly.
+
+If tracked project files differ from the approved Git revision, the CLI asks for the delivery revision or pull request. It ignores the exported decision records. `task complete` gives the `task new --follows` command so that applying the decision gets its own review and approval.
 
 ## 6. Report the results
 
 After implementing an approved task, the agent proves what was delivered:
 
 ```bash
-openguildkit task checks ID            # the expected checks: project commands and the rules of the active packs
-openguildkit task verify ID            # runs the project's check commands and keeps each log as evidence
-openguildkit task result ID --template > result.json   # the criteria and rule checks to report, ready to fill
+openguildkit task checks ID            # the expected checks: project commands, pack rules and their named evidence
+openguildkit task verify ID            # runs the check commands and the rules' machine checks, with their evidence
+openguildkit task result ID --template > result.json   # the criteria, rule checks and named evidence to report
 openguildkit task result ID --file result.json
 openguildkit task complete ID
 ```
 
-`task verify` runs only the commands listed in the profile's `checks`, in the project root, and records each exit code with its log under `.openguildkit/tasks/`. `result.json` names the delivered `revision` or `pull_request`, the acceptance `criteria` (`met` or `not-met`, with evidence) and an outcome for each rule: `passed` or `failed` with evidence, or `skipped` or `not-applicable` with a reason and an owner. Later reports update earlier outcomes check by check. Only `task verify` records the command checks (`command:N`) and only `task verify --chaosfolk` the replays (`chaosfolk:*`): `task result` refuses them, and refuses a `passed` check with a non-zero `exit_code`. When the task's answers name an `outcome`, the result needs at least one criterion. `task verify`, `task result` and `task complete` refuse a task whose record no longer matches its approval or whose rules changed, as the handoff does.
+`task verify` runs the commands listed in the profile's `checks`, in the project root, and records each exit code with its log under `.openguildkit/tasks/`. It also evaluates every rule that declares a machine check (a file that exists, a text present or absent, a field of a JSON or TOML file, or a command from the project's own catalog; see [catalog format](catalog-format.md#machine-checks-and-named-evidence)) and records its outcome with what it found, such as `export.json: downloadLinkMinutes = 90 (above 60).`; `task result` cannot report these checks. `result.json` names the delivered `revision` or `pull_request`, the acceptance `criteria` (`met` or `not-met`, with evidence) and an outcome for each rule: `passed` or `failed` with evidence, or `skipped` or `not-applicable` with a reason and an owner. Later reports update earlier outcomes check by check. Only `task verify` records the command checks (`command:N`) and only `task verify --chaosfolk` the replays (`chaosfolk:*`): `task result` refuses them, and refuses a `passed` check with a non-zero `exit_code`. When the task's answers name an `outcome`, the result needs at least one criterion. Failed commands show the end of their output and the log path. The handoff lists project commands and reminds the implementer to install their dependencies and prepare the required services. If a named command cannot run in the current environment, a person can record the reservation in an interactive terminal with `openguildkit task verify ID --unavailable "command:1=Dependencies unavailable offline" --by "Project owner"`. That command is recorded as skipped with the reason and owner, and the reservation appears when the task is completed. Other checks still have to meet their requirements. Each refusal names the file, the accepted values and `task result ID --template`. `task verify`, `task result` and `task complete` refuse a task whose record no longer matches its approval or whose rules changed, as the handoff does.
 
-Every project command is mandatory. A profile can make rules mandatory too with `"required_rules": ["secure-sdlc", "python/run-tests"]`. `task complete` sets the task to `done` only when every mandatory check passed, every other check is reported and every criterion is met; otherwise it lists what is missing.
+A rule can name evidence kept outside the code, such as the record of processing activities. Every task answers each one: `task result --template` lists it as `evidence:PACK/RULE/ID` with its name, whether it must be supplied and how to answer. The result supplies it as `passed` with a project path that exists or an `https://` link, or declares it `not-applicable` with a reason and an owner. It must be supplied when the profile's `required_rules` lists its rule or pack, or when it applies to the task's `data` answer (the GDPR record of processing activities and DPIA decision for personal, regulated or unsure data). `task export` lists the evidence declared not applicable, with its reason and owner, in the decision record for the reviewer. Every project command is mandatory. A profile can make rules mandatory too with `"required_rules": ["secure-sdlc", "python/run-tests"]`. `task complete` requires each mandatory check to pass or, for a project command, have a confirmed environment reservation. Every other check needs a reported result and every criterion must be met. If the completed task leaves points open (a skipped rule, an unavailable project command, a waived blocker or an unresolved disagreement), `task complete` lists them and gives the command for a linked follow-up: `openguildkit task new "BRIEF" --follows ID`.
 
 ## Dependency alerts
 
@@ -224,7 +235,9 @@ openguildkit task new "Add request history" --follows request-status
 openguildkit task export request-status --output shared/request-status.json
 ```
 
-`task list` gives each task's next open point: questions to answer, board reviews pending, blockers to resolve, a decision awaited, results to record. `--follows` links a new task to an earlier decision: the consultation carries that decision so the boards see what was already agreed. `task export` writes a record the team can share: the brief, each board's verdict and the sealed approval, without evidence, findings or internal notes.
+`task list` gives each task's next step. For a task approved under earlier rules, `task list`, `task show` and `check` give the command for opening a linked task with `--follows`. `check` also names any exports under earlier rules. `handoff` and `export` refuse approvals whose rules or seal have changed. `task list` marks an unreadable task record so the team can restore it from a backup.
+
+`task export` writes the brief, the board recommendations and verdicts, the sealed approval, and the decisions from earlier review rounds. It includes the recorded reasons and owners for checks marked skipped or not applicable. Review the file before sharing it. Detailed evidence and specialist findings stay in the local task record.
 
 ## Inspecting a task
 

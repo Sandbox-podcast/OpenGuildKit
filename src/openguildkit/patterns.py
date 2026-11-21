@@ -4,6 +4,8 @@ import re
 import unicodedata
 from collections import Counter
 
+from .stack_versions import STACK_VERSION, version_key, version_lower_bound
+
 ROLE_TITLES = {
     "communication": "Communication",
     "data": "Data and AI / Données et IA",
@@ -34,7 +36,6 @@ ROLE_TITLES = {
     "trust-and-safety": "Trust and safety / Confiance et sécurité des contenus",
 }
 
-_VERSION_SUFFIX = re.compile(r"(?:@|\s+)v?(\d+(?:\.\d+)*)(?:[-+][\w.-]+)?$", flags=re.IGNORECASE)
 VERSION_PATTERN = re.compile(r"\d+(?:\.\d+){0,3}")
 
 
@@ -47,7 +48,7 @@ def role_choices(patterns: dict) -> dict[str, dict]:
 
 
 def technology_key(text: str) -> str:
-    name = _VERSION_SUFFIX.sub("", text.strip())
+    name = STACK_VERSION.sub("", text.strip())
     normalized = unicodedata.normalize("NFKD", name.casefold())
     return "".join(character for character in normalized if character.isalnum() or character in "+#")
 
@@ -56,18 +57,13 @@ _technology_key = technology_key
 
 
 def technology_version(text: str) -> str | None:
-    """Return the version written after a technology name, as in "Next.js 14.2" or "Postgres@16"."""
-    match = _VERSION_SUFFIX.search(text.strip())
-    return match.group(1) if match else None
-
-
-def _version_tuple(version: str) -> tuple[int, ...]:
-    parts = [int(part) for part in version.split(".")]
-    return tuple(parts + [0] * (4 - len(parts)))
+    """Return the numeric lower bound of a version or range written after the technology name."""
+    match = STACK_VERSION.search(text.strip())
+    return version_lower_bound(match.group(1)) if match else None
 
 
 def version_at_least(version: str, minimum: str) -> bool:
-    return _version_tuple(version) >= _version_tuple(minimum)
+    return version_key(version) >= version_key(minimum)
 
 
 def stack_contexts(stack: list[str], components: list[dict] | None) -> list[dict]:
@@ -101,51 +97,112 @@ def _match_context(pattern: dict, technologies: list[str]) -> dict | None:
     return {"matched_stack": matched_stack, "version_unknown": unknown, "conflicts": conflicts}
 
 
-def recommend_patterns(
-    catalog: dict, stack: list[str], sector: str, roles: list[str], components: list[dict] | None = None
-) -> dict:
-    """Return matching technology patterns alongside methods the team can choose.
+def _stack_scopes(pattern: dict, contexts: list[dict], excluded: list[dict]) -> dict | None:
+    """Match a stack pattern in each context; record version conflicts in `excluded`."""
+    scopes, matched_stack, unknown = [], [], []
+    for context in contexts:
+        result = _match_context(pattern, context["stack"])
+        if result is None:
+            continue
+        if result["conflicts"]:
+            excluded.append({"id": pattern["id"], "component": context["id"], "reasons": result["conflicts"]})
+            continue
+        scopes.append(context["id"])
+        matched_stack.extend(item for item in result["matched_stack"] if item not in matched_stack)
+        unknown.extend(item for item in result["version_unknown"] if item not in unknown)
+    if not scopes:
+        return None
+    return {"scopes": scopes, "matched_stack": matched_stack, "version_unknown": unknown}
 
-    With components, every technology group of a pattern must match inside the same
-    component. A pattern whose minimum version is not met is listed in `excluded`.
+
+def is_stack_pattern(pattern: dict) -> bool:
+    return bool(pattern.get("match", {}).get("stack"))
+
+
+def condition_reasons(pattern: dict, sector: str, personal_data: bool | None) -> list[str]:
+    """Why a pattern without a stack is preselected: the project's sector or its personal data.
+
+    A personal data pattern is never preselected for a project that answered it processes none.
+    """
+    match = pattern.get("match", {})
+    if match.get("personal_data") and personal_data is False:
+        return []
+    reasons = []
+    if sector in match.get("sectors", []):
+        reasons.append(f"sector {sector}")
+    if match.get("personal_data") and personal_data is True:
+        reasons.append("personal data")
+    return reasons
+
+
+def _role_reason(roles: list[str]) -> str:
+    return f"role {', '.join(roles)}"
+
+
+def _conflicting(entry: dict, others: list[dict], packs: dict) -> bool:
+    """True when a pack of the entry is declared incompatible with a pack of another entry."""
+    own = set(entry["packs"])
+    for other in others:
+        if other is entry:
+            continue
+        for pack_id in other["packs"]:
+            declared = set(packs.get(pack_id, {}).get("conflicts_with", []))
+            if declared & own or any(pack_id in packs.get(item, {}).get("conflicts_with", []) for item in own):
+                return True
+    return False
+
+
+def recommend_patterns(
+    catalog: dict, stack: list[str], sector: str, roles: list[str], components: list[dict] | None = None,
+    *, personal_data: bool | None = None, declined: list[str] | tuple = (),
+) -> dict:
+    """Return the patterns to preselect and the ones to suggest, each with its reasons.
+
+    A stack pattern is preselected when its technologies match, inside one component when
+    there are components, and in its sectors when it lists some. A pattern without a stack is
+    preselected for the sectors it lists or for personal data; otherwise a method is preselected
+    for its roles, while a regulation is only suggested to them. Declined patterns are left out.
     """
     contexts = stack_contexts(stack, components)
     applicable = []
     suggested = []
     excluded = []
     for pattern in catalog["patterns"].values():
-        match = pattern.get("match")
-        if match is None:
-            relevant = [role for role in pattern["roles"] if role in roles]
-            if relevant:
-                suggested.append({**pattern, "matched_roles": relevant})
+        if pattern["id"] in declined:
             continue
-        if match.get("sectors") and sector not in match["sectors"]:
-            continue
-        scopes, matched_stack, unknown = [], [], []
-        for context in contexts:
-            result = _match_context(pattern, context["stack"])
-            if result is None:
+        match = pattern.get("match", {})
+        relevant = [role for role in pattern["roles"] if role in roles]
+        if is_stack_pattern(pattern):
+            if match.get("sectors") and sector not in match["sectors"]:
                 continue
-            if result["conflicts"]:
-                excluded.append({"id": pattern["id"], "component": context["id"], "reasons": result["conflicts"]})
+            found = _stack_scopes(pattern, contexts, excluded)
+            if found is None:
+                # A regulation that a stack preselects is still suggested to its roles without that stack.
+                if relevant and pattern.get("kind") == "regulation":
+                    suggested.append({**pattern, "matched_roles": relevant, "reasons": [_role_reason(relevant)]})
                 continue
-            scopes.append(context["id"])
-            matched_stack.extend(item for item in result["matched_stack"] if item not in matched_stack)
-            unknown.extend(item for item in result["version_unknown"] if item not in unknown)
-        if not scopes:
+            entry = {**pattern, "matched_stack": found["matched_stack"]}
+            entry["reasons"] = [f"stack {', '.join(found['matched_stack'])}"]
+            if components:
+                entry["components"] = found["scopes"]
+            if found["version_unknown"]:
+                entry["version_unknown"] = found["version_unknown"]
+            applicable.append(entry)
             continue
-        entry = {**pattern, "matched_stack": matched_stack}
-        if components:
-            entry["components"] = scopes
-        if unknown:
-            entry["version_unknown"] = unknown
-        applicable.append(entry)
+        reasons = condition_reasons(pattern, sector, personal_data)
+        if reasons:
+            applicable.append({**pattern, "reasons": reasons, **({"matched_roles": relevant} if relevant else {})})
+        elif relevant and not match and pattern.get("kind") != "regulation":
+            applicable.append({**pattern, "reasons": [_role_reason(relevant)], "matched_roles": relevant, "by_role": True})
+        elif relevant:
+            suggested.append({**pattern, "matched_roles": relevant, "reasons": [_role_reason(relevant)]})
 
     exclusive = Counter(pattern["exclusive_group"] for pattern in applicable if "exclusive_group" in pattern)
     matched = []
     for pattern in applicable:
-        if exclusive[pattern.get("exclusive_group")] > 1:
+        by_role = pattern.pop("by_role", False)
+        competing = exclusive[pattern.get("exclusive_group")] > 1
+        if competing or (by_role and _conflicting(pattern, applicable, catalog.get("packs", {}))):
             suggested.append({**pattern, "choice_required": True})
         else:
             matched.append(pattern)
@@ -164,7 +221,7 @@ def patterns_to_review(profile: dict, catalog: dict) -> list[dict]:
     plan = recommend_patterns(
         catalog, profile.get("stack", []), profile["sector"], profile.get("roles", []), profile.get("components")
     )
-    matched = {pattern["id"]: pattern for pattern in plan["matched"] + plan["suggested"] if "match" in pattern}
+    matched = {pattern["id"]: pattern for pattern in plan["matched"] + plan["suggested"] if is_stack_pattern(pattern)}
     excluded = {}
     for item in plan["excluded"]:
         excluded.setdefault(item["id"], []).extend(item["reasons"])
@@ -172,7 +229,7 @@ def patterns_to_review(profile: dict, catalog: dict) -> list[dict]:
     for entry in profile.get("patterns", []):
         pattern_id, scope = pattern_selection(entry)
         pattern = catalog["patterns"].get(pattern_id)
-        if pattern is None or "match" not in pattern:
+        if pattern is None or not is_stack_pattern(pattern):
             continue
         current = matched.get(pattern_id)
         if current is None:

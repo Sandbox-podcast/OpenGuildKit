@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  # Use a separate group for each pull request and each push to main.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -63,6 +68,19 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build the web interface into the package
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+          npm run bundle
+
       - name: Build
         run: |
           python -m pip install build
@@ -86,6 +104,7 @@ jobs:
           "$bin/openguildkit" integrations --host claude-code
           test -f .claude/skills/openguildkit/SKILL.md
           test -f .claude/agents/guild-board.md
+          "$bin/python" -c "import openguildkit.webui as w; front = w.find_front_end(None); assert front and (front / 'index.html').is_file(), front; print(front)"
 
   ci-coordinator:
     name: CI coordinator on ${{ matrix.os }}
@@ -105,18 +124,72 @@ jobs:
       - run: npm test
       - run: npm pack --dry-run
 
+  web:
+    name: Web app
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  # The journeys of the demo and of the project interface (openguildkit ui on sample projects), in the
+  # Chrome the runner already has. Not yet required by contribution-checks: add it there once it has
+  # passed on main.
+  web-e2e:
+    name: Web journeys
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    env:
+      PW_CHANNEL: chrome
+      OGK_PYTHON: python
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - name: Demo journeys
+        run: npm run e2e
+      - name: Project interface journeys
+        run: npm run e2e:project
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: playwright-results
+          path: web/test-results
+          retention-days: 7
+
   contribution-checks:
     name: contribution-checks
-    if: ${{ always() }}
-    needs: [test, package, ci-coordinator]
+    if: ${{ !cancelled() }}
+    needs: [test, package, ci-coordinator, web]
     runs-on: ubuntu-latest
     permissions: {}
     steps:
-      - name: Require the matrix and wheel checks to pass
+      - name: Require all checks to pass
         env:
           TEST_RESULT: ${{ needs.test.result }}
           PACKAGE_RESULT: ${{ needs.package.result }}
           COORDINATOR_RESULT: ${{ needs.ci-coordinator.result }}
+          WEB_RESULT: ${{ needs.web.result }}
         run: |
-          printf 'Tests: %s\nWheel: %s\nCI coordinator: %s\n' "$TEST_RESULT" "$PACKAGE_RESULT" "$COORDINATOR_RESULT"
-          test "$TEST_RESULT" = success && test "$PACKAGE_RESULT" = success && test "$COORDINATOR_RESULT" = success
+          printf 'Tests: %s\nWheel: %s\nCI coordinator: %s\nWeb: %s\n' "$TEST_RESULT" "$PACKAGE_RESULT" "$COORDINATOR_RESULT" "$WEB_RESULT"
+          test "$TEST_RESULT" = success && test "$PACKAGE_RESULT" = success && test "$COORDINATOR_RESULT" = success && test "$WEB_RESULT" = success

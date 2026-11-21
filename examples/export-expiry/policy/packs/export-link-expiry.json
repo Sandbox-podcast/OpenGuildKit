@@ -8,7 +8,12 @@
     {
       "id": "export-link-expiry",
       "check": {
-        "max_minutes": 60
+        "kind": "field",
+        "path": "export.json",
+        "field": "downloadLinkMinutes",
+        "integer": true,
+        "min": 1,
+        "max": 60
       }
     }
   ]

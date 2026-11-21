@@ -6,27 +6,33 @@
   "sources": [
     {
       "title": "Android Developers, meet Google Play's target API level requirement",
-      "url": "https://developer.android.com/google/play/requirements/target-sdk"
+      "url": "https://developer.android.com/google/play/requirements/target-sdk",
+      "checked": "2026-11-21"
     },
     {
       "title": "Android Developers, android:exported risk",
-      "url": "https://developer.android.com/privacy-and-security/risks/android-exported"
+      "url": "https://developer.android.com/privacy-and-security/risks/android-exported",
+      "checked": "2026-11-21"
     },
     {
       "title": "Android Developers, network security configuration",
-      "url": "https://developer.android.com/privacy-and-security/security-config"
+      "url": "https://developer.android.com/privacy-and-security/security-config",
+      "checked": "2026-11-21"
     },
     {
       "title": "Android Developers, request runtime permissions",
-      "url": "https://developer.android.com/training/permissions/requesting"
+      "url": "https://developer.android.com/training/permissions/requesting",
+      "checked": "2026-11-21"
     },
     {
       "title": "Android Developers, enable app optimization",
-      "url": "https://developer.android.com/topic/performance/app-optimization/enable-app-optimization"
+      "url": "https://developer.android.com/topic/performance/app-optimization/enable-app-optimization",
+      "checked": "2026-11-21"
     },
     {
       "title": "Android Developers, improve your code with lint checks",
-      "url": "https://developer.android.com/studio/write/lint"
+      "url": "https://developer.android.com/studio/write/lint",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

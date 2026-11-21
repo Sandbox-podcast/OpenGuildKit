@@ -7,8 +7,6 @@ sidebar_position: 1
 
 # Show signed-in users the status and next step of their support requests
 
-Show signed-in users the status and next step of their support requests.
-
 ## Behaviour
 
 - Signed-in customers see the status and next step of each request they opened.
@@ -17,7 +15,7 @@ Show signed-in users the status and next step of their support requests.
 
 ## Verification
 
-1 check(s) passed before release.
+1 check(s) passed, 28 not applicable, 0 failed, 0 skipped. 4 disagreement(s) remained open.
 
 ## Source
 

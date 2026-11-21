@@ -1,13 +1,17 @@
 {
   "id": "dora",
   "title": "DORA ICT risk evidence",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "Questions for the ICT risk owner and evidence checks for financial entities under Regulation (EU) 2022/2554 (DORA). Apply the entity's approved interpretation and its competent authority's guidance; these rules do not establish compliance.",
   "sources": [
     {
       "title": "Regulation (EU) 2022/2554, Digital Operational Resilience Act",
-      "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/fra"
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/fra",
+      "checked": "2026-11-20"
     }
+  ],
+  "depends_on": [
+    "incident-notification"
   ],
   "rules": [
     {
@@ -18,7 +22,13 @@
     {
       "id": "update-ict-asset-inventory",
       "instruction": "Add the new or changed ICT assets, the business functions they support and their dependencies to the inventory the entity keeps under Art. 8.",
-      "verification": "Find the inventory entry of each new component with its owner, classification and dependencies."
+      "verification": "Find the inventory entry of each new component with its owner, classification and dependencies.",
+      "evidence": [
+        {
+          "id": "ict-asset-inventory",
+          "title": "Inventory of ICT assets and the business functions they support"
+        }
+      ]
     },
     {
       "id": "test-backup-restoration",
@@ -31,14 +41,15 @@
       "verification": "Open the incident template and check that it records each Art. 18 criterion."
     },
     {
-      "id": "name-major-incident-reporter",
-      "instruction": "Ask the compliance owner who reports major ICT-related incidents to the competent authority under Art. 19, and record that person in the incident runbook.",
-      "verification": "Open the incident runbook and check that it names the reporter and the reporting steps."
-    },
-    {
       "id": "register-ict-third-party",
       "instruction": "When the change adds an ICT third-party service, ask the procurement owner to add the contractual arrangement to the register of information (Art. 28(3)).",
-      "verification": "Check that the register lists the provider, the service and the business functions it supports."
+      "verification": "Check that the register lists the provider, the service and the business functions it supports.",
+      "evidence": [
+        {
+          "id": "register-of-information",
+          "title": "Register of information on ICT third-party contractual arrangements"
+        }
+      ]
     },
     {
       "id": "review-ict-contract-terms",

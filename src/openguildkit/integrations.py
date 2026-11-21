@@ -1,8 +1,8 @@
 """Install the agent skill and the subagents (board, market analyst, dependency watch) shipped with this version."""
 
-from importlib.resources import files
 from pathlib import Path
 
+from .catalog import package_file
 from .lock import package_version
 from .storage import write_text
 
@@ -16,12 +16,21 @@ HOST_FILES = {
     "codex": {
         "skills/openguildkit/SKILL.md": Path(".agents") / "skills" / "openguildkit" / "SKILL.md",
     },
+    # Other agents: the folder of the Agent Skills format, which Codex and other agents read.
+    "other": {
+        "skills/openguildkit/SKILL.md": Path(".agents") / "skills" / "openguildkit" / "SKILL.md",
+    },
 }
+OTHER_HOST_NOTE = (
+    "Other agents: the skill is in .agents/skills/openguildkit/, the folder of the Agent Skills format. "
+    "If your agent reads its skills or instructions from another folder, copy SKILL.md there; "
+    "AGENTS.md already carries the same workflow."
+)
 VERSION_FILE = "openguildkit-version.txt"
 
 
 def packaged_file(name: str) -> str:
-    return files("openguildkit").joinpath("agent_files", *name.split("/")).read_text(encoding="utf-8")
+    return package_file("agent_files", *name.split("/")).read_text(encoding="utf-8")
 
 
 def install_agent_files(base: Path, host: str, force: bool = False) -> list[dict]:

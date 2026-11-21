@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "GitHub Actions secure use",
-      "url": "https://docs.github.com/en/actions/reference/security/secure-use"
+      "url": "https://docs.github.com/en/actions/reference/security/secure-use",
+      "checked": "2026-11-21"
     },
     {
       "title": "GitHub Actions OpenID Connect",
-      "url": "https://docs.github.com/en/actions/concepts/security/openid-connect"
+      "url": "https://docs.github.com/en/actions/concepts/security/openid-connect",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

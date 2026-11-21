@@ -6,15 +6,18 @@
   "sources": [
     {
       "title": "Spring Boot externalized configuration",
-      "url": "https://docs.spring.io/spring-boot/reference/features/external-config.html"
+      "url": "https://docs.spring.io/spring-boot/reference/features/external-config.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Spring Boot application testing",
-      "url": "https://docs.spring.io/spring-boot/reference/testing/spring-boot-applications.html"
+      "url": "https://docs.spring.io/spring-boot/reference/testing/spring-boot-applications.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Spring Framework transactional annotations",
-      "url": "https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html"
+      "url": "https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html",
+      "checked": "2026-11-21"
     }
   ],
   "depends_on": [

@@ -6,27 +6,33 @@
   "sources": [
     {
       "title": "Django migrations",
-      "url": "https://docs.djangoproject.com/en/6.1/topics/migrations/"
+      "url": "https://docs.djangoproject.com/en/6.1/topics/migrations/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Django deployment checklist",
-      "url": "https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/"
+      "url": "https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Django ModelForm, selecting the fields to use",
-      "url": "https://docs.djangoproject.com/en/6.1/topics/forms/modelforms/"
+      "url": "https://docs.djangoproject.com/en/6.1/topics/forms/modelforms/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Django security overview",
-      "url": "https://docs.djangoproject.com/en/6.1/topics/security/"
+      "url": "https://docs.djangoproject.com/en/6.1/topics/security/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Django database access optimization",
-      "url": "https://docs.djangoproject.com/en/6.1/topics/db/optimization/"
+      "url": "https://docs.djangoproject.com/en/6.1/topics/db/optimization/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Django django-admin and manage.py reference",
-      "url": "https://docs.djangoproject.com/en/6.1/ref/django-admin/"
+      "url": "https://docs.djangoproject.com/en/6.1/ref/django-admin/",
+      "checked": "2026-11-21"
     }
   ],
   "depends_on": [

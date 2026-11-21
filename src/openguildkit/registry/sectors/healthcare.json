@@ -1,0 +1,28 @@
+{
+  "id": "healthcare",
+  "title": "Healthcare",
+  "description": "Adapt reviews to software that processes health data or serves care providers, patients or medical devices in the EU.",
+  "context": [
+    "Ask the privacy owner whether the product processes data concerning health (GDPR Art. 9) and for which controller. This sector preselects the health-data-protection pattern.",
+    "Ask the regulatory owner whether a feature has a medical purpose that makes it medical device software under Regulation (EU) 2017/745 before writing its claims or its interface text.",
+    "When the product stores or exchanges electronic health records, ask which priority categories of Regulation (EU) 2025/327 (EHDS) it processes and from which date Art. 105 applies them.",
+    "National rules apply on top of EU law, such as the French rules on health data hosting (HDS): ask the compliance owner which ones bind the hosting and the customers."
+  ],
+  "sources": [
+    {
+      "title": "Regulation (EU) 2016/679, General Data Protection Regulation",
+      "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "MDCG 2019-11 rev.1, Qualification and classification of software in Regulation (EU) 2017/745 and Regulation (EU) 2017/746 (June 2025)",
+      "url": "https://health.ec.europa.eu/document/download/b45335c5-1679-4c71-a91c-fc7a4d37f12b_en?filename=mdcg_2019_11_en.pdf",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "Regulation (EU) 2025/327, European Health Data Space",
+      "url": "https://eur-lex.europa.eu/eli/reg/2025/327/oj/eng",
+      "checked": "2026-11-21"
+    }
+  ]
+}

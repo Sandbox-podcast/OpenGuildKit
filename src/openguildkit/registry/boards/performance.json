@@ -40,19 +40,23 @@
   "sources": [
     {
       "title": "Google, Web Vitals",
-      "url": "https://web.dev/articles/vitals"
+      "url": "https://web.dev/articles/vitals",
+      "checked": "2026-11-21"
     },
     {
       "title": "React Profiler reference",
-      "url": "https://react.dev/reference/react/Profiler"
+      "url": "https://react.dev/reference/react/Profiler",
+      "checked": "2026-11-21"
     },
     {
       "title": "Google SRE, Monitoring Distributed Systems",
-      "url": "https://sre.google/sre-book/monitoring-distributed-systems/"
+      "url": "https://sre.google/sre-book/monitoring-distributed-systems/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Google SRE Workbook, Managing Load",
-      "url": "https://sre.google/workbook/managing-load/"
+      "url": "https://sre.google/workbook/managing-load/",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

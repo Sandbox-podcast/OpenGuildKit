@@ -20,6 +20,7 @@
       "sources": [
         {
           "url": "https://www.designcouncil.org.uk/resources/the-double-diamond/",
+          "checked": "2026-11-21",
           "title": "The Double Diamond - Design Council"
         }
       ]
@@ -38,6 +39,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/77520.html",
+          "checked": "2026-11-20",
           "title": "ISO 9241-210:2019 - Ergonomics of human-system interaction — Part 210: Human-centred design for interactive systems"
         }
       ]
@@ -56,6 +58,7 @@
       "sources": [
         {
           "url": "https://committee.iso.org/standard/63500.html",
+          "checked": "2026-11-21",
           "title": "ISO 9241-11:2018 - Ergonomics of human-system interaction — Part 11: Usability: Definitions and concepts"
         }
       ]
@@ -63,6 +66,7 @@
     {
       "id": "nielsen-heuristics",
       "title": "Heuristiques de Nielsen",
+      "title_en": "Nielsen's usability heuristics",
       "category": "Design UX et systèmes de composants",
       "kind": "principe",
       "brains": [
@@ -73,6 +77,7 @@
       "sources": [
         {
           "url": "https://www.nngroup.com/articles/ten-usability-heuristics/",
+          "checked": "2026-11-21",
           "title": "10 Usability Heuristics for User Interface Design - NN/G"
         }
       ]
@@ -92,6 +97,7 @@
       "sources": [
         {
           "url": "https://research.google/pubs/measuring-the-user-experience-on-a-large-scale-user-centered-metrics-for-web-applications/",
+          "checked": "2026-11-21",
           "title": "Measuring the User Experience on a Large Scale: User-Centered Metrics for Web Applications"
         }
       ]
@@ -109,6 +115,7 @@
       "sources": [
         {
           "url": "https://atomicdesign.bradfrost.com/chapter-2/",
+          "checked": "2026-11-21",
           "title": "Brad Frost — Atomic Design, chapter 2: Atomic Design Methodology"
         }
       ]
@@ -128,6 +135,7 @@
       "sources": [
         {
           "url": "https://www.designtokens.org/tr/2025.10/format/",
+          "checked": "2026-11-21",
           "title": "Design Tokens Format Module 2025.10"
         }
       ]
@@ -145,6 +153,7 @@
       "sources": [
         {
           "url": "https://m3.material.io/",
+          "checked": "2026-11-21",
           "title": "Google — Material Design 3"
         }
       ]
@@ -162,6 +171,7 @@
       "sources": [
         {
           "url": "https://developer.apple.com/design/human-interface-guidelines",
+          "checked": "2026-11-21",
           "title": "Apple Developer — Human Interface Guidelines"
         }
       ]
@@ -179,6 +189,7 @@
       "sources": [
         {
           "url": "https://fluent2.microsoft.design/",
+          "checked": "2026-11-21",
           "title": "Microsoft — Fluent 2 Design System"
         }
       ]
@@ -196,6 +207,7 @@
       "sources": [
         {
           "url": "https://www.carbondesignsystem.com/",
+          "checked": "2026-11-21",
           "title": "IBM — Carbon Design System"
         }
       ]
@@ -213,6 +225,7 @@
       "sources": [
         {
           "url": "https://design-system.service.gov.uk/",
+          "checked": "2026-11-21",
           "title": "GOV.UK Design System"
         }
       ]
@@ -220,6 +233,7 @@
     {
       "id": "dsfr",
       "title": "Système de Design de l'État",
+      "title_en": "French State Design System (DSFR)",
       "category": "Design UX et systèmes de composants",
       "kind": "référentiel",
       "brains": [
@@ -230,6 +244,7 @@
       "sources": [
         {
           "url": "https://www.systeme-de-design.gouv.fr/",
+          "checked": "2026-11-20",
           "title": "Système de Design de l’État"
         }
       ]
@@ -249,6 +264,7 @@
       "sources": [
         {
           "url": "https://storybook.js.org/docs",
+          "checked": "2026-11-21",
           "title": "Storybook docs — Get started with Storybook"
         }
       ]
@@ -256,6 +272,7 @@
     {
       "id": "wcag-22",
       "title": "WCAG 2.2",
+      "title_en": "Web Content Accessibility Guidelines (WCAG) 2.2",
       "edition": "2.2",
       "category": "Accessibilité numérique",
       "kind": "spécification",
@@ -273,6 +290,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/TR/WCAG22/",
+          "checked": "2026-11-20",
           "title": "W3C — Web Content Accessibility Guidelines (WCAG) 2.2"
         }
       ]
@@ -293,6 +311,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/TR/wai-aria/",
+          "checked": "2026-11-20",
           "title": "Accessible Rich Internet Applications (WAI-ARIA) 1.2"
         }
       ]
@@ -311,6 +330,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/WAI/ARIA/apg/",
+          "checked": "2026-11-20",
           "title": "W3C WAI — ARIA Authoring Practices Guide (APG)"
         }
       ]
@@ -318,6 +338,7 @@
     {
       "id": "rgaa",
       "title": "RGAA",
+      "title_en": "French general accessibility framework (RGAA)",
       "category": "Accessibilité numérique",
       "kind": "référentiel",
       "brains": [
@@ -330,6 +351,7 @@
       "sources": [
         {
           "url": "https://accessibilite.numerique.gouv.fr/",
+          "checked": "2026-11-21",
           "title": "Référentiel général d’amélioration de l’accessibilité - RGAA"
         }
       ]
@@ -337,6 +359,7 @@
     {
       "id": "en-301549",
       "title": "EN 301 549",
+      "title_en": "EN 301 549, European accessibility standard for ICT",
       "edition": "V4.1.1",
       "category": "Accessibilité numérique",
       "kind": "norme",
@@ -347,9 +370,13 @@
       ],
       "summary": "Exigences d'accessibilité applicables aux produits et services des technologies de l'information.",
       "applies_when": "Édition et portée à déterminer selon le contrat et le cadre réglementaire ; publication ne signifie pas harmonisation automatique.",
+      "packs": [
+        "public-sector-accessibility"
+      ],
       "sources": [
         {
           "url": "https://www.etsi.org/deliver/etsi_en/301500_301599/301549/04.01.01_60/en_301549v040101p.pdf",
+          "checked": "2026-11-21",
           "title": "EN 301 549 - V4.1.1 - Accessibility requirements for ICT products and services"
         }
       ]
@@ -369,6 +396,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/64599.html",
+          "checked": "2026-11-20",
           "title": "ISO 14289-1:2014 - Document management applications — Electronic document file format enhancement for accessibility — Part 1: Use of ISO 32000-1 (PDF/UA-1)"
         }
       ]
@@ -388,6 +416,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/TR/epub-a11y-11/",
+          "checked": "2026-11-20",
           "title": "EPUB Accessibility 1.1"
         }
       ]

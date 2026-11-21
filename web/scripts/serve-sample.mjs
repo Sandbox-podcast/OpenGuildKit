@@ -1,0 +1,43 @@
+// Builds a fresh sample project and serves it with `openguildkit ui`, for the project end-to-end tests.
+//   node scripts/serve-sample.mjs           (port PW_PROJECT_PORT, 7322 by default)
+//   node scripts/serve-sample.mjs --empty   (a folder without OpenGuildKit, to test the setup)
+// The built front end (npm run build) is served from web/dist. OGK_PYTHON picks the interpreter.
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
+import { delimiter, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const web = join(dirname(fileURLToPath(import.meta.url)), '..');
+const repo = join(web, '..');
+const empty = process.argv.includes('--empty');
+const port = process.env.PW_PROJECT_PORT ?? (empty ? '7323' : '7322');
+const python = process.env.OGK_PYTHON
+  ?? [join(repo, '.venv', 'Scripts', 'python.exe'), join(repo, '.venv', 'bin', 'python')].find((p) => existsSync(p))
+  ?? 'python';
+if (!existsSync(join(web, 'dist', 'index.html'))) {
+  console.error('web/dist is missing: run npm run build first.');
+  process.exit(1);
+}
+// A server left over from an earlier run would answer the tests with another project: refuse a busy port.
+const free = await new Promise((resolve) => { const probe = createServer().once('error', () => resolve(false)).once('listening', () => probe.close(() => resolve(true))).listen(Number(port), '127.0.0.1'); });
+if (!free) {
+  console.error(`Port ${port} is busy: stop the server that uses it, or set PW_PROJECT_PORT.`);
+  process.exit(1);
+}
+const env = { ...process.env, PYTHONPATH: [join(repo, 'src'), process.env.PYTHONPATH].filter(Boolean).join(delimiter), PYTHONIOENCODING: 'utf-8' };
+const project = join(mkdtempSync(join(tmpdir(), 'ogk-e2e-')), empty ? 'new-portal' : 'portal');
+if (empty) {
+  mkdirSync(project);
+  writeFileSync(join(project, 'package.json'), JSON.stringify({ name: 'new-portal', dependencies: { react: '^19.0.0' } }, null, 2));
+} else {
+  const built = spawnSync(python, [join(web, 'scripts', 'sample-project.py'), project], { env, stdio: 'inherit' });
+  if (built.status !== 0) process.exit(built.status ?? 1);
+}
+const server = spawn(python, ['-m', 'openguildkit', '--project', project, 'ui', '--no-browser', '--port', port, '--static', join(web, 'dist')], { env, stdio: 'inherit' });
+const stop = () => { server.kill(); process.exit(0); };
+process.on('exit', () => server.kill());
+process.on('SIGINT', stop);
+process.on('SIGTERM', stop);
+server.on('exit', (code) => process.exit(code ?? 0));

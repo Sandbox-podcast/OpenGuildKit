@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "PEP 8, Python code style",
-      "url": "https://peps.python.org/pep-0008/"
+      "url": "https://peps.python.org/pep-0008/",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

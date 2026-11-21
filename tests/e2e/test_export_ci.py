@@ -69,7 +69,7 @@ class ExportCiTests(CliTestCase):
         )
         return self.git(repo, "rev-parse", "HEAD")
 
-    def test_node_coordinator_judges_the_shared_cases_alike(self):
+    def test_ci_check_judges_the_cases_shared_with_the_node_coordinator(self):
         fixture = json.loads(PARITY.read_text(encoding="utf-8"))
         policy = self.commit_bytes(self.policy, POLICY, json.dumps(fixture["pack"], indent=2).encode("utf-8"))
         target = self.project / "parity"
@@ -117,7 +117,7 @@ class ExportCiTests(CliTestCase):
         self.assertEqual((before_a["status"], before_b["status"]), ("success", "success"))
 
         self.pack["version"] = "2.0.0"
-        self.pack["rules"][0]["check"]["max_minutes"] = 30
+        self.pack["rules"][0]["check"]["max"] = 30
         updated = self.commit(self.policy, POLICY, self.pack)
         (first / "export.json").write_text('{"downloadLinkMinutes": 10}', encoding="utf-8")
         self.with_policy(updated, "check", expect=1)
@@ -127,12 +127,13 @@ class ExportCiTests(CliTestCase):
         after_a = json.loads(self.evaluate(updated, first, head_a, expect=1).stdout)
         after_b = json.loads(self.evaluate(updated, second, head_b).stdout)
         self.assertEqual((after_a["status"], after_b["status"]), ("failure", "success"))
-        self.assertEqual((after_a["actual_minutes"], after_b["actual_minutes"]), (45, 30))
+        self.assertEqual((after_a["actual"], after_b["actual"]), (45, 30))
+        self.assertIn("above 30", after_a["evidence"])
         instructions = (self.project / "AGENTS.md").read_text(encoding="utf-8")
         for previous, current, head in [(before_a, after_a, head_a), (before_b, after_b, head_b)]:
             self.assertEqual((previous["commit"], current["commit"]), (head, head))
             self.assertEqual((previous["policy_commit"], current["policy_commit"]), (self.original, updated))
-            self.assertEqual(current["max_minutes"], 30)
+            self.assertEqual(current["check"]["max"], 30)
             self.assertIn(current["instruction"], instructions)
             self.assertIn(current["policy_commit"], instructions)
             self.assertIn(current["profile_fingerprint"], instructions)
@@ -143,10 +144,11 @@ class ExportCiTests(CliTestCase):
         head = self.commit(target, "export.json", {"downloadLinkMinutes": True})
         invalid = json.loads(self.evaluate(self.original, target, head, expect=1).stdout)
         self.assertEqual(invalid["status"], "failure")
-        self.assertIsNone(invalid["actual_minutes"])
+        self.assertIs(invalid["actual"], True)
+        self.assertIn("not an integer", invalid["evidence"])
         self.assertIn("full lowercase Git commit SHA", self.evaluate(self.original, target, "HEAD", expect=2).stderr)
         self.assertIn("full lowercase Git commit SHA", self.evaluate("HEAD", target, head, expect=2).stderr)
 
-        self.pack["rules"][0]["check"]["max_minutes"] = True
+        self.pack["rules"][0]["check"] = {"max_minutes": True}
         malformed = self.commit(self.policy, POLICY, self.pack)
         self.assertIn("positive integer max_minutes", self.evaluate(malformed, target, head, expect=2).stderr)

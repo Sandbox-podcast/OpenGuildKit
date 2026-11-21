@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "Regulation (EU) 2024/1689, Artificial Intelligence Act, consolidated text",
-      "url": "https://eur-lex.europa.eu/eli/reg/2024/1689"
+      "url": "https://eur-lex.europa.eu/eli/reg/2024/1689",
+      "checked": "2026-11-20"
     }
   ],
   "roles": [
@@ -16,6 +17,7 @@
   "packs": [
     "eu-ai-act"
   ],
+  "kind": "regulation",
   "references": [
     "eu-ai-act"
   ]

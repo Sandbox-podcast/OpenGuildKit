@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "NIST SP 800-53 Rev. 5, Security and Privacy Controls for Information Systems and Organizations",
-      "url": "https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final"
+      "url": "https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

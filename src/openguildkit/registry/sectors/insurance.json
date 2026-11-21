@@ -1,0 +1,27 @@
+{
+  "id": "insurance",
+  "title": "Insurance",
+  "description": "Adapt reviews to insurers, reinsurers and insurance intermediaries, and to the software that distributes, prices or administers their products in the EU.",
+  "context": [
+    "Ask the compliance owner whether the organization is an insurance undertaking or an intermediary within DORA Art. 2(1)(n) or (o), or excluded by Art. 2(3). This sector preselects the dora-financial-entity and insurance-distribution patterns; decline DORA when it is out of scope.",
+    "Record whether the product distributes insurance, prices risk or handles claims, and which product approval process (IDD Art. 25) governs the products it changes.",
+    "Life and health insurance can use health data and high-risk AI (AI Act Annex III point 5(c)): ask the privacy and legal owners before adding either to pricing or underwriting."
+  ],
+  "sources": [
+    {
+      "title": "Regulation (EU) 2022/2554, Digital Operational Resilience Act",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/eng",
+      "checked": "2026-11-20"
+    },
+    {
+      "title": "Directive (EU) 2016/97 on insurance distribution (IDD)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2016/97/oj/eng",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "European Commission, AI Act Service Desk, Annex III: high-risk AI systems referred to in Article 6(2)",
+      "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/annex-3",
+      "checked": "2026-11-21"
+    }
+  ]
+}

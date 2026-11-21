@@ -1,0 +1,16 @@
+.member-role-select {
+  min-width: 0;
+  max-width: 100%;
+  background: var(--bg-deep);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 4px;
+}
+
+@media (max-width: 760px) {
+  .member-role-select {
+    width: 0;
+    flex: 1;
+    min-height: 36px;
+  }
+}

@@ -23,6 +23,12 @@ To install a published version instead, with its verified wheel and agent files,
 
 The [request status demo](examples/request-status/) creates a temporary project and uses prepared reviews for tracking support requests. Run it in a terminal to compare the findings, approve the scope and see the implementation brief.
 
+### Web interface
+
+`openguildkit ui` opens your project in the browser, on 127.0.0.1: tasks by state, the board consultation and each brain's pass, reviews and blockers, checks and results, dependency alerts, market dossiers, deliverables, tools and MCP servers, documentation exports and shares. Every action runs a CLI command. Approvals, waivers and other decisions that need a person stay in your terminal: the page shows the command to type. [Project interface](web/docs/interface-projet.md)
+
+The same interface runs as a demo without the CLI. Explore Atelier Nova, a fictional software company, and follow a change from project rules and expert reviews through a human decision, a deliverable and its checks. The demo simulates external services and stores changes in your browser. [Run the web demo](web/README.md).
+
 ## The board of brains
 
 Each discipline of a software publisher has a brain: software development, front-end, back-end, security, DevOps, QA, performance, product, design, data and AI, marketing, communication, sales, partnerships, customer support, customer success, finance, procurement, legal and compliance, HR, internal IT, localisation, developer relations and documentation, trust and safety, project management, operations and executive leadership. A brain brings specialist lenses with what an expert of each verifies, the evidence it asks for, the objections it raises, its decision criteria and the methods, rule packs and standards of its discipline.
@@ -31,7 +37,7 @@ For every change, OpenGuildKit convenes the brains it concerns. Each one reviews
 
 ## Set up your project
 
-From your own repository, launch the interactive questionnaire. Pick your stack, sector, rule packs and boards. In an existing repository, `openguildkit detect` proposes your components and versions first, and each pattern applies to the component where its technologies are used.
+From your own repository, launch the interactive questionnaire. It asks your stack, sector, roles and personal data, then each norm they imply (GDPR, DORA, NIS 2...) with the reason it is proposed, for you to keep or decline one by one; then the other patterns, extra rule packs (added to the recommended ones), boards, the tools the company works with, the agent host and the board guard. Every prompt shows what Enter keeps. In an existing repository, `openguildkit detect` proposes your components and versions first, and each pattern applies to the component where its technologies are used.
 
 ```bash
 openguildkit detect
@@ -40,7 +46,7 @@ openguildkit preview
 openguildkit check
 ```
 
-`init` saves the profile in `.openguildkit/project.json` and writes the rules in a managed block in `AGENTS.md`. It adds an import to `CLAUDE.md` for Claude Code. The catalog records in force are pinned in `.openguildkit/catalog.lock.json`: after upgrading OpenGuildKit, `openguildkit update` shows what would change and `openguildkit update --apply` adopts it. [Install the agent skill](integrations/) to answer the questionnaire in Claude Code or Codex and run tasks from the conversation.
+`init` saves the profile in `.openguildkit/project.json` and writes the rules in a managed block in `AGENTS.md`. It adds an import to `CLAUDE.md` for Claude Code. The catalog records in force are pinned in `.openguildkit/catalog.lock.json`: after upgrading OpenGuildKit, `openguildkit update` shows the date of the installed catalog (the day its sources were last checked), how many records changed and what would change, and `openguildkit update --apply` adopts it. It then prints the next steps that apply, such as `openguildkit host apply` for your agent host and `openguildkit tools plan ...` for the tools the registry knows. [Install the agent skill](integrations/) to answer the questionnaire in Claude Code or Codex and run tasks from the conversation.
 
 ```mermaid
 flowchart TB
@@ -52,7 +58,7 @@ flowchart TB
     D -- approve --> H["Implementation brief with scope and checks"]
 ```
 
-With `"guard": "enforce"` in the profile, the board is not optional: host hooks remind the agent on every request, refuse file edits through the agent's edit tools until a task is approved, and a CI check requires the approved decision in each pull request. Writes through the shell do not go through the hooks; the CI check catches them. A local approval only detects accidental edits: use signed approvals when the agent must not be able to approve for you. [Board guard](integrations/README.md#the-board-before-every-change)
+A new project starts with `"guard": "observe"`: once `host apply` has installed the hooks, the board is brought to the agent on every request and an edit without an approved task is flagged, not blocked. Projects created before keep the mode they have (`off` when the profile does not say). With `"guard": "enforce"`, the board is not optional: host hooks remind the agent on every request, refuse file edits through the agent's edit tools until a task is approved, and a CI check requires the approved decision in each pull request. Writes through the shell do not go through the hooks; the CI check catches them. A local approval only detects accidental edits: use signed approvals when the agent must not be able to approve for you. [Board guard](integrations/README.md#the-board-before-every-change)
 
 The local CLI selects the boards and records their reviews. Your agent writes the reviews and uses its own tools for any research you authorize. You approve the scope in your terminal before the CLI issues the implementation brief.
 
@@ -66,7 +72,7 @@ openguildkit patterns --role hr
 openguildkit patterns --id python-fastapi-postgresql
 ```
 
-`catalog` lists the packs, boards and sectors you can use in a project. The [reference index](docs/references.md) provides summaries and source links. Rule packs contain the instructions and checks `init` writes into `AGENTS.md`.
+`catalog` lists the packs, boards and sectors you can use in a project, with the packs each sector preselects (financial services, insurance, healthcare, public sector, e-commerce, education, critical infrastructure). The [reference index](docs/references.md) provides summaries and source links. Rule packs contain the instructions and checks `init` writes into `AGENTS.md`.
 
 ## Documentation
 
@@ -74,6 +80,7 @@ openguildkit patterns --id python-fastapi-postgresql
 
 - [Run an executable catalog rule in CI](examples/export-expiry/README.md)
 - [Coordinate pull request checks across GitHub Actions and Jenkins](integrations/ci/README.md)
+- [Original export-expiry prototype and Windows restart verifier](integrations/ci/prototype/README.md)
 
 - [Specialist brains and decision briefs](docs/brains.md)
 - [Market dossiers and competitor watch](docs/market.md)
@@ -86,5 +93,5 @@ openguildkit patterns --id python-fastapi-postgresql
 - [Optional ChaosFolk end-to-end replays](integrations/chaosfolk/)
 
 - [Architecture](docs/architecture.md) and [task workflow](docs/workflow.md)
-- [Contributing](CONTRIBUTING.md) and [catalog format](docs/catalog-format.md)
+- [Contributing](CONTRIBUTING.md), [catalog format](docs/catalog-format.md) and [testing](docs/testing.md)
 - [Roadmap](docs/roadmap.md) and [MIT license](LICENSE)

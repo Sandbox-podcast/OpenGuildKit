@@ -1,0 +1,65 @@
+{
+  "id": "health-data-protection",
+  "title": "Health data and medical software (EU)",
+  "version": "1.0.0",
+  "description": "Questions for the privacy and regulatory owners and repository checks for software that processes health data in the EU: GDPR Art. 9, Regulation (EU) 2017/745 on medical devices read with MDCG 2019-11 rev.1, and Regulation (EU) 2025/327 (EHDS). Covers EU law only; national rules such as France's HDS hosting requirement are not listed. Apply the organization's approved interpretation; these rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "Regulation (EU) 2016/679, General Data Protection Regulation",
+      "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "Regulation (EU) 2017/745 on medical devices",
+      "url": "https://eur-lex.europa.eu/eli/reg/2017/745/oj/eng",
+      "checked": "2026-11-20"
+    },
+    {
+      "title": "MDCG 2019-11 rev.1, Qualification and classification of software in Regulation (EU) 2017/745 and Regulation (EU) 2017/746 (June 2025)",
+      "url": "https://health.ec.europa.eu/document/download/b45335c5-1679-4c71-a91c-fc7a4d37f12b_en?filename=mdcg_2019_11_en.pdf",
+      "checked": "2026-11-21"
+    },
+    {
+      "title": "Regulation (EU) 2025/327, European Health Data Space",
+      "url": "https://eur-lex.europa.eu/eli/reg/2025/327/oj/eng",
+      "checked": "2026-11-21"
+    }
+  ],
+  "rules": [
+    {
+      "id": "confirm-health-data-condition",
+      "instruction": "Ask the privacy owner whether the change processes data concerning health (GDPR Art. 9(1)) and which condition of Art. 9(2) the controller relies on, such as explicit consent or the provision of health care.",
+      "verification": "Link the privacy owner's recorded answer from the change."
+    },
+    {
+      "id": "assess-health-data-dpia",
+      "instruction": "Ask the data protection officer whether the change processes health data on a large scale, which requires a data protection impact assessment under GDPR Art. 35(3)(b), and record the decision.",
+      "verification": "Link the assessment, or the recorded reason it is not required, from the change."
+    },
+    {
+      "id": "protect-health-data",
+      "instruction": "Ask the security owner which measures of GDPR Art. 32(1) protect the health data the change stores or transmits, such as encryption and access control, and implement them in the repository.",
+      "verification": "Check the configuration or the test that shows each recorded measure on the changed data."
+    },
+    {
+      "id": "qualify-medical-device-software",
+      "instruction": "Ask the regulatory owner whether the changed feature has a medical purpose under the definition of Regulation (EU) 2017/745 Art. 2(1), using the qualification steps of MDCG 2019-11 rev.1 section 3, and record the intended purpose.",
+      "verification": "Link the recorded qualification and intended purpose from the change."
+    },
+    {
+      "id": "classify-medical-device-software",
+      "instruction": "When the feature is medical device software, ask the regulatory owner for its class under Annex VIII Rule 11 of Regulation (EU) 2017/745, as MDCG 2019-11 rev.1 section 4.2.1 explains it, before release.",
+      "verification": "Link the recorded class and the conformity assessment route the regulatory owner chose."
+    },
+    {
+      "id": "plan-ehr-harmonised-components",
+      "instruction": "When the product is an EHR system that processes priority categories of electronic health data, ask the regulatory owner from which date Art. 105 of Regulation (EU) 2025/327 applies to it, and plan the European interoperability and logging components of Art. 25.",
+      "verification": "Link the recorded date and the plan from the product roadmap."
+    },
+    {
+      "id": "document-ehr-components",
+      "instruction": "For an EHR system in scope, add the changed component to the technical documentation that the manufacturer draws up under Art. 30(1)(c) of Regulation (EU) 2025/327.",
+      "verification": "Find the changed component in the technical documentation."
+    }
+  ]
+}

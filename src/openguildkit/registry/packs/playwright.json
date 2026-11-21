@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "Playwright best practices",
-      "url": "https://playwright.dev/docs/best-practices"
+      "url": "https://playwright.dev/docs/best-practices",
+      "checked": "2026-11-21"
     },
     {
       "title": "Playwright test retries",
-      "url": "https://playwright.dev/docs/test-retries"
+      "url": "https://playwright.dev/docs/test-retries",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

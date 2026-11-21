@@ -1,0 +1,17 @@
+{
+  "id": "critical-infrastructure",
+  "title": "Critical infrastructure and industry",
+  "description": "Adapt reviews to software for energy, transport, water, digital infrastructure, manufacturing and the other sectors listed in NIS 2 Annex I and II.",
+  "context": [
+    "Ask the security owner whether the organization or its customer is an essential or important entity under the national law transposing NIS 2 (Directive (EU) 2022/2555, Annex I and II). This sector preselects the nis2-essential-entity pattern.",
+    "When the product is placed on the EU market as software or a connected device, ask the legal owner whether the Cyber Resilience Act applies, and select the cyber-resilience-act-product pattern when it does.",
+    "Name the owner of operational technology changes and the maintenance window before changing software that controls physical processes."
+  ],
+  "sources": [
+    {
+      "title": "Directive (EU) 2022/2555 (NIS 2)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/oj/eng",
+      "checked": "2026-11-21"
+    }
+  ]
+}

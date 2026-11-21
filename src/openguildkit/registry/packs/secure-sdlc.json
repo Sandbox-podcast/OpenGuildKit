@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "NIST SP 800-218, Secure Software Development Framework 1.1",
-      "url": "https://csrc.nist.gov/pubs/sp/800/218/final"
+      "url": "https://csrc.nist.gov/pubs/sp/800/218/final",
+      "checked": "2026-11-21"
     },
     {
       "title": "OWASP Application Security Verification Standard",
-      "url": "https://asvs.owasp.org/"
+      "url": "https://asvs.owasp.org/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

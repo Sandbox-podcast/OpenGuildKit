@@ -58,23 +58,28 @@
   "sources": [
     {
       "title": "W3C Web Content Accessibility Guidelines 2.2",
-      "url": "https://www.w3.org/TR/WCAG22/"
+      "url": "https://www.w3.org/TR/WCAG22/",
+      "checked": "2026-11-20"
     },
     {
       "title": "Material Design 3 components",
-      "url": "https://m3.material.io/components"
+      "url": "https://m3.material.io/components",
+      "checked": "2026-11-21"
     },
     {
       "title": "Apple Human Interface Guidelines",
-      "url": "https://developer.apple.com/design/human-interface-guidelines"
+      "url": "https://developer.apple.com/design/human-interface-guidelines",
+      "checked": "2026-11-21"
     },
     {
       "title": "shadcn/ui components",
-      "url": "https://ui.shadcn.com/docs/components"
+      "url": "https://ui.shadcn.com/docs/components",
+      "checked": "2026-11-21"
     },
     {
       "title": "GOV.UK Service Manual, Using moderated usability testing",
-      "url": "https://www.gov.uk/service-manual/user-research/using-moderated-usability-testing"
+      "url": "https://www.gov.uk/service-manual/user-research/using-moderated-usability-testing",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

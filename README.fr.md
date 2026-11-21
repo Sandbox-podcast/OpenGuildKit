@@ -21,6 +21,12 @@ python examples/request-status/replay.py
 
 La [démo](examples/request-status/) crée un projet temporaire et utilise des avis préparés sur le suivi des demandes support. Lance-la dans un terminal pour comparer les avis, valider le périmètre et lire le brief d'implémentation.
 
+### Interface web
+
+`openguildkit ui` ouvre ton projet dans le navigateur, sur 127.0.0.1 : les quêtes par état, la consultation des brains et la passe de chacun, les avis et les blocages, les vérifications et les résultats, les alertes de dépendances, les dossiers de marché, les livrables, les outils et serveurs MCP, l'export de la documentation et ses partages. Chaque action lance une commande de la CLI. Les validations, dérogations et autres décisions qui demandent une personne restent dans ton terminal : la page affiche la commande à taper. [Interface d'un projet](web/docs/interface-projet.md)
+
+La même interface fonctionne en démo, sans la CLI. Explore Atelier Nova, un éditeur de logiciels fictif. Retrouve les règles du projet, compare les avis, valide une décision et suis le livrable jusqu'aux contrôles. La démo simule les services externes et enregistre les modifications dans ton navigateur. [Lancer la démo web](web/README.md).
+
 ## Le board des brains
 
 Chaque métier d'un éditeur de logiciels a son brain : développement logiciel, front-end, back-end, sécurité, DevOps, QA, performance, produit, design, données et IA, marketing, communication, vente, partenariats, support client, succès client, finance, achats, juridique et conformité, RH, informatique interne, localisation, relations développeurs et documentation, confiance et sécurité des contenus, gestion de projet, opérations et direction. Un brain apporte des spécialistes avec ce que chacun vérifie, les preuves qu'il demande, les objections qu'il soulève, ses critères de décision, et les méthodes, packs de règles et normes de son métier.
@@ -29,7 +35,7 @@ Pour chaque changement, OpenGuildKit réunit les brains concernés. Chacun relit
 
 ## Configurer ton projet
 
-Depuis ton dépôt, indique ta stack, ton secteur et les métiers concernés. Le questionnaire repère les combinaisons techniques connues et te laisse choisir les méthodes que ton équipe applique. Dans un dépôt existant, `openguildkit detect` propose d'abord tes composants et leurs versions, et chaque pattern s'applique au composant qui utilise ses technologies.
+Depuis ton dépôt, lance le questionnaire. Il demande ta stack, ton secteur, les métiers concernés et si le projet traite des données personnelles, puis chaque norme qui en découle (RGPD, DORA, NIS 2...) avec la raison pour laquelle elle est proposée, que tu gardes ou refuses une par une ; ensuite les autres patterns, les packs à ajouter aux packs recommandés, les boards, les outils de l'entreprise, l'agent hôte et le garde-fou du board. Chaque question affiche ce que la touche Entrée retient. Dans un dépôt existant, `openguildkit detect` propose d'abord tes composants et leurs versions, et chaque pattern s'applique au composant qui utilise ses technologies.
 
 ```bash
 openguildkit detect
@@ -38,7 +44,7 @@ openguildkit preview
 openguildkit check
 ```
 
-`init` enregistre ton profil dans `.openguildkit/project.json` et écrit les règles dans un bloc géré de `AGENTS.md`. Il ajoute un import dans `CLAUDE.md` pour Claude Code. Les règles en vigueur sont figées dans `.openguildkit/catalog.lock.json` : après une mise à jour d'OpenGuildKit, `openguildkit update` montre ce qui changerait et `openguildkit update --apply` l'adopte. [Installe le skill](integrations/) pour répondre au questionnaire dans Claude Code ou Codex et lancer des tâches depuis la conversation.
+`init` enregistre ton profil dans `.openguildkit/project.json` et écrit les règles dans un bloc géré de `AGENTS.md`. Il ajoute un import dans `CLAUDE.md` pour Claude Code. Les règles en vigueur sont figées dans `.openguildkit/catalog.lock.json` : après une mise à jour d'OpenGuildKit, `openguildkit update` montre la date du catalogue installé (le jour où ses sources ont été vérifiées pour la dernière fois), le nombre d'enregistrements modifiés et ce qui changerait, et `openguildkit update --apply` l'adopte. Il affiche ensuite les étapes suivantes qui s'appliquent, comme `openguildkit host apply` pour ton agent et `openguildkit tools plan ...` pour les outils que le registre connaît. [Installe le skill](integrations/) pour répondre au questionnaire dans Claude Code ou Codex et lancer des tâches depuis la conversation.
 
 ```mermaid
 flowchart TB
@@ -50,7 +56,7 @@ flowchart TB
     D -- valider --> H["Brief d'implémentation avec périmètre et contrôles"]
 ```
 
-Avec `"guard": "enforce"` dans le profil, le board n'est plus facultatif : les hooks de l'agent le rappellent à chaque demande, refusent les modifications faites par les outils d'édition de l'agent tant qu'aucune tâche n'est approuvée, et un contrôle CI exige la décision approuvée dans chaque PR. Les écritures par le shell ne passent pas par les hooks ; le contrôle CI les rattrape. Une approbation locale ne détecte que les modifications accidentelles : passez aux approbations signées si l'agent ne doit pas pouvoir approuver à votre place. [Board automatique](integrations/README.md#the-board-before-every-change)
+Un nouveau projet démarre en `"guard": "observe"` : une fois les hooks installés par `host apply`, le board est rappelé à l'agent à chaque demande et une modification sans tâche approuvée est signalée, sans être bloquée. Les projets créés avant gardent leur mode (`off` quand le profil n'en dit rien). Avec `"guard": "enforce"`, le board n'est plus facultatif : les hooks de l'agent le rappellent à chaque demande, refusent les modifications faites par les outils d'édition de l'agent tant qu'aucune tâche n'est approuvée, et un contrôle CI exige la décision approuvée dans chaque PR. Les écritures par le shell ne passent pas par les hooks ; le contrôle CI les rattrape. Une approbation locale ne détecte que les modifications accidentelles : passez aux approbations signées si l'agent ne doit pas pouvoir approuver à votre place. [Board automatique](integrations/README.md#the-board-before-every-change)
 
 La CLI choisit les boards et enregistre leurs avis en local. Ton agent rédige ces avis et utilise ses outils pour les recherches que tu autorises. Tu valides le périmètre dans ton terminal avant que la CLI affiche le brief d'implémentation.
 
@@ -67,7 +73,7 @@ openguildkit patterns --id python-fastapi-postgresql
 openguildkit brains --id product
 ```
 
-`catalog` liste les packs, les boards et les secteurs. L'index donne accès aux sources et aux méthodes. Chaque pattern indique quand il s'applique et quels packs alimentent `AGENTS.md`. [Références](docs/references.md) · [Choix des patterns](docs/patterns.md)
+`catalog` liste les packs, les boards et les secteurs, avec les packs que chaque secteur présélectionne (services financiers, assurance, santé, secteur public, e-commerce, éducation, infrastructures critiques). L'index donne accès aux sources et aux méthodes. Chaque pattern indique quand il s'applique et quels packs alimentent `AGENTS.md`. [Références](docs/references.md) · [Choix des patterns](docs/patterns.md)
 
 ## Documentation
 
@@ -84,5 +90,5 @@ openguildkit brains --id product
 - [Documentation du projet et partage avec Documentalist](docs/documentation.md)
 - [Outils de la stack d'entreprise, leurs serveurs MCP et leurs simulations](docs/tools.md)
 - [Tests de bout en bout avec ChaosFolk, en option](integrations/chaosfolk/)
-- [Contribuer](CONTRIBUTING.md) et [format du catalogue](docs/catalog-format.md)
+- [Contribuer](CONTRIBUTING.md), [format du catalogue](docs/catalog-format.md) et [tests](docs/testing.md)
 - [Feuille de route](docs/roadmap.md) et [licence MIT](LICENSE)

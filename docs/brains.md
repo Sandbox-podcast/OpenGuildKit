@@ -115,7 +115,7 @@ Adding or completing a brain changes the record that approvals are bound to. Whe
 
 ## Answer the other boards' objections
 
-When boards disagree, each board answers the others on the same point before the person decides. A board whose verdict is `revise`, `block` or `insufficient-evidence` objects to each board whose verdict is `proceed`.
+When boards disagree, each board answers the others on the same point before the person decides. A board whose verdict is `revise`, `block` or `insufficient-evidence` objects to each board whose verdict is `proceed`. A board that answers `block` also objects to each board that answers `revise`, on the point of its blockers, and that board answers on the same point. Boards that give the same verdict do not object to each other. When two verdicts differ and no objection links them (`revise` and `insufficient-evidence`, `block` and `insufficient-evidence`), the decision brief says so and why.
 
 ```bash
 openguildkit task deliberate ID      # objections and the response template
@@ -123,7 +123,7 @@ openguildkit task respond ID --file deliberation.json
 openguildkit task challenge ID       # agreement reached, remaining disagreements, decision needed
 ```
 
-For each objection, both boards record a `position` (`maintain`, `concede` or `amend`), a `response` and the positions in their own evidence list that support it; maintaining or amending a position needs evidence. An objection one board concedes is resolved. When disagreements remain, `decision_needed` says which decision the responsible person must take. The first reviews stay as recorded, and the decision brief lists objections that were not deliberated.
+An objection goes to the boards that would proceed and whose domain its point touches, at most two, or to the one board with the most confidence when it touches none; a board that blocks always meets the boards that ask to revise. For each objection, both boards record a `position` (`maintain`, `concede` or `amend`), a `response` and the positions in their own evidence list that support it; maintaining or amending a position needs evidence. One response can answer several objections: write `objection` as a list of IDs. An objection is resolved when one board concedes or both amend. When disagreements remain, `decision_needed` says which decision the responsible person must take. `task deliberate` prints these rules with the template. A board that conceded all its objections no longer counts as objecting in the approval warning. The first reviews stay as recorded, and the decision brief lists objections that were not deliberated.
 
 ## What the verdict means
 
@@ -140,7 +140,7 @@ Each item of a board's `evidence` list records where it comes from and what it e
 {"source": "project-file", "ref": "src/permissions.py", "supports": "Requests are filtered by owner on the server.", "revision": "3fffa1c"}
 ```
 
-`source` is one of `requester`, `project-file`, `test`, `measurement`, `public`, `interview`, `ticket`, `decision-record` or `other`. `ref` is a project path, a document title or an https link. Public sources, measurements and interviews carry the `date` they were observed; a `revision` pins a file to a commit. The requester's own words (`requester`) cannot be the only support for `proceed` or for high confidence. The decision brief lists, for each board, the evidence its observed findings cite. Reviews recorded before this format keep their text items.
+`source` is one of `requester`, `project-file`, `test`, `measurement`, `public`, `interview`, `ticket`, `decision-record` or `other`. `ref` is a project path, a document title or an https link. Public sources, measurements and interviews carry the `date` they were observed, a real `YYYY-MM-DD` day that is not in the future; a `revision` pins a file to a commit. A `project-file` or `test` item names a file or folder that exists in the project, optionally followed by `:LINE`, `#anchor` or `::test`, when `task review` or `task submit` records it. The template's `evidence_item` shows this shape. The requester's own words (`requester`) cannot be the only support for `proceed` or for high confidence. The decision brief lists, for each board, the evidence its observed findings cite. Reviews recorded before this format keep their text items.
 
 `task template ID` returns the exact shape for the selected boards. In a brain entry, `challenge.specialists` uses the specialist IDs from the prompt. `evidence_refs` contains one-based positions in the board evidence array. For example, `[1, 3]` cites the first and third items. Use `low`, `medium`, or `high` confidence. Proceeding or claiming high confidence requires observed evidence, a block needs at least one blocker, and an insufficient-evidence verdict uses low confidence.
 

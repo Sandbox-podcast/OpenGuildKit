@@ -5,11 +5,13 @@
   "sources": [
     {
       "title": "Spring Boot externalized configuration",
-      "url": "https://docs.spring.io/spring-boot/reference/features/external-config.html"
+      "url": "https://docs.spring.io/spring-boot/reference/features/external-config.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Spring Boot Kotlin support",
-      "url": "https://docs.spring.io/spring-boot/reference/features/kotlin.html"
+      "url": "https://docs.spring.io/spring-boot/reference/features/kotlin.html",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

@@ -6,7 +6,8 @@
   "sources": [
     {
       "title": "Salesforce, Sales Pipeline Stages",
-      "url": "https://www.salesforce.com/sales/pipeline/stages/"
+      "url": "https://www.salesforce.com/sales/pipeline/stages/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

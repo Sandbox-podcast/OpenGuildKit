@@ -7,7 +7,8 @@ from pathlib import Path
 
 from openguildkit.catalog import load_catalog
 from openguildkit.project import resolved_profile, validate_profile
-from openguildkit.tasks import record_decision, record_review, resolve_blocker
+from openguildkit.decisions import check_decision
+from openguildkit.tasks import complete_task, record_decision, record_review, resolve_blocker, verification_blocker_problems
 from openguildkit.workflow import blocker_list, consult, handoff
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
@@ -66,6 +67,27 @@ class BlockerTests(unittest.TestCase):
         self.assertIn(until, brief)
         self.assertIn("tests/test_access.py", brief)
         record_decision(self.task, False, "Camille Martin", "Back to consultation")
+
+    def test_verification_blockers_wait_for_evidence_after_approval_without_changing_its_seal(self):
+        review = copy.deepcopy(self.review)
+        blockers = next(entry for entry in review["boards"] if entry["id"] == "security")["challenge"]["blockers"]
+        blockers[0]["phase"] = "verification"
+        task = record_review({**self.task, "status": "consulting"}, review)
+        resolution = {"kind": "cleared", "by": "Alex", "evidence": "tests/test_access.py",
+                      "supports": "The retention period and access conditions are recorded."}
+        with self.assertRaisesRegex(ValueError, "after approval"):
+            resolve_blocker(task, "security:1", resolution, self.profile, self.root)
+        task = resolve_blocker(task, "security:2", resolution, self.profile, self.root)
+        approved = record_decision(task, True, "Camille Martin", "Scope agreed")
+        self.assertIn("## Blockers due at verification", handoff(approved))
+        with self.assertRaisesRegex(ValueError, "Verification blocker security:1 is open"):
+            complete_task(approved, self.profile)
+        cleared = resolve_blocker(approved, "security:1", resolution, self.profile, self.root)
+        check_decision(cleared, self.root, self.profile)
+        self.assertEqual(verification_blocker_problems(cleared, self.profile), [])
+        with self.assertRaisesRegex(ValueError, "already has a resolution"):
+            resolve_blocker(cleared, "security:1", {**resolution, "by": "Bob"}, self.profile, self.root)
+        self.assertEqual(blocker_list(cleared)[0]["resolution"]["by"], "Alex")
 
     def test_waivers_follow_the_project_policy(self):
         until = (date.today() + timedelta(days=10)).isoformat()

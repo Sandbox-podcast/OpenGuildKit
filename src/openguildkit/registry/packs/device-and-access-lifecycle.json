@@ -6,19 +6,23 @@
   "sources": [
     {
       "title": "NIST SP 800-124 Rev. 2, Guidelines for Managing the Security of Mobile Devices in the Enterprise",
-      "url": "https://csrc.nist.gov/pubs/sp/800/124/r2/final"
+      "url": "https://csrc.nist.gov/pubs/sp/800/124/r2/final",
+      "checked": "2026-11-21"
     },
     {
       "title": "CIS Critical Security Controls Version 8.1",
-      "url": "https://www.cisecurity.org/controls/v8-1"
+      "url": "https://www.cisecurity.org/controls/v8-1",
+      "checked": "2026-11-21"
     },
     {
       "title": "RFC 7644, System for Cross-domain Identity Management: Protocol",
-      "url": "https://www.rfc-editor.org/info/rfc7644/"
+      "url": "https://www.rfc-editor.org/info/rfc7644/",
+      "checked": "2026-11-21"
     },
     {
       "title": "NIST SP 800-46 Rev. 2, Guide to Enterprise Telework, Remote Access, and Bring Your Own Device (BYOD) Security",
-      "url": "https://csrc.nist.gov/pubs/sp/800/46/r2/final"
+      "url": "https://csrc.nist.gov/pubs/sp/800/46/r2/final",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

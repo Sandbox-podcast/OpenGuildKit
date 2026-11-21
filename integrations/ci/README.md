@@ -50,6 +50,18 @@ Provide the organization and repository IDs, corresponding local Git checkouts, 
       "id": "example/portal",
       "path": "./portal",
       "profileRef": "refs/heads/main",
+      "prNumbers": [1],
+      "workflow": {
+        "file": "openguildkit.yml",
+        "ref": "pilot/recheck-base",
+        "evidenceBranch": "openguildkit-evidence"
+      }
+    },
+    {
+      "id": "example/service",
+      "path": "./service",
+      "profileRef": "refs/heads/main",
+      "prNumbers": [1],
       "workflow": {
         "file": "openguildkit.yml",
         "ref": "pilot/recheck-base",
@@ -59,6 +71,10 @@ Provide the organization and repository IDs, corresponding local Git checkouts, 
   ]
 }
 ```
+
+This configuration watches PR #1 in each repository. Replace the repository names, checkout paths and PR numbers with your pilot's values. Pass this file to the Jenkins installer with `-WatchConfig integration.json`. The scheduled job reads the same file on every run. A policy change reevaluates the selected PRs that are open against their configured base branches, using their current head commits. A project without `prNumbers` watches all open PRs against its configured base branch.
+
+For an older Jenkins job that runs `integrations/ci/prototype/watch-rule.mjs` directly, keep both repositories in `repositories` and add `"pullRequests": {"example/portal": [1], "example/service": [1]}` to its watcher configuration. The prototype applies this list before dispatching a workflow or publishing a status, including when it resumes an unfinished batch.
 
 Use `openguildkit-ci github --config integration.json --state ./state --run` to inspect the resulting checks. For continuous operation, copy the [GitHub Actions recheck template](pilot/recheck-workflow.yml) to `.github/workflows/openguildkit.yml` on a trusted workflow branch. Set `pilot/recheck.json` with `policyRepository`, `policyRef` and `profileRef`, and put the archive's SHA-256 followed by its filename in `pilot/recheck-kit.sha256`. Host the pinned archive as a GitHub Release asset of that project, as expected by the template. Provision read-only policy access if the policy repository is private.
 
@@ -81,6 +97,28 @@ A recheck that fails, stays queued past `watch.runTimeoutMinutes` (default 360),
 A run that executes new checks refreshes the active references afterward. If they changed during evaluation, the report still links to the evidence just produced in `executedEvidence`. The `current` entries track the newly active references.
 
 The workflow templates retain their pilot branch names and configuration filenames. Adjust them for the deployment. Keep checkout, validation and report publication on trusted revisions. The project keeps its normal merge review and approval settings.
+
+### Run a single check in Jenkins
+
+For a job that evaluates one target commit, use the [Jenkins check launcher](pilot/run-kit.mjs). The agent needs Node.js 22 or later, Git, GitHub CLI and `tar`. Run the launcher from the root of the target repository with `HEAD` on a trusted revision containing the approved `openguildkit.json` profile and the `openguildkit-kit.json` manifest. Fetch the target commit into that checkout and the policy commit into the policy checkout before running the job.
+
+The manifest pins the release archive by repository, version and SHA-256. For the OpenGuildKit v0.16.1 release, put this in `openguildkit-kit.json`.
+
+```json
+{
+  "repository": "Sandbox-podcast/OpenGuildKit",
+  "version": "0.16.1",
+  "sha256": "7057f7c47d54f5fe48252c8a57f09ac36ceb3d127f51d07a6eef76908b235e78"
+}
+```
+
+When changing versions, use the SHA-256 for the Node archive from that release's `SHA256SUMS.txt`. Set `OPENGUILDKIT_SOURCE` to the absolute path of a trusted OpenGuildKit checkout, and set `POLICY_SHA` and `TARGET_SHA` to the full commit SHAs.
+
+```sh
+node "$OPENGUILDKIT_SOURCE/integrations/ci/pilot/run-kit.mjs" ../policies "$POLICY_SHA" "$TARGET_SHA" openguildkit-result
+```
+
+The launcher verifies the archive and reads the manifest and profile from the trusted `HEAD`. It evaluates the files at `TARGET_SHA`. Archive `openguildkit-result/AGENTS.md` and `openguildkit-result/evidence.json` when produced, including when a required rule fails.
 
 ## Results and errors
 

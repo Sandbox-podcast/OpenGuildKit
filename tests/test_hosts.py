@@ -71,7 +71,8 @@ class HostControlTests(unittest.TestCase):
         return stdout.getvalue(), stderr.getvalue()
 
     def init(self, **extra):
-        write_json(self.root / "answers.json", {"name": "Portal", "stack": ["Python"], **extra})
+        # These checks cover the research and approval controls; the guard has its own tests.
+        write_json(self.root / "answers.json", {"name": "Portal", "stack": ["Python"], "guard": "off", **extra})
         self.run_cli("init", "--answers", self.root / "answers.json")
 
     def test_claude_code_settings_enforce_research_and_approval(self):
@@ -119,11 +120,15 @@ class HostControlTests(unittest.TestCase):
     def test_an_unknown_host_is_told_which_rules_stay_instructions(self):
         self.init()
         report, _ = self.run_cli("host", "check")
-        self.assertIn("[instruction] Public research stays off", report)
+        self.assertIn("[by instruction] Public research stays off", report)
+        self.assertIn("[by a person] External actions", report)
+        self.assertIn("Nothing missing.", report)
+        self.assertNotIn("[missing]", report)
         self.run_cli("task", "new", "Show statuses.", "--id", "status")
         write_json(self.root / "a.json", {"kind": "bug", "surface": ["service"], "data": "none", "research": "local"})
         consultation, _ = self.run_cli("task", "consult", "status", "--answers", self.root / "a.json")
-        self.assertIn("does not block public research", consultation)
+        self.assertIn("Public research is off for this project and this host agent has no setting that enforces it",
+                      consultation)
 
     def test_external_actions_need_a_recorded_decision(self):
         self.init()
@@ -172,7 +177,7 @@ class HostControlTests(unittest.TestCase):
         settings.write_text(json.dumps({"permissions": {"deny": ["Read(./.env)", *old_rules]}}), encoding="utf-8")
         self.init(host="claude-code", guard="enforce")
         with patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit"):
-            report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json")[0])}
+            report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json", code=1)[0])}
             self.assertEqual(report["board"]["status"], "missing")
             self.run_cli("host", "apply")
             report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json")[0])}
@@ -194,7 +199,7 @@ class HostControlTests(unittest.TestCase):
         del written["hooks"]["PreToolUse"][0]["hooks"][0]["onFailure"]
         settings.write_text(json.dumps(written), encoding="utf-8")
         with patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit"):
-            report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json")[0])}
+            report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json", code=1)[0])}
         self.assertEqual(report["board"]["status"], "missing")
         self.run_cli("host", "apply")
         self.assertEqual(self.edit_hook()["onFailure"], "block")
@@ -212,7 +217,9 @@ class HostControlTests(unittest.TestCase):
         self.init(host="claude-code", guard="enforce")
         self.run_cli("host", "apply")
         with patch("openguildkit.hosts.shutil.which", return_value=None):
-            report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json")[0])}
+            report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json", code=1)[0])}
+            output, _ = self.run_cli("host", "check", code=1)
+            self.assertIn("1 setting(s) missing. Run openguildkit host apply", output)
             _, error = self.run_cli("check", code=1)
         self.assertEqual(report["board"]["status"], "missing")
         self.assertIn("not on this workstation's PATH", report["board"]["detail"])

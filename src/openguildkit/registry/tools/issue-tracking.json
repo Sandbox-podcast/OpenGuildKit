@@ -189,7 +189,17 @@
           "status": "unknown",
           "capabilities": "Find, create and update Linear issues, projects and comments; read-only variant at https://mcp.linear.app/mcp/readonly.",
           "source": "https://linear.app/docs/mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write",
+            "consent": "Authorize with Linear OAuth or provide a workspace API key",
+            "scopes": [
+              "Use the read OAuth scope for a read-only token; available actions also depend on workspace permissions"
+            ]
+          },
+          "read_only": {
+            "url": "https://mcp.linear.app/mcp/readonly"
+          }
         }
       ],
       "api": {

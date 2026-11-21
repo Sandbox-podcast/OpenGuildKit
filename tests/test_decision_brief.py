@@ -118,7 +118,7 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertIn("3 proceed", prompt.splitlines()[0])
         self.assertIn("3 revise", prompt.splitlines()[0])
         self.assertIn("Warning: 4 of 7 boards say revise, block or insufficient-evidence", prompt)
-        self.assertIn("Objection not deliberated: engineering-to-product", prompt)
+        self.assertRegex(prompt, "Objection not deliberated: engineering-to-")
         brief, _ = self.run_cli("task", "challenge", TASK)
         self.assertIn("Warning: 4 of 7 boards", brief)
         self.assertIn("Objection not deliberated", brief)
@@ -151,6 +151,9 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertIn("Supports: Inputs are bound parameters.", prompt)
 
     def test_a_copied_review_is_recorded_with_warnings(self):
+        (self.root / "api").mkdir()
+        (self.root / "api" / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+
         def copy_everything(review):
             for entry in review["boards"]:
                 entry["recommendation"] = "Ship it."

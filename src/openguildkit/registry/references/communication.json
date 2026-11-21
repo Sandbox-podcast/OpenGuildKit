@@ -5,6 +5,7 @@
     {
       "id": "govs-011-communication",
       "title": "GovS 011: Communications (norme fonctionnelle du gouvernement britannique)",
+      "title_en": "GovS 011: Communications (UK government functional standard)",
       "category": "Planification et évaluation",
       "kind": "référentiel",
       "brains": [
@@ -21,6 +22,7 @@
       "sources": [
         {
           "url": "https://www.gov.uk/government/publications/government-functional-standard-govs-011-communication/government-functional-standard-govs-011-communications#the-campaign-lifecycle",
+          "checked": "2026-11-21",
           "title": "UK Government Communication Service, Campaign lifecycle"
         }
       ]
@@ -43,6 +45,7 @@
       "sources": [
         {
           "url": "https://amecorg.com/amec-resources-centre-communication-measurement-evaluation-tools/barcelona-principles-3-0/",
+          "checked": "2026-11-21",
           "title": "AMEC, Barcelona Principles 3.0"
         }
       ]
@@ -50,6 +53,7 @@
     {
       "id": "digital-gov-plain-language",
       "title": "Digital.gov — Guides du langage clair",
+      "title_en": "Digital.gov, Plain language guides",
       "category": "Rédaction",
       "kind": "guide",
       "brains": [
@@ -63,6 +67,7 @@
       "sources": [
         {
           "url": "https://digital.gov/guides/plain-language",
+          "checked": "2026-11-21",
           "title": "Digital.gov, Plain language guide series"
         }
       ]
@@ -70,6 +75,7 @@
     {
       "id": "gov-uk-style-guides",
       "title": "GOV.UK — Guides de style",
+      "title_en": "GOV.UK style guides",
       "category": "Rédaction",
       "kind": "guide",
       "brains": [
@@ -80,6 +86,7 @@
       "sources": [
         {
           "url": "https://guidance.publishing.service.gov.uk/writing-to-gov-uk-standards/style-guides/",
+          "checked": "2026-11-21",
           "title": "GOV.UK content and publishing guidance — Style guides"
         }
       ]
@@ -87,6 +94,7 @@
     {
       "id": "eu-interinstitutional-style-guide",
       "title": "Code de rédaction interinstitutionnel de l'UE",
+      "title_en": "EU Interinstitutional Style Guide",
       "category": "Rédaction",
       "kind": "guide",
       "brains": [
@@ -97,6 +105,7 @@
       "sources": [
         {
           "url": "https://style-guide.europa.eu/en/",
+          "checked": "2026-11-21",
           "title": "Publications Office of the EU — Interinstitutional Style Guide"
         }
       ]
@@ -114,6 +123,7 @@
       "sources": [
         {
           "url": "https://www.prsa.org/professional-development/prsa-resources/ethics",
+          "checked": "2026-11-21",
           "title": "PRSA Code of Ethics"
         }
       ]

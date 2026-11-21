@@ -6,27 +6,33 @@
   "sources": [
     {
       "title": "Vue.js guide, props",
-      "url": "https://vuejs.org/guide/components/props.html"
+      "url": "https://vuejs.org/guide/components/props.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Vue.js guide, component events",
-      "url": "https://vuejs.org/guide/components/events.html"
+      "url": "https://vuejs.org/guide/components/events.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Vue.js guide, composables",
-      "url": "https://vuejs.org/guide/reusability/composables.html"
+      "url": "https://vuejs.org/guide/reusability/composables.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Vue.js style guide, essential rules",
-      "url": "https://vuejs.org/style-guide/rules-essential.html"
+      "url": "https://vuejs.org/style-guide/rules-essential.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Vue.js security best practices",
-      "url": "https://vuejs.org/guide/best-practices/security.html"
+      "url": "https://vuejs.org/guide/best-practices/security.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Vue.js guide, using Vue with TypeScript",
-      "url": "https://vuejs.org/guide/typescript/overview.html"
+      "url": "https://vuejs.org/guide/typescript/overview.html",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

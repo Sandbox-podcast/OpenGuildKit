@@ -1,13 +1,16 @@
 """Load and validate OpenGuildKit's declarative knowledge catalog."""
 
+import copy
 import json
 import re
 import unicodedata
+from datetime import date
 from graphlib import CycleError, TopologicalSorter
-from importlib.resources import files
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlsplit
+
+from .rule_checks import validate_check
 
 
 COLLECTION_FIELDS = {
@@ -21,7 +24,18 @@ ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
 MIN_VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){0,3}")
 EXPORT_EXPIRY_ID = "export-link-expiry"
+LEGACY_EXPORT_CHECK = {"kind": "field", "path": "export.json", "field": "downloadLinkMinutes", "integer": True, "min": 1}
+MAX_EVIDENCE = 5
+# The answers to a task's data question, which a named evidence can apply to.
+DATA_ANSWERS = ("none", "internal", "personal", "regulated", "unsure")
+# A method is preselected for its roles; a regulation only for its sectors or personal data.
+PATTERN_KINDS = ("method", "regulation")
 MAX_SAFE_INTEGER = (1 << 53) - 1
+CHECKED_PATTERN = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+UNDATED_SOURCE = (
+    "{label}.checked is missing: open the page, check what the record says against it, "
+    'then add "checked": "YYYY-MM-DD" with that day\'s date after its url'
+)
 # Query parameters that record how a visitor reached a page, never which page it is.
 TRACKING_PARAMETERS = frozenset({
     "_hsenc", "_hsmi", "_src_ref", "dclid", "fbclid", "gbraid", "gclid", "igshid", "mc_cid",
@@ -62,7 +76,9 @@ def _validate_fields(
 def _validate_text(value: Any, label: str) -> None:
     if not isinstance(value, str) or not value.strip():
         raise CatalogError(f"{label} must be a non-empty string")
-    if any(unicodedata.category(character) in ("Cc", "Cs", "Zl", "Zp") for character in value):
+    # Printable text has no control, surrogate or line separator: only other text needs the slow check.
+    forbidden = ("Cc", "Cs", "Zl", "Zp")
+    if not value.isprintable() and any(unicodedata.category(character) in forbidden for character in value):
         raise CatalogError(f"{label} must be a single line of text without control characters")
 
 
@@ -87,12 +103,27 @@ def tracking_parameters(url: str) -> list[str]:
     return found
 
 
-def _validate_sources(sources: Any) -> None:
+def _validate_checked(value: Any, label: str) -> None:
+    """A source's verification day: an ISO date such as 2026-11-21."""
+    try:
+        if not isinstance(value, str) or not CHECKED_PATTERN.fullmatch(value):
+            raise ValueError
+        date.fromisoformat(value)
+    except ValueError:
+        raise CatalogError(f"{label} must be a date written YYYY-MM-DD, such as 2026-11-21") from None
+
+
+def _validate_sources(sources: Any, *, require_checked: bool = False) -> None:
+    """Bundled sources must carry the day they were last checked; a project's own sources may not yet."""
     _validate_list(sources, "sources", allow_empty=True)
     seen_urls = set()
     for index, source in enumerate(sources):
         label = f"sources[{index}]"
-        _validate_fields(source, label, {"title", "url"})
+        _validate_fields(source, label, {"title", "url"}, {"checked"})
+        if "checked" in source:
+            _validate_checked(source["checked"], f"{label}.checked")
+        elif require_checked:
+            raise CatalogError(UNDATED_SOURCE.format(label=label))
         _validate_text(source["title"], f"{label}.title")
         url = source["url"]
         _validate_text(url, f"{label}.url")
@@ -109,7 +140,7 @@ def _validate_sources(sources: Any) -> None:
         seen_urls.add(url)
 
 
-def _validate_pack(pack: dict[str, Any]) -> None:
+def _validate_pack(pack: dict[str, Any], allow_command: bool = False) -> None:
     version = pack["version"]
     if not isinstance(version, str) or not VERSION_PATTERN.fullmatch(version):
         raise CatalogError("version must use major.minor.patch")
@@ -130,20 +161,61 @@ def _validate_pack(pack: dict[str, Any]) -> None:
     seen_ids = set()
     for index, rule in enumerate(pack["rules"]):
         label = f"rules[{index}]"
-        if isinstance(rule, dict) and "check" in rule:
-            _validate_fields(rule, label, {"id", "check"})
-            check = rule["check"]
-            _validate_fields(check, f"{label}.check", {"max_minutes"})
-            if rule["id"] != EXPORT_EXPIRY_ID or not is_positive_integer(check["max_minutes"]):
-                raise CatalogError(f"{label}: expected an {EXPORT_EXPIRY_ID} check with positive integer max_minutes")
-        else:
-            _validate_fields(rule, label, {"id", "instruction", "verification"})
-            _validate_text(rule["instruction"], f"{label}.instruction")
-            _validate_text(rule["verification"], f"{label}.verification")
-        _validate_id(rule["id"], f"{label}.id")
+        _validate_rule(rule, label, allow_command)
         if rule["id"] in seen_ids:
             raise CatalogError(f"duplicate rule ID {rule['id']!r}")
         seen_ids.add(rule["id"])
+
+
+def rule_check(rule: dict) -> dict | None:
+    """The machine check a rule declares, with the former central export form written out."""
+    check = rule.get("check")
+    if check is None or "kind" in check:
+        return check
+    # Central policy packs written before generic checks: {"max_minutes": N} on the export rule.
+    return {**LEGACY_EXPORT_CHECK, "max": check["max_minutes"]}
+
+
+def _validate_evidence(evidence: Any, label: str) -> None:
+    _validate_list(evidence, f"{label}.evidence")
+    if len(evidence) > MAX_EVIDENCE:
+        raise CatalogError(f"{label}.evidence names at most {MAX_EVIDENCE} pieces of evidence")
+    seen = set()
+    for item in evidence:
+        _validate_fields(item, f"{label}.evidence entry", {"id", "title"}, {"when"})
+        _validate_id(item["id"], f"{label}.evidence id")
+        _validate_text(item["title"], f"{label}.evidence title")
+        if "when" in item:
+            _validate_fields(item["when"], f"{label}.evidence when", {"data"})
+            values = item["when"]["data"]
+            _validate_list(values, f"{label}.evidence when.data")
+            known = [value for value in values if isinstance(value, str) and value in DATA_ANSWERS]
+            if len(known) != len(values) or len(set(known)) != len(known):
+                raise CatalogError(f"{label}.evidence when.data lists distinct answers among {', '.join(DATA_ANSWERS)}")
+        if item["id"] in seen:
+            raise CatalogError(f"{label}.evidence names {item['id']!r} twice")
+        seen.add(item["id"])
+
+
+def _validate_rule(rule: Any, label: str, allow_command: bool) -> None:
+    """A rule states an instruction and its verification; a machine check can stand in for both."""
+    _validate_fields(rule, label, {"id"}, {"instruction", "verification", "check", "evidence"})
+    _validate_id(rule["id"], f"{label}.id")
+    if "check" in rule and isinstance(rule["check"], dict) and rule["check"].keys() == {"max_minutes"}:
+        if rule["id"] != EXPORT_EXPIRY_ID or not is_positive_integer(rule["check"]["max_minutes"]):
+            raise CatalogError(f"{label}: expected an {EXPORT_EXPIRY_ID} check with positive integer max_minutes")
+    elif "check" in rule:
+        try:
+            validate_check(rule["check"], f"{label}.check", allow_command=allow_command)
+        except ValueError as error:
+            raise CatalogError(str(error)) from error
+    for field in ("instruction", "verification"):
+        if field in rule:
+            _validate_text(rule[field], f"{label}.{field}")
+        elif "check" not in rule:
+            raise CatalogError(f"{label} is missing fields: {field}")
+    if "evidence" in rule:
+        _validate_evidence(rule["evidence"], label)
 
 
 def _validate_pattern(pattern: dict[str, Any]) -> None:
@@ -162,12 +234,20 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
             _validate_id(reference_id, "references entry")
         if len(set(pattern["references"])) != len(pattern["references"]):
             raise CatalogError("references contains duplicate IDs")
+    if pattern.get("kind", "method") not in PATTERN_KINDS:
+        raise CatalogError(f"kind must be one of {', '.join(PATTERN_KINDS)}")
     if "match" not in pattern:
         return
     match = pattern["match"]
-    _validate_fields(match, "match", {"stack"}, {"sectors", "min_versions"})
-    _validate_list(match["stack"], "match.stack")
-    for group in match["stack"]:
+    _validate_fields(match, "match", set(), {"stack", "sectors", "min_versions", "personal_data"})
+    if not match.keys() & {"stack", "sectors", "personal_data"}:
+        raise CatalogError("match needs a stack, sectors or personal_data")
+    if "personal_data" in match and match["personal_data"] is not True:
+        raise CatalogError("match.personal_data must be true; omit it otherwise")
+    if "min_versions" in match and "stack" not in match:
+        raise CatalogError("match.min_versions needs a match.stack")
+    _validate_list(match.get("stack", []), "match.stack", allow_empty="stack" not in match)
+    for group in match.get("stack", []):
         _validate_list(group, "technology aliases")
         for alias in group:
             _validate_text(alias, "technology alias")
@@ -213,20 +293,20 @@ def _validate_board_review(review: Any) -> None:
             _validate_text(prompt, f"review.{key} entry")
 
 
-def _validate_entry(collection: str, entry: Any) -> None:
+def _validate_entry(collection: str, entry: Any, *, bundled: bool = False, allow_command: bool = False) -> None:
     required = ENTRY_FIELDS | COLLECTION_FIELDS[collection]
     optional = {
         "packs": {"depends_on", "conflicts_with"},
-        "patterns": {"match", "exclusive_group", "references"},
+        "patterns": {"match", "exclusive_group", "references", "kind"},
         "boards": {"review"},
     }.get(collection)
     _validate_fields(entry, "record", required, optional)
     _validate_id(entry["id"], "id")
     _validate_text(entry["title"], "title")
     _validate_text(entry["description"], "description")
-    _validate_sources(entry["sources"])
+    _validate_sources(entry["sources"], require_checked=bundled)
     if collection == "packs":
-        _validate_pack(entry)
+        _validate_pack(entry, allow_command)
         return
     if collection == "patterns":
         _validate_pattern(entry)
@@ -292,7 +372,8 @@ def _load_entry(collection: str, path: Path, entry: Any, entries: dict, bundled:
         merged = merge_board(entries[record_id], entry)
         _validate_entry(collection, merged)
     else:
-        _validate_entry(collection, entry)
+        # Only the project's own catalog may run commands: it already controls its check commands.
+        _validate_entry(collection, entry, bundled=bundled, allow_command=not bundled)
         merged = entry
         if record_id in entries:
             raise CatalogError(f"duplicate {collection} ID {record_id!r}")
@@ -323,50 +404,95 @@ def _validate_dependencies(packs: dict[str, dict[str, Any]]) -> None:
         raise CatalogError(f"pack dependency cycle: {' -> '.join(exc.args[1])}") from exc
 
 
+def package_file(*parts: str):
+    """A file or folder shipped in the package: a plain path, unless the package is installed inside an archive.
+
+    importlib.resources takes longer to import than most commands need, so it serves only that rare case.
+    """
+    package = Path(__file__).parent
+    if package.joinpath("registry").is_dir():
+        return package.joinpath(*parts)
+    from importlib.resources import files
+
+    return files("openguildkit").joinpath(*parts)
+
+
+def _registry():
+    return package_file("registry")
+
+
+def _read_records(collection: str, directory, entries: dict, bundled: bool, overlays: list) -> None:
+    """Validate the record files of one folder and add them to entries."""
+    for path in sorted(directory.iterdir(), key=lambda item: item.name):
+        if not path.name.endswith(".json"):
+            continue
+        try:
+            entry = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=_unique_fields)
+            entry, overlay = _load_entry(collection, path, entry, entries, bundled)
+        except RecursionError as exc:
+            raise CatalogError(f"{path}: JSON nested too deeply") from exc
+        except (OSError, ValueError) as exc:
+            raise CatalogError(f"{path}: {exc}") from exc
+        entries[entry["id"]] = entry
+        if overlay:
+            overlays.append(entry["id"])
+
+
+def _read_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
+    """Read and validate the records that ship with OpenGuildKit, by collection."""
+    bundled = {}
+    for collection in COLLECTION_FIELDS:
+        directory = builtin.joinpath(collection)
+        if not directory.is_dir():
+            raise CatalogError(f"{directory} must be a directory")
+        entries: dict[str, dict[str, Any]] = {}
+        _read_records(collection, directory, entries, True, [])
+        if not entries:
+            raise CatalogError(f"{directory} has no bundled records")
+        bundled[collection] = entries
+    return bundled
+
+
+# Bundled records already validated in this process, by registry folder. They ship with the code that is
+# running, so they cannot change during a command; project records are read again on every load.
+_BUNDLED: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
+
+
+def _bundled_records(builtin) -> dict[str, dict[str, dict[str, Any]]]:
+    """A copy of the validated bundled records, read and validated once per process."""
+    key = str(builtin)
+    if key not in _BUNDLED:
+        _BUNDLED[key] = _read_bundled(builtin)
+    return copy.deepcopy(_BUNDLED[key])
+
+
 def load_catalog(
     extra_dir: Path | None = None, *, central_policy: tuple[str, dict] | None = None
 ) -> dict[str, dict[str, dict[str, Any]]]:
     """Load bundled records and optional project additions, ordered by ID."""
-    builtin = files("openguildkit").joinpath("registry")
-    roots = [builtin]
-    if extra_dir is not None and extra_dir.exists():
-        if not extra_dir.is_dir():
-            raise CatalogError(f"{extra_dir} must be a directory")
-        roots.append(extra_dir)
+    bundled = _bundled_records(_registry())
+    if extra_dir is not None and extra_dir.exists() and not extra_dir.is_dir():
+        raise CatalogError(f"{extra_dir} must be a directory")
+    project = extra_dir if extra_dir is not None and extra_dir.is_dir() else None
 
     catalog: dict[str, dict[str, dict[str, Any]]] = {}
     overlays: list[str] = []
     for collection in COLLECTION_FIELDS:
-        entries = {}
-        for root in roots:
-            directory = root.joinpath(collection)
-            if not directory.is_dir():
-                if root == builtin or directory.is_file():
-                    raise CatalogError(f"{directory} must be a directory")
-                continue
-            for path in sorted(directory.iterdir(), key=lambda item: item.name):
-                if not path.name.endswith(".json"):
-                    continue
-                try:
-                    entry = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=_unique_fields)
-                    entry, overlay = _load_entry(collection, path, entry, entries, root == builtin)
-                except RecursionError as exc:
-                    raise CatalogError(f"{path}: JSON nested too deeply") from exc
-                except (OSError, ValueError) as exc:
-                    raise CatalogError(f"{path}: {exc}") from exc
-                entries[entry["id"]] = entry
-                if overlay:
-                    overlays.append(entry["id"])
-            if root == builtin and not entries:
-                raise CatalogError(f"{directory} has no bundled records")
+        entries = bundled[collection]
+        directory = project.joinpath(collection) if project is not None else None
+        if directory is not None and directory.is_dir():
+            _read_records(collection, directory, entries, False, overlays)
+        elif directory is not None and directory.is_file():
+            raise CatalogError(f"{directory} must be a directory")
         catalog[collection] = dict(sorted(entries.items()))
 
     if central_policy is not None:
         commit, pack = central_policy
         _validate_entry("packs", pack)
         rules = pack["rules"]
-        if pack["id"] != EXPORT_EXPIRY_ID or len(rules) != 1 or "check" not in rules[0]:
-            raise CatalogError(f"The central policy must contain one executable {EXPORT_EXPIRY_ID} rule")
+        check = rule_check(rules[0]) if len(rules) == 1 else None
+        if pack["id"] != EXPORT_EXPIRY_ID or check is None or check["kind"] != "field":
+            raise CatalogError(f"The central policy must contain one {EXPORT_EXPIRY_ID} rule with a field check")
         if EXPORT_EXPIRY_ID in catalog["packs"]:
             raise CatalogError(f"duplicate packs ID {EXPORT_EXPIRY_ID!r}")
         catalog["packs"][EXPORT_EXPIRY_ID] = {**pack, "policy_commit": commit}
@@ -383,3 +509,23 @@ def load_catalog(
         if unknown_sectors:
             raise CatalogError(f"Pattern {pattern_id!r} links unknown sectors: {', '.join(sorted(unknown_sectors))}")
     return catalog
+
+
+def undated_sources(records: dict[str, dict[str, dict[str, Any]]]) -> list[str]:
+    """The records, as collection/id, that cite a source without a checked date."""
+    return [
+        f"{collection}/{record_id}"
+        for collection, entries in records.items()
+        if collection != "overlays"
+        for record_id, record in entries.items()
+        if any("checked" not in source for source in record.get("sources", []))
+    ]
+
+
+def latest_checked(*record_lists) -> str | None:
+    """The most recent checked date among the sources of the given records."""
+    dates = [
+        source["checked"] for records in record_lists for record in records
+        for source in record.get("sources", []) if "checked" in source
+    ]
+    return max(dates, default=None)

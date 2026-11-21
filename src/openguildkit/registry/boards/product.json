@@ -37,15 +37,18 @@
   "sources": [
     {
       "title": "The Scrum Guide",
-      "url": "https://scrumguides.org/scrum-guide.html"
+      "url": "https://scrumguides.org/scrum-guide.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Teresa Torres, Opportunity Solution Trees",
-      "url": "https://www.producttalk.org/opportunity-solution-trees/"
+      "url": "https://www.producttalk.org/opportunity-solution-trees/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Christensen Institute, Jobs to Be Done Theory",
-      "url": "https://www.christenseninstitute.org/theory/jobs-to-be-done/"
+      "url": "https://www.christenseninstitute.org/theory/jobs-to-be-done/",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

@@ -83,7 +83,7 @@ def brain_knowledge(board_id: str, catalog: dict, families: dict, active_packs: 
         ],
         "references": [
             {key: reference[key] for key in ("id", "title", "kind", "edition") if key in reference}
-            | {"url": reference["sources"][0]["url"]}
+            | {"title": reference.get("title_en", reference["title"]), "url": reference["sources"][0]["url"]}
             for reference in references
         ],
     }
@@ -147,7 +147,7 @@ def _task_words(context: str) -> set[str]:
 def _rank(reference: dict, words: set[str], active_packs: set[str]) -> tuple:
     """Active packs first, then the overlap with the task (names count double), then applied references."""
     names = _words(" ".join([reference["id"].replace("-", " "), reference.get("title", ""),
-                             *reference.get("aliases", [])]))
+                             reference.get("title_en", ""), *reference.get("aliases", [])]))
     labels = _words(f"{reference.get('category', '')} {reference.get('summary', '')}")
     overlap = 2 * len(words & names) + len(words & labels)
     applied = reference.get("status") == "applied" or bool(reference.get("packs"))
@@ -158,7 +158,15 @@ def brief_knowledge(board_id: str, catalog: dict, families: dict, active_packs: 
     """The part of the knowledge a consultation carries: active packs first, and a reading list
     of the brain's references that best fit the task, bounded so the brief stays readable."""
     knowledge = brain_knowledge(board_id, catalog, families, active_packs)
-    knowledge["packs"].sort(key=lambda pack: not pack["active"])
+    # A consultation keeps the packs in force and the methods that bring them; the rest of the brain's
+    # catalog is one command away, not repeated in every pass.
+    packs, others = [p for p in knowledge["packs"] if p["active"]], [p for p in knowledge["packs"] if not p["active"]]
+    knowledge["packs"] = packs
+    knowledge["more"] = {"command": f"openguildkit brains --id {board_id}", "packs_not_in_force": len(others)}
+    in_force = {pattern["id"] for pattern in catalog["patterns"].values() if set(pattern["packs"]) & active_packs}
+    methods = [method for method in knowledge["methods"] if method["id"] in in_force]
+    knowledge["more"]["methods_not_in_force"] = len(knowledge["methods"]) - len(methods)
+    knowledge["methods"] = methods
     words = _task_words(context)
     records = {
         reference["id"]: reference

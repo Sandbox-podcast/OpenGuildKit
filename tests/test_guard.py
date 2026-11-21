@@ -234,6 +234,23 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(result["changed"], 2)
 
     @unittest.skipIf(shutil.which("git") is None, "needs git")
+    def test_ci_uses_the_same_earlier_rules_diagnostic(self):
+        self.branch_with_change(guard="enforce")
+        profile_path = self.root / ".openguildkit" / "project.json"
+        profile = json.loads(profile_path.read_text(encoding="utf-8"))
+        profile["conventions"] = ["New rule in the branch."]
+        write_json(profile_path, profile)
+        self.run_cli("sync")
+        self.approve_example()
+        exported, _ = self.run_cli("task", "export", TASK)
+        path = self.root / exported.strip()
+        self.git("add", str(path.relative_to(self.root)))
+        self.git("commit", "-q", "-m", "Export a decision under the branch rules")
+        report = self.ci(code=1)
+        self.assertIn(f"The approval for {TASK} was recorded under earlier rules.", report["problems"][0])
+        self.assertIn(f"--follows {TASK}", report["problems"][0])
+
+    @unittest.skipIf(shutil.which("git") is None, "needs git")
     def test_a_profile_change_alone_needs_a_decision(self):
         self.git("init", "-q", "-b", "main")
         self.init(guard="enforce")

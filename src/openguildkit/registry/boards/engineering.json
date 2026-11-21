@@ -69,19 +69,23 @@
   "sources": [
     {
       "title": "OpenAPI Specification 3.2.1",
-      "url": "https://spec.openapis.org/oas/v3.2.1.html"
+      "url": "https://spec.openapis.org/oas/v3.2.1.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "Google Engineering Practices, Code review",
-      "url": "https://google.github.io/eng-practices/review/reviewer/looking-for.html"
+      "url": "https://google.github.io/eng-practices/review/reviewer/looking-for.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "web.dev, Baseline",
-      "url": "https://web.dev/baseline"
+      "url": "https://web.dev/baseline",
+      "checked": "2026-11-21"
     },
     {
       "title": "The Twelve-Factor App",
-      "url": "https://12factor.net/"
+      "url": "https://12factor.net/",
+      "checked": "2026-11-21"
     }
   ],
   "review": {

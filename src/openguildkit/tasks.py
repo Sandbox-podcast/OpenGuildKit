@@ -6,11 +6,11 @@ from datetime import datetime
 from pathlib import Path
 
 from . import clock
-from .decisions import decision_payload, seal
-from .project import profile_fingerprint, resolved_profile
-from .results import completion_problems, merge_results, validate_result
+from .decisions import approval_policy, check_decision_seal, decision_payload, seal, stale_approval_message, verify_signature
+from .project import profile_fingerprint, task_scope_profile
+from .results import completion_problems, expected_checks, merge_results, validate_result
 from .storage import read_json, write_json
-from .workflow import blocker_list, consult, pending_removals, validate_answers, validate_board_entry, validate_deliberation, validate_review
+from .workflow import blocker_list, consult, entry_problems, is_decision_task, pending_removals, validate_answers, validate_board_entry, validate_deliberation, validate_review
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 WINDOWS_RESERVED_NAMES = {"con", "prn", "aux", "nul"} | {
@@ -42,7 +42,8 @@ def read_task(state: Path, task_id: str) -> dict:
         raise ValueError(f"Unsupported or mismatched task record: {path}")
     problem = _record_problem(task)
     if problem:
-        raise ValueError(f"Task record {path} is inconsistent: {problem}. Restore it from version control or open a new task.")
+        # Task records are not under version control (.openguildkit/.gitignore lists tasks/).
+        raise ValueError(f"Task record {task_id} is damaged: {problem}. Restore it from a backup or open a new task.")
     return task
 
 
@@ -54,15 +55,117 @@ STATUSES = {
     "approved": ("answers", "consultation", "profile_fingerprint", "review", "decision"),
     "done": ("answers", "consultation", "profile_fingerprint", "review", "decision", "result"),
 }
-CONSULTATION_FIELDS = ("id", "boards", "routing", "scope", "markdown", "review_template")
+
+# The shape of every field the commands read, checked once when a record is loaded. A type is a
+# type, [shape] a list of that shape, a dict an object whose keys ending in "?" are optional and
+# whose "*" gives the shape of every value, a tuple one of several shapes, a frozenset the values allowed.
+_DECISION = {"outcome": str, "by": str, "reason": str, "at": str}
+_TEMPLATE_BOARD = {"id": str, "challenge?": {"specialists": [{"id": str}]}}
+# A rule states its text, or declares a machine check that stands in for it; either can name evidence.
+_EVIDENCE = [{"id": str, "title": str}]
+_RULE = (
+    {"id": str, "instruction": str, "verification": str, "check?": dict, "evidence?": _EVIDENCE},
+    {"id": str, "check": dict, "evidence?": _EVIDENCE},
+)
+_SCOPE = {
+    "open_points?": [str],
+    "checks?": [str],
+    "packs?": [{"id": str, "rules": [_RULE]}],
+    "market?": {"id": str, "observations": [{"id": str}], "changes?": [dict], "relevance?": str},
+    "tools?": [{"id": str}],
+    "storybook?": {"indexes": [{"ref": str, "stories": [str]}]},
+    "host_controls?": [{"id": str, "status": str}],
+}
+_CONSULTATION = {
+    "id": str, "boards": [str], "routing": {"*": [str]}, "scope": _SCOPE, "markdown": str,
+    "review_template": {"boards": [_TEMPLATE_BOARD]},
+    "adjustments?": [{"board": str, "action": str, "reason": str}],
+    "delegations?": {"*": str},
+    "domains?": {"*": [str]},
+}
+_CHALLENGE = {
+    "verdict": str,
+    "specialists": [{"id": str, "basis": str, "evidence_refs": [int], "finding": str}],
+    "blockers": [({"finding": str, "phase?": frozenset({"approval", "verification"})}, str)],
+}
+_REVIEW = {
+    "consultation_id": str, "summary": str, "warnings?": [str],
+    "boards": [{"id": str, "recommendation": str, "evidence": [(str, {"source": str, "ref": str})],
+                "open_questions": [str], "challenge?": _CHALLENGE}],
+}
+_RESOLUTION = {"kind": frozenset({"cleared", "waived"}), "by": str, "evidence?": str, "supports?": str,
+               "reason?": str, "scope?": str, "until?": str, "signer?": str, "signature?": str}
+_RECORD = {
+    "created_at": str,
+    "completed_at?": str,
+    "profile_fingerprint?": str,
+    "answers?": {"*": (str, [str])},
+    "consultation?": _CONSULTATION,
+    "review?": _REVIEW,
+    "decision?": {**_DECISION, "confirmed_removals?": [str]},
+    "passes?": {"consultation_id": str, "boards": {"*": {"status": str, "mode?": str, "attempts?": int, "error?": str}}},
+    "deliberation?": {
+        "objections": [{"id": str, "from": str, "to": str, "point": str}],
+        "responses": [{"objection": str, "board": str}],
+        "agreed": [str], "open": [str], "decision_needed": str,
+    },
+    "blocker_resolutions?": {"*": _RESOLUTION},
+    "verification_blocker_resolutions?": {"*": _RESOLUTION},
+    "result?": {
+        "revision?": str, "pull_request?": str,
+        "criteria?": [{"criterion": str, "status": str}],
+        "checks?": [{"check": str, "status": str}],
+        "runs?": [{"tool": str, "outcomes": {"*": str}}],
+    },
+    "follows?": {"task": str, "brief": str, "status": str, "decision": _DECISION},
+    "authorizations?": [{"action": str, "target": str, "decision": str, "by": str, "reason": str}],
+    "dependency_alerts?": {"alerts?": [dict]},
+}
+_RESOLUTION_FIELDS = {"cleared": ("evidence", "supports"), "waived": ("reason", "scope", "until")}
+
+
+def _shape_problem(value: object, shape: object, field: str) -> str | None:
+    """Where value departs from shape (see _RECORD), named by its path such as review.boards[0].challenge."""
+    if isinstance(shape, tuple):
+        problems = [_shape_problem(value, option, field) for option in shape]
+        return None if None in problems else problems[-1]
+    if isinstance(shape, frozenset):
+        return None if value in shape else f"{field} must be one of {', '.join(sorted(shape))}"
+    if isinstance(shape, list):
+        if not isinstance(value, list):
+            return f"{field} must be a list"
+        problems = (_shape_problem(item, shape[0], f"{field}[{index}]") for index, item in enumerate(value))
+        return next((problem for problem in problems if problem), None)
+    if isinstance(shape, dict):
+        if not isinstance(value, dict):
+            return f"{field} must be an object"
+        for key, inner in shape.items():
+            if key == "*":
+                problems = (_shape_problem(item, inner, f"{field}.{name}") for name, item in value.items())
+            else:
+                name = key.rstrip("?")
+                if name not in value:
+                    if key.endswith("?"):
+                        continue
+                    return f"{field}.{name} is missing" if field else f"{name} is missing"
+                problems = iter([_shape_problem(value[name], inner, f"{field}.{name}" if field else name)])
+            problem = next((problem for problem in problems if problem), None)
+            if problem:
+                return problem
+        return None
+    if shape is int:
+        return None if type(value) is int else f"{field} must be a whole number"
+    if shape is str:
+        return None if isinstance(value, str) else f"{field} must be text"
+    return None if isinstance(value, shape) else f"{field} must be {'an object' if shape is dict else 'a list'}"
 
 
 def _record_problem(task: dict) -> str | None:
-    """Describe the first field of a task record that the CLI could not use, if any."""
+    """Describe the first field of a task record that the commands could not use, if any."""
     if not isinstance(task.get("brief"), str) or not task["brief"].strip():
         return "brief must be text"
     status = task.get("status")
-    if status not in STATUSES:
+    if not isinstance(status, str) or status not in STATUSES:
         return f"status must be one of {', '.join(STATUSES)}"
     rounds = task.get("rounds")
     if not isinstance(rounds, list) or any(not isinstance(entry, dict) for entry in rounds):
@@ -70,16 +173,14 @@ def _record_problem(task: dict) -> str | None:
     for field in STATUSES[status]:
         if field not in task:
             return f"a {status} task needs {field}"
-    for field in ("answers", "consultation", "review", "decision"):
-        if field in task and not isinstance(task[field], dict):
-            return f"{field} must be an object"
-    consultation = task.get("consultation")
-    if consultation is not None:
-        missing = [field for field in CONSULTATION_FIELDS if field not in consultation]
-        if missing:
-            return f"consultation needs {', '.join(missing)}"
-        if not isinstance(consultation["boards"], list) or not isinstance(consultation["markdown"], str):
-            return "consultation boards must be a list and markdown text"
+    problem = _shape_problem(task, _RECORD, "")
+    if problem:
+        return problem
+    for field in ("blocker_resolutions", "verification_blocker_resolutions"):
+        for blocker, resolution in task.get(field, {}).items():
+            missing = [key for key in _RESOLUTION_FIELDS[resolution["kind"]] if key not in resolution]
+            if missing:
+                return f"{field}.{blocker}.{missing[0]} is missing"
     return None
 
 
@@ -136,8 +237,20 @@ def next_step(task: dict) -> str:
     return "Done."
 
 
+def approval_problem(task: dict, current_fingerprint: str) -> dict | None:
+    if task["status"] not in ("approved", "done"):
+        return None
+    try:
+        check_decision_seal(task)
+    except ValueError as error:
+        return {"kind": "invalid-seal", "message": str(error)}
+    if task.get("profile_fingerprint") != current_fingerprint:
+        return {"kind": "earlier-rules", "message": stale_approval_message(task["id"])}
+    return None
+
+
 def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
-               since: str | None = None, until: str | None = None) -> list[dict]:
+               since: str | None = None, until: str | None = None, *, current_fingerprint: str | None = None) -> list[dict]:
     """Every task of the project with its status, decision owner and next open point."""
     directory = state / "tasks"
     rows = []
@@ -149,41 +262,60 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
         except ValueError as error:
             rows.append({"id": path.stem, "status": "unreadable", "next": str(error)})
             continue
-        decided_by = task.get("decision", {}).get("by")
         day = task["created_at"][:10]
         if status and task["status"] != status:
             continue
-        if owner and (decided_by or "").casefold() != owner.casefold():
-            continue
         if (since and day < since) or (until and day > until):
             continue
+        problem = approval_problem(task, current_fingerprint) if current_fingerprint is not None else None
+        decided_by = task.get("decision", {}).get("by")
+        if problem and problem["kind"] == "invalid-seal":
+            decided_by = None
+        if owner and (decided_by or "").casefold() != owner.casefold():
+            continue
         row = {"id": task["id"], "status": task["status"], "created": day, "owner": decided_by,
-               "brief": task["brief"].splitlines()[0][:80], "next": next_step(task)}
+               "brief": task["brief"].splitlines()[0][:80], "next": problem["message"] if problem else next_step(task)}
+        if problem:
+            row["approval_problem"] = problem["kind"]
         if task.get("follows"):
             row["follows"] = task["follows"]["task"]
         rows.append(row)
     return rows
 
 
+def consultation_brief(task: dict, revised_brief: str | None = None) -> str:
+    if revised_brief is None:
+        return task["brief"]
+    if task["status"] != "changes-requested":
+        raise ValueError("Revise a task brief after a request for changes.")
+    brief = revised_brief.strip()
+    if not brief:
+        raise ValueError("Supply a revised task brief.")
+    return brief
+
+
 def record_consultation(
     task: dict, answers: dict, profile: dict, catalog: dict, selection: dict | None = None,
     host_controls: list[dict] | None = None, market: dict | None = None, storybook: dict | None = None,
-    knowledge: dict | None = None, tools: list[dict] | None = None,
+    knowledge: dict | None = None, tools: list[dict] | None = None, *, revised_brief: str | None = None,
 ) -> dict:
+    brief = consultation_brief(task, revised_brief)
     if task["status"] not in {"draft", "consulting", "changes-requested"}:
         raise ValueError("Start a new task or request changes before consulting again.")
     rounds = list(task["rounds"])
     if task["status"] == "changes-requested":
-        archived = {key: task[key] for key in ("answers", "consultation", "review", "decision", "profile_fingerprint")}
+        archived = {key: task[key] for key in ("brief", "answers", "consultation", "review", "decision", "profile_fingerprint")}
         for key in ("deliberation", "blocker_resolutions"):
             if key in task:
                 archived[key] = task[key]
         rounds.append(archived)
-    result = {**task, "answers": validate_answers(answers), "rounds": rounds}
+    validated = validate_answers(answers)
+    result = {**task, "brief": brief, "answers": validated, "rounds": rounds}
     result.update(
         status="consulting",
         consultation=consult(
-            resolved_profile(profile, catalog), catalog, result, selection, host_controls, market, storybook,
+            task_scope_profile(profile, catalog, validated.get("components", [])),
+            catalog, result, selection, host_controls, market, storybook,
             knowledge, tools,
         ),
         profile_fingerprint=profile_fingerprint(profile, catalog),
@@ -193,13 +325,15 @@ def record_consultation(
     result.pop("passes", None)
     result.pop("deliberation", None)
     result.pop("blocker_resolutions", None)
+    result.pop("verification_blocker_resolutions", None)
     return result
 
 
-def record_review(task: dict, review: dict) -> dict:
+def record_review(task: dict, review: dict, root: Path | None = None) -> dict:
+    """Record the review; with the project root, the project files and tests it cites must exist."""
     if task["status"] != "consulting":
         raise ValueError("Run task consult before recording a review.")
-    review = validate_review(task["consultation"], review)
+    review = validate_review(task["consultation"], review, root)
     result = {**task, "status": "reviewed", "review": review}
     result.pop("passes", None)
     return result
@@ -216,30 +350,39 @@ def _passes(task: dict) -> dict:
 
 def start_pass(task: dict, board_id: str, mode: str) -> dict:
     """Mark a board's pass as started; starting again replaces a failed or interrupted pass."""
+    passes = _passes(task)
     if board_id not in task["consultation"]["boards"]:
         raise ValueError(f"Board {board_id!r} is not part of this consultation.")
     if mode not in ("subagent", "sequential"):
         raise ValueError("A pass runs as a subagent or in sequence.")
-    passes = _passes(task)
     previous = passes["boards"].get(board_id, {})
     passes["boards"][board_id] = {"status": "started", "mode": mode, "started_at": timestamp(),
                                   "attempts": previous.get("attempts", 0) + 1}
     return {**task, "passes": passes}
 
 
-def submit_pass(task: dict, entry: dict, mode: str | None = None) -> dict:
+def submit_pass(task: dict, entry: dict, mode: str | None = None, root: Path | None = None) -> dict:
     """Record one board's entry. An invalid entry is recorded as a failure to retry."""
     passes = _passes(task)
     board_id = entry.get("id") if isinstance(entry, dict) else None
     current = passes["boards"].get(board_id, {}) if isinstance(board_id, str) else {}
     mode = mode or current.get("mode", "sequential")
+    if isinstance(board_id, str) and board_id in task["consultation"]["boards"] and current.get("status") not in (
+            "started", "failed", "done"):
+        raise ValueError(f"The {board_id} pass was not started: run openguildkit task pass {task['id']} {board_id} "
+                         "first, so that the entry belongs to a pass of this consultation.")
     try:
-        validated = validate_board_entry(task["consultation"], entry)
+        validated = validate_board_entry(task["consultation"], entry, root)
     except ValueError as error:
         if isinstance(board_id, str) and board_id in task["consultation"]["boards"]:
-            passes["boards"][board_id] = {**current, "status": "failed", "mode": mode, "error": str(error),
+            problems = entry_problems(task["consultation"], entry, root) or [str(error)]
+            message = "; ".join(problems) if len(problems) == 1 else "\n  - " + "\n  - ".join(problems)
+            passes["boards"][board_id] = {**current, "status": "failed", "mode": mode, "error": message,
                                           "at": timestamp(), "attempts": current.get("attempts", 1)}
-            return {**task, "passes": passes, "_error": str(error)}
+            return {**task, "passes": passes, "_error": message}
+        problems = entry_problems(task["consultation"], entry, root)
+        if problems:
+            raise ValueError(problems[0]) from None
         raise
     passes["boards"][validated["id"]] = {"status": "done", "mode": mode, "entry": validated, "at": timestamp(),
                                          "attempts": current.get("attempts", 1)}
@@ -299,17 +442,44 @@ def _clearing_evidence(value: str, root: Path) -> str:
     )
 
 
-def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict, root: Path) -> dict:
+def _clearance_payload(task: dict, blocker_id: str, entry: dict) -> dict:
+    return {
+        "kind": "blocker-clearance",
+        "task": task["id"],
+        "consultation_id": task["consultation"]["id"],
+        "review_sha256": seal(task["review"]),
+        "blocker": blocker_id,
+        **{key: entry[key] for key in ("by", "evidence", "supports")},
+    }
+
+
+def _check_clearance_signature(task: dict, blocker_id: str, entry: dict, policy: dict, root: Path) -> None:
+    if not entry.get("signer") or not entry.get("signature"):
+        raise ValueError("This project requires a signed clearance. Run task clear with --payload FILE, "
+                         "sign the payload, then pass --signature FILE --signer PRINCIPAL.")
+    if entry["by"] != entry["signer"]:
+        raise ValueError("For a signed clearance, --by must match the signer principal.")
+    verify_signature(root, policy, _clearance_payload(task, blocker_id, entry), entry["signature"], entry["signer"])
+
+
+def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict, root: Path,
+                    *, signing_payload: bool = False) -> dict:
     """Clear a blocker with evidence, or cover it with a waiver the project's policy allows.
 
     The record says whether the command ran at a terminal, so the approver knows when an agent cleared it.
     """
-    if task["status"] != "reviewed":
-        raise ValueError("Resolve blockers after the review is recorded and before the decision.")
     known = {item["id"]: item for item in blocker_list(task)}
     if blocker_id not in known:
         listed = ", ".join(known) or "none"
         raise ValueError(f"Unknown blocker {blocker_id}. Blockers: {listed}.")
+    blocker = known[blocker_id]
+    if blocker["resolution"]:
+        raise ValueError(f"Blocker {blocker_id} already has a resolution. See task blockers.")
+    verification = blocker.get("phase") == "verification"
+    if verification and task["status"] != "approved":
+        raise ValueError("Resolve a verification blocker after approval and before completion.")
+    if not verification and task["status"] != "reviewed":
+        raise ValueError("Resolve approval blockers after the review is recorded and before the decision.")
     by = resolution.get("by", "").strip()
     if not by:
         raise ValueError("Name the person who resolves the blocker.")
@@ -321,6 +491,14 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
                 raise ValueError(f"Clearing a blocker needs --{field}.")
             entry[field] = resolution[field].strip()
         entry["evidence"] = _clearing_evidence(entry["evidence"], root)
+        policy = approval_policy(profile)
+        if signing_payload:
+            if policy["mode"] != "signed" or by not in policy["approvers"]:
+                raise ValueError("A clearance payload needs a signed project and --by set to an approver principal.")
+            return _clearance_payload(task, blocker_id, entry)
+        if policy["mode"] == "signed":
+            entry.update(signer=resolution.get("signer"), signature=resolution.get("signature"))
+            _check_clearance_signature(task, blocker_id, entry, policy, root)
     else:
         policy = waiver_policy(profile)
         if not policy:
@@ -338,18 +516,37 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
                 raise ValueError(f"A waiver needs --{field}.")
             entry[field] = resolution[field].strip()
         entry["until"] = until
-    return {**task, "blocker_resolutions": {**task.get("blocker_resolutions", {}), blocker_id: entry}}
+    field = "verification_blocker_resolutions" if verification else "blocker_resolutions"
+    return {**task, field: {**task.get(field, {}), blocker_id: entry}}
 
 
 def unresolved_blockers(task: dict) -> list[str]:
-    return [item["id"] for item in blocker_list(task) if not item["resolution"]]
+    return [item["id"] for item in blocker_list(task) if not item["resolution"] and item.get("phase") != "verification"]
 
 
-def record_result(task: dict, profile: dict, payload: dict, source: str = "report") -> dict:
+def verification_blocker_problems(task: dict, profile: dict, root: Path | None = None) -> list[str]:
+    policy = approval_policy(profile)
+    problems = []
+    for item in blocker_list(task):
+        if item.get("phase") != "verification":
+            continue
+        resolution = item["resolution"]
+        if not resolution:
+            problems.append(f"Verification blocker {item['id']} is open. Clear it when {item['clears_when']}")
+        elif root is not None and policy["mode"] == "signed" and resolution["kind"] == "cleared":
+            try:
+                _check_clearance_signature(task, item["id"], resolution, policy, root)
+            except ValueError as error:
+                problems.append(f"Verification blocker {item['id']}: {error}")
+    return problems
+
+
+def record_result(task: dict, profile: dict, payload: dict, source: str = "report",
+                  *, changed: list[str] | None = None) -> dict:
     """Add a delivery report to an approved task; later reports update earlier checks."""
     if task["status"] != "approved":
         raise ValueError("Results belong to an approved task that is not done yet.")
-    result = merge_results(task.get("result"), validate_result(task, profile, payload, source))
+    result = merge_results(task.get("result"), validate_result(task, profile, payload, source, changed=changed))
     if source == "report" and task.get("answers", {}).get("outcome") and not result["criteria"]:
         raise ValueError(
             "The task has an expected outcome: report at least one acceptance criterion. Run task result ID --template."
@@ -357,11 +554,30 @@ def record_result(task: dict, profile: dict, payload: dict, source: str = "repor
     return {**task, "result": result}
 
 
-def complete_task(task: dict, profile: dict) -> dict:
-    problems = completion_problems(task, profile)
+def complete_task(task: dict, profile: dict, root: Path | None = None, *, changed: list[str] | None = None) -> dict:
+    problems = verification_blocker_problems(task, profile, root) + completion_problems(task, profile, changed=changed)
     if problems:
         raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(problems))
     return {**task, "status": "done", "completed_at": timestamp()}
+
+
+def points_left_open(task: dict, profile: dict) -> list[str]:
+    """What a completed task leaves for later: rules not passed, waived blockers, disagreements still open."""
+    mandatory = {check["id"] for check in expected_checks(task, profile) if check["mandatory"]}
+    checks = [] if is_decision_task(task) else task.get("result", {}).get("checks", [])
+    points = [
+        f"{item['check']} is {item['status']}" for item in checks
+        if item["status"] != "passed" and item["check"] not in mandatory and item["status"] != "not-applicable"
+    ]
+    points += [f"blocker {item['id']} is waived until {item['resolution']['until']}"
+               for item in blocker_list(task) if item["resolution"] and item["resolution"]["kind"] == "waived"]
+    points += [
+        f"{item['check']} was unavailable ({item['owner']}): {item['reason']}"
+        for item in task.get("result", {}).get("checks", [])
+        if item.get("environment_unavailable") is True and item["status"] == "skipped"
+    ]
+    points += [f"disagreement {item_id} was left open" for item_id in task.get("deliberation", {}).get("open", [])]
+    return points
 
 
 def record_deliberation(task: dict, payload: dict) -> dict:
@@ -422,5 +638,6 @@ def record_authorization(task: dict, action: str, target: str, allow: bool, by: 
 
 def require_current_scope(task: dict, profile: dict, catalog: dict) -> None:
     if task.get("profile_fingerprint") != profile_fingerprint(profile, catalog):
-        next_step = "Open a new task." if task["status"] == "approved" else "Request changes and consult again."
-        raise ValueError(f"The project profile or catalog changed. {next_step}")
+        if task["status"] in ("approved", "done"):
+            raise ValueError(stale_approval_message(task["id"]))
+        raise ValueError("The project profile or catalog changed. Request changes and consult again.")
