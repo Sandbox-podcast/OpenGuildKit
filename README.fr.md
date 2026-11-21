@@ -29,7 +29,7 @@ Pour chaque changement, OpenGuildKit réunit les brains concernés. Chacun relit
 
 ## Configurer ton projet
 
-Depuis ton dépôt, indique ta stack, ton secteur et les métiers concernés. Le questionnaire repère les combinaisons techniques connues et te laisse choisir les méthodes que ton équipe applique. Dans un dépôt existant, `openguildkit detect` propose d'abord tes composants et leurs versions, et chaque pattern s'applique au composant qui utilise ses technologies.
+Depuis ton dépôt, indique ta stack, ton secteur et les métiers concernés. Le questionnaire repère les combinaisons techniques connues, présélectionne les réglementations de ton secteur et les méthodes de tes métiers, et te laisse garder ou refuser chacune. Dans un dépôt existant, `openguildkit detect` propose d'abord tes composants et leurs versions, et chaque pattern s'applique au composant qui utilise ses technologies.
 
 ```bash
 openguildkit detect
@@ -67,7 +67,7 @@ openguildkit patterns --id python-fastapi-postgresql
 openguildkit brains --id product
 ```
 
-`catalog` liste les packs, les boards et les secteurs. L'index donne accès aux sources et aux méthodes. Chaque pattern indique quand il s'applique et quels packs alimentent `AGENTS.md`. [Références](docs/references.md) · [Choix des patterns](docs/patterns.md)
+`catalog` liste les packs, les boards et les secteurs, avec les packs que chaque secteur présélectionne (services financiers, assurance, santé, secteur public, e-commerce, éducation, infrastructures critiques). L'index donne accès aux sources et aux méthodes. Chaque pattern indique quand il s'applique et quels packs alimentent `AGENTS.md`. [Références](docs/references.md) · [Choix des patterns](docs/patterns.md)
 
 ## Documentation
 
@@ -84,5 +84,5 @@ openguildkit brains --id product
 - [Documentation du projet et partage avec Documentalist](docs/documentation.md)
 - [Outils de la stack d'entreprise, leurs serveurs MCP et leurs simulations](docs/tools.md)
 - [Tests de bout en bout avec ChaosFolk, en option](integrations/chaosfolk/)
-- [Contribuer](CONTRIBUTING.md) et [format du catalogue](docs/catalog-format.md)
+- [Contribuer](CONTRIBUTING.md), [format du catalogue](docs/catalog-format.md) et [tests](docs/testing.md)
 - [Feuille de route](docs/roadmap.md) et [licence MIT](LICENSE)

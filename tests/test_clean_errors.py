@@ -2,11 +2,13 @@ import contextlib
 import io
 import json
 import os
+import shutil
 import stat
 import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -15,6 +17,8 @@ from openguildkit.cli import _prompt_choices, main
 from openguildkit.storage import write_json
 
 REPO = Path(__file__).resolve().parents[1]
+EXAMPLE = REPO / "examples" / "request-status"
+TASK = "request-status"
 
 
 class CleanErrorTests(unittest.TestCase):
@@ -33,6 +37,29 @@ class CleanErrorTests(unittest.TestCase):
     def init(self):
         write_json(self.root / "answers.json", {"name": "Portal", "stack": ["Python"]})
         self.run_cli("init", "--answers", self.root / "answers.json", code=0)
+
+    def output(self, *arguments) -> str:
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(main(["--project", str(self.root), *map(str, arguments)]), 0)
+        return stdout.getvalue()
+
+    def consulted(self, profile=None):
+        write_json(self.root / "profile.json", profile or json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8")))
+        self.run_cli("init", "--answers", self.root / "profile.json", code=0)
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK, code=0)
+        self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json", code=0)
+        template = json.loads(self.output("task", "template", TASK))
+        return {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))}
+
+    def reviewed(self):
+        write_json(self.root / "review.json", self.consulted())
+        self.run_cli("task", "review", TASK, "--file", self.root / "review.json", code=0)
+
+    def approved(self):
+        self.reviewed()
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed", code=0)
 
     def test_deeply_nested_json_is_an_input_error(self):
         nested = self.root / "nested.json"
@@ -58,18 +85,205 @@ class CleanErrorTests(unittest.TestCase):
         self.assertIn(b"OpenGuildKit: Unknown brain", result.stderr)
         self.assertNotIn(b"Traceback", result.stderr)
 
-    def test_hand_edited_task_records_are_reported_as_inconsistent(self):
+    def test_hand_edited_task_records_are_reported_as_damaged(self):
         self.init()
         self.run_cli("task", "new", "Show statuses.", "--id", "status", code=0)
         path = self.root / ".openguildkit" / "tasks" / "status.json"
         original = json.loads(path.read_text(encoding="utf-8"))
-        for change in ({"brief": 5}, {"status": "approved"}, {"rounds": 5}, {"rounds": [1]}, {"status": "unknown"}):
+        for change in ({"brief": 5}, {"status": "approved"}, {"rounds": 5}, {"rounds": [1]}, {"status": "unknown"},
+                       {"status": [["x"]]}, {"created_at": {"x": "y"}}):
             path.write_text(json.dumps({**original, **change}), encoding="utf-8")
-            for command in (("task", "questions", "status"), ("task", "handoff", "status")):
-                error = self.run_cli(*command)
-                self.assertIn("is inconsistent", error)
+            for command in (("task", "questions", "status"), ("task", "handoff", "status"), ("task", "list")):
+                error = self.run_cli(*command, code=0 if command == ("task", "list") else 1)
+                if command != ("task", "list"):
+                    self.assertIn("Task record status is damaged: ", error)
+                    self.assertIn("Restore it from a backup or open a new task.", error)
         path.write_text(json.dumps({key: value for key, value in original.items() if key != "status"}), encoding="utf-8")
-        self.assertIn("is inconsistent", self.run_cli("task", "show", "status"))
+        self.assertIn("is damaged", self.run_cli("task", "show", "status"))
+
+    def test_a_damaged_field_deep_in_a_task_record_is_named_once_at_load(self):
+        """The crashes the robustness suite found: each wrong type is one message naming the field."""
+        self.reviewed()
+        path = self.root / ".openguildkit" / "tasks" / "request-status.json"
+        record = json.loads(path.read_text(encoding="utf-8"))
+        cases = {
+            "review.boards[0].challenge must be an object": lambda r: r["review"]["boards"][0].update(challenge="x"),
+            "review.boards[0].challenge.blockers must be a list": lambda r: r["review"]["boards"][0]["challenge"]
+            .update(blockers=5),
+            "consultation.review_template.boards[0] must be an object": lambda r: r["consultation"]["review_template"]
+            .update(boards=[["x"]]),
+            "consultation.review_template.boards[0].challenge.specialists[0] must be an object":
+                lambda r: r["consultation"]["review_template"]["boards"][0]["challenge"].update(specialists=["x"]),
+            "created_at must be text": lambda r: r.update(created_at={"x": "y"}),
+            "status must be one of": lambda r: r.update(status=[["x"]]),
+        }
+        for field, change in cases.items():
+            damaged = json.loads(json.dumps(record))
+            change(damaged)
+            path.write_text(json.dumps(damaged), encoding="utf-8")
+            for command in (("task", "show"), ("task", "challenge"), ("task", "progress")):
+                error = self.run_cli(*command, "request-status")
+                self.assertTrue(error.startswith(f"OpenGuildKit: Task record request-status is damaged: {field}"), error)
+                self.assertEqual(len(error.strip().splitlines()), 1, error)
+                self.assertTrue(error.strip().endswith("Restore it from a backup or open a new task."), error)
+            listed = json.loads(self.list_json())
+            self.assertEqual(listed[0]["status"], "unreadable")
+
+    def list_json(self):
+        return self.output("task", "list", "--json")
+
+    def refusal(self, *arguments) -> str:
+        """The one-line refusal of a command; a traceback fails the test."""
+        error = self.run_cli(*arguments)
+        self.assertTrue(error.startswith("OpenGuildKit: "), error)
+        return error.strip()
+
+    def test_task_answers_of_the_wrong_type_name_the_file_and_the_field(self):
+        self.init()
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK, code=0)
+        answers = json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8"))
+        path = self.root / "answers.json"
+        for change, field in (({"kind": ["feature"]}, "kind"), ({"kind": {}}, "kind"), ({"surface": [["customer"]]}, "surface")):
+            write_json(path, {**answers, **change})
+            for action in ("questions", "route", "consult"):
+                error = self.refusal("task", action, TASK, "--answers", path)
+                self.assertIn(f"{path.as_posix()}: Choose", error)
+                self.assertIn(field, error)
+
+    def test_a_deliberation_response_of_the_wrong_type_names_the_file(self):
+        self.reviewed()
+        payload = json.loads(self.output("task", "deliberate", TASK))["template"]
+        path = self.root / "deliberation.json"
+        for field, value in (("objection", ["x"]), ("board", {"id": "x"}), ("position", ["maintain"])):
+            broken = json.loads(json.dumps(payload))
+            broken["responses"][0][field] = value
+            write_json(path, broken)
+            error = self.refusal("task", "respond", TASK, "--file", path)
+            self.assertIn(path.as_posix(), error)
+            self.assertIn(field, error)
+
+    def test_every_refusal_of_a_result_names_the_accepted_values_and_the_template(self):
+        """task result with a list or a number as check was fixed by the results change; the hint is new."""
+        self.approved()
+        rule = next(check["id"] for check in json.loads(self.output("task", "checks", TASK, "--json")) if check["kind"] == "rule")
+        path = self.root / "result.json"
+        cases = {
+            "names its ID as text": {"revision": "abc1234", "checks": [{"check": ["command:1"], "status": "passed"}]},
+            "names its ID as text.": {"revision": "abc1234", "checks": [{"check": 5, "status": "passed"}]},
+            "met or not-met, not 'done'": {"revision": "abc1234",
+                                           "criteria": [{"criterion": "x", "status": "done", "evidence": "y"}]},
+            "passed, failed, skipped, not-applicable": {"revision": "abc1234",
+                                                        "checks": [{"check": rule, "status": "ok"}]},
+            "revision or pull request": {"criteria": []},
+            "criteria must be a list": {"revision": "abc1234", "criteria": "met"},
+        }
+        for message, payload in cases.items():
+            write_json(path, payload)
+            error = self.refusal("task", "result", TASK, "--file", path)
+            self.assertIn(path.as_posix(), error)
+            self.assertIn(message, error)
+            self.assertIn(f"task result {TASK} --template", error)
+
+    def test_evidence_dates_must_be_real_and_past_and_cited_files_must_exist(self):
+        review = self.consulted()
+        path = self.root / "review.json"
+        later = (date.today() + timedelta(days=3)).isoformat()
+        for change, message in (({"source": "measurement", "date": "2026-99-99"}, "not a real date"),
+                                ({"source": "measurement", "date": later}, "in the future"),
+                                ({"source": "project-file", "ref": "nowhere/does-not-exist.txt"}, "not a file or folder"),
+                                ({"source": "test", "ref": "tests/missing.py::test_x"}, "not a file or folder")):
+            broken = json.loads(json.dumps(review))
+            broken["boards"][0]["evidence"][0].update(change)
+            write_json(path, broken)
+            error = self.refusal("task", "review", TASK, "--file", path)
+            self.assertIn(message, error)
+            self.assertIn(path.as_posix(), error)
+        self.assertEqual(json.loads(self.output("task", "show", TASK))["status"], "consulting")
+        (self.root / "src").mkdir()
+        (self.root / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+        cited = json.loads(json.dumps(review))
+        cited["boards"][0]["evidence"][0].update(source="project-file", ref="src/app.py:1")
+        write_json(path, cited)
+        self.run_cli("task", "review", TASK, "--file", path, code=0)
+
+    def test_the_review_template_shows_an_evidence_item_and_every_board_problem_comes_at_once(self):
+        review = self.consulted()
+        template = json.loads(self.output("task", "template", TASK))
+        self.assertEqual(set(template["evidence_item"]), {"source", "ref", "supports", "date", "revision"})
+        self.assertIn("Write each evidence item in this shape", self.output("task", "pass", TASK, "security"))
+        broken = {**review, "evidence_item": template["evidence_item"]}
+        for entry in broken["boards"][:3]:
+            entry["recommendation"] = ""
+        write_json(self.root / "review.json", broken)
+        error = self.refusal("task", "review", TASK, "--file", self.root / "review.json")
+        self.assertIn("The review has 3 problems", error)
+        for entry in broken["boards"][:3]:
+            self.assertIn(f"{entry['id']} recommendation must contain text", error)
+
+    def test_malformed_host_hook_files_name_the_file_and_the_field(self):
+        for host, name in (("codex", ".codex/hooks.json"), ("claude-code", ".claude/settings.json")):
+            with self.subTest(host=host):
+                shutil.rmtree(self.root / ".openguildkit", ignore_errors=True)
+                write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"], "host": host, "guard": "observe"})
+                self.run_cli("init", "--answers", self.root / "profile.json", code=0)
+                target = self.root / name
+                target.parent.mkdir(exist_ok=True)
+                for text, message in (("[]", "must hold a JSON object"), ("{bad", "is not valid JSON"),
+                                      ('{"hooks": {"Stop": [{"hooks": null}]}}', "hooks.Stop[0].hooks must be a list")):
+                    target.write_text(text, encoding="utf-8")
+                    for command in (("host", "check"), ("host", "apply"), ("check",)):
+                        error = self.refusal(*command)
+                        self.assertIn(name, error)
+                        self.assertIn(message, error)
+                target.unlink()
+
+    def test_messages_point_to_a_step_that_can_be_taken(self):
+        write_json(self.root / "conflict.json", {"name": "c", "packs": ["kanban-delivery", "scrum-delivery"]})
+        error = self.refusal("init", "--answers", self.root / "conflict.json")
+        self.assertIn("the file passed to init --answers", error)
+        self.assertFalse((self.root / ".openguildkit" / "project.json").exists())
+        self.consulted()
+        brief = self.output("task", "brief", TASK)
+        self.assertIn("Public research is off for this project and this host agent has no setting that enforces it", brief)
+        self.assertNotIn("does not block public research", brief)
+        profile = self.root / ".openguildkit" / "project.json"
+        profile.write_text(profile.read_text(encoding="utf-8").replace('"general"', '"retired-sector"'), encoding="utf-8")
+        error = self.refusal("task", "list")
+        self.assertIn("set it in .openguildkit/project.json", error)
+
+    def test_a_decision_handoff_and_a_completion_with_open_points_say_how_to_link_a_follow_up(self):
+        write_json(self.root / "profile.json", {**json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8")),
+                                                "checks": [], "waivers": {"allowed_by": ["Camille"], "max_days": 30}})
+        self.run_cli("init", "--answers", self.root / "profile.json", code=0)
+        self.run_cli("task", "new", "Choose how customers follow their requests.", "--id", "choice", code=0)
+        answers = {**json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8")), "kind": "decision",
+                   "options": "A portal page or emails."}
+        answers.pop("outcome", None)
+        write_json(self.root / "answers.json", answers)
+        self.run_cli("task", "consult", "choice", "--answers", self.root / "answers.json", code=0)
+        template = json.loads(self.output("task", "template", "choice"))
+        review = json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))
+        review["boards"] = [entry for entry in review["boards"] if entry["id"] in {b["id"] for b in template["boards"]}]
+        write_json(self.root / "review.json", {"consultation_id": template["consultation_id"], **review})
+        self.run_cli("task", "review", "choice", "--file", self.root / "review.json", code=0)
+        payload = json.loads(self.output("task", "deliberate", "choice"))["template"]
+        for response in payload["responses"]:
+            response.update(position="maintain", response="Holds.", evidence_refs=[1])
+        payload["decision_needed"] = "Choose the channel."
+        write_json(self.root / "deliberation.json", payload)
+        self.run_cli("task", "respond", "choice", "--file", self.root / "deliberation.json", code=0)
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value="choice"):
+            self.run_cli("task", "decide", "choice", "--approve", "--by", "Camille", "--reason", "Agreed", code=0)
+        self.assertIn('openguildkit task new "BRIEF" --follows choice', self.output("task", "handoff", "choice"))
+        checks = json.loads(self.output("task", "checks", "choice", "--json"))
+        outcomes = [{"check": check["id"], "status": "skipped", "reason": "Not this time.", "owner": "Camille"}
+                    for check in checks if check["kind"] == "rule" and not check["mandatory"]]
+        write_json(self.root / "result.json", {"revision": "abc1234", "criteria": [], "checks": outcomes})
+        self.run_cli("task", "result", "choice", "--file", self.root / "result.json", code=0)
+        output = self.output("task", "complete", "choice")
+        self.assertIn("disagreement", output)
+        self.assertIn('openguildkit task new "BRIEF" --follows choice', output)
+        self.run_cli("task", "new", "Add the portal page.", "--id", "page", "--follows", "choice", code=0)
 
     @unittest.skipUnless(os.name == "posix", "file modes are POSIX")
     def test_new_files_follow_the_umask(self):

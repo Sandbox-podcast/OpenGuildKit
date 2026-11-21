@@ -16,6 +16,7 @@
   "packs": [
     "eu-ai-act"
   ],
+  "kind": "regulation",
   "references": [
     "eu-ai-act"
   ]

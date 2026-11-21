@@ -4,6 +4,7 @@ import argparse
 import json
 import re
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 from .catalog import load_catalog
@@ -67,6 +68,7 @@ from .tasks import (
     record_deliberation,
     assemble_review,
     pass_progress,
+    points_left_open,
     start_pass,
     submit_pass,
     ACTIONS,
@@ -356,6 +358,15 @@ def _print_json(data) -> None:
     print(json_text(data), end="")
 
 
+@contextmanager
+def _input_file(path: Path):
+    """Name the file a refusal comes from, so the person knows which file to correct."""
+    try:
+        yield
+    except ValueError as error:
+        raise ValueError(f"{path.as_posix()}: {error}") from error
+
+
 def _installed_catalog(args, state: Path) -> tuple[dict, dict[str, set[str]]]:
     """The installed catalog with project additions, and the IDs that ship with OpenGuildKit."""
     if (args.policy_repo is None) != (args.policy_commit is None):
@@ -397,6 +408,7 @@ def _update_catalog(args, root: Path, state: Path) -> None:
             catalog = live
             profile = load_profile(state, catalog)
             if args.apply:
+                sync_instructions(root, profile, catalog)
                 write_lock(state, build_lock(profile, catalog, bundled))
             result = {"changes": [], "conflicts": [], "applied": args.apply, "stale_tasks": [],
                       "note": "The project had no catalog lock. It now pins the installed catalog." if args.apply
@@ -591,15 +603,15 @@ def _interactive_init(questions: list[dict], catalog: dict) -> dict:
         answers["components"] = components
     else:
         answers.update(_prompt_questions([by_id["stack"]], "init"))
-    answers.update(_prompt_questions([by_id["roles"]], "init"))
-    asked = {"name", "sector", "stack", "components", "roles"}
+    answers.update(_prompt_questions([by_id["roles"], by_id["personal_data"]], "init"))
+    answers["personal_data"] = answers["personal_data"] == "yes"
+    asked = {"name", "sector", "stack", "components", "roles", "personal_data"}
     pending = [question for question in questions if question["id"] not in asked]
     plan = profile_recommendations(answers, catalog)
     _print_plan_notes(plan)
+    _print_preselection(plan)
     matched = [pattern["id"] for pattern in plan["matched"]]
     suggested = [pattern["id"] for pattern in plan["suggested"]]
-    if suggested:
-        print(f"\nMethods and alternatives to consider: {', '.join(suggested)}", file=sys.stderr)
     for question in pending:
         if question["id"] == "patterns":
             question["default"] = matched
@@ -608,7 +620,31 @@ def _interactive_init(questions: list[dict], catalog: dict) -> dict:
     answers.update(_prompt_questions(pending, "init"))
     if "patterns" in answers:
         answers["patterns"] = _scoped_patterns(answers["patterns"], plan)
+        declined = _declined_regulations(answers["patterns"], plan)
+        if declined:
+            answers["declined"] = declined
+            print(f"  Declined, not proposed again: {', '.join(declined)}", file=sys.stderr)
     return answers
+
+
+def _print_preselection(plan: dict) -> None:
+    """Show what is preselected and why, so the person can keep or remove each pattern."""
+    if plan["matched"]:
+        print("\nPreselected patterns, keep or remove them at the next question:", file=sys.stderr)
+        for pattern in plan["matched"]:
+            print(f"  {pattern['id']}: {'; '.join(pattern['reasons'])}", file=sys.stderr)
+    if plan["suggested"]:
+        names = ", ".join(pattern["id"] for pattern in plan["suggested"])
+        print(f"Methods and alternatives to consider: {names}", file=sys.stderr)
+
+
+def _declined_regulations(selected: list, plan: dict) -> list[str]:
+    """Preselected regulation patterns the person removed: recorded so recommend stops proposing them."""
+    chosen = {entry["id"] if isinstance(entry, dict) else entry for entry in selected}
+    return [
+        pattern["id"] for pattern in plan["matched"]
+        if pattern.get("kind") == "regulation" and pattern["id"] not in chosen
+    ]
 
 
 def _print_catalog(catalog: dict, as_json: bool) -> None:
@@ -619,7 +655,19 @@ def _print_catalog(catalog: dict, as_json: bool) -> None:
     for group in groups:
         print(group.capitalize())
         for entry in catalog[group].values():
-            print(f"  {entry['id']:<24} {entry['title']}")
+            preselected = _sector_packs(catalog, entry["id"]) if group == "sectors" else []
+            suffix = f" (preselects {', '.join(preselected)})" if preselected else ""
+            print(f"  {entry['id']:<24} {entry['title']}{suffix}")
+
+
+def _sector_packs(catalog: dict, sector_id: str) -> list[str]:
+    """The packs of the patterns that a sector preselects without a stack."""
+    return [
+        pack_id
+        for pattern in catalog["patterns"].values()
+        if sector_id in pattern.get("match", {}).get("sectors", []) and not pattern["match"].get("stack")
+        for pack_id in pattern["packs"]
+    ]
 
 
 def _print_references(args, state: Path, catalog: dict) -> None:
@@ -675,11 +723,14 @@ def _print_patterns(args, patterns: dict) -> None:
         print(pattern["description"])
         print(f"Roles: {', '.join(pattern['roles'])}")
         print(f"Packs: {', '.join(pattern['packs'])}")
-        if "match" in pattern:
-            requirements = [" / ".join(group) for group in pattern["match"]["stack"]]
+        match = pattern.get("match", {})
+        if match.get("stack"):
+            requirements = [" / ".join(group) for group in match["stack"]]
             print(f"Stack requirements: {' + '.join(requirements)}")
-            if pattern["match"].get("sectors"):
-                print(f"Sectors: {', '.join(pattern['match']['sectors'])}")
+        if match.get("sectors"):
+            print(f"Sectors: {', '.join(match['sectors'])}")
+        if match.get("personal_data"):
+            print("Preselected when the project processes personal data")
         for source in pattern["sources"]:
             print(f"- {source['title']}: {source['url']}")
         return
@@ -692,10 +743,10 @@ def _print_recommendations(plan: dict, as_json: bool) -> None:
     if as_json:
         _print_json(plan)
         return
-    print("Matched stack patterns")
+    print("Preselected patterns, confirm or remove them")
     for pattern in plan["matched"]:
         where = f" [{', '.join(pattern['components'])}]" if pattern.get("components") else ""
-        print(f"  {pattern['id']}{where}: {', '.join(pattern['matched_stack'])}")
+        print(f"  {pattern['id']}{where}: {'; '.join(pattern['reasons'])}")
         if pattern.get("version_unknown"):
             print(f"    version unknown, confirm {', '.join(pattern['version_unknown'])}")
     if plan.get("excluded"):
@@ -705,9 +756,13 @@ def _print_recommendations(plan: dict, as_json: bool) -> None:
             print(f"  {item['id']}{where}: {'; '.join(item['reasons'])}")
     print("Methods and alternatives to consider")
     for pattern in plan["suggested"]:
-        reason = ", ".join(pattern.get("matched_roles", [])) or "choose one overlapping pattern"
+        reason = "choose one overlapping pattern" if pattern.get("choice_required") else "; ".join(pattern["reasons"])
         print(f"  {pattern['id']}: {reason}")
     print(f"Recommended packs: {', '.join(plan['recommended_packs'])}")
+    if plan.get("declined"):
+        print("Declined in the profile, remove from declined to see them again")
+        for pattern_id in plan["declined"]:
+            print(f"  {pattern_id}")
     if plan.get("review"):
         print("Selected patterns to review")
         for item in plan["review"]:
@@ -1082,12 +1137,14 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             _print_json(task_questions(task["brief"]))
         else:
             answers = read_json(args.answers)
-            questions = task_questions(task["brief"], answers)
+            with _input_file(args.answers):
+                validated = validate_answers(answers)
+            questions = task_questions(task["brief"], validated)
             asked = {question["id"] for question in questions if question.get("essential") is not None}
             _print_json({
                 "questions": questions,
                 "follow_ups": sorted(asked - answers.keys()),
-                "open_points": open_points(task["brief"], validate_answers(answers)),
+                "open_points": open_points(task["brief"], validated),
             })
     elif action == "brief":
         print(_read_consultation(task)["markdown"])
@@ -1168,7 +1225,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             if action == "verify":
                 result = record_result(current_task, profile, payload, source="verify")
             elif action == "result":
-                result = record_result(current_task, profile, read_json(args.file))
+                with _input_file(args.file):
+                    result = record_result(current_task, profile, read_json(args.file))
             else:
                 blocking = blocking_alerts(load_register(state), current_task)
                 if blocking:
@@ -1177,6 +1235,10 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             write_json(task_path(state, args.id), result)
         if action == "complete":
             print("done")
+            left = points_left_open(result, profile)
+            if left:
+                print(f"Left open: {'; '.join(left)}. To follow up, open a task linked to this one: "
+                      f'openguildkit task new "BRIEF" --follows {args.id}')
         else:
             for item in result["result"]["checks"]:
                 print(f"{item['check']}: {item['status']}")
@@ -1207,7 +1269,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             current_task = read_task(state, args.id)
             if current_task != task:
                 raise ValueError("The task changed while you were deliberating. Run task deliberate again.")
-            result = record_deliberation(current_task, payload)
+            with _input_file(args.file):
+                result = record_deliberation(current_task, payload)
             write_json(task_path(state, args.id), result)
         deliberation = result["deliberation"]
         print(f"{len(deliberation['agreed'])} resolved, {len(deliberation['open'])} open")
@@ -1216,7 +1279,11 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
     elif action == "route":
         if args.answers is None and "answers" not in task:
             raise ValueError("Pass --answers FILE, or consult the task first.")
-        answers = validate_answers(read_json(args.answers) if args.answers else task["answers"])
+        if args.answers:
+            with _input_file(args.answers):
+                answers = validate_answers(read_json(args.answers))
+        else:
+            answers = validate_answers(task["answers"])
         selected = select_boards(
             resolved_profile(profile, catalog), catalog, {**task, "answers": answers}, answers, _selection(args)
         )
@@ -1235,6 +1302,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             if args.answers is not None
             else _prompt_task_questions(task["brief"])
         )
+        if args.answers is not None:
+            with _input_file(args.answers):
+                validate_answers(answers)
         with project_lock(state):
             current_task = read_task(state, args.id)
             if current_task != task:
@@ -1271,7 +1341,11 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             current_task = read_task(state, args.id)
             if current_task != task:
                 raise ValueError("The task changed while you were reviewing. Read the consultation and retry.")
-            result = record_review(current_task, review) if review is not None else assemble_review(current_task, args.summary)
+            if review is not None:
+                with _input_file(args.file):
+                    result = record_review(current_task, review, root)
+            else:
+                result = assemble_review(current_task, args.summary)
             write_json(task_path(state, args.id), result)
         print(result["status"])
     elif action in ("pass", "submit"):
@@ -1281,13 +1355,14 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             if action == "pass":
                 result = start_pass(current_task, args.board, args.mode or "sequential")
             else:
-                result = submit_pass(current_task, entry, args.mode)
+                with _input_file(args.file):
+                    result = submit_pass(current_task, entry, args.mode, root)
             error = result.pop("_error", None)
             write_json(task_path(state, args.id), result)
         if action == "pass":
             print(board_brief(result["consultation"], args.board))
         elif error:
-            raise ValueError(f"The pass is recorded as failed: {error} Start it again with task pass.")
+            raise ValueError(f"{args.file.as_posix()}: the pass is recorded as failed: {error} Start it again with task pass.")
         else:
             print("done")
     elif action == "progress":

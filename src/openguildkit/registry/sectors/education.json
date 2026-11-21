@@ -1,0 +1,25 @@
+{
+  "id": "education",
+  "title": "Education",
+  "description": "Adapt reviews to software used by schools, universities, training bodies, pupils, students and their parents in the EU.",
+  "context": [
+    "Ask the privacy owner whether children or pupils use the service, in which countries, and which age of consent each country sets under GDPR Art. 8(1). This sector preselects the minors-data-protection pattern.",
+    "Record whether the school, the publisher or both decide the purposes of processing pupils' data, and who answers the requests of pupils and parents.",
+    "When an AI feature admits, assesses or proctors learners, ask the legal owner whether it is high-risk under AI Act Annex III point 3, and select the eu-ai-act-system pattern when it is.",
+    "Keep learning material usable with assistive technology: select the wcag-web-accessibility pattern."
+  ],
+  "sources": [
+    {
+      "title": "Regulation (EU) 2016/679, General Data Protection Regulation",
+      "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng"
+    },
+    {
+      "title": "Regulation (EU) 2022/2065, Digital Services Act",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj/eng"
+    },
+    {
+      "title": "European Commission, AI Act Service Desk, Annex III: high-risk AI systems referred to in Article 6(2)",
+      "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/annex-3"
+    }
+  ]
+}

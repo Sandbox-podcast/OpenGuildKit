@@ -15,6 +15,10 @@
   "packs": [
     "gdpr"
   ],
+  "kind": "regulation",
+  "match": {
+    "personal_data": true
+  },
   "references": [
     "rgpd",
     "aipd",

@@ -459,6 +459,7 @@ class ApprovalTests(CliTestCase):
         self.run_cli("task", "consult", task_id, "--answers", self.write_json("decision.json", answers))
         template = json.loads(self.run_cli("task", "template", task_id).stdout)
         template["summary"] = "Bill per seat for the pilot and measure request volume."
+        (self.project / "pricing.md").write_text("Per-seat contract.\n", encoding="utf-8")
         for entry in template["boards"]:
             entry.update(recommendation="Keep per-seat billing for the pilot.", evidence=[{"source": "project-file", "ref": "pricing.md", "supports": "Per-seat contract."}], open_questions=[])
             challenge = entry["challenge"]

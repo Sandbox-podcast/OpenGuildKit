@@ -29,7 +29,22 @@ openguildkit recommend --answers answers.json --json
 openguildkit init --answers answers.json
 ```
 
-The preview shows the matching technologies, the recommended packs and work methods for the selected roles. The sector narrows patterns that specify a sector list. Technology aliases handle names such as PostgreSQL and Postgres. A framework stands for its platform: Next.js activates the React rules without React in the stack, ASP.NET Core does not need .NET listed, and Spring Boot matches Java and Kotlin services. The same holds for Django, Rails, Express, Vue (or Nuxt), Angular and Laravel. An iOS app is recognised by iOS, SwiftUI or UIKit, not by Swift alone, and an Android app by Android, so a server written in Swift or Kotlin gets no app store rules. Mobile patterns add the `mobile-accessibility` and `mobile-store-release` packs to the platform pack. GitLab CI, Docker and AWS each select their own pattern (`gitlab-ci-security`, `docker-images`, `aws-iam`). A compound pattern requires a match for each technology group. Versions in the declared stack stay in the project profile.
+The preview lists the preselected patterns with the reason of each one, then the patterns to consider and the recommended packs. A pattern is preselected for one of these reasons:
+
+- `stack Python, FastAPI, PostgreSQL`: its technologies match the stack (in its sectors, when it lists some).
+- `sector financial-services`: the project's sector is in its `match.sectors`. `dora-financial-entity` is preselected for financial services and insurance whatever the roles, `nis2-essential-entity` for critical infrastructure, and each other sector preselects its own regulation pattern (`openguildkit catalog` shows which).
+- `personal data`: the project answered yes to the personal data question, which preselects `gdpr-personal-data`.
+- `role security`: a work method linked to a selected role. Two methods whose packs conflict, such as Scrum and Kanban, stay under the patterns to consider until the team picks one.
+
+A regulation pattern (`"kind": "regulation"`) is never preselected because of a role: it appears under the patterns to consider for its roles, so a legal role still sees GDPR, DORA, NIS 2, the AI Act and the Cyber Resilience Act without any of them being imposed.
+
+Preselected is not imposed. The person keeps or removes each pattern. A regulation pattern the person removes during the interactive `init` is recorded in the profile under `declined`, and `recommend` lists it as declined instead of proposing it again. Add an ID to `declined` by hand to the same effect, or remove it from there to see the proposal again:
+
+```json
+"declined": ["dora-financial-entity"]
+```
+
+Technology aliases handle names such as PostgreSQL and Postgres. A framework stands for its platform: Next.js activates the React rules without React in the stack, ASP.NET Core does not need .NET listed, and Spring Boot matches Java and Kotlin services. The same holds for Django, Rails, Express, Vue (or Nuxt), Angular and Laravel. An iOS app is recognised by iOS, SwiftUI or UIKit, not by Swift alone, and an Android app by Android, so a server written in Swift or Kotlin gets no app store rules. Mobile patterns add the `mobile-accessibility` and `mobile-store-release` packs to the platform pack. GitLab CI, Docker and AWS each select their own pattern (`gitlab-ci-security`, `docker-images`, `aws-iam`). A compound pattern requires a match for each technology group. Versions in the declared stack stay in the project profile.
 
 ## Components and versions
 
@@ -58,13 +73,13 @@ A pattern can set a minimum version. The Next.js pattern needs Next.js 13.4 or l
 
 After you change the stack, the components or a version, `openguildkit sync` and `openguildkit recommend` list the selected patterns that no longer match, with the reason. Profiles written before components existed keep working unchanged.
 
-The interactive questionnaire defaults to the matching stack patterns. For an answers file, omitting both `packs` and `patterns` applies the same defaults. Set `patterns` to the full list you want if you also choose a work method. Use `[]` to skip patterns. Omit `packs` to keep the baseline and language recommendations or set it to the exact additional packs you want. The required workflow pack and the packs linked from your selected patterns still apply.
+The interactive questionnaire prints the preselected patterns and why, then uses them as the default answer. For an answers file, omitting both `packs` and `patterns` applies the same defaults, including the sector, personal data and role preselections; `"personal_data": true` (or `"yes"`) answers the personal data question. Set `patterns` to the full list you want if you also choose a work method. Use `[]` to skip patterns. Omit `packs` to keep the baseline and language recommendations or set it to the exact additional packs you want. The required workflow pack and the packs linked from your selected patterns still apply.
 
-The selected pattern IDs go into `.openguildkit/project.json`. During `init` or `sync`, their packs and dependencies are written in `AGENTS.md` and reused for a task consultation. Use `openguildkit recommend` from an initialized project to preview matches against its current stack. Edit the profile and run `sync` to apply a new selection.
+The selected pattern IDs go into `.openguildkit/project.json`. During `init` or `sync`, their packs and dependencies are written in `AGENTS.md` and reused for a task consultation. Use `openguildkit recommend` from an initialized project to preview matches against its current stack, sector and roles. Edit the profile and run `sync` to apply a new selection. Preselection only happens in `init` and `recommend`: `sync` and an upgrade never add a pattern to a saved profile, so a project created before sectors preselected anything keeps its packs until the team edits the profile.
 
 ## Review the rules before applying them
 
-`openguildkit preview --answers answers.json` shows what `init` would write, before anything changes in the repository: each pack with its version, why it is active (required, selected, from a pattern, or a dependency of another pack) and the components it applies to, then the team conventions and checks. On an initialized project, `openguildkit preview` reads the saved profile. Add `--json` for the agent. The interactive `init` shows the same preview and asks for confirmation.
+`openguildkit preview --answers answers.json` shows what `init` would write, before anything changes in the repository: each pack with its version, why it is active (required, selected, from a pattern, or a dependency of another pack; a pattern without a stack says what brought it, such as `pattern threat-modeling (role security)` or `pattern dora-financial-entity (sector financial-services)`) and the components it applies to, then the team conventions and checks. On an initialized project, `openguildkit preview` reads the saved profile. Add `--json` for the agent. The interactive `init` shows the same preview and asks for confirmation.
 
 Some packs declare that they conflict with another, for example Scrum Sprint planning and Kanban flow for the same team. When both apply to a common scope, whether they come from a pattern or from a direct selection, the preview lists the conflict and `init`, `sync` and `check` stop until the team records its choice in the profile:
 
@@ -95,6 +110,23 @@ Add `src/openguildkit/registry/patterns/<id>.json`, or place the same format in 
 }
 ```
 
-Every technology group needs a match. Within a group, one alias is enough. Add `"min_versions": {"next.js": "13.4"}` to `match` when the rules only hold from a given version; the key must be one of the aliases. Omit `match` for a method the team chooses, such as a sales qualification framework. A `match` needs a `stack`, so a pattern cannot match on its sector alone: the regulatory patterns (`gdpr-personal-data`, `dora-financial-entity`, `nis2-essential-entity`, `eu-ai-act-system`, `cyber-resilience-act-product`) are methods offered to the legal and security roles, and the `financial-services` sector tells the agent to ask whether DORA applies. Use `exclusive_group` only for patterns that would impose competing choices in the same scope. If multiple automatic matches share that group, the CLI asks the team to choose one.
+Every technology group needs a match. Within a group, one alias is enough. Add `"min_versions": {"next.js": "13.4"}` to `match` when the rules only hold from a given version; the key must be one of the aliases. Omit `match` for a method the team chooses, such as a sales qualification framework: it is preselected for its roles.
+
+A pattern can match on its sector alone, or on personal data, without a stack. Mark it `"kind": "regulation"` so that its roles only see it as a suggestion:
+
+```json
+{
+  "id": "retail-banking-dora",
+  "title": "DORA for the bank",
+  "description": "Preselected for retail banking: keep it when the bank is a financial entity under DORA.",
+  "roles": ["legal", "security"],
+  "packs": ["dora"],
+  "kind": "regulation",
+  "match": {"sectors": ["retail-banking"]},
+  "sources": [{"title": "Regulation (EU) 2022/2554, Digital Operational Resilience Act", "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/eng"}]
+}
+```
+
+`match` takes `stack`, `sectors` and `"personal_data": true`, and needs at least one of them. With a stack, `sectors` limits the pattern to those sectors; without one, it preselects the pattern there. The sector can come from the project's own catalog (see [Sectors](catalog-format.md#sectors)). Use `exclusive_group` only for patterns that would impose competing choices in the same scope. If multiple automatic matches share that group, the CLI asks the team to choose one.
 
 Link existing packs where they cover the same rules. Keep one method per pack, so that a pattern activates only the rules of its method: the A/B testing pattern uses `controlled-experiments`, not the UTM rules of `campaign-measurement`. For new rules, cite the primary source and describe the evidence a reviewer can check. Add `"references": [...]` with the IDs of the [reference entries](references.md) behind the packs the pattern activates; a reference that presents the pattern names it back in its `pattern` field. The [catalog format](catalog-format.md) shows how to write a pack.

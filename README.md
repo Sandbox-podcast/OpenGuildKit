@@ -31,7 +31,7 @@ For every change, OpenGuildKit convenes the brains it concerns. Each one reviews
 
 ## Set up your project
 
-From your own repository, launch the interactive questionnaire. Pick your stack, sector, rule packs and boards. In an existing repository, `openguildkit detect` proposes your components and versions first, and each pattern applies to the component where its technologies are used.
+From your own repository, launch the interactive questionnaire. Pick your stack, sector, roles, rule packs and boards. The sector, the roles and personal data preselect the matching regulation and method patterns, and you keep or decline each one. In an existing repository, `openguildkit detect` proposes your components and versions first, and each pattern applies to the component where its technologies are used.
 
 ```bash
 openguildkit detect
@@ -66,7 +66,7 @@ openguildkit patterns --role hr
 openguildkit patterns --id python-fastapi-postgresql
 ```
 
-`catalog` lists the packs, boards and sectors you can use in a project. The [reference index](docs/references.md) provides summaries and source links. Rule packs contain the instructions and checks `init` writes into `AGENTS.md`.
+`catalog` lists the packs, boards and sectors you can use in a project, with the packs each sector preselects (financial services, insurance, healthcare, public sector, e-commerce, education, critical infrastructure). The [reference index](docs/references.md) provides summaries and source links. Rule packs contain the instructions and checks `init` writes into `AGENTS.md`.
 
 ## Documentation
 
@@ -87,5 +87,5 @@ openguildkit patterns --id python-fastapi-postgresql
 - [Optional ChaosFolk end-to-end replays](integrations/chaosfolk/)
 
 - [Architecture](docs/architecture.md) and [task workflow](docs/workflow.md)
-- [Contributing](CONTRIBUTING.md) and [catalog format](docs/catalog-format.md)
+- [Contributing](CONTRIBUTING.md), [catalog format](docs/catalog-format.md) and [testing](docs/testing.md)
 - [Roadmap](docs/roadmap.md) and [MIT license](LICENSE)
