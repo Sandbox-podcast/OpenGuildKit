@@ -9,6 +9,7 @@ import unicodedata
 from uuid import uuid4
 
 from . import clock
+from .sensitive import public_evidence_url
 
 
 AGENT_WORKFLOW = """## OpenGuildKit task workflow
@@ -872,8 +873,11 @@ def _evidence_item(
                 f"{field}: a tool source is written TOOL:RECORD (for example jira:SUP-142) for a tool connected to the "
                 f"project. Connected: {connected}."
             )
-    if source == "public" and not result["ref"].startswith(("https://", "market:")):
-        raise ValueError(f"{field}: a public source needs an https link in ref.")
+    if source == "public" and not result["ref"].startswith("market:"):
+        if not result["ref"].startswith("https://"):
+            raise ValueError(f"{field}: a public source needs an https link in ref.")
+        if root is not None:
+            public_evidence_url(result["ref"], field)
     if root is not None and source in ("project-file", "test"):
         _project_path(result["ref"], field, root)
     if "date" in item:

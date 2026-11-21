@@ -177,14 +177,15 @@ class ProjectConnectionTests(unittest.TestCase):
         self.assertFalse((self.project / ".codex" / "config.toml").exists())
         self.assertFalse((self.project / ".openguildkit" / "tools.json").exists())
 
-        applied = cli(self.project, "tools", "apply", "jira", "snyk", "gryzzly", "--mock", "--log", "mock-calls.jsonl")
+        journal = self.project / "mock-calls.jsonl"
+        applied = cli(self.project, "tools", "apply", "jira", "snyk", "gryzzly", "--mock", "--log", journal)
         self.assertIn("Wrote jira, snyk", applied.stdout)
         config = tomllib.loads((self.project / ".codex" / "config.toml").read_text(encoding="utf-8"))
         entry = config["mcp_servers"]["jira"]
         self.assertEqual((entry["command"], entry["args"][:3]), ("openguildkit", ["tools", "mock", "jira"]))
         self.assertEqual(cli(self.project, "tools", "status").returncode, 0)
 
-        command = [sys.executable, "-m", "openguildkit", "--project", str(self.project), *entry["args"][:3]]
+        command = [sys.executable, "-m", "openguildkit", "--project", str(self.project), *entry["args"]]
         answer = exchange(command, [{"jsonrpc": "2.0", "id": 1, "method": "tools/call",
                                      "params": {"name": "get_issue", "arguments": {"key": "SUP-142"}}}])[0]
         self.assertFalse(answer["result"]["isError"])
@@ -207,7 +208,14 @@ class ProjectConnectionTests(unittest.TestCase):
                                   failure_mode="A customer sees another customer's request.", verification="Run the ownership test.")
         cli(self.project, "task", "pass", "export", board, "--mode", "sequential")
         (self.project / "entry.json").write_text(json.dumps(entry), encoding="utf-8")
-        self.assertEqual(cli(self.project, "task", "submit", "export", "--file", self.project / "entry.json").stdout.strip(), "done")
+        submitted = cli(self.project, "task", "submit", "export", "--file", self.project / "entry.json")
+        self.assertEqual(submitted.stdout.strip(), "done")
+        self.assertNotIn("no recorded jira call", submitted.stderr)
+        entry["evidence"][0]["ref"] = "jira:SUP-99999"
+        (self.project / "entry.json").write_text(json.dumps(entry), encoding="utf-8")
+        unverified = cli(self.project, "task", "submit", "export", "--file", self.project / "entry.json")
+        self.assertIn("no recorded jira call matches", unverified.stderr)
+        self.assertNotIn("SUP-99999", unverified.stderr)
         entry["evidence"][0]["ref"] = "gryzzly:timesheet-4"
         (self.project / "entry.json").write_text(json.dumps(entry), encoding="utf-8")
         refused = cli(self.project, "task", "submit", "export", "--file", self.project / "entry.json", check=False)

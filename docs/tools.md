@@ -60,7 +60,9 @@ Entries the team wrote itself are kept. If one already uses the same name with o
 
 ### Credentials
 
-No command accepts a secret, and no file holds one. A server names the variables it reads; the host passes them from each person's environment. `--set` refuses a value that looks like a credential, and `--token-env` takes the name of a variable. For OAuth servers each person signs in once in their host (`/mcp` in Claude Code, `codex mcp login NAME`).
+A server names the variables it reads. The host passes them from each person's environment. `--set` accepts plain settings such as names and hosts and rejects recognizable Stripe, GitHub, AWS and Slack credentials. `--token-env` accepts an uppercase environment variable name and rejects recognizable credentials. The CLI does not read the variable's value. For OAuth servers each person signs in once in their host (`/mcp` in Claude Code, `codex mcp login NAME`).
+
+Use placeholders for sensitive data in task briefs. `task new` warns and replaces recognizable keys and explicit password assignments with placeholders. It also warns about email addresses before saving the brief.
 
 A server is third-party code with access to company data. Before `apply`, read its `source`, prefer the publisher's own server, and give it the narrowest account the tool allows. The Security brain reviews the choice like any other change when it goes through a task.
 
@@ -115,7 +117,9 @@ When tools are connected, each board's brief lists the ones it can query, and a 
 {"source": "tool", "ref": "jira:SUP-142", "supports": "The request is tracked and in progress."}
 ```
 
-The tool must be one of the project's connections; anything else is refused. A board reads; it changes nothing in a tool during a review. Creating a ticket, logging time or posting a message is an external action the person authorizes.
+Use one of the project's connected tools. When recording a review, the CLI warns if the tool falls outside that board's scope or the local mock journals contain no call with the cited record in its arguments. Live host calls do not appear in these journals. Check those citations in the host.
+
+Use HTTPS links without credentials for public evidence. The CLI checks the literal hostname and query without resolving the host. Cite internal evidence with a project file or a connected tool. A board only reads during a review. Creating a ticket, logging time or posting a message is an external action the person authorizes.
 
 ## The tooling section
 
