@@ -25,7 +25,7 @@ from .storybook import run as storybook_command
 from .storybook import scope_entry as storybook_scope_entry
 from .integrations import install_agent_files
 from .guard import NO_TASK, ci_guard, covering_tasks, export_decision, guard_hook, guard_mode
-from .results import chaosfolk_checks, compare_runs, completion_problems, expected_checks, run_command_checks
+from .results import chaosfolk_checks, compare_runs, completion_problems, expected_checks, missing_scenarios, result_template, run_command_checks
 from .hosts import apply_host_settings, host_controls
 from .lock import (
     package_version,
@@ -77,7 +77,7 @@ from .tasks import (
     require_current_scope,
     task_path,
 )
-from .workflow import blocker_list, board_brief, challenge_report, deliberation_request, handoff, open_points, select_boards, task_questions, validate_answers
+from .workflow import blocker_list, board_brief, challenge_report, decision_summary, deliberation_request, handoff, open_points, pending_removals, select_boards, task_questions, validate_answers, validate_review, verdict_lines
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -295,7 +295,9 @@ def _parser() -> argparse.ArgumentParser:
         if action == "checks":
             command.add_argument("--json", action="store_true", help="Print the checks as JSON.")
         if action == "result":
-            command.add_argument("--file", type=Path, required=True, help="Result JSON.")
+            source = command.add_mutually_exclusive_group(required=True)
+            source.add_argument("--file", type=Path, help="Result JSON.")
+            source.add_argument("--template", action="store_true", help="Print a result file to fill in.")
         if action == "verify":
             command.add_argument("--chaosfolk", type=Path, metavar="SUMMARY",
                                  help="Record a ChaosFolk regression summary.json instead of running the check commands.")
@@ -950,21 +952,30 @@ def _decide(args, root: Path, state: Path, task: dict, profile: dict) -> None:
     blocking = blocking_alerts(load_register(state), task) if args.approve else []
     if blocking:
         raise ValueError("Approval is blocked:\n- " + "\n- ".join(blocking))
-    result = record_decision(task, args.approve, args.by, args.reason, base, signature)
-    if args.approve and signature is None:
+    removals = pending_removals(task) if args.approve else []
+    result = record_decision(task, args.approve, args.by, args.reason, base, signature, removals)
+    if args.approve and (signature is None or removals):
         if not sys.stdin.isatty():
             raise ValueError("Approval requires a person at an interactive terminal.")
-        print(
-            json_text({"brief": task["brief"], "answers": task["answers"], "review": task["review"]}),
-            file=sys.stderr,
-            end="",
-        )
-        for item in blocker_list(task):
-            resolution = item["resolution"]
-            print(f"Blocker {item['id']} {resolution['kind']} by {resolution['by']}: {item['finding']}", file=sys.stderr)
-        print(f"Type {args.id} to approve the reviewed scope: ", end="", file=sys.stderr, flush=True)
-        if input().strip() != args.id:
-            raise ValueError("Approval cancelled.")
+        print("\n".join(decision_summary(task)), file=sys.stderr)
+        if signature is None:
+            print(
+                json_text({"brief": task["brief"], "answers": task["answers"], "review": task["review"]}),
+                file=sys.stderr,
+                end="",
+            )
+            print("\n".join(verdict_lines(validate_review(task["consultation"], task["review"]))), file=sys.stderr)
+            print(f"Type {args.id} to approve the reviewed scope: ", end="", file=sys.stderr, flush=True)
+            if input().strip() != args.id:
+                raise ValueError("Approval cancelled.")
+        for board in removals:
+            print(f"The agent removed the {board} board, which the data answer selected. "
+                  f"Type {board} to confirm the removal: ", end="", file=sys.stderr, flush=True)
+            if input().strip() != board:
+                raise ValueError(
+                    f"Approval cancelled: the removal of the {board} board was not confirmed. "
+                    "Request changes and consult again with it."
+                )
     with project_lock(state):
         if read_task(state, args.id) != task:
             raise ValueError("The task changed while you were deciding. Review it and retry.")
@@ -1033,6 +1044,10 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 print(f"{item['id']} [{state}] {item['finding']}")
                 if item.get("owner"):
                     print(f"    owner: {item['owner']}; clears when: {item['clears_when']}")
+                if resolution and resolution["kind"] == "cleared":
+                    print(f"    evidence: {resolution['evidence']}; supports: {resolution['supports']}")
+                if resolution and resolution.get("recorded_from") == "no terminal":
+                    print("    recorded without a terminal")
     elif action in ("clear", "waive"):
         if action == "waive":
             if not sys.stdin.isatty():
@@ -1040,7 +1055,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             details = {"kind": "waived", "by": args.by, "reason": args.reason, "scope": args.scope, "until": args.until}
         else:
             details = {"kind": "cleared", "by": args.by, "evidence": args.evidence, "supports": args.supports}
-        result = resolve_blocker(task, args.blocker, details, profile)
+        details["terminal"] = sys.stdin.isatty()
+        result = resolve_blocker(task, args.blocker, details, profile, root)
         if action == "waive":
             print(f"Type {args.id} to waive {args.blocker} until {args.until}: ", end="", file=sys.stderr, flush=True)
             if input().strip() != args.id:
@@ -1062,10 +1078,20 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 outcome = reported.get(check["id"], {}).get("status", "not reported")
                 label = check.get("command") or check.get("verification")
                 print(f"{check['id']} [{'mandatory' if check['mandatory'] else 'report'}] {outcome}: {label}")
+    elif action == "result" and args.template:
+        if task["status"] != "approved":
+            raise ValueError("Results belong to an approved task that is not done yet.")
+        _print_json(result_template(task, profile))
+        for check in expected_checks(task, profile):
+            if check["kind"] == "command":
+                print(f"{check['id']} is run and recorded by task verify: {check['command']}", file=sys.stderr)
     elif action in ("verify", "result", "complete"):
+        if task["status"] != "approved":
+            raise ValueError("Run checks for an approved task that is not done yet." if action == "verify"
+                             else "Results belong to an approved task that is not done yet.")
+        check_decision(task, root, profile)
+        require_current_scope(task, profile, catalog)
         if action == "verify":
-            if task["status"] != "approved":
-                raise ValueError("Run checks for an approved task that is not done yet.")
             revision = git_revision(root)
             payload = {"revision": revision["commit"] if revision else "working tree"}
             if args.chaosfolk:
@@ -1078,7 +1104,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             if current_task != task:
                 raise ValueError("The task changed meanwhile. Retry.")
             if action == "verify":
-                result = record_result(current_task, profile, payload)
+                result = record_result(current_task, profile, payload, source="verify")
             elif action == "result":
                 result = record_result(current_task, profile, read_json(args.file))
             else:
@@ -1092,6 +1118,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         else:
             for item in result["result"]["checks"]:
                 print(f"{item['check']}: {item['status']}")
+            for name in missing_scenarios(result):
+                print(f"chaosfolk:{name}: missing")
             problems = completion_problems(result, profile) + blocking_alerts(load_register(state), result)
             print(f"{len(problems)} point(s) before the task can be done." if problems else "Ready: run task complete.")
     elif action == "alerts":

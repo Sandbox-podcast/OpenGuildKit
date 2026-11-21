@@ -85,7 +85,7 @@ Then each board's `triggers` are matched as whole words in the brief and context
 openguildkit task consult ID --answers answers.json --add finance --remove marketing --reason "Exports are billed per page"
 ```
 
-Each addition or removal needs a reason; the consultation records it under `adjustments`. Only boards enabled in the profile can be added.
+Each addition or removal needs a reason; the consultation records it under `adjustments`. Only boards enabled in the profile can be added. Only the requester decides to remove a board, and the decision brief and the approval prompt list every change with its reason. A board selected by a `personal`, `regulated` or `unsure` data answer (security, and legal for regulated data) can be removed only with the approver's confirmation: the removal stays pending until the person approving types the board's name at the prompt, and approval is refused without it.
 
 A project can make some reviews mandatory with `"required_boards": ["security"]` in its profile. These boards join every consultation and cannot be removed; `AGENTS.md` lists them under "Required reviews". When a required board is not enabled for the project, the consultation stops and names it. The requester can then name the person who will review instead, with `--delegate security="Alex Moreau"`: the brief tells the agent to prepare the review for that person, and the review entry carries their name in `reviewer`.
 
@@ -116,7 +116,9 @@ Rules enforced by `task review ID --file review.json`:
 - `evidence` and `open_questions` are lists of non-empty strings (they can be empty lists).
 - For a brain, each specialist needs exactly one finding with an evidence basis. An observed finding cites positions in that board's evidence list. A board records its verdict, confidence, alternative, failure mode, verification and blockers.
 
-Run `openguildkit task challenge ID` to show how the verdicts differ, what each board recommends and which checks can change the decision. The agent shows this brief to the person before implementation.
+A well-formed review is recorded, but the CLI adds `warnings` to it when the boards do not look independent: two boards with the same recommendation word for word, the same finding in several lenses, or a board whose every finding is an assumption or missing. The decision brief and the approval prompt list them.
+
+Run `openguildkit task challenge ID` to show how the verdicts differ, what each board recommends and which checks can change the decision. It starts with plain lines: the count of verdicts and a warning when boards say revise, block or insufficient-evidence, the review warnings, the boards added or removed with their reason, the open points of the scoping, the objections never deliberated and each blocker with how it was resolved and the evidence given. The agent shows this brief to the person before implementation.
 
 ## 4. Decide
 
@@ -126,7 +128,7 @@ The person runs the command in their own terminal:
 openguildkit task decide request-status --approve --by "Camille Martin" --reason "Read-only scope agreed with support"
 ```
 
-The CLI prints the brief and the review, then asks the person to type the task ID. The approval records the base Git revision and a seal over what was approved; a project that requires signed approvals verifies the approver's SSH signature instead of the typed ID ([details](architecture.md#design-decisions)). Approval fails when stdin is not a terminal, when the typed ID does not match, when the task changed during the decision, when the profile or catalog changed since the consultation, or when `AGENTS.md` is out of date.
+The CLI prints the same lines as the decision brief (starting with the verdict count), then the brief and the review, the verdict count again, and asks the person to type the task ID, then the name of each sensitive board the agent removed. The approval records the base Git revision and a seal over what was approved; a project that requires signed approvals verifies the approver's SSH signature instead of the typed ID ([details](architecture.md#design-decisions)). Approval fails when stdin is not a terminal, when the typed ID does not match, when the task changed during the decision, when the profile or catalog changed since the consultation, or when `AGENTS.md` is out of date.
 
 A blocker names the finding, its `owner` and `clears_when`, the condition that would clear it. Approval waits until each blocker is resolved:
 
@@ -136,7 +138,7 @@ openguildkit task clear ID security:1 --evidence tests/test_access.py --supports
 openguildkit task waive ID security:2 --by "Camille Martin" --reason "Internal pilot only" --scope "Internal users" --until 2026-12-15
 ```
 
-Clearing records the evidence. A waiver is possible only when the profile allows it, for example `"waivers": {"allowed_by": ["Camille Martin"], "max_days": 30}`; it needs the named person at a terminal, a reason, a scope and an end date within the limit. Otherwise send the task back with `--request-changes`. The handoff lists the cleared blockers and the waivers with their scope and end date. After upgrading the board catalog, run `openguildkit sync` and check whether a pending task needs another consultation under the new rules.
+Clearing records the evidence, which must be an existing file or folder of the project or an https link, and whether the command ran at a terminal; `task blockers`, the decision brief and the approval prompt show the evidence and what it supports. A waiver is possible only when the profile allows it, for example `"waivers": {"allowed_by": ["Camille Martin"], "max_days": 30}`; it needs the named person at a terminal, a reason, a scope and an end date within the limit. Otherwise send the task back with `--request-changes`. The handoff lists the cleared blockers and the waivers with their scope and end date. After upgrading the board catalog, run `openguildkit sync` and check whether a pending task needs another consultation under the new rules.
 
 To send the task back:
 
@@ -163,11 +165,12 @@ After implementing an approved task, the agent proves what was delivered:
 ```bash
 openguildkit task checks ID            # the expected checks: project commands and the rules of the active packs
 openguildkit task verify ID            # runs the project's check commands and keeps each log as evidence
+openguildkit task result ID --template > result.json   # the criteria and rule checks to report, ready to fill
 openguildkit task result ID --file result.json
 openguildkit task complete ID
 ```
 
-`task verify` runs only the commands listed in the profile's `checks`, in the project root, and records each exit code with its log under `.openguildkit/tasks/`. `result.json` names the delivered `revision` or `pull_request`, the acceptance `criteria` (`met` or `not-met`, with evidence) and an outcome for each rule: `passed` or `failed` with evidence, or `skipped` or `not-applicable` with a reason and an owner. Later reports update earlier outcomes check by check.
+`task verify` runs only the commands listed in the profile's `checks`, in the project root, and records each exit code with its log under `.openguildkit/tasks/`. `result.json` names the delivered `revision` or `pull_request`, the acceptance `criteria` (`met` or `not-met`, with evidence) and an outcome for each rule: `passed` or `failed` with evidence, or `skipped` or `not-applicable` with a reason and an owner. Later reports update earlier outcomes check by check. Only `task verify` records the command checks (`command:N`) and only `task verify --chaosfolk` the replays (`chaosfolk:*`): `task result` refuses them, and refuses a `passed` check with a non-zero `exit_code`. When the task's answers name an `outcome`, the result needs at least one criterion. `task verify`, `task result` and `task complete` refuse a task whose record no longer matches its approval or whose rules changed, as the handoff does.
 
 Every project command is mandatory. A profile can make rules mandatory too with `"required_rules": ["secure-sdlc", "python/run-tests"]`. `task complete` sets the task to `done` only when every mandatory check passed, every other check is reported and every criterion is met; otherwise it lists what is missing.
 

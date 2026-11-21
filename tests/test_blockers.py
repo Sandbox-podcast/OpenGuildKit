@@ -1,5 +1,6 @@
 import copy
 import json
+import tempfile
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
@@ -34,6 +35,11 @@ class BlockerTests(unittest.TestCase):
         ]
         self.review = review
         self.task = record_review({**task, "consultation": consultation}, review)
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        (self.root / "tests").mkdir()
+        (self.root / "tests" / "test_access.py").write_text("def test_access(): pass\n", encoding="utf-8")
 
     def test_each_blocker_names_an_owner_and_a_condition(self):
         broken = copy.deepcopy(self.review)
@@ -49,11 +55,11 @@ class BlockerTests(unittest.TestCase):
             record_decision(self.task, True, "Camille Martin", "Scope agreed")
         task = resolve_blocker(self.task, "security:1", {
             "kind": "cleared", "by": "Alex", "evidence": "tests/test_access.py", "supports": "Cross-account access is refused.",
-        }, self.profile)
+        }, self.profile, self.root)
         until = (date.today() + timedelta(days=10)).isoformat()
         waiver = {"kind": "waived", "by": "Camille Martin", "reason": "Pilot with internal users only",
                   "scope": "Internal pilot", "until": until}
-        task = resolve_blocker(task, "security:2", waiver, self.profile)
+        task = resolve_blocker(task, "security:2", waiver, self.profile, self.root)
         approved = record_decision(task, True, "Camille Martin", "Scope agreed")
         brief = handoff(approved)
         self.assertIn("## Conditions from resolved blockers", brief)
@@ -65,13 +71,37 @@ class BlockerTests(unittest.TestCase):
         until = (date.today() + timedelta(days=10)).isoformat()
         waiver = {"kind": "waived", "by": "Sam", "reason": "x", "scope": "y", "until": until}
         with self.assertRaisesRegex(ValueError, "cannot grant waivers"):
-            resolve_blocker(self.task, "security:1", waiver, self.profile)
+            resolve_blocker(self.task, "security:1", waiver, self.profile, self.root)
         waiver.update(by="Camille Martin", until=(date.today() + timedelta(days=90)).isoformat())
         with self.assertRaisesRegex(ValueError, "between 1 and 30 days"):
-            resolve_blocker(self.task, "security:1", waiver, self.profile)
+            resolve_blocker(self.task, "security:1", waiver, self.profile, self.root)
         no_policy = {key: value for key, value in self.profile.items() if key != "waivers"}
         with self.assertRaisesRegex(ValueError, "allows no waiver"):
-            resolve_blocker(self.task, "security:1", {**waiver, "until": until}, no_policy)
+            resolve_blocker(self.task, "security:1", {**waiver, "until": until}, no_policy, self.root)
+
+
+    def clear(self, evidence, **extra):
+        return resolve_blocker(self.task, "security:1", {
+            "kind": "cleared", "by": "Alex", "evidence": evidence, "supports": "Cross-account access is refused.", **extra,
+        }, self.profile, self.root)
+
+    def test_clearing_evidence_is_a_project_path_or_an_https_link(self):
+        for evidence in ("x", "tests/missing.py", "../outside.py", "http://example.test/report", "https://"):
+            with self.subTest(evidence=evidence), self.assertRaisesRegex(ValueError, "existing file .* https link"):
+                self.clear(evidence)
+        outside = Path(tempfile.mkdtemp())
+        self.addCleanup(outside.rmdir)
+        with self.assertRaisesRegex(ValueError, "https link"):
+            self.clear(str(outside))
+        cleared = self.clear(str(self.root / "tests" / "test_access.py"))
+        self.assertEqual(cleared["blocker_resolutions"]["security:1"]["evidence"], "tests/test_access.py")
+        linked = self.clear("https://ci.example.test/runs/42")
+        self.assertEqual(linked["blocker_resolutions"]["security:1"]["evidence"], "https://ci.example.test/runs/42")
+
+    def test_clearing_records_whether_it_was_run_at_a_terminal(self):
+        self.assertEqual(self.clear("tests/test_access.py")["blocker_resolutions"]["security:1"]["recorded_from"], "no terminal")
+        at_terminal = self.clear("tests/test_access.py", terminal=True)
+        self.assertEqual(at_terminal["blocker_resolutions"]["security:1"]["recorded_from"], "terminal")
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ from .decisions import decision_payload, seal
 from .project import profile_fingerprint, resolved_profile
 from .results import completion_problems, merge_results, validate_result
 from .storage import read_json, write_json
-from .workflow import blocker_list, consult, validate_answers, validate_board_entry, validate_deliberation, validate_review
+from .workflow import blocker_list, consult, pending_removals, validate_answers, validate_board_entry, validate_deliberation, validate_review
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 WINDOWS_RESERVED_NAMES = {"con", "prn", "aux", "nul"} | {
@@ -285,8 +285,24 @@ def waiver_policy(profile: dict) -> dict | None:
     return profile.get("waivers")
 
 
-def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict) -> dict:
-    """Clear a blocker with evidence, or cover it with a waiver the project's policy allows."""
+def _clearing_evidence(value: str, root: Path) -> str:
+    """Evidence that clears a blocker is a file or folder of the project, or an https link someone can open."""
+    if value.startswith("https://") and len(value) > len("https://") and not any(char.isspace() for char in value):
+        return value
+    project = root.resolve()
+    path = (project / value).resolve()
+    if path.exists() and (path == project or project in path.parents):
+        return path.relative_to(project).as_posix() or "."
+    raise ValueError(
+        f"Clearing evidence must be an existing file or folder of the project, or an https link: {value}."
+    )
+
+
+def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict, root: Path) -> dict:
+    """Clear a blocker with evidence, or cover it with a waiver the project's policy allows.
+
+    The record says whether the command ran at a terminal, so the approver knows when an agent cleared it.
+    """
     if task["status"] != "reviewed":
         raise ValueError("Resolve blockers after the review is recorded and before the decision.")
     known = {item["id"]: item for item in blocker_list(task)}
@@ -296,12 +312,14 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
     by = resolution.get("by", "").strip()
     if not by:
         raise ValueError("Name the person who resolves the blocker.")
-    entry = {"kind": resolution["kind"], "by": by, "at": timestamp()}
+    entry = {"kind": resolution["kind"], "by": by, "at": timestamp(),
+             "recorded_from": "terminal" if resolution.get("terminal") else "no terminal"}
     if resolution["kind"] == "cleared":
         for field in ("evidence", "supports"):
             if not resolution.get(field, "").strip():
                 raise ValueError(f"Clearing a blocker needs --{field}.")
             entry[field] = resolution[field].strip()
+        entry["evidence"] = _clearing_evidence(entry["evidence"], root)
     else:
         policy = waiver_policy(profile)
         if not policy:
@@ -326,11 +344,16 @@ def unresolved_blockers(task: dict) -> list[str]:
     return [item["id"] for item in blocker_list(task) if not item["resolution"]]
 
 
-def record_result(task: dict, profile: dict, payload: dict) -> dict:
+def record_result(task: dict, profile: dict, payload: dict, source: str = "report") -> dict:
     """Add a delivery report to an approved task; later reports update earlier checks."""
     if task["status"] != "approved":
         raise ValueError("Results belong to an approved task that is not done yet.")
-    return {**task, "result": merge_results(task.get("result"), validate_result(task, profile, payload))}
+    result = merge_results(task.get("result"), validate_result(task, profile, payload, source))
+    if source == "report" and task.get("answers", {}).get("outcome") and not result["criteria"]:
+        raise ValueError(
+            "The task has an expected outcome: report at least one acceptance criterion. Run task result ID --template."
+        )
+    return {**task, "result": result}
 
 
 def complete_task(task: dict, profile: dict) -> dict:
@@ -345,10 +368,18 @@ def record_deliberation(task: dict, payload: dict) -> dict:
 
 
 def record_decision(
-    task: dict, approve: bool, by: str, reason: str, base_revision: dict | None = None, signature: dict | None = None
+    task: dict, approve: bool, by: str, reason: str, base_revision: dict | None = None, signature: dict | None = None,
+    confirmed_removals: list[str] | None = None,
 ) -> dict:
+    """Record the person's decision. Approving needs their confirmation of each protected board removed."""
     if task["status"] != "reviewed":
         raise ValueError("Record the boards' review before deciding.")
+    unconfirmed = [board for board in pending_removals(task) if board not in (confirmed_removals or [])]
+    if approve and unconfirmed:
+        raise ValueError(
+            f"Approval cancelled: the removal of the {', '.join(unconfirmed)} board was not confirmed. Type its name "
+            "at the approval prompt, or request changes and consult again with it."
+        )
     open_blockers = unresolved_blockers(task)
     if approve and open_blockers:
         raise ValueError(
@@ -364,6 +395,8 @@ def record_decision(
         decision.update(base_revision=base_revision, seal=seal(payload))
         if signature is not None:
             decision.update(signer=signature["signer"], signature=signature["text"])
+        if pending_removals(task):
+            decision["confirmed_removals"] = pending_removals(task)
     return {**task, "status": status, "decision": decision}
 
 

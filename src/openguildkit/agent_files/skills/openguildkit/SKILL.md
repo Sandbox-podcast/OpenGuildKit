@@ -29,7 +29,7 @@ Run commands from the project root, or pass `--project PATH` before the subcomma
 1. `openguildkit task new "BRIEF" --id SHORT-ID` (or `--file brief.md` for a long brief). Use the user's words for the brief.
 2. `openguildkit task questions ID`. Ask the four choice questions (`kind`, `surface`, `data`, `research`) in the user's language. Use the question tool when it can show all choices and use a numbered list otherwise. Pre-select what the brief already makes clear and ask the user to confirm it. Keep "unsure" available.
 3. Save these answers and run `openguildkit task questions ID --answers FILE`. Ask the `follow_ups` it lists (outcome, who is affected, options) in the user's language, and show the `open_points`. `surface` can hold several areas. Ask for acceptance criteria and constraints, and put them in `context`. `context` is required when an answer is `other`.
-4. Write the answers to a temporary JSON file and run `openguildkit task route ID --answers FILE`. Show the user the proposed boards and their reasons. If the user wants to add or remove one, pass `--add BOARD`, `--remove BOARD` and their `--reason` to the consult command. If a required board is unavailable, ask who will review it and pass `--delegate BOARD=NAME`.
+4. Write the answers to a temporary JSON file and run `openguildkit task route ID --answers FILE`. Show the user the proposed boards and their reasons. Only the user removes a board: pass `--remove BOARD` only when they ask, with their `--reason`, and `--add BOARD` the same way. When the data answer selected that board, the user confirms its removal by typing its name when they approve. If a required board is unavailable, ask who will review it and pass `--delegate BOARD=NAME`.
 5. Run `openguildkit task consult ID --answers FILE` with those options.
 
 ### 2. Consult each board separately
@@ -48,7 +48,7 @@ Save each returned entry and run `openguildkit task submit ID --file ENTRY`. Che
 2. Run `openguildkit task review ID --summary "SUMMARY"`. It assembles the entries from the passes and records how they ran.
 3. Without passes, fill `openguildkit task template ID` (keep its `consultation_id`), save it and run `openguildkit task review ID --file FILE`.
 4. Run `openguildkit task deliberate ID`. When it lists objections, give each board the objection, its own first review and the other board's position, and get its answer on the same point with evidence from its list. Record them with `openguildkit task respond ID --file FILE`, with `decision_needed` when disagreements remain.
-5. Run `openguildkit task challenge ID`. Show the user the recommendation, disagreements, blockers and the checks that could change the decision.
+5. Run `openguildkit task challenge ID`. Show the user its first lines as they are (verdict count and warnings, review warnings, boards added or removed, open points, objections not deliberated, blockers with their evidence), then the recommendation, disagreements and the checks that could change the decision.
 
 ### 4. Stop for the decision
 
@@ -59,7 +59,7 @@ openguildkit task decide ID --approve --by "Their name" --reason "Why"
 openguildkit task decide ID --request-changes --by "Their name" --reason "What to change"
 ```
 
-If `openguildkit task blockers ID` lists open blockers, show each with its owner and clearing condition. Run `task clear` only with evidence the user confirms. Waivers are the user's: they run `task waive` in their terminal when the project allows it.
+If `openguildkit task blockers ID` lists open blockers, show each with its owner and clearing condition. Run `task clear` only with evidence the user confirms: a file of the project or an https link. Waivers are the user's: they run `task waive` in their terminal when the project allows it.
 
 In a project with signed approvals, give the user `openguildkit task decision-payload ID --by NAME --reason TEXT --output decision.json` to sign with their own key; never sign it yourself.
 
@@ -69,7 +69,7 @@ Never run `task decide --approve` yourself, and never try to feed it input. Run 
 
 When the user says they approved, run `openguildkit task handoff ID`. Implement only the approved scope, follow the rule packs and conventions in the handoff, run the project checks it lists and report their results. If the handoff fails because the rules changed, explain it and open a new task. Bring any scope change back to the user before doing it.
 
-When the work is implemented, run `openguildkit task verify ID`, then report every other check from `openguildkit task checks ID` and the acceptance criteria in a result file for `openguildkit task result ID --file FILE`. Run `openguildkit task complete ID` and show the user what is still missing if it refuses. Never mark a check passed without evidence.
+When the work is implemented, run `openguildkit task verify ID`: only it records the project's check commands, and `task verify ID --chaosfolk SUMMARY` the ChaosFolk replays. Then run `openguildkit task result ID --template`, fill in the file it prints (one entry per acceptance criterion, an outcome for every rule) and record it with `openguildkit task result ID --file FILE`. Run `openguildkit task complete ID` and show the user what is still missing if it refuses. Never mark a check passed without evidence.
 
 A task of kind `decision` returns an "Approved decision record" instead. Report the decision and stop: do not change project files. If the user wants to act on it, open a new task whose brief cites the decision ID, and take that task through consultation and approval.
 
