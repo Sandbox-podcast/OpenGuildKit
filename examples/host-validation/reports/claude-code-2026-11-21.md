@@ -11,7 +11,7 @@ The request (task 3 of `tasks.json`, the share link) was given in plain words, w
 | Scoping | The agent read `AGENTS.md`, `CLAUDE.md` and the skill, ran `task new` and `task questions`, proposed the four scoping answers and asked the person to confirm them, the affected people, the outcome and the constraints. It stopped and changed nothing. A task ID in capitals was refused with a clear message and it chose a valid one. |
 | First consultation | `task route`, `task consult`, then `task pass ... --mode sequential` and `task submit` for each board. Both entries were accepted at the first submission; `task review --summary` recorded `execution: sequential`. |
 | First verdicts | Product: `revise`. Security: `block`, with one blocker (the owner's email shown to an unauthenticated reader, a link that never expires and cannot be revoked) naming the data owner and what would clear it. |
-| `task deliberate` | No objection was generated: an objection is raised only against a board that would proceed. Tracked in issue 129. |
+| `task deliberate` | No objection was generated: at the time, an objection was raised only against a board that would proceed. A board that blocks now also objects to a board that asks to revise (issue 129). |
 | The person asks for changes | `task decide --request-changes` in the person's terminal: drop the email, random token, 7-day expiry, revocation. The first round was archived. |
 | Second consultation | The agent updated the answers and consulted both boards again. Product: `proceed`. Security: `revise`, no blocker, with the tests it wants before release. |
 | Disagreement | `task deliberate` listed the objection `security-to-product`. The agent recorded both answers with `task respond`: Security maintains, Product amends and accepts Security's tests as conditions. One submission was refused ("position must be maintain, concede or amend") and corrected. The objection stayed open in the decision brief, with the decision the person had to take. |
@@ -23,8 +23,8 @@ The request (task 3 of `tasks.json`, the share link) was given in plain words, w
 ## What this run showed about OpenGuildKit
 
 - The format of the result file took three attempts (an empty file, statuses `passed` instead of `met`, then the accepted file). `task result ID --template` now prints a file to fill.
-- The agent linked the follow-up task by naming the first one in its brief: it did not find `task new --follows`. Tracked in issue 99.
-- A blocking verdict facing a request for revision produced no confrontation. Tracked in issue 129.
+- The agent linked the follow-up task by naming the first one in its brief: it did not find `task new --follows`. The handoff, the completion message and the skill now give that command (issue 99).
+- A blocking verdict facing a request for revision produced no confrontation. Fixed since (issue 129).
 
 ## Not covered by this run
 
