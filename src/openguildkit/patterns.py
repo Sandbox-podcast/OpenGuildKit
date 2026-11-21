@@ -4,6 +4,8 @@ import re
 import unicodedata
 from collections import Counter
 
+from .stack_versions import STACK_VERSION, version_key, version_lower_bound
+
 ROLE_TITLES = {
     "communication": "Communication",
     "data": "Data and AI / Données et IA",
@@ -34,7 +36,6 @@ ROLE_TITLES = {
     "trust-and-safety": "Trust and safety / Confiance et sécurité des contenus",
 }
 
-_VERSION_SUFFIX = re.compile(r"(?:@|\s+)v?(\d+(?:\.\d+)*)(?:[-+][\w.-]+)?$", flags=re.IGNORECASE)
 VERSION_PATTERN = re.compile(r"\d+(?:\.\d+){0,3}")
 
 
@@ -47,7 +48,7 @@ def role_choices(patterns: dict) -> dict[str, dict]:
 
 
 def technology_key(text: str) -> str:
-    name = _VERSION_SUFFIX.sub("", text.strip())
+    name = STACK_VERSION.sub("", text.strip())
     normalized = unicodedata.normalize("NFKD", name.casefold())
     return "".join(character for character in normalized if character.isalnum() or character in "+#")
 
@@ -56,18 +57,13 @@ _technology_key = technology_key
 
 
 def technology_version(text: str) -> str | None:
-    """Return the version written after a technology name, as in "Next.js 14.2" or "Postgres@16"."""
-    match = _VERSION_SUFFIX.search(text.strip())
-    return match.group(1) if match else None
-
-
-def _version_tuple(version: str) -> tuple[int, ...]:
-    parts = [int(part) for part in version.split(".")]
-    return tuple(parts + [0] * (4 - len(parts)))
+    """Return the numeric lower bound of a version or range written after the technology name."""
+    match = STACK_VERSION.search(text.strip())
+    return version_lower_bound(match.group(1)) if match else None
 
 
 def version_at_least(version: str, minimum: str) -> bool:
-    return _version_tuple(version) >= _version_tuple(minimum)
+    return version_key(version) >= version_key(minimum)
 
 
 def stack_contexts(stack: list[str], components: list[dict] | None) -> list[dict]:

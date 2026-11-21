@@ -8,16 +8,18 @@ an https link. A project can make some rules mandatory with `required_rules`. A 
 done only when every mandatory check passed with evidence.
 """
 
+import re
 import subprocess
 import time
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from .catalog import rule_check
-from .decisions import git_revision
-from .project import rule_text
+from .decisions import changed_paths_since, git_revision
+from .project import STATE_DIR, rule_text
 from .rule_checks import evaluate_check, validate_path
 from .storage import write_text
+from .workflow import is_decision_task
 
 RESULT_STATUSES = ("passed", "failed", "skipped", "not-applicable")
 CRITERION_STATUSES = ("met", "not-met")
@@ -26,6 +28,8 @@ LOG_TAIL = 4000
 
 def expected_checks(task: dict, profile: dict) -> list[dict]:
     """The checks the handoff asks for, with an ID per check."""
+    if is_decision_task(task):
+        return []
     scope = task["consultation"]["scope"]
     required = set(profile.get("required_rules", []))
     checks = [
@@ -65,6 +69,10 @@ def _must_supply(item: dict, required: bool, scope: dict) -> str | None:
     return None
 
 
+def _command_log(state: Path, task: dict, check_id: str) -> Path:
+    return state / "tasks" / f"{task['id']}-checks" / f"{check_id.replace(':', '-').replace('/', '-')}.log"
+
+
 def _run_command(root: Path, state: Path, task: dict, check: dict, command: str, timeout: int) -> dict:
     """Run one command in the project root and keep its log as evidence."""
     started = time.monotonic()
@@ -77,7 +85,7 @@ def _run_command(root: Path, state: Path, task: dict, check: dict, command: str,
         code, output = completed.returncode, completed.stdout + completed.stderr
     except subprocess.TimeoutExpired as error:
         code, output = None, f"Timed out after {timeout} seconds.\n{error.stdout or ''}{error.stderr or ''}"
-    log = state / "tasks" / f"{task['id']}-checks" / f"{check['id'].replace(':', '-').replace('/', '-')}.log"
+    log = _command_log(state, task, check["id"])
     write_text(log, f"$ {command}\n{output[-LOG_TAIL:]}")
     return {
         "check": check["id"],
@@ -88,13 +96,20 @@ def _run_command(root: Path, state: Path, task: dict, check: dict, command: str,
     }
 
 
-def run_command_checks(root: Path, state: Path, task: dict, profile: dict, timeout: int = 1800) -> list[dict]:
+def run_command_checks(root: Path, state: Path, task: dict, profile: dict, timeout: int = 1800, *,
+                       unavailable: dict[str, str] | None = None, by: str = "") -> list[dict]:
     """Run the project's check commands and evaluate the rules' machine checks, with their evidence."""
     revision = git_revision(root)
     results = []
     for check in expected_checks(task, profile):
         if check["kind"] == "command":
-            outcome = _run_command(root, state, task, check, check["command"], timeout)
+            if unavailable and check["id"] in unavailable:
+                outcome = {
+                    "check": check["id"], "status": "skipped", "reason": unavailable[check["id"]],
+                    "owner": by, "environment_unavailable": True,
+                }
+            else:
+                outcome = _run_command(root, state, task, check, check["command"], timeout)
         elif check["kind"] == "machine" and check["check"]["kind"] == "command":
             outcome = _run_command(root, state, task, check, check["check"]["command"], timeout)
         elif check["kind"] == "machine":
@@ -103,6 +118,24 @@ def run_command_checks(root: Path, state: Path, task: dict, profile: dict, timeo
             continue
         results.append({**outcome, **({"revision": revision["commit"]} if revision else {})})
     return results
+
+
+def command_diagnostics(root: Path, state: Path, task: dict, profile: dict) -> list[str]:
+    """Give the log and a short terminal-safe excerpt for failed checks that ran a command."""
+    outcomes = {item["check"]: item for item in task.get("result", {}).get("checks", [])}
+    lines = []
+    for check in expected_checks(task, profile):
+        command = check.get("command") or check.get("check", {}).get("command")
+        if not command or outcomes.get(check["id"], {}).get("status") != "failed":
+            continue
+        log = _command_log(state, task, check["id"])
+        lines.append(f"{check['id']} ({command}): log {log.relative_to(root).as_posix()}")
+        if log.is_file() and log.resolve().is_relative_to(state.resolve()):
+            tail = log.read_text(encoding="utf-8", errors="replace").splitlines()[1:][-6:]
+            for line in tail:
+                safe_line = "".join(character for character in line if character.isprintable() or character == "\t")
+                lines.append(f"    {safe_line[:300]}")
+    return lines
 
 
 def _evidence_reference(value: str, check_id: str) -> str:
@@ -148,7 +181,27 @@ def _refusal(task: dict, message: str) -> ValueError:
     return ValueError(f"{message} Run openguildkit task result {task['id']} --template for the shape.")
 
 
-def validate_result(task: dict, profile: dict, payload: dict, source: str = "report") -> dict:
+def decision_changes(root: Path, task: dict) -> list[str]:
+    """Project changes since the decision's approved revision, excluding its exported records."""
+    base = task.get("decision", {}).get("base_revision")
+    if not is_decision_task(task) or not base:
+        return []
+    commit = base["commit"]
+    if not re.fullmatch(r"[0-9a-f]{40}(?:[0-9a-f]{24})?", commit):
+        raise ValueError("The decision has no valid approved Git revision to compare.")
+    return [path for path in changed_paths_since(root, commit)
+            if not (path.startswith(f"{STATE_DIR}/decisions/") and path.endswith(".json"))]
+
+
+def decision_revision_message(changed: list[str]) -> str:
+    shown = ", ".join(changed[:3])
+    if len(changed) > 3:
+        shown += f" and {len(changed) - 3} more"
+    return f"Project files changed since the approved revision ({shown}). Name the delivered revision or pull request."
+
+
+def validate_result(task: dict, profile: dict, payload: dict, source: str = "report",
+                    *, changed: list[str] | None = None) -> dict:
     """A result names the delivered revision or PR, the acceptance criteria and each check's outcome.
 
     A report written by the agent (`source` "report") covers rules and criteria only: command
@@ -159,7 +212,10 @@ def validate_result(task: dict, profile: dict, payload: dict, source: str = "rep
     fields = {"revision", "pull_request", "criteria", "checks"} | ({"run"} if source == "verify" else set())
     if not isinstance(payload, dict) or not payload.keys() <= fields:
         raise _refusal(task, "A result has revision or pull_request, criteria and checks.")
-    if not payload.get("revision") and not payload.get("pull_request"):
+    names_delivery = payload.get("revision") or payload.get("pull_request")
+    if changed and not names_delivery:
+        raise _refusal(task, decision_revision_message(changed))
+    if not is_decision_task(task) and not names_delivery:
         raise _refusal(task, "Name the delivered revision or pull request: revision (a commit SHA) or pull_request.")
     known = {check["id"]: check for check in expected_checks(task, profile)}
     try:
@@ -211,6 +267,10 @@ def validate_result(task: dict, profile: dict, payload: dict, source: str = "rep
             raise _refusal(task, f"{error} A {item['status']} check needs {needed}.") from None
         if known.get(item["check"], {}).get("kind") == "evidence" and "evidence" in entry:
             entry["evidence"] = _evidence_reference(entry["evidence"], item["check"])
+        if item.get("environment_unavailable") is True:
+            if source != "verify" or known.get(item["check"], {}).get("kind") != "command" or item["status"] != "skipped":
+                raise _refusal(task, f"{item['check']}: only a project command can be recorded as unavailable in task verify.")
+            entry["environment_unavailable"] = True
         for key in ("exit_code", "seconds", "revision", "chaosfolk_status", "message"):
             if key in item:
                 entry[key] = item[key]
@@ -263,13 +323,16 @@ def _evidence_problems(check: dict, outcome: dict | None) -> list[str]:
     return [f"{check['id']} is {outcome['status']}: {supply}."]
 
 
-def completion_problems(task: dict, profile: dict) -> list[str]:
+def completion_problems(task: dict, profile: dict, *, changed: list[str] | None = None) -> list[str]:
     """Why the task cannot be declared done yet."""
-    result = task.get("result")
-    if not result:
+    decision = is_decision_task(task)
+    result = task.get("result") or {}
+    if not decision and not result:
         return ["No result is recorded. Run task verify or task result."]
     problems = []
-    reported = {item["check"]: item for item in result.get("checks", [])}
+    if changed and not (result.get("revision") or result.get("pull_request")):
+        problems.append(decision_revision_message(changed))
+    reported = {} if decision else {item["check"]: item for item in result.get("checks", [])}
     for check in expected_checks(task, profile):
         outcome = reported.get(check["id"])
         if check["kind"] == "evidence":
@@ -277,7 +340,10 @@ def completion_problems(task: dict, profile: dict) -> list[str]:
         elif check["mandatory"]:
             if outcome is None:
                 problems.append(f"{check['id']} is mandatory and has no result.")
-            elif outcome["status"] != "passed":
+            elif outcome["status"] != "passed" and not (
+                check["kind"] == "command" and outcome["status"] == "skipped"
+                and outcome.get("environment_unavailable") is True and outcome.get("reason") and outcome.get("owner")
+            ):
                 problems.append(f"{check['id']} is mandatory and {outcome['status']}.")
         elif outcome is None:
             problems.append(f"{check['id']} is not reported: pass, fail, skip or mark it not applicable.")
@@ -285,7 +351,7 @@ def completion_problems(task: dict, profile: dict) -> list[str]:
         if name.startswith("chaosfolk:") and outcome["status"] != "passed":
             reason = "gave no verdict" if outcome.get("chaosfolk_status") == "error" else "failed"
             problems.append(f"{name} {reason} in the last replay.")
-    for name in missing_scenarios(task):
+    for name in (() if decision else missing_scenarios(task)):
         problems.append(
             f"chaosfolk:{name} ran in the previous replay and is missing from the last one. "
             "Replay it, or replay again if it was removed on purpose."
@@ -371,9 +437,12 @@ def _evidence_answer(check: dict) -> str:
     return f'{supplied} Or, when it does not apply to this task: status "not-applicable" with a reason and an owner.'
 
 
-def result_template(task: dict, profile: dict) -> dict:
+def result_template(task: dict, profile: dict, *, changed: list[str] | None = None) -> dict:
     """A result file to fill: the acceptance criteria, every check a report covers and each named evidence."""
     outcome = task.get("answers", {}).get("outcome", "")
+    if is_decision_task(task):
+        template = {"criteria": [{"criterion": outcome, "status": "", "evidence": ""}] if outcome else []}
+        return {"revision": "", "pull_request": "", **template} if changed else template
     checks = []
     for check in expected_checks(task, profile):
         if check["kind"] == "rule":

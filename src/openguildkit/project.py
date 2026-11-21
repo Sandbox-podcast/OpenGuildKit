@@ -158,12 +158,12 @@ def _host_question(detected: str | None) -> dict:
 
 def init_questions(
     catalog: dict, project_name: str, detected: list[dict] | None = None, tools: list[dict] | None = None,
-    host: str | None = None,
+    host: str | None = None, checks: list[str] | None = None,
 ) -> list[dict]:
     """The setup questionnaire, in the order it is asked. Every question has a default or is marked required.
 
     detected: components found in the repository; tools: registry tools it shows signs of; host: the agent
-    host its files point to.
+    host its files point to; checks: test and lint commands the repository's files point to.
     """
     components = {
         "id": "components",
@@ -238,7 +238,14 @@ def init_questions(
             "local-only",
         ),
         {"id": "conventions", "type": "list", "prompt": "Which team conventions should the agent follow?", "default": []},
-        {"id": "checks", "type": "list", "prompt": "Which project checks should the agent or CI run?", "default": []},
+        {
+            "id": "checks",
+            "type": "list",
+            "prompt": "Which project checks should the agent or CI run? Each one is run by task verify and must pass "
+                      "before a task is done." + (" The repository points to the commands proposed here: keep or remove "
+                                                  "each." if checks else ""),
+            "default": list(checks or []),
+        },
     ]
 
 
@@ -538,8 +545,7 @@ def _norm_answers(value, catalog: dict) -> dict[str, bool]:
 def complete_answers(answers: object, questions: list[dict], catalog: dict) -> tuple[dict, list[dict], list[str]]:
     """Give each omitted question its default and record the norms answered no in declined.
 
-    Returns the answers, the detected components left aside (the default only applies when the
-    answers give no stack either) and the norms answered yes.
+    Returns the answers, the detected components left aside and the norms answered yes.
     """
     if not isinstance(answers, dict):
         raise ValueError("Setup answers must be a JSON object, such as {} or {\"name\": \"Portal\"}.")
@@ -549,7 +555,8 @@ def complete_answers(answers: object, questions: list[dict], catalog: dict) -> t
     for field in ("name", "sector", "boards", "tools", "host", "guard", "research"):
         if field in defaults:
             completed.setdefault(field, defaults[field])
-    if "components" not in completed and "stack" not in completed and detected:
+    root_only = len(detected) == 1 and detected[0].get("path") == "."
+    if "components" not in completed and detected and ("stack" not in completed or (root_only and completed["stack"] == [])):
         completed["components"] = detected
     left_aside = detected if detected and not completed.get("components") else []
     norms = _norm_answers(completed.pop("norms", {}), catalog)
@@ -791,6 +798,34 @@ def _without_dates(record: dict) -> dict:
     """The record without its sources' checked dates: a page read again does not change the advice."""
     sources = [{key: value for key, value in source.items() if key != "checked"} for source in record.get("sources", [])]
     return {**record, "sources": sources} if "sources" in record else record
+
+
+def task_scope_profile(profile: dict, catalog: dict, component_ids: list[str]) -> dict:
+    """Resolve the project rules for all components or the ones named in the task answers."""
+    resolved = resolved_profile(profile, catalog)
+    if not component_ids:
+        return resolved
+    selected = set(component_ids)
+    components = [component for component in resolved.get("components", []) if component["id"] in selected]
+    available = {component["id"] for component in resolved.get("components", [])}
+    if unknown := selected - available:
+        raise ValueError(f"Unknown task components: {', '.join(sorted(unknown))}. "
+                         f"Use project component IDs: {', '.join(sorted(available)) or 'none'}.")
+    scopes = pack_scopes(profile, catalog)
+    resolved["packs"] = [
+        pack for pack in resolved["packs"] if scopes.get(pack) is None or selected.intersection(scopes[pack])
+    ]
+    patterns = []
+    for entry in resolved.get("patterns", []):
+        pattern, scope = pattern_selection(entry)
+        if not scope:
+            patterns.append(entry)
+        elif scoped := [name for name in scope if name in selected]:
+            patterns.append({"id": pattern, "components": scoped})
+    resolved["components"] = components
+    resolved["stack"] = list(dict.fromkeys(technology for component in components for technology in component["stack"]))
+    resolved["patterns"] = patterns
+    return resolved
 
 
 def profile_fingerprint(profile: dict, catalog: dict) -> str:

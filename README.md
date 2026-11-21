@@ -23,6 +23,12 @@ To install a published version instead, with its verified wheel and agent files,
 
 The [request status demo](examples/request-status/) creates a temporary project and uses prepared reviews for tracking support requests. Run it in a terminal to compare the findings, approve the scope and see the implementation brief.
 
+### Web interface
+
+`openguildkit ui` opens your project in the browser, on 127.0.0.1: tasks by state, the board consultation and each brain's pass, reviews and blockers, checks and results, dependency alerts, market dossiers, deliverables, tools and MCP servers, documentation exports and shares. Every action runs a CLI command. Approvals, waivers and other decisions that need a person stay in your terminal: the page shows the command to type. [Project interface](web/docs/interface-projet.md)
+
+The same interface runs as a demo without the CLI. Explore Atelier Nova, a fictional software company, and follow a change from project rules and expert reviews through a human decision, a deliverable and its checks. The demo simulates external services and stores changes in your browser. [Run the web demo](web/README.md).
+
 ## The board of brains
 
 Each discipline of a software publisher has a brain: software development, front-end, back-end, security, DevOps, QA, performance, product, design, data and AI, marketing, communication, sales, partnerships, customer support, customer success, finance, procurement, legal and compliance, HR, internal IT, localisation, developer relations and documentation, trust and safety, project management, operations and executive leadership. A brain brings specialist lenses with what an expert of each verifies, the evidence it asks for, the objections it raises, its decision criteria and the methods, rule packs and standards of its discipline.

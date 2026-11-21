@@ -1,6 +1,8 @@
 import contextlib
 import io
 import json
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -28,11 +30,19 @@ class ResultTests(unittest.TestCase):
         self.assertEqual(result, code, stderr.getvalue())
         return stdout.getvalue(), stderr.getvalue()
 
-    def approved(self, exit_code=0, answers=None, **extra):
+    def git(self, *args):
+        return subprocess.run(["git", "-C", str(self.root), *args], capture_output=True, text=True, check=True).stdout.strip()
+
+    def approved(self, exit_code=0, answers=None, git_project=False, **extra):
         command = f'"{sys.executable}" -c "import sys; print(\'checked\'); sys.exit({exit_code})"'
         profile = {"name": "Portal", "stack": ["Python"], "packs": ["python"], "checks": [command], **extra}
         write_json(self.root / "profile.json", profile)
         self.run_cli("init", "--answers", self.root / "profile.json")
+        if git_project:
+            (self.root / "app.py").write_text("VERSION = 1\n", encoding="utf-8")
+            self.git("init", "-q", "-b", "main")
+            self.git("add", ".")
+            self.git("-c", "user.name=Tester", "-c", "user.email=tester@example.org", "commit", "-qm", "Initial project")
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
         if answers:
             write_json(self.root / "answers.json", {**json.loads((EXAMPLE / "answers.json").read_text()), **answers})
@@ -72,14 +82,77 @@ class ResultTests(unittest.TestCase):
         self.assertEqual(record["status"], "done")
         self.assertEqual(record["result"]["pull_request"], "https://github.com/example/portal/pull/7")
 
+    def test_a_decision_records_its_outcome_without_code_checks_or_a_revision(self):
+        outcome = "The project owner selects a format for request history."
+        self.approved(exit_code=1, answers={"kind": "decision", "outcome": outcome})
+        preview, error = self.run_cli("task", "result", TASK, "--template")
+        self.assertEqual(json.loads(preview), {"criteria": [{"criterion": outcome, "status": "", "evidence": ""}]})
+        self.assertEqual(error, "")
+        self.assertEqual(json.loads(self.run_cli("task", "checks", TASK, "--json")[0]), [])
+        self.assertNotIn("command:1", self.run_cli("task", "verify", TASK)[0])
+        report = self.root / "result.json"
+        write_json(report, {"criteria": [{"criterion": outcome, "status": "met", "evidence": "Approved decision record."}]})
+        self.run_cli("task", "result", TASK, "--file", report)
+        self.assertIn(f"--follows {TASK}", self.run_cli("task", "complete", TASK)[0])
+        self.assertNotIn("revision", self.record()["result"])
+        self.assertEqual(self.record()["status"], "done")
+
+    @unittest.skipUnless(shutil.which("git"), "needs git")
+    def test_a_decision_with_project_file_changes_needs_a_delivery_reference(self):
+        self.approved(answers={"kind": "decision"}, git_project=True)
+        self.assertNotIn("revision", json.loads(self.run_cli("task", "result", TASK, "--template")[0]))
+        self.run_cli("task", "export", TASK)
+        self.git("add", ".openguildkit/decisions")
+        self.assertNotIn("revision", json.loads(self.run_cli("task", "result", TASK, "--template")[0]))
+        (self.root / "app.py").write_text("VERSION = 2\n", encoding="utf-8")
+        preview, error = self.run_cli("task", "result", TASK, "--template")
+        self.assertIn("revision", json.loads(preview))
+        self.assertIn("Project files changed since the approved revision (app.py)", error)
+        report = self.root / "result.json"
+        write_json(report, {"criteria": []})
+        self.assertIn("Name the delivered revision", self.run_cli("task", "result", TASK, "--file", report, code=1)[1])
+        self.assertIn("Name the delivered revision", self.run_cli("task", "complete", TASK, code=1)[1])
+        self.git("add", "app.py")
+        self.git("-c", "user.name=Tester", "-c", "user.email=tester@example.org", "commit", "-qm", "Change project")
+        write_json(report, {"revision": self.git("rev-parse", "HEAD"), "criteria": []})
+        self.run_cli("task", "result", TASK, "--file", report)
+        self.assertIn(f"--follows {TASK}", self.run_cli("task", "complete", TASK)[0])
+
     def test_a_failed_or_unproven_mandatory_check_blocks_completion(self):
         self.approved(exit_code=1, required_rules=["python"])
-        self.run_cli("task", "verify", TASK)
+        output, _ = self.run_cli("task", "verify", TASK)
+        self.assertIn("checked", output)
+        self.assertIn(".openguildkit/tasks/", output)
+        self.assertIn("command:1 is mandatory and failed", output)
         write_json(self.root / "result.json", {"revision": "abc1234", "criteria": [], "checks": self.rule_outcomes()})
         self.run_cli("task", "result", TASK, "--file", self.root / "result.json")
         _, error = self.run_cli("task", "complete", TASK, code=1)
         self.assertIn("command:1 is mandatory and failed", error)
         self.assertIn("rule:python/", error)
+        self.assertIn("checked", error)
+
+    def test_a_person_can_record_an_environment_reservation_for_a_project_command(self):
+        self.approved(exit_code=1)
+        options = ("--unavailable", "command:1=Dependencies unavailable offline", "--by", "Camille")
+        with patch("sys.stdin.isatty", return_value=False):
+            _, error = self.run_cli("task", "verify", TASK, *options, code=1)
+        self.assertIn("interactive terminal", error)
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            _, error = self.run_cli("task", "verify", TASK, *options, "--chaosfolk", "unused.json", code=1)
+            self.assertIn("without --chaosfolk", error)
+            output, _ = self.run_cli("task", "verify", TASK, *options)
+        self.assertIn("command:1: skipped", output)
+        self.assertIn("Dependencies unavailable offline", output)
+        self.report(*self.rule_outcomes())
+        output, _ = self.run_cli("task", "complete", TASK)
+        self.assertIn("done", output)
+        self.assertIn("Dependencies unavailable offline", output)
+
+    def test_task_verify_explains_how_to_add_project_commands(self):
+        self.approved(checks=[])
+        output, _ = self.run_cli("task", "verify", TASK)
+        self.assertIn("No project check command is configured", output)
+        self.assertIn(".openguildkit/project.json (checks)", output)
 
     def test_skipped_checks_need_a_reason_and_an_owner(self):
         self.approved()
@@ -159,7 +232,8 @@ class ResultTests(unittest.TestCase):
         write_json(path, profile)
         self.run_cli("sync")
         _, error = self.run_cli("task", "verify", TASK, code=1)
-        self.assertIn("changed", error)
+        self.assertIn("The approval for request-status was recorded under earlier rules.", error)
+        self.assertIn("--follows request-status", error)
 
     def test_the_result_template_lists_the_criteria_and_every_expected_check(self):
         outcome = "Customers see the status of their own requests."

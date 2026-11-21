@@ -6,6 +6,7 @@ observations within the project's research policy.
 """
 
 import re
+import unicodedata
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -301,7 +302,30 @@ def due_sources(dossier: dict, today: date | None = None) -> list[dict]:
     return due
 
 
-def scope_entry(dossier: dict, research: str, today: date | None = None) -> dict:
+_STOP = frozenset("the and for with from that this into your their about what when then than also have has are was were "
+                  "des les une pour dans avec sur par est sont que qui aux ses leur cette".split())
+
+
+def _significant_words(text: str) -> set[str]:
+    words = set()
+    for word in re.findall(r"[^\W\d_]+", unicodedata.normalize("NFKD", text.casefold())):
+        word = "".join(ch for ch in word if not unicodedata.combining(ch))
+        if len(word) > 3 and word not in _STOP:
+            words.add(word[:-1] if word.endswith("s") and len(word) > 4 else word)
+    return words
+
+
+def relevance_note(dossier: dict, task_text: str) -> str | None:
+    """One line when the dossier's subject shares no word with the task: the boards would otherwise read
+    its gaps as the task's."""
+    subject = _significant_words(" ".join(str(dossier.get(key, "")) for key in ("title", "market", "feature")))
+    if not subject or subject & _significant_words(task_text):
+        return None
+    return (f"The dossier {dossier['id']!r} is about {dossier['feature']!r} and the task does not mention it: "
+            "read its gaps as background, not as gaps of this task.")
+
+
+def scope_entry(dossier: dict, research: str, today: date | None = None, task_text: str = "") -> dict:
     """What a consultation carries: observations and verified changes with their age, and the gaps."""
     today = today or clock.today()
     entry = {key: dossier[key] for key in ("id", "market", "audience", "feature", "competitors")}
@@ -313,4 +337,7 @@ def scope_entry(dossier: dict, research: str, today: date | None = None) -> dict
             {**item, "age_days": (today - date.fromisoformat(item["date"])).days} for item in dossier["watch"]["changes"]
         ]
     entry["gaps"] = dossier_gaps(dossier, research, today)
+    note = relevance_note(dossier, task_text) if task_text else None
+    if note:
+        entry["relevance"] = note
     return entry

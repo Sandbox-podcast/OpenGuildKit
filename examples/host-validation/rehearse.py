@@ -31,16 +31,21 @@ def cli(project: Path, *args, check: bool = True) -> subprocess.CompletedProcess
     return result
 
 
-def approve(project: Path, task_id: str) -> bool:
-    """Type the approval at a pseudo-terminal, as the person deciding would."""
+def approve(project: Path, task_id: str, *, by: str = "Validation owner",
+            reason: str = "Scenario decision", signature: Path | None = None, signer: str | None = None) -> bool:
+    """Forward a person's signature, or replay the local approval in the validation scenario."""
+    args = ("task", "decide", task_id, "--approve", "--by", by, "--reason", reason)
+    if (signature is None) != (signer is None):
+        raise ValueError("Pass both the approval signature and its signer.")
+    if signature is not None:
+        return cli(project, *args, "--signature", signature, "--signer", signer, check=False).returncode == 0
     if os.name != "posix":
         return False
     import pty
 
     master, slave = pty.openpty()
     process = subprocess.Popen(
-        [sys.executable, "-m", "openguildkit", "--project", str(project), "task", "decide", task_id, "--approve",
-         "--by", "Validation owner", "--reason", "Scenario decision"],
+        [sys.executable, "-m", "openguildkit", "--project", str(project), *args],
         stdin=slave, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=ENV)
     os.close(slave)
     os.write(master, f"{task_id}\n".encode())

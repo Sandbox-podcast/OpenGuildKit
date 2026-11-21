@@ -2,7 +2,7 @@
 
 The [reference library](references.md) holds source material you can use when contributing a pack. The records below define what OpenGuildKit can apply to a project or use in a board review.
 
-The catalog has four collections, one JSON file per record:
+The catalog has four collections, one JSON file per record, plus the reference library, the tools and the deliverable templates:
 
 ```text
 src/openguildkit/registry/          shared catalog, shipped with the package
@@ -10,8 +10,12 @@ src/openguildkit/registry/          shared catalog, shipped with the package
   boards/<id>.json
   sectors/<id>.json
   patterns/<id>.json
+  references/<family>.json          one file per family, many references each
+  tools/<category>.json             one file per tool category, many tools each
+  tool-mocks/<tool>.json            the synthetic data of a tool's mock
+  deliverables/<id>.json
 .openguildkit/catalog/              optional, private to one project
-  packs/ boards/ sectors/ patterns/
+  packs/ boards/ sectors/ patterns/ references/ tools/ deliverables/
 ```
 
 `catalog.py` validates every file at load time. Use `openguildkit catalog --json` to list packs, boards and sectors. Use `openguildkit patterns --json` for the [pattern collection](patterns.md). A pattern can name the reference entries on its subject in an optional `references` list. `check_reference_links` in `references.py`, run by the tests on the bundled catalog, checks that each one exists and names the pattern or one of its packs back.
@@ -159,9 +163,39 @@ The pattern can reuse bundled packs or packs from `.openguildkit/catalog/packs/`
 
 `general` is the default. If a saved profile uses a sector absent from the current catalog, add that sector to the project's local catalog or set `sector` to an available ID in `.openguildkit/project.json`, then run `openguildkit sync`.
 
+## References
+
+`registry/references/FAMILY.json` holds a family of references, and a project adds its own in `.openguildkit/catalog/references/` (a new family, or new entries under an existing family ID). The file is named after the family:
+
+```json
+{
+  "id": "delivery",
+  "title": "Delivery and operations",
+  "references": [
+    {
+      "id": "critical-path",
+      "aliases": ["cpm"],
+      "title": "Critical path method",
+      "title_en": "Critical path method",
+      "category": "Planning",
+      "kind": "méthode",
+      "summary": "What the reference is, in a sentence or two.",
+      "applies_when": "The situation in which a team should reach for it.",
+      "brains": ["project-management"],
+      "pattern": "critical-path",
+      "packs": ["critical-path"],
+      "edition": "2026",
+      "sources": [{"title": "Publisher, document", "url": "https://example.org/document", "checked": "2026-11-21"}]
+    }
+  ]
+}
+```
+
+`id`, `title`, `category`, `kind`, `summary`, `applies_when` and `sources` are required; `aliases` (former IDs, found by `references --id`), `title_en`, `edition`, `brains`, `pattern` and `packs` are optional. `kind` is one of `norme`, `spécification`, `protocole`, `format`, `réglementation`, `référentiel`, `méthode`, `pratique`, `principe`, `concept`, `convention` and `guide`. `brains` ties the reference to the brains that read it: a brain's briefs keep the references that best fit the task. `pattern` and `packs` link it to the method and the rule packs that apply it, and `check_reference_links` verifies that those name it back. Every source needs `title`, `url` (HTTPS) and, in the shared catalog, a `checked` date.
+
 ## Tools
 
-`registry/tools/CATEGORY.json` lists the tools of a company's stack and the MCP servers that connect an agent to them (see [tools.md](tools.md)). One file per category:
+`registry/tools/CATEGORY.json` lists the tools of a company's stack and the MCP servers that connect an agent to them (see [tools.md](tools.md)). One file per category, named after its `id`, which is one of the 22 admitted categories: `issue-tracking`, `source-control`, `ci-cd`, `documentation`, `design`, `communication`, `time-tracking`, `hr`, `finance`, `crm`, `marketing`, `support`, `security`, `quality`, `observability`, `cloud`, `data`, `browser`, `testing`, `analytics`, `automation`, `product`.
 
 ```json
 {

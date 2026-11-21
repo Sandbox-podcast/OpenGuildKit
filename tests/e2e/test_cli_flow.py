@@ -186,7 +186,7 @@ class ProjectSetupTests(CliTestCase):
         web.mkdir(parents=True)
         (web / "package.json").write_text(json.dumps({"dependencies": {"next": "^14.2.0", "react": "^18.3.0"}}), encoding="utf-8")
         detected = json.loads(self.run_cli("detect", "--json").stdout)
-        self.assertEqual(detected["components"][0]["stack"], ["Next.js 14.2.0", "React 18.3.0"])
+        self.assertEqual(detected["components"][0]["stack"], ["Next.js ^14.2.0", "React ^18.3.0"])
 
         questions = {question["id"]: question for question in json.loads(self.run_cli("init", "--questions").stdout)}
         components = questions["components"]["default"]
@@ -342,17 +342,25 @@ class TaskFlowTests(CliTestCase):
 
         answers = json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8"))
         answers["context"] += " Show the date of the last status update."
-        self.run_cli("task", "consult", TASK_ID, "--answers", self.write_json("answers-2.json", answers))
+        original = self.task_record()["brief"]
+        revised = "Show policyholders the date of their most recent claim update."
+        self.run_cli("task", "consult", TASK_ID, "--answers", self.write_json("answers-2.json", answers),
+                     "--brief", revised)
 
         task = self.task_record()
         self.assertEqual(task["status"], "consulting")
         self.assertEqual(len(task["rounds"]), 1)
         self.assertEqual(task["rounds"][0]["decision"]["reason"], "Show the last update date")
+        self.assertEqual(task["rounds"][0]["brief"], original)
+        self.assertEqual(task["brief"], revised)
+        self.assertEqual(task["consultation"]["scope"]["brief"], revised)
         self.assertNotIn("review", task)
 
         stale = self.run_cli("task", "review", TASK_ID, "--file", self.write_json("stale.json", first_review), expect=1)
         self.assertIn("consultation", stale.stderr)
         self.record_example_review()
+        challenge = self.run_cli("task", "challenge", TASK_ID)
+        self.assertIn("Previous decision: changes requested. Reason: Show the last update date", challenge.stdout)
 
     def test_review_must_cover_exactly_the_selected_boards(self):
         self.consult_example()
@@ -466,7 +474,8 @@ class ApprovalTests(CliTestCase):
         self.run_cli("sync")
 
         expired = self.run_cli("task", "handoff", TASK_ID, expect=1)
-        self.assertIn("changed", expired.stderr)
+        self.assertIn(f"The approval for {TASK_ID} was recorded under earlier rules.", expired.stderr)
+        self.assertIn(f"--follows {TASK_ID}", expired.stderr)
 
     def test_an_approved_decision_task_returns_a_decision_record(self):
         self.init_example()

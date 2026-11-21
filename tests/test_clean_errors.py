@@ -154,7 +154,7 @@ class CleanErrorTests(unittest.TestCase):
         self.reviewed()
         payload = json.loads(self.output("task", "deliberate", TASK))["template"]
         path = self.root / "deliberation.json"
-        for field, value in (("objection", ["x"]), ("board", {"id": "x"}), ("position", ["maintain"])):
+        for field, value in (("objection", 7), ("board", {"id": "x"}), ("position", ["maintain"])):
             broken = json.loads(json.dumps(payload))
             broken["responses"][0][field] = value
             write_json(path, broken)
@@ -204,6 +204,44 @@ class CleanErrorTests(unittest.TestCase):
         cited = json.loads(json.dumps(review))
         cited["boards"][0]["evidence"][0].update(source="project-file", ref="src/app.py:1")
         write_json(path, cited)
+        self.run_cli("task", "review", TASK, "--file", path, code=0)
+
+    def test_task_creation_warns_about_sensitive_values_without_echoing_them(self):
+        self.init()
+        credential = "AKIA" + "A" * 16
+        email = "alex@example.org"
+        password = "only synthetic data"
+        brief = self.root / "brief.txt"
+        brief.write_text(f'Publish with {credential} and password="{password}". Contact {email}.', encoding="utf-8")
+        warning = self.run_cli("task", "new", "--file", brief, "--id", TASK, code=0)
+        self.assertIn("replaced a possible credential", warning)
+        self.assertIn("contains an email address", warning)
+        saved = json.loads(self.output("task", "show", TASK))["brief"]
+        self.assertEqual(saved, f"Publish with [credential] and password=[password]. Contact {email}.")
+        for value in (credential, email, password):
+            self.assertNotIn(value, warning)
+
+    def test_public_evidence_rejects_private_hosts_and_credentials(self):
+        review = self.consulted()
+        path = self.root / "review.json"
+        evidence = review["boards"][0]["evidence"][0]
+        evidence.update(source="public", date="2026-01-01")
+        for link, message in (
+            ("https://localhost:8000/report", "needs a public host"),
+            ("https://wiki.company.internal/report", "needs a public host"),
+            ("https://192.168.4.1/report", "needs a public host"),
+            ("https://[::1]/report", "needs a public host"),
+            ("https://user:password@example.org/report", "without credentials"),
+            ("https://example.org/report?%61ccess_token=demo", "without credentials"),
+            ("https://example.org/report?key=sk_test_" + "x" * 24, "without credentials"),
+        ):
+            evidence["ref"] = link
+            write_json(path, review)
+            error = self.refusal("task", "review", TASK, "--file", path)
+            self.assertIn(message, error)
+            self.assertNotIn(link, error)
+        evidence["ref"] = "https://docs.example.org/report?section=projects"
+        write_json(path, review)
         self.run_cli("task", "review", TASK, "--file", path, code=0)
 
     def test_the_review_template_shows_an_evidence_item_and_every_board_problem_comes_at_once(self):

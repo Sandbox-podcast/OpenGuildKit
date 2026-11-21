@@ -90,7 +90,14 @@ class DecisionTests(unittest.TestCase):
         record = json.loads(self.task_path().read_text())
         record["review"]["summary"] = "A different review."
         self.task_path().write_text(json.dumps(record), encoding="utf-8")
-        _, error = self.run_cli("task", "handoff", TASK, code=1)
+        for command in ("handoff", "export"):
+            _, error = self.run_cli("task", command, TASK, code=1)
+            self.assertIn("no longer matches what was approved", error)
+        output, _ = self.run_cli("task", "list", "--json")
+        task, = json.loads(output)
+        self.assertIsNone(task["owner"])
+        self.assertEqual(task["approval_problem"], "invalid-seal")
+        _, error = self.run_cli("check")
         self.assertIn("no longer matches what was approved", error)
 
     @unittest.skipIf(shutil.which("ssh-keygen") is None, "needs ssh-keygen")

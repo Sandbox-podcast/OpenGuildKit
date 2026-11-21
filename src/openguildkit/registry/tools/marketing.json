@@ -68,7 +68,14 @@
           "status": "unknown",
           "capabilities": "Check account status, build templates, call and describe Transactional API endpoints, diagnose failed sends.",
           "source": "https://mailchimp.com/developer/transactional/guides/how-to-use-mailchimps-transactional-messaging-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": {
+            "mode": "read-write",
+            "consent": "Use a Mailchimp Transactional (Mandrill) API key",
+            "scopes": [
+              "Transactional messages and templates"
+            ]
+          }
         }
       ],
       "api": {

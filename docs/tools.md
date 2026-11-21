@@ -36,7 +36,7 @@ jira, confluence: server `atlassian-rovo` (vendor, streamable-http, status ga).
     claude-code: {"type": "http", "url": "https://mcp.atlassian.com/v2/mcp"}
 ```
 
-4. The team reviews the plan. `openguildkit tools apply ...` with the same arguments writes the entries and records them in `.openguildkit/tools.json`, which is committed.
+4. The team reviews data coverage, access, consent, documented scopes and alternatives in the plan. Use `--read-only` on both commands to select a documented read-only server or restriction. If the server lists scopes it can request, verify the actual consent screen and credential permissions. Use a credential with the same read-only permissions independently of the MCP setting. In scripts, use `--yes` after reviewing the live plan. `openguildkit tools apply ...` with the same arguments asks you to confirm a live plan in your terminal and writes the entries and records them in `.openguildkit/tools.json`, which is committed.
 
 | Option | Use |
 |---|---|
@@ -47,7 +47,7 @@ jira, confluence: server `atlassian-rovo` (vendor, streamable-http, status ga).
 | `--host claude-code` or `codex` | Write for another host than the project's |
 | `--mock` | Connect local mocks instead (see below) |
 
-`openguildkit tools status` lists the recorded connections, says whether the host file still holds them, and names the variables that are not set on this workstation. `openguildkit tools remove TOOL` takes a connection out.
+`openguildkit tools status` lists recorded connections, missing environment variables and mock requests that could not be connected. `openguildkit tools recommend` shows which host already has each tool configured and whether it uses a mock or a live server. `openguildkit tools remove TOOL` removes a connection or clears an unavailable mock request.
 
 ### What is written
 
@@ -60,7 +60,9 @@ Entries the team wrote itself are kept. If one already uses the same name with o
 
 ### Credentials
 
-No command accepts a secret, and no file holds one. A server names the variables it reads; the host passes them from each person's environment. `--set` refuses a value that looks like a credential, and `--token-env` takes the name of a variable. For OAuth servers each person signs in once in their host (`/mcp` in Claude Code, `codex mcp login NAME`).
+A server names the variables it reads. The host passes them from each person's environment. `--set` accepts plain settings such as names and hosts and rejects recognizable Stripe, GitHub, AWS and Slack credentials. `--token-env` accepts an uppercase environment variable name and rejects recognizable credentials. The CLI does not read the variable's value. For OAuth servers each person signs in once in their host (`/mcp` in Claude Code, `codex mcp login NAME`).
+
+Use placeholders for sensitive data in task briefs. `task new` warns and replaces recognizable keys and explicit password assignments with placeholders. It also warns about email addresses before saving the brief.
 
 A server is third-party code with access to company data. Before `apply`, read its `source`, prefer the publisher's own server, and give it the narrowest account the tool allows. The Security brain reviews the choice like any other change when it goes through a task.
 
@@ -72,7 +74,9 @@ A server is third-party code with access to company data. Before `apply`, read i
 openguildkit tools apply jira tempo snyk --mock --log mock-calls.jsonl
 ```
 
-The host then starts `openguildkit tools mock jira`, a local MCP server on stdio that answers with synthetic data: a fictional support portal, its tickets, its pull request, its time entries, its alerts. No network, no account, no key. `--log` appends every call the agent makes, so a test can assert what the agent did.
+`tools apply --mock` reports the tools it connected and the ones that have no mock. It exits with code 1 if any requested mock was unavailable, and keeps the connections it could make. If every mock was unavailable, only the status record is written.
+
+The host starts `openguildkit tools mock jira`, a local MCP server that answers with synthetic data over stdio. It runs offline. `--log` appends calls received by that server from an MCP client. A direct `tools call` runs outside the MCP server and does not add to its journal.
 
 Nineteen tools have a mock: Jira, GitHub, Slack, Notion, Factorial, Tempo, Toggl Track, Snyk, Sentry, SonarQube, HubSpot, Stripe, Pennylane, Zendesk, Google Analytics, Figma, Storybook, Obscura and Datadog (`openguildkit tools list --mocks`).
 
@@ -80,6 +84,8 @@ Nineteen tools have a mock: Jira, GitHub, Slack, Notion, Factorial, Tempo, Toggl
 openguildkit tools call jira                                            # the mock's tools
 openguildkit tools call jira search_issues --args '{"query": "export"}' # one call, no MCP client needed
 ```
+
+The list marks read and write operations. A simulated write prints a reminder to use `task authorize` before making a real write.
 
 A mock's tool names are its own. It rehearses the agent's flow (find the ticket, cite it, log the time); it does not imitate a publisher's API, and what works against a mock still has to be tried against the real server.
 
@@ -115,7 +121,9 @@ When tools are connected, each board's brief lists the ones it can query, and a 
 {"source": "tool", "ref": "jira:SUP-142", "supports": "The request is tracked and in progress."}
 ```
 
-The tool must be one of the project's connections; anything else is refused. A board reads; it changes nothing in a tool during a review. Creating a ticket, logging time or posting a message is an external action the person authorizes.
+Use one of the project's connected tools. When recording a review, the CLI warns if the tool falls outside that board's scope or the local mock journals contain no call with the cited record in its arguments. Live host calls do not appear in these journals. Check those citations in the host.
+
+Use HTTPS links without credentials for public evidence. The CLI checks the literal hostname and query without resolving the host. Cite internal evidence with a project file or a connected tool. A board only reads during a review. Creating a ticket, logging time or posting a message is an external action the person authorizes.
 
 ## The tooling section
 

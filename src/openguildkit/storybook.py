@@ -460,6 +460,27 @@ def _index_entry(root: Path, ref: str, path: Path, entries: list[dict], today: d
     }
 
 
+def _newer_story_source(root: Path, index: Path, entries: list[dict]) -> Path | None:
+    root = root.resolve()
+    built_at = index.stat().st_mtime_ns
+    folders = {root / name for name in ("src", "app", "components", "stories", ".storybook")}
+    files = {path for path in root.glob("*.stories.*") if path.is_file()}
+    for entry in entries:
+        if "importPath" in entry:
+            source = (root / entry["importPath"]).resolve()
+            if root in source.parents:
+                folders.add(source.parent)
+                if source.is_file():
+                    files.add(source)
+    project_folders = [folder for folder in sorted(folders) if folder.is_dir() and root in folder.resolve().parents]
+    files.update(path for _, path in _source_files(project_folders))
+    for path in sorted(files):
+        if path.suffix in (*_MODULE_SUFFIXES, ".mdx", ".css", ".scss") and root in path.resolve().parents \
+                and path.stat().st_mtime_ns > built_at:
+            return path
+    return None
+
+
 def import_indexes(root: Path, state: Path, project_index: Path | None = None, company_index: Path | None = None,
                    ref: str = "company", library: Path | None = None, package: Path | None = None,
                    today: date | None = None) -> dict:
@@ -488,6 +509,14 @@ def import_indexes(root: Path, state: Path, project_index: Path | None = None, c
                 "components": [{key: item[key] for key in ("title", "stories", "docs")} for item in components(entries)],
                 "stories": sum(item["type"] == "story" for item in entries),
             }
+    if PROJECT_REF in indexes:
+        path, entries = indexes[PROJECT_REF]
+        newer = _newer_story_source(root, path, entries)
+        if newer is not None:
+            report["warnings"] = [
+                f"{_relative(root, newer)} is newer than {_relative(root, path)}. "
+                "Run npm run build-storybook, then import the project index again."
+            ]
     if PROJECT_REF in indexes and ref in indexes:
         report.update(compare(indexes[PROJECT_REF][1], indexes[ref][1]))
     library_data = None
@@ -546,6 +575,7 @@ _EXPORT_DEFAULT = re.compile(rf"\bexport\s+default\s+({_NAME})\s*;?\s*$", re.M)
 _TAG = re.compile(r"<([A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)?)(?=[\s/>])")
 _ATTRIBUTE = re.compile(r"[A-Za-z_][\w:.-]*")
 _VARIANT_VALUE = re.compile(r"[a-z][a-z0-9-]{0,30}")
+_TYPED_VARIANT = re.compile(_VARIANT_VALUE.pattern, re.I | re.ASCII)
 # Props that carry content or wiring rather than a visual variant.
 _CONTENT_PROPS = {
     "children", "label", "title", "text", "placeholder", "alt", "href", "src", "id", "name", "key", "classname",
@@ -619,7 +649,7 @@ def _closing(text: str, start: int, opening: str = "{", closing: str = "}") -> i
     return -1
 
 
-def _split_top_level(text: str) -> list[str]:
+def _split_top_level(text: str, separators: str = ",") -> list[str]:
     parts, depth, quote, current = [], 0, None, []
     for index, character in enumerate(text):
         if quote:
@@ -631,7 +661,7 @@ def _split_top_level(text: str) -> list[str]:
             depth += 1
         elif character in ")]}":
             depth -= 1
-        elif character == "," and depth == 0:
+        elif character in separators and depth == 0:
             parts.append("".join(current))
             current = []
             continue
@@ -750,8 +780,12 @@ def _source_files(sources: list[Path]):
         if base.is_file():
             yield base.parent, base
         elif base.is_dir():
-            for path in sorted(base.rglob("*"), key=lambda item: item.as_posix()):
-                if path.is_file() and not SKIP_DIRS & set(path.relative_to(base).parts[:-1]):
+            files = []
+            for folder, dirs, names in os.walk(base):
+                dirs[:] = [name for name in dirs if name not in SKIP_DIRS]
+                files.extend(Path(folder) / name for name in names)
+            for path in sorted(files, key=lambda item: item.as_posix()):
+                if path.is_file():
                     yield base, path
         else:
             raise ValueError(f"No such file or folder: {base.name}. Give a --src path that exists.")
@@ -815,13 +849,19 @@ def _string_union(code: str, type_text: str, depth: int = 0) -> list[str] | None
     return values if len(values) >= 2 else None
 
 
-def _member_types(code: str, body: str) -> dict:
-    """Prop name to type text, for the members of an object type."""
-    starts = list(re.finditer(r"(?:^|[;{,\n])\s*(?:readonly\s+)?([A-Za-z_$][\w$]*)\s*\??\s*:", body))
+def _member_types(body: str) -> dict:
+    """Prop name to (type text, required) for the top-level members of an object type."""
+    starts = re.compile(r"^(?:readonly\s+)?([A-Za-z_$][\w$]*)\s*(\?)?\s*:\s*(.*)$", re.S)
     members = {}
-    for index, match in enumerate(starts):
-        end = starts[index + 1].start() if index + 1 < len(starts) else len(body)
-        members.setdefault(match.group(1), body[match.end():end].strip().rstrip(";,").strip())
+    current = None
+    for part in _split_top_level(body, ",;\n"):
+        match = starts.fullmatch(part)
+        if match:
+            current, optional, annotation = match.groups()
+            members[current] = (annotation, optional is None)
+        elif current:
+            annotation, required = members[current]
+            members[current] = (f"{annotation} {part}".strip(), required)
     return members
 
 
@@ -835,7 +875,7 @@ def _props_type(code: str, after_props: int, declaration: str) -> dict:
         annotation = code[position + 1:].lstrip()
         if annotation.startswith("{"):
             end = _closing(annotation, 0)
-            return _member_types(code, annotation[1:end]) if end > 0 else {}
+            return _member_types(annotation[1:end]) if end > 0 else {}
         match = _JS_IDENTIFIER.match(annotation)
         name = match.group(0) if match else None
     if name is None:
@@ -843,7 +883,46 @@ def _props_type(code: str, after_props: int, declaration: str) -> dict:
         if generics:
             name = generics[-1].split(",")[-1].strip()
     body = _type_body(code, name) if name and _JS_IDENTIFIER.fullmatch(name) else None
-    return _member_types(code, body) if body is not None else {}
+    return _member_types(body) if body is not None else {}
+
+
+def _sample_arg(code: str, name: str, annotation: str, depth: int = 0):
+    """Find a JSON sample for a locally declared type, without reading prop values from app usages."""
+    if depth >= 4:
+        return False, None
+    if annotation in ("string", "ReactNode", "React.ReactNode"):
+        return True, f"Sample {name}"
+    if annotation == "number":
+        return True, 1
+    if annotation == "boolean":
+        return True, False
+    if (annotation.endswith("[]") and "=>" not in annotation) or re.fullmatch(r"(?:Readonly)?Array<.+>", annotation):
+        return True, []
+    if annotation == "null":
+        return True, None
+    options = _string_union(code, annotation)
+    if options and all(_TYPED_VARIANT.fullmatch(option) for option in options):
+        return True, options[0]
+    known, value = _literal(annotation)
+    if known and (not isinstance(value, str) or _TYPED_VARIANT.fullmatch(value)):
+        return True, value
+    body = annotation[1:-1] if annotation.startswith("{") and annotation.endswith("}") else None
+    if body is None and _JS_IDENTIFIER.fullmatch(annotation):
+        body = _type_body(code, annotation)
+        if body is None:
+            alias = _type_alias(code, annotation)
+            if alias:
+                return _sample_arg(code, name, alias.strip(), depth + 1)
+    if body is not None:
+        fields = {}
+        for field, (field_type, required) in _member_types(body).items():
+            if required:
+                known, value = _sample_arg(code, field, field_type, depth + 1)
+                if not known:
+                    return False, None
+                fields[field] = value
+        return True, fields
+    return False, None
 
 
 def _export_lists(path: Path, code: str, reexports: list) -> dict:
@@ -894,12 +973,21 @@ def _scan_components(label: str, path: Path, text: str, definitions: dict, usage
             if not export or not has_jsx or name in definitions:
                 continue
             props = _destructured_props(code, match.end())
-            if props:
+            if props is not None:
                 members = _props_type(code, _closing(code, code.index("{", match.end())) + 1, match.group(0))
+                destructured = {prop["name"] for prop in props}
+                props.extend({"name": member} for member, (_, required) in members.items()
+                             if required and member not in destructured)
                 for prop in props:
-                    options = _string_union(code, members.get(prop["name"], ""))
+                    annotation, required = members.get(prop["name"], ("", False))
+                    options = _string_union(code, annotation)
                     if options:
                         prop["options"] = options
+                    if required:
+                        prop["required"] = True
+                        known, value = _sample_arg(code, prop["name"], annotation)
+                        if known:
+                            prop["sample"] = value
             definitions[name] = {
                 "name": name, "file": label, "line": _line_of(starts, match.start(2)),
                 "export": export, "props": props if props is not None else [],
@@ -930,8 +1018,10 @@ def _scan_components(label: str, path: Path, text: str, definitions: dict, usage
         usage["calls"].append((origin, literals, [prop for prop, _, _ in attributes]))
 
 
-def _variant_prop(prop: str) -> bool:
+def _variant_prop(prop: str, options: list[str] | None = None) -> bool:
     """A prop that can carry a visual state, not content or wiring."""
+    if prop == "type" and options:
+        return True
     return prop.casefold() not in _CONTENT_PROPS and not prop.startswith(("aria-", "data-", "on"))
 
 
@@ -1039,13 +1129,18 @@ def _scan_styles(label: str, path: Path, text: str, tokens: dict, variables: dic
     starts = _line_starts(code)
 
     def add(kind: str, value: str, origin: str, variable: str | None = None) -> None:
-        token = tokens.setdefault(f"{kind}:{value}", {
-            "key": f"{kind}:{value}", "kind": kind, "value": value, "occurrences": 0, "origins": []})
+        key = f"{kind}:{value}"
+        # Keep the original key for the first candidate so existing proposals still match.
+        primary = tokens.get(key)
+        if variable and primary and primary.get("variable") not in (None, variable):
+            key = f"{key}:{variable}"
+        token = tokens.setdefault(key, {
+            "key": key, "kind": kind, "value": value, "occurrences": 0, "origins": []})
         token["occurrences"] += 1
         token["origins"].append(origin)
         if variable:
-            token.setdefault("name_hint", variable.lstrip("-$"))
-            token.setdefault("variables", []).append(variable)
+            token["name_hint"] = variable.removeprefix("--").removeprefix("$")
+            token["variable"] = variable
 
     for match in _DECLARATION.finditer(code):
         prop, value = match.group(1), match.group(2).strip()
@@ -1124,9 +1219,9 @@ def extract(root: Path, sources: list[Path], previews: list[Path] | None = None,
     aliases = _aliases(definitions, modules, reexports)
     # A custom property counts once where it is defined and once per var() that uses it.
     for token in tokens.values():
-        for variable in token.get("variables", []):
-            token["occurrences"] += len(variables.get(variable, []))
-            token["origins"].extend(variables.get(variable, []))
+        uses = variables.get(token.pop("variable", None), [])
+        token["occurrences"] += len(uses)
+        token["origins"].extend(uses)
     components, variants = [], {}
     for name, definition in sorted(definitions.items()):
         usage = _merged_usage([usages[tag] for tag in [name, *aliases.get(name, [])] if tag in usages])
@@ -1136,15 +1231,19 @@ def extract(root: Path, sources: list[Path], previews: list[Path] | None = None,
             "confidence": _confidence(usage["count"]),
         })
         defaults = {prop["name"]: prop["default"] for prop in definition["props"] if "default" in prop}
+        options = {prop["name"]: prop["options"] for prop in definition["props"] if "options" in prop}
         for origin, literals, given in usage["calls"]:
             found = []
             for prop, value in literals.items():
-                if not _variant_prop(prop):
+                if not _variant_prop(prop, options.get(prop)):
                     continue
-                if value is True or (isinstance(value, str) and _VARIANT_VALUE.fullmatch(value)):
+                if value is True or (isinstance(value, str) and (
+                        _VARIANT_VALUE.fullmatch(value) or
+                        (value in options.get(prop, []) and _TYPED_VARIANT.fullmatch(value)))):
                     found.append((prop, value, "usage"))
             for prop, value in defaults.items():
-                if prop not in given and isinstance(value, str) and _VARIANT_VALUE.fullmatch(value):
+                if prop not in given and _variant_prop(prop, options.get(prop)) and isinstance(value, str) \
+                        and _VARIANT_VALUE.fullmatch(value):
                     found.append((prop, value, "default"))
             for prop, value, basis in found:
                 key = f"{name}:{prop}={json.dumps(value)}"
@@ -1157,11 +1256,11 @@ def extract(root: Path, sources: list[Path], previews: list[Path] | None = None,
                     item["basis"] = "usage"
         # Values a typed string union allows, unseen in the scanned uses: states to confirm on the screens.
         for prop in definition["props"]:
-            if not _variant_prop(prop["name"]):
+            if not _variant_prop(prop["name"], prop.get("options")):
                 continue
             for value in prop.get("options", []):
                 key = f"{name}:{prop['name']}={json.dumps(value)}"
-                if _VARIANT_VALUE.fullmatch(value) and key not in variants:
+                if _TYPED_VARIANT.fullmatch(value) and key not in variants:
                     variants[key] = {
                         "key": key, "component": name, "props": {prop["name"]: value}, "occurrences": 0,
                         "origins": [_origin(definition["file"], definition["line"])],
@@ -1173,8 +1272,7 @@ def extract(root: Path, sources: list[Path], previews: list[Path] | None = None,
     external = [{"name": name, "usages": usage["count"]} for name, usage in sorted(usages.items())
                 if name not in definitions and name not in aliased and len(name) > 1]
     token_list = []
-    for token in sorted(tokens.values(), key=lambda item: (item["kind"], -item["occurrences"], item["value"])):
-        token = {key: value for key, value in token.items() if key != "variables"}
+    for token in sorted(tokens.values(), key=lambda item: (item["kind"], -item["occurrences"], item["key"])):
         token["origins"] = _capped(token["origins"])
         token["confidence"] = _confidence(token["occurrences"])
         token_list.append(token)
@@ -1216,10 +1314,6 @@ def _token_name(token: dict) -> str:
     group = TOKEN_GROUPS.get(token["kind"], "other")
     hint = token.get("name_hint")
     if hint:
-        for prefix in (f"{group}-", "font-", "space-", "size-"):
-            if hint.startswith(prefix) and len(hint) > len(prefix):
-                hint = hint[len(prefix):]
-                break
         return f"{group}.{hint}"
     slug = re.sub(r"[^0-9a-z]+", "-", token["value"].casefold()).strip("-") or "value"
     return f"{group}.{slug[:40]}"
@@ -1253,6 +1347,8 @@ def validate_proposals(data: dict) -> dict:
                                          and item["public"] != "default")):
             raise ValueError(f"{item['key']}: export is named or default, and public is the JavaScript name "
                              "the component is exported under.")
+        if any(field in item and not isinstance(item[field], dict) for field in ("args", "sample_args")):
+            raise ValueError(f"{item['key']}: args and sample_args must be objects.")
     components = {item["key"] for item in data["components"]}
     for item in data["variants"]:
         if item.get("component") not in components or not isinstance(item.get("props"), dict) or not all(
@@ -1287,7 +1383,10 @@ def propose(root: Path, state: Path, inventory_path: Path | None = None, proposa
             "file": item["file"], "line": item["line"], "export": item["export"], "usages": item["usages"],
             "children": item["children"], **({"public": item["public"]} if "public" in item else {}),
             "text_props": [prop["name"] for prop in item["props"]
-                           if "default" not in prop and prop["name"].casefold() in _SYNTHETIC_TEXT],
+                           if "default" not in prop and "sample" not in prop
+                           and not prop.get("required") and prop["name"].casefold() in _SYNTHETIC_TEXT],
+            "required_props": [prop["name"] for prop in item["props"] if prop.get("required")],
+            "sample_args": {prop["name"]: prop["sample"] for prop in item["props"] if "sample" in prop},
         } for item in inventory["components"]],
         "variants": [{
             "key": f"variant:{item['key']}", "component": f"component:{item['component']}",
@@ -1301,7 +1400,7 @@ def propose(root: Path, state: Path, inventory_path: Path | None = None, proposa
             "origins": item["origins"],
         } for item in inventory["tokens"]],
     }
-    decided = ("status", "name", "props", "note")
+    decided = ("status", "name", "props", "args", "note")
     result = {"schema_version": 1, "inventory": {
         "path": _relative(root, inventory_path), "sha256": hashlib.sha256(inventory_path.read_bytes()).hexdigest()}}
     counts = {"new": 0, "kept": 0, "not_observed": 0}
@@ -1399,31 +1498,35 @@ def _imported_as(component: dict) -> str:
     return f"{{ {public} }}" if public == name else f"{{ {public} as {name} }}"
 
 
-def _story_file(component: dict, variants: list[dict], out: Path, root: Path, framework: str) -> str:
+def _story_args(component: dict) -> dict:
+    samples = {prop: f"Sample {prop}" for prop in component.get("text_props", [])}
+    if component.get("children") and "children" not in component.get("required_props", []):
+        samples["children"] = component["name"]
+    return {**samples, **component.get("sample_args", {}), **component.get("args", {})}
+
+
+def _story_file(component: dict, variants: list[dict], args: dict, out: Path, root: Path, framework: str) -> str:
     name = component["key"].split(":", 1)[1]
     source = _js(_import_path(out, root, component["file"]))
     imported = f"import {name} from {source};" if component["export"] == "default" else \
         f"import {_imported_as(component)} from {source};"
-    synthetic = {prop: f"Sample {prop}" for prop in component.get("text_props", [])}
-    if component.get("children"):
-        synthetic["children"] = component["name"]
     lines = [
         "// Generated by openguildkit storybook generate from the validated proposals.",
         "// Edit freely: once this file changes, generate leaves it as it is.",
         f"import type {{ Meta, StoryObj }} from {_js(framework)};",
         imported,
         "",
-        f"const meta: Meta<typeof {name}> = {{",
+        "const meta = {",
         f"  title: {_js('Design system/' + component['name'])},",
         f"  component: {name},",
-        f"  args: {_js_object(synthetic, '  ')},",
+        f"  args: {_js_object(args, '  ')},",
         f"  parameters: {{ openguildkit: {{ definition: {_js(component['file'] + ':' + str(component['line']))} }} }},",
-        "};",
+        f"}} satisfies Meta<typeof {name}>;",
         "export default meta;",
         "",
-        f"type Story = StoryObj<typeof {name}>;",
+        "type Story = StoryObj<typeof meta>;",
     ]
-    taken: set = set()
+    taken = {name}
     # Observed states first, then the hypotheses to confirm against the original screens.
     stories = sorted(variants, key=lambda item: (item["confidence"] != "observed", item["name"].casefold())) or [
         {"name": "Default", "props": {}, "origins": [], "confidence": component["confidence"], "basis": "usage"}]
@@ -1440,6 +1543,21 @@ def _story_file(component: dict, variants: list[dict], out: Path, root: Path, fr
     return "\n".join(lines) + "\n"
 
 
+def _setup_warnings(root: Path, framework: str) -> list[str]:
+    warnings = []
+    package = root / "package.json"
+    dependencies = _project_dependencies(read_json(package)) if package.is_file() else {}
+    missing = sorted({"storybook", framework} - dependencies.keys())
+    if missing:
+        warnings.append(f"Missing Storybook dependencies in package.json: {', '.join(missing)}.")
+    if not any((root / ".storybook" / name).is_file() for name in MAIN_FILES):
+        warnings.append("Missing Storybook configuration (.storybook/main.ts or .storybook/main.js).")
+    if warnings:
+        warnings.append(f"Set up the project first with npm create storybook@{STORYBOOK_VERSION}, "
+                        "or add the missing settings to your existing Storybook.")
+    return warnings
+
+
 def generate(root: Path, state: Path, proposals_path: Path | None = None, out: Path | None = None,
              framework: str = "@storybook/react-vite") -> dict:
     """Write DTCG tokens, CSF3 stories and an index for the validated proposals only.
@@ -1454,6 +1572,7 @@ def generate(root: Path, state: Path, proposals_path: Path | None = None, out: P
     components = {item["key"]: item for item in proposals["components"] if item["status"] == "validated"}
     files: dict[Path, str] = {}
     skipped = []
+    warnings = []
     by_component: dict[str, list] = {key: [] for key in components}
     for variant in proposals["variants"]:
         if variant["status"] != "validated":
@@ -1473,7 +1592,16 @@ def generate(root: Path, state: Path, proposals_path: Path | None = None, out: P
             skipped.append({"key": key, "reason": f"defined outside the project ({component['file']}); copy it into "
                                                   "the project or extract from a folder next to it"})
             continue
-        files[out / f"{key.split(':', 1)[1]}.stories.tsx"] = _story_file(component, by_component[key], out, root, framework)
+        name = key.split(":", 1)[1]
+        args = _story_args(component)
+        variants = by_component[key]
+        missing = [prop for prop in component.get("required_props", []) if prop not in args
+                   and (not variants or any(prop not in variant["props"] for variant in variants))]
+        if missing:
+            warnings.append(f"{name}: add sample args for {', '.join(missing)} in the proposals or the story.")
+        files[out / f"{name}.stories.tsx"] = _story_file(component, variants, args, out, root, framework)
+    if files:
+        warnings.extend(_setup_warnings(root, framework))
     tokens: dict = {}
     for item in proposals["tokens"]:
         if item["status"] != "validated":
@@ -1516,6 +1644,8 @@ def generate(root: Path, state: Path, proposals_path: Path | None = None, out: P
         result["left"] = sorted(path for path in manifest["files"]
                                 if path not in {_relative(root, item) for item in files} and (root / path).exists())
         write_json(manifest_path, manifest)
+    if warnings:
+        result["warnings"] = warnings
     return result
 
 
@@ -1554,6 +1684,7 @@ def _print_import(report: dict) -> list[str]:
                          + (" (styling)" if row["styling"] else ""))
     lines.extend(f"- Theme source: {item.get('title') or item.get('path')}" for item in report.get("themes", []))
     lines.append(f"Recorded the known stories in {report['record']}.")
+    lines.extend(f"Warning: {warning}" for warning in report.get("warnings", []))
     return lines
 
 
@@ -1595,6 +1726,7 @@ def run(args, root: Path, state: Path) -> int | None:
         lines += [f"No longer generated, left in place: {path}" for path in result["left"]]
         lines += [f"Skipped {item['key']}: {item['reason']}" for item in result["skipped"]]
         lines = lines or ["Nothing is validated yet."]
+        lines.extend(f"Warning: {warning}" for warning in result.get("warnings", []))
     else:
         raise ValueError(f"Unknown storybook action {args.action}.")
     if args.json:

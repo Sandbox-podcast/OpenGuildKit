@@ -48,14 +48,18 @@ Technology aliases handle names such as PostgreSQL and Postgres. A framework sta
 
 ## Components and versions
 
-In an existing repository, `openguildkit detect` reads the manifests it knows (`package.json`, `pyproject.toml`, `requirements*.txt`, Django's `manage.py`, `go.mod`, `pom.xml`, Gradle builds with the Android and Kotlin plugins, `.csproj`, `Gemfile`, `composer.json`, Xcode projects and `Package.swift`, Dockerfiles and Compose files, Terraform with its AWS provider, Helm and Kustomize files, GitHub workflows, `.gitlab-ci.yml`) and proposes one component per folder, with the versions it found and the file behind each one. A database inferred from a client library, such as PostgreSQL from `psycopg` or `pg`, or MySQL from a driver, is marked as inferred and carries no version, since the library's version says nothing about the server; a Compose or Dockerfile image such as `postgres:16` or `docker.io/library/postgres:16` gives the server version. The interactive `init` shows the detected components and accepts `e` to correct a component's stack and versions without dropping the others. Detection reads files only: it runs no package manager and opens no network connection.
+`openguildkit detect` proposes components from local manifests and includes the file behind each technology. It reads package and build files, Docker and Compose images, Terraform, Helm and Kustomize files, Kubernetes YAML documents, `dbt_project.yml`, Vite config files and WordPress project markers. Gradle modules declared in `settings.gradle` or `settings.gradle.kts` share their build's component. Android SDK levels and Android Gradle Plugin versions have separate labels.
+
+The output keeps declared constraints such as `Express >=4.0.0 <5`. Pattern matching uses the lowest bound stated by the range when it checks a minimum version. A database inferred from a driver has no version. An image such as `postgres:16` supplies the server version. Detection reads local files and runs offline.
 
 ```text
 openguildkit detect
 openguildkit detect --json
 ```
 
-`init --questions` includes the detected components as the default answer to `components`. Correct the paths, stacks and versions before saving the answers:
+`init --questions` defaults to the root `package.json` name, or the folder name if the package has none. It also shows the detected components. A single root component remains the default when the answers leave `components` out and give an empty `stack`. An explicit `components` answer or a populated manual stack takes precedence.
+
+Use `e` in the interactive questionnaire to correct a component's stack and versions. For JSON answers, edit the component's path and stack before saving the file.
 
 ```json
 {

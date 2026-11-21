@@ -21,6 +21,12 @@ python examples/request-status/replay.py
 
 La [démo](examples/request-status/) crée un projet temporaire et utilise des avis préparés sur le suivi des demandes support. Lance-la dans un terminal pour comparer les avis, valider le périmètre et lire le brief d'implémentation.
 
+### Interface web
+
+`openguildkit ui` ouvre ton projet dans le navigateur, sur 127.0.0.1 : les quêtes par état, la consultation des brains et la passe de chacun, les avis et les blocages, les vérifications et les résultats, les alertes de dépendances, les dossiers de marché, les livrables, les outils et serveurs MCP, l'export de la documentation et ses partages. Chaque action lance une commande de la CLI. Les validations, dérogations et autres décisions qui demandent une personne restent dans ton terminal : la page affiche la commande à taper. [Interface d'un projet](web/docs/interface-projet.md)
+
+La même interface fonctionne en démo, sans la CLI. Explore Atelier Nova, un éditeur de logiciels fictif. Retrouve les règles du projet, compare les avis, valide une décision et suis le livrable jusqu'aux contrôles. La démo simule les services externes et enregistre les modifications dans ton navigateur. [Lancer la démo web](web/README.md).
+
 ## Le board des brains
 
 Chaque métier d'un éditeur de logiciels a son brain : développement logiciel, front-end, back-end, sécurité, DevOps, QA, performance, produit, design, données et IA, marketing, communication, vente, partenariats, support client, succès client, finance, achats, juridique et conformité, RH, informatique interne, localisation, relations développeurs et documentation, confiance et sécurité des contenus, gestion de projet, opérations et direction. Un brain apporte des spécialistes avec ce que chacun vérifie, les preuves qu'il demande, les objections qu'il soulève, ses critères de décision, et les méthodes, packs de règles et normes de son métier.

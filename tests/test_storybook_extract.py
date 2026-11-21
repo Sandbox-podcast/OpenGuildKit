@@ -38,7 +38,9 @@ class ExtractTests(unittest.TestCase):
                           "confidence": "observed"})
         self.assertTrue(components["Button"]["children"])
         self.assertEqual(components["StatusBadge"]["props"],
-                         [{"name": "status", "options": ["open", "waiting", "closed"]}, {"name": "label"}])
+                         [{"name": "status", "options": ["open", "waiting", "closed"],
+                           "required": True, "sample": "open"},
+                          {"name": "label", "required": True, "sample": "Sample label"}])
         variants = by_key(inventory["variants"])
         self.assertEqual(variants['Button:variant="danger"']["confidence"], "hypothesis")
         self.assertEqual(variants['Button:variant="danger"']["origins"], ["src/pages/RequestDetail.tsx:9"])
@@ -117,9 +119,10 @@ class ProposalTests(unittest.TestCase):
         self.assertEqual(summary["kept"], 0)
         data = read_json(self.path)
         self.assertEqual(by_key(data["components"])["component:RequestList"]["kind"], "screen")
-        self.assertEqual(by_key(data["components"])["component:StatusBadge"]["text_props"], ["label"])
-        self.assertEqual(by_key(data["tokens"])["token:color:#0a66c2"]["name"], "color.brand")
-        self.assertEqual(by_key(data["tokens"])["token:spacing:8px"]["name"], "spacing.2")
+        self.assertEqual(by_key(data["components"])["component:StatusBadge"]["sample_args"],
+                         {"label": "Sample label", "status": "open"})
+        self.assertEqual(by_key(data["tokens"])["token:color:#0a66c2"]["name"], "color.color-brand")
+        self.assertEqual(by_key(data["tokens"])["token:spacing:8px"]["name"], "spacing.space-2")
         self.decide({"component:Button": "validated", "token:color:#c62828": "rejected"},
                     {"token:color:#b26a00": "color.warning"})
         data = read_json(self.path)
@@ -178,11 +181,11 @@ class ProposalTests(unittest.TestCase):
         self.assertIn('"origins": ["src/pages/RequestList.tsx:15"], "confidence": "hypothesis"', story)
         self.assertIn('definition: "src/components/StatusBadge.tsx:5"', story)
         tokens = json.loads((out / "design.tokens.json").read_text())
-        self.assertEqual(tokens["color"]["brand"]["$value"],
+        self.assertEqual(tokens["color"]["color-brand"]["$value"],
                          {"colorSpace": "srgb", "components": [0.0392, 0.4, 0.7608], "hex": "#0a66c2"})
-        self.assertEqual(tokens["spacing"]["2"]["$value"], {"value": 8, "unit": "px"})
-        self.assertEqual(tokens["font-family"]["body"], {**tokens["font-family"]["body"], "$type": "fontFamily",
-                                                         "$value": ["Inter", "system-ui", "sans-serif"]})
+        self.assertEqual(tokens["spacing"]["space-2"]["$value"], {"value": 8, "unit": "px"})
+        self.assertEqual(tokens["font-family"]["font-body"]["$type"], "fontFamily")
+        self.assertEqual(tokens["font-family"]["font-body"]["$value"], ["Inter", "system-ui", "sans-serif"])
         self.assertEqual((out / "index.ts").read_text().splitlines()[1],
                          'export { StatusBadge } from "../components/StatusBadge";')
 
@@ -214,8 +217,24 @@ class ProposalTests(unittest.TestCase):
         self.assertEqual(inventory["previews"][0]["path"], "list.png")
         self.assertIn("hypotheses", cli("storybook", "propose"))
         self.decide({"component:Button": "validated", 'variant:Button:variant="secondary"': "validated"})
-        self.assertIn("Written: src/design-system/Button.stories.tsx", cli("storybook", "generate"))
+        generated = cli("storybook", "generate")
+        self.assertIn("Written: src/design-system/Button.stories.tsx", generated)
+        self.assertIn("Missing Storybook dependencies in package.json: @storybook/react-vite, storybook", generated)
+        self.assertIn("Missing Storybook configuration (.storybook/main.ts or .storybook/main.js)", generated)
+        write_files(self.root, {".storybook/main.ts": "export default {};"})
+        write_json(self.root / "package.json", {"devDependencies": {"@storybook/react-vite": "^10", "storybook": "^10"}})
+        self.assertNotIn("warnings", json.loads(cli("storybook", "generate", "--json")))
         self.assertIn("Unchanged: src/design-system/Button.stories.tsx", cli("storybook", "generate"))
+
+    def test_two_css_variables_with_the_same_value_keep_their_names(self):
+        (self.root / "src" / "styles" / "theme.css").write_text(
+            ":root { --space-4: 4px; --spacing-4: 4px; --space-panel: 8px; }", encoding="utf-8")
+        write_json(self.state / storybook.INVENTORY, extract(self.root, [self.root / "src"]))
+        propose(self.root, self.state)
+        data = by_key(read_json(self.path)["tokens"])
+        self.assertEqual(data["token:spacing:4px"]["name"], "spacing.space-4")
+        self.assertEqual(data["token:spacing:4px:--spacing-4"]["name"], "spacing.spacing-4")
+        self.assertEqual(data["token:spacing:8px"]["name"], "spacing.space-panel")
 
 
 
@@ -346,12 +365,47 @@ class GeneratedCodeTests(unittest.TestCase):
         self.assertEqual(variants['Button:variant="primary"']["basis"], "default")
         self.assertEqual(variants['Button:variant="ghost"']["origins"], ["src/Button.tsx:2"])
         self.assertEqual(variants['Button:variant="ghost"']["confidence"], "hypothesis")
-        for key in ('Chip:tone="info"', 'Chip:tone="warn"', 'Chip:size="sm"', 'Chip:size="lg"',
+        for key in ('Chip:tone="info"', 'Chip:tone="warn"', 'Chip:size="sm"', 'Chip:size="lg"', 'Chip:type="submit"',
                     'Tag:kind="new"', 'Tag:kind="old"'):
             self.assertIn(key, variants)
-        self.assertNotIn('Chip:type="submit"', variants)
         self.assertIn("4 variants", "\n".join(storybook._print_extract(
             {**inventory, "variants": inventory["variants"][:4]}, "inventory.json")))
+
+    def test_required_props_and_validated_states_generate_typed_args(self):
+        write_files(self.root / "src", {
+            "PriceTag.tsx": 'export function PriceTag({ amount, currency }: '
+                            '{ amount: number; currency: "EUR" | "USD"; minorUnits: boolean }) {\n'
+                            "  return <span>{amount} {currency}</span>;\n}\n",
+            "Button.tsx": 'export function Button({ label, type }: { label: string; type?: "button" | "submit" }) {\n'
+                          "  return <button type={type}>{label}</button>;\n}\n",
+            "ProductCard.tsx": "type Product = { name: string; stocked: boolean; tags: string[] };\n"
+                               "export function ProductCard({ product, soldOut }: "
+                               "{ product: Product; soldOut: boolean }) {\n"
+                               "  return <div>{soldOut ? 'Sold out' : product.name}</div>;\n}\n",
+            "App.tsx": "export function App() {\n"
+                       '  return <ProductCard product={{ name: "Private title", stocked: false, tags: [] }} soldOut />;\n'
+                       "}\n",
+        })
+        state = self.root / ".openguildkit"
+        write_json(state / storybook.INVENTORY, extract(self.root, [self.root / "src"]))
+        propose(self.root, state)
+        validate_all(state, {"component:Button", "component:PriceTag", "component:ProductCard"})
+        generate(self.root, state)
+        out = self.root / "src" / "design-system"
+        price = (out / "PriceTag.stories.tsx").read_text(encoding="utf-8")
+        self.assertIn("amount: 1", price)
+        self.assertIn("minorUnits: false", price)
+        self.assertIn('currency: "EUR"', price)
+        self.assertIn('currency: "USD"', price)
+        self.assertIn("type Story = StoryObj<typeof meta>;", price)
+        button = (out / "Button.stories.tsx").read_text(encoding="utf-8")
+        self.assertIn('label: "Sample label"', button)
+        self.assertIn('type: "submit"', button)
+        self.assertNotIn("export const Button:", button)
+        product = (out / "ProductCard.stories.tsx").read_text(encoding="utf-8")
+        self.assertIn('product: {"name": "Sample name", "stocked": false, "tags": []}', product)
+        self.assertIn("soldOut: true", product)
+        self.assertNotIn("Private title", product)
 
     def test_a_source_outside_the_project_leaves_no_absolute_path_in_what_is_generated(self):
         project, other = self.root / "project", self.root / "other-app"
