@@ -6,23 +6,28 @@
   "sources": [
     {
       "title": "GitLab CI/CD variables",
-      "url": "https://docs.gitlab.com/ci/variables/"
+      "url": "https://docs.gitlab.com/ci/variables/",
+      "checked": "2026-11-21"
     },
     {
       "title": "GitLab CI/CD YAML syntax reference",
-      "url": "https://docs.gitlab.com/ci/yaml/"
+      "url": "https://docs.gitlab.com/ci/yaml/",
+      "checked": "2026-11-21"
     },
     {
       "title": "GitLab, OpenID Connect (OIDC) authentication using ID tokens",
-      "url": "https://docs.gitlab.com/ci/secrets/id_token_authentication/"
+      "url": "https://docs.gitlab.com/ci/secrets/id_token_authentication/",
+      "checked": "2026-11-21"
     },
     {
       "title": "GitLab, CI/CD job token",
-      "url": "https://docs.gitlab.com/ci/jobs/ci_job_token/"
+      "url": "https://docs.gitlab.com/ci/jobs/ci_job_token/",
+      "checked": "2026-11-21"
     },
     {
       "title": "GitLab, protected environments",
-      "url": "https://docs.gitlab.com/ci/environments/protected_environments/"
+      "url": "https://docs.gitlab.com/ci/environments/protected_environments/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

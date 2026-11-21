@@ -6,19 +6,23 @@
   "sources": [
     {
       "title": "Regulation (EU) 2016/679, General Data Protection Regulation",
-      "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra"
+      "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra",
+      "checked": "2026-11-20"
     },
     {
       "title": "CNIL, Le registre des activités de traitement",
-      "url": "https://www.cnil.fr/fr/RGPD-le-registre-des-activites-de-traitement"
+      "url": "https://www.cnil.fr/fr/RGPD-le-registre-des-activites-de-traitement",
+      "checked": "2026-11-21"
     },
     {
       "title": "CNIL, L'analyse d'impact relative à la protection des données (AIPD)",
-      "url": "https://www.cnil.fr/fr/RGPD-analyse-impact-protection-des-donnees-aipd"
+      "url": "https://www.cnil.fr/fr/RGPD-analyse-impact-protection-des-donnees-aipd",
+      "checked": "2026-11-21"
     },
     {
       "title": "CNIL, Notifier une violation de données personnelles",
-      "url": "https://www.cnil.fr/fr/services-en-ligne/notifier-une-violation-de-donnees-personnelles"
+      "url": "https://www.cnil.fr/fr/services-en-ligne/notifier-une-violation-de-donnees-personnelles",
+      "checked": "2026-11-21"
     }
   ],
   "depends_on": [

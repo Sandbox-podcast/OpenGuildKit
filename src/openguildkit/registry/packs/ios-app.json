@@ -6,23 +6,28 @@
   "sources": [
     {
       "title": "Apple, privacy manifest files",
-      "url": "https://developer.apple.com/documentation/bundleresources/privacy-manifest-files"
+      "url": "https://developer.apple.com/documentation/bundleresources/privacy-manifest-files",
+      "checked": "2026-11-21"
     },
     {
       "title": "Apple, requesting access to protected resources",
-      "url": "https://developer.apple.com/documentation/uikit/requesting-access-to-protected-resources"
+      "url": "https://developer.apple.com/documentation/uikit/requesting-access-to-protected-resources",
+      "checked": "2026-11-21"
     },
     {
       "title": "Apple, keychain services",
-      "url": "https://developer.apple.com/documentation/security/keychain-services"
+      "url": "https://developer.apple.com/documentation/security/keychain-services",
+      "checked": "2026-11-21"
     },
     {
       "title": "Apple, NSAppTransportSecurity",
-      "url": "https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity"
+      "url": "https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity",
+      "checked": "2026-11-21"
     },
     {
       "title": "Apple, upcoming requirements for App Store Connect",
-      "url": "https://developer.apple.com/news/upcoming-requirements/"
+      "url": "https://developer.apple.com/news/upcoming-requirements/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

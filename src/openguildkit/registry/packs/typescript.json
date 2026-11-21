@@ -6,11 +6,13 @@
   "sources": [
     {
       "title": "TypeScript strict mode",
-      "url": "https://www.typescriptlang.org/tsconfig/strict.html"
+      "url": "https://www.typescriptlang.org/tsconfig/strict.html",
+      "checked": "2026-11-21"
     },
     {
       "title": "TypeScript narrowing",
-      "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html"
+      "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

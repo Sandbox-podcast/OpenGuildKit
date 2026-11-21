@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "PCI SSC, Just published: PCI DSS v4.0.1",
-      "url": "https://blog.pcisecuritystandards.org/just-published-pci-dss-v4-0-1"
+      "url": "https://blog.pcisecuritystandards.org/just-published-pci-dss-v4-0-1",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

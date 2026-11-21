@@ -6,15 +6,18 @@
   "sources": [
     {
       "title": "OpenGitOps principles",
-      "url": "https://opengitops.dev/"
+      "url": "https://opengitops.dev/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Argo CD automated sync policy",
-      "url": "https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/"
+      "url": "https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Flux core concepts",
-      "url": "https://fluxcd.io/flux/concepts/"
+      "url": "https://fluxcd.io/flux/concepts/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

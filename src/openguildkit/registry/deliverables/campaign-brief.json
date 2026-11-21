@@ -80,11 +80,13 @@
   "sources": [
     {
       "title": "UK Government Functional Standard GovS 011, Communication, the campaign lifecycle",
-      "url": "https://www.gov.uk/government/publications/government-functional-standard-govs-011-communication/government-functional-standard-govs-011-communications#the-campaign-lifecycle"
+      "url": "https://www.gov.uk/government/publications/government-functional-standard-govs-011-communication/government-functional-standard-govs-011-communications#the-campaign-lifecycle",
+      "checked": "2026-11-21"
     },
     {
       "title": "CNIL, Site web, cookies et autres traceurs",
-      "url": "https://www.cnil.fr/fr/cookies-et-autres-traceurs"
+      "url": "https://www.cnil.fr/fr/cookies-et-autres-traceurs",
+      "checked": "2026-11-21"
     }
   ]
 }

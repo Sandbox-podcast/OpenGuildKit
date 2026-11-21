@@ -6,15 +6,18 @@
   "sources": [
     {
       "title": "Regulation (EU) 2022/2065, Digital Services Act",
-      "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj"
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj",
+      "checked": "2026-11-21"
     },
     {
       "title": "Regulation (EU) 2021/784 on addressing the dissemination of terrorist content online",
-      "url": "https://eur-lex.europa.eu/eli/reg/2021/784/oj"
+      "url": "https://eur-lex.europa.eu/eli/reg/2021/784/oj",
+      "checked": "2026-11-21"
     },
     {
       "title": "The Santa Clara Principles on Transparency and Accountability in Content Moderation",
-      "url": "https://santaclaraprinciples.org/"
+      "url": "https://santaclaraprinciples.org/",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

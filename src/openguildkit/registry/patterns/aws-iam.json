@@ -5,7 +5,8 @@
   "sources": [
     {
       "title": "AWS IAM, security best practices",
-      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html"
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html",
+      "checked": "2026-11-21"
     }
   ],
   "roles": [

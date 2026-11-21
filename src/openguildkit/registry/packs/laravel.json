@@ -6,23 +6,28 @@
   "sources": [
     {
       "title": "Laravel 13.x, Eloquent: mass assignment",
-      "url": "https://laravel.com/docs/13.x/eloquent"
+      "url": "https://laravel.com/docs/13.x/eloquent",
+      "checked": "2026-11-21"
     },
     {
       "title": "Laravel 13.x, authorization",
-      "url": "https://laravel.com/docs/13.x/authorization"
+      "url": "https://laravel.com/docs/13.x/authorization",
+      "checked": "2026-11-21"
     },
     {
       "title": "Laravel 13.x, validation and form requests",
-      "url": "https://laravel.com/docs/13.x/validation"
+      "url": "https://laravel.com/docs/13.x/validation",
+      "checked": "2026-11-21"
     },
     {
       "title": "Laravel 13.x, database migrations",
-      "url": "https://laravel.com/docs/13.x/migrations"
+      "url": "https://laravel.com/docs/13.x/migrations",
+      "checked": "2026-11-21"
     },
     {
       "title": "Laravel 13.x, deployment",
-      "url": "https://laravel.com/docs/13.x/deployment"
+      "url": "https://laravel.com/docs/13.x/deployment",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

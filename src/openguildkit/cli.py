@@ -7,7 +7,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from .catalog import load_catalog
+from .catalog import load_catalog, undated_sources
 from .ci import check_export, read_policy_pack
 from .decisions import NAMESPACE, approval_policy, check_decision, decision_payload, git_revision, payload_text, verify_signature
 from . import alerts_cli
@@ -38,6 +38,7 @@ from .lock import (
     apply_lock,
     build_lock,
     catalog_changes,
+    installed_catalog_date,
     lock_is_current,
     read_lock,
     unshipped_records,
@@ -421,6 +422,17 @@ def _stale_tasks(state: Path, profile: dict, catalog: dict) -> list[dict]:
     return stale
 
 
+def _undated_project_sources(state: Path, live: dict) -> list[str]:
+    """Project records that cite a source without a checked date; bundled sources always carry one."""
+    project = state / "catalog"
+    references = {
+        "references": {record["id"]: record for family in load_references(project / "references").values()
+                       for record in family["references"]},
+        "deliverables": load_deliverables(live, project / "deliverables"),
+    }
+    return undated_sources({**live, **references})
+
+
 def _update_catalog(args, root: Path, state: Path) -> None:
     with project_lock(state):
         live, bundled = _installed_catalog(args, state)
@@ -446,6 +458,7 @@ def _update_catalog(args, root: Path, state: Path) -> None:
                 write_lock(state, build_lock(profile, target, bundled, lock))
                 result["applied"] = True
                 result["stale_tasks"] = _stale_tasks(state, profile, target)
+        result["catalog_date"] = installed_catalog_date()
     _print_update(result, args.json)
 
 
@@ -453,9 +466,14 @@ def _print_update(result: dict, as_json: bool) -> None:
     if as_json:
         _print_json(result)
         return
+    date = result.get("catalog_date") or "unknown"
     if result.get("note"):
+        print(f"Installed catalog: sources checked up to {date}.")
         print(result["note"])
         return
+    count = len(result["changes"])
+    print(f"Installed catalog: sources checked up to {date}. "
+          f"{count} {'record' if count == 1 else 'records'} changed since the project's lock.")
     if not result["changes"]:
         print("The project's rules match the installed catalog.")
         return
@@ -479,6 +497,10 @@ def _print_update(result: dict, as_json: bool) -> None:
             print(f"    + source {url}")
         for url in change["sources"]["removed"]:
             print(f"    - source {url}")
+        redated = change["sources"].get("redated", [])
+        if redated:
+            latest = max((item["checked"][1] or "" for item in redated), default="")
+            print(f"    ~ {len(redated)} {'source' if len(redated) == 1 else 'sources'} checked again, latest {latest}")
     for conflict in result["conflicts"]:
         print(f"! {' and '.join(conflict['packs'])} conflict: record a resolution before applying.")
     if not result["applied"]:
@@ -808,12 +830,18 @@ def _print_references(args, state: Path, catalog: dict) -> None:
             print("Status: documentary reference. No pack turns it into rules yet.")
         print()
         for source in reference["sources"]:
-            print(f"- {source['title']}: {source['url']}")
+            print(_source_line(source))
     elif matches:
         for reference in matches:
             print(f"  {reference['id']:<34} {english_title(reference)} [{reference['family']}]")
     else:
         print("No references matched.")
+
+
+def _source_line(source: dict) -> str:
+    """A source as printed for a person, with the day its page was last checked."""
+    checked = f" (checked {source['checked']})" if "checked" in source else ""
+    return f"- {source['title']}: {source['url']}{checked}"
 
 
 def _print_patterns(args, patterns: dict) -> None:
@@ -844,7 +872,7 @@ def _print_patterns(args, patterns: dict) -> None:
         if match.get("personal_data"):
             print("Preselected when the project processes personal data")
         for source in pattern["sources"]:
-            print(f"- {source['title']}: {source['url']}")
+            print(_source_line(source))
         return
     print(f"{len(matches)} patterns")
     for pattern in matches:
@@ -1648,10 +1676,16 @@ def _run(args) -> int | None:
             warning = approval_warning(profile)
             if warning:
                 print(warning, file=sys.stderr)
-            _, bundled = _installed_catalog(args, state)
+            live, bundled = _installed_catalog(args, state)
             if not lock_is_current(read_lock(state), profile, catalog, bundled):
                 raise ValueError("The catalog lock does not match the profile. Run openguildkit sync.")
             print("OpenGuildKit instructions match the project profile.")
+            undated = _undated_project_sources(state, live)
+            if undated:
+                print(f"OpenGuildKit: date the sources of {len(undated)} project "
+                      f"{'record' if len(undated) == 1 else 'records'}: {', '.join(undated)}. Open each page, then "
+                      'add "checked": "YYYY-MM-DD" after its url with that day\'s date (see docs/catalog-format.md).',
+                      file=sys.stderr)
         elif args.command == "ci-check":
             result = check_export(profile, catalog, args.target_repo, args.commit)
             _print_json(result)

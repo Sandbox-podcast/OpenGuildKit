@@ -95,7 +95,7 @@ Contribute a JSON family file in `src/openguildkit/registry/references/`. For in
       "summary": "Record the owner, impact and verification results of a production change.",
       "applies_when": "A change affects an interface or operation used by another team.",
       "sources": [
-        {"title": "Team engineering handbook", "url": "https://example.org/engineering/change-records"}
+        {"title": "Team engineering handbook", "url": "https://example.org/engineering/change-records", "checked": "2026-11-21"}
       ]
     }
   ]
@@ -141,6 +141,6 @@ Generated `work-patterns` entries use `Stack pattern` or `Work method`.
 
 A reference, the packs built on it and the pattern that applies them name each other: the reference lists `pattern` and `packs`, and the pattern lists the reference in `references`. `tests/test_references.py` checks these links for the bundled catalog. Place each entry in the family of its discipline: Core Web Vitals sits under quality, SPF, DKIM and DMARC under security.
 
-Save this example as `team-practices.json` and replace the example URL with the source your team uses. Sources follow the [catalog rules](catalog-format.md#rules-common-to-all-records): HTTPS, the canonical page, no tracking parameter. To extend a bundled family locally, use its existing family ID and title in your file, and include only the new entries. Reference IDs must be unique across all families. Run `openguildkit references` to validate the result.
+Save this example as `team-practices.json` and replace the example URL with the source your team uses. Sources follow the [catalog rules](catalog-format.md#rules-common-to-all-records): HTTPS, the canonical page, no tracking parameter, and `checked`, the day you opened the page and checked the entry against it ([source dates](catalog-format.md#source-dates)). To extend a bundled family locally, use its existing family ID and title in your file, and include only the new entries. Reference IDs must be unique across all families. Run `openguildkit references` to validate the result.
 
 For pack fields and verification examples, see the [catalog format](catalog-format.md).

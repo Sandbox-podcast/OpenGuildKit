@@ -68,11 +68,13 @@
   "sources": [
     {
       "title": "Keep a Changelog 1.1.0",
-      "url": "https://keepachangelog.com/en/1.1.0/"
+      "url": "https://keepachangelog.com/en/1.1.0/",
+      "checked": "2026-11-21"
     },
     {
       "title": "Digital.gov, Plain language guide series",
-      "url": "https://digital.gov/guides/plain-language"
+      "url": "https://digital.gov/guides/plain-language",
+      "checked": "2026-11-21"
     }
   ]
 }

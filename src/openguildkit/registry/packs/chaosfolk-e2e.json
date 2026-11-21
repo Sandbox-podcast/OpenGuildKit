@@ -6,19 +6,23 @@
   "sources": [
     {
       "title": "ChaosFolk b406600, Regression tests, CI and visual checks",
-      "url": "https://github.com/loukan42/chaosfolk/blob/b406600b229485cfeb77f54ef6f8f0cf0cd4fc07/docs/regression.md"
+      "url": "https://github.com/loukan42/chaosfolk/blob/b406600b229485cfeb77f54ef6f8f0cf0cd4fc07/docs/regression.md",
+      "checked": "2026-11-21"
     },
     {
       "title": "ChaosFolk b406600, Replay and evidence",
-      "url": "https://github.com/loukan42/chaosfolk/blob/b406600b229485cfeb77f54ef6f8f0cf0cd4fc07/docs/replay.md"
+      "url": "https://github.com/loukan42/chaosfolk/blob/b406600b229485cfeb77f54ef6f8f0cf0cd4fc07/docs/replay.md",
+      "checked": "2026-11-21"
     },
     {
       "title": "ChaosFolk b406600, Cover the business journey",
-      "url": "https://github.com/loukan42/chaosfolk/blob/b406600b229485cfeb77f54ef6f8f0cf0cd4fc07/docs/journey.md"
+      "url": "https://github.com/loukan42/chaosfolk/blob/b406600b229485cfeb77f54ef6f8f0cf0cd4fc07/docs/journey.md",
+      "checked": "2026-11-21"
     },
     {
       "title": "ChaosFolk b406600, Simulated user isolation",
-      "url": "https://github.com/loukan42/chaosfolk/blob/b406600b229485cfeb77f54ef6f8f0cf0cd4fc07/docs/release-notes/user-isolation.en.md"
+      "url": "https://github.com/loukan42/chaosfolk/blob/b406600b229485cfeb77f54ef6f8f0cf0cd4fc07/docs/release-notes/user-isolation.en.md",
+      "checked": "2026-11-21"
     }
   ],
   "rules": [

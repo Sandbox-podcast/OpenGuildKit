@@ -16,6 +16,7 @@
       "sources": [
         {
           "url": "https://newsletter.kentbeck.com/p/canon-tdd",
+          "checked": "2026-11-21",
           "title": "Kent Beck — Canon TDD"
         }
       ]
@@ -34,6 +35,7 @@
       "sources": [
         {
           "url": "https://dannorth.net/blog/introducing-bdd/",
+          "checked": "2026-11-21",
           "title": "Introducing BDD - Dan North"
         }
       ]
@@ -52,6 +54,7 @@
       "sources": [
         {
           "url": "https://cucumber.io/docs/gherkin/reference/",
+          "checked": "2026-11-21",
           "title": "Cucumber — Gherkin Reference"
         }
       ]
@@ -70,6 +73,7 @@
       "sources": [
         {
           "url": "https://www.mountaingoatsoftware.com/agile/the-forgotten-layer-of-the-test-automation-pyramid",
+          "checked": "2026-11-21",
           "title": "The Forgotten Layer of the Test Automation Pyramid - Mike Cohn"
         }
       ]
@@ -88,6 +92,7 @@
       "sources": [
         {
           "url": "https://docs.python.org/3/library/unittest.html",
+          "checked": "2026-11-21",
           "title": "Python documentation — unittest, unit testing framework"
         }
       ]
@@ -106,6 +111,7 @@
       "sources": [
         {
           "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests",
+          "checked": "2026-11-21",
           "title": "Microsoft Learn — Integration tests in ASP.NET Core"
         }
       ]
@@ -124,6 +130,7 @@
       "sources": [
         {
           "url": "https://docs.cypress.io/app/core-concepts/testing-types",
+          "checked": "2026-11-21",
           "title": "Cypress Documentation — Testing Types"
         }
       ]
@@ -142,6 +149,7 @@
       "sources": [
         {
           "url": "https://docs.pact.io/",
+          "checked": "2026-11-21",
           "title": "Pact Docs — Introduction"
         }
       ]
@@ -160,6 +168,7 @@
       "sources": [
         {
           "url": "https://hypothesis.readthedocs.io/en/latest/",
+          "checked": "2026-11-21",
           "title": "Hypothesis documentation"
         }
       ]
@@ -178,6 +187,7 @@
       "sources": [
         {
           "url": "https://stryker-mutator.io/docs/",
+          "checked": "2026-11-21",
           "title": "Stryker Mutator — What is mutation testing?"
         }
       ]
@@ -195,6 +205,7 @@
       "sources": [
         {
           "url": "https://www.satisfice.com/exploratory-testing",
+          "checked": "2026-11-21",
           "title": "Satisfice — Exploratory Testing"
         }
       ]
@@ -213,6 +224,7 @@
       "sources": [
         {
           "url": "https://istqb.org/wp-content/uploads/2024/11/ISTQB_CTFL_Syllabus_v4.0.1.pdf",
+          "checked": "2026-11-21",
           "title": "ISTQB Certified Tester Foundation Level Syllabus v4.0.1"
         }
       ]
@@ -231,6 +243,7 @@
       "sources": [
         {
           "url": "https://grafana.com/docs/k6/latest/testing-guides/load-testing-websites/",
+          "checked": "2026-11-21",
           "title": "Grafana k6 documentation — Load testing websites"
         }
       ]
@@ -255,6 +268,7 @@
       "sources": [
         {
           "url": "https://web.dev/articles/vitals",
+          "checked": "2026-11-21",
           "title": "web.dev — Web Vitals"
         }
       ]
@@ -273,6 +287,7 @@
       "sources": [
         {
           "url": "https://go.dev/doc/tutorial/fuzz",
+          "checked": "2026-11-21",
           "title": "Go documentation — Tutorial: Getting started with fuzzing"
         }
       ]
@@ -295,6 +310,7 @@
       "sources": [
         {
           "url": "https://playwright.dev/docs/intro",
+          "checked": "2026-11-21",
           "title": "Playwright documentation — Installation"
         }
       ]
@@ -313,6 +329,7 @@
       "sources": [
         {
           "url": "https://docs.cypress.io/app/get-started/why-cypress",
+          "checked": "2026-11-21",
           "title": "Cypress Documentation — Why Cypress?"
         }
       ]
@@ -331,6 +348,7 @@
       "sources": [
         {
           "url": "https://www.selenium.dev/documentation/",
+          "checked": "2026-11-21",
           "title": "The Selenium Browser Automation Project"
         }
       ]
@@ -349,6 +367,7 @@
       "sources": [
         {
           "url": "https://jestjs.io/",
+          "checked": "2026-11-21",
           "title": "Jest"
         }
       ]
@@ -367,6 +386,7 @@
       "sources": [
         {
           "url": "https://vitest.dev/guide/",
+          "checked": "2026-11-21",
           "title": "Vitest — Getting Started"
         }
       ]
@@ -389,6 +409,7 @@
       "sources": [
         {
           "url": "https://docs.pytest.org/en/stable/",
+          "checked": "2026-11-21",
           "title": "pytest documentation"
         }
       ]
@@ -407,6 +428,7 @@
       "sources": [
         {
           "url": "https://docs.junit.org/current/user-guide/",
+          "checked": "2026-11-21",
           "title": "JUnit User Guide — Overview"
         }
       ]
@@ -425,6 +447,7 @@
       "sources": [
         {
           "url": "https://docs.nunit.org/articles/nunit/intro.html",
+          "checked": "2026-11-21",
           "title": "NUnit Documentation"
         }
       ]
@@ -443,6 +466,7 @@
       "sources": [
         {
           "url": "https://testcontainers.com/",
+          "checked": "2026-11-21",
           "title": "Testcontainers"
         }
       ]
@@ -461,6 +485,7 @@
       "sources": [
         {
           "url": "https://docs.pact.io/",
+          "checked": "2026-11-21",
           "title": "Pact Docs — Introduction"
         }
       ]
@@ -479,6 +504,7 @@
       "sources": [
         {
           "url": "https://hypothesis.readthedocs.io/en/latest/",
+          "checked": "2026-11-21",
           "title": "Hypothesis documentation"
         }
       ]
@@ -497,6 +523,7 @@
       "sources": [
         {
           "url": "https://grafana.com/docs/k6/latest/",
+          "checked": "2026-11-21",
           "title": "Grafana k6 documentation"
         }
       ]
@@ -517,6 +544,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/90219.html",
+          "checked": "2026-11-20",
           "title": "ISO/IEC/IEEE 12207:2026 - Systems and software engineering - Software life cycle processes"
         }
       ]
@@ -536,6 +564,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/72089.html",
+          "checked": "2026-11-20",
           "title": "ISO/IEC/IEEE 29148:2018 - Systems and software engineering - Life cycle processes - Requirements engineering"
         }
       ]
@@ -554,6 +583,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/74393.html",
+          "checked": "2026-11-20",
           "title": "ISO/IEC/IEEE 42010:2022 - Software, systems and enterprise - Architecture description"
         }
       ]
@@ -573,6 +603,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/35736.html",
+          "checked": "2026-11-20",
           "title": "ISO/IEC 25012:2008 - Software engineering - Software product Quality Requirements and Evaluation (SQuaRE) - Data quality model"
         }
       ]
@@ -592,10 +623,12 @@
       "sources": [
         {
           "url": "https://committee.iso.org/sites/jtc1sc7/home/projects/flagship-standards/isoiecieee-29119-series.html",
+          "checked": "2026-11-21",
           "title": "ISO/IEC JTC 1/SC 7 - ISO/IEC/IEEE 29119 series"
         },
         {
           "url": "https://www.iso.org/standard/79428.html",
+          "checked": "2026-11-21",
           "title": "ISO/IEC/IEEE 29119-2:2021 - Software and systems engineering - Software testing - Part 2: Test processes"
         }
       ]

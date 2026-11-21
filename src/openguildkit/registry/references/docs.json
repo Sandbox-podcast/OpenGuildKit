@@ -20,6 +20,7 @@
       "sources": [
         {
           "url": "https://diataxis.fr/",
+          "checked": "2026-11-21",
           "title": "Diátaxis"
         }
       ]
@@ -42,6 +43,7 @@
       "sources": [
         {
           "url": "https://www.writethedocs.org/guide/docs-as-code/",
+          "checked": "2026-11-21",
           "title": "Docs as code — Write the Docs"
         }
       ]
@@ -60,6 +62,7 @@
       "sources": [
         {
           "url": "https://developers.google.com/style",
+          "checked": "2026-11-21",
           "title": "Google developer documentation style guide — About this guide"
         }
       ]
@@ -78,6 +81,7 @@
       "sources": [
         {
           "url": "https://learn.microsoft.com/en-us/style-guide/welcome/",
+          "checked": "2026-11-21",
           "title": "Microsoft Learn — Microsoft Writing Style Guide"
         }
       ]
@@ -97,6 +101,7 @@
       "sources": [
         {
           "url": "https://spec.commonmark.org/",
+          "checked": "2026-11-21",
           "title": "CommonMark Spec"
         }
       ]
@@ -115,6 +120,7 @@
       "sources": [
         {
           "url": "https://github.github.com/gfm/",
+          "checked": "2026-11-21",
           "title": "GitHub Flavored Markdown Spec"
         }
       ]
@@ -133,6 +139,7 @@
       "sources": [
         {
           "url": "https://asciidoc.org/",
+          "checked": "2026-11-21",
           "title": "AsciiDoc"
         }
       ]
@@ -152,6 +159,7 @@
       "sources": [
         {
           "url": "https://docs.oasis-open.org/dita/dita/v1.3/os/part1-base/dita-v1.3-os-part1-base.html",
+          "checked": "2026-11-21",
           "title": "DITA Version 1.3 Specification"
         }
       ]
@@ -170,6 +178,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/78907.html",
+          "checked": "2026-11-20",
           "title": "ISO 24495-1:2023 - Plain language — Part 1: Governing principles and guidelines"
         }
       ]
@@ -189,6 +198,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/standard/38920.html",
+          "checked": "2026-11-20",
           "title": "ISO 19005-1:2005 - Document management — Electronic document file format for long-term preservation — Part 1: Use of PDF 1.4 (PDF/A-1)"
         }
       ]
@@ -211,6 +221,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/rfc/rfc5646.html",
+          "checked": "2026-11-21",
           "title": "IETF RFC 5646 (BCP 47) — Tags for Identifying Languages"
         }
       ]
@@ -233,6 +244,7 @@
       "sources": [
         {
           "url": "https://cldr.unicode.org/",
+          "checked": "2026-11-21",
           "title": "Unicode CLDR Project"
         }
       ]
@@ -255,6 +267,7 @@
       "sources": [
         {
           "url": "https://unicode-org.github.io/icu/userguide/format_parse/messages/",
+          "checked": "2026-11-21",
           "title": "ICU User Guide — Formatting Messages"
         }
       ]
@@ -274,6 +287,7 @@
       "sources": [
         {
           "url": "https://www.iana.org/time-zones",
+          "checked": "2026-11-21",
           "title": "IANA — Time Zone Database"
         }
       ]
@@ -292,6 +306,7 @@
       "sources": [
         {
           "url": "https://www.unicode.org/reports/tr15/",
+          "checked": "2026-11-21",
           "title": "UAX #15: Unicode Normalization Forms"
         }
       ]
@@ -311,6 +326,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/iso-4217-currency-codes.html",
+          "checked": "2026-11-20",
           "title": "ISO - ISO 4217 — Currency codes"
         }
       ]
@@ -329,6 +345,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/iso-3166-country-codes.html",
+          "checked": "2026-11-20",
           "title": "ISO - ISO 3166 — Country Codes"
         }
       ]
@@ -350,6 +367,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/International/quicktips/",
+          "checked": "2026-11-21",
           "title": "W3C, Internationalization Quick Tips for the Web"
         }
       ]
@@ -369,6 +387,7 @@
       "sources": [
         {
           "url": "https://www.unicode.org/reports/tr9/",
+          "checked": "2026-11-21",
           "title": "Unicode Standard Annex #9, Unicode Bidirectional Algorithm"
         }
       ]
