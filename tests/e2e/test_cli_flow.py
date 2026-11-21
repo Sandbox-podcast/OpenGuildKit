@@ -474,7 +474,8 @@ class ApprovalTests(CliTestCase):
         self.run_cli("sync")
 
         expired = self.run_cli("task", "handoff", TASK_ID, expect=1)
-        self.assertIn("changed", expired.stderr)
+        self.assertIn(f"The approval for {TASK_ID} was recorded under earlier rules.", expired.stderr)
+        self.assertIn(f"--follows {TASK_ID}", expired.stderr)
 
     def test_an_approved_decision_task_returns_a_decision_record(self):
         self.init_example()
