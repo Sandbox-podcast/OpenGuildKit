@@ -1,0 +1,167 @@
+{
+  "id": "hr",
+  "title": "People and HR",
+  "tools": [
+    {
+      "id": "bamboohr",
+      "title": "BambooHR",
+      "vendor": "BambooHR",
+      "summary": "HR software for employee records, time off, hiring, goals and reports.",
+      "homepage": "https://www.bamboohr.com",
+      "brains": [
+        "hr",
+        "operations"
+      ],
+      "servers": [
+        {
+          "id": "bamboohr-remote",
+          "name": "BambooHR MCP Server",
+          "publisher": "vendor",
+          "maintainer": "BambooHR",
+          "transport": "streamable-http",
+          "url": "https://{subdomain}.bamboohr.com/api/mcp",
+          "auth": "oauth",
+          "env": [],
+          "settings": [
+            {
+              "name": "subdomain",
+              "description": "BambooHR: your subdomain"
+            }
+          ],
+          "status": "beta",
+          "capabilities": "Employees and directory, fields, datasets, reports, time off, goals, hiring, global employment and files; mostly read, some write and delete tools.",
+          "source": "https://documentation.bamboohr.com/docs/mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://documentation.bamboohr.com"
+      },
+      "notes": "One endpoint per company subdomain. An admin must enable the AI Connectors app under Settings > Apps; a bearer token is also accepted for scripted use."
+    },
+    {
+      "id": "factorial",
+      "title": "Factorial",
+      "vendor": "Factorial",
+      "summary": "HR software: employees, attendance, time off, tasks and payroll.",
+      "homepage": "https://factorialhr.com",
+      "brains": [
+        "hr",
+        "operations"
+      ],
+      "aliases": [
+        "Factorial HR",
+        "FactorialHR"
+      ],
+      "servers": [
+        {
+          "id": "factorial-remote",
+          "name": "Factorial MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Factorial",
+          "transport": "streamable-http",
+          "url": "https://mcp.factorialhr.com",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Clock in and out, view and create tasks, view and request time off, find colleagues, and delegate broader questions to Factorial One.",
+          "source": "https://apidoc.factorialhr.com/docs/mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://apidoc.factorialhr.com"
+      },
+      "notes": "Actions run under each user's own Factorial permissions; the Factorial One capability needs a plan that includes Factorial One."
+    },
+    {
+      "id": "hibob",
+      "title": "HiBob",
+      "vendor": "HiBob",
+      "summary": "HR platform (Bob) for people data, time off, performance, compensation and hiring.",
+      "homepage": "https://www.hibob.com",
+      "brains": [
+        "hr",
+        "operations"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://apidocs.hibob.com"
+      },
+      "notes": "HiBob runs a hosted, OAuth-based Bob MCP server (product page: supports ChatGPT, Claude.ai, Claude Desktop, Cursor; admin enables it), but its setup is documented only in the Bob Help Center, which could not be read, so no endpoint is listed. A community post cites https://mcp.hibob.com/mcp/public (unconfirmed); legacy service-user access is blocked for new connections since 2026-11-09."
+    },
+    {
+      "id": "lucca",
+      "title": "Lucca",
+      "vendor": "Lucca",
+      "summary": "French HR and finance suite: absences, timesheets, expenses, core HR.",
+      "homepage": "https://www.lucca-software.com",
+      "brains": [
+        "hr",
+        "finance",
+        "operations"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.luccasoftware.com/api-reference/latest"
+      },
+      "notes": "No vendor MCP server found on 2026-11-21; only third-party hosted connectors (StackOne, Apideck, Knit, Vinkius). Use the OAuth 2.0 REST API."
+    },
+    {
+      "id": "payfit",
+      "title": "PayFit",
+      "vendor": "PayFit",
+      "summary": "Payroll and HR software for small and mid-sized companies.",
+      "homepage": "https://payfit.com",
+      "brains": [
+        "hr",
+        "finance"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.payfit.io"
+      },
+      "notes": "No vendor MCP server found on 2026-11-21 (developers.payfit.io does not mention one); only third-party connectors. The Partner API uses OAuth 2.0 and requires partner access."
+    },
+    {
+      "id": "personio",
+      "title": "Personio",
+      "vendor": "Personio",
+      "summary": "HR software for SMEs: employee data, absences, attendance, recruiting and payroll preparation.",
+      "homepage": "https://www.personio.com",
+      "brains": [
+        "hr",
+        "operations"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.personio.de"
+      },
+      "notes": "Open beta for Core Pro plan customers; an admin enables MCP access, then each user signs in. Not verified: the support article returned 403 and the product page 429 on 2026-11-21, so the endpoint comes from search excerpts of those vendor pages. Personio announces an MCP server (Personio MCP Server); its endpoint could not be read on its own documentation on 2026-11-21, so it is not listed."
+    },
+    {
+      "id": "workday",
+      "title": "Workday",
+      "vendor": "Workday",
+      "summary": "Enterprise HR (HCM) and finance suite.",
+      "homepage": "https://www.workday.com",
+      "brains": [
+        "hr",
+        "finance",
+        "operations"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.workday.com/rest-api-explorer"
+      },
+      "notes": "Workday announces MCP-based 'Agent-Ready Tools' (workday.com/mcp), but no public endpoint, transport or install command is documented there, so none is listed. Third-party servers (Workato, CData, StackOne) exist; check with your Workday admin."
+    }
+  ]
+}

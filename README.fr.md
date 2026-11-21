@@ -81,6 +81,7 @@ openguildkit brains --id product
 - [Livrables métier issus des tâches approuvées](docs/deliverables.md)
 - [Storybook du projet, design system de l’entreprise et extraction](docs/storybook.md)
 - [Documentation du projet et partage avec Documentalist](docs/documentation.md)
+- [Outils de la stack d'entreprise, leurs serveurs MCP et leurs simulations](docs/tools.md)
 - [Tests de bout en bout avec ChaosFolk, en option](integrations/chaosfolk/)
 - [Contribuer](CONTRIBUTING.md) et [format du catalogue](docs/catalog-format.md)
 - [Feuille de route](docs/roadmap.md) et [licence MIT](LICENSE)

@@ -28,13 +28,14 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from openguildkit.catalog import load_catalog  # noqa: E402
 from openguildkit.references import load_references  # noqa: E402
+from openguildkit.tools import load_tools  # noqa: E402
 
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
 RECHECK_CODES = {202, 401, 403, 429, 502, 503, 504}
 CATEGORIES = ("dead", "redirected", "to-recheck", "available")
 
 
-def collect_citations(catalog: dict, families: dict) -> dict[str, list[dict]]:
+def collect_citations(catalog: dict, families: dict, tools: dict | None = None) -> dict[str, list[dict]]:
     """Map each source URL to the bundled records that cite it."""
     citations: dict[str, list[dict]] = {}
 
@@ -58,6 +59,13 @@ def collect_citations(catalog: dict, families: dict) -> dict[str, list[dict]]:
                 entry["packs"] = record["packs"]
             for source in record["sources"]:
                 cite(source["url"], entry)
+    for tool in (tools or {}).values():
+        entry = {"collection": "tools", "id": tool["id"]}
+        cite(tool["homepage"], entry)
+        if "api" in tool:
+            cite(tool["api"]["docs"], entry)
+        for server in tool["servers"]:
+            cite(server["source"], {**entry, "server": server["id"]})
     return dict(sorted(citations.items()))
 
 
@@ -114,6 +122,8 @@ def _citation(entry: dict) -> str:
         text += f", edition {entry['edition']}"
     if "packs" in entry:
         text += f", applied by {', '.join(entry['packs'])}"
+    if "server" in entry:
+        text += f", server {entry['server']}"
     return text
 
 
@@ -156,7 +166,7 @@ def main(argv=None) -> int:
     parser.add_argument("--workers", type=int, default=4, help="Parallel requests.")
     parser.add_argument("--timeout", type=float, default=30, help="Seconds to wait for each URL.")
     args = parser.parse_args(argv)
-    citations = collect_citations(load_catalog(), load_references())
+    citations = collect_citations(load_catalog(), load_references(), load_tools())
     report = check(citations, lambda url: fetch(url, args.timeout), args.workers)
     json_path, markdown_path = write_report(report, args.out)
     summary = ", ".join(f"{count} {category}" for category, count in report["summary"].items())

@@ -120,6 +120,60 @@ A sector adds domain context to every consultation and to `AGENTS.md`.
 
 `general` is the default. If a saved profile uses a sector absent from the current catalog, add that sector to the project's local catalog or set `sector` to an available ID in `.openguildkit/project.json`, then run `openguildkit sync`.
 
+## Tools
+
+`registry/tools/CATEGORY.json` lists the tools of a company's stack and the MCP servers that connect an agent to them (see [tools.md](tools.md)). One file per category:
+
+```json
+{
+  "id": "issue-tracking",
+  "title": "Issue tracking and work management",
+  "tools": [
+    {
+      "id": "linear",
+      "title": "Linear",
+      "vendor": "Linear",
+      "summary": "Issue tracking and product planning for software teams.",
+      "homepage": "https://linear.app",
+      "brains": ["project-management", "engineering", "product"],
+      "servers": [
+        {
+          "id": "linear-remote",
+          "name": "Linear MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Linear",
+          "transport": "streamable-http",
+          "url": "https://mcp.linear.app/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Find, create and update Linear issues, projects and comments.",
+          "source": "https://linear.app/docs/mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {"kind": "graphql", "docs": "https://linear.app/developers"}
+    }
+  ]
+}
+```
+
+| Field | Constraint |
+|---|---|
+| `brains` | Non-empty list of board IDs that use the tool. |
+| `aliases` | Optional. Other names a team writes for the tool. |
+| `detect` | Optional signs of the tool in a repository: `files` (paths or `*` patterns inside the project), `npm` and `pypi` dependency names. |
+| `servers` | The MCP servers verified for the tool. Empty when none is on record: say what exists instead in `notes` and `api`. |
+| `servers[].publisher` | `vendor` when the tool's own company publishes or hosts the server, `community` otherwise. A community server is proposed only when the team asks for it. |
+| `servers[].transport` | `streamable-http`, `sse` or `stdio`. A remote server has a `url`; a `stdio` server has `command`, `args` and `package` (`registry` and `name`). |
+| `servers[].env` | Names of the environment variables the server reads. Never a value: an argument such as `TOKEN=...` is refused, and so is a credential in a URL. |
+| `servers[].settings` | `name` and `description` of each `{placeholder}` used in the `url` or the `args`, such as a subdomain. |
+| `servers[].status` | `ga`, `beta`, `preview`, `experimental` or `deprecated` as the publisher states it, `unknown` otherwise. |
+| `servers[].source`, `verified` | The publisher's page or the server's repository where the endpoint or the command was read, and the day it was read. A directory site or a blog post is not a source. |
+| `api` | Optional. The tool's main public API: `kind` (`rest`, `graphql`, `other`) and `docs`. |
+
+A server shared by several tools (one server for an issue tracker and its wiki) keeps the same `id` and the same endpoint in each entry. `registry/tool-mocks/TOOL.json` holds the synthetic answers of a tool's mock; its format is in [tools.md](tools.md#mocks-demos-and-tests-without-an-account). Mock data is fictional: no real person, company or address, emails on `example.test`.
+
 ## Writing good records
 
 - Write each instruction as an action an agent can take in a repository or a question it must ask a named owner.

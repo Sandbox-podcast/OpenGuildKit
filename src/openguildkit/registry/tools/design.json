@@ -1,0 +1,216 @@
+{
+  "id": "design",
+  "title": "Design",
+  "tools": [
+    {
+      "id": "canva",
+      "title": "Canva",
+      "vendor": "Canva",
+      "summary": "Online graphic design platform.",
+      "homepage": "https://www.canva.com",
+      "brains": [
+        "design",
+        "marketing"
+      ],
+      "servers": [
+        {
+          "id": "canva-connect-mcp",
+          "name": "Canva MCP server",
+          "publisher": "vendor",
+          "maintainer": "Canva",
+          "transport": "streamable-http",
+          "url": "https://api.canva.com/connect/v1/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Generate, edit, search, export and comment on designs, upload assets; resize, autofill and brand templates need Canva Pro or above.",
+          "source": "https://www.canva.dev/docs/apps/quickstart/?app-surface=Canva%20for%20AI%20assistants",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "canva-dev-mcp",
+          "name": "Canva Dev MCP server",
+          "publisher": "vendor",
+          "maintainer": "Canva",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@canva/cli@latest",
+            "mcp"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@canva/cli"
+          },
+          "auth": "none",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Development help for building Canva apps and integrations, using canva.dev documentation.",
+          "source": "https://www.canva.dev/docs/apps/dev-mcp-server/",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://www.canva.dev/docs/connect/"
+      },
+      "notes": "The developer docs give https://api.canva.com/connect/v1/mcp and OAuth with a Developer Portal app; Canva's registry entry lists https://mcp.canva.com/mcp for personal assistants, but its help page could not be opened (HTTP 403) to confirm. The transport is not named."
+    },
+    {
+      "id": "figma",
+      "title": "Figma",
+      "vendor": "Figma",
+      "summary": "Collaborative interface design and prototyping tool.",
+      "homepage": "https://www.figma.com",
+      "brains": [
+        "design",
+        "product",
+        "engineering"
+      ],
+      "servers": [
+        {
+          "id": "figma-remote",
+          "name": "Figma MCP server (remote)",
+          "publisher": "vendor",
+          "maintainer": "Figma",
+          "transport": "streamable-http",
+          "url": "https://mcp.figma.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Reads design context, variables and components from Figma files and can write to the canvas.",
+          "source": "https://developers.figma.com/docs/figma-mcp-server/remote-server-installation/",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "figma-desktop",
+          "name": "Figma MCP server (desktop)",
+          "publisher": "vendor",
+          "maintainer": "Figma",
+          "transport": "streamable-http",
+          "url": "http://127.0.0.1:3845/mcp",
+          "auth": "none",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Local server run by the Figma desktop app (Dev Mode); reads design context of open files, no canvas writes.",
+          "source": "https://developers.figma.com/docs/figma-mcp-server/local-server-installation/",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.figma.com/docs/rest-api/"
+      },
+      "notes": "Only clients listed in Figma's MCP catalog can connect to the remote server; Starter plan and View/Collab seats are limited to 6 tool calls per month. The desktop server needs the Figma desktop app and a Dev or Full seat on a paid plan."
+    },
+    {
+      "id": "miro",
+      "title": "Miro",
+      "vendor": "Miro",
+      "summary": "Online whiteboard for diagrams, workshops and visual collaboration.",
+      "homepage": "https://miro.com",
+      "brains": [
+        "design",
+        "product",
+        "project-management"
+      ],
+      "servers": [
+        {
+          "id": "miro-mcp",
+          "name": "Miro MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Miro",
+          "transport": "streamable-http",
+          "url": "https://mcp.miro.com/",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Read board content as context for code and create diagrams and visualizations on boards.",
+          "source": "https://developers.miro.com/docs/connecting-to-miro-mcp",
+          "repository": "https://github.com/miroapp/miro-ai",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.miro.com/reference/api-reference"
+      },
+      "notes": "Works on all Miro plans including free; access is limited to the team chosen during OAuth. The docs do not name the transport. Miro's own registry entry labels the server Beta."
+    },
+    {
+      "id": "penpot",
+      "title": "Penpot",
+      "vendor": "Kaleidos (Penpot)",
+      "summary": "Open-source design and prototyping platform.",
+      "homepage": "https://penpot.app",
+      "brains": [
+        "design",
+        "engineering"
+      ],
+      "servers": [
+        {
+          "id": "penpot-local",
+          "name": "Penpot MCP server (local)",
+          "publisher": "vendor",
+          "maintainer": "Penpot",
+          "transport": "streamable-http",
+          "url": "http://localhost:4401/mcp",
+          "auth": "none",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Same tools, run locally with its plugin server; clients connect to http://localhost:4401/mcp.",
+          "source": "https://github.com/penpot/penpot/tree/develop/mcp",
+          "repository": "https://github.com/penpot/penpot",
+          "license": "MPL-2.0",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "other",
+        "docs": "https://help.penpot.app/technical-guide/integration/"
+      },
+      "notes": "Both need a Penpot file open in an active browser tab with the MCP plugin connected. The hosted key (userToken query parameter, from Your account > Integrations > MCP Server) expires and is shown once; self-hosted instances use their own domain. The transport of the hosted endpoint is not named in the help page. Old repo penpot/penpot-mcp is archived. Penpot's hosted server puts a personal key in the URL, so it cannot be written to a shared file and is not listed. Start it with `npx -y @penpot/mcp@latest`; the endpoint answers while it runs."
+    },
+    {
+      "id": "storybook",
+      "title": "Storybook",
+      "vendor": "Storybook (open source, maintained by Chromatic)",
+      "summary": "Workshop for building, documenting and testing UI components in isolation.",
+      "homepage": "https://storybook.js.org",
+      "brains": [
+        "design",
+        "engineering",
+        "qa"
+      ],
+      "detect": {
+        "files": [
+          ".storybook/main.*"
+        ],
+        "npm": [
+          "storybook"
+        ]
+      },
+      "servers": [
+        {
+          "id": "storybook-addon-mcp",
+          "name": "Storybook MCP addon",
+          "publisher": "vendor",
+          "maintainer": "Storybook",
+          "transport": "streamable-http",
+          "url": "http://localhost:6006/mcp",
+          "auth": "none",
+          "env": [],
+          "status": "preview",
+          "capabilities": "Runs an MCP server inside the Storybook dev server: component docs (from the components manifest), development and testing toolsets.",
+          "source": "https://storybook.js.org/docs/ai/mcp/overview",
+          "repository": "https://github.com/storybookjs/storybook",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "notes": "Installed as an addon (the command adds it to the project), then the agent connects to http://localhost:6006/mcp while Storybook runs; the port may differ. The docs toolset needs a supported framework (React, angular-vite, vue3-vite). Code moved from storybookjs/mcp (archived) into the storybook monorepo in v10.6. Add it with `npx storybook add @storybook/addon-mcp`; the endpoint answers while Storybook runs."
+    }
+  ]
+}

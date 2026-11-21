@@ -1,0 +1,107 @@
+{
+  "tool": "sentry",
+  "instructions": "Mock of an error tracker for the fictional Acme Support Portal. Every answer is synthetic.",
+  "tools": [
+    {
+      "name": "list_issues",
+      "description": "List error issues. Returns id, title, event count and first seen date.",
+      "read_only": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {"type": "string", "description": "Project name"},
+          "status": {"type": "string", "description": "Issue status", "enum": ["unresolved", "resolved"]}
+        }
+      },
+      "responses": [
+        {
+          "when": {"status": "resolved"},
+          "result": {
+            "issues": [
+              {
+                "issue_id": "SUPPORT-PORTAL-5",
+                "title": "TimeoutError in load_request_attachments",
+                "events": 31,
+                "first_seen": "2026-10-22",
+                "status": "resolved"
+              }
+            ]
+          }
+        },
+        {"when": {"project": "docs"}, "result": {"issues": []}},
+        {
+          "result": {
+            "issues": [
+              {
+                "issue_id": "SUPPORT-PORTAL-7",
+                "title": "UnicodeEncodeError in export_requests_csv",
+                "events": 14,
+                "first_seen": "2026-11-18",
+                "status": "unresolved"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "get_issue",
+      "description": "Get one error issue with its stack trace.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"issue_id": {"type": "string", "description": "Issue id such as SUPPORT-PORTAL-7"}}, "required": ["issue_id"]},
+      "responses": [
+        {
+          "when": {"issue_id": "SUPPORT-PORTAL-7"},
+          "result": {
+            "issue_id": "SUPPORT-PORTAL-7",
+            "title": "UnicodeEncodeError in export_requests_csv",
+            "level": "error",
+            "events": 14,
+            "users": 5,
+            "first_seen": "2026-11-18",
+            "last_seen": "2026-11-20",
+            "status": "unresolved",
+            "project": "support-portal",
+            "release": "2026.11.2",
+            "message": "'latin-1' codec can't encode character in position 12",
+            "stack_trace": [
+              {"file": "portal/export.py", "line": 58, "function": "export_requests_csv", "code": "handle.write(row.encode('latin-1'))"},
+              {"file": "portal/views.py", "line": 112, "function": "download_requests", "code": "return export_requests_csv(customer)"}
+            ]
+          }
+        },
+        {
+          "when": {"issue_id": "SUPPORT-PORTAL-5"},
+          "result": {
+            "issue_id": "SUPPORT-PORTAL-5",
+            "title": "TimeoutError in load_request_attachments",
+            "level": "error",
+            "events": 31,
+            "status": "resolved",
+            "first_seen": "2026-10-22",
+            "last_seen": "2026-11-03"
+          }
+        },
+        {"error": "Issue not found. Known ids in this mock: SUPPORT-PORTAL-5, SUPPORT-PORTAL-7."}
+      ]
+    },
+    {
+      "name": "list_releases",
+      "description": "List releases with their date and number of new issues.",
+      "read_only": true,
+      "inputSchema": {"type": "object", "properties": {"project": {"type": "string", "description": "Project name"}}},
+      "responses": [
+        {"when": {"project": "docs"}, "result": {"releases": []}},
+        {
+          "result": {
+            "releases": [
+              {"version": "2026.11.2", "date": "2026-11-17", "new_issues": 1},
+              {"version": "2026.11.1", "date": "2026-11-03", "new_issues": 0},
+              {"version": "2026.10.3", "date": "2026-10-20", "new_issues": 1}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

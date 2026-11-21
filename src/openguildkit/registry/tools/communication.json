@@ -1,0 +1,259 @@
+{
+  "id": "communication",
+  "title": "Communication and office suites",
+  "tools": [
+    {
+      "id": "google-workspace",
+      "title": "Google Workspace (Gmail, Calendar, Drive)",
+      "vendor": "Google",
+      "summary": "Email, calendar, files and office documents.",
+      "homepage": "https://workspace.google.com",
+      "brains": [
+        "communication",
+        "operations",
+        "project-management",
+        "leadership"
+      ],
+      "aliases": [
+        "Gmail",
+        "Google Drive",
+        "Google Calendar",
+        "G Suite",
+        "Google Docs"
+      ],
+      "servers": [
+        {
+          "id": "gmail-mcp",
+          "name": "Gmail MCP server",
+          "publisher": "vendor",
+          "maintainer": "Google",
+          "transport": "streamable-http",
+          "url": "https://gmailmcp.googleapis.com/mcp/v1",
+          "auth": "oauth",
+          "env": [],
+          "status": "preview",
+          "capabilities": "Read and act on Gmail messages.",
+          "source": "https://developers.google.com/workspace/guides/configure-mcp-servers",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "calendar-mcp",
+          "name": "Google Calendar MCP server",
+          "publisher": "vendor",
+          "maintainer": "Google",
+          "transport": "streamable-http",
+          "url": "https://calendarmcp.googleapis.com/mcp/v1",
+          "auth": "oauth",
+          "env": [],
+          "status": "preview",
+          "capabilities": "Read and manage Google Calendar events.",
+          "source": "https://developers.google.com/workspace/guides/configure-mcp-servers",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "drive-mcp",
+          "name": "Google Drive MCP server",
+          "publisher": "vendor",
+          "maintainer": "Google",
+          "transport": "streamable-http",
+          "url": "https://drivemcp.googleapis.com/mcp/v1",
+          "auth": "oauth",
+          "env": [],
+          "status": "preview",
+          "capabilities": "Search and read Google Drive files.",
+          "source": "https://developers.google.com/workspace/guides/configure-mcp-servers",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "workspace-universal-search-mcp",
+          "name": "Universal Search MCP server for Workspace",
+          "publisher": "vendor",
+          "maintainer": "Google",
+          "transport": "streamable-http",
+          "url": "https://workspacemcp.googleapis.com/mcp/v1",
+          "auth": "oauth",
+          "env": [],
+          "status": "preview",
+          "capabilities": "One search_corpus tool searching across Drive, Gmail, Calendar and Chat.",
+          "source": "https://developers.google.com/workspace/guides/configure-mcp-servers",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.google.com/workspace"
+      },
+      "notes": "Developer Preview: requires membership in the Google Workspace Developer Preview Program, a Google Cloud project with the product API and its MCP service enabled, and an OAuth client. Docs, Sheets, Slides, Chat, People and Classroom have their own endpoints on the same page."
+    },
+    {
+      "id": "microsoft-365",
+      "title": "Microsoft 365 (Outlook, SharePoint)",
+      "vendor": "Microsoft",
+      "summary": "Email, calendar, files and intranet sites in Microsoft 365.",
+      "homepage": "https://www.microsoft.com/microsoft-365",
+      "brains": [
+        "communication",
+        "operations",
+        "project-management",
+        "leadership"
+      ],
+      "aliases": [
+        "Office 365",
+        "Outlook",
+        "SharePoint",
+        "OneDrive",
+        "M365"
+      ],
+      "servers": [
+        {
+          "id": "work-iq-mcp",
+          "name": "Work IQ MCP",
+          "publisher": "vendor",
+          "maintainer": "Microsoft",
+          "transport": "streamable-http",
+          "url": "https://workiq.svc.cloud.microsoft/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "ga",
+          "capabilities": "Single endpoint with generic tools to read, create, update and delete Microsoft 365 entities (mail, meetings, files, Teams chats, people); the retrieve tool is still in preview.",
+          "source": "https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/work-iq",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "work-iq-cli",
+          "name": "Work IQ CLI (MCP server mode)",
+          "publisher": "vendor",
+          "maintainer": "Microsoft",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@microsoft/workiq",
+            "mcp"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@microsoft/workiq"
+          },
+          "auth": "oauth",
+          "env": [],
+          "status": "ga",
+          "capabilities": "Query emails, meetings, documents, Teams messages, people and business-app data from Microsoft 365 Copilot in natural language.",
+          "source": "https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/work-iq/cli",
+          "repository": "https://github.com/microsoft/work-iq-mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://learn.microsoft.com/en-us/graph/overview"
+      },
+      "notes": "Work IQ needs delegated Microsoft Entra auth with tenant-wide admin consent and a Copilot Studio usage-based billing plan (Copilot Credits); app-only auth is not supported. Microsoft's older workload servers (Teams, Mail, Calendar, SharePoint, OneDrive, preview) are kept only for backward compatibility and must not be used for new projects."
+    },
+    {
+      "id": "microsoft-teams",
+      "title": "Microsoft Teams",
+      "vendor": "Microsoft",
+      "summary": "Chat, meetings and channels in Microsoft 365.",
+      "homepage": "https://www.microsoft.com/microsoft-teams",
+      "brains": [
+        "communication",
+        "project-management",
+        "operations"
+      ],
+      "aliases": [
+        "Teams",
+        "MS Teams"
+      ],
+      "servers": [
+        {
+          "id": "work-iq-mcp",
+          "name": "Work IQ MCP",
+          "publisher": "vendor",
+          "maintainer": "Microsoft",
+          "transport": "streamable-http",
+          "url": "https://workiq.svc.cloud.microsoft/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "ga",
+          "capabilities": "Single endpoint with generic tools to read, create, update and delete Microsoft 365 entities (mail, meetings, files, Teams chats, people); the retrieve tool is still in preview.",
+          "source": "https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/work-iq",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "work-iq-cli",
+          "name": "Work IQ CLI (MCP server mode)",
+          "publisher": "vendor",
+          "maintainer": "Microsoft",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@microsoft/workiq",
+            "mcp"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@microsoft/workiq"
+          },
+          "auth": "oauth",
+          "env": [],
+          "status": "ga",
+          "capabilities": "Query emails, meetings, documents, Teams messages, people and business-app data from Microsoft 365 Copilot in natural language.",
+          "source": "https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/work-iq/cli",
+          "repository": "https://github.com/microsoft/work-iq-mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://learn.microsoft.com/en-us/graph/overview"
+      },
+      "notes": "Work IQ needs delegated Microsoft Entra auth with tenant-wide admin consent and a Copilot Studio usage-based billing plan (Copilot Credits); app-only auth is not supported. Microsoft's older workload servers (Teams, Mail, Calendar, SharePoint, OneDrive, preview) are kept only for backward compatibility and must not be used for new projects."
+    },
+    {
+      "id": "slack",
+      "title": "Slack",
+      "vendor": "Salesforce (Slack)",
+      "summary": "Team messaging, channels and canvases.",
+      "homepage": "https://slack.com",
+      "brains": [
+        "communication",
+        "project-management",
+        "operations",
+        "support"
+      ],
+      "detect": {
+        "npm": [
+          "@slack/web-api",
+          "@slack/bolt"
+        ],
+        "pypi": [
+          "slack-sdk",
+          "slack-bolt"
+        ]
+      },
+      "servers": [
+        {
+          "id": "slack-mcp",
+          "name": "Slack MCP server",
+          "publisher": "vendor",
+          "maintainer": "Slack",
+          "transport": "streamable-http",
+          "url": "https://mcp.slack.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Search messages, files, users and channels; read channel history and threads; send, schedule and draft messages; create and update canvases and lists; upload files.",
+          "source": "https://docs.slack.dev/ai/slack-mcp-server/",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.slack.dev/apis/web-api/"
+      },
+      "notes": "The client must be backed by a Slack app published in the Slack Marketplace or an internal app, and workspace admins approve MCP clients; no SSE and no dynamic client registration."
+    }
+  ]
+}

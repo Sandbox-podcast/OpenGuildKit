@@ -1,0 +1,184 @@
+{
+  "id": "support",
+  "title": "Customer support",
+  "tools": [
+    {
+      "id": "crisp",
+      "title": "Crisp",
+      "vendor": "Crisp",
+      "summary": "Customer messaging and help desk.",
+      "homepage": "https://crisp.chat",
+      "brains": [
+        "support",
+        "sales"
+      ],
+      "servers": [
+        {
+          "id": "crisp-mcp",
+          "name": "Crisp MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Crisp",
+          "transport": "streamable-http",
+          "url": "https://api.crisp.chat/mcp/",
+          "auth": "api-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Read workspace data and perform write operations such as changing a conversation's state or sending messages, a subset of the REST API.",
+          "source": "https://docs.crisp.chat/guides/mcp-server/quickstart/",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.crisp.chat/references/rest-api/v1/"
+      },
+      "notes": "Uses an MCP Server token generated in Settings > Workspace Settings > Advanced configuration, sent as an Authorization Bearer header."
+    },
+    {
+      "id": "freshdesk",
+      "title": "Freshdesk",
+      "vendor": "Freshworks",
+      "summary": "Customer support ticketing.",
+      "homepage": "https://www.freshworks.com/freshdesk/",
+      "brains": [
+        "support"
+      ],
+      "servers": [
+        {
+          "id": "freshdesk-mcp",
+          "name": "Freshworks MCP server for Freshdesk",
+          "publisher": "vendor",
+          "maintainer": "Freshworks",
+          "transport": "streamable-http",
+          "url": "https://{subdomain}.freshdesk.com/mcp",
+          "auth": "api-token",
+          "env": [],
+          "settings": [
+            {
+              "name": "subdomain",
+              "description": "Freshdesk: your subdomain"
+            }
+          ],
+          "status": "ga",
+          "capabilities": "36 tools over tickets, replies and notes, contacts, agents, groups, companies and solution articles.",
+          "source": "https://support.freshdesk.com/support/solutions/articles/50000012670",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.freshdesk.com/api/"
+      },
+      "notes": "GA since 10 Sep 2026 on Growth, Pro and Enterprise with yearly action quotas; API key in the Authorization header; custom domains are not supported for the endpoint."
+    },
+    {
+      "id": "front",
+      "title": "Front",
+      "vendor": "Front",
+      "summary": "Shared inbox and customer operations platform.",
+      "homepage": "https://front.com",
+      "brains": [
+        "support",
+        "sales",
+        "operations"
+      ],
+      "servers": [
+        {
+          "id": "front-mcp",
+          "name": "Front MCP server",
+          "publisher": "vendor",
+          "maintainer": "Front",
+          "transport": "streamable-http",
+          "url": "https://mcp.frontapp.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Search and read conversations, manage drafts and send them, change status, assign, tag, comment, create tasks, read contacts and accounts.",
+          "source": "https://dev.frontapp.com/docs/mcp-server",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://dev.frontapp.com/reference/introduction"
+      },
+      "notes": "Requires a Front developer app (client ID and secret; no dynamic client registration) or a directory install by a Front admin. Front's community calls the server a beta."
+    },
+    {
+      "id": "intercom",
+      "title": "Intercom",
+      "vendor": "Intercom",
+      "summary": "Customer messaging, help desk and Fin AI agent.",
+      "homepage": "https://www.intercom.com",
+      "brains": [
+        "support",
+        "sales",
+        "product"
+      ],
+      "detect": {
+        "npm": [
+          "intercom-client"
+        ]
+      },
+      "servers": [
+        {
+          "id": "intercom-mcp",
+          "name": "Intercom MCP server",
+          "publisher": "vendor",
+          "maintainer": "Intercom",
+          "transport": "streamable-http",
+          "url": "https://mcp.intercom.com/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Search and read conversations, contacts, companies, articles and audiences; add internal notes, create and update articles; Fin Operator tools with OAuth.",
+          "source": "https://developers.intercom.com/docs/guides/mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.intercom.com/docs/references/introduction"
+      },
+      "notes": "EU workspaces must use https://mcp.eu.intercom.com/mcp; AU-hosted workspaces are not supported. The /sse endpoints are deprecated."
+    },
+    {
+      "id": "zendesk",
+      "title": "Zendesk",
+      "vendor": "Zendesk",
+      "summary": "Customer service help desk and ticketing.",
+      "homepage": "https://www.zendesk.com",
+      "brains": [
+        "support",
+        "operations"
+      ],
+      "servers": [
+        {
+          "id": "zendesk-mcp",
+          "name": "Zendesk MCP server (Zendesk Bridge)",
+          "publisher": "vendor",
+          "maintainer": "Zendesk",
+          "transport": "streamable-http",
+          "url": "https://{subdomain}.zendesk.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "settings": [
+            {
+              "name": "subdomain",
+              "description": "Zendesk: your subdomain"
+            }
+          ],
+          "status": "preview",
+          "capabilities": "Look up tickets, users, organizations and help center content; create or update tickets and business rules after human confirmation.",
+          "source": "https://support.zendesk.com/hc/en-us/articles/11400026079130",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.zendesk.com/api-reference/"
+      },
+      "notes": "Early access program (free during EAP, pricing may change): an admin creates the connection under Admin Center > AI > External AI and copies the exact URL from its Setup tab; the URL above is the documented example pattern."
+    }
+  ]
+}

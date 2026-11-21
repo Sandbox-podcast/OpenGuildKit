@@ -1,0 +1,411 @@
+{
+  "id": "finance",
+  "title": "Finance, billing and signature",
+  "tools": [
+    {
+      "id": "agicap",
+      "title": "Agicap",
+      "vendor": "Agicap",
+      "summary": "Cash management and treasury forecasting for SMEs and mid-market companies.",
+      "homepage": "https://agicap.com",
+      "brains": [
+        "finance"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://api.agicap.com/"
+      },
+      "notes": "Agicap markets an MCP server (agicap.com/en/features/mcp-server: Agicap credentials, user permissions, admin-set read-only or write), but no public endpoint or setup doc was found on 2026-11-21, so none is listed; ask Agicap for the URL."
+    },
+    {
+      "id": "chargebee",
+      "title": "Chargebee",
+      "vendor": "Chargebee",
+      "summary": "Subscription billing and revenue management.",
+      "homepage": "https://www.chargebee.com",
+      "brains": [
+        "finance",
+        "sales",
+        "engineering"
+      ],
+      "servers": [
+        {
+          "id": "chargebee-data-lookup",
+          "name": "Chargebee Data Lookup MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Chargebee",
+          "transport": "streamable-http",
+          "url": "https://{site}.mcp.chargebee.com/data_lookup_agent",
+          "auth": "oauth-or-token",
+          "env": [],
+          "settings": [
+            {
+              "name": "site",
+              "description": "Chargebee: your site"
+            }
+          ],
+          "status": "unknown",
+          "capabilities": "Read subscriptions, customers, catalog, entitlements, invoices, quotes, credit notes, transactions, events, orders, coupons; bulk export jobs.",
+          "source": "https://www.chargebee.com/docs/billing/2.0/ai-in-chargebee/data-lookup-agent",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "chargebee-knowledge-base",
+          "name": "Chargebee Knowledge Base MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Chargebee",
+          "transport": "streamable-http",
+          "url": "https://{site}.mcp.chargebee.com/knowledge_base_agent",
+          "auth": "none",
+          "env": [],
+          "settings": [
+            {
+              "name": "site",
+              "description": "Chargebee: your site"
+            }
+          ],
+          "status": "unknown",
+          "capabilities": "Answers product questions and generates code snippets from Chargebee docs and API references.",
+          "source": "https://www.chargebee.com/docs/billing/2.0/ai-in-chargebee/knowledge-base-agent",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://apidocs.chargebee.com/docs/api"
+      },
+      "notes": "URLs shown for the US region; EU uses .mcp.eu.chargebee.com and AU .mcp.au.chargebee.com. Turn on 'MCP Access' in Settings > Configure Chargebee > Agentic AI > MCP Servers; OAuth is not supported on Multi-Business Entity sites. Onboarding and Analytics servers also exist."
+    },
+    {
+      "id": "docusign",
+      "title": "Docusign",
+      "vendor": "Docusign",
+      "summary": "Electronic signature and agreement management.",
+      "homepage": "https://www.docusign.com",
+      "brains": [
+        "legal",
+        "sales",
+        "hr",
+        "operations"
+      ],
+      "aliases": [
+        "DocuSign"
+      ],
+      "servers": [
+        {
+          "id": "docusign-remote",
+          "name": "Docusign MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Docusign",
+          "transport": "streamable-http",
+          "url": "https://mcp.docusign.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "ga",
+          "capabilities": "Prepare and send envelopes, track envelope and recipient status, run Workflow Builder and CLM workflows, query agreements by provisions.",
+          "source": "https://www.docusign.com/blog/developers/docusign-mcp-server-general-availability",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.docusign.com/docs/esign-rest-api/"
+      },
+      "notes": "Demo endpoint for developer accounts: https://mcp-d.docusign.com/mcp. Own integration keys in production need an allowlist request; admins toggle MCP per account; not available for Docusign Government. Transport is not named on the page. Category 'finance' is the closest fit (no legal category in the list)."
+    },
+    {
+      "id": "paddle",
+      "title": "Paddle",
+      "vendor": "Paddle",
+      "summary": "Merchant of record for software: payments, subscriptions, tax and billing.",
+      "homepage": "https://www.paddle.com",
+      "brains": [
+        "finance",
+        "engineering",
+        "sales"
+      ],
+      "servers": [
+        {
+          "id": "paddle-live",
+          "name": "Paddle MCP Server (live)",
+          "publisher": "vendor",
+          "maintainer": "Paddle",
+          "transport": "streamable-http",
+          "url": "https://mcp.paddle.com/mcp",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Codemode interface: search Paddle API methods, execute JavaScript chaining API calls, metrics charts.",
+          "source": "https://developer.paddle.com/build/tools/ai/mcp",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "paddle-sandbox",
+          "name": "Paddle MCP Server (sandbox)",
+          "publisher": "vendor",
+          "maintainer": "Paddle",
+          "transport": "streamable-http",
+          "url": "https://sandbox-mcp.paddle.com/mcp",
+          "auth": "api-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Same tools against the sandbox environment; sandbox API key (pdl_sdbx_) as Bearer token only.",
+          "source": "https://developer.paddle.com/build/tools/ai/mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.paddle.com/api-reference/overview"
+      },
+      "notes": "The older local package @paddle/paddle-mcp-server no longer gets new operations and will be deprecated; Paddle recommends the remote server. Start with read-only API key permissions."
+    },
+    {
+      "id": "pennylane",
+      "title": "Pennylane",
+      "vendor": "Pennylane",
+      "summary": "French accounting and financial management platform for companies and accounting firms.",
+      "homepage": "https://www.pennylane.com",
+      "brains": [
+        "finance"
+      ],
+      "servers": [
+        {
+          "id": "pennylane-remote",
+          "name": "Pennylane MCP",
+          "publisher": "vendor",
+          "maintainer": "Pennylane",
+          "transport": "streamable-http",
+          "url": "https://mcp.pennylane.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Read-only access to companies, customers and sales invoices, suppliers and purchase invoices, accounting and transactions, products, tax filings and change history.",
+          "source": "https://pennylane-mcp.readme.io/docs/getting-started",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://pennylane.readme.io"
+      },
+      "notes": "Read-only for now. Free for accounting firms; for companies it requires the Essentiel plan or higher (Starter, Collaboratif and Basique are not eligible)."
+    },
+    {
+      "id": "qonto",
+      "title": "Qonto",
+      "vendor": "Qonto",
+      "summary": "Business bank account for SMEs and freelancers, with cards, invoicing and expense management.",
+      "homepage": "https://qonto.com",
+      "brains": [
+        "finance",
+        "operations"
+      ],
+      "servers": [
+        {
+          "id": "qonto-remote",
+          "name": "Qonto MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Qonto",
+          "transport": "streamable-http",
+          "url": "https://mcp.qonto.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Read transactions, statements, invoices, quotes, clients and cards; create and manage cards, draft and send invoices and quotes, create card and transfer requests.",
+          "source": "https://docs.qonto.com/mcp/overview",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.qonto.com"
+      },
+      "notes": "Owners, admins and accountants can connect by default; managers and employees only after an owner enables it. The older local server (github.com/qonto/qonto-mcp-server, MIT) is no longer actively maintained; SEPA and international transfers still need the Business API."
+    },
+    {
+      "id": "quickbooks",
+      "title": "QuickBooks Online",
+      "vendor": "Intuit",
+      "summary": "Accounting software for small businesses: invoices, bills, banking, reports.",
+      "homepage": "https://quickbooks.intuit.com",
+      "brains": [
+        "finance"
+      ],
+      "servers": [
+        {
+          "id": "quickbooks-local",
+          "name": "QuickBooks Online MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Intuit",
+          "transport": "stdio",
+          "command": "node",
+          "args": [
+            "path/to/mcp-quickbooks-online/dist/index.js"
+          ],
+          "package": {
+            "registry": "other",
+            "name": "github.com/intuit/quickbooks-online-mcp-server (clone, npm install, npm run build)"
+          },
+          "auth": "oauth",
+          "env": [
+            "QUICKBOOKS_CLIENT_ID",
+            "QUICKBOOKS_CLIENT_SECRET",
+            "QUICKBOOKS_ENVIRONMENT",
+            "QUICKBOOKS_REFRESH_TOKEN",
+            "QUICKBOOKS_REALM_ID"
+          ],
+          "status": "unknown",
+          "capabilities": "About 145 tools: create, read, update, delete and search across 29 entity types, 11 financial reports, invoice PDFs; write, update and delete tools can be disabled.",
+          "source": "https://github.com/intuit/quickbooks-online-mcp-server",
+          "repository": "https://github.com/intuit/quickbooks-online-mcp-server",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.intuit.com/app/developer/qbo/docs/develop"
+      },
+      "notes": "Developer-oriented: needs an app on the Intuit Developer portal and a one-time OAuth handshake (production needs a public HTTPS redirect). A hosted endpoint (ai-inc.quickbooks.intuit.com/v1/mcp) appears only in directories and was not confirmed on an Intuit page."
+    },
+    {
+      "id": "spendesk",
+      "title": "Spendesk",
+      "vendor": "Spendesk",
+      "summary": "Spend management: cards, expense reports, invoices and approvals.",
+      "homepage": "https://www.spendesk.com",
+      "brains": [
+        "finance",
+        "operations"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.spendesk.com"
+      },
+      "notes": "No vendor MCP server found on 2026-11-21 (Spendesk only blogs about MCP); third-party connectors exist (StackOne, Vinkius). API access must be granted by Spendesk and credentials are managed by the account owner."
+    },
+    {
+      "id": "stripe",
+      "title": "Stripe",
+      "vendor": "Stripe",
+      "summary": "Online payments, billing, invoicing and financial infrastructure.",
+      "homepage": "https://stripe.com",
+      "brains": [
+        "finance",
+        "engineering",
+        "sales"
+      ],
+      "detect": {
+        "npm": [
+          "stripe"
+        ],
+        "pypi": [
+          "stripe"
+        ]
+      },
+      "servers": [
+        {
+          "id": "stripe-remote",
+          "name": "Stripe MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Stripe",
+          "transport": "streamable-http",
+          "url": "https://mcp.stripe.com",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Search and call the Stripe API (read and write), account info, analytics, documentation search, integration planning; some write actions require human confirmation in the Dashboard.",
+          "source": "https://docs.stripe.com/mcp",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.stripe.com/api"
+      },
+      "notes": "OAuth recommended; otherwise an agent API key as a Bearer header. From 2027-01-11 full-access secret keys and non-agent restricted keys will be refused. Admins can switch MCP access on or off in the Dashboard. The page gives no overall status; only some tools are labelled preview."
+    },
+    {
+      "id": "xero",
+      "title": "Xero",
+      "vendor": "Xero",
+      "summary": "Cloud accounting for small businesses: invoicing, banking, payroll and reports.",
+      "homepage": "https://www.xero.com",
+      "brains": [
+        "finance"
+      ],
+      "servers": [
+        {
+          "id": "xero-remote",
+          "name": "Xero Developer Remote MCP",
+          "publisher": "vendor",
+          "maintainer": "Xero",
+          "transport": "streamable-http",
+          "url": "https://api.xero.com/mcp/v1",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Tools that read and write Xero data across one or more consented organisations, one organisation per call.",
+          "source": "https://developer.xero.com/faq/remote-mcp",
+          "verified": "2026-11-21"
+        },
+        {
+          "id": "xero-local",
+          "name": "Xero MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Xero",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@xeroapi/xero-mcp-server@latest"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@xeroapi/xero-mcp-server"
+          },
+          "auth": "oauth-or-token",
+          "env": [
+            "XERO_CLIENT_ID",
+            "XERO_CLIENT_SECRET",
+            "XERO_CLIENT_BEARER_TOKEN",
+            "XERO_SCOPES"
+          ],
+          "status": "unknown",
+          "capabilities": "About 50 commands: contacts, accounts, invoices, quotes, payments, journals, reports, payroll (employees, leave, timesheets), tracking categories.",
+          "source": "https://github.com/XeroAPI/xero-mcp-server",
+          "repository": "https://github.com/XeroAPI/xero-mcp-server",
+          "license": "MIT",
+          "verified": "2026-11-21"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.xero.com/documentation/api/accounting/overview"
+      },
+      "notes": "Remote server: OAuth 2.0 with PKCE, included on developer plans Core and above (Starter apps: demo organisation only; Custom Connections not eligible); transport not named on the page. Local server: XERO_SCOPES is optional; payroll tools work for NZ and UK only."
+    },
+    {
+      "id": "yousign",
+      "title": "Yousign (Youtrust)",
+      "vendor": "Youtrust (formerly Yousign)",
+      "summary": "European electronic signature service.",
+      "homepage": "https://yousign.com",
+      "brains": [
+        "legal",
+        "sales",
+        "hr",
+        "operations"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.yousign.com"
+      },
+      "notes": "Yousign is now Youtrust (yousign.com redirects to youtrust.com). Its 'AI Connector' is built on MCP with OAuth and is available on all plans, but no endpoint or setup doc was found on 2026-11-21, so none is listed. Category 'finance' is the closest fit."
+    }
+  ]
+}
