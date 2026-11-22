@@ -38,6 +38,10 @@ NPM_PACKAGES = {
     "prisma": "Prisma",
     "aws-cdk-lib": "AWS",
     "stripe": "Stripe",
+    "@adyen/api-library": "Adyen",
+    "braintree": "Braintree",
+    "checkout-sdk-node": "Checkout.com",
+    "@mollie/api-client": "Mollie",
 }
 PYTHON_PACKAGES = {
     "fastapi": "FastAPI",
@@ -52,17 +56,31 @@ PYTHON_PACKAGES = {
     "chaosfolk": "ChaosFolk",
     "playwright": "Playwright",
     "stripe": "Stripe",
+    "adyen": "Adyen",
+    "braintree": "Braintree",
+    "checkout-sdk": "Checkout.com",
+    "mollie-api-python": "Mollie",
 }
 GO_MODULES = {
     "github.com/jackc/pgx": "PostgreSQL",
     "github.com/lib/pq": "PostgreSQL",
 }
-RUBY_GEMS = {"rails": "Rails", "pg": "PostgreSQL", "mysql2": "MySQL"}
-COMPOSER_PACKAGES = {"laravel/framework": "Laravel"}
+RUBY_GEMS = {
+    "rails": "Rails", "pg": "PostgreSQL", "mysql2": "MySQL", "stripe": "Stripe",
+    "adyen-ruby-api-library": "Adyen", "braintree": "Braintree", "mollie-api-ruby": "Mollie",
+}
+COMPOSER_PACKAGES = {
+    "laravel/framework": "Laravel", "stripe/stripe-php": "Stripe", "adyen/php-api-library": "Adyen",
+    "braintree/braintree_php": "Braintree", "checkout/checkout-sdk-php": "Checkout.com",
+    "mollie/mollie-api-php": "Mollie",
+}
 IMAGES = {"postgres": "PostgreSQL", "postgis/postgis": "PostgreSQL"}
 IMAGE_PREFIXES = ("docker.io/library/", "docker.io/", "library/")
 INFERRED = {"PostgreSQL", "MySQL"}
-UNVERSIONED = {"AWS", "Stripe"}  # SDK versions are not the versions of the services they use.
+# SDK versions are not the versions of the services they use. The card payment providers are those the
+# pci-dss-cardholder-data pattern names (Worldpay publishes no common SDK package to read).
+PAYMENT_PROVIDERS = {"Stripe", "Adyen", "Braintree", "Checkout.com", "Mollie"}
+UNVERSIONED = {"AWS", *PAYMENT_PROVIDERS}
 ANDROID_NOTE = "the platform has no version of its own; see Android SDK and Android Gradle Plugin"
 
 
@@ -318,7 +336,9 @@ def _gemfile(component: _Component, path: Path, label: str) -> None:
     component.add("Ruby", declared_version(ruby.group(1)) if ruby else None, label)
     for gem, spec in _GEM.findall(text):
         name = RUBY_GEMS.get(gem)
-        if name:
+        if name in UNVERSIONED:
+            component.add(name, None, label, note=_sdk_note(spec))
+        elif name:
             component.add(name, declared_version(spec), label, inferred=name in INFERRED)
 
 
@@ -330,7 +350,9 @@ def _composer(component: _Component, path: Path, label: str) -> None:
     component.add("PHP", declared_version(requirements.get("php")), label)
     for package, spec in requirements.items():
         name = COMPOSER_PACKAGES.get(package)
-        if name:
+        if name in UNVERSIONED:
+            component.add(name, None, label, note=_sdk_note(spec))
+        elif name:
             component.add(name, declared_version(spec), label)
 
 
@@ -447,6 +469,17 @@ def _component_id(relative: str, taken: set[str]) -> str:
     return candidate
 
 
+def _kustomize_base(relative: str, entries: list[Path]) -> str:
+    """A Kustomize overlay or base folder (k2/overlays/prod, k2/base) belongs to the application above it."""
+    if not any(entry.name in ("kustomization.yaml", "kustomization.yml", "Kustomization") for entry in entries):
+        return relative
+    parts = relative.split("/")
+    layout = next((index for index, part in enumerate(parts) if part in ("overlays", "base", "bases")), None)
+    if layout is None or relative == ".":
+        return relative
+    return "/".join(parts[:layout]) or "."
+
+
 def detect_stack(root: Path) -> dict:
     """Return the components found under root, each with its technologies and evidence."""
     root = root.resolve()
@@ -463,6 +496,7 @@ def detect_stack(root: Path) -> dict:
             for module in _gradle_modules(directory):
                 gradle_roots[module] = relative
         relative = gradle_roots.get(directory, relative)
+        relative = _kustomize_base(relative, entries)
         for entry in entries:
             if entry.is_symlink():
                 continue

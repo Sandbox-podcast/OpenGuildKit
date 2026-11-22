@@ -159,6 +159,24 @@ class DetectedVersionTests(unittest.TestCase):
         self.assertIn("Stripe: SDK ==8.1.0, the service itself has no version", output)
         self.assertNotIn("version unknown", output.split("Android:")[1].splitlines()[0])
 
+    def test_a_kustomize_overlay_belongs_to_its_base(self):
+        write(self.root, "k2/kustomization.yaml", "resources:\n  - deploy.yaml\n")
+        write(self.root, "k2/deploy.yaml", "apiVersion: apps/v1\nkind: Deployment\n")
+        write(self.root, "k2/overlays/kustomization.yaml", "resources:\n  - ../\n")
+        write(self.root, "k3/base/kustomization.yaml", "resources: []\n")
+        write(self.root, "k3/overlays/prod/kustomization.yaml", "resources:\n  - ../../base\n")
+        self.assertEqual(self.stacks(), {"k2": ["Kubernetes"], "k3": ["Kubernetes"]})
+
+    def test_every_card_payment_provider_of_the_pci_pattern_is_read(self):
+        write(self.root, "py/pyproject.toml", '[project]\ndependencies = ["adyen~=9.0", "braintree>=4"]\n')
+        write(self.root, "js/package.json", {"dependencies": {"@mollie/api-client": "^3.7.0"}})
+        stacks = self.stacks()
+        self.assertEqual(stacks["py"], ["Adyen", "Braintree", "Python"])
+        self.assertEqual(stacks["js"], ["Mollie"])
+        components = components_for_profile(detect_stack(self.root))
+        matched = recommend_patterns(load_catalog(), [], "general", [], components)["matched"]
+        self.assertIn("pci-dss-cardholder-data", {pattern["id"] for pattern in matched})
+
     def test_detects_ios_deployment_targets(self):
         write(self.root, "app/App.xcodeproj/project.pbxproj", 'SWIFT_VERSION = 6.0;\nIPHONEOS_DEPLOYMENT_TARGET = 16.4;\n')
         write(self.root, "module/Package.swift", '// swift-tools-version: 6.0\nlet p = Package(platforms: [.iOS(.v17)])\n')
