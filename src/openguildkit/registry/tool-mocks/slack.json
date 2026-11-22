@@ -8,38 +8,6 @@
       "read_only": true,
       "inputSchema": {"type": "object", "properties": {"query": {"type": "string", "description": "Words to look for"}}, "required": ["query"]},
       "responses": [
-        {
-          "when": {"query": "export"},
-          "result": {
-            "messages": [
-              {
-                "channel": "#support-portal",
-                "author": "Kai Demo",
-                "date": "2026-11-17",
-                "text": "Three customers asked again for a CSV export of their requests."
-              },
-              {
-                "channel": "#dev",
-                "author": "Lin Sample",
-                "date": "2026-11-18",
-                "text": "PR #87 is open: customers can export their own requests as CSV."
-              }
-            ]
-          }
-        },
-        {
-          "when": {"query": "sprint"},
-          "result": {
-            "messages": [
-              {
-                "channel": "#support-portal",
-                "author": "Ada Example",
-                "date": "2026-11-16",
-                "text": "Sprint 14 starts today and ends on 2026-11-27. The CSV export is the main goal."
-              }
-            ]
-          }
-        },
         {"result": {"messages": [
           {
             "channel": "#support-portal",
