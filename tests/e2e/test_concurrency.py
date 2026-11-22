@@ -12,6 +12,8 @@ import sys
 import threading
 import time
 import unittest
+import urllib.error
+import urllib.request
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -125,6 +127,51 @@ class LockTests(ConcurrencyTestCase):
         hook = subprocess.run(self.command("guard", "--hook", "prompt"), input="{}", capture_output=True, text=True,
                               encoding="utf-8", env=quick, timeout=60)
         self.assertEqual(hook.returncode, 0, hook.stderr)
+
+    def test_the_page_waits_for_the_lock_to_save_the_profile_and_the_storybook_proposals(self):
+        from openguildkit.webui import make_server
+
+        self.init_example()
+        server, app = make_server(self.project, 0, None)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        base = f"http://127.0.0.1:{app.port}"
+
+        def post(path, body):
+            request = urllib.request.Request(base + path, data=json.dumps(body).encode("utf-8"), method="POST", headers={
+                "Origin": base, "X-OGK-Token": app.token, "Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(request, timeout=60) as response:
+                    return response.status, json.loads(response.read())
+            except urllib.error.HTTPError as error:
+                with error:
+                    return error.code, json.loads(error.read())
+
+        profile_path = self.project / ".openguildkit" / "project.json"
+        before = profile_path.read_text(encoding="utf-8")
+        # Written then put back would change the file's identity or time, as a restore after a failed sync did.
+        untouched = (profile_path.stat().st_ino, profile_path.stat().st_mtime_ns)
+        renamed = json.dumps({**json.loads(before), "name": "Renamed from the page"})
+        proposals = {"path": ".openguildkit/storybook/proposals.json", "text": json.dumps({"components": []})}
+        release = self.hold_lock()
+        with patch.dict(os.environ, {"OPENGUILDKIT_LOCK_TIMEOUT": "1"}):
+            started = time.monotonic()
+            status, answer = post("/api/profile/save", {"text": renamed})
+            waited = time.monotonic() - started
+            busy = post("/api/files/write", proposals)
+        self.assertGreaterEqual(waited, 1.0)
+        self.assertEqual((status, answer["code"], answer["restored"]), (200, 1, True), answer)
+        self.assertIn(LOCK_MESSAGE, answer["stderr"])
+        self.assertEqual(profile_path.read_text(encoding="utf-8"), before)
+        self.assertEqual((profile_path.stat().st_ino, profile_path.stat().st_mtime_ns), untouched)
+        self.assertEqual((busy[0], busy[1].get("reason")), (409, "project-busy"))
+        self.assertFalse((self.project / proposals["path"]).exists())
+        release()
+        status, answer = post("/api/profile/save", {"text": renamed})
+        self.assertEqual(answer["code"], 0, answer)
+        self.assertEqual(json.loads(profile_path.read_text(encoding="utf-8"))["name"], "Renamed from the page")
+        self.assertEqual(post("/api/files/write", proposals)[0], 200)
 
 
 class ParallelWriteTests(ConcurrencyTestCase):

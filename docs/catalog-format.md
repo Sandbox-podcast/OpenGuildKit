@@ -178,7 +178,7 @@ To add a sector of your own, put its record in the project catalog and a pattern
 
 The pattern can reuse bundled packs or packs from `.openguildkit/catalog/packs/`. A pattern that names a sector absent from the catalog is refused when the catalog loads.
 
-`general` is the default. If a saved profile uses a sector absent from the current catalog, add that sector to the project's local catalog or set `sector` to an available ID in `.openguildkit/project.json`, then run `openguildkit sync`.
+`general` is the default. If a saved profile uses a sector absent from the current catalog, add that sector to the project's local catalog. Otherwise set `sector` to an available ID in `.openguildkit/project.json` by hand, then run `openguildkit sync`: no command can read a profile whose sector is unknown, `openguildkit profile set sector` included. Once the sector is known again, change it with `openguildkit profile set sector ID --by NAME --reason WHY`.
 
 ## References
 

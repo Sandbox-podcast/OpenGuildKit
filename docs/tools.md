@@ -25,7 +25,7 @@ The registry is checked like the rest of the catalog: the weekly link check open
 
 ## From a project's stack to its servers
 
-1. Name the tools in the profile (`"tools": ["Jira", "Factorial", "Snyk"]` in `.openguildkit/project.json`), in the words the team uses. `openguildkit init` asks for them, proposes the tools the repository shows signs of, and keeps the names the registry does not know.
+1. Name the tools in the profile, in the words the team uses. `openguildkit init` asks for them, proposes the tools the repository shows signs of, and keeps the names the registry does not know; `openguildkit profile add tool Jira --by NAME --reason WHY` adds one later. The profile then holds `"tools": ["Jira", "Factorial", "Snyk"]`.
 2. `openguildkit tools recommend` resolves those names and adds what the repository shows: a `.github/workflows` folder, a `sentry-sdk` dependency, a `.storybook` folder, a `playwright.config.ts`. Names it does not know are listed apart.
 3. `openguildkit tools plan jira factorial snyk` prints what would be configured and writes nothing:
 
@@ -110,11 +110,31 @@ A server names the variables it reads. The host passes them from each person's e
 | GitLab token | `glpat-` followed by 20 or more characters |
 | Google API key | `AIza` followed by 35 characters |
 | Anthropic API key | `sk-ant-` followed by 20 or more characters |
+| OpenAI API key | `sk-`, `sk-proj-`, `sk-svcacct-` or `sk-admin-` followed by 20 or more characters, one of them a digit |
+| npm token | `npm_` followed by 36 letters or digits |
+| PyPI token | `pypi-AgE` followed by 40 or more characters |
+| Hugging Face token | `hf_` followed by 30 or more letters or digits |
+| Atlassian API token (Jira, Confluence) | `ATATT3` followed by 20 or more characters |
+| Linear API key | `lin_api_` or `lin_oauth_` followed by 32 or more letters or digits |
+| Notion token | `ntn_` followed by 40 or more letters or digits |
+| Sentry token | `sntrys_` or `sntryu_` followed by 30 or more characters |
+| Figma token | `figd_` followed by 30 or more characters |
+| Slack webhook link | `https://hooks.slack.com/services/…` (also `workflows/` and `triggers/`); the host and path stay, the rest is replaced |
+| Discord webhook link | `https://discord.com/api/webhooks/ID/…`, also `discordapp.com`, `ptb.` and `canary.` |
+| Google OAuth client secret | `GOCSPX-` followed by 20 or more characters |
+| SendGrid API key | `SG.`, then two dot-separated parts of 16 and 30 or more characters |
+| Azure storage key | `AccountKey=` or `SharedAccessKey=` followed by 20 or more base64 characters, as in a connection string |
 | JSON Web Token | three dot-separated base64url parts, the first two starting with `eyJ` |
 | Private key | a `-----BEGIN ... PRIVATE KEY-----` block |
 | Link with a password | `scheme://user:password@host` |
 | Secret in a query string | `?token=`, `&api_key=`, `&password=`, `&signature=`, `&sig=` and their variants, with a value |
 | Password | `password=`, `password:`, `passwd=` or `mot de passe:` followed by a value |
+| Authorization header | `Authorization: Bearer`, `Basic` or `Token` followed by 8 or more characters |
+| Secret in a setting | a key ending in `api_key`, `token`, `secret`, `client_secret`, `access_key` or `secret_key` (`AWS_SECRET_ACCESS_KEY`, `x-api-key`, `"api_key"` in JSON), then `:` or `=`, then a quoted value or 8 or more characters with a digit |
+
+A variable name or a placeholder is not a secret and stays as written: `${JIRA_TOKEN}`, `$TOKEN`, `%API_KEY%`, `{{ secrets.TOKEN }}`, `<token>`, `[credential]`, a name in capitals such as `YOUR_TOKEN`, or a value with an ellipsis (`token=...`).
+
+What is not detected: a token without a known prefix written on its own (a random string in a sentence), a secret after a key the table does not name (`pwd:`, `auth:`, `key:`), an unquoted value of a setting without a digit (`api_key: abcdefgh`), a webhook or a token of a provider not listed here, a secret split over several lines, and an encoded or encrypted secret. The detector reduces mistakes; it is not a secret scanner. Keep credentials in each person's environment or in the tool's vault, and run the team's own scanner on the repository.
 
 The table lives in one place, `src/openguildkit/sensitive.py`, and the same shapes apply wherever the CLI records what a person or an agent writes. The refusal never repeats the value, and the apply command a plan or a refusal prints writes `--set TOOL.NAME=VALUE` in place of a value of these shapes.
 

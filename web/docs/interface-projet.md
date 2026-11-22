@@ -19,7 +19,7 @@ OpenGuildKit n'est pas sur PyPI : installe la roue d'une release GitHub, qui emb
 ```bash
 pipx install ./openguildkit-X.Y.Z-py3-none-any.whl
 cd mon-projet
-openguildkit ui                   # http://127.0.0.1:7311, ouvre le navigateur
+openguildkit ui                   # imprime http://127.0.0.1:7311/?key=… et l'ouvre
 openguildkit ui --port 0 --no-browser
 ```
 
@@ -48,7 +48,7 @@ Les textes renvoyés par la CLI en anglais (prochaine étape, questions du cadra
 
 ## Ce que l'interface ne fait jamais
 
-La CLI demande une personne devant un terminal pour valider une quête, lever ou déroger à un blocage, autoriser une action externe, accepter une alerte confirmée, écarter une alerte critique ou fixer la sévérité d'une alerte, déclarer qu'une commande de vérification ne peut pas tourner ici (`task verify --cannot-run`, `--withdraw`), clore une quête par-dessus des points sensibles (`task complete --by`), et pour un changement du profil qui affaiblit une protection : baisser la garde, ouvrir la recherche publique, retirer ou refuser une réglementation. L'interface n'enregistre aucune de ces décisions. Elle affiche la commande exacte, à copier dans son propre terminal :
+La CLI demande une personne devant un terminal pour valider une quête, lever ou déroger à un blocage, autoriser une action externe, accepter une alerte confirmée, écarter une alerte critique ou fixer la sévérité d'une alerte, déclarer qu'une commande de vérification ne peut pas tourner ici (`task verify --cannot-run`, `--withdraw`), clore une quête par-dessus des points sensibles (`task complete --by`), et pour un changement du profil qui affaiblit une protection : baisser la garde, ouvrir la recherche publique, retirer ou refuser une réglementation, changer l'approbation signée, ouvrir ou élargir les dérogations, retirer une règle, un cerveau ou une commande de vérification obligatoire. L'interface n'enregistre aucune de ces décisions. Elle affiche la commande exacte, à copier dans son propre terminal :
 
 ```text
 openguildkit --project 'C:\…\mon-projet' task decide request-export --approve --by 'Camille Martin' --reason '…'
@@ -62,15 +62,57 @@ Elle n'appelle aucune IA et n'ouvre aucune connexion vers l'extérieur. Les avis
 
 ## Sécurité du serveur local
 
+Tout programme du poste peut ouvrir une connexion vers 127.0.0.1 : ceux d'un autre compte sur un poste partagé, une machine de build ou une VM de développement, un processus sandboxé qui a le droit d'ouvrir des sockets locales, et une page d'un autre site chargée dans le navigateur. Le serveur ne fait donc confiance qu'à la clé de l'adresse qu'il imprime.
+
 - Écoute sur 127.0.0.1 uniquement. L'en-tête `Host` doit être `127.0.0.1`, `localhost` ou `[::1]` avec le bon port, ce qui bloque le rebinding DNS.
-- Chaque appel de l'API est un `POST` JSON qui porte l'origine de la page et un jeton de session tiré au lancement. Une page d'un autre site ne peut ni lire le jeton ni appeler l'API.
+- `openguildkit ui` imprime une adresse qui porte une clé tirée au lancement, `http://127.0.0.1:7311/?key=…`, et l'ouvre dans le navigateur. Seul le terminal qui a lancé la commande la voit. En ouvrant cette adresse, le navigateur reçoit la clé dans un cookie `HttpOnly` et `SameSite=Strict` propre au port (`ogk-7311`), et la clé quitte la barre d'adresse. Sans ce cookie, `/api/session` répond 403 (`open-printed-link`) et la page affiche, à la place de l'interface, l'invitation à ouvrir l'adresse imprimée. La clé change à chaque lancement : après un redémarrage, ouvre la nouvelle adresse.
+- La clé protège la session : le jeton que `/api/session` remet à la page et que chaque appel de l'API porte. Un programme qui ne connaît pas la clé ne lit ni le jeton, ni le profil, ni les fichiers, et ne lance aucune commande. Elle ne protège pas d'un programme qui tourne sous ton propre compte : celui-là peut déjà lire les fichiers du projet et lancer la CLI.
+- Chaque appel de l'API est un `POST` JSON qui porte l'origine de la page et le jeton. Une page d'un autre site ne peut ni lire le jeton ni appeler l'API.
+- Sous Windows, le serveur réserve son port en exclusivité : un autre programme ne peut pas s'y lier pour recevoir les requêtes de la page.
+- Un script qui lance le serveur pour son propre navigateur, comme les tests de bout en bout, peut fixer la clé avec `OPENGUILDKIT_UI_KEY` (32 à 128 lettres, chiffres, `-` ou `_`) ; elle reste aussi secrète que le script la garde. En développement avec `OGK_API`, Vite sert la page : ouvre une fois `http://localhost:5199/api/session?key=…` avec la clé imprimée, puis `http://localhost:5199/`.
 - Les commandes passent par l'analyseur de la CLI, puis par une liste de refus : `ci-check`, `ui`, `guard --hook`, `tools mock`, `integrations --user`, et les décisions réservées au terminal ci-dessus. Les abréviations d'options (`--appr`) sont résolues avant le contrôle.
 - Pendant chaque commande, l'entrée standard n'est jamais un terminal, même si le serveur tourne dans un terminal : une invite interactive échoue au lieu d'attendre.
-- Les fichiers lus ou écrits restent dans le projet, hors `.git`. Les fichiers envoyés par la page (avis, rapport de scanner, résultats) passent par un dossier temporaire supprimé après la commande. La lecture refuse `.env` et les noms qui évoquent un secret.
-- La page écrit directement deux fichiers seulement : `.openguildkit/project.json`, suivi de `sync` (le profil précédent est remis si la CLI le refuse ; un changement qui affaiblit une protection est refusé avant d'écrire, avec la commande `profile` à taper), et `.openguildkit/storybook/proposals.json`.
+- Les fichiers lus ou écrits restent dans le projet, hors de `.git` quelle que soit sa casse : sur un disque qui ignore la casse, `.GIT/x` s'écrirait dans `.git`. Les fichiers envoyés par la page (avis, rapport de scanner, résultats) passent par un dossier temporaire supprimé après la commande. La page ne liste ni ne lit `.env`, les noms qui évoquent un secret, ni les fichiers où les outils gardent leurs jetons : `token*.json`, `auth.json`, `*service-account*.json`, `local.settings.json` (les enregistrements de l'outil sous `.openguildkit/` restent lisibles, même quand une quête s'appelle `token-rotation`).
+- La page enregistre le profil par le chemin des commandes `profile` : sous le verrou du projet, validé comme `init`, inscrit dans l'historique `changes` avec le nom et la raison que la page envoie (`by`, `reason`, sinon `web interface`), puis `AGENTS.md` et le verrou du catalogue sont réécrits. Un changement qui affaiblit une protection est refusé avant d'écrire (`weakens-protection`), avec la commande `profile` à taper ; un profil invalide, ou dont l'historique diffère de celui enregistré (la page l'a modifié, ou une autre commande a changé le profil depuis sa lecture), est refusé (`invalid-profile`) ; dans les deux cas rien n'est écrit. Le seul autre fichier que la page écrit est `.openguildkit/storybook/proposals.json`, sous le même verrou (`project-busy` quand une autre commande le tient trop longtemps).
 - Les commandes s'exécutent une à la fois, dans le processus du serveur, sous un verrou. Une page envoie un fichier absent du projet comme une réponse vide, pas comme une erreur.
 
-Un autre programme du poste peut appeler l'API comme il peut lancer la CLI : le serveur ne donne aucun droit de plus que le terminal.
+## Codes de refus
+
+Chaque refus du serveur porte un code stable dans le champ `reason`, à côté du message anglais (`error`) et, quand une personne peut taper la commande dans son terminal, de cette commande (`command`) : `{"error", "command", "reason"}`. Le résultat d'une commande que la CLI refuse faute de terminal, seul ou dans un lot (`batch`), porte les mêmes champs `command` et `reason`. La page traduit le code ; le message anglais reste le détail. La liste vit dans `REFUSALS`, dans `src/openguildkit/webui.py`, et un test vérifie que chaque code y figure ici.
+
+La commande rendue est celle que la CLI nomme dans son refus quand elle en nomme une (par exemple `task complete ID --by NAME` pour clore par-dessus des points sensibles), et sinon celle que la page a envoyée.
+
+| Code | Sens |
+|---|---|
+| `approve-at-terminal` | Valider une quête : une personne au terminal, ou une signature dans un projet à approbation signée. |
+| `withdraw-at-terminal` | Retirer une approbation : la personne au terminal. |
+| `cannot-run-at-terminal` | Déclarer qu'une commande de vérification ne peut pas tourner ici, ou retirer cette déclaration. |
+| `clear-at-terminal` | Lever un blocage sans signature. |
+| `complete-at-terminal` | Clore une quête par-dessus des points sensibles (`task complete ID --by NAME`). |
+| `live-plan-at-terminal` | Appliquer un plan MCP réel, hors simulation. |
+| `waiver-at-terminal` | Déroger à un blocage : la personne nommée, au terminal. |
+| `external-action-at-terminal` | Autoriser une action externe. |
+| `alert-accept-at-terminal` | Accepter une alerte confirmée. |
+| `alert-severity-at-terminal` | Fixer la sévérité d'une alerte. |
+| `alert-status-at-terminal` | Écarter une alerte critique ou haute, ou la déclarer fausse. |
+| `weakens-protection` | Un changement du profil qui affaiblit une protection : la commande `profile` à taper, avec `--by` et `--reason`. |
+| `person-at-terminal` | Une autre décision que la CLI réserve à une personne au terminal. |
+| `send-setup-answers` | `init` sans réponses : la page envoie le questionnaire rempli. |
+| `send-task-answers` | `task consult` sans réponses : la page envoie le cadrage rempli. |
+| `invalid-profile` | Le profil envoyé n'est pas du JSON, n'est pas un profil valide, ou modifie l'historique des changements. Rien n'est écrit. |
+| `not-initialized` | Le projet n'est pas encore installé. |
+| `outside-project` | Un chemin sort du projet ou entre dans `.git`. |
+| `secret-file` | Le nom du fichier évoque un secret : la page ne le liste ni ne le lit. |
+| `not-readable` | La page ne lit que le Markdown, le JSON, le YAML et le texte. |
+| `too-large` | La requête ou le fichier est trop gros (8 Mo par requête, 2 Mo par fichier lu). |
+| `not-in-page` | Une commande ou un fichier qui n'a pas sa place dans une page (`ui`, `ci-check`, `guard --hook`, `tools mock`, `integrations --user`, l'écriture d'un autre fichier que les propositions Storybook). |
+| `project-busy` | Une autre commande d'OpenGuildKit écrit le projet : réessayer. |
+| `stale-token` | Jeton de session absent ou périmé : le serveur a redémarré. Recharger la page. |
+| `foreign-page` | La requête ne vient pas de la page du serveur (en-tête `Host` ou `Origin` inconnu). |
+| `bad-request` | Une requête mal formée : corps, commande ou options. |
+| `not-found` | Point d'accès ou fichier inconnu. |
+| `open-printed-link` | Le navigateur n'a pas ouvert l'adresse imprimée par `openguildkit ui` pour ce lancement : l'ouvrir. |
+| `server-error` | Le serveur a échoué en traitant la requête. |
 
 ## Développer l'interface
 
@@ -103,7 +145,7 @@ Le serveur garde entre deux commandes ce que chaque commande de la CLI reconstru
 - La vue d'ensemble (quêtes, contrôle des instructions, alertes, partages, veille, catalogue, hôte) part en une seule requête. Elle seule se recharge après une action ; ce qui ne dépend que du catalogue (cerveaux, références, packs, outils, modèles) ne se recharge qu'après `sync`, `update`, `init` ou une modification du profil.
 - Le lieu de l'adresse ouverte est chargé avant le premier rendu ; les autres se chargent en arrière-plan ensuite. Changer de lieu ne passe donc jamais par l'écran d'attente que React 19 retient environ 300 ms.
 
-Mesures du 21 novembre 2026 sur le projet d'exemple, avec `node scripts/measure-project.mjs http://127.0.0.1:7311` (Chrome, navigateur neuf à chaque exécution, médiane de 3) :
+Mesures du 21 novembre 2026 sur le projet d'exemple, avec `node scripts/measure-project.mjs` suivi de l'adresse imprimée par `openguildkit ui` (Chrome, navigateur neuf à chaque exécution, médiane de 3) :
 
 | Écran | Temps d'affichage | Requêtes d'API | Données reçues (décompressées) |
 | --- | ---: | ---: | ---: |

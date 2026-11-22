@@ -3,6 +3,7 @@
 import contextlib
 import io
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -140,7 +141,9 @@ class ProfileCommandTests(unittest.TestCase):
         self.assertEqual(profile["checks"], ["python -m unittest"])
         self.assertEqual((profile["tools"], profile["roles"], profile["boards"]), (["Jira"], ["backend"], ["security"]))
         self.assertIn("api-design", profile["packs"])
-        self.run_cli("profile", "remove", "check", "python -m unittest", "--by", "Sam", "--reason", "Moved to CI")
+        # A check command removed is a protection less: the person types it at a terminal.
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value="python -m unittest"):
+            self.run_cli("profile", "remove", "check", "python -m unittest", "--by", "Sam", "--reason", "Moved to CI")
         self.assertEqual(self.profile()["checks"], [])
         self.run_cli("profile", "set", "host", "codex", "--by", "Sam", "--reason", "Team moved")
         self.assertEqual(self.profile()["host"], "codex")
@@ -176,6 +179,138 @@ class ProfileCommandTests(unittest.TestCase):
         self.assertIn("guard observe -> enforce", error)
         self.assertIn("tools changed (none -> Jira)", error)
         self.assertNotIn("the boards or the project settings changed", error)
+
+    def typed(self, *arguments, confirm: str):
+        """A profile command a person types at a terminal, confirming with the word asked."""
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=confirm):
+            return self.run_cli("profile", *arguments)
+
+    def test_signed_approvals_waivers_and_required_reviews_have_their_commands(self):
+        signers = ("--signers", ".openguildkit/allowed_signers", "--approver", "camille@example.test")
+        self.run_cli("profile", "add", "required-board", "security", "--by", "Sam", "--reason", "Audit")
+        self.run_cli("profile", "add", "required-rule", "secure-sdlc", "--by", "Sam", "--reason", "Audit")
+        self.run_cli("profile", "set", "ask-every-rule", "yes", "--by", "Sam", "--reason", "Audit")
+        self.typed("set", "approval", "signed", *signers, "--by", "Camille", "--reason", "Guard enforced", confirm="signed")
+        self.typed("set", "waivers", "allowed", "--allowed-by", "Camille Martin", "--max-days", "30", "--by", "Camille",
+                   "--reason", "Pilot", confirm="allowed")
+        profile = self.profile()
+        self.assertEqual((profile["required_boards"], profile["required_rules"], profile["ask_every_rule"]),
+                         (["security"], ["secure-sdlc"], True))
+        self.assertEqual(profile["approval"], {"mode": "signed", "allowed_signers": ".openguildkit/allowed_signers",
+                                               "approvers": ["camille@example.test"]})
+        self.assertEqual(profile["waivers"], {"allowed_by": ["Camille Martin"], "max_days": 30})
+        self.assertEqual([entry["change"] for entry in profile["changes"]], [
+            "add required-board security", "add required-rule secure-sdlc", "set ask-every-rule yes",
+            "set approval signed (signers .openguildkit/allowed_signers; approvers camille@example.test)",
+            "set waivers allowed (by Camille Martin; up to 30 days)"])
+        self.assertIn("Approvals must be signed by camille@example.test", self.agents())
+        # Tightening needs no terminal: fewer waivers, then no waiver at all.
+        self.run_cli("profile", "set", "waivers", "allowed", "--allowed-by", "Camille Martin", "--max-days", "10",
+                     "--by", "Sam", "--reason", "Shorter")
+        self.run_cli("profile", "set", "waivers", "none", "--by", "Sam", "--reason", "No waiver")
+        self.assertNotIn("waivers", self.profile())
+        for arguments, message in (
+                (("set", "approval", "signed", "--signers", "keys"), "needs --signers PATH and at least one --approver"),
+                (("set", "waivers", "allowed", "--max-days", "5"), "needs at least one --allowed-by NAME"),
+                (("set", "guard", "enforce", "--approver", "Sam"), "--approver belongs to profile set approval signed"),
+                (("set", "waivers", "none"), "waivers is already none"),
+                (("add", "required-rule", "no-such-pack"), "Unknown required rule")):
+            with self.subTest(arguments=arguments):
+                _, error = self.run_cli("profile", *arguments, "--by", "Sam", "--reason", "x", code=1)
+                self.assertIn(message, error)
+
+    def test_each_protection_of_the_profile_is_lowered_only_at_a_terminal(self):
+        signers = ("--signers", ".openguildkit/allowed_signers", "--approver", "camille@example.test")
+        self.run_cli("profile", "add", "check", "python -m unittest", "--by", "Sam", "--reason", "Tests")
+        self.run_cli("profile", "add", "required-board", "security", "--by", "Sam", "--reason", "Audit")
+        self.run_cli("profile", "add", "required-rule", "secure-sdlc", "--by", "Sam", "--reason", "Audit")
+        self.run_cli("profile", "set", "ask-every-rule", "yes", "--by", "Sam", "--reason", "Audit")
+        self.typed("set", "approval", "signed", *signers, "--by", "Camille", "--reason", "Audit", confirm="signed")
+        self.typed("set", "waivers", "allowed", "--allowed-by", "Camille", "--max-days", "30", "--by", "Camille",
+                   "--reason", "Pilot", confirm="allowed")
+        cases = (
+            (("set", "approval", "local"), "signed approvals turned off", "local"),
+            (("set", "approval", "signed", *signers, "--approver", "agent@example.test"),
+             "approver agent@example.test added", "signed"),
+            (("set", "approval", "signed", "--signers", "keys/signers", "--approver", "camille@example.test"),
+             "allowed signers moved from .openguildkit/allowed_signers to keys/signers", "signed"),
+            (("set", "waivers", "allowed", "--allowed-by", "Camille", "--allowed-by", "agent", "--max-days", "30"),
+             "waivers widened: agent may waive", "allowed"),
+            (("set", "waivers", "allowed", "--allowed-by", "Camille", "--max-days", "366"),
+             "waivers widened: a waiver lasts up to 366 days instead of 30", "allowed"),
+            (("remove", "required-rule", "secure-sdlc"), "required rule secure-sdlc removed", "secure-sdlc"),
+            (("remove", "required-board", "security"), "required board security removed", "security"),
+            (("remove", "check", "python -m unittest"), "check command python -m unittest removed", "python -m unittest"),
+            (("set", "ask-every-rule", "no"), "every rule no longer asked", "no"),
+        )
+        for arguments, weakened, target in cases:
+            with self.subTest(arguments=arguments):
+                before = self.profile()
+                with patch("sys.stdin.isatty", return_value=False):
+                    _, error = self.run_cli("profile", *arguments, "--by", "agent", "--reason", "Faster", code=1)
+                self.assertIn(weakened, error)
+                self.assertIn("is the person's decision", error)
+                self.assertEqual(self.profile(), before)
+                with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value="wrong"):
+                    _, error = self.run_cli("profile", *arguments, "--by", "Camille", "--reason", "Agreed", code=1)
+                self.assertIn("cancelled", error)
+                self.assertEqual(self.profile(), before)
+        self.typed("set", "approval", "local", "--by", "Camille", "--reason", "Pilot over", confirm="local")
+        self.assertNotIn("approval", self.profile())
+        # Signing turned on decides who approves without a terminal: a person sets it up.
+        with patch("sys.stdin.isatty", return_value=False):
+            _, error = self.run_cli("profile", "set", "approval", "signed", *signers, "--by", "agent", "--reason", "x",
+                                    code=1)
+        self.assertIn("signed approvals turned on: camille@example.test approve with a key listed in "
+                      ".openguildkit/allowed_signers", error)
+
+    def approved_task(self):
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
+        self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json")
+        template = json.loads(self.run_cli("task", "template", TASK)[0])
+        review = {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text())}
+        review["boards"] = [entry for entry in review["boards"] if entry["id"] in {b["id"] for b in template["boards"]}]
+        write_json(self.root / "review.json", review)
+        self.run_cli("task", "review", TASK, "--file", self.root / "review.json")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed")
+
+    def test_the_approvals_a_change_voids_are_named_before_it_is_written(self):
+        self.run_cli("profile", "add", "check", "python -m unittest", "--by", "Sam", "--reason", "Tests")
+        self.approved_task()
+        with patch("sys.stdin.isatty", return_value=False):
+            _, error = self.run_cli("profile", "remove", "check", "python -m unittest", "--by", "agent", "--reason",
+                                    "Slow", code=1)
+        self.assertIn(f"It also voids the approval of {TASK}. Nothing was written.", error)
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value="wrong"):
+            _, prompt = self.run_cli("profile", "remove", "check", "python -m unittest", "--by", "Sam", "--reason",
+                                     "Slow", code=1)
+        self.assertIn(f"It also voids the approval of {TASK}. Type python -m unittest to confirm", prompt)
+        output, _ = self.run_cli("profile", "add", "check", "python -m compileall -q .", "--by", "Sam", "--reason",
+                                 "Syntax")
+        announced = output.index(f"This change voids the approval of {TASK}")
+        self.assertLess(announced, output.index("Profile changed: add check"))
+
+    def test_no_page_of_the_docs_asks_to_edit_the_profile_by_hand(self):
+        """A change a profile command makes is documented with that command, not as an edit of project.json."""
+        repo = Path(__file__).resolve().parents[1]
+        pages = sorted([*(repo / "docs").glob("*.md"), *(repo / "web" / "docs").glob("*.md"), repo / "README.md",
+                        repo / "README.fr.md", repo / "CONTRIBUTING.md"])
+        edit = re.compile(r"\b(edit|add|adds|remove|set)\b[^.]*`?\.openguildkit/project\.json", re.I)
+        # A setting written as JSON for the reader to put in the profile: "with `"required_boards": [...]` in its
+        # profile", "set `"ask_every_rule": true`". A sentence that only says what the profile holds is fine.
+        snippet = r'`"(?:approval|waivers|required_boards|required_rules|ask_every_rule|checks|packs|tools|sector)"[^`]*`'
+        key = re.compile(rf"\b(?:with|set) {snippet}|{snippet}\s+in (?:its|the) profile"
+                         rf"|{snippet}\s+in `?\.openguildkit/project\.json")
+        # No command reads a profile that names a sector the catalog lacks: that one is fixed by hand.
+        by_hand_only = "no command can read a profile whose sector is unknown"
+        found = []
+        for page in pages:
+            for sentence in re.split(r"(?<=[.!?])\s+|\n", page.read_text(encoding="utf-8")):
+                asks = edit.search(sentence) or key.search(sentence)
+                if asks and "openguildkit profile" not in sentence and by_hand_only not in sentence:
+                    found.append(f"{page.relative_to(repo).as_posix()}: {sentence.strip()[:120]}")
+        self.assertEqual(found, [])
 
     def test_a_new_condition_names_the_norm_it_brings(self):
         output, _ = self.run_cli("profile", "set", "personal-data", "yes", "--by", "Sam", "--reason", "Accounts")
