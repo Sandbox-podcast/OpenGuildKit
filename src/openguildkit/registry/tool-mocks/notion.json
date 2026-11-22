@@ -94,7 +94,7 @@
             "content": "Sample lookup after create_page. The mock does not store writes."
           }
         },
-        {"error": "Page not found. Known pages in this mock: export-spec, sprint-14-plan."}
+        {"error": "Page not found. Known pages in this mock: export-spec, sprint-14-plan, page-300."}
       ]
     },
     {

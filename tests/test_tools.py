@@ -368,6 +368,16 @@ class CommandTests(unittest.TestCase):
             self.assertEqual(code, 1)
             self.assertIn("unpaid", out)
 
+    def test_unknown_record_help_includes_the_ids_returned_by_mock_creation(self):
+        for name, lookup, field, expected in (
+            ("jira", "get_issue", "key", "SUP-200"),
+            ("notion", "get_page", "page_id", "page-300"),
+        ):
+            with self.subTest(mock=name):
+                result = call_tool(load_mock(name), lookup, {field: "missing"})
+                self.assertTrue(result["isError"])
+                self.assertIn(expected, result["content"][0]["text"])
+
     def test_fixture_identifiers_round_trip_to_their_lookup_tools(self):
         def values(value, key):
             if isinstance(value, list):

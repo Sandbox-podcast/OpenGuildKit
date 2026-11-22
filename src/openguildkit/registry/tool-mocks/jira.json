@@ -128,7 +128,7 @@
             "description": "Sample lookup after create_issue. The mock does not store writes."
           }
         },
-        {"error": "Issue not found. Known keys in this mock: SUP-120, SUP-142, SUP-143."}
+        {"error": "Issue not found. Known keys in this mock: SUP-120, SUP-142, SUP-143, SUP-200."}
       ]
     },
     {
