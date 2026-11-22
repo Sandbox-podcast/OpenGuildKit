@@ -17,6 +17,8 @@ describe('wording of the CLI', () => {
   it('translates every next step the CLI prints', () => {
     expect(nextLabel('Answer the questionnaire and consult the boards.')).toBe('Répondre au questionnaire et consulter les cerveaux.');
     expect(nextLabel('Board reviews pending: marketing, security.')).toBe('Avis attendus : marketing, security.');
+    expect(nextLabel('Board reviews pending: qa; passes started, waiting for their entry: legal.')).toBe('Avis attendus : qa ; passes commencées, en attente de leur avis : legal.');
+    expect(nextLabel('Passes started, waiting for their entry: legal.')).toBe('Passes commencées, en attente de leur avis : legal.');
     expect(nextLabel('Write the summary and record the review.')).toMatch(/^Rédiger la synthèse/);
     expect(nextLabel('Resolve blockers security:1, qa:2.')).toBe('Lever les points bloquants security:1, qa:2.');
     expect(nextLabel("Waiting for the person's decision.")).toBe('En attente de la décision d’une personne.');
@@ -31,6 +33,7 @@ describe('wording of the CLI', () => {
     expect(nextLabel('rule:x/y failed. Fix it, then run task verify status.')).toBe('Échec de rule:x/y. Corriger, puis relancer task verify status.');
     expect(hasFailedCheck(failed)).toBe(true);
     expect(nextLabel('Done with reservations: see the open points in task show (result.closing).')).toMatch(/^Terminée avec réserves/);
+    expect(nextLabel('Done with reservations: see the open points with openguildkit task show e --closing.')).toMatch(/^Terminée avec réserves/);
     expect(nextLabel('Done.')).toBe('Terminée.');
     expect(nextLabel('Something new.')).toBe('Something new.');
     expect(isBlocked('Resolve blockers security:1.')).toBe(true);

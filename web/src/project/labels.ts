@@ -136,7 +136,9 @@ export const daysSince = (iso: string) => Math.floor((Date.now() - new Date(iso.
 /** French wording of the CLI's next open point (tasks.next_step); unknown texts are kept as they are. */
 const NEXT: [RegExp, (m: RegExpExecArray) => string][] = [
   [/^Answer the questionnaire and consult the boards\.$/, () => 'Répondre au questionnaire et consulter les cerveaux.'],
+  [/^Board reviews pending: (.*?); passes started, waiting for their entry: (.*)\.$/, (m) => `Avis attendus : ${m[1]} ; passes commencées, en attente de leur avis : ${m[2]}.`],
   [/^Board reviews pending: (.*)\.$/, (m) => `Avis attendus : ${m[1]}.`],
+  [/^Passes started, waiting for their entry: (.*)\.$/, (m) => `Passes commencées, en attente de leur avis : ${m[1]}.`],
   [/^Write the summary and record the review\.$/, () => 'Rédiger la synthèse et enregistrer la revue.'],
   [/^Resolve blockers (.*)\.$/, (m) => `Lever les points bloquants ${m[1]}.`],
   [/^Waiting for the person's decision\.$/, () => 'En attente de la décision d’une personne.'],
@@ -149,7 +151,7 @@ const NEXT: [RegExp, (m: RegExpExecArray) => string][] = [
   [/^Result recorded: run task verify (\S+) to list what remains, then task complete \S+\.$/, (m) => `Résultats enregistrés : task verify ${m[1]} liste ce qui reste, puis terminer la tâche.`],
   [/^(\S+)(?: \(`([^`]*)`\))? failed(?:: (.*?))?(?: and (\d+) other check\(s\))?\. Fix it, then run task verify (\S+)\.$/s,
     (m) => `Échec de ${m[1]}${m[2] ? ` (${m[2]})` : ''}${m[3] ? ` : ${m[3]}` : ''}${m[4] ? `, et de ${m[4]} autre(s) contrôle(s)` : ''}. Corriger, puis relancer task verify ${m[5]}.`],
-  [/^Done with reservations: see the open points in task show \(result\.closing\)\.$/, () => 'Terminée avec réserves : les points laissés ouverts sont dans la fiche de la tâche.'],
+  [/^Done with reservations: see the open points (?:in task show \(result\.closing\)|with openguildkit task show \S+ --closing)\.$/, () => 'Terminée avec réserves : les points laissés ouverts sont dans la fiche de la tâche.'],
   [/^Done\.$/, () => 'Terminée.'],
   [/^The approval for (\S+) was recorded under earlier rules(?: \((.*)\))?\. Consult it again with openguildkit task consult \S+, or open a linked task with openguildkit task new "BRIEF" --follows \S+\.$/s,
     (m) => `L’approbation de ${m[1]} a été donnée sous des règles antérieures${m[2] ? ` (${changesLabel(m[2])})` : ''}. ${RECONSULT(m[1])}`],
