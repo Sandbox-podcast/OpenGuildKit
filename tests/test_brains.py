@@ -66,6 +66,7 @@ class BrainReviewTests(unittest.TestCase):
         record = handoff(task)
         self.assertIn("# Approved decision record", record)
         self.assertNotIn("Implement the approved scope", record)
+        self.assertIn("Close the task with `openguildkit task complete request-access`", record)
         task["answers"]["kind"] = "feature"
         self.assertIn("# Approved task handoff", handoff(task))
 

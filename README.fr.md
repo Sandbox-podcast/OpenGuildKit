@@ -78,14 +78,14 @@ Chaque changement suit le même parcours, de la demande à la clôture. L'agent 
 ```bash
 openguildkit task new "Afficher aux clients connectés le statut de leurs demandes" --id statut-demandes
 openguildkit task questions statut-demandes
-openguildkit task questions statut-demandes --answers reponses.json
+openguildkit task questions statut-demandes --answers reponses.json --follow-ups
 openguildkit task route statut-demandes --answers reponses.json
 openguildkit task consult statut-demandes --answers reponses.json
 ```
 
 - `task new` ouvre la tâche avec ta demande, le brief, écrit avec tes mots.
 - `task questions` donne le questionnaire : l'agent te demande le type de travail, les zones touchées, les données en jeu et les recherches permises.
-- `task questions --answers` ajoute les questions de suivi et liste les points encore ouverts.
+- `task questions --answers --follow-ups` donne seulement les questions de suivi qu'appellent tes réponses et les points encore ouverts.
 - `task route` montre les boards retenus et pourquoi, sans rien enregistrer. Toi seul ajoutes ou retires un board, avec une raison.
 - `task consult` enregistre tes réponses et prépare une consultation courte : la tâche, le périmètre du projet, une ligne par board.
 
@@ -143,13 +143,15 @@ openguildkit task verify statut-demandes
 openguildkit task result statut-demandes --template > result.json
 openguildkit task result statut-demandes --file result.json
 openguildkit task complete statut-demandes
+openguildkit task export statut-demandes
 ```
 
 - `task handoff` remet à l'agent le brief d'implémentation : le périmètre approuvé et les règles en vigueur. L'agent ne réalise que ce périmètre.
 - `task verify` lance les contrôles du projet et enregistre leurs résultats.
 - `task result --template` ne demande que les règles qui concernent la tâche. Les autres sont listées comme non concernées, avec la raison.
 - `task result --file` enregistre le résultat que l'agent a rempli. Tu confirmes chaque règle écartée, et le responsable de chaque pièce justificative (registre des traitements, décision d'AIPD) la fournit.
-- `task complete` clôt la tâche en `done` quand rien ne reste ouvert, ou en `done-with-reservations` (terminée avec réserves) avec les points ouverts, du plus grave au moins grave.
+- `task complete` clôt la tâche en `done` quand rien ne reste ouvert, ou en `done-with-reservations` (terminée avec réserves) avec les points ouverts, du plus grave au moins grave. `task show --closing` les réaffiche, et `task new --follows` ouvre une tâche liée pour les reprendre.
+- `task export` écrit l'enregistrement de la décision, à committer avec le travail : le contrôle de la pull request le lit.
 
 ## Parcourir le catalogue
 

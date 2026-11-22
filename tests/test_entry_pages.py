@@ -76,13 +76,14 @@ class JourneyTests(unittest.TestCase):
         self.assertIsNotNone(_parse_error(["task", "decide", "statut-demandes", "--approuver"]))
         self.assertIsNone(_parse_error(["task", "complete", "statut-demandes"]))
 
-    def test_the_french_journey_runs_from_task_new_to_task_complete_in_order(self):
+    def test_the_french_journey_runs_from_task_new_to_task_export_in_order(self):
         actions = self._journey_actions(README_FR, "Le parcours d'une tâche")
         self.assertEqual(actions[0], "new")
-        self.assertEqual(actions[-1], "complete")
+        self.assertEqual(actions[-1], "export")
         for earlier, later in (("questions", "consult"), ("consult", "pass"), ("submit", "review"),
                                ("review", "challenge"), ("challenge", "decide"), ("decide", "handoff"),
-                               ("handoff", "verify"), ("verify", "result")):
+                               ("handoff", "verify"), ("verify", "result"), ("result", "complete"),
+                               ("complete", "export")):
             self.assertLess(actions.index(earlier), actions.index(later), (earlier, later))
 
     def test_both_readmes_tell_the_same_journey(self):

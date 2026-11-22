@@ -323,7 +323,9 @@ def _parser() -> argparse.ArgumentParser:
     ci.add_argument("--target-repo", type=Path, required=True, help="Local Git repository with the target commit.")
     ci.add_argument("--commit", required=True, help="Full Git SHA of the target commit.")
 
-    task = commands.add_parser("task", help="Frame a task, record advice and approve a handoff.")
+    task = commands.add_parser("task", help="Take a task from the request to its closing: frame it, consult the "
+                                             "boards, record the person's decision, then verify, complete and export "
+                                             "it.")
     actions = task.add_subparsers(dest="action", required=True)
     new = actions.add_parser("new", help="Create a task draft.")
     new.add_argument("brief", nargs="?", help="Short description of the work.")

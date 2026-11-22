@@ -74,14 +74,14 @@ Every change follows the same path, from the request to the closing. The agent r
 ```bash
 openguildkit task new "Show signed-in customers the status of their support requests" --id request-status
 openguildkit task questions request-status
-openguildkit task questions request-status --answers answers.json
+openguildkit task questions request-status --answers answers.json --follow-ups
 openguildkit task route request-status --answers answers.json
 openguildkit task consult request-status --answers answers.json
 ```
 
 - `task new` opens the task with your request, the brief, in your own words.
 - `task questions` prints the questionnaire: the agent asks you the kind of work, the areas it affects, the data involved and the research allowed.
-- `task questions --answers` adds the follow-up questions and lists the points still open.
+- `task questions --answers --follow-ups` gives only the follow-up questions your answers call for and the points still open.
 - `task route` shows the boards it would select and why, without recording anything. Only you add or remove a board, with a reason.
 - `task consult` records your answers and prepares a short consultation: the task, the project scope, one line per board.
 
@@ -139,13 +139,15 @@ openguildkit task verify request-status
 openguildkit task result request-status --template > result.json
 openguildkit task result request-status --file result.json
 openguildkit task complete request-status
+openguildkit task export request-status
 ```
 
 - `task handoff` gives the agent the implementation brief: the approved scope and the rules in force. The agent delivers that scope only.
 - `task verify` runs the project's checks and records their results.
 - `task result --template` asks only the rules that concern the task. The others are listed as not concerned, with the reason.
 - `task result --file` records the result the agent filled in. You confirm each rule set aside, and the owner of each named evidence (record of processing activities, DPIA decision) provides it.
-- `task complete` closes the task as `done` when nothing is left open, or as `done-with-reservations` with the open points, the most serious first.
+- `task complete` closes the task as `done` when nothing is left open, or as `done-with-reservations` with the open points, the most serious first. `task show --closing` prints them again, and `task new --follows` opens a linked task to take them up.
+- `task export` writes the decision record, to commit with the work: the pull request check reads it.
 
 ## Browse the catalog
 

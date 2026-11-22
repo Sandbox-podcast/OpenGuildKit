@@ -1,14 +1,16 @@
 # Task workflow
 
-Every change in an OpenGuildKit project goes through the same five steps. The host agent runs the commands; the person answers the questions and makes the decision.
+Every change in an OpenGuildKit project goes through the same six steps, from the request to the closing. The host agent runs the commands; the person answers the questions, makes the decision and confirms what is theirs to confirm.
 
 ```mermaid
 flowchart LR
     N["1. task new"] --> Q["2. task questions<br/>+ task consult"]
-    Q --> R["3. board passes<br/>+ task review"]
+    Q --> R["3. task pass + task submit<br/>+ task review"]
     R --> D{"4. task decide"}
-    D -- "--approve" --> H["5. task handoff"]
     D -- "--request-changes" --> Q
+    D -- "--approve" --> H["5. task handoff"]
+    H --> V["6. task verify<br/>+ task result"]
+    V --> C["task complete<br/>+ task export"]
 ```
 
 ## 1. Open a task
