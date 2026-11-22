@@ -1,16 +1,15 @@
 """What the agent reads along a task, without the parts it already holds (issue 41)."""
 
-import contextlib
-import io
 import json
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit.cli import main
 from openguildkit.storage import write_json
 from tests.test_results import GDPR_DPIA, GDPR_RECORD, TASK, ResultCase
+
+from tests.support import CapturedCli
 
 SMALL_BUG = {"kind": "bug", "surface": "service", "data": "internal", "research": "local", "concerns": ["none"],
              "context": "The CSV export of request statuses leaves the status column empty."}
@@ -18,7 +17,9 @@ SMALL_BUG = {"kind": "bug", "surface": "service", "data": "internal", "research"
 SHARED = ("## How to fill the entry", "Write each evidence item in this shape:", "and each blocker in this shape:")
 
 
-class TaskWeightTests(unittest.TestCase):
+class TaskWeightTests(CapturedCli, unittest.TestCase):
+    cli_output = "stdout"
+
     def setUp(self):
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
@@ -27,12 +28,6 @@ class TaskWeightTests(unittest.TestCase):
         self.cli("init", "--answers", self.root / "setup.json")
         write_json(self.root / "answers.json", SMALL_BUG)
         self.cli("task", "new", "Fix the CSV export of request statuses", "--id", "small1")
-
-    def cli(self, *arguments):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            self.assertEqual(main(["--project", str(self.root), *map(str, arguments)]), 0, stderr.getvalue())
-        return stdout.getvalue()
 
     def test_the_follow_ups_of_the_smallest_bug_fit_in_a_kilobyte(self):
         whole = self.cli("task", "questions", "small1", "--answers", self.root / "answers.json")

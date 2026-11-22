@@ -1,8 +1,6 @@
 """The board passes, the handoff and task checks ask the same rules of a task, every new consultation answers
 the concerns question (issue 09 of the second audit), and a pass prints the packs its subject brings (issue 10)."""
 
-import contextlib
-import io
 import json
 import re
 import tempfile
@@ -11,10 +9,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import load_catalog
-from openguildkit.cli import main
 from openguildkit.project import load_profile
 from openguildkit.relevance import pack_relevance
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 # A project on personal data with the GDPR pattern, and the regulations and methods a task on secrets, money or AI
 # brings, so that the concerns answer changes what is asked.
@@ -40,7 +39,9 @@ def printed_rules(text: str) -> set[str]:
     return rules
 
 
-class ProjectCase(unittest.TestCase):
+class ProjectCase(CapturedCli, unittest.TestCase):
+    cli_output = "combined-on-error"
+
     """A project in a temporary folder, driven through the CLI, with an approval recorded at a terminal."""
 
     @classmethod
@@ -51,13 +52,6 @@ class ProjectCase(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-
-    def cli(self, *arguments, code=0) -> str:
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue() + stdout.getvalue())
-        return stdout.getvalue() + stderr.getvalue() if code else stdout.getvalue()
 
     def init(self, answers: dict | None = None, **changes) -> None:
         write_json(self.root / "init.json", {**(answers or PROJECT), **changes})

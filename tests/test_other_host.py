@@ -1,29 +1,21 @@
 """The host `other`: every command that writes nothing for it says so and gives the way forward."""
 
-import contextlib
-import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit.cli import main
 from openguildkit.lock import package_version
 from openguildkit.storage import write_json
 
+from tests.support import CapturedCli
 
-class OtherHostTests(unittest.TestCase):
+
+class OtherHostTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def init(self, **answers):
         write_json(self.root / "answers.json", {"name": "svc", "host": "other", **answers})

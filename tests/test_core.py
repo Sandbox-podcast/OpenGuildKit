@@ -1,5 +1,3 @@
-import contextlib
-import io
 import json
 import os
 import subprocess
@@ -10,9 +8,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import CatalogError, load_catalog
-from openguildkit.cli import main
 from openguildkit.project import STATE_DIR, project_root
 from openguildkit.storage import read_json, write_json
+
+from tests.support import CapturedCli
 
 
 class ExecutableCatalogTests(unittest.TestCase):
@@ -26,7 +25,7 @@ class ExecutableCatalogTests(unittest.TestCase):
                 load_catalog(project_catalog, central_policy=("0" * 40, pack))
 
 
-class WorkflowTests(unittest.TestCase):
+class WorkflowTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -47,13 +46,6 @@ class WorkflowTests(unittest.TestCase):
             self.input_path,
             {"name": "Support console", "sector": "general", "stack": ["Python"], "packs": ["python"]},
         )
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def init(self):
         self.run_cli("init", "--answers", self.input_path)

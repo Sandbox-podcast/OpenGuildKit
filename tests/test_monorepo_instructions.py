@@ -1,7 +1,5 @@
 """Instructions of a monorepo stay scoped to their components, and a team's AGENTS.md is merged safely."""
 
-import contextlib
-import io
 import json
 import re
 import tempfile
@@ -9,9 +7,10 @@ import unittest
 from pathlib import Path
 
 from openguildkit.catalog import load_catalog
-from openguildkit.cli import main
 from openguildkit.project import BEGIN, rule_plan, validate_profile
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 LANGUAGE_PACKS = {"Python": "services-api", "React": "apps-web", "TypeScript": "apps-web"}
 
@@ -22,18 +21,11 @@ def write(root: Path, relative: str, content) -> None:
     path.write_text(content if isinstance(content, str) else json.dumps(content), encoding="utf-8")
 
 
-class ProjectTestCase(unittest.TestCase):
+class ProjectTestCase(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
 
 class MonorepoScopeTests(ProjectTestCase):

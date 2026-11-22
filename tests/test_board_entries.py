@@ -1,20 +1,19 @@
 """A board's entry: every problem reported at once with its key and accepted values, and passes that can be
 read again without counting an attempt."""
 
-import contextlib
 import copy
-import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
 from openguildkit.catalog import load_catalog
-from openguildkit.cli import main
 from openguildkit.project import resolved_profile, validate_profile
 from openguildkit.storage import write_json
 from openguildkit.consultation import board_brief, code_not_found, consult
 from openguildkit.workflow import validate_board_entry
+
+from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "request-status"
@@ -164,7 +163,7 @@ class CodeNotFoundTests(unittest.TestCase):
                              ["calculerTotal()"])
 
 
-class PassCommandTests(unittest.TestCase):
+class PassCommandTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -173,13 +172,6 @@ class PassCommandTests(unittest.TestCase):
         self.run_cli("init", "--answers", self.root / "profile.json")
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
         self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json")
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def progress(self, board):
         items = json.loads(self.run_cli("task", "progress", TASK, "--json")[0])

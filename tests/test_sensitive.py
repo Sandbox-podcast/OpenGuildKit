@@ -3,20 +3,19 @@
 Every fake credential is assembled at run time from obvious filler, so no committed string looks like a real one.
 """
 
-import contextlib
-import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.cli import main
 from openguildkit.sensitive import (
     CREDENTIAL_SHAPES, credential_kind, personal_data_kinds, redact_credentials, redact_data,
 )
 from openguildkit.storage import write_json
 from openguildkit.tools import load_tools, plan_connections
+
+from tests.support import CapturedCli
 
 REPO = Path(__file__).resolve().parents[1]
 EXAMPLE = REPO / "examples" / "request-status"
@@ -168,20 +167,13 @@ class SettingTests(unittest.TestCase):
                          "jira_token")
 
 
-class TaskInputTests(unittest.TestCase):
+class TaskInputTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         write_json(self.root / "profile.json", json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8")))
         self.run_cli("init", "--answers", self.root / "profile.json")
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def brief(self):
         return json.loads(self.run_cli("task", "show", TASK)[0])["brief"]

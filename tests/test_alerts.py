@@ -1,5 +1,3 @@
-import contextlib
-import io
 import json
 import os
 import shutil
@@ -14,8 +12,9 @@ from openguildkit.alerts import (
     accept_alert, blocking_alerts, find_alert, import_report, link_alert, load_register, migrate_task, parse_report,
     set_status, summary, task_alerts,
 )
-from openguildkit.cli import main
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 FIXTURES = Path(__file__).with_name("fixtures") / "alerts"
 REPO = Path(__file__).resolve().parents[1]
@@ -144,17 +143,13 @@ class AlertTests(unittest.TestCase):
         self.assertEqual(link_alert(register, JINJA, "next")["alerts"][0]["tasks"], ["next", "upgrade"])
 
 
-class AlertFlowTests(unittest.TestCase):
+class AlertFlowTests(CapturedCli, unittest.TestCase):
+    cli_output = "status-stream"
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-
-    def cli(self, *args, code=0):
-        out, err = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            self.assertEqual(main(["--project", str(self.root), *map(str, args)]), code, err.getvalue())
-        return out.getvalue() if code == 0 else err.getvalue()
 
     def init(self):
         write_json(self.root / "p.json", {"name": "Portal", "stack": ["Python"]})
@@ -208,7 +203,7 @@ class AlertFlowTests(unittest.TestCase):
         self.assertEqual(register()["alerts"][0]["severity"], "unknown")
         self.assertEqual(blocking_alerts(register(), task), [])
         self.assertIn("interactive terminal", self.cli("alerts", "severity", JINJA, "--level", "critical", "--by", "Bot",
-                                                       "--reason", "CVSS 9.8", code=1))
+                                                       "--reason", "CVSS 9.8", code=1, stdin=""))
         self.assertEqual(register()["alerts"][0]["severity"], "unknown")
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=JINJA):
             output = self.cli("alerts", "severity", JINJA, "--level", "critical", "--by", "Camille", "--reason", "CVSS 9.8")

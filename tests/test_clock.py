@@ -51,13 +51,15 @@ class ClockTests(unittest.TestCase):
                                         "with patch.dict.")
 
     def test_source_date_epoch_replaces_now_and_today(self):
-        with patch.dict(os.environ, {"SOURCE_DATE_EPOCH": EPOCH}):
+        with patch.dict(os.environ, {"SOURCE_DATE_EPOCH": EPOCH}), contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(clock.now(), datetime(2025, 11, 20, 12, tzinfo=timezone.utc))
             self.assertEqual(clock.today(), date(2025, 11, 20))
             self.assertEqual(clock.timestamp(), "2025-11-20T12:00:00+00:00")
-        with patch.dict(os.environ, {}, clear=False):
+        local_day = date(2026, 11, 22)
+        with patch.dict(os.environ, {}, clear=False), patch.object(clock, "date") as local_date:
             os.environ.pop("SOURCE_DATE_EPOCH", None)
-            self.assertEqual(clock.today(), date.today())
+            local_date.today.return_value = local_day
+            self.assertEqual(clock.today(), local_day)
 
     def test_a_malformed_source_date_epoch_is_a_clear_error(self):
         for value in ("yesterday", "-5", "1.5", "²", "99999999999999999999"):

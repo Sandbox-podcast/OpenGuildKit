@@ -18,6 +18,8 @@ from tests.e2e.test_cli_flow import ENV, EXAMPLE, TASK_ID, CliTestCase
 
 
 class ReviewedTaskTestCase(CliTestCase):
+    subprocess_mode = True
+
     def review_with_blockers(self, phase=None):
         """The example review with a blocking security board, recorded through the CLI."""
         review = self.example_review()

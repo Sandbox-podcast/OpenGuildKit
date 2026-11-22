@@ -14,6 +14,8 @@ from openguildkit.guard import guard_mode
 from openguildkit.project import init_questions, load_profile, setup_profile, validate_profile
 from openguildkit.storage import read_json, write_json
 
+from tests.support import CapturedCli
+
 NEXTJS = ["Next.js 14.2", "React 18.3", "TypeScript"]
 FASTAPI = '[project]\nname = "svc"\ndependencies = ["fastapi>=0.115", "sqlalchemy>=2.0"]\n'
 
@@ -118,21 +120,13 @@ class AdditivePackTests(unittest.TestCase):
         self.assertNotIn("patterns", validate_profile(saved, self.catalog))
 
 
-class InitCommandTests(unittest.TestCase):
+class InitCommandTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name) / "ledger"
         self.root.mkdir()
         self.answers = Path(temporary.name) / "answers.json"
-
-    def run_cli(self, *arguments, code=0, stdin=None):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        replaced = patch("sys.stdin", io.StringIO(stdin)) if stdin is not None else contextlib.nullcontext()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr), replaced:
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def init(self, answers):
         write_json(self.answers, answers)

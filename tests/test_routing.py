@@ -1,13 +1,9 @@
 """Briefs that must, or must not, reach each brain. CI runs them on every catalog change."""
 
-import contextlib
-import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
-
-from openguildkit.cli import main
 
 from openguildkit.catalog import load_catalog
 from openguildkit.project import check_component, task_scope_profile, validate_profile
@@ -16,6 +12,7 @@ from openguildkit.consultation import consult
 from openguildkit.questionnaire import require_concerns, validate_answers
 from openguildkit.routing import normalize_text, normalize_with_offsets, select_boards, text_routes, trigger_matches
 
+from tests.support import run_cli
 from tests.test_pass_relevance import ProjectCase
 
 # routing_cases_new_brains.json holds the cases of the brains added after the first eighteen, then the cases that
@@ -375,25 +372,14 @@ class RoutingTests(unittest.TestCase):
             root = Path(folder)
             write_json(root / "p.json", profile)
             write_json(root / "a.json", {**NEUTRAL, "concerns": ["none"]})
-            run = lambda *args: main(["--project", str(root), *map(str, args)])
-            with contextlib.redirect_stdout(io.StringIO()):
-                run("init", "--answers", root / "p.json")
-                run("task", "new", "A weekly report for the support team", "--id", "report")
-            out = io.StringIO()
-            with contextlib.redirect_stdout(out):
-                self.assertEqual(run("task", "route", "report", "--answers", root / "a.json"), 0)
-        self.assertIn("--add BOARD --remove BOARD --reason TEXT", out.getvalue())
+            run_cli(root, "init", "--answers", root / "p.json")
+            run_cli(root, "task", "new", "A weekly report for the support team", "--id", "report")
+            route = run_cli(root, "task", "route", "report", "--answers", root / "a.json")
+        self.assertIn("--add BOARD --remove BOARD --reason TEXT", route.stdout)
 
 
 
 class RouteOutputTests(unittest.TestCase):
-    def cli(self, root: Path, *arguments) -> str:
-        out, err = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            code = main(["--project", str(root), *map(str, arguments)])
-        self.assertEqual(code, 0, err.getvalue())
-        return out.getvalue()
-
     def test_route_explains_exclusions_left_out_boards_tools_and_how_to_change(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -404,10 +390,10 @@ class RouteOutputTests(unittest.TestCase):
             (root / "answers.json").write_text(json.dumps({
                 "kind": "bug", "surface": "service", "data": "none", "research": "local", "concerns": ["none"],
                 "context": "No payments involved.", "affected": "Support managers"}), encoding="utf-8")
-            self.cli(root, "init", "--answers", root / "setup.json")
-            self.cli(root, "tools", "apply", "zendesk", "--mock", "--host", "claude-code")
-            self.cli(root, "task", "new", "Write the weekly report as a CSV file", "--id", "report-csv")
-            route = self.cli(root, "task", "route", "report-csv", "--answers", root / "answers.json")
+            run_cli(root, "init", "--answers", root / "setup.json")
+            run_cli(root, "tools", "apply", "zendesk", "--mock", "--host", "claude-code")
+            run_cli(root, "task", "new", "Write the weekly report as a CSV file", "--id", "report-csv")
+            route = run_cli(root, "task", "route", "report-csv", "--answers", root / "answers.json").stdout
             self.assertIn('support: Declared role of the project, and the task is for "Support managers"', route)
             self.assertIn("  tools: Zendesk (connected)", route)
             self.assertIn("Mentioned as excluded: finance (No payments)", route)
@@ -416,12 +402,12 @@ class RouteOutputTests(unittest.TestCase):
             self.assertNotIn("Other boards", route)
             self.assertIn("--add BOARD --remove BOARD --reason TEXT", route)
             answers = (root / "answers.json").as_posix()
-            route = self.cli(root, "task", "route", "report-csv", "--answers", root / "answers.json",
-                             "--add", "product", "--remove", "qa", "--reason", "Scope only, tests exist")
+            route = run_cli(root, "task", "route", "report-csv", "--answers", root / "answers.json",
+                             "--add", "product", "--remove", "qa", "--reason", "Scope only, tests exist").stdout
             self.assertIn(f'Apply: openguildkit task consult report-csv --answers {answers} --add product '
                           "--remove qa --reason 'Scope only, tests exist'", route)
-            selected = json.loads(self.cli(root, "task", "route", "report-csv", "--answers", root / "answers.json",
-                                           "--json"))
+            selected = json.loads(run_cli(root, "task", "route", "report-csv", "--answers", root / "answers.json",
+                                           "--json").stdout)
             self.assertEqual(selected["excluded"], {"finance": ["No payments"]})
 
     def test_route_shows_the_tools_of_the_project_and_who_can_query_a_named_one(self):
@@ -434,9 +420,9 @@ class RouteOutputTests(unittest.TestCase):
             (root / "answers.json").write_text(json.dumps({
                 "kind": "feature", "surface": "business", "data": "none", "research": "local", "concerns": ["none"],
                 "context": "Audience: support agents", "affected": "users"}), encoding="utf-8")
-            self.cli(root, "init", "--answers", root / "setup.json")
-            self.cli(root, "task", "new", "Zendesk ticket report for our support agents", "--id", "report")
-            route = self.cli(root, "task", "route", "report", "--answers", root / "answers.json")
+            run_cli(root, "init", "--answers", root / "setup.json")
+            run_cli(root, "task", "new", "Zendesk ticket report for our support agents", "--id", "report")
+            route = run_cli(root, "task", "route", "report", "--answers", root / "answers.json").stdout
             self.assertIn("  tools: Zendesk (listed, not connected)", route)
             self.assertIn("The brief names Zendesk: support (selected) can query it; customer-success, operations, "
                           "trust-and-safety could, with --add.", route)

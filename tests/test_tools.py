@@ -93,7 +93,7 @@ class RegistryTests(unittest.TestCase):
     def test_a_loopback_endpoint_is_accepted_for_servers_that_run_on_the_workstation(self):
         tool = copy.deepcopy(TOOL)
         tool["servers"][0]["url"] = "http://127.0.0.1:3845/mcp"
-        _validate_tool(tool, "testing")
+        self.assertIsNone(_validate_tool(tool, "testing"))
 
     def test_a_project_adds_its_own_tools_and_cannot_redefine_a_bundled_one(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -115,9 +115,9 @@ Run it on macOS or Linux, from the commit under test, with Claude Code signed in
 
 5. Write `reports/claude-code-DATE-controls.md` like the other reports: the versions, the commands, the lines quoted from `observe.jsonl`, `enforce.jsonl` and `deny.jsonl` (or the debug logs), and what was not observed. Then list it under [Reports](#reports) and replace this section's first bullet list with what the session showed. Keep keys, paths of your home folder and private details out of the report.
 
-### Codex: not run
+### Codex controls
 
-The Codex side of these controls was never observed in a live session: the owner has no Codex tokens left, so neither the hooks, nor the rules file, nor the disagreement of #23 were played under Codex. A maintainer with Codex CLI runs it on the same copy, with `"host": "codex"` in `answers.json` (`openguildkit integrations --host codex`, then `openguildkit host apply`). Codex reads `.codex/config.toml`, `.codex/rules/` and `.codex/hooks.json` only in a trusted project, after its hooks are reviewed: trust the copy first (answer yes when Codex asks, or add `[projects."<path of the copy>"]` with `trust_level = "trusted"` to `~/.codex/config.toml`). Then:
+A [Windows check on 2026-11-22](reports/codex-2026-11-22.md) reproduced the disagreement and insufficient-evidence cases with the rehearsal script. The Codex CLI session could start, but its tool policy refused the calls that would read the project. To observe the controls, run Codex CLI on the same copy, with `"host": "codex"` in `answers.json` (`openguildkit integrations --host codex`, then `openguildkit host apply`). Codex reads `.codex/config.toml`, `.codex/rules/` and `.codex/hooks.json` only in a trusted project, after its hooks are reviewed: trust the copy first (answer yes when Codex asks, or add `[projects."<path of the copy>"]` with `trust_level = "trusted"` to `~/.codex/config.toml`). Then:
 
 ```sh
 codex exec -s workspace-write "$PROMPT"

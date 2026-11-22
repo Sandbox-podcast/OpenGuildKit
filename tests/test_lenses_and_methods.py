@@ -1,19 +1,18 @@
 """Lenses that follow the task, and a method of its own for each discipline."""
 
-import contextlib
 import copy
-import io
 import tempfile
 import unittest
 from pathlib import Path
 
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
-from openguildkit.cli import main
 from openguildkit.patterns import is_stack_pattern
 from openguildkit.references import find_references, load_references
 from openguildkit.rule_checks import evaluate_check
 from openguildkit.storage import write_json
 from openguildkit.consultation import _board_template
+
+from tests.support import CapturedCli
 
 SURFACES = (["customer"], ["service"], ["infrastructure"], ["business"])
 CONCERNS = (["none"], ["money"], ["ai"], ["people-decisions"], ["credentials"])
@@ -71,18 +70,13 @@ class LensScopeTests(unittest.TestCase):
         validate_entry("boards", board)
 
 
-class BriefTests(unittest.TestCase):
+class BriefTests(CapturedCli, unittest.TestCase):
+    cli_output = "stdout"
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-
-    def run_cli(self, *arguments):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, 0, stderr.getvalue())
-        return stdout.getvalue()
 
     def test_task_brief_of_a_billing_service_change_lists_the_revenue_accountant(self):
         write_json(self.root / "profile.json", {"name": "Billing", "stack": ["Python"], "packs": [], "checks": []})

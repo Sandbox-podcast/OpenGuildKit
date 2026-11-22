@@ -1,7 +1,5 @@
 """Team sharing through git: exported decisions are read back, and what git cannot share is named."""
 
-import contextlib
-import io
 import json
 import shutil
 import subprocess
@@ -11,15 +9,16 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.cli import main
 from openguildkit.storage import read_json, write_json
+
+from tests.support import CapturedCli
 
 REPO = Path(__file__).resolve().parents[1]
 EXAMPLE = REPO / "examples" / "request-status"
 TASK = "request-status"
 
 
-class SharingCase(unittest.TestCase):
+class SharingCase(CapturedCli, unittest.TestCase):
     """A small project with one approved task, and the commands that complete it or change its rules."""
 
     def setUp(self):
@@ -30,13 +29,6 @@ class SharingCase(unittest.TestCase):
         write_json(self.root / "profile.json", {"name": "Support portal", "stack": ["Python"], "packs": [], "checks": [command]})
         self.run_cli("init", "--answers", self.root / "profile.json")
         self.state = self.root / ".openguildkit"
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def approved(self, task_id=TASK):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", task_id)
