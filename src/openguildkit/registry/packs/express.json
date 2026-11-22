@@ -1,7 +1,7 @@
 {
   "id": "express",
   "title": "Express on Node.js",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "For an HTTP service built with Express: supported versions, error handling, response headers, session cookies and login throttling.",
   "sources": [
     {
@@ -53,6 +53,24 @@
       "id": "validate-redirect-targets",
       "instruction": "Redirect only to paths or hosts on an allowlist when the target comes from the request.",
       "verification": "Test the changed redirect with an external URL and assert that the response does not send the user there."
+    },
+    {
+      "id": "declare-node-engines",
+      "instruction": "Declare the supported Node.js range in the `engines` field of the service's `package.json`.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "package.json",
+          "apps/*/package.json",
+          "services/*/package.json",
+          "packages/*/package.json"
+        ],
+        "contains": [
+          "\"engines\""
+        ],
+        "expect": "present"
+      }
     }
   ]
 }

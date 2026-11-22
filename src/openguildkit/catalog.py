@@ -272,8 +272,16 @@ def _validate_evidence(evidence: Any, label: str) -> None:
 
 
 def _validate_rule(rule: Any, label: str, allow_command: bool) -> None:
-    """A rule states an instruction and its verification; a machine check can stand in for both."""
-    _validate_fields(rule, label, {"id"}, {"instruction", "verification", "check", "evidence", "records"})
+    """A rule states an instruction and its verification; a machine check can stand in for both.
+
+    A rule without a check may say in `manual` why only a person can verify it, such as a record kept outside
+    the repository or a behaviour that shows only in a running system.
+    """
+    _validate_fields(rule, label, {"id"}, {"instruction", "verification", "check", "evidence", "records", "manual"})
+    if "manual" in rule:
+        _validate_text(rule["manual"], f"{label}.manual")
+        if "check" in rule:
+            raise CatalogError(f"{label} carries a check, which task verify evaluates: remove its manual reason")
     _validate_id(rule["id"], f"{label}.id")
     if "check" in rule and isinstance(rule["check"], dict) and rule["check"].keys() == {"max_minutes"}:
         if rule["id"] != EXPORT_EXPIRY_ID or not is_positive_integer(rule["check"]["max_minutes"]):

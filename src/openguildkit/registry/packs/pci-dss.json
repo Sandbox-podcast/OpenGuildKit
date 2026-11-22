@@ -104,7 +104,8 @@
     {
       "id": "no-sensitive-authentication-data-after-authorization",
       "instruction": "Do not keep sensitive authentication data, such as card verification codes, after authorization, even encrypted, and not for card-on-file or recurring payments (PCI DSS v4.0.1 Requirement 3.3.1).",
-      "verification": "Search the schemas, logs, caches and queues the change touches for card verification codes and full track data, and confirm none is kept after authorization."
+      "verification": "Search the schemas, logs, caches and queues the change touches for card verification codes and full track data, and confirm none is kept after authorization.",
+      "manual": "Schemas, logs, caches and queues hold the data at run time; a person searches them for card verification codes."
     },
     {
       "id": "limit-cardholder-data-retention",
@@ -115,52 +116,62 @@
           "id": "retention-policy",
           "title": "Data retention and disposal policy for cardholder data"
         }
-      ]
+      ],
+      "manual": "The retention period comes from the data retention policy, outside the repository."
     },
     {
       "id": "render-pan-unreadable",
       "instruction": "When the change stores a primary account number, render it unreadable; a hash covers the entire PAN with keyed cryptographic hashing (Requirement 3.5.1.1), and hashed and truncated versions of a PAN cannot be correlated (Requirement 3.5.1).",
-      "verification": "Inspect the storage code and schema for each PAN field and check the hashing key management or the encryption used."
+      "verification": "Inspect the storage code and schema for each PAN field and check the hashing key management or the encryption used.",
+      "manual": "Whether the hashing key management or the encryption is strong is a reviewer's judgement on the storage design."
     },
     {
       "id": "protect-pan-in-transit",
       "instruction": "Send cardholder data over open, public networks only with strong cryptography (Requirement 4.2.1), and never send an unprotected PAN through e-mail, chat, SMS or other end-user messaging (Requirement 4.2.2).",
-      "verification": "Review the TLS settings of each new endpoint or client and search notifications and support flows for PANs."
+      "verification": "Review the TLS settings of each new endpoint or client and search notifications and support flows for PANs.",
+      "manual": "The TLS settings of a deployed endpoint and the content of notifications show at run time."
     },
     {
       "id": "mask-displayed-pan",
       "instruction": "Mask the PAN wherever the change displays it, so that at most the BIN and the last four digits appear, unless a role with a documented business need sees more (Requirement 3.4.1).",
-      "verification": "Open each changed screen, report and export that shows a PAN with a test card and check that roles without the documented need see at most the BIN and the last four digits."
+      "verification": "Open each changed screen, report and export that shows a PAN with a test card and check that roles without the documented need see at most the BIN and the last four digits.",
+      "manual": "Masking shows on the rendered screens, reports and exports of a running system."
     },
     {
       "id": "authorize-payment-page-scripts",
       "instruction": "When the change adds or alters a script on a payment page, make sure no unauthorized code can run in the page as the customer's browser renders it, using the techniques of Requirements 6.4.3 and 11.6.1.",
-      "verification": "List the scripts the payment page loads after the change and show that each one is authorized and that the protection against script changes covers it."
+      "verification": "List the scripts the payment page loads after the change and show that each one is authorized and that the protection against script changes covers it.",
+      "manual": "The scripts a payment page loads show in the browser that renders it."
     },
     {
       "id": "no-live-pans-before-production",
       "instruction": "Use only test card numbers in development, test and staging environments; a live PAN may appear there only when the environment is inside the cardholder data environment and protected under every applicable requirement (Requirement 6.5.5).",
-      "verification": "Check the seed data, fixtures and test configuration the change adds and confirm that every card number is a test number of the payment provider."
+      "verification": "Check the seed data, fixtures and test configuration the change adds and confirm that every card number is a test number of the payment provider.",
+      "manual": "Telling a live PAN from a test number needs the provider's list of test numbers and the environment's scope."
     },
     {
       "id": "remove-test-data-before-production",
       "instruction": "Remove the test data and test accounts the change adds from system components before the system goes into production (Requirement 6.5.6).",
-      "verification": "List the test accounts and test data the change adds and check that the production deployment or migration leaves none of them."
+      "verification": "List the test accounts and test data the change adds and check that the production deployment or migration leaves none of them.",
+      "manual": "Test accounts and data live in the deployed systems, outside the repository."
     },
     {
       "id": "no-shared-accounts",
       "instruction": "Give each user and administrator an individual ID; allow a shared or generic account only for an exceptional need and manage it under Requirement 8.2.2.",
-      "verification": "Review the accounts and service credentials the change adds and name the person accountable for each shared one."
+      "verification": "Review the accounts and service credentials the change adds and name the person accountable for each shared one.",
+      "manual": "Accounts and the people accountable for them are recorded in the identity system, outside the repository."
     },
     {
       "id": "reauthenticate-after-idle",
       "instruction": "Require users to authenticate again after 15 minutes of idle time on sessions that reach the cardholder data environment (Requirement 8.2.8).",
-      "verification": "Test that an idle session of the changed application asks for authentication again after 15 minutes."
+      "verification": "Test that an idle session of the changed application asks for authentication again after 15 minutes.",
+      "manual": "The idle timeout shows in a running session."
     },
     {
       "id": "hash-authentication-factors",
       "instruction": "Render passwords and other authentication factors unreadable in storage and transmission with strong cryptography, such as a strong password hash (Requirement 8.3.2).",
-      "verification": "Inspect how the change stores and transmits passwords or tokens and name the hashing or encryption used."
+      "verification": "Inspect how the change stores and transmits passwords or tokens and name the hashing or encryption used.",
+      "manual": "The choice of hashing or encryption is reviewed in the storage and transport design."
     },
     {
       "id": "no-hard-coded-passwords",
@@ -190,12 +201,14 @@
     {
       "id": "log-cardholder-data-access",
       "instruction": "Log individual access to cardholder data in the application, the database or the operating system, so that the logs required by Requirement 10 show who did what, where, when and how.",
-      "verification": "Run the changed access path in a test and find the resulting log entry with the user, action, target and time."
+      "verification": "Run the changed access path in a test and find the resulting log entry with the user, action, target and time.",
+      "manual": "Log entries appear when the access path runs."
     },
     {
       "id": "review-payment-service-providers",
       "instruction": "When the change adds a third party that can affect the security of cardholder data, such as a payment script provider, ask the compliance owner to manage it as a service provider under Requirements 12.8 and 12.9.",
-      "verification": "Link the compliance owner's recorded decision for each new provider."
+      "verification": "Link the compliance owner's recorded decision for each new provider.",
+      "manual": "The compliance owner's decision on a provider is recorded outside the repository."
     }
   ]
 }

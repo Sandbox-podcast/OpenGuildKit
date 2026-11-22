@@ -1,7 +1,7 @@
 {
   "id": "gitlab-ci-security",
   "title": "GitLab CI/CD pipeline security",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "For a project built with GitLab CI/CD: protected variables, pinned includes and images, short-lived cloud credentials, job token scope and protected environments.",
   "sources": [
     {
@@ -60,6 +60,22 @@
       "id": "protect-deployment-environments",
       "instruction": "Mark production environments as protected and name the roles or groups allowed to deploy.",
       "verification": "Check the protected environments settings and run a deployment job as a user outside the allowed list to confirm it is blocked."
+    },
+    {
+      "id": "no-latest-job-images",
+      "instruction": "Do not reference a job image tagged `latest` in the GitLab CI configuration.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".gitlab-ci.yml",
+          ".gitlab/ci/*.yml"
+        ],
+        "contains": [
+          ":latest"
+        ],
+        "expect": "absent"
+      }
     }
   ]
 }

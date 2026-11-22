@@ -90,6 +90,19 @@ def sector_rows(catalog):
     return rows
 
 
+def check_rows(catalog):
+    """Each pack's rules, the rules with a machine check and those whose `manual` says why a person verifies them."""
+    return [
+        {
+            "pack": pack_id,
+            "rules": len(pack["rules"]),
+            "machine": sum(1 for rule in pack["rules"] if "check" in rule),
+            "manual": sum(1 for rule in pack["rules"] if "manual" in rule),
+        }
+        for pack_id, pack in sorted(catalog["packs"].items())
+    ]
+
+
 def render(catalog, families):
     brains = brain_rows(catalog, families)
     lines = [
@@ -133,6 +146,19 @@ def render(catalog, families):
     ]
     for row in sector_rows(catalog):
         lines.append(f"| {row['sector']} | {row['patterns']} | {row['packs']} | {row['rules']} |")
+    checks = check_rows(catalog)
+    lines += [
+        "",
+        "## Machine checks by pack",
+        "",
+        f"{sum(row['machine'] for row in checks)} of {sum(row['rules'] for row in checks)} rules carry a machine check "
+        "that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, "
+        "such as a record kept outside the repository, or is answered in the task result.",
+        "",
+        "| Pack | Rules | Machine checks | Verified by a person, reason given |",
+        "|---|---:|---:|---:|",
+    ]
+    lines += [f"| {row['pack']} | {row['rules']} | {row['machine']} | {row['manual']} |" for row in checks]
     lines += [
         "",
         "## Not turned into rules",

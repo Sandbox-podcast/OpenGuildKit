@@ -67,7 +67,7 @@ A pack is a versioned set of rules an agent follows and a reviewer can verify.
 | `version` | `major.minor.patch`, no leading zeros |
 | `depends_on` | Optional. IDs of other packs. Must exist, no duplicates, no cycles. Dependencies are activated before the pack. |
 | `conflicts_with` | Optional. IDs of packs whose rules cannot both apply to the same scope. A project that selects both must record which ones it keeps, with a reason. A pack cannot depend on a pack it conflicts with. |
-| `rules` | Non-empty array of `{id, instruction, verification}`, each with an optional `check`, an optional `evidence` and an optional `records` (see below). Rule IDs follow the ID format and are unique within the pack. A rule with a `check` may leave out `instruction` and `verification`: the CLI writes them from the check. |
+| `rules` | Non-empty array of `{id, instruction, verification}`, each with an optional `check`, an optional `evidence`, an optional `records` and an optional `manual` (see below). Rule IDs follow the ID format and are unique within the pack. A rule with a `check` may leave out `instruction` and `verification`: the CLI writes them from the check. |
 
 Versioning: bump `patch` for wording fixes, `minor` for a new rule, `major` for a removed or reversed rule. Projects pin the records they use in `.openguildkit/catalog.lock.json`, so a changed pack reaches them only when they run `openguildkit update --apply`. From then on their fingerprint changes and pending approvals need a new consultation.
 
@@ -96,6 +96,8 @@ A rule can also name pieces of evidence that a person keeps outside the code, su
 ```
 
 Each entry becomes a check `evidence:PACK/RULE/ID` that a task answers in `task result` when its pack concerns the task (see [workflow](workflow.md#only-the-rules-that-concern-the-task)) and, for an entry with `when`, when the task's `data` meets it: either the evidence itself, status `passed` with a project path that exists or an `https://` link and the `owner` who provided or confirmed it, or status `not-applicable` with a `reason` and an `owner` when it does not concern the task. `task complete` refuses the task while an asked evidence has no answer. The evidence must be supplied (`"requirement": "passed"` in the template), and `not-applicable` is held back, when the rule or its pack is listed in the profile's `required_rules`, or when the entry declares `"when": {"data": [...]}` and the task's `data` answer is one of the listed values (`none`, `internal`, `personal`, `regulated`, `unsure`). The `gdpr` pack uses `"when": {"data": ["personal", "regulated", "unsure"]}` for the record of processing activities and the decision on a data protection impact assessment: when the requester does not know whether personal data is involved, the evidence is supplied or the answer is settled first. A rule names at most 5 pieces of evidence.
+
+A rule that no file of the project can settle says why in `manual`, one line: the record lives outside the repository, the decision is a legal assessment, the behaviour shows only in a running system. A rule has a `check` or a `manual`, never both. Every rule of the bundled regulation packs (`gdpr`, `dora`, `nis2`, `iso-27001`, `pci-dss`, `eu-ai-act`, `cyber-resilience-act`, `european-accessibility-act`) has one of the two, and most stack packs carry at least one `text` or `field` check; `tests/test_machine_checks.py` lists the stack packs without one and why. [Catalog coverage](coverage.md#machine-checks-by-pack) counts both per pack.
 
 ### A value the task records
 

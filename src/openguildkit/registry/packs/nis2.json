@@ -1,7 +1,7 @@
 {
   "id": "nis2",
   "title": "NIS 2 cybersecurity measures",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Questions for the security owner and evidence checks for essential and important entities under Directive (EU) 2022/2555 (NIS 2), as transposed into national law. These rules do not establish compliance.",
   "sources": [
     {
@@ -22,7 +22,8 @@
     {
       "id": "confirm-nis2-scope",
       "instruction": "Ask the security owner whether the organization is an essential or important entity under the national law transposing NIS 2 (Art. 3), and record which national text applies.",
-      "verification": "Link the recorded answer and the national text from the change."
+      "verification": "Link the recorded answer and the national text from the change.",
+      "manual": "Whether the organization is an essential or important entity depends on the national law, which the security owner assesses."
     },
     {
       "id": "publish-vulnerability-handling",
@@ -40,22 +41,26 @@
     {
       "id": "review-supplier-security",
       "instruction": "When the change adds a direct supplier or service provider, ask the security owner to record its security assessment (Art. 21(2)(d) and 21(3)).",
-      "verification": "Check that the supplier register links the assessment."
+      "verification": "Check that the supplier register links the assessment.",
+      "manual": "Supplier assessments are kept in the supplier register, outside the repository."
     },
     {
       "id": "require-multi-factor-authentication",
       "instruction": "Ask the security owner whether administrative access to the changed system requires multi-factor authentication (Art. 21(2)(j)), and configure it where required.",
-      "verification": "Inspect the identity provider or access configuration for the administrative roles of the changed system."
+      "verification": "Inspect the identity provider or access configuration for the administrative roles of the changed system.",
+      "manual": "Multi-factor settings live in the identity provider, not in the repository."
     },
     {
       "id": "use-approved-cryptography",
       "instruction": "Use the cryptography and encryption choices of the entity's policy (Art. 21(2)(h)) for the data the change stores or transmits.",
-      "verification": "Compare the configured algorithms, key lengths and TLS settings with the policy."
+      "verification": "Compare the configured algorithms, key lengths and TLS settings with the policy.",
+      "manual": "A person compares the configured algorithms with the entity's cryptography policy."
     },
     {
       "id": "test-backup-and-recovery",
       "instruction": "Include the changed system in backup management and disaster recovery (Art. 21(2)(c)).",
-      "verification": "Link the latest recovery test record that covers the system."
+      "verification": "Link the latest recovery test record that covers the system.",
+      "manual": "Recovery tests run on the infrastructure and are recorded outside the repository."
     }
   ]
 }

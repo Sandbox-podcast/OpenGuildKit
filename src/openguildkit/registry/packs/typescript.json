@@ -1,13 +1,13 @@
 {
   "id": "typescript",
   "title": "TypeScript",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Type-checking and input-boundary conventions for TypeScript projects.",
   "sources": [
     {
       "title": "TypeScript strict mode",
       "url": "https://www.typescriptlang.org/tsconfig/strict.html",
-      "checked": "2026-11-21"
+      "checked": "2026-11-22"
     },
     {
       "title": "TypeScript narrowing",
@@ -30,6 +30,25 @@
       "id": "preserve-typed-contracts",
       "instruction": "Update shared types and consumers together when changing public interfaces.",
       "verification": "Compile affected packages and verify compatibility with supported consumers."
+    },
+    {
+      "id": "keep-strict-mode-on",
+      "instruction": "Keep `strict` on in the committed TypeScript configuration: no tsconfig file of the project turns it off, since it enables the whole strict mode family of checks.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "tsconfig.json",
+          "tsconfig.*.json",
+          "apps/*/tsconfig.json",
+          "packages/*/tsconfig.json"
+        ],
+        "contains": [
+          "\"strict\": false",
+          "\"strict\":false"
+        ],
+        "expect": "absent"
+      }
     }
   ]
 }

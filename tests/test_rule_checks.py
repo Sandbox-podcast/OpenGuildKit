@@ -401,7 +401,8 @@ class RegulationPackTests(unittest.TestCase):
         self.assertIn("register-of-information", evidence["dora"])
         for pack_id in ("nis2", "cyber-resilience-act"):
             checks = [rule["check"] for rule in packs[pack_id]["rules"] if "check" in rule]
-            self.assertEqual(checks[0]["kind"], "file-exists", pack_id)
+            self.assertIn({"kind": "file-exists", "paths": ["SECURITY.md", ".github/SECURITY.md", "docs/SECURITY.md"]},
+                          checks, pack_id)
 
     def test_financial_services_has_dora_and_gdpr_by_default_unless_declined(self):
         default = validate_profile({"name": "Ledger", "sector": "financial-services"}, self.catalog)

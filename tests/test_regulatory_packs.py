@@ -61,7 +61,7 @@ class RegulatoryPackTests(unittest.TestCase):
         )
         self.assertIn("dora", resolved_profile(profile, self.catalog)["packs"])
         instructions = render_instructions(profile, self.catalog)
-        self.assertIn("`dora@2.1.0`", instructions)
+        self.assertIn("`dora@2.1.1`", instructions)
         self.assertTrue(re.search(r"financial entity under DORA", instructions))
 
     def test_gdpr_asks_for_the_notice_the_tracker_consent_and_the_art_22_safeguards(self):

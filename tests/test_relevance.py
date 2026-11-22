@@ -54,8 +54,10 @@ class RelevanceTests(unittest.TestCase):
         self.assertIn("ai/people-decisions", skipped["llm-evaluations"] + skipped.get("eu-ai-act", "ai/people-decisions"))
         listed = sum(entry["checks"] for entry in template["not_concerned"])
         in_packs = sum(len(pack["rules"]) for pack in template["packs"])
-        self.assertEqual(len(template["checks"]) + in_packs + listed,
-                         len([c for c in every if c["kind"] in ("rule", "evidence")]))
+        # A rule with a machine check is recorded by task verify, listed apart from the answers.
+        verified = len([item for item in template["recorded_by_verify"] if item["check"].startswith("rule:")])
+        self.assertEqual(len(template["checks"]) + in_packs + listed + verified,
+                         len([c for c in every if c["kind"] in ("rule", "evidence", "machine")]))
 
     def test_personal_data_selects_the_gdpr_rules_and_their_evidence(self):
         task, profile = self.task({**BUG, "kind": "feature", "data": "personal"},

@@ -60,32 +60,38 @@
             ]
           }
         }
-      ]
+      ],
+      "manual": "The record of processing activities lives outside the repository; its entry is named evidence the privacy owner supplies."
     },
     {
       "id": "confirm-lawful-basis",
       "instruction": "Ask the privacy owner which lawful basis of Art. 6 covers each new purpose of processing, and record the answer in the processing record.",
-      "verification": "Check that the processing record names a lawful basis for each purpose the change introduces."
+      "verification": "Check that the processing record names a lawful basis for each purpose the change introduces.",
+      "manual": "Choosing a lawful basis is a legal decision of the privacy owner, not a property of the code."
     },
     {
       "id": "inform-data-subjects",
       "instruction": "When the change collects personal data in a new form, screen or flow, or uses it for a new purpose or recipient, ask the privacy owner to update the information given to people: when the data is collected from them (Art. 13), or within one month at the latest when it is not (Art. 14(3)(a)).",
-      "verification": "On a test page of the changed flow, check that the information, or a link to it, is shown where the data is collected, before it is sent, and that it names the controller, the purposes, the legal basis, the recipients and the retention period."
+      "verification": "On a test page of the changed flow, check that the information, or a link to it, is shown where the data is collected, before it is sent, and that it names the controller, the purposes, the legal basis, the recipients and the retention period.",
+      "manual": "The information must be read on the rendered page of the changed flow and compared with the processing record."
     },
     {
       "id": "gate-trackers-on-consent",
       "instruction": "When the change stores or reads information on the user's device, such as a cookie, a local storage entry or a tracking pixel, do it only after the user consents, unless it is strictly necessary to transmit the communication or to provide the service the user asked for (Directive 2002/58/EC Art. 5(3)).",
-      "verification": "Open the changed page on a test page in a browser with an empty profile, list the cookies and storage entries set before any choice and check that only strictly necessary ones are present; refuse, reload and check again."
+      "verification": "Open the changed page on a test page in a browser with an empty profile, list the cookies and storage entries set before any choice and check that only strictly necessary ones are present; refuse, reload and check again.",
+      "manual": "What a page stores before consent shows only in a browser that loads it, not in the repository's files."
     },
     {
       "id": "minimise-collected-fields",
       "instruction": "Collect only the personal data fields that the recorded purpose needs (Art. 5(1)(c) and Art. 25(2)).",
-      "verification": "Compare the fields added to forms, schemas and logs with the purpose in the processing record, and list any field without a stated need."
+      "verification": "Compare the fields added to forms, schemas and logs with the purpose in the processing record, and list any field without a stated need.",
+      "manual": "Whether a field is needed depends on the purpose the privacy owner recorded, which no file of the project states."
     },
     {
       "id": "apply-retention-period",
       "instruction": "Ask the privacy owner for the retention period of the new data (Art. 5(1)(e)), and implement its deletion or anonymisation in the repository.",
-      "verification": "Find the deletion job, policy or test that applies the recorded retention period to the new data."
+      "verification": "Find the deletion job, policy or test that applies the recorded retention period to the new data.",
+      "manual": "The retention period is the privacy owner's decision; a person compares the deletion job with it."
     },
     {
       "id": "assess-dpia-need",
@@ -103,27 +109,32 @@
             ]
           }
         }
-      ]
+      ],
+      "manual": "The decision on an impact assessment belongs to the data protection officer; it is named evidence."
     },
     {
       "id": "review-processor-terms",
       "instruction": "When a new service provider processes personal data for the organization, ask the legal owner to confirm a contract that meets Art. 28.",
-      "verification": "Check that the processing record names the provider and links the signed processing terms."
+      "verification": "Check that the processing record names the provider and links the signed processing terms.",
+      "manual": "The processing terms are a signed contract kept outside the repository."
     },
     {
       "id": "check-transfer-mechanism",
       "instruction": "When personal data leaves the European Economic Area, ask the legal owner which Chapter V mechanism applies: an adequacy decision (Art. 45), appropriate safeguards such as standard contractual clauses (Art. 46), binding corporate rules (Art. 47) or a derogation for a specific situation (Art. 49).",
-      "verification": "Check that the processing record names the destination country and the transfer mechanism."
+      "verification": "Check that the processing record names the destination country and the transfer mechanism.",
+      "manual": "The transfer mechanism is a legal choice that the legal owner records outside the repository."
     },
     {
       "id": "keep-data-subject-rights-working",
       "instruction": "Make the new personal data reachable by the project's access, rectification and erasure procedures (Art. 15 to 17).",
-      "verification": "Run the export and erasure procedures on a test account and confirm that they return or remove the new data."
+      "verification": "Run the export and erasure procedures on a test account and confirm that they return or remove the new data.",
+      "manual": "The export and erasure procedures run against a test account in a running system."
     },
     {
       "id": "review-automated-decisions",
       "instruction": "When the change takes a decision about a person based solely on automated processing, including profiling, with legal or similarly significant effects, ask the privacy owner which exception of Art. 22(2) applies, and for a contract or consent implement the safeguards of Art. 22(3): human intervention, a way for the person to express their view and to contest the decision.",
-      "verification": "Run the decision path in a test and show where the person asks for a human review and contests the outcome, and link the privacy owner's recorded Art. 22(2) exception."
+      "verification": "Run the decision path in a test and show where the person asks for a human review and contests the outcome, and link the privacy owner's recorded Art. 22(2) exception.",
+      "manual": "The Art. 22(2) exception is a legal assessment, and the safeguards show in a running decision path."
     }
   ]
 }

@@ -12,10 +12,10 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | communication | 22 | 9 | 13 | 2 | 0 | 3 | 8 |
 | customer-success | 5 | 2 | 3 | 1 | 0 | 1 | 4 |
 | data | 63 | 7 | 56 | 5 | 1 | 7 | 38 |
-| design | 26 | 5 | 21 | 10 | 5 | 17 | 65 |
+| design | 26 | 5 | 21 | 10 | 5 | 17 | 69 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
-| devops | 69 | 22 | 47 | 7 | 6 | 13 | 64 |
-| engineering | 217 | 24 | 193 | 12 | 26 | 41 | 198 |
+| devops | 69 | 22 | 47 | 7 | 6 | 13 | 69 |
+| engineering | 217 | 24 | 193 | 12 | 26 | 41 | 218 |
 | finance | 23 | 14 | 9 | 11 | 1 | 13 | 49 |
 | frontend | 8 | 3 | 5 | 2 | 0 | 4 | 19 |
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
@@ -30,9 +30,9 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | procurement | 8 | 6 | 2 | 1 | 0 | 1 | 5 |
 | product | 23 | 7 | 16 | 18 | 0 | 18 | 63 |
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
-| qa | 50 | 6 | 44 | 5 | 20 | 29 | 139 |
+| qa | 50 | 6 | 44 | 5 | 20 | 29 | 154 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 103 | 27 | 76 | 19 | 17 | 43 | 231 |
+| security | 103 | 27 | 76 | 19 | 17 | 43 | 250 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -40,33 +40,33 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 
 | Stack pattern | Technologies | Packs | Rules |
 |---|---|---|---:|
-| android-kotlin | android | android-app, mobile-accessibility, mobile-store-release | 15 |
-| angular | angular | angular, typescript | 9 |
-| aws-iam | aws / amazon web services | aws-iam | 5 |
+| android-kotlin | android | android-app, mobile-accessibility, mobile-store-release | 16 |
+| angular | angular | angular, typescript | 11 |
+| aws-iam | aws / amazon web services | aws-iam | 6 |
 | chaosfolk-e2e | chaosfolk / chaos folk | chaosfolk-e2e | 10 |
 | django | django | django, python | 10 |
-| docker-images | docker / dockerfile / containerfile | container-images | 5 |
-| dotnet-aspnet-core | asp.net core | api-design, aspnet-core | 7 |
-| github-actions-ci | github actions / gh actions | github-actions-security | 3 |
-| gitlab-ci-security | gitlab ci / gitlab ci/cd | gitlab-ci-security | 6 |
+| docker-images | docker / dockerfile / containerfile | container-images | 6 |
+| dotnet-aspnet-core | asp.net core | api-design, aspnet-core | 8 |
+| github-actions-ci | github actions / gh actions | github-actions-security | 4 |
+| gitlab-ci-security | gitlab ci / gitlab ci/cd | gitlab-ci-security | 7 |
 | go-postgresql | go / golang + postgresql / postgres | api-design, go-database, postgresql | 9 |
-| ios-swift | ios / ipados / swiftui / uikit | ios-app, mobile-accessibility, mobile-store-release | 14 |
+| ios-swift | ios / ipados / swiftui / uikit | ios-app, mobile-accessibility, mobile-store-release | 15 |
 | java-spring-boot | spring boot | api-design, spring-boot | 6 |
 | kubernetes-gitops | kubernetes / k8s + gitops / argo cd / flux / fluxcd | kubernetes-gitops | 3 |
-| laravel | laravel | laravel | 6 |
-| nextjs-react | next.js | nextjs, react | 9 |
-| node-express | express / express.js | api-design, express | 9 |
+| laravel | laravel | laravel | 7 |
+| nextjs-react | next.js | nextjs, react | 11 |
+| node-express | express / express.js | api-design, express | 10 |
 | pci-dss-cardholder-data | Stripe / Adyen / Braintree / Checkout.com / Worldpay / Mollie | pci-dss | 14 |
 | playwright-web | playwright / playwright test | playwright | 4 |
 | postgresql-database | postgresql / postgres | postgresql | 3 |
 | python-development | python / python3 | python | 3 |
-| python-fastapi-postgresql | python / python3 + fastapi + postgresql / postgres | api-design, fastapi, postgresql, python | 12 |
+| python-fastapi-postgresql | python / python3 + fastapi + postgresql / postgres | api-design, fastapi, postgresql, python | 13 |
 | python-pytest | python / python3 + pytest | pytest, python | 6 |
-| rails | rails / ruby on rails | rails | 6 |
-| react-web | react / react.js / next.js | react | 4 |
+| rails | rails / ruby on rails | rails | 7 |
+| react-web | react / react.js / next.js | react | 5 |
 | terraform-kubernetes | terraform + kubernetes / k8s | terraform-kubernetes | 3 |
-| typescript-development | typescript / ts | typescript | 3 |
-| vue | vue / vue.js / nuxt | vue | 6 |
+| typescript-development | typescript / ts | typescript | 4 |
+| vue | vue / vue.js / nuxt | vue | 7 |
 
 ## By sector
 
@@ -82,7 +82,114 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | healthcare | health-data-protection | health-data-protection | 7 |
 | insurance | dora-financial-entity, insurance-distribution | dora, incident-notification, insurance-distribution | 19 |
 | public-sector | public-sector-accessibility | public-sector-accessibility, web-accessibility | 14 |
-| software-publisher | cyber-resilience-act-product, iso-27001-certification | cyber-resilience-act, incident-notification, iso-27001, secure-sdlc | 30 |
+| software-publisher | cyber-resilience-act-product, iso-27001-certification | cyber-resilience-act, incident-notification, iso-27001, secure-sdlc | 31 |
+
+## Machine checks by pack
+
+22 of 450 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+
+| Pack | Rules | Machine checks | Verified by a person, reason given |
+|---|---:|---:|---:|
+| account-health-review | 4 | 0 | 0 |
+| agent-workflow | 4 | 0 | 0 |
+| android-app | 7 | 1 | 0 |
+| angular | 7 | 1 | 0 |
+| api-design | 3 | 0 | 0 |
+| aspnet-core | 5 | 1 | 0 |
+| aws-iam | 6 | 1 | 0 |
+| backend-data-safety | 4 | 0 | 0 |
+| business-case-review | 2 | 0 | 0 |
+| campaign-measurement | 2 | 0 | 0 |
+| campaign-planning | 2 | 0 | 0 |
+| channel-selection | 2 | 0 | 0 |
+| chaosfolk-e2e | 10 | 0 | 0 |
+| container-images | 6 | 1 | 0 |
+| controlled-experiments | 2 | 0 | 0 |
+| cyber-resilience-act | 6 | 2 | 4 |
+| deal-approval | 4 | 0 | 0 |
+| design-process | 2 | 0 | 0 |
+| device-and-access-lifecycle | 5 | 0 | 0 |
+| django | 7 | 1 | 0 |
+| dora | 7 | 0 | 7 |
+| employee-offboarding | 4 | 0 | 0 |
+| enterprise-risk-review | 2 | 0 | 0 |
+| eu-ai-act | 8 | 0 | 8 |
+| european-accessibility-act | 4 | 0 | 4 |
+| express | 7 | 1 | 0 |
+| fastapi | 4 | 1 | 0 |
+| financial-planning | 2 | 0 | 0 |
+| finops-cost-management | 4 | 0 | 0 |
+| frontend-delivery | 4 | 0 | 0 |
+| gdpr | 11 | 0 | 11 |
+| github-actions-security | 4 | 1 | 0 |
+| gitlab-ci-security | 7 | 1 | 0 |
+| go-database | 3 | 0 | 0 |
+| health-data-protection | 7 | 0 | 0 |
+| i18n-readiness | 5 | 0 | 0 |
+| incident-notification | 6 | 0 | 0 |
+| incident-response | 4 | 0 | 0 |
+| insurance-distribution | 6 | 0 | 0 |
+| ios-app | 6 | 1 | 0 |
+| iso-27001 | 14 | 1 | 13 |
+| jobs-to-be-done | 1 | 0 | 0 |
+| kanban-delivery | 5 | 0 | 0 |
+| kubernetes-gitops | 3 | 0 | 0 |
+| laravel | 7 | 1 | 0 |
+| leadership-planning | 2 | 0 | 0 |
+| llm-evaluations | 5 | 0 | 0 |
+| market-evidence | 2 | 0 | 0 |
+| meddpicc-qualification | 3 | 0 | 0 |
+| minors-data-protection | 7 | 0 | 0 |
+| mobile-accessibility | 4 | 0 | 0 |
+| mobile-store-release | 5 | 0 | 0 |
+| nextjs | 6 | 1 | 0 |
+| nis2 | 6 | 1 | 5 |
+| nist-ai-risk | 3 | 0 | 0 |
+| notice-and-action | 5 | 0 | 0 |
+| onboarding-practice | 3 | 0 | 0 |
+| online-consumer-sales | 10 | 0 | 0 |
+| opportunity-solution-tree | 1 | 0 | 0 |
+| owasp-asvs | 6 | 0 | 0 |
+| partner-program | 4 | 0 | 0 |
+| pay-transparency | 4 | 0 | 0 |
+| pci-dss | 14 | 1 | 13 |
+| playwright | 4 | 0 | 0 |
+| postgresql | 3 | 0 | 0 |
+| product-discovery | 1 | 0 | 0 |
+| project-governance | 3 | 0 | 0 |
+| project-planning | 1 | 0 | 0 |
+| public-api-docs | 4 | 0 | 0 |
+| public-sector-accessibility | 7 | 0 | 0 |
+| pytest | 3 | 0 | 0 |
+| python | 3 | 0 | 0 |
+| rails | 7 | 1 | 0 |
+| react | 5 | 1 | 0 |
+| release-communication | 4 | 0 | 0 |
+| release-management | 4 | 0 | 0 |
+| responsibility-matrix | 1 | 0 | 0 |
+| revenue-recognition | 4 | 0 | 0 |
+| saas-metrics | 3 | 0 | 0 |
+| sales-pipeline-review | 2 | 0 | 0 |
+| scrum-delivery | 4 | 0 | 0 |
+| secure-sdlc | 5 | 0 | 0 |
+| service-reliability | 4 | 0 | 0 |
+| spin-discovery | 2 | 0 | 0 |
+| spring-boot | 3 | 0 | 0 |
+| strategy-map | 2 | 0 | 0 |
+| structured-hiring | 3 | 0 | 0 |
+| supply-chain | 5 | 0 | 0 |
+| support-readiness | 4 | 0 | 0 |
+| terraform-kubernetes | 3 | 0 | 0 |
+| threat-modeling | 3 | 0 | 0 |
+| typescript | 4 | 1 | 0 |
+| user-research-practice | 2 | 0 | 0 |
+| vat-and-e-invoicing | 4 | 0 | 0 |
+| vendor-due-diligence | 5 | 0 | 0 |
+| vue | 7 | 1 | 0 |
+| web-accessibility | 7 | 0 | 0 |
+| web-performance | 3 | 0 | 0 |
+| web-search-optimization | 4 | 0 | 0 |
+| workforce-capacity | 2 | 0 | 0 |
 
 ## Not turned into rules
 

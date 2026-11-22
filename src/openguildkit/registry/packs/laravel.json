@@ -1,7 +1,7 @@
 {
   "id": "laravel",
   "title": "Laravel applications",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "For a Laravel application: mass assignment, policies, form requests, migrations, debug mode and lazy loading.",
   "sources": [
     {
@@ -60,6 +60,25 @@
       "id": "prevent-lazy-loading",
       "instruction": "Enable `Model::preventLazyLoading` outside production, and eager load the relations a changed view reads.",
       "verification": "Run the feature tests for the changed routes with lazy loading prevented and confirm they pass."
+    },
+    {
+      "id": "no-unguarded-models",
+      "instruction": "Do not unguard models: no `$guarded = []` in the models and no `Model::unguard(` call.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "app/Models/*.php",
+          "app/*.php",
+          "app/Providers/*.php"
+        ],
+        "contains": [
+          "$guarded = []",
+          "$guarded=[]",
+          "Model::unguard("
+        ],
+        "expect": "absent"
+      }
     }
   ]
 }
