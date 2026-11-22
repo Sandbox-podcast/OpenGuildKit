@@ -226,9 +226,8 @@ class DecisionTests(CapturedCli, unittest.TestCase):
     @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
     def test_an_approval_signed_by_a_departed_approver_keeps_holding(self):
         for approvers, key in ((True, True), (True, False), (False, True)):
-            with self.subTest(approvers=approvers, key=key):
-                for child in list(self.root.iterdir()):
-                    shutil.rmtree(child) if child.is_dir() else child.unlink()
+            with self.subTest(approvers=approvers, key=key), tempfile.TemporaryDirectory() as directory:
+                self.root = Path(directory)
                 keys = self.signed_by_two()
                 self.camille_leaves(approvers=approvers, key=key)
                 self.run_cli("check")

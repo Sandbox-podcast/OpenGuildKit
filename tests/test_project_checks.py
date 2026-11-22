@@ -93,7 +93,8 @@ class SmokeTest(unittest.TestCase):
 """)
         command, = self.proposals()
         self.assertEqual(command, 'cd "client app" && python -m unittest discover -s tests')
-        result = subprocess.run(command, cwd=self.root, shell=True, capture_output=True, text=True, timeout=20)
+        executable_command = command.replace(" && python ", f' && "{sys.executable}" ', 1)
+        result = subprocess.run(executable_command, cwd=self.root, shell=True, capture_output=True, text=True, timeout=20)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("Ran 1 test", result.stderr)
 
