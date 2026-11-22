@@ -122,10 +122,11 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("Approved task handoff", output)
         exported, _ = self.run_cli("task", "export", self.task_id)
         profile = read_json(self.profile_path)
-        profile["conventions"] = ["Write an audit event for each export."]
+        # A check command is part of what an approval rests on; a convention is not (tests/test_approval_lifecycle.py).
+        profile["checks"] = [*profile.get("checks", []), "python -m pytest tests/test_export.py"]
         write_json(self.profile_path, profile)
         self.run_cli("sync")
-        message = f"The approval for {self.task_id} was recorded under earlier rules (conventions changed)."
+        message = f"The approval for {self.task_id} was recorded under earlier rules (checks changed)."
         for action in ("handoff", "export"):
             _, error = self.run_cli("task", action, self.task_id, code=1)
             self.assertIn(message, error)

@@ -921,12 +921,13 @@ def select_boards(profile: dict, catalog: dict, task: dict, answers: dict, selec
 
 
 def profile_settings(profile: dict) -> dict:
-    """The project settings that change how a task is guarded, reviewed or researched, by their profile names."""
+    """The project settings besides the packs and checks that decide which boards review a task and which rules it is
+    asked. A change of one voids the approvals (project.profile_fingerprint), and the message names it."""
     return {
-        "guard": profile.get("guard", "off"), "host": profile.get("host", "other"),
-        "research": profile.get("research", "local-only"),
-        "approval mode": (profile.get("approval") or {}).get("mode", "local"),
-        "tools": sorted(profile.get("tools", [])),
+        "boards": sorted(profile.get("boards", [])), "required boards": sorted(profile.get("required_boards", [])),
+        "required rules": sorted(profile.get("required_rules", [])), "roles": sorted(profile.get("roles", [])),
+        "personal data": profile.get("personal_data"), "people decisions": profile.get("people_decisions"),
+        "every rule asked": bool(profile.get("ask_every_rule")),
     }
 
 
@@ -1868,7 +1869,8 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
 
 def validate_review(consultation: dict, review: dict, root: Path | None = None) -> dict:
     """Require a recommendation for every board in the recorded consultation; report every board's problems at once."""
-    allowed = {"consultation_id", "summary", "boards", "execution", "warnings", "evidence_item", "blocker_item"}
+    # kept: the passes a reopened approval kept (tasks.kept_passes); only task review --summary records it.
+    allowed = {"consultation_id", "summary", "boards", "execution", "warnings", "evidence_item", "blocker_item", "kept"}
     if not isinstance(review, dict) or not {"consultation_id", "summary", "boards"} <= review.keys() \
             or not review.keys() <= allowed:
         raise ValueError("A review must contain consultation_id, summary and boards. Run task template.")
@@ -1910,6 +1912,8 @@ def validate_review(consultation: dict, review: dict, root: Path | None = None) 
     }
     if execution != "unspecified":
         validated["execution"] = execution
+    if isinstance(review.get("kept"), list):
+        validated["kept"] = [board_id for board_id in selected if board_id in review["kept"]]
     warnings = review_warnings(validated["boards"])
     if warnings:
         validated["warnings"] = warnings
@@ -2445,6 +2449,9 @@ def decision_summary(task: dict) -> list[str]:
     domains = task["consultation"].get("domains")
     deliberation = task.get("deliberation")
     lines = verdict_lines(review, deliberation, is_decision_task(task)) + unconfronted_verdicts(review, domains)
+    if review.get("kept"):
+        lines.append(f"Passes kept from the approved round, their board, rules and questions unchanged: "
+                     f"{', '.join(review['kept'])}.")
     lines += [f"Review warning: {warning}" for warning in review.get("warnings", [])]
     synthetic = mock_evidence(task)
     if synthetic:
@@ -2541,6 +2548,7 @@ def blocker_list(task: dict) -> list[dict]:
             resolutions = task.get(field, {})
             items.append({"id": key, "board": entry["id"], **details, "resolution": resolutions.get(key)})
     return items
+
 
 
 def _evidence_section(evidence: list[dict]) -> list[str]:

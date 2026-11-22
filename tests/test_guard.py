@@ -347,7 +347,7 @@ class GuardTests(unittest.TestCase):
         self.branch_with_change(guard="enforce")
         profile_path = self.root / ".openguildkit" / "project.json"
         profile = json.loads(profile_path.read_text(encoding="utf-8"))
-        profile["conventions"] = ["New rule in the branch."]
+        profile["checks"] = ["python -m pytest"]
         write_json(profile_path, profile)
         self.run_cli("sync")
         self.approve_example()

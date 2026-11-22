@@ -9,26 +9,24 @@ import json
 import re
 import subprocess
 import tempfile
-from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
-from . import clock
 from .decisions import (
-    DECISIONS_DIR, approval_policy, check_decision, check_decision_seal, exported_boards, exported_records,
-    exported_rounds, history_message, record_digest, seal, shared_digest, stale_approval_message, verify_signature,
+    DECISIONS_DIR, approval_policy, base_commit, check_decision, check_decision_seal, exported_boards,
+    exported_records, exported_rounds, history_message, record_digest, revisions_outside_history, seal, shared_digest,
+    stale_approval_message, verify_signature,
 )
 from .lock import LOCK_FILE, read_lock
-from .project import STATE_DIR, load_profile, profile_fingerprint
+from .project import STATE_DIR, Fingerprints, load_profile, profile_fingerprint
 from .results import DONE_STATUSES, verification_of
 from .storage import read_json, write_json
 from .task_index import tasks_with_status
-from .tasks import STATUSES, read_task, task_path
+from .tasks import STALE_DAYS, STATUSES, approval_problem, days_since, read_task, task_path
 from .workflow import mock_evidence
 
 MODES = ("off", "observe", "enforce")
 # The mode when the profile cannot be read: the hook refuses edits, as in enforce, and says why.
 UNKNOWN_MODE = "unknown"
-STALE_DAYS = 14
 _PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Update|Add|Delete) File|Move to): (.+)$", re.MULTILINE)
 # Files the CLI writes through its own commands and the host settings the guard relies on.
 PROTECTED = (
@@ -42,34 +40,38 @@ def guard_mode(profile: dict) -> str:
 
 
 def _age_days(moment: str) -> int | None:
-    try:
-        approved = datetime.fromisoformat(moment)
-    except (TypeError, ValueError):
-        return None
-    if approved.tzinfo is None:
-        approved = approved.replace(tzinfo=timezone.utc)
-    return (clock.now() - approved).days
+    return days_since(moment)
 
 
 def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) -> list[dict]:
-    """Approved tasks, not yet done, whose approval still matches the record and the rules.
+    """Approved tasks, not yet done, whose approval still holds (tasks.approval_problem).
 
     The status index skips the records that are not approved without parsing them; every other record is read
-    and checked in full, so the index never decides what is covered.
+    and checked in full, so the index never decides what is covered. One git call checks the approved revisions of
+    them all, whatever their number. There is no age limit: the person withdraws an approval with task revoke.
     """
     directory = state / "tasks"
     if not directory.is_dir():
         return []
-    fingerprint = profile_fingerprint(profile, catalog)
-    covered = []
+    approved = []
     for task_id in tasks_with_status(state, set(STATUSES) - {"approved"}):
         try:
             task = read_task(state, task_id)
-            if task["status"] != "approved" or task.get("profile_fingerprint") != fingerprint:
+        except Exception:  # A broken record covers nothing; it must not stop the guard.
+            continue
+        if task["status"] == "approved" and task.get("answers", {}).get("kind") != "decision":
+            approved.append(task)
+    if not approved:
+        return []
+    fingerprints = Fingerprints(profile, catalog)
+    outside = revisions_outside_history(root, [base_commit(task) for task in approved])
+    covered = []
+    for task in approved:
+        try:
+            found = approval_problem(task, profile, catalog, root, fingerprints=fingerprints, outside=outside,
+                                     explain=False)
+            if found:
                 continue
-            if task.get("answers", {}).get("kind") == "decision":
-                continue
-            check_decision(task, root, profile)
             age = _age_days(task["decision"].get("at"))
             brief = task["brief"].strip().splitlines()
             covered.append({"task": task["id"], "brief": brief[0][:120] if brief else "",

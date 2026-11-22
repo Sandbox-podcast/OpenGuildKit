@@ -62,8 +62,9 @@ class SharingCase(unittest.TestCase):
         return self.run_cli("task", "complete", task_id)[1]
 
     def change_rules(self):
+        """Add a check command: an approval rests on the checks, not on the conventions."""
         profile = read_json(self.state / "project.json")
-        profile["conventions"] = [*profile.get("conventions", []), "Name every endpoint in English."]
+        profile["checks"] = [*profile.get("checks", []), "python -m unittest discover -s tests"]
         write_json(self.state / "project.json", profile)
         self.run_cli("sync")
 

@@ -98,6 +98,8 @@ def check_request(args, argv: list[str], root: Path) -> None:
         human = "Applying a live MCP plan needs confirmation at a terminal."
     elif command == "task" and action == "waive":
         human = "A waiver needs the named person at a terminal."
+    elif command == "task" and action == "revoke":
+        human = "Withdrawing an approval needs the person at a terminal."
     elif command == "task" and action == "authorize" and args.allow:
         human = "Allowing an external action needs a person at a terminal."
     elif command == "alerts" and action == "accept":
@@ -550,9 +552,10 @@ class WebApp:
             "token": self.token,
             "project": {"root": str(self.root), "name": self.root.name,
                         "initialized": (self.root / ".openguildkit" / "project.json").is_file()},
-            "human_only": ["task decide --approve", "task clear", "task waive", "task authorize --allow",
-                           "task verify --cannot-run", "task verify --withdraw", "task complete --by", "alerts accept",
-                           "alerts severity", "profile (weakening a protection)", "tools apply (live)"],
+            "human_only": ["task decide --approve", "task revoke", "task clear", "task waive",
+                           "task authorize --allow", "task verify --cannot-run", "task verify --withdraw",
+                           "task complete --by", "alerts accept", "alerts severity", "profile (weakening a protection)",
+                           "tools apply (live)"],
         }
 
     def handle(self, path: str, body: dict):

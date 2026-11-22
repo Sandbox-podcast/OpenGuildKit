@@ -170,11 +170,14 @@ class ProfileCommandTests(unittest.TestCase):
         self.run_cli("task", "review", TASK, "--file", self.root / "review.json")
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
             self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed")
+        # The guard and the tools change no rule, check or board of the task: the approval stands.
         self.run_cli("profile", "set", "guard", "enforce", "--by", "Sam", "--reason", "Audit")
         self.run_cli("profile", "add", "tool", "Jira", "--by", "Sam", "--reason", "Tracker")
+        self.assertNotIn("earlier rules", self.run_cli("check")[1])
+        self.run_cli("profile", "set", "personal-data", "yes", "--by", "Sam", "--reason", "Accounts")
         _, error = self.run_cli("check", code=1)
-        self.assertIn("guard observe -> enforce", error)
-        self.assertIn("tools changed (none -> Jira)", error)
+        self.assertIn("personal data", error)
+        self.assertNotIn("guard observe -> enforce", error)
         self.assertNotIn("the boards or the project settings changed", error)
 
     def test_a_new_condition_names_the_norm_it_brings(self):
