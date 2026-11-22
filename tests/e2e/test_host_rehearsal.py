@@ -18,7 +18,7 @@ class HostRehearsalTests(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable, str(REPO / "examples" / "host-validation" / "rehearse.py"),
                  "--project", str(Path(directory) / "project-root"), "--report", str(report)],
-                capture_output=True, text=True, encoding="utf-8", timeout=300,
+                capture_output=True, text=True, encoding="utf-8", timeout=300, stdin=subprocess.DEVNULL,
                 env={**os.environ, "PYTHONPATH": str(REPO / "src")},
             )
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -27,7 +27,9 @@ class HostRehearsalTests(unittest.TestCase):
         self.assertTrue(all(observed["briefs_scoped"]))
         self.assertTrue(any(item.startswith("security-to-") for item in observed["objections"]), observed["objections"])
         self.assertTrue(observed["insufficient_evidence"])
+        self.assertTrue(observed["agent_cannot_clear"])
         if os.name == "posix":
+            self.assertTrue(observed["cleared"])
             self.assertTrue(observed["approved"])
             self.assertTrue(observed["completed"], observed.get("completion_message"))
 

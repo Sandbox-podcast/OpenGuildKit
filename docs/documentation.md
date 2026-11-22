@@ -9,17 +9,17 @@ openguildkit docs export --tasks request-status,request-history --output docs-si
 openguildkit docs export --tasks request-status --output docs-site --version 1.4.0 --sections reference,blog --openapi openapi.yaml
 ```
 
-Only tasks in the `done` state can be exported: their checks passed and their results are recorded. The pages carry the brief, the behaviour and criteria that were met, the number of checks passed, the pull request or revision and the version. They never carry the boards' reviews, the evidence paths, open questions or anything else from the local task records, and tasks you do not name are not exported.
+Only tasks in the `done` or `done-with-reservations` state can be exported: their checks passed and their results are recorded. The pages carry the brief, the behaviour and criteria that were met (each said once), how many checks passed, did not apply or stayed open, the disagreements between boards left open in the deliberation (or, without one, the objections that were not deliberated), the pull request or revision and the version. They never carry the boards' reviews, the evidence paths, open questions or anything else from the local task records, and tasks you do not name are not exported.
 
 | Folder | Documentalist tab | Content |
 |---|---|---|
-| `project/` | Learn | `overview.md`: the project's name, sector, stack, components with their stack, conventions, the rule packs in force with their version and rules, and the boards that review changes |
+| `project/` | Learn | `overview.md`: the project's name, sector, stack, components with their stack, conventions, the rule packs in force with their version and rules, and the boards the exported tasks consulted |
 | `reference/` | Reference | One page per task: behaviour, verification, source |
 | `learn/` | Learn | A guide draft per task, marked for review before publication |
 | `blog/` | Blog | A dated release note per task (`date` in the front matter and in the file name) |
 | `openapi/` | OpenAPI import | The file given with `--openapi`, for Documentalist's one-time OpenAPI import |
 
-`SUMMARY.md` fixes the order of the pages and each page carries `sidebar_position`. Paths depend only on the task ID and, for the blog, the completion date, so exporting again rewrites the same files: commit them, and Documentalist's synchronization updates each page by its source path instead of creating a new one. Pages of tasks you no longer select are removed. The export refuses to write into a folder it did not create, or through a symbolic link that leads out of it.
+`SUMMARY.md` fixes the order of the pages and each page carries `sidebar_position`. Paths depend only on the task ID and, for the blog, the completion date, so exporting again rewrites the same files: commit them, and Documentalist's synchronization updates each page by its source path instead of creating a new one. Pages of tasks you no longer select are removed. The export refuses to write into a folder it did not create, or through a symbolic link that leads out of it. `--output` and `--openapi` are paths inside the project, outside `.openguildkit/`, once symbolic links are followed; relative paths start at the project root.
 
 The project page is written with the default sections, or with `--sections project`, and keeps one path, so a new export rewrites it. It holds only what the profile and the active packs say: no component path, no check command, no local path and nothing from the tasks. Import `docs-site/project` as a Learn folder, or leave it out of `--sections`.
 
@@ -67,7 +67,7 @@ openguildkit docs share check        # exit code 1 while a share past its last d
 openguildkit docs share revoke --id ID --by "Camille Martin"
 ```
 
-The owner chooses the deliverable, the recipients and the last day of access (`YYYY-MM-DD`, after today and at most 366 days ahead) before inviting them in the portal. A revocation records who removed the access and when; a second revocation of the same share is refused, so the first record stays.
+`--deliverable` is a path inside the project, written relative to its root; a path outside it once symbolic links are followed, or under `.openguildkit/` (task records and other state the team does not share), is refused. It names what the recipients receive: an existing file, or the folder that `docs export` wrote (the one that holds `.openguildkit-export.json`); a path that does not exist, or another folder, is refused. The owner chooses the deliverable, the recipients and the last day of access (`YYYY-MM-DD`, after today and at most 366 days ahead) before inviting them in the portal. A revocation records who removed the access and when; a second revocation of the same share is refused, so the first record stays.
 
 What OpenGuildKit does not do: it creates no magic link and revokes no access in Documentalist. Inviting the recipients and pressing "Retirer l'accès" happen by hand in the portal's reader settings; `share add` and `share revoke` only record that you did it. Keep the portal and the register in step. Import and share management happen in Documentalist.
 

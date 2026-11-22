@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { quoteFor } from '@/project/api';
 import { changesCatalog, invalidate, load, peek, remember } from '@/project/query';
 import { placeCounts, signalsOf } from '@/project/data';
-import { isBlocked, nextLabel, openPointLabel, parseTemplates, shareState, stepOf, taskStatus } from '@/project/labels';
+import { hasFailedCheck, isBlocked, isDecided, isDone, nextLabel, openPointLabel, parseTemplates, shareState, stepOf, taskStatus } from '@/project/labels';
 import type { CliResult } from '@/project/api';
 
 const ok = (json: unknown): CliResult => ({ code: 0, stdout: JSON.stringify(json), stderr: '', json });
@@ -15,8 +15,15 @@ describe('wording of the CLI', () => {
     expect(nextLabel('Resolve blockers security:1, qa:2.')).toBe('Lever les blocages security:1, qa:2.');
     expect(nextLabel("Waiting for the person's decision.")).toBe('En attente de la décision d’une personne.');
     expect(nextLabel('Consult again: Check consent first')).toBe('Consulter à nouveau : Check consent first');
-    expect(nextLabel('Decision recorded. Open a follow-up task to act on it.')).toMatch(/^Décision enregistrée/);
-    expect(nextLabel('Implement, then record the results and complete the task.')).toMatch(/^Réaliser/);
+    expect(nextLabel('Decision recorded: close it with task complete pick-db, then open a follow-up task to act on it.')).toMatch(/^Décision enregistrée : la clore avec task complete pick-db/);
+    expect(nextLabel('Implement, then record the results: task verify status and task result status, then task complete status.')).toMatch(/^Réaliser.*task verify status/);
+    expect(nextLabel('Waiting for evidence: Record of processing from data protection officer.')).toBe('En attente de preuves : Record of processing from data protection officer.');
+    expect(nextLabel('Result recorded: run task verify status to list what remains, then task complete status.')).toMatch(/^Résultats enregistrés : task verify status/);
+    const failed = "command:1 (`python -m pytest`) failed: exit code 127, command not found: /bin/sh: python: command not found. Next: install the project's dependencies. Log: .openguildkit/tasks/status-checks/command-1.log and 2 other check(s). Fix it, then run task verify status.";
+    expect(nextLabel(failed)).toMatch(/^Échec de command:1 \(python -m pytest\) : exit code 127.*, et de 2 autre\(s\) contrôle\(s\)\. Corriger, puis relancer task verify status\.$/s);
+    expect(nextLabel('rule:x/y failed. Fix it, then run task verify status.')).toBe('Échec de rule:x/y. Corriger, puis relancer task verify status.');
+    expect(hasFailedCheck(failed)).toBe(true);
+    expect(nextLabel('Done with reservations: see the open points in task show (result.closing).')).toMatch(/^Terminée avec réserves/);
     expect(nextLabel('Done.')).toBe('Terminée.');
     expect(nextLabel('Something new.')).toBe('Something new.');
     expect(isBlocked('Resolve blockers security:1.')).toBe(true);
@@ -30,7 +37,10 @@ describe('wording of the CLI', () => {
   });
 
   it('places each status on the workflow and keeps unknown ones', () => {
-    expect([stepOf('draft', false), stepOf('consulting', false), stepOf('reviewed', false), stepOf('approved', false), stepOf('approved', true), stepOf('done', true)]).toEqual([0, 1, 3, 4, 5, 6]);
+    expect([stepOf('draft', false), stepOf('consulting', false), stepOf('reviewed', false), stepOf('approved', false), stepOf('approved', true), stepOf('done', true), stepOf('done-with-reservations', true)]).toEqual([0, 1, 3, 4, 5, 6, 6]);
+    expect(taskStatus('done-with-reservations').label).toBe('Terminée avec réserves');
+    expect(['approved', 'done', 'done-with-reservations', 'reviewed'].map(isDecided)).toEqual([true, true, true, false]);
+    expect(['done', 'done-with-reservations', 'approved'].map(isDone)).toEqual([true, true, false]);
     expect(taskStatus('unreadable').label).toBe('unreadable');
     expect(shareState('expired: remove the access in Documentalist')).toBe('expired');
     expect(shareState('revoked')).toBe('revoked');
@@ -61,14 +71,15 @@ describe('project signals', () => {
     tasks: ok([
       { id: 'a', status: 'reviewed', created: '2026-11-21', owner: null, brief: 'A', next: 'Resolve blockers security:1.' },
       { id: 'b', status: 'reviewed', created: '2026-11-21', owner: null, brief: 'B', next: "Waiting for the person's decision." },
-      { id: 'c', status: 'approved', created: '2026-11-21', owner: 'Camille', brief: 'C', next: 'Implement, then record the results and complete the task.' },
+      { id: 'c', status: 'approved', created: '2026-11-21', owner: 'Camille', brief: 'C', next: 'Implement, then record the results: task verify c and task result c, then task complete c.' },
+      { id: 'e', status: 'done-with-reservations', created: '2026-11-20', owner: 'Camille', brief: 'E', next: 'Done with reservations: see the open points in task show (result.closing).', closed_by: 'Camille' },
       { id: 'd', status: 'consulting', created: '2026-11-21', owner: null, brief: 'D', next: 'Board reviews pending: qa.' },
     ]),
     check: { code: 1, stdout: '', stderr: 'OpenGuildKit: AGENTS.md is out of date.', json: null },
     alerts: ok({ summary: { total: 3, by_status: { open: 1, confirmed: 1, dismissed: 1, resolved: 0 }, by_severity: {}, imports: [] }, alerts: [] }),
     shares: ok([{ state: 'expired: remove the access in Documentalist' }, { state: 'active' }]),
     due: ok({ dossiers: [], due: [{ competitor: 'x', url: 'https://example.com', kind: 'notes', dossier: 'd' }] }),
-    update: ok({ changes: [{}, {}], conflicts: [], applied: false, stale_tasks: ['a'] }),
+    update: ok({ changes: [{}, {}], conflicts: [], applied: false, stale_tasks: [{ id: 'c', status: 'approved', step: 'consult it again (openguildkit task consult c) or open a linked task with --follows' }] }),
     host: ok([{ id: 'research', title: 'R', status: 'missing', detail: '' }, { id: 'approval', title: 'A', status: 'enforced', detail: '' }]),
   };
 
@@ -79,6 +90,7 @@ describe('project signals', () => {
     expect(s.awaitingDecision.map((t) => t.id)).toEqual(['b']);
     expect(s.toBuild.map((t) => t.id)).toEqual(['c']);
     expect([s.alertsOpen, s.sharesExpired, s.marketDue, s.updates, s.hostMissing]).toEqual([2, 1, 1, 2, 1]);
+    expect(s.staleTasks.map((t) => t.id)).toEqual(['c']);
     const counts = placeCounts(s);
     expect(counts.quetes?.n).toBe(1);
     expect(counts.conseil?.n).toBe(2);

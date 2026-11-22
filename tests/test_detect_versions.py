@@ -106,6 +106,59 @@ class DetectedVersionTests(unittest.TestCase):
                          {"Android", "Android Gradle Plugin 8.5.0", "Android SDK 34", "Java 17", "Kotlin 1.9.24"})
         self.assertEqual(stacks["java"], ["Java 21", "Spring Boot 3.2.1"])
 
+    def test_plugin_versions_declared_in_a_plugins_block_are_read(self):
+        write(self.root, "android/settings.gradle", 'include ":app"\n')
+        write(self.root, "android/build.gradle",
+              'plugins {\n  id "com.android.application" version "8.5.0" apply false\n'
+              '  id "org.jetbrains.kotlin.android" version "1.9.24" apply false\n}\n')
+        write(self.root, "android/app/build.gradle",
+              'plugins { id "com.android.application"; id "org.jetbrains.kotlin.android" }\n'
+              'android { compileSdk 34 }\n')
+        write(self.root, "kts/build.gradle.kts", 'plugins { kotlin("jvm") version "2.0.0" }\n')
+        stacks = self.stacks()
+        self.assertEqual(set(stacks), {"android", "kts"})
+        self.assertEqual(set(stacks["android"]),
+                         {"Android", "Android Gradle Plugin 8.5.0", "Android SDK 34", "Kotlin 1.9.24"})
+        self.assertEqual(stacks["kts"], ["Kotlin 2.0.0"])
+
+    def test_a_declared_range_matches_the_patterns_of_its_lower_bound(self):
+        write(self.root, "web/package.json", {"dependencies": {"next": "^14.2.0", "react": "^18.2.0"},
+                                              "devDependencies": {"vite": "^5.2.0"}})
+        write(self.root, "old/package.json", {"dependencies": {"next": "~13.0.1"}})
+        write(self.root, "api/pyproject.toml", '[project]\nrequires-python = ">=3.11,<3.13"\n')
+        stacks = self.stacks()
+        self.assertEqual(stacks["web"], ["Next.js ^14.2.0", "React ^18.2.0", "Vite ^5.2.0"])
+        self.assertEqual(stacks["api"], ["Python >=3.11,<3.13"])
+        components = components_for_profile(detect_stack(self.root))
+        plan = recommend_patterns(load_catalog(), [], "general", [], components)
+        matched = {pattern["id"] for pattern in plan["matched"]}
+        self.assertLessEqual({"nextjs-react", "react-web", "python-development"}, matched)
+        conflicts = json.dumps(plan)
+        self.assertIn("Next.js ~13.0.1 is below next.js 13.4", conflicts)
+
+    def test_an_old_style_kotlin_version_variable_is_read(self):
+        write(self.root, "app/build.gradle",
+              "buildscript {\n  ext.kotlin_version = '1.9.24'\n  dependencies {\n"
+              '    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"\n  }\n}\n'
+              "apply plugin: 'kotlin-android'\n")
+        write(self.root, "lib/build.gradle",
+              "buildscript {\n  ext {\n    kotlin_version = '2.0.0'\n  }\n}\napply plugin: 'kotlin'\n")
+        stacks = self.stacks()
+        self.assertIn("Kotlin 1.9.24", stacks["app"])
+        self.assertIn("Kotlin 2.0.0", stacks["lib"])
+
+    def test_detect_says_why_a_technology_has_no_version(self):
+        write(self.root, "requirements.txt", "stripe==8.1.0\n")
+        write(self.root, "android/build.gradle", 'plugins { id "com.android.application" }\nandroid { compileSdk 34 }\n')
+        evidence = {item["name"]: item for component in detect_stack(self.root)["components"]
+                    for item in component["evidence"]}
+        self.assertIsNone(evidence["Stripe"]["version"])
+        self.assertIn("==8.1.0", evidence["Stripe"]["note"])
+        self.assertIn("Android SDK", evidence["Android"]["note"])
+        output = self.run_cli("detect")
+        self.assertIn("Stripe: SDK ==8.1.0, the service itself has no version", output)
+        self.assertNotIn("version unknown", output.split("Android:")[1].splitlines()[0])
+
     def test_detects_ios_deployment_targets(self):
         write(self.root, "app/App.xcodeproj/project.pbxproj", 'SWIFT_VERSION = 6.0;\nIPHONEOS_DEPLOYMENT_TARGET = 16.4;\n')
         write(self.root, "module/Package.swift", '// swift-tools-version: 6.0\nlet p = Package(platforms: [.iOS(.v17)])\n')
@@ -130,6 +183,30 @@ class DetectedVersionTests(unittest.TestCase):
         profile = json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
         self.assertEqual(profile["name"], "sample-shop")
         self.assertEqual(profile["components"], [{"id": "root", "path": ".", "stack": ["Vite ^8.0.0"]}])
+
+    def test_a_single_detected_root_keeps_the_stack_the_person_wrote(self):
+        write(self.root, "requirements.txt", "fastapi==0.110\n")
+        write(self.root, "answers.json", {"stack": ["Python 3.12", "PostgreSQL 16"]})
+        self.run_cli("init", "--answers", self.root / "answers.json")
+        profile = json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
+        self.assertEqual(profile["components"],
+                         [{"id": "root", "path": ".", "stack": ["FastAPI 0.110", "Python 3.12", "PostgreSQL 16"]}])
+
+    def test_several_detected_components_still_yield_to_a_written_stack(self):
+        write(self.root, "web/package.json", {"dependencies": {"react": "^18.2.0"}})
+        write(self.root, "api/requirements.txt", "fastapi==0.110\n")
+        write(self.root, "answers.json", {"stack": ["Python"]})
+        out, err = self.run_cli_with_errors("init", "--answers", self.root / "answers.json")
+        profile = json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
+        self.assertNotIn("components", profile)
+        self.assertIn("left aside", out + err)
+
+    def run_cli_with_errors(self, *arguments):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            result = main(["--project", str(self.root), *map(str, arguments)])
+        self.assertEqual(result, 0, stderr.getvalue())
+        return stdout.getvalue(), stderr.getvalue()
 
     def run_cli(self, *arguments):
         stdout, stderr = io.StringIO(), io.StringIO()

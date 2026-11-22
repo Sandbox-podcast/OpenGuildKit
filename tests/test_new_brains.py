@@ -14,7 +14,7 @@ from openguildkit.catalog import CatalogError, load_catalog
 from openguildkit.lock import apply_lock, locked_records
 from openguildkit.references import find_references, load_references, with_pattern_references
 from openguildkit.tools import load_tools
-from openguildkit.workflow import consult, trigger_matches
+from openguildkit.workflow import board_brief, consult, trigger_matches
 
 REPO = Path(__file__).resolve().parents[1]
 CASES = json.loads(Path(__file__).with_name("routing_cases_new_brains.json").read_text(encoding="utf-8"))
@@ -71,14 +71,14 @@ class DisciplineLensTests(unittest.TestCase):
                    for lens in board["review"]["specialists"] if len(lens.get("checks", [])) < 2]
         self.assertEqual(missing, [])
 
-    def test_the_consultation_brief_carries_the_checks(self):
+    def test_the_board_pass_names_its_lenses_and_where_their_checks_are(self):
         profile = {"name": "Billing", "sector": "general", "packs": [], "boards": ["finance"]}
         task = {"id": "t", "brief": "Recognise revenue for multi-year contracts under IFRS 15.",
                 "answers": {"kind": "feature", "surface": ["business"], "data": "internal", "research": "local"}}
         knowledge = {"finance": brief_knowledge("finance", self.catalog, self.families, set())}
-        markdown = consult(profile, self.catalog, task, knowledge=knowledge)["markdown"]
-        self.assertIn("Multi-year and bundled contracts list each performance obligation", markdown)
-        self.assertIn('"checks"', markdown)
+        markdown = board_brief(consult(profile, self.catalog, task, knowledge=knowledge), "finance")
+        self.assertIn("Lenses to fill:", markdown)
+        self.assertIn("What each lens verifies: openguildkit brains --id finance.", markdown)
 
 
 class NewBrainTests(unittest.TestCase):
@@ -202,7 +202,8 @@ class NewBrainCommandTests(unittest.TestCase):
         output = self.run_cli("brains", "--new", "risk-office")
         self.assertIn("boards/risk-office.json", output)
         self.assertIn("Task request-status (consulting) was consulted without risk-office", output)
-        self.assertIn("was consulted under the previous rules or boards", self.run_cli("sync"))
+        self.assertIn("Tasks consulted under the previous rules:\n  request-status (consulting): consult it again.",
+                      self.run_cli("sync"))
         self.assertIn("risk-office", self.run_cli("brains"))
 
 

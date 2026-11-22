@@ -91,12 +91,13 @@ openguildkit task authorize ID --action external-api --target api.example.com --
 `openguildkit init` writes `"guard": "observe"` for a new project unless the person chooses another mode; a profile without `guard` (projects created before) stays `off`. With `"guard": "observe"` or `"guard": "enforce"` in the profile, `openguildkit host apply` installs hooks that run `openguildkit guard`:
 
 - on each request, the agent receives a reminder: either the approved tasks in progress, or the instruction to open a task and consult the boards before changing files;
-- before a file edit inside the project, `observe` adds a warning for the agent and `enforce` refuses the edit when no approved task covers the work. When a task covers it, the agent is told which one, with its brief, and an approval older than 14 days is flagged so the agent asks the person whether it still applies. One approved task covers every file: the guard does not check that an edit stays inside the task's scope.
+- before a file edit inside the project, when no approved task covers the work, `enforce` refuses the edit (exit code 2, "Edit refused") and `observe` lets it through with a warning for the agent ("Edit flagged, not blocked"). The word "refused" appears only when the edit is refused. When a task covers it, the agent is told which one, with its brief, and an approval older than 14 days is flagged so the agent asks the person whether it still applies.
+- an approval covers the work, not a list of files: while one task is approved, every edit in the project counts as covered, `README.md` or an unrelated module included, and the hook tells the agent that the guard does not compare the files with the task's scope. A task records the kind of work and the affected areas, not paths, so the guard has nothing it could compare without false refusals. At review, the person compares the files of the change with the approved brief and sends anything outside it back to a new task.
 - edits to the files the CLI writes through its own commands and the guard relies on are refused in `enforce`, even under an approved task: `.openguildkit/tasks/`, `.openguildkit/decisions/`, `.openguildkit/project.json`, `.openguildkit/catalog.lock.json`, `.claude/settings.json`, `.claude/settings.local.json` and the `.codex/` settings. Other files under `.openguildkit/` and files outside the project stay allowed. Codex patches are checked on every `Update`, `Add`, `Delete` and `Move to` line.
-- in `enforce`, a hook that cannot decide refuses the edit with a one-line reason: an unreadable profile, an input that names no file, or any error. `observe` reports the same reason and lets the edit through. A broken task record covers nothing and does not stop the hook.
+- in `enforce`, a hook that cannot decide refuses the edit with a one-line reason: an unreadable profile, an input that names no file, or any error. `observe` reports the same reason and lets the edit through. When the profile itself cannot be read, the guard cannot know its mode: it refuses the edit as in `enforce` and says so. A broken task record covers nothing and does not stop the hook.
 - writes through the shell (`sed -i`, `echo > file`, a script) do not go through the hook. In Claude Code the `Edit(/...)` deny rules still cover redirections, `tee` and `sed` on the protected files, not a script. The CI check below is the backstop for the rest.
 
-`openguildkit guard` without options prints the same answer for a person; `--json` lists each covering task with its approval date and a `stale` flag. In CI, export the decision of the approved task with `openguildkit task export ID`: it writes `.openguildkit/decisions/ID.json` with the brief, the verdict of each board, the sealed approval and the approval payload the seal covers (and the signature when there is one), without evidence or internal notes. Commit it with the change. [`github/openguildkit-guard.yml`](github/openguildkit-guard.yml) runs `openguildkit guard --ci --base BASE`, which:
+`openguildkit guard` without options prints the same answer for a person, including that coverage is not tied to files; `--json` lists each covering task with its approval date and a `stale` flag. In CI, export the decision of the approved task with `openguildkit task export ID`: it writes `.openguildkit/decisions/ID.json` with the brief, the verdict of each board, the sealed approval and the approval payload the seal covers (and the signature when there is one), without evidence or internal notes. Commit it with the change. [`github/openguildkit-guard.yml`](github/openguildkit-guard.yml) runs `openguildkit guard --ci --base BASE`, which:
 
 - reads the guard mode, the profile, the catalog lock and the allowed signers from the base revision, so a pull request that sets `"guard": "observe"` or swaps the signers is still judged by the base rules;
 - counts every changed file as work, `.openguildkit/project.json` and the catalog lock included, except the decision records themselves;
@@ -104,7 +105,43 @@ openguildkit task authorize ID --action external-api --target api.example.com --
 - refuses a record whose task already had a decision on the base revision: new work needs a new task;
 - names the task whose decision covers the change, and reports a malformed record as an `OpenGuildKit:` error with exit code 1.
 
-A change that is not covered is reported, and fails in `enforce` mode. To change the profile itself, have the task approved before editing `.openguildkit/project.json`, then export its decision: it carries the base rules the CI check compares with.
+The pull request that adds the profile runs on a base revision without one: the check reports mode `off` and enforces nothing, which is expected, and says which mode the next pull requests get once the profile is merged (the `"guard"` value of the change).
+
+A change that is not covered is reported, and fails in `enforce` mode; in `observe` the report says it is flagged, not blocking, and the check passes. To change the profile itself, have the task approved before editing `.openguildkit/project.json`, then export its decision: it carries the base rules the CI check compares with.
+
+## Try the hooks by hand
+
+Each host sends the hook a JSON object on standard input; the guard reads `tool_input` before an edit and nothing from a request. The examples below hold the fields the guard reads (the hosts add others, such as the session and the working folder, which it ignores) and are tested against the guard. Run them from the project folder. Write the JSON on one line and pass it with `printf '%s'` or a file: `echo` can turn the `\n` of a patch into real line breaks, and the input is then no longer JSON.
+
+### Claude Code
+
+```sh
+printf '%s' '{"hook_event_name":"UserPromptSubmit","prompt":"Add a status page"}' | openguildkit guard --hook prompt
+printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"app.py","old_string":"a","new_string":"b"}}' | openguildkit guard --hook pre-edit
+```
+
+```powershell
+'{"hook_event_name":"UserPromptSubmit","prompt":"Add a status page"}' | openguildkit guard --hook prompt
+'{"hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"app.py","old_string":"a","new_string":"b"}}' | openguildkit guard --hook pre-edit
+```
+
+### Codex
+
+```sh
+printf '%s' '{"hook_event_name":"UserPromptSubmit","prompt":"Add a status page"}' | openguildkit guard --hook prompt
+printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch\n*** Update File: app.py\n@@\n-a\n+b\n*** End Patch\n"}}' | openguildkit guard --hook pre-edit
+```
+
+```powershell
+'{"hook_event_name":"UserPromptSubmit","prompt":"Add a status page"}' | openguildkit guard --hook prompt
+'{"hook_event_name":"PreToolUse","tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch\n*** Update File: app.py\n@@\n-a\n+b\n*** End Patch\n"}}' | openguildkit guard --hook pre-edit
+```
+
+### Other hosts
+
+They run no hook (see [Other agents](#other-agents)). To test the guard for such a host, use the Claude Code examples: the guard reads the same `tool_input.file_path`.
+
+The answer depends on the mode and on the tasks. Without an approved task, the prompt example prints a reminder as `additionalContext` and exits with 0; the edit example exits with 2 and prints `Edit refused for: app.py` on standard error in `enforce`, and in `observe` prints `Edit flagged, not blocked` as `additionalContext` and exits with 0. With `"guard": "off"` both print nothing. To keep the input in a file instead, save the JSON as `hook-input.json` and run `openguildkit guard --hook pre-edit < hook-input.json`, or `Get-Content -Raw hook-input.json | openguildkit guard --hook pre-edit` in PowerShell.
 
 ## Validate a host
 
@@ -115,8 +152,8 @@ The [host validation scenario](../examples/host-validation/) checks that an agen
 `openguildkit init` records `"host": "other"` unless the person chooses Claude Code or Codex. For any other agent:
 
 1. `openguildkit integrations --host other` writes the skill to `.agents/skills/openguildkit/SKILL.md`, the folder of the Agent Skills format. If the agent reads its skills or instructions from another folder, copy the file there, or point the agent at `AGENTS.md`, which carries the same workflow.
-2. OpenGuildKit writes no settings for this agent. `host apply` says so and writes nothing; `host check` lists the rules left to the instructions (`by instruction`) or to a person (`by a person`) and exits with 0. The board guard has no hook: the AGENTS.md instruction and the CI check (`guard --ci`) are the controls.
-3. `tools apply` and `tools remove` write MCP settings for Claude Code or Codex only: add `--host claude-code` or `--host codex` to write them for one of these agents. For another agent, run `openguildkit tools plan ID` and copy the server it prints into that agent's settings.
-4. To move to Claude Code or Codex later, set `"host"` in `.openguildkit/project.json`, run `openguildkit sync`, then `openguildkit host apply`.
+2. OpenGuildKit writes no settings for this agent. `host apply` says so, writes nothing and exits with 1; `host check` lists the rules left to the instructions (`by instruction`) or to a person (`by a person`) and exits with 0. The board guard has no hook: the AGENTS.md instruction and the CI check (`guard --ci`) are the controls.
+3. `tools apply` and `tools remove` write MCP settings for Claude Code or Codex only: add `--host claude-code` or `--host codex` to write them for one of these agents. For another agent, run `openguildkit tools plan ID`: with the host `other` it prints each server as an `mcpServers` entry, the format most MCP clients read, to copy into that agent's settings.
+4. To move to Claude Code or Codex later, run `openguildkit profile set host claude-code --by NAME --reason WHY` (or `codex`), then `openguildkit host apply`.
 
 `init` also writes `CLAUDE.md`, one line that imports `AGENTS.md` for Claude Code, whatever the host; delete it if nobody uses Claude Code.

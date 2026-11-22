@@ -1,16 +1,25 @@
 """Track task consultations and decisions in the project."""
 
+import difflib
 import re
 import uuid
 from datetime import datetime
 from pathlib import Path
 
 from . import clock
-from .decisions import approval_policy, check_decision_seal, decision_payload, seal, stale_approval_message, verify_signature
+from .decisions import (
+    approval_policy, check_decision_seal, decision_payload, history_message, seal,
+    stale_approval_message, verify_signature,
+)
 from .project import profile_fingerprint, task_scope_profile
-from .results import completion_problems, expected_checks, merge_results, validate_result
+from .relevance import sensitive_area
+from .sensitive import redact_credentials, redact_data
+from .results import (
+    DONE_STATUSES, asked_checks, completion_problems, merge_results, not_concerned, outcomes, result_warnings,
+    validate_result, waiting_evidence,
+)
 from .storage import read_json, write_json
-from .workflow import blocker_list, consult, entry_problems, is_decision_task, pending_removals, validate_answers, validate_board_entry, validate_deliberation, validate_review
+from .workflow import blocker_list, code_not_found, consult, is_decision_task, pending_removals, validate_answers, validate_board_entry, validate_deliberation, validate_review
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 WINDOWS_RESERVED_NAMES = {"con", "prn", "aux", "nul"} | {
@@ -33,17 +42,28 @@ def task_path(state: Path, task_id: str) -> Path:
     return path
 
 
+def _unknown_task(state: Path, task_id: str) -> str:
+    """The error for a task ID with no record, with the closest existing ID when one is near."""
+    known = sorted(path.stem for path in (state / "tasks").glob("*.json")) if (state / "tasks").is_dir() else []
+    close = difflib.get_close_matches(task_id, known, n=1)
+    hint = f"Did you mean {close[0]}? " if close else ""
+    return f"Unknown task: {task_id}. {hint}Run openguildkit task list to see the tasks."
+
+
 def read_task(state: Path, task_id: str) -> dict:
     path = task_path(state, task_id)
     if not path.is_file():
-        raise ValueError(f"Unknown task: {task_id}")
+        raise ValueError(_unknown_task(state, task_id))
     task = read_json(path)
     if task.get("schema_version") != 1 or task.get("id") != task_id:
         raise ValueError(f"Unsupported or mismatched task record: {path}")
     problem = _record_problem(task)
     if problem:
         # Task records are not under version control (.openguildkit/.gitignore lists tasks/).
-        raise ValueError(f"Task record {task_id} is damaged: {problem}. Restore it from a backup or open a new task.")
+        raise ValueError(
+            f"Task record {task_id} is damaged: {problem}. Restore {path.relative_to(state.parent).as_posix()} from a "
+            "backup, or delete that file and open a new task with openguildkit task new."
+        )
     return task
 
 
@@ -54,6 +74,8 @@ STATUSES = {
     "changes-requested": ("answers", "consultation", "profile_fingerprint", "review", "decision"),
     "approved": ("answers", "consultation", "profile_fingerprint", "review", "decision"),
     "done": ("answers", "consultation", "profile_fingerprint", "review", "decision", "result"),
+    # Closed with points left open: skipped rules, deferred evidence, open disagreements, waivers.
+    "done-with-reservations": ("answers", "consultation", "profile_fingerprint", "review", "decision", "result"),
 }
 
 # The shape of every field the commands read, checked once when a record is loaded. A type is a
@@ -70,8 +92,9 @@ _RULE = (
 _SCOPE = {
     "open_points?": [str],
     "checks?": [str],
+    "code_not_found?": [str],
     "packs?": [{"id": str, "rules": [_RULE]}],
-    "market?": {"id": str, "observations": [{"id": str}], "changes?": [dict], "relevance?": str},
+    "market?": {"id": str, "observations": [{"id": str}], "changes?": [dict]},
     "tools?": [{"id": str}],
     "storybook?": {"indexes": [{"ref": str, "stories": [str]}]},
     "host_controls?": [{"id": str, "status": str}],
@@ -82,6 +105,18 @@ _CONSULTATION = {
     "adjustments?": [{"board": str, "action": str, "reason": str}],
     "delegations?": {"*": str},
     "domains?": {"*": [str]},
+    # Checked when a pass is printed (board_brief_problem), so that listing tasks stays fast.
+    "board_briefs?": {"*": dict},
+}
+_BOARD_BRIEF = {
+    "title": str, "purpose": str, "routing": [str], "questions": [str],
+    "lenses": [{"id": str, "title": str, "focus": str, "checks?": [str]}],
+    "lenses_not_concerned": [{"id": str, "applies_to": [str]}],
+    "evidence": [str], "challenge": [str], "decision_criteria": [str],
+    "source_leads": [{"title": str, "url": str}], "methods": [str], "other_methods": int,
+    "rules": [{"pack": str, "title": str, "rules": [{"id": str, "instruction": str}]}],
+    "unprinted_packs?": [str], "other_packs": int, "references": [{"title": str, "url": str}],
+    "tools?": [{"title": str, "server": str, "mode": str}], "reviewer?": str, "stories?": [str],
 }
 _CHALLENGE = {
     "verdict": str,
@@ -172,7 +207,7 @@ def _record_problem(task: dict) -> str | None:
         return "rounds must be a list of objects"
     for field in STATUSES[status]:
         if field not in task:
-            return f"a {status} task needs {field}"
+            return f"{'an' if status[0] in 'aeiou' else 'a'} {status} task needs {field}"
     problem = _shape_problem(task, _RECORD, "")
     if problem:
         return problem
@@ -184,10 +219,27 @@ def _record_problem(task: dict) -> str | None:
     return None
 
 
-def create_task(state: Path, brief: str, task_id: str | None, follows: str | None = None) -> str:
+def board_brief_problem(task: dict, board_id: str) -> None:
+    """Refuse to print a pass from a damaged stored brief, with the field to restore."""
+    stored = task.get("consultation", {}).get("board_briefs", {}).get(board_id)
+    problem = _shape_problem(stored, _BOARD_BRIEF, f"consultation.board_briefs.{board_id}") if stored is not None else None
+    if problem:
+        raise ValueError(f"Task record {task['id']} is damaged: {problem}. Restore it from a backup or consult again.")
+
+
+def validate_brief(brief: str) -> str:
+    """The brief as recorded: one check for a new task and for a brief revised at a new consultation.
+
+    A credential is replaced by a placeholder before anything is written; the rest of the words are kept.
+    """
     brief = brief.strip()
     if not brief:
         raise ValueError("Supply a task brief.")
+    return redact_credentials(brief)
+
+
+def create_task(state: Path, brief: str, task_id: str | None, follows: str | None = None) -> str:
+    brief = validate_brief(brief)
     if task_id is not None and not task_id.strip():
         raise ValueError("The task ID is empty. Omit --id to generate one.")
     task_id = task_id or f"task-{uuid.uuid4().hex[:12]}"
@@ -231,26 +283,91 @@ def next_step(task: dict) -> str:
     if status == "changes-requested":
         return f"Consult again: {task['decision']['reason']}"
     if status == "approved":
-        if task.get("answers", {}).get("kind") == "decision":
-            return "Decision recorded. Open a follow-up task to act on it."
-        return "Implement, then record the results and complete the task."
+        return _approved_step(task)
+    if status == "done-with-reservations":
+        return "Done with reservations: see the open points in task show (result.closing)."
     return "Done."
 
 
-def approval_problem(task: dict, current_fingerprint: str) -> dict | None:
-    if task["status"] not in ("approved", "done"):
+def rule_changes(task: dict, profile: dict, catalog: dict) -> list[str]:
+    """What changed, pack by pack and rule by rule, in the rules the task was consulted under."""
+    scope = task["consultation"]["scope"]
+    try:
+        current = task_scope_profile(profile, catalog, task.get("answers", {}).get("components", []))
+    except ValueError:
+        return ["the task's components changed"]
+    before = {pack["id"]: pack for pack in scope.get("packs", [])}
+    after = {pack_id: catalog["packs"][pack_id] for pack_id in current["packs"]}
+    changes = [f"pack {pack_id} added" for pack_id in after if pack_id not in before]
+    changes += [f"pack {pack_id} removed" for pack_id in before if pack_id not in after]
+    for pack_id in [pack_id for pack_id in after if pack_id in before]:
+        old = {rule["id"]: rule for rule in before[pack_id]["rules"]}
+        new = {rule["id"]: rule for rule in after[pack_id]["rules"]}
+        changes += [f"rule {pack_id}/{rule_id} added" for rule_id in new if rule_id not in old]
+        changes += [f"rule {pack_id}/{rule_id} changed" for rule_id in new if rule_id in old and old[rule_id] != new[rule_id]]
+        changes += [f"rule {pack_id}/{rule_id} removed" for rule_id in old if rule_id not in new]
+    if scope.get("sector", {}).get("id") != current["sector"]:
+        changes.append("sector changed")
+    changes += [f"{field} changed" for field in ("stack", "conventions", "checks")
+                if scope.get(field, []) != current.get(field, [])]
+    if not changes:
+        return ["the boards or the project settings changed"]
+    return changes[:6] + ([f"{len(changes) - 6} more changes: openguildkit update shows them"] if len(changes) > 6 else [])
+
+
+def _approved_step(task: dict) -> str:
+    """The next step of an approved task, from what its result already holds."""
+    task_id = task["id"]
+    if is_decision_task(task):
+        return f"Decision recorded: close it with task complete {task_id}, then open a follow-up task to act on it."
+    result = task.get("result")
+    if not result:
+        return (f"Implement, then record the results: task verify {task_id} and task result {task_id}, "
+                f"then task complete {task_id}.")
+    commands = task["consultation"]["scope"].get("checks", [])
+    failed = sorted((item for item in result.get("checks", []) if item["status"] == "failed"),
+                    key=lambda item: not item["check"].startswith("command:"))
+    if failed:
+        item = failed[0]
+        index = int(item["check"].split(":")[1]) - 1 if item["check"].startswith("command:") else None
+        what = f" (`{commands[index]}`)" if index is not None and index < len(commands) else ""
+        cause = f": {item['message']}" if item.get("message") else ""
+        more = f" and {len(failed) - 1} other check(s)" if len(failed) > 1 else ""
+        return f"{item['check']}{what} failed{cause}{more}. Fix it, then run task verify {task_id}."
+    waiting = result.get("waiting_for", [])
+    if waiting:
+        return "Waiting for evidence: " + "; ".join(f"{item['title']} from {item['owner']}" for item in waiting) + "."
+    return f"Result recorded: run task verify {task_id} to list what remains, then task complete {task_id}."
+
+
+def approval_problem(task: dict, current_fingerprint: str, profile: dict | None = None,
+                     catalog: dict | None = None) -> dict | None:
+    """Whether a task's approval still holds: its seal intact and its rules current.
+
+    Every reader asks this one function and prints its message. An error blocks the work; a note marks a
+    completed task, whose record is history. With the profile and catalog, the message names what changed.
+    """
+    decision = task.get("decision")
+    if not decision or decision.get("outcome") != "approved":
         return None
+    completed = task["status"] in DONE_STATUSES
     try:
         check_decision_seal(task)
     except ValueError as error:
-        return {"kind": "invalid-seal", "message": str(error)}
-    if task.get("profile_fingerprint") != current_fingerprint:
-        return {"kind": "earlier-rules", "message": stale_approval_message(task["id"])}
-    return None
+        if completed and "seal" not in decision:
+            return {"kind": "no-seal", "severity": "note", "message": history_message(task["id"], sealed=False)}
+        return {"kind": "invalid-seal" if "seal" in decision else "no-seal", "severity": "error", "message": str(error)}
+    if task.get("profile_fingerprint") == current_fingerprint:
+        return None
+    changes = rule_changes(task, profile, catalog) if profile is not None and catalog is not None else None
+    if completed:
+        return {"kind": "earlier-rules", "severity": "note", "message": history_message(task["id"], changes)}
+    return {"kind": "earlier-rules", "severity": "error", "message": stale_approval_message(task["id"], changes)}
 
 
 def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
-               since: str | None = None, until: str | None = None, *, current_fingerprint: str | None = None) -> list[dict]:
+               since: str | None = None, until: str | None = None, *, current_fingerprint: str | None = None,
+               profile: dict | None = None, catalog: dict | None = None) -> list[dict]:
     """Every task of the project with its status, decision owner and next open point."""
     directory = state / "tasks"
     rows = []
@@ -267,7 +384,8 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
             continue
         if (since and day < since) or (until and day > until):
             continue
-        problem = approval_problem(task, current_fingerprint) if current_fingerprint is not None else None
+        problem = (approval_problem(task, current_fingerprint, profile, catalog)
+                   if current_fingerprint is not None else None)
         decided_by = task.get("decision", {}).get("by")
         if problem and problem["kind"] == "invalid-seal":
             decided_by = None
@@ -276,47 +394,88 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
         row = {"id": task["id"], "status": task["status"], "created": day, "owner": decided_by,
                "brief": task["brief"].splitlines()[0][:80], "next": problem["message"] if problem else next_step(task)}
         if problem:
-            row["approval_problem"] = problem["kind"]
+            row.update(approval_problem=problem["kind"], severity=problem["severity"])
+        closed_by = task.get("result", {}).get("closing", {}).get("by")
+        if closed_by:
+            row["closed_by"] = closed_by
         if task.get("follows"):
             row["follows"] = task["follows"]["task"]
         rows.append(row)
     return rows
 
 
-def consultation_brief(task: dict, revised_brief: str | None = None) -> str:
-    if revised_brief is None:
-        return task["brief"]
-    if task["status"] != "changes-requested":
-        raise ValueError("Revise a task brief after a request for changes.")
-    brief = revised_brief.strip()
-    if not brief:
-        raise ValueError("Supply a revised task brief.")
-    return brief
+# What a change of rules means for a task in each status; a completed task keeps its record as history.
+_TOUCHED_STEP = {
+    "consulting": "consult it again",
+    "reviewed": "request changes and consult it again",
+    "approved": "consult it again (openguildkit task consult ID) or open a linked task with --follows",
+}
+
+
+def tasks_touched(state: Path, profile: dict, catalog: dict) -> list[dict]:
+    """The open tasks consulted under other rules than these, each with what to do; update and sync name the same."""
+    fingerprint = profile_fingerprint(profile, catalog)
+    touched = []
+    for path in sorted((state / "tasks").glob("*.json")):
+        try:
+            task = read_task(state, path.stem)
+        except ValueError:
+            continue
+        step = _TOUCHED_STEP.get(task["status"])
+        if step and task.get("profile_fingerprint") != fingerprint:
+            touched.append({"id": task["id"], "status": task["status"], "step": step.replace("ID", task["id"])})
+    return touched
+
+
+def cited_evidence(task: dict) -> list[str]:
+    """The project paths a task names as evidence for a reviewer: named evidence and blocker clearings."""
+    paths = [item["evidence"] for item in task.get("result", {}).get("checks", [])
+             if item["check"].startswith("evidence:") and isinstance(item.get("evidence"), str)]
+    paths += [item["evidence"] for item in task.get("blocker_resolutions", {}).values() if item["kind"] == "cleared"]
+    return [path for path in dict.fromkeys(paths) if path and not path.startswith("https://")]
 
 
 def record_consultation(
     task: dict, answers: dict, profile: dict, catalog: dict, selection: dict | None = None,
     host_controls: list[dict] | None = None, market: dict | None = None, storybook: dict | None = None,
-    knowledge: dict | None = None, tools: list[dict] | None = None, *, revised_brief: str | None = None,
+    knowledge: dict | None = None, tools: list[dict] | None = None, root: Path | None = None,
+    brief: str | None = None,
 ) -> dict:
-    brief = consultation_brief(task, revised_brief)
-    if task["status"] not in {"draft", "consulting", "changes-requested"}:
+    """Record a consultation. With the project root, a bug brief's files and functions are looked for in it.
+
+    After a change request, the earlier round is kept and the brief may be revised.
+    """
+    # An approval that no longer holds (earlier rules, a seal missing or broken) can be consulted again;
+    # it is kept in rounds with the reason, like a change request.
+    reopened = None
+    if task["status"] == "approved":
+        reopened = approval_problem(task, profile_fingerprint(profile, catalog), profile, catalog)
+    if task["status"] not in {"draft", "consulting", "changes-requested"} and not reopened:
         raise ValueError("Start a new task or request changes before consulting again.")
+    if brief is not None and task["status"] not in {"changes-requested", "approved"}:
+        raise ValueError("Revise the brief when you consult again after a change request (task decide --request-changes).")
     rounds = list(task["rounds"])
-    if task["status"] == "changes-requested":
+    if task["status"] in {"changes-requested", "approved"}:
         archived = {key: task[key] for key in ("brief", "answers", "consultation", "review", "decision", "profile_fingerprint")}
-        for key in ("deliberation", "blocker_resolutions"):
+        for key in ("deliberation", "blocker_resolutions", "result"):
             if key in task:
                 archived[key] = task[key]
+        if reopened:
+            archived["reopened"] = reopened["message"]
         rounds.append(archived)
-    validated = validate_answers(answers)
-    result = {**task, "brief": brief, "answers": validated, "rounds": rounds}
+    validated = validate_answers(redact_data(answers))
+    result = {**task, "answers": validated, "rounds": rounds}
+    if brief is not None:
+        result["brief"] = validate_brief(brief)
+    missing = None
+    if root is not None and validated["kind"] == "bug":
+        missing = code_not_found(" ".join([result["brief"], validated.get("context", "")]), root)
     result.update(
         status="consulting",
         consultation=consult(
             task_scope_profile(profile, catalog, validated.get("components", [])),
             catalog, result, selection, host_controls, market, storybook,
-            knowledge, tools,
+            knowledge, tools, missing,
         ),
         profile_fingerprint=profile_fingerprint(profile, catalog),
     )
@@ -326,7 +485,21 @@ def record_consultation(
     result.pop("deliberation", None)
     result.pop("blocker_resolutions", None)
     result.pop("verification_blocker_resolutions", None)
+    result.pop("result", None)
     return result
+
+
+def previous_round_line(task: dict) -> str | None:
+    """One line recalling the previous round's decision and its reason, for the next round's decision."""
+    if not task.get("rounds"):
+        return None
+    earlier = task["rounds"][-1]
+    decision = earlier["decision"]
+    outcome = "changes requested" if decision["outcome"] == "changes-requested" else decision["outcome"]
+    revised = " The brief was revised since." if earlier.get("brief", task["brief"]) != task["brief"] else ""
+    reopened = f" Reopened: {earlier['reopened']}" if earlier.get("reopened") else ""
+    return (f"Round {len(task['rounds']) + 1}. Round {len(task['rounds'])}: {outcome} by {decision['by']} "
+            f"on {decision['at'][:10]}: {decision['reason'].rstrip('.')}.{revised}{reopened}")
 
 
 def record_review(task: dict, review: dict, root: Path | None = None) -> dict:
@@ -349,41 +522,41 @@ def _passes(task: dict) -> dict:
 
 
 def start_pass(task: dict, board_id: str, mode: str) -> dict:
-    """Mark a board's pass as started; starting again replaces a failed or interrupted pass."""
+    """Mark a board's pass as started. Starting again after a failed or done pass counts a new attempt;
+    printing a pass that is already started does not."""
     passes = _passes(task)
     if board_id not in task["consultation"]["boards"]:
         raise ValueError(f"Board {board_id!r} is not part of this consultation.")
     if mode not in ("subagent", "sequential"):
         raise ValueError("A pass runs as a subagent or in sequence.")
     previous = passes["boards"].get(board_id, {})
+    if previous.get("status") == "started" and previous.get("mode") == mode:
+        return {**task, "passes": passes}
     passes["boards"][board_id] = {"status": "started", "mode": mode, "started_at": timestamp(),
-                                  "attempts": previous.get("attempts", 0) + 1}
+                                  "attempts": previous.get("attempts", 0) + (0 if previous.get("status") == "started" else 1)}
     return {**task, "passes": passes}
 
 
 def submit_pass(task: dict, entry: dict, mode: str | None = None, root: Path | None = None) -> dict:
-    """Record one board's entry. An invalid entry is recorded as a failure to retry."""
+    """Record one board's entry. An invalid entry is recorded as a failure; the corrected file can be sent again."""
     passes = _passes(task)
     raw_id = entry.get("id") if isinstance(entry, dict) else None
+    # The entry is validated with its ID stripped: look its pass up the same way.
     board_id = raw_id.strip() if isinstance(raw_id, str) else None
-    current = passes["boards"].get(board_id, {})
+    current = passes["boards"].get(board_id, {}) if isinstance(board_id, str) else {}
+    if isinstance(board_id, str) and board_id in task["consultation"]["boards"] and not current:
+        raise ValueError(
+            f"The {board_id} pass was not started on the current consultation. Run openguildkit task pass "
+            f"{task['id']} {board_id}, review through that brief, then submit the entry."
+        )
     mode = mode or current.get("mode", "sequential")
-    if isinstance(board_id, str) and board_id in task["consultation"]["boards"] and current.get("status") not in (
-            "started", "failed", "done"):
-        raise ValueError(f"The {board_id} pass was not started: run openguildkit task pass {task['id']} {board_id} "
-                         "first, so that the entry belongs to a pass of this consultation.")
     try:
         validated = validate_board_entry(task["consultation"], entry, root)
     except ValueError as error:
         if isinstance(board_id, str) and board_id in task["consultation"]["boards"]:
-            problems = entry_problems(task["consultation"], entry, root) or [str(error)]
-            message = "; ".join(problems) if len(problems) == 1 else "\n  - " + "\n  - ".join(problems)
-            passes["boards"][board_id] = {**current, "status": "failed", "mode": mode, "error": message,
+            passes["boards"][board_id] = {**current, "status": "failed", "mode": mode, "error": str(error),
                                           "at": timestamp(), "attempts": current.get("attempts", 1)}
-            return {**task, "passes": passes, "_error": message}
-        problems = entry_problems(task["consultation"], entry, root)
-        if problems:
-            raise ValueError(problems[0]) from None
+            return {**task, "passes": passes, "_error": str(error)}
         raise
     passes["boards"][validated["id"]] = {"status": "done", "mode": mode, "entry": validated, "at": timestamp(),
                                          "attempts": current.get("attempts", 1)}
@@ -391,7 +564,12 @@ def submit_pass(task: dict, entry: dict, mode: str | None = None, root: Path | N
 
 
 def pass_progress(task: dict) -> list[dict]:
-    """Each selected board with its pass status: done, failed, started (or interrupted) or missing."""
+    """Each selected board with its pass status: done, failed, started (or interrupted) or missing.
+
+    Once the review is recorded, the passes are part of it: each of its boards is done, in the review.
+    """
+    if task["status"] != "consulting" and "review" in task:
+        return [{"board": entry["id"], "status": "done", "in": "review"} for entry in task["review"]["boards"]]
     passes = task.get("passes") if task["status"] == "consulting" else None
     if passes and passes.get("consultation_id") != task["consultation"]["id"]:
         passes = None
@@ -475,7 +653,9 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
         raise ValueError(f"Unknown blocker {blocker_id}. Blockers: {listed}.")
     blocker = known[blocker_id]
     if blocker["resolution"]:
-        raise ValueError(f"Blocker {blocker_id} already has a resolution. See task blockers.")
+        first = blocker["resolution"]
+        raise ValueError(f"Blocker {blocker_id} already has a resolution: {first['kind']} by {first['by']} on "
+                         f"{first.get('at', '')[:10]}. It stays as recorded; see task blockers.")
     verification = blocker.get("phase") == "verification"
     if verification and task["status"] != "approved":
         raise ValueError("Resolve a verification blocker after approval and before completion.")
@@ -542,47 +722,156 @@ def verification_blocker_problems(task: dict, profile: dict, root: Path | None =
     return problems
 
 
-def record_result(task: dict, profile: dict, payload: dict, source: str = "report",
-                  *, changed: list[str] | None = None) -> dict:
-    """Add a delivery report to an approved task; later reports update earlier checks."""
+def record_result(task: dict, profile: dict, payload: dict, source: str = "report", relevance: dict | None = None,
+                  root: Path | None = None, *, changed: list[str] | None = None) -> dict:
+    """Add a delivery report to an approved task; later reports update earlier checks.
+
+    A named evidence that cannot be recorded is held back under "_held" (for the caller to print and
+    drop) and the rest is recorded: the task then waits for that evidence from its owner.
+    """
     if task["status"] != "approved":
         raise ValueError("Results belong to an approved task that is not done yet.")
-    result = merge_results(task.get("result"), validate_result(task, profile, payload, source, changed=changed))
+    validated = validate_result(task, profile, payload, source, relevance, root, changed=changed)
+    held = validated.pop("_held", [])
+    result = merge_results(task.get("result"), validated)
     if source == "report" and task.get("answers", {}).get("outcome") and not result["criteria"]:
         raise ValueError(
             "The task has an expected outcome: report at least one acceptance criterion. Run task result ID --template."
         )
-    return {**task, "result": result}
+    updated = {**task, "result": result}
+    for key, value in (("waiting_for", waiting_evidence(updated, profile, relevance)),
+                       ("warnings", result_warnings(updated, profile, relevance))):
+        result.pop(key, None)
+        if value:
+            result[key] = value
+    return {**_with_wait(updated), "_held": held}
 
 
-def complete_task(task: dict, profile: dict, root: Path | None = None, *, changed: list[str] | None = None) -> dict:
-    problems = verification_blocker_problems(task, profile, root) + completion_problems(task, profile, changed=changed)
+def _with_wait(task: dict) -> dict:
+    """Next to the status, the evidence an approved task waits for, so task show and the export say it too."""
+    task = {key: value for key, value in task.items() if key != "waiting_for"}
+    waiting = task.get("result", {}).get("waiting_for", [])
+    if waiting:
+        task["waiting_for"] = [f"{item['title']} ({item['check']}) from {item['owner']}" for item in waiting]
+    return task
+
+
+def defer_evidence(task: dict, profile: dict, deferrals: list[tuple[str, dict]], by: str,
+                   relevance: dict | None = None) -> dict:
+    """Hand named evidence that is still awaited to a follow-up task, recorded on behalf of its owner."""
+    waiting = {item["check"]: item for item in waiting_evidence(task, profile, relevance)}
+    entries = []
+    for check_id, follow_up in deferrals:
+        if check_id not in waiting:
+            listed = ", ".join(waiting) or "none"
+            raise ValueError(f"{check_id} is not a named evidence this task waits for. Awaited: {listed}.")
+        if follow_up.get("follows", {}).get("task") != task["id"]:
+            raise ValueError(f"Task {follow_up['id']} does not follow {task['id']}: open it with "
+                             f'openguildkit task new "BRIEF" --follows {task["id"]}.')
+        entries.append({"check": check_id, "task": follow_up["id"], "owner": waiting[check_id]["owner"],
+                        "by": by, "at": timestamp()})
+    result = {**task["result"], "deferred": [*task["result"].get("deferred", []), *entries]}
+    result.pop("waiting_for", None)
+    return _with_wait({**task, "result": result})
+
+
+def complete_task(task: dict, profile: dict, root: Path | None = None, relevance: dict | None = None,
+                  by: str | None = None, *, changed: list[str] | None = None) -> dict:
+    """Close the task: done when nothing is left open, done-with-reservations otherwise.
+
+    Closing over a skipped or failed data protection, security or AI rule that concerns the task
+    needs the person's name (the command line also asks for a terminal).
+    """
+    problems = (verification_blocker_problems(task, profile, root)
+                + completion_problems(task, profile, relevance, changed=changed))
     if problems:
         raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(problems))
-    return {**task, "status": "done", "completed_at": timestamp()}
+    groups = points_left_open(task, profile, relevance)
+    sensitive = next((group for group in groups if group["group"] == SENSITIVE_GROUP), None)
+    if sensitive and not (by or "").strip():
+        raise ValueError(
+            f"{len(sensitive['points'])} data protection, security or AI point(s) are skipped, failed or declared not "
+            "applicable as a pack. A person "
+            f"confirms closing over them: openguildkit task complete {task['id']} --by NAME, at a terminal."
+        )
+    result = {**task.get("result", {}),
+              "closing": {"open_points": groups, "not_concerned": not_concerned(task, profile, relevance)}}
+    if by and by.strip():
+        result["closing"]["by"] = by.strip()
+    if not task["consultation"]["scope"].get("checks") and not is_decision_task(task):
+        result["closing"]["verification"] = NO_COMMAND
+    status = "done-with-reservations" if groups else "done"
+    return _with_wait({**task, "status": status, "completed_at": timestamp(), "result": result})
 
 
-def points_left_open(task: dict, profile: dict) -> list[str]:
-    """What a completed task leaves for later: rules not passed, waived blockers, disagreements still open."""
-    mandatory = {check["id"] for check in expected_checks(task, profile) if check["mandatory"]}
-    checks = [] if is_decision_task(task) else task.get("result", {}).get("checks", [])
-    points = [
-        f"{item['check']} is {item['status']}" for item in checks
-        if item["status"] != "passed" and item["check"] not in mandatory and item["status"] != "not-applicable"
+SENSITIVE_GROUP = "Data protection, security or AI rules skipped, failed or declared not applicable as a pack"
+NO_COMMAND = ("No project check command ran for this task: the profile lists none (checks in "
+              ".openguildkit/project.json), so nothing was run to verify the change.")
+
+
+def points_left_open(task: dict, profile: dict, relevance: dict | None = None) -> list[dict]:
+    """What a closed task leaves open, grouped by nature, most serious first; empty groups are left out."""
+    checks = {check["id"]: check for check in asked_checks(task, profile, relevance)}
+    reported = outcomes(task, profile, relevance)
+    sensitive, other = [], []
+    for item in reported.values():
+        check = checks.get(item["check"])
+        if check is None or check["kind"] == "command" or item["status"] not in ("skipped", "failed"):
+            continue
+        detail = f": {item['reason']} ({item['owner']})" if item.get("reason") else ""
+        line = f"{item['check']} is {item['status']}{detail}"
+        area = sensitive_area(check.get("pack", ""))
+        (sensitive if area else other).append(f"{line} [{area}]" if area else line)
+    result = task.get("result", {})
+    sweeping = {item.get("via_pack") for item in reported.values()}
+    for item in result.get("packs", []):
+        area = sensitive_area(item["pack"])
+        if area and item["pack"] in sweeping:
+            sensitive.append(f"pack {item['pack']} is declared not applicable as a whole: {item['reason']} "
+                             f"({item['owner']}) [{area}]")
+    groups = [
+        (SENSITIVE_GROUP, sensitive),
+        ("Project checks that could not run in this environment", [
+            f"{item['check']} could not run: {item['reason']} (recorded by {item['owner']})"
+            for item in result.get("checks", []) if item.get("cannot_run")]),
+        ("Blockers waived rather than cleared", [
+            f"blocker {item['id']} is waived until {item['resolution']['until']}"
+            for item in blocker_list(task) if item["resolution"] and item["resolution"]["kind"] == "waived"]),
+        ("Disagreements between boards left open", [
+            f"disagreement {item_id} was left open" for item_id in task.get("deliberation", {}).get("open", [])]),
+        ("Named evidence handed to a follow-up task", [
+            f"{item['check']} is handed to task {item['task']}, provided by {item['owner']} (recorded by {item['by']})"
+            for item in result.get("deferred", [])]),
+        ("Other rules skipped or failed", other),
+        ("Warnings on the result", list(result.get("warnings", []))),
     ]
-    points += [f"blocker {item['id']} is waived until {item['resolution']['until']}"
-               for item in blocker_list(task) if item["resolution"] and item["resolution"]["kind"] == "waived"]
-    points += [
-        f"{item['check']} was unavailable ({item['owner']}): {item['reason']}"
-        for item in task.get("result", {}).get("checks", [])
-        if item.get("environment_unavailable") is True and item["status"] == "skipped"
-    ]
-    points += [f"disagreement {item_id} was left open" for item_id in task.get("deliberation", {}).get("open", [])]
-    return points
+    found = [{"group": title, "points": points} for title, points in groups if points]
+    verdicts = [f"{entry['id']} said {entry['challenge']['verdict']}" for entry in task.get("review", {}).get("boards", [])
+                if entry.get("challenge", {}).get("verdict") in ("revise", "block")]
+    if found and verdicts:
+        found.append({"group": "Board verdicts at approval that asked for changes", "points": verdicts})
+    return found
 
 
 def record_deliberation(task: dict, payload: dict) -> dict:
     return {**task, "deliberation": validate_deliberation(task, payload)}
+
+
+def decided_message(task: dict) -> str | None:
+    """For a task a person already decided: its status, who decided and when, and the one command that fits next."""
+    decision, task_id, status = task.get("decision"), task["id"], task["status"]
+    if not decision:
+        return None
+    who = f"by {decision['by']} on {decision['at'][:10]}"
+    if status == "approved":
+        return f"Task {task_id} is already approved {who}. Next: openguildkit task handoff {task_id}"
+    if status in DONE_STATUSES:
+        return (f"Task {task_id} is already decided and {status}: approved {who}. To change the work, open a follow-up: "
+                f"openguildkit task new \"BRIEF\" --follows {task_id}")
+    if status == "changes-requested":
+        return (f"Task {task_id} already has changes requested {who}. Next: openguildkit task consult {task_id}, "
+                "then record the new review before deciding.")
+    return None
 
 
 def record_decision(
@@ -591,7 +880,7 @@ def record_decision(
 ) -> dict:
     """Record the person's decision. Approving needs their confirmation of each protected board removed."""
     if task["status"] != "reviewed":
-        raise ValueError("Record the boards' review before deciding.")
+        raise ValueError(decided_message(task) or "Record the boards' review before deciding.")
     unconfirmed = [board for board in pending_removals(task) if board not in (confirmed_removals or [])]
     if approve and unconfirmed:
         raise ValueError(
@@ -639,6 +928,6 @@ def record_authorization(task: dict, action: str, target: str, allow: bool, by: 
 
 def require_current_scope(task: dict, profile: dict, catalog: dict) -> None:
     if task.get("profile_fingerprint") != profile_fingerprint(profile, catalog):
-        if task["status"] in ("approved", "done"):
-            raise ValueError(stale_approval_message(task["id"]))
+        if task["status"] in ("approved", *DONE_STATUSES):
+            raise ValueError(stale_approval_message(task["id"], rule_changes(task, profile, catalog)))
         raise ValueError("The project profile or catalog changed. Request changes and consult again.")

@@ -6,70 +6,147 @@
       "name": "list_supplier_invoices",
       "description": "List supplier invoices.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"status": {"type": "string", "description": "Invoice status", "enum": ["paid", "unpaid"]}}},
-      "responses": [
-        {
-          "when": {"status": "paid"},
-          "result": {"invoices": [{"invoice_id": "sup-1", "supplier": "Hosting Example", "amount_eur": 640.0, "status": "paid", "date": "2026-10-28"}]}
-        },
-        {
-          "when": {"status": "unpaid"},
-          "result": {
-            "invoices": [
-              {"invoice_id": "sup-2", "supplier": "Monitoring Sample", "amount_eur": 310.0, "status": "unpaid", "date": "2026-11-12"},
-              {"invoice_id": "sup-3", "supplier": "Tools Placeholder", "amount_eur": 150.0, "status": "unpaid", "date": "2026-11-18"}
-            ],
-            "total_eur": 460.0
-          }
-        },
-        {
-          "result": {
-            "invoices": [
-              {"invoice_id": "sup-1", "supplier": "Hosting Example", "amount_eur": 640.0, "status": "paid", "date": "2026-10-28"},
-              {"invoice_id": "sup-2", "supplier": "Monitoring Sample", "amount_eur": 310.0, "status": "unpaid", "date": "2026-11-12"},
-              {"invoice_id": "sup-3", "supplier": "Tools Placeholder", "amount_eur": 150.0, "status": "unpaid", "date": "2026-11-18"}
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Invoice status",
+            "enum": [
+              "paid",
+              "unpaid"
             ]
           }
         }
-      ]
+      },
+      "serve": {
+        "records": "supplier_invoices",
+        "action": "list",
+        "total": "amount_eur"
+      }
     },
     {
       "name": "list_customer_invoices",
       "description": "List customer invoices.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"status": {"type": "string", "description": "Invoice status", "enum": ["paid", "unpaid"]}}},
-      "responses": [
-        {
-          "when": {"status": "paid"},
-          "result": {"invoices": [{"invoice_id": "cus-1", "customer": "Example Logistics", "amount_eur": 1800.0, "status": "paid", "date": "2026-10-31"}]}
-        },
-        {
-          "when": {"status": "unpaid"},
-          "result": {
-            "invoices": [{"invoice_id": "cus-2", "customer": "Sample Clinic Group", "amount_eur": 950.0, "status": "unpaid", "date": "2026-11-15"}],
-            "total_eur": 950.0
-          }
-        },
-        {
-          "result": {
-            "invoices": [
-              {"invoice_id": "cus-1", "customer": "Example Logistics", "amount_eur": 1800.0, "status": "paid", "date": "2026-10-31"},
-              {"invoice_id": "cus-2", "customer": "Sample Clinic Group", "amount_eur": 950.0, "status": "unpaid", "date": "2026-11-15"}
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Invoice status",
+            "enum": [
+              "paid",
+              "unpaid"
             ]
           }
         }
-      ]
+      },
+      "serve": {
+        "records": "customer_invoices",
+        "action": "list",
+        "total": "amount_eur"
+      }
     },
     {
       "name": "get_cash_balance",
       "description": "Get the cash balance of a bank account.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"account": {"type": "string", "description": "Account name, for example main"}}},
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "description": "Account name, for example main"
+          }
+        }
+      },
       "responses": [
-        {"when": {"account": "savings"}, "result": {"account": "savings", "balance_eur": 40000.0, "as_of": "2026-11-20"}},
-        {"when": {"account": "main"}, "result": {"account": "main", "balance_eur": 52350.4, "as_of": "2026-11-20"}},
-        {"result": {"accounts": [{"account": "main", "balance_eur": 52350.4}, {"account": "savings", "balance_eur": 40000.0}], "as_of": "2026-11-20"}}
+        {
+          "when": {
+            "account": "savings"
+          },
+          "result": {
+            "account": "savings",
+            "balance_eur": 40000.0,
+            "as_of": "2026-11-20"
+          }
+        },
+        {
+          "when": {
+            "account": "main"
+          },
+          "result": {
+            "account": "main",
+            "balance_eur": 52350.4,
+            "as_of": "2026-11-20"
+          }
+        },
+        {
+          "result": {
+            "accounts": [
+              {
+                "account": "main",
+                "balance_eur": 52350.4
+              },
+              {
+                "account": "savings",
+                "balance_eur": 40000.0
+              }
+            ],
+            "as_of": "2026-11-20"
+          }
+        }
       ]
     }
-  ]
+  ],
+  "records": {
+    "supplier_invoices": {
+      "key": "invoice_id",
+      "title": "supplier",
+      "items": [
+        {
+          "invoice_id": "sup-1",
+          "supplier": "Hosting Example",
+          "amount_eur": 640.0,
+          "status": "paid",
+          "date": "2026-10-28"
+        },
+        {
+          "invoice_id": "sup-2",
+          "supplier": "Monitoring Sample",
+          "amount_eur": 310.0,
+          "status": "unpaid",
+          "date": "2026-11-12"
+        },
+        {
+          "invoice_id": "sup-3",
+          "supplier": "Tools Placeholder",
+          "amount_eur": 150.0,
+          "status": "unpaid",
+          "date": "2026-11-18"
+        }
+      ]
+    },
+    "customer_invoices": {
+      "key": "invoice_id",
+      "title": "customer",
+      "items": [
+        {
+          "invoice_id": "cus-1",
+          "customer": "Example Logistics",
+          "amount_eur": 1800.0,
+          "status": "paid",
+          "date": "2026-10-31"
+        },
+        {
+          "invoice_id": "cus-2",
+          "customer": "Sample Clinic Group",
+          "amount_eur": 950.0,
+          "status": "unpaid",
+          "date": "2026-11-15"
+        }
+      ]
+    }
+  }
 }

@@ -18,6 +18,9 @@
     "developer-relations-and-docs",
     "backend"
   ],
+  "core_for": [
+    "developer-relations-and-docs"
+  ],
   "packs": [
     "public-api-docs"
   ],

@@ -130,6 +130,9 @@
         "id": "frontend-rendering",
         "title": "Front-end engineer",
         "focus": "Check where the interface renders, how it loads and updates state, and that it stays usable on slow networks and small screens.",
+        "applies_to": [
+          "customer"
+        ],
         "checks": [
           "Loading, empty and error states exist for each view the change touches.",
           "The view stays usable on a slow network and a small screen."
@@ -139,6 +142,9 @@
         "id": "browser-compatibility",
         "title": "Web platform specialist",
         "focus": "Check the browsers and devices the project supports, the web platform features the change relies on and the weight it adds to what users download.",
+        "applies_to": [
+          "customer"
+        ],
         "checks": [
           "Platform features used are available in every supported browser or have a fallback.",
           "The weight the change adds to the download is measured."

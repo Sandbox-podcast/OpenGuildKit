@@ -10,16 +10,16 @@ leave the project: no review, evidence or internal note.
 import json
 import re
 import uuid
-from collections import Counter
 from datetime import date, timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from . import clock
-from .project import STATE_DIR, pack_scopes, rule_plan, rule_text
+from .deliverables import project_path
+from .project import pack_scopes, rule_plan, rule_text
 from .storage import project_lock, read_json, write_json, write_text
 from .tasks import read_task
-from .workflow import open_objection_count
+from .workflow import objections
 
 MANIFEST = ".openguildkit-export.json"
 SECTIONS = ("project", "reference", "learn", "blog")
@@ -40,25 +40,42 @@ def _frontmatter(fields: dict) -> str:
     return "---\n" + "".join(f"{key}: {json.dumps(value, ensure_ascii=False)}\n" for key, value in fields.items()) + "---\n\n"
 
 
-def _unique_points(values: list[str]) -> list[str]:
-    points = {}
-    for value in values:
-        text = value.strip()
-        if text:
-            points.setdefault(" ".join(text.rstrip(".").lower().split()), text)
-    return list(points.values())
-
-
 def _criteria(task: dict) -> list[str]:
-    return _unique_points([item["criterion"] for item in task.get("result", {}).get("criteria", [])
-                           if item["status"] == "met"])
+    return [item["criterion"] for item in task.get("result", {}).get("criteria", []) if item["status"] == "met"]
+
+
+def _body(task: dict) -> list[str]:
+    """The brief after its first line, which is already the title; nothing when the brief is one line."""
+    rest = "\n".join(task["brief"].strip().splitlines()[1:]).strip()
+    return [rest, ""] if rest else []
+
+
+def _behaviour(task: dict) -> list[str]:
+    """The expected outcome and the criteria met, each said once."""
+    seen, lines = set(), []
+    for text in [task.get("answers", {}).get("outcome") or "", *_criteria(task)]:
+        key = " ".join(text.casefold().split()).rstrip(".")
+        if key and key not in seen:
+            seen.add(key)
+            lines.append(f"- {text}")
+    return lines
 
 
 def _verification(task: dict) -> str:
-    checks = Counter(item["status"] for item in task.get("result", {}).get("checks", []))
-    return (f"{checks['passed']} check(s) passed, {checks['not-applicable']} not applicable, "
-            f"{checks['failed']} failed, {checks['skipped']} skipped. "
-            f"{open_objection_count(task)} disagreement(s) remained open.")
+    """What was verified, what did not apply and what stayed open, so the page does not overstate the checks."""
+    checks = task.get("result", {}).get("checks", [])
+    passed = sum(item["status"] == "passed" for item in checks)
+    skipped = sum(item["status"] == "not-applicable" for item in checks)
+    line = f"Checks before release: {passed} passed, {skipped} not applicable, {len(checks) - passed - skipped} open."
+    if "deliberation" in task:
+        disagreements = len(task["deliberation"]["open"])
+        if disagreements:
+            line += f" {disagreements} disagreement(s) between the boards were left open."
+    elif task.get("review"):
+        pending = len(objections(task["review"], task["consultation"].get("domains")))
+        if pending:
+            line += f" {pending} objection(s) between the boards were not deliberated before the approval."
+    return line
 
 
 def _pages(task: dict, position: int, version: str, sections: tuple[str, ...]) -> dict[str, str]:
@@ -66,18 +83,12 @@ def _pages(task: dict, position: int, version: str, sections: tuple[str, ...]) -
     result = task.get("result", {})
     delivered = result.get("pull_request") or result.get("revision") or "not recorded"
     outcome = task.get("answers", {}).get("outcome")
-    brief = task["brief"].strip()
-    first, _, details = brief.partition("\n")
-    body = details.strip() if first.rstrip(".") == title else brief
-    behaviour = _unique_points(([outcome] if outcome else []) + _criteria(task))
     common = {"title": title, "source_task": task["id"], "project_version": version}
     pages = {}
     if "reference" in sections:
-        lines = [f"# {title}", ""]
-        if body:
-            lines += [body, ""]
-        if behaviour:
-            lines += ["## Behaviour", "", *[f"- {point}" for point in behaviour], ""]
+        lines = [f"# {title}", "", *_body(task)]
+        if _behaviour(task):
+            lines += ["## Behaviour", "", *_behaviour(task), ""]
         lines += ["## Verification", "", _verification(task), "",
                   "## Source", "", f"Delivered in {delivered}, project version {version}.", ""]
         pages[f"reference/{task['id']}.md"] = _frontmatter({**common, "sidebar_position": position}) + "\n".join(lines)
@@ -91,10 +102,7 @@ def _pages(task: dict, position: int, version: str, sections: tuple[str, ...]) -
         pages[f"learn/{task['id']}.md"] = _frontmatter({**common, "sidebar_position": position}) + "\n".join(lines)
     if "blog" in sections:
         day = (task.get("completed_at") or task["created_at"])[:10]
-        lines = [f"# {title}", ""]
-        if body:
-            lines += [body, ""]
-        lines += [f"Available in version {version}.", ""]
+        lines = [f"# {title}", "", *_body(task), f"Available in version {version}.", ""]
         pages[f"blog/{day}-{task['id']}.md"] = _frontmatter({**common, "date": day}) + "\n".join(lines)
     return pages
 
@@ -107,6 +115,7 @@ def project_overview(profile: dict, catalog: dict) -> dict:
     plan, scopes = rule_plan(profile, catalog), pack_scopes(profile, catalog)
     packs = [{"id": item["id"], "title": item["title"], "version": item["version"], "components": scopes.get(item["id"]),
               "rules": [rule_text(rule)[0] for rule in catalog["packs"][item["id"]]["rules"]]} for item in plan["packs"]]
+    # Every board's title: the export lists only those its tasks consulted.
     boards = sorted(catalog["boards"])
     return {"name": profile["name"], "sector": profile.get("sector"), "stack": profile.get("stack", []),
             "components": [{"id": item["id"], "stack": item["stack"]} for item in profile.get("components", [])],
@@ -114,7 +123,7 @@ def project_overview(profile: dict, catalog: dict) -> dict:
             "boards": [{"id": board_id, "title": catalog["boards"][board_id]["title"]} for board_id in boards]}
 
 
-def _project_page(overview: dict, version: str, consulted: set[str]) -> str:
+def _project_page(overview: dict, version: str) -> str:
     lines = [f"# {overview['name']}", "", "<!-- Generated from the OpenGuildKit project profile. Review before publishing. -->", ""]
     lines += [f"Sector: {overview['sector']}", ""] if overview["sector"] else []
     lines += [f"Stack: {', '.join(overview['stack'])}", ""] if overview["stack"] else []
@@ -127,9 +136,8 @@ def _project_page(overview: dict, version: str, consulted: set[str]) -> str:
         lines += [f"### {pack['title']} ({pack['id']}, version {pack['version']})", ""]
         lines += [f"Applies to: {', '.join(pack['components'])}", ""] if pack["components"] else []
         lines += [*[f"- {rule}" for rule in pack["rules"]], ""]
-    labels = {item["id"]: item["title"] for item in overview["boards"]}
-    boards = [f"- {labels.get(board_id, board_id)} ({board_id})" for board_id in sorted(consulted)]
-    lines += ["## Boards consulted", "", *(boards or ["No board reviews are recorded for the selected tasks."]), ""]
+    lines += ["## Boards consulted", "", "The boards that reviewed the documented changes before a person approved them.", "",
+              *[f"- {item['title']} ({item['id']})" for item in overview["boards"]], ""]
     front = {"title": overview["name"], "project_version": version, "sidebar_position": 0}
     return _frontmatter(front) + "\n".join(lines)
 
@@ -153,7 +161,7 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
     if unknown or not sections:
         raise ValueError(f"Choose sections among {', '.join(SECTIONS)}.")
     tasks = [read_task(state, task_id) for task_id in task_ids]
-    not_done = [task["id"] for task in tasks if task["status"] != "done"]
+    not_done = [task["id"] for task in tasks if task["status"] not in ("done", "done-with-reservations")]
     if not_done:
         raise ValueError(f"Only completed tasks with recorded checks can be documented: {', '.join(not_done)}.")
     manifest_path = output / MANIFEST
@@ -165,8 +173,10 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
         pages.update(_pages(task, position, version, sections))
     summary = [f"# {project}", ""]
     if "project" in sections and overview is not None:
-        consulted = {entry["id"] for task in tasks for entry in task.get("review", {}).get("boards", [])}
-        pages[PROJECT_PAGE] = _project_page(overview, version, consulted)
+        consulted = list(dict.fromkeys(board for task in tasks for board in task["consultation"]["boards"]))
+        titles = {item["id"]: item["title"] for item in overview["boards"]}
+        boards = [{"id": board, "title": titles.get(board, board)} for board in consulted]
+        pages[PROJECT_PAGE] = _project_page({**overview, "boards": boards}, version)
         summary += ["## Project", "", f"- [Overview]({PROJECT_PAGE})", ""]
     for section in ("reference", "learn"):
         entries = [path for path in pages if path.startswith(f"{section}/")]
@@ -201,34 +211,23 @@ def _load_shares(state: Path) -> list[dict]:
     return read_json(path)["shares"] if path.is_file() else []
 
 
-def shareable_path(root: Path, deliverable: str) -> None:
-    """A share names a page or a folder of a docs export: inside the project, never under .openguildkit
-    (task records, shares and decisions stay local) and never through a link that leaves the folder."""
-    named = Path(deliverable.strip())
-    candidate = named if named.is_absolute() else root / named
-    resolved, project = candidate.resolve(), root.resolve()
-    try:
-        relative = resolved.relative_to(project)
-    except ValueError:
-        raise ValueError(f"{deliverable} is outside the project: share a page of a docs export.") from None
-    if STATE_DIR in relative.parts or STATE_DIR in named.parts:
-        raise ValueError(f"{deliverable} is under {STATE_DIR}, which holds the local task records and reviews: "
-                         "they are never shared. Share a page that docs export wrote.")
-    folder = resolved if resolved.is_dir() else resolved.parent
-    for ancestor in (folder, *folder.parents):
-        if (ancestor / MANIFEST).is_file():
-            return
-        if ancestor == project:
-            break
-    raise ValueError(f"{deliverable} is not inside a docs export folder: run openguildkit docs export, "
-                     "then share one of its pages or folders.")
+def _shared_item(state: Path, deliverable: str) -> None:
+    """What a recipient receives: an existing file of the project, or the folder of a documentation export."""
+    target = project_path(state.parent, state, deliverable, "--deliverable")
+    shown = Path(deliverable).as_posix()
+    if not target.exists():
+        raise ValueError(f"--deliverable {shown} does not exist. Name the file you share, or the folder that "
+                         "openguildkit docs export wrote.")
+    if target.is_dir() and not (target / MANIFEST).is_file():
+        raise ValueError(f"--deliverable {shown} is a folder that holds no documentation export. Name the file you "
+                         "share, or the folder that openguildkit docs export wrote.")
 
 
 def add_share(state: Path, deliverable: str, recipients: list[str], until: str, portal: str, by: str) -> dict:
     """Record a share before creating it in Documentalist: what, for whom, until when."""
     if not deliverable.strip() or not by.strip():
         raise ValueError("Name the deliverable and the owner of the share.")
-    shareable_path(state.parent, deliverable)
+    _shared_item(state, deliverable.strip())
     bad = [item for item in recipients if not _EMAIL.fullmatch(item)]
     if not recipients or bad:
         raise ValueError(f"List the recipients' email addresses{': ' + ', '.join(bad) if bad else ''}.")

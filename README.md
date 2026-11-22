@@ -46,7 +46,7 @@ openguildkit preview
 openguildkit check
 ```
 
-`init` saves the profile in `.openguildkit/project.json` and writes the rules in a managed block in `AGENTS.md`. It adds an import to `CLAUDE.md` for Claude Code. The catalog records in force are pinned in `.openguildkit/catalog.lock.json`: after upgrading OpenGuildKit, `openguildkit update` shows the date of the installed catalog (the day its sources were last checked), how many records changed and what would change, and `openguildkit update --apply` adopts it. It then prints the next steps that apply, such as `openguildkit host apply` for your agent host and `openguildkit tools plan ...` for the tools the registry knows. [Install the agent skill](integrations/) to answer the questionnaire in Claude Code or Codex and run tasks from the conversation.
+`init` saves the profile in `.openguildkit/project.json` and writes the rules in a managed block in `AGENTS.md`. It adds an import to `CLAUDE.md` for Claude Code. The catalog records in force are pinned in `.openguildkit/catalog.lock.json`: after upgrading OpenGuildKit, `openguildkit update` shows the date of the installed catalog (the day its sources were last checked), how many records changed and what would change, and `openguildkit update --apply` adopts it. It then prints the next steps that apply, such as `openguildkit host apply` for your agent host and `openguildkit tools plan ...` for the tools the registry knows. [Install the agent skill](integrations/) to answer the questionnaire in Claude Code or Codex and run tasks from the conversation. To change the profile later (adopt or decline a regulation, add a check, change the host or the guard), use `openguildkit profile`: it records who, when and why, and rewrites `AGENTS.md` ([patterns](docs/patterns.md#change-the-profile-after-setup)).
 
 ```mermaid
 flowchart TB
@@ -61,6 +61,75 @@ flowchart TB
 A new project starts with `"guard": "observe"`: once `host apply` has installed the hooks, the board is brought to the agent on every request and an edit without an approved task is flagged, not blocked. Projects created before keep the mode they have (`off` when the profile does not say). With `"guard": "enforce"`, the board is not optional: host hooks remind the agent on every request, refuse file edits through the agent's edit tools until a task is approved, and a CI check requires the approved decision in each pull request. Writes through the shell do not go through the hooks; the CI check catches them. A local approval only detects accidental edits: use signed approvals when the agent must not be able to approve for you. [Board guard](integrations/README.md#the-board-before-every-change)
 
 The local CLI selects the boards and records their reviews. Your agent writes the reviews and uses its own tools for any research you authorize. You approve the scope in your terminal before the CLI issues the implementation brief.
+
+## A task from request to closing
+
+Every change follows the same path, from the request to the closing. The agent runs the commands and plays the boards. You answer the questions, decide, and confirm in your own name what is yours to confirm, in your own terminal. The [task workflow](docs/workflow.md) details each step, and the [glossary](docs/glossary.md) explains the product's words in English and French.
+
+**1. Open and scope the task.**
+
+```bash
+openguildkit task new "Show signed-in customers the status of their support requests" --id request-status
+openguildkit task questions request-status
+openguildkit task questions request-status --answers answers.json
+openguildkit task route request-status --answers answers.json
+openguildkit task consult request-status --answers answers.json
+```
+
+- `task new` opens the task with your request, the brief, in your own words.
+- `task questions` prints the questionnaire: the agent asks you the kind of work, the areas it affects, the data involved and the research allowed.
+- `task questions --answers` adds the follow-up questions and lists the points still open.
+- `task route` shows the boards it would select and why, without recording anything. Only you add or remove a board, with a reason.
+- `task consult` records your answers and prepares a short consultation: the task, the project scope, one line per board.
+
+**2. Consult the boards.**
+
+```bash
+openguildkit task pass request-status security --mode subagent
+openguildkit task submit request-status --file security.json
+openguildkit task progress request-status
+openguildkit task review request-status --summary "Where the boards agree, where they differ, and the next step"
+openguildkit task deliberate request-status
+openguildkit task respond request-status --file deliberation.json
+openguildkit task challenge request-status
+```
+
+- `task pass` gives one board, and only that board, what it needs. The agent runs it for each board, often with one subagent per board.
+- `task submit` records the board's review. A malformed review is refused with the list of all its problems.
+- `task progress` says which boards have returned their review.
+- `task review` assembles the reviews with the summary the agent writes.
+- `task deliberate` lists the objections between boards that disagree. With `task respond`, each board maintains, amends or concedes.
+- `task challenge` prints the decision brief the agent shows you: verdicts, objections, blockers and the checks that could change the decision.
+
+**3. Decide.** `task clear` and `task decide` are yours. The agent proposes the evidence, but it never runs these commands for you.
+
+```bash
+openguildkit task blockers request-status
+openguildkit task clear request-status security:1 --evidence tests/test_access.py --supports "Cross-account access is refused" --by "Camille Martin"
+openguildkit task decide request-status --approve --by "Camille Martin" --reason "Read-only scope agreed with support"
+openguildkit task decide request-status --request-changes --by "Camille Martin" --reason "Include the empty state in scope"
+```
+
+- `task blockers` lists the blockers the boards set, with their owner and what clears them.
+- `task clear` clears a blocker with evidence, a project file or a link. A blocker of phase `verification` is a condition of approval: you approve first, and clear it once the code exists.
+- `task decide --approve` shows the decision brief and asks you to type the task ID. The approval is sealed.
+- `task decide --request-changes` sends the task back to scoping, and its history is kept.
+
+**4. Deliver and close.**
+
+```bash
+openguildkit task handoff request-status
+openguildkit task verify request-status
+openguildkit task result request-status --template > result.json
+openguildkit task result request-status --file result.json
+openguildkit task complete request-status
+```
+
+- `task handoff` gives the agent the implementation brief: the approved scope and the rules in force. The agent delivers that scope only.
+- `task verify` runs the project's checks and records their results.
+- `task result --template` asks only the rules that concern the task. The others are listed as not concerned, with the reason.
+- `task result --file` records the result the agent filled in. You confirm each rule set aside, and the owner of each named evidence (record of processing activities, DPIA decision) provides it.
+- `task complete` closes the task as `done` when nothing is left open, or as `done-with-reservations` with the open points, the most serious first.
 
 ## Browse the catalog
 
@@ -92,6 +161,7 @@ openguildkit patterns --id python-fastapi-postgresql
 - [Stack matching and work methods](docs/patterns.md)
 - [Optional ChaosFolk end-to-end replays](integrations/chaosfolk/)
 
+- [Glossary of the product's words, in English and French](docs/glossary.md)
 - [Architecture](docs/architecture.md) and [task workflow](docs/workflow.md)
 - [Contributing](CONTRIBUTING.md), [catalog format](docs/catalog-format.md) and [testing](docs/testing.md)
 - [Roadmap](docs/roadmap.md) and [MIT license](LICENSE)

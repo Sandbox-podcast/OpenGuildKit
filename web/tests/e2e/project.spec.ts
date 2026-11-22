@@ -102,20 +102,25 @@ test('hands a waiver to the named person’s terminal', async ({ page }) => {
   expect((await cli<{ resolution: unknown }[]>(page, ['task', 'blockers', 'request-export', '--json'])).json[0].resolution).toBeNull();
 });
 
-test('clears a blocker with its evidence', async ({ page }) => {
+test('hands the clearing of a blocker, with its evidence, to the person’s terminal', async ({ page }) => {
   await open(page, '/conseil/request-export');
-  await page.getByRole('button', { name: 'Lever avec une preuve' }).click();
+  await page.getByRole('button', { name: 'Lever avec une preuve (au terminal)' }).click();
   const dialog = page.getByRole('dialog');
   const evidence = '.sample/request-export-evidence.md';
   await dialog.getByLabel('Preuve', { exact: true }).fill(evidence);
   await dialog.getByLabel('Ce que la preuve établit').fill('The export only holds the requester’s own requests');
-  await dialog.getByLabel('Votre nom').fill('Alex Moreau');
-  await dialog.getByRole('button', { name: 'Enregistrer la preuve' }).click();
-  await expect(page.getByText('levé par Alex Moreau')).toBeVisible();
-  const blockers = await cli<{ id: string; resolution: { evidence: string } }[]>(page, ['task', 'blockers', 'request-export', '--json']);
-  expect(blockers.json.find((blocker) => blocker.id === 'security:1')?.resolution.evidence).toBe(evidence);
+  await dialog.getByLabel('Personne qui lève le blocage').fill('Alex Moreau');
+  await dialog.getByRole('button', { name: 'Préparer la commande' }).click();
+  const terminal = page.getByRole('dialog', { name: /Levée du blocage : à faire dans votre terminal/ });
+  await expect(terminal.getByLabel('Commande')).toContainText(`task clear request-export security:1 --evidence ${evidence}`);
+  await terminal.getByRole('button', { name: 'J’ai compris' }).click();
+  const blockers = await cli<{ id: string; resolution: unknown }[]>(page, ['task', 'blockers', 'request-export', '--json']);
+  expect(blockers.json.find((blocker) => blocker.id === 'security:1')?.resolution).toBeNull();
+  const refused = await api<{ command: string }>(page, './api/run', { argv: ['task', 'clear', 'request-export', 'security:1', '--evidence', evidence, '--supports', 'Own requests only', '--by', 'Agent'] });
+  expect(refused.status).toBe(403);
+  expect(refused.body.command).toContain('task clear request-export security:1');
   await page.goto('/#/royaume');
-  await expect(page.getByText('Décider de request-export')).toBeVisible();
+  await expect(page.getByText('Lever les blocages de request-export')).toBeVisible();
 });
 
 test('reads the decision brief and sends a reviewed task back to the council', async ({ page }) => {
@@ -199,6 +204,8 @@ test('runs the checks, records the results and completes a task in the forge', a
   await page.getByRole('dialog').getByRole('button', { name: 'Fermer' }).last().click();
   await page.getByRole('button', { name: 'Lancer les commandes du projet' }).click();
   await expect(page.locator('tr', { hasText: 'command:1' }).getByText('Réussi')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/point\(s\) before the task can be done/)).toBeVisible();
+  await expect(page.getByText('Une commande ne peut pas tourner ici')).toBeVisible();
   await page.getByLabel('Votre nom').fill('Camille Martin');
   await page.getByRole('button', { name: /Marquer les règles non rapportées/ }).click();
   await page.getByLabel('Adresse de la pull request').fill('https://github.com/example/portal/pull/8');
@@ -209,6 +216,8 @@ test('runs the checks, records the results and completes a task in the forge', a
   await expect(page.getByText('Résultats enregistrés')).toBeVisible();
   await page.getByRole('button', { name: 'Terminer la quête' }).click();
   await expect(page.getByText('Quête terminée', { exact: true })).toBeVisible();
+  // Nothing was left open: the closing says so, and the task is done without reservations.
+  await expect(page.getByRole('region', { name: 'Clôture' }).getByText('Aucun point laissé ouvert.')).toBeVisible();
   await page.goto('/#/quetes/request-history');
   await expect(page.locator('.quest-head').getByText('Accomplie')).toBeVisible();
 });
@@ -431,6 +440,17 @@ test('edits the profile and synchronizes the instructions', async ({ page }) => 
   await expect(page.getByText('Agent workflow')).toBeVisible();
   await page.getByRole('tab', { name: 'Pile détectée' }).click();
   await expect(page.getByRole('heading', { name: /Retenus/ })).toBeVisible();
+});
+
+test('hands a profile change that weakens a protection to the terminal', async ({ page }) => {
+  await open(page, '/blueprint');
+  await page.getByLabel('Recherche publique').selectOption('public-sources');
+  await page.getByRole('button', { name: 'Enregistrer et synchroniser' }).click();
+  const terminal = page.getByRole('dialog', { name: /Changement du profil : à faire dans votre terminal/ });
+  await expect(terminal.getByLabel('Commande')).toContainText('profile set research public-sources --by NAME --reason WHY');
+  await terminal.getByRole('button', { name: 'J’ai compris' }).click();
+  const profile = await api<{ text: string }>(page, './api/files/read', { path: '.openguildkit/project.json' });
+  expect(JSON.parse(profile.body.text).research).toBe('local-only');
 });
 
 test('installs the agent files and reads the catalog state', async ({ page }) => {

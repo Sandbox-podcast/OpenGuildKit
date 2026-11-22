@@ -96,6 +96,7 @@ function Alerts() {
           <hr />
           <ActionForm busy={busy !== null} submit="Lier à la quête" fields={[{ name: 'task', label: 'Quête qui traite l’alerte', required: true, options: (tasks.data ?? []).map((t) => ({ value: t.id, label: t.id })) }]} onSubmit={async (v) => { if (await act(['alerts', 'link', reviewing.id, '--task', v.task], { success: 'Alerte liée' })) setReviewing(null); }} />
           <div className="row"><a className="btn small" href={`#/quetes?nouvelle=1`}><Icon name="plus" size={12} /> Ouvrir une quête de correctif</a>
+            {reviewing.severity === 'unknown' && <Button size="small" onClick={() => showTerminal({ title: 'Fixer la sévérité : à faire dans votre terminal', why: 'Le scanner n’a pas donné de sévérité (pip-audit par exemple). Une personne la fixe d’après l’avis, dans son terminal, avec son nom et la raison.', command: terminalCommand(['alerts', 'severity', reviewing.id, '--level', 'high', '--by', by || 'Votre nom', '--reason', 'Score CVSS de l’avis']) })}>Fixer la sévérité…</Button>}
             {reviewing.status === 'confirmed' && !reviewing.accepted && <Button size="small" onClick={() => showTerminal({ title: 'Accepter le risque : à faire dans votre terminal', why: 'Accepter une alerte confirmée demande une personne devant un terminal.', command: terminalCommand(['alerts', 'accept', reviewing.id, '--by', by || 'Votre nom', '--reason', 'Motif']) })}>Accepter le risque…</Button>}</div>
         </>}
       </Dialog>
@@ -105,7 +106,8 @@ function Alerts() {
 
 function AllBlockers() {
   const tasks = useTasks();
-  const reviewed = (tasks.data ?? []).filter((t) => t.status === 'reviewed').map((t) => t.id);
+  // Before the decision, and after it for the conditions of the approval (blockers of phase verification).
+  const reviewed = (tasks.data ?? []).filter((t) => t.status === 'reviewed' || t.status === 'approved').map((t) => t.id);
   const key = `blockers:${reviewed.join(',')}`;
   const all = useQuery<{ task: string; items: BlockerItem[] }[]>(tasks.data ? key : null, useCallback(async () => {
     const results = await batchJson<BlockerItem[]>(Object.fromEntries(reviewed.map((id) => [id, ['task', 'blockers', id, '--json']])));
@@ -115,10 +117,10 @@ function AllBlockers() {
     <Q q={all} label="Lecture des blocages">
       {(list) => {
         const items = list.flatMap((t) => t.items.map((b) => ({ ...b, task: t.task })));
-        if (!items.length) return <p className="muted">Aucun blocage sur les quêtes en attente de décision.</p>;
+        if (!items.length) return <p className="muted">Aucun blocage sur les quêtes en attente de décision ou à réaliser.</p>;
         return <Panel title={`${items.filter((b) => !b.resolution).length} blocage(s) ouvert(s)`}>
           <table className="data compact"><thead><tr><th>Quête</th><th>Blocage</th><th>Responsable</th><th>État</th></tr></thead><tbody>
-            {items.map((b) => <tr key={`${b.task}:${b.id}`}><td><a href={`#/conseil/${b.task}`}>{b.task}</a></td><td><span className="mono tiny">{b.id}</span><span className="small block">{b.finding}</span><span className="tiny muted block">Se lève quand : {b.clears_when}</span></td><td className="small">{b.owner}</td><td>{b.resolution ? <Badge tone="success" icon="check">{b.resolution.kind}</Badge> : <Badge tone="danger" icon="ban">ouvert</Badge>}</td></tr>)}
+            {items.map((b) => <tr key={`${b.task}:${b.id}`}><td><a href={`#/conseil/${b.task}`}>{b.task}</a></td><td><span className="mono tiny">{b.id}</span><span className="small block">{b.finding}</span><span className="tiny muted block">Se lève quand : {b.clears_when}</span></td><td className="small">{b.owner}</td><td>{b.resolution ? <Badge tone="success" icon="check">{b.resolution.kind}</Badge> : b.phase === 'verification' ? <Badge tone="warning" icon="clock">condition</Badge> : <Badge tone="danger" icon="ban">ouvert</Badge>}</td></tr>)}
           </tbody></table>
         </Panel>;
       }}

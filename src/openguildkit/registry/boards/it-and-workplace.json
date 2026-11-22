@@ -38,7 +38,10 @@
     "laptop management",
     "jamf",
     "intune",
-    "it equipment"
+    "it equipment",
+    "offboarding",
+    "access removal",
+    "retrait des accès"
   ],
   "questions": [
     "Which devices, accounts and SaaS tools does the change add, move or remove for employees?",

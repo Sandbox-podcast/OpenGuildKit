@@ -34,9 +34,7 @@
           "repository": "https://github.com/browserstack/mcp-server",
           "license": "AGPL-3.0",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -91,9 +89,7 @@
           "capabilities": "Read Cypress Cloud runs, test results, flaky tests and accessibility reports for debugging; cannot change code or delete runs.",
           "source": "https://docs.cypress.io/cloud/integrations/cloud-mcp",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read"
-          }
+          "access": "Read operations described; no enforced read-only mode is recorded."
         }
       ],
       "api": {
@@ -145,9 +141,7 @@
           "repository": "https://github.com/grafana/mcp-k6",
           "license": "AGPL-3.0",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -203,9 +197,7 @@
           "repository": "https://github.com/microsoft/playwright-mcp",
           "license": "Apache-2.0",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -242,9 +234,7 @@
           "repository": "https://github.com/postmanlabs/postman-mcp-server",
           "license": "Apache-2.0",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         },
         {
           "id": "postman-local",
@@ -270,9 +260,7 @@
           "repository": "https://github.com/postmanlabs/postman-mcp-server",
           "license": "Apache-2.0",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {

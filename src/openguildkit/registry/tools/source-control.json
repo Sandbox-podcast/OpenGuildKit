@@ -33,9 +33,7 @@
           "repository": "https://github.com/atlassian/atlassian-mcp-server",
           "license": "Apache-2.0",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -83,16 +81,13 @@
           "repository": "https://github.com/github/github-mcp-server",
           "license": "MIT",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write",
-            "consent": "Authorize the OAuth app or use a repository-scoped GitHub token",
-            "scopes": [
-              "Depends on the active toolsets and GitHub credential"
-            ]
-          },
+          "access": "The repositories, issues, pull requests, Actions and security data of the signed-in account, limited to the scopes approved at sign-in and the organization's policies.",
+          "scopes": "Only the scopes approved during sign-in; with a personal access token, the scopes given to that token. The setup page names no scope list. Tools also depend on the active toolsets.",
           "read_only": {
-            "header": "X-MCP-Readonly"
-          }
+            "how": "The publisher's read-only endpoint https://api.githubcopilot.com/mcp/readonly exposes only read tools (docs/remote-server.md of github/github-mcp-server). The X-MCP-Readonly: true header does the same.",
+            "url": "https://api.githubcopilot.com/mcp/readonly"
+          },
+          "reviewed": "2026-11-21"
         },
         {
           "id": "github-local",
@@ -123,16 +118,22 @@
           "repository": "https://github.com/github/github-mcp-server",
           "license": "MIT",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write",
-            "consent": "Provide a GitHub personal access token",
-            "scopes": [
-              "Depends on the active toolsets and token permissions"
+          "access": "The repositories, issues, pull requests and Actions the token can reach; write tools are present unless --read-only is set.",
+          "scopes": "A personal access token with only the permissions needed; the README lists repo, read:packages and read:org as examples. Tools also depend on the active toolsets.",
+          "read_only": {
+            "how": "GITHUB_READ_ONLY=true passed to the container exposes only read tools.",
+            "args": [
+              "run",
+              "-i",
+              "--rm",
+              "-e",
+              "GITHUB_PERSONAL_ACCESS_TOKEN",
+              "-e",
+              "GITHUB_READ_ONLY=true",
+              "ghcr.io/github/github-mcp-server"
             ]
           },
-          "read_only": {
-            "docker_env": "GITHUB_READ_ONLY"
-          }
+          "reviewed": "2026-11-21"
         }
       ],
       "api": {
@@ -175,9 +176,7 @@
           "capabilities": "Issues, merge requests, pipelines and project data of the GitLab instance, with the user's permissions.",
           "source": "https://docs.gitlab.com/user/gitlab_duo/model_context_protocol/mcp_server/",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "configurable"
-          }
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         }
       ],
       "api": {

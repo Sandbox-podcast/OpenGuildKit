@@ -209,7 +209,7 @@ class VerifyAndEvidenceTests(unittest.TestCase):
                                code=1)
         self.assertIn("task verify", error)
         output = self.run_cli("task", "verify", TASK)[0]
-        self.assertIn("rule:team-rules/security-policy: failed", output)
+        self.assertIn("rule:team-rules/security-policy: failed\n    Not found: none of SECURITY.md exists.", output)
         self.assertIn("rule:team-rules/link-expiry: failed", output)
         self.assertIn("rule:team-rules/lint: passed", output)
         checks = self.checks()
@@ -221,7 +221,9 @@ class VerifyAndEvidenceTests(unittest.TestCase):
 
         (self.root / "export.json").write_text('{"minutes": 30}', encoding="utf-8")
         (self.root / "SECURITY.md").write_text("Report to security@example.test", encoding="utf-8")
-        self.run_cli("task", "verify", TASK)
+        output = self.run_cli("task", "verify", TASK)[0]
+        self.assertIn("rule:team-rules/security-policy: passed\n    Found SECURITY.md.", output)
+        self.assertIn("rule:team-rules/security-policy [verify] passed: Found SECURITY.md.", self.run_cli("task", "checks", TASK)[0])
         self.assertEqual({self.checks()[f"rule:team-rules/{name}"]["status"] for name in ("security-policy", "link-expiry", "lint")},
                          {"passed"})
         self.report()
@@ -238,8 +240,9 @@ class VerifyAndEvidenceTests(unittest.TestCase):
         self.approved([self.RECORD], data="internal")
         output, _ = self.run_cli("task", "result", TASK, "--template")
         entry = next(item for item in json.loads(output)["checks"] if item["check"] == self.CHECK)
-        self.assertEqual((entry["evidence_name"], entry["mandatory"], entry["must_supply"]),
-                         ("Record of processing activities", True, False))
+        self.assertEqual((entry["evidence_name"], entry["requirement"]),
+                         ("Record of processing activities", "passed-or-not-applicable"))
+        self.assertNotIn("mandatory", entry)
         self.assertIn("not-applicable", entry["answer"])
         self.assertIn("https", entry["answer"])
         self.report(self.RULE)
@@ -256,15 +259,15 @@ class VerifyAndEvidenceTests(unittest.TestCase):
 
     def test_required_rules_make_the_evidence_a_must(self):
         self.approved([self.RECORD], data="internal", required_rules=["team-rules/record-processing"])
-        _, error = self.report(self.RULE, self.NOT_APPLICABLE, code=1)
+        _, error = self.report(self.RULE, self.NOT_APPLICABLE)
         self.assertIn("required_rules", error)
-        self.assertIn("project path", self.report({"check": self.CHECK, "status": "passed", "evidence": "../record.md"},
-                                                  code=1)[1])
+        self.assertIn("project path", self.report({"check": self.CHECK, "status": "passed", "evidence": "../record.md",
+                                                   "owner": "Dana"}, code=1)[1])
         self.assertIn("does not exist", self.report({"check": self.CHECK, "status": "passed",
-                                                     "evidence": "docs/record.md"}, code=1)[1])
+                                                     "evidence": "docs/record.md", "owner": "Dana"})[1])
         (self.root / "docs").mkdir()
         (self.root / "docs" / "record.md").write_text("Processing record", encoding="utf-8")
-        self.report(self.RULE, {"check": self.CHECK, "status": "passed", "evidence": "docs/record.md"})
+        self.report(self.RULE, {"check": self.CHECK, "status": "passed", "evidence": "docs/record.md", "owner": "Dana"})
         self.assertEqual(self.run_cli("task", "complete", TASK)[0].strip(), "done")
         self.assertEqual(self.checks()[self.CHECK]["evidence"], "docs/record.md")
 
@@ -273,9 +276,11 @@ class VerifyAndEvidenceTests(unittest.TestCase):
         self.approved([when], data="personal")
         output, _ = self.run_cli("task", "result", TASK, "--template")
         entry = next(item for item in json.loads(output)["checks"] if item["check"] == self.CHECK)
-        self.assertTrue(entry["must_supply"])
-        _, error = self.report(self.RULE, self.NOT_APPLICABLE, code=1)
+        self.assertEqual(entry["requirement"], "passed")
+        output, error = self.report(self.RULE, self.NOT_APPLICABLE)
+        self.assertIn("Not recorded: " + self.CHECK, error)
         self.assertIn("data is personal", error)
+        self.assertIn("rule:team-rules/record-processing: passed", output)
 
     def test_an_evidence_condition_names_known_data_answers(self):
         bad = {**self.RECORD, "evidence": [{**self.RECORD["evidence"][0], "when": {"data": ["secret"]}}]}
@@ -291,7 +296,7 @@ class VerifyAndEvidenceTests(unittest.TestCase):
         self.assertIn("Evidence for task result: Decision on the impact assessment", instructions)
         self.report({"check": "rule:team-rules/assess-dpia", "status": "passed", "evidence": "Asked."},
                     {"check": "evidence:team-rules/assess-dpia/dpia-decision", "status": "passed",
-                     "evidence": "https://wiki.example.test/privacy/dpia-42"})
+                     "evidence": "https://wiki.example.test/privacy/dpia-42", "owner": "Dana"})
         self.assertEqual(self.run_cli("task", "complete", TASK)[0].strip(), "done")
 
 
@@ -356,7 +361,14 @@ class RegulationPackTests(unittest.TestCase):
                                    self.catalog)
         self.assertNotIn("gdpr", resolved_profile(no_data, self.catalog)["packs"])
         with tempfile.TemporaryDirectory() as directory:
+            # A norm is active only once a person accepts it (#153): init stops until each one is answered.
             write_json(Path(directory) / "answers.json", {"name": "Ledger", "sector": "financial-services"})
+            errors = io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(errors):
+                self.assertEqual(main(["--project", directory, "init", "--answers", f"{directory}/answers.json"]), 1)
+            self.assertIn("dora-financial-entity", errors.getvalue())
+            write_json(Path(directory) / "answers.json", {"name": "Ledger", "sector": "financial-services", "norms": {
+                "dora-financial-entity": "yes", "gdpr-personal-data": "yes"}})
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                 self.assertEqual(main(["--project", directory, "init", "--answers", f"{directory}/answers.json"]), 0)
             created = json.loads((Path(directory) / ".openguildkit" / "project.json").read_text(encoding="utf-8"))

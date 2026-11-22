@@ -79,7 +79,7 @@ class BlockerTests(unittest.TestCase):
             resolve_blocker(task, "security:1", resolution, self.profile, self.root)
         task = resolve_blocker(task, "security:2", resolution, self.profile, self.root)
         approved = record_decision(task, True, "Camille Martin", "Scope agreed")
-        self.assertIn("## Blockers due at verification", handoff(approved))
+        self.assertIn("## Conditions of the approval, to meet before the task completes", handoff(approved))
         with self.assertRaisesRegex(ValueError, "Verification blocker security:1 is open"):
             complete_task(approved, self.profile)
         cleared = resolve_blocker(approved, "security:1", resolution, self.profile, self.root)

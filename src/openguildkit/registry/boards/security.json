@@ -17,6 +17,7 @@
     "contrôle d'accès",
     "personal data",
     "données personnelles",
+    "donnée personnelle",
     "secrets",
     "security",
     "sécurité",
@@ -113,7 +114,12 @@
     "jamf",
     "intune",
     "security questionnaire",
-    "laptop management"
+    "laptop management",
+    "payment token",
+    "card token",
+    "tokenization",
+    "tokenisation",
+    "jeton de paiement"
   ],
   "questions": [
     "Which actors, permissions and data classes does the change affect?",

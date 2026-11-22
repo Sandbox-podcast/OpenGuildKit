@@ -19,6 +19,9 @@
     "security",
     "hr"
   ],
+  "core_for": [
+    "it-and-workplace"
+  ],
   "packs": [
     "device-and-access-lifecycle",
     "employee-offboarding"

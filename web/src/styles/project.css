@@ -35,6 +35,8 @@
 .code-block { background: var(--bg-deep); padding: 12px; overflow: auto; font: 0.82rem/1.5 var(--font-mono); max-height: 420px; box-shadow: inset 0 0 0 1px var(--border); margin: 8px 0; }
 .code-block.pre-wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
 .rule-checks code { overflow-wrap: anywhere; }
+/* A project path or a command in running text (a temporary folder on macOS, a Windows profile) wraps on a phone. */
+.panel p code, .panel li code { overflow-wrap: anywhere; }
 .json-details > summary { cursor: pointer; color: var(--data); font-size: var(--fs-small); padding: 4px 0; }
 .scroll-box { max-height: 60vh; overflow: auto; padding-right: 6px; }
 .mono-area textarea { font-family: var(--font-mono); font-size: 0.85rem; white-space: pre; }

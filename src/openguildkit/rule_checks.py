@@ -288,7 +288,7 @@ def evaluate_check(root: Path, check: dict) -> dict:
         if paths:
             names = [path.relative_to(root.resolve()).as_posix() for path in paths]
             return {"status": "passed", "evidence": f"Found {', '.join(names[:5])}."}
-        return {"status": "failed", "evidence": f"None of {', '.join(check['paths'])} exists."}
+        return {"status": "failed", "evidence": f"Not found: none of {', '.join(check['paths'])} exists."}
     if check["kind"] == "text":
         passed, evidence = _text_outcome(root, check)
         return {"status": "passed" if passed else "failed", "evidence": evidence}

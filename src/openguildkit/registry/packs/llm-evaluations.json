@@ -1,7 +1,7 @@
 {
   "id": "llm-evaluations",
   "title": "LLM and agent evaluations",
-  "version": "1.1.0",
+  "version": "1.2.1",
   "description": "Checks for repeatable evaluations of model output, agent decisions and permitted tool use.",
   "sources": [
     {
@@ -18,13 +18,25 @@
   "rules": [
     {
       "id": "evaluate-user-outcomes",
-      "instruction": "Build the evaluation cases from representative and boundary tasks of the intended use.",
-      "verification": "Check that the cases cover the critical paths and boundary conditions of the intended use."
+      "instruction": "Build the evaluation cases from representative and boundary tasks of the intended use, and agree with the workflow owner on the share of critical cases that must pass.",
+      "verification": "Check that the cases cover the critical paths and boundary conditions of the intended use, and that the run meets the recorded pass threshold.",
+      "records": {
+        "name": "pass-threshold",
+        "description": "The share of critical cases that must pass, agreed with the workflow owner, such as 95 % of critical cases.",
+        "above": 0,
+        "max": 100
+      }
     },
     {
       "id": "review-grading-rubric",
       "instruction": "Write a rubric for the result, uncertainty and user-visible errors, and ask the workflow owner to approve it.",
-      "verification": "Have two graders score a sample of passing and failing outputs with the approved rubric and check that they agree."
+      "verification": "Have two graders score a sample of passing and failing outputs with the approved rubric and check that their agreement reaches the recorded minimum.",
+      "records": {
+        "name": "grader-agreement",
+        "description": "The minimum agreement between the two graders on the sample, such as 90 % of outputs scored alike.",
+        "above": 0,
+        "max": 100
+      }
     },
     {
       "id": "check-permitted-tool-use",
@@ -38,8 +50,14 @@
     },
     {
       "id": "compare-evaluation-baselines",
-      "instruction": "Run the evaluation on the approved baseline and on the proposed configuration, with repeated trials where output varies, and report results for each critical task group.",
-      "verification": "Review the cases that changed between the two runs and record the release decision."
+      "instruction": "Run the evaluation on the approved baseline and on the proposed configuration, with repeated trials where output varies, and report results for each critical task group against the regression budget agreed with the workflow owner.",
+      "verification": "Review the cases that changed between the two runs, check that no critical task group drops by more than the recorded budget, and record the release decision.",
+      "records": {
+        "name": "regression-budget",
+        "description": "The largest drop from the baseline accepted for a critical task group, such as 2 percentage points of pass rate.",
+        "min": 0,
+        "max": 100
+      }
     }
   ]
 }

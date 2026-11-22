@@ -70,7 +70,7 @@ def main() -> None:
     tools = ["jira", "github", "snyk", "factorial", "tempo", "gryzzly"]
     print("# Mocks connected for Codex and for Claude Code\n")
     for host in ("codex", "claude-code"):
-        report = json.loads(cli(project, "tools", "apply", *tools, "--mock", "--host", host, "--json", expected=1))
+        report = json.loads(cli(project, "tools", "apply", *tools, "--mock", "--host", host, "--json", expected=2))
         skipped = [item["tool"] for item in report["skipped"]]
         if skipped != ["gryzzly"] or set(report["applied"]) != set(tools) - set(skipped):
             raise SystemExit(f"Unexpected mock connections for {host}.")

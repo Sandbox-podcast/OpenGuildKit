@@ -92,6 +92,15 @@ class TaskIndexTests(unittest.TestCase):
         self.assertEqual(self.read_ids(), ([], []))
         self.edit(code=2)
 
+    def test_a_task_closed_with_reservations_is_not_read_again_either(self):
+        self.approve("finished")
+        record = json.loads((self.tasks / "finished.json").read_text(encoding="utf-8"))
+        write_json(self.tasks / "finished.json", {**record, "status": "done-with-reservations", "result": {"checks": []}})
+        self.age_records()
+        self.assertEqual(self.read_ids(), ([], ["finished"]))
+        self.assertEqual(self.read_ids(), ([], []))
+        self.edit(code=2)
+
     def test_a_status_change_after_the_index_is_seen(self):
         self.consult("later")
         self.age_records()

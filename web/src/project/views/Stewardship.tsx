@@ -59,7 +59,9 @@ function CatalogUpdate() {
       <Q q={update}>{(u) => <>
         {u.changes.length === 0 ? <Notice tone="success">Le projet suit le catalogue installé.</Notice> : <JsonDetails data={u.changes} label={`${u.changes.length} évolution(s)`} />}
         {u.conflicts.length > 0 && <Notice tone="danger" title="Conflits :"><Pre text={JSON.stringify(u.conflicts, null, 2)} /></Notice>}
-        {u.stale_tasks.length > 0 && <Notice tone="warn" title="Quêtes consultées sous les règles précédentes :">{u.stale_tasks.map((t) => <TaskLink key={t} id={t} />)}. Une quête validée ne peut pas être reconsultée : ouvrez-en une nouvelle pour le même travail.</Notice>}
+        {u.stale_tasks.length > 0 && <Notice tone="warn" title={u.applied ? 'Quêtes consultées sous les règles précédentes :' : 'Adopter ces règles laisserait ces quêtes consultées sous les précédentes :'}>
+          <ul>{u.stale_tasks.map((t) => <li key={t.id}><TaskLink id={t.id} /> ({t.status}) : {t.step}</li>)}</ul>
+          Une quête terminée garde son enregistrement comme historique.</Notice>}
       </>}</Q>
     </Panel>
   );

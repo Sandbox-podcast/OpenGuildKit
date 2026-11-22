@@ -1,0 +1,6 @@
+{"name": "Acme Support Portal", "sector": "general", "stack": ["Python 3.12", "FastAPI", "PostgreSQL 16"],
+ "roles": ["engineering", "security", "qa"], "personal_data": "yes", "norms": {"gdpr-personal-data": {"answer": "no", "by": "Alex Martin",
+ "reason": "Field kit: GDPR is left out to keep the rehearsal short"}},
+ "boards": ["product", "engineering", "security", "qa"], "tools": ["Jira", "GitHub"],
+ "host": "claude-code", "guard": "observe", "research": "local-only",
+ "checks": ["python3 -m unittest discover -s service -p \"test_*.py\""]}

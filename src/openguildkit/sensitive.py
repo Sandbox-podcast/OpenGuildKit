@@ -1,18 +1,39 @@
-"""Recognize common credentials without reading the environment or using the network."""
+"""Recognize credentials and personal data in what people and agents give the CLI.
+
+CREDENTIAL_SHAPES is the one table that decides what looks like a credential. Tool settings, task briefs and
+answers, review entries and public evidence all go through it, without reading the environment or the network.
+A message about a match names the field and the kind of value, never the value.
+"""
 
 from ipaddress import ip_address
 import re
 from urllib.parse import parse_qsl, urlsplit
 
-
-_CREDENTIAL = re.compile(
-    r"(?<![a-z0-9_])(?:sk_(?:live|test)_[a-z0-9]{8,}|gh[pousr]_[a-z0-9]{16,}|"
-    r"github_pat_[a-z0-9_]{20,}|(?:AKIA|ASIA)[a-z0-9]{16}|xox[baprs]-[a-z0-9-]{8,})(?![a-z0-9_])",
-    re.IGNORECASE | re.ASCII,
+# Each shape: its name in messages, the pattern, and the replacement that keeps the surrounding words.
+CREDENTIAL_SHAPES = (
+    ("a cloud access key ID", re.compile(r"(?<![A-Za-z0-9_])(?:AKIA|ASIA)[A-Za-z0-9]{16}(?![A-Za-z0-9_])"),
+     "[credential]"),
+    ("a Stripe secret key", re.compile(r"(?<![A-Za-z0-9_])[sr]k_(?:live|test)_[A-Za-z0-9]{8,}"), "[credential]"),
+    ("a GitHub token", re.compile(r"(?<![A-Za-z0-9_])(?:gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{20,})"),
+     "[credential]"),
+    ("a Slack token", re.compile(r"(?<![A-Za-z0-9_])xox[abposr]-[A-Za-z0-9-]{8,}"), "[credential]"),
+    ("a JSON Web Token", re.compile(r"(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
+     "[credential]"),
+    ("a private key", re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----(?:.*?-----END (?:[A-Z0-9]+ )*PRIVATE KEY-----)?",
+                                 re.DOTALL), "[private key]"),
+    ("a link with a password", re.compile(r"(?i)(\b[a-z][a-z0-9+.-]*://[^\s/:@]+:)(?!\[)[^\s/@]+@"), r"\1[password]@"),
+    ("a secret in a query string", re.compile(
+        r"(?i)([?&;](?:[a-z0-9_.-]*[_-])?(?:token|secret|password|passwd|api[_-]?key|access[_-]?key|signature|sig)=)"
+        r"(?![\[$<{])[^&#\s\"']+"), r"\1[credential]"),
+    ("a password", re.compile(r"""(?i)(\b(?:password|passwd|mot de passe)\s*[:=]\s*)(?!\[)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]*[^\s,;.!?)])"""),
+     r"\1[password]"),
 )
-_PASSWORD = re.compile(r"""(\b(?:password|passwd|mot de passe)\s*[:=]\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]+)""",
-                       re.IGNORECASE)
-_EMAIL = re.compile(r"[a-z0-9.!#$%&'*+/=?^_\x60{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+", re.IGNORECASE | re.ASCII)
+PERSONAL_SHAPES = (
+    ("an email address", re.compile(r"[a-z0-9.!#$%&'*+/=?^_\x60{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+", re.IGNORECASE | re.ASCII)),
+    ("a phone number", re.compile(r"(?<![\w+])(?:\+\d{1,3}[ .-]?\d(?:[ .-]?\d){7,12}|0\d(?:[ .-]?\d{2}){4})(?!\w)")),
+    ("a bank account number", re.compile(r"\b[A-Z]{2}\d{2} ?(?:[A-Z0-9]{4} ?){2,7}[A-Z0-9]{1,4}\b")),
+)
+WHERE = "a credential belongs in each person's environment or in the tool's own vault"
 _QUERY_CREDENTIAL = re.compile(
     r"(?:^|[_-])(?:token|secret|password|passwd|api[_-]?key|access[_-]?key|credential|signature|bearer)(?:$|[_-])",
     re.IGNORECASE,
@@ -21,16 +42,75 @@ _PRIVATE_SUFFIXES = (".localhost", ".local", ".internal", ".lan", ".home.arpa", 
 _DOMAIN = re.compile(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+", re.ASCII)
 
 
+def credential_kind(value: str) -> str | None:
+    """The name of the first credential shape found in value, or None."""
+    return next((name for name, pattern, _ in CREDENTIAL_SHAPES if pattern.search(value)), None)
+
+
 def looks_like_credential(value: str) -> bool:
-    return bool(_CREDENTIAL.search(value))
+    return credential_kind(value) is not None
 
 
 def redact_credentials(value: str) -> str:
-    return _CREDENTIAL.sub("[credential]", _PASSWORD.sub(r"\1[password]", value))
+    """The text with every credential replaced by a placeholder, the rest of the words kept."""
+    for _, pattern, replacement in CREDENTIAL_SHAPES:
+        value = pattern.sub(replacement, value)
+    return value
+
+
+def redact_data(value: object) -> object:
+    """A JSON value with every string redacted, such as task answers given in a file."""
+    if isinstance(value, str):
+        return redact_credentials(value)
+    if isinstance(value, list):
+        return [redact_data(item) for item in value]
+    if isinstance(value, dict):
+        return {key: redact_data(item) for key, item in value.items()}
+    return value
+
+
+def personal_data_kinds(value: str) -> list[str]:
+    return [name for name, pattern in PERSONAL_SHAPES if pattern.search(value)]
 
 
 def contains_email(value: str) -> bool:
-    return bool(_EMAIL.search(value))
+    return bool(PERSONAL_SHAPES[0][1].search(value))
+
+
+def input_warnings(original: object, recorded: object, label: str) -> list[str]:
+    """What a person should know about what was recorded: a credential replaced, personal data kept. No value is shown."""
+    warnings = []
+    if recorded != original:
+        warnings.append(f"Warning: replaced a possible credential in the {label} with a placeholder before recording "
+                        f"it: {WHERE}.")
+    texts = [recorded] if isinstance(recorded, str) else _texts(recorded)
+    kinds = list(dict.fromkeys(kind for text in texts for kind in personal_data_kinds(text)))
+    if kinds:
+        warnings.append(f"Warning: the {label} contains {' and '.join(kinds)}. It is stored in the task record "
+                        "and shown to the boards: keep personal data out unless it is a role address.")
+    return warnings
+
+
+def _texts(value: object) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [text for item in value for text in _texts(item)]
+    if isinstance(value, dict):
+        return [text for item in value.values() for text in _texts(item)]
+    return []
+
+
+def credential_problems(value: object, path: str) -> list[str]:
+    """One problem per field of a JSON value that holds a credential, named by its key path, value not shown."""
+    if isinstance(value, str):
+        kind = credential_kind(value)
+        return [f"{path}: contains what looks like {kind}; remove it, {WHERE}."] if kind else []
+    if isinstance(value, list):
+        return [problem for index, item in enumerate(value) for problem in credential_problems(item, f"{path}[{index}]")]
+    if isinstance(value, dict):
+        return [problem for key, item in value.items() for problem in credential_problems(item, f"{path}.{key}")]
+    return []
 
 
 def public_evidence_url(ref: str, field: str) -> None:

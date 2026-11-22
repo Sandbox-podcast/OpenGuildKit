@@ -30,9 +30,7 @@
           "repository": "https://github.com/atlassian/atlassian-mcp-server",
           "license": "Apache-2.0",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -68,9 +66,7 @@
           "repository": "https://github.com/upstash/context7",
           "license": "MIT",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read"
-          }
+          "access": "Read operations described; no enforced read-only mode is recorded."
         }
       ],
       "api": {
@@ -113,12 +109,10 @@
           "source": "https://github.com/azerothl/documentalist/blob/947429b19da6f4e409738fd195960ae99e99c4ef/README.md",
           "repository": "https://github.com/azerothl/documentalist",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-only",
-            "consent": "Public publications require no consent; private publications require a scoped Documentalist key",
-            "scopes": [
-              "Public publications or private publications allowed by the key"
-            ]
+          "access": "Read-only.",
+          "scopes": "Public publications or private publications allowed by the key. Consent: Public publications require no consent; private publications require a scoped Documentalist key.",
+          "read_only": {
+            "how": "Every tool reads published documentation."
           }
         }
       ],
@@ -177,9 +171,7 @@
           "capabilities": "Create and configure sites, open change requests, draft and edit pages, restructure docs.",
           "source": "https://gitbook.com/docs/docs-as-code/gitbook-mcp",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -218,9 +210,7 @@
           "capabilities": "Read, edit, restructure and publish docs, create automations and manage settings.",
           "source": "https://www.mintlify.com/docs/ai/mintlify-mcp",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -260,13 +250,9 @@
           "capabilities": "Search and fetch pages, create and update pages, comments, databases and views, file uploads.",
           "source": "https://developers.notion.com/guides/mcp/get-started-with-mcp",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write",
-            "consent": "Sign in to Notion and approve the connection for the intended workspace",
-            "scopes": [
-              "Pages and databases reachable through the signed-in user's Notion permissions"
-            ]
-          }
+          "access": "Reads and updates the content the user can access in the selected workspace: create and update pages, comments, file uploads up to 20 MiB.",
+          "scopes": "OAuth with the user's own workspace permissions; only workspace members (not guests) can connect, only workspace owners create MCP tokens, and an admin may restrict adding MCP servers. The page names no scope list.",
+          "reviewed": "2026-11-21"
         }
       ],
       "api": {
@@ -301,9 +287,7 @@
           "capabilities": "Search ReadMe docs, read and update project pages, branches, settings and API specs, draft changelogs.",
           "source": "https://docs.readme.com/main/docs/readmes-mcp-server",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -353,9 +337,7 @@
           "repository": "https://github.com/SmartBear/smartbear-mcp",
           "license": "MIT",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         },
         {
           "id": "smartbear-local",
@@ -387,9 +369,7 @@
           "repository": "https://github.com/SmartBear/smartbear-mcp",
           "license": "MIT",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "configurable"
-          }
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         }
       ],
       "api": {

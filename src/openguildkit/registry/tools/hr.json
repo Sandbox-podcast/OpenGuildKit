@@ -33,9 +33,7 @@
           "capabilities": "Employees and directory, fields, datasets, reports, time off, goals, hiring, global employment and files; mostly read, some write and delete tools.",
           "source": "https://documentation.bamboohr.com/docs/mcp-server",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -73,9 +71,7 @@
           "capabilities": "Clock in and out, view and create tasks, view and request time off, find colleagues, and delegate broader questions to Factorial One.",
           "source": "https://apidoc.factorialhr.com/docs/mcp-server",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {

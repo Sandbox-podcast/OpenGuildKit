@@ -14,6 +14,9 @@
     "performance",
     "engineering"
   ],
+  "core_for": [
+    "performance"
+  ],
   "packs": [
     "service-reliability"
   ],

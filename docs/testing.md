@@ -24,6 +24,7 @@ Times were measured on a laptop (macOS, Python 3.15) on 21 November 2026; the wh
 | Robustness | `tests/test_robustness.py` | Seeded random and hostile values (wrong types, random Unicode, control characters, 200 000-character strings, 100 000 levels of nesting, removed keys) at each key of setup answers, task answers, reviews, board entries, deliberations, results, the profile, a task record and hook input. No traceback, errors start with `OpenGuildKit:`, task records still load. A small model-based test runs 120 random valid and invalid `task` commands and checks every record against a model of the statuses. | 24 s |
 | Performance | `tests/test_performance.py`, `scripts/bench.py` | Time budgets for the commands that run most often, as ratios to the CLI start, so a slow runner does not fail them and a tenfold slowdown does. | 27 s |
 | Upgrade | `tests/test_upgrade.py`, `tests/fixtures/upgrade/` | Projects written by v0.1.0 and v0.16.1 themselves (profile, instructions, ignore file, project lock, draft and approved tasks) pass `check`, `update`, `update --apply`, list and show their tasks, and continue a draft through consultation. | 11 s |
+| Field kit | `tests/e2e/test_field_kit.py`, `examples/field-tests/` | The campaign file has its thirty testers and every brief is complete; the kit prepares every tester's folder and the teammates' shared repository; two teams that play the scripted part of each of the three scenarios get identical results; a missing report, unusable findings or a difference between teams is named and fails the collection; the person's stand-in approves at a pseudo-terminal. | 28 s |
 
 The Node coordinator in `integrations/ci` has its own suite: `cd integrations/ci && npm test`. `tests/e2e/test_export_ci.py` runs the Python side of the cases it shares with that suite.
 
@@ -67,11 +68,25 @@ Where the time went, and what changed:
 
 What is left: a command that needs the catalog still reads its 223 bundled files, about 40 ms on this laptop, and validates them, so the edit hook takes the start time plus about 60 ms. That is 0.18 s at the load of these runs and 0.17 s at a load average of 5.5, above the 0.15 s that #135 aimed for; reading fewer catalog files would need a catalog cache shared between processes, which this change does not add. Importing the CLI takes about 45 ms with cached bytecode: `argparse` on Python 3.15 alone takes 5 ms and imports `shutil`, and the `tools`, `market`, `alerts` and `storybook` modules are imported to build their sub-commands. In a Git repository, each approved task also runs `git merge-base` to check that its approved revision is still in the history.
 
+## Field campaigns
+
+The tests above check what the code does. A field campaign checks what a team lives through: thirty autonomous agents each play a team that adopts OpenGuildKit with the documentation as their only help, on mocks, and report where they got stuck. The kit, the thirty testers, the three scenarios played by several teams and each campaign's dated report are in [`examples/field-tests/`](../examples/field-tests/README.md). The first campaign, on 21 November 2026, produced 341 findings grouped into 97 problems and the issues #149 to #180; its report is [`examples/field-tests/reports/2026-11-21.md`](../examples/field-tests/reports/2026-11-21.md).
+
+A campaign is run by a person with an agent host, not by CI. What CI runs is the part that needs no agent: `python examples/field-tests/field.py cohorts --out DIR` plays the scripted part of each scenario in several folders and fails when two of them differ.
+
+## Rehearse the person's acts
+
+Approving, waiving and clearing a blocker need a person at a terminal, so an agent cannot do them. The tests drive them through a pseudo-terminal, on Linux and macOS:
+
+- `python -m unittest tests.e2e.test_more_commands.WaiverCommandTests` repeats the waiver flow in a temporary project: an unauthorized person and a wrong confirmation are refused, then a valid waiver is recorded. A waiver needs a policy in the profile, `"waivers": {"allowed_by": ["Camille Martin"], "max_days": 30}`, and `task waive` needs `--by` (a name in `allowed_by`), `--reason`, `--scope` (what the waiver covers) and `--until` (YYYY-MM-DD, at most `max_days` ahead).
+- `python -m unittest tests.e2e.test_more_commands.BlockerCommandTests` repeats clearing: refused without a terminal, cancelled by a wrong confirmation, recorded with the person's name, and a second clearing refused; in a project with signed approvals, the clearance is signed with a synthetic key.
+- `python examples/host-validation/rehearse.py --project FOLDER` replays a whole task, the person's steps included.
+
+In a test written with `unittest`, patch `sys.stdin.isatty` to return true and `builtins.input` to return the typed task ID, as `tests/test_decision_brief.py` does.
+
 ## Not covered
 
 - Windows behaviour is covered by CI only: the lock on Windows (`msvcrt.locking`) has not been run by hand, and the approval, waiver and authorization prompts are tested through a pseudo-terminal on Linux and macOS only.
-
-On Linux or macOS, run `python -m unittest tests.e2e.test_more_commands.WaiverCommandTests` to repeat the waiver flow in a temporary project. The test exercises refusal of an unauthorized person and an incorrect confirmation before checking a valid waiver.
 - The concurrency tests run on one machine. A project on a network file system, where file locks may not hold, is not tested.
 - No test runs an agent host (Claude Code, Codex) for real; host settings and hooks are tested through the files they read and the input they send.
 - The robustness tests do not cover `.claude/settings.json`, `.codex/hooks.json`, market dossiers or the share register, whose known crashes are listed in #99.

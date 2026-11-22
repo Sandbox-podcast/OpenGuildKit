@@ -169,10 +169,12 @@ class ProjectSetupTests(CliTestCase):
         plan = json.loads(self.run_cli("recommend", "--answers", path, "--json").stdout)
         matched = [pattern["id"] for pattern in plan["matched"]]
         self.assertIn("python-fastapi-postgresql", matched)
-        self.assertLessEqual({"scrum", "kanban"}, set(matched))
+        # Scrum and Kanban are suggested to project management, not preselected (#152): the team picks one.
+        suggested = {pattern["id"] for pattern in plan["suggested"]}
+        self.assertLessEqual({"scrum", "kanban"}, suggested)
         self.assertIn("scrum", self.run_cli("patterns", "--role", "project-management").stdout)
         self.assertIn("openguildkit patterns --id scrum", self.run_cli("references", "--id", "pattern-scrum").stdout)
-        answers["patterns"] = [pattern for pattern in matched if pattern != "kanban"]
+        answers["patterns"] = [*matched, "scrum"]
         self.run_cli("init", "--answers", self.write_json("selected.json", answers))
         self.run_cli("check")
         instructions = (self.project / "AGENTS.md").read_text(encoding="utf-8")
@@ -186,6 +188,7 @@ class ProjectSetupTests(CliTestCase):
         web.mkdir(parents=True)
         (web / "package.json").write_text(json.dumps({"dependencies": {"next": "^14.2.0", "react": "^18.3.0"}}), encoding="utf-8")
         detected = json.loads(self.run_cli("detect", "--json").stdout)
+        # The declared range stays as written; pattern matching reads its lower bound.
         self.assertEqual(detected["components"][0]["stack"], ["Next.js ^14.2.0", "React ^18.3.0"])
 
         questions = {question["id"]: question for question in json.loads(self.run_cli("init", "--questions").stdout)}
@@ -303,13 +306,16 @@ class TaskFlowTests(CliTestCase):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK_ID)
         self.assertEqual(self.task_record()["status"], "draft")
 
-        questions = json.loads(self.run_cli("task", "questions", TASK_ID).stdout)
+        # One JSON shape with or without answers (#174).
+        listing = json.loads(self.run_cli("task", "questions", TASK_ID).stdout)
+        self.assertEqual((listing["follow_ups"], listing["open_points"]), ([], []))
+        questions = listing["questions"]
         self.assertEqual([question["id"] for question in questions], ["kind", "surface", "data", "research", "concerns", "context"])
 
         consultation = self.run_cli("task", "consult", TASK_ID, "--answers", EXAMPLE / "answers.json").stdout
         self.assertIn("# Board consultation request", consultation)
         for board in EXPECTED_BOARDS:
-            self.assertIn(f"### {board}", consultation)
+            self.assertIn(f"- {board} (", consultation)
         self.assertEqual(self.run_cli("task", "brief", TASK_ID).stdout.strip(), consultation.strip())
 
         template = json.loads(self.run_cli("task", "template", TASK_ID).stdout)
@@ -360,7 +366,10 @@ class TaskFlowTests(CliTestCase):
         self.assertIn("consultation", stale.stderr)
         self.record_example_review()
         challenge = self.run_cli("task", "challenge", TASK_ID)
-        self.assertIn("Previous decision: changes requested. Reason: Show the last update date", challenge.stdout)
+        recall = challenge.stdout.splitlines()[0]
+        self.assertIn("Round 1: changes requested by Service owner", recall)
+        self.assertIn("Show the last update date", recall)
+        self.assertIn("The brief was revised since.", recall)
 
     def test_review_must_cover_exactly_the_selected_boards(self):
         self.consult_example()
@@ -383,7 +392,8 @@ class TaskFlowTests(CliTestCase):
         self.run_cli("task", "new", "Improve exports", "--id", "vague")
         answers = self.write_json("vague.json", {"kind": "feature", "surface": ["customer", "service"], "data": "none", "research": "local"})
         plan = json.loads(self.run_cli("task", "questions", "vague", "--answers", answers).stdout)
-        self.assertEqual(plan["follow_ups"], ["affected", "outcome"])
+        self.assertEqual([item["id"] for item in plan["follow_ups"]], ["affected", "outcome"])
+        self.assertTrue(all(item["prompt"].endswith("?") for item in plan["follow_ups"]))
         self.assertTrue(any("brief is short" in point for point in plan["open_points"]))
         consultation = self.run_cli("task", "consult", "vague", "--answers", answers).stdout
         self.assertIn("## Open points", consultation)
@@ -474,7 +484,8 @@ class ApprovalTests(CliTestCase):
         self.run_cli("sync")
 
         expired = self.run_cli("task", "handoff", TASK_ID, expect=1)
-        self.assertIn(f"The approval for {TASK_ID} was recorded under earlier rules.", expired.stderr)
+        self.assertIn("recorded under earlier rules (pack web-accessibility added)", expired.stderr)
+        self.assertIn(f"The approval for {TASK_ID} was recorded under earlier rules", expired.stderr)
         self.assertIn(f"--follows {TASK_ID}", expired.stderr)
 
     def test_an_approved_decision_task_returns_a_decision_record(self):

@@ -27,9 +27,7 @@
           "capabilities": "Read workspace data and perform write operations such as changing a conversation's state or sending messages, a subset of the REST API.",
           "source": "https://docs.crisp.chat/guides/mcp-server/quickstart/",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -68,9 +66,7 @@
           "capabilities": "36 tools over tickets, replies and notes, contacts, agents, groups, companies and solution articles.",
           "source": "https://support.freshdesk.com/support/solutions/articles/50000012670",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -105,9 +101,7 @@
           "capabilities": "Search and read conversations, manage drafts and send them, change status, assign, tag, comment, create tasks, read contacts and accounts.",
           "source": "https://dev.frontapp.com/docs/mcp-server",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -147,9 +141,7 @@
           "capabilities": "Search and read conversations, contacts, companies, articles and audiences; add internal notes, create and update articles; Fin Operator tools with OAuth.",
           "source": "https://developers.intercom.com/docs/guides/mcp",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -190,9 +182,9 @@
           "capabilities": "Look up tickets, users, organizations and help center content; create or update tickets and business rules after human confirmation.",
           "source": "https://support.zendesk.com/hc/en-us/articles/11400026079130",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Search, read and analyse Zendesk data; create and update tickets and business rules such as triggers, each change proposed and confirmed by a person first.",
+          "scopes": "Each user authorizes the app for their own Zendesk account (OAuth); admins choose in Admin Center whether only admins or selected agent groups use the connection. Plans: Suite Team to Enterprise Plus or Support Team to Enterprise, free during early access. The page names no scope list.",
+          "reviewed": "2026-11-21"
         }
       ],
       "api": {

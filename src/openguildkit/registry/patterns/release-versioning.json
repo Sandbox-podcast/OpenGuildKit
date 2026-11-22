@@ -23,6 +23,9 @@
     "devops",
     "engineering"
   ],
+  "core_for": [
+    "devops"
+  ],
   "packs": [
     "release-management"
   ],

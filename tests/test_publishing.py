@@ -34,7 +34,7 @@ class PublishingTests(unittest.TestCase):
         command = f'"{sys.executable}" -c "print(1)"'
         write_json(self.root / "profile.json", {"name": "Support portal", "stack": ["Python"], "packs": [], "checks": [command]})
         self.run_cli("init", "--answers", self.root / "profile.json")
-        # A folder that docs export wrote carries its manifest: only its pages can be shared.
+        # A folder that docs export wrote carries its manifest: it can be shared as a whole.
         (self.root / "docs-site").mkdir()
         (self.root / "docs-site" / publishing.MANIFEST).write_text('{"version": "0", "tasks": [], "files": []}', encoding="utf-8")
 
@@ -73,8 +73,8 @@ class PublishingTests(unittest.TestCase):
         reference = (site / "reference" / f"{TASK}.md").read_text(encoding="utf-8")
         self.assertIn('project_version: "1.4.0"', reference)
         self.assertEqual(reference.count("- Users only see their own requests."), 1)
-        self.assertRegex(reference, r"1 check\(s\) passed, [1-9][0-9]* not applicable")
-        self.assertRegex(reference, r"[1-9][0-9]* disagreement\(s\) remained open")
+        self.assertRegex(reference, r"Checks before release: 1 passed, [1-9][0-9]* not applicable")
+        self.assertRegex(reference, r"[1-9][0-9]* objection\(s\) between the boards were not deliberated")
         self.assertNotIn("tests/test_access.py", reference)
         self.assertNotIn("recommendation", reference)
         blog = next((site / "blog").glob(f"*-{TASK}.md"))
@@ -92,7 +92,13 @@ class PublishingTests(unittest.TestCase):
         (self.root / "notes" / "team.md").write_text("# Team\n", encoding="utf-8")
         self.run_cli("docs", "export", "--tasks", TASK, "--output", "notes", "--version", "1.0.0", code=1)
 
+    def deliverable(self, relative="d"):
+        path = self.root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# Shared page\n", encoding="utf-8")
+
     def test_shares_record_recipients_end_date_and_revocation(self):
+        self.deliverable("docs-site/reference/request-status.md")
         until = (date.today() + timedelta(days=14)).isoformat()
         common = ["docs", "share", "add", "--deliverable", "docs-site/reference/request-status.md", "--portal", "https://docs.example.org/p/portal"]
         self.run_cli(*common, "--recipient", "not-an-email", "--until", until, "--by", "Camille", code=1)
@@ -174,9 +180,12 @@ class PublishingTests(unittest.TestCase):
         environment = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"), os.environ.get("PYTHONPATH")])),
                        "PYTHONIOENCODING": "utf-8"}
 
+        for index in range(20):
+            self.deliverable(f"d{index}")
+
         def add(index):
             command = [sys.executable, "-m", "openguildkit", "--project", str(self.root), "docs", "share", "add",
-                       "--deliverable", f"docs-site/d{index}.md", "--recipient", f"reader{index}@example.test", "--until", until,
+                       "--deliverable", f"d{index}", "--recipient", f"reader{index}@example.test", "--until", until,
                        "--portal", "https://docs.example.test/p/portal", "--by", "Camille"]
             for _ in range(400):
                 done = subprocess.run(command, env=environment, capture_output=True, text=True, encoding="utf-8")
@@ -190,11 +199,12 @@ class PublishingTests(unittest.TestCase):
             results = list(pool.map(add, range(20)))
         self.assertEqual([item.returncode for item in results], [0] * 20, [item.stderr for item in results])
         shares = json.loads((self.root / ".openguildkit" / "shares" / "shares.json").read_text(encoding="utf-8"))["shares"]
-        self.assertEqual(sorted(share["deliverable"] for share in shares), sorted(f"docs-site/d{index}.md" for index in range(20)))
+        self.assertEqual(sorted(share["deliverable"] for share in shares), sorted(f"d{index}" for index in range(20)))
 
     def test_revoking_a_share_holds_the_project_lock(self):
+        self.deliverable()
         until = (date.today() + timedelta(days=30)).isoformat()
-        self.run_cli("docs", "share", "add", "--deliverable", "docs-site/d.md", "--recipient", "reader@example.test",
+        self.run_cli("docs", "share", "add", "--deliverable", "d", "--recipient", "reader@example.test",
                      "--until", until, "--portal", "https://docs.example.test/p/portal", "--by", "Camille")
         share_id = json.loads(self.run_cli("docs", "share", "list", "--json")[0])[0]["id"]
         held = []
@@ -212,18 +222,19 @@ class PublishingTests(unittest.TestCase):
             self.run_cli("docs", "share", "revoke", "--id", share_id, "--by", "Camille")
         self.assertEqual(held, [True, False])
 
-    def test_a_share_names_a_page_of_a_docs_export_and_nothing_else(self):
+    def test_a_share_names_a_file_of_the_project_or_a_docs_export_and_nothing_else(self):
         until = (date.today() + timedelta(days=30)).isoformat()
-        (self.root / "notes.md").write_text("private", encoding="utf-8")
+        (self.root / "notes").mkdir()
         (self.root / ".openguildkit" / "tasks").mkdir(exist_ok=True)
         (self.root / ".openguildkit" / "tasks" / "report.json").write_text("{}", encoding="utf-8")
         outside = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, outside, True)
         (outside / "secret.md").write_text("outside", encoding="utf-8")
         refused = {
-            "notes.md": "not inside a docs export folder",
-            ".openguildkit/tasks/report.json": "under .openguildkit",
-            "docs-site/../.openguildkit/tasks/report.json": "under .openguildkit",
+            "notes": "a folder that holds no documentation export",
+            "docs-site/missing.md": "does not exist",
+            ".openguildkit/tasks/report.json": "in .openguildkit/",
+            "docs-site/../.openguildkit/tasks/report.json": "in .openguildkit/",
             "../outside/f.md": "outside the project",
             str(outside / "secret.md"): "outside the project",
         }
@@ -236,10 +247,10 @@ class PublishingTests(unittest.TestCase):
         self.run_cli("docs", "share", "add", "--deliverable", "docs-site", "--recipient", "reader@example.test",
                      "--until", until, "--portal", "https://docs.example.test/p/portal", "--by", "Camille")
 
-    def test_a_share_refuses_a_path_through_a_link_out_of_the_export(self):
-        outside = self.root / "private"
-        outside.mkdir()
-        (outside / "page.md").write_text("outside the export", encoding="utf-8")
+    def test_a_share_refuses_a_path_through_a_link_out_of_the_project(self):
+        outside = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, outside, True)
+        (outside / "page.md").write_text("outside the project", encoding="utf-8")
         link = self.root / "docs-site" / "linked-folder"
         try:
             link.symlink_to(outside, target_is_directory=True)
@@ -247,14 +258,14 @@ class PublishingTests(unittest.TestCase):
             if os.name != "nt":
                 raise
             # A directory junction does not require Windows symlink privileges.
-            subprocess.run(["cmd.exe", "/d", "/c", "mklink", "/J", r"docs-site\linked-folder", "private"],
+            subprocess.run(["cmd.exe", "/d", "/c", "mklink", "/J", r"docs-site\linked-folder", str(outside)],
                            cwd=self.root, capture_output=True, check=True)
         try:
             until = (date.today() + timedelta(days=30)).isoformat()
             _, error = self.run_cli("docs", "share", "add", "--deliverable", "docs-site/linked-folder/page.md",
                                     "--recipient", "reader@example.test", "--until", until,
                                     "--portal", "https://docs.example.test/p/portal", "--by", "Camille", code=1)
-            self.assertIn("not inside a docs export folder", error)
+            self.assertIn("outside the project, once links are followed", error)
             self.assertEqual(json.loads(self.run_cli("docs", "share", "list", "--json")[0]), [])
         finally:
             if link.is_symlink():
@@ -263,8 +274,8 @@ class PublishingTests(unittest.TestCase):
                 link.rmdir()
 
     def test_share_dates_portal_and_revocation_are_checked(self):
-        common = ["docs", "share", "add", "--deliverable", "docs-site/d.md", "--recipient", "reader@example.test",
-                  "--by", "Camille"]
+        self.deliverable()
+        common = ["docs", "share", "add", "--deliverable", "d", "--recipient", "reader@example.test", "--by", "Camille"]
         portal = ["--portal", "https://docs.example.test/p/portal"]
         later = date.today() + timedelta(days=30)
         for until in (later.strftime("%Y%m%d"), later.strftime("%G-W%V-%u"), "9999-12-31", "2026-02-30"):
@@ -344,6 +355,100 @@ class PublishingTests(unittest.TestCase):
         output, _ = self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0", "--sections", "project")
         self.assertIn("wrote project/overview.md", output)
         self.assertIn("removed reference/request-status.md", output)
+
+    def link(self, name, target):
+        try:
+            (self.root / name).symlink_to(target, target_is_directory=target.is_dir())
+        except OSError as error:
+            self.skipTest(f"This account cannot create symbolic links: {error}")
+
+    def share(self, deliverable, code=0):
+        until = (date.today() + timedelta(days=14)).isoformat()
+        return self.run_cli("docs", "share", "add", "--deliverable", deliverable, "--recipient", "reader@example.test",
+                            "--until", until, "--portal", "https://docs.example.test/p/x", "--by", "Sam", code=code)[1]
+
+    def test_a_share_of_a_task_record_is_refused(self):
+        error = self.share(".openguildkit/tasks/report-csv.json", code=1)
+        self.assertIn("--deliverable .openguildkit/tasks/report-csv.json is in .openguildkit/", error)
+        self.assertIn("--deliverable .openguildkit is in .openguildkit/", self.share(".openguildkit", code=1))
+        self.assertFalse((self.root / ".openguildkit" / "shares" / "shares.json").exists())
+
+    def test_a_share_outside_the_project_is_refused(self):
+        error = self.share("../outside/f.md", code=1)
+        self.assertIn("--deliverable ../outside/f.md is outside the project", error)
+        absolute = Path(tempfile.gettempdir()).resolve() / "elsewhere.md"
+        self.assertIn(f"--deliverable {absolute.as_posix()} is outside the project", self.share(str(absolute), code=1))
+        self.assertFalse((self.root / ".openguildkit" / "shares" / "shares.json").exists())
+
+    def test_a_share_through_a_link_out_of_the_project_is_refused(self):
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        self.link("published", Path(outside.name))
+        self.assertIn("--deliverable published/f.md is outside the project", self.share("published/f.md", code=1))
+
+    def test_a_share_through_a_link_into_the_state_folder_is_refused(self):
+        self.link("records", self.root / ".openguildkit" / "tasks")
+        self.assertIn("--deliverable records/x.json is in .openguildkit/", self.share("records/x.json", code=1))
+
+    def test_a_share_of_the_state_folder_written_in_another_case_is_refused(self):
+        if not (self.root / ".OPENGUILDKIT").exists():
+            self.skipTest("This file system tells .OPENGUILDKIT from .openguildkit: the path is another folder.")
+        error = self.share(".OpenGuildKit/tasks/report-csv.json", code=1)
+        self.assertIn("--deliverable .OpenGuildKit/tasks/report-csv.json is in .openguildkit/", error)
+
+    def test_a_missing_file_or_a_folder_without_an_export_is_not_shared(self):
+        self.assertIn("--deliverable docs-site/reference/nonexistent.md does not exist",
+                      self.share("docs-site/reference/nonexistent.md", code=1))
+        (self.root / "notes").mkdir()
+        self.assertIn("--deliverable notes is a folder that holds no documentation export", self.share("notes", code=1))
+        self.assertFalse((self.root / ".openguildkit" / "shares" / "shares.json").exists())
+
+    def test_the_folder_of_a_documentation_export_can_be_shared(self):
+        self.exported_site()
+        self.share("docs-site")
+        self.assertEqual(json.loads(self.run_cli("docs", "share", "list", "--json")[0])[0]["deliverable"], "docs-site")
+
+    def test_a_share_inside_the_project_is_recorded_as_written(self):
+        self.deliverable("docs-site/reference/request-status.md")
+        self.share("docs-site/reference/request-status.md")
+        shares = json.loads(self.run_cli("docs", "share", "list", "--json")[0])
+        self.assertEqual(shares[0]["deliverable"], "docs-site/reference/request-status.md")
+
+    def test_docs_export_writes_only_inside_the_project_and_outside_the_state_folder(self):
+        self.done_task()
+        common = ("docs", "export", "--tasks", TASK, "--version", "1.4.0")
+        _, error = self.run_cli(*common, "--output", "../site", code=1)
+        self.assertIn("--output ../site is outside the project", error)
+        _, error = self.run_cli(*common, "--output", ".openguildkit/site", code=1)
+        self.assertIn("--output .openguildkit/site is in .openguildkit/", error)
+        _, error = self.run_cli(*common, "--output", "docs-site", "--openapi", ".openguildkit/tasks/x.json", code=1)
+        self.assertIn("--openapi .openguildkit/tasks/x.json is in .openguildkit/", error)
+        self.assertFalse((self.root / ".openguildkit" / "site").exists())
+
+    def test_the_export_summary_is_honest_and_says_each_thing_once(self):
+        site = self.exported_site()
+        reference = (site / "reference" / f"{TASK}.md").read_text(encoding="utf-8")
+        task = json.loads(self.run_cli("task", "show", TASK)[0])
+        checks = task["result"]["checks"]
+        passed = sum(item["status"] == "passed" for item in checks)
+        skipped = sum(item["status"] == "not-applicable" for item in checks)
+        self.assertGreater(skipped, 0)
+        self.assertIn(f"Checks before release: {passed} passed, {skipped} not applicable, "
+                      f"{len(checks) - passed - skipped} open.", reference)
+        bullets = [line for line in reference.splitlines() if line.startswith("- ")]
+        self.assertEqual(len(bullets), len({line.casefold().rstrip(".") for line in bullets}))
+        title = task["brief"].strip().splitlines()[0].rstrip(".")
+        self.assertEqual(reference.count(title), 2, "the title, in the front matter and the heading only")
+
+    def test_the_project_page_lists_only_the_boards_consulted(self):
+        self.done_task()
+        self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0", "--sections", "project")
+        page = (self.root / "docs-site" / "project" / "overview.md").read_text(encoding="utf-8")
+        consulted = json.loads(self.run_cli("task", "show", TASK)[0])["consultation"]["boards"]
+        listed = page.split("## Boards consulted", 1)[1]
+        boards = load_catalog()["boards"]
+        for board_id in boards:
+            self.assertEqual(f"({board_id})" in listed, board_id in consulted, board_id)
 
 
 if __name__ == "__main__":

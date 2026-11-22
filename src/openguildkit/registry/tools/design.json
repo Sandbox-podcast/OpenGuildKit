@@ -26,9 +26,7 @@
           "capabilities": "Generate, edit, search, export and comment on designs, upload assets; resize, autofill and brand templates need Canva Pro or above.",
           "source": "https://www.canva.dev/docs/apps/quickstart/?app-surface=Canva%20for%20AI%20assistants",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         },
         {
           "id": "canva-dev-mcp",
@@ -52,9 +50,7 @@
           "capabilities": "Development help for building Canva apps and integrations, using canva.dev documentation.",
           "source": "https://www.canva.dev/docs/apps/dev-mcp-server/",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read"
-          }
+          "access": "Read operations described; no enforced read-only mode is recorded."
         }
       ],
       "api": {
@@ -89,9 +85,9 @@
           "capabilities": "Reads design context, variables and components from Figma files and can write to the canvas.",
           "source": "https://developers.figma.com/docs/figma-mcp-server/remote-server-installation/",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Design context of the Figma nodes the client points to; can create new designs and files. Editing existing files is not described.",
+          "scopes": "Sign in with the Figma account and allow access in the client; only clients in Figma's MCP catalog can connect. The page names no scope list.",
+          "reviewed": "2026-11-21"
         },
         {
           "id": "figma-desktop",
@@ -106,9 +102,7 @@
           "capabilities": "Local server run by the Figma desktop app (Dev Mode); reads design context of open files, no canvas writes.",
           "source": "https://developers.figma.com/docs/figma-mcp-server/local-server-installation/",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read"
-          }
+          "access": "Read operations described; no enforced read-only mode is recorded."
         }
       ],
       "api": {
@@ -144,9 +138,7 @@
           "repository": "https://github.com/miroapp/miro-ai",
           "license": "MIT",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -182,9 +174,7 @@
           "repository": "https://github.com/penpot/penpot",
           "license": "MPL-2.0",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -229,9 +219,7 @@
           "repository": "https://github.com/storybookjs/storybook",
           "license": "MIT",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "configurable"
-          }
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         }
       ],
       "notes": "Installed as an addon (the command adds it to the project), then the agent connects to http://localhost:6006/mcp while Storybook runs; the port may differ. The docs toolset needs a supported framework (React, angular-vite, vue3-vite). Code moved from storybookjs/mcp (archived) into the storybook monorepo in v10.6. Add it with `npx storybook add @storybook/addon-mcp`; the endpoint answers while Storybook runs."

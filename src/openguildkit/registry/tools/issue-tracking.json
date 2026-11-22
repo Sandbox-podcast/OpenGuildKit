@@ -27,9 +27,7 @@
           "capabilities": "Read and act on Asana tasks, projects and workspaces with the signed-in user's access.",
           "source": "https://developers.asana.com/docs/using-asanas-mcp-server",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -63,13 +61,8 @@
           "capabilities": "Read or act on projects, to-dos, message boards, card tables, docs and chats as the signed-in user; read-only or full access chosen at approval.",
           "source": "https://basecamp.com/mcp",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "configurable",
-            "consent": "Approve read-only or full access in the Basecamp consent screen",
-            "scopes": [
-              "Projects and content the signed-in Basecamp user can access"
-            ]
-          }
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given.",
+          "scopes": "Projects and content the signed-in Basecamp user can access. Consent: Approve read-only or full access in the Basecamp consent screen."
         },
         {
           "id": "basecamp-cli",
@@ -93,15 +86,14 @@
           "repository": "https://github.com/basecamp/basecamp-cli",
           "license": "MIT",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write",
-            "consent": "Sign in with the Basecamp CLI before starting its MCP server",
-            "scopes": [
-              "Projects and content the CLI's signed-in account can access"
-            ]
-          },
+          "access": "Read and write.",
+          "scopes": "Projects and content the CLI's signed-in account can access. Consent: Sign in with the Basecamp CLI before starting its MCP server.",
           "read_only": {
-            "arg": "--read-only"
+            "how": "The --read-only flag exposes only read tools.",
+            "args": [
+              "mcp",
+              "--read-only"
+            ]
           }
         }
       ],
@@ -136,9 +128,7 @@
           "capabilities": "Search, read, create and update ClickUp tasks, lists and docs in the user's workspace.",
           "source": "https://developer.clickup.com/docs/connect-an-ai-assistant-to-clickups-mcp-server",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -180,9 +170,9 @@
           "repository": "https://github.com/atlassian/atlassian-mcp-server",
           "license": "Apache-2.0",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Search and summarize Jira, Jira Service Management, Confluence, Bitbucket, Loom and more; create and update work items and pages. Every action respects the user's existing permissions, on all connected products.",
+          "scopes": "OAuth 2.1 with the user's own Atlassian permissions; API token authentication is optional and set by an org admin. The page names no scope list.",
+          "reviewed": "2026-11-21"
         }
       ],
       "api": {
@@ -216,16 +206,13 @@
           "capabilities": "Find, create and update Linear issues, projects and comments; read-only variant at https://mcp.linear.app/mcp/readonly.",
           "source": "https://linear.app/docs/mcp",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write",
-            "consent": "Authorize with Linear OAuth or provide a workspace API key",
-            "scopes": [
-              "Use the read OAuth scope for a read-only token; available actions also depend on workspace permissions"
-            ]
-          },
+          "access": "Find, create and update issues, projects, documents and comments.",
+          "scopes": "OAuth 2.1 (read-write by default) or an OAuth token or API key in the Authorization header; the read OAuth scope, or an API key with only the Read permission, cannot reach write APIs.",
           "read_only": {
+            "how": "The endpoint https://mcp.linear.app/mcp/readonly only ever exposes read tools.",
             "url": "https://mcp.linear.app/mcp/readonly"
-          }
+          },
+          "reviewed": "2026-11-21"
         }
       ],
       "api": {
@@ -265,9 +252,7 @@
           "repository": "https://github.com/mondaycom/mcp",
           "license": "MIT",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         },
         {
           "id": "monday-api-mcp",
@@ -293,9 +278,7 @@
           "repository": "https://github.com/mondaycom/mcp",
           "license": "MIT",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -341,17 +324,13 @@
           "repository": "https://github.com/jztan/redmine-mcp-server",
           "license": "MIT",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write",
-            "consent": "Provide a Redmine API key for the intended instance",
-            "scopes": [
-              "Projects and Redmine permissions of the key's user"
-            ]
-          },
+          "access": "Read and write.",
+          "scopes": "Projects and Redmine permissions of the key's user. Consent: Provide a Redmine API key for the intended instance.",
           "read_only": {
-            "env_vars": [
-              "REDMINE_MCP_READ_ONLY"
-            ]
+            "how": "REDMINE_MCP_READ_ONLY=true blocks every write.",
+            "env": {
+              "REDMINE_MCP_READ_ONLY": "true"
+            }
           }
         }
       ],
@@ -386,9 +365,7 @@
           "capabilities": "Find, create and update Stories, Epics and Docs.",
           "source": "https://www.shortcut.com/help/integrations/mcp-server/",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -423,9 +400,7 @@
           "repository": "https://github.com/atlassian/trello-mcp-server",
           "license": "Apache-2.0",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -459,9 +434,7 @@
           "capabilities": "Find work, read project context, create and update tasks within the user's Wrike permissions.",
           "source": "https://developers.wrike.com/docs/wrike-mcp-server-overview",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -501,9 +474,7 @@
           "capabilities": "Predefined tools for issues, projects, users, time tracking and knowledge-base articles, with the user's permissions.",
           "source": "https://www.jetbrains.com/help/youtrack/cloud/model-context-protocol-server.html",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "configurable"
-          }
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         }
       ],
       "api": {

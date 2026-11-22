@@ -8,31 +8,24 @@
       "read_only": true,
       "inputSchema": {
         "type": "object",
-        "properties": {"query": {"type": "string", "description": "Words to look for"}},
-        "required": ["query"]
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Words that must all appear, whatever the case; an empty text lists everything"
+          }
+        },
+        "required": [
+          "query"
+        ]
       },
-      "responses": [
-        {
-          "when": {"query": "export"},
-          "result": {
-            "pages": [
-              {
-                "page_id": "export-spec",
-                "title": "Export my requests as CSV: specification",
-                "edited": "2026-11-19",
-                "owner": "Ada Example"
-              }
-            ]
-          }
-        },
-        {
-          "when": {"query": "sprint"},
-          "result": {
-            "pages": [{"page_id": "sprint-14-plan", "title": "Sprint 14 plan", "edited": "2026-11-16", "owner": "Ada Example"}]
-          }
-        },
-        {"result": {"pages": []}}
-      ]
+      "serve": {
+        "records": "pages",
+        "action": "list",
+        "fields": [
+          "page_id",
+          "title"
+        ]
+      }
     },
     {
       "name": "get_page",
@@ -40,30 +33,20 @@
       "read_only": true,
       "inputSchema": {
         "type": "object",
-        "properties": {"page_id": {"type": "string", "description": "Page id from search_pages"}},
-        "required": ["page_id"]
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "description": "Page id from search_pages"
+          }
+        },
+        "required": [
+          "page_id"
+        ]
       },
-      "responses": [
-        {
-          "when": {"page_id": "export-spec"},
-          "result": {
-            "page_id": "export-spec",
-            "title": "Export my requests as CSV: specification",
-            "format": "markdown",
-            "content": "# Export my requests as CSV\n\nStatus: In progress (SUP-142)\nOwner: Ada Example\n\n## Goal\nA customer can download all of their own support requests as one CSV file.\n\n## Scope\n- A button named Export CSV on the Requests list screen.\n- One row per request, with these columns: id, title, status, created, updated.\n- Only the requests of the signed-in customer are exported.\n\n## Safety\n- Cells starting with =, +, - or @ get a leading apostrophe (SUP-143).\n- The file is UTF-8 with a byte order mark so spreadsheets read accents correctly.\n\n## Out of scope\n- Sharing a request by link (SUP-120).\n"
-          }
-        },
-        {
-          "when": {"page_id": "sprint-14-plan"},
-          "result": {
-            "page_id": "sprint-14-plan",
-            "title": "Sprint 14 plan",
-            "format": "markdown",
-            "content": "# Sprint 14\n\nDates: 2026-11-16 to 2026-11-27\n\n## Goal\nShip the CSV export of a customer's own requests.\n\n## Tickets\n- SUP-142 Export my requests as CSV (Lin Sample)\n- SUP-143 CSV cells starting with = must be neutralised (Sam Placeholder)\n- SUP-120 Share link for a request (blocked by the security review)\n"
-          }
-        },
-        {"error": "Page not found. Known pages in this mock: export-spec, sprint-14-plan."}
-      ]
+      "serve": {
+        "records": "pages",
+        "action": "get"
+      }
     },
     {
       "name": "create_page",
@@ -71,10 +54,18 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "title": {"type": "string", "description": "Page title"},
-          "content": {"type": "string", "description": "Markdown content"}
+          "title": {
+            "type": "string",
+            "description": "Page title"
+          },
+          "content": {
+            "type": "string",
+            "description": "Markdown content"
+          }
         },
-        "required": ["title"]
+        "required": [
+          "title"
+        ]
       },
       "responses": [
         {
@@ -88,5 +79,25 @@
         }
       ]
     }
-  ]
+  ],
+  "records": {
+    "pages": {
+      "key": "page_id",
+      "title": "title",
+      "items": [
+        {
+          "page_id": "export-spec",
+          "title": "Export my requests as CSV: specification",
+          "format": "markdown",
+          "content": "# Export my requests as CSV\n\nStatus: In progress (SUP-142)\nOwner: Ada Example\n\n## Goal\nA customer can download all of their own support requests as one CSV file.\n\n## Scope\n- A button named Export CSV on the Requests list screen.\n- One row per request, with these columns: id, title, status, created, updated.\n- Only the requests of the signed-in customer are exported.\n\n## Safety\n- Cells starting with =, +, - or @ get a leading apostrophe (SUP-143).\n- The file is UTF-8 with a byte order mark so spreadsheets read accents correctly.\n\n## Out of scope\n- Sharing a request by link (SUP-120).\n"
+        },
+        {
+          "page_id": "sprint-14-plan",
+          "title": "Sprint 14 plan",
+          "format": "markdown",
+          "content": "# Sprint 14\n\nDates: 2026-11-16 to 2026-11-27\n\n## Goal\nShip the CSV export of a customer's own requests.\n\n## Tickets\n- SUP-142 Export my requests as CSV (Lin Sample)\n- SUP-143 CSV cells starting with = must be neutralised (Sam Placeholder)\n- SUP-120 Share link for a request (blocked by the security review)\n"
+        }
+      ]
+    }
+  }
 }

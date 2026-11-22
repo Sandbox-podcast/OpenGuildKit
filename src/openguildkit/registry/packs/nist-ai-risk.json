@@ -1,7 +1,7 @@
 {
   "id": "nist-ai-risk",
   "title": "NIST AI RMF project review",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "Project evidence and decision checks for teams that adopt NIST AI RMF 1.0.",
   "sources": [
     {
@@ -24,7 +24,13 @@
     {
       "id": "set-risk-evidence",
       "instruction": "For material AI failure modes, agree on an evaluation, an acceptance threshold and a way to detect failures in use. Include expected human intervention where applicable.",
-      "verification": "Match each test result and monitoring signal to the risk it covers. Record gaps and who accepted the remaining risk."
+      "verification": "Match each test result and monitoring signal to the risk it covers and to the recorded acceptance threshold. Record gaps and who accepted the remaining risk.",
+      "records": {
+        "name": "acceptance-threshold",
+        "description": "The acceptance threshold agreed for the material failure modes, such as at most 1 % of answers citing another customer's data.",
+        "min": 0,
+        "max": 100
+      }
     },
     {
       "id": "review-model-changes",

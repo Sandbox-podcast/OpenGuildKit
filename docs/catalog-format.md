@@ -2,23 +2,25 @@
 
 The [reference library](references.md) holds source material you can use when contributing a pack. The records below define what OpenGuildKit can apply to a project or use in a board review.
 
-The catalog has four collections, one JSON file per record, plus the reference library, the tools and the deliverable templates:
+The catalog has four collections of records, one JSON file per record, and four folders of material that the records and the commands use:
 
 ```text
 src/openguildkit/registry/          shared catalog, shipped with the package
-  packs/<id>.json
-  boards/<id>.json
-  sectors/<id>.json
-  patterns/<id>.json
-  references/<family>.json          one file per family, many references each
-  tools/<category>.json             one file per tool category, many tools each
-  tool-mocks/<tool>.json            the synthetic data of a tool's mock
-  deliverables/<id>.json
+  packs/<id>.json                   rule packs (below)
+  boards/<id>.json                  brains (below)
+  sectors/<id>.json                 sectors (below)
+  patterns/<id>.json                patterns, see patterns.md
+  references/<family>.json          reference library, see references.md
+  deliverables/<id>.json            deliverable templates, see deliverables.md
+  tools/<category>.json             tools and their MCP servers, see tools.md
+  tool-mocks/<tool>.json            synthetic answers of a tool's mock, see tools.md
 .openguildkit/catalog/              optional, private to one project
-  packs/ boards/ sectors/ patterns/ references/ tools/ deliverables/
+  packs/ boards/ sectors/ patterns/ references/ deliverables/ tools/ tool-mocks/
 ```
 
-`catalog.py` validates every file at load time. Use `openguildkit catalog --json` to list packs, boards and sectors. Use `openguildkit patterns --json` for the [pattern collection](patterns.md). A pattern can name the reference entries on its subject in an optional `references` list. `check_reference_links` in `references.py`, run by the tests on the bundled catalog, checks that each one exists and names the pattern or one of its packs back.
+A project folder holds files in the same format as the bundled one and adds to it; an ID that already exists is refused, with two exceptions: a project board completes the bundled board of the same ID (see [Boards](#boards)), and a project mock replaces the bundled mock of the same tool. `openguildkit brains --new ID` writes a project brain in `boards/`, `patterns/`, `packs/` and `references/`.
+
+`catalog.py` validates every file at load time. Use `openguildkit catalog --json` to list packs, boards and sectors. Use `openguildkit patterns --json` for the [pattern collection](patterns.md). A pattern can name the reference entries on its subject in an optional `references` list. A method without a `match` can name, in an optional `core_for` list, the roles of the pattern for which it is preselected by the role alone: its rules apply to any work of that discipline, whatever the product, its interface or its domain, and the catalog marks one or two per role at most. The other methods of a role are suggested, with their description as the reason. A regulation is never preselected by a role. A pattern's `match` can also hold `"people_decisions": true`: the project scores, ranks or decides about people (the EU AI Act). `check_reference_links` in `references.py`, run by the tests on the bundled catalog, checks that each one exists and names the pattern or one of its packs back.
 
 ## Rules common to all records
 
@@ -65,7 +67,7 @@ A pack is a versioned set of rules an agent follows and a reviewer can verify.
 | `version` | `major.minor.patch`, no leading zeros |
 | `depends_on` | Optional. IDs of other packs. Must exist, no duplicates, no cycles. Dependencies are activated before the pack. |
 | `conflicts_with` | Optional. IDs of packs whose rules cannot both apply to the same scope. A project that selects both must record which ones it keeps, with a reason. A pack cannot depend on a pack it conflicts with. |
-| `rules` | Non-empty array of `{id, instruction, verification}`, each with an optional `check` and an optional `evidence` (see below). Rule IDs follow the ID format and are unique within the pack. A rule with a `check` may leave out `instruction` and `verification`: the CLI writes them from the check. |
+| `rules` | Non-empty array of `{id, instruction, verification}`, each with an optional `check`, an optional `evidence` and an optional `records` (see below). Rule IDs follow the ID format and are unique within the pack. A rule with a `check` may leave out `instruction` and `verification`: the CLI writes them from the check. |
 
 Versioning: bump `patch` for wording fixes, `minor` for a new rule, `major` for a removed or reversed rule. Projects pin the records they use in `.openguildkit/catalog.lock.json`, so a changed pack reaches them only when they run `openguildkit update --apply`. From then on their fingerprint changes and pending approvals need a new consultation.
 
@@ -93,7 +95,22 @@ A rule can also name pieces of evidence that a person keeps outside the code, su
 }
 ```
 
-Each entry becomes a check `evidence:PACK/RULE/ID` that every task answers in `task result`: either the evidence itself, status `passed` with a project path that exists or an `https://` link, or status `not-applicable` with a `reason` and an `owner` when it does not concern the task. `task complete` refuses the task while an evidence has no answer. The evidence must be supplied, and `not-applicable` is refused, when the rule or its pack is listed in the profile's `required_rules`, or when the entry declares `"when": {"data": [...]}` and the task's `data` answer is one of the listed values (`none`, `internal`, `personal`, `regulated`, `unsure`). The `gdpr` pack uses `"when": {"data": ["personal", "regulated", "unsure"]}` for the record of processing activities and the decision on a data protection impact assessment: when the requester does not know whether personal data is involved, the evidence is supplied or the answer is settled first. A rule names at most 5 pieces of evidence.
+Each entry becomes a check `evidence:PACK/RULE/ID` that a task answers in `task result` when its pack concerns the task (see [workflow](workflow.md#only-the-rules-that-concern-the-task)) and, for an entry with `when`, when the task's `data` meets it: either the evidence itself, status `passed` with a project path that exists or an `https://` link and the `owner` who provided or confirmed it, or status `not-applicable` with a `reason` and an `owner` when it does not concern the task. `task complete` refuses the task while an asked evidence has no answer. The evidence must be supplied (`"requirement": "passed"` in the template), and `not-applicable` is held back, when the rule or its pack is listed in the profile's `required_rules`, or when the entry declares `"when": {"data": [...]}` and the task's `data` answer is one of the listed values (`none`, `internal`, `personal`, `regulated`, `unsure`). The `gdpr` pack uses `"when": {"data": ["personal", "regulated", "unsure"]}` for the record of processing activities and the decision on a data protection impact assessment: when the requester does not know whether personal data is involved, the evidence is supplied or the answer is settled first. A rule names at most 5 pieces of evidence.
+
+### A value the task records
+
+A rule whose answer means nothing without a number, such as a quality threshold or a regression budget, names that value in `records`, with a `name` in the ID format, a one-line `description` and optional bounds on its number: `min` (at least), `above` (strictly more than, instead of `min`) and `max` (at most):
+
+```json
+{
+  "id": "compare-evaluation-baselines",
+  "instruction": "Run the evaluation on the approved baseline and on the proposed configuration, ... against the regression budget agreed with the workflow owner.",
+  "verification": "Review the cases that changed between the two runs, check that no critical task group drops by more than the recorded budget, and record the release decision.",
+  "records": {"name": "regression-budget", "description": "The largest drop from the baseline accepted for a critical task group, such as 2 percentage points of pass rate.", "min": 0, "max": 100}
+}
+```
+
+`task result ID --template` shows `records`, with the accepted range, and an empty `value` on the check of that rule. A `passed` or `failed` outcome of the check is refused until `value` holds the number with its unit (`2 percentage points`, `95 % of critical cases`), and refused with the accepted range when the first number of the value falls outside the bounds; a `skipped` or `not-applicable` outcome needs none. The value is kept in the task's result next to the evidence. A task consulted before the rule declared `records` keeps the rule as it was approved, so its result is read and completed as before. In the bundled catalog, the `llm-evaluations` rules `evaluate-user-outcomes` (`pass-threshold`), `review-grading-rubric` (`grader-agreement`) and `compare-evaluation-baselines` (`regression-budget`) and the `nist-ai-risk` rule `set-risk-evidence` (`acceptance-threshold`) declare one. The pass threshold and the grader agreement are above 0 and at most 100: a threshold of 0 % accepts every run, so it says nothing. The regression budget and the acceptance threshold are at least 0 and at most 100: 0 is a strict and valid answer, no drop or no failure accepted. The two other `llm-evaluations` rules answer without a number: `check-permitted-tool-use` passes when the traces show no live action and blocked steps stopping, and `record-evaluation-setup` when the run record names each item.
 
 The [central export-rule example](../examples/export-expiry/README.md) is a pack `export-link-expiry` with one rule whose check is a `field` check: `{"kind": "field", "path": "export.json", "field": "downloadLinkMinutes", "integer": true, "min": 1, "max": 60}`. `ci-check` evaluates it on the exact target commit with the same evaluator as `task verify`, and the CLI derives the instruction and verification text from the check. The former form, `"check": {"max_minutes": 60}`, is still read as that same field check. The Node coordinator in `integrations/ci/` supports this one rule, in either form.
 
@@ -124,7 +141,7 @@ A board is a discipline's review lens.
 | Field | Constraint |
 |---|---|
 | `expertises` | Non-empty list. The specialties the board brings. |
-| `review` | [Brain review](brains.md) with specialists, evidence requests, challenge prompts and decision criteria. Each specialist has an `id`, a `title`, a `focus` and optional `checks`: a list of what an expert of that lens verifies. Required for a board added by a project; every bundled board has one. |
+| `review` | [Brain review](brains.md) with specialists, evidence requests, challenge prompts and decision criteria. Each specialist has an `id`, a `title`, a `focus` and optional `checks`: a list of what an expert of that lens verifies. An optional `applies_to` lists the task surfaces the lens can concern, among `customer`, `service`, `infrastructure` and `business` (the answers of the task's surface question): for a task whose surfaces meet none of them, the lens is listed as not concerned and the review entry does not ask for its finding. A task whose surface is `unsure` or `other` keeps every lens. Without `applies_to`, a lens concerns every task. Required for a board added by a project; every bundled board has one. |
 | `triggers` | Non-empty list. Words or phrases that select the board when they appear as whole words in a brief. Matching ignores case, accents, the kind of apostrophe and regular plurals; the longest overlapping phrase wins, and a board's own shorter phrase never cancels its longer one, so `dora lead time` in `devops` keeps `dora` from selecting `legal`. Add translations (`sécurité`, `rgpd`) so non-English briefs route correctly, and avoid words that are common in other disciplines. |
 | `questions` | Non-empty list. What the board asks of every task it reviews. |
 
@@ -165,37 +182,33 @@ The pattern can reuse bundled packs or packs from `.openguildkit/catalog/packs/`
 
 ## References
 
-`registry/references/FAMILY.json` holds a family of references, and a project adds its own in `.openguildkit/catalog/references/` (a new family, or new entries under an existing family ID). The file is named after the family:
+A file in `references/` is a family of reference entries: standards, regulations, methods and tools that a brain reads during a consultation. `references.py` loads the bundled families, then the project's, and validates each one: the family has `id`, `title` and `references`, the file is named `<id>.json`, and a project family with a bundled ID must keep its title and adds its entries to it. Reference IDs and aliases are unique across all families. The fields of an entry and the closed list of `kind` values are in [references.md](references.md#add-references).
 
 ```json
 {
-  "id": "delivery",
-  "title": "Delivery and operations",
+  "id": "team-practices",
+  "title": "Team practices",
   "references": [
     {
-      "id": "critical-path",
-      "aliases": ["cpm"],
-      "title": "Critical path method",
-      "title_en": "Critical path method",
-      "category": "Planning",
-      "kind": "méthode",
-      "summary": "What the reference is, in a sentence or two.",
-      "applies_when": "The situation in which a team should reach for it.",
-      "brains": ["project-management"],
-      "pattern": "critical-path",
-      "packs": ["critical-path"],
-      "edition": "2026",
-      "sources": [{"title": "Publisher, document", "url": "https://example.org/document", "checked": "2026-11-21"}]
+      "id": "team-change-record", "title": "Change record", "category": "Delivery", "kind": "pratique",
+      "brains": ["devops"], "summary": "Record the owner, impact and verification results of a production change.",
+      "applies_when": "A change affects an interface or operation used by another team.",
+      "sources": [{"title": "Team engineering handbook", "url": "https://example.org/engineering/change-records",
+                   "checked": "2026-11-21"}]
     }
   ]
 }
 ```
 
-`id`, `title`, `category`, `kind`, `summary`, `applies_when` and `sources` are required; `aliases` (former IDs, found by `references --id`), `title_en`, `edition`, `brains`, `pattern` and `packs` are optional. `kind` is one of `norme`, `spécification`, `protocole`, `format`, `réglementation`, `référentiel`, `méthode`, `pratique`, `principe`, `concept`, `convention` and `guide`. `brains` ties the reference to the brains that read it: a brain's briefs keep the references that best fit the task. `pattern` and `packs` link it to the method and the rule packs that apply it, and `check_reference_links` verifies that those name it back. Every source needs `title`, `url` (HTTPS) and, in the shared catalog, a `checked` date.
+`brains` ties the reference to the brains that read it: a brain's briefs keep the references that best fit the task. `pattern` and `packs` link it to the method and the rule packs that apply it, and `check_reference_links` verifies that those name it back. Every source needs `title`, `url` (HTTPS) and, in the shared catalog, a `checked` date.
+
+## Deliverables
+
+A file in `deliverables/` is the template of a business deliverable: its method, its inputs, the tool actions that need approval and the checks a reviewer runs. `deliverables.py` loads the bundled templates, then the project's; a project template with a bundled ID is refused. The format and the commands are in [deliverables.md](deliverables.md).
 
 ## Tools
 
-`registry/tools/CATEGORY.json` lists the tools of a company's stack and the MCP servers that connect an agent to them (see [tools.md](tools.md)). One file per category, named after its `id`, which is one of the 22 admitted categories: `issue-tracking`, `source-control`, `ci-cd`, `documentation`, `design`, `communication`, `time-tracking`, `hr`, `finance`, `crm`, `marketing`, `support`, `security`, `quality`, `observability`, `cloud`, `data`, `browser`, `testing`, `analytics`, `automation`, `product`.
+`registry/tools/CATEGORY.json` lists the tools of a company's stack and the MCP servers that connect an agent to them (see [tools.md](tools.md)). One file per category:
 
 ```json
 {
@@ -231,6 +244,8 @@ The pattern can reuse bundled packs or packs from `.openguildkit/catalog/packs/`
 }
 ```
 
+The file name is the category, one of the 22 that `tools.py` admits: `issue-tracking`, `source-control`, `ci-cd`, `documentation`, `design`, `communication`, `time-tracking`, `hr`, `finance`, `crm`, `marketing`, `support`, `security`, `quality`, `observability`, `cloud`, `data`, `browser`, `testing`, `analytics`, `automation`, `product`. A file with another name is refused. A project file in `.openguildkit/catalog/tools/` uses the same names and adds tools to the category; a tool ID that already exists is refused.
+
 | Field | Constraint |
 |---|---|
 | `brains` | Non-empty list of board IDs that use the tool. |
@@ -238,11 +253,12 @@ The pattern can reuse bundled packs or packs from `.openguildkit/catalog/packs/`
 | `detect` | Optional signs of the tool in a repository: `files` (paths or `*` patterns inside the project), `npm` and `pypi` dependency names. |
 | `servers` | The MCP servers verified for the tool. Empty when none is on record: say what exists instead in `notes` and `api`. |
 | `servers[].publisher` | `vendor` when the tool's own company publishes or hosts the server, `community` otherwise. A community server is proposed only when the team asks for it. |
-| `servers[].transport` | `streamable-http`, `sse` or `stdio`. A remote server has a `url`; a `stdio` server has `command`, `args` and `package` (`registry` and `name`). |
+| `servers[].transport` | `streamable-http`, `sse` or `stdio`. A remote server has a `url`; a `stdio` server has `command`, `args` and `package` (`registry` and `name`). A `docker` command names each variable of `env` with `-e`, or the container never receives it. |
 | `servers[].env` | Names of the environment variables the server reads. Never a value: an argument such as `TOKEN=...` is refused, and so is a credential in a URL. |
+| `servers[].access`, `scopes` | Optional, only when the publisher's page says it, as one line of text each. `access`: the data the server reaches and whether it reads, writes or both, as registered ("Read operations described; no enforced read-only mode is recorded" when the page lists only reads without promising them). `scopes`: the scopes, permissions, consent or token type it asks, and who consents. Set `reviewed` to the day you looked for them: `tools plan` then prints "not documented by the publisher" for what the page does not say, and "not recorded in the registry yet" when `reviewed` is absent. |
+| `servers[].read_only` | Optional. The publisher's read-only mode: `how` (one line) and what selects it: `headers` (plain names and values, never a credential) or a read-only `url` with the same settings for a remote server; the full `args` (a `docker` command still names each `env` variable with `-e`) or `env`, plain values such as `{"MAILCHIMP_READ_ONLY": "true"}` for a local server that is not run by `docker`. `how` alone says the server only reads as registered: nothing to select. `--read-only` on `tools plan` and `tools apply` selects the mode, and prefers the tool's server that has one. |
+| `servers[].pin` | Optional. What the publisher says about versions, such as the image tags it documents. Whether the documented command pins a version is read from `args`. |
 | `servers[].settings` | `name` and `description` of each `{placeholder}` used in the `url` or the `args`, such as a subdomain. |
-| `servers[].access` | `mode` describes the registered invocation: `read-only` for a documented restriction, `read` for described read operations without that guarantee, `read-write`, or `configurable` when it depends on settings or consent. Project entries can omit it when unknown. Add documented `consent`, `scopes` and, if different, `read_only_scopes`. |
-| `servers[].read_only` | A documented restriction for an otherwise broader invocation. Use one of `url` or `header` for HTTP, or `arg`, `env_vars` or `docker_env` for supported local flags. An already restricted invocation just declares `access.mode: read-only`. |
 | `servers[].status` | `ga`, `beta`, `preview`, `experimental` or `deprecated` as the publisher states it, `unknown` otherwise. |
 | `servers[].source`, `verified` | The publisher's page or the server's repository where the endpoint or the command was read, and the day it was read. A directory site or a blog post is not a source. |
 | `api` | Optional. The tool's main public API: `kind` (`rest`, `graphql`, `other`) and `docs`. |

@@ -6,80 +6,224 @@
       "name": "get_file",
       "description": "Get a file and the frames of its screens.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"file_key": {"type": "string", "description": "File key such as requests-list"}}, "required": ["file_key"]},
-      "responses": [
-        {
-          "when": {"file_key": "requests-list"},
-          "result": {
-            "file_key": "requests-list",
-            "name": "Requests list",
-            "designer": "Noor Fixture",
-            "edited": "2026-11-17",
-            "frames": [
-              {"node_id": "12:30", "name": "Requests list / desktop", "size": [1280, 800]},
-              {"node_id": "12:31", "name": "Requests list / mobile", "size": [375, 812]},
-              {"node_id": "12:32", "name": "Requests list / empty"}
-            ]
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_key": {
+            "type": "string",
+            "description": "File key such as requests-list"
           }
         },
-        {
-          "when": {"file_key": "design-tokens"},
-          "result": {
-            "file_key": "design-tokens",
-            "name": "Design tokens",
-            "designer": "Noor Fixture",
-            "edited": "2026-10-09",
-            "frames": [{"node_id": "1:2", "name": "Colour tokens"}]
-          }
-        },
-        {"error": "File not found. Known keys in this mock: requests-list, design-tokens."}
-      ]
+        "required": [
+          "file_key"
+        ]
+      },
+      "serve": {
+        "records": "files",
+        "action": "get"
+      }
     },
     {
       "name": "get_node",
       "description": "Get one node of a file, with its sizes, states and colour tokens.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"node_id": {"type": "string", "description": "Node id such as 12:34"}}, "required": ["node_id"]},
-      "responses": [
-        {
-          "when": {"node_id": "12:34"},
-          "result": {
-            "node_id": "12:34",
-            "name": "Export CSV button",
-            "type": "component",
-            "label": "Export CSV",
-            "states": {
-              "default": {"fill": "color.primary.500", "text": "color.white", "border": "none", "width": 132, "height": 40},
-              "hover": {"fill": "color.primary.600", "text": "color.white", "border": "none", "width": 132, "height": 40},
-              "disabled": {"fill": "color.neutral.200", "text": "color.neutral.500", "border": "none", "width": 132, "height": 40}
-            },
-            "radius": 6,
-            "font": "Body / medium 14"
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "description": "Node id such as 12:34"
           }
         },
-        {
-          "when": {"node_id": "12:35"},
-          "result": {"node_id": "12:35", "name": "Requests table", "type": "frame", "columns": ["Title", "Status", "Created", "Updated"], "row_height": 48}
-        },
-        {"error": "Node not found. Known ids in this mock: 12:34, 12:35."}
-      ]
+        "required": [
+          "node_id"
+        ]
+      },
+      "serve": {
+        "records": "nodes",
+        "action": "get"
+      }
     },
     {
       "name": "list_comments",
       "description": "List the comments of a file.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"file_key": {"type": "string", "description": "File key"}}},
-      "responses": [
-        {"when": {"file_key": "design-tokens"}, "result": {"comments": []}},
-        {
-          "result": {
-            "comments": [
-              {"author": "Ada Example", "date": "2026-11-17", "node_id": "12:34", "text": "Keep the button next to the filters, not inside the table."},
-              {"author": "Kai Demo", "date": "2026-11-18", "node_id": "12:34", "text": "Customers look for the word Export. Please keep the label."}
-            ]
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_key": {
+            "type": "string",
+            "description": "File key"
           }
         }
-      ]
+      },
+      "serve": {
+        "records": "comments",
+        "action": "list"
+      }
     }
-  ]
+  ],
+  "records": {
+    "files": {
+      "key": "file_key",
+      "title": "name",
+      "items": [
+        {
+          "file_key": "requests-list",
+          "name": "Requests list",
+          "designer": "Noor Fixture",
+          "edited": "2026-11-17",
+          "frames": [
+            {
+              "node_id": "12:30",
+              "name": "Requests list / desktop",
+              "size": [
+                1280,
+                800
+              ]
+            },
+            {
+              "node_id": "12:31",
+              "name": "Requests list / mobile",
+              "size": [
+                375,
+                812
+              ]
+            },
+            {
+              "node_id": "12:32",
+              "name": "Requests list / empty"
+            }
+          ]
+        },
+        {
+          "file_key": "design-tokens",
+          "name": "Design tokens",
+          "designer": "Noor Fixture",
+          "edited": "2026-10-09",
+          "frames": [
+            {
+              "node_id": "1:2",
+              "name": "Colour tokens"
+            }
+          ]
+        }
+      ],
+      "refs": {
+        "frames.node_id": "nodes"
+      }
+    },
+    "nodes": {
+      "key": "node_id",
+      "title": "name",
+      "items": [
+        {
+          "node_id": "12:34",
+          "name": "Export CSV button",
+          "type": "component",
+          "label": "Export CSV",
+          "states": {
+            "default": {
+              "fill": "color.primary.500",
+              "text": "color.white",
+              "border": "none",
+              "width": 132,
+              "height": 40
+            },
+            "hover": {
+              "fill": "color.primary.600",
+              "text": "color.white",
+              "border": "none",
+              "width": 132,
+              "height": 40
+            },
+            "disabled": {
+              "fill": "color.neutral.200",
+              "text": "color.neutral.500",
+              "border": "none",
+              "width": 132,
+              "height": 40
+            }
+          },
+          "radius": 6,
+          "font": "Body / medium 14",
+          "file_key": "requests-list"
+        },
+        {
+          "node_id": "12:35",
+          "name": "Requests table",
+          "type": "frame",
+          "columns": [
+            "Title",
+            "Status",
+            "Created",
+            "Updated"
+          ],
+          "row_height": 48,
+          "file_key": "requests-list"
+        },
+        {
+          "node_id": "12:30",
+          "name": "Requests list / desktop",
+          "size": [
+            1280,
+            800
+          ],
+          "type": "frame",
+          "file_key": "requests-list"
+        },
+        {
+          "node_id": "12:31",
+          "name": "Requests list / mobile",
+          "size": [
+            375,
+            812
+          ],
+          "type": "frame",
+          "file_key": "requests-list"
+        },
+        {
+          "node_id": "12:32",
+          "name": "Requests list / empty",
+          "type": "frame",
+          "file_key": "requests-list"
+        },
+        {
+          "node_id": "1:2",
+          "name": "Colour tokens",
+          "type": "frame",
+          "file_key": "design-tokens"
+        }
+      ],
+      "refs": {
+        "file_key": "files"
+      }
+    },
+    "comments": {
+      "key": "comment_id",
+      "title": "text",
+      "items": [
+        {
+          "author": "Ada Example",
+          "date": "2026-11-17",
+          "node_id": "12:34",
+          "text": "Keep the button next to the filters, not inside the table.",
+          "comment_id": "c-1",
+          "file_key": "requests-list"
+        },
+        {
+          "author": "Kai Demo",
+          "date": "2026-11-18",
+          "node_id": "12:34",
+          "text": "Customers look for the word Export. Please keep the label.",
+          "comment_id": "c-2",
+          "file_key": "requests-list"
+        }
+      ],
+      "refs": {
+        "file_key": "files",
+        "node_id": "nodes"
+      }
+    }
+  }
 }

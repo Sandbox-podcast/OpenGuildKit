@@ -85,6 +85,20 @@ class CleanErrorTests(unittest.TestCase):
         self.assertIn(b"OpenGuildKit: Unknown brain", result.stderr)
         self.assertNotIn(b"Traceback", result.stderr)
 
+    def test_a_project_folder_that_does_not_exist_is_named_in_one_sentence(self):
+        missing = self.root / "nowhere"
+        for command in (("check",), ("task", "list")):
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+                self.assertEqual(main(["--project", str(missing), *command]), 1)
+            self.assertEqual(stderr.getvalue().strip(), f"OpenGuildKit: The project folder {missing.as_posix()} does not "
+                             "exist. Check --project, or create the folder and run openguildkit init in it.")
+        (self.root / "file.txt").write_text("x", encoding="utf-8")
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            self.assertEqual(main(["--project", str(self.root / "file.txt"), "check"]), 1)
+        self.assertIn("file.txt is not a folder", stderr.getvalue())
+
     def test_hand_edited_task_records_are_reported_as_damaged(self):
         self.init()
         self.run_cli("task", "new", "Show statuses.", "--id", "status", code=0)
@@ -97,7 +111,8 @@ class CleanErrorTests(unittest.TestCase):
                 error = self.run_cli(*command, code=0 if command == ("task", "list") else 1)
                 if command != ("task", "list"):
                     self.assertIn("Task record status is damaged: ", error)
-                    self.assertIn("Restore it from a backup or open a new task.", error)
+                    self.assertIn("Restore .openguildkit/tasks/status.json from a backup, or delete that file and open a "
+                                  "new task with openguildkit task new.", error)
         path.write_text(json.dumps({key: value for key, value in original.items() if key != "status"}), encoding="utf-8")
         self.assertIn("is damaged", self.run_cli("task", "show", "status"))
 
@@ -125,7 +140,8 @@ class CleanErrorTests(unittest.TestCase):
                 error = self.run_cli(*command, "request-status")
                 self.assertTrue(error.startswith(f"OpenGuildKit: Task record request-status is damaged: {field}"), error)
                 self.assertEqual(len(error.strip().splitlines()), 1, error)
-                self.assertTrue(error.strip().endswith("Restore it from a backup or open a new task."), error)
+                self.assertTrue(error.strip().endswith("or delete that file and open a new task with openguildkit task new."),
+                                error)
             listed = json.loads(self.list_json())
             self.assertEqual(listed[0]["status"], "unreadable")
 
@@ -256,7 +272,7 @@ class CleanErrorTests(unittest.TestCase):
         error = self.refusal("task", "review", TASK, "--file", self.root / "review.json")
         self.assertIn("The review has 3 problems", error)
         for entry in broken["boards"][:3]:
-            self.assertIn(f"{entry['id']} recommendation must contain text", error)
+            self.assertIn(f"{entry['id']}.recommendation must contain text", error)
 
     def test_malformed_host_hook_files_name_the_file_and_the_field(self):
         for host, name in (("codex", ".codex/hooks.json"), ("claude-code", ".claude/settings.json")):
@@ -326,8 +342,13 @@ class CleanErrorTests(unittest.TestCase):
                     for check in checks if check["kind"] == "rule" and not check["mandatory"]]
         write_json(self.root / "result.json", {"revision": "abc1234", "criteria": [], "checks": outcomes})
         self.run_cli("task", "result", "choice", "--file", self.root / "result.json", code=0)
-        output = self.output("task", "complete", "choice")
-        self.assertIn("disagreement", output)
+        # Security rules are skipped: closing over them needs the person's name at a terminal.
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value="choice"):
+            output = self.output("task", "complete", "choice", "--by", "Camille")
+        self.assertIn("done-with-reservations", output)
+        # The open points were shown at the confirmation prompt; the record keeps them.
+        record = json.loads(self.output("task", "show", "choice"))
+        self.assertIn("disagreement", json.dumps(record["result"]["closing"]["open_points"]))
         self.assertIn('openguildkit task new "BRIEF" --follows choice', output)
         self.run_cli("task", "new", "Add the portal page.", "--id", "page", "--follows", "choice", code=0)
 
@@ -340,8 +361,32 @@ class CleanErrorTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE((self.root / name).stat().st_mode), 0o644, name)
 
     def test_a_failed_command_leaves_no_state_folder(self):
-        self.assertIn("missing a profile", self.run_cli("sync"))
+        self.assertIn("No OpenGuildKit project found", self.run_cli("sync"))
         self.assertFalse((self.root / ".openguildkit").exists())
+
+    def test_outside_a_project_the_message_says_so_before_proposing_init(self):
+        outside = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, outside, ignore_errors=True)
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()), \
+                patch("openguildkit.project.Path.cwd", return_value=outside):
+            self.assertEqual(main(["check"]), 1)
+        message = stderr.getvalue()
+        self.assertIn("No OpenGuildKit project found", message)
+        self.assertIn(".openguildkit/project.json does not exist", message)
+        self.assertIn(outside.resolve().as_posix(), message)
+        for words in ("cd ", "--project", "openguildkit init"):
+            self.assertIn(words, message)
+        self.assertLess(message.index("--project"), message.index("openguildkit init"))
+        self.assertEqual(len(message.strip().splitlines()), 1)
+
+    def test_an_unknown_task_id_proposes_the_closest_one_or_task_list(self):
+        self.consulted()
+        self.assertIn(f"Did you mean {TASK}?", self.run_cli("task", "handoff", "request-staus"))
+        message = self.run_cli("task", "show", "zzz")
+        self.assertIn("Unknown task: zzz", message)
+        self.assertIn("openguildkit task list", message)
+        self.assertNotIn("Did you mean", message)
 
     def test_prompt_and_identifier_messages_are_precise(self):
         question = {"type": "multi-select", "choices": [{"id": "a"}, {"id": "b"}]}

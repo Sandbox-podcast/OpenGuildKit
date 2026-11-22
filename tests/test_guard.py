@@ -10,6 +10,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.cli import main
+from openguildkit.decisions import record_digest
+from openguildkit.guard import HOOK_OUTCOMES, MODES, UNKNOWN_MODE, hook_answer
 from openguildkit.storage import write_json
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
@@ -32,10 +34,13 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(result, code, stderr.getvalue())
         return stdout.getvalue(), stderr.getvalue()
 
-    def init(self, **extra):
+    def write_profile(self, **extra):
         profile = {**json.loads((EXAMPLE / "profile.json").read_text()), **extra}
         write_json(self.root / "profile.json", profile)
-        self.run_cli("init", "--answers", self.root / "profile.json")
+        return self.root / "profile.json"
+
+    def init(self, **extra):
+        self.run_cli("init", "--answers", self.write_profile(**extra))
 
     def approve_example(self):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
@@ -97,7 +102,76 @@ class GuardTests(unittest.TestCase):
     def test_observe_mode_flags_without_blocking(self):
         self.init(guard="observe")
         output, _ = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(self.root / "app.py"))
-        self.assertIn("Edit refused for", json.loads(output)["hookSpecificOutput"]["additionalContext"])
+        context = json.loads(output)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("flagged, not blocked", context)
+        self.assertIn("app.py", context)
+        self.assertNotIn("refused", context)
+        # What happened comes first, then what the project expects.
+        self.assertTrue(context.startswith("OpenGuildKit: Edit flagged, not blocked (guard: observe): app.py."), context)
+        self.assertLess(context.index("flagged"), context.index("wait for the person's approval"))
+
+    def test_the_answer_and_the_exit_code_say_the_same_thing_in_every_mode(self):
+        for mode in MODES:
+            for event in ("prompt", "pre-edit"):
+                for outcome in HOOK_OUTCOMES:
+                    with self.subTest(mode=mode, event=event, outcome=outcome):
+                        code, output, error = hook_answer(event, mode, outcome, "app.py")
+                        text = json.loads(output)["hookSpecificOutput"]["additionalContext"] if output else error
+                        if mode == "off" or outcome == "outside":
+                            self.assertEqual((code, output, error), (0, "", ""))
+                            continue
+                        blocks = event == "pre-edit" and mode == "enforce" and outcome != "covered"
+                        self.assertEqual(code, 2 if blocks else 0)
+                        self.assertEqual(bool(error), blocks)
+                        if mode == "observe":
+                            self.assertNotIn("refused", text)
+                        if event == "pre-edit" and outcome != "covered":
+                            self.assertIn("Edit refused" if blocks else "flagged, not blocked", text)
+
+    def test_an_unreadable_mode_refuses_and_says_why(self):
+        code, output, error = hook_answer("pre-edit", UNKNOWN_MODE, "unchecked", "the profile is not JSON")
+        self.assertEqual((code, output), (2, ""))
+        self.assertIn("Edit refused", error)
+        self.assertIn("cannot know its mode", error)
+
+    def test_every_mode_answers_a_real_edit_in_words_that_match_its_exit_code(self):
+        self.init()
+        project = self.root / ".openguildkit" / "project.json"
+        inputs = {"uncovered": self.edit_input(self.root / "app.py"),
+                  "protected": self.edit_input(project), "unchecked": "not json"}
+        for mode in MODES:
+            profile = json.loads(project.read_text(encoding="utf-8"))
+            write_json(project, {**profile, "guard": mode})
+            for outcome, stdin in inputs.items():
+                with self.subTest(mode=mode, outcome=outcome):
+                    code = 2 if mode == "enforce" else 0
+                    output, error = self.run_cli("guard", "--hook", "pre-edit", stdin=stdin, code=code)
+                    text = json.loads(output)["hookSpecificOutput"]["additionalContext"] if output else error
+                    self.assertEqual("refused" in text, mode == "enforce", text)
+                    self.assertEqual("not blocked" in text, mode == "observe", text)
+
+    def test_a_covered_edit_says_the_guard_does_not_compare_files_with_the_scope(self):
+        self.init(guard="observe")
+        self.approve_example()
+        output, _ = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(self.root / "README.md"))
+        context = json.loads(output)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn(TASK, context)
+        self.assertIn("does not compare", context)
+        self.assertNotIn("falls under", context)
+        self.assertIn("does not compare", self.run_cli("guard")[0])
+
+    def test_the_unsigned_approval_warning_shows_at_init_check_and_host_check_only(self):
+        _, error = self.run_cli("init", "--answers", self.write_profile(guard="enforce", host="claude-code"))
+        self.assertIn("not signed", error)
+        self.assertNotIn("not signed", self.run_cli("host", "apply")[1])
+        with patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit"):
+            self.assertIn("not signed", self.run_cli("host", "check")[1])
+        with patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit"):
+            self.assertIn("not signed", self.run_cli("check")[1])
+        with patch("openguildkit.hosts.shutil.which", return_value=None):
+            self.assertIn("not signed", self.run_cli("check", code=1)[1])
+        for command in (("task", "list"), ("guard",), ("sync",)):
+            self.assertNotIn("not signed", self.run_cli(*command)[1], command)
 
     def test_host_apply_installs_the_hooks(self):
         self.init(guard="enforce", host="claude-code")
@@ -110,6 +184,21 @@ class GuardTests(unittest.TestCase):
         with patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit"):
             report = {item["id"]: item["status"] for item in json.loads(self.run_cli("host", "check", "--json")[0])}
         self.assertEqual(report["board"], "enforced")
+
+    @unittest.skipIf(shutil.which("git") is None, "needs git")
+    def test_ci_in_observe_says_an_uncovered_change_is_flagged_not_blocking(self):
+        self.branch_with_change(guard="observe")
+        text, _ = self.run_cli("guard", "--ci", "--base", "main")
+        self.assertIn("no exported decision", text)
+        self.assertIn("Flagged, not blocking", text)
+        self.git("checkout", "-q", "main")
+        profile = self.root / ".openguildkit" / "project.json"
+        profile.write_text(profile.read_text(encoding="utf-8").replace('"observe"', '"enforce"'), encoding="utf-8")
+        self.git("commit", "-q", "-am", "enforce")
+        self.git("checkout", "-q", "feature")
+        self.git("rebase", "-q", "main")
+        text, _ = self.run_cli("guard", "--ci", "--base", "main", code=1)
+        self.assertNotIn("not blocking", text)
 
     @unittest.skipIf(shutil.which("git") is None, "needs git")
     def test_ci_requires_an_exported_decision_for_changes(self):
@@ -176,8 +265,10 @@ class GuardTests(unittest.TestCase):
         (self.root / ".openguildkit" / "project.json").write_text("{", encoding="utf-8")
         _, error = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(self.root / "app.py"), code=2)
         self.assertIn("could not check this edit", error)
+        self.assertIn("cannot know its mode", error)
         output, _ = self.run_cli("guard", "--hook", "prompt", stdin="")
         self.assertIn("could not run", json.loads(output)["hookSpecificOutput"]["additionalContext"])
+        self.assertIn("cannot know its mode", json.loads(output)["hookSpecificOutput"]["additionalContext"])
 
     def test_observe_reports_an_edit_the_guard_cannot_check_and_lets_it_through(self):
         self.init(guard="observe")
@@ -222,6 +313,24 @@ class GuardTests(unittest.TestCase):
         _, error = self.run_cli("guard", "--ci", "--base", "main", code=1)
         self.assertTrue(error.startswith("OpenGuildKit: .openguildkit/decisions/fake.json is not a decision record"), error)
         self.assertNotIn("Traceback", error)
+
+    @unittest.skipIf(shutil.which("git") is None, "needs git")
+    def test_the_first_pull_request_explains_why_nothing_is_enforced_and_what_comes_next(self):
+        self.git("init", "-q", "-b", "main")
+        (self.root / "README.md").write_text("Portal\n", encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "before the profile")
+        self.git("checkout", "-q", "-b", "feature")
+        self.init(guard="observe")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "add the profile")
+        result = self.ci()
+        self.assertEqual(result["mode"], "off")
+        note = result["problems"][0]
+        self.assertIn("expected", note)
+        self.assertIn('"guard": "observe"', note)
+        text, _ = self.run_cli("guard", "--ci", "--base", "main")
+        self.assertIn("once the profile is merged", text)
 
     @unittest.skipIf(shutil.which("git") is None, "needs git")
     def test_ci_reads_the_rules_from_the_base_revision(self):
@@ -313,6 +422,8 @@ class GuardTests(unittest.TestCase):
         self.git("commit", "-q", "-am", "swap the signers")
         self.assertEqual(self.ci()["decisions"], [TASK])
         unsigned = {**record, "decision": {key: value for key, value in record["decision"].items() if key != "signature"}}
+        # Whoever removes the signature can recompute the record's own digest; the signature check still refuses it.
+        unsigned["record_sha256"] = record_digest(unsigned)
         self.commit_record(f"{TASK}.json", unsigned)
         self.assertIn("not signed", self.ci(code=1)["problems"][0])
 

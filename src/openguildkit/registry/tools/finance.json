@@ -49,9 +49,7 @@
           "capabilities": "Read subscriptions, customers, catalog, entitlements, invoices, quotes, credit notes, transactions, events, orders, coupons; bulk export jobs.",
           "source": "https://www.chargebee.com/docs/billing/2.0/ai-in-chargebee/data-lookup-agent",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read"
-          }
+          "access": "Read operations described; no enforced read-only mode is recorded."
         },
         {
           "id": "chargebee-knowledge-base",
@@ -72,9 +70,7 @@
           "capabilities": "Answers product questions and generates code snippets from Chargebee docs and API references.",
           "source": "https://www.chargebee.com/docs/billing/2.0/ai-in-chargebee/knowledge-base-agent",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read"
-          }
+          "access": "Read operations described; no enforced read-only mode is recorded."
         }
       ],
       "api": {
@@ -114,9 +110,7 @@
           "capabilities": "Prepare and send envelopes, track envelope and recipient status, run Workflow Builder and CLM workflows, query agreements by provisions.",
           "source": "https://www.docusign.com/blog/developers/docusign-mcp-server-general-availability",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -150,9 +144,7 @@
           "capabilities": "Codemode interface: search Paddle API methods, execute JavaScript chaining API calls, metrics charts.",
           "source": "https://developer.paddle.com/build/tools/ai/mcp",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         },
         {
           "id": "paddle-sandbox",
@@ -167,9 +159,7 @@
           "capabilities": "Same tools against the sandbox environment; sandbox API key (pdl_sdbx_) as Bearer token only.",
           "source": "https://developer.paddle.com/build/tools/ai/mcp",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -202,8 +192,9 @@
           "capabilities": "Read-only access to companies, customers and sales invoices, suppliers and purchase invoices, accounting and transactions, products, tax filings and change history.",
           "source": "https://pennylane-mcp.readme.io/docs/getting-started",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-only"
+          "access": "Read-only.",
+          "read_only": {
+            "how": "Every tool reads: the publisher describes read-only access."
           }
         }
       ],
@@ -238,9 +229,7 @@
           "capabilities": "Read transactions, statements, invoices, quotes, clients and cards; create and manage cards, draft and send invoices and quotes, create card and transfer requests.",
           "source": "https://docs.qonto.com/mcp/overview",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -287,19 +276,15 @@
           "repository": "https://github.com/intuit/quickbooks-online-mcp-server",
           "license": "MIT",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write",
-            "consent": "Register an Intuit app and complete the OAuth handshake for the intended company",
-            "scopes": [
-              "com.intuit.quickbooks.accounting"
-            ]
-          },
+          "access": "Read and write.",
+          "scopes": "com.intuit.quickbooks.accounting. Consent: Register an Intuit app and complete the OAuth handshake for the intended company.",
           "read_only": {
-            "env_vars": [
-              "QUICKBOOKS_DISABLE_WRITE",
-              "QUICKBOOKS_DISABLE_UPDATE",
-              "QUICKBOOKS_DISABLE_DELETE"
-            ]
+            "how": "QUICKBOOKS_DISABLE_WRITE, QUICKBOOKS_DISABLE_UPDATE and QUICKBOOKS_DISABLE_DELETE set to true turn off the create, update and delete tools.",
+            "env": {
+              "QUICKBOOKS_DISABLE_WRITE": "true",
+              "QUICKBOOKS_DISABLE_UPDATE": "true",
+              "QUICKBOOKS_DISABLE_DELETE": "true"
+            }
           }
         }
       ],
@@ -361,9 +346,9 @@
           "capabilities": "Search and call the Stripe API (read and write), account info, analytics, documentation search, integration planning; some write actions require human confirmation in the Dashboard.",
           "source": "https://docs.stripe.com/mcp",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Any GET (stripe_api_read) and POST, PATCH, PUT or DELETE (stripe_api_write) of the listed Stripe API methods: customers, payments, refunds, invoices, subscriptions, products, payouts, Treasury money movement; some actions such as refunds and sending money need a human confirmation in the Dashboard.",
+          "scopes": "OAuth consent per account and per environment (live or test) with permissions chosen there, sessions expire after 14 days; or an agent API key with only the permissions needed (full-access and non-agent restricted keys stop working on 2027-01-11). An admin can switch MCP access on or off per environment.",
+          "reviewed": "2026-11-21"
         }
       ],
       "api": {
@@ -395,9 +380,7 @@
           "capabilities": "Tools that read and write Xero data across one or more consented organisations, one organisation per call.",
           "source": "https://developer.xero.com/faq/remote-mcp",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         },
         {
           "id": "xero-local",
@@ -427,9 +410,7 @@
           "repository": "https://github.com/XeroAPI/xero-mcp-server",
           "license": "MIT",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {

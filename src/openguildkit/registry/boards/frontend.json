@@ -34,7 +34,13 @@
     "taille du bundle",
     "web component",
     "html",
-    "responsive"
+    "responsive",
+    "small screen",
+    "phone screen",
+    "mobile layout",
+    "mobile viewport",
+    "breakpoint",
+    "petit écran"
   ],
   "questions": [
     "Where does the interface render, and how does it load and update its state?",

@@ -1,19 +1,26 @@
 /** Shapes of the JSON the OpenGuildKit CLI prints. Only the fields the interface reads are typed. */
 
-export type TaskStatus = 'draft' | 'consulting' | 'reviewed' | 'approved' | 'changes-requested' | 'done';
+export type TaskStatus = 'draft' | 'consulting' | 'reviewed' | 'approved' | 'changes-requested' | 'done' | 'done-with-reservations';
 
-export interface TaskListItem { id: string; status: TaskStatus; created: string; owner: string | null; brief: string; next: string; follows?: string }
+/** A row of `task list --json`. approval_problem and severity say that the task's approval no longer holds (error) or
+ * that a completed task was approved under other rules (note); closed_by names who closed it with reservations. */
+export interface TaskListItem { id: string; status: TaskStatus; created: string; owner: string | null; brief: string; next: string; follows?: string; approval_problem?: string; severity?: 'error' | 'note'; closed_by?: string }
 
 export interface Evidence { source: string; ref: string; supports: string }
 export interface Specialist { id: string; finding: string; basis: string; evidence_refs: number[] }
-export interface Blocker { finding: string; owner: string; clears_when: string }
+export interface Blocker { finding: string; owner: string; clears_when: string; phase?: 'approval' | 'verification' }
 export interface Challenge { specialists: Specialist[]; verdict: string; confidence: string; alternative: string; failure_mode: string; verification: string; blockers: (Blocker | string)[] }
 export interface BoardReview { id: string; recommendation: string; evidence: Evidence[]; open_questions: string[]; challenge?: Challenge; reviewer?: string }
 export interface Review { consultation_id: string; summary: string; boards: BoardReview[]; execution?: string }
 
 export interface Decision { outcome: 'approved' | 'changes-requested'; by: string; reason: string; at: string; base_revision?: string | null; seal?: string; signature?: { signer: string } }
-export interface CheckResult { check: string; status: 'passed' | 'failed' | 'skipped' | 'not-applicable'; evidence?: string; reason?: string; owner?: string; exit_code?: number; seconds?: number }
-export interface TaskResult { revision?: string; pull_request?: string; criteria: { criterion: string; status: 'met' | 'not-met'; evidence: string }[]; checks: CheckResult[] }
+/** cannot_run: a person declared at a terminal that this check command cannot run here (task verify --cannot-run). */
+export interface CheckResult { check: string; status: 'passed' | 'failed' | 'skipped' | 'not-applicable'; evidence?: string; reason?: string; owner?: string; exit_code?: number | null; seconds?: number; message?: string; cannot_run?: boolean }
+/** What a completion left open, grouped (result.closing), and what the task was not asked, with the reason. */
+export interface Closing { open_points: { group: string; points: string[] }[]; not_concerned: { pack?: string; check?: string; reason: string; checks: number }[]; by?: string; verification?: string }
+/** Named evidence that must be supplied and is not yet (result.waiting_for). */
+export interface WaitingEvidence { check: string; title: string; owner: string; why: string }
+export interface TaskResult { revision?: string; pull_request?: string; criteria: { criterion: string; status: 'met' | 'not-met'; evidence: string; verified_by?: string }[]; checks: CheckResult[]; waiting_for?: WaitingEvidence[]; warnings?: string[]; closing?: Closing }
 export interface Answers { kind?: string; surface?: string | string[]; data?: string; research?: string; context?: string; outcome?: string; affected?: string; options?: string }
 
 export interface Consultation {
@@ -22,6 +29,8 @@ export interface Consultation {
   routing: Record<string, string[]>;
   adjustments?: { action: string; board: string; reason: string }[];
   delegations?: Record<string, string>;
+  /** Boards the brief mentions as excluded ("no payments"), with the passages, not consulted. */
+  excluded?: Record<string, string[]>;
   scope: { open_points?: string[]; packs?: { id: string; title?: string }[]; checks?: string[]; research?: string; market?: unknown };
   markdown: string;
 }
@@ -31,7 +40,8 @@ export interface TaskRecord {
   brief: string;
   created_at: string;
   status: TaskStatus;
-  rounds: { answers?: Answers; consultation?: Consultation; review?: Review; decision?: Decision; archived_at?: string }[];
+  /** Earlier rounds, archived by a new consultation after a request for changes, each with the brief it had. */
+  rounds: { brief?: string; answers?: Answers; consultation?: Consultation; review?: Review; decision?: Decision; archived_at?: string }[];
   answers?: Answers;
   follows?: { task: string; brief: string; status: string; decision?: Decision };
   consultation?: Consultation;
@@ -39,19 +49,38 @@ export interface TaskRecord {
   decision?: Decision;
   result?: TaskResult;
   completed_at?: string;
-  deliverables?: { deliverable: string; path: string; tool: string; created_at: string }[];
+  deliverables?: { deliverable: string; path: string; tool?: string; created_at: string }[];
   authorizations?: { action: string; target: string; decision: 'allow' | 'deny'; by: string; reason: string; at: string }[];
   resolutions?: Record<string, { kind: 'cleared' | 'waived'; by: string; evidence?: string; supports?: string; reason?: string; scope?: string; until?: string }>;
   passes?: Record<string, unknown>;
 }
 
 export interface Question { id: string; prompt: string; type?: string; choices?: { id: string; label: string }[]; default?: unknown }
-export interface QuestionSet { questions: Question[]; follow_ups: string[]; open_points: string[] }
-export interface Route { routing: Record<string, string[]>; adjustments: { action: string; board: string; reason: string }[]; delegations: Record<string, string> }
-export interface PassProgress { board: string; status: 'done' | 'failed' | 'started' | 'missing'; mode?: string; attempts?: number; reason?: string }
-export interface BlockerItem { id: string; board: string; finding: string; owner?: string; clears_when?: string; resolution: null | { kind: string; by: string; evidence?: string; supports?: string; reason?: string; scope?: string; until?: string } }
-export interface ExpectedCheck { id: string; kind: 'command' | 'rule' | 'scenario'; command?: string; rule?: string; instruction?: string; verification?: string; mandatory: boolean; result: CheckResult | null }
-export interface Deliberation { objections: { id: string; from: string; to: string; point: string; from_position: string; to_position: string }[]; template: { consultation_id: string; responses: unknown[]; decision_needed: string } }
+/** `task questions`, with or without answers: the questions, the follow-ups still to ask with their prompt, the open points. */
+export interface QuestionSet { questions: Question[]; follow_ups: { id: string; prompt: string }[]; open_points: string[] }
+/** `task route --json`: the boards selected with their reasons; those the brief mentions as excluded, with the
+ * passages; the enabled boards left out; and, among them, those the team expects (declared roles, a listed board). */
+export interface Route {
+  routing: Record<string, string[]>; adjustments: { action: string; board: string; reason: string }[]; delegations: Record<string, string>;
+  patterns: { id: string; reason: string }[]; excluded: Record<string, string[]>; not_selected: string[]; expected_not_selected: Record<string, string>;
+}
+export interface PassProgress { board: string; status: 'done' | 'failed' | 'started' | 'missing'; mode?: string; attempts?: number; error?: string; in?: string }
+/** phase verification: a condition of approval, cleared by a person after implementation and before completion. */
+export interface BlockerItem { id: string; board: string; finding: string; owner?: string; clears_when?: string; phase?: 'approval' | 'verification'; resolution: null | { kind: string; by: string; evidence?: string; supports?: string; reason?: string; scope?: string; until?: string } }
+/** A check of `task checks --json`. concerned false: not asked of this task, for the reason given. A named evidence
+ * (kind evidence) is a document its owner provides (owner_role); must_supply says why it cannot be declared not applicable. */
+export interface ExpectedCheck {
+  id: string; kind: 'command' | 'rule' | 'machine' | 'evidence' | 'scenario'; command?: string; pack?: string; rule?: string; instruction?: string; verification?: string;
+  title?: string; owner_role?: string; must_supply?: string | null; mandatory: boolean; concerned?: boolean; selected?: boolean; reason?: string; result: CheckResult | null;
+}
+/** `task deliberate`: each objection with the words where the two boards' domains meet, the rules of the answers,
+ * and a template with one response per board and side; a response answers a list of objections. */
+export interface Deliberation {
+  objections: { id: string; from: string; to: string; point: string; meets?: string[]; from_position: string; to_position: string }[];
+  rules: { positions: Record<string, string>; resolution: string } & Record<string, unknown>;
+  template: { consultation_id: string; responses: { objections: string[]; board: string; position: string; response: string; evidence_refs: number[] }[]; decision_needed: string };
+  example?: unknown;
+}
 
 export interface Profile {
   schema_version?: number;
@@ -73,6 +102,12 @@ export interface Profile {
   tools?: string[];
   conventions?: string[];
   checks?: string[];
+  /** Patterns or regulations a person declined with `profile decline`: not active and not proposed again. */
+  declined?: (string | { id: string; by: string; on: string; reason: string })[];
+  /** Every change made with the `profile` commands: what, by whom, when and why. */
+  changes?: { change: string; by: string; on: string; reason: string }[];
+  personal_data?: boolean;
+  people_decisions?: boolean;
 }
 
 export interface Rule { id: string; instruction: string; verification: string }
@@ -97,7 +132,10 @@ export interface Alert { id: string; ecosystem: string; package: string; version
 export interface AlertRegister { summary: { total: number; by_status: Record<string, number>; by_severity: Record<string, number>; imports: { tool: string; file: string; sha256: string; at?: string }[] }; alerts: Alert[] }
 export interface Share { id: string; deliverable: string; recipients: string[]; until: string; portal: string; by: string; created_at: string; revoked_at: string | null; state: 'active' | 'expired' | 'revoked' | string }
 export interface HostControl { id: string; title: string; status: 'enforced' | 'instruction' | 'missing' | string; detail: string }
-export interface Update { changes: { record?: string; kind?: string; id?: string; change?: string; rules?: unknown[] }[]; conflicts: unknown[]; applied: boolean; stale_tasks: string[] }
+/** stale_tasks: the open tasks consulted under other rules than the new ones, each with what to do (update names
+ * them before --apply). */
+export interface StaleTask { id: string; status: string; step: string }
+export interface Update { changes: { collection?: string; id?: string; status?: string; fields?: string[]; rules?: unknown }[]; conflicts: unknown[]; applied: boolean; stale_tasks: StaleTask[]; note?: string; catalog_date?: string }
 export interface Guard { mode: string; covered_by: string[] }
 export interface Tool { id: string; title: string; vendor: string; summary: string; homepage: string; brains: string[]; servers: { name?: string; id?: string; kind?: string; maintainer?: string; transport?: string }[]; api?: { kind: string; docs: string }; notes?: string; category: string; mock: boolean }
 export interface ToolStatus { tool: string; server?: string; host?: string; recorded?: boolean; present?: boolean; missing?: string[] }

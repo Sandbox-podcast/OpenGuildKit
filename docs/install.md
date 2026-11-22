@@ -47,13 +47,21 @@ openguildkit integrations --host codex         # .agents/skills/openguildkit
 openguildkit integrations --host other         # .agents/skills/openguildkit, for another agent
 ```
 
-Add `--user` to install them in your home folder for every project. A file you changed is kept and reported; `--force` replaces it and saves your version as `.previous`. Each folder gets `openguildkit-version.txt` with the installed version, or the name of the file kept at another version. `openguildkit init` asks for the agent host and the board guard (`observe` unless you choose otherwise) and, when the host is Claude Code or Codex, prints `openguildkit host apply` as the next step: it installs the host settings and hooks. With the host `other` (the default), OpenGuildKit writes no host settings: see [other agents](../integrations/README.md#other-agents) for the whole path. For a project set up before, set `"host"` in `.openguildkit/project.json` and run the same command. The hooks of the board guard call `openguildkit` by name: start the agent from the activated environment, or install the CLI on the PATH (for example with `pipx`). `openguildkit host check` reports the guard as `missing` when the command is not on the PATH.
+Add `--user` to install them in your home folder for every project. A file you changed is kept and reported; `--force` replaces it and saves your version as `.previous`. Each folder gets `openguildkit-version.txt` with the installed version, or the name of the file kept at another version. `openguildkit init` asks for the agent host and the board guard (`observe` unless you choose otherwise) and, when the host is Claude Code or Codex, prints `openguildkit host apply` as the next step: it installs the host settings and hooks. With the host `other` (the default), OpenGuildKit writes no host settings: see [other agents](../integrations/README.md#other-agents) for details. For a project set up before, change the host with `openguildkit profile set host claude-code --by NAME --reason WHY` (or `codex`) and run the same command.
+
+For another agent (the host `other`), the whole path is:
+
+1. `openguildkit init`, choosing `other`: it writes `AGENTS.md`, which most agents read, and `CLAUDE.md`, one line for Claude Code that you can delete.
+2. `openguildkit integrations --host other`: the skill goes to `.agents/skills/openguildkit/SKILL.md`; copy it to the folder your agent reads skills or instructions from if it is another one.
+3. `openguildkit host check`: every rule shows `by instruction` or `by a person`, since no setting of this agent can enforce it. `openguildkit host apply` writes nothing for this host, says so and exits with 1.
+4. `openguildkit tools plan TOOL...`: prints each MCP server as an `mcpServers` entry to copy into your agent's MCP settings. `tools apply` writes only for `--host claude-code` or `--host codex`.
+5. `openguildkit check`, then commit `AGENTS.md`, `.openguildkit/project.json` and `.openguildkit/catalog.lock.json`. The board guard has no hook here: the AGENTS.md instruction and `openguildkit guard --ci` in CI are the controls. The hooks of the board guard call `openguildkit` by name: start the agent from the activated environment, or install the CLI on the PATH (for example with `pipx`). `openguildkit host check` reports the guard as `missing` when the command is not on the PATH.
 
 ## Upgrade
 
 1. Download and verify the new release assets as above, then `python -m pip install --upgrade ./openguildkit-NEW-py3-none-any.whl` and check `openguildkit --version`.
 2. Run `openguildkit integrations --host ...` again to update the skill and subagent.
-3. Run `openguildkit update` to see the date of the new catalog, the number of records it changes and what it changes for the project, and `openguildkit update --apply` once the team agrees. Tasks consulted under the previous rules are listed.
+3. Run `openguildkit update` to see the date of the new catalog, the number of records it changes and what it changes for the project, and `openguildkit update --apply` once the team agrees. It shows the old and the new wording of each changed rule and names the tasks the change touches, before you apply it; `update --apply` and the `sync` after it name the same tasks. When the instructions already follow a newer catalog than the lock, `check`, `task new`, `task consult`, `task decide` and `task handoff` refuse and point to `openguildkit update`; when the installed catalog changes locked rules, `check` and `sync` say so. `sync` keeps the lock's rules: it rewrites the instructions from the lock and never adopts a newer catalog.
 4. Run `openguildkit check` and commit the updated files.
 
 ## Add the optional CI coordinator

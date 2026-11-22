@@ -14,6 +14,9 @@
     "support",
     "sales"
   ],
+  "core_for": [
+    "customer-success"
+  ],
   "packs": [
     "account-health-review"
   ],

@@ -9,15 +9,17 @@ Credentials never enter a file: a server names the environment variables it read
 host passes them through.
 """
 
+import copy
 import json
 import os
 import re
 import tomllib
 from pathlib import Path
 
+from . import clock
 from .catalog import CatalogError, _unique_fields, package_file
 from .detect import MAX_MANIFEST_BYTES, SKIPPED_DIRECTORIES
-from .mcp_mock import validate_mock
+from .mcp_mock import apply_scenario, check_synthetic, validate_mock
 from .sensitive import looks_like_credential
 from .storage import json_text, read_json, write_json, write_text
 
@@ -34,6 +36,10 @@ PACKAGE_REGISTRIES = ("npm", "pypi", "docker", "github-release", "cargo", "homeb
 API_KINDS = ("rest", "graphql", "other")
 HOSTS = ("claude-code", "codex")
 MANIFEST = "tools.json"
+SCENARIO = "scenario.json"
+UNCONNECTED = "unconnected"
+NOT_DOCUMENTED = "not documented by the publisher"
+NOT_RECORDED = "not recorded in the registry yet"
 CLAUDE_MCP_FILE = ".mcp.json"
 CODEX_CONFIG_FILE = Path(".codex") / "config.toml"
 CODEX_BLOCK_START = "# >>> OpenGuildKit tools (openguildkit tools apply rewrites this block)\n"
@@ -51,19 +57,8 @@ TOOL_OPTIONAL = {"aliases", "detect", "api", "notes"}
 SERVER_FIELDS = {
     "id", "name", "publisher", "maintainer", "transport", "auth", "env", "status", "capabilities", "source", "verified",
 }
-SERVER_OPTIONAL = {"url", "command", "args", "package", "repository", "license", "settings", "access", "read_only"}
-ACCESS_MODES = ("read-only", "read", "read-write", "configurable", "unknown")
-ACCESS_CONSENT = {
-    "oauth": "Sign in and review the publisher's consent screen",
-    "oauth-or-token": "Sign in and review consent, or provide an authorized token",
-    "api-token": "Provide a token authorized for the intended account and operations",
-    "none": "No separate MCP sign-in",
-}
-ACCESS_SCOPES = {
-    "oauth": "Exact scopes not catalogued. Check the consent screen and account grants",
-    "oauth-or-token": "Exact scopes not catalogued. Check the consent screen or the supplied token's grants",
-    "api-token": "Effective permissions depend on the supplied credential. Check its grants",
-    "none": "No OAuth scopes requested by the MCP configuration. Check any local or instance permissions",
+SERVER_OPTIONAL = {
+    "url", "command", "args", "package", "repository", "license", "settings", "access", "scopes", "pin", "read_only", "reviewed",
 }
 DETECT_FIELDS = {"files", "npm", "pypi"}
 
@@ -114,6 +109,13 @@ def _validate_server(server: object, label: str) -> None:
         _https(server["repository"], f"{label} repository")
     if "license" in server:
         _text(server["license"], f"{label} license")
+    if "reviewed" in server and (not isinstance(server["reviewed"], str) or not _DAY.fullmatch(server["reviewed"])):
+        raise CatalogError(f"{label}: reviewed is the date access, scopes and read-only mode were looked for, YYYY-MM-DD")
+    for field in ("access", "scopes", "pin"):
+        if field in server:
+            _text(server[field], f"{label} {field}")
+    if server.get("command") == "docker":
+        _check_forwarded(server.get("args", []), server["env"], label)
     settings = server.get("settings", [])
     if not isinstance(settings, list) or any(
         not isinstance(item, dict) or item.keys() != {"name", "description"}
@@ -150,45 +152,50 @@ def _validate_server(server: object, label: str) -> None:
         used = {name for arg in server["args"] for name in _SETTING.findall(arg)}
     if used != declared:
         raise CatalogError(f"{label}: settings must declare exactly the placeholders used: {', '.join(sorted(used)) or 'none'}")
-    access = server.get("access", {})
-    if not isinstance(access, dict) or not access.keys() <= {"mode", "consent", "scopes", "read_only_scopes"} \
-            or access.get("mode", "unknown") not in ACCESS_MODES:
-        raise CatalogError(f"{label}: access describes the mode, consent and scopes")
-    if "consent" in access:
-        _text(access["consent"], f"{label} consent")
-    for field in ("scopes", "read_only_scopes"):
-        if field in access:
-            if not isinstance(access[field], list):
-                raise CatalogError(f"{label}: {field} must be a list")
-            for scope in access[field]:
-                _text(scope, f"{label} {field}")
     if "read_only" in server:
-        _validate_read_only(server, label, declared)
+        _validate_read_only(server, label)
 
 
-def _validate_read_only(server: dict, label: str, settings: set[str]) -> None:
-    mode = server["read_only"]
-    if not isinstance(mode, dict) or len(mode) != 1:
-        raise CatalogError(f"{label}: read_only needs an endpoint, read-only header, command flag or environment setting")
-    kind, value = next(iter(mode.items()))
-    if server["transport"] != "stdio":
-        if kind == "header" and value == "X-MCP-Readonly":
-            return
-        if kind == "url" and set(_SETTING.findall(_https(value, f"{label} read-only URL", placeholders=True))) == settings:
-            return
-    else:
-        if kind == "arg" and value in ("--read-only", "--disable-write"):
-            return
-        if isinstance(value, str) and re.fullmatch(r"[A-Z][A-Z0-9_]*READ_?ONLY", value):
-            if kind == "docker_env" and server["command"] == "docker" and server["package"]["name"] in server["args"]:
-                return
-        if kind == "env_vars" and server["command"] != "docker" and isinstance(value, list) and value \
-                and all(isinstance(name, str) and name not in server["env"] and (
-                    re.fullmatch(r"[A-Z][A-Z0-9_]*READ_?ONLY", name)
-                    or name in ("QUICKBOOKS_DISABLE_WRITE", "QUICKBOOKS_DISABLE_UPDATE", "QUICKBOOKS_DISABLE_DELETE")
-                ) for name in value):
-            return
-    raise CatalogError(f"{label}: invalid read-only configuration for {server['transport']}")
+def _check_forwarded(args: list, env: list, label: str) -> None:
+    """Docker passes a container only the variables its arguments name with -e."""
+    forwarded = {args[index + 1].split("=", 1)[0] for index, arg in enumerate(args[:-1]) if arg == "-e"}
+    missing = [name for name in env if name not in forwarded]
+    if missing:
+        raise CatalogError(f"{label}: docker passes only the variables named with -e: add -e {missing[0]} to args")
+
+
+def _validate_read_only(server: dict, label: str) -> None:
+    """The publisher's read-only mode: how it works, and the url, headers, args or env that select it. With how
+    alone, the server as registered only reads: there is nothing to select."""
+    variant = server["read_only"]
+    remote = server["transport"] != "stdio"
+    allowed = {"how", "url", "headers"} if remote else {"how", "args", "env"}
+    if not isinstance(variant, dict) or "how" not in variant or not variant.keys() <= allowed:
+        raise CatalogError(f"{label}: read_only has how, and {' or '.join(sorted(allowed - {'how'}))} when they select it")
+    _text(variant["how"], f"{label} read_only how")
+    if "url" in variant:
+        _https(variant["url"], f"{label} read_only url", placeholders=True)
+        if set(_SETTING.findall(variant["url"])) != set(_SETTING.findall(server["url"])):
+            raise CatalogError(f"{label}: read_only url uses the same settings as url")
+    headers = variant.get("headers", {})
+    if not isinstance(headers, dict) or any(
+            not isinstance(value, str) or name.casefold() in ("authorization", "cookie") or _SECRET_WORD.search(name)
+            or _SECRET_WORD.search(value) for name, value in headers.items()):
+        raise CatalogError(f"{label}: read_only headers are plain names and values, never a credential")
+    if "args" in variant:
+        if not isinstance(variant["args"], list) or any(not isinstance(arg, str) or not arg for arg in variant["args"]) \
+                or set(_SETTING.findall(" ".join(variant["args"]))) != set(_SETTING.findall(" ".join(server["args"]))):
+            raise CatalogError(f"{label}: read_only args is a list of text with the same settings as args")
+        if server["command"] == "docker":
+            _check_forwarded(variant["args"], server["env"], f"{label} read_only")
+    if "env" in variant:
+        # A variable set to a plain value, never a credential; a container receives it only through -e in args.
+        env = variant["env"]
+        if server["command"] == "docker" or not isinstance(env, dict) or not env or any(
+                not isinstance(name, str) or not _ENV.fullmatch(name) or name in server["env"] or _SECRET_WORD.search(name)
+                or not isinstance(value, str) or not _SETTING_VALUE.fullmatch(value) or _SECRET_WORD.search(value)
+                for name, value in env.items()):
+            raise CatalogError(f"{label}: read_only env sets plain values for a local, non-docker server, never a credential")
 
 
 def _validate_tool(tool: object, label: str) -> None:
@@ -277,9 +284,26 @@ def check_tool_links(tools: dict, boards: dict) -> None:
             raise CatalogError(f"tool {tool['id']} names unknown brains: {', '.join(unknown)}")
 
 
+def read_scenario(extra_dir: Path | None) -> dict | None:
+    """The project's own records for the bundled mocks (.openguildkit/catalog/tool-mocks/scenario.json)."""
+    path = None if extra_dir is None else extra_dir / SCENARIO
+    if path is None or not path.is_file():
+        return None
+    try:
+        scenario = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=_unique_fields)
+    except ValueError as error:
+        raise ValueError(f"{path.as_posix()} is not valid JSON: {error}") from error
+    if not isinstance(scenario, dict) or "records" not in scenario or not scenario.keys() <= {"about", "records"} \
+            or not isinstance(scenario["records"], dict):
+        raise ValueError(f"{path.as_posix()} holds about and records: records maps a tool ID to its collections.")
+    return scenario
+
+
 def load_mock(tool_id: str, extra_dir: Path | None = None) -> dict:
-    """The mock file of a tool: bundled, or the project's own in .openguildkit/catalog/tool-mocks/."""
-    if not _ID.fullmatch(tool_id):
+    """The mock file of a tool: bundled, or the project's own in .openguildkit/catalog/tool-mocks/.
+
+    The project's scenario file, when it gives records for this tool, replaces the bundled ones."""
+    if not _ID.fullmatch(tool_id) or tool_id == SCENARIO[:-5]:
         raise ValueError("Use a tool ID of lowercase letters, digits and hyphens.")
     candidates = [package_file("registry", "tool-mocks", f"{tool_id}.json")]
     if extra_dir is not None:
@@ -287,9 +311,14 @@ def load_mock(tool_id: str, extra_dir: Path | None = None) -> dict:
     for path in candidates:
         if path.is_file():
             try:
-                return validate_mock(json.loads(path.read_text(encoding="utf-8-sig")), tool_id)
+                mock = validate_mock(json.loads(path.read_text(encoding="utf-8-sig")), tool_id)
             except ValueError as error:
                 raise CatalogError(f"{path}: {error}") from error
+            scenario = read_scenario(extra_dir)
+            if scenario and tool_id in scenario["records"]:
+                label = f"{(extra_dir / SCENARIO).as_posix()} ({tool_id})"
+                mock = apply_scenario(mock, scenario["records"][tool_id], label)
+            return mock
     raise ValueError(f"No mock for {tool_id}. Run openguildkit tools list --mocks.")
 
 
@@ -297,7 +326,60 @@ def mock_ids(extra_dir: Path | None = None) -> list[str]:
     roots = [package_file("registry", "tool-mocks")]
     if extra_dir is not None and extra_dir.is_dir():
         roots.append(extra_dir)
-    return sorted({path.name[:-5] for root in roots if root.is_dir() for path in root.iterdir() if path.name.endswith(".json")})
+    return sorted({path.name[:-5] for root in roots if root.is_dir() for path in root.iterdir()
+                   if path.name.endswith(".json") and path.name != SCENARIO})
+
+
+def _topic(brief: str) -> str:
+    """The first line of a task brief, short enough to title a record."""
+    line = next((item.strip() for item in brief.splitlines() if item.strip()), "")
+    line = re.sub(r"\s+", " ", line).rstrip(".!?;: ")
+    return line[:70].rstrip() or "Sample work item"
+
+
+def scenario_fields(mock: dict) -> dict:
+    """The few fields per collection that tell a project's story: the id, the title and the status."""
+    return {name: [field for field in (collection.get("key"), collection.get("title"), "status")
+                   if field and any(field in item for item in collection["items"])]
+            for name, collection in mock.get("records", {}).items()}
+
+
+def _task_record(collection: dict, task_id: str | None, brief: str) -> dict:
+    """One tracker record for the task, shaped like the bundled ones: its ID, its brief, today's date."""
+    record = copy.deepcopy(collection["items"][0])
+    record[collection["key"]] = f"{(task_id or 'task').upper()}-1"
+    record[collection["title"]] = _topic(brief)
+    for field in ("description", "body", "content"):
+        if field in record:
+            record[field] = brief.strip()
+    if "created" in record:
+        record["created"] = clock.today().isoformat()
+    if task_id:
+        record["task"] = task_id
+    return record
+
+
+def scenario_records(tool_ids: list[str], project: str, tools: dict, task_id: str | None = None, brief: str = "") -> dict:
+    """A starting scenario: the bundled records to replace, and one tracker record for the task.
+
+    Nothing invents the project's data: the team or its agent writes the records that tell its own story, with
+    synthetic values only. The brief goes only into the record that describes the task."""
+    records = {}
+    for tool_id in tool_ids:
+        mock = load_mock(tool_id)
+        collections = {name: copy.deepcopy(collection["items"]) for name, collection in mock.get("records", {}).items()}
+        if brief.strip() and tools.get(tool_id, {}).get("category") == "issue-tracking":
+            name, collection = next((name, collection) for name, collection in mock["records"].items()
+                                    if "key" in collection and "title" in collection)
+            collections[name].insert(0, _task_record(collection, task_id, brief))
+        if collections:
+            records[tool_id] = collections
+    check_synthetic(records, "The scenario")
+    about = (f"Starting scenario for {project}, written by openguildkit tools scenario on {clock.today().isoformat()}. "
+             "Except the task's own record, these are the bundled sample records about a fictional support portal: "
+             "replace them with records that tell your project's story, keep the ids consistent between collections, "
+             "and keep every value invented, every address on example.test.")
+    return {"about": about, "records": records}
 
 
 def _key(text: str) -> str:
@@ -318,6 +400,16 @@ def match_tools(names: list[str], tools: dict) -> tuple[list[str], list[str]]:
         elif tool_id not in matched:
             matched.append(tool_id)
     return matched, unknown
+
+
+def resolve_tool(name: str, tools: dict) -> str:
+    """A registry ID from what a person typed: "Notion", "notion" or "Jira Cloud"."""
+    if name in tools:
+        return name
+    matched, _ = match_tools([name], tools)
+    if not matched:
+        raise ValueError(f"Unknown tool: {name}. Run openguildkit tools list.")
+    return matched[0]
 
 
 def _manifest_names(root: Path) -> tuple[set[str], set[str]]:
@@ -392,13 +484,10 @@ def recommend_tools(profile: dict, root: Path, tools: dict) -> dict:
     }
 
 
-def _supports_read_only(server: dict) -> bool:
-    return bool(server.get("read_only")) or server.get("access", {}).get("mode") == "read-only"
-
-
 def choose_server(tool: dict, server_id: str | None = None, community: bool = False, *,
                   read_only: bool = False) -> dict | None:
-    """The publisher's own server first, remote before local; a community server only on request."""
+    """The publisher's own server first, remote before local; a community server only on request. With
+    read_only, a server with a documented read-only mode comes before one without."""
     servers = tool["servers"]
     if server_id:
         server = next((item for item in servers if item["id"] == server_id), None)
@@ -406,14 +495,10 @@ def choose_server(tool: dict, server_id: str | None = None, community: bool = Fa
             raise ValueError(f"{tool['id']} has no server {server_id}. Known: {', '.join(s['id'] for s in servers) or 'none'}.")
         if server["publisher"] == "community" and not community:
             raise ValueError(f"{tool['id']}/{server_id} is a community server: review its source, then pass --community.")
-        if read_only and not _supports_read_only(server):
-            raise ValueError(f"{tool['id']}/{server_id} has no documented read-only mode.")
         return server
-    usable = [
-        item for item in servers if item["status"] != "deprecated" and (community or item["publisher"] == "vendor")
-        and (not read_only or _supports_read_only(item))
-    ]
-    usable.sort(key=lambda item: (item["publisher"] != "vendor", TRANSPORTS.index(item["transport"])))
+    usable = [item for item in servers if item["status"] != "deprecated" and (community or item["publisher"] == "vendor")]
+    usable.sort(key=lambda item: (item["publisher"] != "vendor", read_only and "read_only" not in item,
+                                  TRANSPORTS.index(item["transport"])))
     return usable[0] if usable else None
 
 
@@ -437,39 +522,115 @@ def _fill(text: str, values: dict) -> str:
     return _SETTING.sub(lambda match: values.get(match.group(1), match.group(0)), text)
 
 
-def host_entry(host: str, server: dict, settings: dict, token_env: str | None, *, read_only: bool = False) -> dict:
+def _read_only_server(server: dict) -> dict:
+    """The server as its publisher's read-only variant selects it: unchanged when it only reads as registered."""
+    variant = server["read_only"]
+    selected = {**server, **{key: value for key, value in variant.items() if key in ("url", "args")}}
+    if "headers" in variant:
+        selected["headers"] = dict(variant["headers"])
+    if "env" in variant:
+        selected["set_env"] = dict(variant["env"])
+    return selected
+
+
+def _version(server: dict) -> str:
+    """What runs on each workstation, and whether its version is pinned."""
+    if server["transport"] != "stdio":
+        text = "Hosted by the publisher: no version to pin, the publisher updates it."
+    else:
+        package, args = server["package"], server["args"]
+        name = package["name"]
+        spelled = next((arg for arg in args if arg == name or arg.startswith((name + ":", name + "@"))), None)
+        if package["registry"] == "docker" and spelled:
+            if "@sha256:" in spelled:
+                text = f"Docker image {spelled}: pinned by digest."
+            elif spelled != name and not spelled.endswith(":latest"):
+                text = f"Docker image {spelled}: pinned by tag."
+            else:
+                text = f"Docker image {name} without a tag: the documented command pulls latest" + (
+                    " at every start (--pull=always)." if "--pull=always" in args else ".")
+        elif package["registry"] == "npm" and spelled:
+            text = (f"npm package {name} without a version: npx runs the latest release." if spelled == name
+                    else f"npm package {spelled}: " + ("the documented command uses latest." if spelled.endswith("@latest")
+                                                       else "pinned by version."))
+        else:
+            text = f"{package['registry']} package {name}: version pinning {NOT_RECORDED}."
+    return text + (f" {server['pin']}" if "pin" in server else "")
+
+
+def _credentials(server: dict, bearer: str | None) -> str:
+    if bearer:
+        return f"Bearer token read from {bearer} in each person's environment; no file holds it."
+    if server["transport"] == "stdio" and server["env"]:
+        return "Read from each person's environment: " + ", ".join(server["env"]) + "; no file holds them."
+    if server["auth"] in ("oauth", "oauth-or-token"):
+        return "Each person signs in through the host, which keeps the token; no file holds it."
+    if server["auth"] == "none":
+        return "None."
+    return f"A token the server expects; how to pass it is {NOT_RECORDED}: see the source."
+
+
+def _alternatives(tool: dict, chosen: dict) -> list[str]:
+    alternatives = [f"{tool['id']}/{server['id']} ({server['publisher']}, {server['transport']}, status {server['status']}"
+                    + (", read-only mode available" if "read_only" in server else "")
+                    + f"): {server['capabilities'].rstrip('.')}" for server in tool["servers"] if server["id"] != chosen["id"]]
+    if "api" in tool:
+        kind = "" if tool["api"]["kind"] == "other" else tool["api"]["kind"] + " "
+        alternatives.append(f"The {kind}API without MCP: {tool['api']['docs']}")
+    return alternatives
+
+
+def _read_only_fact(variant: dict) -> str:
+    """How the read-only mode works, and how to select it when something has to be selected."""
+    selects = variant.keys() - {"how"}
+    return variant["how"] + (" Select it with --read-only." if selects else "")
+
+
+def review_facts(tool: dict, server: dict, bearer: str | None = None) -> dict:
+    """What a security officer reads before accepting a server, each fact from the registry or marked missing."""
+    variant = server.get("read_only")
+    # "Not documented" is a claim about the publisher: only made once someone looked for it on the page.
+    missing = (f"{NOT_DOCUMENTED} (looked for on {server['reviewed']})" if "reviewed" in server
+               else f"{NOT_RECORDED}: read {server['source']}")
+    return {
+        "publisher": f"{server['maintainer']} ({server['publisher']})", "status": server["status"],
+        "covers": server["capabilities"], "access": server.get("access", missing),
+        "scopes": server.get("scopes", missing),
+        "read_only": _read_only_fact(variant) if variant else missing,
+        "version": _version(server), "credentials": _credentials(server, bearer),
+        "alternatives": _alternatives(tool, server), **({"notes": tool["notes"]} if "notes" in tool else {}),
+    }
+
+
+def host_entry(host: str, server: dict, settings: dict, token_env: str | None) -> dict:
     """The host's own configuration entry for a server. Variables are named, never resolved."""
-    restriction = server.get("read_only", {}) if read_only else {}
     if server["transport"] == "stdio":
         args = [_fill(arg, settings) for arg in server["args"]]
-        if "docker_env" in restriction:
-            image = args.index(server["package"]["name"])
-            args[image:image] = ["-e", restriction["docker_env"] + "=true"]
-        if "arg" in restriction:
-            args.append(restriction["arg"])
-        entry = {"command": server["command"], "args": args}
-        if server["env"]:
-            if host == "codex":
+        if host == "codex":
+            entry = {"command": server["command"], "args": args}
+            # Codex passes the named variables through and sets the plain values of a read-only mode itself.
+            if server.get("set_env"):
+                entry["env"] = dict(server["set_env"])
+            if server["env"]:
                 entry["env_vars"] = list(server["env"])
-            else:
-                entry["env"] = {name: "${" + name + "}" for name in server["env"]}
-        if "env_vars" in restriction:
-            entry.setdefault("env", {}).update(dict.fromkeys(restriction["env_vars"], "true"))
+            return entry
+        entry = {"command": server["command"], "args": args}
+        values = dict(server.get("set_env", {}))
+        if values or server["env"]:
+            entry["env"] = {**values, **{name: "${" + name + "}" for name in server["env"]}}
         return entry
-    url = _fill(restriction.get("url", server["url"]), settings)
-    headers = {restriction["header"]: "true"} if "header" in restriction else {}
+    url = _fill(server["url"], settings)
+    headers = server.get("headers", {})
     if host == "codex":
         entry = {"url": url}
         if token_env:
             entry["bearer_token_env_var"] = token_env
         if headers:
-            entry["http_headers"] = headers
+            entry["http_headers"] = dict(headers)
         return entry
     entry = {"type": "sse" if server["transport"] == "sse" else "http", "url": url}
-    if token_env:
-        headers["Authorization"] = "Bearer ${" + token_env + "}"
-    if headers:
-        entry["headers"] = headers
+    if token_env or headers:
+        entry["headers"] = {**headers, **({"Authorization": "Bearer ${" + token_env + "}"} if token_env else {})}
     return entry
 
 
@@ -483,7 +644,7 @@ def plan_connections(
     settings: dict | None = None, token_env: dict | None = None, mocks: list[str] | None = None, log: str | None = None,
     read_only: bool = False,
 ) -> list[dict]:
-    """One connection per server for the wanted tools ("jira" or "jira/atlassian-rovo")."""
+    """One connection per server for the wanted tools ("jira" or "jira/atlassian-rovo"), whatever their case."""
     if host not in HOSTS:
         raise ValueError(f"Choose a host to write for: {', '.join(HOSTS)}.")
     if read_only and mock:
@@ -493,15 +654,16 @@ def plan_connections(
     mocks = mocks or []
     if any(isinstance(value, str) and looks_like_credential(value)
            for values in settings.values() for value in values.values()):
-        raise ValueError("--set must be a plain value such as a name or a host, never a credential.")
+        raise ValueError("--set must be a plain value such as a name or a host, never a credential: a token stays in "
+                         "each person's environment, named with --token-env TOOL=VARIABLE.")
     if any(not isinstance(name, str) or not _ENV.fullmatch(name) or looks_like_credential(name)
            for name in token_env.values()):
-        raise ValueError("--token-env names an environment variable, for a remote server.")
+        raise ValueError("--token-env names an environment variable, such as JIRA_TOKEN, for a remote server; "
+                         "never the token itself, which stays in each person's environment.")
     plan, by_key = [], {}
     for name in wanted:
-        tool_id, _, server_id = name.casefold().partition("/")
-        if tool_id not in tools:
-            raise ValueError(f"Unknown tool: {tool_id}. Run openguildkit tools list.")
+        typed, _, server_id = name.partition("/")
+        tool_id, server_id = resolve_tool(typed, tools), server_id.strip().casefold()
         tool = tools[tool_id]
         if mock:
             if tool_id not in mocks:
@@ -516,20 +678,13 @@ def plan_connections(
             continue
         server = choose_server(tool, server_id or None, community, read_only=read_only)
         if server is None:
-            if read_only:
-                raise ValueError(f"{tool_id} has no eligible server with a documented read-only mode.")
             reason = "It has no MCP server on record." if not tool["servers"] else (
                 "Its only servers are community-maintained: review their source, then pass --community.")
-            plan.append({"tool": tool_id, "title": tool["title"], "skipped": reason + (
+            plan.append({"tool": tool_id, "title": tool["title"], "mode": "live", "skipped": reason + (
                 f" API: {tool['api']['docs']}" if "api" in tool else "")})
             continue
         if server["id"] in by_key:
-            existing = by_key[server["id"]]
-            if tool_id not in existing["covers"]:
-                existing["covers"].append(tool_id)
-                existing["alternatives"][tool_id] = _alternatives(tool, server["id"])
-                if tool.get("notes"):
-                    existing["notes"][tool_id] = tool["notes"]
+            _cover(by_key[server["id"]], tool, server)
             continue
         label = f"{tool_id}/{server['id']}"
         filled, missing = _settings(server, settings.get(tool_id, {}), label)
@@ -542,10 +697,17 @@ def plan_connections(
         if server["status"] in ("beta", "preview", "experimental"):
             warnings.append(f"The publisher marks this server as {server['status']}.")
         if host == "codex" and server["transport"] == "sse":
-            if read_only:
-                raise ValueError(f"{label} uses SSE, which Codex does not support.")
-            plan.append({"tool": tool_id, "title": tool["title"], "skipped": "Codex connects to streamable HTTP and stdio servers; this one is SSE only."})
+            plan.append({"tool": tool_id, "title": tool["title"], "mode": "live",
+                         "skipped": "Codex connects to streamable HTTP and stdio servers; this one is SSE only."})
             continue
+        facts = review_facts(tool, server, bearer)
+        if read_only and "read_only" in server:
+            server = _read_only_server(server)
+            steps.append(f"Read-only mode selected: {server['read_only']['how']}")
+        elif read_only:
+            warnings.append(("No read-only mode is documented by the publisher" if "reviewed" in server else
+                             f"No read-only mode is recorded in the registry yet (read {server['source']})")
+                            + ": give the account read-only permissions instead.")
         if server["transport"] == "sse":
             warnings.append("SSE transport is deprecated by hosts: prefer a streamable HTTP server when the publisher offers one.")
         if server["transport"] == "stdio":
@@ -563,23 +725,13 @@ def plan_connections(
             steps.append("Still to provide: " + ", ".join(f"--set {tool_id}.{name}=VALUE" for name in missing) + ".")
         item = {
             "tool": tool_id, "title": tool["title"], "server": server["id"], "key": server["id"], "mode": "live",
-            "maintainer": server["maintainer"], "capabilities": server["capabilities"],
-            "access": _access_report(server, read_only=read_only, bearer=bool(bearer)),
-            "alternatives": {tool_id: _alternatives(tool, server["id"])},
-            "notes": {tool_id: tool["notes"]} if tool.get("notes") else {},
             "covers": [tool_id], "publisher": server["publisher"], "transport": server["transport"], "auth": server["auth"],
             "status": server["status"], "source": server["source"], "verified": server["verified"],
             "needs": {"env": list(server["env"]) + ([bearer] if bearer else []), "settings": missing},
-            "settings": filled, "warnings": warnings, "steps": steps,
-            "entry": host_entry(host, server, filled, bearer, read_only=read_only),
+            "settings": filled, "warnings": warnings, "steps": steps, "review": facts,
+            "read_only": bool(read_only and "read_only" in server),
+            "entry": host_entry(host, server, filled, bearer),
         }
-        if server.get("package", {}).get("registry") == "docker":
-            image = server["package"]["name"]
-            item["image"] = {
-                "name": image,
-                "digest_pinned": bool(re.search(r"@sha256:[0-9a-f]{64}$", image)),
-                "pull_always": "--pull=always" in server["args"],
-            }
         if bearer:
             item["token_env"] = bearer
         if "license" in server:
@@ -589,25 +741,16 @@ def plan_connections(
     return plan
 
 
-def _access_report(server: dict, *, read_only: bool = False, bearer: bool = False) -> dict:
-    access = server.get("access", {})
-    auth = "api-token" if bearer else server["auth"]
-    scopes = access.get("read_only_scopes") if read_only else None
-    return {
-        "mode": "read-only" if read_only else access.get("mode", "unknown"),
-        "consent": access.get("consent", ACCESS_CONSENT[auth]),
-        "scopes": scopes or access.get("scopes") or [ACCESS_SCOPES[auth]],
-        "read_only_available": _supports_read_only(server),
-    }
+def _cover(item: dict, tool: dict, server: dict) -> None:
+    """A second tool the same server covers: named once, with its own alternatives and notes."""
+    if tool["id"] in item["covers"]:
+        return
+    item["covers"].append(tool["id"])
+    review = item["review"]
+    review["alternatives"] += [line for line in _alternatives(tool, server) if line not in review["alternatives"]]
+    if "notes" in tool:
+        review["notes"] = (review["notes"] + " " if "notes" in review else "") + f"{tool['title']}: {tool['notes']}"
 
-
-def _alternatives(tool: dict, selected: str) -> list[dict]:
-    return [
-        {**{field: server[field] for field in ("id", "capabilities", "status", "publisher", "maintainer", "source")},
-         "mode": server.get("access", {}).get("mode", "unknown"),
-         "read_only_available": _supports_read_only(server)}
-        for server in tool["servers"] if server["id"] != selected
-    ]
 
 def read_manifest(state: Path) -> dict:
     path = state / MANIFEST
@@ -616,20 +759,24 @@ def read_manifest(state: Path) -> dict:
     manifest = read_json(path)
     if not isinstance(manifest.get("connections"), list):
         raise ValueError(f"{path} is damaged: connections must be a list.")
-    unconnected = manifest.get("unconnected_mocks", [])
+    if "unconnected_mocks" in manifest:
+        manifest.setdefault(UNCONNECTED, manifest.pop("unconnected_mocks"))
+    unconnected = manifest.get(UNCONNECTED, [])
     if not isinstance(unconnected, list) or any(
         not isinstance(item, dict) or any(not isinstance(item.get(field), str) for field in ("host", "tool", "reason"))
-        or item["host"] not in HOSTS for item in unconnected
+        or item["host"] not in HOSTS or item.get("mode", "mock") not in ("mock", "live") for item in unconnected
     ):
-        raise ValueError(f"{path} is damaged: unconnected_mocks must contain a host, tool and reason per request.")
+        raise ValueError(f"{path} is damaged: {UNCONNECTED} must contain a host, tool, mode and reason per request.")
     return manifest
 
 
 def _codex_table(key: str, entry: dict) -> str:
+    """A server's TOML table; headers and environment values are inline tables."""
     lines = [f"[mcp_servers.{key}]"]
     for name, value in entry.items():
         if isinstance(value, dict):
-            pairs = [f"{json.dumps(key)} = {json.dumps(setting)}" for key, setting in value.items()]
+            pairs = [f"{json.dumps(field, ensure_ascii=False)} = {json.dumps(setting, ensure_ascii=False)}"
+                     for field, setting in value.items()]
             value_text = "{ " + ", ".join(pairs) + " }"
         else:
             value_text = json.dumps(value, ensure_ascii=False)
@@ -689,15 +836,21 @@ def _write_host(root: Path, host: str, connections: list[dict], removed: set[str
     return CODEX_CONFIG_FILE.as_posix(), kept
 
 
+def check_settings(plan: list[dict]) -> None:
+    """Refuse a plan whose endpoints still miss a setting, before anything is asked or written."""
+    blocked = [f"{item['tool']}: provide {', '.join(item['needs']['settings'])}"
+               for item in plan if "skipped" not in item and item["needs"]["settings"]]
+    if blocked:
+        raise ValueError("Settings are missing. " + "; ".join(blocked) + ".")
+
+
 def apply_connections(root: Path, state: Path, host: str, plan: list[dict]) -> dict:
     """Record the accepted connections and write them to the host's configuration."""
     manifest = read_manifest(state)
     connections = {(item["host"], item["key"]): item for item in manifest["connections"]}
-    unconnected = {(item["host"], item["tool"]): item for item in manifest.get("unconnected_mocks", [])}
+    unconnected = {(item["host"], item["tool"]): item for item in manifest.get(UNCONNECTED, [])}
     accepted = [item for item in plan if "skipped" not in item]
-    blocked = [f"{item['tool']}: provide {', '.join(item['needs']['settings'])}" for item in accepted if item["needs"]["settings"]]
-    if blocked:
-        raise ValueError("Settings are missing. " + "; ".join(blocked) + ".")
+    check_settings(plan)
     if accepted and host == "claude-code":
         path = root / CLAUDE_MCP_FILE
         if path.is_file():
@@ -717,17 +870,17 @@ def apply_connections(root: Path, state: Path, host: str, plan: list[dict]) -> d
                 record[key] = item[key]
         record["env"] = item["needs"]["env"]
         connections[(host, item["key"])] = record
-        if item["mode"] == "mock":
-            for covered in record["covers"]:
-                unconnected.pop((host, covered), None)
+        for covered in record["covers"]:
+            unconnected.pop((host, covered), None)
     for item in plan:
-        if item.get("mode") == "mock" and "skipped" in item:
-            unconnected[(host, item["tool"])] = {"host": host, "tool": item["tool"], "reason": item["skipped"]}
+        if "skipped" in item:
+            unconnected[(host, item["tool"])] = {"host": host, "tool": item["tool"], "mode": item["mode"],
+                                                 "reason": item["skipped"]}
     manifest["connections"] = [connections[key] for key in sorted(connections)]
     if unconnected:
-        manifest["unconnected_mocks"] = [unconnected[key] for key in sorted(unconnected)]
+        manifest[UNCONNECTED] = [unconnected[key] for key in sorted(unconnected)]
     else:
-        manifest.pop("unconnected_mocks", None)
+        manifest.pop(UNCONNECTED, None)
     file = CLAUDE_MCP_FILE if host == "claude-code" else CODEX_CONFIG_FILE.as_posix()
     if accepted:
         file, _ = _write_host(root, host, manifest["connections"], set())
@@ -741,16 +894,16 @@ def remove_connections(root: Path, state: Path, host: str, names: list[str]) -> 
     wanted = set(names)
     removed = {item["key"] for item in manifest["connections"]
                if item["host"] == host and (item["key"] in wanted or wanted & set(item.get("covers", [])))}
-    unconnected = manifest.get("unconnected_mocks", [])
+    unconnected = manifest.get(UNCONNECTED, [])
     forgotten = {item["tool"] for item in unconnected if item["host"] == host and item["tool"] in wanted}
     if not removed and not forgotten:
         raise ValueError(f"No connection to remove for {', '.join(names)} on {host}. Run openguildkit tools status.")
     if forgotten:
         kept = [item for item in unconnected if not (item["host"] == host and item["tool"] in forgotten)]
         if kept:
-            manifest["unconnected_mocks"] = kept
+            manifest[UNCONNECTED] = kept
         else:
-            manifest.pop("unconnected_mocks")
+            manifest.pop(UNCONNECTED)
     manifest["connections"] = [item for item in manifest["connections"] if not (item["host"] == host and item["key"] in removed)]
     file = None
     if removed:
@@ -797,9 +950,9 @@ def connection_status(root: Path, state: Path, environment: dict | None = None) 
             "missing_env": [name for name in item.get("env", []) if not environment.get(name)],
         })
     status.extend({
-        "key": item["tool"], "host": item["host"], "mode": "mock", "covers": [item["tool"]],
+        "key": item["tool"], "host": item["host"], "mode": item.get("mode", "mock"), "covers": [item["tool"]],
         "configured": False, "changed": False, "missing_env": [], "reason": item["reason"],
-    } for item in manifest.get("unconnected_mocks", []))
+    } for item in manifest.get(UNCONNECTED, []))
     return status
 
 
@@ -864,15 +1017,38 @@ def tool_evidence_warnings(root: Path, state: Path, boards: list[dict]) -> list[
     registry = load_tools(state / "catalog" / "tools")
     connections = read_manifest(state)["connections"]
     connected = {tool for item in connections for tool in item.get("covers", [item["tool"]])}
+    mocked = {tool for item in connections if item["mode"] == "mock" for tool in item.get("covers", [item["tool"]])}
     matched = _recorded_tool_refs(_mock_call_logs(root, connections), {ref for _, _, ref in evidence})
     warnings = []
     for board, index, ref in evidence:
-        tool = ref.partition(":")[0]
+        tool, _, record = ref.partition(":")
+        label = f"{board} evidence #{index}"
         if tool not in connected or board not in registry.get(tool, {}).get("brains", []):
-            warnings.append(f"{board} evidence #{index}: {tool} is not connected for this board.")
-        if ref not in matched:
-            warnings.append(f"{board} evidence #{index}: no recorded {tool} call matches the cited record. Verify it in the tool.")
+            warnings.append(f"{label}: {tool} is not connected for this board.")
+        if tool in mocked:
+            warnings.append(_mock_citation(state, tool, record, label))
+        elif ref not in matched:
+            warnings.append(f"{label}: no recorded {tool} call matches the cited record. Verify it in the tool.")
     return warnings
+
+
+def _mock_citation(state: Path, tool: str, record: str, label: str) -> str:
+    """A citation of a mock: synthetic data when the mock holds the record, unsupported when it does not."""
+    try:
+        mock = load_mock(tool, state / "catalog" / "tool-mocks")
+    except (ValueError, CatalogError):
+        mock = {"records": {}, "tools": []}
+    keys = {_norm_key(item.get(collection.get("key"))) for collection in mock.get("records", {}).values()
+            for item in collection["items"]}
+    if _norm_key(record) in keys:
+        return (f"{label}: the cited record comes from the {tool} mock, synthetic sample data, not a record of the "
+                f"real {tool}. The decision brief and the exported record label it as mock data.")
+    return (f"{label}: the {tool} mock holds no record with the cited id, so nothing supports this citation. Cite a "
+            f"record the mock returns (openguildkit tools call {tool}); a simulated write keeps nothing.")
+
+
+def _norm_key(value) -> str:
+    return str(value).strip().casefold()
 
 
 def manifest_text(manifest: dict) -> str:

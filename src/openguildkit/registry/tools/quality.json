@@ -33,9 +33,7 @@
           "capabilities": "Read builds, tests and review state; chromatic_mutate can accept or deny tests, quarantine tests and create projects.",
           "source": "https://www.chromatic.com/docs/mcp",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -89,9 +87,7 @@
           "repository": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
           "license": "Apache-2.0",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -158,23 +154,36 @@
           "source": "https://github.com/SonarSource/sonarqube-mcp-server",
           "repository": "https://github.com/SonarSource/sonarqube-mcp-server",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write",
-            "consent": "Provide the SonarQube credential for the selected instance or organization",
-            "scopes": [
-              "Limited by the SonarQube token owner's permissions"
+          "access": "Issues, quality gates, metrics and rules of the projects the token's user can see; write tools such as changing an issue's status, and some tools (webhooks, system) need the Administer permission.",
+          "scopes": "SonarQube Server needs a user token (project and global tokens do not work); SonarQube Cloud a token with SONARQUBE_ORG. The token carries its user's permissions.",
+          "pin": "The publisher documents version tags, such as sonarsource/sonarqube-mcp:1.19.0.2785, and tags that follow SonarQube Server releases.",
+          "read_only": {
+            "how": "SONARQUBE_READ_ONLY=true disables the write tools (default false).",
+            "args": [
+              "run",
+              "--init",
+              "--pull=always",
+              "-i",
+              "--rm",
+              "-e",
+              "SONARQUBE_TOKEN",
+              "-e",
+              "SONARQUBE_ORG",
+              "-e",
+              "SONARQUBE_READ_ONLY=true",
+              "-e",
+              "SONARQUBE_URL",
+              "sonarsource/sonarqube-mcp"
             ]
           },
-          "read_only": {
-            "docker_env": "SONARQUBE_READ_ONLY"
-          }
+          "reviewed": "2026-11-21"
         }
       ],
       "api": {
         "kind": "rest",
         "docs": "https://next.sonarqube.com/sonarqube/web_api"
       },
-      "notes": "SonarQube Cloud uses SONARQUBE_TOKEN and SONARQUBE_ORG (SONARQUBE_URL=https://sonarqube.us for the US region); SonarQube Server uses SONARQUBE_TOKEN (user token) and SONARQUBE_URL. Licence is the Sonar Source-Available License v1.0, not an SPDX id."
+      "notes": "SonarQube Cloud uses SONARQUBE_TOKEN and SONARQUBE_ORG (SONARQUBE_URL defaults to https://sonarcloud.io, https://sonarqube.us for the US region); SonarQube Server uses SONARQUBE_TOKEN (user token) and SONARQUBE_URL, your server's address, set in each person's environment. SONARQUBE_TOOLSETS limits the tools. Licence is the Sonar Source-Available License v1.0, not an SPDX id."
     }
   ]
 }

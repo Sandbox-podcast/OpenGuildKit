@@ -177,14 +177,117 @@ class WebInterfaceTests(unittest.TestCase):
             ["task", "authorize", "request-status", "--action", "send-message", "--target", "Brevo", "--allow",
              "--by", "Camille", "--reason", "Launch"],
             ["alerts", "accept", "npm:semver:1", "--by", "Camille", "--reason", "Build time only"],
-            ["task", "verify", "request-status", "--unavailable", "command:1=Offline", "--by", "Camille"],
+            ["alerts", "severity", "npm:semver:1", "--level", "high", "--by", "Camille", "--reason", "CVSS 7.5"],
+            ["task", "verify", "request-status", "--cannot-run", "command:1", "--by", "Camille", "--reason",
+             "No toolchain on this workstation"],
+            ["task", "verify", "request-status", "--withdraw", "command:1", "--by", "Camille"],
+            ["task", "clear", "request-status", "security:1", "--evidence", "tests/test_access.py",
+             "--supports", "Owners only", "--by", "Camille"],
+            ["task", "complete", "request-status", "--by", "Camille"],
             ["tools", "apply", "sentry", "--host", "codex"],
         ):
-            with self.subTest(argv=argv[:2]):
+            with self.subTest(argv=argv[:3]):
                 status, result = self.run_cli(*argv)
                 self.assertEqual(status, 403, result)
                 self.assertIn("terminal", result["error"])
                 self.assertTrue(result["command"].startswith("openguildkit --project "))
+
+    def test_the_session_names_every_act_left_to_a_person(self):
+        status, _, body = self.request("/api/session")
+        human = json.loads(body)["human_only"]
+        for command in ("task decide --approve", "task clear", "task waive", "task authorize --allow", "alerts accept",
+                        "task verify --cannot-run", "task complete --by", "tools apply (live)"):
+            self.assertIn(command, human)
+
+    def test_a_signed_clearance_or_its_payload_is_not_refused_as_a_terminal_act(self):
+        self.run_cli("task", "new", "Show request status", "--id", "request-status")
+        status, result = self.run_cli("task", "clear", "request-status", "security:1", "--evidence", "x", "--supports",
+                                      "y", "--by", "Camille", "--payload", "clear.json")
+        self.assertEqual(status, 200)
+        self.assertEqual(result["code"], 1)
+        self.assertNotIn("command", result)
+
+    def test_a_profile_saved_from_the_page_never_weakens_a_protection(self):
+        profile = self.root / ".openguildkit" / "project.json"
+        saved = json.loads(profile.read_text(encoding="utf-8"))
+        status, _, body = self.request("/api/profile/save", {"text": json.dumps({**saved, "guard": "enforce"})})
+        self.assertEqual((status, json.loads(body)["code"]), (200, 0))
+        for change, command in (({"guard": "off"}, "profile set guard off --by NAME --reason WHY"),
+                                ({"guard": "enforce", "research": "public-sources"},
+                                 "profile set research public-sources")):
+            with self.subTest(change=change):
+                status, _, body = self.request("/api/profile/save", {"text": json.dumps({**saved, **change})})
+                answer = json.loads(body)
+                self.assertEqual(status, 403, answer)
+                self.assertIn("interactive terminal", answer["error"])
+                self.assertIn(command, answer["command"])
+                self.assertEqual(json.loads(profile.read_text(encoding="utf-8"))["guard"], "enforce")
+        status, result = self.run_cli("profile", "set", "guard", "observe", "--by", "Camille", "--reason", "Pilot")
+        self.assertEqual(result["code"], 1)
+        self.assertIn("interactive terminal", result["stderr"])
+        self.assertIn("profile set guard observe", result["command"])
+        self.assertEqual(json.loads(profile.read_text(encoding="utf-8"))["guard"], "enforce")
+
+    def test_a_regulation_stops_being_active_only_at_a_terminal(self):
+        from openguildkit.catalog import load_catalog
+        from openguildkit.webui import weakening_changes
+
+        patterns = load_catalog()["patterns"]
+        regulation = next(pattern_id for pattern_id, item in patterns.items() if item.get("kind") == "regulation")
+        method = next(pattern_id for pattern_id, item in patterns.items() if item.get("kind") != "regulation")
+        before = {"patterns": [regulation, {"id": method, "components": ["web"]}]}
+        self.assertEqual(weakening_changes(self.root, before, {"patterns": [regulation]}), [])
+        changes = weakening_changes(self.root, before, {"patterns": [{"id": method}]})
+        self.assertEqual(changes, [(f"regulation {regulation} no longer active",
+                                    ["profile", "decline", regulation, "--by", "NAME", "--reason", "WHY"])])
+        declined = weakening_changes(self.root, {"patterns": []}, {"declined": [{"id": regulation, "by": "A"}]})
+        self.assertEqual(declined[0][1][:3], ["profile", "decline", regulation])
+
+    def reviewed_task(self):
+        """The example task, consulted and reviewed through the page."""
+        self.run_cli("task", "new", "--file", "@upload:brief.md", "--id", "request-status",
+                     uploads={"brief.md": (EXAMPLE / "brief.md").read_text(encoding="utf-8")})
+        self.run_cli("task", "consult", "request-status", "--answers", "@upload:answers.json",
+                     uploads={"answers.json": (EXAMPLE / "answers.json").read_text(encoding="utf-8")})
+        template = self.run_cli("task", "template", "request-status")[1]["json"]
+        review = {"consultation_id": template["consultation_id"],
+                  **json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))}
+        review["boards"] = [entry for entry in review["boards"] if entry["id"] in {b["id"] for b in template["boards"]}]
+        self.assertEqual(self.run_cli("task", "review", "request-status", "--file", "@upload:review.json",
+                                      uploads={"review.json": json.dumps(review)})[1]["code"], 0)
+
+    def test_the_page_revises_the_brief_when_it_consults_again_after_a_request_for_changes(self):
+        self.reviewed_task()
+        self.assertEqual(self.run_cli("task", "decide", "request-status", "--request-changes", "--by", "Camille",
+                                      "--reason", "Name the status labels first")[1]["code"], 0)
+        status, result = self.run_cli(
+            "task", "consult", "request-status", "--answers", "@upload:answers.json", "--brief-file", "@upload:brief.md",
+            uploads={"answers.json": (EXAMPLE / "answers.json").read_text(encoding="utf-8"),
+                     "brief.md": "Show the four agreed status labels on each support request."})
+        self.assertEqual((status, result["code"]), (200, 0), result["stderr"])
+        record = self.run_cli("task", "show", "request-status")[1]["json"]
+        self.assertEqual(record["brief"], "Show the four agreed status labels on each support request.")
+        self.assertEqual(record["rounds"][0]["brief"], (EXAMPLE / "brief.md").read_text(encoding="utf-8").strip())
+
+    def test_a_failed_verification_keeps_its_recorded_checks_for_the_page(self):
+        project = self.root / ".openguildkit" / "project.json"
+        saved = json.loads(project.read_text(encoding="utf-8"))
+        status, _, body = self.request("/api/profile/save", {"text": json.dumps(
+            {**saved, "checks": ["python3 -c \"raise SystemExit(3)\""]})})
+        self.assertEqual(json.loads(body)["code"], 0, body)
+        self.reviewed_task()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()), \
+                patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value="request-status"):
+            self.assertEqual(main(["--project", str(self.root), "task", "decide", "request-status", "--approve",
+                                   "--by", "Camille", "--reason", "Agreed"]), 0)
+        status, result = self.run_cli("task", "verify", "request-status")
+        self.assertEqual((status, result["code"]), (200, 1))
+        self.assertIn("command:1: failed", result["stdout"])
+        self.assertNotIn("command", result)
+        checks = self.run_cli("task", "checks", "request-status", "--json")[1]["json"]
+        command = next(item for item in checks if item["id"] == "command:1")
+        self.assertEqual(command["result"]["status"], "failed")
+        self.assertIn("exit code 3", command["result"]["message"])
 
     def test_a_terminal_prompt_fails_even_when_the_server_runs_in_a_terminal(self):
         self.run_cli("task", "new", "Show request status", "--id", "request-status")

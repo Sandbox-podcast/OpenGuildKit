@@ -57,12 +57,11 @@ class ClockTests(unittest.TestCase):
                 return stdout.getvalue()
 
             cli("init", "--answers", root / "p.json")
-            (root / "docs-site").mkdir()
-            (root / "docs-site" / ".openguildkit-export.json").write_text('{"version": "0", "tasks": [], "files": []}', encoding="utf-8")
             cli("task", "new", "Show request status.", "--id", "status")
             self.assertEqual(json.loads(cli("task", "show", "status"))["created_at"], "2025-11-20T12:00:00+00:00")
-            common = ["docs", "share", "add", "--deliverable", "docs-site/d.md", "--recipient",
-                      "reader@example.test", "--portal", "https://docs.example.test/p/portal", "--by", "Camille"]
+            (root / "d").write_text("# Shared page\n", encoding="utf-8")
+            common = ["docs", "share", "add", "--deliverable", "d", "--recipient", "reader@example.test",
+                      "--portal", "https://docs.example.test/p/portal", "--by", "Camille"]
             cli(*common, "--until", "2025-11-20", code=1)
             cli(*common, "--until", "2025-12-01")
             share = json.loads(cli("docs", "share", "list", "--json"))[0]

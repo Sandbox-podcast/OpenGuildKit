@@ -6,6 +6,8 @@
 
 OpenGuildKit est un framework open source pour les équipes qui développent avec des agents IA. Tu choisis les règles que tes agents doivent suivre et tu consultes les métiers concernés avant de valider un changement.
 
+Le questionnaire, les commandes et tout ce que la CLI affiche sont en anglais, comme le reste de la documentation. Tu peux écrire tes demandes en français : le choix des boards lit le français, et « formulaire de paiement » appelle le design et la finance. L'agent te pose les questions dans ta langue. Le [glossaire](docs/glossary.md) traduit les mots du produit.
+
 https://github.com/user-attachments/assets/8a6ec7e6-e7c3-4f95-bd21-6dcd1d960d8f
 
 ## Essayer la démo
@@ -44,7 +46,7 @@ openguildkit preview
 openguildkit check
 ```
 
-`init` enregistre ton profil dans `.openguildkit/project.json` et écrit les règles dans un bloc géré de `AGENTS.md`. Il ajoute un import dans `CLAUDE.md` pour Claude Code. Les règles en vigueur sont figées dans `.openguildkit/catalog.lock.json` : après une mise à jour d'OpenGuildKit, `openguildkit update` montre la date du catalogue installé (le jour où ses sources ont été vérifiées pour la dernière fois), le nombre d'enregistrements modifiés et ce qui changerait, et `openguildkit update --apply` l'adopte. Il affiche ensuite les étapes suivantes qui s'appliquent, comme `openguildkit host apply` pour ton agent et `openguildkit tools plan ...` pour les outils que le registre connaît. [Installe le skill](integrations/) pour répondre au questionnaire dans Claude Code ou Codex et lancer des tâches depuis la conversation.
+`init` enregistre ton profil dans `.openguildkit/project.json` et écrit les règles dans un bloc géré de `AGENTS.md`. Il ajoute un import dans `CLAUDE.md` pour Claude Code. Les règles en vigueur sont figées dans `.openguildkit/catalog.lock.json` : après une mise à jour d'OpenGuildKit, `openguildkit update` montre la date du catalogue installé (le jour où ses sources ont été vérifiées pour la dernière fois), le nombre d'enregistrements modifiés et ce qui changerait, et `openguildkit update --apply` l'adopte. Il affiche ensuite les étapes suivantes qui s'appliquent, comme `openguildkit host apply` pour ton agent et `openguildkit tools plan ...` pour les outils que le registre connaît. [Installe le skill](integrations/) pour répondre au questionnaire dans Claude Code ou Codex et lancer des tâches depuis la conversation. Pour changer le profil ensuite (adopter ou refuser une réglementation, ajouter un contrôle, changer d'agent ou de garde-fou), utilise `openguildkit profile` : la commande enregistre qui, quand et pourquoi, et réécrit `AGENTS.md` ([patterns](docs/patterns.md#change-the-profile-after-setup)).
 
 ```mermaid
 flowchart TB
@@ -61,6 +63,75 @@ Un nouveau projet démarre en `"guard": "observe"` : une fois les hooks install�
 La CLI choisit les boards et enregistre leurs avis en local. Ton agent rédige ces avis et utilise ses outils pour les recherches que tu autorises. Tu valides le périmètre dans ton terminal avant que la CLI affiche le brief d'implémentation.
 
 Chaque brain traite la demande sous plusieurs angles. Il confronte la proposition à une alternative et te montre les preuves, les objections et les tests qui permettraient de décider. [Brains métier](docs/brains.md)
+
+## Le parcours d'une tâche
+
+Chaque changement suit le même parcours, de la demande à la clôture. L'agent lance les commandes et joue les boards. Tu réponds aux questions, tu décides et tu confirmes en ton nom ce qui te revient, dans ton propre terminal. Le [détail de chaque étape](docs/workflow.md) est en anglais.
+
+**1. Ouvrir et cadrer la tâche.**
+
+```bash
+openguildkit task new "Afficher aux clients connectés le statut de leurs demandes" --id statut-demandes
+openguildkit task questions statut-demandes
+openguildkit task questions statut-demandes --answers reponses.json
+openguildkit task route statut-demandes --answers reponses.json
+openguildkit task consult statut-demandes --answers reponses.json
+```
+
+- `task new` ouvre la tâche avec ta demande, le brief, écrit avec tes mots.
+- `task questions` donne le questionnaire : l'agent te demande le type de travail, les zones touchées, les données en jeu et les recherches permises.
+- `task questions --answers` ajoute les questions de suivi et liste les points encore ouverts.
+- `task route` montre les boards retenus et pourquoi, sans rien enregistrer. Toi seul ajoutes ou retires un board, avec une raison.
+- `task consult` enregistre tes réponses et prépare une consultation courte : la tâche, le périmètre du projet, une ligne par board.
+
+**2. Consulter les boards.**
+
+```bash
+openguildkit task pass statut-demandes security --mode subagent
+openguildkit task submit statut-demandes --file security.json
+openguildkit task progress statut-demandes
+openguildkit task review statut-demandes --summary "Accords, désaccords et prochaine étape"
+openguildkit task deliberate statut-demandes
+openguildkit task respond statut-demandes --file deliberation.json
+openguildkit task challenge statut-demandes
+```
+
+- `task pass` donne à un board, et à lui seul, ce dont il a besoin. L'agent le lance pour chaque board, souvent avec un sous-agent par board.
+- `task submit` enregistre l'avis du board. Un avis mal formé est refusé avec la liste de tous ses problèmes.
+- `task progress` dit quels boards ont rendu leur avis.
+- `task review` rassemble les avis avec le résumé que l'agent écrit.
+- `task deliberate` liste les objections entre boards en désaccord. Avec `task respond`, chaque board maintient, amende ou cède.
+- `task challenge` imprime la note de décision que l'agent te montre : verdicts, objections, points bloquants et vérifications qui pourraient changer la décision.
+
+**3. Décider.** `task clear` et `task decide` sont à toi. L'agent te propose les preuves, mais il ne lance jamais ces commandes à ta place.
+
+```bash
+openguildkit task blockers statut-demandes
+openguildkit task clear statut-demandes security:1 --evidence tests/test_access.py --supports "L'accès à un autre compte est refusé" --by "Camille Martin"
+openguildkit task decide statut-demandes --approve --by "Camille Martin" --reason "Périmètre en lecture seule validé"
+openguildkit task decide statut-demandes --request-changes --by "Camille Martin" --reason "Ajouter l'écran sans demande"
+```
+
+- `task blockers` liste les points bloquants posés par les boards, avec leur responsable et ce qui les lève.
+- `task clear` lève un point bloquant avec une preuve, un fichier du projet ou un lien. Un point de phase `verification` est une condition de l'approbation : tu approuves avant, et tu le lèves une fois le code écrit.
+- `task decide --approve` affiche la note de décision et te demande de taper l'identifiant de la tâche. L'approbation est scellée.
+- `task decide --request-changes` renvoie la tâche au cadrage, et l'historique est gardé.
+
+**4. Réaliser et clore.**
+
+```bash
+openguildkit task handoff statut-demandes
+openguildkit task verify statut-demandes
+openguildkit task result statut-demandes --template > result.json
+openguildkit task result statut-demandes --file result.json
+openguildkit task complete statut-demandes
+```
+
+- `task handoff` remet à l'agent le brief d'implémentation : le périmètre approuvé et les règles en vigueur. L'agent ne réalise que ce périmètre.
+- `task verify` lance les contrôles du projet et enregistre leurs résultats.
+- `task result --template` ne demande que les règles qui concernent la tâche. Les autres sont listées comme non concernées, avec la raison.
+- `task result --file` enregistre le résultat que l'agent a rempli. Tu confirmes chaque règle écartée, et le responsable de chaque pièce justificative (registre des traitements, décision d'AIPD) la fournit.
+- `task complete` clôt la tâche en `done` quand rien ne reste ouvert, ou en `done-with-reservations` (terminée avec réserves) avec les points ouverts, du plus grave au moins grave.
 
 ## Parcourir le catalogue
 
@@ -82,6 +153,7 @@ openguildkit brains --id product
 - [Vérifier une règle de catalogue en CI](examples/export-expiry/README.md)
 - [Coordonner les vérifications de PR avec GitHub Actions et Jenkins](integrations/ci/README.md)
 
+- [Glossaire des mots du produit, en anglais et en français](docs/glossary.md)
 - [Architecture](docs/architecture.md) et [parcours d'une tâche](docs/workflow.md)
 - [Dossiers marché et veille concurrentielle](docs/market.md)
 - [Alertes de dépendances et veille des vulnérabilités](docs/alerts.md)

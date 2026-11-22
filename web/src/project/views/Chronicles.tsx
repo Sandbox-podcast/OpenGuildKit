@@ -15,9 +15,13 @@ function eventsOf(t: TaskRecord): Event[] {
   const out: Event[] = [{ at: t.created_at, task: t.id, icon: 'quest', tone: 'muted', title: 'Quête ouverte', detail: t.brief.split('\n')[0] }];
   t.rounds.forEach((r, i) => { if (r.decision) out.push({ at: r.decision.at, task: t.id, icon: r.decision.outcome === 'approved' ? 'lock' : 'replace', tone: r.decision.outcome === 'approved' ? 'success' : 'warning', title: `Tour ${i + 1} : ${r.decision.outcome === 'approved' ? 'validé' : 'renvoyé au Conseil'} par ${r.decision.by}`, detail: r.decision.reason }); });
   if (t.decision) out.push({ at: t.decision.at, task: t.id, icon: t.decision.outcome === 'approved' ? 'lock' : 'replace', tone: t.decision.outcome === 'approved' ? 'success' : 'warning', title: t.decision.outcome === 'approved' ? `Validée par ${t.decision.by}` : `Renvoyée au Conseil par ${t.decision.by}`, detail: `${t.decision.reason}${t.decision.seal ? ` · sceau ${t.decision.seal.slice(0, 12)}` : ''}${t.decision.signature ? ` · signée par ${t.decision.signature.signer}` : ''}` });
-  (t.deliverables ?? []).forEach((d) => out.push({ at: d.created_at, task: t.id, icon: 'scroll', tone: 'info', title: `Livrable ${d.deliverable} commencé`, detail: d.tool }));
+  (t.deliverables ?? []).forEach((d) => out.push({ at: d.created_at, task: t.id, icon: 'scroll', tone: 'info', title: `Livrable ${d.deliverable} commencé`, detail: d.tool ?? undefined }));
   (t.authorizations ?? []).forEach((a) => out.push({ at: a.at, task: t.id, icon: 'external', tone: a.decision === 'allow' ? 'warning' : 'muted', title: `Action externe ${a.action} sur ${a.target} : ${a.decision === 'allow' ? 'autorisée' : 'refusée'}`, detail: `${a.by}, ${a.reason}` }));
-  if (t.completed_at) out.push({ at: t.completed_at, task: t.id, icon: 'star', tone: 'success', title: 'Quête terminée', detail: t.result?.pull_request ?? t.result?.revision });
+  if (t.completed_at) {
+    const reserved = t.status === 'done-with-reservations';
+    const by = t.result?.closing?.by ? `, clôture confirmée par ${t.result.closing.by}` : '';
+    out.push({ at: t.completed_at, task: t.id, icon: 'star', tone: reserved ? 'warning' : 'success', title: reserved ? 'Quête terminée avec réserves' : 'Quête terminée', detail: `${t.result?.pull_request ?? t.result?.revision ?? ''}${by}` || undefined });
+  }
   return out;
 }
 

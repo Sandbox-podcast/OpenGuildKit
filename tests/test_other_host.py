@@ -47,9 +47,10 @@ class OtherHostTests(unittest.TestCase):
 
     def test_host_apply_says_it_writes_nothing_and_host_check_passes(self):
         self.init()
-        output, error = self.run_cli("host", "apply")
+        # Writing nothing is not a success: the command says so and exits 1.
+        output, error = self.run_cli("host", "apply", code=1)
         self.assertIn("the project's host is other, so host apply wrote nothing", error)
-        self.assertIn('set "host" in .openguildkit/project.json', error)
+        self.assertIn("openguildkit profile set host claude-code (or codex)", error)
         self.assertFalse((self.root / ".claude" / "settings.json").exists())
         output, _ = self.run_cli("host", "check")
         self.assertIn("[by instruction]", output)

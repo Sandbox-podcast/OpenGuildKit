@@ -6,36 +6,41 @@
       "name": "list_time_entries",
       "description": "List time entries of a project.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"project": {"type": "string", "description": "Project name"}}, "required": ["project"]},
-      "responses": [
-        {
-          "when": {"project": "export"},
-          "result": {
-            "project": "Request export",
-            "entries": [
-              {"entry_id": "te-1", "user": "Lin Sample", "date": "2026-11-18", "minutes": 360, "description": "CSV export endpoint"},
-              {"entry_id": "te-2", "user": "Lin Sample", "date": "2026-11-19", "minutes": 240, "description": "Export button"},
-              {"entry_id": "te-3", "user": "Sam Placeholder", "date": "2026-11-20", "minutes": 120, "description": "Formula cell tests"}
-            ]
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project name"
           }
         },
-        {
-          "when": {"project": "maintenance"},
-          "result": {
-            "project": "Portal maintenance",
-            "entries": [{"entry_id": "te-4", "user": "Kai Demo", "date": "2026-11-17", "minutes": 90, "description": "Triage of export requests"}]
-          }
-        },
-        {"result": {"project": "$arg:project", "entries": []}}
-      ]
+        "required": [
+          "project"
+        ]
+      },
+      "serve": {
+        "records": "time_entries",
+        "action": "list"
+      }
     },
     {
       "name": "start_timer",
       "description": "Start a timer on a project. Returns the running entry.",
       "inputSchema": {
         "type": "object",
-        "properties": {"project": {"type": "string", "description": "Project name"}, "description": {"type": "string", "description": "What you work on"}},
-        "required": ["project"]
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project name"
+          },
+          "description": {
+            "type": "string",
+            "description": "What you work on"
+          }
+        },
+        "required": [
+          "project"
+        ]
       },
       "responses": [
         {
@@ -56,32 +61,81 @@
       "read_only": true,
       "inputSchema": {
         "type": "object",
-        "properties": {"active": {"type": "boolean", "description": "Only active projects when true, only archived ones when false"}}
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "description": "Only active projects when true, only archived ones when false"
+          }
+        }
       },
-      "responses": [
+      "serve": {
+        "records": "projects",
+        "action": "list"
+      }
+    }
+  ],
+  "records": {
+    "time_entries": {
+      "key": "entry_id",
+      "title": "description",
+      "items": [
         {
-          "when": {"active": true},
-          "result": {
-            "projects": [
-              {"project_id": "prj-1", "name": "Request export", "client": "Acme Support Portal", "active": true},
-              {"project_id": "prj-2", "name": "Portal maintenance", "client": "Acme Support Portal", "active": true}
-            ]
-          }
+          "entry_id": "te-1",
+          "user": "Lin Sample",
+          "date": "2026-11-18",
+          "minutes": 360,
+          "description": "CSV export endpoint",
+          "project": "Request export"
         },
         {
-          "when": {"active": false},
-          "result": {"projects": [{"project_id": "prj-3", "name": "Share link prototype", "client": "Acme Support Portal", "active": false}]}
+          "entry_id": "te-2",
+          "user": "Lin Sample",
+          "date": "2026-11-19",
+          "minutes": 240,
+          "description": "Export button",
+          "project": "Request export"
         },
         {
-          "result": {
-            "projects": [
-              {"project_id": "prj-1", "name": "Request export", "client": "Acme Support Portal", "active": true},
-              {"project_id": "prj-2", "name": "Portal maintenance", "client": "Acme Support Portal", "active": true},
-              {"project_id": "prj-3", "name": "Share link prototype", "client": "Acme Support Portal", "active": false}
-            ]
-          }
+          "entry_id": "te-3",
+          "user": "Sam Placeholder",
+          "date": "2026-11-20",
+          "minutes": 120,
+          "description": "Formula cell tests",
+          "project": "Request export"
+        },
+        {
+          "entry_id": "te-4",
+          "user": "Kai Demo",
+          "date": "2026-11-17",
+          "minutes": 90,
+          "description": "Triage of export requests",
+          "project": "Portal maintenance"
+        }
+      ]
+    },
+    "projects": {
+      "key": "project_id",
+      "title": "name",
+      "items": [
+        {
+          "project_id": "prj-1",
+          "name": "Request export",
+          "client": "Acme Support Portal",
+          "active": true
+        },
+        {
+          "project_id": "prj-2",
+          "name": "Portal maintenance",
+          "client": "Acme Support Portal",
+          "active": true
+        },
+        {
+          "project_id": "prj-3",
+          "name": "Share link prototype",
+          "client": "Acme Support Portal",
+          "active": false
         }
       ]
     }
-  ]
+  }
 }

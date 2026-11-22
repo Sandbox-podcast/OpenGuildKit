@@ -23,6 +23,7 @@ REVIEW_STATUSES = ("open", "confirmed", "dismissed")
 ACTIVE = ("open", "confirmed")
 LEGACY_STATUSES = {"to-verify": "open"}
 SEVERITY_RANK = {"unknown": 0, "low": 1, "moderate": 2, "medium": 2, "high": 3, "critical": 4}
+SEVERITIES = ("low", "moderate", "high", "critical")
 IMPORTS_KEPT = 20
 _ECOSYSTEMS = {
     "pip": "pypi", "pypi": "pypi", "npm": "npm", "go": "go", "golang": "go", "maven": "maven", "nuget": "nuget",
@@ -232,7 +233,9 @@ def _merge(entry: dict, other: dict) -> dict:
     """Fold a second entry for the same advisory into the first: aliases, scanners, tasks, severity."""
     merged = {**entry}
     merged["aliases"] = sorted(set(entry.get("aliases", [])) | set(other.get("aliases", [])))
-    merged["severity"] = _worse(entry["severity"], other["severity"])
+    # A severity a person set stays until a person changes it again; scanners only fill an unknown one.
+    if "severity_set" not in entry:
+        merged["severity"] = _worse(entry["severity"], other["severity"])
     for key in ("scanners", "seen_by", "tasks"):
         merged[key] = sorted(set(entry.get(key, [])) | set(other.get(key, [])))
     if _KEEP_ORDER.index(_status(other)) < _KEEP_ORDER.index(_status(entry)):
@@ -345,6 +348,17 @@ def set_status(register: dict, alert_id: str, status: str, by: str, reason: str 
     if reason.strip():
         updated["reason"] = reason.strip()
     return _replace(register, updated)
+
+
+def set_severity(register: dict, alert_id: str, severity: str, by: str, reason: str) -> dict:
+    """Record the severity a person gives an alert, such as one pip-audit reports without any, with who and why."""
+    if severity not in SEVERITIES:
+        raise ValueError(f"Choose the severity from {', '.join(SEVERITIES)}.")
+    if not by.strip() or not reason.strip():
+        raise ValueError("Name the person with --by and say why with --reason, such as the advisory's CVSS score.")
+    alert = find_alert(register, alert_id)
+    record = {"from": alert["severity"], "by": by.strip(), "reason": reason.strip(), "at": _now()}
+    return _replace(register, {**alert, "severity": severity, "severity_set": record})
 
 
 def accept_alert(register: dict, alert_id: str, by: str, reason: str) -> dict:

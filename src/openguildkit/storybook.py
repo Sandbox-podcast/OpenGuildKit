@@ -590,6 +590,12 @@ _VAR = re.compile(r"var\(\s*(--[\w-]+)")
 _SCSS_VAR = re.compile(r"\$([\w-]+)")
 TOKEN_GROUPS = {"color": "color", "spacing": "spacing", "radius": "radius", "font-size": "font-size",
                 "font-family": "font-family", "dimension": "dimension"}
+# How a CSS variable usually starts when it names a token of that kind: the group already says it.
+TOKEN_PREFIXES = {
+    "color": ("color-", "colour-", "clr-"), "spacing": ("spacing-", "space-", "sp-"),
+    "radius": ("radius-", "radii-", "rounded-"), "font-size": ("font-size-", "fs-", "font-"),
+    "font-family": ("font-family-", "ff-", "font-"), "dimension": ("dimension-", "size-"),
+}
 
 
 def _strip_js_comments(text: str) -> str:
@@ -886,6 +892,12 @@ def _props_type(code: str, after_props: int, declaration: str) -> dict:
     return _member_types(body) if body is not None else {}
 
 
+def _callback_type(annotation: str) -> bool:
+    """A function type, such as (input: Input) => void: a story passes a function that does nothing."""
+    annotation = annotation.strip()
+    return annotation == "Function" or (annotation.startswith(("(", "<")) and "=>" in annotation)
+
+
 def _sample_arg(code: str, name: str, annotation: str, depth: int = 0):
     """Find a JSON sample for a locally declared type, without reading prop values from app usages."""
     if depth >= 4:
@@ -988,6 +1000,8 @@ def _scan_components(label: str, path: Path, text: str, definitions: dict, usage
                         known, value = _sample_arg(code, prop["name"], annotation)
                         if known:
                             prop["sample"] = value
+                        elif _callback_type(annotation):
+                            prop["callback"] = True
             definitions[name] = {
                 "name": name, "file": label, "line": _line_of(starts, match.start(2)),
                 "export": export, "props": props if props is not None else [],
@@ -1254,10 +1268,16 @@ def extract(root: Path, sources: list[Path], previews: list[Path] | None = None,
                 item["origins"].append(origin)
                 if basis == "usage":
                     item["basis"] = "usage"
-        # Values a typed string union allows, unseen in the scanned uses: states to confirm on the screens.
+        # Values a typed string union allows, and the other value of a boolean with a default, unseen in the
+        # scanned uses: states to confirm on the screens.
         for prop in definition["props"]:
             if not _variant_prop(prop["name"], prop.get("options")):
                 continue
+            if isinstance(prop.get("default"), bool):
+                key = f"{name}:{prop['name']}={json.dumps(not prop['default'])}"
+                variants.setdefault(key, {
+                    "key": key, "component": name, "props": {prop["name"]: not prop["default"]}, "occurrences": 0,
+                    "origins": [_origin(definition["file"], definition["line"])], "basis": "type"})
             for value in prop.get("options", []):
                 key = f"{name}:{prop['name']}={json.dumps(value)}"
                 if _TYPED_VARIANT.fullmatch(value) and key not in variants:
@@ -1303,17 +1323,33 @@ def _screen(component: dict) -> bool:
         or component["name"].endswith(("Page", "Screen", "View"))
 
 
+def _story_name(name: str, component: str, props: dict, basis: str | None) -> str:
+    """A story is named for the state it shows; one named like its component is its default state."""
+    if name.casefold() != component.casefold():
+        return name
+    if basis == "default" or not props:
+        return "Default"
+    return " ".join(word[:1].upper() + word[1:] for word in [*props][:1] + [name])
+
+
 def _variant_name(props: dict) -> str:
     words = []
     for prop, value in props.items():
-        words.append(prop if value is True else str(value))
+        if value is False:
+            words.append("not " + re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", prop))
+        else:
+            words.append(prop if value is True else str(value))
     return " ".join(word[:1].upper() + word[1:] for word in " ".join(words).replace("-", " ").split()) or "Default"
 
 
-def _token_name(token: dict) -> str:
+def _token_name(token: dict, short: bool = True) -> str:
+    """The token's path: its group, then its CSS variable's name without the group it repeats, or its value."""
     group = TOKEN_GROUPS.get(token["kind"], "other")
     hint = token.get("name_hint")
     if hint:
+        prefix = next((item for item in TOKEN_PREFIXES.get(token["kind"], ()) if hint.startswith(item)), "")
+        if short and prefix and len(hint) > len(prefix):
+            hint = hint[len(prefix):]
         return f"{group}.{hint}"
     slug = re.sub(r"[^0-9a-z]+", "-", token["value"].casefold()).strip("-") or "value"
     return f"{group}.{slug[:40]}"
@@ -1349,6 +1385,9 @@ def validate_proposals(data: dict) -> dict:
                              "the component is exported under.")
         if any(field in item and not isinstance(item[field], dict) for field in ("args", "sample_args")):
             raise ValueError(f"{item['key']}: args and sample_args must be objects.")
+        callbacks = item.get("callback_props", [])
+        if not isinstance(callbacks, list) or not all(isinstance(prop, str) and prop for prop in callbacks):
+            raise ValueError(f"{item['key']}: callback_props lists prop names.")
     components = {item["key"] for item in data["components"]}
     for item in data["variants"]:
         if item.get("component") not in components or not isinstance(item.get("props"), dict) or not all(
@@ -1376,6 +1415,10 @@ def propose(root: Path, state: Path, inventory_path: Path | None = None, proposa
         raise ValueError(f"{inventory_path} is not an OpenGuildKit Storybook inventory. Run storybook extract.")
     previous = validate_proposals(read_json(proposals_path)) if proposals_path.exists() else {
         "components": [], "variants": [], "tokens": []}
+    short = [_token_name(item) for item in inventory["tokens"]]
+    # Two variables that shorten to the same name keep their whole names, so each token keeps its own.
+    token_names = {item["key"]: name if short.count(name) == 1 else _token_name(item, short=False)
+                   for item, name in zip(inventory["tokens"], short)}
     fresh = {
         "components": [{
             "key": f"component:{item['name']}", "name": item["name"], "status": "proposed",
@@ -1387,15 +1430,17 @@ def propose(root: Path, state: Path, inventory_path: Path | None = None, proposa
                            and not prop.get("required") and prop["name"].casefold() in _SYNTHETIC_TEXT],
             "required_props": [prop["name"] for prop in item["props"] if prop.get("required")],
             "sample_args": {prop["name"]: prop["sample"] for prop in item["props"] if "sample" in prop},
+            "callback_props": [prop["name"] for prop in item["props"] if prop.get("callback")],
         } for item in inventory["components"]],
         "variants": [{
             "key": f"variant:{item['key']}", "component": f"component:{item['component']}",
-            "name": _variant_name(item["props"]), "props": item["props"], "status": "proposed",
+            "name": _story_name(_variant_name(item["props"]), item["component"], item["props"], item["basis"]),
+            "props": item["props"], "status": "proposed",
             "confidence": item["confidence"], "basis": item["basis"], "occurrences": item["occurrences"],
             "origins": item["origins"],
         } for item in inventory["variants"]],
         "tokens": [{
-            "key": f"token:{item['key']}", "kind": item["kind"], "value": item["value"], "name": _token_name(item),
+            "key": f"token:{item['key']}", "kind": item["kind"], "value": item["value"], "name": token_names[item["key"]],
             "status": "proposed", "confidence": item["confidence"], "occurrences": item["occurrences"],
             "origins": item["origins"],
         } for item in inventory["tokens"]],
@@ -1476,10 +1521,18 @@ def _js(value) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+class _Code(str):
+    """A fixed piece of TypeScript written as is in a story, such as a callback that does nothing."""
+
+
+NO_OP = _Code("() => {}")
+
+
 def _js_object(values: dict, indent: str) -> str:
     if not values:
         return "{}"
-    lines = [f"{indent}  {key if _JS_IDENTIFIER.fullmatch(key) else _js(key)}: {_js(value)}," for key, value in values.items()]
+    lines = [f"{indent}  {key if _JS_IDENTIFIER.fullmatch(key) else _js(key)}: "
+             f"{value if isinstance(value, _Code) else _js(value)}," for key, value in values.items()]
     return "{\n" + "\n".join(lines) + f"\n{indent}}}"
 
 
@@ -1502,7 +1555,8 @@ def _story_args(component: dict) -> dict:
     samples = {prop: f"Sample {prop}" for prop in component.get("text_props", [])}
     if component.get("children") and "children" not in component.get("required_props", []):
         samples["children"] = component["name"]
-    return {**samples, **component.get("sample_args", {}), **component.get("args", {})}
+    callbacks = {prop: NO_OP for prop in component.get("callback_props", [])}
+    return {**samples, **callbacks, **component.get("sample_args", {}), **component.get("args", {})}
 
 
 def _story_file(component: dict, variants: list[dict], args: dict, out: Path, root: Path, framework: str) -> str:
@@ -1532,15 +1586,30 @@ def _story_file(component: dict, variants: list[dict], args: dict, out: Path, ro
         {"name": "Default", "props": {}, "origins": [], "confidence": component["confidence"], "basis": "usage"}]
     for variant in stories:
         parameters = {"origins": variant["origins"], "confidence": variant["confidence"], "basis": variant.get("basis")}
+        story = _story_name(variant["name"], name, variant["props"], variant.get("basis"))
         lines.extend([
             "",
-            f"export const {_identifier(variant['name'], taken)}: Story = {{",
-            f"  name: {_js(variant['name'])},",
+            f"export const {_identifier(story, taken)}: Story = {{",
+            f"  name: {_js(story)},",
             f"  args: {_js_object(variant['props'], '  ')},",
             f"  parameters: {{ openguildkit: {_js(parameters)} }},",
             "};",
         ])
     return "\n".join(lines) + "\n"
+
+
+# Storybook framework packages for React, in the order a project that lists several is read.
+REACT_FRAMEWORKS = ("@storybook/nextjs-vite", "@storybook/nextjs", "@storybook/react-vite", "@storybook/react-webpack5")
+
+
+def detect_framework(root: Path) -> str:
+    """The Storybook framework package the stories import: the one package.json lists, else one for its stack."""
+    package = root / "package.json"
+    dependencies = _project_dependencies(read_json(package)) if package.is_file() else {}
+    listed = [name for name in REACT_FRAMEWORKS if name in dependencies]
+    if listed:
+        return listed[0]
+    return "@storybook/nextjs-vite" if "next" in dependencies else "@storybook/react-vite"
 
 
 def _setup_warnings(root: Path, framework: str) -> list[str]:
@@ -1559,13 +1628,14 @@ def _setup_warnings(root: Path, framework: str) -> list[str]:
 
 
 def generate(root: Path, state: Path, proposals_path: Path | None = None, out: Path | None = None,
-             framework: str = "@storybook/react-vite") -> dict:
+             framework: str | None = None) -> dict:
     """Write DTCG tokens, CSF3 stories and an index for the validated proposals only.
 
     A file the team changed since it was generated is never overwritten: its hash is kept in the manifest.
     """
     proposals = validate_proposals(read_json(proposals_path or state / PROPOSALS))
     root = root.resolve()
+    framework = framework or detect_framework(root)
     out = (out or root / "src" / "design-system").resolve()
     if root not in (out, *out.parents):
         raise ValueError("Generate the design system inside the project.")
@@ -1625,7 +1695,7 @@ def generate(root: Path, state: Path, proposals_path: Path | None = None, out: P
     manifest_path = state / MANIFEST
     with project_lock(state):
         manifest = read_json(manifest_path) if manifest_path.exists() else {"schema_version": 1, "files": {}}
-        result = {"written": [], "unchanged": [], "kept": [], "skipped": skipped}
+        result = {"framework": framework, "written": [], "unchanged": [], "kept": [], "skipped": skipped}
         for path, content in sorted(files.items(), key=lambda item: item[0].as_posix()):
             relative = _relative(root, path)
             digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
@@ -1726,6 +1796,8 @@ def run(args, root: Path, state: Path) -> int | None:
         lines += [f"No longer generated, left in place: {path}" for path in result["left"]]
         lines += [f"Skipped {item['key']}: {item['reason']}" for item in result["skipped"]]
         lines = lines or ["Nothing is validated yet."]
+        if any(path.endswith(".stories.tsx") for path in result["written"]):
+            lines.append(f"The stories use the Storybook framework {result['framework']}; --framework sets another.")
         lines.extend(f"Warning: {warning}" for warning in result.get("warnings", []))
     else:
         raise ValueError(f"Unknown storybook action {args.action}.")

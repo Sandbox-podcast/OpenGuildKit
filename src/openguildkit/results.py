@@ -1,65 +1,116 @@
 """Record what was delivered for an approved task and the checks that prove it.
 
-The expected checks come from the approved scope: every project check command is
-mandatory, and every rule of the active packs must be reported. A rule with a machine
-check is evaluated and recorded by task verify instead of being reported. A named piece of
-evidence that a rule requires is mandatory: task result supplies it as a project path or
-an https link. A project can make some rules mandatory with `required_rules`. A task is
-done only when every mandatory check passed with evidence.
+The expected checks come from the approved scope: every project check command is mandatory,
+and every rule of the packs that concern the task (see relevance.py) must be reported; the
+others are listed as not concerned, with the reason. A rule with a machine check is evaluated
+and recorded by task verify instead of being reported. A named piece of evidence is a
+document its owner provides, as a project path or an https link: the tool checks that a path
+exists, never what it says. A project can make some rules mandatory with `required_rules`.
 """
 
 import re
 import subprocess
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from urllib.parse import urlsplit
 
-from .catalog import rule_check
+from .catalog import recorded_value, rule_check
 from .decisions import changed_paths_since, git_revision
 from .project import STATE_DIR, rule_text
+from .project_checks import failure_message
+from .relevance import evidence_owner, sensitive_area
 from .rule_checks import evaluate_check, validate_path
 from .storage import write_text
 from .workflow import is_decision_task
 
 RESULT_STATUSES = ("passed", "failed", "skipped", "not-applicable")
+DECISION_REASON = "a decision task: its approval records the process and it delivers no implementation"
 CRITERION_STATUSES = ("met", "not-met")
 LOG_TAIL = 4000
 
 
-def expected_checks(task: dict, profile: dict) -> list[dict]:
-    """The checks the handoff asks for, with an ID per check."""
-    if is_decision_task(task):
-        return []
+def _evidence_concerned(item: dict, answers: dict) -> tuple[bool, str]:
+    """A named evidence with a condition on the task's data is asked only when the data meets it."""
+    when = item.get("when", {}).get("data")
+    data = answers.get("data")
+    if not when or not data or data == "unsure" or data in when:
+        return True, ""
+    return False, f"it applies when the task's data is {'/'.join(when)}, and the task's data is {data}"
+
+
+def expected_checks(task: dict, profile: dict, relevance: dict | None = None) -> list[dict]:
+    """Every check of the approved scope, with an ID, and whether it concerns the task (and why not).
+
+    Without a relevance judgement every check concerns the task. The project's check commands always do,
+    except for a decision task: the approval records its process, and it delivers no implementation.
+    """
     scope = task["consultation"]["scope"]
     required = set(profile.get("required_rules", []))
+    packs = (relevance or {}).get("packs", {})
+    every = bool((relevance or {}).get("every") or profile.get("ask_every_rule"))
     checks = [
-        {"id": f"command:{index}", "kind": "command", "command": command, "mandatory": True}
+        {"id": f"command:{index}", "kind": "command", "command": command, "mandatory": True,
+         "concerned": True, "reason": ""}
         for index, command in enumerate(scope.get("checks", []), start=1)
     ]
+    answers = scope.get("answers", {})
     for pack in scope.get("packs", []):
+        judged = packs.get(pack["id"], {"concerned": True, "selected": False, "reason": ""})
         for rule in pack["rules"]:
             name = f"{pack['id']}/{rule['id']}"
             _, verification = rule_text(rule)
-            check = {"id": f"rule:{name}", "kind": "rule", "verification": verification,
-                     "mandatory": pack["id"] in required or name in required}
+            mandatory = pack["id"] in required or name in required
+            concerned = judged["concerned"] or name in required
+            check = {"id": f"rule:{name}", "kind": "rule", "pack": pack["id"], "verification": verification,
+                     "mandatory": mandatory, "selected": judged["selected"] or mandatory,
+                     "concerned": concerned, "reason": "" if concerned else judged["reason"]}
             machine = rule_check(rule)
             if machine is not None:
                 check.update(kind="machine", check=machine)
             checks.append(check)
             for item in rule.get("evidence", []):
+                applies, why = (True, "") if every else _evidence_concerned(item, answers)
+                must = _must_supply(item, mandatory, scope)
                 checks.append({
-                    "id": f"evidence:{name}/{item['id']}", "kind": "evidence", "title": item["title"],
-                    "verification": f"Supply {item['title']} as a project path or an https link.", "mandatory": True,
-                    "must_supply": _must_supply(item, check["mandatory"], scope),
+                    "id": f"evidence:{name}/{item['id']}", "kind": "evidence", "pack": pack["id"], "title": item["title"],
+                    "verification": f"{item['title']}: passed with a project path or an https link.",
+                    "must_supply": must, "owner_role": evidence_owner(pack["id"]),
+                    "selected": bool(must) or judged["selected"],
+                    "concerned": concerned and (applies or bool(must)),
+                    "reason": (why or judged["reason"]) if not (concerned and (applies or must)) else "",
                 })
+    if is_decision_task(task):
+        for check in checks:
+            if check["concerned"]:
+                check.update(concerned=False, reason=DECISION_REASON)
     return checks
+
+
+def asked_checks(task: dict, profile: dict, relevance: dict | None = None) -> list[dict]:
+    """The checks that concern the task: the ones a result answers."""
+    return [check for check in expected_checks(task, profile, relevance) if check["concerned"]]
+
+
+def not_concerned(task: dict, profile: dict, relevance: dict | None = None) -> list[dict]:
+    """What the task is not asked, one entry per pack (or per evidence), with the reason."""
+    entries = {}
+    for check in expected_checks(task, profile, relevance):
+        if check["concerned"]:
+            continue
+        pack_wide = check["kind"] != "evidence" or check["reason"] == (relevance or {}).get("packs", {}).get(
+            check.get("pack"), {}).get("reason")
+        key = check.get("pack") if pack_wide and check.get("pack") else check["id"]
+        entry = entries.setdefault(key, {("pack" if key == check.get("pack") else "check"): key,
+                                         "reason": check["reason"], "checks": 0})
+        entry["checks"] += 1
+    return list(entries.values())
 
 
 def _must_supply(item: dict, required: bool, scope: dict) -> str | None:
     """Why a named evidence must be supplied rather than declared not applicable, or None.
 
-    Every named evidence is answered on every task. It must be supplied when the project
-    requires its rule, or when the evidence applies to the task's data answer.
+    It must be supplied when the project requires its rule, or when the evidence applies to
+    the task's data answer.
     """
     if required:
         return "its rule or pack is listed in the profile's required_rules"
@@ -67,10 +118,6 @@ def _must_supply(item: dict, required: bool, scope: dict) -> str | None:
     if data in item.get("when", {}).get("data", []):
         return f"the task's data is {data}"
     return None
-
-
-def _command_log(state: Path, task: dict, check_id: str) -> Path:
-    return state / "tasks" / f"{task['id']}-checks" / f"{check_id.replace(':', '-').replace('/', '-')}.log"
 
 
 def _run_command(root: Path, state: Path, task: dict, check: dict, command: str, timeout: int) -> dict:
@@ -85,31 +132,34 @@ def _run_command(root: Path, state: Path, task: dict, check: dict, command: str,
         code, output = completed.returncode, completed.stdout + completed.stderr
     except subprocess.TimeoutExpired as error:
         code, output = None, f"Timed out after {timeout} seconds.\n{error.stdout or ''}{error.stderr or ''}"
-    log = _command_log(state, task, check["id"])
+    log = state / "tasks" / f"{task['id']}-checks" / f"{check['id'].replace(':', '-').replace('/', '-')}.log"
     write_text(log, f"$ {command}\n{output[-LOG_TAIL:]}")
-    return {
+    evidence = log.relative_to(root).as_posix()
+    outcome = {
         "check": check["id"],
         "status": "passed" if code == 0 else "failed",
-        "evidence": log.relative_to(root).as_posix(),
+        "evidence": evidence,
         "exit_code": code,
         "seconds": round(time.monotonic() - started, 1),
     }
+    if code != 0:
+        outcome["message"] = failure_message(code, output, evidence)
+    return outcome
 
 
-def run_command_checks(root: Path, state: Path, task: dict, profile: dict, timeout: int = 1800, *,
-                       unavailable: dict[str, str] | None = None, by: str = "") -> list[dict]:
-    """Run the project's check commands and evaluate the rules' machine checks, with their evidence."""
+def run_command_checks(root: Path, state: Path, task: dict, profile: dict, timeout: int = 1800,
+                       relevance: dict | None = None, only: set[str] | None = None) -> list[dict]:
+    """Run the project's check commands and evaluate the machine checks of the rules that concern the task.
+
+    only limits the run to these check IDs.
+    """
     revision = git_revision(root)
     results = []
-    for check in expected_checks(task, profile):
+    for check in asked_checks(task, profile, relevance):
+        if only is not None and check["id"] not in only:
+            continue
         if check["kind"] == "command":
-            if unavailable and check["id"] in unavailable:
-                outcome = {
-                    "check": check["id"], "status": "skipped", "reason": unavailable[check["id"]],
-                    "owner": by, "environment_unavailable": True,
-                }
-            else:
-                outcome = _run_command(root, state, task, check, check["command"], timeout)
+            outcome = _run_command(root, state, task, check, check["command"], timeout)
         elif check["kind"] == "machine" and check["check"]["kind"] == "command":
             outcome = _run_command(root, state, task, check, check["check"]["command"], timeout)
         elif check["kind"] == "machine":
@@ -118,24 +168,6 @@ def run_command_checks(root: Path, state: Path, task: dict, profile: dict, timeo
             continue
         results.append({**outcome, **({"revision": revision["commit"]} if revision else {})})
     return results
-
-
-def command_diagnostics(root: Path, state: Path, task: dict, profile: dict) -> list[str]:
-    """Give the log and a short terminal-safe excerpt for failed checks that ran a command."""
-    outcomes = {item["check"]: item for item in task.get("result", {}).get("checks", [])}
-    lines = []
-    for check in expected_checks(task, profile):
-        command = check.get("command") or check.get("check", {}).get("command")
-        if not command or outcomes.get(check["id"], {}).get("status") != "failed":
-            continue
-        log = _command_log(state, task, check["id"])
-        lines.append(f"{check['id']} ({command}): log {log.relative_to(root).as_posix()}")
-        if log.is_file() and log.resolve().is_relative_to(state.resolve()):
-            tail = log.read_text(encoding="utf-8", errors="replace").splitlines()[1:][-6:]
-            for line in tail:
-                safe_line = "".join(character for character in line if character.isprintable() or character == "\t")
-                lines.append(f"    {safe_line[:300]}")
-    return lines
 
 
 def _evidence_reference(value: str, check_id: str) -> str:
@@ -151,23 +183,6 @@ def _evidence_reference(value: str, check_id: str) -> str:
             f"{check_id} evidence must be a project path such as docs/privacy/record.md or an https link."
         ) from None
     return value
-
-
-def evidence_files_missing(root: Path, payload: dict, task: dict, profile: dict) -> list[str]:
-    """Named evidences given as project paths that do not exist."""
-    named = {check["id"] for check in expected_checks(task, profile) if check["kind"] == "evidence"}
-    checks = payload.get("checks") if isinstance(payload, dict) else None
-    missing = []
-    # A malformed result is left to validate_result, which says what to fix.
-    for item in checks if isinstance(checks, list) else []:
-        if not isinstance(item, dict) or not isinstance(item.get("check"), str) or item["check"] not in named:
-            continue
-        if item.get("status") != "passed":
-            continue
-        value = _evidence_reference(_text(item.get("evidence"), f"{item['check']} evidence"), item["check"])
-        if not value.startswith("https://") and not (root / value).exists():
-            missing.append(f"{item['check']}: {value} does not exist in the project.")
-    return missing
 
 
 def _text(value: object, field: str) -> str:
@@ -200,82 +215,171 @@ def decision_revision_message(changed: list[str]) -> str:
     return f"Project files changed since the approved revision ({shown}). Name the delivered revision or pull request."
 
 
-def validate_result(task: dict, profile: dict, payload: dict, source: str = "report",
-                    *, changed: list[str] | None = None) -> dict:
+# Fields of the result template that only explain it: a filled template is accepted as it is.
+TEMPLATE_NOTES = {"instructions", "recorded_by_verify", "not_concerned"}
+DONE_STATUSES = ("done", "done-with-reservations")
+
+
+def _revision(task: dict, payload: dict, changed: list[str] | None) -> dict:
+    """The delivered revision or pull request; a decision task that changed no project file needs neither."""
+    if not payload.get("revision") and not payload.get("pull_request"):
+        if changed:
+            raise _refusal(task, decision_revision_message(changed))
+        if is_decision_task(task):
+            return {}
+        raise _refusal(task, "Name the delivered revision or pull request: revision (a commit SHA) or pull_request.")
+    try:
+        return {key: _text(payload[key], key) for key in ("revision", "pull_request") if payload.get(key)}
+    except ValueError as error:
+        raise _refusal(task, str(error)) from None
+
+
+def _criterion(task: dict, item: object, known: dict, root: Path | None) -> dict:
+    """A criterion is met or not, with its evidence; verified_by ties it to a verify command or a test file."""
+    if not isinstance(item, dict) or not {"criterion", "status", "evidence"} <= item.keys() <= {
+            "criterion", "status", "evidence", "verified_by"}:
+        raise _refusal(task, "Each criterion has criterion, status (met or not-met), evidence and, optionally, "
+                             "verified_by.")
+    if item["status"] not in CRITERION_STATUSES:
+        raise _refusal(task, f"A criterion status is met or not-met, not {item['status']!r}.")
+    try:
+        entry = {key: _text(item[key], f"criterion {key}") for key in ("criterion", "status", "evidence")}
+    except ValueError as error:
+        raise _refusal(task, str(error)) from None
+    verified = item.get("verified_by")
+    if verified:
+        verified = verified.strip() if isinstance(verified, str) else ""
+        if verified.startswith("command:"):
+            if known.get(verified, {}).get("kind") != "command":
+                raise _refusal(task, f"verified_by {verified} is not a check command of the task (see task checks).")
+        else:
+            try:
+                validate_path(verified, "verified_by", pattern=False)
+            except ValueError:
+                raise _refusal(task, "verified_by names a check command such as command:1 or a test file of "
+                                     "the project such as tests/test_access.py.") from None
+            if root is not None and not (root / verified).is_file():
+                raise _refusal(task, f"verified_by {verified} does not exist in the project.")
+        entry["verified_by"] = verified
+    return entry
+
+
+def _pack_answers(task: dict, payload: dict) -> list[dict]:
+    """One answer can cover every rule of a pack: passed or failed with evidence, skipped or not-applicable
+    with a reason and the person who owns it. A pack entry left with an empty status is not answered yet."""
+    packs = payload.get("packs", [])
+    scope = {pack["id"] for pack in task["consultation"]["scope"].get("packs", [])}
+    if not isinstance(packs, list):
+        raise _refusal(task, "packs must be a list of objects with pack, status and its evidence or reason and owner.")
+    answers = []
+    for item in packs:
+        if not isinstance(item, dict) or not {"pack", "status"} <= item.keys() <= {
+                "pack", "status", "evidence", "reason", "owner", "rules"}:
+            raise _refusal(task, "Each pack answer has pack, status, and evidence or reason and owner.")
+        if item["status"] == "":
+            continue
+        if item["pack"] not in scope:
+            raise _refusal(task, f"Pack {item['pack']!r} is not in the task's approved scope.")
+        if item["status"] not in RESULT_STATUSES:
+            raise _refusal(task, f"Pack {item['pack']} status is one of {', '.join(RESULT_STATUSES)}, "
+                                 f"not {item['status']!r}.")
+        fields = ("evidence",) if item["status"] in ("passed", "failed") else ("reason", "owner")
+        try:
+            answers.append({"pack": item["pack"], "status": item["status"],
+                            **{field: _text(item.get(field), f"{item['pack']} {field}") for field in fields}})
+        except ValueError as error:
+            raise _refusal(task, f"{error} A {item['status']} pack needs {' and '.join(fields)}.") from None
+    return answers
+
+
+def validate_result(task: dict, profile: dict, payload: dict, source: str = "report", relevance: dict | None = None,
+                    root: Path | None = None, *, changed: list[str] | None = None) -> dict:
     """A result names the delivered revision or PR, the acceptance criteria and each check's outcome.
 
     A report written by the agent (`source` "report") covers rules and criteria only: command
     checks and ChaosFolk replays are recorded by `task verify` ("verify"), which runs or reads them.
+    A blank status is a question left unanswered. A named evidence that cannot be recorded (a
+    missing file, or not-applicable where it must be supplied) is held back with the reason, under
+    "_held" (each with its check and message), and the rest is recorded: the task waits for that evidence.
     """
-    if task.get("status") not in ("approved", "done"):
+    if task.get("status") not in ("approved", *DONE_STATUSES):
         raise ValueError("Record results for an approved task.")
-    fields = {"revision", "pull_request", "criteria", "checks"} | ({"run"} if source == "verify" else set())
+    fields = {"revision", "pull_request", "criteria", "checks", "packs"} | TEMPLATE_NOTES
+    if source == "verify":
+        fields.add("run")
     if not isinstance(payload, dict) or not payload.keys() <= fields:
-        raise _refusal(task, "A result has revision or pull_request, criteria and checks.")
-    names_delivery = payload.get("revision") or payload.get("pull_request")
-    if changed and not names_delivery:
-        raise _refusal(task, decision_revision_message(changed))
-    if not is_decision_task(task) and not names_delivery:
-        raise _refusal(task, "Name the delivered revision or pull request: revision (a commit SHA) or pull_request.")
-    known = {check["id"]: check for check in expected_checks(task, profile)}
-    try:
-        result = {key: _text(payload[key], key) for key in ("revision", "pull_request") if payload.get(key)}
-    except ValueError as error:
-        raise _refusal(task, str(error)) from None
+        raise _refusal(task, "A result has revision or pull_request, criteria, checks and, optionally, packs.")
+    known = {check["id"]: check for check in expected_checks(task, profile, relevance)}
+    result = _revision(task, payload, changed)
     if "run" in payload:
         result["runs"] = [payload["run"]]
     criteria = payload.get("criteria", [])
     if not isinstance(criteria, list):
         raise _refusal(task, "criteria must be a list of objects with criterion, status and evidence.")
-    result["criteria"] = []
-    for item in criteria:
-        if not isinstance(item, dict) or item.keys() != {"criterion", "status", "evidence"}:
-            raise _refusal(task, "Each criterion has criterion, status (met or not-met) and evidence.")
-        if item["status"] not in CRITERION_STATUSES:
-            raise _refusal(task, f"A criterion status is met or not-met, not {item['status']!r}.")
-        try:
-            result["criteria"].append({key: _text(item[key], f"criterion {key}") for key in item})
-        except ValueError as error:
-            raise _refusal(task, str(error)) from None
+    result["criteria"] = [_criterion(task, item, known, root) for item in criteria
+                          if not (isinstance(item, dict) and not item.get("status") and not item.get("evidence"))]
+    result["packs"] = _pack_answers(task, payload)
     checks = payload.get("checks", [])
     if not isinstance(checks, list):
         raise _refusal(task, "checks must be a list of objects with check and status.")
-    result["checks"] = []
+    result["checks"], result["_held"] = [], []
     for item in checks:
-        if not isinstance(item, dict) or "check" not in item or "status" not in item:
-            raise _refusal(task, f"Each check has check and status ({', '.join(RESULT_STATUSES)}).")
-        try:
-            _check_source(item["check"], known, source)
-        except ValueError as error:
-            raise _refusal(task, str(error)) from None
-        if not isinstance(item["status"], str) or item["status"] not in RESULT_STATUSES:
-            raise _refusal(task, f"A check status is one of {', '.join(RESULT_STATUSES)}, not {item['status']!r}.")
-        if item["status"] == "passed" and item.get("exit_code", 0) != 0:
-            raise ValueError(f"{item['check']} has exit_code {item['exit_code']}: a check that exits non-zero cannot pass.")
-        entry = {"check": item["check"], "status": item["status"]}
-        if item["status"] not in ("passed", "failed") and known.get(item["check"], {}).get("must_supply"):
-            raise _refusal(
-                task,
-                f"{item['check']} must be supplied because {known[item['check']]['must_supply']}: "
-                "give a project path or an https link with status passed.",
-            )
-        fields = ("evidence",) if item["status"] in ("passed", "failed") else ("reason", "owner")
-        try:
-            entry.update({field: _text(item.get(field), f"{item['check']} {field}") for field in fields})
-        except ValueError as error:
-            needed = " and ".join(fields)
-            raise _refusal(task, f"{error} A {item['status']} check needs {needed}.") from None
-        if known.get(item["check"], {}).get("kind") == "evidence" and "evidence" in entry:
-            entry["evidence"] = _evidence_reference(entry["evidence"], item["check"])
-        if item.get("environment_unavailable") is True:
-            if source != "verify" or known.get(item["check"], {}).get("kind") != "command" or item["status"] != "skipped":
-                raise _refusal(task, f"{item['check']}: only a project command can be recorded as unavailable in task verify.")
-            entry["environment_unavailable"] = True
-        for key in ("exit_code", "seconds", "revision", "chaosfolk_status", "message"):
-            if key in item:
-                entry[key] = item[key]
-        result["checks"].append(entry)
+        if isinstance(item, dict) and item.get("status") == "":
+            continue
+        entry, held = _check_entry(task, item, known, source, root)
+        if held:
+            result["_held"].append({"check": entry["check"], "message": held})
+        else:
+            result["checks"].append(entry)
+    if not result["packs"] and "packs" not in payload:
+        result.pop("packs")
     return result
+
+
+def _check_entry(task: dict, item: object, known: dict, source: str, root: Path | None) -> tuple[dict, str]:
+    """One check outcome, or the reason a named evidence is held back."""
+    if not isinstance(item, dict) or "check" not in item or "status" not in item:
+        raise _refusal(task, f"Each check has check and status ({', '.join(RESULT_STATUSES)}).")
+    try:
+        _check_source(item["check"], known, source)
+    except ValueError as error:
+        raise _refusal(task, str(error)) from None
+    check = known.get(item["check"], {})
+    if not isinstance(item["status"], str) or item["status"] not in RESULT_STATUSES:
+        accepted = ", ".join(RESULT_STATUSES)
+        if check.get("kind") == "evidence":
+            accepted = SUPPLY if check.get("must_supply") else "passed or not-applicable"
+        raise _refusal(task, f"{item['check']} status is {accepted}, not {item['status']!r}.")
+    if item["status"] == "passed" and item.get("exit_code", 0) != 0:
+        raise ValueError(f"{item['check']} has exit_code {item['exit_code']}: a check that exits non-zero cannot pass.")
+    entry = {"check": item["check"], "status": item["status"]}
+    if item["status"] not in ("passed", "failed") and check.get("must_supply"):
+        return entry, (f"{item['check']} must be supplied because {check['must_supply']}: ask "
+                       f"{check['owner_role']} for {check['title']} (a project path or an https link). The agent "
+                       "does not write it.")
+    fields = ("evidence",) if item["status"] in ("passed", "failed") else ("reason", "owner")
+    if check.get("kind") == "evidence" and item["status"] == "passed":
+        fields = ("evidence", "owner")
+    try:
+        entry.update({field: _text(item.get(field), f"{item['check']} {field}") for field in fields})
+    except ValueError as error:
+        needed = " and ".join(fields)
+        if check.get("kind") == "evidence" and item["status"] == "passed":
+            needed += " (the person who provided or confirmed the document)"
+        raise _refusal(task, f"{error} A {item['status']} {check.get('kind', 'check')} needs {needed}.") from None
+    entry.update(recorded_value(task, item["check"], item))
+    if check.get("kind") == "evidence" and "evidence" in entry:
+        entry["evidence"] = _evidence_reference(entry["evidence"], item["check"])
+        value = entry["evidence"]
+        if root is not None and item["status"] == "passed" and not value.startswith("https://") and not (
+                root / value).exists():
+            return entry, f"{item['check']}: {value} does not exist in the project."
+    if item.get("cannot_run") is True and source == "verify" and check.get("kind") == "command":
+        entry["cannot_run"] = True
+    for key in ("exit_code", "seconds", "revision", "chaosfolk_status", "message"):
+        if key in item:
+            entry[key] = item[key]
+    return entry, ""
 
 
 def _check_source(check_id: object, known: dict, source: str) -> None:
@@ -296,6 +400,7 @@ def _check_source(check_id: object, known: dict, source: str) -> None:
 
 def merge_results(previous: dict | None, new: dict) -> dict:
     """Later reports replace earlier outcomes check by check; a new replay replaces every earlier scenario."""
+    new = {key: value for key, value in new.items() if key != "_held"}
     if not previous:
         return new
     replayed = any(run.get("tool") == "chaosfolk" for run in new.get("runs", []))
@@ -305,10 +410,76 @@ def merge_results(previous: dict | None, new: dict) -> dict:
     merged = {**previous, **{key: new[key] for key in ("revision", "pull_request") if key in new}}
     merged["criteria"] = new["criteria"] or previous.get("criteria", [])
     merged["checks"] = list(checks.values())
+    # The pack answers are those of the latest report that gives any; a pack whose rules a later
+    # report answers one by one loses its answer, so the result reads as it stands.
+    answered = {item["check"].split(":", 1)[1].split("/", 1)[0] for item in new.get("checks", [])}
+    packs = new["packs"] if "packs" in new else [item for item in previous.get("packs", []) if item["pack"] not in answered]
+    merged.pop("packs", None)
+    if packs:
+        merged["packs"] = packs
     merged["runs"] = [*previous.get("runs", []), *new.get("runs", [])]
     if not merged["runs"]:
         merged.pop("runs")
     return merged
+
+
+def declared_cannot_run(task: dict) -> dict:
+    """The check commands a person declared unable to run in this environment, by check ID."""
+    return {item["check"]: item for item in (task.get("result") or {}).get("checks", []) if item.get("cannot_run")}
+
+
+def keep_declarations(task: dict, ran: list[dict]) -> tuple[list[dict], list[str]]:
+    """A person's declaration that a command cannot run stays until the command passes or they withdraw it."""
+    declared = declared_cannot_run(task)
+    kept, notes = [], []
+    for outcome in ran:
+        declaration = declared.get(outcome["check"])
+        if declaration and outcome["status"] != "passed":
+            notes.append(f"{outcome['check']} still cannot run here: {declaration['owner']} declared it "
+                         f"({declaration['reason']}). The declaration stays until the command passes or "
+                         f"{declaration['owner']} withdraws it with task verify {task['id']} --withdraw "
+                         f"{outcome['check']} --by NAME.")
+            continue
+        if declaration:
+            notes.append(f"{outcome['check']} passes now: the declaration by {declaration['owner']} is replaced.")
+        kept.append(outcome)
+    return kept, notes
+
+
+def _swept(check: dict, result: dict) -> dict | None:
+    """The pack answer that covers this check, when one does: never a required rule or evidence, nor a
+    check that task verify records."""
+    if check.get("mandatory") or check.get("must_supply") or check["kind"] in ("command", "machine"):
+        return None
+    return next((item for item in result.get("packs", []) if item["pack"] == check.get("pack")), None)
+
+
+def outcomes(task: dict, profile: dict, relevance: dict | None = None) -> dict:
+    """Each asked check's outcome: reported one by one, or covered by a pack answer."""
+    result = task.get("result") or {}
+    reported = {item["check"]: item for item in result.get("checks", [])}
+    for check in asked_checks(task, profile, relevance):
+        if check["id"] not in reported:
+            pack = _swept(check, result)
+            if pack:
+                reported[check["id"]] = {**{key: value for key, value in pack.items() if key != "pack"},
+                                         "check": check["id"], "via_pack": pack["pack"]}
+    return reported
+
+
+def deferred_evidence(task: dict) -> dict:
+    return {item["check"]: item for item in (task.get("result") or {}).get("deferred", [])}
+
+
+def waiting_evidence(task: dict, profile: dict, relevance: dict | None = None) -> list[dict]:
+    """Named evidence that must be supplied and is not yet, with who provides it; deferred ones excluded."""
+    reported, deferred = outcomes(task, profile, relevance), deferred_evidence(task)
+    return [
+        {"check": check["id"], "title": check["title"], "owner": check["owner_role"], "why": check["must_supply"]}
+        for check in asked_checks(task, profile, relevance)
+        if check["kind"] == "evidence" and check["must_supply"] and check["id"] not in deferred
+        and reported.get(check["id"], {}).get("status") != "passed"
+    ]
 
 
 def _evidence_problems(check: dict, outcome: dict | None) -> list[str]:
@@ -316,15 +487,21 @@ def _evidence_problems(check: dict, outcome: dict | None) -> list[str]:
     supply = f"supply {check['title']} as a project path or an https link"
     if outcome is None:
         if check["must_supply"]:
-            return [f"{check['id']} has no answer: {supply} (it must be supplied because {check['must_supply']})."]
+            return [f"{check['id']} waits for {check['owner_role']}: {supply} (it must be supplied because "
+                    f"{check['must_supply']}), or hand it to a follow-up task with task complete --defer."]
         return [f"{check['id']} has no answer: {supply}, or declare it not-applicable with a reason and an owner."]
     if outcome["status"] == "passed" or (outcome["status"] == "not-applicable" and not check["must_supply"]):
         return []
     return [f"{check['id']} is {outcome['status']}: {supply}."]
 
 
-def completion_problems(task: dict, profile: dict, *, changed: list[str] | None = None) -> list[str]:
-    """Why the task cannot be declared done yet."""
+def completion_problems(task: dict, profile: dict, relevance: dict | None = None, *,
+                        changed: list[str] | None = None) -> list[str]:
+    """Why the task cannot be declared done yet: only the checks that concern it count.
+
+    A decision task needs no result unless its answers name an outcome; when it changed project
+    files, it names the delivered revision or pull request.
+    """
     decision = is_decision_task(task)
     result = task.get("result") or {}
     if not decision and not result:
@@ -332,19 +509,18 @@ def completion_problems(task: dict, profile: dict, *, changed: list[str] | None 
     problems = []
     if changed and not (result.get("revision") or result.get("pull_request")):
         problems.append(decision_revision_message(changed))
-    reported = {} if decision else {item["check"]: item for item in result.get("checks", [])}
-    for check in expected_checks(task, profile):
+    reported, deferred = outcomes(task, profile, relevance), deferred_evidence(task)
+    for check in asked_checks(task, profile, relevance):
         outcome = reported.get(check["id"])
         if check["kind"] == "evidence":
-            problems.extend(_evidence_problems(check, outcome))
+            if check["id"] not in deferred:
+                problems.extend(_evidence_problems(check, outcome))
         elif check["mandatory"]:
             if outcome is None:
                 problems.append(f"{check['id']} is mandatory and has no result.")
-            elif outcome["status"] != "passed" and not (
-                check["kind"] == "command" and outcome["status"] == "skipped"
-                and outcome.get("environment_unavailable") is True and outcome.get("reason") and outcome.get("owner")
-            ):
-                problems.append(f"{check['id']} is mandatory and {outcome['status']}.")
+            elif outcome["status"] != "passed" and not outcome.get("cannot_run"):
+                cause = f": {outcome['message']}" if outcome.get("message") else "."
+                problems.append(f"{check['id']} is mandatory and {outcome['status']}{cause}")
         elif outcome is None:
             problems.append(f"{check['id']} is not reported: pass, fail, skip or mark it not applicable.")
     for name, outcome in reported.items():
@@ -362,6 +538,96 @@ def completion_problems(task: dict, profile: dict, *, changed: list[str] | None 
         if criterion["status"] != "met":
             problems.append(f"Criterion not met: {criterion['criterion']}")
     return problems
+
+
+# File names and suffixes that cannot be a register, a decision or a policy: configuration, code, images.
+OTHER_TYPE_NAMES = {"dockerfile", "makefile", "package.json", "package-lock.json", "pyproject.toml", "requirements.txt",
+                    "docker-compose.yml", "compose.yaml", ".env", "readme.md", "agents.md", "claude.md"}
+OTHER_TYPE_SUFFIXES = {".py", ".js", ".ts", ".tsx", ".jsx", ".java", ".go", ".rb", ".php", ".cs", ".sh", ".sql",
+                       ".css", ".html", ".toml", ".yml", ".yaml", ".ini", ".cfg", ".lock", ".png", ".jpg", ".jpeg",
+                       ".gif", ".svg", ".webp", ".log"}
+NOT_RUN = re.compile(r"\b(not|never|non|pas|without)\s+(been\s+)?(executed|run|ran|exécutée?s?|lancée?s?)\b"
+                     r"|read from (the )?code|lu dans le code", re.IGNORECASE)
+
+
+def _evidence_warnings(passed: list[dict]) -> list[str]:
+    """Cheap signals that a named evidence is not the document it claims to be. Its content is never read."""
+    warnings = []
+    by_file: dict[str, list[str]] = {}
+    for item in passed:
+        by_file.setdefault(item["evidence"].casefold(), []).append(item["check"])
+        name = PurePosixPath(item["evidence"]).name.casefold()
+        if not item["evidence"].startswith("https://") and (
+                name in OTHER_TYPE_NAMES or PurePosixPath(name).suffix in OTHER_TYPE_SUFFIXES):
+            warnings.append(f"{item['check']} cites {item['evidence']}, which looks like configuration, code or an "
+                            "image rather than the named document.")
+    for value, checks in by_file.items():
+        if len(checks) > 1:
+            warnings.append(f"The same file is cited for {len(checks)} different named evidences: {', '.join(checks)}.")
+    return warnings
+
+
+def result_warnings(task: dict, profile: dict, relevance: dict | None = None) -> list[str]:
+    """What a reviewer should look at twice: answers that sweep rules the task's answers select, and weak evidence."""
+    result = task.get("result") or {}
+    checks = {check["id"]: check for check in asked_checks(task, profile, relevance)}
+    reported = outcomes(task, profile, relevance)
+    warnings = []
+    selected_packs = {check["pack"] for check in checks.values() if check.get("selected")}
+    sweeping = {item.get("via_pack") for item in reported.values()}
+    for item in result.get("packs", []):
+        if item["status"] == "not-applicable" and item["pack"] in selected_packs and item["pack"] in sweeping:
+            warnings.append(f"Pack {item['pack']} was declared not applicable as a whole by {item['owner']}, although "
+                            "the task's answers select it. Check each of its rules.")
+    not_applicable = [item for item in reported.values() if item["status"] == "not-applicable" and "via_pack" not in item]
+    reasons: dict[str, list[str]] = {}
+    for item in not_applicable:
+        reasons.setdefault(" ".join(item.get("reason", "").casefold().split()), []).append(item["check"])
+    for reason, names in reasons.items():
+        selected = [name for name in names if checks.get(name, {}).get("selected")]
+        if selected and len(names) > 1:
+            shown = ", ".join(selected[:5]) + (f" and {len(selected) - 5} more" if len(selected) > 5 else "")
+            warnings.append(f"{shown} {'is' if len(selected) == 1 else 'are'} selected by the task's "
+                            f"answers yet declared not applicable with the same reason as {len(names) - 1} other "
+                            "answer(s). Give the reason that applies to each.")
+    passed = [item for item in result.get("checks", []) if checks.get(item["check"], {}).get("kind") == "evidence"
+              and item["status"] == "passed"]
+    warnings += _evidence_warnings(passed)
+    statuses = {item["check"]: item["status"] for item in result.get("checks", [])}
+    for criterion in result.get("criteria", []):
+        if criterion["status"] == "met" and NOT_RUN.search(criterion["evidence"]):
+            warnings.append(f"Criterion \"{criterion['criterion']}\" is met on evidence that says it was not run.")
+        verified = criterion.get("verified_by", "")
+        if criterion["status"] == "met" and verified.startswith("command:") and statuses.get(verified) != "passed":
+            warnings.append(f"Criterion \"{criterion['criterion']}\" is met, but {verified} has not passed in task verify.")
+    return warnings
+
+
+def verification_of(criterion: dict, result: dict) -> str:
+    """What a met criterion rests on: its check or test, a check that has not passed, or a declaration only."""
+    verified = criterion.get("verified_by")
+    if not verified:
+        return "declared only"
+    statuses = {item["check"]: item["status"] for item in result.get("checks", [])}
+    if verified.startswith("command:") and statuses.get(verified) != "passed":
+        return f"{verified}, which has not passed"
+    return verified
+
+
+def criteria_summary(result: dict) -> str | None:
+    """How many met criteria are tied to a check or a test that holds, to one that has not passed, or only declared."""
+    met = [item for item in result.get("criteria", []) if item["status"] == "met"]
+    if not met:
+        return None
+    kinds = [verification_of(item, result) for item in met]
+    unproven = sum(kind.endswith("which has not passed") for kind in kinds)
+    declared = [item["criterion"] for item, kind in zip(met, kinds) if kind == "declared only"]
+    verified = len(met) - unproven - len(declared)
+    text = f"Criteria met: {verified} tied to a check or a test"
+    if unproven:
+        text += f", {unproven} tied to a check that has not passed"
+    text += f", {len(declared)} declared only"
+    return text + (f" ({'; '.join(declared)})." if declared else ".")
 
 
 CHAOSFOLK_STATUSES = {"passed": "passed", "failed": "failed", "error": "failed"}
@@ -429,34 +695,85 @@ def missing_scenarios(task: dict) -> list[str]:
     return sorted(runs[-2]["outcomes"].keys() - runs[-1]["outcomes"].keys())
 
 
+# The requirement of a named evidence, written with the statuses the result file accepts.
+SUPPLY = "passed"
+SUPPLY_OR_NOT_APPLICABLE = "passed-or-not-applicable"
+TEMPLATE_INSTRUCTIONS = (
+    "Fill status for each entry; leave an entry's status empty to answer it later. A rule is passed, failed, "
+    "skipped or not-applicable. Each entry of packs answers every rule it lists at once (passed or failed with "
+    "evidence, skipped or not-applicable with a reason and an owner); to answer one of its rules apart, add that rule "
+    "to checks. Any other pack that does not apply can be answered once in packs too: "
+    '{"pack": ID, "status": "not-applicable", "reason": ..., "owner": ...}. The owner of a not-applicable or skipped '
+    "answer is the person who decides it, and the reason is theirs: the agent proposes, the person confirms, and the "
+    "agent never writes a name the person did not give. A named evidence with requirement passed is a document its "
+    "owner provides (owner_role): ask them for it, never write it to pass the check. OpenGuildKit checks that a "
+    "project path exists; it does not read the document. A criterion can name verified_by: a check command such as "
+    "command:1 or a test file."
+)
+
+
 def _evidence_answer(check: dict) -> str:
-    """How to answer a named evidence in the result file."""
-    supplied = 'Supply it: status "passed" and evidence a project path or an https link.'
+    """How to answer a named evidence in the result file, with the statuses it accepts."""
+    supplied = (f'Status "passed" once the document exists: evidence its project path or https link, and owner '
+                f"the person who provided or confirmed it ({check['owner_role']}).")
     if check["must_supply"]:
-        return f"{supplied} It must be supplied because {check['must_supply']}."
-    return f'{supplied} Or, when it does not apply to this task: status "not-applicable" with a reason and an owner.'
+        return f"{supplied} Only passed is accepted, because {check['must_supply']}."
+    return f'{supplied} Or status "not-applicable", with a reason and an owner, when it does not apply to this task.'
 
 
-def result_template(task: dict, profile: dict, *, changed: list[str] | None = None) -> dict:
-    """A result file to fill: the acceptance criteria, every check a report covers and each named evidence."""
+def _pack_form(task: dict, asked: list[dict]) -> set[str]:
+    """Packs the template answers once: none of their rules is required, records a value or is selected by the
+    task's data or concerns, and none is a data protection, security or AI rule."""
+    packs: dict[str, bool] = {}
+    for check in asked:
+        if check["kind"] != "rule" or not check.get("pack"):
+            continue
+        whole = not (check["mandatory"] or check["selected"] or sensitive_area(check["pack"])
+                     or recorded_value(task, check["id"]))
+        packs[check["pack"]] = packs.get(check["pack"], True) and whole
+    return {pack for pack, whole in packs.items() if whole}
+
+
+def result_template(task: dict, profile: dict, relevance: dict | None = None, *,
+                    changed: list[str] | None = None) -> dict:
+    """A result file to fill: the criteria, every check that concerns the task and a report covers, and what is not asked.
+
+    The checks that task verify records and the packs that do not concern the task are listed in
+    the file itself, so standard output carries only JSON.
+    """
     outcome = task.get("answers", {}).get("outcome", "")
     if is_decision_task(task):
-        template = {"criteria": [{"criterion": outcome, "status": "", "evidence": ""}] if outcome else []}
+        template = {"criteria": [{"criterion": outcome, "status": "", "evidence": ""}] if outcome else [],
+                    "not_concerned": not_concerned(task, profile, relevance)}
         return {"revision": "", "pull_request": "", **template} if changed else template
-    checks = []
-    for check in expected_checks(task, profile):
-        if check["kind"] == "rule":
-            checks.append({"check": check["id"], "mandatory": check["mandatory"], "verification": check["verification"],
-                           "status": "", "evidence": "", "reason": "", "owner": ""})
+    asked = asked_checks(task, profile, relevance)
+    by_pack = _pack_form(task, asked)
+    checks, verify, packs = [], [], {}
+    for check in asked:
+        if check.get("pack") in by_pack and check["kind"] == "rule":
+            packs.setdefault(check["pack"], {"pack": check["pack"], "status": "", "evidence": "", "reason": "",
+                                             "owner": "", "rules": {}})["rules"][check["id"]] = check["verification"]
+        elif check["kind"] == "rule":
+            entry = {"check": check["id"], "verification": check["verification"],
+                     "status": "", "evidence": "", "reason": "", "owner": "", **recorded_value(task, check["id"])}
+            if check["mandatory"]:
+                entry["required"] = "passed with evidence (the profile's required_rules)"
+            checks.append(entry)
         elif check["kind"] == "evidence":
             checks.append({
-                "check": check["id"], "mandatory": True, "evidence_name": check["title"],
-                "must_supply": bool(check["must_supply"]), "answer": _evidence_answer(check),
-                "status": "", "evidence": "", "reason": "", "owner": "",
+                "check": check["id"], "evidence_name": check["title"], "owner_role": check["owner_role"],
+                "requirement": SUPPLY if check["must_supply"] else SUPPLY_OR_NOT_APPLICABLE,
+                "answer": _evidence_answer(check), "status": "", "evidence": "", "reason": "", "owner": "",
             })
+        else:
+            verify.append({"check": check["id"], "what": check.get("command") or check["verification"]})
     return {
+        "instructions": TEMPLATE_INSTRUCTIONS,
         "revision": "",
         "pull_request": "",
-        "criteria": [{"criterion": outcome, "status": "", "evidence": ""}],
+        "criteria": [{"criterion": outcome, "status": "", "evidence": "", "verified_by": ""}],
         "checks": checks,
+        "packs": list(packs.values()),
+        "recorded_by_verify": verify,
+        "not_concerned": not_concerned(task, profile, relevance),
     }

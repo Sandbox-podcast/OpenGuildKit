@@ -2,7 +2,7 @@
 
 import unittest
 
-from openguildkit.tools import load_tools, plan_connections
+from openguildkit.tools import NOT_RECORDED, load_tools, plan_connections
 
 
 class ToolRegistryTests(unittest.TestCase):
@@ -12,12 +12,14 @@ class ToolRegistryTests(unittest.TestCase):
             for server in tool["servers"]:
                 key = f"{tool_id}/{server['id']}"
                 with self.subTest(server=key):
+                    self.assertIn("access", server, "record whether the server reads, writes or both")
                     host = "claude-code" if server["transport"] == "sse" else "codex"
                     plan = plan_connections(catalog, [key], host, community=True)[0]
-                    self.assertIn(plan["access"]["mode"], ("read", "read-only", "read-write", "configurable"))
-                    self.assertTrue(plan["access"]["consent"])
-                    self.assertTrue(plan["access"]["scopes"])
-                    for field in ("capabilities", "maintainer", "status", "source"):
+                    review = plan["review"]
+                    self.assertFalse(review["access"].startswith(NOT_RECORDED), review["access"])
+                    for field in ("scopes", "read_only", "credentials", "covers", "publisher", "version"):
+                        self.assertTrue(review[field], field)
+                    for field in ("status", "source"):
                         self.assertTrue(plan[field], field)
 
     def test_every_variable_a_docker_server_declares_is_passed_to_its_container(self):

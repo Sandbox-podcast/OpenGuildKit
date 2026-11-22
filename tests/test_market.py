@@ -1,5 +1,6 @@
 import contextlib
 import copy
+import difflib
 import io
 import json
 import os
@@ -12,7 +13,8 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from openguildkit.cli import main
-from openguildkit.market import dossier_gaps, due_sources, validate_dossier
+from openguildkit import clock
+from openguildkit.market import dossier_gaps, due_sources, relevance_note, scope_entry, validate_dossier
 from openguildkit.storage import write_json
 
 REPO = Path(__file__).resolve().parents[1]
@@ -243,3 +245,77 @@ class MarketCommandTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MarketLayoutAndRelevanceTests(unittest.TestCase):
+    """A dossier keeps one layout, says when it is about another function, and records pages a person provided."""
+
+    URL = "https://example.com/vendor-a/release-notes"
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"]})
+        MarketCommandTests.cli(self, "init", "--answers", self.root / "profile.json")
+        self.path = self.root / ".openguildkit" / "market" / "support-portals.json"
+        self.path.parent.mkdir()
+        shutil.copy(REPO / "examples" / "market-dossier" / "support-portals.json", self.path)
+
+    def cli(self, *args, code=0):
+        return MarketCommandTests.cli(self, *args, code=code)
+
+    def changed_lines(self, *args):
+        """The lines a command removes and adds in the dossier file, as a unified diff counts them."""
+        before = self.path.read_text(encoding="utf-8").splitlines()
+        self.cli("market", *args)
+        after = self.path.read_text(encoding="utf-8").splitlines()
+        diff = list(difflib.unified_diff(before, after, lineterm="", n=0))[2:]
+        removed = [line[1:] for line in diff if line.startswith("-")]
+        added = [line[1:] for line in diff if line.startswith("+")]
+        return removed, added
+
+    def test_a_one_line_change_gives_a_one_line_diff(self):
+        self.assertEqual(self.changed_lines("describe", "support-portals", "--title", "Customer support portals"), ([], []))
+        self.assertEqual(self.changed_lines("describe", "support-portals", "--audience", "Support leads"),
+                         (['  "audience": "Customers of a support desk who follow their own requests",'],
+                          ['  "audience": "Support leads",']))
+        removed, added = self.changed_lines("unknown", "support-portals", "--text", "Renewal discounts.")
+        self.assertEqual(removed, ['    "Prices of direct competitors for the portal option."'])
+        self.assertEqual(added, ['    "Prices of direct competitors for the portal option.",', '    "Renewal discounts."'])
+        self.assertEqual(self.changed_lines("unknown", "support-portals", "--text", "Renewal discounts.", "--remove"),
+                         (added, removed))
+        removed, added = self.changed_lines("checked", "support-portals", "--url", self.URL, "--date", "2026-11-12")
+        self.assertEqual(len(removed), 1)
+        self.assertEqual(len(added), 1)
+        self.assertIn('"last_checked": "2026-11-12"', added[0])
+
+    def test_a_consultation_says_in_one_line_when_the_dossier_is_about_another_function(self):
+        dossier = validate_dossier(copy.deepcopy(DOSSIER), "support-portals")
+        note = scope_entry(dossier, "local-only", date(2026, 11, 20),
+                           brief="Recommend whether the pricing page should compare our plans with competitors.")
+        self.assertEqual(len(note["relevance"].splitlines()), 1)
+        self.assertIn("support-portals", note["relevance"])
+        self.assertNotIn("relevance", scope_entry(dossier, "local-only", date(2026, 11, 20),
+                                                  brief="Show the next step of each request in the customer portal."))
+        self.assertIsNone(relevance_note(dossier, "Add a portal page"))
+        self.cli("task", "new", "Recommend whether the pricing page should compare our plans with competitors.",
+                 "--id", "pricing")
+        write_json(self.root / "a.json", {"kind": "decision", "surface": ["business"], "data": "none", "research": "local"})
+        output = self.cli("task", "consult", "pricing", "--answers", self.root / "a.json", "--market", "support-portals")
+        self.assertIn('"relevance": "The dossier support-portals is about', output)
+
+    def test_under_local_only_a_person_records_a_page_they_provided(self):
+        due = self.cli("market", "due", "support-portals")
+        self.assertIn(self.URL, due)
+        self.assertIn("market provided", due)
+        self.assertIn("needs --by", self.cli("market", "provided", "support-portals", "--url", self.URL, code=1))
+        self.assertIn("not a watched source",
+                      self.cli("market", "provided", "support-portals", "--url", "https://example.com/other", "--by",
+                               "Camille Martin", code=1))
+        self.cli("market", "provided", "support-portals", "--url", self.URL, "--by", "Camille Martin")
+        source = json.loads(self.path.read_text(encoding="utf-8"))["watch"]["sources"][0]
+        self.assertEqual(source["provided_by"], "Camille Martin")
+        self.assertEqual(source["last_checked"], clock.today().isoformat())
+        self.assertEqual(self.cli("market", "due", "support-portals").strip(), "No source due for review.")
+        self.assertFalse(any(gap.startswith("- Change 1") for gap in self.cli("market", "check", "support-portals").splitlines()))

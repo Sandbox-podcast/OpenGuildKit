@@ -63,12 +63,23 @@ IMAGES = {"postgres": "PostgreSQL", "postgis/postgis": "PostgreSQL"}
 IMAGE_PREFIXES = ("docker.io/library/", "docker.io/", "library/")
 INFERRED = {"PostgreSQL", "MySQL"}
 UNVERSIONED = {"AWS", "Stripe"}  # SDK versions are not the versions of the services they use.
+ANDROID_NOTE = "the platform has no version of its own; see Android SDK and Android Gradle Plugin"
+
+
+def _sdk_note(spec: object) -> str:
+    """Why a service reached through an SDK has no version: the SDK's declared version is not the service's."""
+    declared = declared_version(spec)
+    if not declared:
+        return "the service itself has no version"
+    exact = declared[0].isdigit()
+    return f"SDK {'==' if exact else ''}{declared}, the service itself has no version"
 
 _VERSION = re.compile(r"\d+(?:\.\d+){0,2}")
 _GEM = re.compile(r"""(?m)^\s*gem\s+["']([\w.-]+)["'](?:\s*,\s*["']([^"']+)["'])?""")
 _ANDROID_PLUGIN = re.compile(r"com\.android\.(?:application|library|tools\.build:gradle)|"
                              r"libs\.plugins\.android\.(?:application|library)")
-_KOTLIN_PLUGIN = re.compile(r"org\.jetbrains\.kotlin|kotlin\(\s*[\"']|kotlin-android|libs\.plugins\.kotlin")
+_KOTLIN_PLUGIN = re.compile(r"org\.jetbrains\.kotlin|kotlin\(\s*[\"']|kotlin-android|libs\.plugins\.kotlin|"
+                            r"plugin:\s*[\"']kotlin[\"'-]")
 _REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])?\s*([^;#]*)")
 _KUBE_API = re.compile(r"""(?m)^apiVersion:[ \t]+["']?(?:([a-z0-9.-]+)/)?v\d+(?:[a-z]+\d+)?["']?[ \t]*(?:#.*)?$""")
 _KUBE_KIND = re.compile(r"""(?m)^kind:[ \t]+["']?([A-Z][A-Za-z0-9]*)["']?[ \t]*(?:#.*)?$""")
@@ -83,7 +94,7 @@ class _Component:
         self.path = path
         self.technologies: dict[str, dict] = {}
 
-    def add(self, name: str, version: str | None, evidence: str, inferred: bool = False) -> None:
+    def add(self, name: str, version: str | None, evidence: str, inferred: bool = False, note: str = "") -> None:
         if inferred:
             # A client library's version says nothing about the server it talks to.
             version = None
@@ -95,6 +106,9 @@ class _Component:
                 "evidence": evidence,
                 "inferred": inferred,
             }
+            # Why a technology carries no version although its manifest is read.
+            if note and not version:
+                self.technologies[name]["note"] = note
 
 
 def _read_text(path: Path) -> str | None:
@@ -132,7 +146,8 @@ def _package_json(component: _Component, path: Path, label: str) -> None:
             name = NPM_PACKAGES.get(package)
             if name:
                 version = None if name in UNVERSIONED else declared_version(spec)
-                component.add(name, version, label, inferred=name in INFERRED)
+                note = _sdk_note(spec) if name in UNVERSIONED else ""
+                component.add(name, version, label, inferred=name in INFERRED, note=note)
     engines = data.get("engines")
     if isinstance(engines, dict) and "node" in engines:
         component.add("Node.js", declared_version(engines["node"]), label)
@@ -147,7 +162,8 @@ def _python_requirement(component: _Component, line: str, label: str) -> None:
     if name:
         spec = match.group(2).strip().removeprefix("(").removesuffix(")")
         version = None if name in UNVERSIONED else declared_version(spec)
-        component.add(name, version, label, inferred=name in INFERRED)
+        note = _sdk_note(spec) if name in UNVERSIONED else ""
+        component.add(name, version, label, inferred=name in INFERRED, note=note)
 
 
 def _pyproject(component: _Component, path: Path, label: str) -> None:
@@ -179,7 +195,8 @@ def _pyproject(component: _Component, path: Path, label: str) -> None:
                 if name:
                     spec = spec.get("version") if isinstance(spec, dict) else spec
                     version = None if name in UNVERSIONED else declared_version(spec)
-                    component.add(name, version, label, inferred=name in INFERRED)
+                    note = _sdk_note(spec) if name in UNVERSIONED else ""
+                    component.add(name, version, label, inferred=name in INFERRED, note=note)
 
 
 def _requirements(component: _Component, path: Path, label: str) -> None:
@@ -208,7 +225,8 @@ def _maven(component: _Component, path: Path, label: str) -> None:
 
 
 def _gradle_plugin_version(text: str, plugin: str) -> str | None:
-    match = re.search(rf"""{plugin}['"]?\)?\s+version\s*\(?\s*['"]([^'"]+)""", text)
+    # The group keeps an alternation in plugin from splitting the whole expression.
+    match = re.search(rf"""(?:{plugin})['"]?\)?\s+version\s*\(?\s*['"]([^'"]+)""", text)
     return declared_version(match.group(1)) if match else None
 
 
@@ -248,11 +266,14 @@ def _gradle(component: _Component, path: Path, label: str, root: Path) -> None:
     if has_kotlin:
         explicit = _gradle_plugin_version(text, r"""org\.jetbrains\.kotlin\.[\w-]+|kotlin\(\s*['"][\w-]+""")
         classpath = re.search(r"""org\.jetbrains\.kotlin:kotlin-gradle-plugin:([^'"\s]+)""", text)
-        version = explicit or (declared_version(classpath.group(1)) if classpath else None)
+        # An old-style build names the version in a variable: ext.kotlin_version = '1.9.24'.
+        variable = re.search(r"""\bkotlin_version\s*=\s*['"]([^'"]+)['"]""", text)
+        version = explicit or (declared_version(classpath.group(1)) if classpath else None) \
+            or (declared_version(variable.group(1)) if variable else None)
         component.add("Kotlin", version or kotlin, label if version or not kotlin else catalog_label)
     android = next((version for plugin, version in catalog.items() if plugin.startswith("com.android.")), None)
     if _ANDROID_PLUGIN.search(text) or any(plugin.startswith("com.android.") for plugin in catalog):
-        component.add("Android", None, label)
+        component.add("Android", None, label, note=ANDROID_NOTE)
         sdk = re.search(r"\bcompileSdk(?:Version)?\s*(?:=\s*|\(\s*)?(\d+)", text)
         if sdk:
             component.add("Android SDK", sdk.group(1), label)

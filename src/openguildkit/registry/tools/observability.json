@@ -36,9 +36,9 @@
           "capabilities": "Query metrics, logs, traces, monitors, incidents and more; toolsets selectable with ?toolsets=.",
           "source": "https://docs.datadoghq.com/mcp_server/setup.md",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read"
-          }
+          "access": "Logs, metrics, traces, dashboards, monitors, incidents, hosts, services, events and notebooks (core toolset; ?toolsets= adds others); write tools create or modify resources, such as monitors, host mutes and dashboards.",
+          "scopes": "OAuth 2.0 (recommended), a personal or service access token, or DD_API_KEY and DD_APPLICATION_KEY headers; the user role needs mcp_read and, for write tools, mcp_write plus each resource's permission. Org settings MCP Access and MCP Write Access (off hides write tools from every user).",
+          "reviewed": "2026-11-21"
         }
       ],
       "api": {
@@ -78,9 +78,7 @@
           "capabilities": "Query Grail data with DQL, problems, vulnerabilities and Davis AI insights from the agent.",
           "source": "https://docs.dynatrace.com/docs/dynatrace-intelligence/dynatrace-mcp",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read"
-          }
+          "access": "Read operations described; no enforced read-only mode is recorded."
         }
       ],
       "api": {
@@ -128,9 +126,7 @@
           "capabilities": "Expose Agent Builder tools (search, ES|QL and custom tools over Elasticsearch data) to MCP clients.",
           "source": "https://www.elastic.co/docs/solutions/search/agent-builder/mcp-server",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "configurable"
-          }
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         }
       ],
       "api": {
@@ -181,15 +177,14 @@
           "repository": "https://github.com/grafana/mcp-grafana",
           "license": "Apache-2.0",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write",
-            "consent": "Provision a Grafana service account token for the intended instance",
-            "scopes": [
-              "Service account roles and data source permissions"
-            ]
-          },
+          "access": "Read and write.",
+          "scopes": "Service account roles and data source permissions. Consent: Provision a Grafana service account token for the intended instance.",
           "read_only": {
-            "arg": "--disable-write"
+            "how": "The --disable-write flag turns off the write tools.",
+            "args": [
+              "mcp-grafana",
+              "--disable-write"
+            ]
           }
         }
       ],
@@ -224,9 +219,7 @@
           "capabilities": "Query datasets, inspect traces, boards, triggers and SLOs; X-MCP-Toolset header limits loaded tools.",
           "source": "https://docs.honeycomb.io/integrations/mcp/configuration-guide.md",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read"
-          }
+          "access": "Read operations described; no enforced read-only mode is recorded."
         }
       ],
       "api": {
@@ -271,9 +264,7 @@
           "capabilities": "Run NRQL queries, inspect entities, alerts, deployments and traces; some AI analysis tools are OAuth-only.",
           "source": "https://docs.newrelic.com/docs/agentic-ai/mcp/setup/",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read"
-          }
+          "access": "Read operations described; no enforced read-only mode is recorded."
         }
       ],
       "api": {
@@ -325,9 +316,7 @@
           "capabilities": "Manage incidents, services, schedules, on-call, escalation policies, event orchestrations and status pages.",
           "source": "https://docs.pagerduty.com/ai-automation/advance/pagerduty-mcp-server",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -376,13 +365,9 @@
           "repository": "https://github.com/getsentry/toolkit",
           "license": "FSL-1.1-Apache-2.0",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write",
-            "consent": "Sign in to Sentry and review the requested capabilities",
-            "scopes": [
-              "Authorized capabilities such as inspect, triage or project-management, within the user's Sentry access"
-            ]
-          }
+          "access": "Search errors, issues, traces and logs, analyse performance, triage issues and manage projects; the URL /mcp/{organizationSlug}/{projectSlug} narrows it to one organization or project.",
+          "scopes": "OAuth to the user's Sentry account; the page names no scope list. The user reviews the requested capabilities at sign-in, such as inspect, triage or project-management, within their Sentry access.",
+          "reviewed": "2026-11-21"
         },
         {
           "id": "sentry-cli-mcp",
@@ -409,15 +394,8 @@
           "repository": "https://github.com/getsentry/toolkit",
           "license": "FSL-1.1-Apache-2.0",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write",
-            "consent": "Sign in with the Sentry CLI or provide an authorized Sentry user token",
-            "scopes": [
-              "Baseline inspection: org:read, project:read, team:read, event:read",
-              "Triage: event:write",
-              "Project management: project:write, team:write"
-            ]
-          }
+          "access": "Read and write.",
+          "scopes": "Baseline inspection: org:read, project:read, team:read, event:read; Triage: event:write; Project management: project:write, team:write. Consent: Sign in with the Sentry CLI or provide an authorized Sentry user token."
         }
       ],
       "api": {

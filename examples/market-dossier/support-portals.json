@@ -12,7 +12,9 @@
     {"id": "a-status-page", "competitor": "vendor-a", "claim": "Shows a status and an expected response date for each request.", "feature": "Request status", "source": {"ref": "Sales call notes, synthetic example", "date": "2026-11-02"}},
     {"id": "email-only", "competitor": "email-updates", "claim": "Customers receive one email per status change and no list of open requests.", "source": {"ref": "Support team interview, synthetic example", "date": "2026-10-28"}}
   ],
-  "unknowns": ["Prices of direct competitors for the portal option."],
+  "unknowns": [
+    "Prices of direct competitors for the portal option."
+  ],
   "watch": {
     "every_days": 30,
     "paused": false,

@@ -1,0 +1,223 @@
+{
+  "about": "Thirty testers: 18 teams on their own projects, 3 scenarios played by 3 teams each, 3 teammates on one repository. Every name, company and figure is invented.",
+  "person": "Camille Martin",
+  "personas": [
+    {
+      "id": "fintech",
+      "who": "the CTO of a ten-person payments startup in Paris that moves card payments for merchants",
+      "language": "English",
+      "project": "a FastAPI service with PostgreSQL: pyproject.toml (fastapi, psycopg, stripe), app/payments.py with a small function that records a payment, tests with unittest, a Dockerfile, a .github/workflows/ci.yml",
+      "answers": "sector financial-services, personal data yes, roles engineering, security, finance and legal, host codex, guard enforce, tools Jira, GitHub, Snyk, Stripe and Datadog. They accept every regulation proposed and ask what each one costs them.",
+      "task": "add a refund function that only refunds a payment once, with tests",
+      "focus": "Regulations: read the rule plan (preview) and say whether a CTO understands what DORA, GDPR and PCI DSS will ask of each task; go through the named evidences that task result asks for; try to complete the task without them. Try guard enforce: call the guard hooks by hand as the docs describe and edit a file without an approved task."
+    },
+    {
+      "id": "hr-saas",
+      "who": "the lead developer of an HR software company (payroll and recruiting), a Rails shop",
+      "language": "English",
+      "project": "a Ruby on Rails skeleton: Gemfile (rails, pg), app/models/candidate.rb, config/database.yml, test/models/candidate_test.rb; you do not need Ruby installed, the check command can be a small script you write",
+      "answers": "sector general, personal data yes, roles engineering, hr, legal and product, host claude-code, guard observe, tools Linear, Factorial and Slack.",
+      "task": "add an AI model that scores and ranks job applicants from their CV before a recruiter sees them",
+      "focus": "Does the board treat this as the high-risk use it is (which brains are routed, which regulation is proposed, what the legal and HR brains ask)? Then a second task: export the time-off balances of employees to a CSV for the accountant. Use the Factorial and Linear mocks as evidence in a review."
+    },
+    {
+      "id": "ecommerce",
+      "who": "a front-end developer in a five-person online shop",
+      "language": "English",
+      "project": "a Next.js and TypeScript app: package.json (next, react, typescript, stripe, storybook as devDependency), src/components/Button.tsx, PriceTag.tsx and ProductCard.tsx as React function components with typed props and string unions, a CSS file with a few colour and spacing variables",
+      "answers": "sector e-commerce, personal data yes, roles frontend, design, marketing and product, host claude-code, guard observe, tools HubSpot, Google Analytics, Figma and Storybook.",
+      "task": "add a \"notify me when back in stock\" form on the product card",
+      "focus": "Storybook: follow docs/storybook.md to extract a design system from the three components (extract, propose, validate, generate) and judge the generated files. Then a marketing deliverable from the approved task (a landing page brief or a newsletter issue) and a tagged campaign link."
+    },
+    {
+      "id": "healthcare",
+      "who": "a developer at a company that sells appointment scheduling software to clinics in France and Germany",
+      "language": "English",
+      "project": "a Django project: manage.py, requirements.txt (django, psycopg), clinics/models.py with Patient and Appointment, clinics/tests.py",
+      "answers": "sector healthcare, personal data yes, roles engineering, security, legal and support, host other (their agent is not Claude Code or Codex), guard observe, tools Jira and Sentry. They decline one of the proposed regulations because their lawyer said it does not apply, and want that recorded.",
+      "task": "let a patient cancel an appointment from a link sent by SMS, without logging in",
+      "focus": "What does choosing the healthcare sector change, concretely? Is declining a regulation recorded and visible later? In the review, have the security brain block, then try the paths a team has: clear the blocker with evidence, waive it, request changes."
+    },
+    {
+      "id": "mobile",
+      "who": "the technical lead of a studio that builds iOS and Android apps for clients",
+      "language": "English",
+      "project": "a repository with two apps: ios/ (Package.swift declaring an iOS platform, Sources/App/LoginView.swift) and android/ (build.gradle with the Android and Kotlin plugins, app/src/main/java/.../LoginActivity.kt), plus a shared README",
+      "answers": "sector general, personal data yes, roles engineering, design and qa, host claude-code, guard observe, tools Figma, GitHub and BrowserStack. They expect the two apps to be seen as two components with their own rules.",
+      "task": "add biometric login to both apps",
+      "focus": "Detection and components: does openguildkit detect see two components and the right stacks? Do the mobile packs (accessibility, store release) apply to the right folder? Read AGENTS.md as the coding agent and say whether the rules for iOS and Android are clear and scoped."
+    },
+    {
+      "id": "analytics",
+      "who": "a data engineer at a B2B analytics company",
+      "language": "English",
+      "project": "a Go service with PostgreSQL and a dbt project: go.mod (pgx), cmd/ingest/main.go, dbt_project.yml, models/revenue.sql",
+      "answers": "sector general, personal data no, roles data, engineering, finance and product, host codex, guard observe, tools dbt, Snowflake, Datadog and Notion.",
+      "task": "this one is a decision, not a feature: should the company move its reporting from nightly batches to streaming? They have no measurements yet",
+      "focus": "A decision without evidence: do the brains say so, and is the decision brief useful to a manager? Then build a market dossier with the market commands only (new, competitor, observe, watch, check, due) for two competitors, with invented but plausible observations marked as provided by the team, and attach it to a second consultation."
+    },
+    {
+      "id": "agency",
+      "who": "the founder of a three-person marketing agency who is not a developer and uses an AI agent to maintain client sites",
+      "language": "English",
+      "project": "a WordPress site folder: wp-config-sample.php, wp-content/themes/client/style.css and functions.php, a package.json with only a build script",
+      "answers": "sector general, personal data yes (a newsletter list), roles marketing, communication, sales and design, host claude-code, guard observe, tools HubSpot, Mailchimp, Google Analytics and Canva. They do not know what a \"pack\" or a \"pattern\" is and answer with the defaults when a question is jargon.",
+      "task": "prepare the launch of a client's spring campaign: a landing page and a newsletter",
+      "focus": "Judge every question and message as a non-developer: note each word you had to look up. Use the deliverables (campaign brief, newsletter issue, social media plan), deliverable check, and the tagged link command. Is the result something an agency owner could send to a client?"
+    },
+    {
+      "id": "oss",
+      "who": "the maintainer of a small open-source TypeScript library, working alone on evenings",
+      "language": "English",
+      "project": "a TypeScript library: package.json (typescript, vitest), src/index.ts exporting two functions, test/index.test.ts, LICENSE",
+      "answers": "they accept every default and type as little as possible; no company, no tools except GitHub; guard off because they find it heavy at first.",
+      "task": "add a function that parses ISO 8601 durations",
+      "focus": "The minimal path: how many commands and minutes from zero to a first approved task? Then extend the catalog as the docs describe: a project pack with one rule that has a machine check (a file must exist), a project brain made with the skeleton command, and a project tool with its own mock. Report every place where the documentation was not enough."
+    },
+    {
+      "id": "game",
+      "who": "a back-end developer at a game studio running live services",
+      "language": "English",
+      "project": "a Node.js service: package.json (express, redis, jest), src/matchmaking.js, src/server.js, test/matchmaking.test.js",
+      "answers": "sector general, personal data yes (player accounts), roles backend, devops and security, host claude-code, guard enforce, tools Sentry, Datadog and Slack.",
+      "task": "add a rate limit to the matchmaking endpoint",
+      "focus": "Several things at once, as a busy team does: start the passes of all the boards at the same time (run the commands in parallel with & and wait), run two tasks in parallel, read task list while writing. Call the guard hooks by hand with the JSON a host sends, before and after approval. Report anything slow: time the commands that take more than a second."
+    },
+    {
+      "id": "city",
+      "who": "a developer at a contractor that builds the citizen portal of a city",
+      "language": "English",
+      "project": "a Java Spring Boot service: pom.xml (spring-boot-starter-web, thymeleaf), src/main/java/.../PermitController.java, src/main/resources/templates/permit.html, src/test/java/.../PermitControllerTest.java; you do not need Java, the check can be a script",
+      "answers": "sector public-sector, personal data yes, roles engineering, design, qa and legal, host other, guard observe, tools GitLab, SonarQube and Jira.",
+      "task": "add an online form to request a parking permit",
+      "focus": "Accessibility and proof for a public buyer: which rules apply, and can the team show an auditor what was decided? Export the decision record, then follow the docs to check a change in CI (guard --ci) on a git branch, and to set up signed approvals with a throwaway SSH key you generate in your workspace."
+    },
+    {
+      "id": "insurance",
+      "who": "a developer in the IT department of a mid-size insurer, used to heavy process",
+      "language": "English",
+      "project": "an ASP.NET Core service: Claims.csproj (Microsoft.NET.Sdk.Web), Controllers/ClaimsController.cs, appsettings.json, Claims.Tests/ClaimsTests.cs; you do not need .NET, the check can be a script",
+      "answers": "sector insurance, personal data yes, roles engineering, security, legal, finance and project-management, host claude-code, guard observe, tools Azure DevOps, SonarQube and Microsoft Teams.",
+      "task": "add a field for the claim handler's notes, visible to staff only",
+      "focus": "Life after setup: change the profile by hand (add a role, add a pack, change the research policy), run sync, check and update, and say whether each message tells you what happened to the tasks already consulted or approved. Plan the real MCP servers for the three tools (plan without --mock, with the settings they need) and judge whether an IT security officer would accept the plan as written."
+    },
+    {
+      "id": "edtech",
+      "who": "a full-stack developer at a company that makes a homework app for schools",
+      "language": "English",
+      "project": "a Laravel API and a Vue front end: composer.json (laravel/framework), app/Models/Pupil.php, package.json (vue, vite), src/components/HomeworkList.vue",
+      "answers": "sector education, personal data yes (pupils are minors), roles frontend, backend, legal and product, host codex, guard observe, tools Trello, Sentry and Google Workspace.",
+      "task": "let parents see their child's homework and grades",
+      "focus": "A real disagreement: review so that Product proceeds and Legal or Security does not, run the deliberation, have the person request changes, consult a second time, and approve. Is the history of the two rounds readable afterwards? Does the decision brief help a product manager decide?"
+    },
+    {
+      "id": "platform",
+      "who": "a platform engineer who maintains the cloud infrastructure of a software company; there is no application code in this repository",
+      "language": "English",
+      "project": "an infrastructure repository: main.tf with the AWS provider and an S3 bucket, k8s/deployment.yaml, .github/workflows/deploy.yml, Dockerfile",
+      "answers": "sector general, personal data no, roles devops, security and operations, host claude-code, guard observe, tools AWS, Terraform, PagerDuty and Grafana.",
+      "task": "rotate the database credentials and store them in a secrets manager",
+      "focus": "Infrastructure work through a board made for products: which brains and packs are relevant, which are noise? Then dependency alerts: write a small npm audit or pip-audit style report by hand, import it, confirm one alert as critical and see what it blocks; and export the documentation of the completed task with docs export."
+    },
+    {
+      "id": "ml",
+      "who": "a machine learning engineer in a team that ships a support chatbot built on a large language model",
+      "language": "English",
+      "project": "a Python project: pyproject.toml (mlflow, openai-style client named \"llm-client\"), bot/answer.py that builds a prompt from a knowledge base, evals/test_answers.py",
+      "answers": "sector general, personal data yes (support conversations), roles data, engineering, security, support and legal, host claude-code, guard observe, research public-sources because they want to cite papers, tools Notion and Slack.",
+      "task": "let the chatbot answer billing questions using the customer's invoices",
+      "focus": "AI work: which brains and rules does an LLM feature bring, and are the evaluation rules concrete? Research policy: with public-sources, what must the agent do before a web search (task authorize), and is that flow clear? Try to record evidence of source \"public\" and of source \"tool\" in a review, with good and bad values."
+    },
+    {
+      "id": "designsys",
+      "who": "the owner of the design system in a company with four product teams",
+      "language": "English",
+      "project": "a React component library with Storybook files: package.json (react, storybook, @storybook/react-vite), .storybook/main.ts, src/Button.tsx with Button.stories.tsx, src/Badge.tsx, and a hand-written storybook-static/index.json that lists four stories in the Storybook index format (version 5) so that you can try the import without building",
+      "answers": "sector general, personal data no, roles design, frontend and qa, host claude-code, guard observe, tools Figma, Storybook and Chromatic.",
+      "task": "add a \"loading\" state to the Button component",
+      "focus": "Storybook as the design reference: storybook import with your index file, then a review where the Design brain cites a story as evidence (a real one and one that does not exist). Storybook compose with a company URL. Use the Figma and Storybook mocks, and the Obscura mock as the QA brain would to look at a page."
+    },
+    {
+      "id": "support",
+      "who": "a support operations lead who writes Python scripts to help the support team",
+      "language": "English",
+      "project": "a small Python tools folder: requirements.txt (requests), scripts/weekly_report.py that counts tickets from a CSV file, tests/test_weekly_report.py, data/sample.csv with synthetic tickets",
+      "answers": "sector general, personal data yes (customer emails in tickets), roles support, customer-success and communication, host claude-code, guard observe, tools Zendesk, Jira, Slack and Notion.",
+      "task": "add the median first-response time to the weekly report",
+      "focus": "Tools as evidence: connect the mocks, find the related tickets in Zendesk and Jira, and cite them in the review. Then documentation: docs export of the completed task, read the pages as a colleague would, record a share with an expiry date, list it, revoke it, and check it."
+    },
+    {
+      "id": "freelance-fr",
+      "who": "une développeuse indépendante française qui démarre un nouveau projet pour un client et découvre l'outil ; elle écrit ses demandes en français et lit la documentation en français quand elle existe",
+      "language": "French for every brief, answer and review; write your report in English",
+      "project": "an empty folder at first: run the setup before any code exists, then add a small Flask app (requirements.txt, app.py, test_app.py)",
+      "answers": "she answers in French, picks the defaults she does not understand, host claude-code, tools Notion and GitHub.",
+      "task": "« ajouter une page de contact avec un formulaire qui envoie un e-mail au client »",
+      "focus": "A beginner's path in French: README.fr.md against the real commands, French briefs routed to the right brains, messages she cannot understand. Make the mistakes a newcomer makes: a command in the wrong folder, a typo in a task ID, an answers file with a missing comma, running init twice, deleting .openguildkit/tasks by accident, approving before the review."
+    },
+    {
+      "id": "monorepo",
+      "who": "the tech lead of a forty-developer company with one large repository",
+      "language": "English",
+      "project": "a monorepo: web/ (package.json with react and vite, src/App.tsx), api/ (pom.xml with spring-boot-starter-web, src/main/java/.../OrderController.java), infra/ (main.tf with the AWS provider), docs/",
+      "answers": "sector e-commerce, personal data yes, components web, api and infra with their own stacks, many roles (frontend, backend, devops, security, qa, product, project-management), host claude-code, guard observe, tools Jira, Confluence, GitHub, Snyk and SonarQube.",
+      "task": "add an order history page: an API endpoint and the page that shows it",
+      "focus": "Scale: with many roles and all brains, how many boards review a task and is the consultation still usable? Create forty tasks with a shell loop (different briefs across disciplines), read task list, time the commands, and look at how each brief was routed: list every route you find wrong. Check that the rules of each component only apply to its folder."
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "s1",
+      "host": "codex",
+      "tools": [
+        "jira",
+        "snyk",
+        "github"
+      ],
+      "teams": 3,
+      "extra": ""
+    },
+    {
+      "id": "s2",
+      "host": "claude-code",
+      "tools": [
+        "hubspot",
+        "google-analytics",
+        "stripe"
+      ],
+      "teams": 3,
+      "extra": "Before the consultation, copy {repo}/examples/market-dossier/support-portals.json to .openguildkit/market/support-portals.json in your project, and pass --market support-portals to task consult."
+    },
+    {
+      "id": "s3",
+      "host": "claude-code",
+      "tools": [
+        "sentry",
+        "github",
+        "datadog"
+      ],
+      "teams": 3,
+      "extra": "After the consultation, import {kit}/scenarios/s3/npm-audit.json as a dependency alert report as docs/alerts.md describes."
+    }
+  ],
+  "teammates": [
+    {
+      "id": "mate-ada",
+      "name": "Ada Example",
+      "work": "add a function that exports a customer's own requests as CSV text, with tests",
+      "extra": "You are the first to push. After your push, wait a little (run sleep 60 once), pull, and look at what your teammates changed and what it does to your project state."
+    },
+    {
+      "id": "mate-lin",
+      "name": "Lin Sample",
+      "work": "add an optional status filter to requests_for, with tests",
+      "extra": "Before you push, pull and rebase on what the others pushed. Say what happened to your approved task and your exported decision when the rules of the project changed under you."
+    },
+    {
+      "id": "mate-sam",
+      "name": "Sam Placeholder",
+      "work": "first change the team's setup, then fix a bug: requests_for must ignore the case of the email address",
+      "extra": "Start by changing the shared setup as the team agreed: accept the GDPR regulation the project had declined (edit the profile as the docs say, run sync and check), connect the Jira and GitHub mocks for the team (tools apply --mock), commit the files OpenGuildKit says to commit and push them early, so that your teammates receive the change while they work. Then do your bug fix through the flow."
+    }
+  ]
+}

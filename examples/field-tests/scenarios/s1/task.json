@@ -1,0 +1,4 @@
+{"id": "request-export", "brief": "Let signed-in customers export the history of their own support requests as a CSV file.",
+ "answers": {"kind": "feature", "surface": ["customer", "service"], "data": "personal", "research": "local",
+             "outcome": "A customer downloads a CSV with only the requests they opened.",
+             "affected": "Customers of the support portal"}}

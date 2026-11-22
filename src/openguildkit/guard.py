@@ -13,15 +13,21 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
 from . import clock
-from .decisions import approval_policy, check_decision, decision_payload, seal, stale_approval_message, verify_signature
+from .decisions import (
+    DECISIONS_DIR, approval_policy, check_decision, check_decision_seal, exported_boards, exported_records,
+    exported_rounds, history_message, record_digest, seal, shared_digest, stale_approval_message, verify_signature,
+)
 from .lock import LOCK_FILE, read_lock
 from .project import STATE_DIR, load_profile, profile_fingerprint
+from .results import verification_of
 from .storage import read_json, write_json
 from .task_index import tasks_with_status
-from .tasks import STATUSES, read_task
+from .tasks import STATUSES, read_task, task_path
+from .workflow import mock_evidence
 
 MODES = ("off", "observe", "enforce")
-DECISIONS_DIR = "decisions"
+# The mode when the profile cannot be read: the hook refuses edits, as in enforce, and says why.
+UNKNOWN_MODE = "unknown"
 STALE_DAYS = 14
 _PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Update|Add|Delete) File|Move to): (.+)$", re.MULTILINE)
 # Files the CLI writes through its own commands and the host settings the guard relies on.
@@ -139,6 +145,49 @@ def _context(event: str, text: str) -> str:
     return json.dumps({"hookSpecificOutput": {"hookEventName": name, "additionalContext": text}})
 
 
+# What the guard found: an approved task covers the work, no task covers it, the edit touches a file the guard
+# relies on, the guard could not check, or the edit stays outside the project's work.
+HOOK_OUTCOMES = ("covered", "uncovered", "protected", "unchecked", "outside")
+SCOPE_NOTE = (
+    "The guard does not compare the edited files with a task's scope: keep this work within the approved brief "
+    "and bring anything else back to the person."
+)
+
+
+def hook_answer(event: str, mode: str, outcome: str, detail: str = "") -> tuple[int, str, str]:
+    """The exit code, stdout and stderr for a hook, built from the mode and the outcome so words and code agree.
+
+    Only enforce refuses an edit (exit code 2, reason on stderr); observe lets it through and says it is flagged.
+    """
+    if mode == "off" or outcome == "outside":
+        return 0, "", ""
+    refuse = mode in ("enforce", UNKNOWN_MODE)
+    verdict = "Edit refused" if refuse else "Edit flagged, not blocked (guard: observe)"
+    if mode == UNKNOWN_MODE:
+        detail += "; the profile cannot be read, so the guard cannot know its mode and refuses edits as in enforce"
+    if outcome == "covered":
+        return 0, _context(event, f"OpenGuildKit: approved task(s) in progress: {detail}. {SCOPE_NOTE}"), ""
+    if event == "prompt":
+        if outcome != "unchecked":
+            return 0, _context(event, NO_TASK), ""
+        edits = "refused" if refuse else "flagged, not blocked,"
+        return 0, _context(event, f"OpenGuildKit: the guard could not run ({detail}). Tell the person; "
+                                  f"file edits are {edits} until it is fixed."), ""
+    if outcome == "protected":
+        message = (f"OpenGuildKit: {detail} is written by the openguildkit commands and the guard relies on it. "
+                   f"{verdict}: ask the person to run the openguildkit command that changes it.")
+    elif outcome == "uncovered":
+        # In observe, what happened comes first: the instruction must not read stronger than the flag.
+        advice = NO_TASK.removeprefix("OpenGuildKit: ")
+        message = (f"{NO_TASK} {verdict} for: {detail}." if refuse
+                   else f"OpenGuildKit: {verdict}: {detail}. {advice[0].upper()}{advice[1:]}")
+    else:
+        message = f"OpenGuildKit: the guard could not check this edit ({detail}). {verdict}: fix the cause or ask the person."
+    if refuse:
+        return 2, "", message
+    return 0, _context(event, message), ""
+
+
 def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict, hook_input: object) -> tuple[int, str, str]:
     """Return the exit code, stdout and stderr for a host hook."""
     mode = guard_mode(profile)
@@ -146,33 +195,21 @@ def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict
         return 0, "", ""
     approvals = covering_approvals(root, state, profile, catalog)
     if event == "prompt":
-        context = (
-            f"OpenGuildKit: approved task(s) in progress: {_describe(approvals)}. Keep changes within their scope."
-            if approvals else NO_TASK
-        )
-        return 0, _context(event, context), ""
+        return hook_answer(event, mode, "covered" if approvals else "uncovered", _describe(approvals))
     inside = [relative for relative in (_project_relative(root, path) for path in edited_paths(hook_input)) if relative]
     protected = [relative for relative in inside if _protected(relative)]
     work = [relative for relative in inside if not _protected(relative) and PurePosixPath(relative).parts[:1] != (STATE_DIR,)]
     if protected:
-        message = (
-            f"OpenGuildKit: {', '.join(protected)} is written by the openguildkit commands and the guard relies on it. "
-            "Edit refused: ask the person to run the openguildkit command that changes it."
-        )
-    elif work and not approvals:
-        message = f"{NO_TASK} Edit refused for: {', '.join(work)}."
-    elif work:
-        return 0, _context(event, f"OpenGuildKit: this edit falls under approved task(s) {_describe(approvals)}. "
-                                  "Keep it within that scope."), ""
-    else:
-        return 0, "", ""
-    if mode == "enforce":
-        return 2, "", message
-    return 0, _context(event, message), ""
+        return hook_answer(event, mode, "protected", ", ".join(protected))
+    if work and not approvals:
+        return hook_answer(event, mode, "uncovered", ", ".join(work))
+    if work:
+        return hook_answer(event, mode, "covered", _describe(approvals))
+    return hook_answer(event, mode, "outside")
 
 
 def _declared_mode(project: Path | None) -> str:
-    """The guard mode written in the profile, read without validation; enforce when it cannot be read."""
+    """The guard mode written in the profile, read without validation; unknown when it cannot be read."""
     try:
         start = project.resolve() if project is not None else Path.cwd().resolve()
         roots = [start] if project is not None else [start, *start.parents]
@@ -181,8 +218,8 @@ def _declared_mode(project: Path | None) -> str:
             return "off"
         mode = read_json(state / "project.json").get("guard", "off")
     except Exception:
-        return "enforce"
-    return mode if mode in MODES else "enforce"
+        return UNKNOWN_MODE
+    return mode if mode in MODES else UNKNOWN_MODE
 
 
 def _one_line(error: BaseException) -> str:
@@ -207,25 +244,7 @@ def run_hook(event: str, raw: str | None, project: Path | None, load) -> tuple[i
             raise ValueError("the hook input is not JSON") from error
         return guard_hook(event, root, state, profile, catalog, hook_input)
     except Exception as error:  # A guard that cannot decide must not let an edit through in enforce mode.
-        mode = mode or _declared_mode(project)
-        if mode == "off":
-            return 0, "", ""
-        reason = _one_line(error)
-        if event == "prompt":
-            return 0, _context(event, f"OpenGuildKit: the guard could not run ({reason}). Tell the person; "
-                                      "file edits are refused until it is fixed."), ""
-        message = f"OpenGuildKit: the guard could not check this edit ({reason}). Edit refused: fix the cause or ask the person."
-        if mode == "enforce":
-            return 2, "", message
-        return 0, _context(event, message), ""
-
-
-def _exported_boards(review: dict) -> list[dict]:
-    return [
-        {"id": entry["id"], "verdict": entry.get("challenge", {}).get("verdict"),
-         "recommendation": entry["recommendation"]}
-        for entry in review.get("boards", [])
-    ]
+        return hook_answer(event, mode or _declared_mode(project), "unchecked", _one_line(error))
 
 
 def export_decision(root: Path, state: Path, task: dict, profile: dict, output: Path | None = None) -> Path:
@@ -233,33 +252,36 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
 
     The record carries the approval payload, and its signature when there is one, so CI can recompute the seal.
     """
-    if task["status"] not in ("approved", "done"):
+    if task["status"] not in ("approved", "done", "done-with-reservations"):
         raise ValueError("Only an approved or completed task can be exported.")
     check_decision(task, root, profile)
+    path = output if output is not None else state / DECISIONS_DIR / f"{task['id']}.json"
+    _refuse_foreign_record(root, path, task)
     decision = task["decision"]
     record = {
-        "schema_version": 1,
+        "schema_version": RECORD_VERSION,
         "task": task["id"],
         "brief": task["brief"],
         "status": task["status"],
+        **({"waiting_for": task["waiting_for"]} if task.get("waiting_for") else {}),
         "profile_fingerprint": task["profile_fingerprint"],
+        "task_created_at": task["created_at"],
         "summary": task["review"]["summary"],
-        "boards": _exported_boards(task["review"]),
+        "boards": exported_boards(task["review"]),
+        # Evidence read from a mock is synthetic: the record says so to anyone who reads it later.
+        **({"mock_evidence": mock_evidence(task)} if mock_evidence(task) else {}),
         "decision": {key: decision[key] for key in ("by", "reason", "at", "seal", "base_revision") if key in decision},
+        # A record exported before completion says so; task complete asks for a new export.
+        "completed": "completed_at" in task,
     }
-    record["decision"]["payload"] = decision_payload(task, decision["by"], decision["reason"], decision.get("base_revision"))
+    if "completed_at" in task:
+        record["completed_at"] = task["completed_at"]
+    record["decision"]["payload"] = check_decision_seal(task)
     for key in ("signer", "signature"):
         if key in decision:
             record["decision"][key] = decision[key]
     if task.get("rounds"):
-        record["rounds"] = [
-            {"consultation_id": previous.get("consultation", {}).get("id"),
-             "summary": previous.get("review", {}).get("summary"),
-             "boards": _exported_boards(previous.get("review", {})),
-             "decision": {key: value for key, value in previous.get("decision", {}).items()
-                          if key in ("outcome", "by", "reason", "at")}}
-            for previous in task["rounds"]
-        ]
+        record["rounds"] = exported_rounds(task)
     if task.get("result"):
         record["result"] = {
             key: task["result"][key] for key in ("revision", "pull_request") if key in task["result"]
@@ -274,11 +296,66 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
             {key: item[key] for key in ("check", "reason", "owner")} for item in task["result"]["checks"]
             if item["check"].startswith("evidence:") and item["status"] == "not-applicable"
         ]
+        # The tool checks that a named evidence exists, never what it says: the record names who confirmed it.
+        supplied = [{"check": item["check"], "evidence": item["evidence"], "confirmed_by": item.get("owner")}
+                    for item in task["result"]["checks"]
+                    if item["check"].startswith("evidence:") and item["status"] == "passed"]
+        if supplied:
+            record["result"]["evidence_supplied"] = supplied
+            record["result"]["evidence_note"] = "OpenGuildKit checked that each path exists; it did not read the documents."
+        record["result"]["criteria"] = [
+            {"criterion": item["criterion"], "status": item["status"],
+             "verified_by": verification_of(item, task["result"])}
+            for item in task["result"].get("criteria", [])
+        ]
+        for key in ("packs", "warnings", "deferred"):
+            if task["result"].get(key):
+                record["result"][key] = task["result"][key]
+        if "closing" in task["result"]:
+            record["result"]["closing"] = task["result"]["closing"]
     if task.get("follows"):
         record["follows"] = task["follows"]["task"]
-    path = output if output is not None else state / DECISIONS_DIR / f"{task['id']}.json"
+    # The regulations and patterns the profile declined when the task was consulted, with who, when and why.
+    declined = task.get("consultation", {}).get("scope", {}).get("declined")
+    if declined:
+        record["declined"] = declined
+    # What was added after the approval (completion, result) is covered by a digest of the whole record.
+    record["record_sha256"] = record_digest(record)
     write_json(path, record)
     return path
+
+
+RECORD_VERSION = 2
+
+
+def _same_task(record: object, task: dict) -> bool:
+    """Whether an existing record is this task's own earlier export: same ID, same creation time when the record
+    names it, and an approval of one of this task's consultations (each has its own random ID)."""
+    if not isinstance(record, dict) or record.get("task") != task["id"]:
+        return False
+    if record.get("task_created_at", task["created_at"]) != task["created_at"]:
+        return False
+    payload = record.get("decision", {}).get("payload") if isinstance(record.get("decision"), dict) else None
+    ids = {task["consultation"]["id"], *(item.get("consultation", {}).get("id") for item in task["rounds"])}
+    return isinstance(payload, dict) and payload.get("consultation_id") in ids
+
+
+def _refuse_foreign_record(root: Path, path: Path, task: dict) -> None:
+    """Never replace a record that another task wrote, such as a teammate's decision with the same ID.
+
+    Only a regular file can hold a record: a device such as /dev/null, given with --output, receives it as is.
+    """
+    if not path.is_file():
+        return
+    try:
+        existing = read_json(path)
+    except (OSError, ValueError):
+        existing = None
+    if not _same_task(existing, task):
+        shown = path.resolve().relative_to(root.resolve()).as_posix() if root.resolve() in path.resolve().parents else str(path)
+        raise ValueError(f"{shown} holds a decision record of another task, such as a teammate's task with the same ID: "
+                         f"it is left as it is. Read it with openguildkit task list --decisions; export this task "
+                         "with --output to another file, or open it again under another ID.")
 
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess:
@@ -324,18 +401,54 @@ def _record_shape(record: dict, relative: str) -> None:
 
 def _record_problem(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path, earlier: set) -> str | None:
     """Why a decision record cannot cover the changes, or None when it can."""
+    found = _record_check(record, relative, fingerprint, policy, base_root, earlier)
+    return found[1] if found else None
+
+
+def _record_check(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path,
+                  earlier: set) -> tuple[str, str] | None:
+    """The kind of problem a decision record has and its message, or None when it holds."""
+    found = _record_fault(record, relative, fingerprint, policy, base_root, earlier)
+    if found is None:
+        return None
+    if found == "earlier-rules":
+        return found, f"{relative}: {stale_approval_message(record['task'])}"
+    if found == "earlier-record":
+        return found, (f"{relative} was exported by an earlier release, before records carried a digest: its "
+                       f"content is not verified. Export it again with openguildkit task export {record['task']}.")
+    return "invalid-record", found
+
+
+def _record_fault(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path, earlier: set) -> str | None:
+    """What is wrong with a record: a message, or the kind "earlier-rules" or "earlier-record"; None when it holds.
+
+    Records written from RECORD_VERSION on carry two digests: the approval's seal covers what the record shows of
+    the approval, and record_sha256 the whole record. A record that has neither was exported by an earlier release.
+    """
     decision = record["decision"]
     payload = decision.get("payload")
+    export_again = f"Export it again with openguildkit task export {record['task']}, or restore the file from git."
     if record["task"] in earlier:
         return f"{relative}: task {record['task']} already had a decision on the base revision; open a new task for new work."
     if payload is None:
-        return f"{relative} carries no approval payload. Export it again with openguildkit task export {record['task']}."
+        return f"{relative} carries no approval payload. {export_again}"
     expected = {"task": record["task"], "outcome": "approved", "profile_fingerprint": record["profile_fingerprint"],
                 "by": decision["by"], "reason": decision["reason"]}
     if any(payload.get(key) != value for key, value in expected.items()) or seal(payload) != decision["seal"]:
-        return f"{relative}: the seal does not match the approval it records. Export the decision again from the task."
+        return f"{relative}: the seal does not match the approval it records. {export_again}"
+    if PurePosixPath(relative).parent.name == DECISIONS_DIR and PurePosixPath(relative).stem != record["task"]:
+        return f"{relative} names task {record['task']}: each record belongs in the file of its own task. {export_again}"
+    shown = shared_digest(record.get("brief"), record.get("summary"), record.get("boards"), record.get("rounds", []))
+    if "shared_sha256" in payload and payload["shared_sha256"] != shown:
+        return (f"{relative}: what the record shows (brief, summary, board verdicts and recommendations, earlier "
+                f"rounds) does not match what was approved. {export_again}")
+    current = record.get("schema_version", 1) >= RECORD_VERSION or "shared_sha256" in payload or "record_sha256" in record
+    if current and record.get("record_sha256") != record_digest(record):
+        return f"{relative} was changed after it was exported. {export_again}"
     if record["profile_fingerprint"] != fingerprint:
-        return f"{relative}: {stale_approval_message(record['task'])}"
+        return "earlier-rules"
+    if not current:
+        return "earlier-record"
     if policy["mode"] == "signed":
         if not isinstance(decision.get("signature"), str) or not isinstance(decision.get("signer"), str):
             return f"{relative}: the project requires signed approvals and this decision is not signed."
@@ -346,21 +459,49 @@ def _record_problem(record: dict, relative: str, fingerprint: str, policy: dict,
     return None
 
 
-def exported_decision_problems(root: Path, state: Path, profile: dict, fingerprint: str) -> list[str]:
-    """Check the exports kept in this project against the rules currently in use."""
-    problems = []
+def _has_local_task(state: Path, task_id: str) -> bool:
+    try:
+        return task_path(state, task_id).is_file()
+    except ValueError:
+        return False
+
+
+def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str) -> list[dict]:
+    """Every exported decision of the repository, teammates' included, and whether it still holds.
+
+    The record's twin of tasks.approval_problem: the same wording, an error for an approval not yet completed
+    and a note for a completed one, whose record is history.
+    """
+    rows = []
     policy = approval_policy(profile)
-    for path in sorted((state / DECISIONS_DIR).glob("*.json")):
+    for path, record in exported_records(state):
         relative = path.relative_to(root).as_posix()
+        row = {"task": path.stem, "path": relative, "status": "unreadable", "problem": None}
         try:
-            record = read_json(path)
+            if record is None:
+                raise ValueError(f"{relative} is not a decision record written by openguildkit task export. "
+                                 "Export the decision again or remove the file.")
             _record_shape(record, relative)
-            problem = _record_problem(record, relative, fingerprint, policy, root, set())
+            found = _record_check(record, relative, fingerprint, policy, root, set())
         except (OSError, ValueError) as error:
-            problem = str(error)
-        if problem:
-            problems.append(problem)
-    return problems
+            row["problem"] = {"kind": "invalid-record", "severity": "error", "message": str(error)}
+            rows.append(row)
+            continue
+        brief = str(record.get("brief", "")).strip().splitlines()
+        # Records exported before the completed field said it through their status.
+        completed = bool(record.get("completed", record.get("status") == "done"))
+        row.update(task=record["task"], status=record.get("status", "approved"), completed=completed,
+                   by=record["decision"]["by"], brief=brief[0][:80] if brief else "",
+                   local=_has_local_task(state, record["task"]))
+        if found:
+            kind, message = found
+            if kind == "earlier-rules" and completed:
+                message = f"{relative}: {history_message(record['task'])}"
+            note = kind == "earlier-record" or (kind == "earlier-rules" and completed)
+            row["problem"] = {"kind": kind, "severity": "note" if note else "error",
+                              "message": message}
+        rows.append(row)
+    return rows
 
 
 def _earlier_tasks(directory: Path) -> set:
@@ -372,6 +513,20 @@ def _earlier_tasks(directory: Path) -> set:
         except ValueError:
             continue
     return tasks
+
+
+def _no_base_profile(root: Path) -> str:
+    """Why nothing is enforced on a base without a profile, and the mode that applies once the profile is merged."""
+    if not (root / STATE_DIR / "project.json").is_file():
+        return ("The base revision has no OpenGuildKit profile and neither does this change: nothing to enforce. "
+                "Run openguildkit init to add one.")
+    expected = ("The base revision has no OpenGuildKit profile: nothing is enforced, which is expected for the pull "
+                "request that adds it.")
+    mode = _declared_mode(root)
+    if mode == UNKNOWN_MODE:
+        return f"{expected} The profile of this change cannot be read: fix it before it is merged."
+    return (f"{expected} The guard reads its mode from the base revision, so once the profile is merged the next pull "
+            f'requests are checked with the mode it sets ("guard": "{mode}" in this change).')
 
 
 def ci_guard(root: Path, base: str, catalog_for) -> dict:
@@ -389,8 +544,7 @@ def ci_guard(root: Path, base: str, catalog_for) -> dict:
         base_root = Path(directory)
         names = _git_lines(root, "ls-tree", "-r", "--name-only", base, "--", STATE_DIR)
         if f"{STATE_DIR}/project.json" not in names:
-            return {"mode": "off", "changed": len(work), "decisions": [], "problems": [
-                "The base revision has no OpenGuildKit profile: nothing to enforce yet."], "ok": True}
+            return {"mode": "off", "changed": len(work), "decisions": [], "problems": [_no_base_profile(root)], "ok": True}
         _extract_base(root, base, base_root, [name for name in names if not name.startswith(f"{STATE_DIR}/tasks/")])
         base_state = base_root / STATE_DIR
         catalog = catalog_for(base_state)

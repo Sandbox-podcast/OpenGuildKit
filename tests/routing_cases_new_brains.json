@@ -135,5 +135,356 @@
       "sales",
       "finance"
     ]
+  },
+  {
+    "brief": "Customer emails appear in the application logs",
+    "must_not": [
+      "communication"
+    ]
+  },
+  {
+    "brief": "Les adresses email des clients apparaissent dans les journaux",
+    "must_not": [
+      "communication"
+    ]
+  },
+  {
+    "brief": "Email customers about the planned maintenance",
+    "must": [
+      "communication"
+    ]
+  },
+  {
+    "brief": "Design a new onboarding flow with usability testing for first-time buyers",
+    "must": [
+      "design",
+      "product"
+    ],
+    "must_not": [
+      "sales"
+    ]
+  },
+  {
+    "brief": "Concevoir un parcours utilisateur pour les nouveaux acheteurs",
+    "must": [
+      "design"
+    ],
+    "must_not": [
+      "sales"
+    ]
+  },
+  {
+    "brief": "Add OpenTelemetry tracing and an SLO dashboard for the api",
+    "must": [
+      "devops",
+      "engineering"
+    ]
+  },
+  {
+    "brief": "Ajouter le traçage et un objectif de niveau de service à l'API",
+    "must": [
+      "devops"
+    ]
+  },
+  {
+    "brief": "Create a promo pricing engine for Black Friday discounts",
+    "must": [
+      "marketing",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Créer un code promo pour le programme de fidélité",
+    "must": [
+      "marketing"
+    ]
+  },
+  {
+    "brief": "Plan the Q1 roadmap and milestones for the loyalty programme",
+    "must": [
+      "product",
+      "marketing"
+    ]
+  },
+  {
+    "brief": "Add A/B test for the product page call to action",
+    "must": [
+      "data",
+      "marketing"
+    ]
+  },
+  {
+    "brief": "Lancer un test A/B sur la page produit",
+    "must": [
+      "data",
+      "marketing"
+    ]
+  },
+  {
+    "brief": "Store card payment tokens for one-click reorder",
+    "must": [
+      "security",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Stocker les jetons de paiement pour la commande en un clic",
+    "must": [
+      "security",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Fix the checkout button overflowing on small phone screens",
+    "must": [
+      "frontend"
+    ]
+  },
+  {
+    "brief": "Le bouton de paiement déborde sur petit écran",
+    "must": [
+      "frontend"
+    ]
+  },
+  {
+    "brief": "Upgrade Spring Boot from 3.3.0 to 3.4 in the api",
+    "must": [
+      "backend",
+      "engineering"
+    ]
+  },
+  {
+    "brief": "Add database indexes and cache for the orders table to reduce load",
+    "must": [
+      "backend"
+    ]
+  },
+  {
+    "brief": "Ajouter un index de base de données sur la table des commandes",
+    "must": [
+      "backend"
+    ]
+  },
+  {
+    "brief": "Implement an employee onboarding checklist and offboarding access removal",
+    "must": [
+      "hr",
+      "it-and-workplace"
+    ]
+  },
+  {
+    "brief": "Retrait des accès au départ d'un salarié",
+    "must": [
+      "it-and-workplace"
+    ]
+  },
+  {
+    "brief": "Set up GitHub Actions pipeline with dependency scanning and SBOM",
+    "must": [
+      "devops",
+      "security"
+    ]
+  },
+  {
+    "brief": "Add a CSV export to the report page. No personal data, no payments, no AI, no budget impact.",
+    "must_not": [
+      "security",
+      "finance",
+      "data"
+    ]
+  },
+  {
+    "brief": "Ajouter un export CSV. Aucune donnée personnelle, sans paiement, pas d'IA.",
+    "must_not": [
+      "security",
+      "finance",
+      "data"
+    ]
+  },
+  {
+    "brief": "Flag-off stub scorer for applicants: no model, no vendor",
+    "must": [
+      "hr"
+    ],
+    "must_not": [
+      "procurement"
+    ]
+  },
+  {
+    "brief": "Score fictif : aucun fournisseur, pas de modèle",
+    "must_not": [
+      "procurement"
+    ]
+  },
+  {
+    "brief": "Compare our pricing plans, no competitor research",
+    "must": [
+      "sales"
+    ],
+    "must_not": [
+      "marketing"
+    ]
+  },
+  {
+    "brief": "Comparer nos tarifs, sans analyse concurrentielle",
+    "must": [
+      "sales"
+    ],
+    "must_not": [
+      "marketing"
+    ]
+  },
+  {
+    "brief": "Weekly report as CSV; no customer email is written",
+    "must_not": [
+      "communication"
+    ]
+  },
+  {
+    "brief": "Refonte du libellé, pas de changement d'interface utilisateur",
+    "must_not": [
+      "design"
+    ]
+  },
+  {
+    "brief": "Rename the export button; it does not touch the API",
+    "must_not": [
+      "engineering"
+    ]
+  },
+  {
+    "brief": "Not only payments but also invoices change",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Ce n'est pas sans paiement",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Do not forget payments in the new checkout flow",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Don't skip the payment step when the cart is empty",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Never ignore failed payments in the report",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Ne pas oublier les paiements dans le nouveau tunnel",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "N'omettez pas les paiements refusés dans le rapport",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Sans paiement, la commande n'est pas validée : corriger ce cas",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Without a payment, the order is never confirmed: fix it",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Fix the label of the export; payments are out of scope",
+    "must_not": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Corriger le libellé ; les paiements sont hors périmètre",
+    "must_not": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Nothing to do with payments: fix a typo",
+    "must_not": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Rien à voir avec les paiements : corriger une coquille",
+    "must_not": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Avoid any changes to the pricing page",
+    "must_not": [
+      "sales"
+    ]
+  },
+  {
+    "brief": "Éviter toute modification de la tarification",
+    "must_not": [
+      "sales"
+    ]
+  },
+  {
+    "brief": "Avoid double payments when the customer clicks twice",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Rename the job without touching personal data or secrets",
+    "must_not": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Renommer la tâche sans toucher aux données personnelles ni aux secrets",
+    "must_not": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Fix a cell that starts with a quote in the CSV export",
+    "must_not": [
+      "finance",
+      "sales"
+    ]
+  },
+  {
+    "brief": "Corriger une cellule qui commence par une apostrophe ou des guillemets",
+    "must_not": [
+      "finance",
+      "sales"
+    ]
+  },
+  {
+    "brief": "Send the customer a price quote for the annual plan",
+    "must": [
+      "sales",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Envoyer un devis au client pour l'offre annuelle",
+    "must": [
+      "sales"
+    ]
   }
 ]

@@ -203,7 +203,7 @@ class StorybookConsultationTests(unittest.TestCase):
             self.assertIn("storybook:REF_STORY_ID", consultation)
             design_brief = cli("task", "pass", "status", "design")[0]
             self.assertIn("storybook:button--disabled", design_brief)
-            self.assertIn('"components-button--disabled"', design_brief)
+            self.assertIn("storybook:company_components-button--disabled", design_brief)
 
             template = json.loads(cli("task", "template", "status")[0])
             review = {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text())}

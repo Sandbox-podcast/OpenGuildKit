@@ -16,6 +16,7 @@ from openguildkit.project import (
     profile_recommendations,
     resolved_profile,
     rule_plan,
+    setup_profile,
     validate_profile,
 )
 from openguildkit.storage import write_json
@@ -218,20 +219,22 @@ class SectorQuestionTests(unittest.TestCase):
 
     def test_interactive_init_shows_the_preselection_and_records_the_decline(self):
         questions = init_questions(self.catalog, "Ledger")
-        # name, sector, stack, roles, personal data, DORA, patterns, packs, boards, tools, host, guard, research,
-        # conventions, checks.
-        replies = ["Ledger", "financial-services", "Python", "", "no", "n", "python-development", "", "", "", "", "",
-                   "", "", ""]
+        # name, sector, stack, roles, personal data, DORA with who and why, patterns, packs, boards, tools, host,
+        # guard, research, conventions, checks.
+        replies = ["Ledger", "financial-services", "Python", "", "no", "n", "Camille Martin", "Not under DORA Art. 2",
+                   "python-development", "", "", "", "", "", "", "", ""]
         errors = io.StringIO()
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", side_effect=replies), \
                 contextlib.redirect_stderr(errors):
             answers = _interactive_init(questions, self.catalog)
         self.assertIn("dora-financial-entity: sector financial-services", errors.getvalue())
         self.assertEqual(answers["patterns"], ["python-development"])
-        self.assertEqual(answers["declined"], ["dora-financial-entity"])
+        decline = {"answer": "no", "by": "Camille Martin", "reason": "Not under DORA Art. 2"}
+        self.assertEqual(answers["norms"], {"dora-financial-entity": decline})
         self.assertIs(answers["personal_data"], False)
-        profile = validate_profile(answers, self.catalog)
-        self.assertEqual(profile["declined"], ["dora-financial-entity"])
+        profile, _ = setup_profile(answers, self.catalog, questions)
+        self.assertEqual([entry["id"] for entry in profile["declined"]], ["dora-financial-entity"])
+        self.assertEqual(profile["declined"][0]["by"], "Camille Martin")
 
     def test_recommend_prints_the_reason_and_the_declined_patterns(self):
         with tempfile.TemporaryDirectory() as directory:

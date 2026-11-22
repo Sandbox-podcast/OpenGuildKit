@@ -192,6 +192,46 @@ class AlertFlowTests(unittest.TestCase):
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=CRITICAL):
             self.assertIn("(accepted)", self.cli("alerts", "accept", CRITICAL, "--by", "Camille", "--reason", "Behind a VPN."))
 
+    def test_a_person_sets_the_severity_pip_audit_leaves_unknown_and_it_then_blocks(self):
+        self.init()
+        self.cli("task", "new", "Upgrade Jinja in the report service.", "--id", "upgrade")
+        self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json")
+        self.cli("alerts", "set", JINJA, "--status", "confirmed", "--by", "Alex")
+        register_file = self.root / ".openguildkit" / "alerts.json"
+        task = {"id": "upgrade"}
+
+        def register():
+            return json.loads(register_file.read_text(encoding="utf-8"))
+
+        self.assertEqual(register()["alerts"][0]["severity"], "unknown")
+        self.assertEqual(blocking_alerts(register(), task), [])
+        self.assertIn("interactive terminal", self.cli("alerts", "severity", JINJA, "--level", "critical", "--by", "Bot",
+                                                       "--reason", "CVSS 9.8", code=1))
+        self.assertEqual(register()["alerts"][0]["severity"], "unknown")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=JINJA):
+            output = self.cli("alerts", "severity", JINJA, "--level", "critical", "--by", "Camille", "--reason", "CVSS 9.8")
+        self.assertIn("severity critical", output)
+        alert = register()["alerts"][0]
+        self.assertEqual({key: alert["severity_set"][key] for key in ("from", "by", "reason")},
+                         {"from": "unknown", "by": "Camille", "reason": "CVSS 9.8"})
+        self.assertEqual(len(blocking_alerts(register(), task)), 1)
+        self.cli("alerts", "import", FIXTURES / "pip-audit.json")
+        self.assertEqual(register()["alerts"][0]["severity"], "critical")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=JINJA):
+            self.cli("alerts", "severity", JINJA, "--level", "high", "--by", "Camille", "--reason", "Templates are ours")
+        self.assertEqual(blocking_alerts(register(), task), [])
+        self.cli("alerts", "import", FIXTURES / "osv-jinja2.json")
+        self.assertEqual(register()["alerts"][0]["severity"], "high")
+
+    def test_an_import_after_the_consultation_says_to_consult_again(self):
+        self.init()
+        self.cli("task", "new", "Upgrade Jinja in the report service.", "--id", "upgrade")
+        reminder = "run openguildkit task consult upgrade again"
+        self.assertNotIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json"))
+        write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local"})
+        self.cli("task", "consult", "upgrade", "--answers", self.root / "a.json")
+        self.assertIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "npm-audit-critical.json"))
+
     def test_a_confirmed_critical_alert_blocks_approval_and_completion(self):
         write_json(self.root / "p.json", {"name": "Portal", "stack": ["Python"], "packs": ["python"]})
         self.cli("init", "--answers", self.root / "p.json")

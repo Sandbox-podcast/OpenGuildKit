@@ -1,8 +1,10 @@
 """Local web interface: the built front end and a JSON API over the CLI, on the loopback interface only.
 
 The API runs the same commands a person types, in this process, one at a time. It never runs what needs a
-person at a terminal: approving a task without a signature, waiving a blocker, allowing an external action
-or accepting an alert. For those, it answers with the command to type.
+person at a terminal: approving a task or clearing a blocker without a signature, waiving a blocker, allowing an
+external action, accepting an alert or setting its severity, declaring that a check command cannot run, closing a
+task over sensitive points, or a profile change that weakens a protection. For those, it answers with the command
+to type.
 """
 
 from __future__ import annotations
@@ -41,7 +43,8 @@ DENIED_COMMANDS = {
     "ui": "The interface is already running.",
 }
 HUMAN_ONLY_TEXT = "A person runs this command in their own terminal: the interface never records it."
-TERMINAL_NEEDED = re.compile(r"interactive terminal|needs a terminal|person at a terminal|runs the command at", re.I)
+TERMINAL_NEEDED = re.compile(
+    r"interactive terminal|needs a terminal|at a terminal|in their own terminal|runs the command at", re.I)
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
        "font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; "
        "object-src 'none'")
@@ -57,7 +60,8 @@ class Refused(Exception):
 
 
 def _subcommand(args) -> str | None:
-    for name in ("action", "tools_action", "alerts_action", "deliverable_action", "docs_action", "mode"):
+    for name in ("action", "tools_action", "alerts_action", "deliverable_action", "docs_action", "profile_action",
+                 "mode"):
         value = getattr(args, name, None)
         if isinstance(value, str):
             return value
@@ -84,8 +88,12 @@ def check_request(args, argv: list[str], root: Path) -> None:
     human = None
     if command == "task" and action == "decide" and args.approve and not args.signature:
         human = "Approving a task needs a person at a terminal, or a signature in a project with signed approvals."
-    elif command == "task" and action == "verify" and args.unavailable:
-        human = "Recording an environment reservation needs a person at a terminal."
+    elif command == "task" and action == "verify" and (args.cannot_run or args.withdraw):
+        human = "Declaring that a check command cannot run here, or withdrawing it, needs the person at a terminal."
+    elif command == "task" and action == "clear" and not args.signature and not args.payload:
+        human = "Clearing a blocker without a signature needs the person at a terminal."
+    elif command == "task" and action == "complete" and args.by:
+        human = "Closing a task over sensitive points needs the person at a terminal."
     elif command == "tools" and action == "apply" and not args.mock:
         human = "Applying a live MCP plan needs confirmation at a terminal."
     elif command == "task" and action == "waive":
@@ -94,6 +102,8 @@ def check_request(args, argv: list[str], root: Path) -> None:
         human = "Allowing an external action needs a person at a terminal."
     elif command == "alerts" and action == "accept":
         human = "Accepting a confirmed alert needs a person at a terminal."
+    elif command == "alerts" and action == "severity":
+        human = "Setting the severity of an alert needs a person at a terminal."
     if human:
         raise Refused(f"{human} {HUMAN_ONLY_TEXT}", terminal_command(root, argv))
     if command == "guard" and args.hook:
@@ -291,7 +301,9 @@ class CliRunner:
                 data = _without(data, set(omit))
             if not keep_text:
                 stdout = ""
-        stderr = err.getvalue().replace(folder, "<upload>")
+        stderr = err.getvalue()
+        for shown in {str(Path(folder).resolve()), folder}:
+            stderr = stderr.replace(shown, "<upload>")
         result = {"code": code, "stdout": stdout, "stderr": stderr, "json": data}
         # Some decisions need a person at a terminal only in some cases (dismissing a critical alert):
         # the CLI says so, and the page shows the command to type.
@@ -538,8 +550,9 @@ class WebApp:
             "token": self.token,
             "project": {"root": str(self.root), "name": self.root.name,
                         "initialized": (self.root / ".openguildkit" / "project.json").is_file()},
-            "human_only": ["task decide --approve", "task waive", "task authorize --allow", "alerts accept",
-                           "task verify --unavailable", "tools apply (live)"],
+            "human_only": ["task decide --approve", "task clear", "task waive", "task authorize --allow",
+                           "task verify --cannot-run", "task verify --withdraw", "task complete --by", "alerts accept",
+                           "alerts severity", "profile (weakening a protection)", "tools apply (live)"],
         }
 
     def handle(self, path: str, body: dict):
@@ -569,13 +582,17 @@ class WebApp:
         raise Refused("Unknown endpoint.", status=HTTPStatus.NOT_FOUND)
 
     def save_profile(self, text) -> dict:
-        """Write .openguildkit/project.json and run sync; put the previous profile back when sync refuses it."""
+        """Write .openguildkit/project.json and run sync; put the previous profile back when sync refuses it.
+
+        A change that weakens a protection is the person's decision at a terminal, as with the profile commands:
+        it is refused with the command to type, and nothing is written."""
         from .storage import write_text
 
         if not isinstance(text, str):
             raise Refused("text must be a string.", status=HTTPStatus.BAD_REQUEST)
         try:
-            if not isinstance(json.loads(text), dict):
+            profile = json.loads(text)
+            if not isinstance(profile, dict):
                 raise ValueError("the profile is a JSON object")
         except ValueError as error:
             raise Refused(f"Invalid JSON: {error}", status=HTTPStatus.BAD_REQUEST) from None
@@ -583,6 +600,11 @@ class WebApp:
         if not target.is_file():
             raise Refused("The project is not initialized: set it up first.", status=HTTPStatus.CONFLICT)
         previous = target.read_text(encoding="utf-8")
+        weakening = weakening_changes(self.root, json.loads(previous), profile)
+        if weakening:
+            raise Refused(f"{'; '.join(change for change, _ in weakening)}: this weakens a protection, which is the "
+                          f"person's decision at an interactive terminal. {HUMAN_ONLY_TEXT} Nothing was written.",
+                          terminal_command(self.root, weakening[0][1]))
         with self.runner.lock:
             write_text(target, text if text.endswith("\n") else text + "\n")
         result = self.runner.run(["sync"])
@@ -591,6 +613,14 @@ class WebApp:
                 write_text(target, previous)
             result["restored"] = True
         return result
+
+
+def weakening_changes(root: Path, before: dict, after: dict) -> list[tuple[str, list[str]]]:
+    """What a hand-edited profile weakens, by the profile commands' own rule, each with the command to type."""
+    from .catalog import load_catalog
+    from .profile_cli import weakening_changes as weakened
+
+    return weakened(before, after, load_catalog(root / ".openguildkit" / "catalog"))
 
 
 class LocalServer(ThreadingHTTPServer):

@@ -97,7 +97,7 @@ class DecisionTests(unittest.TestCase):
         task, = json.loads(output)
         self.assertIsNone(task["owner"])
         self.assertEqual(task["approval_problem"], "invalid-seal")
-        _, error = self.run_cli("check")
+        _, error = self.run_cli("check", code=1)
         self.assertIn("no longer matches what was approved", error)
 
     @unittest.skipIf(shutil.which("ssh-keygen") is None, "needs ssh-keygen")

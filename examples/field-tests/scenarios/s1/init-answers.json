@@ -1,0 +1,5 @@
+{"name": "Acme Support Portal", "sector": "general", "stack": ["Python 3.12", "FastAPI", "PostgreSQL 16"],
+ "roles": ["engineering", "security", "qa"], "personal_data": "yes", "norms": {"gdpr-personal-data": "yes"},
+ "boards": ["product", "engineering", "security", "qa", "legal"], "tools": ["Jira", "Snyk", "GitHub"],
+ "host": "codex", "guard": "observe", "research": "local-only",
+ "checks": ["python3 -m unittest discover -s service -p \"test_*.py\""]}

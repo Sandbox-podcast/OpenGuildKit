@@ -5,13 +5,14 @@ The CLI validates it and attaches it to consultations; the host agent gathers th
 observations within the project's research policy.
 """
 
+import json
 import re
 import unicodedata
 from datetime import date, timedelta
 from pathlib import Path
 
 from . import clock
-from .storage import read_json, write_json
+from .storage import read_json, write_text
 
 MARKET_DIR = "market"
 KINDS = ("direct", "substitute")
@@ -19,6 +20,12 @@ _ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 STALE_DAYS = 180
 TO_DESCRIBE = "To describe."
+COMPETITOR_FIELDS = ("id", "name", "kind", "url", "segment")
+# Words that say nothing about a feature, in English and French, left out of the relevance check.
+_COMMON_WORDS = frozenset({
+    "the", "and", "for", "with", "from", "that", "this", "our", "their", "should", "whether", "what", "which", "when",
+    "how", "les", "des", "une", "pour", "avec", "dans", "sur", "que", "qui", "est", "par", "aux", "nos", "leur",
+})
 
 
 def dossier_path(state: Path, dossier_id: str) -> Path:
@@ -88,7 +95,8 @@ def validate_dossier(dossier: dict, dossier_id: str) -> dict:
             raise ValueError(f"Competitor IDs are unique lowercase slugs: {item['id']!r}.")
         if item["kind"] not in KINDS:
             raise ValueError("A competitor's kind is direct or substitute.")
-        competitors[item["id"]] = {key: (_text(item[key], key) if key != "kind" else item[key]) for key in item}
+        competitors[item["id"]] = {key: (_text(item[key], key) if key != "kind" else item[key])
+                                   for key in COMPETITOR_FIELDS if key in item}
     result["competitors"] = list(competitors.values())
     observations = []
     for index, item in enumerate(_list(dossier, "observations", "observations"), start=1):
@@ -98,10 +106,10 @@ def validate_dossier(dossier: dict, dossier_id: str) -> dict:
             "id": _text(item["id"], "observation id"),
             "competitor": _competitor(item, competitors, f"Observation {index}"),
             "claim": _text(item["claim"], "claim"),
-            "source": _source(item["source"], f"observation {index} source"),
         }
         if "feature" in item:
             observation["feature"] = _text(item["feature"], "feature")
+        observation["source"] = _source(item["source"], f"observation {index} source")
         observations.append(observation)
     if len({item["id"] for item in observations}) != len(observations):
         raise ValueError("Observation IDs must be unique.")
@@ -120,14 +128,19 @@ def validate_watch(watch: dict, competitors: dict) -> dict:
         raise ValueError("every_days is a whole number of days between 1 and 366.")
     sources = []
     for item in _list(watch, "sources", "watch.sources"):
-        if not isinstance(item, dict) or not {"competitor", "url", "kind"} <= item.keys() <= {"competitor", "url", "kind", "last_checked"}:
-            raise ValueError("Each watched source needs competitor, url and kind, and can add last_checked.")
+        if not isinstance(item, dict) or not {"competitor", "url", "kind"} <= item.keys() <= {
+                "competitor", "url", "kind", "last_checked", "provided_by"}:
+            raise ValueError("Each watched source needs competitor, url and kind, and can add last_checked and provided_by.")
         competitor = _competitor(item, competitors, "A watched source")
         if not isinstance(item["url"], str) or not item["url"].startswith("https://"):
             raise ValueError("Watched sources are public https pages.")
         source = {"competitor": competitor, "url": _text(item["url"], "url"), "kind": _text(item["kind"], "kind")}
         if "last_checked" in item:
             source["last_checked"] = _day(item["last_checked"], "last_checked")
+        if "provided_by" in item:
+            if "last_checked" not in item:
+                raise ValueError("A source provided by a person also has last_checked, the day it was provided.")
+            source["provided_by"] = _text(item["provided_by"], "provided_by")
         sources.append(source)
     changes = []
     for item in _list(watch, "changes", "watch.changes"):
@@ -140,7 +153,7 @@ def validate_watch(watch: dict, competitors: dict) -> dict:
     paused = watch.get("paused", False)
     if type(paused) is not bool:
         raise ValueError("paused is true or false, without quotes.")
-    return {"sources": sources, "every_days": every, "paused": paused, "changes": changes}
+    return {"every_days": every, "paused": paused, "sources": sources, "changes": changes}
 
 
 def load_dossier(state: Path, dossier_id: str) -> dict:
@@ -150,8 +163,35 @@ def load_dossier(state: Path, dossier_id: str) -> dict:
     return validate_dossier(read_json(path), dossier_id)
 
 
+def _json_list(items: list, indent: str) -> str:
+    """A list with one item per line, so that adding, changing or removing an item touches its own line."""
+    if not items:
+        return "[]"
+    inner = indent + "  "
+    return "[\n" + ",\n".join(inner + json.dumps(item, ensure_ascii=False) for item in items) + f"\n{indent}]"
+
+
+def _json_fields(fields: dict, indent: str) -> str:
+    inner = indent + "  "
+    lines = []
+    for key, value in fields.items():
+        if isinstance(value, dict):
+            text = _json_fields(value, inner)
+        elif isinstance(value, list):
+            text = _json_list(value, inner)
+        else:
+            text = json.dumps(value, ensure_ascii=False)
+        lines.append(f"{inner}{json.dumps(key)}: {text}")
+    return "{\n" + ",\n".join(lines) + f"\n{indent}}}"
+
+
+def dossier_text(dossier: dict) -> str:
+    """The dossier file: fields in a fixed order and one list item per line, so a one-line change is a one-line diff."""
+    return _json_fields(validate_dossier(dossier, dossier["id"]), "") + "\n"
+
+
 def save_dossier(state: Path, dossier: dict) -> None:
-    write_json(dossier_path(state, dossier["id"]), validate_dossier(dossier, dossier["id"]))
+    write_text(dossier_path(state, dossier["id"]), dossier_text(dossier))
 
 
 def new_dossier(dossier_id: str, fields: dict) -> dict:
@@ -232,6 +272,17 @@ def mark_checked(dossier: dict, url: str, day: str | None = None) -> dict:
     return validate_dossier({**dossier, "watch": {**watch, "sources": _checked(watch["sources"], url, day)}}, dossier["id"])
 
 
+def mark_provided(dossier: dict, url: str, by: str, day: str | None = None) -> dict:
+    """Record that a person reviewed a watched page and provided what it says, for a project under local-only."""
+    watch = _watch(dossier)
+    if not any(item["url"] == url for item in watch["sources"]):
+        raise ValueError(f"{url} is not a watched source of the dossier. Run market due to list them.")
+    by = _text(by, "--by")
+    day = _day(day or clock.today().isoformat(), "date")
+    sources = [{**item, "provided_by": by} if item["url"] == url else item for item in _checked(watch["sources"], url, day)]
+    return validate_dossier({**dossier, "watch": {**watch, "sources": sources}}, dossier["id"])
+
+
 def record_change(dossier: dict, change: dict, today: str | None = None) -> dict:
     """Keep a verified change; when its source is a watched page, that page counts as checked today."""
     watch = _watch(dossier)
@@ -269,6 +320,7 @@ def dossier_gaps(dossier: dict, research: str, today: date | None = None) -> lis
     for kind in KINDS:
         if kind not in kinds:
             gaps.append(f"No {kind} competitor is listed.")
+    provided = {item["url"] for item in dossier.get("watch", {}).get("sources", []) if "provided_by" in item}
     observed = {item["competitor"] for item in dossier["observations"]}
     for competitor in dossier["competitors"]:
         if competitor["id"] not in observed:
@@ -277,10 +329,10 @@ def dossier_gaps(dossier: dict, research: str, today: date | None = None) -> lis
         age = (today - date.fromisoformat(item["source"]["date"])).days
         if age > STALE_DAYS:
             gaps.append(f"Observation {item['id']} is {age} days old.")
-        if research == "local-only" and item["source"]["ref"].startswith("http"):
+        if research == "local-only" and item["source"]["ref"].startswith("http") and item["source"]["ref"] not in provided:
             gaps.append(f"Observation {item['id']} cites a public page although research is local-only: confirm it was provided.")
     for index, item in enumerate(dossier.get("watch", {}).get("changes", []), start=1):
-        if research == "local-only" and item["source"].startswith("http"):
+        if research == "local-only" and item["source"].startswith("http") and item["source"] not in provided:
             gaps.append(f"Change {index} ({item['competitor']}) cites a public page although research is local-only: "
                         "confirm a person provided it.")
     if research == "local-only":
@@ -302,31 +354,22 @@ def due_sources(dossier: dict, today: date | None = None) -> list[dict]:
     return due
 
 
-_STOP = frozenset("the and for with from that this into your their about what when then than also have has are was were "
-                  "des les une pour dans avec sur par est sont que qui aux ses leur cette".split())
+def _words(text: str) -> set[str]:
+    """Significant words of a text, without accents, case or a plural s."""
+    plain = unicodedata.normalize("NFKD", text.casefold()).encode("ascii", "ignore").decode()
+    return {word.removesuffix("s") for word in re.findall(r"[a-z0-9]{3,}", plain) if word not in _COMMON_WORDS}
 
 
-def _significant_words(text: str) -> set[str]:
-    words = set()
-    for word in re.findall(r"[^\W\d_]+", unicodedata.normalize("NFKD", text.casefold())):
-        word = "".join(ch for ch in word if not unicodedata.combining(ch))
-        if len(word) > 3 and word not in _STOP:
-            words.add(word[:-1] if word.endswith("s") and len(word) > 4 else word)
-    return words
-
-
-def relevance_note(dossier: dict, task_text: str) -> str | None:
-    """One line when the dossier's subject shares no word with the task: the boards would otherwise read
-    its gaps as the task's."""
-    subject = _significant_words(" ".join(str(dossier.get(key, "")) for key in ("title", "market", "feature")))
-    if not subject or subject & _significant_words(task_text):
+def relevance_note(dossier: dict, brief: str) -> str | None:
+    """One line when the dossier's feature shares no word with the task brief: it may be about another function."""
+    if dossier["feature"] == TO_DESCRIBE or _words(dossier["feature"]) & _words(brief):
         return None
-    return (f"The dossier {dossier['id']!r} is about {dossier['feature']!r} and the task does not mention it: "
-            "read its gaps as background, not as gaps of this task.")
+    return (f"The dossier {dossier['id']} is about \"{dossier['feature']}\", which shares no word with the task brief: "
+            "check that it is the right dossier before citing it, or describe its feature with market describe.")
 
 
-def scope_entry(dossier: dict, research: str, today: date | None = None, task_text: str = "") -> dict:
-    """What a consultation carries: observations and verified changes with their age, and the gaps."""
+def scope_entry(dossier: dict, research: str, today: date | None = None, brief: str | None = None) -> dict:
+    """What a consultation carries: observations and verified changes with their age, the gaps, and a relevance note."""
     today = today or clock.today()
     entry = {key: dossier[key] for key in ("id", "market", "audience", "feature", "competitors")}
     entry["observations"] = [
@@ -337,7 +380,7 @@ def scope_entry(dossier: dict, research: str, today: date | None = None, task_te
             {**item, "age_days": (today - date.fromisoformat(item["date"])).days} for item in dossier["watch"]["changes"]
         ]
     entry["gaps"] = dossier_gaps(dossier, research, today)
-    note = relevance_note(dossier, task_text) if task_text else None
+    note = relevance_note(dossier, brief) if brief else None
     if note:
         entry["relevance"] = note
     return entry

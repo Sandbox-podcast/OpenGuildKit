@@ -11,6 +11,8 @@ A dossier is a JSON file in `.openguildkit/market/ID.json`, shared through git. 
 - `observations` record what a competitor offers, each with a `source` (`ref` and `date`): a public page, a sales call note, an interview.
 - `unknowns` lists what the team still needs to find out.
 
+The commands write the file in one layout: fields in a fixed order and one competitor, observation, unknown, watched source or change per line, so that a change to one entry shows as a one-line diff in review (adding an entry also adds a comma to the line before). A dossier written by hand in another layout is rewritten in this one by the first command that changes it.
+
 Dates are written `YYYY-MM-DD` and cannot be in the future (one day of margin for time zones). Each list field must be a JSON list and `paused` is `true` or `false`; a malformed dossier gets a one-line error.
 
 ## Record through commands
@@ -29,7 +31,7 @@ openguildkit task consult TASK --answers answers.json --market ID
 
 `market new` creates a dossier that `market check` accepts; what is not given yet is marked "To describe." and listed as a gap. `market observe` with an existing observation ID replaces it, so a refresh keeps one entry.
 
-`market check` validates the dossier and lists its gaps: a field to describe, a missing kind of competitor, a competitor without an observation, observations older than 180 days, and, under the `local-only` research policy, observations and changes that cite a public page (to confirm a person provided them) and public research still to do. With `--market`, the consultation carries the observations with their age and the gaps. A board cites an observation as evidence with `"ref": "market:ID/OBSERVATION"`; the CLI refuses a reference that is not in the attached dossier. Under `local-only`, the dossier only holds material the team provided, and the gaps say what remains to document.
+`market check` validates the dossier and lists its gaps: a field to describe, a missing kind of competitor, a competitor without an observation, observations older than 180 days, and, under the `local-only` research policy, observations and changes that cite a public page (to confirm a person provided them) and public research still to do. With `--market`, the consultation carries the observations with their age and the gaps. When the dossier's `feature` shares no word with the task brief (as revised, if it was) and its `context` answer, the consultation adds a one-line `relevance` note that names the dossier and its feature, so the boards check it is the right dossier before citing it. A board cites an observation as evidence with `"ref": "market:ID/OBSERVATION"`; the CLI refuses a reference that is not in the attached dossier. Under `local-only`, the dossier only holds material the team provided, and the gaps say what remains to document.
 
 ## Competitor watch
 
@@ -39,11 +41,12 @@ A dossier can keep a `watch`: the public pages to follow per competitor (release
 openguildkit market watch ID --competitor vendor-a --url https://example.com/vendor-a/release-notes --kind "release notes" --every-days 30
 openguildkit market due ID                 # or --all for every dossier, --json for a script
 openguildkit market checked ID --url https://example.com/vendor-a/release-notes
+openguildkit market provided ID --url https://example.com/vendor-a/release-notes --by "Camille Martin"   # local-only
 openguildkit market change ID --competitor vendor-a --what "Added priority labels." --source https://example.com/vendor-a/release-notes --date 2026-11-10 --verified-by "Camille Martin"
 openguildkit market pause ID               # resume restarts the watch
 ```
 
-`market due` lists the sources whose last check is older than the interval. Under the `local-only` research policy the agent does not open the page: a person gives it to the agent, who records it with `market checked` or `market change`, and `market due` stops listing it until the interval passes again. A consultation flags a dossier whose subject shares no word with the task, so its gaps are read as background. The sources are reviewed only when the project's research policy allows public sources. `market checked` records a review with nothing to keep; `market change` records a retained change with what changed, its date, the source link and the person who verified it. Both set `last_checked` of the watched source to today (for `market change`, when its `--source` is a watched page). Consultations carry the changes with their age; a board cites one with `market:ID/change-N`. The CLI itself never opens the network.
+`market due` lists the sources whose last check is older than the interval. The sources are reviewed only when the project's research policy allows public sources. `market checked` records a review with nothing to keep; `market change` records a retained change with what changed, its date, the source link and the person who verified it. Both set `last_checked` of the watched source to today (for `market change`, when its `--source` is a watched page). Under the `local-only` research policy no agent opens the page: `market due` lists the sources due and says that a person reviews each one, then runs `market provided` with their name. That records `provided_by` and sets `last_checked` (today, or `--date`) on the watched source, so `market due` no longer lists it until the interval passes again, and `market check` no longer asks to confirm that the observations and changes citing that page were provided. Consultations carry the changes with their age; a board cites one with `market:ID/change-N`. The CLI itself never opens the network.
 
 ## The `market-analyst` agent
 

@@ -19,6 +19,9 @@
     "security",
     "legal"
   ],
+  "core_for": [
+    "procurement"
+  ],
   "packs": [
     "vendor-due-diligence"
   ],

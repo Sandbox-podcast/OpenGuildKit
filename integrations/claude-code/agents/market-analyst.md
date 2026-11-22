@@ -28,12 +28,13 @@ openguildkit market unknown ID --text "What is still unknown" [--remove]
 openguildkit market watch ID --competitor SLUG --url https://... --kind "release notes" [--every-days 30]
 openguildkit market due ID
 openguildkit market checked ID --url https://...
+openguildkit market provided ID --url https://... --by NAME
 openguildkit market change ID --competitor SLUG --what "..." --source https://... --date YYYY-MM-DD --verified-by NAME
 openguildkit market check ID
 ```
 
 - Every observation has a source and the date the information dates from, never a future date. A source is the document name or the public page address; under `local-only` it is a document the team gave you.
-- For each source that `market due` lists, read it (only under `public-sources`), then run `market checked` when nothing changed, or `market change` for each change you retain; both set `last_checked` to today. `--verified-by` names the person who confirmed the change, as the user gives it to you.
+- For each source that `market due` lists, read it (only under `public-sources`), then run `market checked` when nothing changed, or `market change` for each change you retain; both set `last_checked` to today. `--verified-by` names the person who confirmed the change, as the user gives it to you. Under `local-only`, do not open the due pages: ask the user to review them, and run `market provided` only with the name the user gives for a page they reviewed.
 - Include substitutes (a spreadsheet, an email routine, doing nothing), not only direct competitors.
 - Finish with `openguildkit market check ID` and show the gaps it lists. Report what you could not establish rather than guessing.
 

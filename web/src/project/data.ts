@@ -2,7 +2,7 @@
 import { useCallback } from 'react';
 import { ApiError, batch, cliMessage, readJson, type CliResult } from './api';
 import { useCli, useQuery, type Query } from './query';
-import type { AlertRegister, Brain, Guard, HostControl, MarketDue, Profile, Share, TaskListItem, Update } from './types';
+import type { AlertRegister, Brain, Guard, HostControl, MarketDue, Profile, Share, StaleTask, TaskListItem, Update } from './types';
 import type { PlaceKey } from '@/shared/pixel/buildings';
 import { isBlocked, shareState } from './labels';
 
@@ -75,7 +75,7 @@ export interface ProjectSignals {
   sharesExpired: number;
   marketDue: number;
   updates: number;
-  staleTasks: string[];
+  staleTasks: StaleTask[];
   hostMissing: number;
   blocked: TaskListItem[];
   awaitingDecision: TaskListItem[];

@@ -8,10 +8,10 @@ import { Badge, Button, Checkbox, KV, Notice, Panel, Tabs, TextArea, TextField }
 import { Icon } from '@/shared/pixel/icons';
 import { ApiError, cliMessage, currentSession, run, saveProfile } from '../api';
 import { useBrains, useProfile } from '../data';
-import { invalidate, useCli, useQuery } from '../query';
+import { invalidate, showTerminal, useAction, useCli, useQuery } from '../query';
 import { toast } from '@/shared/ui/toast';
 import { RESEARCH } from '../labels';
-import { ErrorNotice, JsonDetails, ListEditor, Q } from '../parts';
+import { ActionForm, ErrorNotice, JsonDetails, ListEditor, Q, useRemembered } from '../parts';
 import type { Profile, Question, Recommendation, RulePlan } from '../types';
 
 /* ------------------------------------------------------------------ setup */
@@ -76,11 +76,13 @@ export function Setup() {
   );
 }
 
-function SetupField({ q, value, onChange }: { q: Question & { type: string }; value: unknown; onChange: (v: unknown) => void }) {
+/** A setup question, with its one-line help in plain words (the CLI's help and what an unsure answer means). */
+function SetupField({ q, value, onChange }: { q: Question & { type: string; help?: string; unsure?: string }; value: unknown; onChange: (v: unknown) => void }) {
   const choices = q.choices ?? [];
-  if (q.type === 'text') return <TextField label={q.prompt} value={typeof value === 'string' ? value : ''} onChange={(e) => onChange(e.target.value)} />;
-  if (q.type === 'select') return <div className="field"><label htmlFor={`setup-${q.id}`}>{q.prompt}</label><select id={`setup-${q.id}`} className="input" value={String(value ?? '')} onChange={(e) => onChange(e.target.value || undefined)}>{choices.map((c) => <option key={c.id} value={c.id}>{RESEARCH[c.id] ?? c.label}</option>)}</select></div>;
-  if (q.type === 'list') return <ListEditor label={q.prompt} items={(value as string[]) ?? []} onChange={onChange} />;
+  const hint = [q.help, q.unsure ? `Sans réponse : ${q.unsure}` : ''].filter(Boolean).join(' ') || undefined;
+  if (q.type === 'text') return <TextField label={q.prompt} hint={hint} value={typeof value === 'string' ? value : ''} onChange={(e) => onChange(e.target.value)} />;
+  if (q.type === 'select') return <div className="field"><label htmlFor={`setup-${q.id}`}>{q.prompt}</label><select id={`setup-${q.id}`} className="input" value={String(value ?? '')} onChange={(e) => onChange(e.target.value || undefined)}>{value === undefined || value === null ? <option value="">Choisir…</option> : null}{choices.map((c) => <option key={c.id} value={c.id}>{RESEARCH[c.id] ?? c.label}</option>)}</select>{hint && <p className="hint">{hint}</p>}</div>;
+  if (q.type === 'list') return <ListEditor label={q.prompt} hint={hint} items={(value as string[]) ?? []} onChange={onChange} />;
   if (q.type === 'components') return <div className="field"><p className="label">{q.prompt}</p>{Array.isArray(q.default) && q.default.length ? <JsonDetails data={q.default} label={`${q.default.length} composant(s) détecté(s)`} /> : <p className="tiny muted">Aucun composant détecté : un seul composant à la racine.</p>}</div>;
   if (q.type === 'multi-select') {
     const selected = (value as string[]) ?? [];
@@ -124,7 +126,12 @@ async function save(next: Profile | string) {
     toast({ tone: 'success', title: 'Profil enregistré et instructions synchronisées' });
     invalidate();
     return true;
-  } catch (e) { toast({ tone: 'danger', title: 'Enregistrement impossible', text: (e as Error).message }); return false; }
+  } catch (e) {
+    // A lower guard, public research or a regulation dropped is the person's decision at a terminal.
+    if (e instanceof ApiError && e.command) showTerminal({ title: 'Changement du profil : à faire dans votre terminal', why: e.message, command: e.command, after: 'Remplacez NAME et WHY par votre nom et la raison. La commande demande de confirmer ; revenez ici et actualisez.' });
+    else toast({ tone: 'danger', title: 'Enregistrement impossible', text: (e as Error).message });
+    return false;
+  }
 }
 
 function ProfileEditor() {
@@ -139,7 +146,7 @@ function ProfileEditor() {
   const boards = Object.values(brains.data ?? {});
   return (
     <div className="page-grid">
-      <Notice tone="warn">Changer le profil change l’empreinte des règles : une quête validée sous l’ancien profil ne peut plus passer en réalisation. Ouvrez alors une nouvelle quête pour le même travail.</Notice>
+      <Notice tone="warn">Changer le profil change l’empreinte des règles : une quête validée sous l’ancien profil doit être consultée à nouveau, ou suivie d’une quête liée, avant sa réalisation. Baisser la garde, ouvrir la recherche publique ou retirer une réglementation se décide dans un terminal : l’interface donne la commande.</Notice>
       <div className="grid-2">
         <Panel title="Identité et politique">
           <TextField label="Nom du projet" value={draft.name} onChange={(e) => set('name', e.target.value)} />
@@ -167,12 +174,37 @@ function ProfileEditor() {
         <ListEditor label="Personnes autorisées à déroger à un blocage" items={draft.waivers?.allowed_by ?? []} onChange={(v) => set('waivers', v.length ? { allowed_by: v, max_days: draft.waivers?.max_days ?? 30 } : undefined)} placeholder="Camille Martin" />
         {draft.waivers && <TextField label="Durée maximale (jours)" type="number" value={String(draft.waivers.max_days)} onChange={(e) => set('waivers', { ...draft.waivers!, max_days: Number(e.target.value) || 1 })} />}
       </Panel>
+      <ProfileDecisions profile={draft} />
       <div className="sticky-actions row">
         <Button variant="primary" busy={busy} disabled={!dirty} onClick={async () => { setBusy(true); await save(draft); setBusy(false); }}>Enregistrer et synchroniser</Button>
         <Button disabled={!dirty} onClick={() => setDraft(profile.data ?? null)}>Annuler les modifications</Button>
         {dirty && <span className="small muted">Modifications non enregistrées</span>}
       </div>
     </div>
+  );
+}
+
+/** Adopt or decline a pattern or regulation with `profile`: who and why are recorded with the change. Declining a
+ * regulation weakens a protection: the CLI refuses it here and the page gives the command for the terminal. */
+function ProfileDecisions({ profile }: { profile: Profile }) {
+  const recommend = useCli<Recommendation>(['recommend', '--json']);
+  const [by, setBy] = useRemembered('decider');
+  const { act, busy } = useAction();
+  const active = new Set((profile.patterns ?? []).map((p) => (typeof p === 'string' ? p : p.id)));
+  const declined = (profile.declined ?? []).map((d) => (typeof d === 'string' ? { id: d, by: '', on: '', reason: '' } : d));
+  const candidates = [...(recommend.data?.matched ?? []), ...(recommend.data?.suggested ?? [])];
+  return (
+    <Panel title="Normes et patterns : décisions">
+      <p className="small muted">Adopter ou refuser une norme ou un pattern passe par <code>openguildkit profile</code>, qui note qui a décidé, quand et pourquoi, et réécrit les instructions.</p>
+      <ActionForm busy={busy !== null} submit="Enregistrer la décision" initial={{ by, action: 'adopt' }} fields={[
+        { name: 'action', label: 'Décision', required: true, options: [{ value: 'adopt', label: 'Adopter' }, { value: 'decline', label: 'Refuser (une réglementation : au terminal)' }] },
+        { name: 'pattern', label: 'Norme ou pattern', required: true, options: candidates.map((p) => ({ value: p.id, label: `${p.title}${active.has(p.id) ? ' (actif)' : ''}` })) },
+        { name: 'by', label: 'Personne qui décide', required: true },
+        { name: 'reason', label: 'Pourquoi', required: true },
+      ]} onSubmit={async (v) => { setBy(v.by); await act(['profile', v.action, v.pattern, '--by', v.by, '--reason', v.reason], { success: 'Profil changé' }); }} />
+      {declined.length > 0 && <><h3 className="h-card">Refusés</h3><ul className="small">{declined.map((d) => <li key={d.id}><span className="mono">{d.id}</span>{d.by && ` : ${d.by}, ${d.on} (${d.reason})`}</li>)}</ul></>}
+      {(profile.changes ?? []).length > 0 && <details className="small"><summary>Historique des changements ({profile.changes!.length})</summary><ul>{profile.changes!.map((c, i) => <li key={i}>{c.on} · {c.change} · {c.by} : {c.reason}</li>)}</ul></details>}
+    </Panel>
   );
 }
 

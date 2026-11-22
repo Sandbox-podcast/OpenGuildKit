@@ -59,6 +59,12 @@ class IntegrationTests(unittest.TestCase):
         self.run_cli("integrations", "--host", "codex")
         self.assertTrue((self.root / ".agents/skills/openguildkit/SKILL.md").is_file())
 
+    def test_integrations_prints_only_the_files_it_handled(self):
+        lines = self.run_cli("integrations", "--host", "claude-code").splitlines()
+        self.assertEqual(len(lines), len(HOST_FILES["claude-code"]))
+        for line in lines:
+            self.assertRegex(line, r"^\.claude/\S+\.md: (installed|unchanged|kept|replaced)")
+
     def test_the_version_file_names_a_file_kept_at_another_version(self):
         self.run_cli("integrations", "--host", "claude-code")
         skill = self.root / HOST_FILES["claude-code"]["skills/openguildkit/SKILL.md"]

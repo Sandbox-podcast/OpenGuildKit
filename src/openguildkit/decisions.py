@@ -14,6 +14,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from .storage import read_json
+
 NAMESPACE = "openguildkit-decision"
 
 
@@ -49,7 +51,49 @@ def changed_paths_since(root: Path, commit: str) -> list[str]:
     return change.stdout.splitlines()
 
 
-def decision_payload(task: dict, by: str, reason: str, base_revision: dict | None) -> dict:
+def exported_boards(review: dict) -> list[dict]:
+    """Each board's verdict and recommendation, as an exported record shows them."""
+    return [
+        {"id": entry["id"], "verdict": entry.get("challenge", {}).get("verdict"),
+         "recommendation": entry["recommendation"]}
+        for entry in review.get("boards", [])
+    ]
+
+
+def exported_rounds(task: dict) -> list[dict]:
+    """The earlier rounds as an exported record shows them: who decided what and why, and a revised brief."""
+    return [
+        {"consultation_id": previous.get("consultation", {}).get("id"),
+         "summary": previous.get("review", {}).get("summary"),
+         "boards": exported_boards(previous.get("review", {})),
+         "decision": {key: value for key, value in previous.get("decision", {}).items()
+                      if key in ("outcome", "by", "reason", "at")},
+         # The brief of that round when it was revised since, and why an approval was reopened.
+         **{key: previous[key] for key in ("brief", "reopened")
+            if key in previous and (key != "brief" or previous["brief"] != task["brief"])}}
+        for previous in task["rounds"]
+    ]
+
+
+def shared_digest(brief: str, summary: str, boards: list[dict], rounds: list[dict]) -> str:
+    """The digest of what an exported record shows of the approval; the approval's seal covers it."""
+    return _sha256({"brief": brief, "summary": summary, "boards": boards, "rounds": rounds})
+
+
+def task_shared_digest(task: dict) -> str:
+    return shared_digest(task["brief"], task["review"]["summary"], exported_boards(task["review"]), exported_rounds(task))
+
+
+def record_digest(record: dict) -> str:
+    """The digest of an exported record, without the field that holds it."""
+    return _sha256({key: value for key, value in record.items() if key != "record_sha256"})
+
+
+# Approvals sealed from this version on also cover what their exported record shows; earlier ones verify as before.
+PAYLOAD_VERSION = 2
+
+
+def decision_payload(task: dict, by: str, reason: str, base_revision: dict | None, version: int = PAYLOAD_VERSION) -> dict:
     """What an approval covers. The approver signs exactly this object in signed mode."""
     payload = {
         "task": task["id"],
@@ -71,6 +115,8 @@ def decision_payload(task: dict, by: str, reason: str, base_revision: dict | Non
         confirmed = sorted(item["board"] for item in adjustments if item.get("confirmation") == "pending")
         if confirmed:
             payload["confirmed_removals"] = confirmed
+    if version >= 2:
+        payload["shared_sha256"] = task_shared_digest(task)
     return payload
 
 
@@ -106,20 +152,64 @@ def verify_signature(root: Path, policy: dict, payload: dict, signature: str, si
         raise ValueError(f"The signature does not verify for {signer}: {result.stderr.decode(errors='replace').strip()}")
 
 
-def stale_approval_message(task_id: str) -> str:
-    return (f"The approval for {task_id} was recorded under earlier rules. "
-            f'Open a new task with openguildkit task new "BRIEF" --follows {task_id}.')
+DECISIONS_DIR = "decisions"
+
+
+def exported_records(state: Path) -> list[tuple[Path, dict | None]]:
+    """Every exported decision record of the repository, teammates' included; None for a file that is not one."""
+    records = []
+    for path in sorted((state / DECISIONS_DIR).glob("*.json")):
+        try:
+            record = read_json(path)
+        except (OSError, ValueError):
+            record = None
+        if not isinstance(record, dict) or not isinstance(record.get("task"), str):
+            record = None
+        records.append((path, record))
+    return records
+
+
+def ignored_by_git(root: Path, paths: list[str]) -> set[str]:
+    """The project paths that git ignores, so a teammate who pulls the repository will not have them."""
+    if not paths:
+        return set()
+    result = _git(root, "check-ignore", "--no-index", "--", *paths)
+    if result is None or result.returncode not in (0, 1):
+        return set()
+    return {line.strip().replace("\\", "/") for line in result.stdout.splitlines() if line.strip()}
+
+
+def reconsult_hint(task_id: str) -> str:
+    """The next command for an approval that no longer holds, the same in every message."""
+    return (f"Consult it again with openguildkit task consult {task_id}, "
+            f'or open a linked task with openguildkit task new "BRIEF" --follows {task_id}.')
+
+
+def stale_approval_message(task_id: str, changes: list[str] | None = None) -> str:
+    """One wording for an approval given under other rules, naming what changed when it is known."""
+    detail = f" ({'; '.join(changes)})" if changes else ""
+    return f"The approval for {task_id} was recorded under earlier rules{detail}. {reconsult_hint(task_id)}"
+
+
+def history_message(task_id: str, changes: list[str] | None = None, sealed: bool = True) -> str:
+    """A completed task whose approval predates the current rules or sealed decisions: history, nothing to do."""
+    if not sealed:
+        return f"Task {task_id} was completed before approvals were sealed; its record stays as history."
+    detail = f" ({'; '.join(changes)})" if changes else ""
+    return f"Task {task_id} was completed under earlier rules{detail}; its record stays as history."
 
 
 def check_decision_seal(task: dict) -> dict:
     """Check the seal without launching Git or verifying an SSH signature."""
     decision = task["decision"]
     if "seal" not in decision:
-        raise ValueError("This approval has no seal. It was edited outside the CLI or predates sealed decisions: open a new task.")
-    payload = decision_payload(task, decision["by"], decision["reason"], decision.get("base_revision"))
-    if seal(payload) != decision["seal"]:
-        raise ValueError("The task record no longer matches what was approved. Open a new task for this work.")
-    return payload
+        raise ValueError(f"The approval for {task['id']} has no seal: it was edited by hand or written by a release "
+                         f"older than sealed decisions. {reconsult_hint(task['id'])}")
+    for version in (PAYLOAD_VERSION, 1):
+        payload = decision_payload(task, decision["by"], decision["reason"], decision.get("base_revision"), version)
+        if seal(payload) == decision["seal"]:
+            return payload
+    raise ValueError(f"The record of {task['id']} no longer matches what was approved. {reconsult_hint(task['id'])}")
 
 
 def check_decision(task: dict, root: Path, profile: dict) -> None:

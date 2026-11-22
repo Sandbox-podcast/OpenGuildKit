@@ -27,13 +27,13 @@ openguildkit deliverable utm --url https://www.example.test/pricing --campaign s
 
 The method is a pattern of the bundled catalog (see [patterns](patterns.md)): its rules and its sources apply to the deliverable. A template without a method relies on its sections and checks only; none of the new marketing templates cites a source of its own.
 
-`deliverable show` and `deliverable new` list, before anyone opens the tool, the data each input needs (`none`, `internal`, `personal` or `regulated`) and the actions that need the requester's recorded approval, such as sending messages or publishing; record those with `openguildkit task authorize`. `new` starts from an approved or completed task (`approved` or `done`) and, when the profile lists approved tools in `"tools"`, only with one of them. The draft links to the task in its front matter. The approval and its reason stay with the task. The draft contains inputs, one section for each part of the method, sources and a checklist for review. Pass `--tool` when the template declares `requires_tool`, or to record a tool the team chose.
+`deliverable show` and `deliverable new` list, before anyone opens the tool, the data each input needs (`none`, `internal`, `personal` or `regulated`) and the actions that need the requester's recorded approval, such as sending messages or publishing; record those with `openguildkit task authorize`. `new` starts from an approved or completed task (`approved`, `done` or `done-with-reservations`) and takes an optional `--tool`, required only when the template declares `"requires_tool": true`: when it is given and the profile lists approved tools in `"tools"`, it must be one of them. `--output` is a path inside the project and outside `.openguildkit/`, once symbolic links are followed. The draft may go to a client, so it carries no internal approval field: its front matter names the deliverable, the task and the tool, and the approver and the reason stay in the task record. It holds the inputs, a section per part of the method, a Sources section and the checks as a checklist.
 
 A template marked "Market dossier" uses the [market dossier](market.md) the task was consulted with (`task consult --market ID`): the draft records `market: "ID"` in its front matter and lists the dossier file under Inputs, so its observations can be cited as `market:ID/OBSERVATION`. When the task has no dossier, the Inputs say how to attach one.
 
 `check` lists what keeps a draft from review:
 
-- the front matter fields `deliverable` or `task` missing, a required tool missing, or internal approval fields present;
+- the front matter fields `deliverable` or `task` missing, `tool` missing when the template requires one, or the internal fields `approved_by` and `decision_reason` that drafts of earlier versions carried;
 - a section of the template, `Inputs`, `Sources` or `Checks` missing or empty, each named;
 - placeholders that still say TODO;
 - no source listed under `## Sources`;

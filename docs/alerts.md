@@ -11,7 +11,7 @@ openguildkit alerts list --status open
 openguildkit alerts set npm:semver:ghsa-c2qf-rxjj-qqgw --status dismissed --by "Alex Moreau" --reason "Only used at build time"
 ```
 
-The register holds one entry per package and advisory, whatever scanner reported it. An advisory has several IDs (GHSA, CVE, PYSEC, GO, other OSV IDs); the CLI reads the aliases each report gives and merges the entries that share one. Ecosystem names are normalized (`pip` and `PyPI` are the same, `rust` and `crates.io` too). An entry is named after its GHSA ID, else its CVE, else the scanner's own ID, and any of its IDs finds it: `pypi:jinja2:cve-2024-22195` and `pypi:jinja2:pysec-2024-1` name the same entry. When one scanner gives no severity (pip-audit), the severity reported by another scanner for the same advisory is kept. A pip-audit report alone carries no severity, so its alerts stay `unknown` and never block a task: import an OSV-Scanner or Dependabot report of the same project as well to get a critical alert that blocks. After an import for a task that was already consulted, run `task consult` again so that the boards see the alerts.
+The register holds one entry per package and advisory, whatever scanner reported it. An advisory has several IDs (GHSA, CVE, PYSEC, GO, other OSV IDs); the CLI reads the aliases each report gives and merges the entries that share one. Ecosystem names are normalized (`pip` and `PyPI` are the same, `rust` and `crates.io` too). An entry is named after its GHSA ID, else its CVE, else the scanner's own ID, and any of its IDs finds it: `pypi:jinja2:cve-2024-22195` and `pypi:jinja2:pysec-2024-1` name the same entry. When one scanner gives no severity, the severity reported by another scanner for the same advisory is kept.
 
 Each alert has a status:
 
@@ -26,6 +26,19 @@ Importing the full report of a scanner marks the alerts that this scanner listed
 
 `to-verify`, the status of earlier versions, is read as `open`.
 
+## Severity
+
+`pip-audit` gives no severity: its JSON report lists, for each dependency, the vulnerabilities with their `id`, `aliases`, `fix_versions` and `description`, and nothing else. An alert that only pip-audit reports therefore stays `unknown` and never blocks a task. Two ways give it one:
+
+- import another scanner's report on the same dependencies (OSV-Scanner or Dependabot give a severity); the entries merge on their shared advisory ID;
+- have a person set it from the advisory, at an interactive terminal where they type the alert ID:
+
+```bash
+openguildkit alerts severity pypi:urllib3:ghsa-q2q7-5pp4-w6pg --level critical --by "Camille Martin" --reason "CVSS 9.8 on the advisory page"
+```
+
+`--level` is `low`, `moderate`, `high` or `critical`. The register keeps the previous severity, the person, the reason and the time in `severity_set`. Raising an alert to `critical` makes it block once confirmed, and lowering it stops the blocking, so an agent cannot run the command. A severity set by a person stays when later imports report another one; a person changes it again with the same command.
+
 ## Alerts and tasks
 
 A task lists the alerts that concern it:
@@ -36,7 +49,7 @@ openguildkit task alerts ID --link pypi:jinja2:ghsa-h5c8-rqwp-cp95
 openguildkit task alerts ID
 ```
 
-`task consult` carries the task's open and confirmed alerts to the boards; dismissed and resolved alerts stay out. Tasks created by an earlier version kept their alerts inside the task record: `task alerts ID` moves them into the register, linked to the task.
+`task consult` carries the task's open and confirmed alerts to the boards; dismissed and resolved alerts stay out. The consultation is a snapshot: when `task alerts ID --import` runs on a task already consulted, it says to run `task consult ID` again so the boards see the new alerts. Tasks created by an earlier version kept their alerts inside the task record: `task alerts ID` moves them into the register, linked to the task.
 
 A confirmed alert of severity `critical` blocks the approval (`task decide --approve`) and the completion (`task complete`) of each task it is linked to, with a message that names it. It stops blocking when an import shows it resolved, or when a person records why the risk is accepted:
 

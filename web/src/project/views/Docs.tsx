@@ -6,7 +6,7 @@ import { Markdown } from '@/shared/ui/markdown';
 import { listFiles, readText } from '../api';
 import { useShares, useTasks } from '../data';
 import { useAction, useCliResult, useQuery } from '../query';
-import { SHARE, fmtDay, fmtWhen, shareState } from '../labels';
+import { SHARE, fmtDay, fmtWhen, isDone, shareState } from '../labels';
 import { ActionForm, ExternalLink, ListEditor, Pre, Q, useRemembered } from '../parts';
 
 export function Docs({ tab = 'export' }: { tab?: string }) {
@@ -33,7 +33,7 @@ function Export() {
   const [openapi, setOpenapi] = useState('');
   const [preview, setPreview] = useState<string | null>(null);
   const { act, busy } = useAction();
-  const done = (tasks.data ?? []).filter((t) => t.status === 'done');
+  const done = (tasks.data ?? []).filter((t) => isDone(t.status));
   const pages = useQuery<{ section: string; files: string[] }[]>(`docs-pages:${output}`, useCallback(async () => {
     return Promise.all(['reference', 'learn', 'blog'].map(async (section) => {
       try { return { section, files: (await listFiles(`${output}/${section}`)).filter((e) => e.kind === 'file').map((e) => e.name) }; } catch { return { section, files: [] }; }
@@ -43,7 +43,7 @@ function Export() {
   return (
     <div className="page-grid">
       <Panel title="Exporter les quêtes terminées">
-        <p className="small muted">Seules les quêtes « terminées » s’exportent : leurs vérifications ont réussi et leurs résultats sont enregistrés. Les pages portent le brief, le comportement, les critères atteints, la livraison et la version, jamais les avis des cerveaux ni les preuves internes. Relisez-les avant de les committer, surtout les brouillons Learn.</p>
+        <p className="small muted">Seules les quêtes terminées, avec ou sans réserves, s’exportent : leurs résultats sont enregistrés, et la page dit ce qui a été vérifié, ce qui ne s’appliquait pas et ce qui est resté ouvert. Les pages portent le brief, le comportement, les critères atteints, la livraison et la version, jamais les avis des cerveaux ni les preuves internes. Relisez-les avant de les committer, surtout les brouillons Learn.</p>
         {done.length === 0 ? <Notice tone="warn">Aucune quête terminée pour l’instant.</Notice> : <fieldset className="choices"><legend>Quêtes à documenter</legend>{done.map((t) => <Checkbox key={t.id} label={<><span className="mono">{t.id}</span> {t.brief}</>} checked={picked.includes(t.id)} onChange={() => setPicked((p) => toggle(p, t.id))} />)}</fieldset>}
         <div className="grid-2">
           <TextField label="Version du projet" value={version} onChange={(e) => setVersion(e.target.value)} placeholder="1.4.0" />
@@ -89,7 +89,7 @@ function Shares() {
       <Panel title="Enregistrer un partage">
         <ListEditor label="Destinataires (adresses)" items={recipients} onChange={setRecipients} placeholder="client@example.org" />
         <ActionForm busy={busy !== null} submit="Enregistrer le partage" initial={{ by }} fields={[
-          { name: 'deliverable', label: 'Page ou dossier partagé', required: true, placeholder: 'docs-site/reference/request-status.md' },
+          { name: 'deliverable', label: 'Page ou dossier partagé', required: true, placeholder: 'docs-site/reference/request-status.md', hint: 'Un fichier existant du projet, ou le dossier écrit par l’export, jamais sous .openguildkit/.' },
           { name: 'until', label: 'Dernier jour d’accès', type: 'date', required: true },
           { name: 'portal', label: 'Adresse du portail Documentalist (https)', type: 'url', required: true },
           { name: 'by', label: 'Responsable du partage', required: true },

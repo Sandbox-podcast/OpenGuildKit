@@ -7,6 +7,7 @@ is still missing before the brain and the owner review it.
 """
 
 import json
+import os
 import re
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -23,11 +24,38 @@ _CHECKED = re.compile(r"^- \[x\] (?P<id>[a-z0-9-]+): .+? Evidence: (?P<evidence>
 _COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 _FENCE = re.compile(r"^\s{0,3}(```|~~~)")
 _FIELD = re.compile(r'^(?P<key>[a-z_]+): (?P<value>".*")$')
+# The approval stays in the task record: a draft may go to a client, so it carries no internal field.
 FRONT_MATTER = ("deliverable", "task")
 # The campaign-measurement pack asks for the agreed values in the same case on every link;
 # lowercase letters, digits, dots, hyphens and underscores keep one spelling per value.
 _UTM_VALUE = re.compile(r"[a-z0-9][a-z0-9._-]*")
 UTM_ORDER = ("source", "medium", "campaign", "content", "term")
+
+
+def _same_or_inside(path: Path, folder: Path) -> bool:
+    """True when path is folder or lies in it, also on a file system that ignores case."""
+    if path == folder or folder in path.parents:
+        return True
+    if not folder.exists():
+        return False
+    return any(ancestor.exists() and os.path.samefile(ancestor, folder) for ancestor in (path, *path.parents))
+
+
+def project_path(root: Path, state: Path, value: Path | str, option: str) -> Path:
+    """A path the team may share: inside the project once symbolic links are resolved, and outside .openguildkit/.
+
+    The refusal shows the path as the person wrote it.
+    """
+    shown = Path(value).as_posix()
+    project = root.resolve()
+    target = (project / Path(value)).resolve()
+    if not _same_or_inside(target, project):
+        raise ValueError(f"{option} {shown} is outside the project, once links are followed. "
+                         "Give a path inside the project folder.")
+    if _same_or_inside(target, state.resolve()):
+        raise ValueError(f"{option} {shown} is in .openguildkit/, OpenGuildKit's own state, such as the task records "
+                         "the team does not share. Give a path outside .openguildkit/.")
+    return target
 
 
 def _validate(record: dict, catalog: dict, bundled: bool = False) -> None:
@@ -136,21 +164,23 @@ def _market_lines(deliverable: dict, task: dict) -> tuple[list[str], list[str]]:
 
 
 def new_draft(deliverable: dict, task: dict, tool: str | None, approved_tools: list[str], output: Path) -> dict:
-    if task["status"] not in ("approved", "done"):
+    """Write the draft. The tool is optional unless the template requires one: its actions are authorized one by
+    one with task authorize. The draft may go to a client, so the approval stays in the task record.
+    """
+    if task["status"] not in ("approved", "done", "done-with-reservations"):
         raise ValueError("Start a deliverable from an approved or completed task.")
     if deliverable.get("requires_tool") and not tool:
-        raise ValueError("This template needs --tool.")
-    if tool and approved_tools and tool not in approved_tools:
+        raise ValueError("This template needs --tool, one of the project's approved tools.")
+    if tool is not None and approved_tools and tool not in approved_tools:
         raise ValueError(f"{tool} is not an approved tool for this project. Approved: {', '.join(approved_tools)}.")
     if output.exists():
-        raise ValueError(f"{output} already exists.")
-    tool_fields = [f"tool: {json.dumps(tool)}"] if tool else []
+        raise ValueError(f"{output.as_posix()} already exists.")
     market_fields, market_inputs = _market_lines(deliverable, task)
     lines = [
         "---",
         f"deliverable: {json.dumps(deliverable['id'])}",
         f"task: {json.dumps(task['id'])}",
-        *tool_fields,
+        *([f"tool: {json.dumps(tool)}"] if tool is not None else []),
         *market_fields,
         "---",
         "",
@@ -167,8 +197,10 @@ def new_draft(deliverable: dict, task: dict, tool: str | None, approved_tools: l
     lines += ["## Sources", "", "- TODO: each source with its date or link", "", "## Checks", ""]
     lines += [f"- [ ] {check['id']}: {check['verification']} Evidence: " for check in deliverable["checks"]]
     write_text(output, "\n".join(lines) + "\n")
-    return {"deliverable": deliverable["id"], "path": output.as_posix(), "tool": tool,
-            "created_at": clock.timestamp()}
+    entry = {"deliverable": deliverable["id"], "path": output.as_posix(), "created_at": clock.timestamp()}
+    if tool is not None:
+        entry["tool"] = tool
+    return entry
 
 
 def _front_matter(text: str) -> tuple[dict, str]:

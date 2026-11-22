@@ -17,6 +17,9 @@
   "roles": [
     "backend"
   ],
+  "core_for": [
+    "backend"
+  ],
   "packs": [
     "backend-data-safety",
     "api-design"

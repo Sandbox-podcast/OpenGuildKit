@@ -10,8 +10,8 @@ import { Markdown } from '@/shared/ui/markdown';
 import { Icon } from '@/shared/pixel/icons';
 import { listFiles, run, terminalCommand } from '../api';
 import { boardTitle, useBrains, useProfile, useTasks } from '../data';
-import { showTerminal, useAction, useCli, useCliText, useQuery } from '../query';
-import { BASIS, CONFIDENCE, DATA, KIND, PASS, QUESTION_FR, RESEARCH, SURFACE, fmtWhen, nextLabel, openPointLabel, verdict } from '../labels';
+import { invalidate, showTerminal, useAction, useCli, useCliText, useQuery } from '../query';
+import { BASIS, CONFIDENCE, DATA, KIND, PASS, QUESTION_FR, RESEARCH, SURFACE, fmtWhen, isDecided, nextLabel, openPointLabel, verdict } from '../labels';
 import { ActionForm, CommandLine, FilePick, JsonDetails, Q, Section, StepRail, TaskStatusBadge, copyText, useRemembered } from '../parts';
 import { usePrefs } from '../prefs';
 import type { Answers, BlockerItem, Brain, Deliberation, PassProgress, Question, QuestionSet, Route, TaskRecord } from '../types';
@@ -26,7 +26,7 @@ export function CouncilList() {
     { title: mode === 'explorer' ? 'Quêtes à esquisser' : 'À cadrer', statuses: ['draft', 'changes-requested'] },
     { title: 'En consultation', statuses: ['consulting'] },
     { title: mode === 'explorer' ? 'À sceller' : 'À décider', statuses: ['reviewed'] },
-    { title: 'Décidées', statuses: ['approved', 'done'] },
+    { title: 'Décidées', statuses: ['approved', 'done', 'done-with-reservations'] },
   ];
   return (
     <Q q={tasks} empty={<Empty title="Le Conseil est vide" action={<a className="btn primary" href="#/quetes?nouvelle=1">Ouvrir une quête</a>}>Chaque quête passe par le Conseil avant d’être réalisée.</Empty>}>
@@ -68,11 +68,11 @@ export function CouncilRoom({ id }: { id: string }) {
           </div>
           <StepRail status={t.status} hasResult={!!t.result} />
           {(t.status === 'draft' || t.status === 'changes-requested') && <Framing task={t} />}
-          {t.status === 'changes-requested' && t.decision && <Notice tone="warn" title="Renvoyée au Conseil :">{t.decision.by} — {t.decision.reason}. Une nouvelle consultation archive le tour précédent.</Notice>}
+          {t.status === 'changes-requested' && t.decision && <Notice tone="warn" title="Renvoyée au Conseil :">{t.decision.by} — {t.decision.reason}. Une nouvelle consultation archive le tour précédent, avec son brief ; vous pouvez réviser le brief au moment de consulter à nouveau.</Notice>}
           {t.status === 'consulting' && <><Framing task={t} collapsed /><Passes task={t} /></>}
-          {(t.status === 'reviewed' || t.status === 'approved' || t.status === 'done') && <Reviews task={t} />}
+          {(t.status === 'reviewed' || isDecided(t.status)) && <Reviews task={t} />}
           {t.status === 'reviewed' && <><Deliberation id={t.id} /><Blockers id={t.id} /><Decide task={t} /></>}
-          {(t.status === 'approved' || t.status === 'done') && t.decision && (
+          {isDecided(t.status) && t.decision && (
             <Notice tone="success" title="Décision scellée :">{t.decision.by}, le {fmtWhen(t.decision.at)} — {t.decision.reason}. {t.status === 'approved' && <a href={`#/forge/${t.id}`}>Passer à la Forge</a>}</Notice>
           )}
         </div>
@@ -84,7 +84,7 @@ export function CouncilRoom({ id }: { id: string }) {
 /* ------------------------------------------------------------------ framing and routing */
 
 function useQuestions(id: string, answers: Answers, complete: boolean) {
-  const base = useCli<Question[]>(['task', 'questions', id]);
+  const base = useCli<QuestionSet>(['task', 'questions', id]);
   const json = JSON.stringify(answers);
   const extra = useQuery<QuestionSet | null>(complete ? `questions:${id}:${json}` : null, useCallback(async () => (await run<QuestionSet>(['task', 'questions', id, '--answers', '@upload:answers.json'], { 'answers.json': json })).json, [id, json]));
   return { base, extra };
@@ -106,9 +106,10 @@ function Framing({ task, collapsed }: { task: TaskRecord; collapsed?: boolean })
   const settled = useDebounced(answers, 450);
   const complete = isComplete(settled);
   const { base, extra } = useQuestions(task.id, settled, complete);
-  const prompts = Object.fromEntries([...(base.data ?? []), ...(extra.data?.questions ?? [])].map((q) => [q.id, q.prompt]));
+  const asked = base.data?.questions ?? [];
+  const prompts = Object.fromEntries([...asked, ...(extra.data?.questions ?? [])].map((q) => [q.id, q.prompt]));
   const set = (key: string, value: string | string[]) => setAnswers((a) => ({ ...a, [key]: value }));
-  const followUps = (extra.data?.questions ?? []).filter((q) => !(base.data ?? []).some((b) => b.id === q.id));
+  const followUps = (extra.data?.questions ?? []).filter((q) => !asked.some((b) => b.id === q.id));
 
   if (!open) return <Panel title="Cadrage"><p className="small">Réponses enregistrées : {KIND[answers.kind ?? ''] ?? '—'}, {[answers.surface].flat().map((s) => SURFACE[s as string] ?? s).join(', ')}, données {DATA[answers.data ?? '']?.toLowerCase() ?? '—'}. <Button size="small" onClick={() => setOpen(true)}>Modifier et consulter à nouveau</Button></p></Panel>;
   return (
@@ -116,7 +117,7 @@ function Framing({ task, collapsed }: { task: TaskRecord; collapsed?: boolean })
       <Section title="Cadrage : le questionnaire" icon="question">
         <p className="small muted">L’agent pose ces questions dans votre langue et confirme ce qu’il a déduit du brief. Vous pouvez aussi répondre ici.</p>
         <Q q={base} label="Lecture du questionnaire">
-          {(questions) => <div className="stack">{[...questions, ...followUps].map((q) => <QuestionField key={q.id} q={q} value={(answers as Record<string, unknown>)[q.id]} onChange={(v) => set(q.id, v)} />)}</div>}
+          {(qs) => <div className="stack">{[...qs.questions, ...followUps].map((q) => <QuestionField key={q.id} q={q} value={(answers as Record<string, unknown>)[q.id]} onChange={(v) => set(q.id, v)} />)}</div>}
         </Q>
         {extra.data?.open_points && extra.data.open_points.length > 0 && <Notice tone="warn" title="Points ouverts :"><ul>{extra.data.open_points.map((p) => <li key={p}>{openPointLabel(p, prompts)}</li>)}</ul>Ils ne bloquent pas la consultation : chaque cerveau dira comment ils pèsent sur son avis.</Notice>}
         {extra.error && <Notice tone="danger">{extra.error.message}</Notice>}
@@ -154,6 +155,8 @@ function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
   const [reason, setReason] = useState('');
   const [delegates, setDelegates] = useState<Record<string, string>>({});
   const [market, setMarket] = useState('');
+  // After a request for changes, the person can revise the brief; the previous one stays in the task's history.
+  const [revised, setRevised] = useState('');
   const adjust = [...add.flatMap((b) => ['--add', b]), ...remove.flatMap((b) => ['--remove', b]), ...(reason ? ['--reason', reason] : []), ...Object.entries(delegates).filter(([, n]) => n.trim()).flatMap(([b, n]) => ['--delegate', `${b}=${n.trim()}`])];
   const key = `route:${task.id}:${json}:${adjust.join('|')}`;
   const route = useQuery<Route | null>(key, useCallback(async () => (await run<Route>(['task', 'route', task.id, '--answers', '@upload:answers.json', ...adjust, '--json'], { 'answers.json': json })).json, [key]));
@@ -164,7 +167,9 @@ function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
   const required = profile.data?.required_boards ?? [];
   const needsReason = (add.length > 0 || remove.length > 0) && !reason.trim();
 
-  const consult = () => act(['task', 'consult', task.id, '--answers', '@upload:answers.json', ...adjust, ...(market ? ['--market', market] : [])], { uploads: { 'answers.json': json }, success: 'Consultation préparée' });
+  const brief = task.status === 'changes-requested' && revised.trim() && revised.trim() !== task.brief.trim() ? revised.trim() : null;
+  const consult = () => act(['task', 'consult', task.id, '--answers', '@upload:answers.json', ...adjust, ...(market ? ['--market', market] : []), ...(brief ? ['--brief-file', '@upload:brief.md'] : [])],
+    { uploads: { 'answers.json': json, ...(brief ? { 'brief.md': brief } : {}) }, success: 'Consultation préparée' });
   return (
     <Section title="Routage : les cerveaux consultés" icon="guild">
       <p className="small muted">Le routage est déterministe : mêmes réponses, mêmes cerveaux. Ajoutez ou retirez un cerveau avec un motif ; il est consigné dans la consultation.</p>
@@ -177,6 +182,9 @@ function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
               <span className="tiny muted">{reasons.join(' · ')}</span>
             </li>
           ))}</ul>
+          {Object.keys(r.excluded ?? {}).length > 0 && <Notice tone="info" title="Écartés par le brief, non consultés :"><ul>{Object.entries(r.excluded).map(([b, passages]) => <li key={b}><strong>{boardTitle(brains.data, b)}</strong> : « {passages.join(' », « ')} »</li>)}</ul>S’il s’applique quand même, ajoutez-le avec un motif.</Notice>}
+          {Object.keys(r.expected_not_selected ?? {}).length > 0 && <Notice tone="warn" title="Attendus par l’équipe, non retenus :"><ul>{Object.entries(r.expected_not_selected).map(([b, why]) => <li key={b}><strong>{boardTitle(brains.data, b)}</strong> : {why}</li>)}</ul></Notice>}
+          {(r.not_selected ?? []).length > 0 && <p className="tiny muted">Non retenus : {r.not_selected.map((b) => boardTitle(brains.data, b)).join(', ')}. Ajoutez-en un avec un motif si la quête le concerne.</p>}
           {r.adjustments.length > 0 && <p className="small">Ajustements : {r.adjustments.map((a) => `${a.action} ${a.board}`).join(', ')}. <Button size="small" variant="ghost" onClick={() => { setAdd([]); setRemove([]); }}>Annuler les ajustements</Button></p>}
         </>}
       </Q>
@@ -190,6 +198,7 @@ function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
         <TextField label="Motif de l’ajustement" value={reason} onChange={(e) => setReason(e.target.value)} error={needsReason ? 'Un ajout ou un retrait a besoin d’un motif.' : null} />
       </div>
       {required.filter((b) => !enabled.includes(b)).map((b) => <TextField key={b} label={`Revue obligatoire « ${b} » : personne qui la fera`} value={delegates[b] ?? ''} onChange={(e) => setDelegates((d) => ({ ...d, [b]: e.target.value }))} hint="Ce cerveau n’est pas activé dans le profil : l’agent préparera la revue pour cette personne." />)}
+      {task.status === 'changes-requested' && <TextArea label="Brief révisé (facultatif)" hint="Laissez vide pour garder le brief actuel. L’ancien brief reste dans l’historique de la quête." value={revised} onChange={(e) => setRevised(e.target.value)} rows={4} placeholder={task.brief} />}
       {(dossiers.data?.length ?? 0) > 0 && <div className="field"><label htmlFor="market">Dossier de marché à joindre</label>
         <select id="market" className="input" value={market} onChange={(e) => setMarket(e.target.value)}><option value="">Aucun</option>{dossiers.data!.map((d) => <option key={d} value={d}>{d}</option>)}</select>
         <p className="hint">Les observations datées et les lacunes du dossier accompagnent la consultation.</p></div>}
@@ -204,10 +213,10 @@ function Passes({ task }: { task: TaskRecord }) {
   const progress = useCli<PassProgress[]>(['task', 'progress', task.id, '--json']);
   const brains = useBrains();
   const { mode } = usePrefs();
-  const [pass, setPass] = useState<string | null>(null);
+  const [pass, setPass] = useState<{ board: string; start: boolean } | null>(null);
   const [summary, setSummary] = useState('');
   const [showBrief, setShowBrief] = useState(false);
-  const { act, busy } = useAction();
+  const { act, busy, error } = useAction();
   const done = (progress.data ?? []).filter((p) => p.status === 'done').length;
   const all = progress.data?.length ?? 0;
   const prompt = `Run the OpenGuildKit board passes of task ${task.id}: one independent pass per board with openguildkit task pass, then openguildkit task submit.`;
@@ -227,14 +236,15 @@ function Passes({ task }: { task: TaskRecord }) {
                 <span className="board-seat-icon"><Icon name={p.status === 'done' ? 'check' : p.status === 'started' ? 'play' : p.status === 'failed' ? 'cross' : 'guild'} size={18} /></span>
                 <strong>{boardTitle(brains.data, p.board)}</strong>
                 <Badge tone={s.tone} icon={s.icon}>{s.label}</Badge>
-                {p.reason && <span className="tiny muted">{p.reason}</span>}
+                {p.error && <span className="tiny pre-line">{p.error}</span>}
                 {p.status === 'started' && <span className="tiny muted">Passe interrompue ? Relancez-la pour ce cerveau seulement.</span>}
-                <span className="row"><Button size="small" onClick={() => setPass(p.board)}>{p.status === 'missing' ? 'Préparer la passe' : 'Revoir la passe'}</Button></span>
+                <span className="row"><Button size="small" onClick={() => setPass({ board: p.board, start: p.status === 'missing' })}>{p.status === 'missing' ? 'Préparer la passe' : 'Revoir la passe'}</Button></span>
               </li>
             );
           })}</ul>}
         </Q>
         <p className="small">{done}/{all} avis déposés.</p>
+        {error && <Notice tone="danger" title="Avis refusé :"><span className="pre-line">{error.message.replace(/\nFix these points in the file and send it again:.*$/s, '')}</span><span className="block small">Corrigez le fichier et déposez-le à nouveau : la passe reste ouverte, sans nouvelle tentative.</span></Notice>}
         <div className="grid-2">
           <FilePick label="Déposer l’avis d’un cerveau (JSON)" hint="L’entrée remplie renvoyée par la passe." onText={(text) => void act(['task', 'submit', task.id, '--file', '@upload:entry.json'], { uploads: { 'entry.json': text }, success: 'Avis déposé' })} />
           <FilePick label="Ou déposer la revue complète (JSON)" hint="Un fichier avec consultation_id, summary et une entrée par cerveau." onText={(text) => void act(['task', 'review', task.id, '--file', '@upload:review.json'], { uploads: { 'review.json': text }, success: 'Revue enregistrée' })} />
@@ -242,23 +252,26 @@ function Passes({ task }: { task: TaskRecord }) {
         <TextArea label="Synthèse pour assembler la revue" hint="Où les cerveaux s’accordent, où ils divergent, et l’étape suivante. Disponible quand chaque cerveau a rendu son avis." value={summary} onChange={(e) => setSummary(e.target.value)} rows={3} />
         <div className="row"><Button variant="primary" busy={busy !== null} disabled={!summary.trim() || done < all || all === 0} onClick={() => void act(['task', 'review', task.id, '--summary', summary.trim()], { success: 'Revue assemblée' })}>Assembler la revue</Button></div>
       </Section>
-      <PassDialog task={task.id} board={pass} onClose={() => setPass(null)} />
+      <PassDialog task={task.id} board={pass?.board ?? null} start={!!pass?.start} onClose={() => setPass(null)} />
       <BriefDialog id={task.id} open={showBrief} onClose={() => setShowBrief(false)} />
     </>
   );
 }
 
-function PassDialog({ task, board, onClose }: { task: string; board: string | null; onClose: () => void }) {
+/** A pass not started yet is started with task pass (it counts an attempt); an open or finished one is read again
+ * with task brief --board, which changes nothing. */
+function PassDialog({ task, board, start, onClose }: { task: string; board: string | null; start: boolean; onClose: () => void }) {
   const [text, setText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     setText(null); setError(null);
     if (!board) return;
-    run(['task', 'pass', task, board, '--mode', 'sequential'], undefined, { raw: true }).then((r) => setText(r.stdout)).catch((e: Error) => setError(e.message));
-  }, [task, board]);
+    const argv = start ? ['task', 'pass', task, board, '--mode', 'sequential'] : ['task', 'brief', task, '--board', board];
+    run(argv, undefined, { raw: true }).then((r) => { setText(r.stdout); if (start) invalidate('project'); }).catch((e: Error) => setError(e.message));
+  }, [task, board, start]);
   return (
     <Dialog open={!!board} onClose={onClose} wide title={`Passe du cerveau ${board ?? ''}`} footer={<><Button onClick={onClose}>Fermer</Button>{text && <Button variant="primary" icon="copy" onClick={() => void copyText(text)}>Copier pour l’agent</Button>}</>}>
-      <p className="small muted">La passe ne montre à ce cerveau que le périmètre du projet, son brief et son modèle d’entrée, rien des autres cerveaux. Elle est marquée « commencée » jusqu’au dépôt de l’avis.</p>
+      <p className="small muted">La passe ne montre à ce cerveau que la quête, son brief, les règles de ses packs qui la concernent et son modèle d’entrée, rien des autres cerveaux. Préparée, elle est marquée « commencée » jusqu’au dépôt de l’avis ; la relire ne la relance pas.</p>
       {error && <Notice tone="danger">{error}</Notice>}
       {text ? <div className="scroll-box"><Markdown text={text} /></div> : !error && <p className="muted">Préparation…</p>}
     </Dialog>
@@ -334,8 +347,10 @@ function Deliberation({ id }: { id: string }) {
     <Section title={`Délibération : ${d.data.objections.length} objection(s) entre cerveaux`} icon="council">
       <ul className="plain stack tight">{d.data.objections.map((o) => (
         <li key={o.id} className="card"><strong>{boardTitle(brains.data, o.from)} → {boardTitle(brains.data, o.to)}</strong><p className="small">{o.point}</p>
-          <p className="tiny muted">{o.from_position} · face à · {o.to_position}</p></li>
+          <p className="tiny muted">{o.from_position} · face à · {o.to_position}</p>{o.meets?.length ? <p className="tiny muted">Domaines communs : {o.meets.join(', ')}</p> : null}</li>
       ))}</ul>
+      {d.data.rules && <details className="small"><summary>Règles des réponses</summary><ul>{Object.entries(d.data.rules.positions ?? {}).map(([k, v]) => <li key={k}><code>{k}</code> : {v}</li>)}</ul><p>{d.data.rules.resolution}</p>
+        <p className="tiny muted">Une réponse peut couvrir plusieurs objections : <code>objections</code> en liste d’identifiants.</p></details>}
       <div className="grid-2">
         <div><Button size="small" icon="copy" onClick={() => void copyText(JSON.stringify(d.data!.template, null, 2))}>Copier le modèle de réponse</Button></div>
         <FilePick label="Déposer les réponses (JSON)" onText={(text) => void act(['task', 'respond', id, '--file', '@upload:deliberation.json'], { uploads: { 'deliberation.json': text }, success: 'Réponses enregistrées' })} />
@@ -350,27 +365,51 @@ function Blockers({ id }: { id: string }) {
   const [by, setBy] = useRemembered('decider');
   const [clearing, setClearing] = useState<BlockerItem | null>(null);
   const [waiving, setWaiving] = useState<BlockerItem | null>(null);
+  const [signer, setSigner] = useRemembered('signer');
+  const [signature, setSignature] = useState('');
   const { act, busy } = useAction();
   if (!blockers.data?.length) return null;
   const waivers = profile.data?.waivers;
+  const signed = profile.data?.approval?.mode === 'signed';
+  const blocking = blockers.data.filter((b) => !b.resolution && b.phase !== 'verification').length;
   return (
-    <Section id="blocages" title={`Blocages (${blockers.data.filter((b) => !b.resolution).length} ouvert(s))`} icon="ban">
+    <Section id="blocages" title={`Blocages (${blocking} ouvert(s) avant la validation)`} icon="ban">
       <ul className="plain stack tight">{blockers.data.map((b) => (
         <li key={b.id} className={`card blocker ${b.resolution ? 'resolved' : ''}`}>
-          <span className="row between"><span className="mono small">{b.id}</span>{b.resolution ? <Badge tone="success" icon="check">{b.resolution.kind === 'waived' ? `dérogation de ${b.resolution.by}` : `levé par ${b.resolution.by}`}</Badge> : <Badge tone="danger" icon="ban">ouvert</Badge>}</span>
+          <span className="row between"><span className="mono small">{b.id}</span>{b.resolution ? <Badge tone="success" icon="check">{b.resolution.kind === 'waived' ? `dérogation de ${b.resolution.by}` : `levé par ${b.resolution.by}`}</Badge> : b.phase === 'verification' ? <Badge tone="warning" icon="clock">condition de la validation</Badge> : <Badge tone="danger" icon="ban">ouvert</Badge>}</span>
+          {b.phase === 'verification' && !b.resolution && <span className="tiny muted">Seul le travail fini peut le lever : la validation reste possible, et la quête ne se termine pas tant qu’il est ouvert.</span>}
           <strong>{b.finding}</strong>
           {b.owner && <span className="small">Responsable : {b.owner}. Se lève quand : {b.clears_when}</span>}
           {b.resolution?.evidence && <span className="small muted">Preuve : <code>{b.resolution.evidence}</code> — {b.resolution.supports}</span>}
-          {!b.resolution && <span className="row"><Button size="small" variant="primary" onClick={() => setClearing(b)}>Lever avec une preuve</Button>{waivers && <Button size="small" onClick={() => setWaiving(b)}>Déroger (au terminal)</Button>}</span>}
+          {!b.resolution && <span className="row"><Button size="small" variant="primary" onClick={() => setClearing(b)}>Lever avec une preuve (au terminal)</Button>{waivers && <Button size="small" onClick={() => setWaiving(b)}>Déroger (au terminal)</Button>}</span>}
         </li>
       ))}</ul>
       {!waivers && <p className="tiny muted">Le profil n’autorise pas de dérogation : sans preuve, renvoyez la quête au Conseil.</p>}
-      <Dialog open={!!clearing} onClose={() => setClearing(null)} title={`Lever ${clearing?.id ?? ''}`}>
-        {clearing && <ActionForm busy={busy !== null} submit="Enregistrer la preuve" initial={{ by }} fields={[
-          { name: 'evidence', label: 'Preuve', required: true, placeholder: 'tests/test_access.py, un lien, un document', hint: `Ce qui est attendu : ${clearing.clears_when ?? ''}` },
-          { name: 'supports', label: 'Ce que la preuve établit', required: true },
-          { name: 'by', label: 'Votre nom', required: true },
-        ]} onSubmit={async (v) => { setBy(v.by); if (await act(['task', 'clear', id, clearing.id, '--evidence', v.evidence, '--supports', v.supports, '--by', v.by], { success: 'Blocage levé' })) setClearing(null); }} />}
+      <Dialog open={!!clearing} onClose={() => { setClearing(null); setSignature(''); }} title={`Lever ${clearing?.id ?? ''}`}>
+        {clearing && <>
+          <p className="small">Lever un blocage est l’acte d’une personne : elle regarde la preuve, puis tape la commande dans son terminal et retape l’identifiant de la quête. L’interface prépare la commande, sans l’enregistrer.{signed && ' Dans un projet à approbation signée, la levée peut aussi être signée avec la clé SSH de la personne et déposée ici.'}</p>
+          <ActionForm busy={busy !== null} submit="Préparer la commande" initial={{ by }} fields={[
+            { name: 'evidence', label: 'Preuve', required: true, placeholder: 'tests/test_access.py, un lien, un document', hint: `Ce qui est attendu : ${clearing.clears_when ?? ''}` },
+            { name: 'supports', label: 'Ce que la preuve établit', required: true },
+            { name: 'by', label: 'Personne qui lève le blocage', required: true },
+          ]} onSubmit={async (v) => {
+            setBy(v.by);
+            const argv = ['task', 'clear', id, clearing.id, '--evidence', v.evidence, '--supports', v.supports, '--by', v.by];
+            if (signed && signature && signer) {
+              if (await act([...argv, '--signature', '@upload:clear.sig', '--signer', signer], { uploads: { 'clear.sig': signature }, success: 'Levée signée enregistrée' })) { setClearing(null); setSignature(''); }
+              return;
+            }
+            setClearing(null);
+            showTerminal({ title: 'Levée du blocage : à faire dans votre terminal', why: 'L’interface n’enregistre jamais la levée d’un blocage sans la signature de la personne. Elle tape cette commande, puis retape l’identifiant de la quête.', command: terminalCommand(argv) });
+          }} />
+          {signed && <details className="small"><summary>Levée signée</summary>
+            <p>1. Écrivez la levée exacte à signer :</p><CommandLine command={terminalCommand(['task', 'clear', id, clearing.id, '--evidence', 'PREUVE', '--supports', 'CE_QU_ELLE_ETABLIT', '--by', by || 'Votre nom', '--payload', 'clear.json'])} />
+            <p>2. Signez-la avec votre clé SSH :</p><CommandLine command="ssh-keygen -Y sign -n openguildkit-decision -f ~/.ssh/id_ed25519 clear.json" />
+            <p>3. Déposez la signature et nommez le signataire, puis « Préparer la commande » l’enregistre ; la CLI la vérifie avec le fichier des signataires autorisés.</p>
+            <TextField label="Signataire (principal)" value={signer} onChange={(e) => setSigner(e.target.value)} />
+            <FilePick label="Signature (clear.json.sig)" accept=".sig,text/plain" onText={(t) => setSignature(t)} />
+          </details>}
+        </>}
       </Dialog>
       <Dialog open={!!waiving} onClose={() => setWaiving(null)} title={`Déroger à ${waiving?.id ?? ''}`}>
         {waiving && <>
@@ -398,14 +437,19 @@ function Decide({ task }: { task: TaskRecord }) {
   const [signature, setSignature] = useState('');
   const [brief, setBrief] = useState(false);
   const { act, busy } = useAction();
-  const open = (blockers.data ?? []).filter((b) => !b.resolution).length;
+  // A blocker of phase verification is a condition of the approval: it does not hold the decision back.
+  const open = (blockers.data ?? []).filter((b) => !b.resolution && b.phase !== 'verification').length;
+  const conditions = (blockers.data ?? []).filter((b) => !b.resolution && b.phase === 'verification').length;
+  const previous = task.rounds.at(-1)?.decision;
   const signed = profile.data?.approval?.mode === 'signed';
   const approve = useMemo(() => terminalCommand(['task', 'decide', task.id, '--approve', '--by', by || 'Votre nom', '--reason', reason || 'Motif de la décision']), [task.id, by, reason]);
   const payload = terminalCommand(['task', 'decision-payload', task.id, '--by', by || 'Votre nom', '--reason', reason || 'Motif', '--output', 'decision.json']);
 
   return (
     <Section id="decision" title="Décision" icon="lock">
+      {previous && <Notice tone="info" title="Tour précédent :">{previous.outcome === 'approved' ? 'validé' : 'renvoyé au Conseil'} par {previous.by} : {previous.reason}</Notice>}
       {open > 0 && <Notice tone="danger" title={`${open} blocage(s) ouvert(s).`}>La validation attend qu’ils soient levés. Vous pouvez déjà renvoyer la quête au Conseil.</Notice>}
+      {conditions > 0 && <Notice tone="warn" title={`${conditions} condition(s) de la validation.`}>Ces blocages ne se lèvent qu’une fois le travail fini : la validation reste possible, et la quête ne se terminera pas tant qu’ils sont ouverts.</Notice>}
       <div className="grid-2">
         <TextField label="Personne qui décide" value={by} onChange={(e) => setBy(e.target.value)} />
         <TextField label="Motif" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Périmètre en lecture seule convenu avec le support" />

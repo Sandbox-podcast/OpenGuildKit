@@ -8,12 +8,12 @@ import { Badge, Button, KV, Panel, Stat } from '@/shared/ui/core';
 import { placeCounts, signalsOf, useOverview, useProfile, type ProjectSignals } from '../data';
 import { usePrefs } from '../prefs';
 import { useAction } from '../query';
-import { RESEARCH, TASK_ORDER, nextLabel, taskStatus } from '../labels';
+import { RESEARCH, TASK_ORDER, isDone, nextLabel, taskStatus } from '../labels';
 import { TaskStatusBadge } from '../parts';
 import type { Profile, TaskListItem } from '../types';
 
 const pct = (v: number, of: number) => `${(v / of) * 100}%`;
-const HOUSE: Record<string, string> = { draft: '#8fa39b', consulting: '#7fd6ff', 'changes-requested': '#ffc46b', reviewed: '#b9a7ff', approved: '#6EF7C4', done: '#6EF7C4' };
+const HOUSE: Record<string, string> = { draft: '#8fa39b', consulting: '#7fd6ff', 'changes-requested': '#ffc46b', reviewed: '#b9a7ff', approved: '#6EF7C4', done: '#6EF7C4', 'done-with-reservations': '#ffc46b' };
 
 function ProjectMap({ profile, signals }: { profile: Profile | null; signals: ProjectSignals }) {
   const counts = placeCounts(signals);
@@ -46,7 +46,7 @@ function ProjectMap({ profile, signals }: { profile: Profile | null; signals: Pr
               <span className="territory-name pixel-font" style={{ borderColor: '#6EF7C4' }} title={i === 0 ? 'Le projet ouvert par le serveur' : `Composant ${t.id}`}>{t.name}</span>
               {i === 0 && <div className="territory-houses">
                 {houses.map((task) => {
-                  const sp = cottageSprite(HOUSE[task.status] ?? '#8fa39b', task.status === 'done');
+                  const sp = cottageSprite(HOUSE[task.status] ?? '#8fa39b', isDone(task.status));
                   return <a key={task.id} href={`#/quetes/${task.id}`} className="map-house" title={`${task.id} : ${taskStatus(task.status).rpg}`} aria-label={`Quête ${task.id}, ${taskStatus(task.status).label}`} style={{ width: `${(sp.w / r.w) * 100}%` }}>
                     <img className="pixel" src={sp.url} alt="" draggable={false} />
                   </a>;

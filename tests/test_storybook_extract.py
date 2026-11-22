@@ -121,8 +121,8 @@ class ProposalTests(unittest.TestCase):
         self.assertEqual(by_key(data["components"])["component:RequestList"]["kind"], "screen")
         self.assertEqual(by_key(data["components"])["component:StatusBadge"]["sample_args"],
                          {"label": "Sample label", "status": "open"})
-        self.assertEqual(by_key(data["tokens"])["token:color:#0a66c2"]["name"], "color.color-brand")
-        self.assertEqual(by_key(data["tokens"])["token:spacing:8px"]["name"], "spacing.space-2")
+        self.assertEqual(by_key(data["tokens"])["token:color:#0a66c2"]["name"], "color.brand")
+        self.assertEqual(by_key(data["tokens"])["token:spacing:8px"]["name"], "spacing.2")
         self.decide({"component:Button": "validated", "token:color:#c62828": "rejected"},
                     {"token:color:#b26a00": "color.warning"})
         data = read_json(self.path)
@@ -181,11 +181,11 @@ class ProposalTests(unittest.TestCase):
         self.assertIn('"origins": ["src/pages/RequestList.tsx:15"], "confidence": "hypothesis"', story)
         self.assertIn('definition: "src/components/StatusBadge.tsx:5"', story)
         tokens = json.loads((out / "design.tokens.json").read_text())
-        self.assertEqual(tokens["color"]["color-brand"]["$value"],
+        self.assertEqual(tokens["color"]["brand"]["$value"],
                          {"colorSpace": "srgb", "components": [0.0392, 0.4, 0.7608], "hex": "#0a66c2"})
-        self.assertEqual(tokens["spacing"]["space-2"]["$value"], {"value": 8, "unit": "px"})
-        self.assertEqual(tokens["font-family"]["font-body"]["$type"], "fontFamily")
-        self.assertEqual(tokens["font-family"]["font-body"]["$value"], ["Inter", "system-ui", "sans-serif"])
+        self.assertEqual(tokens["spacing"]["2"]["$value"], {"value": 8, "unit": "px"})
+        self.assertEqual(tokens["font-family"]["body"]["$type"], "fontFamily")
+        self.assertEqual(tokens["font-family"]["body"]["$value"], ["Inter", "system-ui", "sans-serif"])
         self.assertEqual((out / "index.ts").read_text().splitlines()[1],
                          'export { StatusBadge } from "../components/StatusBadge";')
 
@@ -221,6 +221,8 @@ class ProposalTests(unittest.TestCase):
         self.assertIn("Written: src/design-system/Button.stories.tsx", generated)
         self.assertIn("Missing Storybook dependencies in package.json: @storybook/react-vite, storybook", generated)
         self.assertIn("Missing Storybook configuration (.storybook/main.ts or .storybook/main.js)", generated)
+        warnings = json.loads(cli("storybook", "generate", "--json"))["warnings"]
+        self.assertIn("Missing Storybook configuration (.storybook/main.ts or .storybook/main.js).", warnings)
         write_files(self.root, {".storybook/main.ts": "export default {};"})
         write_json(self.root / "package.json", {"devDependencies": {"@storybook/react-vite": "^10", "storybook": "^10"}})
         self.assertNotIn("warnings", json.loads(cli("storybook", "generate", "--json")))
@@ -234,7 +236,7 @@ class ProposalTests(unittest.TestCase):
         data = by_key(read_json(self.path)["tokens"])
         self.assertEqual(data["token:spacing:4px"]["name"], "spacing.space-4")
         self.assertEqual(data["token:spacing:4px:--spacing-4"]["name"], "spacing.spacing-4")
-        self.assertEqual(data["token:spacing:8px"]["name"], "spacing.space-panel")
+        self.assertEqual(data["token:spacing:8px"]["name"], "spacing.panel")
 
 
 
@@ -406,6 +408,82 @@ class GeneratedCodeTests(unittest.TestCase):
         self.assertIn('product: {"name": "Sample name", "stocked": false, "tags": []}', product)
         self.assertIn("soldOut: true", product)
         self.assertNotIn("Private title", product)
+
+    def test_boolean_states_callbacks_and_the_detected_framework_reach_the_stories(self):
+        write_files(self.root / "src", {
+            "ProductCard.tsx": "interface ProductCardProps {\n  name: string;\n  inStock?: boolean;\n"
+                               "  onNotify: (input: { email: string }) => void;\n}\n"
+                               "export function ProductCard({ name, inStock = true, onNotify }: ProductCardProps) {\n"
+                               "  return <article>{name}</article>;\n}\n",
+            "Button.tsx": "export function Button({ label, disabled = false }: { label: string; disabled?: boolean }) {\n"
+                          "  return <button disabled={disabled}>{label}</button>;\n}\n",
+        })
+        write_json(self.root / "package.json", {"dependencies": {"next": "15.0.0", "react": "19.0.0"},
+                                                "devDependencies": {"storybook": "8.4.0"}})
+        state = self.root / ".openguildkit"
+        write_json(state / storybook.INVENTORY, extract(self.root, [self.root / "src"]))
+        propose(self.root, state)
+        variants = by_key(read_json(state / PROPOSALS)["variants"])
+        self.assertEqual(variants["variant:ProductCard:inStock=false"]["name"], "Not In Stock")
+        self.assertEqual(variants["variant:ProductCard:inStock=false"]["confidence"], "hypothesis")
+        self.assertEqual(variants["variant:Button:disabled=true"]["name"], "Disabled")
+        validate_all(state, {"component:ProductCard", "component:Button"})
+        result = generate(self.root, state)
+        self.assertEqual(result["framework"], "@storybook/nextjs-vite")
+        self.assertEqual(result["warnings"][0], "Missing Storybook dependencies in package.json: @storybook/nextjs-vite.")
+        self.assertFalse(any("onNotify" in warning for warning in result["warnings"]))
+        out = self.root / "src" / "design-system"
+        card = (out / "ProductCard.stories.tsx").read_text(encoding="utf-8")
+        self.assertIn('import type { Meta, StoryObj } from "@storybook/nextjs-vite";', card)
+        self.assertIn("    onNotify: () => {},", card)
+        self.assertIn("export const NotInStock: Story", card)
+        self.assertIn("inStock: false", card)
+        self.assertIn("disabled: true", (out / "Button.stories.tsx").read_text(encoding="utf-8"))
+        self.assertFalse((self.root / "node_modules").exists())
+        write_json(self.root / "package.json", {"devDependencies": {"@storybook/react-webpack5": "8.4.0", "storybook": "8.4.0"}})
+        self.assertEqual(storybook.detect_framework(self.root), "@storybook/react-webpack5")
+        self.assertEqual(generate(self.root, state, framework="@storybook/react-vite")["framework"], "@storybook/react-vite")
+
+    def test_a_state_named_like_its_component_is_its_default_story(self):
+        write_files(self.root / "src", {
+            "Button.tsx": 'export function Button({ label, type = "button" }: { label: string; type?: "button" | "submit" }) {\n'
+                          "  return <button type={type}>{label}</button>;\n}\n",
+            "Page.tsx": 'export function Page() { return <Button label="Go" />; }\n',
+        })
+        state = self.root / ".openguildkit"
+        write_json(state / storybook.INVENTORY, extract(self.root, [self.root / "src"]))
+        propose(self.root, state)
+        variants = by_key(read_json(state / PROPOSALS)["variants"])
+        self.assertEqual(variants['variant:Button:type="button"']["name"], "Default")
+        self.assertEqual(variants['variant:Button:type="submit"']["name"], "Submit")
+        data = read_json(state / PROPOSALS)
+        by_key(data["variants"])['variant:Button:type="button"']["name"] = "Button"
+        write_json(state / PROPOSALS, data)
+        validate_all(state, {"component:Button"})
+        generate(self.root, state)
+        story = (self.root / "src" / "design-system" / "Button.stories.tsx").read_text(encoding="utf-8")
+        self.assertIn("export const Default: Story", story)
+        self.assertIn('  name: "Default",', story)
+        self.assertIn("export const Submit: Story", story)
+        self.assertNotIn("Button2", story)
+
+    def test_token_names_drop_the_kind_their_variable_repeats_the_same_way_on_every_run(self):
+        write_files(self.root / "src", {"theme.css": (
+            ":root { --color-brand: #0a66c2; --clr-alert: #c62828; --brand-ink: #1f2933; --space-4: 16px; "
+            "--radius-md: 6px; --font-size-sm: 0.875rem; --font-body: Inter, sans-serif; }\n"
+            ".a { color: var(--color-brand); padding: var(--space-4); margin: 3px; }\n")})
+        state = self.root / ".openguildkit"
+        names = []
+        for _ in range(2):
+            write_json(state / storybook.INVENTORY, extract(self.root, [self.root / "src"]))
+            propose(self.root, state)
+            names.append({item["key"]: item["name"] for item in read_json(state / PROPOSALS)["tokens"]})
+        self.assertEqual(names[0], names[1])
+        self.assertEqual(sorted(names[0].values()), [
+            "color.alert", "color.brand", "color.brand-ink", "font-family.body", "font-size.sm", "radius.md",
+            "spacing.3px", "spacing.4"])
+        hypotheses = [item for item in read_json(state / PROPOSALS)["tokens"] if item["confidence"] == "hypothesis"]
+        self.assertTrue(hypotheses)
 
     def test_a_source_outside_the_project_leaves_no_absolute_path_in_what_is_generated(self):
         project, other = self.root / "project", self.root / "other-app"

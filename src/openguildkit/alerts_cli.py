@@ -4,9 +4,10 @@ import sys
 from pathlib import Path
 
 from .alerts import (
-    REVIEW_STATUSES, STATUSES, accept_alert, find_alert, import_report, link_alert, load_register, migrate_task,
-    needs_person, save_register, set_status, summary, task_alerts,
+    REVIEW_STATUSES, SEVERITIES, STATUSES, accept_alert, find_alert, import_report, link_alert, load_register,
+    migrate_task, needs_person, save_register, set_severity, set_status, summary, task_alerts,
 )
+from .results import DONE_STATUSES
 from .storage import json_text, project_lock, write_json
 from .tasks import read_task, task_path
 
@@ -35,6 +36,12 @@ def add_parser(commands) -> None:
     accept.add_argument("alert", help="Alert ID.")
     accept.add_argument("--by", required=True, help="Person who accepts the risk.")
     accept.add_argument("--reason", required=True, help="Why the risk is accepted.")
+    severity = actions.add_parser(
+        "severity", help="Set, at a terminal, the severity of an alert, such as one pip-audit reports without any.")
+    severity.add_argument("alert", help="Alert ID.")
+    severity.add_argument("--level", required=True, choices=SEVERITIES, help="The severity to record.")
+    severity.add_argument("--by", required=True, help="Person who sets it.")
+    severity.add_argument("--reason", required=True, help="Why, such as the advisory's CVSS score.")
     link = actions.add_parser("link", help="Link an alert to the task that handles it.")
     link.add_argument("alert", help="Alert ID.")
     link.add_argument("--task", required=True, help="Task ID.")
@@ -103,6 +110,9 @@ def run(args, state: Path) -> None:
             register, changes = import_report(register, args.report, args.task)
         elif action == "set":
             register = _review(register, args.alert, args.status, args.by, args.reason)
+        elif action == "severity":
+            register = set_severity(register, args.alert, args.level, args.by, args.reason)
+            _confirm_person(find_alert(register, args.alert)["id"], f"set the severity {args.level} of")
         elif action == "accept":
             register = accept_alert(register, args.alert, args.by, args.reason)
             _confirm_person(find_alert(register, args.alert)["id"], "accept")
@@ -112,20 +122,12 @@ def run(args, state: Path) -> None:
         save_register(state, register)
     if action == "import":
         _print_changes(changes, args.json)
-        _consulted_note(state, args.task, args.json)
+        if args.task:
+            _consult_again_note(read_task(state, args.task), args.json)
     else:
         alert = find_alert(register, args.alert)
-        print(f"{alert['id']}: {alert['status']}" + (" (accepted)" if alert.get("accepted") else ""))
-
-
-def _consulted_note(state: Path, task_id: str | None, as_json: bool) -> None:
-    """The boards read the alerts of a task when it is consulted: say so when it already was."""
-    if not task_id or as_json:
-        return
-    task = read_task(state, task_id)
-    if "consultation" in task and task.get("status") != "done":
-        print(f"{task_id} was already consulted: run openguildkit task consult {task_id} again so that the boards "
-              "see these alerts.", file=sys.stderr)
+        severity = f", severity {alert['severity']}" if action == "severity" else ""
+        print(f"{alert['id']}: {alert['status']}{severity}" + (" (accepted)" if alert.get("accepted") else ""))
 
 
 def task_command(args, state: Path, task: dict) -> None:
@@ -146,10 +148,17 @@ def task_command(args, state: Path, task: dict) -> None:
         if migrated != current:
             write_json(task_path(state, args.id), migrated)
     alerts = task_alerts(register, migrated, tuple(STATUSES))
-    if args.import_file:
-        _consulted_note(state, args.id, args.json)
     imports = register.get("imports", [])[-1:] if args.import_file else []
     _print_alerts(alerts, {"summary": summary(alerts, imports)} if args.json else {"imports": imports}, args.json)
+    if args.import_file:
+        _consult_again_note(migrated, args.json)
+
+
+def _consult_again_note(task: dict, as_json: bool) -> None:
+    """The boards read a task's alerts when it is consulted: say so when an open task already was."""
+    if "consultation" in task and task["status"] not in DONE_STATUSES and not as_json:
+        print(f"The task was consulted before this import: run openguildkit task consult {task['id']} again "
+              "so the boards see its alerts.")
 
 
 def consultation_task(state: Path, task: dict) -> dict:

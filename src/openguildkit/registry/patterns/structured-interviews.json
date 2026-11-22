@@ -18,6 +18,9 @@
     "hr",
     "leadership"
   ],
+  "core_for": [
+    "hr"
+  ],
   "packs": [
     "structured-hiring"
   ],

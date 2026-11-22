@@ -1,0 +1,68 @@
+{
+  "release": "0.16.1+source at dddbc77, before exported records carried a digest",
+  "record": {
+    "schema_version": 1,
+    "task": "request-status",
+    "brief": "Show signed-in users the status and next step of their support requests.",
+    "status": "approved",
+    "profile_fingerprint": "e7a18525d253af730d97ab86cc227e135f7c777ba9ac32546fdf0a61dbda2998",
+    "summary": "Keep the first release to a read-only view of each customer's own support requests. Confirm how requests are linked to accounts and agree on status labels before implementation. Verify customer access, support agent compatibility and recovery states before release. Treat competitive positioning as a separate decision.",
+    "boards": [
+      {
+        "id": "product",
+        "verdict": "proceed",
+        "recommendation": "Start with a read-only list of the signed-in user's requests. Agree with the support team on the status labels and who supplies the next step. Count existing contacts about request status before evaluating the release."
+      },
+      {
+        "id": "engineering",
+        "verdict": "revise",
+        "recommendation": "Extend the existing support request service if it owns the customer read path. Use the verified link from accounts to their requests, apply the access rule on the server and map internal states to customer-facing labels in one place."
+      },
+      {
+        "id": "qa",
+        "verdict": "proceed",
+        "recommendation": "Build acceptance checks for request ownership and regression checks for the support agent view. Include older requests and unavailable or unmapped statuses."
+      },
+      {
+        "id": "design",
+        "verdict": "revise",
+        "recommendation": "Start with a status label and a plain-language next step using existing portal components. Add a sequence only if support confirms an ordered process and user testing shows a benefit."
+      },
+      {
+        "id": "marketing",
+        "verdict": "insufficient-evidence",
+        "recommendation": "Describe the planned capability in plain terms. Treat competitive positioning as a follow-up that needs dated evidence for a comparable audience and support workflow."
+      },
+      {
+        "id": "security",
+        "verdict": "revise",
+        "recommendation": "Enforce customer request boundaries on the server. Have the data owner confirm what the customer view and logs may contain. Verify the boundaries on synthetic requests before release."
+      },
+      {
+        "id": "legal",
+        "verdict": "proceed",
+        "recommendation": "Keep the customer view within the purposes already given to customers for their support requests. Have the data protection owner confirm that the privacy notice and the record of processing cover the new view before release."
+      }
+    ],
+    "decision": {
+      "by": "Camille",
+      "reason": "Agreed",
+      "at": "2026-11-21T20:12:49+00:00",
+      "seal": "872d0640cb63e953a149c0512535bd6396c6440b14e39d32e7c3d89bb298c8a7",
+      "base_revision": null,
+      "payload": {
+        "task": "request-status",
+        "outcome": "approved",
+        "consultation_id": "cd33f6959a1946e881b2c13a4fa3fdf6",
+        "scope_sha256": "52ea3e06f50b632c3af9b0172106b5c3943dea0fbe189d55ef16875fa5b3dc6f",
+        "review_sha256": "78281203a60a8542a80744f494e800f39dcb96d6aa6dbd5c634942beafc06099",
+        "profile_fingerprint": "e7a18525d253af730d97ab86cc227e135f7c777ba9ac32546fdf0a61dbda2998",
+        "blocker_resolutions_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        "by": "Camille",
+        "reason": "Agreed",
+        "base_revision": null
+      }
+    },
+    "completed": false
+  }
+}

@@ -9,7 +9,7 @@ from openguildkit.catalog import load_catalog
 from openguildkit.cli import main
 from openguildkit.project import resolved_profile
 from openguildkit.references import load_references, with_pattern_references
-from openguildkit.workflow import consult
+from openguildkit.workflow import board_brief, consult
 
 
 def families_with(*references):
@@ -59,8 +59,11 @@ class BrainKnowledgeTests(unittest.TestCase):
         task = {"id": "t", "brief": "Protect personal data in exports.",
                 "answers": {"kind": "feature", "surface": ["service"], "data": "personal", "research": "local"}}
         consultation = consult(profile, self.catalog, task, knowledge=knowledge)
-        self.assertIn('"knowledge"', consultation["markdown"])
         self.assertEqual(len(knowledge["security"]["references"]), 12)
+        brief = board_brief(consultation, "security")
+        self.assertIn("## Reading list", brief)
+        self.assertIn("more references and the board's methods: openguildkit brains --id security", brief)
+        self.assertNotIn("## Reading list", consultation["markdown"])
 
     def reading_list(self, board_id, task, answers, profile=AUDIT_PROFILE):
         families = with_pattern_references(load_references(), self.catalog["patterns"])

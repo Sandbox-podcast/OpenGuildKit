@@ -79,6 +79,11 @@ def write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.is_symlink():
         raise ValueError(f"Refusing to replace a symbolic link: {path}")
+    if path.exists() and not path.is_file() and not path.is_dir():
+        # A device or a pipe, such as /dev/null, cannot be replaced by a renamed file: write to it.
+        with path.open("wb") as handle:
+            handle.write(content.encode("utf-8"))
+        return
     if path.exists() and read_bytes(path) == content.encode("utf-8"):
         return
     with tempfile.NamedTemporaryFile(

@@ -35,7 +35,14 @@
     "traitement par lots",
     "orm",
     "sql query",
-    "requête sql"
+    "requête sql",
+    "spring boot",
+    "django",
+    "rails",
+    "laravel",
+    "fastapi",
+    "database index",
+    "index de base de données"
   ],
   "questions": [
     "Which services, endpoints, tables and jobs does the change touch, and who calls them?",

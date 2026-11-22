@@ -33,9 +33,7 @@
           "capabilities": "Contacts, lists, email/SMS/WhatsApp campaigns, CRM deals, templates, analytics and account administration (27 modules).",
           "source": "https://developers.brevo.com/docs/mcp-protocol",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write"
-          }
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -69,16 +67,12 @@
           "auth": "api-token",
           "env": [],
           "status": "unknown",
-          "capabilities": "Check account status, build templates, call and describe Transactional API endpoints, diagnose failed sends.",
+          "capabilities": "Transactional email (Mandrill) only, not Marketing audiences or campaigns: call and describe Transactional API endpoints, templates, account status, failed sends.",
           "source": "https://mailchimp.com/developer/transactional/guides/how-to-use-mailchimps-transactional-messaging-mcp",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write",
-            "consent": "Use a Mailchimp Transactional (Mandrill) API key",
-            "scopes": [
-              "Transactional API operations allowed by the key. Restricted keys need the AI Agents permission group"
-            ]
-          }
+          "access": "Any Transactional Messaging API endpoint the key allows, sending email included.",
+          "scopes": "An API key sent as a bearer token; a key restricted to some API calls needs the AI Agents permission group.",
+          "reviewed": "2026-11-21"
         },
         {
           "id": "mailchimp-docs-mcp",
@@ -93,12 +87,10 @@
           "capabilities": "Search public Marketing API documentation. No account, audience or campaign data is exposed.",
           "source": "https://mailchimp.com/developer/marketing/build/ai-tools/mcp-server/",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-only",
-            "consent": "No account or consent required",
-            "scopes": [
-              "Public developer documentation"
-            ]
+          "access": "Read-only.",
+          "scopes": "Public developer documentation. Consent: No account or consent required.",
+          "read_only": {
+            "how": "Every tool searches public documentation."
           }
         },
         {
@@ -125,17 +117,13 @@
           "repository": "https://github.com/damientilman/mailchimp-mcp-server",
           "license": "MIT",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write",
-            "consent": "Review the community server and supply a Mailchimp Marketing API key",
-            "scopes": [
-              "Marketing API permissions of the supplied key, including access to account audiences"
-            ]
-          },
+          "access": "Read and write.",
+          "scopes": "Marketing API permissions of the supplied key, including access to account audiences. Consent: Review the community server and supply a Mailchimp Marketing API key.",
           "read_only": {
-            "env_vars": [
-              "MAILCHIMP_READ_ONLY"
-            ]
+            "how": "MAILCHIMP_READ_ONLY=true blocks every mutation.",
+            "env": {
+              "MAILCHIMP_READ_ONLY": "true"
+            }
           }
         }
       ],
@@ -175,9 +163,7 @@
           "capabilities": "Work with every WordPress.com or Jetpack-connected site on the account.",
           "source": "https://developer.wordpress.com/docs/mcp/",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "configurable"
-          }
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         },
         {
           "id": "wordpress-mcp-adapter",
@@ -206,9 +192,7 @@
           "repository": "https://github.com/WordPress/mcp-adapter",
           "license": "GPL-2.0",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "configurable"
-          }
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         }
       ],
       "api": {

@@ -7,7 +7,7 @@ import { Icon } from '@/shared/pixel/icons';
 import { norm } from '@/shared/text';
 import { useBrains, useTasks, boardTitle } from '../data';
 import { useAction, useCli } from '../query';
-import { DATA, KIND, RESEARCH, SURFACE, TASK_ORDER, fmtDay, fmtWhen, isBlocked, nextLabel, taskStatus, verdict } from '../labels';
+import { DATA, KIND, RESEARCH, SURFACE, TASK_ORDER, fmtDay, fmtWhen, isBlocked, isDecided, nextLabel, taskStatus, verdict } from '../labels';
 import { ExternalLink, JsonDetails, Q, StepRail, TaskLink, TaskStatusBadge } from '../parts';
 import { usePrefs } from '../prefs';
 import type { TaskListItem, TaskRecord } from '../types';
@@ -38,7 +38,7 @@ export function NewQuestDialog({ open, onClose, follows }: { open: boolean; onCl
       <div className="field"><label htmlFor="follows">Fait suite à (facultatif)</label>
         <select id="follows" className="input" value={after} onChange={(e) => setAfter(e.target.value)}>
           <option value="">Aucune quête</option>
-          {(tasks.data ?? []).filter((t) => t.status === 'approved' || t.status === 'done').map((t) => <option key={t.id} value={t.id}>{t.id} : {t.brief.slice(0, 60)}</option>)}
+          {(tasks.data ?? []).filter((t) => isDecided(t.status)).map((t) => <option key={t.id} value={t.id}>{t.id} : {t.brief.slice(0, 60)}</option>)}
         </select>
         <p className="hint">La consultation reprendra la décision de cette quête.</p>
       </div>
@@ -136,8 +136,8 @@ export function QuestSheet({ id }: { id: string }) {
               </div>
               <div className="row">
                 <a className="btn primary" href={`#${place.to}`}><Icon name={place.icon} size={14} /> {place.label}</a>
-                {(t.status === 'approved' || t.status === 'done') && <Button icon="download" busy={busy !== null} onClick={() => void act(['task', 'export', t.id], { success: 'Décision exportée dans .openguildkit/decisions' })}>Exporter la décision</Button>}
-                {(t.status === 'approved' || t.status === 'done') && <Button icon="plus" onClick={() => setFollowUp(true)}>Quête de suite</Button>}
+                {isDecided(t.status) && <Button icon="download" busy={busy !== null} onClick={() => void act(['task', 'export', t.id], { success: 'Décision exportée dans .openguildkit/decisions' })}>Exporter la décision</Button>}
+                {isDecided(t.status) && <Button icon="plus" onClick={() => setFollowUp(true)}>Quête de suite</Button>}
               </div>
             </div>
             <StepRail status={t.status} hasResult={!!t.result} />
@@ -172,16 +172,20 @@ export function QuestSheet({ id }: { id: string }) {
                 <KV items={[
                   ['Livré', t.result.pull_request ? <ExternalLink href={t.result.pull_request} /> : t.result.revision ?? '—'],
                   ['Critères', `${t.result.criteria.filter((c) => c.status === 'met').length}/${t.result.criteria.length} atteints`],
-                  ['Vérifications', `${t.result.checks.filter((c) => c.status === 'passed').length} réussie(s), ${t.result.checks.filter((c) => c.status === 'failed').length} en échec`],
+                  ['Vérifications', `${t.result.checks.filter((c) => c.status === 'passed').length} réussie(s), ${t.result.checks.filter((c) => c.status === 'failed').length} en échec, ${t.result.checks.filter((c) => c.cannot_run).length} ne pouvant pas tourner ici`],
                   ['Terminée', t.completed_at ? fmtWhen(t.completed_at) : 'pas encore'],
                 ]} />
+                {!!t.result.waiting_for?.length && <p className="small"><Badge tone="warning" icon="clock">en attente</Badge> {t.result.waiting_for.map((w) => `${w.title} (${w.owner})`).join(', ')}</p>}
+                {t.result.closing && t.result.closing.open_points.length > 0 && <details className="small" open={t.status === 'done-with-reservations'}><summary>Réserves de la clôture{t.result.closing.by ? `, confirmée par ${t.result.closing.by}` : ''}</summary>
+                  {t.result.closing.open_points.map((g) => <div key={g.group}><strong>{g.group}</strong><ul>{g.points.map((p) => <li key={p}>{p}</li>)}</ul></div>)}</details>}
               </Panel>}
               {!!t.deliverables?.length && <Panel title="Livrables">
-                <ul className="plain stack tight">{t.deliverables.map((d) => <li key={d.path}><a href={`#/forge/livrables?brouillon=${encodeURIComponent(d.path)}`}>{d.deliverable}</a> <span className="tiny muted">{d.tool} · {fmtDay(d.created_at)}</span></li>)}</ul>
+                <ul className="plain stack tight">{t.deliverables.map((d) => <li key={d.path}><a href={`#/forge/livrables?brouillon=${encodeURIComponent(d.path)}`}>{d.deliverable}</a> <span className="tiny muted">{d.tool ? `${d.tool} · ` : ''}{fmtDay(d.created_at)}</span></li>)}</ul>
               </Panel>}
             </div>}
             {(t.rounds.length > 0 || children.length > 0) && <Panel title="Historique">
-              {t.rounds.map((r, i) => <p key={i} className="small">Tour {i + 1} : {r.decision ? `${r.decision.outcome === 'approved' ? 'validé' : 'renvoyé'} par ${r.decision.by} (${r.decision.reason})` : 'consultation archivée'}.</p>)}
+              {t.rounds.map((r, i) => <div key={i} className="small"><p>Tour {i + 1} : {r.decision ? `${r.decision.outcome === 'approved' ? 'validé' : 'renvoyé'} par ${r.decision.by} (${r.decision.reason})` : 'consultation archivée'}.</p>
+                {r.brief && r.brief.trim() !== t.brief.trim() && <details><summary>Brief de ce tour</summary><p className="pre-line">{r.brief}</p></details>}</div>)}
               {children.map((c) => <p key={c.id} className="small">Suite : <TaskLink id={c.id} /> <TaskStatusBadge status={c.status} /></p>)}
             </Panel>}
             <JsonDetails data={t} label="Voir l’enregistrement (task show, sans le texte de la consultation)" />

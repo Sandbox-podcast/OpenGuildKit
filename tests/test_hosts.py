@@ -235,9 +235,11 @@ class HostControlTests(unittest.TestCase):
         self.assertIn("approvals are not signed", error)
         self.assertIn("signed", error)
         _, error = self.run_cli("host", "apply")
-        self.assertEqual(error.count("approvals are not signed"), 1)
+        self.assertNotIn("approvals are not signed", error)
         with patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit"):
+            _, check_error = self.run_cli("host", "check")
             _, error = self.run_cli("check")
+        self.assertEqual(check_error.count("approvals are not signed"), 1)
         self.assertIn("approvals are not signed", error)
 
     def test_signed_approvals_raise_no_warning(self):

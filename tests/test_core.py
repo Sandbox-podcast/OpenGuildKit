@@ -125,7 +125,7 @@ class WorkflowTests(unittest.TestCase):
         profile["conventions"] = ["Write an audit event for each export."]
         write_json(self.profile_path, profile)
         self.run_cli("sync")
-        message = f"The approval for {self.task_id} was recorded under earlier rules."
+        message = f"The approval for {self.task_id} was recorded under earlier rules (conventions changed)."
         for action in ("handoff", "export"):
             _, error = self.run_cli("task", action, self.task_id, code=1)
             self.assertIn(message, error)
@@ -137,7 +137,7 @@ class WorkflowTests(unittest.TestCase):
         row, = json.loads(listing)
         self.assertEqual(row["approval_problem"], "earlier-rules")
         self.assertIn(message, row["next"])
-        _, error = self.run_cli("check")
+        _, error = self.run_cli("check", code=1)
         self.assertIn(message, error)
         self.assertIn(exported.strip(), error)
 

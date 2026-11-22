@@ -116,6 +116,8 @@ export function useAction() {
       return result;
     } catch (caught) {
       const failure = caught instanceof ApiError ? caught : new ApiError(String(caught), 0);
+      // A refused command can still have recorded something: task submit keeps a failed pass, task verify its checks.
+      if (failure.result) invalidate('project');
       if (failure.command) showTerminal({ title: 'À faire dans votre terminal', why: failure.message, command: failure.command });
       else { setError(failure); toast({ tone: 'danger', title: 'Commande refusée', text: failure.message.slice(0, 240) }); }
       return null;

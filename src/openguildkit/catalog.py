@@ -176,6 +176,80 @@ def rule_check(rule: dict) -> dict | None:
     return {**LEGACY_EXPORT_CHECK, "max": check["max_minutes"]}
 
 
+def recorded_value(task: dict, check_id: str, item: dict | None = None) -> dict:
+    """The value a rule's `records` asks a task to write in its result, such as an agreed threshold.
+
+    Without item, the fields the result template shows for the check. With item, a reported outcome:
+    a passed or failed check of such a rule carries the value with its unit, which is returned to keep.
+    """
+    name = check_id[len("rule:"):] if check_id.startswith("rule:") else ""
+    pack_id, _, rule_id = name.partition("/")
+    packs = task.get("consultation", {}).get("scope", {}).get("packs", [])
+    rules = [rule for pack in packs if pack["id"] == pack_id for rule in pack["rules"] if rule["id"] == rule_id]
+    records = rules[0].get("records") if rules else None
+    if records is None:
+        return {}
+    if item is None:
+        bounds = bounds_text(records)
+        accepted = f" Write a number {bounds}, with its unit." if bounds else " Write a number with its unit."
+        return {"records": f"{records['name']}: {records['description']}{accepted}", "value": ""}
+    if item.get("status") not in ("passed", "failed"):
+        return {}
+    value = item.get("value")
+    if not isinstance(value, str) or not re.search(r"[0-9]", value) or not re.search(r"[^0-9\s.,+-]", value):
+        raise ValueError(
+            f"{check_id} records the {records['name']}: write it in value, a number with its unit "
+            f"such as \"90 % of cases\" ({records['description']})."
+        )
+    problem = _out_of_bounds(records, value)
+    if problem:
+        raise ValueError(f"{check_id} records the {records['name']}: {problem} ({records['description']}).")
+    return {"value": " ".join(value.split())}
+
+
+_NUMBER = re.compile(r"(?<![\w.])[-+]?[0-9]+(?:[.,][0-9]+)?")
+BOUND_FIELDS = ("min", "above", "max")
+
+
+def bounds_text(records: dict) -> str:
+    """The range a recorded value accepts, in words: 'above 0 and at most 100'."""
+    parts = []
+    if "min" in records:
+        parts.append(f"at least {records['min']}")
+    if "above" in records:
+        parts.append(f"above {records['above']}")
+    if "max" in records:
+        parts.append(f"at most {records['max']}")
+    return " and ".join(parts)
+
+
+def _out_of_bounds(records: dict, value: str) -> str | None:
+    """Why the number of a recorded value falls outside the bounds its rule declares, or None."""
+    if not any(field in records for field in BOUND_FIELDS):
+        return None
+    match = _NUMBER.search(value)
+    number = float(match.group(0).replace(",", ".")) if match else None
+    if number is None or ("min" in records and number < records["min"]) or (
+            "above" in records and number <= records["above"]) or ("max" in records and number > records["max"]):
+        return f"{value.strip()!r} is out of range: write a number {bounds_text(records)}, with its unit"
+    return None
+
+
+def _validate_records(records: Any, label: str) -> None:
+    """The value a task records: a name, a description and optional bounds on its number."""
+    _validate_fields(records, label, {"name", "description"}, set(BOUND_FIELDS))
+    _validate_id(records["name"], f"{label} name")
+    _validate_text(records["description"], f"{label} description")
+    for field in BOUND_FIELDS:
+        if field in records and (type(records[field]) not in (int, float) or abs(records[field]) > MAX_SAFE_INTEGER):
+            raise CatalogError(f"{label}.{field} must be a number")
+    if "min" in records and "above" in records:
+        raise CatalogError(f"{label} sets min or above, not both")
+    low = records.get("min", records.get("above"))
+    if low is not None and "max" in records and low >= records["max"]:
+        raise CatalogError(f"{label}.max must be greater than its lower bound")
+
+
 def _validate_evidence(evidence: Any, label: str) -> None:
     _validate_list(evidence, f"{label}.evidence")
     if len(evidence) > MAX_EVIDENCE:
@@ -199,7 +273,7 @@ def _validate_evidence(evidence: Any, label: str) -> None:
 
 def _validate_rule(rule: Any, label: str, allow_command: bool) -> None:
     """A rule states an instruction and its verification; a machine check can stand in for both."""
-    _validate_fields(rule, label, {"id"}, {"instruction", "verification", "check", "evidence"})
+    _validate_fields(rule, label, {"id"}, {"instruction", "verification", "check", "evidence", "records"})
     _validate_id(rule["id"], f"{label}.id")
     if "check" in rule and isinstance(rule["check"], dict) and rule["check"].keys() == {"max_minutes"}:
         if rule["id"] != EXPORT_EXPIRY_ID or not is_positive_integer(rule["check"]["max_minutes"]):
@@ -216,6 +290,18 @@ def _validate_rule(rule: Any, label: str, allow_command: bool) -> None:
             raise CatalogError(f"{label} is missing fields: {field}")
     if "evidence" in rule:
         _validate_evidence(rule["evidence"], label)
+    if "records" in rule:
+        _validate_records(rule["records"], f"{label}.records")
+
+
+def _validate_core_roles(pattern: dict[str, Any]) -> None:
+    """core_for names roles of the pattern for which a method without a match is preselected."""
+    _validate_list(pattern["core_for"], "core_for")
+    roles = pattern["core_for"]
+    if not set(roles) <= set(pattern["roles"]) or len(set(roles)) != len(roles):
+        raise CatalogError("core_for must list distinct roles of the pattern")
+    if pattern.get("kind", "method") != "method" or "match" in pattern:
+        raise CatalogError("core_for applies to a method without a match; a regulation is never preselected by a role")
 
 
 def _validate_pattern(pattern: dict[str, Any]) -> None:
@@ -228,6 +314,8 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
             raise CatalogError(f"{key} contains duplicate IDs")
     if "exclusive_group" in pattern:
         _validate_id(pattern["exclusive_group"], "exclusive_group")
+    if "core_for" in pattern:
+        _validate_core_roles(pattern)
     if "references" in pattern:
         _validate_list(pattern["references"], "references")
         for reference_id in pattern["references"]:
@@ -239,11 +327,12 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
     if "match" not in pattern:
         return
     match = pattern["match"]
-    _validate_fields(match, "match", set(), {"stack", "sectors", "min_versions", "personal_data"})
-    if not match.keys() & {"stack", "sectors", "personal_data"}:
-        raise CatalogError("match needs a stack, sectors or personal_data")
-    if "personal_data" in match and match["personal_data"] is not True:
-        raise CatalogError("match.personal_data must be true; omit it otherwise")
+    _validate_fields(match, "match", set(), {"stack", "sectors", "min_versions", "personal_data", "people_decisions"})
+    if not match.keys() & {"stack", "sectors", "personal_data", "people_decisions"}:
+        raise CatalogError("match needs a stack, sectors, personal_data or people_decisions")
+    for flag in ("personal_data", "people_decisions"):
+        if flag in match and match[flag] is not True:
+            raise CatalogError(f"match.{flag} must be true; omit it otherwise")
     if "min_versions" in match and "stack" not in match:
         raise CatalogError("match.min_versions needs a match.stack")
     _validate_list(match.get("stack", []), "match.stack", allow_empty="stack" not in match)
@@ -269,12 +358,26 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
             _validate_id(sector, "sector ID")
 
 
+# The task surfaces a lens can name; unsure and other are answers that keep every lens, never a lens's scope.
+LENS_SURFACES = ("customer", "service", "infrastructure", "business")
+
+
+def _validate_lens_surfaces(specialist: dict[str, Any]) -> None:
+    """applies_to names the task surfaces a lens can concern; the task's other surfaces leave it out."""
+    surfaces = specialist["applies_to"]
+    _validate_list(surfaces, f"specialist {specialist['id']} applies_to")
+    unknown = [surface for surface in surfaces if surface not in LENS_SURFACES]
+    if unknown or len(set(surfaces)) != len(surfaces):
+        raise CatalogError(f"specialist {specialist['id']} applies_to lists distinct surfaces among "
+                           f"{', '.join(LENS_SURFACES)}")
+
+
 def _validate_board_review(review: Any) -> None:
     _validate_fields(review, "review", {"specialists", "evidence", "challenge", "decision_criteria"})
     _validate_list(review["specialists"], "review.specialists")
     seen = set()
     for specialist in review["specialists"]:
-        _validate_fields(specialist, "specialist", {"id", "title", "focus"}, {"checks"})
+        _validate_fields(specialist, "specialist", {"id", "title", "focus"}, {"checks", "applies_to"})
         specialist_id = specialist["id"]
         _validate_id(specialist_id, "specialist ID")
         if specialist_id in seen:
@@ -283,6 +386,8 @@ def _validate_board_review(review: Any) -> None:
         _validate_text(specialist["title"], "specialist title")
         _validate_text(specialist["focus"], "specialist focus")
         # What an expert of this lens verifies: the discipline's knowledge carried into each consultation.
+        if "applies_to" in specialist:
+            _validate_lens_surfaces(specialist)
         if "checks" in specialist:
             _validate_list(specialist["checks"], f"specialist {specialist_id} checks")
             for check in specialist["checks"]:
@@ -297,7 +402,7 @@ def _validate_entry(collection: str, entry: Any, *, bundled: bool = False, allow
     required = ENTRY_FIELDS | COLLECTION_FIELDS[collection]
     optional = {
         "packs": {"depends_on", "conflicts_with"},
-        "patterns": {"match", "exclusive_group", "references", "kind"},
+        "patterns": {"match", "exclusive_group", "references", "kind", "core_for"},
         "boards": {"review"},
     }.get(collection)
     _validate_fields(entry, "record", required, optional)

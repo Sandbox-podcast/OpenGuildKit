@@ -47,7 +47,9 @@
     "snowflake",
     "bigquery",
     "databricks",
-    "google analytics"
+    "google analytics",
+    "a/b test",
+    "test a/b"
   ],
   "questions": [
     "Which data does the change create, transform or rely on, and who owns its definition and quality?",

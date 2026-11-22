@@ -13,9 +13,14 @@ export const TASK_STATUS: Record<TaskStatus, Label & { rpg: string; step: number
   'changes-requested': { ...L('À reprendre', 'warning', 'replace'), rpg: 'Renvoyée au Conseil', step: 1 },
   approved: { ...L('Validée', 'success', 'check'), rpg: 'Scellée', step: 3 },
   done: { ...L('Terminée', 'success', 'star'), rpg: 'Accomplie', step: 5 },
+  'done-with-reservations': { ...L('Terminée avec réserves', 'warning', 'star'), rpg: 'Accomplie, sous réserves', step: 5 },
 };
 export const taskStatus = (s: string) => TASK_STATUS[s as TaskStatus] ?? { ...L(s, 'neutral', 'dot'), rpg: s, step: 0 };
-export const TASK_ORDER: TaskStatus[] = ['draft', 'consulting', 'changes-requested', 'reviewed', 'approved', 'done'];
+export const TASK_ORDER: TaskStatus[] = ['draft', 'consulting', 'changes-requested', 'reviewed', 'approved', 'done', 'done-with-reservations'];
+/** A completed task: done, or done with the points it left open recorded in result.closing. */
+export const isDone = (status: string) => status === 'done' || status === 'done-with-reservations';
+/** A task a person approved: still to implement, or completed. */
+export const isDecided = (status: string) => status === 'approved' || isDone(status);
 
 export const STEPS = [
   { id: 'frame', label: 'Cadrer', rpg: 'Esquisser', icon: 'quest' },
@@ -33,7 +38,7 @@ export function stepOf(status: string, hasResult: boolean): number {
     case 'consulting': case 'changes-requested': return 1;
     case 'reviewed': return 3;
     case 'approved': return hasResult ? 5 : 4;
-    case 'done': return 6;
+    case 'done': case 'done-with-reservations': return 6;
     default: return 0;
   }
 }
@@ -94,8 +99,13 @@ const NEXT: [RegExp, (m: RegExpExecArray) => string][] = [
   [/^Resolve blockers (.*)\.$/, (m) => `Lever les blocages ${m[1]}.`],
   [/^Waiting for the person's decision\.$/, () => 'En attente de la décision d’une personne.'],
   [/^Consult again: (.*)$/, (m) => `Consulter à nouveau : ${m[1]}`],
-  [/^Decision recorded\. Open a follow-up task to act on it\.$/, () => 'Décision enregistrée. Ouvrir une quête de suite pour la mettre en œuvre.'],
-  [/^Implement, then record the results and complete the task\.$/, () => 'Réaliser, puis rapporter les résultats et terminer la quête.'],
+  [/^Decision recorded: close it with task complete (\S+), then open a follow-up task to act on it\.$/, (m) => `Décision enregistrée : la clore avec task complete ${m[1]}, puis ouvrir une quête de suite pour la mettre en œuvre.`],
+  [/^Implement, then record the results: task verify (\S+) and task result \S+, then task complete \S+\.$/, (m) => `Réaliser, puis rapporter les résultats (task verify ${m[1]}, task result) et terminer la quête.`],
+  [/^Waiting for evidence: (.*)\.$/, (m) => `En attente de preuves : ${m[1]}.`],
+  [/^Result recorded: run task verify (\S+) to list what remains, then task complete \S+\.$/, (m) => `Résultats enregistrés : task verify ${m[1]} liste ce qui reste, puis terminer la quête.`],
+  [/^(\S+)(?: \(`([^`]*)`\))? failed(?:: (.*?))?(?: and (\d+) other check\(s\))?\. Fix it, then run task verify (\S+)\.$/s,
+    (m) => `Échec de ${m[1]}${m[2] ? ` (${m[2]})` : ''}${m[3] ? ` : ${m[3]}` : ''}${m[4] ? `, et de ${m[4]} autre(s) contrôle(s)` : ''}. Corriger, puis relancer task verify ${m[5]}.`],
+  [/^Done with reservations: see the open points in task show \(result\.closing\)\.$/, () => 'Terminée avec réserves : les points laissés ouverts sont dans la fiche de la quête.'],
   [/^Done\.$/, () => 'Terminée.'],
 ];
 export function nextLabel(text: string) {
@@ -103,6 +113,8 @@ export function nextLabel(text: string) {
   return text;
 }
 export const isBlocked = (next: string) => /^Resolve blockers/i.test(next);
+/** The CLI's next step of an approved task whose last verification failed. */
+export const hasFailedCheck = (next: string) => / failed.*Fix it, then run task verify /s.test(next);
 
 /** French wording of the task questionnaire (workflow.task_questions). The CLI prompt stays as a tooltip. */
 export const QUESTION_FR: Record<string, string> = {

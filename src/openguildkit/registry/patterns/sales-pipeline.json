@@ -14,6 +14,9 @@
     "operations",
     "finance"
   ],
+  "core_for": [
+    "sales"
+  ],
   "packs": [
     "sales-pipeline-review"
   ],
