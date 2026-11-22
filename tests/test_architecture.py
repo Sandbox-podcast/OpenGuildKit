@@ -41,9 +41,16 @@ class ModuleShapeTests(unittest.TestCase):
     def test_the_cli_stays_short_and_so_do_its_functions(self):
         text = (PACKAGE / "cli.py").read_text(encoding="utf-8")
         self.assertLess(len(text.splitlines()), MAX_CLI_LINES)
-        long = {node.name: node.end_lineno - node.lineno + 1 for node in ast.walk(ast.parse(text))
-                if isinstance(node, ast.FunctionDef) and node.end_lineno - node.lineno + 1 > MAX_CLI_FUNCTION_LINES}
-        self.assertEqual(long, {})
+
+    def test_no_function_of_the_cli_or_of_a_command_module_passes_120_lines(self):
+        paths = [PACKAGE / "cli.py", *sorted(PACKAGE.glob("*_cli.py"))]
+        self.assertGreaterEqual(len(paths), 7)
+        for path in paths:
+            with self.subTest(module=path.name):
+                long = {node.name: node.end_lineno - node.lineno + 1 for node in ast.walk(parsed(path))
+                        if isinstance(node, ast.FunctionDef)
+                        and node.end_lineno - node.lineno + 1 > MAX_CLI_FUNCTION_LINES}
+                self.assertEqual(long, {})
 
     def test_each_command_module_adds_its_parser_and_runs_without_functions_of_the_cli(self):
         # The same pair everywhere: add_parser(commands), then run(args, ...) with paths and loaded records only.

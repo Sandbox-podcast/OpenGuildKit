@@ -258,143 +258,168 @@ def _print_mock_listing(mock: dict) -> None:
     }, indent=2, ensure_ascii=False))
 
 
+def _call(args, mock_dir: Path) -> int:
+    """tools call: list a mock's tools, or call one of them."""
+    args.id = args.id.casefold()
+    mock = load_mock(args.id, mock_dir)
+    if args.name is None:
+        if args.json:
+            _print_mock_listing(mock)
+        else:
+            print("\n".join(describe(mock)))
+        return 0
+    if args.json:
+        raise ValueError(f"--json lists the tools of the mock: run openguildkit tools call {args.id} --json, "
+                         "without a tool name.")
+    try:
+        arguments = json.loads(args.args)
+    except ValueError as error:
+        raise ValueError(f"--args is not valid JSON: {error}") from error
+    try:
+        answer = call_tool(mock, args.name, arguments)
+    except MockError as error:
+        raise ValueError(f"{error}. Run openguildkit tools call {args.id} to list the tools.") from error
+    tool = next(item for item in mock["tools"] if item["name"] == args.name)
+    print(answer["content"][0]["text"])
+    if not tool.get("read_only") and not answer["isError"]:
+        print("Warning: this operation simulates a write; the mock keeps nothing, so later calls will not show it. "
+              "Use openguildkit task authorize before a real write.", file=sys.stderr)
+    if answer["isError"] and answer["content"][0]["text"].startswith(("Missing argument", "Unknown argument", "Argument ")):
+        example = json.dumps(example_arguments(mock, tool), ensure_ascii=False)
+        print(f"Example: openguildkit tools call {args.id} {args.name} --args '{example}'", file=sys.stderr)
+    return 1 if answer["isError"] else 0
+
+
+def _list(args, tools: dict, mocks: set, catalog: dict) -> int:
+    """tools list: the registry, filtered by category, brain or mock."""
+    if args.brain and args.brain not in catalog["boards"]:
+        raise ValueError(f"Unknown brain: {args.brain}. Run openguildkit brains.")
+    entries = [
+        tool for tool in tools.values()
+        if (not args.category or tool["category"] == args.category)
+        and (not args.brain or args.brain in tool["brains"]) and (not args.mocks or tool["id"] in mocks)
+    ]
+    if args.json:
+        print(json.dumps([{**tool, "mock": tool["id"] in mocks} for tool in entries], indent=2, ensure_ascii=False))
+        return 0
+    for tool in entries:
+        server = choose_server(tool, community=True)
+        mcp = "no MCP server" if server is None else f"{server['publisher']} MCP ({server['transport']})"
+        print(f"{tool['id']:<20} {tool['category']:<15} {mcp:<32}{' mock' if tool['id'] in mocks else ''}")
+    print(f"{len(entries)} tool(s). Details: openguildkit tools show ID")
+    return 0
+
+
+def _show(args, tools: dict, mocks: set) -> int:
+    """tools show: one tool, its servers and what each needs."""
+    tool = tools[resolve_tool(args.id, tools)]
+    if args.json:
+        print(json.dumps({**tool, "mock": tool["id"] in mocks}, indent=2, ensure_ascii=False))
+        return 0
+    print(f"{tool['title']} ({tool['vendor']}), {tool['category']}")
+    print(tool["summary"])
+    print(f"Used by: {', '.join(tool['brains'])}")
+    for server in tool["servers"]:
+        where = server.get("url") or " ".join([server["command"], *server["args"]])
+        print(f"- {server['id']}: {server['name']} [{server['publisher']}, {server['transport']}, auth {server['auth']}, status {server['status']}]")
+        print(f"    {where}")
+        if server["env"]:
+            print(f"    Reads from the environment: {', '.join(server['env'])}")
+        for setting in server.get("settings", []):
+            print(f"    Needs --set {tool['id']}.{setting['name']}=VALUE ({setting['description']})")
+        print(f"    {server['capabilities']}")
+        print(f"    Verified {server['verified']} on {server['source']}")
+    if not tool["servers"]:
+        print("No MCP server on record.")
+    if "api" in tool:
+        print(f"API ({tool['api']['kind']}): {tool['api']['docs']}")
+    if "notes" in tool:
+        print(f"Notes: {tool['notes']}")
+    if tool["id"] in mocks:
+        print(f"Mock available: openguildkit tools call {tool['id']}")
+    return 0
+
+
+def _recommend(args, root: Path, state: Path, tools: dict, mocks: set, profile: dict) -> int:
+    """tools recommend: the tools of the profile and the repository, and how each is connected."""
+    result = recommend_tools(profile, root, tools)
+    configured, unconnected = {}, {}
+    for connection in connection_status(root, state):
+        if connection["configured"]:
+            for tool in connection["covers"]:
+                configured.setdefault(tool, []).append({"host": connection["host"], "mode": connection["mode"]})
+        elif "reason" in connection:
+            unconnected.setdefault(connection["key"], []).append(
+                {"host": connection["host"], "mode": connection["mode"], "reason": connection["reason"]})
+    for item in result["tools"]:
+        item["mock"] = item["id"] in mocks
+        item["connections"] = configured.get(item["id"], [])
+        item["not_connected"] = unconnected.pop(item["id"], [])
+    result["requested_not_connected"] = [{"id": tool_id, **entry} for tool_id, entries in unconnected.items()
+                                         for entry in entries]
+    if args.json:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        return 0
+    for item in result["tools"]:
+        origin = "named in the profile" if item["named"] else "seen in the repository: " + ", ".join(item["signals"])
+        servers = ", ".join(item["servers"]) or "no MCP server on record"
+        print(f"{item['id']:<20} {origin}. Servers: {servers}{'; mock available' if item['mock'] else ''}")
+        if item["connections"]:
+            modes = ", ".join(f"{entry['host']} ({entry['mode']})" for entry in item["connections"])
+            print(f"    Configured for {modes}.")
+        for entry in item["not_connected"]:
+            print(f"    Requested for {entry['host']} ({entry['mode']}), not connected: {entry['reason']}")
+    for entry in result["requested_not_connected"]:
+        print(f"{entry['id']:<20} requested for {entry['host']} ({entry['mode']}), not connected: {entry['reason']}")
+    for name in result["unknown"]:
+        print(f"{name}: not in the registry. Add it in .openguildkit/catalog/tools/ or connect it yourself.")
+    if not result["tools"] and not result["unknown"]:
+        print("No tool named in the profile and none detected. Name them with openguildkit profile add tool TOOL "
+              "--by NAME --reason WHY.")
+    elif pending := [item["id"] for item in result["tools"] if not item["connections"]]:
+        print("Next: openguildkit tools plan " + " ".join(pending))
+    return 0
+
+
+def _status(args, root: Path, state: Path) -> int:
+    """tools status: each recorded connection and whether it holds."""
+    status = connection_status(root, state)
+    if args.json:
+        print(json.dumps(status, indent=2, ensure_ascii=False))
+        return 0
+    for item in status:
+        if "reason" in item:
+            print(f"{item['key']:<24} {item['host']:<12} {item['mode']:<5} not connected. {item['reason']}")
+            continue
+        state_text = "configured" if item["configured"] else ("changed by hand" if item["changed"] else "missing from the host file")
+        missing = f"; not set here: {', '.join(item['missing_env'])}" if item["missing_env"] else ""
+        print(f"{item['key']:<24} {item['host']:<12} {item['mode']:<5} {state_text} ({', '.join(item['covers'])}){missing}")
+    if not status:
+        print("No connection recorded. Start with openguildkit tools recommend.")
+    return 0 if all(item["configured"] for item in status if "reason" not in item) else 1
+
+
 def run(args, root: Path, state: Path, catalog: dict) -> int:
     action = args.tools_action
     mock_dir = state / "catalog" / "tool-mocks"
     if action == "mock":
         return serve(load_mock(args.id.casefold(), mock_dir), log=args.log)
     if action == "call":
-        args.id = args.id.casefold()
-        mock = load_mock(args.id, mock_dir)
-        if args.name is None:
-            if args.json:
-                _print_mock_listing(mock)
-            else:
-                print("\n".join(describe(mock)))
-            return 0
-        if args.json:
-            raise ValueError(f"--json lists the tools of the mock: run openguildkit tools call {args.id} --json, "
-                             "without a tool name.")
-        try:
-            arguments = json.loads(args.args)
-        except ValueError as error:
-            raise ValueError(f"--args is not valid JSON: {error}") from error
-        try:
-            answer = call_tool(mock, args.name, arguments)
-        except MockError as error:
-            raise ValueError(f"{error}. Run openguildkit tools call {args.id} to list the tools.") from error
-        tool = next(item for item in mock["tools"] if item["name"] == args.name)
-        print(answer["content"][0]["text"])
-        if not tool.get("read_only") and not answer["isError"]:
-            print("Warning: this operation simulates a write; the mock keeps nothing, so later calls will not show it. "
-                  "Use openguildkit task authorize before a real write.", file=sys.stderr)
-        if answer["isError"] and answer["content"][0]["text"].startswith(("Missing argument", "Unknown argument", "Argument ")):
-            example = json.dumps(example_arguments(mock, tool), ensure_ascii=False)
-            print(f"Example: openguildkit tools call {args.id} {args.name} --args '{example}'", file=sys.stderr)
-        return 1 if answer["isError"] else 0
+        return _call(args, mock_dir)
     tools = load_tools(state / "catalog" / "tools")
     check_tool_links(tools, catalog["boards"])
     mocks = mock_ids(mock_dir)
     if action == "list":
-        if args.brain and args.brain not in catalog["boards"]:
-            raise ValueError(f"Unknown brain: {args.brain}. Run openguildkit brains.")
-        entries = [
-            tool for tool in tools.values()
-            if (not args.category or tool["category"] == args.category)
-            and (not args.brain or args.brain in tool["brains"]) and (not args.mocks or tool["id"] in mocks)
-        ]
-        if args.json:
-            print(json.dumps([{**tool, "mock": tool["id"] in mocks} for tool in entries], indent=2, ensure_ascii=False))
-            return 0
-        for tool in entries:
-            server = choose_server(tool, community=True)
-            mcp = "no MCP server" if server is None else f"{server['publisher']} MCP ({server['transport']})"
-            print(f"{tool['id']:<20} {tool['category']:<15} {mcp:<32}{' mock' if tool['id'] in mocks else ''}")
-        print(f"{len(entries)} tool(s). Details: openguildkit tools show ID")
-        return 0
+        return _list(args, tools, mocks, catalog)
     if action == "show":
-        tool = tools[resolve_tool(args.id, tools)]
-        if args.json:
-            print(json.dumps({**tool, "mock": tool["id"] in mocks}, indent=2, ensure_ascii=False))
-            return 0
-        print(f"{tool['title']} ({tool['vendor']}), {tool['category']}")
-        print(tool["summary"])
-        print(f"Used by: {', '.join(tool['brains'])}")
-        for server in tool["servers"]:
-            where = server.get("url") or " ".join([server["command"], *server["args"]])
-            print(f"- {server['id']}: {server['name']} [{server['publisher']}, {server['transport']}, auth {server['auth']}, status {server['status']}]")
-            print(f"    {where}")
-            if server["env"]:
-                print(f"    Reads from the environment: {', '.join(server['env'])}")
-            for setting in server.get("settings", []):
-                print(f"    Needs --set {tool['id']}.{setting['name']}=VALUE ({setting['description']})")
-            print(f"    {server['capabilities']}")
-            print(f"    Verified {server['verified']} on {server['source']}")
-        if not tool["servers"]:
-            print("No MCP server on record.")
-        if "api" in tool:
-            print(f"API ({tool['api']['kind']}): {tool['api']['docs']}")
-        if "notes" in tool:
-            print(f"Notes: {tool['notes']}")
-        if tool["id"] in mocks:
-            print(f"Mock available: openguildkit tools call {tool['id']}")
-        return 0
+        return _show(args, tools, mocks)
     profile = load_profile(state, catalog)
     if action == "scenario":
         return _scenario(args, root, state, tools, profile)
     if action == "recommend":
-        result = recommend_tools(profile, root, tools)
-        configured, unconnected = {}, {}
-        for connection in connection_status(root, state):
-            if connection["configured"]:
-                for tool in connection["covers"]:
-                    configured.setdefault(tool, []).append({"host": connection["host"], "mode": connection["mode"]})
-            elif "reason" in connection:
-                unconnected.setdefault(connection["key"], []).append(
-                    {"host": connection["host"], "mode": connection["mode"], "reason": connection["reason"]})
-        for item in result["tools"]:
-            item["mock"] = item["id"] in mocks
-            item["connections"] = configured.get(item["id"], [])
-            item["not_connected"] = unconnected.pop(item["id"], [])
-        result["requested_not_connected"] = [{"id": tool_id, **entry} for tool_id, entries in unconnected.items()
-                                             for entry in entries]
-        if args.json:
-            print(json.dumps(result, indent=2, ensure_ascii=False))
-            return 0
-        for item in result["tools"]:
-            origin = "named in the profile" if item["named"] else "seen in the repository: " + ", ".join(item["signals"])
-            servers = ", ".join(item["servers"]) or "no MCP server on record"
-            print(f"{item['id']:<20} {origin}. Servers: {servers}{'; mock available' if item['mock'] else ''}")
-            if item["connections"]:
-                modes = ", ".join(f"{entry['host']} ({entry['mode']})" for entry in item["connections"])
-                print(f"    Configured for {modes}.")
-            for entry in item["not_connected"]:
-                print(f"    Requested for {entry['host']} ({entry['mode']}), not connected: {entry['reason']}")
-        for entry in result["requested_not_connected"]:
-            print(f"{entry['id']:<20} requested for {entry['host']} ({entry['mode']}), not connected: {entry['reason']}")
-        for name in result["unknown"]:
-            print(f"{name}: not in the registry. Add it in .openguildkit/catalog/tools/ or connect it yourself.")
-        if not result["tools"] and not result["unknown"]:
-            print("No tool named in the profile and none detected. Name them with openguildkit profile add tool TOOL "
-                  "--by NAME --reason WHY.")
-        elif pending := [item["id"] for item in result["tools"] if not item["connections"]]:
-            print("Next: openguildkit tools plan " + " ".join(pending))
-        return 0
+        return _recommend(args, root, state, tools, mocks, profile)
     if action == "status":
-        status = connection_status(root, state)
-        if args.json:
-            print(json.dumps(status, indent=2, ensure_ascii=False))
-            return 0
-        for item in status:
-            if "reason" in item:
-                print(f"{item['key']:<24} {item['host']:<12} {item['mode']:<5} not connected. {item['reason']}")
-                continue
-            state_text = "configured" if item["configured"] else ("changed by hand" if item["changed"] else "missing from the host file")
-            missing = f"; not set here: {', '.join(item['missing_env'])}" if item["missing_env"] else ""
-            print(f"{item['key']:<24} {item['host']:<12} {item['mode']:<5} {state_text} ({', '.join(item['covers'])}){missing}")
-        if not status:
-            print("No connection recorded. Start with openguildkit tools recommend.")
-        return 0 if all(item["configured"] for item in status if "reason" not in item) else 1
+        return _status(args, root, state)
     generic = action == "plan" and not args.host and profile.get("host", "other") not in HOSTS
     # For another agent, the plan shows the mcpServers entries most MCP clients read; nothing is written.
     host = "claude-code" if generic else _host(args, profile)
@@ -431,6 +456,11 @@ def run(args, root: Path, state: Path, catalog: dict) -> int:
                 print("Nothing is written. Once the team accepts the plan, run:\n    " + _apply_command(args, host, plan, tools),
                       file=sys.stderr)
         return 0
+    return _apply(args, root, state, host, plan, tools)
+
+
+def _apply(args, root: Path, state: Path, host: str, plan: list, tools: dict) -> int:
+    """tools apply: write the planned connections to the host file and report them."""
     check_settings(plan)
     _confirm_live(plan, args, host, tools)
     with project_lock(state):

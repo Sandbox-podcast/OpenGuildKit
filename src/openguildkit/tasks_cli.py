@@ -52,6 +52,38 @@ from .workflow import (
 )
 
 
+ACTION_HELP = {
+    "questions": "Print the task questionnaire as JSON.",
+    "route": "Preview the boards a consultation would select, and why.",
+    "consult": "Save task answers and prepare the board consultation.",
+    "brief": "Print the saved consultation for the host agent.",
+    "template": "Print the review template as JSON.",
+    "pass": "Start one board's independent pass and print what it needs.",
+    "submit": "Record one board's review entry from its pass.",
+    "progress": "Show which board passes are done, failed, started or missing.",
+    "review": "Record the completed board reviews.",
+    "challenge": "Print the decision brief and each board's challenge.",
+    "deliberate": "Print the objections between boards and the response template.",
+    "blockers": "List the review's blockers and how each was resolved.",
+    "clear": "Record the evidence that clears a blocker (the person, at a terminal or with a signature).",
+    "waive": "Waive a blocker within the project's waiver policy (needs a terminal).",
+    "respond": "Record the boards' answers to each other's objections.",
+    "decide": "Record a human decision.",
+    "revoke": "Withdraw an approval: the task goes back to changes requested (the person, at a terminal).",
+    "handoff": "Print the approved implementation handoff, or the decision record of a decision task.",
+    "decision-payload": "Print the exact decision an approver signs in a project that requires signed approvals.",
+    "show": "Print the task record as JSON.",
+    "checks": "List the checks the approved task must report.",
+    "verify": "Run the project's check commands and the rules' machine checks, and record their results.",
+    "result": "Record the delivered revision, criteria and check outcomes.",
+    "complete": "Close the task: done, or done-with-reservations when points stay open.",
+    "runs": "Compare the last two ChaosFolk replays of the task.",
+    "alerts": "Import dependency alerts for the task into the project register and review them.",
+    "export": "Write a shareable decision record to .openguildkit/decisions for the pull request.",
+    "authorize": "Record a person's decision on an external action outside the authorized scope.",
+}
+
+
 def add_parser(commands) -> None:
     task = commands.add_parser("task", help="Take a task from the request to its closing: frame it, consult the "
                                              "boards, record the person's decision, then verify, complete and export "
@@ -70,164 +102,204 @@ def add_parser(commands) -> None:
     listing.add_argument("--json", action="store_true", help="Print the tasks as JSON.")
     listing.add_argument("--decisions", action="store_true",
                          help="List the decisions exported to .openguildkit/decisions, teammates' included.")
-    descriptions = {
-        "questions": "Print the task questionnaire as JSON.",
-        "route": "Preview the boards a consultation would select, and why.",
-        "consult": "Save task answers and prepare the board consultation.",
-        "brief": "Print the saved consultation for the host agent.",
-        "template": "Print the review template as JSON.",
-        "pass": "Start one board's independent pass and print what it needs.",
-        "submit": "Record one board's review entry from its pass.",
-        "progress": "Show which board passes are done, failed, started or missing.",
-        "review": "Record the completed board reviews.",
-        "challenge": "Print the decision brief and each board's challenge.",
-        "deliberate": "Print the objections between boards and the response template.",
-        "blockers": "List the review's blockers and how each was resolved.",
-        "clear": "Record the evidence that clears a blocker (the person, at a terminal or with a signature).",
-        "waive": "Waive a blocker within the project's waiver policy (needs a terminal).",
-        "respond": "Record the boards' answers to each other's objections.",
-        "decide": "Record a human decision.",
-        "revoke": "Withdraw an approval: the task goes back to changes requested (the person, at a terminal).",
-        "handoff": "Print the approved implementation handoff, or the decision record of a decision task.",
-        "decision-payload": "Print the exact decision an approver signs in a project that requires signed approvals.",
-        "show": "Print the task record as JSON.",
-        "checks": "List the checks the approved task must report.",
-        "verify": "Run the project's check commands and the rules' machine checks, and record their results.",
-        "result": "Record the delivered revision, criteria and check outcomes.",
-        "complete": "Close the task: done, or done-with-reservations when points stay open.",
-        "runs": "Compare the last two ChaosFolk replays of the task.",
-        "alerts": "Import dependency alerts for the task into the project register and review them.",
-        "export": "Write a shareable decision record to .openguildkit/decisions for the pull request.",
-        "authorize": "Record a person's decision on an external action outside the authorized scope.",
-    }
-    for action, description in descriptions.items():
+    for action, description in ACTION_HELP.items():
         command = actions.add_parser(action, help=description)
         command.add_argument("id", help="Task ID.")
-        if action in ("consult", "questions", "route"):
-            command.add_argument("--answers", type=Path, help="Read task answers from a JSON file.")
-        if action == "questions":
-            command.add_argument("--follow-ups", action="store_true",
-                                 help="With --answers, print only follow_ups and open_points, not the questionnaire "
-                                      "again.")
-        if action == "show":
-            command.add_argument("--closing", action="store_true",
-                                 help="Print only the open points the closing left, with who closed the task.")
-        if action == "consult":
-            command.add_argument("--market", metavar="DOSSIER", help="Attach a market dossier from .openguildkit/market/.")
-            revised = command.add_mutually_exclusive_group()
-            revised.add_argument("--brief", dest="revised_brief", metavar="TEXT",
-                                 help="Revise the brief: the passes start over, and after a change request the "
-                                      "earlier round is kept.")
-            revised.add_argument("--brief-file", type=Path, metavar="FILE",
-                                 help="Read the revised brief from a UTF-8 text file instead of --brief.")
-        if action in ("consult", "route"):
-            command.add_argument("--add", action="append", default=[], metavar="BOARD", help="Add a board to the consultation.")
-            command.add_argument("--remove", action="append", default=[], metavar="BOARD", help="Remove a proposed board.")
-            command.add_argument("--reason", help="Why the boards were added or removed.")
-            command.add_argument("--delegate", action="append", default=[], metavar="BOARD=NAME",
-                                 help="Name the person who reviews a required board the project has not enabled.")
-        if action == "route":
-            command.add_argument("--json", action="store_true", help="Print the selection as JSON.")
-        if action == "review":
-            source = command.add_mutually_exclusive_group(required=True)
-            source.add_argument("--file", type=Path, help="Completed review JSON.")
-            source.add_argument("--summary", help="Assemble the review from completed board passes with this summary.")
-        if action == "pass":
-            command.add_argument("board", help="Board ID.")
-            command.add_argument("--again", action="store_true",
-                                 help="Redo a pass whose entry is already submitted; the entry is replaced at the next submit.")
-        if action == "brief":
-            shown = command.add_mutually_exclusive_group()
-            shown.add_argument("--board", help="Print this board's pass again without starting it.")
-            shown.add_argument("--scope", action="store_true", help="Print the whole project scope as JSON, rule texts included.")
-            shown.add_argument("--pack", help="Print the rules of one pack in force for the task.")
-        if action in ("pass", "submit"):
-            command.add_argument("--mode", choices=("subagent", "sequential"), help="How the host runs this pass.")
-        if action in ("clear", "waive"):
-            command.add_argument("blocker", help="Blocker ID such as security:1 (see task blockers).")
-            command.add_argument("--by", required=True, help="Person who resolves the blocker.")
-        if action == "clear":
-            command.add_argument("--evidence", required=True, help="Path, document or link that clears it.")
-            command.add_argument("--supports", required=True, help="What the evidence establishes.")
-            signing = command.add_mutually_exclusive_group()
-            signing.add_argument("--payload", type=Path, help="Write the exact clearance payload to sign.")
-            signing.add_argument("--signature", type=Path, help="SSH signature of the clearance payload.")
-            command.add_argument("--signer", help="Approver principal used to sign the clearance.")
-        if action == "waive":
-            command.add_argument("--reason", required=True, help="Why the risk is accepted.")
-            command.add_argument("--scope", required=True, help="What the waiver covers.")
-            command.add_argument("--until", required=True, help="Last day of the waiver, YYYY-MM-DD.")
-        if action == "blockers":
-            command.add_argument("--json", action="store_true", help="Print the blockers as JSON.")
-        if action == "export":
-            command.add_argument("--output", type=Path, help="Write the shareable record to this file instead.")
-        if action == "checks":
-            command.add_argument("--json", action="store_true", help="Print the checks as JSON.")
-        if action in ("checks", "result"):
-            command.add_argument("--all", action="store_true",
-                                 help="Ask every rule of the active packs, including those that do not concern the task.")
-        if action == "result":
-            source = command.add_mutually_exclusive_group(required=True)
-            source.add_argument("--file", type=Path, help="Result JSON.")
-            source.add_argument("--template", action="store_true", help="Print a result file to fill in.")
-        if action == "complete":
-            command.add_argument("--by", help="Person who closes the task over skipped sensitive rules or deferred "
-                                              "evidence (needs a terminal).")
-            command.add_argument("--defer", action="append", default=[], metavar="EVIDENCE=TASK",
-                                 help="Hand an awaited named evidence to a follow-up task (with --by).")
-        if action == "verify":
-            command.add_argument("--chaosfolk", type=Path, metavar="SUMMARY",
-                                 help="Record a ChaosFolk regression summary.json instead of running the check commands.")
-            command.add_argument("--tool-version", help="ChaosFolk version or commit that produced the summary.")
-            command.add_argument("--cannot-run", metavar="COMMAND_CHECK",
-                                 help="Record that a check command such as command:1 cannot run in this environment "
-                                      "(with --by and --reason, at a terminal); the task then closes with that reservation.")
-            command.add_argument("--withdraw", metavar="COMMAND_CHECK",
-                                 help="Withdraw a declaration that a command cannot run (with --by, at a terminal): "
-                                      "the command runs and its outcome is recorded.")
-            command.add_argument("--by", help="Person who records or withdraws that the command cannot run.")
-            command.add_argument("--reason", help="Why the command cannot run here.")
-        if action == "alerts":
-            command.add_argument("--import", dest="import_file", type=Path, metavar="REPORT",
-                                 help="npm audit, pip-audit, OSV-Scanner or Dependabot JSON report.")
-            command.add_argument("--set", dest="alert_id", metavar="ALERT", help="Alert ID to review.")
-            command.add_argument("--link", metavar="ALERT", help="Link an alert of the register to the task.")
-            command.add_argument("--status", choices=alerts_cli.STATUS_CHOICES, help="Review status for --set.")
-            command.add_argument("--by", help="Reviewer's name for --set.")
-            command.add_argument("--reason", default="", help="Reason, required to dismiss.")
-            command.add_argument("--json", action="store_true", help="Print the alerts as JSON.")
-        if action == "runs":
-            command.add_argument("--json", action="store_true", help="Print the comparison as JSON.")
-        if action == "respond":
-            command.add_argument("--file", type=Path, required=True, help="Completed deliberation JSON.")
-        if action == "submit":
-            command.add_argument("--file", type=Path, required=True, help="The board's filled-in JSON entry.")
-        if action == "progress":
-            command.add_argument("--json", action="store_true", help="Print the progress as JSON.")
-        if action == "authorize":
-            command.add_argument("--action", dest="external_action", required=True, choices=ACTIONS,
-                                 help="Kind of external action.")
-            command.add_argument("--target", required=True, help="Host or tool name, without query or private details.")
-            outcome = command.add_mutually_exclusive_group(required=True)
-            outcome.add_argument("--allow", action="store_true", help="Allow the action (needs a terminal).")
-            outcome.add_argument("--deny", action="store_true", help="Refuse the action.")
-            command.add_argument("--by", required=True, help="Decision owner's name.")
-            command.add_argument("--reason", required=True, help="Reason for the decision.")
-        if action == "decide":
-            outcome = command.add_mutually_exclusive_group(required=True)
-            outcome.add_argument("--approve", action="store_true", help="Approve the reviewed scope in a terminal.")
-            outcome.add_argument("--request-changes", action="store_true", help="Send the task back to consultation.")
-            command.add_argument("--by", required=True, help="Decision owner's name.")
-            command.add_argument("--reason", required=True, help="Reason for the decision.")
-            command.add_argument("--signature", type=Path, help="SSH signature of task decision-payload (signed projects).")
-            command.add_argument("--signer", help="Principal in the allowed signers file (signed projects).")
-        if action == "revoke":
-            command.add_argument("--by", required=True, help="Person who withdraws the approval.")
-            command.add_argument("--reason", required=True, help="Why the approval is withdrawn.")
-        if action == "decision-payload":
-            command.add_argument("--by", required=True, help="Decision owner's name.")
-            command.add_argument("--reason", required=True, help="Reason for the decision.")
-            command.add_argument("--output", type=Path, help="Write the exact bytes to sign to this file.")
+        for add_options in ACTION_OPTIONS.get(action, ()):
+            add_options(command)
+
+
+def _json_option(text: str):
+    return lambda command: command.add_argument("--json", action="store_true", help=text)
+
+
+def _answers_option(command) -> None:
+    command.add_argument("--answers", type=Path, help="Read task answers from a JSON file.")
+
+
+def _follow_ups_option(command) -> None:
+    command.add_argument("--follow-ups", action="store_true",
+                         help="With --answers, print only follow_ups and open_points, not the questionnaire again.")
+
+
+def _closing_option(command) -> None:
+    command.add_argument("--closing", action="store_true",
+                         help="Print only the open points the closing left, with who closed the task.")
+
+
+def _revised_brief_options(command) -> None:
+    command.add_argument("--market", metavar="DOSSIER", help="Attach a market dossier from .openguildkit/market/.")
+    revised = command.add_mutually_exclusive_group()
+    revised.add_argument("--brief", dest="revised_brief", metavar="TEXT",
+                         help="Revise the brief: the passes start over, and after a change request the earlier round "
+                              "is kept.")
+    revised.add_argument("--brief-file", type=Path, metavar="FILE",
+                         help="Read the revised brief from a UTF-8 text file instead of --brief.")
+
+
+def _board_change_options(command) -> None:
+    command.add_argument("--add", action="append", default=[], metavar="BOARD", help="Add a board to the consultation.")
+    command.add_argument("--remove", action="append", default=[], metavar="BOARD", help="Remove a proposed board.")
+    command.add_argument("--reason", help="Why the boards were added or removed.")
+    command.add_argument("--delegate", action="append", default=[], metavar="BOARD=NAME",
+                         help="Name the person who reviews a required board the project has not enabled.")
+
+
+def _review_source_options(command) -> None:
+    source = command.add_mutually_exclusive_group(required=True)
+    source.add_argument("--file", type=Path, help="Completed review JSON.")
+    source.add_argument("--summary", help="Assemble the review from completed board passes with this summary.")
+
+
+def _pass_options(command) -> None:
+    command.add_argument("board", help="Board ID.")
+    command.add_argument("--again", action="store_true",
+                         help="Redo a pass whose entry is already submitted; the entry is replaced at the next submit.")
+
+
+def _brief_options(command) -> None:
+    shown = command.add_mutually_exclusive_group()
+    shown.add_argument("--board", help="Print this board's pass again without starting it.")
+    shown.add_argument("--scope", action="store_true", help="Print the whole project scope as JSON, rule texts included.")
+    shown.add_argument("--pack", help="Print the rules of one pack in force for the task.")
+
+
+def _mode_option(command) -> None:
+    command.add_argument("--mode", choices=("subagent", "sequential"), help="How the host runs this pass.")
+
+
+def _file_option(text: str):
+    return lambda command: command.add_argument("--file", type=Path, required=True, help=text)
+
+
+def _blocker_options(command) -> None:
+    command.add_argument("blocker", help="Blocker ID such as security:1 (see task blockers).")
+    command.add_argument("--by", required=True, help="Person who resolves the blocker.")
+
+
+def _clear_options(command) -> None:
+    command.add_argument("--evidence", required=True, help="Path, document or link that clears it.")
+    command.add_argument("--supports", required=True, help="What the evidence establishes.")
+    signing = command.add_mutually_exclusive_group()
+    signing.add_argument("--payload", type=Path, help="Write the exact clearance payload to sign.")
+    signing.add_argument("--signature", type=Path, help="SSH signature of the clearance payload.")
+    command.add_argument("--signer", help="Approver principal used to sign the clearance.")
+
+
+def _waive_options(command) -> None:
+    command.add_argument("--reason", required=True, help="Why the risk is accepted.")
+    command.add_argument("--scope", required=True, help="What the waiver covers.")
+    command.add_argument("--until", required=True, help="Last day of the waiver, YYYY-MM-DD.")
+
+
+def _export_options(command) -> None:
+    command.add_argument("--output", type=Path, help="Write the shareable record to this file instead.")
+
+
+def _all_rules_option(command) -> None:
+    command.add_argument("--all", action="store_true",
+                         help="Ask every rule of the active packs, including those that do not concern the task.")
+
+
+def _result_source_options(command) -> None:
+    source = command.add_mutually_exclusive_group(required=True)
+    source.add_argument("--file", type=Path, help="Result JSON.")
+    source.add_argument("--template", action="store_true", help="Print a result file to fill in.")
+
+
+def _complete_options(command) -> None:
+    command.add_argument("--by", help="Person who closes the task over skipped sensitive rules or deferred evidence "
+                                      "(needs a terminal).")
+    command.add_argument("--defer", action="append", default=[], metavar="EVIDENCE=TASK",
+                         help="Hand an awaited named evidence to a follow-up task (with --by).")
+
+
+def _verify_options(command) -> None:
+    command.add_argument("--chaosfolk", type=Path, metavar="SUMMARY",
+                         help="Record a ChaosFolk regression summary.json instead of running the check commands.")
+    command.add_argument("--tool-version", help="ChaosFolk version or commit that produced the summary.")
+    command.add_argument("--cannot-run", metavar="COMMAND_CHECK",
+                         help="Record that a check command such as command:1 cannot run in this environment (with "
+                              "--by and --reason, at a terminal); the task then closes with that reservation.")
+    command.add_argument("--withdraw", metavar="COMMAND_CHECK",
+                         help="Withdraw a declaration that a command cannot run (with --by, at a terminal): the "
+                              "command runs and its outcome is recorded.")
+    command.add_argument("--by", help="Person who records or withdraws that the command cannot run.")
+    command.add_argument("--reason", help="Why the command cannot run here.")
+
+
+def _alerts_options(command) -> None:
+    command.add_argument("--import", dest="import_file", type=Path, metavar="REPORT",
+                         help="npm audit, pip-audit, OSV-Scanner or Dependabot JSON report.")
+    command.add_argument("--set", dest="alert_id", metavar="ALERT", help="Alert ID to review.")
+    command.add_argument("--link", metavar="ALERT", help="Link an alert of the register to the task.")
+    command.add_argument("--status", choices=alerts_cli.STATUS_CHOICES, help="Review status for --set.")
+    command.add_argument("--by", help="Reviewer's name for --set.")
+    command.add_argument("--reason", default="", help="Reason, required to dismiss.")
+    command.add_argument("--json", action="store_true", help="Print the alerts as JSON.")
+
+
+def _authorize_options(command) -> None:
+    command.add_argument("--action", dest="external_action", required=True, choices=ACTIONS,
+                         help="Kind of external action.")
+    command.add_argument("--target", required=True, help="Host or tool name, without query or private details.")
+    outcome = command.add_mutually_exclusive_group(required=True)
+    outcome.add_argument("--allow", action="store_true", help="Allow the action (needs a terminal).")
+    outcome.add_argument("--deny", action="store_true", help="Refuse the action.")
+    _decision_reason_options(command)
+
+
+def _decision_reason_options(command) -> None:
+    command.add_argument("--by", required=True, help="Decision owner's name.")
+    command.add_argument("--reason", required=True, help="Reason for the decision.")
+
+
+def _decide_options(command) -> None:
+    outcome = command.add_mutually_exclusive_group(required=True)
+    outcome.add_argument("--approve", action="store_true", help="Approve the reviewed scope in a terminal.")
+    outcome.add_argument("--request-changes", action="store_true", help="Send the task back to consultation.")
+    _decision_reason_options(command)
+    command.add_argument("--signature", type=Path, help="SSH signature of task decision-payload (signed projects).")
+    command.add_argument("--signer", help="Principal in the allowed signers file (signed projects).")
+
+
+def _revoke_options(command) -> None:
+    command.add_argument("--by", required=True, help="Person who withdraws the approval.")
+    command.add_argument("--reason", required=True, help="Why the approval is withdrawn.")
+
+
+def _payload_options(command) -> None:
+    _decision_reason_options(command)
+    command.add_argument("--output", type=Path, help="Write the exact bytes to sign to this file.")
+
+
+# The options of each action, in the order its help lists them.
+ACTION_OPTIONS = {
+    "questions": (_answers_option, _follow_ups_option),
+    "route": (_answers_option, _board_change_options, _json_option("Print the selection as JSON.")),
+    "consult": (_answers_option, _revised_brief_options, _board_change_options),
+    "show": (_closing_option,),
+    "review": (_review_source_options,),
+    "pass": (_pass_options, _mode_option),
+    "brief": (_brief_options,),
+    "submit": (_mode_option, _file_option("The board's filled-in JSON entry.")),
+    "clear": (_blocker_options, _clear_options),
+    "waive": (_blocker_options, _waive_options),
+    "blockers": (_json_option("Print the blockers as JSON."),),
+    "export": (_export_options,),
+    "checks": (_json_option("Print the checks as JSON."), _all_rules_option),
+    "result": (_all_rules_option, _result_source_options),
+    "complete": (_complete_options,),
+    "verify": (_verify_options,),
+    "alerts": (_alerts_options,),
+    "runs": (_json_option("Print the comparison as JSON."),),
+    "respond": (_file_option("Completed deliberation JSON."),),
+    "progress": (_json_option("Print the progress as JSON."),),
+    "authorize": (_authorize_options,),
+    "decide": (_decide_options,),
+    "revoke": (_revoke_options,),
+    "decision-payload": (_payload_options,),
+}
 
 
 @contextmanager
