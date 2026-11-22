@@ -47,21 +47,33 @@
       "verification": "Update stories if the project uses Storybook, or demonstrate those states with the existing component tests."
     },
     {
-      "id": "declare-hooks-lint-plugin",
-      "instruction": "Declare `eslint-plugin-react-hooks` in the project's development dependencies so the Rules of Hooks lint runs.",
+      "id": "keep-hooks-lint-on",
+      "instruction": "Do not turn off the `react-hooks/rules-of-hooks` rule of `eslint-plugin-react-hooks` in the project's ESLint configuration.",
       "verification": "task verify evaluates the check on the working tree; review each file it names.",
       "check": {
         "kind": "text",
         "paths": [
+          ".eslintrc",
+          ".eslintrc.json",
+          ".eslintrc.js",
+          ".eslintrc.cjs",
+          "eslint.config.js",
+          "eslint.config.mjs",
+          "eslint.config.cjs",
+          "eslint.config.ts",
           "package.json",
+          "*/package.json",
           "apps/*/package.json",
           "services/*/package.json",
           "packages/*/package.json"
         ],
         "contains": [
-          "eslint-plugin-react-hooks"
+          "\"react-hooks/rules-of-hooks\": \"off\"",
+          "'react-hooks/rules-of-hooks': 'off'",
+          "\"react-hooks/rules-of-hooks\": 0",
+          "'react-hooks/rules-of-hooks': 0"
         ],
-        "expect": "present"
+        "expect": "absent"
       }
     }
   ]

@@ -74,6 +74,7 @@
         "kind": "text",
         "paths": [
           "package.json",
+          "*/package.json",
           "apps/*/package.json",
           "services/*/package.json",
           "packages/*/package.json"
