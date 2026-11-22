@@ -82,9 +82,11 @@ REFUSALS = {
     "open-printed-link": "Open the address openguildkit ui printed in its terminal: it carries the key of this run.",
     "server-error": "The server failed while handling the request.",
 }
+# The task action that withdraws an approval: the person's act at a terminal, like the approval itself.
+WITHDRAW_ACTION = "revoke"
 # The acts a person records at a terminal, by command and action, with the code of their refusal.
 TERMINAL_ACTS = {
-    ("task", "decide"): "approve-at-terminal", ("task", "revoke"): "withdraw-at-terminal",
+    ("task", "decide"): "approve-at-terminal", ("task", WITHDRAW_ACTION): "withdraw-at-terminal",
     ("task", "verify"): "cannot-run-at-terminal", ("task", "clear"): "clear-at-terminal",
     ("task", "complete"): "complete-at-terminal", ("task", "waive"): "waiver-at-terminal",
     ("task", "authorize"): "external-action-at-terminal", ("tools", "apply"): "live-plan-at-terminal",
@@ -179,7 +181,7 @@ def _needs_person(args) -> bool:
                     or action == "verify" and (args.cannot_run or args.withdraw)
                     or action == "clear" and not args.signature and not args.payload
                     or action == "complete" and args.by
-                    or action in ("waive", "revoke")
+                    or action in ("waive", WITHDRAW_ACTION)
                     or action == "authorize" and args.allow)
     return bool(command == "tools" and action == "apply" and not args.mock
                 or command == "alerts" and action in ("accept", "severity"))
