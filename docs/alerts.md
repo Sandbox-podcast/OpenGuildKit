@@ -49,7 +49,7 @@ openguildkit task alerts ID --link pypi:jinja2:ghsa-h5c8-rqwp-cp95
 openguildkit task alerts ID
 ```
 
-`task consult` carries the task's open and confirmed alerts to the boards; dismissed and resolved alerts stay out. The consultation is a snapshot: when `task alerts ID --import` runs on a task already consulted, it says to run `task consult ID` again so the boards see the new alerts. Tasks created by an earlier version kept their alerts inside the task record: `task alerts ID` moves them into the register, linked to the task.
+`task consult` carries the task's open and confirmed alerts to the boards; dismissed and resolved alerts stay out. The consultation is a snapshot: when `task alerts ID --import` brings an open or confirmed alert that the task's last consultation does not hold, it says to run `task consult ID` again so the boards see it. A report that brings nothing new asks nothing. Tasks created by an earlier version kept their alerts inside the task record: `task alerts ID` moves them into the register, linked to the task.
 
 A confirmed alert of severity `critical` blocks the approval (`task decide --approve`) and the completion (`task complete`) of each task it is linked to, with a message that names it. It stops blocking when an import shows it resolved, or when a person records why the risk is accepted:
 

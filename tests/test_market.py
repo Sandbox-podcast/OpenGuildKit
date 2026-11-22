@@ -305,6 +305,19 @@ class MarketLayoutAndRelevanceTests(unittest.TestCase):
         output = self.cli("task", "consult", "pricing", "--answers", self.root / "a.json", "--market", "support-portals")
         self.assertIn('"relevance": "The dossier support-portals is about', output)
 
+    def test_the_field_scenario_that_names_the_dossier_in_its_answers_still_gets_the_note(self):
+        scenario = json.loads((REPO / "examples" / "field-tests" / "scenarios" / "s2" / "task.json").read_text(
+            encoding="utf-8"))
+        self.cli("task", "new", scenario["brief"], "--id", scenario["id"])
+        answers = write_json(self.root / "s2.json", scenario["answers"]) or self.root / "s2.json"
+        output = self.cli("task", "consult", scenario["id"], "--answers", answers, "--market", "support-portals")
+        self.assertIn('"relevance": "The dossier support-portals is about', output)
+        dossier = validate_dossier(copy.deepcopy(DOSSIER), "support-portals")
+        for mention in ("support-portals", "market/support-portals.json", "SUPPORT-PORTALS"):
+            with self.subTest(mention=mention):
+                self.assertIsNotNone(relevance_note(dossier, f"Compare plan prices. Use the dossier {mention}."))
+        self.assertIsNone(relevance_note(dossier, "Use support-portals to compare the customer portal status pages."))
+
     def test_under_local_only_a_person_records_a_page_they_provided(self):
         due = self.cli("market", "due", "support-portals")
         self.assertIn(self.URL, due)

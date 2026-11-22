@@ -361,7 +361,12 @@ def _words(text: str) -> set[str]:
 
 
 def relevance_note(dossier: dict, brief: str) -> str | None:
-    """One line when the dossier's feature shares no word with the task brief: it may be about another function."""
+    """One line when the dossier's feature shares no word with the task brief: it may be about another function.
+
+    A mention of the dossier itself, by its ID or its file name, says which dossier to use, not what the task is
+    about, so it does not count as a shared word.
+    """
+    brief = re.sub(rf"(?<![\w-]){re.escape(dossier['id'])}(?:\.json)?(?![\w-])", " ", brief, flags=re.IGNORECASE)
     if dossier["feature"] == TO_DESCRIBE or _words(dossier["feature"]) & _words(brief):
         return None
     return (f"The dossier {dossier['id']} is about \"{dossier['feature']}\", which shares no word with the task brief: "

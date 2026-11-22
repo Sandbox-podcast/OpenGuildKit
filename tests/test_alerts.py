@@ -232,6 +232,18 @@ class AlertFlowTests(unittest.TestCase):
         self.cli("task", "consult", "upgrade", "--answers", self.root / "a.json")
         self.assertIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "npm-audit-critical.json"))
 
+    def test_an_import_that_brings_nothing_new_to_the_consultation_asks_nothing(self):
+        self.init()
+        self.cli("task", "new", "Upgrade Jinja in the report service.", "--id", "upgrade")
+        reminder = "run openguildkit task consult upgrade again"
+        self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json")
+        write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local"})
+        self.cli("task", "consult", "upgrade", "--answers", self.root / "a.json")
+        self.assertNotIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json"))
+        self.assertIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "npm-audit-critical.json"))
+        self.cli("task", "consult", "upgrade", "--answers", self.root / "a.json")
+        self.assertNotIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "npm-audit-critical.json"))
+
     def test_a_confirmed_critical_alert_blocks_approval_and_completion(self):
         write_json(self.root / "p.json", {"name": "Portal", "stack": ["Python"], "packs": ["python"]})
         self.cli("init", "--answers", self.root / "p.json")
