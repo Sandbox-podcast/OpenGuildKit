@@ -1,6 +1,6 @@
 # Governance
 
-OpenGuildKit is a catalog maintained by practitioners and a small CLI maintained by a core team. The governance follows that split.
+OpenGuildKit is a catalog maintained by practitioners and a small CLI maintained by its maintainers. The governance follows that split.
 
 ## Roles
 
@@ -10,7 +10,7 @@ OpenGuildKit is a catalog maintained by practitioners and a small CLI maintained
 
 **Maintainers** own the CLI, the schema and releases. They are listed in `.github/CODEOWNERS`, so GitHub requests their review on every pull request. A maintainer records the merge decision in the pull request.
 
-OpenGuildKit has one maintainer today. Until a second one joins, that maintainer takes the decisions this page gives to the maintainers, and records the reason in the issue or the pull request. A pull request from the maintainer waits for the checks of `contribution-checks` like any other.
+OpenGuildKit has one maintainer today. Until a second one joins, that maintainer takes the decisions this page gives to the maintainers, and records the reason in the issue or the pull request.
 
 ## Decisions
 
