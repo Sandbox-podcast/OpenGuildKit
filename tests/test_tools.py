@@ -937,7 +937,7 @@ class ApplyOutcomeTests(unittest.TestCase):
         self.assertIn("    openguildkit tools apply github/github-local zendesk --host codex --community --read-only "
                       "--set zendesk.subdomain=acme\n", err)
         code, _, err = run("--project", self.root, "tools", "plan", "jira", "--mock", "--log", "my calls.jsonl", "--host", "claude-code")
-        self.assertIn('openguildkit tools apply jira --host claude-code --mock --log "my calls.jsonl"', err)
+        self.assertIn("openguildkit tools apply jira --host claude-code --mock --log 'my calls.jsonl'", err)
 
 
 

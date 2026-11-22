@@ -204,7 +204,7 @@ class CleanErrorTests(unittest.TestCase):
     def test_evidence_dates_must_be_real_and_past_and_cited_files_must_exist(self):
         review = self.consulted()
         path = self.root / "review.json"
-        later = (clock.today() + timedelta(days=3)).isoformat()
+        later = (clock.real_today() + timedelta(days=3)).isoformat()
         for change, message in (({"source": "measurement", "date": "2026-99-99"}, "not a real date"),
                                 ({"source": "measurement", "date": later}, "in the future"),
                                 ({"source": "project-file", "ref": "nowhere/does-not-exist.txt"}, "not a file or folder"),

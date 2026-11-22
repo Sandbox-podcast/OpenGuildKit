@@ -25,7 +25,7 @@ from .results import DONE_STATUSES, verification_of
 from .storage import read_json, write_json
 from .task_index import tasks_with_status
 from .tasks import STALE_DAYS, STATUSES, approval_problem, days_since, read_task, task_path
-from .workflow import exported_blockers, mock_evidence
+from .workflow import TaskStateError, exported_blockers, mock_evidence
 
 MODES = ("off", "observe", "enforce")
 # The mode when the profile cannot be read: the hook refuses edits, as in enforce, and says why.
@@ -325,7 +325,7 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
     The record carries the approval payload, and its signature when there is one, so CI can recompute the seal.
     """
     if task["status"] not in ("approved", "done", "done-with-reservations"):
-        raise ValueError("Only an approved or completed task can be exported.")
+        raise TaskStateError("Only an approved or completed task can be exported.")
     check_decision(task, root, profile)
     path = output if output is not None else state / DECISIONS_DIR / f"{task['id']}.json"
     _refuse_foreign_record(root, path, task)

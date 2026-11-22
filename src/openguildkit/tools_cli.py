@@ -1,7 +1,6 @@
 """The `openguildkit tools` commands: browse the tool registry, connect a project's tools, rehearse with mocks."""
 
 import json
-import re
 import sys
 from functools import partial
 from pathlib import Path
@@ -9,6 +8,7 @@ from typing import TextIO
 
 from .mcp_mock import MockError, call_tool, describe, example_arguments, is_generic, serve, signature
 from .sensitive import looks_like_credential
+from .shell import shell_command
 from .storage import json_text, project_lock, write_text
 from .tasks import read_task
 from .tools import (
@@ -169,11 +169,6 @@ def _confirm_live(plan: list[dict], args, host: str, tools: dict) -> None:
         raise ValueError("Nothing written: the plan was not accepted.")
 
 
-def _quote(word: str) -> str:
-    """A word as it can be pasted in a POSIX shell, PowerShell or cmd: quoted only when it needs it."""
-    return word if re.fullmatch(r"[A-Za-z0-9_./:=@+-]+", word) else '"' + word.replace('"', '\\"') + '"'
-
-
 def _apply_command(args, host: str, plan: list[dict], tools: dict) -> str:
     """The apply command with the person's own tools and options, ready to paste; tools the plan skips are left out."""
     skipped = {item["tool"] for item in plan if "skipped" in item}
@@ -187,7 +182,7 @@ def _apply_command(args, host: str, plan: list[dict], tools: dict) -> str:
             words += [option, f"{name}=VALUE" if equals and looks_like_credential(given) else value]
     if args.log:
         words += ["--log", args.log]
-    return " ".join(_quote(word) for word in words)
+    return shell_command(words)
 
 
 def _known_id(name: str, tools: dict) -> str:

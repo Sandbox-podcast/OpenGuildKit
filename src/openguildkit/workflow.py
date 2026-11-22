@@ -17,38 +17,60 @@ from .relevance import BASELINE_PACKS, judge_rules, pack_relevance
 from .sensitive import credential_problems, public_evidence_url, redact_credentials
 
 
+class TaskStateError(ValueError):
+    """An action refused because of the task's status. The message says what is refused; the command line adds the
+    status and the next command that runs in it (tasks.state_refusal)."""
+
+
 AGENT_WORKFLOW = """## OpenGuildKit task workflow
 
 Use this workflow for new project work. Ask the questions and write the review
-in the user's language. Keep the CLI's IDs and JSON keys as printed.
+in the user's language. Keep the CLI's IDs and JSON keys as printed. A command
+refused in the task's status names the command that runs next.
 
-1. Run `openguildkit task new "BRIEF"`. Read the questionnaire with
+1. Open and scope. Run `openguildkit task new "BRIEF" --id ID`, then
    `openguildkit task questions ID`. Ask the user for missing answers and
-   confirm any choice you inferred from their brief. Save the answers, then
-   run `openguildkit task questions ID --answers FILE` to get the follow-up
-   questions they call for and the points still open. Record acceptance
-   criteria and any other free text in `context`.
-2. Save the answers as a JSON object and run
-   `openguildkit task consult ID --answers FILE`. Read the consultation before
-   changing project files. It lists which boards to consult and the evidence
-   each can inspect. Give each board a separate pass, using your host agent's
-   subagents when available.
-3. Get the response shape with `openguildkit task template ID`. Fill it with
-   concrete recommendations and evidence from the project or allowed public
-   sources. For each brain, get a finding from each specialist lens before
-   reconciling its verdict, alternative, and checks. Record missing evidence
-   and disagreements. Run `openguildkit task review ID --file FILE`. When
+   confirm any choice you inferred from their brief. Save the answers as a
+   JSON object and run
+   `openguildkit task questions ID --answers FILE --follow-ups` for the
+   follow-up questions they call for and the points still open. Record
+   acceptance criteria and any other free text in `context`. Show the user
+   the boards of `openguildkit task route ID --answers FILE`, then run
+   `openguildkit task consult ID --answers FILE`. Read the consultation
+   before changing project files.
+2. Consult each board in its own pass. For each board the consultation
+   lists, run `openguildkit task pass ID BOARD --mode subagent` and give its
+   output alone to a subagent, or review the boards one after the other
+   yourself with `--mode sequential`. Record each returned entry with
+   `openguildkit task submit ID --file ENTRY`;
+   `openguildkit task progress ID` shows the passes left. Write the summary
+   yourself (where the boards agree, where they differ, the next step) and
+   run `openguildkit task review ID --summary TEXT`. When
    `openguildkit task deliberate ID` lists objections, have each board answer
-   the other on the same point and record it with `task respond`. Show the
-   decision brief from `openguildkit task challenge ID` to the user.
-4. The user records the decision in their terminal with
+   the other on the same point and record it with
+   `openguildkit task respond ID --file FILE`. Show the user the decision
+   brief of `openguildkit task challenge ID`.
+3. Stop for the person's decision, in their own terminal. They clear each
+   blocker of `openguildkit task blockers ID` with
+   `openguildkit task clear ID BLOCKER --evidence PATH --supports TEXT --by NAME`
+   and decide with
    `openguildkit task decide ID --approve --by NAME --reason TEXT` or
    `openguildkit task decide ID --request-changes --by NAME --reason TEXT`.
-   For a change request, update the scoped answers and consult again.
-   Keep implementation paused until `openguildkit task handoff ID` returns an
-   approved handoff. Use the approved scope and checks in that handoff. A task
-   of kind `decision` ends with a decision record: report it and leave the
-   project files unchanged. Open a new task to implement the decision.
+   Propose the evidence; never clear, waive or approve yourself. After a
+   change request, update the answers and consult again. When the work is
+   abandoned or a condition of the approval cannot be met, the person
+   withdraws the approval in their terminal with
+   `openguildkit task revoke ID --by NAME --reason WHY`; never run it.
+4. Deliver and close. Implement only once `openguildkit task handoff ID`
+   returns an approved handoff, within its scope and checks. Then run
+   `openguildkit task verify ID`, fill the file of
+   `openguildkit task result ID --template` and record it with
+   `openguildkit task result ID --file FILE`, close the task with
+   `openguildkit task complete ID`, and commit the record of
+   `openguildkit task export ID` with the change. A task of kind `decision`
+   ends with a decision record: report it, leave the project files
+   unchanged, close it with `openguildkit task complete ID` and export it,
+   then open a follow-up task (`task new "BRIEF" --follows ID`) to act on it.
 
 Keep source code, secrets and customer data inside their authorized boundary.
 Get any approval for external actions through the host agent's permission flow.
@@ -1600,14 +1622,14 @@ _LOCATION = re.compile(r"(?:::.*|#.*|:\d+(?:-\d+)?)$")
 
 
 def _evidence_day(value: object, field: str) -> str:
-    """A real YYYY-MM-DD date that is not in the future (one day of margin for time zones)."""
+    """A real YYYY-MM-DD date that is not in the future on the real clock (one day of margin for time zones)."""
     if not isinstance(value, str) or not _DATE.fullmatch(value):
         raise ValueError(f"{field}: got {_received(value)}; write the date YYYY-MM-DD.")
     try:
         day = date.fromisoformat(value)
     except ValueError:
         raise ValueError(f"{field}: {value} is not a real date. Write it YYYY-MM-DD.") from None
-    if day > clock.today() + timedelta(days=1):
+    if day > clock.real_today() + timedelta(days=1):
         raise ValueError(f"{field}: {value} is in the future. Write the day the evidence was observed.")
     return value
 
@@ -2262,9 +2284,12 @@ def _entry_section(template: dict) -> str:
     return f"{fence}json\n{body}\n{fence}"
 
 
-def board_brief(consultation: dict, board_id: str) -> str:
+def board_brief(consultation: dict, board_id: str, shared_from: str | None = None) -> str:
     """What one board's independent pass needs: the task, its brief and the entry to return, then the rules of its
-    packs and a bounded reading list to consult. The shared project scope is named with the command that prints it."""
+    packs and a bounded reading list to consult. The shared project scope is named with the command that prints it.
+
+    shared_from names the board whose pass, earlier in a sequence, printed how to fill an entry and the shapes of an
+    evidence item and a blocker: this pass names it instead of printing them again, and prints the same rules."""
     if board_id not in consultation["boards"]:
         raise ValueError(f"Board {board_id!r} is not part of this consultation: {', '.join(consultation['boards'])}.")
     scope = consultation["scope"]
@@ -2296,26 +2321,20 @@ def board_brief(consultation: dict, board_id: str) -> str:
         "",
         *(_brief_section_lines(data, board_id, task_id) if data else _legacy_board_section(consultation, board_id)),
         "",
-        "## How to fill the entry",
-        "",
-        *_entry_guide(),
-        "",
-        "## Entry to return",
-        "",
-        _entry_section(template),
-        "",
-        "Write each evidence item in this shape:",
-        "",
-        _json_section(EVIDENCE_ITEM, indent=None),
-        "",
-        "and each blocker in this shape:",
-        "",
-        _json_section(BLOCKER_ITEM, indent=None),
-        "",
     ]
+    guide = ["## How to fill the entry", "", *_entry_guide(), ""]
+    entry = ["## Entry to return", "", _entry_section(template), ""]
+    shapes = ["Write each evidence item in this shape:", "", _json_section(EVIDENCE_ITEM, indent=None), "",
+              "and each blocker in this shape:", "", _json_section(BLOCKER_ITEM, indent=None), ""]
+    reading = [*_reading_lines(data, board_id), ""] if data else []
+    # The rules fill the room a whole pass leaves, so that a pass prints the same rules in either mode.
+    room = PASS_BUDGET - len("\n".join([*lines, *guide, *entry, *shapes, *reading]).encode("utf-8"))
+    if shared_from:
+        guide = [f"How to fill the entry, and the shapes of an evidence item and a blocker: as in the {shared_from} "
+                 f"pass of this sequence, printed again by openguildkit task brief {task_id} --board {shared_from}.", ""]
+        shapes = []
+    lines.extend([*guide, *entry, *shapes, *reading])
     if data:
-        lines.extend([*_reading_lines(data, board_id), ""])
-        room = PASS_BUDGET - len("\n".join(lines).encode("utf-8"))
         lines.extend([*_rule_lines(data, task_id, room), ""])
     return "\n".join(lines)
 
@@ -2449,7 +2468,7 @@ def deliberation_request(task: dict) -> dict:
     """What each board must answer, on the same point, before the person decides: one response per board and
     side, covering every objection it raised or received."""
     if task.get("status") != "reviewed":
-        raise ValueError("Deliberate after the review is recorded and before the decision.")
+        raise TaskStateError("Deliberate after the review is recorded and before the decision.")
     review = validate_review(task["consultation"], task["review"])
     items = objections(review, task["consultation"].get("domains"))
     groups = {}
@@ -2674,7 +2693,7 @@ def challenge_report(task: dict, lines: list[str] | None = None) -> str:
     """The decision brief: the lines the person reads before deciding (tasks.decision_text, the same as the
     approval prompt), then each board's challenge as JSON."""
     if "review" not in task:
-        raise ValueError("Record the board reviews before opening the decision brief.")
+        raise TaskStateError("Record the board reviews before opening the decision brief.")
     review = validate_review(task["consultation"], task["review"])
     findings = []
     verdicts = {}
@@ -2851,8 +2870,7 @@ def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] |
         raise ValueError(f"Task {task['id']} has changes requested by {task['decision']['by']}: there is nothing to "
                          f"implement. Next: openguildkit task consult {task['id']}")
     if status not in ("approved", "done", "done-with-reservations"):
-        raise ValueError("A human approval is required before implementation."
-                         + (f" Next: openguildkit task decide {task['id']}" if status == "reviewed" else ""))
+        raise TaskStateError("A human approval is required before implementation.")
     pending_verification = [item for item in blocker_list(task) if item.get("phase") == "verification"
                             and not item["resolution"]]
     consultation = task["consultation"]
@@ -2866,7 +2884,8 @@ def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] |
         heading = "# Approved decision record"
         instruction = (
             "Report this decision and its review to the user. Leave the project files "
-            "unchanged. To act on the decision, open a follow-up task with "
+            f"unchanged. Close the task with `openguildkit task complete {task['id']}`, then export its record with "
+            f"`openguildkit task export {task['id']}`. To act on the decision, open a follow-up task with "
             f"`openguildkit task new \"BRIEF\" --follows {task['id']}`, which records the link and carries this "
             "decision into its consultation, and get that task's scope approved before implementing it."
         )

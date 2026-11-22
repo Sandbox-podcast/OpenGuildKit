@@ -2,7 +2,8 @@
 
 A dossier lives in .openguildkit/market/ID.json and is shared with the team through git.
 The CLI validates it and attaches it to consultations; the host agent gathers the
-observations within the project's research policy.
+observations within the project's research policy. Its dates decide what is stale, due or in
+the future: they follow the real clock, whatever SOURCE_DATE_EPOCH says.
 """
 
 import codecs
@@ -50,7 +51,7 @@ def _day(value, field: str) -> str:
         day = date.fromisoformat(value)
     except ValueError as error:
         raise ValueError(f"{field} must be a real date written YYYY-MM-DD: {value}.") from error
-    if day > clock.today() + timedelta(days=1):
+    if day > clock.real_today() + timedelta(days=1):
         raise ValueError(f"{field} is in the future ({value}): write the date the information dates from.")
     return value
 
@@ -335,7 +336,7 @@ def mark_checked(dossier: dict, url: str, day: str | None = None) -> dict:
     watch = _watch(dossier)
     if not any(item["url"] == url for item in watch["sources"]):
         raise ValueError(f"{url} is not a watched source of the dossier. Run market due to list them.")
-    day = _day(day or clock.today().isoformat(), "date")
+    day = _day(day or clock.real_today().isoformat(), "date")
     return validate_dossier({**dossier, "watch": {**watch, "sources": _checked(watch["sources"], url, day)}}, dossier["id"])
 
 
@@ -345,7 +346,7 @@ def mark_provided(dossier: dict, url: str, by: str, day: str | None = None) -> d
     if not any(item["url"] == url for item in watch["sources"]):
         raise ValueError(f"{url} is not a watched source of the dossier. Run market due to list them.")
     by = _text(by, "--by")
-    day = _day(day or clock.today().isoformat(), "date")
+    day = _day(day or clock.real_today().isoformat(), "date")
     sources = [{**item, "provided_by": by} if item["url"] == url else item for item in _checked(watch["sources"], url, day)]
     return validate_dossier({**dossier, "watch": {**watch, "sources": sources}}, dossier["id"])
 
@@ -354,7 +355,7 @@ def record_change(dossier: dict, change: dict, today: str | None = None) -> dict
     """Keep a verified change; when its source is a watched page, that page counts as checked today."""
     watch = _watch(dossier)
     entry = {key: change[key] for key in ("competitor", "what", "date", "source", "verified_by")}
-    today = today or clock.today().isoformat()
+    today = today or clock.real_today().isoformat()
     watch = {**watch, "changes": [*watch["changes"], entry], "sources": _checked(watch["sources"], entry["source"], today)}
     return validate_dossier({**dossier, "watch": watch}, dossier["id"])
 
@@ -378,7 +379,7 @@ def due_issue(dossier_id: str, source: dict) -> dict:
 
 def dossier_gaps(dossier: dict, research: str, today: date | None = None) -> list[str]:
     """What the dossier still lacks before Product and Marketing can rely on it."""
-    today = today or clock.today()
+    today = today or clock.real_today()
     gaps = list(dossier.get("unknowns", []))
     for field in ("market", "audience", "feature"):
         if dossier[field] == TO_DESCRIBE:
@@ -412,7 +413,7 @@ def due_sources(dossier: dict, today: date | None = None) -> list[dict]:
     watch = dossier.get("watch")
     if not watch or watch["paused"]:
         return []
-    today = today or clock.today()
+    today = today or clock.real_today()
     due = []
     for source in watch["sources"]:
         last = source.get("last_checked")
@@ -442,7 +443,7 @@ def relevance_note(dossier: dict, brief: str) -> str | None:
 
 def scope_entry(dossier: dict, research: str, today: date | None = None, brief: str | None = None) -> dict:
     """What a consultation carries: observations and verified changes with their age, the gaps, and a relevance note."""
-    today = today or clock.today()
+    today = today or clock.real_today()
     entry = {key: dossier[key] for key in ("id", "market", "audience", "feature", "competitors")}
     entry["observations"] = [
         {**item, "age_days": (today - date.fromisoformat(item["source"]["date"])).days} for item in dossier["observations"]

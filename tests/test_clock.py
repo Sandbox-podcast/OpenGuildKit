@@ -12,6 +12,10 @@ from unittest.mock import patch
 from openguildkit import clock
 from openguildkit.cli import main
 from openguildkit.guard import _age_days
+from openguildkit.market import due_sources, dossier_gaps, mark_checked, validate_dossier
+from openguildkit.market import scope_entry as market_scope
+from openguildkit.storybook import scope_entry as storybook_scope
+from openguildkit.workflow import _evidence_day
 from openguildkit.storage import write_json
 
 TESTS = Path(__file__).resolve().parent
@@ -88,7 +92,7 @@ class ClockTests(unittest.TestCase):
         self.assertIn("SOURCE_DATE_EPOCH is set: this command dates what it writes 2025-11-20T12:00:00+00:00, not now", notice)
         with patch.dict(os.environ, {}), patch.object(clock, "_announced", set()):
             os.environ.pop("SOURCE_DATE_EPOCH", None)
-            self.assertEqual(self.cli(root, "task", "new", "Show request history.", "--id", "history")[1], "")
+            self.assertNotIn("SOURCE_DATE_EPOCH", self.cli(root, "task", "new", "Show request history.", "--id", "history")[1])
 
     def test_shares_follow_the_real_clock_under_source_date_epoch(self):
         root = self.project()
@@ -113,6 +117,51 @@ class ClockTests(unittest.TestCase):
             with self.subTest(fixed=fixed), patch.dict(os.environ, {"SOURCE_DATE_EPOCH": fixed}):
                 self.assertEqual(_age_days(moment), 0)
         self.assertEqual(_age_days((clock.real_now() - timedelta(days=40)).isoformat()), 40)
+
+    def dossier(self, day: str) -> dict:
+        """The example dossier with every observation, change and review dated day."""
+        dossier = json.loads((TESTS.parent / "examples" / "market-dossier" / "support-portals.json").read_text(
+            encoding="utf-8"))
+        for item in dossier["observations"]:
+            item["source"]["date"] = day
+        for item in dossier["watch"]["changes"]:
+            item["date"] = day
+        for item in dossier["watch"]["sources"]:
+            item["last_checked"] = day
+        return validate_dossier(dossier, dossier["id"])
+
+    def test_market_dates_and_ages_follow_the_real_clock_under_source_date_epoch(self):
+        today = clock.real_today().isoformat()
+        later = (clock.real_today() + timedelta(days=30)).isoformat()
+        for fixed in (LATER, EARLIER):
+            with self.subTest(fixed=fixed), patch.dict(os.environ, {"SOURCE_DATE_EPOCH": fixed}):
+                dossier = self.dossier(today)
+                with self.assertRaisesRegex(ValueError, "in the future"):
+                    self.dossier(later)
+                self.assertEqual({item["age_days"] for item in market_scope(dossier, "local-only")["observations"]}, {0})
+                self.assertFalse(any("days old" in gap for gap in dossier_gaps(dossier, "local-only")))
+                self.assertEqual(due_sources(dossier), [])
+                url = dossier["watch"]["sources"][0]["url"]
+                self.assertEqual(mark_checked(dossier, url)["watch"]["sources"][0]["last_checked"], today)
+
+    def test_storybook_ages_follow_the_real_clock_under_source_date_epoch(self):
+        state = self.project() / ".openguildkit"
+        write_json(state / "storybook.json", {"schema_version": 1, "indexes": [
+            {"ref": "project", "source": "storybook-static/index.json", "sha256": "0" * 64,
+             "recorded": clock.real_today().isoformat(), "stories": [{"id": "button--primary", "title": "Button",
+                                                                      "name": "Primary"}]}]})
+        for fixed in (LATER, EARLIER):
+            with self.subTest(fixed=fixed), patch.dict(os.environ, {"SOURCE_DATE_EPOCH": fixed}):
+                self.assertEqual(storybook_scope(state)["indexes"][0]["age_days"], 0)
+
+    def test_evidence_dates_follow_the_real_clock_under_source_date_epoch(self):
+        today = clock.real_today().isoformat()
+        later = (clock.real_today() + timedelta(days=30)).isoformat()
+        for fixed in (LATER, EARLIER):
+            with self.subTest(fixed=fixed), patch.dict(os.environ, {"SOURCE_DATE_EPOCH": fixed}):
+                self.assertEqual(_evidence_day(today, "date"), today)
+                with self.assertRaisesRegex(ValueError, "in the future"):
+                    _evidence_day(later, "date")
 
 
 if __name__ == "__main__":

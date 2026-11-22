@@ -21,9 +21,9 @@ from .results import (
 from .storage import read_json, write_json
 from .alerts import resolution_line, resolved_by_import
 from .workflow import (
-    RESOLUTION_FIELDS, blocker_list, blocker_resolutions, code_not_found, consult, decision_summary, is_decision_task,
-    pending_removals, profile_settings, resolution_field, review_warnings, validate_answers, validate_board_entry,
-    validate_deliberation, validate_review,
+    RESOLUTION_FIELDS, TaskStateError, blocker_list, blocker_resolutions, code_not_found, consult, decision_summary,
+    is_decision_task, pending_removals, profile_settings, resolution_field, review_warnings, validate_answers,
+    validate_board_entry, validate_deliberation, validate_review,
 )
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -280,9 +280,17 @@ def next_step(task: dict, profile: dict | None = None) -> str:
     if status == "draft":
         return "Answer the questionnaire and consult the boards."
     if status == "consulting":
-        passes = pass_progress(task)
-        waiting = [item["board"] for item in passes if item["status"] != "done"]
-        return f"Board reviews pending: {', '.join(waiting)}." if waiting else "Write the summary and record the review."
+        progress = pass_progress(task)
+        waiting = [item["board"] + (" (failed)" if item["status"] == "failed" else "") for item in progress
+                   if item["status"] in ("missing", "failed")]
+        started = [item["board"] for item in progress if item["status"] == "started"]
+        if not waiting and not started:
+            return "Write the summary and record the review."
+        # A started pass is under way, not pending: it waits for its entry.
+        parts = [f"Board reviews pending: {', '.join(waiting)}"] if waiting else []
+        if started:
+            parts.append(f"{'p' if waiting else 'P'}asses started, waiting for their entry: {', '.join(started)}")
+        return "; ".join(parts) + "."
     if status == "reviewed":
         blockers = unresolved_blockers(task)
         return f"Resolve blockers {', '.join(blockers)}." if blockers else "Waiting for the person's decision."
@@ -291,8 +299,67 @@ def next_step(task: dict, profile: dict | None = None) -> str:
     if status == "approved":
         return _approved_step(task) + _conditions_step(task, profile) + _abandoned_step(task)
     if status == "done-with-reservations":
-        return "Done with reservations: see the open points in task show (result.closing)."
+        return f"Done with reservations: see the open points with openguildkit task show {task['id']} --closing."
     return "Done."
+
+
+# How a refusal names a status that has no decision yet.
+_STATUS_WORDS = {"draft": "a draft, not consulted yet", "consulting": "being consulted",
+                 "reviewed": "reviewed and waits for the person's decision"}
+
+
+def next_command(task: dict) -> str:
+    """The command that moves a task on from its status, said to the agent: a refusal ends with it, so that a refused
+    command leads to one that runs."""
+    task_id, status = task["id"], task["status"]
+    if status == "draft":
+        return (f"read the questions with openguildkit task questions {task_id}, then consult the boards with "
+                f"openguildkit task consult {task_id} --answers FILE")
+    if status == "consulting":
+        progress = pass_progress(task)
+        review = f"openguildkit task review {task_id} --summary TEXT"
+        to_run = [item["board"] for item in progress if item["status"] in ("missing", "failed")]
+        started = [item["board"] for item in progress if item["status"] == "started"]
+        steps = [f"run the passes of {', '.join(to_run)} (openguildkit task pass {task_id} BOARD)"] if to_run else []
+        if started:
+            steps.append(f"submit the entries of {', '.join(started)} (openguildkit task submit {task_id} --file ENTRY)")
+        return f"{'; '.join(steps)}; then {review}" if steps else f"every pass is done: {review}"
+    if status == "reviewed":
+        decide = (f"the person decides at their terminal: openguildkit task decide {task_id} --approve (or "
+                  "--request-changes) --by NAME --reason TEXT")
+        blockers = unresolved_blockers(task)
+        if blockers:
+            return (f"the person clears {', '.join(blockers)} at their terminal (openguildkit task clear {task_id} "
+                    f"BLOCKER --evidence PATH --supports TEXT --by NAME) or requests changes, then {decide}")
+        return decide
+    if status == "changes-requested":
+        return f"consult again: openguildkit task consult {task_id} --answers FILE"
+    if status == "approved":
+        if is_decision_task(task):
+            return f"close the decision with openguildkit task complete {task_id}"
+        if not task.get("result"):
+            return f"implement the handoff (openguildkit task handoff {task_id}), then openguildkit task verify {task_id}"
+        return f"openguildkit task verify {task_id}, then openguildkit task complete {task_id}"
+    return f'open a follow-up task: openguildkit task new "BRIEF" --follows {task_id}'
+
+
+def passes_left(task: dict) -> str:
+    """After an entry is recorded: how many passes are left and the command that comes next."""
+    left = [item for item in pass_progress(task) if item["status"] != "done"]
+    if not left:
+        return f"Every pass is done: write the summary and run openguildkit task review {task['id']} --summary TEXT."
+    return f"{len(left)} {'pass' if len(left) == 1 else 'passes'} left: {next_command(task)}."
+
+
+def state_refusal(task: dict, refused: str, problem: dict | None = None) -> str:
+    """A refused action on a task whose status it does not fit: what is refused, then the status and the next
+    command that runs. A decided task says who decided and what fits next (decided_message, with the task's
+    approval_problem when an approval no longer holds)."""
+    decided = decided_message(task, problem)
+    if decided:
+        return f"{refused} {decided}"
+    words = _STATUS_WORDS.get(task["status"], task["status"])
+    return f"{refused} Task {task['id']} is {words}: next, {next_command(task)}."
 
 
 def _setting_change(name: str, before, after) -> str:
@@ -560,9 +627,10 @@ def record_consultation(
 ) -> dict:
     """Record a consultation. With the project root, a bug brief's files and functions are looked for in it.
 
-    After a change request, the earlier round is kept and the brief may be revised. An approval that no longer holds
-    (earlier rules, a revision a rebase replaced, a seal or a signature that fails) is consulted again under the same
-    ID: it is kept in rounds with the reason, and the passes of the boards whose brief did not change are kept.
+    A brief can be revised at any consultation, the passes then start over; after a change request, the earlier round
+    is kept. An approval that no longer holds (earlier rules, a revision a rebase replaced, a seal or a signature that
+    fails) is consulted again under the same ID: it is kept in rounds with the reason, and the passes of the boards
+    whose brief did not change are kept.
     """
     reopened = None
     if task["status"] == "approved":
@@ -574,8 +642,6 @@ def record_consultation(
             f"The review of {task['id']} is recorded and waits for the person's decision: they approve it or request "
             f"changes at their terminal (openguildkit task decide {task['id']}), and you consult again after a change "
             "request."))
-    if brief is not None and task["status"] not in {"changes-requested", "approved"}:
-        raise ValueError("Revise the brief when you consult again after a change request (task decide --request-changes).")
     rounds = list(task["rounds"])
     # A withdrawn approval went to the rounds when the person withdrew it.
     if task["status"] in {"changes-requested", "approved"} and not task["decision"].get("withdraws"):
@@ -729,7 +795,7 @@ def record_review(task: dict, review: dict, root: Path | None = None, kept: list
     again; a review file cannot claim it.
     """
     if task["status"] != "consulting":
-        raise ValueError("Run task consult before recording a review.")
+        raise TaskStateError("A review is recorded while the task is being consulted.")
     review = validate_review(task["consultation"], {key: value for key, value in review.items() if key != "kept"}
                              if isinstance(review, dict) else review, root)
     if kept:
@@ -741,7 +807,7 @@ def record_review(task: dict, review: dict, root: Path | None = None, kept: list
 
 def _passes(task: dict) -> dict:
     if task["status"] != "consulting":
-        raise ValueError("Board passes can only run while the task is being consulted.")
+        raise TaskStateError("Board passes can only run while the task is being consulted.")
     passes = task.get("passes")
     if not passes or passes.get("consultation_id") != task["consultation"]["id"]:
         return {"consultation_id": task["consultation"]["id"], "boards": {}}
@@ -764,6 +830,16 @@ def start_pass(task: dict, board_id: str, mode: str, again: bool = False) -> dic
     passes["boards"][board_id] = {"status": "started", "mode": mode, "started_at": timestamp(),
                                   "attempts": previous.get("attempts", 0) + (0 if previous.get("status") == "started" else 1)}
     return {**task, "passes": passes}
+
+
+def earlier_sequential_pass(task: dict, board_id: str) -> str | None:
+    """In passes run one after the other, another board whose pass of this consultation was already started: it
+    printed the instructions every pass shares, which the one agent running the sequence keeps in mind."""
+    boards = (task.get("passes") or {}).get("boards", {})
+    if boards.get(board_id, {}).get("mode") != "sequential":
+        return None
+    return next((other for other in task["consultation"]["boards"] if other != board_id
+                 and boards.get(other, {}).get("mode") == "sequential" and not boards[other].get("kept_from")), None)
 
 
 def submit_pass(task: dict, entry: dict, mode: str | None = None, root: Path | None = None) -> dict:
@@ -823,7 +899,8 @@ def assemble_review(task: dict, summary: str) -> dict:
     progress = pass_progress({**task, "passes": passes})
     waiting = [item["board"] for item in progress if item["status"] != "done"]
     if waiting:
-        raise ValueError(f"Board passes are not done for {', '.join(waiting)}. Run task progress.")
+        raise TaskStateError(f"The review assembles every board's pass, and {', '.join(waiting)} "
+                             f"{'is' if len(waiting) == 1 else 'are'} not done.")
     modes = {passes["boards"][board_id]["mode"] for board_id in task["consultation"]["boards"]}
     execution = "subagents" if modes == {"subagent"} else "sequential" if modes == {"sequential"} else "mixed"
     review = {
@@ -876,12 +953,21 @@ def _check_clearance_signature(task: dict, blocker_id: str, entry: dict, policy:
     verify_signature(root, policy, _clearance_payload(task, blocker_id, entry), entry["signature"], entry["signer"])
 
 
+def require_blocker_status(task: dict) -> None:
+    """Blockers come from the boards' review: a person resolves them once it is recorded, before the decision or,
+    for a condition of approval, before completion."""
+    if task["status"] not in ("reviewed", "approved"):
+        raise TaskStateError("A blocker is resolved once the boards' review is recorded, before the decision, or "
+                             "after the approval for a condition of approval.")
+
+
 def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict, root: Path,
                     *, signing_payload: bool = False) -> dict:
     """Clear a blocker with evidence, or cover it with a waiver the project's policy allows.
 
     The record says whether the command ran at a terminal, so the approver knows when an agent cleared it.
     """
+    require_blocker_status(task)
     known = {item["id"]: item for item in blocker_list(task)}
     if blocker_id not in known:
         listed = ", ".join(known) or "none"
@@ -971,7 +1057,7 @@ def record_result(task: dict, profile: dict, payload: dict, source: str = "repor
     drop) and the rest is recorded: the task then waits for that evidence from its owner.
     """
     if task["status"] != "approved":
-        raise ValueError("Results belong to an approved task that is not done yet.")
+        raise TaskStateError("Results belong to an approved task that is not done yet.")
     validated = validate_result(task, profile, payload, source, relevance, root, changed=changed)
     held = validated.pop("_held", [])
     result = merge_results(task.get("result"), validated)
@@ -1159,7 +1245,10 @@ def record_decision(
 ) -> dict:
     """Record the person's decision. Approving needs their confirmation of each protected board removed."""
     if task["status"] != "reviewed":
-        raise ValueError(decided_message(task) or "Record the boards' review before deciding.")
+        decided = decided_message(task)
+        if decided:
+            raise ValueError(decided)
+        raise TaskStateError("Record the boards' review before deciding.")
     unconfirmed = [board for board in pending_removals(task) if board not in (confirmed_removals or [])]
     if approve and unconfirmed:
         raise ValueError(
@@ -1194,7 +1283,7 @@ def revoke_approval(task: dict, by: str, reason: str) -> dict:
     if status in DONE_STATUSES:
         raise ValueError(decided_message(task))
     if status != "approved":
-        raise ValueError(f"Task {task_id} is {status}: only an approved task has an approval to withdraw.")
+        raise TaskStateError("Only an approved task has an approval to withdraw.")
     if not by.strip() or not reason.strip():
         raise ValueError("Name the person who withdraws the approval with --by and say why with --reason.")
     at = timestamp()

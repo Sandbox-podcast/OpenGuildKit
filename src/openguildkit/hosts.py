@@ -273,7 +273,8 @@ def approval_warning(profile: dict) -> str | None:
     if profile.get("guard", "off") != "enforce" or (profile.get("approval") or {}).get("mode") == "signed":
         return None
     return ("OpenGuildKit: guard is enforce but approvals are not signed: a local seal only detects accidental edits, "
-            "and an agent that can write files could forge one. Set \"approval\": {\"mode\": \"signed\", ...} "
+            "and an agent that can write files could forge one. A person requires signed approvals at their terminal: "
+            "openguildkit profile set approval signed --signers PATH --approver NAME --by NAME --reason WHY "
             "(docs/workflow.md#signed-approvals).")
 
 

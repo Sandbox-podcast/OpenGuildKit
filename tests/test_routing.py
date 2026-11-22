@@ -400,7 +400,7 @@ class RouteOutputTests(unittest.TestCase):
             route = self.cli(root, "task", "route", "report-csv", "--answers", root / "answers.json",
                              "--add", "product", "--remove", "qa", "--reason", "Scope only, tests exist")
             self.assertIn(f'Apply: openguildkit task consult report-csv --answers {answers} --add product '
-                          f'--remove qa --reason "Scope only, tests exist"', route)
+                          "--remove qa --reason 'Scope only, tests exist'", route)
             selected = json.loads(self.cli(root, "task", "route", "report-csv", "--answers", root / "answers.json",
                                            "--json"))
             self.assertEqual(selected["excluded"], {"finance": ["No payments"]})
