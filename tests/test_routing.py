@@ -10,13 +10,17 @@ from pathlib import Path
 from openguildkit.cli import main
 
 from openguildkit.catalog import load_catalog
+from openguildkit.project import check_component, task_scope_profile, validate_profile
 from openguildkit.storage import write_json
 from openguildkit.workflow import (
     consult, normalize_text, normalize_with_offsets, require_concerns, select_boards, text_routes, trigger_matches,
     validate_answers,
 )
 
-# routing_cases_new_brains.json holds the cases of the brains added after the first eighteen.
+from tests.test_pass_relevance import ProjectCase
+
+# routing_cases_new_brains.json holds the cases of the brains added after the first eighteen, then the cases that
+# route by the project's stack and components: they carry a profile and answers, and the boards the route chooses.
 CASES = [
     case
     for name in ("routing_cases.json", "routing_cases_new_brains.json")
@@ -44,6 +48,21 @@ class RoutingTests(unittest.TestCase):
                     self.assertIn(board, selected, f"{board} should review: {selected}")
                 for board in case.get("must_not", []):
                     self.assertNotIn(board, selected, f"{board} should not review: {selected}")
+
+    def test_the_stack_and_the_components_route_the_declared_roles(self):
+        cases = [case for case in CASES if "profile" in case]
+        self.assertGreaterEqual(len(cases), 5)
+        for case in cases:
+            with self.subTest(brief=case["brief"], profile=case["profile"]):
+                answers = validate_answers({**NEUTRAL, "concerns": ["none"], **case["answers"]})
+                profile = task_scope_profile(validate_profile({"name": "Case", **case["profile"]}, self.catalog),
+                                             self.catalog, answers.get("components", []))
+                routing = select_boards(profile, self.catalog, {"id": "t", "brief": case["brief"]}, answers)["routing"]
+                for board in case.get("routes", []):
+                    self.assertIn(board, routing)
+                    self.assertTrue(any(reason.startswith("Declared role of the project") for reason in routing[board]))
+                for board in case.get("not_routes", []):
+                    self.assertNotIn(board, routing)
 
     def test_every_brain_is_reachable_from_a_plain_brief(self):
         reached = {board for case in CASES for board in case.get("must", [])}
@@ -403,6 +422,60 @@ class RouteOutputTests(unittest.TestCase):
             self.assertIn("The brief names Zendesk: support (selected) can query it; customer-success, operations, "
                           "trust-and-safety could, with --add.", route)
             self.assertIn("Other boards you can add with --add:", route)
+
+
+# The monorepo of the audit (core-06): a web, an API and an infrastructure component, each check run from its folder.
+MONOREPO = {"name": "Nova Shop", "sector": "general",
+            "components": [{"id": "web", "path": "apps/web", "stack": ["React 18.3", "TypeScript 5.6"]},
+                           {"id": "api", "path": "services/api", "stack": ["Python 3.12", "FastAPI 0.115", "PostgreSQL 16"]},
+                           {"id": "infra", "path": "infra", "stack": ["Terraform 1.6"]}],
+            "roles": ["frontend", "backend", "devops", "security", "qa", "product"],
+            "personal_data": "yes", "people_decisions": "no", "norms": {"gdpr-personal-data": "yes"},
+            "host": "other", "guard": "off", "research": "local-only",
+            "checks": ["cd apps/web && npm test", "cd services/api && python3 -m pytest -q", "cd apps/web/e2e && npx playwright test",
+                       "make lint"]}
+PRICE_LABEL = {"kind": "bug", "surface": ["customer"], "data": "none", "research": "local", "concerns": ["none"],
+               "components": ["web"], "outcome": "Cart prices always show two decimals; reproduce with a 1234.5 price.",
+               "affected": "Shoppers"}
+
+
+class ComponentTaskTests(ProjectCase):
+    """A task limited to a component runs that component's checks and consults the board of its stack (issue 11)."""
+
+    def test_a_task_on_one_component_runs_its_checks_and_consults_the_board_of_its_stack(self):
+        self.init(MONOREPO)
+        brief = "Fix the price label: apps/web/src/price.ts shows three decimals in the cart."
+        self.cli("task", "new", brief, "--id", "price-label")
+        write_json(self.root / "price.json", PRICE_LABEL)
+        route = self.cli("task", "route", "price-label", "--answers", self.root / "price.json")
+        self.assertIn("frontend: Declared role of the project, and the task touches component web, whose stack names "
+                      "react, typescript", route)
+        self.assertNotRegex(route, r"(?m)^backend:")
+        self.cli("task", "consult", "price-label", "--answers", self.root / "price.json")
+        scope = json.loads(self.cli("task", "show", "price-label"))["consultation"]["scope"]
+        self.assertEqual(scope["checks"], ["cd apps/web && npm test", "cd apps/web/e2e && npx playwright test",
+                                           "make lint"])
+        self.approve("price-label")
+        checks = json.loads(self.cli("task", "checks", "price-label", "--json"))
+        commands = [check["command"] for check in checks if check["kind"] == "command"]
+        self.assertNotIn("cd services/api && python3 -m pytest -q", commands)
+        asked = {check["pack"] for check in checks if check.get("pack") and check["concerned"]}
+        self.assertLessEqual({"frontend-delivery", "web-accessibility", "web-performance"}, asked)
+
+    def test_a_check_run_from_a_component_folder_belongs_to_that_component(self):
+        profile = validate_profile({key: MONOREPO[key] for key in ("name", "components", "checks")}, self.catalog)
+        self.assertEqual(task_scope_profile(profile, self.catalog, ["api"])["checks"],
+                         ["cd services/api && python3 -m pytest -q", "make lint"])
+        self.assertEqual(task_scope_profile(profile, self.catalog, ["infra"])["checks"], ["make lint"])
+        self.assertEqual(task_scope_profile(profile, self.catalog, [])["checks"], MONOREPO["checks"])
+        self.assertEqual(check_component('cd "apps/web" && npm test', profile["components"]), "web")
+        self.assertEqual(check_component("cd apps/webshop && npm test", profile["components"]), None)
+
+    def test_a_task_that_names_no_component_keeps_every_check(self):
+        self.init(MONOREPO)
+        answers = {key: value for key, value in PRICE_LABEL.items() if key != "components"}
+        task = self.consult("whole", "Show the delivery date on every order page.", answers)
+        self.assertEqual(len(task["consultation"]["scope"]["checks"]), 4)
 
 
 if __name__ == "__main__":

@@ -809,6 +809,39 @@ def _audience_routes(profile: dict, task: dict, answers: dict, enabled: set[str]
     return {role: f"Declared role of the project, and the task is for \"{passage}\"" for role, passage in found.items()}
 
 
+# The surface each stack role's board serves: a React page is frontend work, a Django endpoint backend work, even
+# when the brief names neither.
+_STACK_SURFACES = {"frontend": "customer", "backend": "service"}
+
+
+def _stack_words(boards: dict, role: str, stack: list[str]) -> list[str]:
+    """The triggers of a role's board that the stack names, such as react for "React 18.3"."""
+    return trigger_matches({role: boards[role]}, ", ".join(stack)).get(role, [])
+
+
+def _stack_routes(profile: dict, boards: dict, task: dict, answers: dict, enabled: set[str]) -> dict[str, str]:
+    """Boards of the project's declared roles that the task's stack calls for, with the reason: the role whose board
+    the stack of a touched component names (named in the answers, or a path of the brief), and the frontend or
+    backend role when the task touches the surface it serves and the project's stack names its frameworks."""
+    roles = [role for role in profile.get("roles", []) if role in enabled and role in boards]
+    found: dict[str, str] = {}
+    touched = _touched_components({"brief": task["brief"], "answers": answers}, profile)
+    for component in profile.get("components", []):
+        if component["id"] not in touched:
+            continue
+        for role in roles:
+            words = _stack_words(boards, role, component.get("stack", []))
+            if words and role not in found:
+                found[role] = (f"Declared role of the project, and the task touches component {component['id']}, "
+                               f"whose stack names {', '.join(words)}")
+    for role, surface in _STACK_SURFACES.items():
+        words = _stack_words(boards, role, profile.get("stack", [])) if role in roles else []
+        if words and surface in _as_list(answers.get("surface")) and role not in found:
+            found[role] = (f"Declared role of the project, and the task touches the {_SURFACE_MEANINGS[surface]} of "
+                           f"a stack that names {', '.join(words)}")
+    return found
+
+
 def _task_parts(task: dict, answers: dict) -> list[str]:
     """The brief and each free-text answer, read one at a time so that a quote never spans two of them."""
     return [text for text in (task["brief"], *(answers.get(field, "") for field in ("context", *FOLLOW_UPS))) if text]
@@ -863,6 +896,8 @@ def _route_boards(profile: dict, catalog: dict, task: dict, answers: dict) -> di
         for reason in matches[board_id]:
             add(board_id, reason)
     for board_id, reason in _audience_routes(profile, task, answers, enabled).items():
+        add(board_id, reason)
+    for board_id, reason in _stack_routes(profile, boards, task, answers, enabled).items():
         add(board_id, reason)
 
     if not reasons:

@@ -40,7 +40,9 @@ def printed_rules(text: str) -> set[str]:
     return rules
 
 
-class PassRelevanceTests(unittest.TestCase):
+class ProjectCase(unittest.TestCase):
+    """A project in a temporary folder, driven through the CLI, with an approval recorded at a terminal."""
+
     @classmethod
     def setUpClass(cls):
         cls.catalog = load_catalog()
@@ -57,8 +59,8 @@ class PassRelevanceTests(unittest.TestCase):
         self.assertEqual(result, code, stderr.getvalue() + stdout.getvalue())
         return stdout.getvalue() + stderr.getvalue() if code else stdout.getvalue()
 
-    def init(self, **changes) -> None:
-        write_json(self.root / "init.json", {**PROJECT, **changes})
+    def init(self, answers: dict | None = None, **changes) -> None:
+        write_json(self.root / "init.json", {**(answers or PROJECT), **changes})
         self.cli("init", "--answers", self.root / "init.json")
 
     def consult(self, task_id: str, brief: str, answers: dict) -> dict:
@@ -98,6 +100,8 @@ class PassRelevanceTests(unittest.TestCase):
         named = {item.partition("/")[0] for group in data["not_concerned"] for item in group["items"]}
         return {pack["pack"].split("@")[0] for pack in data["rules"]} | named
 
+
+class PassRelevanceTests(ProjectCase):
     def test_the_legal_pass_of_a_bug_on_personal_data_prints_only_the_rules_task_checks_asks(self):
         self.init()
         task = self.consult("pd-bug", "Fix the date column of the support requests export: it ignores the time zone.",
