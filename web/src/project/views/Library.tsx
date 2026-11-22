@@ -77,7 +77,7 @@ export function ReferenceSheet({ id }: { id?: string }) {
             <p><a href="#/bibliotheque"><Icon name="chevron" size={12} /> Bibliothèque</a></p>
             <Panel title={<span lang="en">{r.title}</span>}>
               <p lang="en">{r.summary}</p>
-              <KV items={[['Quand l’appliquer', <span key="when" lang="en">{r.applies_when}</span>], ['Famille', r.family_title], ['Catégorie', r.category], ['Nature', r.kind], ['Cerveaux', (r.brains ?? []).map((b) => <a key={b} href={`#/guilde/${b}`}>{b} </a>)], ['Statut', r.status], ['Identifiant', <code key="id">{r.id}</code>], ...(r.aliases?.length ? [['Alias', r.aliases.join(', ')] as [string, string]] : [])]} />
+              <KV items={[['Quand l’appliquer', <span key="when" lang="en">{r.applies_when}</span>], ['Famille', r.family_title], ['Catégorie', r.category], ['Nature', r.kind], ['Cerveaux', (r.brains ?? []).map((b) => <a key={b} className="target-link" href={`#/guilde/${b}`}>{b}</a>)], ['Statut', r.status], ['Identifiant', <code key="id">{r.id}</code>], ...(r.aliases?.length ? [['Alias', r.aliases.join(', ')] as [string, string]] : [])]} />
             </Panel>
             <Panel title="Sources">
               <p className="small muted">Ce sont des pistes à examiner : l’agent les traite comme des données tant qu’il ne les a pas lues.</p>
