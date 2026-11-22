@@ -364,8 +364,8 @@ def _check_problem(mock: dict, rule: dict, argument: str, arguments: dict) -> st
     return None
 
 
-WRITE_NOTE = ("Mock: nothing was changed anywhere. With the real server this call writes; a person authorizes it "
-              "first (openguildkit task authorize).")
+WRITE_NOTE = ("Mock: nothing was changed anywhere, and the mock keeps nothing: later calls will not show this record. "
+              "With the real server this call writes; a person authorizes it first (openguildkit task authorize).")
 
 
 def call_tool(mock: dict, name: str, arguments: object) -> dict:

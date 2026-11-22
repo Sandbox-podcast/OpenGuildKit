@@ -47,6 +47,7 @@ CODEX_BLOCK_END = "# <<< OpenGuildKit tools\n"
 
 _ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _ENV = re.compile(r"[A-Z][A-Z0-9_]{1,63}")
+_VARIABLE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}")
 _SETTING = re.compile(r"\{([a-z][a-z0-9_]*)\}")
 _DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 _SECRET_WORD = re.compile(r"(?i)(token|secret|password|passwd|api[_-]?key|apikey|bearer)")
@@ -639,6 +640,14 @@ def mock_entry(host: str, tool_id: str, log: str | None = None) -> dict:
     return {"command": "openguildkit", "args": args}
 
 
+def _variable_name(name: object) -> bool:
+    """An environment variable's name, in any case; a lowercase word mixing letters and digits looks like a token."""
+    if not isinstance(name, str) or not _VARIABLE.fullmatch(name) or looks_like_credential(name):
+        return False
+    return name.isupper() or not any(re.search(r"[a-z]", part, re.IGNORECASE) and re.search(r"\d", part)
+                                     for part in name.split("_"))
+
+
 def plan_connections(
     tools: dict, wanted: list[str], host: str, *, mock: bool = False, community: bool = False,
     settings: dict | None = None, token_env: dict | None = None, mocks: list[str] | None = None, log: str | None = None,
@@ -656,14 +665,19 @@ def plan_connections(
            for values in settings.values() for value in values.values()):
         raise ValueError("--set must be a plain value such as a name or a host, never a credential: a token stays in "
                          "each person's environment, named with --token-env TOOL=VARIABLE.")
-    if any(not isinstance(name, str) or not _ENV.fullmatch(name) or looks_like_credential(name)
-           for name in token_env.values()):
+    if any(not _variable_name(name) for name in token_env.values()):
         raise ValueError("--token-env names an environment variable, such as JIRA_TOKEN, for a remote server; "
                          "never the token itself, which stays in each person's environment.")
     plan, by_key = [], {}
     for name in wanted:
         typed, _, server_id = name.partition("/")
-        tool_id, server_id = resolve_tool(typed, tools), server_id.strip().casefold()
+        try:
+            tool_id = resolve_tool(typed, tools)
+        except ValueError:
+            plan.append({"tool": typed.strip().casefold(), "title": typed.strip(), "mode": "mock" if mock else "live",
+                         "skipped": "Not in the registry: add it in .openguildkit/catalog/tools/ or connect it yourself."})
+            continue
+        server_id = server_id.strip().casefold()
         tool = tools[tool_id]
         if mock:
             if tool_id not in mocks:

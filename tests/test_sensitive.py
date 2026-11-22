@@ -33,6 +33,9 @@ SAMPLES = {
     "a Stripe secret key": fake("sk" + "_live_", "z", 24),
     "a GitHub token": fake("gh" + "p_", "y", 36),
     "a Slack token": fake("xo" + "xb-", "7", 16),
+    "a GitLab token": fake("gl" + "pat-", "k", 20),
+    "a Google API key": fake("AI" + "za", "m", 35),
+    "an Anthropic API key": fake("sk" + "-ant-", "n", 40),
     "a JSON Web Token": ".".join(["ey" + "J" + "x" * 12, "ey" + "J" + "y" * 12, "z" * 16]),
     "a private key": "-----BEGIN " + "RSA PRIVATE" + " KEY-----\n" + "A" * 40 + "\n-----END " + "RSA PRIVATE" + " KEY-----",
     "a link with a password": "https://deploy:" + "w" * 10 + "@git.example.test/repo",
@@ -41,7 +44,8 @@ SAMPLES = {
 }
 SECRET_PARTS = {
     "a cloud access key ID": "Q" * 16, "a Stripe secret key": "z" * 24, "a GitHub token": "y" * 36,
-    "a Slack token": "7" * 16, "a JSON Web Token": "z" * 16, "a private key": "A" * 40,
+    "a Slack token": "7" * 16, "a GitLab token": "k" * 20, "a Google API key": "m" * 35,
+    "an Anthropic API key": "n" * 40, "a JSON Web Token": "z" * 16, "a private key": "A" * 40,
     "a link with a password": "w" * 10, "a secret in a query string": "q" * 20, "a password": "v" * 10,
 }
 
@@ -90,13 +94,15 @@ class SettingTests(unittest.TestCase):
 
     def test_token_env_takes_only_a_variable_name(self):
         tools = load_tools()
-        for value in (*SAMPLES.values(), "jira_token", "JIRA TOKEN", "1TOKEN", "abc123secretvalue"):
+        for value in (*SAMPLES.values(), "jira_t0ken9", "JIRA TOKEN", "1TOKEN", "abc123secretvalue"):
             with self.subTest(value=value[:12]):
                 with self.assertRaisesRegex(ValueError, "names an environment variable") as raised:
                     plan_connections(tools, ["linear"], "codex", token_env={"linear": value})
                 self.assertNotIn(value, str(raised.exception))
         plan = plan_connections(tools, ["linear"], "codex", token_env={"linear": "LINEAR_API_KEY"})
         self.assertEqual(plan[0]["token_env"], "LINEAR_API_KEY")
+        self.assertEqual(plan_connections(tools, ["linear"], "codex", token_env={"linear": "jira_token"})[0]["token_env"],
+                         "jira_token")
 
 
 class TaskInputTests(unittest.TestCase):

@@ -885,5 +885,58 @@ class MockWriteAndApplyDetailTests(unittest.TestCase):
             self.assertIn("Cleared the unconnected requests for lucca", out)
 
 
+
+class PolishTests(unittest.TestCase):
+    """Last field points: more key shapes, hints without values, variable names, unknown tools, mock state."""
+
+    def test_other_vendors_key_shapes_are_refused_as_settings(self):
+        for value in ("gl" + "pat-" + "k" * 20, "AI" + "za" + "m" * 35, "sk" + "-ant-" + "n" * 40, "xo" + "xe-" + "7" * 16):
+            with self.subTest(value=value[:6]), self.assertRaisesRegex(ValueError, "never a credential"):
+                plan_connections(TOOLS, ["zendesk"], "claude-code", settings={"zendesk": {"subdomain": value}})
+
+    def test_a_hint_never_repeats_a_credential_shaped_setting(self):
+        import argparse
+        from openguildkit.tools_cli import _apply_command
+        secret = "gl" + "pat-" + "k" * 20
+        args = argparse.Namespace(tool=["zendesk"], mock=False, community=False, read_only=False, log=None,
+                                  settings=[f"zendesk.subdomain={secret}", "zendesk.region=eu"], token_env=[])
+        command = _apply_command(args, "codex", [], TOOLS)
+        self.assertNotIn(secret, command)
+        self.assertIn("--set zendesk.subdomain=VALUE --set zendesk.region=eu", command)
+
+    def test_a_lowercase_variable_name_is_accepted_for_a_bearer_token(self):
+        item = plan_connections(TOOLS, ["linear"], "codex", token_env={"linear": "linear_token"})[0]
+        self.assertEqual(item["entry"]["bearer_token_env_var"], "linear_token")
+        with self.assertRaisesRegex(ValueError, "names an environment variable"):
+            plan_connections(TOOLS, ["linear"], "codex", token_env={"linear": "1linear"})
+
+    def test_an_unknown_tool_is_left_unconnected_and_the_others_connect(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "a.json").write_text(json.dumps({"name": "x", "host": "codex", "tools": ["Jira", "Steam"]}), encoding="utf-8")
+            run("--project", root, "init", "--answers", root / "a.json")
+            code, out, err = run("--project", root, "tools", "apply", "jira", "steam", "--mock")
+            self.assertEqual(code, 2, err)
+            self.assertEqual(out.splitlines()[-1], "Connected mocks: jira. Tools without a mock: steam.")
+            status = json.loads(run("--project", root, "tools", "status", "--json")[1])
+            steam = next(item for item in status if item["key"] == "steam")
+            self.assertIn("Not in the registry", steam["reason"])
+            code, _, err = run("--project", root, "tools", "plan", "jira", "Steam")
+            self.assertEqual(code, 0)
+            self.assertIn("    openguildkit tools apply jira --host codex\n", err)
+
+    def test_a_deliverable_input_without_data_is_worded_plainly(self):
+        from openguildkit.deliverables import launch_notice
+        lines = launch_notice({"inputs": [{"label": "Campaign name", "data": "none"},
+                                          {"label": "Audience", "data": "personal"}], "tool_actions": []})
+        self.assertEqual(lines, ["Campaign name (no sensitive data)", "Audience (personal data)"])
+
+    def test_a_simulated_write_says_the_mock_keeps_nothing(self):
+        created = call_tool(load_mock("stripe"), "create_refund",
+                            {"invoice_id": "in_test_001", "amount_cents": 500, "reason": "duplicate"})
+        self.assertIn("the mock keeps nothing: later calls will not show this record", created["content"][1]["text"])
+        self.assertEqual(answer("stripe", "list_refunds", {"invoice_id": "in_test_001"})["data"]["count"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()
