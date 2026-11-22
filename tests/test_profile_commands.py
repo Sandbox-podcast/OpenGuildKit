@@ -294,6 +294,13 @@ class ProfileCommandTests(unittest.TestCase):
         announced = output.index(f"This change voids the approval of {TASK}")
         self.assertLess(announced, output.index("Profile changed: add check"))
 
+    def test_a_new_tool_or_convention_announces_no_voided_approval(self):
+        self.approved_task()
+        for words in (("add", "tool", "jira"), ("add", "convention", "Write commit messages in English.")):
+            output, error = self.run_cli("profile", *words, "--by", "Sam", "--reason", "Team practice")
+            self.assertNotIn("voids the approval", output + error)
+        self.run_cli("task", "verify", TASK)
+
     def test_no_page_of_the_docs_asks_to_edit_the_profile_by_hand(self):
         """A change a profile command makes is documented with that command, not as an edit of project.json."""
         repo = Path(__file__).resolve().parents[1]
