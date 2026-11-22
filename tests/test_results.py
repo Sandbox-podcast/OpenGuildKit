@@ -89,6 +89,10 @@ class ResultTests(ResultCase):
         self.assertEqual(self.run_cli("task", "complete", TASK)[0].strip(), "done")
         record = json.loads(self.run_cli("task", "show", TASK)[0])
         self.assertEqual(record["status"], "done")
+        # The handoff of a closed task speaks of its checks in the past.
+        handoff = self.run_cli("task", "handoff", TASK)[0]
+        self.assertIn("## Checks task verify ran", handoff)
+        self.assertNotIn("must pass before the task is done", handoff)
         self.assertEqual(record["result"]["pull_request"], "https://github.com/example/portal/pull/7")
 
     def test_a_decision_records_its_outcome_without_code_checks_or_a_revision(self):
@@ -408,7 +412,7 @@ class ProportionateResultTests(ResultCase):
             {"pack": "gdpr", "status": "not-applicable", "reason": "Not in scope.", "owner": "Camille"}])
         self.assertIn("Pack gdpr was declared not applicable as a whole by Camille, although the task's answers "
                       "select it", output)
-        self.assertIn("Ready: run task complete.", output)
+        self.assertIn("Ready to close with the person at a terminal", output)
         # An owner written in the file is not a person's confirmation: closing needs them at a terminal.
         _, error = self.run_cli("task", "complete", TASK, code=1)
         self.assertIn("--by NAME", error)
@@ -441,7 +445,11 @@ class ProportionateResultTests(ResultCase):
     def test_closing_over_a_skipped_sensitive_rule_needs_the_person_and_lists_open_points_by_nature(self):
         self.gdpr_task()
         skip = ("rule:gdpr/confirm-lawful-basis", "rule:python/follow-python-style")
-        self.file(*self.answers(skip=skip), *self.documents())
+        output, _ = self.file(*self.answers(skip=skip), *self.documents())
+        # The result does not say plain Ready when task complete needs the person.
+        self.assertNotIn("Ready: run task complete.", output)
+        self.assertIn(f"Ready to close with the person at a terminal", output)
+        self.assertIn(f"openguildkit task complete {TASK} --by NAME", output)
         _, error = self.run_cli("task", "complete", TASK, code=1)
         self.assertIn("data protection, security or AI point(s) are skipped", error)
         self.assertIn("--by NAME", error)

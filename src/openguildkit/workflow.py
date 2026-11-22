@@ -2441,11 +2441,16 @@ def _checks_section(task: dict) -> list[str]:
         return ["## Checks task verify will run", "",
                 "None: the profile lists no check command, so no test runs before the task closes. The person can "
                 "add one for the next tasks: openguildkit profile add check \"COMMAND\" --by NAME --reason WHY.", ""]
-    lines = ["## Checks task verify will run", "",
-             "Each one must pass before the task is done. Install the project's dependencies and the tools these "
-             "commands call first: a command that cannot run fails with its cause and its log. When one cannot run "
-             f"in this environment, the person records it with `openguildkit task verify {task['id']} --cannot-run "
-             "command:N --by NAME --reason TEXT`, and the task closes with that reservation.", ""]
+    if task.get("status") in ("done", "done-with-reservations"):
+        lines = ["## Checks task verify ran", "",
+                 "Each one had to pass, or be recorded by a person as unable to run here, before the task was closed. "
+                 "Their outcomes are in task show (result.checks).", ""]
+    else:
+        lines = ["## Checks task verify will run", "",
+                 "Each one must pass before the task is done. Install the project's dependencies and the tools these "
+                 "commands call first: a command that cannot run fails with its cause and its log. When one cannot "
+                 f"run in this environment, the person records it with `openguildkit task verify {task['id']} "
+                 "--cannot-run command:N --by NAME --reason TEXT`, and the task closes with that reservation.", ""]
     lines += [f"- `command:{index}`: `{command}`" for index, command in enumerate(commands, start=1)]
     return [*lines, ""]
 

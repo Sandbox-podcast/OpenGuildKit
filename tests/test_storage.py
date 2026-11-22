@@ -82,3 +82,25 @@ class BusyTargetTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(os.name == "posix" and os.path.exists(os.devnull), "needs symbolic links and a null device")
+class LinkedOutputTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+
+    def test_a_link_to_a_device_is_written_through_and_a_link_to_a_file_is_refused(self):
+        # /dev/stdout is such a link on Linux and macOS: an export can be printed with --output /dev/stdout.
+        device = self.root / "out"
+        device.symlink_to(os.devnull)
+        storage.write_json(device, {"ok": True})
+        self.assertTrue(device.is_symlink())
+        target = self.root / "real.json"
+        target.write_text("{}", encoding="utf-8")
+        linked = self.root / "linked.json"
+        linked.symlink_to(target)
+        with self.assertRaisesRegex(ValueError, "symbolic link"):
+            storage.write_json(linked, {"ok": True})
+        self.assertEqual(target.read_text(encoding="utf-8"), "{}")

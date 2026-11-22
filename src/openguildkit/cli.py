@@ -93,7 +93,9 @@ from .references import english_title, find_references, load_references, with_pa
 from .sensitive import input_warnings, redact_credentials, redact_data
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
+    SENSITIVE_GROUP,
     approval_problem,
+    points_left_open,
     timestamp,
     cited_evidence,
     board_brief_problem,
@@ -1723,6 +1725,10 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
     elif held:
         print("Nothing else is missing, but some answers were not recorded (above): fix them, or run task complete "
               "with the answers already recorded.")
+    elif any(group["group"] == SENSITIVE_GROUP for group in points_left_open(task, profile, relevance)):
+        # task complete refuses these without the person: say so now rather than at the closing.
+        print(f"Ready to close with the person at a terminal: a data protection, security or AI point stays open, "
+              f"so they run openguildkit task complete {args.id} --by NAME.")
     else:
         print("Ready: run task complete.")
     failed = [item for item in task["result"]["checks"]

@@ -139,6 +139,32 @@ class TeamSharingTests(SharingCase):
         self.assertNotIn("shared.md", warning)
         self.assertNotIn("example.test", warning)
 
+    @unittest.skipUnless(shutil.which("git"), "needs git")
+    def test_check_also_reads_criteria_rule_and_pack_answers_but_not_the_verify_logs(self):
+        subprocess.run(["git", "init", "-q", str(self.root)], check=True)
+        (self.root / ".gitignore").write_text("private/\n", encoding="utf-8")
+        (self.root / "private").mkdir()
+        for name in ("criterion.md", "test_case.py", "rule.md", "pack.md"):
+            (self.root / "private" / name).write_text("x\n", encoding="utf-8")
+        self.approved()
+        path = self.state / "tasks" / f"{TASK}.json"
+        task = read_json(path)
+        log = f".openguildkit/tasks/{TASK}-checks/command-1.log"
+        task["result"] = {
+            "criteria": [{"criterion": "Works.", "status": "met", "evidence": "private/criterion.md",
+                          "verified_by": "private/test_case.py"},
+                         {"criterion": "Also works.", "status": "met", "evidence": "Tried by hand."}],
+            "checks": [{"check": "rule:python/follow-python-style", "status": "passed", "evidence": "private/rule.md"},
+                       {"check": "command:1", "status": "failed", "evidence": log, "exit_code": 1}],
+            "packs": [{"pack": "python", "status": "passed", "evidence": "private/pack.md"}],
+        }
+        write_json(path, task)
+        warning = self.run_cli("check")[1]
+        for name in ("criterion.md", "test_case.py", "rule.md", "pack.md"):
+            self.assertIn(f"private/{name}", warning)
+        self.assertNotIn(log, warning)
+        self.assertNotIn("Tried by hand", warning)
+
     def test_export_before_completion_says_so_and_complete_reminds_to_export_again(self):
         self.approved()
         output, warning = self.run_cli("task", "export", TASK)

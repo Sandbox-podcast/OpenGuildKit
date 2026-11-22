@@ -77,7 +77,7 @@ def _replace(source: Path, target: Path) -> None:
 
 def write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    if path.is_symlink():
+    if path.is_symlink() and (not path.exists() or path.is_file() or path.is_dir()):
         raise ValueError(f"Refusing to replace a symbolic link: {path}")
     if path.exists() and not path.is_file() and not path.is_dir():
         # A device or a pipe, such as /dev/null, cannot be replaced by a renamed file: write to it.
