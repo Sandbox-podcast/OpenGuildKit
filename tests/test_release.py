@@ -11,6 +11,8 @@ import tomllib
 import unittest
 from pathlib import Path
 
+from tests.test_workflows import TEMPLATES, USES, WORKFLOWS, parse, run_text, steps
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / ".github" / "scripts" / "release-notes.sh"
 VERSION = re.compile(r"\bv(\d+\.\d+\.\d+)\b|openguildkit-(\d+\.\d+\.\d+)")
@@ -54,6 +56,60 @@ class GovernanceFilesTest(unittest.TestCase):
         paragraph = next(block for block in _read("CONTRIBUTING.md").split("\n\n") if "licen" in block.lower())
         for fact in ("catalog", "MIT License", "LICENSE"):
             self.assertIn(fact, paragraph)
+
+
+class CiWorkflowTest(unittest.TestCase):
+    """The checks every pull request must pass: bounded in time, run on the supported Pythons, all required."""
+
+    def setUp(self):
+        self.jobs = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]
+
+    def test_every_job_stops_before_the_runner_default_of_six_hours(self):
+        expected = {"test": "30", "package": "20", "web-e2e": "20"}
+        for name, job in self.jobs.items():
+            self.assertEqual(job.get("timeout-minutes"), expected.get(name, "15"), name)
+
+    def test_the_matrix_runs_from_the_floor_to_the_maintainers_python(self):
+        versions = self.jobs["test"]["strategy"]["matrix"]["python"]
+        floor = tomllib.loads(_read("pyproject.toml"))["project"]["requires-python"].removeprefix(">=")
+        self.assertEqual(versions[0], floor)
+        self.assertIn("3.15", versions)
+
+    def test_contribution_checks_require_every_other_job(self):
+        gate = self.jobs["contribution-checks"]
+        self.assertEqual(set(gate["needs"]), set(self.jobs) - {"contribution-checks"})
+        script = run_text(gate)
+        for job in gate["needs"]:
+            variable = next(name for name, value in gate["steps"][0]["env"].items() if f"needs.{job}.result" in value)
+            self.assertIn(f'test "${variable}" = success', script)
+        self.assertNotIn("once it has passed on main", _read(".github/workflows/ci.yml"))
+
+    def test_no_checkout_leaves_the_token_in_the_git_config(self):
+        for path in WORKFLOWS:
+            for name, job in parse(path)["jobs"].items():
+                for step in steps(job):
+                    if str(step.get("uses", "")).startswith("actions/checkout@"):
+                        self.assertEqual((step.get("with") or {}).get("persist-credentials"), "false",
+                                         f"{path.name}: {name}")
+
+    def test_npm_installs_run_no_dependency_scripts(self):
+        for path in [*WORKFLOWS, *TEMPLATES]:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if re.search(r"\bnpm (ci|install)\b", line):
+                    self.assertIn("--ignore-scripts", line, f"{path.name}: {line.strip()}")
+
+    def test_each_action_has_one_pinned_version(self):
+        pins: dict[str, set[str]] = {}
+        for path in WORKFLOWS:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if (match := USES.match(line)) and "@" in match.group(1):
+                    action, ref = match.group(1).split("@")
+                    pins.setdefault(action, set()).add(ref)
+        self.assertEqual({action: refs for action, refs in pins.items() if len(refs) > 1}, {})
+        uploads = set()
+        for path in [*WORKFLOWS, *TEMPLATES]:
+            uploads |= set(re.findall(r"actions/upload-artifact@([0-9a-f]{40})", path.read_text(encoding="utf-8")))
+        self.assertEqual(len(uploads), 1, uploads)
 
 
 STUB_GH = """#!/usr/bin/env bash

@@ -17,13 +17,17 @@ jobs:
   test:
     name: Python ${{ matrix.python }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.11", "3.12", "3.13", "3.14"]
+        # 3.11 is the floor of requires-python; 3.15 is the version the maintainers work with.
+        python: ["3.11", "3.12", "3.13", "3.14", "3.15"]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
@@ -53,6 +57,7 @@ jobs:
   package:
     name: Build and install the wheel with Python ${{ matrix.python }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -63,6 +68,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
@@ -77,7 +84,7 @@ jobs:
       - name: Build the web interface into the package
         working-directory: web
         run: |
-          npm ci
+          npm ci --ignore-scripts
           npm run build
           npm run bundle
 
@@ -109,6 +116,7 @@ jobs:
   ci-coordinator:
     name: CI coordinator on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -118,6 +126,8 @@ jobs:
         working-directory: integrations/ci
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
@@ -127,27 +137,30 @@ jobs:
   web:
     name: Web app
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: web
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "24"
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
 
   # The journeys of the demo and of the project interface (openguildkit ui on sample projects), in the
-  # Chrome the runner already has. Not yet required by contribution-checks: add it there once it has
-  # passed on main.
+  # Chrome the runner already has.
   web-e2e:
     name: Web journeys
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: web
@@ -156,6 +169,8 @@ jobs:
       OGK_PYTHON: python
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.13"
@@ -164,13 +179,13 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npm run build
       - name: Demo journeys
         run: npm run e2e
       - name: Project interface journeys
         run: npm run e2e:project
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
           name: playwright-results
@@ -180,8 +195,9 @@ jobs:
   contribution-checks:
     name: contribution-checks
     if: ${{ !cancelled() }}
-    needs: [test, package, ci-coordinator, web]
+    needs: [test, package, ci-coordinator, web, web-e2e]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions: {}
     steps:
       - name: Require all checks to pass
@@ -190,6 +206,7 @@ jobs:
           PACKAGE_RESULT: ${{ needs.package.result }}
           COORDINATOR_RESULT: ${{ needs.ci-coordinator.result }}
           WEB_RESULT: ${{ needs.web.result }}
+          WEB_E2E_RESULT: ${{ needs.web-e2e.result }}
         run: |
-          printf 'Tests: %s\nWheel: %s\nCI coordinator: %s\nWeb: %s\n' "$TEST_RESULT" "$PACKAGE_RESULT" "$COORDINATOR_RESULT" "$WEB_RESULT"
-          test "$TEST_RESULT" = success && test "$PACKAGE_RESULT" = success && test "$COORDINATOR_RESULT" = success && test "$WEB_RESULT" = success
+          printf 'Tests: %s\nWheel: %s\nCI coordinator: %s\nWeb: %s\nWeb journeys: %s\n' "$TEST_RESULT" "$PACKAGE_RESULT" "$COORDINATOR_RESULT" "$WEB_RESULT" "$WEB_E2E_RESULT"
+          test "$TEST_RESULT" = success && test "$PACKAGE_RESULT" = success && test "$COORDINATOR_RESULT" = success && test "$WEB_RESULT" = success && test "$WEB_E2E_RESULT" = success

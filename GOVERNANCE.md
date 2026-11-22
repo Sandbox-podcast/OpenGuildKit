@@ -16,7 +16,7 @@ OpenGuildKit is a catalog maintained by practitioners and a small CLI maintained
 - **CLI changes:** include the tests or reproduction steps in the PR for the maintainer's review.
 - **Changes that affect how contributors or existing projects work:** use the RFC issue template to discuss the proposed change.
 
-The pull request records the proposal, review and decision. Link an existing issue when there is one. For a focused contribution, open a pull request directly. GitHub adds labels from the changed paths and reports the result of the test matrix and wheel build as `contribution-checks`.
+The pull request records the proposal, review and decision. Link an existing issue when there is one. For a focused contribution, open a pull request directly. GitHub adds labels from the changed paths and reports the result of the test matrix, the wheel build and the web interface checks as `contribution-checks`.
 
 ## Becoming a steward or maintainer
 
