@@ -1,5 +1,5 @@
-"""The board passes, the handoff and task checks ask the same rules of a task, and every new consultation answers
-the concerns question (issue 09 of the second audit)."""
+"""The board passes, the handoff and task checks ask the same rules of a task, every new consultation answers
+the concerns question (issue 09 of the second audit), and a pass prints the packs its subject brings (issue 10)."""
 
 import contextlib
 import io
@@ -208,10 +208,22 @@ class PassRelevanceTests(unittest.TestCase):
         profile = load_profile(self.root / ".openguildkit", self.catalog)
         relevance = pack_relevance(task, profile, self.catalog, None)
         asked = {pack for pack, entry in relevance.items() if entry["concerned"]} - {"agent-workflow"}
-        self.assertLessEqual({"eu-ai-act", "pci-dss", "threat-modeling", "iso-27001"}, asked)
+        self.assertLessEqual({"eu-ai-act", "threat-modeling", "iso-27001", "incident-notification"}, asked)
         covered = {pack["pack"].split("@")[0] for brief in task["consultation"]["board_briefs"].values()
                    for pack in brief["rules"]}
         self.assertEqual(asked - covered, set())
+
+    def test_a_report_button_asks_the_notice_and_action_rules_in_the_trust_and_safety_pass(self):
+        self.init(patterns=["notice-and-action"])
+        task = self.consult("report-button", "Let users report illegal content in community forum posts and let "
+                            "moderators remove them.",
+                            {**BUG, "kind": "feature", "surface": ["customer", "service"],
+                             "outcome": "A reported post reaches a moderator, who can remove it.",
+                             "affected": "Forum members and moderators"})
+        self.assertIn("trust-and-safety", task["consultation"]["boards"])
+        rules = printed_rules(self.cli("task", "brief", "report-button", "--board", "trust-and-safety"))
+        self.assertLessEqual({"notice-and-action/offer-reporting", "notice-and-action/send-statement-of-reasons"},
+                             rules)
 
     def test_unsure_is_offered_at_the_terminal_and_recorded_as_an_answer(self):
         self.init()
