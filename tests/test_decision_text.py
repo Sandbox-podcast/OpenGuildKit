@@ -62,7 +62,7 @@ class CheckCommandTests(ApprovalCase):
             self.assertIn(f"{line}\n", prompt)
 
 
-@unittest.skipIf(shutil.which("ssh-keygen") is None, "needs ssh-keygen")
+@unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
 class SignedDecisionTests(ApprovalCase):
     def setUp(self):
         super().setUp()
@@ -71,6 +71,10 @@ class SignedDecisionTests(ApprovalCase):
         self.init(approval={"mode": "signed", "allowed_signers": "allowed_signers", "approvers": [PRINCIPAL]})
         (self.root / "allowed_signers").write_text(
             f"{PRINCIPAL} {self.key.with_suffix('.pub').read_text(encoding='utf-8')}", encoding="utf-8")
+        # Signatures are verified against the signers file as Git holds it at HEAD.
+        self.git("init", "-q", "-b", "main")
+        self.git("add", "allowed_signers")
+        self.git("commit", "-q", "-m", "signers")
         (self.root / "README.md").write_text("Portal\n", encoding="utf-8")
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "sx")
         write_json(self.root / "answers.json", json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8")))
