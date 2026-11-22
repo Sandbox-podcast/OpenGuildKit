@@ -13,7 +13,7 @@ import { batchJson, cliMessage, projectPath, readJson, readText, run, terminalCo
 import { useProfile, useTasks } from '../data';
 import { invalidate, showTerminal, useAction, useCli, useCliResult, useCliText, useQuery } from '../query';
 import { checkLabel, deliveryOf, fmtWhen, hasFailedCheck, isDecided, isDone, needsReconsult, nextLabel, nextLang, parseTemplates } from '../labels';
-import { ActionForm, CommandLine, ExternalLink, FilePick, JsonDetails, Pre, Q, Section, StepRail, TaskStatusBadge, UnreadableTask, copyText, useRemembered } from '../parts';
+import { ActionForm, CommandLine, ExternalLink, FilePick, JsonDetails, Pre, Q, Section, StepRail, TableBox, TaskStatusBadge, UnreadableTask, copyText, useRemembered } from '../parts';
 import type { BlockerItem, ExpectedCheck, MockListing, ProposalItem, ProposalStatus, StorybookProposals, TaskRecord, Tool } from '../types';
 
 export function Forge({ tab = 'quetes' }: { tab?: string }) {
@@ -96,7 +96,7 @@ function HandoffDialog({ id, open, onClose }: { id: string; open: boolean; onClo
   return (
     <Dialog open={open} onClose={onClose} wide title="Passation validée" footer={<><Button onClick={onClose}>Fermer</Button>{text.data && <Button variant="primary" icon="copy" onClick={() => void copyText(text.data!)}>Copier pour l’agent</Button>}</>}>
       <p className="small muted">La décision (qui et pourquoi), le périmètre validé avec les règles en vigueur et la revue. Elle échoue si le profil ou le catalogue ont changé depuis la validation.</p>
-      <Q q={text}>{(t) => <div className="scroll-box"><Markdown text={t} /></div>}</Q>
+      <Q q={text}>{(t) => <div className="scroll-box" tabIndex={0}><Markdown text={t} /></div>}</Q>
     </Dialog>
   );
 }
@@ -126,7 +126,7 @@ function Checks({ task }: { task: TaskRecord }) {
       <p className="small muted"><code>task verify</code> lance seulement les commandes du profil, à la racine du projet, et garde le journal de chacune comme preuve. Une commande obligatoire en échec laisse la quête ouverte : corrigez, puis relancez.</p>
       {verified && <Notice tone={verified.code === 0 ? 'success' : 'warn'} title={verified.code === 0 ? 'task verify :' : 'task verify a trouvé des points à reprendre :'}><Pre text={(verified.stdout || cliMessage(verified)).trim()} /></Notice>}
       <Q q={checks}>
-        {(list) => <table className="data compact"><thead><tr><th>Contrôle</th><th>Type</th><th>Obligatoire</th><th>Résultat</th></tr></thead>
+        {(list) => <TableBox label="Tableau des vérifications"><table className="data compact"><thead><tr><th>Contrôle</th><th>Type</th><th>Obligatoire</th><th>Résultat</th></tr></thead>
           <tbody>{list.map((c) => { const l = checkLabel(c.result?.status); return (
             <tr key={c.id} className={c.concerned === false ? 'muted' : undefined}><td><span className="mono small">{c.id}</span><span className="small block">{c.command ?? c.title ?? c.instruction ?? c.rule}</span>{c.verification && <span className="tiny muted block">{c.verification}</span>}
               {c.owner_role && <span className="tiny muted block">Fournie par {c.owner_role}{c.must_supply ? ` (obligatoire : ${c.must_supply})` : ''}</span>}
@@ -135,7 +135,7 @@ function Checks({ task }: { task: TaskRecord }) {
               <td>{c.mandatory ? <Badge tone="warning" icon="lock">oui</Badge> : <span className="tiny muted">non</span>}</td>
               <td><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge>{c.result?.cannot_run && <span className="block"><Badge tone="warning" icon="user">ne peut pas tourner ici</Badge></span>}
                 {c.result?.message && <span className="tiny block">{c.result.message}</span>}
-                {c.result?.evidence && <span className="tiny muted block mono">{c.result.evidence}</span>}{c.result?.reason && <span className="tiny muted block">{c.result.reason}{c.result.owner ? ` (${c.result.owner})` : ''}</span>}</td></tr>); })}</tbody></table>}
+                {c.result?.evidence && <span className="tiny muted block mono">{c.result.evidence}</span>}{c.result?.reason && <span className="tiny muted block">{c.result.reason}{c.result.owner ? ` (${c.result.owner})` : ''}</span>}</td></tr>); })}</tbody></table></TableBox>}
       </Q>
       {task.status === 'approved' && commands.length > 0 && <details className="small"><summary>Une commande ne peut pas tourner ici</summary>
         <p>Une personne le déclare dans son terminal, avec son nom et la raison : la CLI relance d’abord la commande, puis lui demande de retaper l’identifiant de la quête. La quête se termine alors avec cette réserve. L’interface n’enregistre jamais cette déclaration.</p>
@@ -223,14 +223,14 @@ function Results({ task }: { task: TaskRecord }) {
         </div>)}
         <Button size="small" icon="plus" onClick={() => setCriteria((x) => [...x, { criterion: '', status: 'met', evidence: '' }])}>Ajouter un critère</Button>
       </fieldset>
-      {rules.length > 0 && <div className="table-wrap"><table className="data compact"><thead><tr><th>Règle</th><th>Issue</th><th>Preuve, ou motif et responsable</th></tr></thead><tbody>
+      {rules.length > 0 && <div><TableBox label="Règles à rapporter"><table className="data compact"><thead><tr><th>Règle</th><th>Issue</th><th>Preuve, ou motif et responsable</th></tr></thead><tbody>
         {rules.map((c) => { const o = outcome(c.id); return <tr key={c.id}>
           <td><span className="mono small">{c.id}</span><span className="tiny muted block">{c.title ?? c.instruction ?? c.verification}</span>{c.must_supply && <span className="tiny block">Fournie par {c.owner_role} : ne peut pas être déclarée non applicable ({c.must_supply}).</span>}</td>
           <td><select className="input" aria-label={`Issue de ${c.id}`} value={o.status || (c.result?.status ?? '')} onChange={(e) => setOutcome(c.id, { status: e.target.value })}><option value="">{c.result ? checkLabel(c.result.status).label : 'À rapporter'}</option><option value="passed">réussie</option><option value="failed">en échec</option><option value="skipped">ignorée</option><option value="not-applicable">non applicable</option></select></td>
           <td>{o.status === 'passed' || o.status === 'failed' ? <input className="input" aria-label="Preuve" value={o.evidence} onChange={(e) => setOutcome(c.id, { evidence: e.target.value })} /> : o.status ? <span className="row"><input className="input" aria-label="Motif" placeholder="Motif" value={o.reason} onChange={(e) => setOutcome(c.id, { reason: e.target.value })} /><input className="input" aria-label="Responsable" placeholder="Responsable" value={o.owner} onChange={(e) => { setOwner(e.target.value); setOutcome(c.id, { owner: e.target.value }); }} /></span> : <span className="tiny muted">—</span>}</td>
         </tr>; })}
-      </tbody></table>
-      <Button size="small" variant="ghost" disabled={!owner.trim()} title={owner.trim() ? undefined : 'Indiquez d’abord votre nom'} onClick={() => rules.forEach((c) => !c.result && setOutcome(c.id, { status: 'not-applicable', reason: 'Aucun changement dans ce domaine.', owner }))}>Marquer les règles non rapportées « non applicables »</Button></div>}
+      </tbody></table></TableBox>
+      <Button size="small" variant="ghost" className="wrap" disabled={!owner.trim()} title={owner.trim() ? undefined : 'Indiquez d’abord votre nom'} onClick={() => rules.forEach((c) => !c.result && setOutcome(c.id, { status: 'not-applicable', reason: 'Aucun changement dans ce domaine.', owner }))}>Marquer les règles non rapportées « non applicables »</Button></div>}
       {incomplete.length > 0 && <Notice tone="warn">Il manque une preuve, ou un motif et un responsable, pour : {incomplete.join(', ')}.</Notice>}
       {error && <Notice tone="danger" title="La CLI a refusé :"><span className="pre-line">{error.message}</span></Notice>}
       <div className="row">
@@ -307,8 +307,8 @@ function Deliverables() {
         ]} onSubmit={(v) => act(['deliverable', 'new', v.template, '--task', v.task, ...(v.tool ? ['--tool', v.tool] : []), '--output', v.output], { success: 'Brouillon écrit' })} />
       </Panel>
       <Panel title={<>Brouillons des quêtes <span className="badge count">{drafts.length}</span></>}>
-        {drafts.length === 0 ? <p className="muted">Aucun brouillon.</p> : <table className="data compact"><thead><tr><th>Brouillon</th><th>Quête</th><th>Outil</th><th /></tr></thead>
-          <tbody>{drafts.map((d) => <tr key={d.path}><td><span className="mono small">{projectPath(d.path)}</span><span className="tiny muted block">{d.deliverable}</span></td><td><a href={`#/quetes/${d.task}`}>{d.task}</a></td><td>{d.tool ?? '—'}</td><td><Button size="small" onClick={() => setDraft(projectPath(d.path))}>Ouvrir</Button></td></tr>)}</tbody></table>}
+        {drafts.length === 0 ? <p className="muted">Aucun brouillon.</p> : <TableBox label="Brouillons des quêtes"><table className="data compact"><thead><tr><th>Brouillon</th><th>Quête</th><th>Outil</th><th><span className="sr-only">Ouvrir</span></th></tr></thead>
+          <tbody>{drafts.map((d) => <tr key={d.path}><td><span className="mono small">{projectPath(d.path)}</span><span className="tiny muted block">{d.deliverable}</span></td><td><a href={`#/quetes/${d.task}`}>{d.task}</a></td><td>{d.tool ?? '—'}</td><td><Button size="small" onClick={() => setDraft(projectPath(d.path))}>Ouvrir</Button></td></tr>)}</tbody></table></TableBox>}
       </Panel>
       <TemplateDialog id={show} onClose={() => setShow(null)} />
       <DraftDialog path={draft} onClose={() => { setDraft(null); setQuery({ brouillon: null }); }} />
@@ -327,7 +327,7 @@ function DraftDialog({ path, onClose }: { path: string | null; onClose: () => vo
   return (
     <Dialog open={!!path} onClose={onClose} wide title={path ?? ''} footer={<Button onClick={onClose}>Fermer</Button>}>
       {check.data && (check.data.code === 0 ? <Notice tone="success">Prêt pour la relecture.</Notice> : <Notice tone="warn" title="Ce qui empêche la relecture :"><Pre text={check.data.stdout || check.data.stderr} /></Notice>)}
-      <Q q={text}>{(t) => <div className="scroll-box"><Markdown text={t.replace(/^---[\s\S]*?---\n/, '')} /></div>}</Q>
+      <Q q={text}>{(t) => <div className="scroll-box" tabIndex={0}><Markdown text={t.replace(/^---[\s\S]*?---\n/, '')} /></div>}</Q>
       <p className="tiny muted">Modifiez le fichier dans votre éditeur ; rouvrez ce brouillon pour revoir les contrôles.</p>
     </Dialog>
   );
@@ -396,16 +396,16 @@ function Tools() {
           <select className="input" aria-label="Catégorie" value={category} onChange={(e) => setCategory(e.target.value)}><option value="">Toutes les catégories</option>{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select>
           <label className="row small"><input type="checkbox" checked={onlyMocks} onChange={(e) => setOnlyMocks(e.target.checked)} /> Avec une simulation</label>
         </div>
-        <div className="table-wrap tall"><table className="data compact"><thead><tr><th /><th>Outil</th><th>Catégorie</th><th>Serveurs MCP</th><th>Cerveaux</th><th /></tr></thead><tbody>
+        <TableBox label="Registre des outils" tall><table className="data compact"><thead><tr><th><span className="sr-only">Choisir</span></th><th>Outil</th><th>Catégorie</th><th>Serveurs MCP</th><th>Cerveaux</th><th><span className="sr-only">Essayer et site</span></th></tr></thead><tbody>
           {shown.map((t) => <tr key={t.id}>
             <td><input type="checkbox" aria-label={`Choisir ${t.title}`} checked={picked.includes(t.id)} onChange={() => toggle(t.id)} /></td>
             <td><strong>{t.title}</strong> <span className="tiny muted">{t.vendor}</span><span className="tiny muted block clamp-1">{t.summary}</span></td>
             <td className="small">{t.category}</td>
             <td className="small">{t.servers.length || '—'}{t.mock && <> · <Badge tone="ai">simulation</Badge></>}</td>
             <td className="tiny">{t.brains.join(', ')}</td>
-            <td>{t.mock && <Button size="small" variant="ghost" onClick={() => setCall(t.id)}>Essayer</Button>}{t.homepage && <ExternalLink href={t.homepage}>site</ExternalLink>}</td>
+            <td>{t.mock && <Button size="small" variant="ghost" onClick={() => setCall(t.id)}>Essayer</Button>}{t.homepage && <ExternalLink href={t.homepage} className="target-link">site</ExternalLink>}</td>
           </tr>)}
-        </tbody></table></div>
+        </tbody></table></TableBox>
       </Panel>
       <Panel title={`Connecter ${picked.length} outil(s)`} tone={picked.length ? 'ai' : undefined}>
         <p className="small">{picked.join(', ') || 'Cochez des outils dans le registre.'}</p>
@@ -518,7 +518,7 @@ function Storybook() {
       </> : undefined}>
         {!draft ? <p className="muted">Aucune proposition. Inventoriez puis proposez.</p> : <>
           <Tabs label="Type de proposition" value={section} onChange={(s) => setSection(s as Section)} tabs={SECTIONS.map(([id, title]) => ({ id, label: title, count: draft[id].length }))} />
-          <div className="table-wrap tall"><table className="data compact"><thead><tr><th>Nom</th><th>Origine</th><th>Confiance</th><th>Décision</th></tr></thead><tbody>
+          <TableBox label="Tableau des propositions" tall><table className="data compact"><thead><tr><th>Nom</th><th>Origine</th><th>Confiance</th><th>Décision</th></tr></thead><tbody>
             {items.map((it) => (
               <tr key={it.key} className={it.observed === false ? 'muted' : undefined}>
                 <td><input className="input" aria-label={`Nom de ${it.key}`} value={it.name} onChange={(e) => update(it.key, { name: e.target.value })} />
@@ -530,7 +530,7 @@ function Storybook() {
                 <td><select className="input" aria-label={`Décision pour ${it.key}`} value={it.status} onChange={(e) => update(it.key, { status: e.target.value as Status })}>{(Object.keys(STATUS_LABEL) as Status[]).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</select></td>
               </tr>
             ))}
-          </tbody></table></div>
+          </tbody></table></TableBox>
           <div className="row">
             <Button variant="primary" busy={saving} disabled={!dirty} onClick={() => void save()}>Enregistrer les décisions</Button>
             <Button disabled={!dirty} onClick={() => setDraft(proposals.data ?? null)}>Annuler</Button>

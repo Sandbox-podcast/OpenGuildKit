@@ -8,7 +8,7 @@ import { batchJson, terminalCommand } from '../api';
 import { onlyTasksFail, useAlerts, useCheck, useGuard, useHost, useTasks } from '../data';
 import { showTerminal, useAction, useQuery } from '../query';
 import { GUARD, SEVERITY, alertLabel, hostControl } from '../labels';
-import { ActionForm, CheckNotice, ExternalLink, FilePick, Q, TaskLink, useRemembered } from '../parts';
+import { ActionForm, CheckNotice, ExternalLink, FilePick, Q, TableBox, TaskLink, useRemembered } from '../parts';
 import type { Alert, BlockerItem } from '../types';
 
 export function Watchtower({ tab = 'controles' }: { tab?: string }) {
@@ -75,7 +75,7 @@ function Alerts() {
       </Panel>
       <Q q={alerts}>{(reg) => <Panel title={`Registre : ${reg.summary.total} alerte(s)`} actions={<select className="input" aria-label="Filtrer par statut" value={filter} onChange={(e) => setFilter(e.target.value)}><option value="">Tous les statuts</option>{Object.keys(reg.summary.by_status).map((s) => <option key={s} value={s}>{alertLabel(s).label} ({reg.summary.by_status[s]})</option>)}</select>}>
         {reg.summary.imports.length > 0 && <p className="tiny muted">Imports : {reg.summary.imports.map((i) => `${i.tool} (${i.file}, sha256 ${i.sha256.slice(0, 12)})`).join(' · ')}</p>}
-        {shown.length === 0 ? <p className="muted">Aucune alerte.</p> : <div className="table-wrap"><table className="data compact"><thead><tr><th>Paquet</th><th>Gravité</th><th>Avis</th><th>Statut</th><th>Quêtes</th><th /></tr></thead><tbody>
+        {shown.length === 0 ? <p className="muted">Aucune alerte.</p> : <TableBox label="Registre des alertes"><table className="data compact"><thead><tr><th>Paquet</th><th>Gravité</th><th>Avis</th><th>Statut</th><th>Quêtes</th><th><span className="sr-only">Revue</span></th></tr></thead><tbody>
           {shown.map((a) => { const l = alertLabel(a.status); return <tr key={a.id}>
             <td><strong>{a.package}</strong> <span className="mono tiny">{a.version}</span><span className="tiny muted block">{a.ecosystem} · {a.scanners.join(', ')}</span></td>
             <td><Badge tone={SEVERITY[a.severity] ?? 'neutral'}>{a.severity}</Badge></td>
@@ -84,7 +84,7 @@ function Alerts() {
             <td className="small">{a.tasks.map((t) => <TaskLink key={t} id={t} />)}</td>
             <td><Button size="small" onClick={() => setReviewing(a)}>Revoir</Button></td>
           </tr>; })}
-        </tbody></table></div>}
+        </tbody></table></TableBox>}
       </Panel>}</Q>
       <Dialog open={!!reviewing} onClose={() => setReviewing(null)} title={`Revoir ${reviewing?.package ?? ''}`}>
         {reviewing && <>
@@ -120,9 +120,9 @@ function AllBlockers() {
         const items = list.flatMap((t) => t.items.map((b) => ({ ...b, task: t.task })));
         if (!items.length) return <p className="muted">Aucun blocage sur les quêtes en attente de décision ou à réaliser.</p>;
         return <Panel title={`${items.filter((b) => !b.resolution).length} blocage(s) ouvert(s)`}>
-          <table className="data compact"><thead><tr><th>Quête</th><th>Blocage</th><th>Responsable</th><th>État</th></tr></thead><tbody>
+          <TableBox label="Blocages des quêtes"><table className="data compact"><thead><tr><th>Quête</th><th>Blocage</th><th>Responsable</th><th>État</th></tr></thead><tbody>
             {items.map((b) => <tr key={`${b.task}:${b.id}`}><td><a href={`#/conseil/${b.task}`}>{b.task}</a></td><td><span className="mono tiny">{b.id}</span><span className="small block">{b.finding}</span><span className="tiny muted block">Se lève quand : {b.clears_when}</span></td><td className="small">{b.owner}</td><td>{b.resolution ? <Badge tone="success" icon="check">{b.resolution.kind}</Badge> : b.phase === 'verification' ? <Badge tone="warning" icon="clock">condition</Badge> : <Badge tone="danger" icon="ban">ouvert</Badge>}</td></tr>)}
-          </tbody></table>
+          </tbody></table></TableBox>
         </Panel>;
       }}
     </Q>

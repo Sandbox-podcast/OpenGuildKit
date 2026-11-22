@@ -54,7 +54,8 @@ test('opens the project with its counters, map and next actions', async ({ page 
   await expect(page.getByRole('region', { name: 'Carte du projet' })).toBeVisible();
   await expect(page.getByText('Lever les blocages de request-export')).toBeVisible();
   await expect(page.getByText('Réaliser request-history')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Quêtes', exact: true })).toHaveAttribute('aria-description', /1 bloquée/);
+  // The name of a place link holds its visible words, then its counter for a screen reader.
+  await expect(page.getByRole('navigation').getByRole('link', { name: /^Quêtes Tâches du projet\s*, 1 bloquée$/ })).toBeVisible();
 });
 
 test('lists every task by state and opens a new one', async ({ page }) => {
@@ -612,6 +613,9 @@ test('finds a brain from the search and moves with the keyboard', async ({ page 
   const search = page.getByRole('dialog', { name: 'Rechercher dans le projet' });
   await search.getByLabel('Rechercher').fill('security privacy');
   await expect(search.getByText('Security and privacy').first()).toBeVisible();
+  // The count is announced, not the list of results at every keystroke.
+  await expect(search.getByRole('status')).toHaveText(/^\d+ résultats?$/);
+  await expect(search.locator('[aria-live]')).toHaveCount(0);
   await search.getByLabel('Rechercher').press('Enter');
   await expect(page).toHaveURL(/#\/guilde\/security/);
   await expect(page.getByRole('heading', { name: /Lentilles/ })).toBeVisible();
@@ -619,6 +623,28 @@ test('finds a brain from the search and moves with the keyboard', async ({ page 
   await page.keyboard.press('g');
   await page.keyboard.press('q');
   await expect(page).toHaveURL(/#\/quetes/);
+});
+
+test('turns the single-key shortcuts off, and keeps the choice', async ({ page }) => {
+  await open(page, '/intendance/interface');
+  const single = page.getByLabel(/Raccourcis à une touche/);
+  await expect(single).toBeChecked();
+  await single.uncheck();
+  await page.reload();
+  await expect(page.getByLabel(/Raccourcis à une touche/)).not.toBeChecked();
+  await page.locator('body').click({ position: { x: 5, y: 300 } });
+  await page.keyboard.press('m');
+  await expect(page.locator('.app')).toHaveClass(/mode-explorer/);
+  await page.keyboard.press('g');
+  await page.keyboard.press('q');
+  await expect(page).toHaveURL(/#\/intendance\/interface/);
+  await page.keyboard.press('/');
+  await expect(page.getByRole('dialog', { name: 'Rechercher dans le projet' })).toHaveCount(0);
+  // Ctrl+K has a modifier: it stays.
+  await page.keyboard.press('Control+k');
+  await expect(page.getByRole('dialog', { name: 'Rechercher dans le projet' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByLabel(/Raccourcis à une touche/).check();
 });
 
 test('keeps the Pro style across places', async ({ page }) => {

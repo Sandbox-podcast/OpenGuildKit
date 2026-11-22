@@ -287,7 +287,7 @@ function PassDialog({ task, board, start, onClose }: { task: string; board: stri
     <Dialog open={!!board} onClose={onClose} wide title={`Passe du cerveau ${board ?? ''}`} footer={<><Button onClick={onClose}>Fermer</Button>{text && <Button variant="primary" icon="copy" onClick={() => void copyText(text)}>Copier pour l’agent</Button>}</>}>
       <p className="small muted">La passe ne montre à ce cerveau que la quête, son brief, les règles de ses packs qui la concernent et son modèle d’entrée, rien des autres cerveaux. Préparée, elle est marquée « commencée » jusqu’au dépôt de l’avis ; la relire ne la relance pas.</p>
       {error && <Notice tone="danger">{error}</Notice>}
-      {text ? <div className="scroll-box"><Markdown text={text} /></div> : !error && <p className="muted">Préparation…</p>}
+      {text ? <div className="scroll-box" tabIndex={0}><Markdown text={text} /></div> : !error && <p className="muted">Préparation…</p>}
     </Dialog>
   );
 }
@@ -296,7 +296,7 @@ function BriefDialog({ id, open, onClose }: { id: string; open: boolean; onClose
   const brief = useCliText(open ? ['task', 'brief', id] : null);
   return (
     <Dialog open={open} onClose={onClose} wide title="Brief de consultation" footer={<><Button onClick={onClose}>Fermer</Button>{brief.data && <Button variant="primary" icon="copy" onClick={() => void copyText(brief.data!)}>Copier</Button>}</>}>
-      <Q q={brief}>{(text) => <div className="scroll-box"><Markdown text={text} /></div>}</Q>
+      <Q q={brief}>{(text) => <div className="scroll-box" tabIndex={0}><Markdown text={text} /></div>}</Q>
     </Dialog>
   );
 }
@@ -347,7 +347,7 @@ function ChallengeDialog({ id, open, onClose }: { id: string; open: boolean; onC
   return (
     <Dialog open={open} onClose={onClose} wide title="Arbitrage : verdicts, désaccords et vérifications" footer={<Button onClick={onClose}>Fermer</Button>}>
       <p className="small muted">L’agent montre ce brief à la personne qui décide, avant toute réalisation.</p>
-      <Q q={text}>{(t) => <div className="scroll-box"><Markdown text={t} /></div>}</Q>
+      <Q q={text}>{(t) => <div className="scroll-box" tabIndex={0}><Markdown text={t} /></div>}</Q>
     </Dialog>
   );
 }

@@ -6,6 +6,7 @@ import { useAction } from '../query';
 import { hostControl } from '../labels';
 import { CheckNotice, CommandLine, JsonDetails, Pre, Q, TaskLink } from '../parts';
 import { setPrefs, usePrefs } from '../prefs';
+import { setSingleKeyShortcuts, useSingleKeyShortcuts } from '@/shared/shortcuts';
 
 export function Stewardship({ tab = 'hote' }: { tab?: string }) {
   return (
@@ -71,6 +72,7 @@ function CatalogUpdate() {
 function Interface() {
   const session = currentSession();
   const prefs = usePrefs();
+  const single = useSingleKeyShortcuts();
   return (
     <div className="grid-2">
       <Panel title="Ce que fait cette interface">
@@ -84,7 +86,9 @@ function Interface() {
       </Panel>
       <Panel title="Affichage">
         <div className="row"><Button variant={prefs.mode === 'explorer' ? 'primary' : undefined} onClick={() => setPrefs({ mode: 'explorer' })}>RPG</Button><Button variant={prefs.mode === 'focus' ? 'primary' : undefined} onClick={() => setPrefs({ mode: 'focus' })}>Pro</Button></div>
-        <label className="row small"><input type="checkbox" checked={prefs.motion === 'reduced'} onChange={(e) => setPrefs({ motion: e.target.checked ? 'reduced' : 'system' })} /> Mouvement réduit</label>
+        <label className="row small pref-check"><input type="checkbox" checked={prefs.motion === 'reduced'} onChange={(e) => setPrefs({ motion: e.target.checked ? 'reduced' : 'system' })} /> Mouvement réduit</label>
+        <label className="row small pref-check"><input type="checkbox" checked={single} onChange={(e) => setSingleKeyShortcuts(e.target.checked)} /> Raccourcis à une touche : <kbd>/</kbd> recherche, <kbd>g</kbd> puis une lettre change de lieu, <kbd>m</kbd> change de style</label>
+        <p className="tiny muted"><kbd>Ctrl</kbd> + <kbd>K</kbd> ouvre la recherche dans tous les cas. Le choix est gardé dans ce navigateur.</p>
         <p className="small">OpenGuildKit {session?.version}. <a href="./?demo=1" target="_blank" rel="noopener">Ouvrir la démonstration Atelier Nova</a> (données fictives, dans ce navigateur seulement).</p>
       </Panel>
     </div>

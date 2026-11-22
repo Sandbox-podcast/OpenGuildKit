@@ -6,7 +6,7 @@ import { Icon } from '@/shared/pixel/icons';
 import { norm } from '@/shared/text';
 import { useProfile } from '../data';
 import { useCli } from '../query';
-import { ExternalLink, Q } from '../parts';
+import { ExternalLink, Q, TableBox } from '../parts';
 import type { Catalog, Pattern, Reference, RulePlan } from '../types';
 
 const PAGE = 60;
@@ -128,7 +128,7 @@ function Packs() {
             <summary><strong>{p.title}</strong> <span className="mono tiny">{p.id} {p.version}</span> {force && <Badge tone="success" icon="check">en vigueur</Badge>} <span className="tiny muted">{p.rules.length} règle(s)</span></summary>
             <p className="small">{p.description}</p>
             {force && <p className="tiny muted">Origine : {force.provenance.join(' · ')}</p>}
-            <table className="data compact"><thead><tr><th>Règle</th><th>Consigne</th><th>Vérification</th></tr></thead><tbody>{p.rules.map((r) => <tr key={r.id}><td className="mono tiny">{r.id}</td><td className="small">{r.instruction}</td><td className="small muted">{r.verification}</td></tr>)}</tbody></table>
+            <TableBox label={`Règles de ${p.title}`}><table className="data compact"><thead><tr><th>Règle</th><th>Consigne</th><th>Vérification</th></tr></thead><tbody>{p.rules.map((r) => <tr key={r.id}><td className="mono tiny">{r.id}</td><td className="small">{r.instruction}</td><td className="small muted">{r.verification}</td></tr>)}</tbody></table></TableBox>
             {p.sources.length > 0 && <p className="tiny">{p.sources.map((s) => <ExternalLink key={s.url} href={s.url}>{s.title}</ExternalLink>)}</p>}
           </details>
         );

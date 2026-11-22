@@ -78,11 +78,11 @@ export function Quests() {
             {columns.map((s) => {
               const col = items.filter((t) => t.status === s);
               return (
-                <section key={s} className="kanban-col" role="listitem" aria-label={`${taskStatus(s).label} (${col.length})`}>
+                <div key={s} className="kanban-col" role="listitem" aria-label={`${taskStatus(s).label} (${col.length})`}>
                   <header><TaskStatusBadge status={s} /><span className="badge count">{col.length}</span></header>
                   <ul className="plain stack tight">{col.map((t) => <QuestCard key={t.id} t={t} rpg={mode === 'explorer'} />)}</ul>
                   {col.length === 0 && <p className="tiny muted">—</p>}
-                </section>
+                </div>
               );
             })}
           </div>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { projectPath, quoteFor } from '@/project/api';
+import { shortcutFor } from '@/shared/shortcuts';
 import { GROUP_ABOVE, todos } from '@/project/todo';
 import { changesCatalog, invalidate, load, peek, remember } from '@/project/query';
 import { onlyTasksFail, placeCounts, signalsOf } from '@/project/data';
@@ -121,6 +122,19 @@ describe('task pages', () => {
     const many = todos(signalsOf({ tasks: ok(drafts) }));
     expect(many).toHaveLength(1);
     expect(many[0]).toMatchObject({ title: '503 quêtes à cadrer', to: '/quetes?statut=draft', who: 'person' });
+  });
+});
+
+describe('keyboard shortcuts of both shells', () => {
+  const key = (k: string, mods: Partial<{ ctrlKey: boolean; metaKey: boolean; altKey: boolean }> = {}) => ({ key: k, ctrlKey: false, metaKey: false, altKey: false, ...mods });
+  it('acts on single keys only while they are on, and always on Ctrl+K', () => {
+    expect(shortcutFor(key('k', { ctrlKey: true }), false, Infinity)).toEqual({ action: 'search' });
+    expect(shortcutFor(key('k', { metaKey: true }), true, Infinity)).toEqual({ action: 'search' });
+    expect(['/', 'm', 'g', '?'].map((k) => shortcutFor(key(k), true, Infinity))).toEqual([{ action: 'search' }, { action: 'mode' }, { action: 'prefix' }, { action: 'help' }]);
+    expect(['/', 'm', 'g', '?'].map((k) => shortcutFor(key(k), false, Infinity))).toEqual([null, null, null, null]);
+    expect(shortcutFor(key('q'), true, 300)).toEqual({ action: 'go', route: '/quetes' });
+    expect(shortcutFor(key('q'), true, 5000)).toBeNull();
+    expect(shortcutFor(key('m', { ctrlKey: true }), true, Infinity)).toBeNull();
   });
 });
 

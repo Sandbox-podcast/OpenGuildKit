@@ -43,9 +43,9 @@ export function TaskLink({ id, to = 'quetes' }: { id: string; to?: string }) {
   return <a className="mono objlink" href={`#/${to}/${id}`}>{id}</a>;
 }
 
-export function ExternalLink({ href, children }: { href: string; children?: ReactNode }) {
+export function ExternalLink({ href, children, className }: { href: string; children?: ReactNode; className?: string }) {
   if (!isSafeUrl(href)) return <span>{children ?? href}</span>;
-  return <a href={href} target="_blank" rel="noopener noreferrer">{children ?? href} <Icon name="external" size={11} /></a>;
+  return <a href={href} className={className} target="_blank" rel="noopener noreferrer">{children ?? href} <Icon name="external" size={11} /></a>;
 }
 
 export async function copyText(text: string) {
@@ -177,11 +177,17 @@ export function ListEditor({ label, items, onChange, placeholder, hint, error }:
 }
 
 export function JsonDetails({ data, label = 'Voir le JSON' }: { data: unknown; label?: string }) {
-  return <details className="json-details"><summary>{label}</summary><pre className="code-block">{JSON.stringify(data, null, 2)}</pre></details>;
+  return <details className="json-details"><summary>{label}</summary><pre className="code-block" tabIndex={0}>{JSON.stringify(data, null, 2)}</pre></details>;
 }
 
+/** A command's printed text. It scrolls when long, so it takes the keyboard focus. */
 export function Pre({ text }: { text: string }) {
-  return <pre className="code-block pre-wrap">{text.trim()}</pre>;
+  return <pre className="code-block pre-wrap" tabIndex={0}>{text.trim()}</pre>;
+}
+
+/** A table that scrolls sideways on a phone: a named region the keyboard can reach and scroll. */
+export function TableBox({ label, tall, children }: { label: string; tall?: boolean; children: ReactNode }) {
+  return <div className={`table-wrap${tall ? ' tall' : ''}`} tabIndex={0} role="region" aria-label={label}>{children}</div>;
 }
 
 /**

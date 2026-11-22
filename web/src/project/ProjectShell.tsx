@@ -18,6 +18,7 @@ import { placeCounts, signalsOf, useOverview, useProfile } from './data';
 import { setPrefs, usePrefs } from './prefs';
 import { TerminalDialog, TouchedNotice } from './parts';
 import { ProjectSearch } from './ProjectSearch';
+import { useShortcuts } from '@/shared/shortcuts';
 
 export const PROJECT_PLACES: Record<PlaceKey, { role: string; pro: string }> = {
   royaume: { role: 'Vue du projet', pro: 'Projet' },
@@ -78,28 +79,11 @@ export function ProjectShell({ children }: { children: ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const navToggle = useRef<HTMLButtonElement>(null);
-  const prefix = useRef(0);
   const place = placeOf(route.path);
   useMotion();
 
   useEffect(() => { setNavOpen(false); }, [route.path]);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable;
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setSearchOpen(true); return; }
-      if (typing || document.querySelector('dialog[open]')) return;
-      if (e.key === '/') { e.preventDefault(); setSearchOpen(true); return; }
-      if (Date.now() - prefix.current < 1200) {
-        const p = PLACES.find((x) => x.shortcut === e.key.toLowerCase());
-        if (p) { navigate(p.route); prefix.current = 0; return; }
-      }
-      if (e.key === 'g') { prefix.current = Date.now(); return; }
-      if (e.key === 'm') setPrefs({ mode: pro ? 'explorer' : 'focus' });
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [pro]);
+  useShortcuts({ openSearch: () => setSearchOpen(true), go: (to) => navigate(to), toggleMode: () => setPrefs({ mode: pro ? 'explorer' : 'focus' }) });
 
   // Work done in a terminal (an approval, a waiver) shows up when the person comes back to the page.
   // A quick switch of tabs does not reload everything.
@@ -125,7 +109,7 @@ export function ProjectShell({ children }: { children: ReactNode }) {
           <span className="project-chip-name">{profile.data?.name ?? session?.project.name}</span>
           <span className="badge tone-success project-chip-live">Projet réel</span>
         </div>
-        <button className="searchbox" onClick={() => setSearchOpen(true)} aria-label="Rechercher" aria-keyshortcuts="Control+K">
+        <button className="searchbox" onClick={() => setSearchOpen(true)} aria-keyshortcuts="Control+K">
           <Icon name="search" size={16} /><span>Rechercher</span><kbd>Ctrl K</kbd>
         </button>
         <div className="topbar-actions">
@@ -146,10 +130,10 @@ export function ProjectShell({ children }: { children: ReactNode }) {
               const role = PROJECT_PLACES[p.key].role;
               return (
                 <li key={p.key}>
-                  <a href={`#${p.route}`} aria-label={name} aria-description={c ? `${role}, ${c.n} ${c.label}` : role} aria-current={place?.key === p.key ? 'page' : undefined} className="nav-item" title={role} onClick={() => setNavOpen(false)}>
+                  <a href={`#${p.route}`} aria-current={place?.key === p.key ? 'page' : undefined} className="nav-item" title={role} onClick={() => setNavOpen(false)}>
                     {pro ? <NavigationIcon place={p.key} /> : <Icon name={p.icon} size={20} />}
-                    <span className="nav-text"><span className="nav-name">{name}</span>{!pro && <span className="nav-role">{role}</span>}</span>
-                    {c && <span className={`badge count ${c.tone}`} title={`${c.n} ${c.label}`} aria-hidden="true">{c.n}</span>}
+                    <span className="nav-text"><span className="nav-name">{name}</span>{!pro && <> <span className="nav-role">{role}</span></>}</span>
+                    {c && <><span className={`badge count ${c.tone}`} title={`${c.n} ${c.label}`} aria-hidden="true">{c.n}</span><span className="sr-only">, {c.n} {c.label}</span></>}
                   </a>
                 </li>
               );

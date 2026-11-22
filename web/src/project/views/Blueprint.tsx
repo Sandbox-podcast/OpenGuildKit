@@ -11,7 +11,7 @@ import { useBrains, useProfile } from '../data';
 import { invalidate, reportTouched, showTerminal, useAction, useCli, useQuery } from '../query';
 import { toast } from '@/shared/ui/toast';
 import { NORM_FR, RESEARCH, reasonLabel } from '../labels';
-import { ActionForm, CommandLine, En, ErrorNotice, JsonDetails, ListEditor, Q, useDebounced, useRemembered } from '../parts';
+import { ActionForm, CommandLine, En, ErrorNotice, JsonDetails, ListEditor, Q, TableBox, useDebounced, useRemembered } from '../parts';
 import { missingRequired, pendingNorms, setupAnswers, type NormDraft } from '../setup';
 import type { Profile, Question, Recommendation, RulePlan } from '../types';
 
@@ -238,11 +238,11 @@ function ProfileEditor() {
       </div>
       <Panel title="Cerveaux">
         <p className="small muted">Sans cerveau coché, tous conseillent. Un cerveau obligatoire rejoint chaque consultation et ne peut pas en être retiré.</p>
-        <table className="data compact"><thead><tr><th>Cerveau</th><th>Activé</th><th>Obligatoire</th></tr></thead><tbody>
+        <TableBox label="Cerveaux du profil"><table className="data compact"><thead><tr><th>Cerveau</th><th>Activé</th><th>Obligatoire</th></tr></thead><tbody>
           {boards.map((b) => { const on = (draft.boards ?? []).includes(b.id); const req = (draft.required_boards ?? []).includes(b.id); return <tr key={b.id}><td><strong>{b.title}</strong> <span className="mono tiny">{b.id}</span></td>
             <td><input type="checkbox" aria-label={`Activer ${b.title}`} checked={on} onChange={() => set('boards', on ? (draft.boards ?? []).filter((x) => x !== b.id) : [...(draft.boards ?? []), b.id])} /></td>
             <td><input type="checkbox" aria-label={`Rendre ${b.title} obligatoire`} checked={req} onChange={() => set('required_boards', req ? (draft.required_boards ?? []).filter((x) => x !== b.id) : [...(draft.required_boards ?? []), b.id])} /></td></tr>; })}
-        </tbody></table>
+        </tbody></table></TableBox>
       </Panel>
       <Panel title="Dérogations">
         <ListEditor label="Personnes autorisées à déroger à un blocage" items={draft.waivers?.allowed_by ?? []} onChange={(v) => set('waivers', v.length ? { allowed_by: v, max_days: draft.waivers?.max_days ?? 30 } : undefined)} placeholder="Camille Martin" />

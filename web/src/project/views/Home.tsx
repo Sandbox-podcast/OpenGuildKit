@@ -10,7 +10,7 @@ import { usePrefs } from '../prefs';
 import { useAction } from '../query';
 import { RESEARCH, isDone, nextLabel, nextLang, statusesOf, taskStatus } from '../labels';
 import { todos } from '../todo';
-import { TaskStatusBadge } from '../parts';
+import { TableBox, TaskStatusBadge } from '../parts';
 import type { Profile, TaskListItem } from '../types';
 
 const pct = (v: number, of: number) => `${(v / of) * 100}%`;
@@ -32,11 +32,10 @@ function ProjectMap({ profile, signals }: { profile: Profile | null; signals: Pr
           const c = counts[p.key];
           return (
             <a key={p.key} className="map-place" data-place={p.key} href={`#${p.route}`}
-              style={{ left: pct(pos.x, MAP_W), top: pct(pos.y, height), width: pct(sp.w, MAP_W), height: pct(sp.h, height) }}
-              aria-label={`${p.name}${c ? ` (${c.n} ${c.label})` : ''}`}>
+              style={{ left: pct(pos.x, MAP_W), top: pct(pos.y, height), width: pct(sp.w, MAP_W), height: pct(sp.h, height) }}>
               <img className="pixel" src={sp.url} alt="" draggable={false} />
-              <span className="map-label" aria-hidden="true">{p.name}</span>
-              {c && <span className={`map-count ${c.tone}`} aria-hidden>{c.n}</span>}
+              <span className="map-label">{p.name}</span>
+              {c && <><span className={`map-count ${c.tone}`} aria-hidden>{c.n}</span><span className="sr-only"> ({c.n} {c.label})</span></>}
             </a>
           );
         })}
@@ -48,7 +47,7 @@ function ProjectMap({ profile, signals }: { profile: Profile | null; signals: Pr
               {i === 0 && <div className="territory-houses">
                 {houses.map((task) => {
                   const sp = cottageSprite(HOUSE[task.status] ?? '#8fa39b', isDone(task.status));
-                  return <a key={task.id} href={`#/quetes/${task.id}`} className="map-house" title={`${task.id} : ${taskStatus(task.status).rpg}`} aria-label={`Quête ${task.id}, ${taskStatus(task.status).label}`} style={{ width: `${(sp.w / r.w) * 100}%` }}>
+                  return <a key={task.id} href={`#/quetes/${task.id}`} className="map-house project-house" title={`${task.id} : ${taskStatus(task.status).rpg}`} aria-label={`Quête ${task.id}, ${taskStatus(task.status).label}`} style={{ width: `${(sp.w / r.w) * 100}%` }}>
                     <img className="pixel" src={sp.url} alt="" draggable={false} />
                   </a>;
                 })}
@@ -101,9 +100,9 @@ export function Home() {
       </div>
       <Panel title={<><Icon name="quest" size={16} /> Quêtes par état</>} actions={<a className="btn small primary" href="#/quetes?nouvelle=1"><Icon name="plus" size={14} /> Nouvelle quête</a>}>
         <div className="stats">{byStatus.map(({ status, n }) => <a key={status} href={`#/quetes?statut=${status}`} className="stat-link"><Stat value={n} label={mode === 'explorer' ? taskStatus(status).rpg : taskStatus(status).label} tone={n ? taskStatus(status).tone : 'muted'} /></a>)}</div>
-        {signals.tasks.length > 0 && <table className="data compact"><thead><tr><th>Quête</th><th>État</th><th>Prochaine étape</th></tr></thead>
+        {signals.tasks.length > 0 && <TableBox label="Quêtes récentes"><table className="data compact"><thead><tr><th>Quête</th><th>État</th><th>Prochaine étape</th></tr></thead>
           <tbody>{signals.tasks.slice(0, 8).map((t: TaskListItem) => <tr key={t.id}><td><a className="mono" href={`#/quetes/${t.id}`}>{t.id}</a><span className="small muted block clamp-1">{t.brief}</span></td><td><TaskStatusBadge status={t.status} /></td><td className="small" lang={nextLang(t.next)}>{nextLabel(t.next)}</td></tr>)}</tbody>
-        </table>}
+        </table></TableBox>}
       </Panel>
       <Panel title={<><Icon name="question" size={16} /> Comment la guilde travaille</>}>
         <ol className="loop-steps">

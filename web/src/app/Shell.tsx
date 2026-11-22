@@ -21,6 +21,7 @@ import { Dialog, Drawer, Menu, Toasts } from '@/shared/ui/overlay';
 import { ActorLabel, Portrait } from '@/shared/ui/domain';
 import { Brand } from './Brand';
 import { NavigationIcon } from './NavigationIcon';
+import { setSingleKeyShortcuts, useShortcuts, useSingleKeyShortcuts } from '@/shared/shortcuts';
 
 function useTicker() {
   const s = useAppState();
@@ -56,7 +57,6 @@ export function Shell({ children, bare }: { children: ReactNode; bare?: boolean 
   const [helpOpen, setHelpOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const navToggle = useRef<HTMLButtonElement>(null);
-  const prefix = useRef<number>(0);
   useTicker();
   useMotionPrefs();
   const place = placeOf(route.path);
@@ -79,23 +79,10 @@ export function Shell({ children, bare }: { children: ReactNode; bare?: boolean 
     navToggle.current?.focus();
   };
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement).tagName) || (e.target as HTMLElement).isContentEditable;
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPaletteOpen(true); return; }
-      if (typing || document.querySelector('dialog[open]')) return;
-      if (e.key === '/') { e.preventDefault(); setPaletteOpen(true); return; }
-      if (e.key === '?') { setHelpOpen(true); return; }
-      if (Date.now() - prefix.current < 1200) {
-        const p = PLACES.find((x) => x.shortcut === e.key.toLowerCase());
-        if (p) { navigate(p.route); prefix.current = 0; return; }
-      }
-      if (e.key === 'g') { prefix.current = Date.now(); return; }
-      if (e.key === 'm' && !e.ctrlKey) dispatch(cmd.setPreference, { mode: s.prefs.mode === 'explorer' ? 'focus' : 'explorer' }, { silent: true });
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [s.prefs.mode]);
+  useShortcuts({
+    openSearch: () => setPaletteOpen(true), go: (to) => navigate(to), help: () => setHelpOpen(true),
+    toggleMode: () => dispatch(cmd.setPreference, { mode: s.prefs.mode === 'explorer' ? 'focus' : 'explorer' }, { silent: true }),
+  });
 
   if (bare) return <div className={`app bare mode-${s.prefs.mode}`}>
     <div className="bare-preferences"><ModePicker /></div>
@@ -113,7 +100,7 @@ export function Shell({ children, bare }: { children: ReactNode; bare?: boolean 
         <button ref={navToggle} className="btn ghost icon nav-toggle" aria-label={navOpen ? 'Fermer la navigation' : 'Ouvrir la navigation'} aria-controls="main-navigation" aria-expanded={navOpen} onClick={() => { if (navOpen) closeNavigation(); else setNavOpen(true); }} onKeyDown={(event) => { if (event.key === 'Escape') closeNavigation(); }}><Icon name={navOpen ? 'cross' : 'menu'} /></button>
         <a href="#/royaume" className="brand-link" aria-label="Accueil Open Guild Kit"><Brand /></a>
         <ContextPickers />
-        <button className="searchbox" onClick={() => setPaletteOpen(true)} aria-label="Rechercher" aria-keyshortcuts="Control+K">
+        <button className="searchbox" onClick={() => setPaletteOpen(true)} aria-keyshortcuts="Control+K">
           <Icon name="search" size={16} /><span>Rechercher</span><kbd>Ctrl K</kbd>
         </button>
         <div className="topbar-actions">
@@ -122,7 +109,7 @@ export function Shell({ children, bare }: { children: ReactNode; bare?: boolean 
             <Icon name="bell" />{unread.length > 0 && <span className="badge count danger dot-count">{unread.length}</span>}
           </button>
           <ModePicker />
-          <IdentityMenu />
+          <IdentityMenu onShortcuts={() => setHelpOpen(true)} />
         </div>
       </header>
 
@@ -139,10 +126,10 @@ export function Shell({ children, bare }: { children: ReactNode; bare?: boolean 
             const name = professional ? p.standardName : p.name;
             return (
               <li key={p.key}>
-                <a href={`#${p.route}`} aria-label={name} aria-description={c ? `${p.role}, ${c.n} ${c.label}` : p.role} aria-current={current ? 'page' : undefined} className="nav-item" title={p.role} onClick={() => setNavOpen(false)}>
+                <a href={`#${p.route}`} aria-current={current ? 'page' : undefined} className="nav-item" title={p.role} onClick={() => setNavOpen(false)}>
                   {professional ? <NavigationIcon place={p.key} /> : <Icon name={p.icon} size={20} />}
-                  <span className="nav-text"><span className="nav-name">{name}</span>{!professional && <span className="nav-role">{p.role}</span>}</span>
-                  {c && <span className={`badge count ${c.tone}`} title={`${c.n} ${c.label}`} aria-hidden="true">{c.n}</span>}
+                  <span className="nav-text"><span className="nav-name">{name}</span>{!professional && <> <span className="nav-role">{p.role}</span></>}</span>
+                  {c && <><span className={`badge count ${c.tone}`} title={`${c.n} ${c.label}`} aria-hidden="true">{c.n}</span><span className="sr-only">, {c.n} {c.label}</span></>}
                 </a>
               </li>
             );
@@ -247,7 +234,7 @@ function QuickActions() {
   );
 }
 
-function IdentityMenu() {
+function IdentityMenu({ onShortcuts }: { onShortcuts: () => void }) {
   const s = useAppState();
   const members = list(s, 'member', s.session.orgId);
   const humans = [...new Set(members.map((m) => m.userId))];
@@ -277,6 +264,7 @@ function IdentityMenu() {
           ))}
           <p className="menu-label">Préférences</p>
           <a href="#/intendance/preferences" onClick={close}><Icon name="settings" size={12} /> Préférences et accessibilité</a>
+          <button role="menuitem" onClick={() => { close(); onShortcuts(); }}><Icon name="settings" size={12} /> Raccourcis clavier</button>
           <a href="#/intendance/demo" onClick={close}><Icon name="dice" size={12} /> Paramètres de démonstration</a>
         </>
       )}
@@ -338,8 +326,10 @@ function GuidePanel() {
 }
 
 function ShortcutsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const single = useSingleKeyShortcuts();
   return (
     <Dialog open={open} onClose={onClose} title="Raccourcis clavier">
+      <label className="row small"><input type="checkbox" checked={single} onChange={(e) => setSingleKeyShortcuts(e.target.checked)} /> Raccourcis à une touche (<kbd>/</kbd>, <kbd>g</kbd>, <kbd>m</kbd>, <kbd>?</kbd>) ; <kbd>Ctrl</kbd> + <kbd>K</kbd> reste actif</label>
       <table className="data">
         <tbody>
           <tr><td><kbd>Ctrl</kbd> + <kbd>K</kbd> ou <kbd>/</kbd></td><td>Recherche et palette de commandes</td></tr>

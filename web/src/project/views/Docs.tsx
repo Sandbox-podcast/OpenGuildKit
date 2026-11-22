@@ -7,7 +7,7 @@ import { listFiles, readText } from '../api';
 import { useShares, useTasks } from '../data';
 import { useAction, useCliResult, useQuery } from '../query';
 import { SHARE, fmtDay, fmtWhen, isDone, shareState } from '../labels';
-import { ActionForm, ExternalLink, ListEditor, Pre, Q, useRemembered } from '../parts';
+import { ActionForm, ExternalLink, ListEditor, Pre, Q, TableBox, useRemembered } from '../parts';
 
 export function Docs({ tab = 'export' }: { tab?: string }) {
   const shares = useShares();
@@ -65,7 +65,7 @@ function Export() {
 function FileDialog({ path, onClose }: { path: string | null; onClose: () => void }) {
   const text = useQuery<string>(path ? `file:${path}` : null, useCallback(() => readText(path!), [path]));
   return <Dialog open={!!path} onClose={onClose} wide title={path ?? ''} footer={<Button onClick={onClose}>Fermer</Button>}>
-    <Q q={text}>{(t) => path?.endsWith('.json') ? <Pre text={t} /> : <div className="scroll-box"><Markdown text={t.replace(/^---[\s\S]*?---\n/, '')} /></div>}</Q>
+    <Q q={text}>{(t) => path?.endsWith('.json') ? <Pre text={t} /> : <div className="scroll-box" tabIndex={0}><Markdown text={t.replace(/^---[\s\S]*?---\n/, '')} /></div>}</Q>
   </Dialog>;
 }
 
@@ -81,10 +81,10 @@ function Shares() {
       {check.data && check.data.code !== 0 && <Notice tone="danger" title="Partages expirés à retirer :"><Pre text={check.data.stdout || check.data.stderr} /></Notice>}
       <Q q={shares}>{(list) => <Panel title={`Registre (${list.length})`}>
         {list.some((s) => !s.revoked_at) && <TextField label="Personne qui enregistre un retrait" hint={by.trim() ? undefined : 'Indique ton nom pour enregistrer qu’un accès a été retiré : le registre note qui l’a fait.'} value={by} onChange={(e) => setBy(e.target.value)} />}
-        {list.length === 0 ? <p className="muted">Aucun partage.</p> : <table className="data compact"><thead><tr><th>Livrable</th><th>Destinataires</th><th>Jusqu’au</th><th>État</th><th /></tr></thead><tbody>
+        {list.length === 0 ? <p className="muted">Aucun partage.</p> : <TableBox label="Registre des partages"><table className="data compact"><thead><tr><th>Livrable</th><th>Destinataires</th><th>Jusqu’au</th><th>État</th><th><span className="sr-only">Retrait</span></th></tr></thead><tbody>
           {list.map((s) => { const l = SHARE[shareState(s.state)]; return <tr key={s.id}><td><span className="mono small">{s.deliverable}</span><span className="tiny block"><ExternalLink href={s.portal}>portail</ExternalLink> · {s.by}, {fmtWhen(s.created_at)}</span></td><td className="small">{s.recipients.join(', ')}</td><td>{fmtDay(s.until)}</td><td><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge></td>
             <td>{!s.revoked_at && <Button size="small" variant="danger" busy={busy !== null} disabled={!by.trim()} onClick={() => void act(['docs', 'share', 'revoke', '--id', s.id, '--by', by.trim()], { success: 'Retrait enregistré' })}>Accès retiré</Button>}</td></tr>; })}
-        </tbody></table>}
+        </tbody></table></TableBox>}
         <p className="tiny muted">Retirez d’abord l’accès dans Documentalist (« Retirer l’accès »), puis enregistrez-le ici.</p>
       </Panel>}</Q>
       <Panel title="Enregistrer un partage">

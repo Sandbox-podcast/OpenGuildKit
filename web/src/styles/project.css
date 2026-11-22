@@ -177,3 +177,17 @@ tr.muted td { opacity: 0.7; }
 /* A long command or address in a chip wraps instead of widening the page (a fieldset takes its content's width by default). */
 .chips .chip { max-width: 100%; }
 .chips .chip > span { overflow-wrap: anywhere; min-width: 0; }
+
+/* Targets of at least 24 px (WCAG 2.5.8): the site links of the tools table, the task houses of the map. */
+.target-link { display: inline-flex; align-items: center; gap: 2px; min-height: 24px; min-width: 24px; padding: 0 4px; }
+.map-house.project-house { min-width: 24px; min-height: 24px; display: flex; align-items: flex-end; justify-content: center; }
+/* A table in its scrolling region scrolls with the region, not on its own. */
+.table-wrap > table.data:not(.responsive) { display: table; overflow: visible; }
+.pref-check { min-height: 32px; align-items: center; }
+.pref-check input { width: 20px; height: 20px; }
+.page-grid details > summary { min-height: 24px; line-height: 24px; }
+/* The search button keeps its word on a narrow screen, visually hidden: its name stays the text it shows. */
+@media (max-width: 900px) { .app .searchbox span { display: block; position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
+/* Source links in a line of text get room around them (WCAG 2.5.8). */
+p.tiny > a[target='_blank'] { display: inline-block; padding: 4px 6px 4px 0; }
+.btn.wrap { white-space: normal; text-align: left; max-width: 100%; }

@@ -36,7 +36,8 @@ export function ProjectSearch({ open, onClose }: { open: boolean; onClose: () =>
     <Dialog open={open} onClose={onClose} title="Rechercher dans le projet">
       <input className="input" autoFocus value={q} placeholder="Quête, cerveau, référence, pattern…" aria-label="Rechercher"
         onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && hits[0]) go(hits[0].to); }} />
-      <ul className="plain palette-results" aria-live="polite">
+      <p className="sr-only" role="status">{q.length >= 2 ? `${hits.length} résultat${hits.length > 1 ? 's' : ''}` : ''}</p>
+      <ul className="plain palette-results" aria-label="Résultats">
         {hits.map((h) => (
           <li key={`${h.kind}:${h.to}`}><a className="palette-hit" href={`#${h.to}`} onClick={(e) => { e.preventDefault(); go(h.to); }}>
             <Icon name={h.icon} size={16} /><span className="grow"><strong>{h.title}</strong><span className="tiny muted block clamp-1">{h.detail}</span></span><span className="tiny muted">{h.kind}</span>
