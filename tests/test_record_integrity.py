@@ -11,7 +11,7 @@ import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.decisions import decision_payload, seal
+from openguildkit.decisions import decision_payload, record_digest, seal
 from openguildkit.storage import read_json, write_json
 from tests.test_team_sharing import EXAMPLE, TASK, SharingCase
 
@@ -185,3 +185,72 @@ class CiRecordTests(SharingCase):
         self.ci_with(lambda record: record.update(brief="Delete everything"))
         output = self.run_cli("guard", "--ci", "--base", "main")[0]
         self.assertIn("Not enforced: the guard mode of main is observe, so this job passes", output)
+
+
+class SharedIdTests(SharingCase):
+    """Two copies that used the same task ID: a conflict in git, or two different tasks once one side is taken."""
+
+    record_path = RecordIntegrityTests.record_path
+    exported = RecordIntegrityTests.exported
+    forge = RecordIntegrityTests.forge
+    assert_refused_everywhere = RecordIntegrityTests.assert_refused_everywhere
+
+    def teammate_record(self):
+        """A record exported by another copy for a different task with the same ID."""
+        self.approved()
+        record = self.exported()
+        shutil.rmtree(self.state / "tasks")
+        self.record_path().unlink()
+        return record
+
+    def test_a_record_with_git_conflict_markers_is_named_as_a_conflict(self):
+        theirs = self.teammate_record()
+        theirs["decision"]["by"] = "Alex Tester"
+        self.approved()
+        ours = self.exported()
+        text = ("<<<<<<< HEAD\n" + json.dumps(ours, indent=2) + "\n=======\n" + json.dumps(theirs, indent=2)
+                + "\n>>>>>>> 4f2a9c1 (Export status-filter)\n")
+        self.record_path().write_text(text, encoding="utf-8")
+        row, = json.loads(self.run_cli("task", "list", "--decisions", "--json")[0])
+        message = row["problem"]["message"]
+        self.assertIn("git merge conflict", message)
+        self.assertIn("HEAD (this copy) approved by Camille", message)
+        self.assertIn("4f2a9c1 approved by Alex Tester", message)
+        self.assertIn("docs/workflow.md", message)
+        self.assertIn("git merge conflict", self.run_cli("check", code=1)[1])
+        self.assertIn("git merge conflict", self.run_cli("task", "export", TASK, code=1)[1])
+
+    def test_a_local_task_and_another_task_record_with_the_same_id_are_named(self):
+        theirs = self.teammate_record()
+        self.approved()
+        write_json(self.record_path(), theirs)
+        warning = self.run_cli("check")[1]
+        self.assertIn(f"task {TASK} of this copy and the exported decision .openguildkit/decisions/{TASK}.json "
+                      "are different tasks", warning)
+        self.assertIn("--id", warning)
+        self.assertIn("are different tasks", self.run_cli("task", "list")[1])
+        row, = json.loads(self.run_cli("task", "list", "--json")[0])
+        self.assertEqual(row["id_used_by_record"], f".openguildkit/decisions/{TASK}.json")
+
+    def test_a_forged_completion_is_refused(self):
+        self.approved()
+        self.exported()
+
+        def completed(record):
+            record.update(completed=True, status="completed")
+            record["record_sha256"] = record_digest(record)
+        self.forge(completed)
+        self.assert_refused_everywhere("its completion")
+
+        def done_without_closing(record):
+            record.update(completed=True, status="done", completed_at="2026-11-22T10:00:00+00:00")
+            record["record_sha256"] = record_digest(record)
+        self.forge(done_without_closing)
+        self.assert_refused_everywhere("its completion")
+
+    def test_a_real_completion_is_accepted(self):
+        self.approved()
+        self.complete()
+        record = self.exported()
+        self.assertTrue(record["completed"])
+        self.run_cli("check")

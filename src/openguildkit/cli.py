@@ -41,7 +41,8 @@ from .storybook import run as storybook_command
 from .storybook import scope_entry as storybook_scope_entry
 from .integrations import OTHER_HOST_NOTE, install_agent_files
 from .guard import (
-    NO_TASK, SCOPE_NOTE, STALE_DAYS, ci_guard, covering_approvals, export_decision, exported_decisions, guard_mode, run_hook,
+    NO_TASK, SCOPE_NOTE, STALE_DAYS, ci_guard, covering_approvals, export_decision, exported_decisions, guard_mode,
+    record_of_another_task, run_hook,
 )
 from .relevance import changed_files, pack_relevance
 from .results import (
@@ -559,9 +560,27 @@ def _sharing_warnings(root: Path, state: Path, records: list[dict]) -> list[str]
             f"exported decisions name tasks absent from this copy: {', '.join(absent)}. That is normal for a teammate's "
             "task; if the tasks folder was deleted, these records are what remains (openguildkit task list --decisions)."
         )
+    warnings += [_clash_message(task_id, path) for task_id, path in _id_clashes(root, state).items()]
     cited = {row["id"]: cited_evidence(read_task(state, row["id"])) for row in list_tasks(state)
              if row["status"] != "unreadable"}
     return warnings + _unshared_evidence(root, cited)
+
+
+def _id_clashes(root: Path, state: Path) -> dict[str, str]:
+    """Local tasks whose ID an exported record of another task uses, such as a teammate's taken in a merge."""
+    clashes = {}
+    for row in list_tasks(state):
+        if row["status"] != "unreadable":
+            path = record_of_another_task(state, read_task(state, row["id"]))
+            if path is not None:
+                clashes[row["id"]] = path.relative_to(root).as_posix()
+    return clashes
+
+
+def _clash_message(task_id: str, path: str) -> str:
+    return (f"task {task_id} of this copy and the exported decision {path} are different tasks with the same ID. "
+            "Leave the record as it is and open your work under another ID with openguildkit task new \"BRIEF\" --id "
+            "NEW-ID (see docs/workflow.md, \"When two copies use the same task ID\").")
 
 
 def _unshared_evidence(root: Path, cited: dict[str, list[str]]) -> list[str]:
@@ -1761,6 +1780,12 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
     if action == "list":
         rows = list_tasks(state, args.status, args.owner, args.since, args.until,
                           current_fingerprint=profile_fingerprint(profile, catalog), profile=profile, catalog=catalog)
+        clashes = _id_clashes(root, state)
+        for row in rows:
+            if row["id"] in clashes:
+                row["id_used_by_record"] = clashes[row["id"]]
+                if not args.json:
+                    print(f"OpenGuildKit: {_clash_message(row['id'], clashes[row['id']])}", file=sys.stderr)
         if args.json:
             _print_json(rows)
         elif not rows:
