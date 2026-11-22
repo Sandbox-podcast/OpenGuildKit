@@ -3,7 +3,7 @@
 import hashlib
 import json
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from .catalog import rule_check
 from .clock import today
@@ -1137,10 +1137,28 @@ def task_scope_profile(profile: dict, catalog: dict, component_ids: list[str]) -
             patterns.append(entry)
         elif scoped := [name for name in scope if name in selected]:
             patterns.append({"id": pattern, "components": scoped})
+    resolved["checks"] = [command for command in resolved.get("checks", [])
+                          if check_component(command, resolved.get("components", [])) in (None, *selected)]
     resolved["components"] = components
     resolved["stack"] = list(dict.fromkeys(technology for component in components for technology in component["stack"]))
     resolved["patterns"] = patterns
     return resolved
+
+
+_CHECK_FOLDER = re.compile(r"""\s*cd\s+("[^"]+"|'[^']+'|[^\s;&|]+)\s*&&""")
+
+
+def check_component(command: str, components: list[dict]) -> str | None:
+    """The component a check command runs in, from its leading `cd FOLDER &&` as init proposes it, or None when it
+    runs for the whole project. A folder inside a component belongs to it; the deepest component wins."""
+    match = _CHECK_FOLDER.match(command)
+    if not match:
+        return None
+    folder = PurePosixPath(match.group(1).strip("\"'").replace("\\", "/")).as_posix().strip("/")
+    owners = [(len(path), component["id"]) for component in components
+              for path in [PurePosixPath((component.get("path") or "").strip()).as_posix().strip("/")]
+              if path not in ("", ".") and (folder == path or folder.startswith(path + "/"))]
+    return max(owners)[1] if owners else None
 
 
 def _advice_profile(profile: dict) -> dict:

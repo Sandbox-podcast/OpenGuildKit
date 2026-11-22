@@ -42,7 +42,7 @@ The catalog has one brain per discipline of a software publisher:
 
 Each brain has at least four specialists, four evidence requests, four challenge questions, four decision criteria and three primary sources.
 
-`engineering` stays the brain that reviews features, bugs and maintenance across the code base, and every profile that names it keeps working. `frontend` and `backend` add the depth of each side: a brief that names browser support, a component library or the bundle size reaches `frontend`, one that names a migration, a webhook or idempotency reaches `backend`, and `frontend` or `backend` in a brief reaches both them and `engineering`. A profile that lists its boards gets them only once it adds them to `boards`.
+`engineering` stays the brain that reviews features, bugs and maintenance across the code base, and every profile that names it keeps working. `frontend` and `backend` add the depth of each side: a brief that names browser support, a component library or the bundle size reaches `frontend`, one that names a migration, a webhook or idempotency reaches `backend`, and `frontend` or `backend` in a brief reaches both them and `engineering`. When the project declares the role, the stack reaches them too: `frontend` for a customer-facing task on React, Vue, Angular or Svelte, `backend` for a service task on Django, Rails, Spring Boot or FastAPI, and the board of a component's stack when the task names that component ([workflow](workflow.md#how-boards-are-selected)). A profile that lists its boards gets them only once it adds them to `boards`.
 
 ### What each brain knows
 

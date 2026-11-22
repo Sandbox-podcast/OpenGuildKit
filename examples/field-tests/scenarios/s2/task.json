@@ -1,4 +1,4 @@
 {"id": "pricing-comparison", "brief": "Recommend whether the pricing page should compare our plans with competitors.",
- "answers": {"kind": "decision", "surface": ["business"], "data": "none", "research": "local",
+ "answers": {"kind": "decision", "surface": ["business"], "data": "none", "research": "local", "concerns": ["none"],
              "options": "Show a comparison table, or keep the plans alone.",
              "context": "Use the market dossier support-portals attached to the project."}}

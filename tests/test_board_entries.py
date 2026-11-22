@@ -252,7 +252,7 @@ class PassCommandTests(unittest.TestCase):
     def test_the_consultation_of_a_bug_says_in_one_line_which_named_code_is_missing(self):
         self.run_cli("task", "new", "Fix the export bug: exportCsv() in src/export.js lets a cell start with =.",
                      "--id", "csv")
-        write_json(self.root / "bug.json", {"kind": "bug", "surface": ["service"], "data": "none", "research": "local",
+        write_json(self.root / "bug.json", {"kind": "bug", "surface": ["service"], "data": "none", "research": "local", "concerns": ["none"],
                                             "outcome": "A cell that starts with = is escaped."})
         consultation, _ = self.run_cli("task", "consult", "csv", "--answers", self.root / "bug.json")
         lines = [line for line in consultation.splitlines() if "code not found" in line]

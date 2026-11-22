@@ -331,7 +331,8 @@ class MarketLayoutAndRelevanceTests(unittest.TestCase):
         self.assertIsNone(relevance_note(dossier, "Add a portal page"))
         self.cli("task", "new", "Recommend whether the pricing page should compare our plans with competitors.",
                  "--id", "pricing")
-        write_json(self.root / "a.json", {"kind": "decision", "surface": ["business"], "data": "none", "research": "local"})
+        write_json(self.root / "a.json", {"kind": "decision", "surface": ["business"], "data": "none", "research": "local",
+                                          "concerns": ["none"]})
         output = self.cli("task", "consult", "pricing", "--answers", self.root / "a.json", "--market", "support-portals")
         self.assertIn('\nRelevance: The dossier support-portals is about', output)
 

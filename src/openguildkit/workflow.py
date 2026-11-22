@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from datetime import date, timedelta
+from functools import lru_cache
 import json
 from pathlib import Path
 import re
@@ -11,7 +12,7 @@ from uuid import uuid4
 from . import clock
 from .brains import _task_words, _words
 from .patterns import is_stack_pattern, pattern_selection
-from .relevance import BASELINE_PACKS, pack_relevance
+from .relevance import BASELINE_PACKS, judge_rules, pack_relevance
 from .sensitive import credential_problems, public_evidence_url, redact_credentials
 
 
@@ -103,12 +104,13 @@ _QUESTIONS = (
 )
 
 
-# Optional, so that answer files written before it existed stay valid. Each concern routes by itself,
-# even when the brief has none of the boards' trigger words.
+# Required for a new consultation (task consult and task route refuse answers without it, see
+# require_concerns); a task consulted before it existed keeps its recorded answers. Each concern routes by
+# itself, even when the brief has none of the boards' trigger words; unsure routes every topic's boards.
 _OPTIONAL_QUESTIONS = (
     (
         "concerns",
-        "Does the task involve any of these? Select every one that applies, or none.",
+        "Does the task involve any of these (select every one that applies, none, or unsure)?",
         (
             ("money", "Prices, payments, invoices, payroll or spending"),
             ("ai", "An AI model or LLM that produces answers or content"),
@@ -116,9 +118,11 @@ _OPTIONAL_QUESTIONS = (
                                  "(hiring, credit, price per person)"),
             ("credentials", "Secrets, keys, tokens or passwords"),
             ("none", "None of these"),
+            ("unsure", "Unsure"),
         ),
     ),
 )
+EXCLUSIVE_CONCERNS = ("none", "unsure")
 
 MULTIPLE = {"surface", "concerns"}
 FOLLOW_UPS = ("outcome", "affected", "options")
@@ -199,7 +203,7 @@ TASK_QUESTION_HELP = {
     "research": {"help": "Whether the boards may cite public web pages, or only the project's files and what you gave.",
                  "unsure": "unsure: counts as local, so only the project's files and the sources you gave"},
     "concerns": {"help": "Topics that bring their own specialists: money, AI, decisions about people, secrets.",
-                 "unsure": "leave the question out: the boards then keep the rules of every topic open"},
+                 "unsure": "unsure: the boards of every topic join, and the rules of every topic stay open"},
     "outcome": {"help": "What someone can see or measure once the work is done.",
                 "unsure": "leave it empty: the consultation lists the missing outcome as an open point"},
     "affected": {"help": "The people or teams who will notice the change.",
@@ -224,11 +228,30 @@ def _optional_answers(answers: dict) -> dict:
         allowed = [choice_id for choice_id, _ in choices]
         selected = _as_list(answers[question_id])
         if any(item not in allowed for item in selected) or len(set(selected)) != len(selected):
-            raise ValueError(f"Choose {question_id} values from {', '.join(allowed)}, or leave the field out.")
-        if "none" in selected and len(selected) > 1:
-            raise ValueError(f"Choose {question_id} values or none, not both.")
+            raise ValueError(f"Choose {question_id} values from {', '.join(allowed)}.")
+        for alone in EXCLUSIVE_CONCERNS:
+            if alone in selected and len(selected) > 1:
+                raise ValueError(f"Choose {question_id} values or {alone}, not both.")
         validated[question_id] = selected
     return validated
+
+
+def concerns_question() -> dict:
+    """The concerns question as a follow-up to ask: its prompt, its choices and what unsure does."""
+    question_id, prompt, choices = _OPTIONAL_QUESTIONS[0]
+    return {**_choice_question(question_id, prompt, choices), **TASK_QUESTION_HELP[question_id]}
+
+
+def require_concerns(answers: dict) -> None:
+    """A new consultation needs the concerns answer, so that routing and the rules asked read the same topics.
+
+    A task consulted before the question was required keeps its recorded answers: only new answers go through this.
+    """
+    if "concerns" in answers:
+        return
+    choices = ", ".join(choice["id"] for choice in concerns_question()["choices"])
+    raise ValueError(f"Answer concerns, a list of the topics the task involves: choose from {choices}, for "
+                     "example \"concerns\": [\"none\"]; unsure keeps every topic's rules open and consults its boards.")
 
 
 def validate_answers(answers: dict) -> dict:
@@ -448,11 +471,27 @@ def normalize_with_offsets(value: str) -> tuple[str, list[int]]:
     return "".join(characters), offsets
 
 
+@lru_cache(maxsize=None)
+def _trigger_words(trigger: str) -> tuple[str, ...]:
+    return tuple(normalize_text(trigger).split(" "))
+
+
+@lru_cache(maxsize=None)
 def trigger_pattern(trigger: str) -> re.Pattern:
-    """Match a trigger as whole words, allowing a regular plural on each word."""
-    words = normalize_text(trigger).split(" ")
-    parts = [re.escape(word) + (_PLURAL if word[-1:].isalpha() else "") for word in words]
+    """Match a trigger as whole words, allowing a regular plural on each word.
+
+    Compiled once per process: the catalog holds more triggers than the re module caches, so reading each
+    brief would otherwise compile them all again."""
+    parts = [re.escape(word) + (_PLURAL if word[-1:].isalpha() else "") for word in _trigger_words(trigger)]
     return re.compile(r"(?<![\w-])" + r"\s+".join(parts) + r"(?![\w-])")
+
+
+def _trigger_matches(trigger: str, normalized: str):
+    """The matches of a trigger in a normalized text. A trigger matches only where each of its words is
+    written, so a trigger with a word absent from the text is not compiled at all."""
+    if not all(word in normalized for word in _trigger_words(trigger)):
+        return ()
+    return trigger_pattern(trigger).finditer(normalized)
 
 
 # A trigger preceded in its clause, within NEGATION_WINDOW words, by one of these words is mentioned as
@@ -657,7 +696,7 @@ def scan_triggers(boards: dict, text: str, enabled: set[str] | None = None) -> t
     sources += [(board_id, trigger) for board_id in sorted(enabled if enabled is not None else boards)
                 for trigger in boards[board_id]["triggers"]]
     for board_id, trigger in sources:
-        for match in trigger_pattern(trigger).finditer(normalized):
+        for match in _trigger_matches(trigger, normalized):
             candidates.append((match.end() - match.start(), match.start(), match.end(), board_id or "", trigger))
     claimed: set[tuple[int, int, str]] = set()
     kept = []
@@ -770,6 +809,39 @@ def _audience_routes(profile: dict, task: dict, answers: dict, enabled: set[str]
     return {role: f"Declared role of the project, and the task is for \"{passage}\"" for role, passage in found.items()}
 
 
+# The surface each stack role's board serves: a React page is frontend work, a Django endpoint backend work, even
+# when the brief names neither.
+_STACK_SURFACES = {"frontend": "customer", "backend": "service"}
+
+
+def _stack_words(boards: dict, role: str, stack: list[str]) -> list[str]:
+    """The triggers of a role's board that the stack names, such as react for "React 18.3"."""
+    return trigger_matches({role: boards[role]}, ", ".join(stack)).get(role, [])
+
+
+def _stack_routes(profile: dict, boards: dict, task: dict, answers: dict, enabled: set[str]) -> dict[str, str]:
+    """Boards of the project's declared roles that the task's stack calls for, with the reason: the role whose board
+    the stack of a touched component names (named in the answers, or a path of the brief), and the frontend or
+    backend role when the task touches the surface it serves and the project's stack names its frameworks."""
+    roles = [role for role in profile.get("roles", []) if role in enabled and role in boards]
+    found: dict[str, str] = {}
+    touched = _touched_components({"brief": task["brief"], "answers": answers}, profile)
+    for component in profile.get("components", []):
+        if component["id"] not in touched:
+            continue
+        for role in roles:
+            words = _stack_words(boards, role, component.get("stack", []))
+            if words and role not in found:
+                found[role] = (f"Declared role of the project, and the task touches component {component['id']}, "
+                               f"whose stack names {', '.join(words)}")
+    for role, surface in _STACK_SURFACES.items():
+        words = _stack_words(boards, role, profile.get("stack", [])) if role in roles else []
+        if words and surface in _as_list(answers.get("surface")) and role not in found:
+            found[role] = (f"Declared role of the project, and the task touches the {_SURFACE_MEANINGS[surface]} of "
+                           f"a stack that names {', '.join(words)}")
+    return found
+
+
 def _task_parts(task: dict, answers: dict) -> list[str]:
     """The brief and each free-text answer, read one at a time so that a quote never spans two of them."""
     return [text for text in (task["brief"], *(answers.get(field, "") for field in ("context", *FOLLOW_UPS))) if text]
@@ -813,15 +885,19 @@ def _route_boards(profile: dict, catalog: dict, task: dict, answers: dict) -> di
         for answer in _as_list(answers[question_id]):
             for board_id, reason in routes.get(answer, {}).items():
                 add(board_id, reason)
-    for concept in task_concepts("", answers):
+    # An unsure concerns answer keeps every topic's rules open (relevance.py): every topic's boards review them.
+    unsure = "unsure" in _as_list(answers.get("concerns"))
+    for concept in _CONCEPTS if unsure else task_concepts("", answers):
         for board_id, reason in concept["boards"].items():
-            add(board_id, reason)
+            add(board_id, f"Concerns unsure, so this topic stays open: {reason}" if unsure else reason)
 
     matches, _ = _text_reasons(boards, task, answers, enabled)
     for board_id in sorted(matches):
         for reason in matches[board_id]:
             add(board_id, reason)
     for board_id, reason in _audience_routes(profile, task, answers, enabled).items():
+        add(board_id, reason)
+    for board_id, reason in _stack_routes(profile, boards, task, answers, enabled).items():
         add(board_id, reason)
 
     if not reasons:
@@ -1279,21 +1355,49 @@ def _pack_order(profile: dict, catalog: dict, touched: set[str], relevance: dict
     return order
 
 
-def _board_rules(scope: dict, knowledge: dict, relevance: dict, order: dict) -> tuple[list[dict], list[str], int]:
-    """The board's packs in force that concern the task, most specific first; the board's packs that do not
-    concern it (their reasons are long and listed by task checks); and how many packs in force belong to other
-    boards."""
-    own = [pack["id"] for pack in knowledge.get("packs", []) if pack.get("active")]
+def _board_pack_ids(scope: dict, knowledge: dict) -> set[str]:
+    """The board's packs in force, and the packs in force they depend on: a board that reviews gdpr also reviews
+    the incident notification its rules lead to, which no board brings by itself."""
+    in_force = {pack["id"]: pack for pack in scope.get("packs", [])}
+    own = {pack["id"] for pack in knowledge.get("packs", []) if pack.get("active") and pack["id"] in in_force}
+    pending = list(own)
+    while pending:
+        for dependency in in_force[pending.pop()].get("depends_on", []):
+            if dependency in in_force and dependency not in own:
+                own.add(dependency)
+                pending.append(dependency)
+    return own
+
+
+def _board_rules(scope: dict, knowledge: dict, order: dict, rules: dict) -> tuple[list[dict], list[dict], int]:
+    """The board's packs with the rules that concern the task, most specific first; the rules and packs of the
+    board that do not, grouped by reason (relevance.judge_rules, as task checks); and how many packs in force
+    belong to other boards."""
+    own = _board_pack_ids(scope, knowledge)
     packs = [pack for pack in scope.get("packs", []) if pack["id"] in own]
-    concerned = [pack for pack in packs if relevance.get(pack["id"], {}).get("concerned", True)]
-    concerned.sort(key=lambda pack: order.get(pack["id"], len(_SPECIFICITY)))
-    others = [pack["id"] for pack in packs if pack not in concerned]
-    return concerned, others, len(scope.get("packs", [])) - len(packs)
+    printed, skipped = [], {}
+    for pack in packs:
+        asked, reasons = [], {}
+        for rule in pack["rules"]:
+            judged = rules.get(f"{pack['id']}/{rule['id']}", {"concerned": True})
+            if judged["concerned"]:
+                asked.append(rule)
+            else:
+                reasons.setdefault(judged["reason"], []).append(rule["id"])
+        if asked:
+            printed.append({**pack, "rules": asked})
+        # A pack none of whose rules concern the task, for one reason, is named as a whole.
+        whole = not asked and len(reasons) == 1
+        for reason, rule_ids in reasons.items():
+            skipped.setdefault(reason, []).extend([pack["id"]] if whole else [f"{pack['id']}/{rule_id}" for rule_id in rule_ids])
+    printed.sort(key=lambda pack: order.get(pack["id"], len(_SPECIFICITY)))
+    return printed, [{"reason": reason, "items": items} for reason, items in skipped.items()], \
+        len(scope.get("packs", [])) - len(packs)
 
 
 def _board_brief_data(
     board: dict, reasons: list[str], scope: dict, knowledge: dict | None, reviewer: str | None,
-    relevance: dict | None = None, order: dict | None = None,
+    order: dict | None = None, rules: dict | None = None,
 ) -> dict:
     """What one board's pass carries: its brief, the rules of its packs and a bounded reading list."""
     surfaces = _as_list(scope["answers"].get("surface"))
@@ -1314,14 +1418,14 @@ def _board_brief_data(
     methods = knowledge.get("methods", [])
     data["methods"] = [item["title"] for item in methods if item["id"] in active_methods]
     data["other_methods"] = len(methods) - len(data["methods"])
-    packs, unprinted, others = _board_rules(scope, knowledge, relevance or {}, order or {})
+    packs, not_concerned, others = _board_rules(scope, knowledge, order or {}, rules or {})
     data["rules"] = [
         {"pack": f"{pack['id']}@{pack.get('version', '')}", "title": pack.get("title", pack["id"]),
          "rules": [{"id": rule["id"], "instruction": rule.get("instruction", "machine check, run by task verify")}
                    for rule in pack.get("rules", [])]}
         for pack in packs
     ]
-    data["unprinted_packs"] = unprinted
+    data["not_concerned"] = not_concerned
     data["other_packs"] = others
     data["references"] = knowledge.get("references", [])
     if knowledge.get("tools"):
@@ -1402,9 +1506,11 @@ def consult(
         scope["code_not_found"] = code_not_found
     consultation_id = uuid4().hex
     boards = catalog["boards"]
-    # The same relevance as the results: which packs concern this task, from how they reached the project.
-    relevance = pack_relevance({**task, "answers": answers, "consultation": {"scope": scope, "boards": list(routing)}},
-                               profile, catalog, None)
+    # The same relevance as the results: which packs concern this task, from how they reached the project, then
+    # which of their rules, as task checks will ask them.
+    routed = {**task, "answers": answers, "consultation": {"scope": scope, "boards": list(routing)}}
+    relevance = pack_relevance(routed, profile, catalog, None)
+    rules = judge_rules(routed, profile, {"packs": relevance})
     order = _pack_order(profile, catalog, _touched_components(scope, profile), relevance)
     consultation = {
         "id": consultation_id,
@@ -1415,7 +1521,7 @@ def consult(
         "markdown": _consultation_markdown(scope, boards, routing, delegations, knowledge, selected["excluded"]),
         "board_briefs": {
             board_id: _board_brief_data(boards[board_id], reasons, scope, (knowledge or {}).get(board_id),
-                                        delegations.get(board_id), relevance, order)
+                                        delegations.get(board_id), order, rules)
             for board_id, reasons in routing.items()
         },
         # Each board's routing words, so that an objection reaches only the boards whose domain it meets.
@@ -2014,11 +2120,35 @@ def _reading_lines(data: dict, board_id: str) -> list[str]:
     return lines
 
 
+def _items_text(items: list[str]) -> str:
+    """Whole packs by ID, and the rules of one pack together: "react, gdpr (update-processing-record, ...)"."""
+    grouped: dict[str, list[str]] = {}
+    for item in items:
+        pack, _, rule = item.partition("/")
+        grouped.setdefault(pack, [])
+        if rule:
+            grouped[pack].append(rule)
+    return ", ".join(f"{pack} ({', '.join(rules)})" if rules else pack for pack, rules in grouped.items())
+
+
+def _not_concerned_lines(data: dict) -> list[str]:
+    """The board's packs and rules that do not concern the task, each group with its reason, so that the pass
+    needs no other command to say why. A pass recorded before the reasons were kept names the packs only."""
+    if data.get("not_concerned"):
+        return ["Not concerned by this task, so not asked when it closes:",
+                *(f"- {_items_text(group['items'])}: {group['reason']}." for group in data["not_concerned"])]
+    if data.get("unprinted_packs"):
+        return [f"Not concerned by this task: {', '.join(data['unprinted_packs'])}."]
+    return []
+
+
 def _rule_lines(data: dict, task_id: str, room: int) -> list[str]:
     """The rules of the board's packs that concern the task, the most specific first, within room bytes; the
-    packs that do not fit, and those that do not concern the task, are named with the command that prints them."""
+    packs that do not fit are named with the command that prints them, and those that do not concern the task
+    with the reason."""
     lines, unprinted = ["## Rules of this board's packs that concern the task", ""], []
-    room -= len("\n".join(lines).encode("utf-8")) + 400
+    footer = _not_concerned_lines(data)
+    room -= len("\n".join([*lines, *footer]).encode("utf-8")) + 400
     for pack in data["rules"]:
         block = [f"{pack['title']} ({pack['pack']}):", *(f"- {rule['id']}: {rule['instruction']}" for rule in pack["rules"])]
         size = len("\n".join(block).encode("utf-8")) + 1
@@ -2028,13 +2158,11 @@ def _rule_lines(data: dict, task_id: str, room: int) -> list[str]:
         else:
             unprinted.append(pack["pack"].split("@")[0])
     if not data["rules"]:
-        lines.append("No pack of this board concerns the task.")
+        lines.append("No rule of this board's packs concerns the task.")
     if unprinted:
         lines.append(f"Also concern the task, not printed to keep this pass short: {', '.join(unprinted)}. One "
                      f"pack's rules: openguildkit task brief {task_id} --pack PACK.")
-    if data.get("unprinted_packs"):
-        lines.append(f"Not concerned by this task: {', '.join(data['unprinted_packs'])} (each reason: openguildkit "
-                     f"task checks {task_id}).")
+    lines.extend(footer)
     if data["other_packs"]:
         lines.append(f"{data['other_packs']} other packs are in force for other boards (AGENTS.md).")
     return lines
@@ -2580,8 +2708,38 @@ def _checks_section(task: dict) -> list[str]:
     return [*lines, ""]
 
 
-def handoff(task: dict, evidence: list[dict] | None = None) -> str:
-    """Render the authorized scope, decision and advisory findings, with the named evidence first."""
+def _rules_section(task: dict, checks: list[dict] | None) -> list[str]:
+    """The rules task checks asks, pack by pack, then one line for the packs and rules it does not ask. checks
+    are those of results.expected_checks; without them every rule is listed. A decision task asks none."""
+    if is_decision_task(task):
+        return []
+    task_id = task["id"]
+    judged = {check["id"][len("rule:"):]: check for check in checks or [] if check["kind"] in ("rule", "machine")}
+    asked, skipped = [], {}
+    for pack in task["consultation"]["scope"].get("packs", []):
+        ids = [rule["id"] for rule in pack.get("rules", [])
+               if judged.get(f"{pack['id']}/{rule['id']}", {"concerned": True})["concerned"]]
+        if ids:
+            asked.append(f"- {pack['id']}@{pack.get('version', '')}: {', '.join(ids)}")
+        if len(ids) < len(pack.get("rules", [])):
+            skipped[pack["id"]] = (len(pack["rules"]) - len(ids), len(pack["rules"]))
+    lines = ["## Rules to apply and their checks", "",
+             "The rule texts are in the project's agent instructions (AGENTS.md); the whole scope with every rule "
+             f"text: openguildkit task brief {task_id} --scope. What to report for each rule: openguildkit task "
+             f"checks {task_id}.", "", *(asked or ["No rule of the packs in force concerns this task."])]
+    if skipped:
+        counts = ", ".join(f"{pack} ({count} of {total} rules)" if count < total else f"{pack} ({total} rules)"
+                           for pack, (count, total) in skipped.items())
+        lines.append(f"Not concerned by this task, so not asked (each reason: openguildkit task checks {task_id}): "
+                     f"{counts}.")
+    return [*lines, ""]
+
+
+def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] | None = None) -> str:
+    """Render the authorized scope, decision and advisory findings, with the named evidence first.
+
+    checks are the expected checks of the approved task (results.expected_checks): the rules to apply are those
+    they ask."""
     status = task.get("status")
     if status == "changes-requested":
         raise ValueError(f"Task {task['id']} has changes requested by {task['decision']['by']}: there is nothing to "
@@ -2649,15 +2807,7 @@ def handoff(task: dict, evidence: list[dict] | None = None) -> str:
             *_answer_lines(consultation["scope"]),
             *_scope_lines(consultation["scope"]),
             "",
-            "## Rules to apply and their checks",
-            "",
-            "The rule texts are in the project's agent instructions (AGENTS.md); the whole scope with every rule "
-            f"text: openguildkit task brief {task_id} --scope. What to report for each rule: openguildkit task "
-            f"checks {task_id}.",
-            "",
-            *(f"- {pack['id']}@{pack.get('version', '')}: {', '.join(rule['id'] for rule in pack.get('rules', []))}"
-              for pack in consultation["scope"].get("packs", [])),
-            "",
+            *_rules_section(task, checks),
             "## Advisory review",
             "",
             review["summary"],

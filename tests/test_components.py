@@ -173,7 +173,7 @@ class ComponentTaskTests(unittest.TestCase):
                 ],
             })
             write(root, "answers.json", {
-                "kind": "feature", "surface": ["customer", "service"], "data": "personal", "research": "local",
+                "kind": "feature", "surface": ["customer", "service"], "data": "personal", "research": "local", "concerns": ["none"],
                 "outcome": "A customer is told when a product is back in stock.", "affected": "Customers",
             })
 

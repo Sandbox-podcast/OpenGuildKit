@@ -14,6 +14,7 @@ import importlib.util
 import io
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -74,6 +75,27 @@ class PerformanceTests(unittest.TestCase):
                 self.assertLess(item["median"], CEILING_SECONDS)
                 self.assertLess(item["x_start"], budget, f"{name}: {item['median']:.3f} s, "
                                 f"{item['x_start']:.1f} times the start; budget {budget}")
+
+
+class RoutingSpeedTests(unittest.TestCase):
+    """Reading a brief compiles each trigger once per process, not once per brief."""
+
+    BUDGET_MS = 5  # per brief; about 1 ms on a laptop, 48 ms when every trigger was compiled for every text
+
+    def test_routing_a_brief_takes_a_few_milliseconds(self):
+        from openguildkit.workflow import text_routes
+        tests = Path(__file__).resolve().parent
+        briefs = [case["brief"] for name in ("routing_cases.json", "routing_cases_new_brains.json")
+                  for case in json.loads((tests / name).read_text(encoding="utf-8"))]
+        boards = catalog.load_catalog()["boards"]
+        passes = []
+        for _ in range(3):
+            started = time.perf_counter()
+            for brief in briefs:
+                text_routes(boards, brief)
+            passes.append((time.perf_counter() - started) * 1000 / len(briefs))
+        self.assertGreaterEqual(len(briefs), 228)
+        self.assertLess(min(passes), self.BUDGET_MS, f"{min(passes):.1f} ms per brief over {len(briefs)} briefs")
 
 
 class CatalogLoadTests(unittest.TestCase):

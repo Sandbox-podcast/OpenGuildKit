@@ -102,6 +102,7 @@ class OutputSizeTests(unittest.TestCase):
                      "--id", "order-history")
         sizes = self.sizes("order-history", {
             "kind": "feature", "surface": ["customer", "service"], "data": "personal", "research": "local",
+            "concerns": ["none"],
             "outcome": "A customer sees their own past orders.", "affected": "Signed-in customers.",
         })
         packs = len(json.loads(self.run_cli("task", "show", "order-history"))["consultation"]["scope"]["packs"])
@@ -123,7 +124,7 @@ class OutputSizeTests(unittest.TestCase):
         api = next(item for item in components if "Spring" in " ".join(item["stack"]))
         self.run_cli("task", "new", "Return the signed-in customer's orders from GET /orders.", "--id", "orders")
         write_json(self.root / "a.json", {"kind": "feature", "surface": ["service"], "data": "personal",
-                                          "research": "local", "components": [api["id"]],
+                                          "research": "local", "concerns": ["none"], "components": [api["id"]],
                                           "outcome": "GET /orders returns the caller's orders only."})
         self.run_cli("task", "consult", "orders", "--answers", self.root / "a.json")
         engineering = self.run_cli("task", "pass", "orders", "engineering")

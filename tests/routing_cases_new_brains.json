@@ -528,5 +528,228 @@
     "must": [
       "finance"
     ]
+  },
+  {
+    "brief": "Add a status filter dropdown to the timesheet list page",
+    "profile": {
+      "roles": [
+        "frontend",
+        "backend"
+      ],
+      "stack": [
+        "React 18.3.1",
+        "TypeScript 5.6",
+        "Vite 5",
+        "Django 5.1"
+      ]
+    },
+    "answers": {
+      "kind": "feature",
+      "surface": [
+        "customer"
+      ],
+      "data": "internal"
+    },
+    "routes": [
+      "frontend"
+    ],
+    "not_routes": [
+      "backend"
+    ]
+  },
+  {
+    "brief": "Return the timesheets of the signed-in user, newest first",
+    "profile": {
+      "roles": [
+        "frontend",
+        "backend"
+      ],
+      "stack": [
+        "React 18.3.1",
+        "TypeScript 5.6",
+        "Vite 5",
+        "Django 5.1"
+      ]
+    },
+    "answers": {
+      "kind": "feature",
+      "surface": [
+        "service"
+      ],
+      "data": "personal"
+    },
+    "routes": [
+      "backend"
+    ],
+    "not_routes": [
+      "frontend"
+    ]
+  },
+  {
+    "brief": "Show the plan names in a grid on the pricing page",
+    "profile": {
+      "roles": [
+        "frontend"
+      ],
+      "stack": [
+        "Vue 3.5",
+        "Nuxt 3"
+      ]
+    },
+    "answers": {
+      "kind": "feature",
+      "surface": [
+        "customer"
+      ],
+      "data": "none"
+    },
+    "routes": [
+      "frontend"
+    ]
+  },
+  {
+    "brief": "Show the plan names in a grid on the pricing page",
+    "profile": {
+      "roles": [
+        "frontend"
+      ],
+      "stack": [
+        "Python 3.12",
+        "FastAPI 0.115"
+      ]
+    },
+    "answers": {
+      "kind": "feature",
+      "surface": [
+        "customer"
+      ],
+      "data": "none"
+    },
+    "not_routes": [
+      "frontend"
+    ]
+  },
+  {
+    "brief": "Cache the exchange rates for an hour",
+    "profile": {
+      "roles": [
+        "backend"
+      ],
+      "stack": [
+        "Ruby 3.3",
+        "Rails 7.2"
+      ]
+    },
+    "answers": {
+      "kind": "maintenance",
+      "surface": [
+        "service"
+      ],
+      "data": "internal"
+    },
+    "routes": [
+      "backend"
+    ]
+  },
+  {
+    "brief": "Fix the price label: apps/web/src/price.ts shows three decimals in the cart",
+    "profile": {
+      "roles": [
+        "frontend",
+        "backend",
+        "devops"
+      ],
+      "components": [
+        {
+          "id": "web",
+          "path": "apps/web",
+          "stack": [
+            "React 18.3",
+            "TypeScript 5.6"
+          ]
+        },
+        {
+          "id": "api",
+          "path": "services/api",
+          "stack": [
+            "Python 3.12",
+            "FastAPI 0.115"
+          ]
+        },
+        {
+          "id": "infra",
+          "path": "infra",
+          "stack": [
+            "Terraform 1.6"
+          ]
+        }
+      ]
+    },
+    "answers": {
+      "kind": "bug",
+      "surface": [
+        "customer"
+      ],
+      "data": "none"
+    },
+    "routes": [
+      "frontend"
+    ],
+    "not_routes": [
+      "backend",
+      "devops"
+    ]
+  },
+  {
+    "brief": "Raise the database connection pool of the orders service",
+    "profile": {
+      "roles": [
+        "frontend",
+        "backend",
+        "devops"
+      ],
+      "components": [
+        {
+          "id": "web",
+          "path": "apps/web",
+          "stack": [
+            "React 18.3",
+            "TypeScript 5.6"
+          ]
+        },
+        {
+          "id": "api",
+          "path": "services/api",
+          "stack": [
+            "Python 3.12",
+            "FastAPI 0.115"
+          ]
+        },
+        {
+          "id": "infra",
+          "path": "infra",
+          "stack": [
+            "Terraform 1.6"
+          ]
+        }
+      ]
+    },
+    "answers": {
+      "kind": "maintenance",
+      "surface": [
+        "service"
+      ],
+      "data": "internal",
+      "components": [
+        "api"
+      ]
+    },
+    "routes": [
+      "backend"
+    ],
+    "not_routes": [
+      "frontend",
+      "devops"
+    ]
   }
 ]

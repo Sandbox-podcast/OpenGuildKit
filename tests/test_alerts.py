@@ -165,7 +165,8 @@ class AlertFlowTests(unittest.TestCase):
         output = self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json")
         self.assertIn("Imported 1 alert(s) from pip-audit", output)
         self.assertTrue((self.root / ".openguildkit" / "alerts.json").is_file())
-        write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local"})
+        write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local",
+                                          "concerns": ["none"]})
         self.assertIn("GHSA-H5C8-RQWP-CP95", self.cli("task", "consult", "upgrade", "--answers", self.root / "a.json"))
         record = json.loads(self.cli("task", "show", "upgrade"))
         self.assertNotIn("dependency_alerts", record)
@@ -228,7 +229,8 @@ class AlertFlowTests(unittest.TestCase):
         self.cli("task", "new", "Upgrade Jinja in the report service.", "--id", "upgrade")
         reminder = "run openguildkit task consult upgrade again"
         self.assertNotIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json"))
-        write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local"})
+        write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local",
+                                          "concerns": ["none"]})
         self.cli("task", "consult", "upgrade", "--answers", self.root / "a.json")
         self.assertIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "npm-audit-critical.json"))
 
@@ -237,7 +239,8 @@ class AlertFlowTests(unittest.TestCase):
         self.cli("task", "new", "Upgrade Jinja in the report service.", "--id", "upgrade")
         reminder = "run openguildkit task consult upgrade again"
         self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json")
-        write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local"})
+        write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local",
+                                          "concerns": ["none"]})
         self.cli("task", "consult", "upgrade", "--answers", self.root / "a.json")
         self.assertNotIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json"))
         self.assertIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "npm-audit-critical.json"))

@@ -115,7 +115,8 @@ _BOARD_BRIEF = {
     "evidence": [str], "challenge": [str], "decision_criteria": [str],
     "source_leads": [{"title": str, "url": str}], "methods": [str], "other_methods": int,
     "rules": [{"pack": str, "title": str, "rules": [{"id": str, "instruction": str}]}],
-    "unprinted_packs?": [str], "other_packs": int, "references": [{"title": str, "url": str}],
+    "unprinted_packs?": [str], "not_concerned?": [{"reason": str, "items": [str]}], "other_packs": int,
+    "references": [{"title": str, "url": str}],
     "tools?": [{"title": str, "server": str, "mode": str}], "reviewer?": str, "stories?": [str],
 }
 _CHALLENGE = {

@@ -392,7 +392,9 @@ class TaskFlowTests(CliTestCase):
         self.run_cli("task", "new", "Improve exports", "--id", "vague")
         answers = self.write_json("vague.json", {"kind": "feature", "surface": ["customer", "service"], "data": "none", "research": "local"})
         plan = json.loads(self.run_cli("task", "questions", "vague", "--answers", answers).stdout)
-        self.assertEqual([item["id"] for item in plan["follow_ups"]], ["affected", "outcome"])
+        self.assertEqual([item["id"] for item in plan["follow_ups"]], ["affected", "concerns", "outcome"])
+        answers = self.write_json("vague.json", {"kind": "feature", "surface": ["customer", "service"], "data": "none",
+                                                 "research": "local", "concerns": ["none"]})
         self.assertTrue(all(item["prompt"].endswith("?") for item in plan["follow_ups"]))
         self.assertTrue(any("brief is short" in point for point in plan["open_points"]))
         consultation = self.run_cli("task", "consult", "vague", "--answers", answers).stdout
@@ -420,7 +422,7 @@ class TaskFlowTests(CliTestCase):
     def test_brief_words_route_to_boards(self):
         self.init_example()
         self.run_cli("task", "new", "Réduire la latence de la page de recherche", "--id", "search-speed")
-        answers = {"kind": "maintenance", "surface": "unsure", "data": "none", "research": "local"}
+        answers = {"kind": "maintenance", "surface": "unsure", "data": "none", "research": "local", "concerns": ["none"]}
         self.run_cli("task", "consult", "search-speed", "--answers", self.write_json("speed.json", answers))
         routing = self.task_record_for("search-speed")["consultation"]["routing"]
         self.assertIn("performance", routing)
@@ -492,7 +494,7 @@ class ApprovalTests(CliTestCase):
         self.init_example()
         task_id = "pricing-choice"
         self.run_cli("task", "new", "Recommend whether to bill support per seat or per request.", "--id", task_id)
-        answers = {"kind": "decision", "surface": "business", "data": "none", "research": "local"}
+        answers = {"kind": "decision", "surface": "business", "data": "none", "research": "local", "concerns": ["none"]}
         self.run_cli("task", "consult", task_id, "--answers", self.write_json("decision.json", answers))
         template = json.loads(self.run_cli("task", "template", task_id).stdout)
         template["summary"] = "Bill per seat for the pilot and measure request volume."

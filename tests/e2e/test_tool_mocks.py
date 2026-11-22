@@ -205,7 +205,7 @@ class ProjectConnectionTests(unittest.TestCase):
         self.assertFalse(answer["result"]["isError"])
 
         cli(self.project, "task", "new", "Let customers export their own support requests as CSV.", "--id", "export")
-        answers = {"kind": "feature", "surface": ["customer"], "data": "personal", "research": "local",
+        answers = {"kind": "feature", "surface": ["customer"], "data": "personal", "research": "local", "concerns": ["none"],
                    "outcome": "A customer downloads their requests.", "affected": "Customers"}
         (self.project / "answers.json").write_text(json.dumps(answers), encoding="utf-8")
         brief = cli(self.project, "task", "consult", "export", "--answers", self.project / "answers.json").stdout

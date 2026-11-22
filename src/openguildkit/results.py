@@ -18,13 +18,12 @@ from .catalog import recorded_value, rule_check
 from .decisions import changed_paths_since, git_revision
 from .project import STATE_DIR, rule_text
 from .project_checks import failure_message
-from .relevance import evidence_owner, rule_not_concerned, sensitive_area
+from .relevance import DECISION_REASON, evidence_owner, judge_rules, sensitive_area
 from .rule_checks import evaluate_check, validate_path
 from .storage import write_text
 from .workflow import is_decision_task
 
 RESULT_STATUSES = ("passed", "failed", "skipped", "not-applicable")
-DECISION_REASON = "a decision task: its approval records the process and it delivers no implementation"
 CRITERION_STATUSES = ("met", "not-met")
 LOG_TAIL = 4000
 
@@ -45,8 +44,6 @@ def expected_checks(task: dict, profile: dict, relevance: dict | None = None) ->
     except for a decision task: the approval records its process, and it delivers no implementation.
     """
     scope = task["consultation"]["scope"]
-    required = set(profile.get("required_rules", []))
-    packs = (relevance or {}).get("packs", {})
     every = bool((relevance or {}).get("every") or profile.get("ask_every_rule"))
     checks = [
         {"id": f"command:{index}", "kind": "command", "command": command, "mandatory": True,
@@ -54,20 +51,16 @@ def expected_checks(task: dict, profile: dict, relevance: dict | None = None) ->
         for index, command in enumerate(scope.get("checks", []), start=1)
     ]
     answers = scope.get("answers", {})
+    # The same judgement as the board passes and the handoff (relevance.judge_rules), rule by rule.
+    rules = judge_rules(task, profile, relevance)
     for pack in scope.get("packs", []):
-        judged = packs.get(pack["id"], {"concerned": True, "selected": False, "reason": ""})
         for rule in pack["rules"]:
             name = f"{pack['id']}/{rule['id']}"
             _, verification = rule_text(rule)
-            mandatory = pack["id"] in required or name in required
-            concerned = judged["concerned"] or name in required
-            # A rule of a pack that concerns the task can still be outside it, such as the GDPR rules about a
-            # new processing for a bug fix; required_rules and --all keep it.
-            narrowed = "" if mandatory or every or not concerned else rule_not_concerned(task, pack["id"], rule["id"])
-            concerned = concerned and not narrowed
-            reason = "" if concerned else narrowed or judged["reason"]
+            judged = rules[name]
+            mandatory, concerned, reason = judged["mandatory"], judged["concerned"], judged["reason"]
             check = {"id": f"rule:{name}", "kind": "rule", "pack": pack["id"], "verification": verification,
-                     "mandatory": mandatory, "selected": judged["selected"] or mandatory,
+                     "mandatory": mandatory, "selected": judged["selected"],
                      "concerned": concerned, "reason": reason}
             machine = rule_check(rule)
             if machine is not None:

@@ -1,13 +1,14 @@
 """Decide which active rule packs concern a task, from facts the tool already holds.
 
-Each bundled pack has a subject (SUBJECTS): the task answers that call for it. A pack concerns a
-task when its subject meets the task's kind, surface, data and concerns, and the way it reached
-the project still holds: a method pack needs a board of the role that brought it, a pack brought
-for some components needs a changed file in them (the subject decides when nothing can be
-compared). The presence of a board or of personal data does not bring a pack by itself. A pack
-of the project's own catalog has no subject and follows its origin: a regulation pack concerns
-tasks on personal or regulated data, the others concern every task. Every pack left out is
-recorded as not concerned, with the reason, and needs no answer.
+Each bundled pack has a subject (SUBJECTS): the task answers that call for it, and for a few packs the boards
+the task consults or the words its brief uses. A pack concerns a task when its subject meets the task's kind,
+surface, data and concerns, and the way it reached the project still holds: a method pack needs a board of the
+role that brought it, a pack brought for some components needs a changed file in them (the subject decides when
+nothing can be compared). The presence of a board or of personal data does not bring a pack by itself. A pack
+of the project's own catalog has no subject and follows its origin: a regulation pack concerns tasks on
+personal or regulated data, the others concern every task. Every pack left out is recorded as not concerned,
+with the reason, and needs no answer. LEGAL_BASIS gives, for each regulatory pack, the subject retained and its
+legal reason. judge_rules then decides rule by rule, for the board passes, the handoff and the closing alike.
 """
 
 import subprocess
@@ -19,6 +20,9 @@ from .patterns import is_stack_pattern, pattern_selection
 BASELINE_PACKS = ("agent-workflow", "secure-sdlc")
 OPEN_ANSWERS = ("unsure", "other")
 SELECTING_ANSWERS = ("data", "concerns")
+# Conditions on what the task consults or says, not on its answers.
+FACTS = ("boards", "mentions")
+VERBS = {"surface": "includes", "concerns": "include"}
 _CODE = [{"surface": ["service", "customer", "infrastructure"]}]
 _UI = [{"surface": ["customer"]}]
 _PRODUCT = [{"surface": ["customer"], "kind": ["feature"]}]
@@ -27,12 +31,27 @@ _INFRASTRUCTURE = [{"surface": ["infrastructure"]}]
 _AI = [{"concerns": ["ai", "people-decisions"]}]
 _MONEY = [{"concerns": ["money"]}]
 _PERSONAL = [{"data": ["personal", "regulated"]}]
-_SECURITY = [{"data": ["regulated"]}, {"concerns": ["credentials"]}, {"surface": ["infrastructure"]}]
+# Personal data on a surface that users or services reach: the information these controls protect.
+_PERSONAL_SURFACE = {"surface": ["customer", "service"], "data": ["personal"]}
+_SECURITY = [{"data": ["regulated"]}, {"concerns": ["credentials"]}, {"surface": ["infrastructure"]}, _PERSONAL_SURFACE]
+# A change that adds or changes an ICT system on personal data; a bug fix restores the system as it was.
+_ICT = [{"data": ["regulated"]}, {"surface": ["infrastructure"]}, {**_PERSONAL_SURFACE, "kind": ["feature", "maintenance"]}]
 _BUSINESS = [{"surface": ["business"]}]
-_PEOPLE = [{"concerns": ["people-decisions"]}]
-# The subject of each bundled pack, as the task answers that call for it: a list of alternatives,
-# each a set of answers that must all match (kind, surface, data, concerns). A pack concerns a task
-# only through its subject: the presence of a board or of personal data does not bring it alone.
+_HIRING = {"boards": ["hr"], "mentions": ["hiring"]}
+# Words that name a subject no answer names, read in the brief and the free-text answers as the routing reads
+# a board's triggers: whole words, a regular plural, and a negated mention ("no card payments") names nothing.
+MENTIONS = {
+    "card payments": ("card", "credit card", "debit card", "carte bancaire", "carte de paiement", "cardholder",
+                      "payment", "paiement", "checkout", "payment page", "payment provider", "psp", "stripe",
+                      "adyen", "paypal", "braintree"),
+    "hiring": ("hire", "hiring", "recruit", "recruiting", "recruitment", "recruter", "recrutement", "embauche",
+               "embaucher", "candidate", "candidat", "candidature", "applicant", "interview", "entretien d'embauche",
+               "job posting", "job offer", "offre d'emploi", "job description", "fiche de poste"),
+}
+# The subject of each bundled pack: a list of alternatives, each a set of conditions that must all match. The
+# task answers kind, surface, data and concerns match when one of their values is listed; "boards" matches when
+# the task consults one of the boards listed; "mentions" when its text names one of the MENTIONS listed. A pack
+# concerns a task only through its subject: the presence of a board or of personal data does not bring it alone.
 # An answer left open (unsure, other, or missing) matches. None marks the packs of every change.
 SUBJECTS = {
     "agent-workflow": ("the change process", None),
@@ -48,24 +67,28 @@ SUBJECTS = {
         "design-process", "user-research-practice", "controlled-experiments", "product-discovery",
         "opportunity-solution-tree", "jobs-to-be-done", "web-search-optimization", "release-communication",
         "support-readiness")},
-    # No task answer names content that users publish: the pack is asked with --all or required_rules.
-    "notice-and-action": ("content that users publish", []),
+    # No task answer names content that users publish: the trust and safety board, which the brief's words about
+    # reports, moderation or illegal content route, does.
+    "notice-and-action": ("content that users publish", [{"boards": ["trust-and-safety"]}]),
     **{pack: ("a backend service", _SERVICE) for pack in ("backend-data-safety", "public-api-docs")},
     "service-reliability": ("a running service", [{"surface": ["service"]}, {"surface": ["infrastructure"]}]),
     **{pack: ("infrastructure and delivery", _INFRASTRUCTURE) for pack in (
         "container-images", "kubernetes-gitops", "terraform-kubernetes", "aws-iam", "github-actions-security",
-        "gitlab-ci-security", "finops-cost-management", "incident-response", "release-management", "supply-chain")},
+        "gitlab-ci-security", "incident-response", "release-management", "supply-chain")},
+    "finops-cost-management": ("cloud and vendor spending", [
+        {"surface": ["infrastructure"]}, {"surface": ["business"], "concerns": ["money"], "boards": ["finance", "devops"]}]),
     **{pack: ("AI", _AI) for pack in ("llm-evaluations", "nist-ai-risk", "eu-ai-act")},
     **{pack: ("money", _MONEY) for pack in (
         "revenue-recognition", "saas-metrics", "vat-and-e-invoicing", "financial-planning", "deal-approval")},
-    "pci-dss": ("payment card data", [{"concerns": ["money"]}, {"data": ["regulated"]}]),
+    "pci-dss": ("payment card data", [{"data": ["regulated"]}, {"concerns": ["money"], "mentions": ["card payments"]}]),
     **{pack: ("personal data", _PERSONAL) for pack in ("gdpr", "minors-data-protection", "health-data-protection")},
     **{pack: ("security-sensitive changes", _SECURITY) for pack in ("threat-modeling", "owasp-asvs", "iso-27001")},
-    **{pack: ("ICT resilience of a regulated entity", [{"data": ["regulated"]}, {"surface": ["infrastructure"]}])
-       for pack in ("dora", "nis2")},
+    **{pack: ("the ICT systems of a regulated entity", _ICT) for pack in ("dora", "nis2")},
     **{pack: ("security incidents and vulnerabilities", [{"surface": ["infrastructure"]}, {"concerns": ["credentials"]}])
        for pack in ("cyber-resilience-act", "incident-notification")},
-    **{pack: ("decisions about people", _PEOPLE) for pack in ("pay-transparency", "structured-hiring")},
+    "pay-transparency": ("pay and recruitment", [
+        {"concerns": ["people-decisions"]}, {"boards": ["hr"], "concerns": ["money"]}, _HIRING]),
+    "structured-hiring": ("hiring decisions", [{"concerns": ["people-decisions"]}, _HIRING]),
     "device-and-access-lifecycle": ("staff devices and access", [{"surface": ["business"]}, {"concerns": ["credentials"]}]),
     **{pack: ("a business process", _BUSINESS) for pack in (
         "campaign-measurement", "workforce-capacity", "onboarding-practice", "employee-offboarding", "partner-program",
@@ -77,31 +100,152 @@ SUBJECTS = {
     "insurance-distribution": ("selling insurance", [{"surface": ["customer"], "concerns": ["money"]},
                                                      {"surface": ["customer"], "concerns": ["people-decisions"]}]),
 }
+# The subject retained for each regulatory pack and its legal reason. A regulation pattern is selected by a person
+# who confirmed that the regulation applies to the organization; the subject then says which changes it reaches.
+LEGAL_BASIS = {
+    "gdpr": "personal or regulated data: the GDPR applies to the processing of personal data (Art. 2(1)). Within "
+            "it, the rules about a new processing (record Art. 30, lawful basis Art. 6, retention Art. 5(1)(e), "
+            "DPIA Art. 35, rights Art. 15 to 17) are left out of a bug or a maintenance, and those about a new "
+            "processor (Art. 28) or a transfer outside the EEA (Chapter V) out of a bug only: a migration often "
+            "changes where the data goes, a fix almost never.",
+    "minors-data-protection": "personal or regulated data: GDPR Art. 8 and 35 and DSA Art. 28 apply to the "
+                              "processing of children's data; the rules about a new flow are left out of a bug or a "
+                              "maintenance.",
+    "health-data-protection": "personal or regulated data: health data is a special category (GDPR Art. 9), and "
+                              "software that processes it may be a medical device (Regulation (EU) 2017/745) or an "
+                              "EHR system (Regulation (EU) 2025/327); the rules about a new processing are left out "
+                              "of a bug or a maintenance.",
+    "dora": "regulated data, infrastructure, or a feature or maintenance on a customer or service surface with "
+            "personal data: for a financial entity, a change to an ICT system that serves clients or holds their "
+            "data is a change of Art. 9(4)(e), its assets belong to the inventory of Art. 8, and a new ICT provider "
+            "enters the register of Art. 28(3). A bug fix restores a system as it was and adds no asset or provider.",
+    "nis2": "regulated data, infrastructure, or a feature or maintenance on a customer or service surface with "
+            "personal data: the measures of Art. 21(2) cover the network and information systems an essential or "
+            "important entity uses for its services, their suppliers (point d) included.",
+    "cyber-resilience-act": "infrastructure or credentials: its rules act on how releases are built, shipped and "
+                            "updated and how vulnerabilities are handled (Annex I Part II, Art. 13(8)).",
+    "incident-notification": "each row follows the pack of its regulation (GDPR Art. 33 and 34, NIS 2 Art. 23, DORA "
+                             "Art. 19, CRA Art. 14, AI Act Art. 73) and is asked when that pack concerns the task; the "
+                             "matrix itself also when the change touches infrastructure or credentials.",
+    "eu-ai-act": "AI or decisions about people: the AI Act applies to AI systems (Art. 2), with the Art. 50 "
+                 "transparency duties for systems that interact with people or generate content and Annex III for "
+                 "systems that decide about people, such as in employment or credit.",
+    "pci-dss": "regulated data, or money in a brief that names cards or payments: PCI DSS v4.0.1 applies to the "
+               "system components that store, process or transmit cardholder data or can affect their security; "
+               "prices, payroll or spending without a card are not in its scope.",
+    "iso-27001": "regulated data, credentials, infrastructure, or personal data on a customer or service surface: "
+                 "the Annex A controls protect the information in the scope of the management system, personal data "
+                 "first (control 5.34).",
+    "notice-and-action": "a task the trust and safety board reviews: DSA Art. 16, 17 and 20 apply to a hosting "
+                         "service's notices, statements of reasons and complaints, and Regulation (EU) 2021/784 Art. 3 "
+                         "to removal orders; the brief's words about reports, moderation or illegal content route "
+                         "that board.",
+    "pay-transparency": "pay or recruitment reviewed by the HR board, or software that decides about people: "
+                        "Directive (EU) 2023/970 Art. 5 governs job postings and hiring forms, Art. 6 the pay "
+                        "criteria and Art. 9 the pay gap report.",
+    "insurance-distribution": "a customer surface with money or decisions about people: IDD Art. 20 and 25 govern "
+                              "the sale and the approval of an insurance product, and AI Act Annex III point 5(c) "
+                              "pricing for natural persons.",
+    "online-consumer-sales": "a customer surface with money: Directive 2011/83/EU Art. 6 and 8 govern the "
+                             "information and the order button of a distance sale to consumers.",
+    "public-sector-accessibility": "the user interface: Directive (EU) 2016/2102 Art. 4 applies to the websites "
+                                   "and mobile applications of public sector bodies.",
+    "web-accessibility": "the user interface: WCAG 2.2, through EN 301 549, is the test of Directive (EU) 2016/2102 "
+                         "and of the accessibility requirements a customer-facing screen meets.",
+}
 # Data protection rules about creating or changing a processing: its record, its lawful basis, its
-# retention, its impact assessment, a new processor or transfer, rights over new data, the consent
-# and notices of a new flow. A fix or maintenance of a processing the project already runs (kind bug
-# or maintenance) does not create one; a feature, or any other kind, keeps them. The rules about the
-# security of the processing, minimisation in what the change touches and documentation of a changed
-# component stay asked.
+# retention, its impact assessment, rights over new data, the consent and notices of a new flow. A fix
+# or maintenance of a processing the project already runs (kind bug or maintenance) does not create one;
+# a feature, or any other kind, keeps them. The rules about the security of the processing, minimisation
+# in what the change touches and documentation of a changed component stay asked.
 FIX_KINDS = ("bug", "maintenance")
 NEW_PROCESSING_RULES = {
     "gdpr": ("update-processing-record", "confirm-lawful-basis", "apply-retention-period", "assess-dpia-need",
-             "review-processor-terms", "check-transfer-mechanism", "keep-data-subject-rights-working"),
+             "keep-data-subject-rights-working"),
     "minors-data-protection": ("confirm-age-of-consent", "obtain-parental-consent", "assess-dpia-for-pupils",
                                "protect-minors-by-default"),
     "health-data-protection": ("confirm-health-data-condition", "assess-health-data-dpia",
                                "qualify-medical-device-software", "classify-medical-device-software",
                                "plan-ehr-harmonised-components"),
 }
+# A new processor or a transfer outside the EEA: a maintenance (a migration to a hosted service) often adds
+# one, a bug fix almost never. Only a bug leaves them out.
+NEW_RECIPIENT_RULES = {"gdpr": ("review-processor-terms", "check-transfer-mechanism")}
+# The rows of a pack that several regulations share, each with the pack of its regulation: a row is asked when
+# that pack concerns the task, and the shared pack concerns the task when one of its rows does.
+REGULATION_ROWS = {
+    "incident-notification": {
+        "gdpr-personal-data-breach": "gdpr", "nis2-significant-incident": "nis2", "dora-major-ict-incident": "dora",
+        "cra-actively-exploited-vulnerability": "cyber-resilience-act", "ai-act-serious-incident": "eu-ai-act",
+    },
+}
+# Subjects of single rules, inside a pack that concerns the task: automated-decision is the subject of a rule on
+# decisions based solely on automated processing (GDPR Art. 22), asked when software decides about people.
+RULE_SUBJECTS = {
+    "automated-decision": ("automated decisions about people", [{"concerns": ["people-decisions"]}]),
+}
+# The rules that follow one of RULE_SUBJECTS on top of their pack's subject, by PACK/RULE.
+RULES_WITH_A_SUBJECT = {"gdpr/automated-decision": "automated-decision"}
 
 
-def rule_not_concerned(task: dict, pack_id: str, rule_id: str) -> str:
-    """Why a rule of a pack that concerns the task does not concern it, or an empty text."""
+def rule_not_concerned(task: dict, pack_id: str, rule_id: str, packs: dict | None = None) -> str:
+    """Why a rule of a pack that concerns the task does not concern it, or an empty text.
+
+    packs is the pack relevance of the task (pack_relevance): a row of a shared pack follows its regulation's pack.
+    """
     kind = task.get("answers", {}).get("kind")
     if kind in FIX_KINDS and rule_id in NEW_PROCESSING_RULES.get(pack_id, ()):
         return (f"the rule applies when a change creates or changes a processing of personal data, and the task is of "
                 f"kind {kind}: it fixes or maintains a processing the project already runs (a feature keeps the rule)")
+    if kind == "bug" and rule_id in NEW_RECIPIENT_RULES.get(pack_id, ()):
+        return ("the rule applies when a new service provider processes the data or the data leaves the EEA, and the "
+                "task is of kind bug: a fix keeps the recipients the project already has (a maintenance or a feature "
+                "keeps the rule)")
+    regulation = REGULATION_ROWS.get(pack_id, {}).get(rule_id)
+    if regulation and packs is not None and not packs.get(regulation, {}).get("concerned"):
+        # One reason for every row in the same case, so that a pass names them on one line.
+        state = "does not concern the task" if regulation in packs else "is not in force"
+        return f"the pack of the row's regulation {state}, and a row is asked when that pack concerns the task"
+    subject = RULES_WITH_A_SUBJECT.get(f"{pack_id}/{rule_id}")
+    if subject:
+        label, alternatives = RULE_SUBJECTS[subject]
+        if not condition_met(task, alternatives)[0]:
+            return (f"its subject is {label}, which applies when the task's {_condition_text(alternatives)}; the task's "
+                    f"answers ({_answers_text(task, alternatives)}) do not call for it")
     return ""
+
+
+DECISION_REASON = "a decision task: its approval records the process and it delivers no implementation"
+
+
+def judge_rules(task: dict, profile: dict, relevance: dict | None = None) -> dict[str, dict]:
+    """Each rule of the task's scope by PACK/RULE: whether it concerns the task, is mandatory or selected, and why not.
+
+    The one judgement the board passes, the handoff and the closing share. Without a relevance judgement every
+    rule concerns the task. A rule of a pack that concerns the task can still be outside it, such as the GDPR
+    rules about a new processing for a bug fix; required_rules, --all and ask_every_rule keep it. A decision task
+    delivers no implementation, so no rule concerns it.
+    """
+    required = set(profile.get("required_rules", []))
+    packs = (relevance or {}).get("packs")
+    every = bool((relevance or {}).get("every") or profile.get("ask_every_rule"))
+    decision = task.get("answers", {}).get("kind") == "decision"
+    judged = {}
+    for pack in task["consultation"]["scope"].get("packs", []):
+        entry = (packs or {}).get(pack["id"], {"concerned": True, "selected": False, "reason": ""})
+        for rule in pack["rules"]:
+            name = f"{pack['id']}/{rule['id']}"
+            mandatory = pack["id"] in required or name in required
+            concerned = entry["concerned"] or name in required
+            narrowed = "" if mandatory or every or not concerned else rule_not_concerned(task, pack["id"], rule["id"],
+                                                                                          packs)
+            concerned = concerned and not narrowed
+            reason = "" if concerned else narrowed or entry["reason"]
+            if decision and concerned:
+                concerned, reason = False, DECISION_REASON
+            judged[name] = {"mandatory": mandatory, "selected": entry["selected"] or mandatory,
+                            "concerned": concerned, "reason": reason}
+    return judged
 
 
 # A regulation pack of the project's own catalog concerns a task that touches personal or regulated data.
@@ -167,14 +311,36 @@ def _answer_list(answers: dict, key: str) -> list[str]:
     return [value] if isinstance(value, str) else list(value or [])
 
 
-def _alternative_met(answers: dict, condition: dict) -> tuple[bool, bool]:
-    """Every answer of one alternative matches (or is left open), and whether the data or concerns name it.
+def _mentioned(task: dict, subject: str) -> bool:
+    """Whether the brief or a free-text answer names a subject of MENTIONS, as the routing reads a trigger."""
+    from .workflow import FOLLOW_UPS, trigger_matches  # workflow imports this module
+
+    answers = task.get("answers", {})
+    texts = [task.get("brief", ""), *(answers.get(field, "") for field in ("context", *FOLLOW_UPS))]
+    return any(trigger_matches({"subject": {"triggers": list(MENTIONS[subject])}}, text) for text in texts if text)
+
+
+def _fact_met(task: dict, key: str, values: list[str]) -> bool:
+    """A condition on what the task consults or says rather than on an answer: never left open."""
+    if key == "boards":
+        return bool(set(values) & set(task.get("consultation", {}).get("boards", [])))
+    return any(_mentioned(task, subject) for subject in values)
+
+
+def _alternative_met(task: dict, condition: dict) -> tuple[bool, bool]:
+    """Every condition of one alternative matches (an answer may be left open), and whether the data or concerns
+    name it.
 
     Only the data and concerns answers select a pack in the sense of the warnings: they say what the
     task handles, where the kind and surface say only where it happens.
     """
     named = False
+    answers = task.get("answers", {})
     for key, values in condition.items():
+        if key in FACTS:
+            if not _fact_met(task, key, values):
+                return False, False
+            continue
         given = _answer_list(answers, key)
         if any(item in values for item in given):
             named = named or key in SELECTING_ANSWERS
@@ -183,22 +349,31 @@ def _alternative_met(answers: dict, condition: dict) -> tuple[bool, bool]:
     return True, named
 
 
-def condition_met(answers: dict, alternatives: list[dict]) -> tuple[bool, bool]:
-    """Whether the answers meet one of the alternatives, and whether they name it rather than leave it open."""
-    results = [_alternative_met(answers, condition) for condition in alternatives]
+def condition_met(task: dict, alternatives: list[dict]) -> tuple[bool, bool]:
+    """Whether the task meets one of the alternatives, and whether its answers name it rather than leave it open."""
+    results = [_alternative_met(task, condition) for condition in alternatives]
     met = [named for ok, named in results if ok]
     return bool(met), any(met)
 
 
 def _condition_text(alternatives: list[dict]) -> str:
-    verbs = {"surface": "includes", "concerns": "include"}
-    return " or ".join(" and ".join(f"{key} {verbs.get(key, 'is')} {'/'.join(values)}" for key, values in condition.items())
-                       for condition in alternatives)
+    def part(key: str, values: list[str]) -> str:
+        if key == "boards":
+            return f"consultation includes the {'/'.join(values)} board"
+        if key == "mentions":
+            return f"text names {'/'.join(values)}"
+        return f"{key} {VERBS.get(key, 'is')} {'/'.join(values)}"
+
+    return " or ".join(" and ".join(part(key, values) for key, values in condition.items()) for condition in alternatives)
 
 
-def _answers_text(answers: dict) -> str:
+def _answers_text(task: dict, alternatives: list[dict] | None = None) -> str:
+    """The task's answers a subject reads, and the boards it consults when the subject depends on them."""
+    answers = task.get("answers", {})
     shown = [f"{key} {'/'.join(_answer_list(answers, key)) or 'not answered'}"
              for key in ("kind", "surface", "data", "concerns")]
+    if any("boards" in condition for condition in alternatives or []):
+        shown.append(f"boards {'/'.join(task.get('consultation', {}).get('boards', [])) or 'none'}")
     return ", ".join(shown)
 
 
@@ -292,14 +467,11 @@ def _judge_with_subject(pack_id: str, origins: list[dict], task: dict, profile: 
         return {"concerned": True, "selected": False, "reason": ""}
     named = False
     if alternatives is not None:
-        met, named = condition_met(task.get("answers", {}), alternatives)
-        if not alternatives:
-            return {"concerned": False, "selected": False, "reason": (
-                f"its subject is {label}, which no task answer names; task checks --all or required_rules asks it")}
+        met, named = condition_met(task, alternatives)
         if not met:
             return {"concerned": False, "selected": False, "reason": (
                 f"its subject is {label}, which applies when the task's {_condition_text(alternatives)}; the task's "
-                f"answers ({_answers_text(task.get('answers', {}))}) do not call for it")}
+                f"answers ({_answers_text(task, alternatives)}) do not call for it")}
     outcomes = [_structure(origin, task, profile, changed) for origin in origins] or [(True, False, "")]
     held = [item for item in outcomes if item[0]]
     if not held:
@@ -310,7 +482,7 @@ def _judge_with_subject(pack_id: str, origins: list[dict], task: dict, profile: 
 def _judge(origin: dict, pack_id: str, task: dict, profile: dict, changed: list[str] | None) -> tuple[bool, bool, str]:
     """For a pack of the project's own catalog: whether one origin makes it concern the task, and why not."""
     if origin["kind"] == "regulation":
-        met, named = condition_met(task.get("answers", {}), REGULATION_DEFAULT)
+        met, named = condition_met(task, REGULATION_DEFAULT)
         why = (f"regulation pattern {origin['pattern']}, which applies when the task's "
                f"{_condition_text(REGULATION_DEFAULT)}")
         return met, named, why if met else f"{why}; the task's answers say otherwise"
@@ -342,13 +514,31 @@ def pack_relevance(task: dict, profile: dict, catalog: dict, changed: list[str] 
                 "reason": "" if concerned else "; ".join(dict.fromkeys(item[2] for item in outcomes)),
             }
     _inherit(packs, judged)
+    _follow_rows(judged)
     return judged
+
+
+def _follow_rows(judged: dict) -> None:
+    """A pack of regulation rows (REGULATION_ROWS) concerns the task when the pack of one of its rows does, even
+    when its own subject does not; judge_rules then asks only those rows."""
+    for pack_id, rows in REGULATION_ROWS.items():
+        entry = judged.get(pack_id)
+        if entry is None or entry["concerned"]:
+            continue
+        regulations = [regulation for regulation in dict.fromkeys(rows.values()) if regulation in judged]
+        concerned = [regulation for regulation in regulations if judged[regulation]["concerned"]]
+        if concerned:
+            judged[pack_id] = {"concerned": True, "selected": any(judged[item]["selected"] for item in concerned),
+                               "reason": ""}
+        elif regulations:
+            entry["reason"] += f"; its rows follow {', '.join(regulations)}, which do not concern the task either"
 
 
 def _inherit(packs: list[dict], judged: dict) -> None:
     """A dependency without a subject of its own concerns the task when a pack that needs it does.
 
-    A bundled dependency with a subject (incident notification, for example) is judged on that subject.
+    A bundled dependency with a subject (incident notification, for example) is judged on that subject, then on
+    the packs of its rows (_follow_rows).
     """
     needed: dict[str, list[str]] = {}
     for pack in packs:
