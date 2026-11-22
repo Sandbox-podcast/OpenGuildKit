@@ -22,9 +22,11 @@ def fixture_bytes(case):
 
 class ExportCiTests(CliTestCase):
     def git(self, repo, *args):
-        return subprocess.check_output(
-            ["git", "-C", str(repo), *args], text=True, encoding="utf-8"
-        ).strip()
+        result = subprocess.run(
+            ["git", "-C", str(repo), *args], capture_output=True, text=True, encoding="utf-8", timeout=60,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout.strip()
 
     def commit(self, repo, path, data):
         if not (repo / ".git").is_dir():

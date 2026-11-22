@@ -1,31 +1,25 @@
-import contextlib
-import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.cli import main
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 
 
-class TaskListTests(unittest.TestCase):
+class TaskListTests(CapturedCli, unittest.TestCase):
+    cli_output = "stdout"
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         write_json(self.root / "profile.json", json.loads((EXAMPLE / "profile.json").read_text()))
         self.run_cli("init", "--answers", self.root / "profile.json")
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue()
 
     def approved(self, task_id):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", task_id)

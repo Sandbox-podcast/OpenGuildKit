@@ -1,6 +1,4 @@
-import contextlib
 import fnmatch
-import io
 import json
 import re
 import shlex
@@ -10,9 +8,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.cli import main
 from openguildkit.hosts import CLAUDE_APPROVAL_RULES, CLAUDE_PROTECTED_RULES, _codex_rules, host_controls
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 
 APPROVAL_FORMS = (
@@ -57,18 +56,11 @@ def codex_forbids(command: str, rules_text: str) -> bool:
     return False
 
 
-class HostControlTests(unittest.TestCase):
+class HostControlTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def init(self, **extra):
         # These checks cover the research and approval controls; the guard has its own tests.

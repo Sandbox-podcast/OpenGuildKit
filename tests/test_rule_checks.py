@@ -17,6 +17,8 @@ from openguildkit.project import init_questions, profile_recommendations, resolv
 from openguildkit.rule_checks import MAX_FILE_BYTES, MAX_FILES, evaluate_check, validate_check
 from openguildkit.storage import write_json
 
+from tests.support import CapturedCli
+
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 SOURCE = Path(__file__).resolve().parents[1] / "src" / "openguildkit"
 TASK = "request-status"
@@ -153,18 +155,11 @@ class CatalogFormatTests(unittest.TestCase):
         self.assertEqual((check["kind"], check["path"], check["field"]), ("field", "export.json", "downloadLinkMinutes"))
 
 
-class VerifyAndEvidenceTests(unittest.TestCase):
+class VerifyAndEvidenceTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def approved(self, rules, data="personal", **extra):
         write_json(self.root / ".openguildkit" / "catalog" / "packs" / "team-rules.json", pack(rules))

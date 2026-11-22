@@ -54,6 +54,26 @@ jobs:
       - name: Replay the request status example
         run: python examples/request-status/replay.py
 
+  performance:
+    name: CLI performance on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      OPENGUILDKIT_PERF: "1"
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.14"
+      - run: python -m unittest tests.test_performance.PerformanceTests -v
+
   package:
     name: Build and install the wheel with Python ${{ matrix.python }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -221,7 +241,7 @@ jobs:
   contribution-checks:
     name: contribution-checks
     if: ${{ !cancelled() }}
-    needs: [test, package, ci-coordinator, web, web-e2e]
+    needs: [test, performance, package, ci-coordinator, web, web-e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions: {}
@@ -229,10 +249,11 @@ jobs:
       - name: Require all checks to pass
         env:
           TEST_RESULT: ${{ needs.test.result }}
+          PERFORMANCE_RESULT: ${{ needs.performance.result }}
           PACKAGE_RESULT: ${{ needs.package.result }}
           COORDINATOR_RESULT: ${{ needs.ci-coordinator.result }}
           WEB_RESULT: ${{ needs.web.result }}
           WEB_E2E_RESULT: ${{ needs.web-e2e.result }}
         run: |
-          printf 'Tests: %s\nWheel: %s\nCI coordinator: %s\nWeb: %s\nWeb journeys: %s\n' "$TEST_RESULT" "$PACKAGE_RESULT" "$COORDINATOR_RESULT" "$WEB_RESULT" "$WEB_E2E_RESULT"
-          test "$TEST_RESULT" = success && test "$PACKAGE_RESULT" = success && test "$COORDINATOR_RESULT" = success && test "$WEB_RESULT" = success && test "$WEB_E2E_RESULT" = success
+          printf 'Tests: %s\nPerformance: %s\nWheel: %s\nCI coordinator: %s\nWeb: %s\nWeb journeys: %s\n' "$TEST_RESULT" "$PERFORMANCE_RESULT" "$PACKAGE_RESULT" "$COORDINATOR_RESULT" "$WEB_RESULT" "$WEB_E2E_RESULT"
+          test "$TEST_RESULT" = success && test "$PERFORMANCE_RESULT" = success && test "$PACKAGE_RESULT" = success && test "$COORDINATOR_RESULT" = success && test "$WEB_RESULT" = success && test "$WEB_E2E_RESULT" = success

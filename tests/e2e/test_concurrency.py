@@ -17,6 +17,7 @@ import urllib.request
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from queue import Queue
 from unittest.mock import patch
 
 from openguildkit.cli import main
@@ -30,10 +31,29 @@ HOLD_LOCK = (
     "    print('held', flush=True)\n"
     "    sys.stdin.readline()\n"
 )
+SIGNAL_LOCK_WAIT = """
+import sys
+from openguildkit import storage
+from openguildkit.cli import main
+
+try_lock = storage._try_lock
+
+def report_failed_attempt(handle):
+    acquired = try_lock(handle)
+    if not acquired:
+        print("waiting", file=sys.stderr, flush=True)
+        storage._try_lock = try_lock
+    return acquired
+
+storage._try_lock = report_failed_attempt
+raise SystemExit(main(sys.argv[1:]))
+"""
 LOCK_MESSAGE = "Another OpenGuildKit command is writing this project. Try again."
 
 
 class ConcurrencyTestCase(CliTestCase):
+    subprocess_mode = True
+
     def start(self, *args, env=None):
         return subprocess.Popen(
             self.command(*args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
@@ -81,8 +101,17 @@ class LockTests(ConcurrencyTestCase):
     def test_a_writer_waits_for_the_lock_and_then_succeeds(self):
         self.init_example()
         release = self.hold_lock()
-        writer = self.start("task", "new", "Waits for the lock.", "--id", "waiting")
-        time.sleep(1.0)
+        writer = subprocess.Popen(
+            [sys.executable, "-c", SIGNAL_LOCK_WAIT, "--project", str(self.project),
+             "task", "new", "Waits for the lock.", "--id", "waiting"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", env=ENV,
+        )
+        self.addCleanup(writer.wait, timeout=10)
+        self.addCleanup(writer.kill)
+        events = Queue()
+        listener = threading.Thread(target=lambda: events.put(writer.stderr.readline().strip()), daemon=True)
+        listener.start()
+        self.assertEqual(events.get(timeout=10), "waiting")
         self.assertIsNone(writer.poll(), "the writer gave up instead of waiting")
         release()
         stdout, stderr = writer.communicate(timeout=60)

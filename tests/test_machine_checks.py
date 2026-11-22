@@ -1,7 +1,5 @@
 """Machine checks in the bundled catalog: which rules carry one, why the others need a person, and task verify."""
 
-import contextlib
-import io
 import json
 import tempfile
 import unittest
@@ -9,10 +7,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
-from openguildkit.cli import main
 from openguildkit.patterns import is_stack_pattern
 from openguildkit.rule_checks import evaluate_check
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "request-status"
@@ -155,7 +154,9 @@ class StackCheckTests(unittest.TestCase):
         self.assertEqual(expected - covered, set())
 
 
-class DemoProjectTests(unittest.TestCase):
+class DemoProjectTests(CapturedCli, unittest.TestCase):
+    cli_output = "stdout"
+
     """On a demonstration project, task verify runs the machine checks of each active regulation pack."""
 
     PATTERNS = ["gdpr-personal-data", "dora-financial-entity", "nis2-essential-entity", "iso-27001-isms",
@@ -175,13 +176,6 @@ class DemoProjectTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.catalog = load_catalog()
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue()
 
     def test_task_verify_runs_a_machine_check_of_each_active_regulation_pack(self):
         for name, content in self.FILES.items():

@@ -1,4 +1,6 @@
 import copy
+import io
+from contextlib import redirect_stderr
 import json
 import os
 import tempfile
@@ -97,7 +99,8 @@ class BlockerTests(unittest.TestCase):
         until = (clock.real_today() + timedelta(days=10)).isoformat()
         waiver = {"kind": "waived", "by": "Camille Martin", "reason": "Internal pilot", "scope": "Pilot", "until": until}
         for fixed in ("2000000000", "1000000000"):  # 2033-05-18 and 2001-09-09
-            with self.subTest(fixed=fixed), patch.dict(os.environ, {"SOURCE_DATE_EPOCH": fixed}):
+            with self.subTest(fixed=fixed), patch.dict(os.environ, {"SOURCE_DATE_EPOCH": fixed}), \
+                    redirect_stderr(io.StringIO()):
                 task = resolve_blocker(self.task, "security:1", waiver, self.profile, self.root)
                 self.assertEqual(task["blocker_resolutions"]["security:1"]["until"], until)
 

@@ -13,6 +13,8 @@ from openguildkit.cli import _print_update, main
 from openguildkit.storage import write_json
 from openguildkit.project_checks import propose_checks
 
+from tests.support import CapturedCli
+
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "alerts"
 
@@ -40,7 +42,7 @@ class UpdatePreviewTests(unittest.TestCase):
         self.assertLess(text.index("request-status (approved)"), text.index("Nothing changed"))
 
 
-class AlertAndDossierTests(unittest.TestCase):
+class AlertAndDossierTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -48,13 +50,6 @@ class AlertAndDossierTests(unittest.TestCase):
         write_json(self.root / "profile.json", json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8")))
         self.cli("init", "--answers", self.root / "profile.json")
         self.cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "status")
-
-    def cli(self, *args, code=0):
-        out, err = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            result = main(["--project", str(self.root), *map(str, args)])
-        self.assertEqual(result, code, err.getvalue())
-        return out.getvalue(), err.getvalue()
 
     def test_an_import_for_a_task_that_was_consulted_says_to_consult_again(self):
         quiet, _ = self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json", "--task", "status")

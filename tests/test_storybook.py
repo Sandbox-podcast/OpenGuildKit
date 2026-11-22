@@ -1,6 +1,4 @@
-import contextlib
 import copy
-import io
 import json
 import os
 import shutil
@@ -9,13 +7,13 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from openguildkit.cli import main
 from openguildkit.storage import write_json
 from openguildkit.storybook import (
     MINIMAL_MAIN, REFS_FILE, compare, compose, dependency_conflicts, import_indexes, read_index, scope_entry,
     theme_sources,
 )
 from openguildkit.storybook_cli import _print_compose
+from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 FIXTURES = REPO / "tests" / "fixtures" / "storybook"
@@ -174,53 +172,47 @@ class StorybookConsultationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
 
-            def cli(*args, code=0):
-                out, err = io.StringIO(), io.StringIO()
-                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                    self.assertEqual(main(["--project", str(root), *map(str, args)]), code, err.getvalue())
-                return out.getvalue(), err.getvalue()
-
             write_json(root / "profile.json", json.loads((EXAMPLE / "profile.json").read_text()))
-            cli("init", "--answers", root / "profile.json")
-            cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "before")
-            consultation, _ = cli("task", "consult", "before", "--answers", EXAMPLE / "answers.json")
+            run_cli(root, "init", "--answers", root / "profile.json")
+            run_cli(root, "task", "new", "--file", EXAMPLE / "brief.md", "--id", "before")
+            consultation = run_cli(root, "task", "consult", "before", "--answers", EXAMPLE / "answers.json").stdout
             self.assertNotIn("storybook:STORY_ID", consultation)
 
             static = root / "storybook-static"
             static.mkdir()
             shutil.copy(FIXTURES / "project-index.json", static / "index.json")
             shutil.copy(FIXTURES / "project-package.json", root / "package.json")
-            report = json.loads(cli("storybook", "import", "--company-index", FIXTURES / "company-index.json",
-                                    "--library", FIXTURES / "company-package.json", "--json")[0])
+            report = json.loads(run_cli(root, "storybook", "import", "--company-index", FIXTURES / "company-index.json",
+                                    "--library", FIXTURES / "company-package.json", "--json").stdout)
             self.assertEqual(report["project"]["source"], "storybook-static/index.json")
             self.assertIn("Example/Page", [item["title"] for item in report["to_map"]])
-            text, _ = cli("storybook", "import", "--company-index", FIXTURES / "company-index.json",
-                          "--library", FIXTURES / "company-package.json")
+            text = run_cli(root, "storybook", "import", "--company-index", FIXTURES / "company-index.json",
+                          "--library", FIXTURES / "company-package.json").stdout
             self.assertIn("To map: Example/Header", text)
             self.assertIn("Dependency conflict: react ^18.2.0 in the library, ^19.3.1 in the project", text)
 
-            cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "status")
-            consultation, _ = cli("task", "consult", "status", "--answers", EXAMPLE / "answers.json")
+            run_cli(root, "task", "new", "--file", EXAMPLE / "brief.md", "--id", "status")
+            consultation = run_cli(root, "task", "consult", "status", "--answers", EXAMPLE / "answers.json").stdout
             self.assertIn("storybook:REF_STORY_ID", consultation)
-            design_brief = cli("task", "pass", "status", "design")[0]
+            design_brief = run_cli(root, "task", "pass", "status", "design").stdout
             self.assertIn("storybook:button--disabled", design_brief)
             self.assertIn("storybook:company_components-button--disabled", design_brief)
 
-            template = json.loads(cli("task", "template", "status")[0])
+            template = json.loads(run_cli(root, "task", "template", "status").stdout)
             review = {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text())}
             design = next(entry for entry in review["boards"] if entry["id"] == "design")
             design["evidence"].append({"source": "project-file", "ref": "storybook:example-button--disabled",
                                        "supports": "A disabled button state."})
             write_json(root / "review.json", review)
-            _, error = cli("task", "review", "status", "--file", root / "review.json", code=1)
+            error = run_cli(root, "task", "review", "status", "--file", root / "review.json", expect=1).stderr
             self.assertIn("storybook:example-button--disabled is not a story", error)
             design["evidence"][-1] = {"source": "project-file", "ref": "storybook:company_components-button--disabled",
                                       "supports": "The company button has a disabled state to reuse."}
             design["evidence"].append({"source": "project-file", "ref": "storybook:example-button--primary",
                                        "supports": "The project's primary button."})
             write_json(root / "review.json", copy.deepcopy(review))
-            cli("task", "review", "status", "--file", root / "review.json")
-            self.assertEqual(json.loads(cli("task", "show", "status")[0])["status"], "reviewed")
+            run_cli(root, "task", "review", "status", "--file", root / "review.json")
+            self.assertEqual(json.loads(run_cli(root, "task", "show", "status").stdout)["status"], "reviewed")
 
 
 if __name__ == "__main__":

@@ -1,28 +1,20 @@
 """Small setup defects from the field: the tools next step, a hand-edited managed block, a generic MCP plan."""
 
-import contextlib
-import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit.cli import main
 from openguildkit.storage import write_json
 
+from tests.support import CapturedCli
 
-class SetupMinorTests(unittest.TestCase):
+
+class SetupMinorTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def init(self, **answers):
         write_json(self.root / "answers.json", {"name": "Ledger", "personal_data": "no", **answers})

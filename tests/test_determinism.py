@@ -15,6 +15,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.support import subprocess_environment
+
 from tests.e2e.test_cli_flow import ENV, EXAMPLE, TASK_ID
 
 SEEDS = ("0", "1", "4242")
@@ -30,7 +32,7 @@ class Run:
 
     def cli(self, *args) -> str:
         result = subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(self.project), *map(str, args)],
-                                capture_output=True, env=self.env, timeout=60)
+                                capture_output=True, env=subprocess_environment(self.env), timeout=60)
         if result.returncode:
             raise AssertionError(f"openguildkit {' '.join(map(str, args))}: {result.stderr.decode('utf-8', 'replace')}")
         return result.stdout.decode("utf-8")

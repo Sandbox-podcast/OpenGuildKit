@@ -16,6 +16,8 @@ from openguildkit.stack_versions import version_key
 from openguildkit.storage import write_json
 from openguildkit.storybook import dependency_conflicts
 
+from tests.support import CapturedCli
+
 
 def write(root: Path, relative: str, content) -> None:
     path = root / relative
@@ -23,7 +25,9 @@ def write(root: Path, relative: str, content) -> None:
     path.write_text(content if isinstance(content, str) else json.dumps(content), encoding="utf-8")
 
 
-class DetectedVersionTests(unittest.TestCase):
+class DetectedVersionTests(CapturedCli, unittest.TestCase):
+    cli_output = "stdout"
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -239,13 +243,6 @@ class DetectedVersionTests(unittest.TestCase):
             result = main(["--project", str(self.root), *map(str, arguments)])
         self.assertEqual(result, 0, stderr.getvalue())
         return stdout.getvalue(), stderr.getvalue()
-
-    def run_cli(self, *arguments):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, 0, stderr.getvalue())
-        return stdout.getvalue()
 
 
 class ComponentPromptTests(unittest.TestCase):

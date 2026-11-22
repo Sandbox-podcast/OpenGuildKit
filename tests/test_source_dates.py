@@ -16,12 +16,13 @@ from unittest.mock import patch
 
 from openguildkit import catalog as catalog_module
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
-from openguildkit.cli import main
 from openguildkit.deliverables import _validate as validate_deliverable, load_deliverables
 from openguildkit.lock import read_lock
 from openguildkit.project import profile_fingerprint
 from openguildkit.references import _validate_family, load_references
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "src" / "openguildkit" / "registry"
@@ -129,7 +130,7 @@ class BundledSourceDateTests(unittest.TestCase):
                     validate_entry("packs", record, bundled=bundled)
 
 
-class ProjectSourceDateTests(unittest.TestCase):
+class ProjectSourceDateTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -137,12 +138,6 @@ class ProjectSourceDateTests(unittest.TestCase):
         write_json(self.root / "p.json", {"name": "Portal", "stack": ["Python"]})
         self.cli("init", "--answers", self.root / "p.json")
         self.state = self.root / ".openguildkit"
-
-    def cli(self, *args, code=0):
-        out, err = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            self.assertEqual(main(["--project", str(self.root), *map(str, args)]), code, err.getvalue())
-        return out.getvalue(), err.getvalue()
 
     def test_an_undated_project_source_loads_and_check_names_its_record(self):
         write_json(self.state / "catalog" / "packs" / "team-review.json", PACK)

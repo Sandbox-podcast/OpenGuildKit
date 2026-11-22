@@ -1,7 +1,5 @@
-import contextlib
 import copy
 import difflib
-import io
 import json
 import os
 import re
@@ -12,10 +10,11 @@ import unittest
 from datetime import date, timedelta
 from pathlib import Path
 
-from openguildkit.cli import main
 from openguildkit import clock
 from openguildkit.market import dossier_gaps, due_sources, relevance_note, scope_entry, validate_dossier
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli, run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 DOSSIER = json.loads((REPO / "examples" / "market-dossier" / "support-portals.json").read_text(encoding="utf-8"))
@@ -74,32 +73,26 @@ class MarketDossierTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
 
-            def cli(*args, code=0):
-                out, err = io.StringIO(), io.StringIO()
-                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                    self.assertEqual(main(["--project", str(root), *map(str, args)]), code, err.getvalue())
-                return out.getvalue(), err.getvalue()
-
             write_json(root / "profile.json", json.loads((EXAMPLE / "profile.json").read_text()))
-            cli("init", "--answers", root / "profile.json")
+            run_cli(root, "init", "--answers", root / "profile.json")
             (root / ".openguildkit" / "market").mkdir()
             shutil.copy(REPO / "examples" / "market-dossier" / "support-portals.json", root / ".openguildkit" / "market")
-            self.assertIn("local-only", cli("market", "check", "support-portals")[0])
-            cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "status")
-            consultation, _ = cli("task", "consult", "status", "--answers", EXAMPLE / "answers.json", "--market", "support-portals")
+            self.assertIn("local-only", run_cli(root, "market", "check", "support-portals").stdout)
+            run_cli(root, "task", "new", "--file", EXAMPLE / "brief.md", "--id", "status")
+            consultation = run_cli(root, "task", "consult", "status", "--answers", EXAMPLE / "answers.json", "--market", "support-portals").stdout
             self.assertIn('"age_days"', consultation)
-            template = json.loads(cli("task", "template", "status")[0])
+            template = json.loads(run_cli(root, "task", "template", "status").stdout)
             review = {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text())}
             marketing = next(entry for entry in review["boards"] if entry["id"] == "marketing")
             marketing["evidence"].append({"source": "public", "ref": "market:support-portals/unknown", "supports": "x"})
             write_json(root / "review.json", review)
-            _, error = cli("task", "review", "status", "--file", root / "review.json", code=1)
+            error = run_cli(root, "task", "review", "status", "--file", root / "review.json", expect=1).stderr
             self.assertIn("not an observation or change", error)
             marketing["evidence"][-1] = {"source": "public", "ref": "market:support-portals/a-status-page",
                                          "supports": "A direct competitor shows a status and a response date."}
             write_json(root / "review.json", review)
-            cli("task", "review", "status", "--file", root / "review.json")
-            record = json.loads(cli("task", "show", "status")[0])
+            run_cli(root, "task", "review", "status", "--file", root / "review.json")
+            record = json.loads(run_cli(root, "task", "show", "status").stdout)
             self.assertEqual(record["status"], "reviewed")
 
 
@@ -143,19 +136,15 @@ class MalformedDossierTests(unittest.TestCase):
         self.assertFalse(any(gap.startswith("Change") for gap in dossier_gaps(dossier, "public-sources", today=date(2026, 11, 20))))
 
 
-class MarketCommandTests(unittest.TestCase):
+class MarketCommandTests(CapturedCli, unittest.TestCase):
+    cli_output = "status-stream"
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"], "research": "public-sources"})
         self.cli("init", "--answers", self.root / "profile.json")
-
-    def cli(self, *args, code=0):
-        out, err = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            self.assertEqual(main(["--project", str(self.root), *map(str, args)]), code, err.getvalue())
-        return out.getvalue() if code == 0 else err.getvalue()
 
     def dossier(self, dossier_id="portals"):
         return json.loads((self.root / ".openguildkit" / "market" / f"{dossier_id}.json").read_text(encoding="utf-8"))
@@ -277,9 +266,10 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class MarketLayoutAndRelevanceTests(unittest.TestCase):
+class MarketLayoutAndRelevanceTests(CapturedCli, unittest.TestCase):
     """A dossier keeps one layout, says when it is about another function, and records pages a person provided."""
 
+    cli_output = "status-stream"
     URL = "https://example.com/vendor-a/release-notes"
 
     def setUp(self):
@@ -287,13 +277,10 @@ class MarketLayoutAndRelevanceTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"]})
-        MarketCommandTests.cli(self, "init", "--answers", self.root / "profile.json")
+        self.cli("init", "--answers", self.root / "profile.json")
         self.path = self.root / ".openguildkit" / "market" / "support-portals.json"
         self.path.parent.mkdir()
         shutil.copy(REPO / "examples" / "market-dossier" / "support-portals.json", self.path)
-
-    def cli(self, *args, code=0):
-        return MarketCommandTests.cli(self, *args, code=code)
 
     def changed_lines(self, *args):
         """The lines a command removes and adds in the dossier file, as a unified diff counts them."""

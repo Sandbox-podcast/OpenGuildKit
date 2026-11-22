@@ -1,4 +1,4 @@
-"""End-to-end tests: run the real CLI in a subprocess against a temporary project.
+"""End-to-end tests invoke the CLI against temporary projects, with real processes for host tests.
 
 The request status example in examples/request-status is the fixture, so the
 example cannot drift from the CLI without failing these tests.
@@ -13,20 +13,24 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.support import copy_initialized_project, run_cli, subprocess_environment
+
+
 REPO = Path(__file__).resolve().parents[2]
 EXAMPLE = REPO / "examples" / "request-status"
 TASK_ID = "request-status"
 EXPECTED_BOARDS = {"product", "engineering", "qa", "design", "marketing", "security", "legal"}
 
-ENV = {
-    **os.environ,
+ENV = subprocess_environment({
     "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"), os.environ.get("PYTHONPATH")])),
     "PYTHONIOENCODING": "utf-8",
     "PYTHONUTF8": "1",
-}
+})
 
 
 class CliTestCase(unittest.TestCase):
+    subprocess_mode = False
+
     def setUp(self):
         self.project = Path(tempfile.mkdtemp(prefix="ogk-e2e-")).resolve()
         self.addCleanup(shutil.rmtree, self.project, ignore_errors=True)
@@ -35,25 +39,16 @@ class CliTestCase(unittest.TestCase):
         return [sys.executable, "-m", "openguildkit", "--project", str(self.project), *map(str, args)]
 
     def run_cli(self, *args, stdin_text="", expect=0):
-        result = subprocess.run(
-            self.command(*args),
-            input=stdin_text,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            env=ENV,
-            timeout=60,
+        return run_cli(
+            self.project, *args, stdin=stdin_text, expect=expect,
+            subprocess_mode=self.subprocess_mode, env=ENV,
         )
-        if expect is not None:
-            self.assertEqual(
-                result.returncode,
-                expect,
-                f"openguildkit {' '.join(map(str, args))}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}",
-            )
-        return result
 
     def init_example(self):
-        self.run_cli("init", "--answers", EXAMPLE / "profile.json")
+        if any(self.project.iterdir()):
+            self.run_cli("init", "--answers", EXAMPLE / "profile.json")
+        else:
+            copy_initialized_project(self, EXAMPLE / "profile.json", self.project)
 
     def consult_example(self):
         self.init_example()
@@ -440,6 +435,8 @@ class TaskFlowTests(CliTestCase):
 
 @unittest.skipUnless(os.name == "posix", "approval needs a pseudo-terminal, available on Linux and macOS")
 class ApprovalTests(CliTestCase):
+    subprocess_mode = True
+
     def decide_in_terminal(self, typed, task_id=TASK_ID):
         master, slave = os.openpty()
         try:

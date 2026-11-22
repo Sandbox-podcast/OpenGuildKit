@@ -1,8 +1,6 @@
 """What the person approving sees: board changes, open points, objections, blockers, verdicts and review warnings."""
 
-import contextlib
 import copy
-import io
 import json
 import tempfile
 import unittest
@@ -10,17 +8,18 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import load_catalog
-from openguildkit.cli import main
 from openguildkit.project import resolved_profile, validate_profile
 from openguildkit.storage import write_json
 from openguildkit.routing import select_boards
 from openguildkit.workflow import validate_review
 
+from tests.support import CapturedCli
+
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "request-status"
 
 
-class DecisionBriefTests(unittest.TestCase):
+class DecisionBriefTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -29,13 +28,6 @@ class DecisionBriefTests(unittest.TestCase):
         self.run_cli("init", "--answers", self.root / "profile.json")
         (self.root / "tests").mkdir()
         (self.root / "tests" / "test_access.py").write_text("def test_access(): pass\n", encoding="utf-8")
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def record(self):
         return json.loads(self.run_cli("task", "show", TASK)[0])
@@ -177,7 +169,7 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertLess(handoff.index("## Conditions of the approval"), handoff.index("## Human approval"))
         self.assertIn("let them clear it in their terminal", handoff)
         _, error = self.run_cli("task", "clear", TASK, "security:1", "--by", "Alex", "--evidence", "tests/test_access.py",
-                                "--supports", "The test passes.", code=1)
+                                "--supports", "The test passes.", code=1, stdin="")
         self.assertIn("Clearing a blocker is the person's act", error)
 
     def test_a_copied_review_is_recorded_with_warnings(self):

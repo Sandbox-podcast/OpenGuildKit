@@ -1,7 +1,5 @@
 """Host settings follow the research policy and keep `.codex/config.toml` valid."""
 
-import contextlib
-import io
 import json
 import tempfile
 import tomllib
@@ -10,8 +8,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import consultation, hosts
-from openguildkit.cli import main
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -23,20 +22,13 @@ TOOLS_BLOCK = (
 )
 
 
-class HostResearchTests(unittest.TestCase):
+class HostResearchTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.config = self.root / ".codex" / "config.toml"
         self.settings = self.root / ".claude" / "settings.json"
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def init(self, host, config=None):
         if config is not None:

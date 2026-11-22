@@ -9,6 +9,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.support import subprocess_environment
+
 from openguildkit.brains import brief_knowledge, knowledge_gaps, write_brain_skeleton
 from openguildkit.catalog import CatalogError, board_replacements, load_catalog
 from openguildkit.lock import apply_lock, locked_records
@@ -215,7 +217,7 @@ class NewBrainCommandTests(unittest.TestCase):
 
     def run_cli(self, *args, expect=0):
         result = subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(self.project), *map(str, args)],
-                                capture_output=True, text=True, encoding="utf-8", env=self.env, timeout=60)
+                                capture_output=True, text=True, encoding="utf-8", env=subprocess_environment(self.env), timeout=60)
         self.assertEqual(result.returncode, expect, result.stdout + result.stderr)
         return result.stdout
 
@@ -245,11 +247,11 @@ class NewBrainCommandTests(unittest.TestCase):
         self.run_cli("task", "new", "--file", example / "brief.md", "--id", "request-status")
         result = subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(self.project), "task", "consult",
                                  "request-status", "--answers", str(example / "answers.json")],
-                                capture_output=True, text=True, encoding="utf-8", env=self.env, timeout=60)
+                                capture_output=True, text=True, encoding="utf-8", env=subprocess_environment(self.env), timeout=60)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("OpenGuildKit: the project catalog replaces parts of the bundled brain security", result.stderr)
         check = subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(self.project), "check"],
-                               capture_output=True, text=True, encoding="utf-8", env=self.env, timeout=60)
+                               capture_output=True, text=True, encoding="utf-8", env=subprocess_environment(self.env), timeout=60)
         self.assertIn("OpenGuildKit: the project catalog replaces parts of the bundled brain security", check.stderr)
 
 

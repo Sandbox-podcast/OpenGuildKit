@@ -9,8 +9,10 @@ import tomllib
 import unittest
 from pathlib import Path
 
+from tests.support import subprocess_environment
+
 REPO = Path(__file__).resolve().parents[2]
-ENV = {**os.environ, "PYTHONPATH": str(REPO / "src"), "PYTHONIOENCODING": "utf-8"}
+ENV = subprocess_environment({"PYTHONPATH": str(REPO / "src"), "PYTHONIOENCODING": "utf-8"})
 META = {"io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {}}
 PROFILE = {
     "name": "Support portal", "sector": "general", "stack": ["Python"], "packs": [], "boards": ["product", "qa", "security"],

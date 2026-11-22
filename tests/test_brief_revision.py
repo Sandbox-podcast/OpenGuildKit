@@ -1,16 +1,13 @@
 """A change request can lead to a revised brief, and the next round recalls the decision that sent it back."""
 
-import contextlib
-import io
 import json
 import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
-from openguildkit.cli import main
 from openguildkit.storage import write_json
+from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "weekly-digest"
@@ -18,7 +15,7 @@ BRIEF = "Email parents a weekly summary with the grades in the email body"
 REVISED = "Email parents a weekly link to the grades page, with no grade in the email"
 
 
-class BriefRevisionTests(unittest.TestCase):
+class BriefRevisionTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -27,14 +24,6 @@ class BriefRevisionTests(unittest.TestCase):
         write_json(self.root / "profile.json", {"name": "School portal", "stack": ["Python"], "packs": [], "checks": [command]})
         self.run_cli("init", "--answers", self.root / "profile.json")
         self.run_cli("task", "new", BRIEF, "--id", TASK)
-
-    def run_cli(self, *arguments, code=0, typed=None):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr), \
-                patch("sys.stdin.isatty", return_value=typed is not None), patch("builtins.input", return_value=typed):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def consult_and_review(self, *extra):
         self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json", *extra)

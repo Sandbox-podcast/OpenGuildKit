@@ -1,5 +1,3 @@
-import contextlib
-import io
 import json
 import shutil
 import tempfile
@@ -8,9 +6,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import load_catalog
-from openguildkit.cli import main
 from openguildkit.deliverables import load_deliverables
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 REPO = Path(__file__).resolve().parents[1]
 EXAMPLE = REPO / "examples" / "request-status"
@@ -30,20 +29,13 @@ deliverable: "campaign-brief"
 """
 
 
-class DeliverableTests(unittest.TestCase):
+class DeliverableTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         write_json(self.root / "p.json", {"name": "Portal", "stack": ["Python"], "tools": ["Brevo"]})
         self.run_cli("init", "--answers", self.root / "p.json")
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def approved_task(self, *consult_options):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "launch")

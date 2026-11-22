@@ -1,5 +1,4 @@
 import contextlib
-import io
 import json
 import re
 import os
@@ -16,8 +15,9 @@ from unittest.mock import patch
 
 from openguildkit import clock, publishing
 from openguildkit.catalog import load_catalog
-from openguildkit.cli import main
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli, run_cli, subprocess_environment
 
 REPO = Path(__file__).resolve().parents[1]
 EXAMPLE = REPO / "examples" / "request-status"
@@ -26,7 +26,7 @@ TASK = "request-status"
 BUSY = "is writing this project"
 
 
-class PublishingTests(unittest.TestCase):
+class PublishingTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -37,13 +37,6 @@ class PublishingTests(unittest.TestCase):
         # A folder that docs export wrote carries its manifest: it can be shared as a whole.
         (self.root / "docs-site").mkdir()
         (self.root / "docs-site" / publishing.MANIFEST).write_text('{"version": "0", "tasks": [], "files": []}', encoding="utf-8")
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def done_task(self, task_id=TASK, brief_file=EXAMPLE / "brief.md"):
         self.run_cli("task", "new", "--file", brief_file, "--id", task_id)
@@ -295,14 +288,12 @@ class PublishingTests(unittest.TestCase):
     def test_replaying_the_documentalist_example_gives_its_docs_site(self):
         project = self.root / "replay"
         command = [sys.executable, str(DOCUMENTALIST / "replay.py"), "--project", str(project)]
-        environment = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+        environment = subprocess_environment({"PYTHONIOENCODING": "utf-8"})
         first = subprocess.run(command, env=environment, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(first.returncode, 0, first.stderr)
         self.assertIn("Approval needs a person", first.stdout)
-        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK), \
-                contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(main(["--project", str(project), "task", "decide", TASK, "--approve", "--by", "Camille Martin",
-                                   "--reason", "Scope agreed"]), 0)
+        run_cli(project, "task", "decide", TASK, "--approve", "--by", "Camille Martin",
+                "--reason", "Scope agreed", typed=TASK)
         second = subprocess.run(command, env=environment, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(second.returncode, 0, second.stderr)
         self.assertIn("is identical to examples/documentalist/docs-site", second.stdout)
@@ -583,7 +574,8 @@ class PublishingTests(unittest.TestCase):
 
     def test_the_guide_names_the_documentalist_version_checked_and_its_reuse_conditions(self):
         verified = self.section("Versions verified and reuse")
-        for fact in ("2026-11-22", "947429b", "Node.js 26.13.0", "Node.js 22", "GitHub import was not run", "stand-in",
+        for fact in ("2026-11-22", "947429b", "Node.js 26.13.0", "Node.js 22.20.0", "imported three pages", "same three pages and IDs",
+                     "stand-in",
                      "no licence file", "`null`", "no `license` field", "Ask its author"):
             self.assertIn(fact, verified)
         report = DOCUMENTALIST / "reports" / "2026-11-22.md"

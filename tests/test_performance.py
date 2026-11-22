@@ -57,6 +57,7 @@ CEILING_SECONDS = 60
 DEPENDENCY_FILES = 500  # in the web project's node_modules; scripts/bench.py uses 50 000
 
 
+@unittest.skipUnless(os.environ.get("OPENGUILDKIT_PERF") == "1", "Run the real process benchmarks with OPENGUILDKIT_PERF=1.")
 class PerformanceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

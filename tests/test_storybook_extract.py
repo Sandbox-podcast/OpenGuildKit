@@ -13,6 +13,7 @@ from openguildkit import storybook, storybook_cli
 from openguildkit.storage import read_json, write_json
 from openguildkit.storybook import PROPOSALS, generate, propose, validate_proposals
 from openguildkit.storybook_extract import _strip_js_comments, extract, normalize_color
+from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 APP = REPO / "examples" / "storybook-extract"
@@ -201,31 +202,25 @@ class ProposalTests(unittest.TestCase):
             generate(self.root, self.state, out=self.root.parent / "elsewhere")
 
     def test_the_cli_runs_the_whole_extraction(self):
-        def cli(*args, code=0):
-            out, err = io.StringIO(), io.StringIO()
-            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                self.assertEqual(main(["--project", str(self.root), *map(str, args)]), code, err.getvalue())
-            return out.getvalue()
-
         write_json(self.root / "profile.json", json.loads((EXAMPLE / "profile.json").read_text()))
-        cli("init", "--answers", self.root / "profile.json")
+        run_cli(self.root, "init", "--answers", self.root / "profile.json")
         screenshot = self.root / "list.png"
         screenshot.write_bytes(b"\x89PNG synthetic")
-        inventory = json.loads(cli("storybook", "extract", "--src", self.root / "src" / "pages",
-                                   "--src", self.root / "src" / "components", "--preview", screenshot, "--json"))
+        inventory = json.loads(run_cli(self.root, "storybook", "extract", "--src", self.root / "src" / "pages",
+                                   "--src", self.root / "src" / "components", "--preview", screenshot, "--json").stdout)
         self.assertEqual(inventory["previews"][0]["path"], "list.png")
-        self.assertIn("hypotheses", cli("storybook", "propose"))
+        self.assertIn("hypotheses", run_cli(self.root, "storybook", "propose").stdout)
         self.decide({"component:Button": "validated", 'variant:Button:variant="secondary"': "validated"})
-        generated = cli("storybook", "generate")
+        generated = run_cli(self.root, "storybook", "generate").stdout
         self.assertIn("Written: src/design-system/Button.stories.tsx", generated)
         self.assertIn("Missing Storybook dependencies in package.json: @storybook/react-vite, storybook", generated)
         self.assertIn("Missing Storybook configuration (.storybook/main.ts or .storybook/main.js)", generated)
-        warnings = json.loads(cli("storybook", "generate", "--json"))["warnings"]
+        warnings = json.loads(run_cli(self.root, "storybook", "generate", "--json").stdout)["warnings"]
         self.assertIn("Missing Storybook configuration (.storybook/main.ts or .storybook/main.js).", warnings)
         write_files(self.root, {".storybook/main.ts": "export default {};"})
         write_json(self.root / "package.json", {"devDependencies": {"@storybook/react-vite": "^10", "storybook": "^10"}})
-        self.assertNotIn("warnings", json.loads(cli("storybook", "generate", "--json")))
-        self.assertIn("Unchanged: src/design-system/Button.stories.tsx", cli("storybook", "generate"))
+        self.assertNotIn("warnings", json.loads(run_cli(self.root, "storybook", "generate", "--json").stdout))
+        self.assertIn("Unchanged: src/design-system/Button.stories.tsx", run_cli(self.root, "storybook", "generate").stdout)
 
     def test_two_css_variables_with_the_same_value_keep_their_names(self):
         (self.root / "src" / "styles" / "theme.css").write_text(

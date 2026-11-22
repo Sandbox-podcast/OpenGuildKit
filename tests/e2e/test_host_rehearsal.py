@@ -8,6 +8,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.support import subprocess_environment
+
 REPO = Path(__file__).resolve().parents[2]
 
 
@@ -19,7 +21,7 @@ class HostRehearsalTests(unittest.TestCase):
                 [sys.executable, str(REPO / "examples" / "host-validation" / "rehearse.py"),
                  "--project", str(Path(directory) / "project-root"), "--report", str(report)],
                 capture_output=True, text=True, encoding="utf-8", timeout=300, stdin=subprocess.DEVNULL,
-                env={**os.environ, "PYTHONPATH": str(REPO / "src")},
+                env=subprocess_environment({"PYTHONPATH": str(REPO / "src")}),
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             observed = json.loads(report.read_text(encoding="utf-8"))

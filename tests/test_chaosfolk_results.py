@@ -10,6 +10,8 @@ from unittest.mock import patch
 from openguildkit.cli import main
 from openguildkit.storage import write_json
 
+from tests.support import CapturedCli
+
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "request-status"
 
@@ -21,7 +23,9 @@ def summary(*results):
     ]}
 
 
-class ChaosFolkResultTests(unittest.TestCase):
+class ChaosFolkResultTests(CapturedCli, unittest.TestCase):
+    cli_output = "stdout"
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -42,13 +46,6 @@ class ChaosFolkResultTests(unittest.TestCase):
         rules = [{"check": c["id"], "status": "passed", "evidence": "qa/replays.md"} for c in checks if c["kind"] == "rule"]
         write_json(self.root / "rules.json", {"revision": "abc1234", "criteria": [], "checks": rules})
         self.run_cli("task", "result", TASK, "--file", self.root / "rules.json")
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue()
 
     def replay(self, *results):
         path = self.root / "qa-results" / "summary.json"

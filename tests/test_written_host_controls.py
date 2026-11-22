@@ -24,6 +24,7 @@ from unittest.mock import patch
 from openguildkit.cli import main
 from openguildkit.storage import write_json
 from tests.test_hosts import AGENT_FORMS, claude_denies, codex_forbids
+from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 EXAMPLE = REPO / "examples" / "request-status"
@@ -103,17 +104,13 @@ class WrittenHookTests(unittest.TestCase):
         root = self.base / f"{host}-{guard}"
         root.mkdir()
         (root / "app.py").write_text("a\n", encoding="utf-8")
-        self.cli(root, "init", "--answers", self.answers(root, host=host, guard=guard))
-        self.cli(root, "host", "apply")
+        run_cli(root, "init", "--answers", self.answers(root, host=host, guard=guard))
+        run_cli(root, "host", "apply")
         return root
 
     def answers(self, root: Path, **extra) -> Path:
         write_json(root / "answers.json", {**json.loads((EXAMPLE / "profile.json").read_text()), **extra})
         return root / "answers.json"
-
-    def cli(self, root: Path, *arguments):
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as error:
-            self.assertEqual(main(["--project", str(root), *map(str, arguments)]), 0, error.getvalue())
 
     def written_command(self, root: Path, host: str, event: str, tool: str | None = None) -> str:
         """The command of the hook the host would run for this event and tool, read from its settings file."""
@@ -152,17 +149,17 @@ class WrittenHookTests(unittest.TestCase):
     @unittest.skipUnless(os.name == "posix" or shutil.which("cmd"), "needs the platform shell")
     def test_an_approved_task_lets_the_written_hook_through(self):
         root = self.project("claude-code", "enforce")
-        self.cli(root, "task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
-        self.cli(root, "task", "consult", TASK, "--answers", EXAMPLE / "answers.json")
+        run_cli(root, "task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
+        run_cli(root, "task", "consult", TASK, "--answers", EXAMPLE / "answers.json")
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
             main(["--project", str(root), "task", "template", TASK])
         review = {"consultation_id": json.loads(stdout.getvalue())["consultation_id"],
                   **json.loads((EXAMPLE / "review.json").read_text())}
         write_json(root / "review.json", review)
-        self.cli(root, "task", "review", TASK, "--file", root / "review.json")
+        run_cli(root, "task", "review", TASK, "--file", root / "review.json")
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
-            self.cli(root, "task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed")
+            run_cli(root, "task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed")
         edit = self.run_hook(root, self.written_command(root, "claude-code", "PreToolUse", "Write"), EDITS["claude-code"])
         self.assertEqual(edit.returncode, 0, edit.stderr)
         self.assertIn(f"approved task(s) in progress: {TASK}", json.loads(edit.stdout)["hookSpecificOutput"]["additionalContext"])
