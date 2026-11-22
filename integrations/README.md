@@ -74,7 +74,7 @@ Read on 2026-11-21 in the [Claude Code permissions](https://code.claude.com/docs
 - Codex `prefix_rule` accepts a list of alternatives at one position. A rule is an exact prefix from the first word, so `--project /some/other/path` is not matched. A compound `bash -lc` line is split into commands only when it is plain words joined by `&&`, `||`, `;` or `|`; a redirect or `$(...)` prevents the split.
 - Codex reads `.codex/hooks.json` in a trusted project. The edit tool reports `tool_name: "apply_patch"` with the patch in `tool_input.command`, and exit code 2 blocks.
 
-Not verified in a live host session: that both hosts apply these settings as documented to the rules OpenGuildKit writes.
+Checked without a host: `tests/test_written_host_controls.py` runs the hooks `host apply` writes through the shell, with the input each host documents, and matches every rule it writes with the syntax above. Not verified in a live host session yet: that both hosts load these settings and apply them as documented. The [host validation scenario](../examples/host-validation/README.md#the-controls-that-host-apply-writes) gives the steps of that session, and says why Codex was not run.
 
 When a consultation runs under `local-only` and the host does not block research, the consultation request says so and tells the agent to ask before using any external source.
 
@@ -157,7 +157,7 @@ The answer depends on the mode and on the tasks. Without an approved task, the p
 
 ## Validate a host
 
-The [host validation scenario](../examples/host-validation/) checks that an agent runs the whole flow: board passes, a disagreement, insufficient evidence, the person's decision and the results. Its CLI rehearsal runs in CI; reports from real hosts sit next to it.
+The [host validation scenario](../examples/host-validation/) checks that an agent runs the whole flow: board passes, a disagreement, insufficient evidence, the person's decision and the results. Its CLI rehearsal runs in CI; reports from real hosts sit next to it, with what each shows for issue #23, and the steps of a live session that checks the hooks and deny rules `host apply` writes.
 
 ## Other agents
 
