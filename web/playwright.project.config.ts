@@ -45,6 +45,14 @@ export default defineConfig({
       timeout: 60_000,
       env: { PW_PROJECT_PORT: String(port + 1) },
     },
+    {
+      // A folder with Stripe in its stack: the setup proposes PCI DSS, which a person accepts or declines.
+      command: 'node scripts/serve-sample.mjs --empty --stripe',
+      url: `http://127.0.0.1:${port + 2}/api/session`,
+      reuseExistingServer: false,
+      timeout: 60_000,
+      env: { PW_PROJECT_PORT: String(port + 2) },
+    },
   ],
   projects: [{ name: 'chrome', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, channel: channel === 'chromium' ? undefined : channel } }],
 });

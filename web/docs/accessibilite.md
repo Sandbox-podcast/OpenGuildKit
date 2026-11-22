@@ -21,6 +21,12 @@ Les contrôles couvrent Chrome, le clavier, le mouvement réduit et les écrans 
 - La carte a une liste équivalente. Les postes de la Guilde ouvrent les fiches avec Entrée. Les sièges du Conseil deviennent des liens à réception des avis. Ces liens ouvrent et focalisent l'avis choisi.
 - Le tableau de quêtes propose une action de déplacement et un raccourci clavier. Les blocages gardent leur motif. Les résultats, leurs dates de validité et les simulations sont signalés par du texte et une icône.
 
+## Raccourcis clavier
+
+La démo et l'interface d'un projet partagent les mêmes raccourcis (`src/shared/shortcuts.ts`). <kbd>Ctrl</kbd> + <kbd>K</kbd> (<kbd>Cmd</kbd> + <kbd>K</kbd> sur Mac) ouvre la recherche. Les raccourcis à une touche, <kbd>/</kbd> pour la recherche, <kbd>g</kbd> puis une lettre pour changer de lieu, <kbd>m</kbd> pour passer de RPG à Pro et <kbd>?</kbd> pour l'aide de la démo, ne jouent ni pendant la saisie ni quand un dialogue est ouvert. Ils se désactivent dans Intendance › Interface (projet) ou dans le dialogue "Raccourcis clavier" de la démo, ouvert par <kbd>?</kbd> ou par le menu d'identité (critère WCAG 2.1.4). Le choix est gardé dans le navigateur, pour les deux interfaces ; <kbd>Ctrl</kbd> + <kbd>K</kbd> reste actif.
+
+Le balayage `tests/e2e/project-sweep.spec.ts` parcourt les 34 routes du projet en RPG et en Pro, sur bureau et à 375 px. Il vérifie qu'un contenu qui défile se rejoint au clavier, que chaque en-tête de tableau a un nom, que les cibles de la carte et des liens de site font au moins 24 px et que le nom d'un lien contient les mots qu'il affiche. Il lance axe-core quand il est installé, ou quand `AXE_CORE_PATH` désigne son `axe.min.js`, et échoue sur une violation sérieuse ou critique.
+
 ## Contrastes mesurés
 
 Valeurs calculées à partir des couleurs sRGB de [tokens.css](../src/styles/tokens.css). Les rapports portent sur les paires opaques suivantes.

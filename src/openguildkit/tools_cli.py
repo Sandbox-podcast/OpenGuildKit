@@ -7,7 +7,7 @@ from functools import partial
 from pathlib import Path
 from typing import TextIO
 
-from .mcp_mock import MockError, call_tool, describe, example_arguments, serve
+from .mcp_mock import MockError, call_tool, describe, example_arguments, is_generic, serve, signature
 from .sensitive import looks_like_credential
 from .storage import json_text, project_lock, write_text
 from .tasks import read_task
@@ -63,6 +63,7 @@ def add_parser(commands) -> None:
     call.add_argument("id", help="Tool ID.")
     call.add_argument("name", nargs="?", help="Name of the mock's tool. Omit it to list them.")
     call.add_argument("--args", default="{}", metavar="JSON", help="Arguments as a JSON object.")
+    call.add_argument("--json", action="store_true", help="Without a tool name: list the mock's tools as JSON.")
     scenario = actions.add_parser(
         "scenario", help="Write a starting scenario: the mocks' records retitled for this project, all synthetic.")
     scenario.add_argument("tool", nargs="*", metavar="TOOL", help="Tools with a mock (defaults to the project's).")
@@ -250,6 +251,17 @@ def _scenario(args, root: Path, state: Path, tools: dict, profile: dict) -> int:
     return 0
 
 
+def _print_mock_listing(mock: dict) -> None:
+    """The tools of a mock as JSON, for a page that offers them: names only come from the mock, never from prose."""
+    print(json.dumps({
+        "tool": mock["tool"],
+        "instructions": mock.get("instructions", ""),
+        "generic": is_generic(mock) and bool(mock.get("records")),
+        "tools": [{"name": tool["name"], "read_only": tool.get("read_only", False), "description": tool["description"],
+                   "arguments": signature(tool), "example": example_arguments(mock, tool)} for tool in mock["tools"]],
+    }, indent=2, ensure_ascii=False))
+
+
 def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
     action = args.tools_action
     mock_dir = state / "catalog" / "tool-mocks"
@@ -259,8 +271,14 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
         args.id = args.id.casefold()
         mock = load_mock(args.id, mock_dir)
         if args.name is None:
-            print("\n".join(describe(mock)))
+            if args.json:
+                _print_mock_listing(mock)
+            else:
+                print("\n".join(describe(mock)))
             return 0
+        if args.json:
+            raise ValueError(f"--json lists the tools of the mock: run openguildkit tools call {args.id} --json, "
+                             "without a tool name.")
         try:
             arguments = json.loads(args.args)
         except ValueError as error:

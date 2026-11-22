@@ -101,7 +101,7 @@ export function Toasts() {
       {toasts.map((t) => (
         <div key={t.id} className={`toast tone-${t.tone}`} role={t.tone === 'danger' ? 'alert' : 'status'}>
           <Icon name={icons[t.tone]} size={16} />
-          <div className="grow"><strong>{t.title}</strong>{t.text && <span className="small muted">{t.text}</span>}</div>
+          <div className="grow"><strong>{t.title}</strong>{t.text && <span className="small muted" lang={t.lang}>{t.text}</span>}</div>
           <button className="btn ghost icon small" aria-label="Fermer la notification" onClick={() => dismissToast(t.id)}><Icon name="close" size={12} /></button>
         </div>
       ))}

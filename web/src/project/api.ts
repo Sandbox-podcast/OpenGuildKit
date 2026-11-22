@@ -10,11 +10,26 @@ export interface Session {
   human_only: string[];
 }
 
-export interface CliResult<T = unknown> { code: number; stdout: string; stderr: string; json: T | null; command?: string | null; restored?: boolean }
+/** reason: the code of a refusal, next to the command to type (a refused batch entry, a CLI refusal at a terminal). */
+export interface CliResult<T = unknown> { code: number; stdout: string; stderr: string; json: T | null; command?: string | null; reason?: string | null; restored?: boolean }
 
-/** A refusal or a failed command. `command` is what a person types in a terminal instead. */
+/**
+ * A refusal or a failed command. `command` is what a person types in a terminal instead; `reason` is the stable
+ * code of a refusal of the local server; `lang` is 'en' when the message is the server's or the CLI's own English.
+ */
+interface ApiErrorDetails { command?: string | null; result?: CliResult; reason?: string | null; lang?: 'en' }
 export class ApiError extends Error {
-  constructor(message: string, public status: number, public command: string | null = null, public result?: CliResult) { super(message); }
+  command: string | null;
+  result?: CliResult;
+  reason: string | null;
+  lang?: 'en';
+  constructor(message: string, public status: number, details: ApiErrorDetails = {}) {
+    super(message);
+    this.command = details.command ?? null;
+    this.result = details.result;
+    this.reason = details.reason ?? null;
+    this.lang = details.lang;
+  }
 }
 
 let session: Session | null = null;
@@ -36,7 +51,7 @@ export async function detectSession(): Promise<Session | null> {
 export const currentSession = () => session;
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  if (!session) throw new ApiError('Aucune session : rechargez la page.', 0);
+  if (!session) throw new ApiError('Aucune session : recharge la page.', 0);
   const send = () => fetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-OGK-Token': session!.token, Accept: 'application/json' },
@@ -52,16 +67,21 @@ async function post<T>(path: string, body: unknown): Promise<T> {
       await new Promise((resolve) => setTimeout(resolve, 400));
       response = await send();
     } catch {
-      throw new ApiError('Le serveur local ne répond plus. Relancez « openguildkit ui » dans votre terminal.', 0);
+      throw new ApiError('Le serveur local ne répond plus. Relance « openguildkit ui » dans ton terminal.', 0);
     }
   }
   const data = await response.json().catch(() => ({ error: `Réponse illisible (${response.status})` }));
-  if (!response.ok) throw new ApiError(String((data as { error?: string }).error ?? response.statusText), response.status, (data as { command?: string }).command ?? null);
+  if (!response.ok) {
+    const refusal = data as { error?: string; command?: string; reason?: string };
+    throw new ApiError(String(refusal.error ?? response.statusText), response.status, { command: refusal.command ?? null, reason: refusal.reason ?? null, lang: 'en' });
+  }
   return data as T;
 }
 
 /** Message of a failed command: the CLI writes "OpenGuildKit: …" on stderr. */
 export const cliMessage = (r: CliResult) => (r.stderr || r.stdout).trim().replace(/^OpenGuildKit:\s*/gm, '') || `Code de sortie ${r.code}`;
+/** The error of a failed command, in the CLI's English, with the command and refusal code the server added. */
+export const cliError = (r: CliResult) => new ApiError(cliMessage(r), 200, { command: r.command ?? null, reason: r.reason ?? null, result: r, lang: r.stderr || r.stdout ? 'en' : undefined });
 
 /**
  * Options of a command: `raw` keeps the printed text of a JSON answer (copied as is), `omit` removes keys
@@ -71,7 +91,7 @@ export interface RunOptions { allowFailure?: boolean; raw?: boolean; omit?: stri
 
 export async function run<T = unknown>(argv: string[], uploads?: Record<string, string>, opts: RunOptions = {}): Promise<CliResult<T>> {
   const result = await post<CliResult<T>>('./api/run', { argv, uploads: uploads ?? {}, raw: opts.raw ?? false, omit: opts.omit });
-  if (result.code !== 0 && !opts.allowFailure) throw new ApiError(cliMessage(result), 200, result.command ?? null, result);
+  if (result.code !== 0 && !opts.allowFailure) throw cliError(result);
   return result;
 }
 
@@ -101,6 +121,12 @@ export const saveProfile = (text: string) => post<CliResult>('./api/profile/save
  */
 export const quoteFor = (value: string, windows: boolean) => /^[A-Za-z0-9._:/@=+-]+$/.test(value) ? value : `'${value.replace(/'/g, windows ? "''" : "'\\''")}'`;
 export const shellQuote = (value: string) => quoteFor(value, /^[A-Za-z]:[\\/]/.test(session?.project.root ?? ''));
+/** A path the CLI records (absolute, the project's own separators) as the file API takes it: relative, with slashes. */
+export function projectPath(path: string, root = session?.project.root ?? '') {
+  const normalized = path.replace(/\\/g, '/');
+  const base = root.replace(/\\/g, '/').replace(/\/$/, '');
+  return base && normalized.toLowerCase().startsWith(`${base.toLowerCase()}/`) ? normalized.slice(base.length + 1) : normalized;
+}
 export const terminalCommand = (argv: string[]) => ['openguildkit', '--project', shellQuote(session?.project.root ?? '.'), ...argv.map(shellQuote)].join(' ');
 
 /** Many read commands in as few requests as the server allows (40 per batch); a failed one gives null. */

@@ -1,10 +1,11 @@
 /** Shapes of the JSON the OpenGuildKit CLI prints. Only the fields the interface reads are typed. */
 
-export type TaskStatus = 'draft' | 'consulting' | 'reviewed' | 'approved' | 'changes-requested' | 'done' | 'done-with-reservations';
+export type TaskStatus = 'draft' | 'consulting' | 'reviewed' | 'approved' | 'changes-requested' | 'done' | 'done-with-reservations' | 'unreadable';
 
 /** A row of `task list --json`. approval_problem and severity say that the task's approval no longer holds (error) or
- * that a completed task was approved under other rules (note); closed_by names who closed it with reservations. */
-export interface TaskListItem { id: string; status: TaskStatus; created: string; owner: string | null; brief: string; next: string; follows?: string; approval_problem?: string; severity?: 'error' | 'note'; closed_by?: string }
+ * that a completed task was approved under other rules (note); closed_by names who closed it with reservations.
+ * A record the CLI cannot read (a merge conflict) has the status unreadable, its ID and the error as next, nothing else. */
+export interface TaskListItem { id: string; status: TaskStatus; created?: string; owner?: string | null; brief?: string; next: string; follows?: string; approval_problem?: string; severity?: 'error' | 'note'; closed_by?: string }
 
 export interface Evidence { source: string; ref: string; supports: string }
 export interface Specialist { id: string; finding: string; basis: string; evidence_refs: number[] }
@@ -21,7 +22,7 @@ export interface Closing { open_points: { group: string; points: string[] }[]; n
 /** Named evidence that must be supplied and is not yet (result.waiting_for). */
 export interface WaitingEvidence { check: string; title: string; owner: string; why: string }
 export interface TaskResult { revision?: string; pull_request?: string; criteria: { criterion: string; status: 'met' | 'not-met'; evidence: string; verified_by?: string }[]; checks: CheckResult[]; waiting_for?: WaitingEvidence[]; warnings?: string[]; closing?: Closing }
-export interface Answers { kind?: string; surface?: string | string[]; data?: string; research?: string; context?: string; outcome?: string; affected?: string; options?: string }
+export interface Answers { kind?: string; surface?: string | string[]; data?: string; research?: string; concerns?: string | string[]; context?: string; outcome?: string; affected?: string; options?: string }
 
 export interface Consultation {
   id: string;
@@ -51,13 +52,17 @@ export interface TaskRecord {
   completed_at?: string;
   deliverables?: { deliverable: string; path: string; tool?: string; created_at: string }[];
   authorizations?: { action: string; target: string; decision: 'allow' | 'deny'; by: string; reason: string; at: string }[];
-  resolutions?: Record<string, { kind: 'cleared' | 'waived'; by: string; evidence?: string; supports?: string; reason?: string; scope?: string; until?: string }>;
   passes?: Record<string, unknown>;
 }
 
-export interface Question { id: string; prompt: string; type?: string; choices?: { id: string; label: string }[]; default?: unknown }
+/** A question of `init --questions` or `task questions`. help: one line in plain words; unsure: what a "don't know"
+ * answer applies; required: the CLI asks it until answered; norms: the norms a setup proposes, each with its condition. */
+export interface Question {
+  id: string; prompt: string; type?: string; choices?: { id: string; label: string }[]; default?: unknown;
+  help?: string; unsure?: string; required?: boolean; norms?: { id: string; title: string; prompt: string }[];
+}
 /** `task questions`, with or without answers: the questions, the follow-ups still to ask with their prompt, the open points. */
-export interface QuestionSet { questions: Question[]; follow_ups: { id: string; prompt: string }[]; open_points: string[] }
+export interface QuestionSet { questions: Question[]; follow_ups: (Question | { id: string; prompt: string })[]; open_points: string[] }
 /** `task route --json`: the boards selected with their reasons; those the brief mentions as excluded, with the
  * passages; the enabled boards left out; and, among them, those the team expects (declared roles, a listed board). */
 export interface Route {
@@ -122,7 +127,8 @@ export interface Brain {
 export interface Sector { id: string; title: string; description: string; context: string[]; sources: { title: string; url: string }[] }
 export interface Catalog { packs: Record<string, Pack>; boards: Record<string, Brain>; sectors: Record<string, Sector> }
 export interface PlanPack { id: string; title: string; version: string; provenance: string[]; scope: unknown; rules: string[] }
-export interface RulePlan { packs: PlanPack[]; excluded: unknown[]; conflicts: unknown[]; conventions: string[]; checks: string[] }
+/** rule_warning: set when many rules are in force, with the command to decline a pattern; declined: what a person declined. */
+export interface RulePlan { packs: PlanPack[]; excluded: unknown[]; conflicts: unknown[]; conventions: string[]; checks: string[]; rule_count?: number; rule_warning?: string | null; declined?: { id: string; by?: string; on?: string; reason?: string }[] }
 
 export interface Reference { id: string; aliases?: string[]; title: string; category: string; kind: string; brains?: string[]; summary: string; applies_when: string; sources: { url: string; title: string }[]; status: string; family: string; family_title: string }
 export interface Pattern { id: string; title: string; description: string; sources: { title: string; url: string }[]; roles: string[]; packs: string[]; match?: unknown; matched_stack?: string[] }
@@ -130,7 +136,8 @@ export interface Recommendation { matched: Pattern[]; suggested: Pattern[]; excl
 
 export interface Alert { id: string; ecosystem: string; package: string; version: string; advisory: string; aliases: string[]; severity: string; summary: string; fix?: string; url?: string; status: 'open' | 'confirmed' | 'dismissed' | 'resolved'; scanners: string[]; tasks: string[]; first_seen: string; last_seen: string; by?: string; reason?: string; decided_at?: string; accepted?: { by: string; reason: string; at: string } }
 export interface AlertRegister { summary: { total: number; by_status: Record<string, number>; by_severity: Record<string, number>; imports: { tool: string; file: string; sha256: string; at?: string }[] }; alerts: Alert[] }
-export interface Share { id: string; deliverable: string; recipients: string[]; until: string; portal: string; by: string; created_at: string; revoked_at: string | null; state: 'active' | 'expired' | 'revoked' | string }
+/** space: the Documentalist space the share opens; a share covers the whole space, not only the page named. */
+export interface Share { id: string; deliverable: string; recipients: string[]; until: string; portal: string; space?: string; by: string; created_at: string; revoked_at: string | null; state: 'active' | 'expired' | 'revoked' | string }
 export interface HostControl { id: string; title: string; status: 'enforced' | 'instruction' | 'missing' | string; detail: string }
 /** stale_tasks: the open tasks consulted under other rules than the new ones, each with what to do (update names
  * them before --apply). */
@@ -138,7 +145,8 @@ export interface StaleTask { id: string; status: string; step: string }
 export interface Update { changes: { collection?: string; id?: string; status?: string; fields?: string[]; rules?: unknown }[]; conflicts: unknown[]; applied: boolean; stale_tasks: StaleTask[]; note?: string; catalog_date?: string }
 export interface Guard { mode: string; covered_by: string[] }
 export interface Tool { id: string; title: string; vendor: string; summary: string; homepage: string; brains: string[]; servers: { name?: string; id?: string; kind?: string; maintainer?: string; transport?: string }[]; api?: { kind: string; docs: string }; notes?: string; category: string; mock: boolean }
-export interface ToolStatus { tool: string; server?: string; host?: string; recorded?: boolean; present?: boolean; missing?: string[] }
+/** `tools call ID --json`: the tools of a mock, each with its arguments and an example that works. */
+export interface MockListing { tool: string; instructions: string; generic: boolean; tools: { name: string; read_only: boolean; description: string; arguments: string; example: Record<string, unknown> }[] }
 
 export interface Dossier {
   id: string; title: string; market: string; audience: string; feature: string;
@@ -149,4 +157,7 @@ export interface Dossier {
 }
 export interface MarketDue { dossiers: { dossier: string; due: { competitor: string; url: string; kind: string; dossier: string }[]; paused: boolean }[]; due: { competitor: string; url: string; kind: string; dossier: string }[] }
 
-export interface StorybookProposal { id: string; kind?: string; name?: string; status?: string; decision?: string; source?: string; group?: string; [key: string]: unknown }
+/** One proposal of `.openguildkit/storybook/proposals.json`: a component, a variant or a token, and its decision. */
+export type ProposalStatus = 'proposed' | 'validated' | 'rejected';
+export interface ProposalItem { key: string; name: string; status: ProposalStatus; kind?: string; confidence?: string; basis?: string; observed?: boolean; file?: string; line?: number; component?: string; props?: Record<string, unknown>; value?: string; occurrences?: number; usages?: number; origins?: string[] }
+export interface StorybookProposals { components: ProposalItem[]; variants: ProposalItem[]; tokens: ProposalItem[]; [key: string]: unknown }

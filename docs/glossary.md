@@ -8,6 +8,12 @@ Les mots qu'OpenGuildKit emploie dans ses commandes, ses questions et ses messag
 
 ## Project setup · Configuration du projet
 
+### `task` · tâche
+
+**EN** One request to the team (a feature, a fix, upkeep or a decision) that the boards review and a person approves before work starts, from `task new` to `task complete`.
+
+**FR** Une demande faite à l'équipe (une fonctionnalité, une correction, de l'entretien ou une décision) que les boards relisent et qu'une personne approuve avant le travail, de `task new` à `task complete`.
+
 ### `pattern` · modèle de projet
 
 **EN** A description of a stack, a work method or a regulation that says when it applies to a project and which rule packs it brings.
@@ -174,6 +180,18 @@ Les mots qu'OpenGuildKit emploie dans ses commandes, ses questions et ses messag
 
 **FR** Accepter, dans son terminal avec `task waive`, qu'un point bloquant reste non résolu, avec une raison, un périmètre et une date de fin, quand la politique de dérogation du projet le permet.
 
+### `approval` · approbation
+
+**EN** The decision of a person, at a terminal with `task decide --approve` or by a signature, that the reviewed scope can be implemented; the interface never records it.
+
+**FR** La décision d'une personne, dans son terminal avec `task decide --approve` ou par une signature, que le périmètre relu peut être réalisé ; l'interface ne l'enregistre jamais.
+
+### `revoke` · retirer une approbation
+
+**EN** What a person does, at a terminal with `task revoke ID --by NAME --reason WHY`, to withdraw an approval that should no longer cover the work; the web interface refuses it and gives the command.
+
+**FR** Ce que fait une personne, dans son terminal avec `task revoke ID --by NAME --reason WHY`, pour retirer une approbation qui ne doit plus couvrir le travail ; l'interface web le refuse et donne la commande.
+
 ### `seal` · sceau
 
 **EN** A fingerprint of what was approved, recorded with the approval, that detects a later accidental change; only a signed approval proves who approved.
@@ -233,3 +251,33 @@ Les mots qu'OpenGuildKit emploie dans ses commandes, ses questions et ses messag
 **EN** Tags added to a link (`utm_source`, `utm_medium`, `utm_campaign`) so that analytics tools know which campaign brought a visit; `deliverable utm` builds such a link.
 
 **FR** Des étiquettes ajoutées à un lien (`utm_source`, `utm_medium`, `utm_campaign`) pour que l'outil de mesure d'audience sache quelle campagne a amené la visite ; `deliverable utm` construit ce lien.
+
+## Web interface words · Les mots de l'interface web
+
+**EN** `openguildkit ui` has two styles. The Pro style uses the French terms of this glossary. The RPG style keeps game words for a task and a lens, and names each place of the project; this table gives the CLI term and the Pro word for each.
+
+**FR** `openguildkit ui` a deux styles. Le style Pro emploie les termes français de ce glossaire. Le style RPG garde des mots de jeu pour une tâche et un angle de spécialiste, et donne un nom à chaque lieu du projet ; ce tableau donne pour chacun le terme de la CLI et le mot du mode Pro.
+
+| RPG | CLI | Pro |
+| --- | --- | --- |
+| quête | `task` | tâche |
+| lentille | `lens` | angle de spécialiste |
+| scellée | `approved` | approuvée |
+| Conseil | `task consult`, `task review`, `task decide` | Consultation |
+
+Each place of the interface, with what it shows. · Chaque lieu de l'interface, avec ce qu'il montre.
+
+| Lieu RPG | Pro | CLI |
+| --- | --- | --- |
+| Royaume | Projet | `task list`, `check` |
+| Blueprint | Profil et règles | `.openguildkit/project.json`, `preview`, `detect` |
+| Guilde | Cerveaux | `brains` |
+| Conseil | Consultation | `task questions`, `task consult`, `task review`, `task decide` |
+| Quêtes | Tâches | `task list`, `task show`, `task new` |
+| Bibliothèque | Bibliothèque | `references`, `patterns`, `catalog` |
+| Forge | Réalisation | `task handoff`, `task verify`, `task result`, `deliverable`, `tools` |
+| Tour de guet | Contrôles | `check`, `host check`, `guard`, `alerts` |
+| Observatoire | Marché | `market` |
+| Documentation | Documentation | `docs export`, `docs share`, `task export` |
+| Chroniques | Historique | `task show` |
+| Intendance | Réglages | `host apply`, `update`, `integrations` |
