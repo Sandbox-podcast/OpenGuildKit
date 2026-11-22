@@ -43,7 +43,7 @@ SUBJECTS = {
     **{pack: ("the user interface", _UI) for pack in (
         "react", "vue", "angular", "nextjs", "frontend-delivery", "web-accessibility", "web-performance",
         "mobile-accessibility", "ios-app", "android-app", "mobile-store-release", "i18n-readiness", "playwright",
-        "chaosfolk-e2e", "public-sector-accessibility")},
+        "chaosfolk-e2e", "public-sector-accessibility", "european-accessibility-act")},
     **{pack: ("a new customer feature", _PRODUCT) for pack in (
         "design-process", "user-research-practice", "controlled-experiments", "product-discovery",
         "opportunity-solution-tree", "jobs-to-be-done", "web-search-optimization", "release-communication",

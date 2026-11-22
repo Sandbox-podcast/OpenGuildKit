@@ -368,7 +368,7 @@ class RegulationPackTests(unittest.TestCase):
                 self.assertEqual(main(["--project", directory, "init", "--answers", f"{directory}/answers.json"]), 1)
             self.assertIn("dora-financial-entity", errors.getvalue())
             write_json(Path(directory) / "answers.json", {"name": "Ledger", "sector": "financial-services", "norms": {
-                "dora-financial-entity": "yes", "gdpr-personal-data": "yes"}})
+                "dora-financial-entity": "yes", "gdpr-personal-data": "yes", "european-accessibility-act": "yes"}})
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                 self.assertEqual(main(["--project", directory, "init", "--answers", f"{directory}/answers.json"]), 0)
             created = json.loads((Path(directory) / ".openguildkit" / "project.json").read_text(encoding="utf-8"))

@@ -907,6 +907,7 @@ def _prompt_norms(plan: dict, catalog: dict) -> tuple[list[str], dict[str, dict]
     for pattern in norms:
         print(f"  {pattern['id']}: {'; '.join(pattern['reasons'])} ({pattern['title']}). Does it apply? [Y/n]",
               file=sys.stderr)
+        print(f"    {pattern['description']}", file=sys.stderr)
         while True:
             print("> ", end="", file=sys.stderr, flush=True)
             value = input().strip().casefold()

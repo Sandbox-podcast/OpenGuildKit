@@ -37,6 +37,14 @@ class CoverageTests(unittest.TestCase):
         result = subprocess.run([sys.executable, "-I", str(SCRIPT), "--check"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_the_page_says_why_there_is_no_soc_2_pack(self):
+        text = (ROOT / "docs" / "coverage.md").read_text(encoding="utf-8")
+        section = text.split("## Not turned into rules", 1)[1].split("## To cover", 1)[0]
+        self.assertIn("SOC 2", section)
+        self.assertIn("examination of controls", section)
+        self.assertIn("iso-27001", section)
+        self.assertNotIn("soc", {pack_id.split("-")[0] for pack_id in self.catalog["packs"]})
+
     def test_every_brain_reaches_packs_and_separates_documentary_references(self):
         self.assertEqual(set(self.rows), set(self.catalog["boards"]))
         for brain, row in self.rows.items():

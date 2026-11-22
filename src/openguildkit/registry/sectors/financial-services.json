@@ -3,15 +3,21 @@
   "title": "Financial services",
   "description": "Adapt reviews to banks, insurers, payment and investment firms and the ICT providers that serve them.",
   "context": [
-    "Ask the compliance owner whether the organization is a financial entity under DORA (Regulation (EU) 2022/2554) and which competent authority supervises it. When it is, select the dora-financial-entity pattern.",
+    "Ask the compliance owner whether the organization is a financial entity under DORA (Regulation (EU) 2022/2554) and which competent authority supervises it. This sector preselects the dora-financial-entity pattern; decline DORA when it is out of scope.",
     "Name the owners of ICT risk, incident reporting and ICT third-party contracts before changing a system that supports a critical or important function.",
-    "Record which payment, customer or market data the change touches and the retention rules that apply to it."
+    "Record which payment, customer or market data the change touches and the retention rules that apply to it.",
+    "Directive (EU) 2019/882, the European Accessibility Act, covers consumer banking services (point d) provided to consumers after 28 June 2025 (Art. 2(2)), the date from which national laws apply it (Art. 31(2)); micro-enterprises providing services are exempt (Art. 4(5)). This sector preselects the european-accessibility-act pattern."
   ],
   "sources": [
     {
       "title": "Regulation (EU) 2022/2554, Digital Operational Resilience Act",
       "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/fra",
       "checked": "2026-11-20"
+    },
+    {
+      "title": "Directive (EU) 2019/882 on the accessibility requirements for products and services (European Accessibility Act)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2019/882/oj/eng",
+      "checked": "2026-11-22"
     }
   ]
 }

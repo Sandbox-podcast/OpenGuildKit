@@ -135,6 +135,15 @@ def render(catalog, families):
         lines.append(f"| {row['sector']} | {row['patterns']} | {row['packs']} | {row['rules']} |")
     lines += [
         "",
+        "## Not turned into rules",
+        "",
+        "SOC 2 has no pack, by decision. A SOC 2 report is an examination of controls at a service organization "
+        "that a CPA reports on (AICPA, [System and Organization Controls]"
+        "(https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2), read 2026-11-22), "
+        "not a list of requirements on the code. The organization controls such an examination looks at are asked "
+        "on each change by the `iso-27001` pack and its Annex A rules, which a team under SOC 2 can select; the "
+        "`soc-2` reference stays documentary.",
+        "",
         "## To cover",
         "",
         "Documentary references of each brain: sources that no pack turns into rules yet. "

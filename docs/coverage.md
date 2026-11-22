@@ -12,16 +12,16 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | communication | 22 | 9 | 13 | 2 | 0 | 3 | 8 |
 | customer-success | 5 | 2 | 3 | 1 | 0 | 1 | 4 |
 | data | 63 | 7 | 56 | 5 | 1 | 7 | 38 |
-| design | 26 | 4 | 22 | 9 | 5 | 16 | 57 |
+| design | 26 | 5 | 21 | 10 | 5 | 17 | 65 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
 | devops | 69 | 22 | 47 | 7 | 6 | 13 | 63 |
-| engineering | 217 | 24 | 193 | 12 | 26 | 41 | 193 |
+| engineering | 217 | 24 | 193 | 12 | 26 | 41 | 197 |
 | finance | 23 | 14 | 9 | 11 | 1 | 13 | 45 |
-| frontend | 8 | 3 | 5 | 2 | 0 | 4 | 15 |
+| frontend | 8 | 3 | 5 | 2 | 0 | 4 | 19 |
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
 | it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 9 |
 | leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
-| legal | 56 | 21 | 35 | 16 | 1 | 19 | 120 |
+| legal | 56 | 22 | 34 | 17 | 1 | 20 | 128 |
 | localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
 | marketing | 22 | 7 | 15 | 8 | 0 | 8 | 17 |
 | operations | 21 | 6 | 15 | 11 | 0 | 11 | 26 |
@@ -30,9 +30,9 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | procurement | 8 | 6 | 2 | 1 | 0 | 1 | 5 |
 | product | 23 | 7 | 16 | 18 | 0 | 18 | 63 |
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
-| qa | 50 | 6 | 44 | 4 | 20 | 28 | 131 |
+| qa | 50 | 6 | 44 | 5 | 20 | 29 | 139 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 103 | 27 | 76 | 18 | 17 | 43 | 226 |
+| security | 103 | 27 | 76 | 19 | 17 | 43 | 226 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -75,13 +75,18 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | Sector | Preselected patterns | Packs | Rules |
 |---|---|---|---:|
 | critical-infrastructure | nis2-essential-entity | incident-notification, nis2 | 12 |
-| e-commerce | online-consumer-sales | online-consumer-sales | 10 |
+| e-commerce | european-accessibility-act, online-consumer-sales | european-accessibility-act, online-consumer-sales, web-accessibility | 21 |
 | education | minors-data-protection | minors-data-protection | 7 |
-| financial-services | dora-financial-entity, gdpr-personal-data | dora, gdpr, incident-notification | 24 |
+| financial-services | dora-financial-entity, european-accessibility-act, gdpr-personal-data | dora, european-accessibility-act, gdpr, incident-notification, web-accessibility | 35 |
 | general | none | none | 0 |
 | healthcare | health-data-protection | health-data-protection | 7 |
 | insurance | dora-financial-entity, insurance-distribution | dora, incident-notification, insurance-distribution | 19 |
-| public-sector | public-sector-accessibility | public-sector-accessibility, web-accessibility | 10 |
+| public-sector | public-sector-accessibility | public-sector-accessibility, web-accessibility | 14 |
+| software-publisher | cyber-resilience-act-product, iso-27001-certification | cyber-resilience-act, incident-notification, iso-27001, secure-sdlc | 29 |
+
+## Not turned into rules
+
+SOC 2 has no pack, by decision. A SOC 2 report is an examination of controls at a service organization that a CPA reports on (AICPA, [System and Organization Controls](https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2), read 2026-11-22), not a list of requirements on the code. The organization controls such an examination looks at are asked on each change by the `iso-27001` pack and its Annex A rules, which a team under SOC 2 can select; the `soc-2` reference stays documentary.
 
 ## To cover
 
@@ -105,7 +110,7 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### design
 
-`apple-hig`, `aria-apg`, `atomic-design`, `carbon-design`, `css`, `dsfr`, `dtcg-design-tokens`, `epub-accessibility`, `eu-accessibility-act`, `fluent-design`, `gov-uk-assisted-digital`, `govuk-design`, `heart`, `iso-9241-11`, `iso-9241-210`, `material-design`, `nielsen-heuristics`, `pdf-ua`, `rgaa`, `rgesn`, `storybook`, `wai-aria`
+`apple-hig`, `aria-apg`, `atomic-design`, `carbon-design`, `css`, `dsfr`, `dtcg-design-tokens`, `epub-accessibility`, `fluent-design`, `gov-uk-assisted-digital`, `govuk-design`, `heart`, `iso-9241-11`, `iso-9241-210`, `material-design`, `nielsen-heuristics`, `pdf-ua`, `rgaa`, `rgesn`, `storybook`, `wai-aria`
 
 ### developer-relations-and-docs
 
@@ -141,7 +146,7 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### legal
 
-`cnil-cookies`, `cnil-guide-securite`, `consumer-adr-directive`, `csrd`, `developer-certificate-of-origin`, `digital-content-directive`, `eidas`, `eprivacy`, `eu-accessibility-act`, `eu-data-act`, `eu-ivdr`, `hds`, `hl7-fhir`, `iab-tcf`, `iec-62304`, `iso-13485`, `iso-14971`, `iso-37301`, `iso-iec-27018`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `nist-media-sanitization`, `nist-privacy-framework`, `osi-licenses`, `product-liability-directive`, `reuse`, `rgaa`, `scip-ethics`, `soc-2`, `spdx-license-list`, `uk-online-safety-act`, `vertical-guidelines`, `vida`
+`cnil-cookies`, `cnil-guide-securite`, `consumer-adr-directive`, `csrd`, `developer-certificate-of-origin`, `digital-content-directive`, `eidas`, `eprivacy`, `eu-data-act`, `eu-ivdr`, `hds`, `hl7-fhir`, `iab-tcf`, `iec-62304`, `iso-13485`, `iso-14971`, `iso-37301`, `iso-iec-27018`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `nist-media-sanitization`, `nist-privacy-framework`, `osi-licenses`, `product-liability-directive`, `reuse`, `rgaa`, `scip-ethics`, `soc-2`, `spdx-license-list`, `uk-online-safety-act`, `vertical-guidelines`, `vida`
 
 ### localisation
 

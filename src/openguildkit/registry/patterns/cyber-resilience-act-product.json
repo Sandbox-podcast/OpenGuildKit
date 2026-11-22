@@ -1,12 +1,12 @@
 {
   "id": "cyber-resilience-act-product",
   "title": "Cyber Resilience Act for products with digital elements",
-  "description": "Select when the organization places on the EU market software or hardware with digital elements covered by Regulation (EU) 2024/2847.",
+  "description": "Proposed for software publishers: keep it when the organization places on the EU market a product with digital elements, software or hardware with its remote data processing solutions (Regulation (EU) 2024/2847, Art. 3(1) and 3(2)). A SaaS that is not the remote data processing of such a product falls outside the CRA: recital 12 points cloud services such as SaaS to NIS 2.",
   "sources": [
     {
       "title": "Regulation (EU) 2024/2847, Cyber Resilience Act",
       "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
-      "checked": "2026-11-20"
+      "checked": "2026-11-22"
     }
   ],
   "roles": [
@@ -20,5 +20,10 @@
   "references": [
     "cyber-resilience-act",
     "sbom"
-  ]
+  ],
+  "match": {
+    "sectors": [
+      "software-publisher"
+    ]
+  }
 }

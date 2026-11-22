@@ -25,12 +25,12 @@ This page separates what exists from what is planned. Open an issue to discuss o
 **Catalog**
 
 - Rule packs, patterns, references with editions and links to the rules that apply them, regulation packs (GDPR, DORA, NIS2, AI Act, Cyber Resilience Act), a weekly link check, a verification date on every source and a weekly edition watch.
-- Sectors that preselect their regulation patterns for the person to confirm or decline: financial services, insurance, healthcare, public sector, e-commerce, education and critical infrastructure, with EU packs.
+- Sectors that preselect their regulation patterns for the person to confirm or decline: financial services, insurance, healthcare, public sector, e-commerce, education, critical infrastructure and software publishers, with EU packs.
 
 ## Next
 
 - Validate the whole flow in Codex with the [host validation scenario](../examples/host-validation/) and publish the report ([#23](https://github.com/Sandbox-podcast/OpenGuildKit/issues/23)).
-- More sectors (automotive, aerospace, B2B SaaS), national packs on top of the EU ones, and more stacks (Kotlin, Rust, PHP, Ruby).
+- More sectors (automotive, aerospace), national packs on top of the EU ones, and more stacks (Kotlin, Rust, PHP, Ruby).
 - An MCP server exposing the CLI to MCP-capable agents.
 
 ## How items move up
