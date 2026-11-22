@@ -68,7 +68,7 @@ The plan ends with the `openguildkit tools apply ...` command to paste, with the
 | `--read-only` | Select the read-only mode of each server whose publisher documents one (a header, a URL, an argument or a variable), preferring a tool's server that has one; the plan warns for the others. Not with `--mock` |
 | `--yes` | With `apply`: write the live servers without asking, once the team reviewed the plan |
 
-`apply` ends with what it connected and what it could not (`Connected servers: atlassian-rovo. Tools not connected: gryzzly.`, or `Connected mocks: ...` with `--mock`). A tool without an MCP server, or without a mock, stays in `tools status` as not connected, with the reason, until it is connected or removed with `tools remove`. The exit status lets a script tell the cases apart:
+`apply` ends with what it connected and what it could not (`Connected servers: atlassian-rovo. Tools not connected: gryzzly.`, or `Connected mocks: ...` with `--mock`). A tool without an MCP server, without a mock, or that the registry does not know (a name the profile kept, such as `steam`), stays in `tools status` as not connected, with the reason, until it is connected or removed with `tools remove`. The exit status lets a script tell the cases apart:
 
 | Exit status | Meaning |
 |---|---|
@@ -93,7 +93,7 @@ Entries the team wrote itself are kept. If one already uses the same name with o
 
 ### Credentials
 
-A server names the variables it reads. The host passes them from each person's environment. `--token-env TOOL=VARIABLE` accepts only an uppercase environment variable name, such as `JIRA_TOKEN`; the CLI does not read the variable's value. For OAuth servers each person signs in once in their host (`/mcp` in Claude Code, `codex mcp login NAME`).
+A server names the variables it reads. The host passes them from each person's environment. `--token-env TOOL=VARIABLE` accepts only an environment variable name (letters, digits and `_`, not starting with a digit), such as `JIRA_TOKEN`; the CLI does not read the variable's value. For OAuth servers each person signs in once in their host (`/mcp` in Claude Code, `codex mcp login NAME`).
 
 `--set TOOL.NAME=VALUE` refuses:
 
@@ -106,14 +106,17 @@ A server names the variables it reads. The host passes them from each person's e
 | Cloud access key ID | `AKIA` or `ASIA` followed by 16 letters or digits |
 | Stripe secret key | `sk_live_`, `sk_test_`, `rk_live_` or `rk_test_` followed by 8 or more letters or digits |
 | GitHub token | `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` followed by 16 or more letters or digits, or `github_pat_` |
-| Slack token | `xoxa-`, `xoxb-`, `xoxp-`, `xoxo-`, `xoxs-` or `xoxr-` followed by 8 or more characters |
+| Slack token | `xoxa-`, `xoxb-`, `xoxp-`, `xoxo-`, `xoxs-`, `xoxr-` or `xoxe-` followed by 8 or more characters |
+| GitLab token | `glpat-` followed by 20 or more characters |
+| Google API key | `AIza` followed by 35 characters |
+| Anthropic API key | `sk-ant-` followed by 20 or more characters |
 | JSON Web Token | three dot-separated base64url parts, the first two starting with `eyJ` |
 | Private key | a `-----BEGIN ... PRIVATE KEY-----` block |
 | Link with a password | `scheme://user:password@host` |
 | Secret in a query string | `?token=`, `&api_key=`, `&password=`, `&signature=`, `&sig=` and their variants, with a value |
 | Password | `password=`, `password:`, `passwd=` or `mot de passe:` followed by a value |
 
-The table lives in one place, `src/openguildkit/sensitive.py`, and the same shapes apply wherever the CLI records what a person or an agent writes. The refusal never repeats the value.
+The table lives in one place, `src/openguildkit/sensitive.py`, and the same shapes apply wherever the CLI records what a person or an agent writes. The refusal never repeats the value, and the apply command a plan or a refusal prints writes `--set TOOL.NAME=VALUE` in place of a value of these shapes.
 
 Use placeholders for sensitive data in task briefs. `task new`, a brief revised with `task consult --brief` and answers given with `--answers` keep the person's words but replace each credential with a placeholder (`[credential]`, `[password]`, `[private key]`) before anything is written, and warn that they did. They also warn, without refusing, about an email address, a phone number or a bank account number: a brief may name a role address. A board's review entry that holds a credential is refused, with the field named; a public evidence link on a private host, or with a credential in its query, is refused.
 
@@ -129,7 +132,7 @@ openguildkit tools apply jira tempo snyk --mock --log mock-calls.jsonl
 
 `tools apply --mock` ends with the tools it connected and the ones that have no mock (`Connected mocks: jira, snyk. Tools without a mock: gryzzly.`), keeps the connections it could make, and records the others so that `tools status` lists them as not connected, with the reason. The exit status is the one described above (0, 2 or 1).
 
-The host starts `openguildkit tools mock jira`, a local MCP server that answers with synthetic data over stdio. It runs offline, with no account and no key. By default the data is generic sample data about a fictional support portal, its tickets, its pull request, its time entries, its alerts; a search that finds nothing says so and tells how to list every record. `--log` appends calls received by that server from an MCP client; a call to a write tool is marked `"write": true`, and its answer says that nothing was changed anywhere and that a real write needs `task authorize`. A direct `tools call` runs outside the MCP server and does not add to its journal. Applying a mock again without `--log` keeps the journal its entry already had.
+The host starts `openguildkit tools mock jira`, a local MCP server that answers with synthetic data over stdio. It runs offline, with no account and no key. By default the data is generic sample data about a fictional support portal, its tickets, its pull request, its time entries, its alerts; a search that finds nothing says so and tells how to list every record. `--log` appends calls received by that server from an MCP client; a call to a write tool is marked `"write": true`, and its answer says that nothing was changed anywhere, that the mock keeps nothing (a refund created now does not appear in `list_refunds` later: mocks answer the same way every time), and that a real write needs `task authorize`. A direct `tools call` runs outside the MCP server and does not add to its journal. Applying a mock again without `--log` keeps the journal its entry already had.
 
 Nineteen tools have a mock: Jira, GitHub, Slack, Notion, Factorial, Tempo, Toggl Track, Snyk, Sentry, SonarQube, HubSpot, Stripe, Pennylane, Zendesk, Google Analytics, Figma, Storybook, Obscura and Datadog (`openguildkit tools list --mocks`).
 

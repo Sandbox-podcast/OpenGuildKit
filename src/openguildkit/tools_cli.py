@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TextIO
 
 from .mcp_mock import MockError, call_tool, describe, example_arguments, serve
+from .sensitive import looks_like_credential
 from .storage import json_text, project_lock, write_text
 from .tasks import read_task
 from .tools import (
@@ -159,12 +160,14 @@ def _quote(word: str) -> str:
 def _apply_command(args, host: str, plan: list[dict], tools: dict) -> str:
     """The apply command with the person's own tools and options, ready to paste; tools the plan skips are left out."""
     skipped = {item["tool"] for item in plan if "skipped" in item}
-    kept = [name for name in args.tool if resolve_tool(name.partition("/")[0], tools) not in skipped]
+    kept = [name for name in args.tool if _known_id(name.partition("/")[0], tools) not in skipped]
     words = ["openguildkit", "tools", "apply", *kept, "--host", host]
     words += ["--mock"] * args.mock + ["--community"] * args.community + ["--read-only"] * args.read_only
     for option, values in (("--set", args.settings), ("--token-env", args.token_env)):
         for value in values:
-            words += [option, value]
+            name, equals, given = value.partition("=")
+            # A hint never repeats what looks like a credential: the person types the value again.
+            words += [option, f"{name}=VALUE" if equals and looks_like_credential(given) else value]
     if args.log:
         words += ["--log", args.log]
     return " ".join(_quote(word) for word in words)
@@ -180,7 +183,7 @@ def _known_id(name: str, tools: dict) -> str:
 
 def _kept_log(state: Path, host: str, names: list[str], tools: dict) -> str | None:
     """The journal the existing mock entries of these tools write to, so applying again does not drop it."""
-    wanted = {resolve_tool(name.partition("/")[0], tools) for name in names}
+    wanted = {_known_id(name.partition("/")[0], tools) for name in names}
     logs = set()
     for item in read_manifest(state)["connections"]:
         args = item.get("entry", {}).get("args", [])
@@ -253,8 +256,8 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
         tool = next(item for item in mock["tools"] if item["name"] == args.name)
         print(answer["content"][0]["text"])
         if not tool.get("read_only") and not answer["isError"]:
-            print("Warning: this operation simulates a write. Use openguildkit task authorize before a real write.",
-                  file=sys.stderr)
+            print("Warning: this operation simulates a write; the mock keeps nothing, so later calls will not show it. "
+                  "Use openguildkit task authorize before a real write.", file=sys.stderr)
         if answer["isError"] and answer["content"][0]["text"].startswith(("Missing argument", "Unknown argument", "Argument ")):
             example = json.dumps(example_arguments(mock, tool), ensure_ascii=False)
             print(f"Example: openguildkit tools call {args.id} {args.name} --args '{example}'", file=sys.stderr)

@@ -118,7 +118,8 @@ def load_deliverables(catalog: dict, extra_dir: Path | None = None) -> dict[str,
 
 def launch_notice(deliverable: dict) -> list[str]:
     """What the requester must know before the tool runs: data needed and actions needing approval."""
-    lines = [f"{item['label']} ({item['data']} data)" for item in deliverable["inputs"]]
+    lines = [f"{item['label']} ({'no sensitive data' if item['data'] == 'none' else item['data'] + ' data'})"
+             for item in deliverable["inputs"]]
     lines += [f"Needs your approval (task authorize --action {item['action']}): {item['description']}" for item in deliverable["tool_actions"]]
     return lines
 
