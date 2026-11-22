@@ -89,8 +89,10 @@ def record_digest(record: dict) -> str:
     return _sha256({key: value for key, value in record.items() if key != "record_sha256"})
 
 
-# Approvals sealed from this version on also cover what their exported record shows; earlier ones verify as before.
-PAYLOAD_VERSION = 2
+# Approvals sealed from version 2 on also cover what their exported record shows; from version 3 on, the payload a
+# signer reads carries the brief and the review summary in clear. Earlier ones verify as before.
+PAYLOAD_VERSION = 3
+PAYLOAD_VERSIONS = (3, 2, 1)
 
 
 def decision_payload(task: dict, by: str, reason: str, base_revision: dict | None, version: int = PAYLOAD_VERSION) -> dict:
@@ -117,6 +119,8 @@ def decision_payload(task: dict, by: str, reason: str, base_revision: dict | Non
             payload["confirmed_removals"] = confirmed
     if version >= 2:
         payload["shared_sha256"] = task_shared_digest(task)
+    if version >= 3:
+        payload.update(brief=task["brief"], summary=task["review"]["summary"])
     return payload
 
 
@@ -205,7 +209,7 @@ def check_decision_seal(task: dict) -> dict:
     if "seal" not in decision:
         raise ValueError(f"The approval for {task['id']} has no seal: it was edited by hand or written by a release "
                          f"older than sealed decisions. {reconsult_hint(task['id'])}")
-    for version in (PAYLOAD_VERSION, 1):
+    for version in PAYLOAD_VERSIONS:
         payload = decision_payload(task, decision["by"], decision["reason"], decision.get("base_revision"), version)
         if seal(payload) == decision["seal"]:
             return payload

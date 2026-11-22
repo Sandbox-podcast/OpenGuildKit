@@ -20,8 +20,9 @@ from .results import (
 )
 from .storage import read_json, write_json
 from .workflow import (
-    RESOLUTION_FIELDS, blocker_list, blocker_resolutions, code_not_found, consult, is_decision_task, pending_removals,
-    profile_settings, resolution_field, validate_answers, validate_board_entry, validate_deliberation, validate_review,
+    RESOLUTION_FIELDS, blocker_list, blocker_resolutions, code_not_found, consult, decision_summary, is_decision_task,
+    pending_removals, profile_settings, resolution_field, review_warnings, validate_answers, validate_board_entry,
+    validate_deliberation, validate_review,
 )
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -659,6 +660,58 @@ def previous_round_line(task: dict) -> str | None:
             f"on {decision['at'][:10]}: {decision['reason'].rstrip('.')}.{revised}{reopened}{withdrawn}")
 
 
+def last_approval(state: Path) -> dict | None:
+    """The project's most recent approval, earlier rounds included: its task, when, and the check commands it was
+    given with. The decision brief compares the commands of the task to decide with these."""
+    latest = None
+    for path in sorted((state / "tasks").glob("*.json")) if (state / "tasks").is_dir() else []:
+        try:
+            task = read_task(state, path.stem)
+        except ValueError:
+            continue
+        for entry in [*task["rounds"], task]:
+            decision = entry.get("decision") or {}
+            if decision.get("outcome") == "approved" and (latest is None or decision["at"] > latest["at"]):
+                latest = {"task": task["id"], "at": decision["at"],
+                          "checks": entry.get("consultation", {}).get("scope", {}).get("checks", [])}
+    return latest
+
+
+def _check_change(profile: dict, action: str, command: str) -> str:
+    """Who changed a check command through the profile commands, when and why, from the profile's history."""
+    for entry in reversed(profile.get("changes", [])):
+        if entry["change"].startswith(f"{action} check ") and command in entry["change"]:
+            return f"{action} check by {entry['by']} on {entry['on']}: {entry['reason']}"
+    return "no profile command recorded it: the profile was edited by hand"
+
+
+def check_command_lines(task: dict, profile: dict, previous: dict | None = None) -> list[str]:
+    """The shell commands task verify will run for the task, and those added or removed since the previous approval
+    of the project, each with who changed it: a command added after one approval runs after the next."""
+    if is_decision_task(task):
+        return []
+    commands = task["consultation"]["scope"].get("checks", [])
+    lines = [f"Check command command:{index}, which task verify runs as a shell command in the project root: "
+             f"`{command}`" for index, command in enumerate(commands, start=1)]
+    if not commands:
+        lines.append("Check commands: none; task verify runs no test for this task.")
+    if previous is None:
+        return lines
+    since = f"since the last approval of the project ({previous['task']} on {previous['at'][:10]})"
+    lines += [f"Check command added {since}: `{command}` ({_check_change(profile, 'add', command)})."
+              for command in commands if command not in previous["checks"]]
+    lines += [f"Check command removed {since}: `{command}` ({_check_change(profile, 'remove', command)})."
+              for command in previous["checks"] if command not in commands and command not in profile.get("checks", [])]
+    return lines
+
+
+def decision_text(task: dict, profile: dict, previous: dict | None = None) -> list[str]:
+    """What the person reads before deciding, built once for the approval prompt, task challenge and task
+    decision-payload: the decision summary (verdicts, warnings, conditions of approval, removals, blockers), and the
+    check commands task verify will run with those changed since the project's last approval."""
+    return decision_summary(task) + check_command_lines(task, profile, previous)
+
+
 def record_review(task: dict, review: dict, root: Path | None = None, kept: list[str] | None = None) -> dict:
     """Record the review; with the project root, the project files and tests it cites must exist.
 
@@ -724,9 +777,14 @@ def submit_pass(task: dict, entry: dict, mode: str | None = None, root: Path | N
                                           "at": timestamp(), "attempts": current.get("attempts", 1)}
             return {**task, "passes": passes, "_error": str(error)}
         raise
+    others = [state["entry"] for other, state in passes["boards"].items()
+              if other != validated["id"] and state.get("status") == "done"]
     passes["boards"][validated["id"]] = {"status": "done", "mode": mode, "entry": validated, "at": timestamp(),
                                          "attempts": current.get("attempts", 1)}
-    return {**task, "passes": passes}
+    # What this entry adds to the signs of copied advice, against the passes already done.
+    earlier = set(review_warnings(others))
+    copied = [warning for warning in review_warnings([*others, validated]) if warning not in earlier]
+    return {**task, "passes": passes, **({"_warnings": copied} if copied else {})}
 
 
 def pass_progress(task: dict) -> list[dict]:
@@ -800,11 +858,11 @@ def _clearance_payload(task: dict, blocker_id: str, entry: dict) -> dict:
 
 
 def _check_clearance_signature(task: dict, blocker_id: str, entry: dict, policy: dict, root: Path) -> None:
+    """A signed clearance follows the rule of a signed approval: --by names the person, as it does for task decide, and
+    the signature must verify for --signer, an approver of the project; both are recorded."""
     if not entry.get("signer") or not entry.get("signature"):
         raise ValueError("This project requires a signed clearance. Run task clear with --payload FILE, "
                          "sign the payload, then pass --signature FILE --signer PRINCIPAL.")
-    if entry["by"] != entry["signer"]:
-        raise ValueError("For a signed clearance, --by must match the signer principal.")
     verify_signature(root, policy, _clearance_payload(task, blocker_id, entry), entry["signature"], entry["signer"])
 
 
@@ -841,8 +899,8 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
         entry["evidence"] = _clearing_evidence(entry["evidence"], root)
         policy = approval_policy(profile)
         if signing_payload:
-            if policy["mode"] != "signed" or by not in policy["approvers"]:
-                raise ValueError("A clearance payload needs a signed project and --by set to an approver principal.")
+            if policy["mode"] != "signed":
+                raise ValueError("A clearance payload is signed: it belongs to a project with signed approvals.")
             return _clearance_payload(task, blocker_id, entry)
         if policy["mode"] == "signed":
             entry.update(signer=resolution.get("signer"), signature=resolution.get("signature"))

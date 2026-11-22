@@ -1920,27 +1920,60 @@ def validate_review(consultation: dict, review: dict, root: Path | None = None) 
     return validated
 
 
-def _same_text(value: str) -> str:
-    return " ".join(value.casefold().split())
+def _same_text(value: str, board_id: str = "") -> str:
+    """A text compared across boards: the board's own name taken out, case, punctuation and spacing folded, so
+    "legal: proceed" and "security: proceed" read as the same advice."""
+    if board_id:
+        for name in {board_id, board_id.replace("-", " ")}:
+            value = re.sub(rf"(?<![\w-]){re.escape(name)}(?![\w-])", " ", value, flags=re.IGNORECASE)
+    return " ".join(re.sub(r"[^\w\s]", " ", value.casefold()).split())
+
+
+def _shown(items: list[str]) -> str:
+    return ", ".join(items[:6]) + (f" and {len(items) - 6} more" if len(items) > 6 else "")
+
+
+def _single_evidence(entry: dict) -> str | None:
+    """The one evidence item every finding of a board cites, when all of them cite that one alone."""
+    lenses = entry.get("challenge", {}).get("specialists", [])
+    cited = {tuple(lens["evidence_refs"]) for lens in lenses}
+    if len(lenses) < 2 or len(cited) != 1 or len(next(iter(cited))) != 1:
+        return None
+    index = next(iter(cited))[0]
+    if not 1 <= index <= len(entry["evidence"]):
+        return None
+    item = entry["evidence"][index - 1]
+    return item.get("ref", "") if isinstance(item, dict) else item
 
 
 def review_warnings(boards: list[dict]) -> list[str]:
-    """Signs that the boards did not review the task independently. Computed, never taken from the review."""
+    """Signs that the boards did not review the task independently. Computed, never taken from the review.
+
+    Advice is compared with each board's own name taken out, so a text copied from board to board with the name
+    swapped is found; a board whose every finding rests on one and the same evidence item is named too.
+    """
     warnings = []
     recommendations = {}
     for entry in boards:
-        recommendations.setdefault(_same_text(entry["recommendation"]), []).append(entry["id"])
+        recommendations.setdefault(_same_text(entry["recommendation"], entry["id"]), []).append(entry["id"])
     for board_ids in recommendations.values():
         if len(board_ids) > 1:
-            warnings.append(f"Boards {', '.join(board_ids)} give the same recommendation word for word.")
-    findings = {}
+            warnings.append(f"Boards {_shown(board_ids)} give the same recommendation word for word, once each "
+                            "board's name is taken out.")
+    findings, originals = {}, {}
     for entry in boards:
         for lens in entry.get("challenge", {}).get("specialists", []):
-            findings.setdefault(_same_text(lens["finding"]), []).append(f"{entry['id']}/{lens['id']}")
+            text = _same_text(lens["finding"], entry["id"])
+            findings.setdefault(text, []).append(f"{entry['id']}/{lens['id']}")
+            originals.setdefault(text, lens["finding"])
     for text, lenses in findings.items():
         if len(lenses) > 1:
-            shown = ", ".join(lenses[:6]) + (f" and {len(lenses) - 6} more" if len(lenses) > 6 else "")
-            warnings.append(f"The same finding appears in {shown}: {text[:120]}")
+            warnings.append(f"The same finding appears in {_shown(lenses)}, once each board's name is taken out: "
+                            f"{' '.join(originals[text].split())[:120]}")
+    singles = [(entry["id"], _single_evidence(entry)) for entry in boards]
+    singles = [f"{board_id} ({ref})" for board_id, ref in singles if ref is not None]
+    if singles:
+        warnings.append(f"Every finding of a board cites one and the same evidence item: {_shown(singles)}.")
     unobserved = [
         entry["id"] for entry in boards
         if entry.get("challenge", {}).get("specialists")
@@ -2478,7 +2511,9 @@ def decision_summary(task: dict) -> list[str]:
     return lines
 
 
-def challenge_report(task: dict) -> str:
+def challenge_report(task: dict, lines: list[str] | None = None) -> str:
+    """The decision brief: the lines the person reads before deciding (tasks.decision_text, the same as the
+    approval prompt), then each board's challenge as JSON."""
     if "review" not in task:
         raise ValueError("Record the board reviews before opening the decision brief.")
     review = validate_review(task["consultation"], task["review"])
@@ -2526,7 +2561,7 @@ def challenge_report(task: dict) -> str:
     resolved = [item for item in blocker_list(task) if item["resolution"]]
     if resolved:
         report["resolved_blockers"] = resolved
-    summary = "\n".join(f"- {line}" for line in decision_summary(task))
+    summary = "\n".join(f"- {line}" for line in (decision_summary(task) if lines is None else lines))
     return "# Decision brief\n\n" + summary + "\n\n" + _json_section(report) + "\n"
 
 

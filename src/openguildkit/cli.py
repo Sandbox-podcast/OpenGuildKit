@@ -119,6 +119,8 @@ from .tasks import (
     read_task,
     record_consultation,
     decided_message,
+    decision_text,
+    last_approval,
     record_decision,
     record_review,
     require_approval,
@@ -126,7 +128,7 @@ from .tasks import (
     revoke_approval,
     task_path,
 )
-from .workflow import RESOLUTION_RULE, trigger_matches, blocker_list, board_brief, challenge_report, decision_summary, deliberation_request, handoff, is_decision_task, open_points, pending_removals, select_boards, task_questions, validate_answers, validate_review, verdict_lines, review_lines, pack_rules
+from .workflow import RESOLUTION_RULE, trigger_matches, blocker_list, board_brief, challenge_report, deliberation_request, handoff, is_decision_task, open_points, pending_removals, select_boards, task_questions, validate_answers, validate_review, verdict_lines, review_lines, pack_rules
 
 
 class _Version(argparse.Action):
@@ -1521,6 +1523,18 @@ def _revoke(args, state: Path, task: dict, profile: dict, catalog: dict, root: P
           f'the work in a linked task: openguildkit task new "BRIEF" --follows {args.id}', file=sys.stderr)
 
 
+def _decision_prompt(state: Path, task: dict, profile: dict) -> list[str]:
+    """What the person reads before approving, the same at the approval prompt and in task decision-payload: the
+    previous round, the decision text (tasks.decision_text, also task challenge's), the brief, the summary and each
+    board's advice."""
+    recall = previous_round_line(task)
+    review = validate_review(task["consultation"], task["review"])
+    return [*([recall] if recall else []), *decision_text(task, profile, last_approval(state)),
+            "", f"Brief: {task['brief'].strip()}", "", review["summary"], *review_lines(review), "",
+            f"Full decision brief, with each board's evidence: openguildkit task challenge {task['id']}",
+            *verdict_lines(review, task.get("deliberation"), is_decision_task(task))]
+
+
 def _decide(args, root: Path, state: Path, task: dict, profile: dict, catalog: dict) -> None:
     if task["status"] == "approved":
         raise ValueError(decided_message(task, approval_problem(task, profile, catalog, root)))
@@ -1536,24 +1550,18 @@ def _decide(args, root: Path, state: Path, task: dict, profile: dict, catalog: d
         text = args.signature.read_text(encoding="utf-8")
         verify_signature(root, policy, decision_payload(task, args.by, args.reason, base), text, args.signer)
         signature = {"signer": args.signer, "text": text}
-    blocking = blocking_alerts(load_register(state), task) if args.approve else []
+    register = load_register(state)
+    blocking = blocking_alerts(register, task) if args.approve else []
     if blocking:
         raise ValueError("Approval is blocked:\n- " + "\n- ".join(blocking))
     removals = pending_removals(task) if args.approve else []
     result = record_decision(task, args.approve, args.by, args.reason, base, signature, removals)
-    if args.approve and (signature is None or removals):
-        if not sys.stdin.isatty():
+    if args.approve:
+        if (signature is None or removals) and not sys.stdin.isatty():
             raise ValueError("Approval requires a person at an interactive terminal.")
-        recall = previous_round_line(task)
-        if recall:
-            print(recall, file=sys.stderr)
-        print("\n".join(decision_summary(task)), file=sys.stderr)
+        # A signed approval shows the same text: the signature replaces the typed ID, not the reading.
+        print("\n".join(_decision_prompt(state, task, profile)), file=sys.stderr)
         if signature is None:
-            review = validate_review(task["consultation"], task["review"])
-            print("\n".join(["", f"Brief: {task['brief'].strip()}", "", review["summary"], *review_lines(review),
-                             "", f"Full decision brief, with each board's evidence: openguildkit task challenge "
-                             f"{args.id}", *verdict_lines(review, task.get("deliberation"), is_decision_task(task))]),
-                  file=sys.stderr)
             print(f"Type {args.id} to approve the reviewed scope: ", end="", file=sys.stderr, flush=True)
             if input().strip() != args.id:
                 raise ValueError("Approval cancelled.")
@@ -2113,7 +2121,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         recall = previous_round_line(task)
         if recall:
             print(recall)
-        print(challenge_report(task), end="")
+        lines = decision_text(task, profile, last_approval(state)) if "review" in task else None
+        print(challenge_report(task, lines), end="")
     elif action == "route":
         if args.answers is None and "answers" not in task:
             raise ValueError("Pass --answers FILE, or consult the task first.")
@@ -2191,6 +2200,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 result = assemble_review(current_task, args.summary)
             write_json(task_path(state, args.id), result)
         print(result["status"])
+        for warning in result["review"].get("warnings", []):
+            print(f"Warning: {warning}", file=sys.stderr)
         if review is not None:
             for warning in tool_evidence_warnings(root, state, result["review"]["boards"]):
                 print(f"Warning: {warning}", file=sys.stderr)
@@ -2206,6 +2217,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 with _input_file(args.file):
                     result = submit_pass(current_task, entry, args.mode, root)
             error = result.pop("_error", None)
+            copied = result.pop("_warnings", [])
             write_json(task_path(state, args.id), result)
         if action == "pass":
             print(board_brief(result["consultation"], args.board))
@@ -2217,6 +2229,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                              f"file and send it again: openguildkit task submit {args.id} --file {args.file.as_posix()}")
         else:
             print("done")
+            for warning in copied:
+                print(f"Warning: {warning}", file=sys.stderr)
             saved_entry = result["passes"]["boards"][entry["id"].strip()]["entry"]
             for warning in tool_evidence_warnings(root, state, [saved_entry]):
                 print(f"Warning: {warning}", file=sys.stderr)
@@ -2240,6 +2254,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         if task["status"] != "reviewed":
             raise ValueError(decided_message(task, approval_problem(task, profile, catalog, root))
                              or "Record the boards' review before preparing a decision.")
+        # The signer reads what they sign: the same lines as the approval prompt, then the payload with the brief.
+        print("\n".join(_decision_prompt(state, task, profile)), file=sys.stderr)
         text = payload_text(decision_payload(task, args.by, args.reason, git_revision(root)))
         if args.output:
             # Exact UTF-8 bytes with LF line endings: a shell redirect could change the encoding.
