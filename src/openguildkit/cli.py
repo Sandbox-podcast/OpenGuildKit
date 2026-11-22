@@ -1606,8 +1606,9 @@ def _print_route(state: Path, task: dict, answers: dict, profile: dict, selected
 
 
 def _shell_word(value: str) -> str:
-    """A command-line word as typed: quoted only when it holds a space or a character a shell reads."""
-    if re.fullmatch(r"[\w@%+=:,./-]+", value):
+    """A command-line word as typed: quoted only when it holds a space or a character a shell reads. A tilde
+    inside a word, as in a Windows short path (RUNNER~1), is read by no shell; only a leading one is."""
+    if re.fullmatch(r"[\w@%+=:,./-][\w@%+=:,./~-]*", value):
         return value
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
