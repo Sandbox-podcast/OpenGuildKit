@@ -106,15 +106,17 @@ def _covered_by_solution(path: str, paths: list[str], listings: dict[str, set[st
     return any(ancestor in paths and has(ancestor, ".sln") for ancestor in ancestors)
 
 
-def propose_checks(root: Path, detected: dict) -> list[dict]:
+def propose_checks(root: Path, detected: dict, listings: dict[str, set[str]] | None = None) -> list[dict]:
     """The test command each component shows, and its lint script when package.json has one, run from that
     component's folder. A .NET project that a solution above it covers gets no command of its own.
 
     The folders whose manifests name a test runner count too, though detection found no technology there, such
-    as a package.json that holds only a test script. One walk of the tree lists them, and each folder's
-    manifests are read once.
+    as a package.json that holds only a test script. listings, the files of each folder that detect_stack
+    walked, saves a second walk of the tree; each folder's manifests are read once.
     """
-    listings, checks = {}, {}
+    if listings is None:
+        listings = {"/".join(parts) or ".": set(files) for _, parts, files, _ in walk(root, MAX_DEPTH)}
+    listings, checks = dict(listings), {}
 
     def folder_checks(path: str) -> list[tuple[str, str]]:
         if path not in checks:
@@ -126,12 +128,8 @@ def propose_checks(root: Path, detected: dict) -> list[dict]:
             checks[path] = found
         return checks[path]
 
-    test_folders = []
-    for folder, _, files, _ in walk(root, MAX_DEPTH):
-        relative = folder.relative_to(root).as_posix() or "."
-        listings[relative] = set(files)
-        if _is_project(listings[relative]) and folder_checks(relative)[0] is not None:
-            test_folders.append(relative)
+    test_folders = [relative for relative, names in listings.items()
+                    if _is_project(names) and folder_checks(relative)[0] is not None]
     paths = [component["path"] for component in detected.get("components", [])] or ["."]
     paths = list(dict.fromkeys(["." if path in ("", ".") else path for path in paths] + test_folders))
     proposals = []

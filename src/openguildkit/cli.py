@@ -1017,9 +1017,10 @@ def _detected_host(root: Path) -> str | None:
 def _setup_questions(root: Path, state: Path, catalog: dict) -> tuple[list[dict], dict]:
     """The questionnaire with the defaults this repository shows: components, tools and host."""
     registry = load_tools(state / "catalog" / "tools")
-    found = detect_stack(root)
+    listings = {}  # The folders detection walks, so that the proposed checks need no second walk.
+    found = detect_stack(root, listings)
     questions = init_questions(catalog, detected_project_name(root), components_for_profile(found),
-                               detect_tools(root, registry), _detected_host(root), propose_checks(root, found))
+                               detect_tools(root, registry), _detected_host(root), propose_checks(root, found, listings))
     return questions, registry
 
 

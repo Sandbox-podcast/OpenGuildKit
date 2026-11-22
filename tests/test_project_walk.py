@@ -4,6 +4,8 @@ A bug consult looks up the code its brief names. It used to list every file of n
 and it read vendor/ and .next/, which detection skips.
 """
 
+import contextlib
+import io
 import json
 import os
 import tempfile
@@ -11,11 +13,13 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from openguildkit.cli import main
 from openguildkit.detect import SKIPPED_DIRECTORIES, detect_stack, walk
 from openguildkit.project_checks import propose_checks
 from openguildkit.storybook import extract
 from openguildkit.workflow import code_not_found
 
+EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 COMPONENT = "export function {name}() {{ return <button className=\"x\">Go</button>; }}\n"
 
 
@@ -76,6 +80,40 @@ class WalkTests(unittest.TestCase):
         self.assertTrue(listed)
         self.assertEqual([path for path in listed if "node_modules" in path.parts], [])
 
+    def test_init_lists_each_folder_of_the_project_once(self):
+        for index in range(6):
+            folder = self.root / ("apps" if index % 2 else "packages") / f"pkg-{index}"
+            (folder / "src").mkdir(parents=True)
+            (folder / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run", "lint": "eslint ."},
+                                                             "dependencies": {"react": "18.3.1"}}), encoding="utf-8")
+            (folder / "node_modules" / "dep").mkdir(parents=True)
+        profile = json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8"))
+        (self.root / "profile.json").write_text(json.dumps(profile), encoding="utf-8")
+        walks, listed = [], []
+        scandir = os.scandir
+
+        def counting(root, max_depth=None):
+            walks.append(Path(root).resolve())
+            return walk(root, max_depth)
+
+        def recording(path="."):
+            listed.append(Path(path).resolve())
+            return scandir(path)
+
+        with patch("openguildkit.detect.walk", counting), patch("openguildkit.project_checks.walk", counting), \
+                patch("os.scandir", recording), contextlib.redirect_stdout(io.StringIO()) as out, \
+                contextlib.redirect_stderr(io.StringIO()):
+            code = main(["--project", str(self.root), "init", "--answers", str(self.root / "profile.json")])
+        self.assertEqual(code, 0)
+        self.assertIn("cd apps/pkg-1 && npm run lint", out.getvalue())
+        self.assertEqual(walks, [self.root])
+        # Below the first level of the packages only the walk lists folders; tool and host detection read the root,
+        # its first level and .github on their own.
+        below = [path.relative_to(self.root).parts for path in listed if self.root in path.parents]
+        deep = [self.root.joinpath(*parts) for parts in below if parts[0] in ("apps", "packages") and len(parts) > 1]
+        self.assertIn(self.root / "packages" / "pkg-0" / "src", deep)
+        self.assertEqual(sorted({path for path in deep if deep.count(path) > 1}), [])
+
     def test_the_walk_goes_depth_first_in_name_order_and_a_caller_can_prune_it(self):
         for relative in ("b/deep/er", "a/x", "a.txt", "node_modules/pkg", "c"):
             path = self.root / relative
@@ -84,8 +122,9 @@ class WalkTests(unittest.TestCase):
             else:
                 path.mkdir(parents=True)
         seen = []
-        for folder, depth, files, folders in walk(self.root, max_depth=2):
-            seen.append((folder.relative_to(self.root).as_posix(), depth, files, list(folders)))
+        for folder, parts, files, folders in walk(self.root, max_depth=2):
+            self.assertEqual(folder, self.root.joinpath(*parts))
+            seen.append(("/".join(parts) or ".", len(parts), files, list(folders)))
             if folder.name == "a":
                 folders.clear()
         self.assertEqual(seen, [(".", 0, ["a.txt"], ["a", "b", "c"]), ("a", 1, [], ["x"]), ("b", 1, [], ["deep"]),

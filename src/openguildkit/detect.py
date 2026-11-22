@@ -109,16 +109,17 @@ _KUBE_KIND = re.compile(r"""(?m)^kind:[ \t]+["']?([A-Z][A-Za-z0-9]*)["']?[ \t]*(
 
 
 def walk(root: Path, max_depth: int | None = None):
-    """Each folder from root down, depth first in name order, as (folder, depth, files, folders).
+    """Each folder from root down, depth first in name order, as (folder, parts, files, folders).
 
-    files and folders are the names the folder holds, sorted. Symbolic links are neither followed nor listed, and
+    parts are the names of the folder's path below root, () for root itself, so its depth is len(parts). files
+    and folders are the names the folder holds, sorted. Symbolic links are neither followed nor listed, and
     folders leaves out the names SKIPPED_DIRECTORIES gives, so a node_modules costs nothing however large it is.
     The walk then enters the folders still in the list, down to max_depth: a caller removes a name from folders
     to keep the walk out of that folder.
     """
-    pending = [(root, 0)]
+    pending = [(root, ())]
     while pending:
-        folder, depth = pending.pop()
+        folder, parts = pending.pop()
         try:
             with os.scandir(folder) as listing:
                 entries = sorted(listing, key=lambda entry: entry.name)
@@ -136,9 +137,9 @@ def walk(root: Path, max_depth: int | None = None):
                     files.append(entry.name)
             except OSError:
                 continue
-        yield folder, depth, files, folders
-        if max_depth is None or depth < max_depth:
-            pending.extend((folder / name, depth + 1) for name in reversed(folders))
+        yield folder, parts, files, folders
+        if max_depth is None or len(parts) < max_depth:
+            pending.extend((folder / name, (*parts, name)) for name in reversed(folders))
 
 
 def _technology(name: str, version: str | None) -> str:
@@ -518,30 +519,36 @@ def _kustomize_base(relative: str, names: list[str]) -> str:
     return "/".join(parts[:layout]) or "."
 
 
-def detect_stack(root: Path) -> dict:
-    """Return the components found under root, each with its technologies and evidence."""
+def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dict:
+    """Return the components found under root, each with its technologies and evidence.
+
+    listings, when given, receives the files of each folder walked, by path below root ("." for root), so that
+    propose_checks can use them instead of walking the tree again.
+    """
     root = root.resolve()
     components: dict[str, _Component] = {}
     gradle_roots: dict[Path, str] = {}
-    # Each file and marker folder, keyed by its path parts: read in that order, a folder's entries come in name
-    # order with each subfolder's content in its place, so the first evidence of a technology stays the same.
+    # Each file and marker folder, keyed by its path parts below root: read in that order, a folder's entries come
+    # in name order with each subfolder's content in its place, so the first evidence of a technology stays the same.
     found: list[tuple[tuple[str, ...], str, Path, str]] = []
-    for directory, depth, files, folders in walk(root, MAX_DEPTH):
-        relative = directory.relative_to(root).as_posix() or "."
+    for directory, parts, files, folders in walk(root, MAX_DEPTH):
+        relative = "/".join(parts) or "."
+        if listings is not None:
+            listings[relative] = set(files)
         names = files + folders
         if any(name in ("settings.gradle", "settings.gradle.kts") for name in names):
             for module in _gradle_modules(directory):
                 gradle_roots[module] = relative
         relative = _kustomize_base(gradle_roots.get(directory, relative), names)
-        found += [(entry.parts, "file", entry, relative) for entry in (directory / name for name in files)]
+        found += [((*parts, name), "file", directory / name, relative) for name in files]
         for name in [name for name in folders if name.endswith(".xcodeproj")]:
-            found.append(((directory / name).parts, "xcode", directory / name, relative))
+            found.append(((*parts, name), "xcode", directory / name, relative))
             folders.remove(name)
-        if "wp-content" in folders and depth < MAX_DEPTH:
-            found.append(((directory / "wp-content").parts, "wordpress", directory / "wp-content", relative))
-    for _, kind, entry, relative in sorted(found, key=lambda item: item[0]):
+        if "wp-content" in folders and len(parts) < MAX_DEPTH:
+            found.append(((*parts, "wp-content"), "wordpress", directory / "wp-content", relative))
+    for key, kind, entry, relative in sorted(found, key=lambda item: item[0]):
         component = components.setdefault(relative, _Component(relative))
-        label = entry.relative_to(root).as_posix()
+        label = "/".join(key)
         if kind == "file":
             _parse(component, entry, label, root)
         elif kind == "xcode":
