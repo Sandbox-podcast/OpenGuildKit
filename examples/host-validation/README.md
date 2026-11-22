@@ -33,6 +33,7 @@ The rehearsal plays a host without subagents: it runs `task pass ... --mode sequ
 - [Claude Code, 2026-11-20](reports/claude-code-2026-11-20.md): board passes as subagents, up to the decision brief.
 - [Claude Code, 2026-11-21](reports/claude-code-2026-11-21.md): a host without subagents, a disagreement between two boards, a change request, the decision, the implementation and the results, to `done`.
 - [Codex, 2026-11-21](reports/codex-2026-11-21.md): the export task from the request to `done` with board passes as subagents, the case without evidence, and a case with blockers.
+- [Claude Code, 2026-11-22, controls](reports/claude-code-2026-11-22-controls.md): the settings `host apply` writes, loaded by a live session: 31 deny rules and the request hook's reminder. The model was not called (the command was not signed in), so the edit hook and the deny rules were not exercised by an agent.
 
 ## What the reports show for issue #23
 
@@ -51,7 +52,7 @@ Both reports ran on `main` of 21 November 2026, before the changes to the result
 `host apply` writes hooks (a reminder on each request, the guard before each edit), deny rules (the approval commands, the files the guard relies on) and, for Codex, a rules file. What is proven so far, and how:
 
 - `tests/test_written_host_controls.py` reads the hooks back from `.claude/settings.json` and `.codex/hooks.json`, runs each command through the shell with the input each host documents (`UserPromptSubmit`, `PreToolUse` on `Edit` and on `apply_patch`), through an `openguildkit` on the PATH, and checks the answers: the reminder on each request, an edit without an approved task flagged in `observe` and refused (exit code 2) in `enforce`, and let through once a task is approved. It also matches every deny rule written for Claude Code and every Codex rule, with each host's documented syntax, against the commands and files only the person handles, and against the commands an agent runs.
-- No test starts a host. A live session is the only proof that the host loads the project's settings and applies them as its documentation says.
+- A live Claude Code session on 2026-11-22 ([report](reports/claude-code-2026-11-22-controls.md)) loaded the 31 deny rules into its project settings and ran the `UserPromptSubmit` hook, whose reminder reached the session. Its model was not called (the `claude` command was not signed in): the edit hook in `observe` and `enforce` and the refusal of `task decide` are still to be seen in a live session, with steps 2 to 4 below.
 
 ### A live Claude Code session
 
