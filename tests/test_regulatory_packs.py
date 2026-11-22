@@ -64,6 +64,32 @@ class RegulatoryPackTests(unittest.TestCase):
         self.assertIn("`dora@2.1.0`", instructions)
         self.assertTrue(re.search(r"financial entity under DORA", instructions))
 
+    def test_gdpr_asks_for_the_notice_the_tracker_consent_and_the_art_22_safeguards(self):
+        rules = {rule["id"]: rule for rule in self.catalog["packs"]["gdpr"]["rules"]}
+        notice = rules["inform-data-subjects"]
+        self.assertRegex(notice["instruction"], r"Art\. 13\b.*Art\. 14")
+        trackers = rules["gate-trackers-on-consent"]
+        self.assertIn("Directive 2002/58/EC Art. 5(3)", trackers["instruction"])
+        self.assertIn("strictly necessary", trackers["instruction"])
+        # Each one is verified on a test page of the changed flow.
+        for rule in (notice, trackers):
+            self.assertIn("test page", rule["verification"])
+        automated = rules["review-automated-decisions"]
+        self.assertRegex(automated["instruction"], r"Art\. 22\(2\).*Art\. 22\(3\)")
+        self.assertIn("human intervention", automated["instruction"])
+        # Art. 48 is about third-country judgments, not a transfer mechanism.
+        transfer = rules["check-transfer-mechanism"]["instruction"]
+        for article in ("Art. 45", "Art. 46", "Art. 47", "Art. 49"):
+            self.assertIn(article, transfer)
+        self.assertNotIn("Art. 48", transfer)
+        self.assertNotIn("45 to 49", transfer)
+        sources = {source["url"]: source["checked"] for source in self.catalog["packs"]["gdpr"]["sources"]}
+        for url in ("https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra",
+                    "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:02002L0058-20091219",
+                    "https://www.cnil.fr/fr/conformite-rgpd-information-des-personnes-et-transparence",
+                    "https://www.cnil.fr/fr/cookies-et-autres-traceurs/regles/cookies"):
+            self.assertEqual(sources.get(url), "2026-11-22", url)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -21,7 +21,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
 | it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 9 |
 | leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
-| legal | 56 | 21 | 35 | 16 | 1 | 19 | 117 |
+| legal | 56 | 21 | 35 | 16 | 1 | 19 | 120 |
 | localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
 | marketing | 22 | 7 | 15 | 8 | 0 | 8 | 17 |
 | operations | 21 | 6 | 15 | 11 | 0 | 11 | 26 |
@@ -32,7 +32,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
 | qa | 50 | 6 | 44 | 4 | 20 | 28 | 131 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 103 | 27 | 76 | 18 | 17 | 43 | 223 |
+| security | 103 | 27 | 76 | 18 | 17 | 43 | 226 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -77,7 +77,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | critical-infrastructure | nis2-essential-entity | incident-notification, nis2 | 12 |
 | e-commerce | online-consumer-sales | online-consumer-sales | 10 |
 | education | minors-data-protection | minors-data-protection | 7 |
-| financial-services | dora-financial-entity, gdpr-personal-data | dora, gdpr, incident-notification | 21 |
+| financial-services | dora-financial-entity, gdpr-personal-data | dora, gdpr, incident-notification | 24 |
 | general | none | none | 0 |
 | healthcare | health-data-protection | health-data-protection | 7 |
 | insurance | dora-financial-entity, insurance-distribution | dora, incident-notification, insurance-distribution | 19 |

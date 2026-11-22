@@ -1,13 +1,13 @@
 {
   "id": "gdpr",
   "title": "GDPR personal data processing",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Questions for the privacy owner and repository checks when a change processes personal data under Regulation (EU) 2016/679. Apply the organization's approved interpretation; these rules do not establish compliance.",
   "sources": [
     {
       "title": "Regulation (EU) 2016/679, General Data Protection Regulation",
       "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra",
-      "checked": "2026-11-20"
+      "checked": "2026-11-22"
     },
     {
       "title": "CNIL, Le registre des activités de traitement",
@@ -23,6 +23,21 @@
       "title": "CNIL, Notifier une violation de données personnelles",
       "url": "https://www.cnil.fr/fr/services-en-ligne/notifier-une-violation-de-donnees-personnelles",
       "checked": "2026-11-21"
+    },
+    {
+      "title": "Directive 2002/58/EC on privacy and electronic communications, consolidated text of 19 December 2009",
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:02002L0058-20091219",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "CNIL, Conformité RGPD : comment informer les personnes et assurer la transparence ?",
+      "url": "https://www.cnil.fr/fr/conformite-rgpd-information-des-personnes-et-transparence",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "CNIL, Les règles à suivre pour les cookies",
+      "url": "https://www.cnil.fr/fr/cookies-et-autres-traceurs/regles/cookies",
+      "checked": "2026-11-22"
     }
   ],
   "depends_on": [
@@ -51,6 +66,16 @@
       "id": "confirm-lawful-basis",
       "instruction": "Ask the privacy owner which lawful basis of Art. 6 covers each new purpose of processing, and record the answer in the processing record.",
       "verification": "Check that the processing record names a lawful basis for each purpose the change introduces."
+    },
+    {
+      "id": "inform-data-subjects",
+      "instruction": "When the change collects personal data in a new form, screen or flow, or uses it for a new purpose or recipient, ask the privacy owner to update the information given to people: when the data is collected from them (Art. 13), or within one month at the latest when it is not (Art. 14(3)(a)).",
+      "verification": "On a test page of the changed flow, check that the information, or a link to it, is shown where the data is collected, before it is sent, and that it names the controller, the purposes, the legal basis, the recipients and the retention period."
+    },
+    {
+      "id": "gate-trackers-on-consent",
+      "instruction": "When the change stores or reads information on the user's device, such as a cookie, a local storage entry or a tracking pixel, do it only after the user consents, unless it is strictly necessary to transmit the communication or to provide the service the user asked for (Directive 2002/58/EC Art. 5(3)).",
+      "verification": "Open the changed page on a test page in a browser with an empty profile, list the cookies and storage entries set before any choice and check that only strictly necessary ones are present; refuse, reload and check again."
     },
     {
       "id": "minimise-collected-fields",
@@ -87,13 +112,18 @@
     },
     {
       "id": "check-transfer-mechanism",
-      "instruction": "When personal data leaves the European Economic Area, ask the legal owner which Chapter V mechanism applies (Art. 45 to 49), such as standard contractual clauses.",
+      "instruction": "When personal data leaves the European Economic Area, ask the legal owner which Chapter V mechanism applies: an adequacy decision (Art. 45), appropriate safeguards such as standard contractual clauses (Art. 46), binding corporate rules (Art. 47) or a derogation for a specific situation (Art. 49).",
       "verification": "Check that the processing record names the destination country and the transfer mechanism."
     },
     {
       "id": "keep-data-subject-rights-working",
       "instruction": "Make the new personal data reachable by the project's access, rectification and erasure procedures (Art. 15 to 17).",
       "verification": "Run the export and erasure procedures on a test account and confirm that they return or remove the new data."
+    },
+    {
+      "id": "review-automated-decisions",
+      "instruction": "When the change takes a decision about a person based solely on automated processing, including profiling, with legal or similarly significant effects, ask the privacy owner which exception of Art. 22(2) applies, and for a contract or consent implement the safeguards of Art. 22(3): human intervention, a way for the person to express their view and to contest the decision.",
+      "verification": "Run the decision path in a test and show where the person asks for a human review and contests the outcome, and link the privacy owner's recorded Art. 22(2) exception."
     }
   ]
 }

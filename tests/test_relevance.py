@@ -95,7 +95,8 @@ class RelevanceTests(unittest.TestCase):
         # A feature keeps every GDPR rule, and required_rules keeps a rule whatever the kind.
         task, profile = self.task({**BUG, "kind": "feature", "data": "personal"}, boards=boards)
         asked = {c["id"] for c in asked_checks(task, profile, self.relevance(task, profile))}
-        self.assertEqual(len([name for name in asked if name.startswith("rule:gdpr/")]), 8)
+        self.assertEqual(len([name for name in asked if name.startswith("rule:gdpr/")]),
+                         len(self.catalog["packs"]["gdpr"]["rules"]))
         required = validate_profile({**dict(field_profile(self.catalog)), "required_rules": ["gdpr/assess-dpia-need"]},
                                     self.catalog)
         task, profile = self.task({**BUG, "data": "personal"}, boards=boards, profile=required)
