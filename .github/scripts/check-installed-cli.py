@@ -3,12 +3,14 @@
     python .github/scripts/check-installed-cli.py [--static DIR] -- COMMAND...
 
 COMMAND is the installed `openguildkit` (or `python -m openguildkit`). The script runs `--version`,
-`tools list` and `alerts --help` in an empty folder, then starts `ui --no-browser --port 0` there, reads the
-address the server prints, and requires `/` to answer 200 with the built page and each script it loads.
+`tools list` and `alerts --help` in an empty folder, then starts `ui --no-browser --port 0` there, opens the
+address the server prints (its key opens the session, as in a browser), and requires `/` to answer 200 with the
+built page and each script it loads.
 `--static DIR` is passed to `ui`, for the tests. Standard library only: any Python of the runner runs it.
 """
 
 import argparse
+import http.cookiejar
 import re
 import shutil
 import subprocess
@@ -18,7 +20,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-ADDRESS = re.compile(r"http://127\.0\.0\.1:\d+/")
+ADDRESS = re.compile(r"http://127\.0\.0\.1:\d+/\S*")
 SCRIPT = re.compile(r'<script[^>]*\bsrc="(?:\./|/)?([^"]+)"')
 
 
@@ -29,9 +31,9 @@ def run(command: list[str], *args: str, cwd: Path) -> str:
     return done.stdout
 
 
-def fetch(url: str) -> tuple[int, bytes]:
+def fetch(opener: urllib.request.OpenerDirector, url: str) -> tuple[int, bytes]:
     try:
-        with urllib.request.urlopen(url, timeout=10) as response:
+        with opener.open(url, timeout=10) as response:
             return response.status, response.read()
     except urllib.error.HTTPError as error:
         return error.code, error.read()
@@ -46,7 +48,10 @@ def check_interface(command: list[str], project: Path, extra: list[str]) -> str:
         address = next((match.group(0) for line in server.stdout if (match := ADDRESS.search(line))), None)
         if address is None:
             raise SystemExit(f"openguildkit ui printed no address: {server.communicate(timeout=10)[1].strip()}")
-        status, body = fetch(address)
+        # The printed address carries the key of this run: opening it sets the session cookie, then goes to /.
+        opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+        status, body = fetch(opener, address)
+        address = address.split("?", 1)[0]
         if status != 200:
             raise SystemExit(f"GET / answered {status}, not 200: the installed package has no web interface. "
                              f"{body[:200].decode('utf-8', 'replace')}")
@@ -57,7 +62,7 @@ def check_interface(command: list[str], project: Path, extra: list[str]) -> str:
         if not scripts:
             raise SystemExit("The page loads no script: the built interface is incomplete.")
         for script in scripts:
-            status, _ = fetch(address + script)
+            status, _ = fetch(opener, address + script)
             if status != 200:
                 raise SystemExit(f"GET /{script} answered {status}: the package misses a file of the interface.")
         return address
