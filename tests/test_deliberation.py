@@ -7,7 +7,7 @@ from pathlib import Path
 from openguildkit.catalog import load_catalog
 from openguildkit.project import resolved_profile, validate_profile
 from openguildkit.tasks import record_deliberation, record_review
-from openguildkit.workflow import challenge_report, consult, decision_summary, deliberation_request
+from openguildkit.workflow import challenge_report, consult, decision_summary, deliberation_request, verdict_lines
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 
@@ -157,6 +157,18 @@ class DeliberationTests(unittest.TestCase):
         after = challenge_report(task)
         self.assertIn("Objections of marketing, security were all resolved in deliberation.", after)
         self.assertIn("Warning: 2 of 7 boards say revise, block or insufficient-evidence (engineering, design).", after)
+
+    def test_counts_agree_with_their_noun(self):
+        """"1 objections not deliberated yet" and "1 of 6 boards say revise" were printed."""
+        review = {"boards": [{"id": board, "recommendation": "x", "challenge": {"verdict": verdict}}
+                             for board, verdict in (("security", "revise"), ("product", "proceed"))]}
+        self.assertIn("Warning: 1 of 2 boards says revise, block or insufficient-evidence (security).",
+                      verdict_lines(review)[1])
+        review["boards"][1]["challenge"]["verdict"] = "block"
+        self.assertIn("Warning: 2 of 2 boards say revise", verdict_lines(review)[1])
+        with unittest.mock.patch("openguildkit.workflow.objections", return_value=[{"id": "security-to-legal", "from": "security", "to": "legal", "point": "p"}]):
+            self.assertIn("1 objection not deliberated yet:", challenge_report(self.task))
+        self.assertIn("2 objections not deliberated yet:", challenge_report(self.task))
 
     def test_positions_need_evidence_and_every_answer(self):
         _, payload = self.responses()

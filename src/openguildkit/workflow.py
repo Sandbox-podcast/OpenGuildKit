@@ -1196,9 +1196,10 @@ def _board_template(board: dict, reviewer: str | None = None, surfaces: list[str
 # A pass stays under this size: its brief and entry come first, and the rules of its packs fill what is left,
 # the most specific first. The packs that do not fit are named with the command that prints their rules.
 PASS_BUDGET = 9_600
-# The order in which a board's packs concerning the task are printed: the stack of the components the task
-# touches, the other stacks, regulations, the board's methods, then the baseline every task follows.
-_SPECIFICITY = {"touched": 0, "stack": 1, "regulation": 2, "method": 3, "selected": 3, "baseline": 4}
+# The order in which a board's packs concerning the task are printed: a regulation the task's own answers select
+# (its data or concerns), the stack of the components the task touches, the other stacks, other regulations, the
+# board's methods, then the baseline every task follows.
+_SPECIFICITY = {"answered": -1, "touched": 0, "stack": 1, "regulation": 2, "method": 3, "selected": 3, "baseline": 4}
 
 
 def _touched_components(scope: dict, profile: dict) -> set[str]:
@@ -1213,10 +1214,16 @@ def _touched_components(scope: dict, profile: dict) -> set[str]:
     return named
 
 
-def _pack_order(profile: dict, catalog: dict, touched: set[str]) -> dict[str, int]:
-    """How specific each pack in force is to the task, from the way it reached the project."""
+def _pack_order(profile: dict, catalog: dict, touched: set[str], relevance: dict | None = None) -> dict[str, int]:
+    """How specific each pack in force is to the task, from the way it reached the project and from the answers
+    that select it (relevance.py)."""
+    relevance = relevance or {}
+    regulations = {pack_id for pattern in catalog.get("patterns", {}).values() if pattern.get("kind") == "regulation"
+                   for pack_id in pattern["packs"]}
     order = {pack_id: _SPECIFICITY["baseline" if pack_id in BASELINE_PACKS else "selected"]
              for pack_id in profile.get("packs", [])}
+    for pack_id in regulations & set(order):
+        order[pack_id] = _SPECIFICITY["regulation"]
     for entry in profile.get("patterns", []):
         pattern_id, components = pattern_selection(entry)
         pattern = catalog.get("patterns", {}).get(pattern_id)
@@ -1228,6 +1235,9 @@ def _pack_order(profile: dict, catalog: dict, touched: set[str]) -> dict[str, in
             kind = "regulation" if pattern.get("kind") == "regulation" else "method"
         for pack_id in pattern["packs"]:
             order[pack_id] = min(order.get(pack_id, _SPECIFICITY[kind]), _SPECIFICITY[kind])
+    for pack_id in regulations & set(order):
+        if relevance.get(pack_id, {}).get("selected"):
+            order[pack_id] = _SPECIFICITY["answered"]
     return order
 
 
@@ -1357,7 +1367,7 @@ def consult(
     # The same relevance as the results: which packs concern this task, from how they reached the project.
     relevance = pack_relevance({**task, "answers": answers, "consultation": {"scope": scope, "boards": list(routing)}},
                                profile, catalog, None)
-    order = _pack_order(profile, catalog, _touched_components(scope, profile))
+    order = _pack_order(profile, catalog, _touched_components(scope, profile), relevance)
     consultation = {
         "id": consultation_id,
         "boards": list(routing),
@@ -1474,6 +1484,8 @@ def _evidence_item(
         source = None
     result = {"source": source, "ref": _checked(found, _text, item["ref"], f"{field}.ref"),
               "supports": _checked(found, _text, item["supports"], f"{field}.supports")}
+    if source == "tool" and result["ref"] is not None:
+        result["ref"] = _tool_reference(result["ref"], tool_ids)
     ref = result["ref"]
     if ref is not None:
         _checked(found, _check_reference, ref, source, f"{field}.ref", market_refs, storybook_refs, tool_ids, root)
@@ -1486,6 +1498,13 @@ def _evidence_item(
     if source in DATED_SOURCES and "date" not in item and ref is not None and not ref.startswith("market:"):
         found.append(f"{field}.date: a {source} source needs the date it was observed.")
     return _evidence_outcome(result, found, problems)
+
+
+def _tool_reference(ref: str, tool_ids: frozenset) -> str:
+    """A tool's name is read in any case, as everywhere else, and recorded as the registry writes it."""
+    tool_id, separator, record = ref.partition(":")
+    known = {item.casefold(): item for item in tool_ids}
+    return f"{known[tool_id.casefold()]}{separator}{record}" if separator and tool_id.casefold() in known else ref
 
 
 def _evidence_outcome(result: dict | None, found: list[str], problems: list[str] | None) -> dict | None:
@@ -1655,7 +1674,8 @@ def _evidence_refs(references: object, count: int, path: str, problems: list[str
 
 
 def _validate_challenge(
-    board_id: str, challenge: object, template: dict, evidence: list, structured: bool, problems: list[str]
+    board_id: str, challenge: object, template: dict, evidence: list, structured: bool, problems: list[str],
+    not_concerned: set[str] | frozenset = frozenset(),
 ) -> dict:
     path = f"{board_id}.challenge"
     if not isinstance(challenge, dict):
@@ -1683,6 +1703,10 @@ def _validate_challenge(
         if not _keys(specialist, {"id", "finding", "basis", "evidence_refs"}, set(), lens_path, problems):
             continue
         specialist_id = specialist["id"]
+        if isinstance(specialist_id, str) and specialist_id in not_concerned:
+            problems.append(f"{lens_path}.id: {specialist_id} is not concerned by this task's surfaces: remove it "
+                            "from the entry.")
+            continue
         if not isinstance(specialist_id, str) or specialist_id not in expected or specialist_id in findings:
             problems.append(f"{lens_path}.id: unexpected or repeated {board_id} specialist {_received(specialist_id)}; "
                             f"expected each of {', '.join(expected)} once.")
@@ -1760,8 +1784,10 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
     fields = {"id", "recommendation", "evidence", "open_questions"} | ({"challenge", "reviewer"} & template.keys())
     problems = []
     _keys(entry, fields, set(), board_id, problems)
+    credentials = []
     if root is not None:
-        problems.extend(credential_problems({key: entry[key] for key in fields - {"id"} if key in entry}, board_id))
+        credentials = [_one_based(problem) for problem in
+                       credential_problems({key: entry[key] for key in fields - {"id"} if key in entry}, board_id)]
     entry = {key: entry.get(key, _ABSENT) for key in fields}
     scope = consultation.get("scope", {})
     structured = consultation.get("evidence_format") == "structured"
@@ -1786,9 +1812,17 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
     if "reviewer" in template:
         result["reviewer"] = _checked(problems, _text, entry["reviewer"], f"{board_id}.reviewer")
     if "challenge" in template and entry["challenge"] is not _ABSENT:
+        stored = consultation.get("board_briefs", {}).get(board_id, {})
+        listed = stored.get("lenses_not_concerned") if isinstance(stored, dict) else None
+        not_concerned = {lens["id"] for lens in listed if isinstance(lens, dict) and isinstance(lens.get("id"), str)} \
+            if isinstance(listed, list) else set()
         result["challenge"] = _validate_challenge(
-            board_id, entry["challenge"], template["challenge"], [item or {} for item in checked], structured, problems
+            board_id, entry["challenge"], template["challenge"], [item or {} for item in checked], structured, problems,
+            not_concerned,
         )
+    # A field another check already refuses is reported once, by that check.
+    reported = {problem.split(": ", 1)[0] for problem in problems}
+    problems.extend(problem for problem in credentials if problem.split(": ", 1)[0] not in reported)
     if problems:
         raise EntryProblems(board_id, problems)
     return result
@@ -1884,6 +1918,19 @@ def _legacy_board_section(consultation: dict, board_id: str) -> list[str]:
     return [markdown[start:end].rstrip()]
 
 
+# What each surface answer means, for a sentence: "applies to tasks that touch the customer-facing experience".
+_SURFACE_MEANINGS = {
+    "customer": "customer-facing experience", "service": "backend services or data flows",
+    "infrastructure": "infrastructure or deployment", "business": "business processes or deliverables",
+}
+
+
+def _one_based(problem: str) -> str:
+    """Count list positions from 1 in a problem's key path, as every other problem of an entry does."""
+    path, separator, rest = problem.partition(": ")
+    return re.sub(r"\[(\d+)\]", lambda match: f"[{int(match.group(1)) + 1}]", path) + separator + rest
+
+
 def _brief_section_lines(data: dict, board_id: str, task_id: str) -> list[str]:
     """One board's brief as short markdown lists."""
     lines = [f"{data['purpose']}", "", f"Routed for: {'; '.join(data['routing'])}."]
@@ -1895,8 +1942,9 @@ def _brief_section_lines(data: dict, board_id: str, task_id: str) -> list[str]:
     if any(lens.get("checks") for lens in data["lenses"]):
         lines.append(f"What each lens verifies: openguildkit brains --id {board_id}.")
     for lens in data["lenses_not_concerned"]:
-        lines.append(f"- Not concerned: {lens['id']}, which applies to {', '.join(lens['applies_to'])} and not to "
-                     "this task's surfaces. It is not in the entry.")
+        areas = " or ".join(_SURFACE_MEANINGS.get(surface, surface) for surface in lens["applies_to"])
+        lines.append(f"- Not concerned: {lens['id']}, which applies to tasks that touch the {areas}, and this task "
+                     "does not. It is not in the entry.")
     for heading, key in (("Evidence to inspect", "evidence"), ("Challenge", "challenge"),
                          ("Decision criteria", "decision_criteria")):
         if data[key]:
@@ -1923,7 +1971,8 @@ def _reading_lines(data: dict, board_id: str) -> list[str]:
               for item in data["references"]]
     lines = ["## Reading list", "", *(f"- {item}" for item in leads[:MAX_READING])]
     rest = len(leads) - MAX_READING
-    lines.append(f"{max(rest, 0)} more references and the board's methods: openguildkit brains --id {board_id}")
+    more = f"{rest} more references and the board's methods" if rest > 0 else "The board's methods"
+    lines.append(f"{more}: openguildkit brains --id {board_id}")
     return lines
 
 
@@ -2301,7 +2350,8 @@ def verdict_lines(review: dict, deliberation: dict | None = None, decision_task:
         consequence = ("The decision record carries their reservations." if decision_task
                        else "Approving goes against their advice.")
         lines.append(
-            f"Warning: {len(objecting)} of {len(entries)} boards say revise, block or insufficient-evidence "
+            f"Warning: {len(objecting)} of {len(entries)} boards {'says' if len(objecting) == 1 else 'say'} revise, "
+            f"block or insufficient-evidence "
             f"({', '.join(objecting)}). {consequence}"
         )
     return lines
@@ -2375,7 +2425,8 @@ def decision_summary(task: dict) -> list[str]:
     else:
         pending = objections(review, domains)
         if pending:
-            lines.append(f"{len(pending)} objections not deliberated yet: approving is still possible, and you then "
+            lines.append(f"{len(pending)} objection{'' if len(pending) == 1 else 's'} not deliberated yet: approving "
+                         f"is still possible, and you then "
                          f"decide them yourself; task deliberate has the boards answer first. {RESOLUTION_RULE}")
         lines += [f"Objection not deliberated: {item['id']}: {item['point']}" for item in pending]
     lines += _blocker_lines(task)
