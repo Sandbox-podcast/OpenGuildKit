@@ -97,9 +97,12 @@ jobs:
       - name: Check that the wheel holds the web interface
         run: python -m zipfile -l dist/openguildkit-*-py3-none-any.whl | grep -F openguildkit/web_dist/index.html
 
-      - name: Check the package metadata and its README
+      # Once is enough: the metadata does not depend on the system. readme-renderer[md] renders the Markdown
+      # description as PyPI would.
+      - name: Check the package metadata and its description
+        if: runner.os == 'Linux' && matrix.python == '3.13'
         run: |
-          python -m pip install twine
+          python -m pip install twine "readme-renderer[md]"
           python -m twine check --strict dist/*
 
       # docs/install.md has teams install the wheel with pipx or uv: pipx on Windows, a fresh virtual
