@@ -6,6 +6,7 @@ import { Icon, type PixelIconName } from '@/shared/pixel/icons';
 import { toast } from '@/shared/ui/toast';
 import { isSafeUrl } from '@/shared/text';
 import { ApiError, cliMessage, type CliResult } from './api';
+import { errorText } from './refusals';
 import { onlyTasksFail } from './data';
 import type { TaskListItem } from './types';
 import { showTerminal, showTouched, useTerminalRequest, useTouched, type Query } from './query';
@@ -23,7 +24,14 @@ export function En({ children, block, className }: { children: ReactNode; block?
 
 export function ErrorNotice({ error, title = 'La commande a échoué' }: { error: ApiError | Error | undefined | null; title?: string }) {
   if (!error) return null;
-  return <Notice tone="danger" title={title}><span className="pre-line" lang={error instanceof ApiError ? error.lang : undefined}>{error.message}</span></Notice>;
+  const shown = errorText(error);
+  return <Notice tone="danger" title={title}><span className="pre-line" lang={shown.lang}>{shown.text}</span><ServerWords detail={shown.detail} /></Notice>;
+}
+
+/** The server's own English words behind a French text, for whoever wants the detail (a path, a field). */
+export function ServerWords({ detail }: { detail?: string }) {
+  if (!detail) return null;
+  return <details className="small server-words"><summary>Message du serveur</summary><span className="pre-line" lang="en">{detail}</span></details>;
 }
 
 /** Renders a query: a loading line, its error, or the content once the data is there. */
@@ -69,9 +77,10 @@ export function TerminalDialog() {
   return (
     <Dialog open={!!request} onClose={() => showTerminal(null)} title={request?.title ?? ''} footer={<Button variant="primary" onClick={() => showTerminal(null)}>J’ai compris</Button>}>
       {request && <>
-        <p>{request.why}</p>
+        <p lang={request.lang}>{request.why}</p>
         <CommandLine command={request.command} />
-        <p className="muted small">{request.after ?? 'La commande affiche le dossier, puis vous demande de retaper l’identifiant. L’interface se met à jour dès que la commande est enregistrée : revenez ici et actualisez.'}</p>
+        <ServerWords detail={request.detail} />
+        <p className="muted small">{request.after ?? 'La commande affiche le dossier, puis te demande de retaper l’identifiant. L’interface se met à jour dès que la commande est enregistrée : reviens ici et actualise.'}</p>
       </>}
     </Dialog>
   );
@@ -157,7 +166,7 @@ export function FilePick({ label, accept = '.json,application/json', onText, hin
 }
 
 /** Edits a list of single-line texts (conventions, checks, tools, recipients). */
-export function ListEditor({ label, items, onChange, placeholder, hint, error }: { label: string; items: string[]; onChange: (items: string[]) => void; placeholder?: string; hint?: string; error?: string | null }) {
+export function ListEditor({ label, items, onChange, placeholder, hint, error }: { label: string; items: string[]; onChange: (items: string[]) => void; placeholder?: string; hint?: ReactNode; error?: string | null }) {
   const [draft, setDraft] = useState('');
   const add = () => { const v = draft.trim(); if (v && !items.includes(v)) onChange([...items, v]); setDraft(''); };
   return (
@@ -177,12 +186,12 @@ export function ListEditor({ label, items, onChange, placeholder, hint, error }:
 }
 
 export function JsonDetails({ data, label = 'Voir le JSON' }: { data: unknown; label?: string }) {
-  return <details className="json-details"><summary>{label}</summary><pre className="code-block" tabIndex={0}>{JSON.stringify(data, null, 2)}</pre></details>;
+  return <details className="json-details"><summary>{label}</summary><pre className="code-block" tabIndex={0} lang="en">{JSON.stringify(data, null, 2)}</pre></details>;
 }
 
-/** A command's printed text. It scrolls when long, so it takes the keyboard focus. */
-export function Pre({ text }: { text: string }) {
-  return <pre className="code-block pre-wrap" tabIndex={0}>{text.trim()}</pre>;
+/** A command's printed text, in the CLI's English unless said otherwise. It scrolls when long, so it takes the focus. */
+export function Pre({ text, lang = 'en' }: { text: string; lang?: 'en' | 'fr' }) {
+  return <pre className="code-block pre-wrap" tabIndex={0} lang={lang}>{text.trim()}</pre>;
 }
 
 /** A table that scrolls sideways on a phone: a named region the keyboard can reach and scroll. */

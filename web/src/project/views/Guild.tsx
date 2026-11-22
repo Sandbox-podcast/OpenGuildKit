@@ -22,8 +22,8 @@ export function Guild() {
             <li key={b.id}><a className={`card brain-card ${on ? '' : 'off'}`} href={`#/guilde/${b.id}`}>
               <span className="row between"><span className="brain-emblem"><Icon name="guild" size={18} /></span>
                 <span className="row">{required.includes(b.id) && <Badge tone="info" icon="lock">obligatoire</Badge>}{!on && <Badge tone="muted">désactivé</Badge>}</span></span>
-              <strong>{b.title}</strong>
-              <span className="small muted clamp-3">{b.description}</span>
+              <strong lang="en">{b.title}</strong>
+              <span className="small muted clamp-3" lang="en">{b.description}</span>
               <span className="tiny">{b.review?.specialists.length ?? 0} lentilles · {b.questions.length} questions</span>
             </a></li>
           );
@@ -43,26 +43,26 @@ export function BrainSheet({ id }: { id: string }) {
       return (
         <div className="page-grid">
           <p><a href="#/guilde"><Icon name="chevron" size={12} /> Guilde</a></p>
-          <Panel title={b.title}><p>{b.description}</p>
-            <p className="small"><strong>Expertises :</strong> {b.expertises.join(' · ')}</p>
-            <p className="tiny muted">Déclencheurs dans un brief : {b.triggers.join(', ')}</p></Panel>
+          <Panel title={<span lang="en">{b.title}</span>}><p lang="en">{b.description}</p>
+            <p className="small"><strong>Expertises :</strong> <span lang="en">{b.expertises.join(' · ')}</span></p>
+            <p className="tiny muted">Déclencheurs dans un brief : <span lang="en">{b.triggers.join(', ')}</span></p></Panel>
           <div className="grid-2">
             <Panel title={`Lentilles (${b.review?.specialists.length ?? 0})`}>
-              <ul className="plain stack tight">{b.review?.specialists.map((s) => <li key={s.id} className="card"><strong>{s.title}</strong><span className="small muted">{s.focus}</span><span className="mono tiny">{s.id}</span></li>)}</ul>
+              <ul className="plain stack tight">{b.review?.specialists.map((s) => <li key={s.id} className="card" lang="en"><strong>{s.title}</strong><span className="small muted">{s.focus}</span><span className="mono tiny">{s.id}</span></li>)}</ul>
             </Panel>
             <Panel title="Ce que ce cerveau demande">
-              <ul className="small">{b.questions.map((q) => <li key={q}>{q}</li>)}</ul>
+              <ul className="small" lang="en">{b.questions.map((q) => <li key={q}>{q}</li>)}</ul>
               {b.review && <>
-                <h3 className="h-card">Preuves attendues</h3><ul className="small">{b.review.evidence.map((e) => <li key={e}>{e}</li>)}</ul>
-                <h3 className="h-card">Défis</h3><ul className="small">{b.review.challenge.map((e) => <li key={e}>{e}</li>)}</ul>
-                <h3 className="h-card">Critères de décision</h3><ul className="small">{b.review.decision_criteria.map((e) => <li key={e}>{e}</li>)}</ul>
+                <h3 className="h-card">Preuves attendues</h3><ul className="small" lang="en">{b.review.evidence.map((e) => <li key={e}>{e}</li>)}</ul>
+                <h3 className="h-card">Défis</h3><ul className="small" lang="en">{b.review.challenge.map((e) => <li key={e}>{e}</li>)}</ul>
+                <h3 className="h-card">Critères de décision</h3><ul className="small" lang="en">{b.review.decision_criteria.map((e) => <li key={e}>{e}</li>)}</ul>
               </>}
             </Panel>
           </div>
           <Panel title="Connaissances : méthodes et références">
             <Q q={knowledge}>{(r) => <Pre text={r.stdout || r.stderr} />}</Q>
           </Panel>
-          {b.sources.length > 0 && <Panel title="Sources"><ul>{b.sources.map((s) => <li key={s.url}><ExternalLink href={s.url}>{s.title}</ExternalLink></li>)}</ul></Panel>}
+          {b.sources.length > 0 && <Panel title="Sources"><ul lang="en">{b.sources.map((s) => <li key={s.url}><ExternalLink href={s.url}>{s.title}</ExternalLink></li>)}</ul></Panel>}
         </div>
       );
     }}</Q>

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { projectPath, quoteFor } from '@/project/api';
 import { shortcutFor } from '@/shared/shortcuts';
+import { REFUSAL_FR, errorText, refusalText } from '@/project/refusals';
+import { ApiError } from '@/project/api';
 import { GROUP_ABOVE, todos } from '@/project/todo';
 import { changesCatalog, invalidate, load, peek, remember } from '@/project/query';
 import { onlyTasksFail, placeCounts, signalsOf } from '@/project/data';
@@ -20,6 +22,7 @@ describe('wording of the CLI', () => {
     expect(nextLabel("Waiting for the person's decision.")).toBe('En attente de la décision d’une personne.');
     expect(nextLabel('Consult again: Check consent first')).toBe('Consulter à nouveau : Check consent first');
     expect(nextLabel('Decision recorded: close it with task complete pick-db, then open a follow-up task to act on it.')).toMatch(/^Décision enregistrée : la clore avec task complete pick-db/);
+    expect(nextLabel('Decision recorded: report its acceptance criterion with task result pick-db --template, then task complete pick-db, then open a follow-up task to act on it.')).toBe('Décision enregistrée : rapporter son critère d’acceptation (task result pick-db --template), la clore avec task complete pick-db, puis ouvrir une quête de suite pour la mettre en œuvre.');
     expect(nextLabel('Implement, then record the results: task verify status and task result status, then task complete status.')).toMatch(/^Réaliser.*task verify status/);
     expect(nextLabel('Waiting for evidence: Record of processing from data protection officer.')).toBe('En attente de preuves : Record of processing from data protection officer.');
     expect(nextLabel('Result recorded: run task verify status to list what remains, then task complete status.')).toMatch(/^Résultats enregistrés : task verify status/);
@@ -128,6 +131,31 @@ describe('task pages', () => {
     const many = todos(signalsOf({ tasks: ok(drafts) }));
     expect(many).toHaveLength(1);
     expect(many[0]).toMatchObject({ title: '503 quêtes à cadrer', to: '/quetes?statut=draft', who: 'person' });
+  });
+});
+
+describe('refusals of the local server', () => {
+  /** The codes of webui.REFUSALS, as the server sends them in "reason". */
+  const CODES = [
+    'approve-at-terminal', 'cannot-run-at-terminal', 'clear-at-terminal', 'complete-at-terminal', 'live-plan-at-terminal', 'waiver-at-terminal',
+    'external-action-at-terminal', 'alert-accept-at-terminal', 'alert-severity-at-terminal', 'alert-status-at-terminal', 'withdraw-at-terminal',
+    'person-at-terminal', 'weakens-protection', 'invalid-profile', 'send-setup-answers', 'send-task-answers', 'stale-token', 'open-printed-link',
+    'outside-project', 'secret-file', 'not-readable', 'too-large', 'not-in-page', 'not-initialized', 'project-busy', 'foreign-page',
+    'bad-request', 'not-found', 'server-error',
+  ];
+
+  it('has a French text for every code, and keeps the English of an unknown one', () => {
+    expect(Object.keys(REFUSAL_FR).sort()).toEqual([...CODES].sort());
+    for (const code of CODES) expect(refusalText(code, 'English')).toEqual({ text: REFUSAL_FR[code] });
+    expect(refusalText('new-code', 'Something new.')).toEqual({ text: 'Something new.', lang: 'en' });
+    expect(refusalText(undefined, 'No code.')).toEqual({ text: 'No code.', lang: 'en' });
+  });
+
+  it('shows the French text with the server words as detail, or the English marked', () => {
+    const known = new ApiError('Missing or invalid session token. Reload the page.', 403, { reason: 'stale-token', lang: 'en' });
+    expect(errorText(known)).toEqual({ text: REFUSAL_FR['stale-token'], detail: 'Missing or invalid session token. Reload the page.' });
+    expect(errorText(new ApiError('OpenGuildKit said no.', 200, { lang: 'en' }))).toEqual({ text: 'OpenGuildKit said no.', lang: 'en' });
+    expect(errorText(new ApiError('Le serveur local ne répond plus.', 0))).toEqual({ text: 'Le serveur local ne répond plus.', lang: undefined });
   });
 });
 

@@ -44,7 +44,7 @@ function Export() {
     <div className="page-grid">
       <Panel title="Exporter les quêtes terminées">
         <p className="small muted">Seules les quêtes terminées, avec ou sans réserves, s’exportent : leurs résultats sont enregistrés, et la page dit ce qui a été vérifié, ce qui ne s’appliquait pas et ce qui est resté ouvert. Les pages portent le brief, le comportement, les critères atteints, la livraison et la version, jamais les avis des cerveaux ni les preuves internes. Relisez-les avant de les committer, surtout les brouillons Learn.</p>
-        {done.length === 0 ? <Notice tone="warn">Aucune quête terminée pour l’instant.</Notice> : <fieldset className="choices"><legend>Quêtes à documenter</legend>{done.map((t) => <Checkbox key={t.id} label={<><span className="mono">{t.id}</span> {t.brief}</>} checked={picked.includes(t.id)} onChange={() => setPicked((p) => toggle(p, t.id))} />)}</fieldset>}
+        {done.length === 0 ? <Notice tone="warn">Aucune quête terminée pour l’instant.</Notice> : <fieldset className="choices"><legend>Quêtes à documenter</legend>{done.map((t) => <Checkbox key={t.id} label={<><span className="mono">{t.id}</span> <span data-own>{t.brief}</span></>} checked={picked.includes(t.id)} onChange={() => setPicked((p) => toggle(p, t.id))} />)}</fieldset>}
         <div className="grid-2">
           <TextField label="Version du projet" value={version} onChange={(e) => setVersion(e.target.value)} placeholder="1.4.0" />
           <TextField label="Dossier de sortie" value={output} onChange={(e) => setOutput(e.target.value)} hint="Relatif au projet. L’export refuse un dossier qu’il n’a pas créé." />

@@ -65,7 +65,19 @@ async function audit(page: Page) {
       const name = (el.getAttribute('aria-label') ?? '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
       return shown.length > 2 && !name.includes(shown);
     }).map(short);
+    // English left by the CLI must be marked lang="en": a text with two English words or more, outside a marked
+    // passage, a command (code) and what a person or the agent wrote themselves (data-own), is flagged.
+    const ENGLISH = /\b(the|and|with|this|that|is|are|of|to|for|when|which|from|must|should|needs|each|every|its|their|your|not|has|have|will|can|only|into|than|then|before|after)\b/gi;
+    const english: string[] = [];
+    const texts = document.createTreeWalker(document.querySelector('main') ?? document.body, NodeFilter.SHOW_TEXT);
+    for (let node = texts.nextNode(); node; node = texts.nextNode()) {
+      const parent = node.parentElement;
+      if (!parent || parent.closest('[lang]:not(html), [data-own], code, kbd, script, style, [aria-hidden="true"]') || !parent.getClientRects().length) continue;
+      const words = new Set((node.textContent?.match(ENGLISH) ?? []).map((w) => w.toLowerCase()));
+      if (words.size >= 2) english.push(node.textContent!.trim().slice(0, 90));
+    }
     return {
+      english: [...new Set(english)],
       scrollers,
       emptyHeaders: [...document.querySelectorAll('main th')].filter((th) => !th.textContent?.trim() && !th.getAttribute('aria-label')).map(short),
       roles: [...document.querySelectorAll('main section[role]')].filter((el) => !SECTION_ROLES.includes(el.getAttribute('role') ?? '')).map(short),
@@ -142,6 +154,7 @@ for (const [label, viewport, mode] of VARIANTS) {
       if (a.emptyHeaders.length) problems.push(`${route}: empty table header ${a.emptyHeaders.join(' | ')}`);
       if (a.roles.length) problems.push(`${route}: role not allowed on a section ${a.roles.join(' | ')}`);
       if (a.targets.length) problems.push(`${route}: target under 24 px ${a.targets.join(' | ')}`);
+      if (a.english.length) problems.push(`${route}: English without lang="en" ${a.english.join(' | ')}`);
       if (a.labelled.length) problems.push(`${route}: name without its visible words ${a.labelled.join(' | ')}`);
       for (const violation of await axe(page)) problems.push(`${route}: axe ${violation}`);
     }

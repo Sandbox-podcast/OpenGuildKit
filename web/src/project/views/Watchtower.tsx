@@ -40,7 +40,7 @@ function Controls() {
         <p className="small muted"><code>openguildkit check</code> fait échouer la CI quand AGENTS.md, les réglages de l’hôte ou le verrou du catalogue s’écartent du profil.</p>
       </Panel>
       <Panel title="Ce que l’hôte applique" actions={<Button size="small" busy={busy !== null} onClick={() => void act(['host', 'apply'], { success: 'Réglages de l’hôte écrits' })}>Appliquer</Button>}>
-        <Q q={host}>{(list) => <ul className="plain stack tight">{list.map((c) => { const l = hostControl(c.status); return <li key={c.id} className="card"><span className="row between"><strong>{c.title}</strong><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge></span><span className="small muted">{c.detail}</span></li>; })}</ul>}</Q>
+        <Q q={host}>{(list) => <ul className="plain stack tight">{list.map((c) => { const l = hostControl(c.status); return <li key={c.id} className="card"><span className="row between"><strong lang="en">{c.title}</strong><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge></span><span className="small muted" lang="en">{c.detail}</span></li>; })}</ul>}</Q>
       </Panel>
       <Panel title="Garde des modifications">
         <Q q={guard}>{(g) => <>
@@ -79,8 +79,8 @@ function Alerts() {
           {shown.map((a) => { const l = alertLabel(a.status); return <tr key={a.id}>
             <td><strong>{a.package}</strong> <span className="mono tiny">{a.version}</span><span className="tiny muted block">{a.ecosystem} · {a.scanners.join(', ')}</span></td>
             <td><Badge tone={SEVERITY[a.severity] ?? 'neutral'}>{a.severity}</Badge></td>
-            <td className="small">{a.url ? <ExternalLink href={a.url}>{a.advisory}</ExternalLink> : a.advisory}<span className="block">{a.summary}</span>{a.fix && <span className="tiny muted block">Correctif : {a.fix}</span>}</td>
-            <td><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge>{a.by && <span className="tiny muted block">{a.by}{a.reason ? ` : ${a.reason}` : ''}</span>}{a.accepted && <span className="block"><Badge tone="info" icon="lock">risque accepté par {a.accepted.by}</Badge></span>}</td>
+            <td className="small">{a.url ? <ExternalLink href={a.url}>{a.advisory}</ExternalLink> : a.advisory}<span className="block" lang="en">{a.summary}</span>{a.fix && <span className="tiny muted block">Correctif : <span lang="en">{a.fix}</span></span>}</td>
+            <td><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge>{a.by && <span className="tiny muted block" data-own>{a.by}{a.reason ? ` : ${a.reason}` : ''}</span>}{a.accepted && <span className="block"><Badge tone="info" icon="lock">risque accepté par {a.accepted.by}</Badge></span>}</td>
             <td className="small">{a.tasks.map((t) => <TaskLink key={t} id={t} />)}</td>
             <td><Button size="small" onClick={() => setReviewing(a)}>Revoir</Button></td>
           </tr>; })}
@@ -88,7 +88,7 @@ function Alerts() {
       </Panel>}</Q>
       <Dialog open={!!reviewing} onClose={() => setReviewing(null)} title={`Revoir ${reviewing?.package ?? ''}`}>
         {reviewing && <>
-          <p className="small">{reviewing.summary}</p>
+          <p className="small" lang="en">{reviewing.summary}</p>
           <ActionForm busy={busy !== null} submit="Enregistrer" initial={{ by, status: reviewing.status === 'open' ? 'confirmed' : reviewing.status }} fields={[
             { name: 'status', label: 'Statut', required: true, options: [{ value: 'open', label: 'À vérifier' }, { value: 'confirmed', label: 'Confirmée' }, { value: 'dismissed', label: 'Écartée (motif obligatoire)' }] },
             { name: 'by', label: 'Votre nom', required: true },
@@ -121,7 +121,7 @@ function AllBlockers() {
         if (!items.length) return <p className="muted">Aucun blocage sur les quêtes en attente de décision ou à réaliser.</p>;
         return <Panel title={`${items.filter((b) => !b.resolution).length} blocage(s) ouvert(s)`}>
           <TableBox label="Blocages des quêtes"><table className="data compact"><thead><tr><th>Quête</th><th>Blocage</th><th>Responsable</th><th>État</th></tr></thead><tbody>
-            {items.map((b) => <tr key={`${b.task}:${b.id}`}><td><a href={`#/conseil/${b.task}`}>{b.task}</a></td><td><span className="mono tiny">{b.id}</span><span className="small block">{b.finding}</span><span className="tiny muted block">Se lève quand : {b.clears_when}</span></td><td className="small">{b.owner}</td><td>{b.resolution ? <Badge tone="success" icon="check">{b.resolution.kind}</Badge> : b.phase === 'verification' ? <Badge tone="warning" icon="clock">condition</Badge> : <Badge tone="danger" icon="ban">ouvert</Badge>}</td></tr>)}
+            {items.map((b) => <tr key={`${b.task}:${b.id}`}><td><a href={`#/conseil/${b.task}`}>{b.task}</a></td><td><span className="mono tiny">{b.id}</span><span className="small block" data-own>{b.finding}</span><span className="tiny muted block">Se lève quand : <span data-own>{b.clears_when}</span></span></td><td className="small">{b.owner}</td><td>{b.resolution ? <Badge tone="success" icon="check">{b.resolution.kind}</Badge> : b.phase === 'verification' ? <Badge tone="warning" icon="clock">condition</Badge> : <Badge tone="danger" icon="ban">ouvert</Badge>}</td></tr>)}
           </tbody></table></TableBox>
         </Panel>;
       }}

@@ -101,7 +101,7 @@ export function Home() {
       <Panel title={<><Icon name="quest" size={16} /> Quêtes par état</>} actions={<a className="btn small primary" href="#/quetes?nouvelle=1"><Icon name="plus" size={14} /> Nouvelle quête</a>}>
         <div className="stats">{byStatus.map(({ status, n }) => <a key={status} href={`#/quetes?statut=${status}`} className="stat-link"><Stat value={n} label={mode === 'explorer' ? taskStatus(status).rpg : taskStatus(status).label} tone={n ? taskStatus(status).tone : 'muted'} /></a>)}</div>
         {signals.tasks.length > 0 && <TableBox label="Quêtes récentes"><table className="data compact"><thead><tr><th>Quête</th><th>État</th><th>Prochaine étape</th></tr></thead>
-          <tbody>{signals.tasks.slice(0, 8).map((t: TaskListItem) => <tr key={t.id}><td><a className="mono" href={`#/quetes/${t.id}`}>{t.id}</a><span className="small muted block clamp-1">{t.brief}</span></td><td><TaskStatusBadge status={t.status} /></td><td className="small" lang={nextLang(t.next)}>{nextLabel(t.next)}</td></tr>)}</tbody>
+          <tbody>{signals.tasks.slice(0, 8).map((t: TaskListItem) => <tr key={t.id}><td><a className="mono" href={`#/quetes/${t.id}`}>{t.id}</a><span className="small muted block clamp-1" data-own>{t.brief}</span></td><td><TaskStatusBadge status={t.status} /></td><td className="small" lang={nextLang(t.next)}>{nextLabel(t.next)}</td></tr>)}</tbody>
         </table></TableBox>}
       </Panel>
       <Panel title={<><Icon name="question" size={16} /> Comment la guilde travaille</>}>

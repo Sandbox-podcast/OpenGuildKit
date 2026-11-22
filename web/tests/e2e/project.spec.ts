@@ -427,9 +427,55 @@ test('reviews an alert, and hands the dismissal of a critical one to the termina
   await dialog.getByLabel('Statut').selectOption('dismissed');
   await dialog.getByLabel('Motif').fill('Only used at build time');
   await dialog.getByRole('button', { name: 'Enregistrer' }).click();
-  await expect(page.getByRole('dialog', { name: 'À faire dans votre terminal' }).getByLabel('Commande')).toContainText('alerts set npm:form-parser');
+  await expect(page.getByRole('dialog', { name: 'À faire dans ton terminal' }).getByLabel('Commande')).toContainText('alerts set npm:form-parser');
   await page.getByRole('button', { name: 'J’ai compris' }).click();
   await expect(critical.getByText('Confirmée')).toBeVisible();
+});
+
+test('says a refusal in French by its code, keeps the command copyable, and marks an unknown one English', async ({ page }) => {
+  await open(page, '/tour/alertes');
+  // The server adds the code of each refusal; the page reads only the code, never the English sentence.
+  let reason = 'alert-status-at-terminal';
+  await page.route('**/api/run', async (route) => {
+    if (route.request().postDataJSON()?.argv?.[0] !== 'alerts') return route.continue();
+    const response = await route.fetch();
+    const body = await response.json();
+    await route.fulfill({ response, json: body.command ? { ...body, reason } : body });
+  });
+  const dismiss = async () => {
+    await page.locator('tr', { hasText: 'form-parser' }).getByRole('button', { name: 'Revoir' }).click({ timeout: 15_000 });
+    const dialog = page.getByRole('dialog', { name: /Revoir form-parser/ });
+    await dialog.getByLabel('Statut').selectOption('dismissed');
+    await dialog.getByLabel('Votre nom').fill('Alex Moreau');
+    await dialog.getByLabel('Motif').fill('Only used at build time');
+    await dialog.getByRole('button', { name: 'Enregistrer' }).click();
+    return page.getByRole('dialog', { name: 'À faire dans ton terminal' });
+  };
+  let terminal = await dismiss();
+  await expect(terminal.locator('p').first()).toHaveText('Écarter une alerte critique ou haute se fait par une personne, dans son terminal, avec son nom et la raison.');
+  await expect(terminal.locator('p').first()).not.toHaveAttribute('lang', 'en');
+  await expect(terminal.getByLabel('Commande')).toContainText('alerts set npm:form-parser');
+  await expect(terminal.getByRole('button', { name: 'Copier' })).toBeVisible();
+  await terminal.getByText('Message du serveur').click();
+  await expect(terminal.locator('.server-words [lang="en"]')).not.toBeEmpty();
+  await terminal.getByRole('button', { name: 'J’ai compris' }).click();
+  await page.keyboard.press('Escape');
+
+  reason = 'a-code-from-a-newer-server';
+  terminal = await dismiss();
+  await expect(terminal.locator('p[lang="en"]').first()).not.toBeEmpty();
+  await expect(terminal.getByLabel('Commande')).toContainText('alerts set npm:form-parser');
+  await terminal.getByRole('button', { name: 'J’ai compris' }).click();
+  await page.keyboard.press('Escape');
+  await page.unroute('**/api/run');
+});
+
+test('tells the person to open the new address after the server restarted', async ({ page }) => {
+  await open(page, '/royaume');
+  await page.route('**/api/run', (route) => route.fulfill({ status: 403, json: { error: 'Missing or invalid session token. Reload the page.', reason: 'stale-token' } }));
+  await page.getByRole('button', { name: 'Actualiser les données du projet' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'Le serveur local a redémarré : ouvre la nouvelle adresse que « openguildkit ui » a écrite dans ton terminal.' })).toBeVisible();
+  await page.unroute('**/api/run');
 });
 
 test('shows the controls: instructions, host rules and guard', async ({ page }) => {
@@ -576,7 +622,7 @@ test('hands a profile change that weakens a protection to the terminal', async (
   await open(page, '/blueprint');
   await page.getByLabel('Recherche publique').selectOption('public-sources');
   await page.getByRole('button', { name: 'Enregistrer et synchroniser' }).click();
-  const terminal = page.getByRole('dialog', { name: /Changement du profil : à faire dans votre terminal/ });
+  const terminal = page.getByRole('dialog', { name: /Changement du profil : à faire dans ton terminal/ });
   await expect(terminal.getByLabel('Commande')).toContainText('profile set research public-sources --by NAME --reason WHY');
   await terminal.getByRole('button', { name: 'J’ai compris' }).click();
   const profile = await api<{ text: string }>(page, './api/files/read', { path: '.openguildkit/project.json' });
@@ -673,7 +719,12 @@ test('sets up a project with personal data once a person accepts the GDPR', asyn
   await settingUp(page, EMPTY, 'new-portal');
   const install = page.getByRole('button', { name: 'Installer la guilde' });
   const plan = page.getByRole('region', { name: 'Règles qui s’appliqueront' });
-  await page.getByLabel('Project name').fill('Brouillon');
+  // The questions and their choices are in French; the CLI's own help stays English, marked so.
+  await expect(page.locator('[data-question="sector"] option[value="healthcare"]')).toHaveText('Santé');
+  await expect(page.locator('[data-question="personal_data"] option[value="yes"]')).toHaveText('Oui');
+  await expect(page.locator('[data-question="personal_data"] .hint [lang="en"]').first()).toContainText('Whether the software stores');
+  await expect(page.getByText(/Sans réponse : the default/)).toHaveCount(0);
+  await page.getByLabel('Nom du projet').fill('Brouillon');
   await expect(page.locator('[data-norm]').first()).toBeAttached();
   await expect(install).toBeDisabled();
   await page.locator('#setup-personal_data').selectOption('yes');
@@ -699,10 +750,10 @@ test('sets up a project with personal data once a person accepts the GDPR', asyn
     body.json.rule_warning = '120 rules in force. Decline the patterns that do not concern the project.';
     await route.fulfill({ response, json: body });
   });
-  await page.getByLabel('Project name').fill('Brouillon 2');
+  await page.getByLabel('Nom du projet').fill('Brouillon 2');
   await expect(plan.getByText(/120 rules in force/)).toBeVisible();
   await page.unroute('**/api/run');
-  await page.getByLabel('Project name').fill('Nouveau portail');
+  await page.getByLabel('Nom du projet').fill('Nouveau portail');
 
   await expect(plan.getByText('GDPR personal data processing')).toBeVisible();
   await expect(install).toBeEnabled();
@@ -718,7 +769,7 @@ test('sets up a project with personal data once a person accepts the GDPR', asyn
 test('sets up a project with Stripe: PCI DSS accepted, a norm declined with who and why', async ({ page }) => {
   await settingUp(page, STRIPE, 'new-shop');
   const install = page.getByRole('button', { name: 'Installer la guilde' });
-  await page.getByLabel('Project name').fill('Nouvelle boutique');
+  await page.getByLabel('Nom du projet').fill('Nouvelle boutique');
   const pci = page.locator('[data-norm="pci-dss-cardholder-data"]').first();
   await expect(pci).toContainText('pile : Stripe');
   await page.locator('#setup-personal_data').selectOption('yes');

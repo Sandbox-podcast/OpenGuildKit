@@ -142,6 +142,8 @@ const NEXT: [RegExp, (m: RegExpExecArray) => string][] = [
   [/^Waiting for the person's decision\.$/, () => 'En attente de la décision d’une personne.'],
   [/^Consult again: (.*)$/, (m) => `Consulter à nouveau : ${m[1]}`],
   [/^Decision recorded: close it with task complete (\S+), then open a follow-up task to act on it\.$/, (m) => `Décision enregistrée : la clore avec task complete ${m[1]}, puis ouvrir une quête de suite pour la mettre en œuvre.`],
+  [/^Decision recorded: report its acceptance criterion with task result (\S+) --template, then task complete \S+, then open a follow-up task to act on it\.$/,
+    (m) => `Décision enregistrée : rapporter son critère d’acceptation (task result ${m[1]} --template), la clore avec task complete ${m[1]}, puis ouvrir une quête de suite pour la mettre en œuvre.`],
   [/^Implement, then record the results: task verify (\S+) and task result \S+, then task complete \S+\.$/, (m) => `Réaliser, puis rapporter les résultats (task verify ${m[1]}, task result) et terminer la quête.`],
   [/^Waiting for evidence: (.*)\.$/, (m) => `En attente de preuves : ${m[1]}.`],
   [/^Result recorded: run task verify (\S+) to list what remains, then task complete \S+\.$/, (m) => `Résultats enregistrés : task verify ${m[1]} liste ce qui reste, puis terminer la quête.`],
@@ -193,6 +195,19 @@ export const touchedStep = (step: string) => {
 };
 /** The CLI's next step of an approved task whose last verification failed. */
 export const hasFailedCheck = (next: string) => / failed.*Fix it, then run task verify /s.test(next);
+
+/** The groups of what a completion left open (tasks.closing_points), most serious first, in French. */
+export const CLOSING_GROUP: Record<string, string> = {
+  'Data protection, security or AI rules skipped, failed or declared not applicable as a pack': 'Règles de protection des données, de sécurité ou d’IA ignorées, en échec ou écartées pack entier',
+  'Board blocks not lifted': 'Blocages des cerveaux non levés',
+  'Project checks that could not run in this environment': 'Vérifications du projet qui n’ont pas pu tourner ici',
+  'Blockers waived rather than cleared': 'Points bloquants couverts par une dérogation plutôt que levés',
+  'Disagreements between boards left open': 'Désaccords entre cerveaux restés ouverts',
+  'Named evidence handed to a follow-up task': 'Pièces justificatives confiées à une quête de suite',
+  'Other rules skipped or failed': 'Autres règles ignorées ou en échec',
+  'Warnings on the result': 'Avertissements sur le résultat',
+  'Board verdicts at approval that asked for changes': 'Verdicts des cerveaux qui demandaient des changements à l’approbation',
+};
 
 /** French wording of the task questionnaire (workflow.task_questions). The CLI prompt stays as a tooltip. */
 export const QUESTION_FR: Record<string, string> = {

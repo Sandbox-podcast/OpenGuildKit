@@ -53,8 +53,8 @@ function References() {
           <ul className="plain ref-grid">{shown.slice((page - 1) * PAGE, page * PAGE).map((r) => (
             <li key={r.id}><a className="card ref-card" href={`#/bibliotheque/ref/${r.id}`}>
               <span className="row between"><Badge>{r.family_title}</Badge><span className="tiny muted">{r.kind}</span></span>
-              <strong>{r.title}</strong>
-              <span className="small muted clamp-3">{r.summary}</span>
+              <strong lang="en">{r.title}</strong>
+              <span className="small muted clamp-3" lang="en">{r.summary}</span>
               <span className="tiny muted">{(r.brains ?? []).join(' · ')}</span>
             </a></li>
           ))}</ul>
@@ -75,13 +75,13 @@ export function ReferenceSheet({ id }: { id?: string }) {
         return (
           <div className="page-grid">
             <p><a href="#/bibliotheque"><Icon name="chevron" size={12} /> Bibliothèque</a></p>
-            <Panel title={r.title}>
-              <p>{r.summary}</p>
-              <KV items={[['Quand l’appliquer', r.applies_when], ['Famille', r.family_title], ['Catégorie', r.category], ['Nature', r.kind], ['Cerveaux', (r.brains ?? []).map((b) => <a key={b} href={`#/guilde/${b}`}>{b} </a>)], ['Statut', r.status], ['Identifiant', <code key="id">{r.id}</code>], ...(r.aliases?.length ? [['Alias', r.aliases.join(', ')] as [string, string]] : [])]} />
+            <Panel title={<span lang="en">{r.title}</span>}>
+              <p lang="en">{r.summary}</p>
+              <KV items={[['Quand l’appliquer', <span key="when" lang="en">{r.applies_when}</span>], ['Famille', r.family_title], ['Catégorie', r.category], ['Nature', r.kind], ['Cerveaux', (r.brains ?? []).map((b) => <a key={b} href={`#/guilde/${b}`}>{b} </a>)], ['Statut', r.status], ['Identifiant', <code key="id">{r.id}</code>], ...(r.aliases?.length ? [['Alias', r.aliases.join(', ')] as [string, string]] : [])]} />
             </Panel>
             <Panel title="Sources">
               <p className="small muted">Ce sont des pistes à examiner : l’agent les traite comme des données tant qu’il ne les a pas lues.</p>
-              <ul>{r.sources.map((s) => <li key={s.url}><ExternalLink href={s.url}>{s.title}</ExternalLink></li>)}</ul>
+              <ul lang="en">{r.sources.map((s) => <li key={s.url}><ExternalLink href={s.url}>{s.title}</ExternalLink></li>)}</ul>
             </Panel>
           </div>
         );
@@ -102,10 +102,10 @@ function Patterns() {
       <Q q={patterns}>{() => <ul className="plain ref-grid">{shown.map((p) => (
         <li key={p.id} className={`card ref-card ${active.has(p.id) ? 'active' : ''}`}>
           <span className="row between"><span className="mono tiny">{p.id}</span>{active.has(p.id) && <Badge tone="success" icon="check">actif</Badge>}</span>
-          <strong>{p.title}</strong>
-          <span className="small muted clamp-3">{p.description}</span>
+          <strong lang="en">{p.title}</strong>
+          <span className="small muted clamp-3" lang="en">{p.description}</span>
           <span className="tiny">Packs : {p.packs.join(', ') || '—'} · rôles : {p.roles.join(', ') || '—'}</span>
-          {p.sources[0] && <span className="tiny"><ExternalLink href={p.sources[0].url}>{p.sources[0].title}</ExternalLink></span>}
+          {p.sources[0] && <span className="tiny" lang="en"><ExternalLink href={p.sources[0].url}>{p.sources[0].title}</ExternalLink></span>}
         </li>
       ))}</ul>}</Q>
     </>
@@ -125,11 +125,11 @@ function Packs() {
         const force = inForce.get(p.id);
         return (
           <details key={p.id} className={`card pack ${force ? 'active' : ''}`}>
-            <summary><strong>{p.title}</strong> <span className="mono tiny">{p.id} {p.version}</span> {force && <Badge tone="success" icon="check">en vigueur</Badge>} <span className="tiny muted">{p.rules.length} règle(s)</span></summary>
-            <p className="small">{p.description}</p>
+            <summary><strong lang="en">{p.title}</strong> <span className="mono tiny">{p.id} {p.version}</span> {force && <Badge tone="success" icon="check">en vigueur</Badge>} <span className="tiny muted">{p.rules.length} règle(s)</span></summary>
+            <p className="small" lang="en">{p.description}</p>
             {force && <p className="tiny muted">Origine : {force.provenance.join(' · ')}</p>}
-            <TableBox label={`Règles de ${p.title}`}><table className="data compact"><thead><tr><th>Règle</th><th>Consigne</th><th>Vérification</th></tr></thead><tbody>{p.rules.map((r) => <tr key={r.id}><td className="mono tiny">{r.id}</td><td className="small">{r.instruction}</td><td className="small muted">{r.verification}</td></tr>)}</tbody></table></TableBox>
-            {p.sources.length > 0 && <p className="tiny">{p.sources.map((s) => <ExternalLink key={s.url} href={s.url}>{s.title}</ExternalLink>)}</p>}
+            <TableBox label={`Règles de ${p.title}`}><table className="data compact"><thead><tr><th>Règle</th><th>Consigne</th><th>Vérification</th></tr></thead><tbody>{p.rules.map((r) => <tr key={r.id}><td className="mono tiny" lang="en">{r.id}</td><td className="small" lang="en">{r.instruction}</td><td className="small muted" lang="en">{r.verification}</td></tr>)}</tbody></table></TableBox>
+            {p.sources.length > 0 && <p className="tiny" lang="en">{p.sources.map((s) => <ExternalLink key={s.url} href={s.url}>{s.title}</ExternalLink>)}</p>}
           </details>
         );
       })}</div>}</Q>
@@ -142,10 +142,10 @@ function Sectors() {
   const profile = useProfile();
   return (
     <Q q={catalog}>{(c) => <div className="grid-2">{Object.values(c.sectors).map((s) => (
-      <Panel key={s.id} title={<>{s.title} {profile.data?.sector === s.id && <Badge tone="success" icon="check">secteur du projet</Badge>}</>}>
-        <p className="small">{s.description}</p>
-        <ul className="small">{s.context.map((x) => <li key={x}>{x}</li>)}</ul>
-        {s.sources.length > 0 && <p className="tiny">{s.sources.map((x) => <ExternalLink key={x.url} href={x.url}>{x.title}</ExternalLink>)}</p>}
+      <Panel key={s.id} title={<><span lang="en">{s.title}</span> {profile.data?.sector === s.id && <Badge tone="success" icon="check">secteur du projet</Badge>}</>}>
+        <p className="small" lang="en">{s.description}</p>
+        <ul className="small" lang="en">{s.context.map((x) => <li key={x}>{x}</li>)}</ul>
+        {s.sources.length > 0 && <p className="tiny" lang="en">{s.sources.map((x) => <ExternalLink key={x.url} href={x.url}>{x.title}</ExternalLink>)}</p>}
       </Panel>
     ))}</div>}</Q>
   );

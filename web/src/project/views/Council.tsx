@@ -12,8 +12,9 @@ import { listFiles, run, terminalCommand } from '../api';
 import { boardTitle, useBrains, useProfile, useTasks } from '../data';
 import { invalidate, showTerminal, useAction, useCli, useCliText, useQuery } from '../query';
 import { BASIS, CONCERNS, CONFIDENCE, DATA, KIND, PASS, QUESTION_FR, RESEARCH, SURFACE, fmtWhen, isDecided, needsReconsult, nextLabel, nextLang, openPointLabel, verdict } from '../labels';
-import { ActionForm, CommandLine, FilePick, JsonDetails, Q, Section, StepRail, TaskStatusBadge, UnreadableTask, copyText, useDebounced, useRemembered } from '../parts';
+import { ActionForm, CommandLine, ErrorNotice, FilePick, JsonDetails, Q, Section, StepRail, TaskStatusBadge, UnreadableTask, copyText, useDebounced, useRemembered } from '../parts';
 import { usePrefs } from '../prefs';
+import { errorText } from '../refusals';
 import { isMultiple, questionList, toggleChoice, unanswered } from '../answers';
 import type { Answers, BlockerItem, Brain, Deliberation, PassProgress, Question, QuestionSet, Route, TaskRecord } from '../types';
 
@@ -39,7 +40,7 @@ export function CouncilList() {
                 {items.length === 0 ? <p className="muted small">Aucune quête.</p> : <ul className="plain stack tight">{items.map((t) => (
                   <li key={t.id}><a className="card" href={`#/conseil/${t.id}`}>
                     <span className="row between"><span className="mono small">{t.id}</span><TaskStatusBadge status={t.status} /></span>
-                    <strong className="clamp-2">{t.brief}</strong>
+                    <strong className="clamp-2" data-own>{t.brief}</strong>
                     <span className="small muted" lang={nextLang(t.next)}>{nextLabel(t.next)}</span>
                   </a></li>
                 ))}</ul>}
@@ -68,19 +69,19 @@ function CouncilRecord({ id, reconsult }: { id: string; reconsult: string | null
           <div className="quest-head">
             <div className="grow">
               <p className="mono small muted"><a href={`#/quetes/${t.id}`}>{t.id}</a></p>
-              <h2 className="h-title clamp-2">{t.brief.split('\n')[0]}</h2>
+              <h2 className="h-title clamp-2" data-own>{t.brief.split('\n')[0]}</h2>
               <TaskStatusBadge status={t.status} />
             </div>
           </div>
           <StepRail status={t.status} hasResult={!!t.result} />
           {reconsult && <Notice tone="danger" title="L’approbation ne tient plus :"><span lang={nextLang(reconsult)}>{nextLabel(reconsult)}</span> Réponds au questionnaire et réunis le Conseil à nouveau : la consultation précédente et l’approbation restent dans l’historique.</Notice>}
           {(t.status === 'draft' || t.status === 'changes-requested' || !!reconsult) && <Framing task={t} />}
-          {t.status === 'changes-requested' && t.decision && <Notice tone="warn" title="Renvoyée au Conseil :">{t.decision.by} — {t.decision.reason}. Une nouvelle consultation archive le tour précédent, avec son brief ; vous pouvez réviser le brief au moment de consulter à nouveau.</Notice>}
+          {t.status === 'changes-requested' && t.decision && <Notice tone="warn" title="Renvoyée au Conseil :">{t.decision.by} — <span data-own>{t.decision.reason}</span>. Une nouvelle consultation archive le tour précédent, avec son brief ; vous pouvez réviser le brief au moment de consulter à nouveau.</Notice>}
           {t.status === 'consulting' && <><Framing task={t} collapsed /><Passes task={t} /></>}
           {(t.status === 'reviewed' || isDecided(t.status)) && <Reviews task={t} />}
           {t.status === 'reviewed' && <><Deliberation id={t.id} /><Blockers id={t.id} /><Decide task={t} /></>}
           {isDecided(t.status) && t.decision && !reconsult && (
-            <Notice tone="success" title="Décision scellée :">{t.decision.by}, le {fmtWhen(t.decision.at)} — {t.decision.reason}. {t.status === 'approved' && <a href={`#/forge/${t.id}`}>Passer à la Forge</a>}</Notice>
+            <Notice tone="success" title="Décision scellée :">{t.decision.by}, le {fmtWhen(t.decision.at)} — <span data-own>{t.decision.reason}</span>. {t.status === 'approved' && <a href={`#/forge/${t.id}`}>Passer à la Forge</a>}</Notice>
           )}
         </div>
       )}
@@ -123,7 +124,7 @@ function Framing({ task, collapsed }: { task: TaskRecord; collapsed?: boolean })
           {() => <div className="stack">{shown.map((q) => <QuestionField key={q.id} q={q} value={(answers as Record<string, unknown>)[q.id]} onChange={(v) => set(q.id, v)} />)}</div>}
         </Q>
         {extra.data?.open_points && extra.data.open_points.length > 0 && <Notice tone="warn" title="Points ouverts :"><ul>{extra.data.open_points.map((p) => <li key={p}>{openPointLabel(p, prompts)}</li>)}</ul>Ils ne bloquent pas la consultation : chaque cerveau dira comment ils pèsent sur son avis.</Notice>}
-        {extra.error && <Notice tone="danger"><span lang={extra.error.lang}>{extra.error.message}</span></Notice>}
+        {extra.error && <ErrorNotice error={extra.error} title="Le questionnaire n’a pas pu être lu :" />}
         {base.data && missing.length > 0 && <p className="small muted" role="status">Le routage s’affiche quand chaque question à choix a sa réponse ({missing.length} sans réponse).</p>}
       </Section>
       {complete && <Routing task={task} answers={settled} />}
@@ -194,16 +195,16 @@ function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
             <li key={b} className="card board-pick">
               <span className="row between"><strong><Icon name="guild" size={14} /> {boardTitle(brains.data, b)}</strong>
                 {required.includes(b) ? <Badge tone="info" icon="lock">obligatoire</Badge> : <Button size="small" variant="ghost" onClick={() => setRemove((x) => [...x, b])} aria-label={`Retirer ${b}`}>Retirer</Button>}</span>
-              <span className="tiny muted">{reasons.join(' · ')}</span>
+              <span className="tiny muted" lang="en">{reasons.join(' · ')}</span>
             </li>
           ))}</ul>
-          {Object.keys(r.excluded ?? {}).length > 0 && <Notice tone="info" title="Écartés par le brief, non consultés :"><ul>{Object.entries(r.excluded).map(([b, passages]) => <li key={b}><strong>{boardTitle(brains.data, b)}</strong> : « {passages.join(' », « ')} »</li>)}</ul>S’il s’applique quand même, ajoutez-le avec un motif.</Notice>}
-          {Object.keys(r.expected_not_selected ?? {}).length > 0 && <Notice tone="warn" title="Attendus par l’équipe, non retenus :"><ul>{Object.entries(r.expected_not_selected).map(([b, why]) => <li key={b}><strong>{boardTitle(brains.data, b)}</strong> : {why}</li>)}</ul></Notice>}
+          {Object.keys(r.excluded ?? {}).length > 0 && <Notice tone="info" title="Écartés par le brief, non consultés :"><ul>{Object.entries(r.excluded).map(([b, passages]) => <li key={b}><strong>{boardTitle(brains.data, b)}</strong> : <span data-own>« {passages.join(' », « ')} »</span></li>)}</ul>S’il s’applique quand même, ajoutez-le avec un motif.</Notice>}
+          {Object.keys(r.expected_not_selected ?? {}).length > 0 && <Notice tone="warn" title="Attendus par l’équipe, non retenus :"><ul>{Object.entries(r.expected_not_selected).map(([b, why]) => <li key={b}><strong>{boardTitle(brains.data, b)}</strong> : <span lang="en">{why}</span></li>)}</ul></Notice>}
           {(r.not_selected ?? []).length > 0 && <p className="tiny muted">Non retenus : {r.not_selected.map((b) => boardTitle(brains.data, b)).join(', ')}. Ajoutez-en un avec un motif si la quête le concerne.</p>}
           {r.adjustments.length > 0 && <p className="small">Ajustements : {r.adjustments.map((a) => `${a.action} ${a.board}`).join(', ')}. <Button size="small" variant="ghost" onClick={() => { setAdd([]); setRemove([]); }}>Annuler les ajustements</Button></p>}
         </>}
       </Q>
-      {route.error && <Notice tone="danger"><span lang={route.error.lang}>{route.error.message}</span>{/required board/i.test(route.error.message) && ' Nommez la personne qui fera cette revue ci-dessous.'}</Notice>}
+      {route.error && <Notice tone="danger"><span lang={errorText(route.error).lang}>{errorText(route.error).text}</span>{/required board/i.test(route.error.message) && ' Nommez la personne qui fera cette revue ci-dessous.'}</Notice>}
       <div className="grid-2">
         <div className="field"><label htmlFor="add-board">Ajouter un cerveau</label>
           <select id="add-board" className="input" value="" onChange={(e) => e.target.value && setAdd((x) => [...x, e.target.value])}>
@@ -251,7 +252,7 @@ function Passes({ task }: { task: TaskRecord }) {
                 <span className="board-seat-icon"><Icon name={p.status === 'done' ? 'check' : p.status === 'started' ? 'play' : p.status === 'failed' ? 'cross' : 'guild'} size={18} /></span>
                 <strong>{boardTitle(brains.data, p.board)}</strong>
                 <Badge tone={s.tone} icon={s.icon}>{s.label}</Badge>
-                {p.error && <span className="tiny pre-line">{p.error}</span>}
+                {p.error && <span className="tiny pre-line" lang="en">{p.error}</span>}
                 {p.status === 'started' && <span className="tiny muted">Passe interrompue ? Relancez-la pour ce cerveau seulement.</span>}
                 <span className="row"><Button size="small" onClick={() => setPass({ board: p.board, start: p.status === 'missing' })}>{p.status === 'missing' ? 'Préparer la passe' : 'Revoir la passe'}</Button></span>
               </li>
@@ -259,7 +260,7 @@ function Passes({ task }: { task: TaskRecord }) {
           })}</ul>}
         </Q>
         <p className="small">{done}/{all} avis déposés.</p>
-        {error && <Notice tone="danger" title="Avis refusé :"><span className="pre-line">{error.message.replace(/\nFix these points in the file and send it again:.*$/s, '')}</span><span className="block small">Corrigez le fichier et déposez-le à nouveau : la passe reste ouverte, sans nouvelle tentative.</span></Notice>}
+        {error && <Notice tone="danger" title="Avis refusé :"><span className="pre-line" lang={errorText(error).lang}>{errorText(error).text.replace(/\nFix these points in the file and send it again:.*$/s, '')}</span><span className="block small">Corrigez le fichier et déposez-le à nouveau : la passe reste ouverte, sans nouvelle tentative.</span></Notice>}
         <div className="grid-2">
           <FilePick label="Déposer l’avis d’un cerveau (JSON)" hint="L’entrée remplie renvoyée par la passe." onText={(text) => void act(['task', 'submit', task.id, '--file', '@upload:entry.json'], { uploads: { 'entry.json': text }, success: 'Avis déposé' })} />
           <FilePick label="Ou déposer la revue complète (JSON)" hint="Un fichier avec consultation_id, summary et une entrée par cerveau." onText={(text) => void act(['task', 'review', task.id, '--file', '@upload:review.json'], { uploads: { 'review.json': text }, success: 'Revue enregistrée' })} />
@@ -287,7 +288,7 @@ function PassDialog({ task, board, start, onClose }: { task: string; board: stri
   return (
     <Dialog open={!!board} onClose={onClose} wide title={`Passe du cerveau ${board ?? ''}`} footer={<><Button onClick={onClose}>Fermer</Button>{text && <Button variant="primary" icon="copy" onClick={() => void copyText(text)}>Copier pour l’agent</Button>}</>}>
       <p className="small muted">La passe ne montre à ce cerveau que la quête, son brief, les règles de ses packs qui la concernent et son modèle d’entrée, rien des autres cerveaux. Préparée, elle est marquée « commencée » jusqu’au dépôt de l’avis ; la relire ne la relance pas.</p>
-      {error && <Notice tone="danger">{error}</Notice>}
+      {error && <Notice tone="danger"><span lang="en">{error}</span></Notice>}
       {text ? <div className="scroll-box" tabIndex={0}><Markdown text={text} /></div> : !error && <p className="muted">Préparation…</p>}
     </Dialog>
   );
@@ -311,7 +312,7 @@ function Reviews({ task }: { task: TaskRecord }) {
   return (
     <>
       <Section title="Avis des cerveaux" icon="eye" actions={<Button size="small" icon="scroll" onClick={() => setChallenge(true)}>Arbitrage (task challenge)</Button>}>
-        <p className="pre-line">{task.review.summary}</p>
+        <p className="pre-line" data-own>{task.review.summary}</p>
         <div className="review-grid">{task.review.boards.map((b) => <BoardCard key={b.id} entry={b} brain={brains.data?.[b.id]} />)}</div>
       </Section>
       <ChallengeDialog id={task.id} open={challenge} onClose={() => setChallenge(false)} />
@@ -325,20 +326,20 @@ function BoardCard({ entry, brain }: { entry: NonNullable<TaskRecord['review']>[
   const lens = (id: string) => brain?.review?.specialists.find((s) => s.id === id)?.title ?? id;
   return (
     <article className={`card review-card verdict-${c?.verdict ?? 'none'}`}>
-      <header className="row between"><strong><a href={`#/guilde/${entry.id}`}>{brain?.title ?? entry.id}</a></strong><Badge tone={v.tone} icon={v.icon}>{v.label}</Badge></header>
+      <header className="row between"><strong lang="en"><a href={`#/guilde/${entry.id}`}>{brain?.title ?? entry.id}</a></strong><Badge tone={v.tone} icon={v.icon}>{v.label}</Badge></header>
       {entry.reviewer && <p className="tiny muted">Revue préparée pour {entry.reviewer}</p>}
-      <p>{entry.recommendation}</p>
+      <p data-own>{entry.recommendation}</p>
       {c && <>
         <p className="tiny muted">{CONFIDENCE[c.confidence] ?? c.confidence}</p>
         <details><summary>Lentilles ({c.specialists.length}), alternative et vérification</summary>
-          <ul className="small">{c.specialists.map((s) => <li key={s.id}><strong>{lens(s.id)}</strong> <span className="tiny muted">({BASIS[s.basis] ?? s.basis}{s.evidence_refs.length ? `, preuves ${s.evidence_refs.join(', ')}` : ''})</span> : {s.finding}</li>)}</ul>
-          <p className="small"><strong>Alternative :</strong> {c.alternative}</p>
-          <p className="small"><strong>Mode d’échec :</strong> {c.failure_mode}</p>
-          <p className="small"><strong>Vérification :</strong> {c.verification}</p>
+          <ul className="small">{c.specialists.map((s) => <li key={s.id}><strong lang="en">{lens(s.id)}</strong> <span className="tiny muted">({BASIS[s.basis] ?? s.basis}{s.evidence_refs.length ? `, preuves ${s.evidence_refs.join(', ')}` : ''})</span> : <span data-own>{s.finding}</span></li>)}</ul>
+          <p className="small"><strong>Alternative :</strong> <span data-own>{c.alternative}</span></p>
+          <p className="small"><strong>Mode d’échec :</strong> <span data-own>{c.failure_mode}</span></p>
+          <p className="small"><strong>Vérification :</strong> <span data-own>{c.verification}</span></p>
         </details>
       </>}
-      {entry.open_questions.length > 0 && <details><summary>Questions ouvertes ({entry.open_questions.length})</summary><ul className="small">{entry.open_questions.map((q) => <li key={q}>{q}</li>)}</ul></details>}
-      {entry.evidence.length > 0 && <details><summary>Preuves ({entry.evidence.length})</summary><ol className="small">{entry.evidence.map((e, i) => <li key={i}><code>{e.ref}</code> <span className="tiny muted">{e.source}</span> — {e.supports}</li>)}</ol></details>}
+      {entry.open_questions.length > 0 && <details><summary>Questions ouvertes ({entry.open_questions.length})</summary><ul className="small" data-own>{entry.open_questions.map((q) => <li key={q}>{q}</li>)}</ul></details>}
+      {entry.evidence.length > 0 && <details><summary>Preuves ({entry.evidence.length})</summary><ol className="small">{entry.evidence.map((e, i) => <li key={i}><code>{e.ref}</code> <span className="tiny muted">{e.source}</span> — <span data-own>{e.supports}</span></li>)}</ol></details>}
     </article>
   );
 }
@@ -361,10 +362,10 @@ function Deliberation({ id }: { id: string }) {
   return (
     <Section title={`Délibération : ${d.data.objections.length} objection(s) entre cerveaux`} icon="council">
       <ul className="plain stack tight">{d.data.objections.map((o) => (
-        <li key={o.id} className="card"><strong>{boardTitle(brains.data, o.from)} → {boardTitle(brains.data, o.to)}</strong><p className="small">{o.point}</p>
-          <p className="tiny muted">{o.from_position} · face à · {o.to_position}</p>{o.meets?.length ? <p className="tiny muted">Domaines communs : {o.meets.join(', ')}</p> : null}</li>
+        <li key={o.id} className="card"><strong>{boardTitle(brains.data, o.from)} → {boardTitle(brains.data, o.to)}</strong><p className="small" data-own>{o.point}</p>
+          <p className="tiny muted" data-own>{o.from_position} · face à · {o.to_position}</p>{o.meets?.length ? <p className="tiny muted">Domaines communs : {o.meets.join(', ')}</p> : null}</li>
       ))}</ul>
-      {d.data.rules && <details className="small"><summary>Règles des réponses</summary><ul>{Object.entries(d.data.rules.positions ?? {}).map(([k, v]) => <li key={k}><code>{k}</code> : {v}</li>)}</ul><p>{d.data.rules.resolution}</p>
+      {d.data.rules && <details className="small"><summary>Règles des réponses</summary><ul>{Object.entries(d.data.rules.positions ?? {}).map(([k, v]) => <li key={k}><code>{k}</code> : <span lang="en">{v}</span></li>)}</ul><p lang="en">{d.data.rules.resolution}</p>
         <p className="tiny muted">Une réponse peut couvrir plusieurs objections : <code>objections</code> en liste d’identifiants.</p></details>}
       <div className="grid-2">
         <div><Button size="small" icon="copy" onClick={() => void copyText(JSON.stringify(d.data!.template, null, 2))}>Copier le modèle de réponse</Button></div>
@@ -393,8 +394,8 @@ function Blockers({ id }: { id: string }) {
         <li key={b.id} className={`card blocker ${b.resolution ? 'resolved' : ''}`}>
           <span className="row between"><span className="mono small">{b.id}</span>{b.resolution ? <Badge tone="success" icon="check">{b.resolution.kind === 'waived' ? `dérogation de ${b.resolution.by}` : `levé par ${b.resolution.by}`}</Badge> : b.phase === 'verification' ? <Badge tone="warning" icon="clock">condition de la validation</Badge> : <Badge tone="danger" icon="ban">ouvert</Badge>}</span>
           {b.phase === 'verification' && !b.resolution && <span className="tiny muted">Seul le travail fini peut le lever : la validation reste possible, et la quête ne se termine pas tant qu’il est ouvert.</span>}
-          <strong>{b.finding}</strong>
-          {b.owner && <span className="small">Responsable : {b.owner}. Se lève quand : {b.clears_when}</span>}
+          <strong data-own>{b.finding}</strong>
+          {b.owner && <span className="small">Responsable : {b.owner}. Se lève quand : <span data-own>{b.clears_when}</span></span>}
           {b.resolution?.evidence && <span className="small muted">Preuve : <code>{b.resolution.evidence}</code> — {b.resolution.supports}</span>}
           {!b.resolution && <span className="row"><Button size="small" variant="primary" onClick={() => setClearing(b)}>Lever avec une preuve (au terminal)</Button>{waivers && <Button size="small" onClick={() => setWaiving(b)}>Déroger (au terminal)</Button>}</span>}
         </li>
@@ -462,7 +463,7 @@ function Decide({ task }: { task: TaskRecord }) {
 
   return (
     <Section id="decision" title="Décision" icon="lock">
-      {previous && <Notice tone="info" title="Tour précédent :">{previous.outcome === 'approved' ? 'validé' : 'renvoyé au Conseil'} par {previous.by} : {previous.reason}</Notice>}
+      {previous && <Notice tone="info" title="Tour précédent :">{previous.outcome === 'approved' ? 'validé' : 'renvoyé au Conseil'} par {previous.by} : <span data-own>{previous.reason}</span></Notice>}
       {open > 0 && <Notice tone="danger" title={`${open} blocage(s) ouvert(s).`}>La validation attend qu’ils soient levés. Vous pouvez déjà renvoyer la quête au Conseil.</Notice>}
       {conditions > 0 && <Notice tone="warn" title={`${conditions} condition(s) de la validation.`}>Ces blocages ne se lèvent qu’une fois le travail fini : la validation reste possible, et la quête ne se terminera pas tant qu’ils sont ouverts.</Notice>}
       <div className="grid-2">

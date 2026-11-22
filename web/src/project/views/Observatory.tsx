@@ -29,7 +29,7 @@ export function Observatory({ id }: { id?: string }) {
         <Button icon="plus" onClick={() => setCreating(true)}>Nouveau dossier</Button>
       </div>
       {(due.data?.due.length ?? 0) > 0 && <Panel title={`Veille : ${due.data!.due.length} source(s) à relire`} tone="ai">
-        <ul className="plain stack tight">{due.data!.due.map((d) => <li key={d.url} className="row between"><span><strong>{d.competitor}</strong> · {d.kind} · <ExternalLink href={d.url} /> <span className="tiny muted">({d.dossier})</span></span>
+        <ul className="plain stack tight" data-own>{due.data!.due.map((d) => <li key={d.url} className="row between"><span><strong>{d.competitor}</strong> · {d.kind} · <ExternalLink href={d.url} /> <span className="tiny muted">({d.dossier})</span></span>
           <Button size="small" busy={busy !== null} onClick={() => void act(['market', 'checked', d.dossier, '--url', d.url], { success: 'Source marquée relue' })}>Relue, rien de neuf</Button></li>)}</ul>
         <p className="tiny muted">L’agent ne les consulte que si la politique de recherche le permet. Un changement retenu s’enregistre dans le dossier avec la personne qui l’a vérifié.</p>
       </Panel>}
@@ -63,7 +63,7 @@ function DossierView({ id }: { id: string }) {
     <Q q={dossier}>{(d) => (
       <div className="page-grid">
         <Panel title={d.title}>
-          <p className="small"><strong>Marché :</strong> {d.market} · <strong>Public :</strong> {d.audience} · <strong>Fonctionnalité :</strong> {d.feature}</p>
+          <p className="small"><strong>Marché :</strong> <span data-own>{d.market}</span> · <strong>Public :</strong> <span data-own>{d.audience}</span> · <strong>Fonctionnalité :</strong> <span data-own>{d.feature}</span></p>
           <p className="small muted">Un avis cite une observation avec <code>market:{id}/IDENTIFIANT</code> ; la CLI refuse une référence absente du dossier joint.</p>
           <div className="row">
             <Button size="small" icon="plus" onClick={() => setForm('competitor')}>Concurrent</Button>
@@ -74,25 +74,25 @@ function DossierView({ id }: { id: string }) {
             {d.watch && <Button size="small" variant="ghost" busy={busy !== null} onClick={() => void act(['market', d.watch!.paused ? 'resume' : 'pause', id], { success: d.watch!.paused ? 'Veille reprise' : 'Veille en pause' })}>{d.watch.paused ? 'Reprendre la veille' : 'Mettre la veille en pause'}</Button>}
           </div>
         </Panel>
-        {gaps.data && gaps.data.gaps.length > 0 && <Notice tone="warn" title="Lacunes du dossier :"><ul>{gaps.data.gaps.map((g) => <li key={g}>{g}</li>)}</ul></Notice>}
+        {gaps.data && gaps.data.gaps.length > 0 && <Notice tone="warn" title="Lacunes du dossier :"><ul lang="en">{gaps.data.gaps.map((g) => <li key={g}>{g}</li>)}</ul></Notice>}
         <div className="grid-2">
           <Panel title={`Concurrents et substituts (${d.competitors.length})`}>
-            <ul className="plain stack tight">{d.competitors.map((c) => <li key={c.id} className="card"><span className="row between"><strong>{c.name}</strong><Badge tone={c.kind === 'direct' ? 'info' : 'muted'}>{c.kind === 'direct' ? 'direct' : 'substitut'}</Badge></span>{c.segment && <span className="small muted">{c.segment}</span>}<span className="mono tiny">{c.id}</span></li>)}</ul>
+            <ul className="plain stack tight" data-own>{d.competitors.map((c) => <li key={c.id} className="card"><span className="row between"><strong>{c.name}</strong><Badge tone={c.kind === 'direct' ? 'info' : 'muted'}>{c.kind === 'direct' ? 'direct' : 'substitut'}</Badge></span>{c.segment && <span className="small muted">{c.segment}</span>}<span className="mono tiny">{c.id}</span></li>)}</ul>
           </Panel>
           <Panel title={`Observations (${d.observations.length})`}>
             <ul className="plain stack tight">{d.observations.map((o) => { const age = daysSince(o.source.date); return <li key={o.id} className="card">
               <span className="row between"><span className="mono tiny">market:{id}/{o.id}</span><Badge tone={age > 180 ? 'warning' : 'muted'} icon="clock">{age} j</Badge></span>
-              <span>{o.claim}</span><span className="tiny muted">{d.competitors.find((c) => c.id === o.competitor)?.name ?? o.competitor} · {o.source.ref} · {fmtDay(o.source.date)}</span></li>; })}</ul>
+              <span data-own>{o.claim}</span><span className="tiny muted" data-own>{d.competitors.find((c) => c.id === o.competitor)?.name ?? o.competitor} · {o.source.ref} · {fmtDay(o.source.date)}</span></li>; })}</ul>
           </Panel>
         </div>
         <div className="grid-2">
           <Panel title={`Inconnues (${d.unknowns.length})`}>
-            <ul className="plain stack tight">{d.unknowns.map((u) => <li key={u} className="row between"><span className="small">{u}</span><Button size="small" variant="ghost" aria-label={`Retirer ${u}`} onClick={() => void act(['market', 'unknown', id, '--text', u, '--remove'], { success: 'Inconnue retirée' })}><Icon name="cross" size={12} /></Button></li>)}</ul>
+            <ul className="plain stack tight">{d.unknowns.map((u) => <li key={u} className="row between"><span className="small" data-own>{u}</span><Button size="small" variant="ghost" aria-label={`Retirer ${u}`} onClick={() => void act(['market', 'unknown', id, '--text', u, '--remove'], { success: 'Inconnue retirée' })}><Icon name="cross" size={12} /></Button></li>)}</ul>
           </Panel>
           <Panel title={`Veille ${d.watch ? `tous les ${d.watch.every_days} jours${d.watch.paused ? ' (en pause)' : ''}` : 'non configurée'}`}>
             {d.watch && <>
-              <ul className="plain stack tight">{d.watch.sources.map((s) => <li key={s.url} className="small"><strong>{s.competitor}</strong> · {s.kind} · <ExternalLink href={s.url} /> <span className="tiny muted">relue : {s.last_checked ? fmtDay(s.last_checked) : 'jamais'}</span></li>)}</ul>
-              {d.watch.changes.length > 0 && <><h3 className="h-card">Changements retenus</h3><ol className="small">{d.watch.changes.map((c, i) => <li key={i}><span className="mono tiny">market:{id}/change-{i + 1}</span> {c.what} <span className="tiny muted">({c.competitor}, {fmtDay(c.date)}, vérifié par {c.verified_by})</span></li>)}</ol></>}
+              <ul className="plain stack tight" data-own>{d.watch.sources.map((s) => <li key={s.url} className="small"><strong>{s.competitor}</strong> · {s.kind} · <ExternalLink href={s.url} /> <span className="tiny muted">relue : {s.last_checked ? fmtDay(s.last_checked) : 'jamais'}</span></li>)}</ul>
+              {d.watch.changes.length > 0 && <><h3 className="h-card">Changements retenus</h3><ol className="small" data-own>{d.watch.changes.map((c, i) => <li key={i}><span className="mono tiny">market:{id}/change-{i + 1}</span> {c.what} <span className="tiny muted">({c.competitor}, {fmtDay(c.date)}, vérifié par {c.verified_by})</span></li>)}</ol></>}
             </>}
           </Panel>
         </div>

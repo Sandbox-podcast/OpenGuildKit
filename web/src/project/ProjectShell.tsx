@@ -16,7 +16,8 @@ import { currentSession } from './api';
 import { invalidate } from './query';
 import { placeCounts, signalsOf, useOverview, useProfile } from './data';
 import { setPrefs, usePrefs } from './prefs';
-import { TerminalDialog, TouchedNotice } from './parts';
+import { ServerWords, TerminalDialog, TouchedNotice } from './parts';
+import { errorText } from './refusals';
 import { ProjectSearch } from './ProjectSearch';
 import { useShortcuts } from '@/shared/shortcuts';
 
@@ -144,7 +145,7 @@ export function ProjectShell({ children }: { children: ReactNode }) {
       </nav>
 
       <main id="main" tabIndex={-1} className="main" inert={navOpen}>
-        {overview.error && <div className="notice danger" role="alert"><Icon name="warn" size={16} /><div>{overview.error.message}</div></div>}
+        {overview.error && <div className="notice danger" role="alert"><Icon name="warn" size={16} /><div><span lang={errorText(overview.error).lang}>{errorText(overview.error).text}</span><ServerWords detail={errorText(overview.error).detail} /></div></div>}
         {place && <PlaceHeader place={place} pro={pro} compact={route.parts.length > 1} />}
         <TouchedNotice />
         {children}

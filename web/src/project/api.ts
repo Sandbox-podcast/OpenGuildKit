@@ -33,11 +33,16 @@ export class ApiError extends Error {
 }
 
 let session: Session | null = null;
+let refused: string | null = null;
+
+/** The code of the server's refusal to open a session (open-printed-link, stale-token), when it refused one. */
+export const sessionRefusal = () => refused;
 
 /** Detects the local API. Static hosting (the demo) answers with HTML or 404, never this JSON. */
 export async function detectSession(): Promise<Session | null> {
   try {
     const response = await fetch('./api/session', { headers: { Accept: 'application/json' }, cache: 'no-store' });
+    if (response.status === 403) refused = ((await response.clone().json().catch(() => ({}))) as { reason?: string }).reason ?? null;
     if (!response.ok || !(response.headers.get('content-type') ?? '').includes('application/json')) return null;
     const data = await response.json() as Session;
     if (data.app !== 'openguildkit-ui' || !data.token) return null;

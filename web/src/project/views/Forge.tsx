@@ -12,8 +12,9 @@ import { toast } from '@/shared/ui/toast';
 import { batchJson, cliMessage, projectPath, readJson, readText, run, terminalCommand, writeFile, type CliResult } from '../api';
 import { useProfile, useTasks } from '../data';
 import { invalidate, showTerminal, useAction, useCli, useCliResult, useCliText, useQuery } from '../query';
-import { checkLabel, deliveryOf, fmtWhen, hasFailedCheck, isDecided, isDone, needsReconsult, nextLabel, nextLang, parseTemplates } from '../labels';
-import { ActionForm, CommandLine, ExternalLink, FilePick, JsonDetails, Pre, Q, Section, StepRail, TableBox, TaskStatusBadge, UnreadableTask, copyText, useRemembered } from '../parts';
+import { CLOSING_GROUP, checkLabel, deliveryOf, fmtWhen, hasFailedCheck, isDecided, isDone, needsReconsult, nextLabel, nextLang, parseTemplates } from '../labels';
+import { ActionForm, CommandLine, ErrorNotice, ExternalLink, FilePick, JsonDetails, Pre, Q, Section, StepRail, TableBox, TaskStatusBadge, UnreadableTask, copyText, useRemembered } from '../parts';
+import { errorText } from '../refusals';
 import type { BlockerItem, ExpectedCheck, MockListing, ProposalItem, ProposalStatus, StorybookProposals, TaskRecord, Tool } from '../types';
 
 export function Forge({ tab = 'quetes' }: { tab?: string }) {
@@ -41,14 +42,14 @@ function ToBuild() {
         return <div className="grid-2">
           {reconsult.length > 0 && <Panel title={<>Approbation à reprendre <span className="badge count">{reconsult.length}</span></>} tone="danger">
             <p className="small">Les règles ont changé depuis l’approbation, ou son enregistrement ne correspond plus : rien n’est à réaliser tant qu’une personne n’a pas consulté la tâche à nouveau.</p>
-            <ul className="plain stack tight">{reconsult.map((t) => <li key={t.id}><a className="card" href={`#/conseil/${t.id}`}><span className="row between"><span className="mono small">{t.id}</span><Badge tone="danger" icon="replace">à consulter à nouveau, par une personne</Badge></span><strong>{t.brief}</strong><span className="small muted" lang={nextLang(t.next)}>{nextLabel(t.next)}</span></a></li>)}</ul>
+            <ul className="plain stack tight">{reconsult.map((t) => <li key={t.id}><a className="card" href={`#/conseil/${t.id}`}><span className="row between"><span className="mono small">{t.id}</span><Badge tone="danger" icon="replace">à consulter à nouveau, par une personne</Badge></span><strong data-own>{t.brief}</strong><span className="small muted" lang={nextLang(t.next)}>{nextLabel(t.next)}</span></a></li>)}</ul>
           </Panel>}
           <Panel title={<>Validées, à réaliser <span className="badge count">{approved.length}</span></>}>
             {approved.length === 0 ? <Empty title="Rien à forger">Une quête arrive ici quand une personne l’a validée dans son terminal.</Empty>
-              : <ul className="plain stack tight">{approved.map((t) => <li key={t.id}><a className="card" href={`#/forge/${t.id}`}><span className="row between"><span className="mono small">{t.id}</span>{hasFailedCheck(t.next) && <Badge tone="danger" icon="cross">contrôle en échec</Badge>}</span><strong>{t.brief}</strong><span className="small muted">{nextLabel(t.next)}</span></a></li>)}</ul>}
+              : <ul className="plain stack tight">{approved.map((t) => <li key={t.id}><a className="card" href={`#/forge/${t.id}`}><span className="row between"><span className="mono small">{t.id}</span>{hasFailedCheck(t.next) && <Badge tone="danger" icon="cross">contrôle en échec</Badge>}</span><strong data-own>{t.brief}</strong><span className="small muted">{nextLabel(t.next)}</span></a></li>)}</ul>}
           </Panel>
           <Panel title={<>Terminées <span className="badge count">{done.length}</span></>}>
-            {done.length === 0 ? <p className="muted">Aucune quête terminée.</p> : <ul className="plain stack tight">{done.map((t) => <li key={t.id}><a className="card" href={`#/forge/${t.id}`}><span className="mono small">{t.id}</span><strong>{t.brief}</strong></a></li>)}</ul>}
+            {done.length === 0 ? <p className="muted">Aucune quête terminée.</p> : <ul className="plain stack tight">{done.map((t) => <li key={t.id}><a className="card" href={`#/forge/${t.id}`}><span className="mono small">{t.id}</span><strong data-own>{t.brief}</strong></a></li>)}</ul>}
           </Panel>
         </div>;
       }}
@@ -71,7 +72,7 @@ function ForgeRecord({ id, reconsult }: { id: string; reconsult: string | null }
     <Q q={record}>
       {(t) => (
         <div className="page-grid">
-          <div className="quest-head"><div className="grow"><p className="mono small muted"><a href={`#/quetes/${t.id}`}>{t.id}</a></p><h2 className="h-title clamp-2">{t.brief.split('\n')[0]}</h2><TaskStatusBadge status={t.status} /></div>
+          <div className="quest-head"><div className="grow"><p className="mono small muted"><a href={`#/quetes/${t.id}`}>{t.id}</a></p><h2 className="h-title clamp-2" data-own>{t.brief.split('\n')[0]}</h2><TaskStatusBadge status={t.status} /></div>
             <div className="row"><Button icon="scroll" variant="primary" onClick={() => setHandoff(true)}>{t.answers?.kind === 'decision' ? 'Relevé de décision' : 'Passation (handoff)'}</Button></div></div>
           <StepRail status={t.status} hasResult={!!t.result} />
           {reconsult ? <Notice tone="danger" title="L’approbation ne tient plus :"><span lang={nextLang(reconsult)}>{nextLabel(reconsult)}</span> Rien n’est à réaliser avant une nouvelle consultation. <a href={`#/conseil/${t.id}`}>Ouvrir le Conseil</a></Notice>
@@ -117,7 +118,7 @@ function Checks({ task }: { task: TaskRecord }) {
       const result = await run(['task', 'verify', task.id], undefined, { allowFailure: true, raw: true });
       setVerified(result);
       toast({ tone: result.code === 0 ? 'success' : 'warning', title: result.code === 0 ? 'Vérifications enregistrées' : 'Vérifications enregistrées, avec des points à reprendre' });
-    } catch (e) { toast({ tone: 'danger', title: 'Commande refusée', text: (e as Error).message.slice(0, 240) }); }
+    } catch (e) { const shown = errorText(e as Error); toast({ tone: 'danger', title: 'Commande refusée', text: shown.text.slice(0, 240), lang: shown.lang }); }
     finally { setRunning(false); invalidate('project'); }
   };
   const commands = (checks.data ?? []).filter((c) => c.kind === 'command');
@@ -128,14 +129,14 @@ function Checks({ task }: { task: TaskRecord }) {
       <Q q={checks}>
         {(list) => <TableBox label="Tableau des vérifications"><table className="data compact"><thead><tr><th>Contrôle</th><th>Type</th><th>Obligatoire</th><th>Résultat</th></tr></thead>
           <tbody>{list.map((c) => { const l = checkLabel(c.result?.status); return (
-            <tr key={c.id} className={c.concerned === false ? 'muted' : undefined}><td><span className="mono small">{c.id}</span><span className="small block">{c.command ?? c.title ?? c.instruction ?? c.rule}</span>{c.verification && <span className="tiny muted block">{c.verification}</span>}
-              {c.owner_role && <span className="tiny muted block">Fournie par {c.owner_role}{c.must_supply ? ` (obligatoire : ${c.must_supply})` : ''}</span>}
-              {c.concerned === false && <span className="tiny muted block">Non demandé à cette quête{c.reason ? ` : ${c.reason}` : ''}</span>}</td>
+            <tr key={c.id} className={c.concerned === false ? 'muted' : undefined}><td><span className="mono small">{c.id}</span>{c.command ? <code className="small block">{c.command}</code> : <span className="small block" lang="en">{c.title ?? c.instruction ?? c.rule}</span>}{c.verification && <span className="tiny muted block" lang="en">{c.verification}</span>}
+              {c.owner_role && <span className="tiny muted block">Fournie par <span lang="en">{c.owner_role}</span>{c.must_supply && <> (obligatoire : <span lang="en">{c.must_supply}</span>)</>}</span>}
+              {c.concerned === false && <span className="tiny muted block">Non demandé à cette quête{c.reason && <> : <span lang="en">{c.reason}</span></>}</span>}</td>
               <td className="small">{KIND_LABEL[c.kind] ?? c.kind}</td>
               <td>{c.mandatory ? <Badge tone="warning" icon="lock">oui</Badge> : <span className="tiny muted">non</span>}</td>
               <td><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge>{c.result?.cannot_run && <span className="block"><Badge tone="warning" icon="user">ne peut pas tourner ici</Badge></span>}
-                {c.result?.message && <span className="tiny block">{c.result.message}</span>}
-                {c.result?.evidence && <span className="tiny muted block mono">{c.result.evidence}</span>}{c.result?.reason && <span className="tiny muted block">{c.result.reason}{c.result.owner ? ` (${c.result.owner})` : ''}</span>}</td></tr>); })}</tbody></table></TableBox>}
+                {c.result?.message && <span className="tiny block" lang="en">{c.result.message}</span>}
+                {c.result?.evidence && <span className="tiny muted block mono">{c.result.evidence}</span>}{c.result?.reason && <span className="tiny muted block" data-own>{c.result.reason}{c.result.owner ? ` (${c.result.owner})` : ''}</span>}</td></tr>); })}</tbody></table></TableBox>}
       </Q>
       {task.status === 'approved' && commands.length > 0 && <details className="small"><summary>Une commande ne peut pas tourner ici</summary>
         <p>Une personne le déclare dans son terminal, avec son nom et la raison : la CLI relance d’abord la commande, puis lui demande de retaper l’identifiant de la quête. La quête se termine alors avec cette réserve. L’interface n’enregistre jamais cette déclaration.</p>
@@ -160,7 +161,7 @@ function Conditions({ id }: { id: string }) {
       <p className="small muted">La personne a validé avec ces blocages ouverts : seul le travail fini peut les lever. Construisez la preuve que chacun nomme et montrez-la ; la personne le lève dans son terminal. <code>task complete</code> refuse la quête tant qu’un blocage reste ouvert.</p>
       <ul className="plain stack tight">{pending.map((b) => <li key={b.id} className={`card blocker ${b.resolution ? 'resolved' : ''}`}>
         <span className="row between"><span className="mono small">{b.id}</span>{b.resolution ? <Badge tone="success" icon="check">levé par {b.resolution.by}</Badge> : <Badge tone="warning" icon="clock">à lever</Badge>}</span>
-        <strong>{b.finding}</strong>{b.owner && <span className="small">Responsable : {b.owner}. Se lève quand : {b.clears_when}</span>}
+        <strong data-own>{b.finding}</strong>{b.owner && <span className="small">Responsable : {b.owner}. Se lève quand : <span data-own>{b.clears_when}</span></span>}
         {!b.resolution && <CommandLine command={terminalCommand(['task', 'clear', id, b.id, '--evidence', 'CHEMIN_OU_LIEN', '--supports', 'Ce que la preuve établit', '--by', 'Votre nom'])} />}
       </li>)}</ul>
     </Section>
@@ -173,11 +174,11 @@ function Closing({ task }: { task: TaskRecord }) {
   return (
     <Section title={task.status === 'done-with-reservations' ? 'Terminée avec réserves' : 'Clôture'} icon="flag">
       {closing.by && <p className="small">Clôture confirmée par {closing.by}.</p>}
-      {closing.verification && <Notice tone="warn">{closing.verification}</Notice>}
+      {closing.verification && <Notice tone="warn"><span lang="en">{closing.verification}</span></Notice>}
       {closing.open_points.length === 0 ? <p className="small muted">Aucun point laissé ouvert.</p>
-        : closing.open_points.map((g) => <div key={g.group}><h3 className="h-card">{g.group}</h3><ul className="small">{g.points.map((p) => <li key={p}>{p}</li>)}</ul></div>)}
+        : closing.open_points.map((g) => <div key={g.group}><h3 className="h-card" lang={CLOSING_GROUP[g.group] ? undefined : 'en'}>{CLOSING_GROUP[g.group] ?? g.group}</h3><ul className="small" lang="en">{g.points.map((p) => <li key={p}>{p}</li>)}</ul></div>)}
       {closing.not_concerned.length > 0 && <details className="small"><summary>Non demandé à cette quête ({closing.not_concerned.length})</summary>
-        <ul>{closing.not_concerned.map((n) => <li key={n.pack ?? n.check}><span className="mono">{n.pack ?? n.check}</span> ({n.checks}) : {n.reason}</li>)}</ul></details>}
+        <ul>{closing.not_concerned.map((n) => <li key={n.pack ?? n.check}><span className="mono">{n.pack ?? n.check}</span> ({n.checks}) : <span lang="en">{n.reason}</span></li>)}</ul></details>}
       <p className="tiny muted">Pour reprendre un point, ouvrez une quête de suite depuis la fiche de la quête.</p>
     </Section>
   );
@@ -207,8 +208,8 @@ function Results({ task }: { task: TaskRecord }) {
   return (
     <Section title="Rapporter les résultats" icon="flag">
       <p className="small muted">Les rapports suivants mettent à jour les précédents, contrôle par contrôle. <code>task complete</code> termine la quête quand chaque contrôle obligatoire a réussi, ou ne peut pas tourner ici sur la déclaration d’une personne, et que chaque critère est atteint ; ce qui reste ouvert (règle ignorée, réserve, désaccord) la termine « avec réserves ».</p>
-      {!!task.result?.waiting_for?.length && <Notice tone="warn" title="En attente de preuves :"><ul>{task.result.waiting_for.map((w) => <li key={w.check}><span className="mono">{w.check}</span> : {w.title}, fournie par {w.owner} ({w.why}). Demandez-la ; ne la rédigez pas à sa place.</li>)}</ul></Notice>}
-      {!!task.result?.warnings?.length && <Notice tone="warn" title="Avertissements :"><ul>{task.result.warnings.map((w) => <li key={w}>{w}</li>)}</ul></Notice>}
+      {!!task.result?.waiting_for?.length && <Notice tone="warn" title="En attente de preuves :"><ul>{task.result.waiting_for.map((w) => <li key={w.check}><span className="mono">{w.check}</span> : <span lang="en">{w.title}</span>, fournie par <span lang="en">{w.owner}</span> (<span lang="en">{w.why}</span>). Demande-la ; ne la rédige pas à sa place.</li>)}</ul></Notice>}
+      {!!task.result?.warnings?.length && <Notice tone="warn" title="Avertissements :"><ul lang="en">{task.result.warnings.map((w) => <li key={w}>{w}</li>)}</ul></Notice>}
       <TextField label="Votre nom" hint="Responsable des règles ignorées ou non applicables que vous rapportez." value={owner} onChange={(e) => setOwner(e.target.value)} />
       <div className="grid-2">
         <div className="field"><label htmlFor="delivery">Livraison</label><select id="delivery" className="input" value={delivery} onChange={(e) => setDelivery(e.target.value as typeof delivery)}><option value="pull_request">Pull request</option><option value="revision">Révision Git</option></select></div>
@@ -225,14 +226,14 @@ function Results({ task }: { task: TaskRecord }) {
       </fieldset>
       {rules.length > 0 && <div><TableBox label="Règles à rapporter"><table className="data compact"><thead><tr><th>Règle</th><th>Issue</th><th>Preuve, ou motif et responsable</th></tr></thead><tbody>
         {rules.map((c) => { const o = outcome(c.id); return <tr key={c.id}>
-          <td><span className="mono small">{c.id}</span><span className="tiny muted block">{c.title ?? c.instruction ?? c.verification}</span>{c.must_supply && <span className="tiny block">Fournie par {c.owner_role} : ne peut pas être déclarée non applicable ({c.must_supply}).</span>}</td>
+          <td><span className="mono small">{c.id}</span><span className="tiny muted block" lang="en">{c.title ?? c.instruction ?? c.verification}</span>{c.must_supply && <span className="tiny block">Fournie par <span lang="en">{c.owner_role}</span> : ne peut pas être déclarée non applicable (<span lang="en">{c.must_supply}</span>).</span>}</td>
           <td><select className="input" aria-label={`Issue de ${c.id}`} value={o.status || (c.result?.status ?? '')} onChange={(e) => setOutcome(c.id, { status: e.target.value })}><option value="">{c.result ? checkLabel(c.result.status).label : 'À rapporter'}</option><option value="passed">réussie</option><option value="failed">en échec</option><option value="skipped">ignorée</option><option value="not-applicable">non applicable</option></select></td>
           <td>{o.status === 'passed' || o.status === 'failed' ? <input className="input" aria-label="Preuve" value={o.evidence} onChange={(e) => setOutcome(c.id, { evidence: e.target.value })} /> : o.status ? <span className="row"><input className="input" aria-label="Motif" placeholder="Motif" value={o.reason} onChange={(e) => setOutcome(c.id, { reason: e.target.value })} /><input className="input" aria-label="Responsable" placeholder="Responsable" value={o.owner} onChange={(e) => { setOwner(e.target.value); setOutcome(c.id, { owner: e.target.value }); }} /></span> : <span className="tiny muted">—</span>}</td>
         </tr>; })}
       </tbody></table></TableBox>
       <Button size="small" variant="ghost" className="wrap" disabled={!owner.trim()} title={owner.trim() ? undefined : 'Indiquez d’abord votre nom'} onClick={() => rules.forEach((c) => !c.result && setOutcome(c.id, { status: 'not-applicable', reason: 'Aucun changement dans ce domaine.', owner }))}>Marquer les règles non rapportées « non applicables »</Button></div>}
       {incomplete.length > 0 && <Notice tone="warn">Il manque une preuve, ou un motif et un responsable, pour : {incomplete.join(', ')}.</Notice>}
-      {error && <Notice tone="danger" title="La CLI a refusé :"><span className="pre-line">{error.message}</span></Notice>}
+      {error && <ErrorNotice error={error} title="La CLI a refusé :" />}
       <div className="row">
         <Button variant="primary" busy={busy !== null} disabled={(!result.criteria.length && !result.checks.length && !ref) || incomplete.length > 0} onClick={() => void save()}>Enregistrer les résultats</Button>
         <Button icon="star" busy={busy !== null} onClick={() => void act(['task', 'complete', task.id], { success: 'Quête terminée' })}>Terminer la quête</Button>
@@ -295,7 +296,7 @@ function Deliverables() {
     <div className="page-grid">
       <Panel title="Modèles de livrables">
         <p className="small muted">Un livrable métier (brief de campagne, annonce, article d’aide) part d’une quête validée. Le modèle liste les entrées, les données qu’elles touchent, les actions qui demandent votre accord et les contrôles du relecteur.</p>
-        <Q q={list}>{() => <ul className="plain board-grid">{templates.map((t) => <li key={t.id} className="card"><strong>{t.title}</strong><span className="mono tiny">{t.id}</span>{t.method && <span className="tiny muted">méthode {t.method}</span>}<span className="row">{t.brains.map((b) => <Badge key={b}>{b}</Badge>)}</span><Button size="small" onClick={() => setShow(t.id)}>Voir le modèle</Button></li>)}</ul>}</Q>
+        <Q q={list}>{() => <ul className="plain board-grid">{templates.map((t) => <li key={t.id} className="card"><strong lang="en">{t.title}</strong><span className="mono tiny">{t.id}</span>{t.method && <span className="tiny muted">méthode {t.method}</span>}<span className="row">{t.brains.map((b) => <Badge key={b}>{b}</Badge>)}</span><Button size="small" onClick={() => setShow(t.id)}>Voir le modèle</Button></li>)}</ul>}</Q>
       </Panel>
       <Panel title="Nouveau brouillon">
         <p className="small muted">L’outil est facultatif, sauf pour un modèle qui l’exige : chaque action dans un outil se décide à part (task authorize). Le brouillon s’écrit dans le projet, hors de <code>.openguildkit/</code>.</p>
@@ -308,7 +309,7 @@ function Deliverables() {
       </Panel>
       <Panel title={<>Brouillons des quêtes <span className="badge count">{drafts.length}</span></>}>
         {drafts.length === 0 ? <p className="muted">Aucun brouillon.</p> : <TableBox label="Brouillons des quêtes"><table className="data compact"><thead><tr><th>Brouillon</th><th>Quête</th><th>Outil</th><th><span className="sr-only">Ouvrir</span></th></tr></thead>
-          <tbody>{drafts.map((d) => <tr key={d.path}><td><span className="mono small">{projectPath(d.path)}</span><span className="tiny muted block">{d.deliverable}</span></td><td><a href={`#/quetes/${d.task}`}>{d.task}</a></td><td>{d.tool ?? '—'}</td><td><Button size="small" onClick={() => setDraft(projectPath(d.path))}>Ouvrir</Button></td></tr>)}</tbody></table></TableBox>}
+          <tbody>{drafts.map((d) => <tr key={d.path}><td><span className="mono small">{projectPath(d.path)}</span><span className="tiny muted block mono">{d.deliverable}</span></td><td><a href={`#/quetes/${d.task}`}>{d.task}</a></td><td>{d.tool ?? '—'}</td><td><Button size="small" onClick={() => setDraft(projectPath(d.path))}>Ouvrir</Button></td></tr>)}</tbody></table></TableBox>}
       </Panel>
       <TemplateDialog id={show} onClose={() => setShow(null)} />
       <DraftDialog path={draft} onClose={() => { setDraft(null); setQuery({ brouillon: null }); }} />
@@ -348,7 +349,7 @@ function Tools() {
   const [picked, setPicked] = useState<string[]>([]);
   const [host, setHost] = useState(profile.data?.host ?? '');
   const [mock, setMock] = useState(true);
-  const [plan, setPlan] = useState<string | null>(null);
+  const [plan, setPlan] = useState<{ text: string; lang: 'en' | 'fr' } | null>(null);
   const [call, setCall] = useState<string | null>(null);
   const { act, busy } = useAction();
   const categories = [...new Set((tools.data ?? []).map((t) => t.category))].sort();
@@ -367,16 +368,16 @@ function Tools() {
     try {
       const result = await run(argv, undefined, { allowFailure: true, raw: true });
       const last = (result.stdout.trim().split('\n').at(-1) ?? '').slice(0, 200);
-      if (result.code === 0) toast({ tone: 'success', title: 'Configuration de l’hôte écrite', text: last || undefined });
-      else if (result.code === 2) toast({ tone: 'warning', title: 'Configuration écrite en partie', text: last || cliMessage(result).slice(0, 200) });
-      else toast({ tone: 'danger', title: 'Rien n’a été connecté', text: (last || cliMessage(result)).slice(0, 240) });
-      setPlan(result.stdout || cliMessage(result));
-    } catch (e) { toast({ tone: 'danger', title: 'Commande refusée', text: (e as Error).message.slice(0, 240) }); }
+      if (result.code === 0) toast({ tone: 'success', title: 'Configuration de l’hôte écrite', text: last || undefined, lang: 'en' });
+      else if (result.code === 2) toast({ tone: 'warning', title: 'Configuration écrite en partie', text: last || cliMessage(result).slice(0, 200), lang: 'en' });
+      else toast({ tone: 'danger', title: 'Rien n’a été connecté', text: (last || cliMessage(result)).slice(0, 240), lang: 'en' });
+      setPlan({ text: result.stdout || cliMessage(result), lang: 'en' });
+    } catch (e) { const shown = errorText(e as Error); toast({ tone: 'danger', title: 'Commande refusée', text: shown.text.slice(0, 240), lang: shown.lang }); }
     finally { setApplying(false); invalidate('project'); }
   };
   const doPlan = async () => {
-    try { setPlan((await run(['tools', 'plan', ...picked, ...hostArgs, ...(mock ? ['--mock'] : [])], undefined, { raw: true })).stdout); }
-    catch (e) { setPlan(`Erreur : ${(e as Error).message}`); }
+    try { setPlan({ text: (await run(['tools', 'plan', ...picked, ...hostArgs, ...(mock ? ['--mock'] : [])], undefined, { raw: true })).stdout, lang: 'en' }); }
+    catch (e) { const shown = errorText(e as Error); setPlan({ text: shown.text, lang: shown.lang ?? 'fr' }); }
   };
 
   return (
@@ -399,8 +400,8 @@ function Tools() {
         <TableBox label="Registre des outils" tall><table className="data compact"><thead><tr><th><span className="sr-only">Choisir</span></th><th>Outil</th><th>Catégorie</th><th>Serveurs MCP</th><th>Cerveaux</th><th><span className="sr-only">Essayer et site</span></th></tr></thead><tbody>
           {shown.map((t) => <tr key={t.id}>
             <td><input type="checkbox" aria-label={`Choisir ${t.title}`} checked={picked.includes(t.id)} onChange={() => toggle(t.id)} /></td>
-            <td><strong>{t.title}</strong> <span className="tiny muted">{t.vendor}</span><span className="tiny muted block clamp-1">{t.summary}</span></td>
-            <td className="small">{t.category}</td>
+            <td lang="en"><strong>{t.title}</strong> <span className="tiny muted">{t.vendor}</span><span className="tiny muted block clamp-1">{t.summary}</span></td>
+            <td className="small" lang="en">{t.category}</td>
             <td className="small">{t.servers.length || '—'}{t.mock && <> · <Badge tone="ai">simulation</Badge></>}</td>
             <td className="tiny">{t.brains.join(', ')}</td>
             <td>{t.mock && <Button size="small" variant="ghost" onClick={() => setCall(t.id)}>Essayer</Button>}{t.homepage && <ExternalLink href={t.homepage} className="target-link">site</ExternalLink>}</td>
@@ -418,7 +419,7 @@ function Tools() {
           <Button variant="primary" disabled={!picked.length} busy={busy !== null || applying} onClick={() => void apply()}>Écrire la configuration</Button>
           <Button variant="danger" disabled={!picked.length} busy={busy !== null} onClick={() => void act(['tools', 'remove', ...picked, ...hostArgs], { success: 'Connexions retirées' })}>Retirer</Button>
         </div>
-        {plan && <Pre text={plan} />}
+        {plan && <Pre text={plan.text} lang={plan.lang} />}
       </Panel>
       <MockConsole id={call} onClose={() => setCall(null)} />
     </div>
@@ -450,7 +451,7 @@ function MockConsole({ id, onClose }: { id: string | null; onClose: () => void }
         </div>
       </>}</Q>
       <Button variant="primary" disabled={!name} onClick={() => void run(['tools', 'call', id!, name, '--args', args], undefined, { raw: true, allowFailure: true }).then((r) => setAnswer({ text: r.code === 0 ? r.stdout : cliMessage(r), failed: r.code !== 0 })).catch((e: Error) => setAnswer({ text: e.message, failed: true }))}>Appeler</Button>
-      {answer && <div lang="en"><Pre text={answer.text} /></div>}
+      {answer && <Pre text={answer.text} />}
     </Dialog>
   );
 }
@@ -493,7 +494,7 @@ function Storybook() {
     if (!draft) return;
     setSaving(true);
     try { await writeFile('.openguildkit/storybook/proposals.json', JSON.stringify(draft, null, 2)); toast({ tone: 'success', title: 'Décisions enregistrées' }); invalidate(); }
-    catch (e) { toast({ tone: 'danger', title: 'Enregistrement impossible', text: (e as Error).message }); }
+    catch (e) { const shown = errorText(e as Error); toast({ tone: 'danger', title: 'Enregistrement impossible', text: shown.text, lang: shown.lang }); }
     finally { setSaving(false); }
   };
   const items = draft?.[section] ?? [];
@@ -510,7 +511,7 @@ function Storybook() {
           <Button busy={busy !== null} disabled={!validated || dirty} title={dirty ? 'Enregistrez d’abord vos décisions' : undefined} onClick={() => void act(['storybook', 'generate'], { success: 'Jetons, stories et index générés' })}>Générer ({validated} validé(s))</Button>
         </div>
         {inventory.data?.scanned && <p className="small">Inventaire de {inventory.data.sources?.join(', ')} : {inventory.data.scanned.components} composant(s) et {inventory.data.scanned.styles} feuille(s) de style lus.</p>}
-        {inventory.data?.notes?.map((n) => <Notice key={n} tone="warn">{n}</Notice>)}
+        {inventory.data?.notes?.map((n) => <Notice key={n} tone="warn"><span lang="en">{n}</span></Notice>)}
       </Panel>
       <Panel title="Propositions" actions={draft ? <>
         <Button size="small" onClick={() => bulk('validated', (it) => it.confidence === 'observed' && it.status === 'proposed')}>Valider ce qui est observé</Button>

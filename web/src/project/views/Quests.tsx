@@ -8,7 +8,7 @@ import { norm } from '@/shared/text';
 import { projectPath } from '../api';
 import { useBrains, useTasks, boardTitle } from '../data';
 import { useAction, useCli } from '../query';
-import { CONCERNS, DATA, KIND, RESEARCH, SURFACE, decidedBy, fmtDay, fmtWhen, isBlocked, isDecided, needsReconsult, nextLabel, nextLang, statusesOf, taskStatus, verdict } from '../labels';
+import { CLOSING_GROUP, CONCERNS, DATA, KIND, RESEARCH, SURFACE, decidedBy, fmtDay, fmtWhen, isBlocked, isDecided, needsReconsult, nextLabel, nextLang, statusesOf, taskStatus, verdict } from '../labels';
 import { ExternalLink, JsonDetails, Q, StepRail, TaskLink, TaskStatusBadge, UnreadableTask } from '../parts';
 import { usePrefs } from '../prefs';
 import type { TaskListItem, TaskRecord } from '../types';
@@ -99,7 +99,7 @@ function QuestCard({ t, rpg }: { t: TaskListItem; rpg: boolean }) {
   return (
     <li><a className={`card task-card ${stuck ? 'blocked' : ''}`} href={`#/quetes/${t.id}`}>
       <span className="mono small">{t.id}</span>
-      {t.brief && <strong className="clamp-2">{t.brief}</strong>}
+      {t.brief && <strong className="clamp-2" data-own>{t.brief}</strong>}
       {reconsult && <Badge tone="danger" icon="replace">À consulter à nouveau, par une personne</Badge>}
       {t.status === 'unreadable' && <Badge tone="danger" icon="warn">À réparer, par une personne</Badge>}
       <span className="small muted clamp-2" lang={nextLang(t.next)}>{isBlocked(t.next) && <Icon name="ban" size={12} />} {nextLabel(t.next)}</span>
@@ -143,7 +143,7 @@ function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
             <div className="quest-head">
               <div className="grow">
                 <p className="mono small muted">{t.id} · ouverte le {fmtWhen(t.created_at)}</p>
-                <h2 className="h-title">{t.brief.split('\n')[0]}</h2>
+                <h2 className="h-title" data-own>{t.brief.split('\n')[0]}</h2>
                 <div className="row"><TaskStatusBadge status={t.status} />{t.follows && <Badge tone="info" icon="link">suite de {t.follows.task}</Badge>}{t.answers?.kind && <Badge>{KIND[t.answers.kind] ?? t.answers.kind}</Badge>}</div>
               </div>
               <div className="row">
@@ -156,7 +156,7 @@ function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
             {item && <Notice tone={isBlocked(item.next) || needsReconsult(item) ? 'danger' : 'info'} title={needsReconsult(item) ? 'L’approbation ne tient plus :' : 'Prochaine étape :'}><span lang={nextLang(item.next)}>{nextLabel(item.next)}</span></Notice>}
             <div className="grid-2">
               <Panel title="Brief">
-                <p className="pre-line">{t.brief}</p>
+                <p className="pre-line" data-own>{t.brief}</p>
                 {t.answers && <KV items={[
                   ['Nature', KIND[t.answers.kind ?? ''] ?? t.answers.kind ?? '—'],
                   ['Zones', [t.answers.surface].flat().filter(Boolean).map((s) => SURFACE[s as string] ?? s).join(', ') || '—'],
@@ -190,7 +190,7 @@ function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
                 ]} />
                 {!!t.result.waiting_for?.length && <p className="small"><Badge tone="warning" icon="clock">en attente</Badge> {t.result.waiting_for.map((w) => `${w.title} (${w.owner})`).join(', ')}</p>}
                 {t.result.closing && t.result.closing.open_points.length > 0 && <details className="small" open={t.status === 'done-with-reservations'}><summary>Réserves de la clôture{t.result.closing.by ? `, confirmée par ${t.result.closing.by}` : ''}</summary>
-                  {t.result.closing.open_points.map((g) => <div key={g.group}><strong>{g.group}</strong><ul>{g.points.map((p) => <li key={p}>{p}</li>)}</ul></div>)}</details>}
+                  {t.result.closing.open_points.map((g) => <div key={g.group}><strong lang={CLOSING_GROUP[g.group] ? undefined : 'en'}>{CLOSING_GROUP[g.group] ?? g.group}</strong><ul lang="en">{g.points.map((p) => <li key={p}>{p}</li>)}</ul></div>)}</details>}
               </Panel>}
               {!!t.deliverables?.length && <Panel title="Livrables">
                 <ul className="plain stack tight">{t.deliverables.map((d) => <li key={d.path}><a href={`#/forge/livrables?brouillon=${encodeURIComponent(projectPath(d.path))}`}>{d.deliverable}</a> <span className="tiny muted">{d.tool ? `${d.tool} · ` : ''}{fmtDay(d.created_at)}</span></li>)}</ul>
@@ -198,7 +198,7 @@ function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
             </div>}
             {(t.rounds.length > 0 || children.length > 0) && <Panel title="Historique">
               {t.rounds.map((r, i) => <div key={i} className="small"><p>Tour {i + 1} : {r.decision ? `${r.decision.outcome === 'approved' ? 'validé' : 'renvoyé'} par ${r.decision.by} (${r.decision.reason})` : 'consultation archivée'}.</p>
-                {r.brief && r.brief.trim() !== t.brief.trim() && <details><summary>Brief de ce tour</summary><p className="pre-line">{r.brief}</p></details>}</div>)}
+                {r.brief && r.brief.trim() !== t.brief.trim() && <details><summary>Brief de ce tour</summary><p className="pre-line" data-own>{r.brief}</p></details>}</div>)}
               {children.map((c) => <p key={c.id} className="small">Suite : <TaskLink id={c.id} /> <TaskStatusBadge status={c.status} /></p>)}
             </Panel>}
             <JsonDetails data={t} label="Voir l’enregistrement (task show, sans le texte de la consultation)" />

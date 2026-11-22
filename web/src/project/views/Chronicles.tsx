@@ -55,7 +55,7 @@ export function Chronicles() {
             <li key={`${e.task}:${e.at}:${i}`} className={`chronicle-item tone-${e.tone}`}>
               <span className="chronicle-dot"><Icon name={e.icon} size={14} /></span>
               <div><p className="row"><strong>{e.title}</strong><a className="mono small" href={`#/quetes/${e.task}`}>{e.task}</a></p>
-                {e.detail && <p className="small muted">{e.detail}</p>}
+                {e.detail && <p className="small muted" data-own>{e.detail}</p>}
                 <p className="tiny muted"><Badge tone="muted" icon="clock">{fmtWhen(e.at)}</Badge></p></div>
             </li>
           ))}</ol>

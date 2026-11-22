@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { ApiError, run, type CliResult, type RunOptions } from './api';
 import { toast } from '@/shared/ui/toast';
 import { touchedTasks } from './labels';
+import { errorText } from './refusals';
 
 interface Entry { data?: unknown; error?: ApiError; loading: boolean; stale: boolean; at: number }
 
@@ -92,7 +93,8 @@ export function invalidate(scope: 'all' | 'project' = 'all') {
 }
 
 /* ------------------------------------------------------------------ terminal hand-off */
-export interface TerminalRequest { title: string; why: string; command: string; after?: string }
+/** why: what the page says, in French or marked English (lang); detail: the server's own words behind a French text. */
+export interface TerminalRequest { title: string; why: string; lang?: 'en'; detail?: string; command: string; after?: string }
 let terminal: TerminalRequest | null = null;
 const terminalListeners = new Set<() => void>();
 export const showTerminal = (request: TerminalRequest | null) => { terminal = request; terminalListeners.forEach((l) => l()); };
@@ -125,7 +127,8 @@ export function useAction() {
     try {
       const result = await run(argv, opts.uploads, { raw: true });
       const named = reportTouched(argv, result.stdout);
-      if (!opts.quiet) toast({ tone: 'success', title: opts.success ?? 'Enregistré', text: named.length ? `${named.length} tâche(s) consultée(s) sous les règles précédentes : la liste est affichée sur la page.` : result.stdout.trim().split('\n').slice(0, 2).join(' ').slice(0, 180) || undefined });
+      const printed = result.stdout.trim().split('\n').slice(0, 2).join(' ').slice(0, 180);
+      if (!opts.quiet) toast({ tone: 'success', title: opts.success ?? 'Enregistré', ...(named.length ? { text: `${named.length} tâche(s) consultée(s) sous les règles précédentes : la liste est affichée sur la page.` } : printed ? { text: printed, lang: 'en' as const } : {}) });
       opts.onDone?.(result);
       invalidate(changesCatalog(argv) ? 'all' : 'project');
       return result;
@@ -133,8 +136,9 @@ export function useAction() {
       const failure = caught instanceof ApiError ? caught : new ApiError(String(caught), 0);
       // A refused command can still have recorded something: task submit keeps a failed pass, task verify its checks.
       if (failure.result) invalidate('project');
-      if (failure.command) showTerminal({ title: 'À faire dans votre terminal', why: failure.message, command: failure.command });
-      else { setError(failure); toast({ tone: 'danger', title: 'Commande refusée', text: failure.message.slice(0, 240) }); }
+      const shown = errorText(failure);
+      if (failure.command) showTerminal({ title: 'À faire dans ton terminal', why: shown.text, lang: shown.lang, detail: shown.detail, command: failure.command });
+      else { setError(failure); toast({ tone: 'danger', title: 'Commande refusée', text: shown.text.slice(0, 240), lang: shown.lang }); }
       return null;
     } finally {
       setBusy(null);

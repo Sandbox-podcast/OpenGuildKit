@@ -10,9 +10,10 @@ import { ApiError, cliMessage, currentSession, run, saveProfile, terminalCommand
 import { useBrains, useProfile } from '../data';
 import { invalidate, reportTouched, showTerminal, useAction, useCli, useQuery } from '../query';
 import { toast } from '@/shared/ui/toast';
-import { NORM_FR, RESEARCH, reasonLabel } from '../labels';
+import { NORM_FR, SECTOR_FR, reasonLabel } from '../labels';
 import { ActionForm, CommandLine, En, ErrorNotice, JsonDetails, ListEditor, Q, TableBox, useDebounced, useRemembered } from '../parts';
-import { missingRequired, pendingNorms, setupAnswers, type NormDraft } from '../setup';
+import { missingRequired, pendingNorms, setupAnswers, setupChoice, setupPrompt, type NormDraft } from '../setup';
+import { errorText } from '../refusals';
 import type { Profile, Question, Recommendation, RulePlan } from '../types';
 
 /* ------------------------------------------------------------------ setup */
@@ -90,7 +91,7 @@ export function Setup() {
             </Panel>
             <Panel title="Écrire le profil">
               <p className="small">L’installation écrit <code>.openguildkit/project.json</code>, le verrou du catalogue, le bloc géré d’<code>AGENTS.md</code> et <code>CLAUDE.md</code>. Ton propre texte dans ces fichiers reste autour du bloc.</p>
-              {required.length > 0 && <p className="small" role="status">Question obligatoire sans réponse : {required.map((id) => list.find((q) => q.id === id)?.prompt ?? id).join(' ; ')}</p>}
+              {required.length > 0 && <p className="small" role="status">Question obligatoire sans réponse : {required.map((id) => { const q = list.find((x) => x.id === id); return q ? setupPrompt(q).text : id; }).join(' ; ')}</p>}
               <ErrorNotice error={error} title="Installation refusée" />
               <Button variant="primary" icon="flag" busy={busy} disabled={!ready || settling || required.length > 0 || !plan.data || !!plan.error} onClick={() => void init()}>Installer la guilde</Button>
               <div className="tiny muted">Tu peux aussi répondre aux mêmes questions dans un terminal : <CommandLine command={terminalCommand(['init'])} label="Commande d’installation" /></div>
@@ -102,22 +103,25 @@ export function Setup() {
   );
 }
 
-/** A setup question, with its one-line help in plain words (the CLI's help and what an unsure answer means). */
+/** A setup question in French when the page knows it, with the CLI's one-line help and what an unsure answer
+ * applies, in the CLI's English. Choices that are catalog titles (patterns, packs, boards) stay English too. */
 function SetupField({ q, value, onChange }: { q: SetupQuestion; value: unknown; onChange: (v: unknown) => void }) {
   const choices = q.choices ?? [];
-  const hint = [q.help, q.unsure ? `Sans réponse : ${q.unsure}` : ''].filter(Boolean).join(' ') || undefined;
-  const label = q.required ? <>{q.prompt} <span className="tiny muted">(obligatoire)</span></> : q.prompt;
+  const prompt = setupPrompt(q);
+  const hint = q.help || q.unsure ? <>{q.help && <span lang="en">{q.help}</span>}{q.unsure && <> Si tu ne sais pas : <span lang="en">{q.unsure}</span>.</>}</> : undefined;
+  const label = <><span lang={prompt.lang}>{prompt.text}</span>{q.required && <span className="tiny muted"> (obligatoire)</span>}</>;
+  const choice = (c: { id: string; label: string }) => setupChoice(q.id, c, SECTOR_FR);
   if (q.type === 'text') return <TextField label={label} hint={hint} value={typeof value === 'string' ? value : ''} onChange={(e) => onChange(e.target.value)} />;
-  if (q.type === 'select') return <div className="field"><label htmlFor={`setup-${q.id}`}>{label}</label><select id={`setup-${q.id}`} className="input" value={String(value ?? '')} onChange={(e) => onChange(e.target.value || undefined)}>{value === undefined || value === null ? <option value="">Choisir…</option> : null}{choices.map((c) => <option key={c.id} value={c.id}>{RESEARCH[c.id] ?? c.label}</option>)}</select>{hint && <p className="hint">{hint}</p>}</div>;
-  if (q.type === 'list') return <ListEditor label={q.prompt} hint={hint} items={(value as string[]) ?? []} onChange={onChange} />;
-  if (q.type === 'components') return <div className="field"><p className="label">{q.prompt}</p>{Array.isArray(q.default) && q.default.length ? <JsonDetails data={q.default} label={`${q.default.length} composant(s) détecté(s)`} /> : <p className="tiny muted">Aucun composant détecté : un seul composant à la racine.</p>}</div>;
+  if (q.type === 'select') return <div className="field" data-question={q.id}><label htmlFor={`setup-${q.id}`}>{label}</label><select id={`setup-${q.id}`} className="input" value={String(value ?? '')} onChange={(e) => onChange(e.target.value || undefined)}>{value === undefined || value === null ? <option value="">Choisir…</option> : null}{choices.map((c) => <option key={c.id} value={c.id} lang={choice(c).lang}>{choice(c).text}</option>)}</select>{hint && <p className="hint">{hint}</p>}</div>;
+  if (q.type === 'list') return <div data-question={q.id}><ListEditor label={prompt.text} hint={hint} items={(value as string[]) ?? []} onChange={onChange} /></div>;
+  if (q.type === 'components') return <div className="field" data-question={q.id}><p className="label" lang={prompt.lang}>{prompt.text}</p>{Array.isArray(q.default) && q.default.length ? <JsonDetails data={q.default} label={`${q.default.length} composant(s) détecté(s)`} /> : <p className="tiny muted">Aucun composant détecté : un seul composant à la racine.</p>}{hint && <p className="hint">{hint}</p>}</div>;
   if (q.type === 'multi-select') {
     const selected = (value as string[]) ?? [];
-    return <details className="field multi"><summary>{q.prompt} <span className="tiny muted">{selected.length ? `${selected.length} choisi(s)` : 'par défaut'}</span></summary>
-      <div className="choice-cloud">{choices.map((c) => <Checkbox key={c.id} label={c.label} checked={selected.includes(c.id)} onChange={() => onChange(selected.includes(c.id) ? selected.filter((x) => x !== c.id) : [...selected, c.id])} />)}</div>
-      <p className="tiny muted">Sans choix, la CLI prend sa valeur par défaut.</p></details>;
+    return <details className="field multi" data-question={q.id}><summary><span lang={prompt.lang}>{prompt.text}</span> <span className="tiny muted">{selected.length ? `${selected.length} choisi(s)` : 'par défaut'}</span></summary>
+      <div className="choice-cloud">{choices.map((c) => <Checkbox key={c.id} label={<span lang={choice(c).lang}>{choice(c).text}</span>} checked={selected.includes(c.id)} onChange={() => onChange(selected.includes(c.id) ? selected.filter((x) => x !== c.id) : [...selected, c.id])} />)}</div>
+      <p className="tiny muted">Sans choix, la CLI prend sa valeur par défaut.</p>{hint && <p className="hint">{hint}</p>}</details>;
   }
-  return <p className="small">{q.prompt}</p>;
+  return <p className="small" lang={prompt.lang}>{prompt.text}</p>;
 }
 
 /**
@@ -167,9 +171,9 @@ function NormChoice({ id, title, why, draft, by, required, onChange }: { id: str
 function PlanView({ plan }: { plan: RulePlan }) {
   return <>
     {plan.rule_warning && <Notice tone="warn" title="Beaucoup de règles :"><En>{plan.rule_warning}</En></Notice>}
-    <ul className="plain stack tight rule-plan">{plan.packs.map((p) => <li key={p.id} className="row between"><span><strong>{p.title}</strong> <span className="mono tiny">{p.id} {p.version}</span><span className="tiny muted block">{p.provenance.join(' · ')}</span></span><Badge>{p.rules.length} règle(s)</Badge></li>)}</ul>
+    <ul className="plain stack tight rule-plan">{plan.packs.map((p) => <li key={p.id} className="row between"><span><strong lang="en">{p.title}</strong> <span className="mono tiny">{p.id} {p.version}</span><span className="tiny muted block" lang="en">{p.provenance.join(' · ')}</span></span><Badge>{p.rules.length} règle(s)</Badge></li>)}</ul>
     {plan.conflicts.length > 0 && <Notice tone="danger" title="Conflits :"><pre>{JSON.stringify(plan.conflicts, null, 2)}</pre></Notice>}
-    {plan.conventions.length > 0 && <p className="small"><strong>Conventions :</strong> {plan.conventions.join(' · ')}</p>}
+    {plan.conventions.length > 0 && <p className="small"><strong>Conventions :</strong> <span data-own>{plan.conventions.join(' · ')}</span></p>}
     {plan.checks.length > 0 && <p className="small rule-checks"><strong>Vérifications :</strong> {plan.checks.map((c) => <code key={c}>{c} </code>)}</p>}
     {!!plan.declined?.length && <p className="small"><strong>Refusées :</strong> {plan.declined.map((d) => `${NORM_FR[d.id] ?? d.id}${d.by ? ` (${d.by} : ${d.reason})` : ''}`).join(' · ')}</p>}
   </>;
@@ -195,15 +199,16 @@ async function save(next: Profile | string) {
   const text = typeof next === 'string' ? next : `${JSON.stringify(next, null, 2)}\n`;
   try {
     const result = await saveProfile(text);
-    if (result.code !== 0) { toast({ tone: 'danger', title: 'Profil refusé, version précédente remise', text: cliMessage(result).slice(0, 240) }); return false; }
+    if (result.code !== 0) { toast({ tone: 'danger', title: 'Profil refusé, version précédente remise', text: cliMessage(result).slice(0, 240), lang: 'en' }); return false; }
     const named = reportTouched(['sync'], result.stdout);
     toast({ tone: 'success', title: 'Profil enregistré et instructions synchronisées', text: named.length ? `${named.length} tâche(s) consultée(s) sous les règles précédentes : la liste est affichée sur la page.` : undefined });
     invalidate();
     return true;
   } catch (e) {
     // A lower guard, public research or a regulation dropped is the person's decision at a terminal.
-    if (e instanceof ApiError && e.command) showTerminal({ title: 'Changement du profil : à faire dans votre terminal', why: e.message, command: e.command, after: 'Remplacez NAME et WHY par votre nom et la raison. La commande demande de confirmer ; revenez ici et actualisez.' });
-    else toast({ tone: 'danger', title: 'Enregistrement impossible', text: (e as Error).message });
+    const shown = errorText(e as Error);
+    if (e instanceof ApiError && e.command) showTerminal({ title: 'Changement du profil : à faire dans ton terminal', why: shown.text, lang: shown.lang, detail: shown.detail, command: e.command, after: 'Remplace NAME et WHY par ton nom et la raison. La commande demande de confirmer ; reviens ici et actualise.' });
+    else toast({ tone: 'danger', title: 'Enregistrement impossible', text: shown.text, lang: shown.lang });
     return false;
   }
 }
@@ -239,7 +244,7 @@ function ProfileEditor() {
       <Panel title="Cerveaux">
         <p className="small muted">Sans cerveau coché, tous conseillent. Un cerveau obligatoire rejoint chaque consultation et ne peut pas en être retiré.</p>
         <TableBox label="Cerveaux du profil"><table className="data compact"><thead><tr><th>Cerveau</th><th>Activé</th><th>Obligatoire</th></tr></thead><tbody>
-          {boards.map((b) => { const on = (draft.boards ?? []).includes(b.id); const req = (draft.required_boards ?? []).includes(b.id); return <tr key={b.id}><td><strong>{b.title}</strong> <span className="mono tiny">{b.id}</span></td>
+          {boards.map((b) => { const on = (draft.boards ?? []).includes(b.id); const req = (draft.required_boards ?? []).includes(b.id); return <tr key={b.id}><td><strong lang="en">{b.title}</strong> <span className="mono tiny">{b.id}</span></td>
             <td><input type="checkbox" aria-label={`Activer ${b.title}`} checked={on} onChange={() => set('boards', on ? (draft.boards ?? []).filter((x) => x !== b.id) : [...(draft.boards ?? []), b.id])} /></td>
             <td><input type="checkbox" aria-label={`Rendre ${b.title} obligatoire`} checked={req} onChange={() => set('required_boards', req ? (draft.required_boards ?? []).filter((x) => x !== b.id) : [...(draft.required_boards ?? []), b.id])} /></td></tr>; })}
         </tbody></table></TableBox>
@@ -292,7 +297,7 @@ function RawProfile() {
   return (
     <Panel title=".openguildkit/project.json">
       <p className="small muted">Pour les champs sans formulaire (composants, patterns, approbation signée). L’enregistrement lance <code>sync</code> ; si la CLI refuse le profil, la version précédente est remise.</p>
-      <TextArea label="Profil (JSON)" className="mono-area" value={text} error={error} onChange={(e) => setText(e.target.value)} rows={24} />
+      <TextArea label="Profil (JSON)" className="mono-area" data-own value={text} error={error} onChange={(e) => setText(e.target.value)} rows={24} />
       <Button variant="primary" busy={busy} disabled={!!error} onClick={async () => { setBusy(true); await save(text); setBusy(false); }}>Enregistrer et synchroniser</Button>
     </Panel>
   );
@@ -316,9 +321,9 @@ function Detection() {
       <Panel title="Patterns pour cette pile">
         <Q q={recommend}>{(r) => <>
           <h3 className="h-card"><Icon name="check" size={12} /> Retenus ({r.matched.length})</h3>
-          <ul className="small">{r.matched.map((p) => <li key={p.id}><strong>{p.title}</strong> <span className="tiny muted">{p.matched_stack?.join(', ')}</span></li>)}</ul>
-          {r.suggested.length > 0 && <><h3 className="h-card">Suggérés ({r.suggested.length})</h3><ul className="small">{r.suggested.map((p) => <li key={p.id}>{p.title}</li>)}</ul></>}
-          {r.review.length > 0 && <Notice tone="warn" title="À revoir :"><ul>{r.review.map((x) => <li key={x.id}>{x.id} : {x.reasons.join('; ')}</li>)}</ul></Notice>}
+          <ul className="small" lang="en">{r.matched.map((p) => <li key={p.id}><strong>{p.title}</strong> <span className="tiny muted">{p.matched_stack?.join(', ')}</span></li>)}</ul>
+          {r.suggested.length > 0 && <><h3 className="h-card">Suggérés ({r.suggested.length})</h3><ul className="small" lang="en">{r.suggested.map((p) => <li key={p.id}>{p.title}</li>)}</ul></>}
+          {r.review.length > 0 && <Notice tone="warn" title="À revoir :"><ul>{r.review.map((x) => <li key={x.id}>{x.id} : <span lang="en">{x.reasons.join('; ')}</span></li>)}</ul></Notice>}
           <p className="tiny muted">Packs recommandés : {r.recommended_packs.join(', ')}</p>
         </>}</Q>
       </Panel>

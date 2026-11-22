@@ -31,7 +31,7 @@ function Host() {
     <div className="page-grid">
       <Panel title="Règles que l’hôte fait respecter" actions={<Button variant="primary" size="small" busy={busy !== null} onClick={() => void act(['host', 'apply'], { success: 'Réglages de l’hôte écrits' })}>Écrire les réglages de l’hôte</Button>}>
         <p className="small muted"><code>host apply</code> écrit les réglages de {profile.data?.host ?? 'Claude Code ou Codex'} : la politique de recherche, et l’agent tenu à l’écart de la commande de validation. <code>host check</code> dit quelles règles restent de simples consignes.</p>
-        <Q q={host}>{(list) => <ul className="plain stack tight">{list.map((c) => { const l = hostControl(c.status); return <li key={c.id} className="card"><span className="row between"><strong>{c.title}</strong><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge></span><span className="small muted">{c.detail}</span></li>; })}</ul>}</Q>
+        <Q q={host}>{(list) => <ul className="plain stack tight">{list.map((c) => { const l = hostControl(c.status); return <li key={c.id} className="card"><span className="row between"><strong lang="en">{c.title}</strong><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge></span><span className="small muted" lang="en">{c.detail}</span></li>; })}</ul>}</Q>
       </Panel>
       <div className="grid-2">
         <Panel title="Fichiers de l’agent">
