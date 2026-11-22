@@ -19,15 +19,15 @@ python -m pip install -e .
 python examples/request-status/replay.py
 ```
 
-To install a published version instead, with its verified wheel and agent files, follow [Install a GitHub release](docs/install.md).
+For a team, install the wheel of a [GitHub release](https://github.com/Sandbox-podcast/OpenGuildKit/releases) on each workstation instead, with pipx (`pipx install ./openguildkit-X.Y.Z-py3-none-any.whl`) or uv (`uv tool install ./openguildkit-X.Y.Z-py3-none-any.whl`). OpenGuildKit is not on PyPI. [Install a GitHub release](docs/install.md) gives the download, the hash check and the agent files.
 
 The [request status demo](examples/request-status/) creates a temporary project and uses prepared reviews for tracking support requests. Run it in a terminal to compare the findings, approve the scope and see the implementation brief.
 
 ### Web interface
 
-`openguildkit ui` opens your project in the browser, on 127.0.0.1: tasks by state, the board consultation and each brain's pass, reviews and blockers, checks and results, dependency alerts, market dossiers, deliverables, tools and MCP servers, documentation exports and shares. Every action runs a CLI command. Approvals, waivers and other decisions that need a person stay in your terminal: the page shows the command to type. [Project interface](web/docs/interface-projet.md)
+`openguildkit ui` opens your project in the browser, on 127.0.0.1: tasks by state, the board consultation and each brain's pass, reviews and blockers, checks and results, dependency alerts, market dossiers, deliverables, tools and MCP servers, documentation exports and shares. Every action runs a CLI command. Approvals, waivers and other decisions that need a person stay in your terminal: the page shows the command to type. The wheel of a release ships the built interface; in a clone, build it once with `cd web && npm ci --ignore-scripts && npm run build`. [Project interface](web/docs/interface-projet.md)
 
-The same interface runs as a demo without the CLI. Explore Atelier Nova, a fictional software company, and follow a change from project rules and expert reviews through a human decision, a deliverable and its checks. The demo simulates external services and stores changes in your browser. [Run the web demo](web/README.md).
+The same interface runs as a demo without the CLI, from a clone (`cd web && npm ci --ignore-scripts && npm run dev`); the wheel does not ship it. Explore Atelier Nova, a fictional software company, and follow a change from project rules and expert reviews through a human decision, a deliverable and its checks. As in the product, Approve and Refuse show the command a person types in their terminal; the demo then simulates it. Its roles and its approvals of each deliverable version exist only in the demo. The demo simulates external services and stores changes in your browser. [Run the web demo](web/README.md).
 
 ## The board of brains
 
@@ -37,14 +37,17 @@ For every change, OpenGuildKit convenes the brains it concerns. Each one reviews
 
 ## Set up your project
 
-From your own repository, launch the interactive questionnaire. It asks your stack, sector, roles and personal data, then each norm they imply (GDPR, DORA, NIS 2...) with the reason it is proposed, for you to keep or decline one by one; then the other patterns, extra rule packs (added to the recommended ones), boards, the tools the company works with, the agent host and the board guard. Every prompt shows what Enter keeps. In an existing repository, `openguildkit detect` proposes your components and versions first, and each pattern applies to the component where its technologies are used.
+From your own repository, launch the interactive questionnaire. It asks your stack, sector, roles and personal data, then each norm they imply (GDPR, DORA, NIS 2...) with the reason it is proposed, for you to keep or decline one by one; then the other patterns, extra rule packs (added to the recommended ones), boards, the tools the company works with, the agent host and the board guard. Every prompt shows what Enter keeps, except the required question on personal data, which waits for an answer. In an existing repository, `openguildkit detect` proposes your components and versions first, and each pattern applies to the component where its technologies are used.
 
 ```bash
 openguildkit detect
 openguildkit init
 openguildkit preview
+openguildkit host apply
 openguildkit check
 ```
+
+With Claude Code or Codex as the agent host, `check` fails until `host apply` has installed the host settings and hooks: run it first. With another agent, skip it; it writes nothing for that host. Without a terminal, as in a script or from your agent, `openguildkit init --questions` prints the questionnaire as JSON and `openguildkit init --answers answers.json` reads the answers from a file.
 
 `init` saves the profile in `.openguildkit/project.json` and writes the rules in a managed block in `AGENTS.md`. It adds an import to `CLAUDE.md` for Claude Code. The catalog records in force are pinned in `.openguildkit/catalog.lock.json`: after upgrading OpenGuildKit, `openguildkit update` shows the date of the installed catalog (the day its sources were last checked), how many records changed and what would change, and `openguildkit update --apply` adopts it. It then prints the next steps that apply, such as `openguildkit host apply` for your agent host and `openguildkit tools plan ...` for the tools the registry knows. [Install the agent skill](integrations/) to answer the questionnaire in Claude Code or Codex and run tasks from the conversation. To change the profile later (adopt or decline a regulation, add a check, change the host or the guard), use `openguildkit profile`: it records who, when and why, and rewrites `AGENTS.md` ([patterns](docs/patterns.md#change-the-profile-after-setup)).
 
@@ -81,6 +84,19 @@ openguildkit task consult request-status --answers answers.json
 - `task questions --answers` adds the follow-up questions and lists the points still open.
 - `task route` shows the boards it would select and why, without recording anything. Only you add or remove a board, with a reason.
 - `task consult` records your answers and prepares a short consultation: the task, the project scope, one line per board.
+
+A minimal `answers.json` gives one choice ID per question of `task questions`. `concerns` names the topics that bring their own specialists (money, AI, decisions about people, credentials), or `none`:
+
+```json
+{
+  "kind": "feature",
+  "surface": "customer",
+  "data": "personal",
+  "research": "local",
+  "concerns": ["none"],
+  "context": "Signed-in customers see the status of their own support requests."
+}
+```
 
 **2. Consult the boards.**
 
@@ -145,7 +161,7 @@ openguildkit patterns --id python-fastapi-postgresql
 
 ## Documentation
 
-- [Install a GitHub release](docs/install.md)
+- [Install a GitHub release](docs/install.md) and [changelog](CHANGELOG.md)
 
 - [Run an executable catalog rule in CI](examples/export-expiry/README.md)
 - [Coordinate pull request checks across GitHub Actions and Jenkins](integrations/ci/README.md)

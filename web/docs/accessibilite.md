@@ -1,8 +1,19 @@
-# Accessibilité de la démo web
+# Accessibilité de l'interface web
 
-Les contrôles couvrent Chrome sous Windows, le clavier, le mouvement réduit et les écrans étroits. Les parcours et limites de la vérification sont consignés dans [Vérifications](verification.md).
+Les contrôles couvrent Chrome, le clavier, le mouvement réduit et les écrans étroits, dans les deux modes : l'interface d'un projet (`openguildkit ui`) et la démonstration Atelier Nova. Les parcours et limites de la vérification sont consignés dans [Vérifications](verification.md).
 
-## Clavier et lecture
+## Interface d'un projet
+
+- Le premier Tab atteint le lien « Aller au contenu », qui place le focus sur le contenu principal. Chaque lieu a un seul titre principal.
+- Ctrl+K (Cmd+K sur Mac) ouvre la recherche, même depuis un champ ; `/` l'ouvre hors d'un champ. Entrée dans la recherche ouvre le premier résultat.
+- Hors d'un champ et hors d'un dialogue, `g` suivi de l'initiale d'un lieu y mène (`g q` pour les quêtes, `g f` pour la Forge), et `m` passe du style RPG au style Pro. Ces raccourcis à une touche ne s'activent pas pendant la saisie.
+- À faible largeur, la navigation s'ouvre par un bouton ; Échap la referme. Chaque lien de lieu porte son nom et, en description, son rôle et son compteur.
+- Une décision réservée à une personne (approuver, lever ou déroger à un blocage, clore par-dessus des points sensibles) ouvre un dialogue qui affiche la commande à taper dans le terminal, avec un bouton de copie. Échap ferme le dialogue.
+- Les deux balayages de `npm run e2e:project` ouvrent 34 routes, en RPG sur bureau et en Pro à 375 px : un seul titre principal, chaque champ et chaque bouton nommés, aucun identifiant en double, pas de défilement horizontal.
+
+## Démonstration
+
+- Le premier Tab atteint le lien "Aller au contenu". Entrée place le focus sur le contenu principal. Un changement de page y ramène le focus. Une recherche dans la page garde le focus sur son champ.
 
 - Le premier Tab atteint le lien "Aller au contenu". Entrée place le focus sur le contenu principal. Un changement de page y ramène le focus. Une recherche dans la page garde le focus sur son champ.
 - À faible largeur, le menu place le focus sur l'organisation à l'ouverture. Échap le rend au bouton. Les sélecteurs d'organisation, de projet et de style (RPG / Pro) restent dans le menu.
@@ -53,4 +64,4 @@ Le contraste des images et des superpositions varie avec le décor. Les libellé
 
 ## Mouvement et limites
 
-Le mode système suit `prefers-reduced-motion`. La préférence "Mouvement réduit" neutralise aussi les boucles, sans retirer les informations de progression. Le son est désactivé à la création d'un espace. La revue n'inclut pas de test avec lecteur d'écran ni de mesure de chaque cible tactile.
+Le mode système suit `prefers-reduced-motion`, dans les deux modes. La préférence "Mouvement réduit" neutralise aussi les boucles, sans retirer les informations de progression. Le son est désactivé à la création d'un espace de démonstration. La revue n'inclut pas de test avec lecteur d'écran ni de mesure de chaque cible tactile.

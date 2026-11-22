@@ -2,16 +2,22 @@
 
 L'interface a deux modes, avec les mêmes 12 lieux et les mêmes styles RPG et Pro.
 
-- **Projet réel** : `openguildkit ui` sert la page sur 127.0.0.1 pour le projet du dossier courant. Chaque écran lit le projet et chaque action lance une commande de la CLI ; les validations restent dans le terminal d'une personne. [Interface d'un projet réel](docs/interface-projet.md)
-- **Démonstration** : servie sans la CLI (`npm run dev`, hébergement statique, ou `?demo=1`), elle montre l'expérience complète sur l'organisation fictive Atelier Nova.
+- **Projet réel** : `openguildkit ui` sert la page sur 127.0.0.1 pour le projet du dossier courant. Chaque écran lit le projet et chaque action lance une commande de la CLI ; les validations restent dans le terminal d'une personne. C'est le seul mode que le paquet Python embarque. [Interface d'un projet réel](docs/interface-projet.md)
+- **Démonstration** : lancée depuis ce dossier (`npm run dev`), sans la CLI, elle montre l'expérience sur l'organisation fictive Atelier Nova. Elle n'est pas dans le paquet : sur une page servie par `openguildkit ui`, `?demo=1` dit comment la lancer.
 
 ## Démonstration Atelier Nova
 
-Maquette fonctionnelle de l’expérience complète d’Open Guild Kit, en pixel art RPG : 12 lieux (Royaume, Blueprint, Guilde, Conseil, Quêtes, Bibliothèque, Forge, Tour de guet, Observatoire, Documentation, Chroniques, Intendance), règles de gestion RG-01 à RG-42 dans le domaine, services externes simulés par des adaptateurs déterministes.
+Maquette de l'expérience d'Open Guild Kit en pixel art RPG, sur une organisation fictive : 12 lieux (Royaume, Blueprint, Guilde, Conseil, Quêtes, Bibliothèque, Forge, Tour de guet, Observatoire, Documentation, Chroniques, Intendance), règles de gestion RG-01 à RG-42 dans le domaine, services externes simulés par des adaptateurs déterministes.
+
+Elle diffère du produit sur trois points, détaillés dans [Interface d'un projet réel](docs/interface-projet.md#ce-qui-distingue-la-démonstration) :
+
+- « Approuver » et « Refuser » affichent la commande que la personne tape dans son terminal, comme dans le produit, où la page n'enregistre jamais une décision. La démo n'a pas de terminal : « Simuler la commande » joue cette saisie.
+- Les rôles (propriétaire, mainteneur, contributeur, lecteur, auditeur, agent IA) n'existent que dans la démo ; la CLI demande le nom de la personne qui décide.
+- La démo valide chaque version d'un livrable et du Blueprint ; la CLI approuve une tâche et vérifie ses livrables.
 
 L'interrupteur **RPG / Pro** de la barre du haut change le style sans toucher au travail ouvert : RPG montre les scènes illustrées, Pro garde les mêmes écrans sur des surfaces claires et sobres.
 
-Les créations, modifications, validations, transitions, versions, imports, exports et relations sont réellement enregistrés dans le navigateur (localStorage). Tout résultat externe (analyse de dépôt, avis d’agents, contrôles, veille, intégrations) est marqué « Simulation ».
+Les créations, modifications, transitions, versions, imports, exports et relations sont réellement enregistrés dans le navigateur (localStorage). Tout résultat externe (analyse de dépôt, avis d’agents, contrôles, veille, intégrations) est marqué « Simulation ».
 
 ## Lancer
 
@@ -19,12 +25,14 @@ Utilise Node 22.12 ou Node 24, la version de la CI.
 
 ```bash
 cd web
-npm ci
-npm run dev          # http://localhost:5199
-npm run build        # typecheck + build dans dist/
-npm run preview      # sert dist/ sur http://localhost:5198
-npm run bundle       # copie dist/ dans le paquet Python (src/openguildkit/web_dist)
+npm ci --ignore-scripts
+npm run dev          # http://localhost:5199 : la démonstration, ou le projet avec OGK_API
+npm run build        # typecheck + build de l'interface d'un projet dans dist/, sans la démo
+npm run bundle       # copie dist/ dans le paquet Python (src/openguildkit/web_dist) et vérifie son budget
+npm run build:demo   # build de la démonstration seule dans dist-demo/, servie par npm run preview:demo
 ```
+
+`npm run bundle` refuse une construction qui contient la démo ou qui dépasse 1 298 Ko (`BUDGET_KB` dans `scripts/bundle.mjs` : la taille mesurée le 22 novembre 2026, plus 10 %). Relève ce budget seulement avec la mesure qui le justifie.
 
 Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un projet, puis `OGK_API=http://127.0.0.1:7311 npm run dev`. `python scripts/sample-project.py DOSSIER` crée un projet d'exemple avec une quête dans chaque état.
 
@@ -32,15 +40,17 @@ Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un proje
 
 ```bash
 npm run typecheck    # TypeScript strict
-npm test             # 38 tests Vitest : 28 de domaine (règles sensibles, parcours principal) et 10 du mode réel
+npm test             # tests Vitest : domaine de la démo (règles sensibles, parcours principal, commandes du terminal), mode réel, script d'empaquetage
 npm run e2e          # parcours de la démonstration (Playwright, Chrome installé localement)
 npm run e2e:project  # 25 parcours et 2 balayages du mode réel sur des projets d'exemple neufs servis par openguildkit ui (après npm run build)
 npm run measure:project -- http://127.0.0.1:7311   # temps d'affichage, requêtes et volumes de chaque lieu du mode réel
 npm run catalogue    # régénère src/fixtures/catalogue.json depuis data/SOCLE_Catalogue_395_References.md
 npm run docs:roles   # régénère docs/roles.md depuis les capacités du domaine
 CAPTURES=1 npm run e2e -- captures   # régénère docs/captures-apres (RPG) et docs/captures-pro
-node scripts/measure.mjs http://localhost:5209 5   # mesures de performance d'une build servie par `npm run preview`
+node scripts/measure.mjs http://localhost:5209 5   # mesures de performance de la démo servie par `npm run preview:demo`
 ```
+
+Régénère les captures de `docs/captures-apres` (RPG) et `docs/captures-pro` après chaque changement visible de la démonstration (un lieu, un libellé, le style), avec `CAPTURES=1 npm run e2e -- captures`, et commite-les avec ce changement.
 
 `npm run e2e` utilise Chrome installé (`channel: chrome`). Tu peux aussi installer Chromium avec `npx playwright install chromium`, puis définir `PW_CHANNEL=chromium` avant `npm run e2e`. Les tests déposent leurs captures dans `test-results/`. [Captures comparatives et mesures](docs/verification.md)
 
@@ -56,14 +66,31 @@ node scripts/measure.mjs http://localhost:5209 5   # mesures de performance d'un
 
 | Dossier | Rôle |
 | --- | --- |
-| `src/domain` | Types, permissions (`authorize`), machines d’états (`machines.ts`), moteur de commandes atomiques (`engine.ts`), sélecteurs dérivés (fraîcheur, clôture, impacts, notifications, traçabilité), commandes métier (`commands/`). |
+| `src/domain` | Types, permissions (`authorize`), machines d’états (`machines.ts`), moteur de commandes atomiques (`engine.ts`), sélecteurs dérivés (fraîcheur, clôture, impacts, notifications, traçabilité), commandes métier (`commands/`), commande du terminal de chaque décision d'une personne (`terminal.ts`). |
 | `src/adapters` | Catalogue (parseur Markdown/JSON, validation, doublons), stockage versionné, exports réels (MD, JSON, YAML, HTML autonome, SVG), simulations (`simulation/`) derrière `services.ts`. |
 | `src/fixtures` | Scénario Atelier Nova, expertises, skills et contrôles, réutilisation du registre CLI (`../src/openguildkit/registry`). |
 | `src/shared` | Design system (`ui/`), moteur pixel art (`pixel/` : bâtiments, portraits, carte, icônes dessinés par primitives). |
 | `src/features` | Un dossier par lieu de la démonstration. |
 | `src/project` | Mode réel : client de l'API locale, cache des commandes, libellés, un fichier par lieu dans `views/`. Le serveur est `../src/openguildkit/webui.py`. |
-| `tests/domain`, `tests/e2e` | Tests Vitest et Playwright. |
+| `tests/domain`, `tests/project`, `tests/scripts`, `tests/e2e` | Tests Vitest et Playwright. |
 
 Données d’entrée : `data/SOCLE_Catalogue_395_References.md` (395 références, 37 catégories, 12 familles, édition du 20 novembre 2026), converti en `src/fixtures/catalogue.json` avec contrôle de comptage.
 
-[Interface d'un projet réel](docs/interface-projet.md) · [Domaine et règles de gestion](docs/domaine.md) · [Périmètre fonctionnel](docs/matrice-perimetre.md) · [Rôles](docs/roles.md) · [Adaptateurs](docs/adaptateurs.md) · [Formats d'échange](docs/formats.md) · [Charte et assets](docs/assets.md) · [Accessibilité](docs/accessibilite.md) · [Vérifications](docs/verification.md)
+## Documentation
+
+### Interface d'un projet
+
+- [Interface d'un projet réel](docs/interface-projet.md), avec ce qui distingue la démonstration
+- [Accessibilité](docs/accessibilite.md), des deux modes
+- [Charte et assets](docs/assets.md)
+- [Vérifications](docs/verification.md)
+
+### Démonstration
+
+Ces pages décrivent la maquette Atelier Nova, pas le produit.
+
+- [Domaine et règles de gestion](docs/domaine.md)
+- [Périmètre fonctionnel](docs/matrice-perimetre.md)
+- [Rôles](docs/roles.md)
+- [Adaptateurs de simulation](docs/adaptateurs.md)
+- [Formats d'échange](docs/formats.md)

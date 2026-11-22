@@ -1,11 +1,23 @@
 # Interface d'un projet réel
 
-`openguildkit ui` ouvre l'interface web sur le projet du dossier courant. La page est la même que la démonstration, avec ses deux styles RPG et Pro, mais chaque écran lit le projet et chaque action lance une commande de la CLI. Rien n'y est simulé.
+`openguildkit ui` ouvre l'interface web sur le projet du dossier courant. Elle reprend les lieux et les deux styles RPG et Pro de la démonstration Atelier Nova, mais chaque écran lit le projet et chaque action lance une commande de la CLI. Rien n'y est simulé.
+
+## Ce qui distingue la démonstration
+
+La démonstration Atelier Nova ([web/README.md](../README.md#démonstration-atelier-nova)) montre l'expérience sur une organisation fictive, sans la CLI. Elle diffère du produit sur trois points :
+
+- **L'approbation.** Dans le produit, une personne approuve, refuse ou déroge dans son propre terminal, et la page n'enregistre jamais ces décisions. Dans la démo, « Approuver » et « Refuser » affichent la même commande du terminal ; la démo, qui n'a pas de terminal, peut ensuite simuler sa saisie.
+- **Les rôles.** Propriétaire, mainteneur, contributeur, lecteur, auditeur et agent IA n'existent que dans la démo ([rôles](roles.md)). La CLI n'a pas de rôles : elle demande le nom de la personne qui décide (`--by`).
+- **Les versions de livrables et du Blueprint.** La démo valide chaque version d'un livrable et du Blueprint. La CLI approuve une tâche, vérifie ses livrables (`deliverable check`) et change le profil avec `openguildkit profile`.
+
+La démo n'est pas dans le paquet : `openguildkit ui` ne la charge jamais, et `?demo=1` sur sa page dit comment la lancer depuis un clone du dépôt (`cd web && npm run dev`).
 
 ## Lancer
 
+OpenGuildKit n'est pas sur PyPI : installe la roue d'une release GitHub, qui embarque l'interface construite ([installation](../../docs/install.md)).
+
 ```bash
-pip install openguildkit          # le paquet embarque l'interface construite
+pipx install ./openguildkit-X.Y.Z-py3-none-any.whl
 cd mon-projet
 openguildkit ui                   # http://127.0.0.1:7311, ouvre le navigateur
 openguildkit ui --port 0 --no-browser
@@ -69,18 +81,18 @@ cd web
 OGK_API=http://127.0.0.1:7311 npm run dev             # rechargement à chaud sur le projet réel
 ```
 
-Sans `OGK_API`, `npm run dev` ouvre la démonstration. `?demo=1` force la démonstration sur une page servie par `openguildkit ui`.
+Sans `OGK_API`, `npm run dev` ouvre la démonstration ; `?demo=1` l'ouvre aussi quand `OGK_API` est posé. La construction du paquet (`npm run build`) laisse la démo de côté : sur une page servie par `openguildkit ui`, `?demo=1` affiche qu'elle n'est pas incluse et comment la lancer. `npm run build:demo` construit la démo seule, dans `dist-demo/`, pour `npm run preview:demo`.
 
 Le code du mode réel est dans `src/project/` : le client de l'API (`api.ts`), le cache des commandes (`query.ts`), les données communes (`data.ts`), les libellés (`labels.ts`) et un fichier par lieu dans `views/`. Chaque lieu est chargé à la demande. Le serveur est `src/openguildkit/webui.py`.
 
 ## Empaqueter
 
 ```bash
-cd web && npm ci && npm run build && npm run bundle   # copie dist/ dans src/openguildkit/web_dist
-python -m build
+cd web && npm ci --ignore-scripts && npm run build && npm run bundle   # copie dist/, sans la démo, dans src/openguildkit/web_dist
+python -m build --wheel
 ```
 
-Le job CI `package` fait ces étapes et vérifie que la wheel installée trouve l'interface. Dans un dépôt source, le serveur prend la plus récente des deux : `web/dist` ou la copie de `web_dist`.
+`npm run bundle` refuse une construction qui contient les images de la démo ou qui dépasse son budget (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 298 Ko, soit 1 180 Ko mesurés le 22 novembre 2026 plus 10 %). La release (`.github/workflows/release.yml`) et le job CI `package` font ces étapes, et refusent une roue sans `openguildkit/web_dist/index.html`. Le job `package` installe ensuite la roue sur Linux, macOS et Windows (avec `pipx` sous Windows) et vérifie que `openguildkit ui` répond 200 sur `/` avec chaque script de la page (`.github/scripts/check-installed-cli.py`). Dans un dépôt source, le serveur prend la plus récente des deux : `web/dist` ou la copie de `web_dist`.
 
 ## Performances
 

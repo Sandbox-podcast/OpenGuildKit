@@ -4,7 +4,9 @@
 
 Report vulnerabilities privately through GitHub: open the repository's **Security** tab and choose **Report a vulnerability**. Do not open a public issue.
 
-Include the version or commit, the command you ran, what happened and what you expected. Maintainers agree on a disclosure date with the reporter.
+Include the version or commit, the command you ran, what happened and what you expected. The maintainer acknowledges the report within 14 days, then agrees on a disclosure date with the reporter.
+
+OpenGuildKit has one maintainer today (see [GOVERNANCE.md](GOVERNANCE.md)). When the maintainer is away, the report stays private in the **Security** tab, where only the maintainer and the reporter can read it, until the maintainer answers. Keep it private in the meantime; adding a comment to the report brings it back to the maintainer's notifications.
 
 ## In scope
 

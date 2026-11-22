@@ -1,5 +1,7 @@
 # Domaine
 
+> Démonstration Atelier Nova : cette page décrit la maquette, pas le produit. [Ce qui les distingue](interface-projet.md#ce-qui-distingue-la-démonstration)
+
 `AppState` contient les organisations, les utilisateurs, les tables d'objets, le catalogue local, la session et les préférences. Un produit regroupe des dépôts et modules. Un projet de travail référence son produit principal, son responsable et la version du Blueprint qu'il suit. Les relations entre produits conservent leurs périmètres respectifs. [Types](../src/domain/types.ts)
 
 Une session de Conseil garde le contexte et les règles examinés, les expertises, leurs contributions et les options. Une décision peut produire une quête. La quête relie tâches, critères, livrables, contrôles et approbations. Un résultat relie une exécution et ses entrées à des preuves. Les Chroniques parcourent ces relations dans les deux sens. [Sélecteurs](../src/domain/selectors.ts)

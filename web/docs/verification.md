@@ -39,18 +39,18 @@ Les deux échecs Playwright de la reprise étaient reproductibles. Le glisser-d�
 
 Chrome 157 sous Windows 11, langue `fr-FR`, fuseau Europe/Paris. Chaque série utilise un contexte vierge, le scénario Atelier Nova au 20 novembre 2026 à 14 h, les mêmes routes, le guide masqué et le mouvement réduit. Chaque série compte dix captures à 1440 × 900 et cinq à 390 × 844.
 
-Les séries « Après » (RPG) et « Pro » sont régénérées par `CAPTURES=1 npm run e2e -- captures` sur la dernière build, après le passage à la palette du logo. La série « Avant » vient de la première build du chantier et n'est pas rejouée.
+Les séries RPG (`captures-apres/`) et Pro (`captures-pro/`) sont régénérées par `CAPTURES=1 npm run e2e -- captures` après chaque changement visible de la démonstration. Les séries antérieures ont été retirées du dépôt : l'historique Git les garde.
 
-| Écran | Avant | Après (RPG) | Pro |
-| --- | --- | --- | --- |
-| Entrée sur mobile | [PNG](captures-avant/01-entree-mobile.png) | [PNG](captures-apres/01-entree-mobile.png) | [PNG](captures-pro/01-entree-mobile.png) |
-| Royaume et reprise | [PNG](captures-avant/02-royaume.png) | [PNG](captures-apres/02-royaume.png) | [PNG](captures-pro/02-royaume.png) |
-| Conseil préparé | [PNG](captures-avant/03-conseil.png) | [PNG](captures-apres/03-conseil.png) | [PNG](captures-pro/03-conseil.png) |
-| Bibliothèque filtrée | [PNG](captures-avant/04-bibliotheque.png) | [PNG](captures-apres/04-bibliotheque.png) | [PNG](captures-pro/04-bibliotheque.png) |
-| Quête bloquée | [PNG](captures-avant/05-quete-bloquee.png) | [PNG](captures-apres/05-quete-bloquee.png) | [PNG](captures-pro/05-quete-bloquee.png) |
-| Livrable dans la Forge | [PNG](captures-avant/06-forge.png) | [PNG](captures-apres/06-forge.png) | [PNG](captures-pro/06-forge.png) |
-| Preuve à réévaluer sur mobile | [PNG](captures-avant/07-preuve-a-reevaluer-mobile.png) | [PNG](captures-apres/07-preuve-a-reevaluer-mobile.png) | [PNG](captures-pro/07-preuve-a-reevaluer-mobile.png) |
-| Chroniques | [PNG](captures-avant/08-chroniques.png) | [PNG](captures-apres/08-chroniques.png) | [PNG](captures-pro/08-chroniques.png) |
+| Écran | RPG | Pro |
+| --- | --- | --- |
+| Entrée sur mobile | [PNG](captures-apres/01-entree-mobile.png) | [PNG](captures-pro/01-entree-mobile.png) |
+| Royaume et reprise | [PNG](captures-apres/02-royaume.png) | [PNG](captures-pro/02-royaume.png) |
+| Conseil préparé | [PNG](captures-apres/03-conseil.png) | [PNG](captures-pro/03-conseil.png) |
+| Bibliothèque filtrée | [PNG](captures-apres/04-bibliotheque.png) | [PNG](captures-pro/04-bibliotheque.png) |
+| Quête bloquée | [PNG](captures-apres/05-quete-bloquee.png) | [PNG](captures-pro/05-quete-bloquee.png) |
+| Livrable dans la Forge | [PNG](captures-apres/06-forge.png) | [PNG](captures-pro/06-forge.png) |
+| Preuve à réévaluer sur mobile | [PNG](captures-apres/07-preuve-a-reevaluer-mobile.png) | [PNG](captures-pro/07-preuve-a-reevaluer-mobile.png) |
+| Chroniques | [PNG](captures-apres/08-chroniques.png) | [PNG](captures-pro/08-chroniques.png) |
 
 Sur le viewport de 390 px, le document mesurait 1 046 px à l'entrée, 640 px dans les contrôles et 595 px dans les preuves. Ces trois vues tiennent sur 390 px après correction. La fiche issue du lien direct `preuve=prv-ds1` affiche le motif de réévaluation dès le premier écran. L'inventaire reste accessible sous la fiche en largeur mobile.
 

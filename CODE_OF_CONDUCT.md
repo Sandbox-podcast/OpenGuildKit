@@ -6,4 +6,4 @@ In short: be respectful, assume good faith, critique work rather than people, an
 
 ## Reporting
 
-Report incidents privately: open the repository's **Security** tab, choose **Report a vulnerability**, and start the title with `Conduct:`. Only maintainers can read these reports. Maintainers respond following the Contributor Covenant enforcement guidelines and keep the reporter's identity confidential.
+Report incidents privately: open the repository's **Security** tab, choose **Report a vulnerability**, and start the title with `Conduct:`. Only the maintainers can read these reports; OpenGuildKit has one maintainer today. The maintainer acknowledges a report within 14 days, responds following the Contributor Covenant enforcement guidelines and keeps the reporter's identity confidential.

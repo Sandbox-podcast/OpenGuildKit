@@ -20,6 +20,8 @@ export interface TransitionDef {
   needsReason?: boolean;
   humanOnly?: boolean;
   danger?: boolean;
+  /** A person records it in their own terminal in OpenGuildKit: the demo shows the command (terminal.ts) before simulating it. */
+  terminal?: boolean;
 }
 export interface Machine { title: string; states: Record<string, StateDef>; transitions: readonly TransitionDef[] }
 
@@ -72,9 +74,9 @@ export const MACHINES = {
     },
     transitions: [
       { action: 'submit', label: 'Soumettre à approbation', from: ['draft'], to: 'review', capability: 'propose' },
-      { action: 'approve', label: 'Approuver la décision', from: ['review'], to: 'approved', capability: 'approve', humanOnly: true },
-      { action: 'refuse', label: 'Refuser', from: ['review'], to: 'refused', capability: 'approve', humanOnly: true, needsReason: true, danger: true },
-      { action: 'requestRevision', label: 'Demander une révision', from: ['review'], to: 'draft', capability: 'approve', humanOnly: true, needsReason: true },
+      { action: 'approve', label: 'Approuver la décision', from: ['review'], to: 'approved', capability: 'approve', humanOnly: true, terminal: true },
+      { action: 'refuse', label: 'Refuser', from: ['review'], to: 'refused', capability: 'approve', humanOnly: true, needsReason: true, danger: true, terminal: true },
+      { action: 'requestRevision', label: 'Demander une révision', from: ['review'], to: 'draft', capability: 'approve', humanOnly: true, needsReason: true, terminal: true },
       { action: 'cancel', label: 'Annuler', from: ['draft', 'review'], to: 'cancelled', capability: 'propose', needsReason: true, danger: true },
     ],
   },
@@ -133,8 +135,8 @@ export const MACHINES = {
     },
     transitions: [
       { action: 'submit', label: 'Soumettre en revue', from: ['draft'], to: 'review', capability: 'propose' },
-      { action: 'requestChanges', label: 'Demander des changements', from: ['review'], to: 'draft', capability: 'approve', needsReason: true, humanOnly: true },
-      { action: 'approve', label: 'Approuver cette version', from: ['review'], to: 'approved', capability: 'approve', humanOnly: true },
+      { action: 'requestChanges', label: 'Demander des changements', from: ['review'], to: 'draft', capability: 'approve', needsReason: true, humanOnly: true, terminal: true },
+      { action: 'approve', label: 'Approuver cette version', from: ['review'], to: 'approved', capability: 'approve', humanOnly: true, terminal: true },
       { action: 'publish', label: 'Publier', from: ['approved'], to: 'published', capability: 'publish', humanOnly: true },
       { action: 'archive', label: 'Archiver', from: ['draft', 'approved', 'published', 'replaced'], to: 'archived', capability: 'archive', needsReason: true, danger: true },
     ],
@@ -181,8 +183,8 @@ export const MACHINES = {
       revoked: s('Révoquée', 'muted', 'ban'),
     },
     transitions: [
-      { action: 'approve', label: 'Approuver', from: ['expected'], to: 'approved', capability: 'approve', humanOnly: true },
-      { action: 'refuse', label: 'Refuser', from: ['expected'], to: 'refused', capability: 'approve', humanOnly: true, needsReason: true, danger: true },
+      { action: 'approve', label: 'Approuver', from: ['expected'], to: 'approved', capability: 'approve', humanOnly: true, terminal: true },
+      { action: 'refuse', label: 'Refuser', from: ['expected'], to: 'refused', capability: 'approve', humanOnly: true, needsReason: true, danger: true, terminal: true },
       { action: 'revoke', label: 'Révoquer', from: ['approved'], to: 'revoked', capability: 'approve', humanOnly: true, needsReason: true, danger: true },
     ],
   },
@@ -198,8 +200,8 @@ export const MACHINES = {
     },
     transitions: [
       { action: 'request', label: 'Demander la dérogation', from: ['draft'], to: 'requested', capability: 'request_exception' },
-      { action: 'approve', label: "Approuver l’exception", from: ['requested'], to: 'approved', capability: 'approve_exception', humanOnly: true },
-      { action: 'refuse', label: 'Refuser', from: ['requested'], to: 'refused', capability: 'approve_exception', humanOnly: true, needsReason: true, danger: true },
+      { action: 'approve', label: "Approuver l’exception", from: ['requested'], to: 'approved', capability: 'approve_exception', humanOnly: true, terminal: true },
+      { action: 'refuse', label: 'Refuser', from: ['requested'], to: 'refused', capability: 'approve_exception', humanOnly: true, needsReason: true, danger: true, terminal: true },
       { action: 'revoke', label: 'Révoquer', from: ['approved'], to: 'revoked', capability: 'approve_exception', humanOnly: true, needsReason: true, danger: true },
     ],
   },
@@ -253,7 +255,6 @@ export const MACHINES = {
 } satisfies Record<string, Machine>;
 
 export type MachineKind = keyof typeof MACHINES;
-export const machine = (kind: MachineKind): Machine => MACHINES[kind];
 export const stateDef = (kind: MachineKind, state: string): StateDef =>
   (MACHINES[kind].states as Record<string, StateDef>)[state] ?? { label: state, tone: 'neutral', icon: 'dot' };
 export const transitionsFrom = (kind: MachineKind, state: string): TransitionDef[] => (MACHINES[kind].transitions as readonly TransitionDef[]).filter((t) => t.from.includes(state));

@@ -20,7 +20,7 @@ Before large work, open an issue with the matching template so a steward or main
 
 For larger changes, use an issue to discuss scope. Fork the repository, create a branch for the change and open a pull request against `main`. Use `Closes #123` for the issue the PR resolves, or `Refs #123` for related work. Include the part of the catalog or workflow you exercised.
 
-GitHub labels PRs from their changed files and requests a review from the owners in `.github/CODEOWNERS`. The `contribution-checks` status combines the test matrix and package build. Merges to `main` refresh a draft of the next release notes. Maintainers publish versions with the [release steps](GOVERNANCE.md#releases).
+GitHub labels PRs from their changed files and requests a review from the owners in `.github/CODEOWNERS`. The `contribution-checks` status combines the test matrix (Python 3.11 to 3.15 on Linux, macOS and Windows), the wheel build, the CI coordinator, and the checks and journeys of the web interface; a job that runs past its time limit fails. Merges to `main` refresh a draft of the next release notes. Maintainers publish versions with the [release steps](GOVERNANCE.md#releases).
 
 Everything you add to the repository, catalog content included (packs, references, patterns, boards, sectors and tools), is published under the MIT License in [LICENSE](LICENSE), like the code. Opening a pull request means you agree to that and that you have the right to contribute the content. Write rules and descriptions in your own words and never paste the text of a standard: only text you may license can be published under the MIT License.
 
@@ -101,7 +101,7 @@ A maintainer validates every replacement in the pull request that makes it. Run 
 - Keep the CLI offline. It must never call a model provider or the network.
 - Add unit tests in `tests/` and, for a new command, an end-to-end test in `tests/e2e/`: `tests/test_cli_coverage.py` fails when a command has no test that runs it.
 - Keep messages short and actionable, prefixed `OpenGuildKit:` on errors.
-- Write code, rule packs and contribution docs in English. Reference entries can keep their original language. The French README is maintained alongside the English one.
+- Write code, rule packs and documentation in English, except the web interface. The web interface is written in French, because its screens are in French and the team that builds and uses it so far is French-speaking: `web/` (its screens, `web/README.md` and `web/docs/`) stays in French. Reference entries can keep their original language. The French README is maintained alongside the English one.
 
 ## Pull requests
 

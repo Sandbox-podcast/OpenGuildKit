@@ -16,4 +16,3 @@ export const services = {
   generator: { generate: generateContent },
   watch: { feed: WATCH_FEED },
 };
-export type Services = typeof services;
