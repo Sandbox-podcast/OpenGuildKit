@@ -33,7 +33,7 @@ classifiers = [
 ]
 
 [project.scripts]
-openguildkit = "openguildkit.cli:main"
+openguildkit = "openguildkit.__main__:main"
 
 [project.urls]
 Documentation = "https://github.com/Sandbox-podcast/OpenGuildKit/tree/main/docs"

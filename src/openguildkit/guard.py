@@ -9,18 +9,20 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
 from . import clock
+from .catalog import load_catalog
 from .decisions import (
     DECISIONS_DIR, approval_policy, changed_paths_since, check_decision, check_decision_seal, exported_boards,
     exported_records, exported_rounds, history_message, record_digest, seal, shared_digest, stale_approval_message,
     verify_signature,
 )
-from .lock import LOCK_FILE, read_lock
-from .project import STATE_DIR, load_profile, profile_fingerprint
+from .lock import LOCK_FILE, apply_lock, read_lock
+from .project import STATE_DIR, load_profile, profile_fingerprint, project_root, state_path
 from .results import DONE_STATUSES, verification_of
 from .storage import read_json, write_json
 from .task_index import tasks_with_status
@@ -260,8 +262,11 @@ def _one_line(error: BaseException) -> str:
 def run_hook(event: str, raw: str | None, project: Path | None, load) -> tuple[int, str, str]:
     """Run a host hook so that, in enforce mode, any failure to decide refuses the edit.
 
-    load() returns the project root, state, profile and catalog; it may raise.
+    load() returns the project root, state, profile and catalog; it may raise. A profile that declares the guard
+    off ends the hook before load(): whatever the catalog and the profile say, the answer is to let the edit through.
     """
+    if _declared_mode(project) == "off":
+        return hook_answer(event, "off", "outside")
     mode = None
     try:
         root, state, profile, catalog = load()
@@ -275,6 +280,42 @@ def run_hook(event: str, raw: str | None, project: Path | None, load) -> tuple[i
         return guard_hook(event, root, state, profile, catalog, hook_input)
     except Exception as error:  # A guard that cannot decide must not let an edit through in enforce mode.
         return hook_answer(event, mode or _declared_mode(project), "unchecked", _one_line(error))
+
+
+def project_loader(project: Path | None, catalog_in_force=None):
+    """load() for run_hook: the project root, its state folder, the validated profile and the catalog in force.
+
+    catalog_in_force(state) gives that catalog; by default, the installed catalog with the project's additions,
+    where the records of the catalog lock take precedence, as every command reads it.
+    """
+    def load():
+        root = project_root(project)
+        state = state_path(root)
+        if catalog_in_force is not None:
+            catalog = catalog_in_force(state)
+        else:
+            catalog = apply_lock(load_catalog(state / "catalog"), read_lock(state))
+        return root, state, load_profile(state, catalog), catalog
+
+    return load
+
+
+def hook_command(event: str, project: Path | None, catalog_in_force=None) -> int:
+    """openguildkit guard --hook EVENT: read the host's input on stdin, print the answer, return the exit code.
+
+    Hosts run it before every edit, so it imports only what the guard needs: __main__ calls it without the rest
+    of the CLI.
+    """
+    try:
+        raw = "" if sys.stdin.isatty() else sys.stdin.read()
+    except (OSError, UnicodeError):
+        raw = None
+    code, out, err = run_hook(event, raw, project, project_loader(project, catalog_in_force))
+    if out:
+        print(out)
+    if err:
+        print(err, file=sys.stderr)
+    return code
 
 
 def export_decision(root: Path, state: Path, task: dict, profile: dict, output: Path | None = None) -> Path:

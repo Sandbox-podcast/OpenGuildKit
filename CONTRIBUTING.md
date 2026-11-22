@@ -51,7 +51,15 @@ No runtime dependency. Tests use `unittest` from the standard library. [Testing]
 
 ## Adding a board
 
-Boards should map to a real discipline with its own questions. Give it 3 expertises, 3 questions every task should answer, and triggers in English plus at least one other language. Check that your triggers do not fire on common words: add briefs that must and must not select the board to `tests/routing_cases.json`, which CI runs on every change.
+Boards should map to a real discipline with its own questions. A board in `src/openguildkit/registry/boards/` holds:
+
+- 3 `expertises` and 3 `questions` every task should answer, and `triggers` in English plus at least one other language;
+- dated `sources`, as for every bundled record;
+- a `review` block, which every brain needs: `specialists` (the lenses, each with an `id`, a `title`, a `focus` and the `checks` an expert of that lens makes), the `evidence` to inspect, the `challenge` questions and the `decision_criteria`. See [Brains](docs/brains.md).
+
+To start from a complete record, run `openguildkit brains --new ID` in a scratch project: it writes the board with its review block, a method pattern, a rule pack and a reference family under `.openguildkit/catalog/`, with `TODO:` text to replace. Move the files you keep to the matching folders of `src/openguildkit/registry/`. A brain also needs a method (a pattern that lists its ID in `roles`) and references that list its ID in `brains`.
+
+Then run `openguildkit brains --check`, which CI runs: it fails on a brain without a method or a reference, or with `TODO:` text left, and the catalog refuses a malformed `review` block with its file and field. `openguildkit brains --id ID` shows the lenses with their checks and the knowledge attached. Check that your triggers do not fire on common words: add briefs that must and must not select the board to `tests/routing_cases.json`, which CI runs on every change.
 
 ## Adding a sector
 

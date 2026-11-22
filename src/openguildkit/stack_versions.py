@@ -2,6 +2,9 @@
 
 import re
 
+# The Storybook release a project is told to create with npm create storybook@VERSION. It lives here, not in
+# storybook.py, so that the help of every command shows it without importing the Storybook module.
+STORYBOOK_VERSION = "10.6.6"
 
 _NUMERIC = r"\d+(?:\.\d+){0,3}"
 _VALUE = rf"(?:v?{_NUMERIC}(?:\.[xX*]|(?:[-+][a-z0-9.-]+)+|(?:a|b|rc)\d+)?|[xX*])"

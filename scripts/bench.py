@@ -1,15 +1,18 @@
 """Time the CLI commands that run most often, and print the times as a table and as JSON.
 
-    python scripts/bench.py [--repeat N] [--json]
+    python scripts/bench.py [--repeat N] [--dependencies FILES] [--json]
 
 Each command runs as a real process, as an agent or a hook runs it, in projects
-built in a temporary folder: the request status example, the same project with
-500 tasks of which 5 are approved, and a monorepo of 200 packages. Python caches
-the bytecode in that folder, as an installed package does, even when
-PYTHONDONTWRITEBYTECODE is set. The time of each command is the
+built in a temporary folder: the request status example (guard off), the same
+project with 500 tasks of which 5 are approved (guard enforce), that project
+again inside a Git repository whose commit the approvals record, a web project
+whose node_modules holds FILES files (50 000 by default), and a monorepo of 200
+packages. Python caches the bytecode in that folder, as an installed package
+does, even when PYTHONDONTWRITEBYTECODE is set. The time of each command is the
 median of N runs; "x start" divides it by the time of openguildkit --version,
 so the figure stays comparable between a fast laptop and a slow CI runner.
-tests/test_performance.py runs the same measures with budgets.
+tests/test_performance.py runs the same measures with budgets, with a smaller
+node_modules: the walk never enters it, which a test checks on its own.
 """
 
 import argparse
@@ -39,6 +42,10 @@ TASK = "request-status"
 TASKS = 500
 APPROVED = 5
 PACKAGES = 200
+DEPENDENCY_FILES = 50_000
+BUG_BRIEF = ("The status page crashes: `renderStatus()` returns the wrong label in src/app.ts and `missingHelper()` "
+             "is never called.")
+GIT_IDENTITY = ("-c", "user.name=Bench", "-c", "user.email=bench@example.test", "-c", "commit.gpgsign=false")
 ENV = {
     **{key: value for key, value in os.environ.items() if key != "PYTHONDONTWRITEBYTECODE"},
     "PYTHONPATH": os.pathsep.join(filter(None, [str(SOURCE), os.environ.get("PYTHONPATH")])),
@@ -99,9 +106,22 @@ def approve(project: Path, task_id: str) -> None:
                typed=task_id)
 
 
-def many_tasks(folder: Path) -> Path:
-    """The example project with TASKS records: APPROVED approved, then drafts and consulted copies by halves."""
+def git(project: Path, *args) -> None:
+    subprocess.run(["git", "-C", str(project), *GIT_IDENTITY, *args], check=True, capture_output=True, timeout=600)
+
+
+def many_tasks(folder: Path, in_git: bool = False) -> Path:
+    """The example project with TASKS records: APPROVED approved, then drafts and consulted copies by halves.
+
+    In a Git repository, each approval records the commit, and every edit hook checks that it is still in the history.
+    """
     project = example_project(folder, guard="enforce")
+    if in_git:
+        git(project, "init", "-q")
+        (project / "src").mkdir()
+        (project / "src" / "app.py").write_text("print('app')\n", encoding="utf-8")
+        git(project, "add", "-A")
+        git(project, "commit", "-qm", "Start")
     for index in range(APPROVED):
         approve(project, f"approved-{index}")
     cli(project, "task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
@@ -113,6 +133,20 @@ def many_tasks(folder: Path) -> Path:
         task_id = f"task-{index:04d}"
         record = {**consulted, "id": task_id} if index % 2 else {**draft, "id": task_id, "status": "draft", "rounds": []}
         write_json(tasks / f"{task_id}.json", record)
+    return project
+
+
+def web_project(folder: Path, dependencies: int) -> Path:
+    """The example project with a front end and a node_modules of that many files, as npm install leaves it."""
+    project = example_project(folder)
+    (project / "src").mkdir()
+    (project / "src" / "app.ts").write_text("export function renderStatus() { return 'open'; }\n", encoding="utf-8")
+    for index in range(dependencies):
+        package = project / "node_modules" / f"pkg-{index // 50:04d}" / "lib"
+        package.mkdir(parents=True, exist_ok=True)
+        (package / f"file-{index % 50}.js").write_text("module.exports = {};\n", encoding="utf-8")
+    answers = json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8"))
+    write_json(project / "bug-answers.json", {**answers, "kind": "bug"})
     return project
 
 
@@ -140,10 +174,12 @@ def edit_hook(project: Path) -> str:
                        "tool_input": {"file_path": str(project / "src" / "app.py")}})
 
 
-def scenarios(base: Path) -> list[tuple[str, callable]]:
+def scenarios(base: Path, dependencies: int = DEPENDENCY_FILES) -> list[tuple[str, callable]]:
     """(name, run) pairs; each run returns the wall time of one command."""
     plain = example_project(base / "plain")
     big = many_tasks(base / "many-tasks")
+    in_git = many_tasks(base / "many-tasks-git", in_git=True)
+    web = web_project(base / "web", dependencies)
     repo = monorepo(base / "monorepo")
     counter = iter(range(10 ** 6))
 
@@ -157,6 +193,11 @@ def scenarios(base: Path) -> list[tuple[str, callable]]:
         cli(plain, "task", "new", "--file", EXAMPLE / "brief.md", "--id", task_id)
         return cli(plain, "task", "consult", task_id, "--answers", EXAMPLE / "answers.json")
 
+    def consult_bug():
+        task_id = f"bug-{next(counter)}"
+        cli(web, "task", "new", BUG_BRIEF, "--id", task_id)
+        return cli(web, "task", "consult", task_id, "--answers", web / "bug-answers.json")
+
     def init_monorepo():
         shutil.rmtree(repo / ".openguildkit", ignore_errors=True)
         for name in ("AGENTS.md", "CLAUDE.md"):
@@ -169,22 +210,27 @@ def scenarios(base: Path) -> list[tuple[str, callable]]:
         ("catalog --json", lambda: cli(plain, "catalog", "--json")),
         ("init", fresh_init),
         ("task consult", consult),
+        ("task consult, bug, with node_modules", consult_bug),
         (f"task list ({TASKS} tasks)", lambda: cli(big, "task", "list")),
+        (f"check ({TASKS} tasks)", lambda: cli(big, "check")),
         ("references search", lambda: cli(plain, "references", "security")),
         (f"guard --hook pre-edit ({TASKS} tasks)", lambda: cli(big, "guard", "--hook", "pre-edit", stdin=edit_hook(big))),
+        (f"guard --hook pre-edit (Git, {APPROVED} approvals)",
+         lambda: cli(in_git, "guard", "--hook", "pre-edit", stdin=edit_hook(in_git))),
+        ("guard --hook pre-edit, guard off", lambda: cli(plain, "guard", "--hook", "pre-edit", stdin=edit_hook(plain))),
         (f"guard --hook prompt ({TASKS} tasks)", lambda: cli(big, "guard", "--hook", "prompt", stdin="{}")),
         (f"detect (monorepo, {PACKAGES} packages)", lambda: cli(repo, "detect", "--json")),
         (f"init (monorepo, {PACKAGES} packages)", init_monorepo),
     ]
 
 
-def measure(repeat: int = 3) -> dict:
+def measure(repeat: int = 3, dependencies: int = DEPENDENCY_FILES) -> dict:
     """Median seconds per scenario, the runs, and the ratio to the start time."""
     base = Path(tempfile.mkdtemp(prefix="ogk-bench-")).resolve()
     ENV["PYTHONPYCACHEPREFIX"] = str(base / "bytecode")
     try:
         results = {}
-        for name, run in scenarios(base):
+        for name, run in scenarios(base, dependencies):
             run()  # warm the file cache and the bytecode
             runs = [run() for _ in range(repeat)]
             results[name] = {"median": statistics.median(runs), "runs": runs}
@@ -215,9 +261,11 @@ def table(results: dict) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repeat", type=int, default=5, help="Runs per command (default 5).")
+    parser.add_argument("--dependencies", type=int, default=DEPENDENCY_FILES,
+                        help=f"Files in the web project's node_modules (default {DEPENDENCY_FILES}).")
     parser.add_argument("--json", action="store_true", help="Print only the JSON report.")
     args = parser.parse_args()
-    results = measure(args.repeat)
+    results = measure(args.repeat, args.dependencies)
     if not args.json:
         print(table(results))
         print()

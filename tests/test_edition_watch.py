@@ -25,6 +25,12 @@ FAMILIES = {"quality": {"id": "quality", "title": "Quality", "references": [
     {"id": "spec-x", "edition": "Rev. 5", "sources": [{"title": "Spec", "url": PAGE}, {"title": "Mirror", "url": MIRROR}]},
     {"id": "no-edition", "sources": [{"title": "Other", "url": "https://other.example.test/"}]},
 ]}}
+# The same reference as the bundled catalog records it: each source carries the day a person read it.
+CHECKED = {"quality": {**FAMILIES["quality"], "references": [
+    {**FAMILIES["quality"]["references"][0], "sources": [{"title": "Spec", "url": PAGE, "checked": "2026-11-20"},
+                                                         {"title": "Mirror", "url": MIRROR, "checked": "2026-11-18"}]},
+    FAMILIES["quality"]["references"][1],
+]}}
 
 
 def pages(**texts):
@@ -46,7 +52,7 @@ class EditionWatchTests(unittest.TestCase):
         record = state["references"]["spec-x"]
         self.assertEqual(list(state["references"]), ["spec-x"])
         self.assertEqual(record, {"family": "quality", "edition": "Rev. 5", "page": PAGE, "seen": "Rev. 5",
-                                  "seen_on": "2026-11-21", "checked": "2026-11-21", "status": "found"})
+                                  "seen_on": "2026-11-21", "seen_in": "page", "checked": "2026-11-21", "status": "found"})
         later = watch_editions.watch(FAMILIES, state, pages(page="SP 800-53 Rev. 6 is out", mirror="Rev. 6"), "2026-12-01")
         record = later["references"]["spec-x"]
         self.assertEqual((record["status"], record["seen"], record["seen_on"], record["checked"]),
@@ -74,13 +80,55 @@ class EditionWatchTests(unittest.TestCase):
         self.assertFalse(watch_editions.shows_edition("version 14.4.10", "4.4.1"))
         self.assertEqual(watch_editions.page_text("<style>p{}</style><p>a&amp;b</p>\n<script>x=1</script> c"), "a&b c")
 
+    def test_an_edition_the_watch_never_saw_starts_from_the_day_the_catalog_checked_it(self):
+        state = watch_editions.watch(CHECKED, {}, pages(page="SP 800-53 Rev. 6 is out", mirror="Rev. 6"), "2026-12-01")
+        record = state["references"]["spec-x"]
+        self.assertEqual({key: record[key] for key in ("status", "seen", "seen_on", "seen_in", "checked")},
+                         {"status": "may-have-changed", "seen": "Rev. 5", "seen_on": "2026-11-20", "seen_in": "catalog",
+                          "checked": "2026-12-01"})
+        found = watch_editions.changes(state)["may_have_changed"]
+        self.assertEqual([item["title"] for item in found], ["Edition may have changed: spec-x"])
+        self.assertIn("The catalog records it as read on 2026-11-20; the watch has not found it on the page since",
+                      " ".join(found[0]["body"].split()))
+        shown = watch_editions.watch(CHECKED, {}, pages(page="Rev. 5"), "2026-12-01")["references"]["spec-x"]
+        self.assertEqual((shown["status"], shown["seen_on"], shown["seen_in"]), ("found", "2026-12-01", "page"))
+
+    def test_seeding_records_the_catalog_observation_without_opening_a_page(self):
+        seeded = watch_editions.seed(CHECKED, {})
+        self.assertEqual(seeded["references"]["spec-x"], {
+            "family": "quality", "edition": "Rev. 5", "page": PAGE, "seen": "Rev. 5", "seen_on": "2026-11-20",
+            "seen_in": "catalog", "checked": None, "status": "from-catalog"})
+        observed = watch_editions.watch(CHECKED, seeded, pages(page="Rev. 5"), "2026-12-01")
+        self.assertEqual(watch_editions.seed(CHECKED, observed), observed)
+        newer = {"quality": {**CHECKED["quality"], "references": [
+            {**CHECKED["quality"]["references"][0], "edition": "Rev. 6",
+             "sources": [{"title": "Spec", "url": PAGE, "checked": "2026-12-05"}]}]}}
+        record = watch_editions.seed(newer, observed)["references"]["spec-x"]
+        self.assertEqual((record["edition"], record["seen"], record["seen_on"], record["status"]),
+                         ("Rev. 6", "Rev. 6", "2026-12-05", "from-catalog"))
+
     def test_the_watch_file_covers_every_reference_with_an_edition(self):
         state = watch_editions.read_state(watch_editions.STATE)
         expected = {entry["reference"]: entry for entry in watch_editions.watched(load_references())}
-        self.assertEqual(set(state["references"]), set(expected))
+        self.assertEqual(set(state["references"]), set(expected), "run python3 -I scripts/watch_editions.py --seed")
         for reference, record in state["references"].items():
             self.assertEqual(record["edition"], expected[reference]["edition"], reference)
             self.assertIn(record["page"], expected[reference]["pages"], reference)
+
+    def test_no_reference_of_the_watch_file_waits_for_a_first_observation(self):
+        state = watch_editions.read_state(watch_editions.STATE)
+        waiting = sorted(reference for reference, record in state["references"].items()
+                         if record["status"] == "not-checked" or record["seen"] != record["edition"]
+                         or not record["seen_on"])
+        self.assertEqual(waiting, [], "run python3 -I scripts/watch_editions.py --seed and commit the file")
+
+    def test_the_committed_watch_file_reports_a_new_edition_on_the_next_run(self):
+        state = watch_editions.read_state(watch_editions.STATE)
+        other_edition = {"status": 200, "text": "Edition 9999.99 is out"}
+        later = watch_editions.watch(load_references(), state, lambda url: other_edition, "2026-12-07")
+        found = watch_editions.changes(later)["may_have_changed"]
+        self.assertTrue(found)
+        self.assertEqual(len(found), len(state["references"]))
 
     def test_main_updates_the_state_and_writes_the_changes(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -96,6 +144,11 @@ class EditionWatchTests(unittest.TestCase):
             self.assertTrue(all(record["status"] == "unreachable" for record in state["references"].values()))
             self.assertEqual(json.loads(changes_path.read_text(encoding="utf-8")), {"may_have_changed": []})
             self.assertIn("unreachable", out.getvalue())
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                self.assertEqual(watch_editions.main(["--state", str(state_path), "--seed"]), 0)
+            self.assertIn("seeded", out.getvalue())
+            self.assertEqual(json.loads(state_path.read_text(encoding="utf-8")),
+                             watch_editions.seed(load_references(), state))
             state_path.write_text('{"schema_version": 2}', encoding="utf-8")
             with contextlib.redirect_stderr(io.StringIO()) as err:
                 self.assertEqual(watch_editions.main(["--state", str(state_path)]), 1)

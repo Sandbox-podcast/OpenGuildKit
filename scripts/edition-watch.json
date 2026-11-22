@@ -5,901 +5,1001 @@
       "family": "communication",
       "edition": "3.0",
       "page": "https://amecorg.com/amec-resources-centre-communication-measurement-evaluation-tools/barcelona-principles-3-0/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "3.0",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "amqp": {
       "family": "data",
       "edition": "1.0",
       "page": "https://docs.oasis-open.org/amqp/core/v1.0/os/amqp-core-overview-v1.0-os.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "1.0",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "apache-avro": {
       "family": "architecture",
       "edition": "1.12.0",
       "page": "https://avro.apache.org/docs/1.12.0/specification/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "1.12.0",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "asyncapi": {
       "family": "architecture",
       "edition": "3.1.0",
       "page": "https://www.asyncapi.com/docs/reference/specification/v3.1.0",
-      "seen": null,
-      "seen_on": null,
+      "seen": "3.1.0",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "cis-controls": {
       "family": "security",
       "edition": "8.1",
       "page": "https://www.cisecurity.org/controls/v8-1",
-      "seen": null,
-      "seen_on": null,
+      "seen": "8.1",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "coso-internal-control": {
       "family": "finance",
       "edition": "2013",
       "page": "https://www.coso.org/internal-control",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2013",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "csaf": {
       "family": "security",
       "edition": "2.0, errata 01",
       "page": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf-v2.0.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2.0, errata 01",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "cyclonedx": {
       "family": "security",
       "edition": "1.7",
       "page": "https://cyclonedx.org/specification/overview/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "1.7",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "dicom": {
       "family": "data",
       "edition": "2026b",
       "page": "https://dicom.nema.org/medical/dicom/2026b/output/html/part01.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2026b",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "dita": {
       "family": "docs",
       "edition": "1.3",
       "page": "https://docs.oasis-open.org/dita/dita/v1.3/os/part1-base/dita-v1.3-os-part1-base.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "1.3",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "dmn": {
       "family": "architecture",
       "edition": "1.5",
       "page": "https://www.omg.org/spec/DMN/1.5",
-      "seen": null,
-      "seen_on": null,
+      "seen": "1.5",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "dtcg-design-tokens": {
       "family": "design",
       "edition": "2025.10",
       "page": "https://www.designtokens.org/tr/2025.10/format/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2025.10",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "en-301549": {
       "family": "design",
       "edition": "V4.1.1",
       "page": "https://www.etsi.org/deliver/etsi_en/301500_301599/301549/04.01.01_60/en_301549v040101p.pdf",
-      "seen": null,
-      "seen_on": null,
+      "seen": "V4.1.1",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "enisa-supply-chain-good-practices": {
       "family": "security",
       "edition": "2023",
       "page": "https://www.enisa.europa.eu/publications/good-practices-for-supply-chain-cybersecurity",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2023",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "epub-accessibility": {
       "family": "design",
       "edition": "1.1",
       "page": "https://www.w3.org/TR/epub-a11y-11/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "1.1",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "eu-ai-act": {
       "family": "governance",
       "edition": "texte consolidé, modifié par le règlement (UE) 2026/1744",
       "page": "https://eur-lex.europa.eu/eli/reg/2024/1689",
-      "seen": null,
-      "seen_on": null,
+      "seen": "texte consolidé, modifié par le règlement (UE) 2026/1744",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "graphql": {
       "family": "architecture",
       "edition": "septembre 2026",
       "page": "https://spec.graphql.org/September2026/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "septembre 2026",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "hl7-fhir": {
       "family": "data",
       "edition": "R5 (v5.0.0)",
       "page": "https://hl7.org/fhir/overview.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "R5 (v5.0.0)",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "hm-treasury-green-book": {
       "family": "finance",
       "edition": "2026",
       "page": "https://www.gov.uk/government/publications/the-green-book--2/the-green-book-2026",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2026",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "http": {
       "family": "architecture",
       "edition": "RFC 9110",
       "page": "https://www.rfc-editor.org/rfc/rfc9110.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "RFC 9110",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iec-62304": {
       "family": "governance",
       "edition": "2006 avec amendement 1:2015",
       "page": "https://webstore.iec.ch/en/publication/6792",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2006 avec amendement 1:2015",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-10002": {
       "family": "support",
       "edition": "2018",
       "page": "https://www.iso.org/standard/10002",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2018",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-10004": {
       "family": "support",
       "edition": "2018",
       "page": "https://www.iso.org/standard/71582.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2018",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-13485": {
       "family": "governance",
       "edition": "2016",
       "page": "https://www.iso.org/fr/standard/13485",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2016",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-14971": {
       "family": "governance",
       "edition": "2019",
       "page": "https://www.iso.org/standard/72704.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2019",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-18295-1": {
       "family": "support",
       "edition": "2017",
       "page": "https://www.iso.org/standard/64739.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2017",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-21502": {
       "family": "delivery",
       "edition": "2020",
       "page": "https://www.iso.org/standard/74947.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2020",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-22301": {
       "family": "governance",
       "edition": "2019",
       "page": "https://www.iso.org/standard/75106.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2019",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-24495-1": {
       "family": "docs",
       "edition": "2023",
       "page": "https://www.iso.org/standard/78907.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2023",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-26262": {
       "family": "governance",
       "edition": "2018",
       "page": "https://www.iso.org/publication/PUB200262.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2018",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-30414": {
       "family": "people",
       "edition": "2025",
       "page": "https://www.iso.org/standard/30414",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2025",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-31000": {
       "family": "strategy",
       "edition": "2018",
       "page": "https://www.iso.org/standard/65694.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2018",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-37000": {
       "family": "strategy",
       "edition": "2021",
       "page": "https://www.iso.org/standard/65036.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2021",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-37301": {
       "family": "legal",
       "edition": "2021",
       "page": "https://www.iso.org/standard/75080.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2021",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-45001": {
       "family": "people",
       "edition": "2018",
       "page": "https://www.iso.org/standard/45001",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2018",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-45003": {
       "family": "people",
       "edition": "2021",
       "page": "https://www.iso.org/standard/64283.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2021",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-56001": {
       "family": "product",
       "edition": "2024",
       "page": "https://www.iso.org/standard/79278.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2024",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-9001": {
       "family": "governance",
       "edition": "2026",
       "page": "https://www.iso.org/standard/9001",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2026",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-9241-11": {
       "family": "design",
       "edition": "2018",
       "page": "https://committee.iso.org/standard/63500.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2018",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-9241-210": {
       "family": "design",
       "edition": "2019",
       "page": "https://www.iso.org/standard/77520.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2019",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-20000-1": {
       "family": "governance",
       "edition": "2018",
       "page": "https://www.iso.org/fr/standard/70636.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2018",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-23894": {
       "family": "ai",
       "edition": "2023",
       "page": "https://www.iso.org/standard/77304.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2023",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-25010": {
       "family": "governance",
       "edition": "2023",
       "page": "https://www.iso.org/fr/standard/78176.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2023",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-25012": {
       "family": "quality",
       "edition": "2008",
       "page": "https://www.iso.org/standard/35736.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2008",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-27001": {
       "family": "governance",
       "edition": "2022",
       "page": "https://www.iso.org/standard/27001",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2022",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-27002": {
       "family": "governance",
       "edition": "2022",
       "page": "https://www.iso.org/fr/standard/75652.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2022",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-27005": {
       "family": "governance",
       "edition": "2022",
       "page": "https://www.iso.org/standard/80585.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2022",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-27017": {
       "family": "governance",
       "edition": "2026",
       "page": "https://www.iso.org/fr/standard/27017",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2026",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-27018": {
       "family": "governance",
       "edition": "2025",
       "page": "https://www.iso.org/fr/standard/27018",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2025",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-27034": {
       "family": "governance",
       "edition": "ISO/IEC 27034-1:2011",
       "page": "https://www.iso.org/fr/standard/44378.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "ISO/IEC 27034-1:2011",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-27040": {
       "family": "governance",
       "edition": "2024",
       "page": "https://www.iso.org/standard/80194.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2024",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-27701": {
       "family": "governance",
       "edition": "2025",
       "page": "https://www.iso.org/fr/standard/27701",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2025",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-29100": {
       "family": "governance",
       "edition": "2024",
       "page": "https://www.iso.org/standard/85938.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2024",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-42001": {
       "family": "ai",
       "edition": "2023",
       "page": "https://www.iso.org/standard/42001",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2023",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-ieee-12207": {
       "family": "quality",
       "edition": "2026",
       "page": "https://www.iso.org/standard/90219.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2026",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-ieee-29148": {
       "family": "quality",
       "edition": "2018",
       "page": "https://www.iso.org/standard/72089.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2018",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "iso-iec-ieee-42010": {
       "family": "quality",
       "edition": "2022",
       "page": "https://www.iso.org/standard/74393.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2022",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "json": {
       "family": "architecture",
       "edition": "RFC 8259",
       "page": "https://www.rfc-editor.org/rfc/rfc8259.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "RFC 8259",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "kanban-guide": {
       "family": "product",
       "edition": "mai 2025",
       "page": "https://kanbanguides.org/the-kanban-guide/2025.5/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "mai 2025",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "keep-a-changelog": {
       "family": "code",
       "edition": "1.1.0",
       "page": "https://keepachangelog.com/en/1.1.0/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "1.1.0",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "mqtt": {
       "family": "data",
       "edition": "5.0",
       "page": "https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "5.0",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "nist-ai-rmf": {
       "family": "ai",
       "edition": "1.0",
       "page": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10",
-      "seen": null,
-      "seen_on": null,
+      "seen": "1.0",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "nist-csf": {
       "family": "security",
       "edition": "2.0",
       "page": "https://www.nist.gov/publications/nist-cybersecurity-framework-csf-20",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2.0",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "nist-media-sanitization": {
       "family": "governance",
       "edition": "SP 800-88 Rev. 2",
       "page": "https://www.nist.gov/news-events/news/2025/09/guidelines-media-sanitization-nist-publishes-sp-800-88r2",
-      "seen": null,
-      "seen_on": null,
+      "seen": "SP 800-88 Rev. 2",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "nist-privacy-framework": {
       "family": "governance",
       "edition": "1.0",
       "page": "https://csrc.nist.gov/Projects/cprt/catalog",
-      "seen": null,
-      "seen_on": null,
+      "seen": "1.0",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "nist-sp-800-124": {
       "family": "security",
       "edition": "Rev. 2",
       "page": "https://csrc.nist.gov/pubs/sp/800/124/r2/final",
-      "seen": null,
-      "seen_on": null,
+      "seen": "Rev. 2",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "nist-sp-800-161": {
       "family": "security",
       "edition": "Rev. 1",
       "page": "https://csrc.nist.gov/pubs/sp/800/161/r1/upd1/final",
-      "seen": null,
-      "seen_on": null,
+      "seen": "Rev. 1",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "nist-sp-800-46": {
       "family": "security",
       "edition": "Rev. 2",
       "page": "https://csrc.nist.gov/pubs/sp/800/46/r2/final",
-      "seen": null,
-      "seen_on": null,
+      "seen": "Rev. 2",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "nist-sp-800-53": {
       "family": "security",
       "edition": "Rev. 5",
       "page": "https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final",
-      "seen": null,
-      "seen_on": null,
+      "seen": "Rev. 5",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "nist-sp-800-61": {
       "family": "security",
       "edition": "Rev. 3",
       "page": "https://csrc.nist.gov/pubs/sp/800/61/r3/final",
-      "seen": null,
-      "seen_on": null,
+      "seen": "Rev. 3",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "nist-sp-800-63": {
       "family": "security",
       "edition": "SP 800-63-4",
       "page": "https://csrc.nist.gov/pubs/sp/800/63/4/final",
-      "seen": null,
-      "seen_on": null,
+      "seen": "SP 800-63-4",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "nist-ssdf": {
       "family": "security",
       "edition": "1.1",
       "page": "https://csrc.nist.gov/pubs/sp/800/218/final",
-      "seen": null,
-      "seen_on": null,
+      "seen": "1.1",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "oauth-2": {
       "family": "security",
       "edition": "RFC 6749",
       "page": "https://www.rfc-editor.org/info/rfc6749/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "RFC 6749",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "oauth-security-bcp": {
       "family": "security",
       "edition": "RFC 9700",
       "page": "https://www.rfc-editor.org/info/rfc9700/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "RFC 9700",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "openid-connect": {
       "family": "security",
       "edition": "Core 1.0, errata 2",
       "page": "https://openid.net/specs/openid-connect-core-1_0.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "Core 1.0, errata 2",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "openvex": {
       "family": "security",
       "edition": "0.2.0, brouillon",
       "page": "https://github.com/openvex/spec",
-      "seen": null,
-      "seen_on": null,
+      "seen": "0.2.0, brouillon",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "owasp-agentic-top-10": {
       "family": "ai",
       "edition": "2026",
       "page": "https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2026",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "owasp-api-top-10": {
       "family": "security",
       "edition": "2023",
       "page": "https://api-security.owasp.org/editions/2023/en/0x11-t10/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2023",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "owasp-asvs": {
       "family": "security",
       "edition": "5.0.0",
       "page": "https://asvs.owasp.org/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "5.0.0",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "owasp-top-10": {
       "family": "security",
       "edition": "2025",
       "page": "https://top10.owasp.org/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2025",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "pci-dss": {
       "family": "governance",
       "edition": "4.0.1",
       "page": "https://www.pcisecuritystandards.org/document_library/?class=pcidss&doc=pci_dss",
-      "seen": null,
-      "seen_on": null,
+      "seen": "4.0.1",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "pdf-a": {
       "family": "docs",
       "edition": "ISO 19005-1:2005 (PDF/A-1)",
       "page": "https://www.iso.org/standard/38920.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "ISO 19005-1:2005 (PDF/A-1)",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "pdf-ua": {
       "family": "design",
       "edition": "ISO 14289-1:2014 (PDF/UA-1)",
       "page": "https://www.iso.org/standard/64599.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "ISO 14289-1:2014 (PDF/UA-1)",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "pmbok": {
       "family": "delivery",
       "edition": "huitième édition (2025)",
       "page": "https://www.pmi.org/standards/pmbok",
-      "seen": null,
-      "seen_on": null,
+      "seen": "huitième édition (2025)",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "pmml": {
       "family": "ai",
       "edition": "4.4.1",
       "page": "https://dmg.org/pmml/v4-4-1/GeneralStructure.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "4.4.1",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "prince2": {
       "family": "delivery",
       "edition": "7",
       "page": "https://www.peoplecert.org/news-and-announcements/2023/PRINCE2%207%20-%20A%20Process%20of%20Evolution",
-      "seen": null,
-      "seen_on": null,
+      "seen": "7",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "safe": {
       "family": "delivery",
       "edition": "6.0",
       "page": "https://framework.scaledagile.com/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "6.0",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "saml-2": {
       "family": "security",
       "edition": "2.0",
       "page": "https://docs.oasis-open.org/security/saml/Post2.0/sstc-saml-tech-overview-2.0.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2.0",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "scim-2": {
       "family": "security",
       "edition": "2.0 (RFC 7644)",
       "page": "https://www.rfc-editor.org/info/rfc7644/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2.0 (RFC 7644)",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "scrum": {
       "family": "product",
       "edition": "2020",
       "page": "https://scrumguides.org/scrum-guide.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2020",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "semver": {
       "family": "code",
       "edition": "2.0.0",
       "page": "https://semver.org/spec/v2.0.0.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2.0.0",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "slsa": {
       "family": "security",
       "edition": "1.2",
       "page": "https://slsa.dev/spec/v1.2/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "1.2",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "sql": {
       "family": "data",
       "edition": "ISO/IEC 9075-1:2023",
       "page": "https://www.iso.org/standard/76583.html",
-      "seen": null,
-      "seen_on": null,
+      "seen": "ISO/IEC 9075-1:2023",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "tls-1-3": {
       "family": "security",
       "edition": "1.3 (RFC 8446)",
       "page": "https://www.rfc-editor.org/info/rfc8446/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "1.3 (RFC 8446)",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "toml": {
       "family": "architecture",
       "edition": "1.1.0",
       "page": "https://toml.io/en/v1.1.0",
-      "seen": null,
-      "seen_on": null,
+      "seen": "1.1.0",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "uk-corporate-governance-code": {
       "family": "strategy",
       "edition": "2024",
       "page": "https://www.frc.org.uk/library/standards-codes-policy/corporate-governance/uk-corporate-governance-code/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2024",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "vertical-guidelines": {
       "family": "legal",
       "edition": "2022",
       "page": "https://competition-policy.ec.europa.eu/antitrust-and-cartels/legislation/vertical-block-exemptions_en",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2022",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "wai-aria": {
       "family": "design",
       "edition": "1.2",
       "page": "https://www.w3.org/TR/wai-aria/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "1.2",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "wcag-22": {
       "family": "design",
       "edition": "2.2",
       "page": "https://www.w3.org/TR/WCAG22/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "2.2",
+      "seen_on": "2026-11-20",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     },
     "yaml": {
       "family": "architecture",
       "edition": "1.2.2",
       "page": "https://yaml.org/spec/1.2.2/",
-      "seen": null,
-      "seen_on": null,
+      "seen": "1.2.2",
+      "seen_on": "2026-11-21",
+      "seen_in": "catalog",
       "checked": null,
-      "status": "not-checked"
+      "status": "from-catalog"
     }
   }
 }

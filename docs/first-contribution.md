@@ -11,7 +11,7 @@ Open an issue with the template that matches your idea (new pattern, new pack, n
 ```bash
 gh repo fork Sandbox-podcast/OpenGuildKit --clone
 cd OpenGuildKit
-git switch -c brain/hr-pay-equity
+git switch -c brain/hr-health-and-safety
 python -m pip install -e .
 python -m unittest discover -s tests
 ```
@@ -20,13 +20,17 @@ The tests pass before you change anything. If they do not, say so in the issue.
 
 ## 3. Make the change
 
-Example: the HR brain should look at pay equity when a change touches compensation. In `src/openguildkit/registry/boards/hr.json`, add a specialist under `review.specialists`:
+Example: the HR brain has lenses for hiring, onboarding, workforce planning, people data, pay, employment law and performance, but none for health and safety at work. Check with `openguildkit brains --id hr`, which lists each lens. In `src/openguildkit/registry/boards/hr.json`, add a specialist under `review.specialists`, with the `checks` an expert of that lens makes, as every bundled lens has:
 
 ```json
 {
-  "id": "pay-equity",
-  "title": "Pay equity reviewer",
-  "focus": "Check that a change to compensation rules or job levels can be explained per job category and does not create gaps the team cannot justify."
+  "id": "health-and-safety-at-work",
+  "title": "Health and safety at work reviewer",
+  "focus": "Check whether a change to working time, workload, shifts or remote work adds a physical or psychosocial risk, and who assesses it.",
+  "checks": [
+    "Each risk the change adds to working conditions is listed with the prevention measure and its owner.",
+    "The written risk assessment of the teams concerned is updated before the change applies."
+  ]
 }
 ```
 
@@ -55,8 +59,8 @@ If you changed triggers, add a brief that must and one that must not select the 
 ## 5. Open the pull request
 
 ```bash
-git commit -am "Add a pay equity lens to the HR brain"
-git push -u origin brain/hr-pay-equity
+git commit -am "Add a health and safety lens to the HR brain"
+git push -u origin brain/hr-health-and-safety
 gh pr create --fill
 ```
 
