@@ -219,8 +219,12 @@ DONE_STATUSES = ("done", "done-with-reservations")
 
 
 def _revision(task: dict, payload: dict, changed: list[str] | None) -> dict:
-    """The delivered revision or pull request; a decision task that changed no project file needs neither."""
+    """The delivered revision or pull request; a decision task that changed no project file needs neither, and one
+    already recorded (the revision task verify reads from Git) stands when the report leaves it out."""
     if not payload.get("revision") and not payload.get("pull_request"):
+        recorded = task.get("result") or {}
+        if recorded.get("revision") or recorded.get("pull_request"):
+            return {}
         if changed:
             raise _refusal(task, decision_revision_message(changed))
         if is_decision_task(task):
@@ -740,10 +744,12 @@ def result_template(task: dict, profile: dict, relevance: dict | None = None, *,
     the file itself, so standard output carries only JSON.
     """
     outcome = task.get("answers", {}).get("outcome", "")
+    # The revision task verify read from Git, or an earlier report's, is filled in: the report need not name it again.
+    delivered = {key: (task.get("result") or {}).get(key, "") for key in ("revision", "pull_request")}
     if is_decision_task(task):
         template = {"criteria": [{"criterion": outcome, "status": "", "evidence": ""}] if outcome else [],
                     "not_concerned": not_concerned(task, profile, relevance)}
-        return {"revision": "", "pull_request": "", **template} if changed else template
+        return {**delivered, **template} if changed else template
     asked = asked_checks(task, profile, relevance)
     by_pack = _pack_form(task, asked)
     checks, verify, packs = [], [], {}
@@ -767,8 +773,7 @@ def result_template(task: dict, profile: dict, relevance: dict | None = None, *,
             verify.append({"check": check["id"], "what": check.get("command") or check["verification"]})
     return {
         "instructions": TEMPLATE_INSTRUCTIONS,
-        "revision": "",
-        "pull_request": "",
+        **delivered,
         "criteria": [{"criterion": outcome, "status": "", "evidence": "", "verified_by": ""}],
         "checks": checks,
         "packs": list(packs.values()),

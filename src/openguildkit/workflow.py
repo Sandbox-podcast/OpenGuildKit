@@ -2256,9 +2256,12 @@ def _entry_section(template: dict) -> str:
     return f"{fence}json\n{body}\n{fence}"
 
 
-def board_brief(consultation: dict, board_id: str) -> str:
+def board_brief(consultation: dict, board_id: str, shared_from: str | None = None) -> str:
     """What one board's independent pass needs: the task, its brief and the entry to return, then the rules of its
-    packs and a bounded reading list to consult. The shared project scope is named with the command that prints it."""
+    packs and a bounded reading list to consult. The shared project scope is named with the command that prints it.
+
+    shared_from names the board whose pass, earlier in a sequence, printed how to fill an entry and the shapes of an
+    evidence item and a blocker: this pass names it instead of printing them again, and prints the same rules."""
     if board_id not in consultation["boards"]:
         raise ValueError(f"Board {board_id!r} is not part of this consultation: {', '.join(consultation['boards'])}.")
     scope = consultation["scope"]
@@ -2290,26 +2293,20 @@ def board_brief(consultation: dict, board_id: str) -> str:
         "",
         *(_brief_section_lines(data, board_id, task_id) if data else _legacy_board_section(consultation, board_id)),
         "",
-        "## How to fill the entry",
-        "",
-        *_entry_guide(),
-        "",
-        "## Entry to return",
-        "",
-        _entry_section(template),
-        "",
-        "Write each evidence item in this shape:",
-        "",
-        _json_section(EVIDENCE_ITEM, indent=None),
-        "",
-        "and each blocker in this shape:",
-        "",
-        _json_section(BLOCKER_ITEM, indent=None),
-        "",
     ]
+    guide = ["## How to fill the entry", "", *_entry_guide(), ""]
+    entry = ["## Entry to return", "", _entry_section(template), ""]
+    shapes = ["Write each evidence item in this shape:", "", _json_section(EVIDENCE_ITEM, indent=None), "",
+              "and each blocker in this shape:", "", _json_section(BLOCKER_ITEM, indent=None), ""]
+    reading = [*_reading_lines(data, board_id), ""] if data else []
+    # The rules fill the room a whole pass leaves, so that a pass prints the same rules in either mode.
+    room = PASS_BUDGET - len("\n".join([*lines, *guide, *entry, *shapes, *reading]).encode("utf-8"))
+    if shared_from:
+        guide = [f"How to fill the entry, and the shapes of an evidence item and a blocker: as in the {shared_from} "
+                 f"pass of this sequence, printed again by openguildkit task brief {task_id} --board {shared_from}.", ""]
+        shapes = []
+    lines.extend([*guide, *entry, *shapes, *reading])
     if data:
-        lines.extend([*_reading_lines(data, board_id), ""])
-        room = PASS_BUDGET - len("\n".join(lines).encode("utf-8"))
         lines.extend([*_rule_lines(data, task_id, room), ""])
     return "\n".join(lines)
 

@@ -124,6 +124,7 @@ from .tasks import (
     require_approval,
     require_current_scope,
     revoke_approval,
+    earlier_sequential_pass,
     next_command,
     passes_left,
     require_blocker_status,
@@ -372,6 +373,13 @@ def _parser() -> argparse.ArgumentParser:
         command.add_argument("id", help="Task ID.")
         if action in ("consult", "questions", "route"):
             command.add_argument("--answers", type=Path, help="Read task answers from a JSON file.")
+        if action == "questions":
+            command.add_argument("--follow-ups", action="store_true",
+                                 help="With --answers, print only follow_ups and open_points, not the questionnaire "
+                                      "again.")
+        if action == "show":
+            command.add_argument("--closing", action="store_true",
+                                 help="Print only the open points the closing left, with who closed the task.")
         if action == "consult":
             command.add_argument("--market", metavar="DOSSIER", help="Attach a market dossier from .openguildkit/market/.")
             revised = command.add_mutually_exclusive_group()
@@ -572,14 +580,28 @@ def _print_touched(tasks: list[dict], before: bool = False) -> None:
         print(f"  {task['id']} ({task['status']}): {task['step']}.")
 
 
-def _show_exported(root: Path, state: Path, profile: dict, catalog: dict, task_id: str) -> None:
+def _show_exported(root: Path, state: Path, profile: dict, catalog: dict, task_id: str, closing: bool = False) -> None:
     """Show a task known here only by its exported record, with whether that record still holds."""
     row = next(item for item in exported_decisions(root, state, profile, Fingerprints(profile, catalog))
                if item["path"].endswith(f"/{task_id}.json"))
     print(f"OpenGuildKit: task {task_id} exists here only as the exported record {row['path']}.", file=sys.stderr)
     if row["problem"]:
         print(f"OpenGuildKit: {row['problem']['message']}", file=sys.stderr)
-    _print_json(read_json(root / row["path"]))
+    record = read_json(root / row["path"])
+    if closing and not isinstance((record.get("result") or {}).get("closing"), dict):
+        raise ValueError(f"The exported record of {task_id} has no closing: the task was not completed when it was "
+                         "exported.")
+    _print_json(_closing_points(record, task_id) if closing else record)
+
+
+def _closing_points(task: dict, task_id: str) -> dict:
+    """What a completed task left open, without the rest of its record: task list points here for a task done with
+    reservations, whose whole record can weigh a hundred kilobytes."""
+    closing = (task.get("result") or {}).get("closing")
+    if not isinstance(closing, dict):
+        raise TaskStateError("Only a completed task has a closing with its open points.")
+    return {"id": task_id, "status": task.get("status"),
+            **{key: closing[key] for key in ("by", "verification", "open_points") if key in closing}}
 
 
 def _print_decision_rows(rows: list[dict]) -> None:
@@ -1796,7 +1818,7 @@ def _print_closing(task: dict, listed: bool = False) -> None:
     groups = task["result"]["closing"]["open_points"]
     if groups and listed:
         count = sum(len(group["points"]) for group in groups)
-        print(f"{count} open point(s), listed above and kept in task show {task['id']} (result.closing).")
+        print(f"{count} open point(s), listed above and kept for later: openguildkit task show {task['id']} --closing.")
         print(f'To follow up, open a task linked to this one: openguildkit task new "BRIEF" --follows {task["id"]}')
     elif groups:
         print("Left open, most serious first:")
@@ -1962,7 +1984,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
     record = state / DECISIONS_DIR / f"{args.id}.json"
     if not task_path(state, args.id).is_file() and record.is_file():
         if action == "show":
-            _show_exported(root, state, profile, catalog, args.id)
+            _show_exported(root, state, profile, catalog, args.id, args.closing)
             return
         raise ValueError(f"Task {args.id} exists here only as the exported record {record.relative_to(root).as_posix()}, "
                          f"a teammate's task or an earlier one: read it with openguildkit task show {args.id} or "
@@ -1977,7 +1999,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             print(f"OpenGuildKit: {problem['message']}", file=sys.stderr)
         elif problem:
             raise ValueError(problem["message"])
-    if action == "show":
+    if action == "show" and args.closing:
+        _print_json(_closing_points(task, args.id))
+    elif action == "show":
         _print_json(task)
     elif action == "questions":
         # One shape with or without answers: the follow-ups carry their prompt, so they can be asked as they are.
@@ -1995,8 +2019,11 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             # Required for a new consultation: asked with its choices, as task consult will refuse without it.
             question = concerns_question()
             follow_ups.append({key: question[key] for key in ("id", "prompt", "type", "choices", "unsure")})
+        if args.follow_ups and args.answers is None:
+            raise ValueError(f"--follow-ups lists what the answers leave to ask: openguildkit task questions {args.id} "
+                             "--answers FILE --follow-ups.")
         _print_json({
-            "questions": questions,
+            **({} if args.follow_ups else {"questions": questions}),
             "follow_ups": sorted(follow_ups, key=lambda item: item["id"]),
             "open_points": open_list,
         })
@@ -2316,7 +2343,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             copied = result.pop("_warnings", [])
             write_json(task_path(state, args.id), result)
         if action == "pass":
-            print(board_brief(result["consultation"], args.board))
+            print(board_brief(result["consultation"], args.board, earlier_sequential_pass(result, args.board)))
             if submitted:
                 print(f"The {args.board} pass is already submitted; to redo it on purpose, run openguildkit task pass "
                       f"{args.id} {args.board} --again. This copy is for reading only.", file=sys.stderr)

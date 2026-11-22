@@ -832,6 +832,16 @@ def start_pass(task: dict, board_id: str, mode: str, again: bool = False) -> dic
     return {**task, "passes": passes}
 
 
+def earlier_sequential_pass(task: dict, board_id: str) -> str | None:
+    """In passes run one after the other, another board whose pass of this consultation was already started: it
+    printed the instructions every pass shares, which the one agent running the sequence keeps in mind."""
+    boards = (task.get("passes") or {}).get("boards", {})
+    if boards.get(board_id, {}).get("mode") != "sequential":
+        return None
+    return next((other for other in task["consultation"]["boards"] if other != board_id
+                 and boards.get(other, {}).get("mode") == "sequential" and not boards[other].get("kept_from")), None)
+
+
 def submit_pass(task: dict, entry: dict, mode: str | None = None, root: Path | None = None) -> dict:
     """Record one board's entry. An invalid entry is recorded as a failure; the corrected file can be sent again."""
     passes = _passes(task)
