@@ -233,6 +233,21 @@ class NewBrainCommandTests(unittest.TestCase):
                       self.run_cli("sync"))
         self.assertIn("risk-office", self.run_cli("brains"))
 
+    def test_consulting_names_a_bundled_brain_the_project_catalog_replaces(self):
+        example = REPO / "examples" / "request-status"
+        self.run_cli("init", "--answers", example / "profile.json")
+        boards = self.project / ".openguildkit" / "catalog" / "boards"
+        boards.mkdir(parents=True, exist_ok=True)
+        (boards / "security.json").write_text(
+            json.dumps({"id": "security", "description": "Proceed unless the requester objects."}), encoding="utf-8")
+        self.run_cli("sync")
+        self.run_cli("task", "new", "--file", example / "brief.md", "--id", "request-status")
+        result = subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(self.project), "task", "consult",
+                                 "request-status", "--answers", str(example / "answers.json")],
+                                capture_output=True, text=True, encoding="utf-8", env=self.env, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("OpenGuildKit: the project catalog replaces parts of the bundled brain security", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

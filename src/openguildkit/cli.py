@@ -8,7 +8,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from .catalog import load_catalog, undated_sources
+from .catalog import board_replacements, load_catalog, undated_sources
 from .ci import check_export, read_policy_pack
 from .decisions import (
     DECISIONS_DIR,
@@ -2216,6 +2216,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             _warn_inputs(args.revised_brief.strip(), result["brief"], "revised brief")
         _warn_inputs(answers, redact_data(answers), "task answers")
         print(result["consultation"]["markdown"])
+        for line in board_replacements(catalog):
+            print(f"OpenGuildKit: {line}", file=sys.stderr)
     elif action == "review":
         review = read_json(args.file) if args.file else None
         with project_lock(state):
