@@ -278,6 +278,10 @@ class ProfileChangeTests(ApprovalCase):
         decision["seal"] = seal(decision_payload(task, decision["by"], decision["reason"], decision["base_revision"]))
         write_json(path, task)
         self.run_cli("task", "handoff", "price-label")
+        # Its exported record holds as well: the upgrade turns no record into earlier rules.
+        self.run_cli("task", "export", "price-label")
+        listed = json.loads(self.run_cli("task", "list", "--decisions", "--json")[0])
+        self.assertEqual([row["problem"] for row in listed if row["task"] == "price-label"], [None])
         self.run_cli("profile", "add", "check", "python -m unittest", "--by", "Sam", "--reason", "Unit tests")
         self.assertIn("earlier rules", self.run_cli("task", "handoff", "price-label", code=1)[1])
 

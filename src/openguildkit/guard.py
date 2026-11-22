@@ -506,14 +506,14 @@ def _record_shape(record: dict, relative: str) -> None:
                          "Export the decision again or remove the file.")
 
 
-def _record_problem(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path, earlier: dict,
+def _record_problem(record: dict, relative: str, fingerprint: str | Fingerprints, policy: dict, base_root: Path, earlier: dict,
                     *, extracted: bool = False) -> str | None:
     """Why a decision record cannot cover the changes, or None when it can."""
     found = _record_check(record, relative, fingerprint, policy, base_root, earlier, extracted=extracted)
     return found[1] if found else None
 
 
-def _record_check(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path,
+def _record_check(record: dict, relative: str, fingerprint: str | Fingerprints, policy: dict, base_root: Path,
                   earlier: dict, *, extracted: bool = False) -> tuple[str, str] | None:
     """The kind of problem a decision record has and its message, or None when it holds.
 
@@ -530,7 +530,13 @@ def _record_check(record: dict, relative: str, fingerprint: str, policy: dict, b
     return "invalid-record", found
 
 
-def _record_fault(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path, earlier: dict,
+def _rules_hold(fingerprint: str | Fingerprints, recorded: str) -> bool:
+    """Whether a record was approved under the current rules; a Fingerprints also accepts the fingerprint that an
+    earlier release recorded for the same rules, so that an upgrade does not turn every record into earlier rules."""
+    return fingerprint.holds(recorded) if isinstance(fingerprint, Fingerprints) else recorded == fingerprint
+
+
+def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, policy: dict, base_root: Path, earlier: dict,
                   *, extracted: bool = False) -> str | None:
     """What is wrong with a record: a message, or the kind "earlier-rules" or "earlier-record"; None when it holds.
 
@@ -562,7 +568,7 @@ def _record_fault(record: dict, relative: str, fingerprint: str, policy: dict, b
     if inconsistent:
         return (f"{relative}: its completion is not consistent ({inconsistent}): a record that says completed carries "
                 f"the closing that task complete writes, and a record that does not carries none. {export_again}")
-    if record["profile_fingerprint"] != fingerprint:
+    if not _rules_hold(fingerprint, record["profile_fingerprint"]):
         return "earlier-rules"
     if not current:
         return "earlier-record"
@@ -640,7 +646,7 @@ def _has_local_task(state: Path, task_id: str) -> bool:
         return False
 
 
-def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str) -> list[dict]:
+def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str | Fingerprints) -> list[dict]:
     """Every exported decision of the repository, teammates' included, and whether it still holds.
 
     The record's twin of tasks.approval_problem: the same wording, an error for an approval not yet completed
@@ -790,7 +796,7 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
         policy = approval_policy(profile)
         if policy["mode"] == "signed":
             _extract_base(root, base, base_root, [PurePosixPath(policy["allowed_signers"]).as_posix()])
-        fingerprint = profile_fingerprint(profile, catalog)
+        fingerprint = Fingerprints(profile, catalog)
         earlier = _earlier_records(base_state / DECISIONS_DIR)
         for relative in records:
             path = root / relative

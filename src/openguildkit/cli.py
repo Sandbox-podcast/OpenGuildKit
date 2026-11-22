@@ -61,6 +61,7 @@ from .lock import (
 )
 from .patterns import patterns_to_review, role_choices
 from .project import (
+    Fingerprints,
     RULES_NOTE,
     ALREADY_INITIALIZED,
     require_resolved_conflicts,
@@ -563,7 +564,7 @@ def _print_touched(tasks: list[dict], before: bool = False) -> None:
 
 def _show_exported(root: Path, state: Path, profile: dict, catalog: dict, task_id: str) -> None:
     """Show a task known here only by its exported record, with whether that record still holds."""
-    row = next(item for item in exported_decisions(root, state, profile, profile_fingerprint(profile, catalog))
+    row = next(item for item in exported_decisions(root, state, profile, Fingerprints(profile, catalog))
                if item["path"].endswith(f"/{task_id}.json"))
     print(f"OpenGuildKit: task {task_id} exists here only as the exported record {row['path']}.", file=sys.stderr)
     if row["problem"]:
@@ -1342,7 +1343,7 @@ def _guard(args, root: Path, state: Path) -> int:
     result = {"mode": guard_mode(profile), "covered_by": [item["task"] for item in approvals], "approvals": approvals,
               # Committed decisions show what the repository carries; only a local approved task covers new edits.
               "exported_decisions": [row["task"] for row in exported_decisions(
-                  root, state, profile, profile_fingerprint(profile, catalog)) if not row["problem"]]}
+                  root, state, profile, Fingerprints(profile, catalog)) if not row["problem"]]}
     if args.json:
         _print_json(result)
     elif not approvals:
@@ -1916,7 +1917,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         _warn_inputs(brief.strip(), redact_credentials(brief.strip()), "task brief")
         return
     if action == "list" and args.decisions:
-        rows = exported_decisions(root, state, profile, profile_fingerprint(profile, catalog))
+        rows = exported_decisions(root, state, profile, Fingerprints(profile, catalog))
         if args.json:
             _print_json(rows)
         else:
@@ -2524,13 +2525,12 @@ def _run(args) -> int | None:
             return 1 if (missing and args.mode == "check") or wrote_nothing else 0
         if args.command == "check":
             _warn_unsigned(profile)
-            fingerprint = profile_fingerprint(profile, catalog)
             # An approval that no longer holds is an error until the task is consulted again; a completed task
             # whose rules changed afterwards is history and stays quiet here (task list shows it).
             failing = [f"{row['id']}: {row['next']}" for row in list_tasks(state, profile=profile, catalog=catalog,
                                                                          root=root)
                        if row["status"] == "unreadable" or row.get("severity") == "error"]
-            records = exported_decisions(root, state, profile, fingerprint)
+            records = exported_decisions(root, state, profile, Fingerprints(profile, catalog))
             failing += [row["problem"]["message"] for row in records
                         if row["problem"] and row["problem"]["severity"] == "error"]
             for line in failing + board_replacements(catalog):
