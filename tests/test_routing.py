@@ -267,6 +267,18 @@ class RoutingTests(unittest.TestCase):
         answers["context"] = "Add support for Safari 16"
         self.assertNotIn("support", self.route("Fix the layout", answers, profile)["routing"])
 
+    def test_a_hyphenated_role_further_in_an_audience_list_is_selected(self):
+        profile = {"name": "Support tools", "sector": "general", "packs": [], "boards": [],
+                   "roles": ["support", "customer-success"]}
+        for field, text in (("context", "Read by the support team and customer-success managers"),
+                            ("context", "Pour l'équipe support et les responsables customer-success"),
+                            ("affected", "The support team and customer-success managers")):
+            with self.subTest(text=text):
+                answers = {**NEUTRAL, "kind": "feature", "surface": ["business"], field: text}
+                selected = self.route("Weekly ticket report", answers, profile)
+                self.assertLessEqual({"support", "customer-success"}, set(selected["routing"]))
+                self.assertNotIn("customer-success", selected["expected_not_selected"])
+
     def test_the_boards_the_team_expects_get_a_reason_each(self):
         profile = {"name": "Shop", "sector": "general", "packs": [], "boards": [], "roles": ["backend", "finance"]}
         answers = {**NEUTRAL, "kind": "bug", "surface": ["customer"]}
@@ -352,6 +364,11 @@ class RouteOutputTests(unittest.TestCase):
             self.assertIn("Not selected, although the project expects them:\n  product: enabled in the profile", route)
             self.assertNotIn("Other boards", route)
             self.assertIn("--add BOARD --remove BOARD --reason TEXT", route)
+            answers = (root / "answers.json").as_posix()
+            route = self.cli(root, "task", "route", "report-csv", "--answers", root / "answers.json",
+                             "--add", "product", "--remove", "qa", "--reason", "Scope only, tests exist")
+            self.assertIn(f'Apply: openguildkit task consult report-csv --answers {answers} --add product '
+                          f'--remove qa --reason "Scope only, tests exist"', route)
             selected = json.loads(self.cli(root, "task", "route", "report-csv", "--answers", root / "answers.json",
                                            "--json"))
             self.assertEqual(selected["excluded"], {"finance": ["No payments"]})

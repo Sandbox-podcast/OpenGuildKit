@@ -56,6 +56,9 @@ def fingerprint(root: Path, task: str | None = None, answers: Path | None = None
         return out
     if answers is not None:
         route = cli(root, "task", "route", task, "--answers", str(answers))
+        # The route repeats the answers file in the command it proposes; each team keeps its own copy.
+        for spelling in (str(answers), Path(answers).as_posix()):
+            route = route.replace(spelling, "<answers>")
         out["route"] = sorted(line.split(":", 1)[0] for line in route.splitlines() if ":" in line and not line.startswith(" "))
         out["route text"] = digest(route)
     record = cli(root, "task", "show", task)

@@ -1538,8 +1538,10 @@ def _project_tools(state: Path, profile: dict, registry: dict) -> dict[str, str]
     return tools
 
 
-def _print_route(state: Path, task: dict, answers: dict, profile: dict, selected: dict) -> None:
+def _print_route(state: Path, task: dict, answers: dict, profile: dict, selected: dict,
+                 selection: dict | None = None, answers_path: Path | None = None) -> None:
     """Print the selected boards with their reasons and tools, what was left out and how to change it."""
+    selection = selection or {}
     registry = load_tools(state / "catalog" / "tools")
     tools = _project_tools(state, profile, registry)
     for board_id, reasons in selected["routing"].items():
@@ -1574,8 +1576,22 @@ def _print_route(state: Path, task: dict, answers: dict, profile: dict, selected
     if others:
         print(f"Other boards you can add with --add: {len(others)} (openguildkit brains lists them).")
     task_id = task["id"]
-    print(f"Change the boards: openguildkit task route {task_id} --add BOARD --remove BOARD --reason TEXT "
-          f"to preview, then openguildkit task consult {task_id} --answers FILE with the same options to apply.")
+    answers_file = _shell_word(answers_path.as_posix()) if answers_path else "FILE"
+    print(f"Change the boards: openguildkit task route {task_id} --answers {answers_file} --add BOARD --remove BOARD "
+          "--reason TEXT to preview.")
+    options = [*(f"--add {_shell_word(board_id)}" for board_id in selection.get("add") or []),
+               *(f"--remove {_shell_word(board_id)}" for board_id in selection.get("remove") or []),
+               *(f"--delegate {_shell_word(f'{board_id}={name}')}" for board_id, name in (selection.get("delegate") or {}).items())]
+    if options:
+        options.append(f"--reason {_shell_word(selection.get('reason') or '')}")
+    print(f"Apply: openguildkit task consult {task_id} --answers {answers_file}{''.join(' ' + item for item in options)}")
+
+
+def _shell_word(value: str) -> str:
+    """A command-line word as typed: quoted only when it holds a space or a character a shell reads."""
+    if re.fullmatch(r"[\w@%+=:,./-]+", value):
+        return value
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def _relevance(root: Path, task: dict, profile: dict, catalog: dict, every: bool = False) -> dict:
@@ -2068,7 +2084,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         if args.json:
             _print_json(selected)
         else:
-            _print_route(state, task, answers, profile, selected)
+            _print_route(state, task, answers, profile, selected, _selection(args), args.answers)
     elif action == "consult":
         if args.brief_file is not None:
             with _input_file(args.brief_file):
