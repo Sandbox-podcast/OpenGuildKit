@@ -26,6 +26,8 @@ from .workflow import is_decision_task
 RESULT_STATUSES = ("passed", "failed", "skipped", "not-applicable")
 CRITERION_STATUSES = ("met", "not-met")
 LOG_TAIL = 4000
+# Seconds a check command may run before task verify records it as failed.
+COMMAND_TIMEOUT = 1800
 
 
 def _evidence_concerned(item: dict, answers: dict) -> tuple[bool, str]:
@@ -118,18 +120,18 @@ def _must_supply(item: dict, required: bool, scope: dict) -> str | None:
     return None
 
 
-def _run_command(root: Path, state: Path, task: dict, check: dict, command: str, timeout: int) -> dict:
+def _run_command(root: Path, state: Path, task: dict, check: dict, command: str) -> dict:
     """Run one command in the project root and keep its log as evidence."""
     started = time.monotonic()
     try:
         # The commands come from the project profile or the project's own catalog, which it controls.
         completed = subprocess.run(
-            command, shell=True, cwd=root, capture_output=True, text=True, timeout=timeout,
+            command, shell=True, cwd=root, capture_output=True, text=True, timeout=COMMAND_TIMEOUT,
             encoding="utf-8", errors="replace",
         )
         code, output = completed.returncode, completed.stdout + completed.stderr
     except subprocess.TimeoutExpired as error:
-        code, output = None, f"Timed out after {timeout} seconds.\n{error.stdout or ''}{error.stderr or ''}"
+        code, output = None, f"Timed out after {COMMAND_TIMEOUT} seconds.\n{error.stdout or ''}{error.stderr or ''}"
     log = state / "tasks" / f"{task['id']}-checks" / f"{check['id'].replace(':', '-').replace('/', '-')}.log"
     write_text(log, f"$ {command}\n{output[-LOG_TAIL:]}")
     evidence = log.relative_to(root).as_posix()
@@ -145,8 +147,8 @@ def _run_command(root: Path, state: Path, task: dict, check: dict, command: str,
     return outcome
 
 
-def run_command_checks(root: Path, state: Path, task: dict, profile: dict, timeout: int = 1800,
-                       relevance: dict | None = None, only: set[str] | None = None) -> list[dict]:
+def run_command_checks(root: Path, state: Path, task: dict, profile: dict, relevance: dict | None = None,
+                       only: set[str] | None = None) -> list[dict]:
     """Run the project's check commands and evaluate the machine checks of the rules that concern the task.
 
     only limits the run to these check IDs.
@@ -157,9 +159,9 @@ def run_command_checks(root: Path, state: Path, task: dict, profile: dict, timeo
         if only is not None and check["id"] not in only:
             continue
         if check["kind"] == "command":
-            outcome = _run_command(root, state, task, check, check["command"], timeout)
+            outcome = _run_command(root, state, task, check, check["command"])
         elif check["kind"] == "machine" and check["check"]["kind"] == "command":
-            outcome = _run_command(root, state, task, check, check["check"]["command"], timeout)
+            outcome = _run_command(root, state, task, check, check["check"]["command"])
         elif check["kind"] == "machine":
             outcome = {"check": check["id"], **evaluate_check(root, check["check"])}
         else:
@@ -674,9 +676,9 @@ def chaosfolk_checks(root: Path, summary_path: Path, tool_version: str | None = 
     return {"checks": checks, "run": run}
 
 
-def compare_runs(task: dict, tool: str = "chaosfolk") -> dict | None:
-    """Scenarios whose outcome changed between the last two runs of a tool."""
-    runs = [run for run in task.get("result", {}).get("runs", []) if run["tool"] == tool]
+def compare_runs(task: dict) -> dict | None:
+    """Scenarios whose outcome changed between the last two ChaosFolk replays."""
+    runs = [run for run in task.get("result", {}).get("runs", []) if run["tool"] == "chaosfolk"]
     if len(runs) < 2:
         return None
     before, after = runs[-2]["outcomes"], runs[-1]["outcomes"]

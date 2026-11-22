@@ -11,7 +11,6 @@ completion until it is resolved or a person records why it is accepted.
 import hashlib
 import json
 import re
-from datetime import date, datetime, timezone
 from pathlib import Path
 
 from . import clock

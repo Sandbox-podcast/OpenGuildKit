@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.catalog import CatalogError, _validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.cli import _interactive_init, main
 from openguildkit.patterns import recommend_patterns
 from openguildkit.project import (
@@ -183,12 +183,12 @@ class SectorCatalogTests(unittest.TestCase):
             "id": "retail-banking-rules", "title": "Retail banking", "description": "Sector rules.", "sources": [],
             "roles": ["legal"], "packs": ["dora"], "kind": "regulation", "match": {"sectors": ["general"]},
         }
-        _validate_entry("patterns", record)
+        validate_entry("patterns", record)
         for match in ({}, {"min_versions": {"python": "3"}, "sectors": ["general"]}, {"personal_data": False}):
             with self.subTest(match=match), self.assertRaises(CatalogError):
-                _validate_entry("patterns", {**record, "match": match})
+                validate_entry("patterns", {**record, "match": match})
         with self.assertRaises(CatalogError):
-            _validate_entry("patterns", {**record, "kind": "law"})
+            validate_entry("patterns", {**record, "kind": "law"})
 
 
 class SectorQuestionTests(unittest.TestCase):

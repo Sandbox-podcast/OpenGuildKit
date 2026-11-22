@@ -17,7 +17,6 @@ from pathlib import Path
 from .storage import parse_json
 
 CHECK_KINDS = ("file-exists", "text", "field", "command")
-DECLARATIVE_KINDS = CHECK_KINDS[:3]
 FIELD_OPERATORS = ("equals", "one_of", "min", "max", "integer")
 FIELD_FORMATS = {".json": "JSON", ".toml": "TOML"}
 MAX_PATHS = 20

@@ -1,7 +1,6 @@
 """Command-line interface for OpenGuildKit."""
 
 import argparse
-import json
 import os
 import re
 import sys
@@ -42,7 +41,7 @@ from .guard import (
 )
 from .relevance import changed_files, pack_relevance
 from .results import (
-    DONE_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE, asked_checks, chaosfolk_checks, compare_runs,
+    DONE_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE, chaosfolk_checks, compare_runs,
     completion_problems, criteria_summary, decision_changes, declared_cannot_run, keep_declarations, decision_revision_message, expected_checks, missing_scenarios, result_template,
     run_command_checks,
 )
@@ -75,18 +74,14 @@ from .project import (
     is_norm,
     load_profile,
     profile_recommendations,
-    profile_fingerprint,
     project_root,
-    resolved_profile,
     rule_conflicts,
     rule_plan,
     setup_profile,
     state_path,
     sync_instructions,
     task_scope_profile,
-    validate_profile,
 )
-from .tools import HOSTS as TOOL_HOSTS
 from .tools import detect_tools, load_tools, match_tools
 from .sensitive import input_warnings, redact_credentials, redact_data
 from .shell import shell_word

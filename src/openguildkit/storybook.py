@@ -19,7 +19,7 @@ from urllib.parse import urlsplit
 
 from . import clock
 from .detect import walk
-from .stack_versions import STORYBOOK_VERSION
+from .stack_versions import STORYBOOK_VERSION, lower_bounds, parse_range, parse_version, satisfies, version_text
 from .storage import json_text, project_lock, read_json, write_json, write_text
 
 RECORD = "storybook.json"
@@ -89,11 +89,6 @@ def ref_id(value: str) -> str:
     if not isinstance(value, str) or not _REF_ID.fullmatch(value) or len(value) > 40:
         raise ValueError("Use a Storybook ref ID of lowercase letters, digits and hyphens.")
     return value
-
-
-def citation(ref: str, story_id: str) -> str:
-    """The project's stories are cited by ID; a composed Storybook's as REF_ID, the ID Storybook shows in its URL."""
-    return f"storybook:{story_id}" if ref == PROJECT_REF else f"storybook:{ref}_{story_id}"
 
 
 # Storybook index.json
@@ -173,114 +168,7 @@ def compare(project: list[dict], company: list[dict]) -> dict:
     }
 
 
-# Versions and ranges, as npm writes them in package.json.
-
-_PARTIAL = re.compile(r"v?(\d+|[xX*])(?:\.(\d+|[xX*]))?(?:\.(\d+|[xX*]))?(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?")
-_COMPARATOR = re.compile(r"(\^|~>?|>=|<=|>|<|=)?(.+)")
-_OPERATORS = ("^", "~", "~>", ">=", "<=", ">", "<", "=")
-
-
-def _partial(text: str):
-    match = _PARTIAL.fullmatch(text.strip())
-    if not match:
-        return None
-    parts = [None if part is None or part in "xX*" else int(part) for part in match.groups()[:3]]
-    for index in range(1, 3):
-        if parts[index - 1] is None:
-            parts[index] = None
-    return parts, match.group(4)
-
-
-def _version(parts, prerelease=None) -> tuple:
-    major, minor, patch = (part or 0 for part in parts)
-    # A release sorts after its prereleases.
-    return (major, minor, patch, 0 if prerelease else 1, prerelease or "")
-
-
-def parse_version(text: str) -> tuple | None:
-    parsed = _partial(text)
-    if not parsed or None in parsed[0]:
-        return None
-    return _version(*parsed)
-
-
-def _bump(parts, position: int) -> tuple:
-    bumped = [part or 0 for part in parts]
-    bumped[position] += 1
-    for index in range(position + 1, 3):
-        bumped[index] = 0
-    return _version(bumped, "0")
-
-
-def _comparators(operator: str, parts: list, prerelease) -> list[tuple]:
-    known = len([part for part in parts if part is not None])
-    if known == 0:
-        return [] if operator in ("", "=", "^", "~", "~>", ">=", "<=") else [("<", (0, 0, 0, 0, "0"))]
-    low = _version(parts, prerelease)
-    if operator == "^":
-        # Bump the first non-zero part: ^1.2.3 is below 2.0.0, ^0.2.3 below 0.3.0, ^0.0.3 below 0.0.4.
-        position = next((index for index, part in enumerate(parts[:known]) if part), known - 1)
-        return [(">=", low), ("<", _bump(parts, position))]
-    if operator in ("~", "~>"):
-        return [(">=", low), ("<", _bump(parts, 1 if known > 1 else 0))]
-    if operator in ("", "="):
-        return [("=", low)] if known == 3 else [(">=", low), ("<", _bump(parts, known - 1))]
-    if operator == ">":
-        return [(">", low)] if known == 3 else [(">=", _bump(parts, known - 1))]
-    if operator == "<=":
-        return [("<=", low)] if known == 3 else [("<", _bump(parts, known - 1))]
-    return [(operator, low)]
-
-
-def parse_range(text: str) -> list[list[tuple]] | None:
-    """npm's range grammar: alternatives with ||, hyphen ranges, ^, ~, x-ranges and comparators."""
-    if not isinstance(text, str) or re.search(r"[:/#]|^\s*(latest|next|workspace)", text):
-        return None
-    alternatives = []
-    for alternative in text.split("||"):
-        alternative = alternative.strip()
-        hyphen = re.fullmatch(r"(\S+)\s+-\s+(\S+)", alternative)
-        if hyphen:
-            low, high = _partial(hyphen.group(1)), _partial(hyphen.group(2))
-            if not low or not high:
-                return None
-            alternatives.append(_comparators(">=", *low) + _comparators("<=", *high))
-            continue
-        tokens: list[str] = []
-        for token in alternative.split():
-            if tokens and tokens[-1] in _OPERATORS:
-                tokens[-1] += token
-            else:
-                tokens.append(token)
-        comparators = []
-        for token in tokens or ["*"]:
-            operator, value = _COMPARATOR.fullmatch(token).groups()
-            parsed = _partial(value)
-            if not parsed:
-                return None
-            comparators.extend(_comparators(operator or "", *parsed))
-        alternatives.append(comparators)
-    return alternatives
-
-
-def satisfies(version: tuple, ranges: list[list[tuple]]) -> bool:
-    checks = {"=": lambda a, b: a == b, ">=": lambda a, b: a >= b, ">": lambda a, b: a > b,
-              "<": lambda a, b: a < b, "<=": lambda a, b: a <= b}
-    return any(all(checks[operator](version, bound) for operator, bound in alternative) for alternative in ranges)
-
-
-def lowest(ranges: list[list[tuple]]) -> list[tuple]:
-    """The lowest version each alternative accepts. An alternative without a lower bound tells nothing."""
-    result = []
-    for alternative in ranges:
-        bounds = [bound for operator, bound in alternative if operator in (">=", "=")]
-        if bounds:
-            result.append(max(bounds))
-    return result
-
-
-def _version_text(version: tuple) -> str:
-    return ".".join(str(part) for part in version[:3]) + (f"-{version[4]}" if version[3] == 0 else "")
+# Dependencies of the company library against the project's.
 
 
 def _project_dependencies(package: dict) -> dict:
@@ -322,14 +210,15 @@ def dependency_conflicts(library: dict, package: dict, root: Path) -> list[dict]
             elif ranges is None:
                 row["status"] = "unknown"
             else:
-                versions = [parse_version(installed)] if installed else lowest(parse_range(project[name]) or [])
+                declared = parse_range(project[name])
+                versions = [parse_version(installed)] if installed else (lower_bounds(declared) if declared else None)
                 if not versions:
                     row["status"] = "unknown"
                 else:
                     results = [satisfies(version, ranges) for version in versions]
                     compatible = "ok" if all(results) else "partial" if any(results) else None
                     row["status"] = compatible or ("conflict" if kind == "peer" else "duplicate")
-                    row["checked"] = [_version_text(version) for version in versions]
+                    row["checked"] = [version_text(version) for version in versions]
             rows.append(row)
     return rows
 
@@ -1562,13 +1451,13 @@ def _story_args(component: dict) -> dict:
 def _story_file(component: dict, variants: list[dict], args: dict, out: Path, root: Path, framework: str) -> str:
     name = component["key"].split(":", 1)[1]
     source = _js(_import_path(out, root, component["file"]))
-    imported = f"import {name} from {source};" if component["export"] == "default" else \
-        f"import {_imported_as(component)} from {source};"
+    binding = name if component["export"] == "default" else _imported_as(component)
+    types = _js(framework)
     lines = [
         "// Generated by openguildkit storybook generate from the validated proposals.",
         "// Edit freely: once this file changes, generate leaves it as it is.",
-        f"import type {{ Meta, StoryObj }} from {_js(framework)};",
-        imported,
+        f"import type {{ Meta, StoryObj }} from {types};",
+        f"import {binding} from {source};",
         "",
         "const meta = {",
         f"  title: {_js('Design system/' + component['name'])},",

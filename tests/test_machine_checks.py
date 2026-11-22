@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.catalog import CatalogError, _validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.cli import main
 from openguildkit.patterns import is_stack_pattern
 from openguildkit.rule_checks import evaluate_check
@@ -56,14 +56,14 @@ class ManualReasonTests(unittest.TestCase):
         cls.catalog = load_catalog()
 
     def test_a_rule_names_why_only_a_person_can_verify_it_or_carries_a_check(self):
-        _validate_entry("packs", pack([{"id": "a", "instruction": "Ask the owner.", "verification": "Link it.",
+        validate_entry("packs", pack([{"id": "a", "instruction": "Ask the owner.", "verification": "Link it.",
                                         "manual": "The register lives outside the repository."}]))
         check = {"kind": "file-exists", "paths": ["SECURITY.md"]}
         with self.assertRaisesRegex(CatalogError, "manual"):
-            _validate_entry("packs", pack([{"id": "a", "check": check, "manual": "A person reads it."}]))
+            validate_entry("packs", pack([{"id": "a", "check": check, "manual": "A person reads it."}]))
         for reason in ("", "Two\nlines", 3):
             with self.subTest(reason=reason), self.assertRaises(CatalogError):
-                _validate_entry("packs", pack([{"id": "a", "instruction": "Do it.", "verification": "Look.",
+                validate_entry("packs", pack([{"id": "a", "instruction": "Do it.", "verification": "Look.",
                                                 "manual": reason}]))
 
     def test_every_regulation_rule_has_a_check_or_the_reason_a_person_verifies_it(self):

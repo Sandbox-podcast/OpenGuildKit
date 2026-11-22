@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from openguildkit.catalog import CatalogError, _validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.project import (
     render_instructions,
     resolved_profile,
@@ -101,7 +101,7 @@ class RulePlanTests(unittest.TestCase):
         pack = json.loads(json.dumps(self.catalog["packs"]["python"]))
         pack["conflicts_with"] = ["python"]
         with self.assertRaisesRegex(CatalogError, "the pack itself"):
-            _validate_entry("packs", pack)
+            validate_entry("packs", pack)
 
 
 if __name__ == "__main__":

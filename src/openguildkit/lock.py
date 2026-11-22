@@ -9,8 +9,9 @@ import json
 from copy import deepcopy
 from pathlib import Path
 
-from .catalog import CatalogError, _validate_dependencies, _validate_entry, latest_checked, load_catalog, overlaid_boards
+from .catalog import CatalogError, latest_checked, load_catalog, overlaid_boards, validate_dependencies, validate_entry
 from .patterns import pattern_selection
+from .project import selected_packs
 from .storage import read_json, write_json
 
 LOCK_FILE = "catalog.lock.json"
@@ -50,7 +51,7 @@ def read_lock(state: Path) -> dict | None:
             raise ValueError(f"Unknown collection {collection!r} in {path}.")
         for record_id, record in entries.items():
             try:
-                _validate_entry(collection, {key: value for key, value in record.items() if key != "policy_commit"})
+                validate_entry(collection, {key: value for key, value in record.items() if key != "policy_commit"})
             except CatalogError as error:
                 raise ValueError(f"{path}: {collection}/{record_id}: {error}") from error
             if record.get("id") != record_id:
@@ -71,18 +72,16 @@ def apply_lock(catalog: dict, lock: dict | None) -> dict:
             effective[collection][record_id] = deepcopy(record)
         effective[collection] = dict(sorted(effective[collection].items()))
     try:
-        _validate_dependencies(effective["packs"])
+        validate_dependencies(effective["packs"])
     except CatalogError as error:
         raise ValueError(f"The catalog lock is inconsistent: {error}. Run openguildkit update.") from error
     return effective
 
 
 def _used_ids(profile: dict, catalog: dict) -> dict[str, list[str]]:
-    from .project import _selected_packs  # avoid a circular import at module load
-
     patterns = [pattern_selection(entry)[0] for entry in profile.get("patterns", [])]
     return {
-        "packs": _selected_packs(profile, catalog),
+        "packs": selected_packs(profile, catalog),
         "boards": list(profile.get("boards") or catalog["boards"]),
         "sectors": [profile["sector"]],
         "patterns": patterns,

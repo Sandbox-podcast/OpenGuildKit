@@ -14,7 +14,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from . import clock
 from .catalog import (
-    CatalogError, _unique_fields, _validate_fields, _validate_id, _validate_list, _validate_sources, _validate_text, package_file,
+    CatalogError, package_file, unique_fields, validate_fields, validate_id, validate_list, validate_sources,
+    validate_text,
 )
 from .storage import write_text
 
@@ -59,41 +60,41 @@ def project_path(root: Path, state: Path, value: Path | str, option: str) -> Pat
 
 
 def _validate(record: dict, catalog: dict, bundled: bool = False) -> None:
-    _validate_fields(record, "deliverable", {"id", "title", "description", "brains", "inputs", "tool_actions", "sections", "checks", "sources"}, {"method", "market", "requires_tool"})
+    validate_fields(record, "deliverable", {"id", "title", "description", "brains", "inputs", "tool_actions", "sections", "checks", "sources"}, {"method", "market", "requires_tool"})
     for flag in ("market", "requires_tool"):
         if flag in record and not isinstance(record[flag], bool):
             raise CatalogError(f"{flag} must be true or false")
-    _validate_id(record["id"], "id")
+    validate_id(record["id"], "id")
     for field in ("title", "description"):
-        _validate_text(record[field], field)
-    _validate_sources(record["sources"], require_checked=bundled)
+        validate_text(record[field], field)
+    validate_sources(record["sources"], require_checked=bundled)
     if "method" in record and record["method"] not in catalog["patterns"]:
         raise CatalogError(f"Unknown method pattern {record['method']!r}")
-    _validate_list(record["brains"], "brains")
+    validate_list(record["brains"], "brains")
     unknown = sorted(set(record["brains"]) - catalog["boards"].keys())
     if unknown:
         raise CatalogError(f"Unknown brains: {', '.join(unknown)}")
-    _validate_list(record["inputs"], "inputs")
+    validate_list(record["inputs"], "inputs")
     for item in record["inputs"]:
-        _validate_fields(item, "input", {"id", "label", "data"})
-        _validate_id(item["id"], "input id")
-        _validate_text(item["label"], "input label")
+        validate_fields(item, "input", {"id", "label", "data"})
+        validate_id(item["id"], "input id")
+        validate_text(item["label"], "input label")
         if item["data"] not in DATA_CLASSES:
             raise CatalogError(f"input data must be one of {', '.join(DATA_CLASSES)}")
-    _validate_list(record["tool_actions"], "tool_actions", allow_empty=True)
+    validate_list(record["tool_actions"], "tool_actions", allow_empty=True)
     for item in record["tool_actions"]:
-        _validate_fields(item, "tool action", {"action", "description"})
+        validate_fields(item, "tool action", {"action", "description"})
         if item["action"] not in ACTIONS:
             raise CatalogError(f"tool action must be one of {', '.join(ACTIONS)}")
-        _validate_text(item["description"], "tool action description")
+        validate_text(item["description"], "tool action description")
     for field in ("sections", "checks"):
-        _validate_list(record[field], field)
+        validate_list(record[field], field)
         for item in record[field]:
-            _validate_fields(item, field[:-1], {"id", "title" if field == "sections" else "verification", "prompt"} if field == "sections" else {"id", "verification"})
-            _validate_id(item["id"], f"{field[:-1]} id")
+            validate_fields(item, field[:-1], {"id", "title" if field == "sections" else "verification", "prompt"} if field == "sections" else {"id", "verification"})
+            validate_id(item["id"], f"{field[:-1]} id")
             for key in item:
                 if key != "id":
-                    _validate_text(item[key], f"{field[:-1]} {key}")
+                    validate_text(item[key], f"{field[:-1]} {key}")
 
 
 def load_deliverables(catalog: dict, extra_dir: Path | None = None) -> dict[str, dict]:
@@ -106,7 +107,7 @@ def load_deliverables(catalog: dict, extra_dir: Path | None = None) -> dict[str,
             if not path.name.endswith(".json"):
                 continue
             try:
-                record = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=_unique_fields)
+                record = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_fields)
                 _validate(record, catalog, root == roots[0])
                 if path.name != f"{record['id']}.json" or record["id"] in found:
                     raise CatalogError(f"name the file {record['id']}.json and keep IDs unique")

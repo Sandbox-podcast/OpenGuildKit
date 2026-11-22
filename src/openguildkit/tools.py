@@ -17,11 +17,11 @@ import tomllib
 from pathlib import Path
 
 from . import clock
-from .catalog import CatalogError, _unique_fields, package_file
+from .catalog import CatalogError, package_file, unique_fields
 from .detect import MAX_MANIFEST_BYTES, SKIPPED_DIRECTORIES
 from .mcp_mock import apply_scenario, check_synthetic, validate_mock
 from .sensitive import looks_like_credential
-from .storage import json_text, read_json, write_json, write_text
+from .storage import read_json, write_json, write_text
 
 CATEGORIES = (
     "issue-tracking", "source-control", "ci-cd", "documentation", "design", "communication", "time-tracking", "hr",
@@ -284,7 +284,7 @@ def load_tools(extra_dir: Path | None = None) -> dict[str, dict]:
             if not path.name.endswith(".json"):
                 continue
             try:
-                record = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=_unique_fields)
+                record = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_fields)
                 if not isinstance(record, dict) or record.keys() != {"id", "title", "tools"}:
                     raise CatalogError("a tool file has id, title and tools")
                 if record["id"] not in CATEGORIES or path.name != f"{record['id']}.json":
@@ -321,7 +321,7 @@ def read_scenario(extra_dir: Path | None) -> dict | None:
     if path is None or not path.is_file():
         return None
     try:
-        scenario = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=_unique_fields)
+        scenario = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_fields)
     except ValueError as error:
         raise ValueError(f"{path.as_posix()} is not valid JSON: {error}") from error
     if not isinstance(scenario, dict) or "records" not in scenario or not scenario.keys() <= {"about", "records"} \
@@ -1097,5 +1097,3 @@ def _norm_key(value) -> str:
     return str(value).strip().casefold()
 
 
-def manifest_text(manifest: dict) -> str:
-    return json_text(manifest)

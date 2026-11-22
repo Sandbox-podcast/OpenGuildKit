@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import clock
-from openguildkit.catalog import CatalogError, _validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.cli import _prompt_choices, main
 from openguildkit.storage import write_json
 
@@ -402,7 +402,7 @@ class CleanErrorTests(unittest.TestCase):
         pack = json.loads(json.dumps(load_catalog()["packs"]["python"]))
         for text in ("Bar\u0085", "x\u007fy", "a b"):
             with self.assertRaises(CatalogError):
-                _validate_entry("packs", {**pack, "title": text})
+                validate_entry("packs", {**pack, "title": text})
         packs = self.root / ".openguildkit" / "catalog" / "packs"
         packs.mkdir(parents=True)
         write_json(packs / "foo.json", {**pack, "id": "team-python"})

@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.catalog import CatalogError, _validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.cli import main
 from openguildkit.project import init_questions, profile_recommendations, resolved_profile, validate_profile
 from openguildkit.rule_checks import MAX_FILE_BYTES, MAX_FILES, evaluate_check, validate_check
@@ -120,8 +120,8 @@ class CatalogFormatTests(unittest.TestCase):
     def test_a_bundled_pack_cannot_run_a_command(self):
         command = pack([{"id": "lint", "check": {"kind": "command", "command": "make lint"}}])
         with self.assertRaisesRegex(CatalogError, r"\.openguildkit/catalog/packs/"):
-            _validate_entry("packs", command)
-        _validate_entry("packs", command, allow_command=True)
+            validate_entry("packs", command)
+        validate_entry("packs", command, allow_command=True)
 
     def test_a_project_pack_can_run_a_command_and_the_central_policy_cannot(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -136,13 +136,13 @@ class CatalogFormatTests(unittest.TestCase):
 
     def test_a_rule_without_a_check_still_needs_its_text_and_evidence_is_named(self):
         with self.assertRaisesRegex(CatalogError, "missing fields: instruction"):
-            _validate_entry("packs", pack([{"id": "a", "verification": "Look."}]))
+            validate_entry("packs", pack([{"id": "a", "verification": "Look."}]))
         named = {"id": "a", "instruction": "Do it.", "verification": "Look.",
                  "evidence": [{"id": "record", "title": "Record"}, {"id": "record", "title": "Again"}]}
         with self.assertRaisesRegex(CatalogError, "twice"):
-            _validate_entry("packs", pack([named]))
+            validate_entry("packs", pack([named]))
         with self.assertRaisesRegex(CatalogError, "kind"):
-            _validate_entry("packs", pack([{"id": "a", "check": {"kind": "regex", "pattern": "(a+)+"}}]))
+            validate_entry("packs", pack([{"id": "a", "check": {"kind": "regex", "pattern": "(a+)+"}}]))
 
     def test_the_export_threshold_is_data_and_ci_check_names_no_field(self):
         source = (SOURCE / "ci.py").read_text(encoding="utf-8")
@@ -285,9 +285,9 @@ class VerifyAndEvidenceTests(unittest.TestCase):
     def test_an_evidence_condition_names_known_data_answers(self):
         bad = {**self.RECORD, "evidence": [{**self.RECORD["evidence"][0], "when": {"data": ["secret"]}}]}
         with self.assertRaisesRegex(CatalogError, "when.data"):
-            _validate_entry("packs", pack([bad]))
+            validate_entry("packs", pack([bad]))
         with self.assertRaisesRegex(CatalogError, "when"):
-            _validate_entry("packs", pack([{**self.RECORD, "evidence": [{**self.RECORD["evidence"][0], "when": {}}]}]))
+            validate_entry("packs", pack([{**self.RECORD, "evidence": [{**self.RECORD["evidence"][0], "when": {}}]}]))
 
     def test_a_named_evidence_can_be_an_https_link_and_appears_in_the_instructions(self):
         self.approved([{"id": "assess-dpia", "instruction": "Ask about the assessment.", "verification": "Link it.",

@@ -11,8 +11,10 @@ from unittest.mock import patch
 from openguildkit.cli import _prompt_components, main
 from openguildkit.catalog import load_catalog
 from openguildkit.detect import components_for_profile, detect_stack
-from openguildkit.patterns import recommend_patterns
+from openguildkit.patterns import recommend_patterns, technology_version
+from openguildkit.stack_versions import version_key
 from openguildkit.storage import write_json
+from openguildkit.storybook import dependency_conflicts
 
 
 def write(root: Path, relative: str, content) -> None:
@@ -52,6 +54,18 @@ class DetectedVersionTests(unittest.TestCase):
         agents = (self.root / "AGENTS.md").read_text(encoding="utf-8")
         self.assertNotIn("PostgreSQL 3.2", agents)
         self.assertIn("PostgreSQL", agents)
+
+    def test_the_unsure_text_names_the_detected_components_in_words(self):
+        write(self.root, "apps/web/package.json", {"dependencies": {"react": "^18.2.0"}})
+        write(self.root, "services/api/pyproject.toml", '[project]\nname = "api"\nrequires-python = ">=3.12"\n')
+        questions = {item["id"]: item for item in json.loads(self.run_cli("init", "--questions"))}
+        unsure = questions["components"]["unsure"]
+        self.assertEqual(len(questions["components"]["default"]), 2)
+        for component in questions["components"]["default"]:
+            self.assertIn(f"{component['id']} ({component['path']})", unsure)
+        for text in (question["unsure"] for question in questions.values()):
+            with self.subTest(text=text):
+                self.assertNotRegex(text, r"[{}\[\]]|'id'")
 
     def test_a_declared_database_version_wins_over_a_client_library(self):
         write(self.root, "pyproject.toml", '[project]\nname = "api"\ndependencies = ["psycopg>=3.1"]\n')
@@ -258,6 +272,33 @@ class ComponentPromptTests(unittest.TestCase):
     def test_keep_and_refuse_still_work(self):
         self.assertEqual(self.prompt(""), self.QUESTION["default"])
         self.assertEqual(self.prompt("n"), [])
+
+
+class VersionRangeTests(unittest.TestCase):
+    """Pattern matching and the Storybook dependency report read a declared range with one engine."""
+
+    # The lowest version each range accepts, as npm reads it; None when an alternative sets no lower bound.
+    RANGES = {
+        "^18.2.0": "18.2.0", "~1.2.3": "1.2.3", ">=1.2.0": "1.2.0", ">1.2": "1.3", ">1.2.3": "1.2.4", "1.2.x": "1.2",
+        "1.2.3 - 2.0.0": "1.2.3", "<2 || >=3": None, "*": None, "=1.2.3": "1.2.3", ">=1.0.0 <2.0.0": "1.0.0",
+        "^0.2.3": "0.2.3", "~1.2 || ^2": "1.2",
+    }
+
+    @staticmethod
+    def key(version: str | None):
+        return None if version is None else version_key(version.partition("-")[0])
+
+    def test_patterns_and_the_storybook_report_read_the_same_lower_bound(self):
+        library = {"peerDependencies": {"react": ">=0.0.0"}}
+        with tempfile.TemporaryDirectory() as folder:
+            for spec, expected in self.RANGES.items():
+                with self.subTest(range=spec):
+                    for_patterns = technology_version(f"React {spec}")
+                    row = dependency_conflicts(library, {"dependencies": {"react": spec}}, Path(folder))[0]
+                    checked = row.get("checked")
+                    for_storybook = min(checked, key=self.key) if checked else None
+                    self.assertEqual(self.key(for_patterns), self.key(expected))
+                    self.assertEqual(self.key(for_storybook), self.key(expected))
 
 
 if __name__ == "__main__":

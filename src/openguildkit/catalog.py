@@ -51,7 +51,7 @@ class CatalogError(ValueError):
     """A catalog record or dependency is invalid."""
 
 
-def _unique_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+def unique_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result = {}
     for key, value in pairs:
         if key in result:
@@ -60,7 +60,7 @@ def _unique_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _validate_fields(
+def validate_fields(
     value: Any, label: str, required: set[str], optional: set[str] | None = None
 ) -> None:
     if not isinstance(value, dict):
@@ -73,7 +73,7 @@ def _validate_fields(
         raise CatalogError(f"{label} has unknown fields: {', '.join(sorted(extra))}")
 
 
-def _validate_text(value: Any, label: str) -> None:
+def validate_text(value: Any, label: str) -> None:
     if not isinstance(value, str) or not value.strip():
         raise CatalogError(f"{label} must be a non-empty string")
     # Printable text has no control, surrogate or line separator: only other text needs the slow check.
@@ -82,12 +82,12 @@ def _validate_text(value: Any, label: str) -> None:
         raise CatalogError(f"{label} must be a single line of text without control characters")
 
 
-def _validate_id(value: Any, label: str) -> None:
+def validate_id(value: Any, label: str) -> None:
     if not isinstance(value, str) or not ID_PATTERN.fullmatch(value):
         raise CatalogError(f"{label} must use lowercase letters, digits, and hyphens")
 
 
-def _validate_list(value: Any, label: str, *, allow_empty: bool = False) -> None:
+def validate_list(value: Any, label: str, *, allow_empty: bool = False) -> None:
     if not isinstance(value, list) or (not allow_empty and not value):
         requirement = "a JSON array" if allow_empty else "a non-empty JSON array"
         raise CatalogError(f"{label} must be {requirement}")
@@ -113,20 +113,20 @@ def _validate_checked(value: Any, label: str) -> None:
         raise CatalogError(f"{label} must be a date written YYYY-MM-DD, such as 2026-11-21") from None
 
 
-def _validate_sources(sources: Any, *, require_checked: bool = False) -> None:
+def validate_sources(sources: Any, *, require_checked: bool = False) -> None:
     """Bundled sources must carry the day they were last checked; a project's own sources may not yet."""
-    _validate_list(sources, "sources", allow_empty=True)
+    validate_list(sources, "sources", allow_empty=True)
     seen_urls = set()
     for index, source in enumerate(sources):
         label = f"sources[{index}]"
-        _validate_fields(source, label, {"title", "url"}, {"checked"})
+        validate_fields(source, label, {"title", "url"}, {"checked"})
         if "checked" in source:
             _validate_checked(source["checked"], f"{label}.checked")
         elif require_checked:
             raise CatalogError(UNDATED_SOURCE.format(label=label))
-        _validate_text(source["title"], f"{label}.title")
+        validate_text(source["title"], f"{label}.title")
         url = source["url"]
-        _validate_text(url, f"{label}.url")
+        validate_text(url, f"{label}.url")
         parsed = urlsplit(url)
         if parsed.scheme != "https" or not parsed.hostname or parsed.username is not None:
             raise CatalogError(f"{label}.url must be an HTTPS URL without credentials")
@@ -147,9 +147,9 @@ def _validate_pack(pack: dict[str, Any], allow_command: bool = False) -> None:
 
     for field in ("depends_on", "conflicts_with"):
         identifiers = pack.get(field, [])
-        _validate_list(identifiers, field, allow_empty=True)
+        validate_list(identifiers, field, allow_empty=True)
         for identifier in identifiers:
-            _validate_id(identifier, f"{field} entry")
+            validate_id(identifier, f"{field} entry")
         if len(set(identifiers)) != len(identifiers):
             raise CatalogError(f"{field} contains duplicate IDs")
         if pack["id"] in identifiers:
@@ -157,7 +157,7 @@ def _validate_pack(pack: dict[str, Any], allow_command: bool = False) -> None:
     if set(pack.get("depends_on", [])) & set(pack.get("conflicts_with", [])):
         raise CatalogError("A pack cannot depend on a pack it conflicts with")
 
-    _validate_list(pack["rules"], "rules")
+    validate_list(pack["rules"], "rules")
     seen_ids = set()
     for index, rule in enumerate(pack["rules"]):
         label = f"rules[{index}]"
@@ -237,9 +237,9 @@ def _out_of_bounds(records: dict, value: str) -> str | None:
 
 def _validate_records(records: Any, label: str) -> None:
     """The value a task records: a name, a description and optional bounds on its number."""
-    _validate_fields(records, label, {"name", "description"}, set(BOUND_FIELDS))
-    _validate_id(records["name"], f"{label} name")
-    _validate_text(records["description"], f"{label} description")
+    validate_fields(records, label, {"name", "description"}, set(BOUND_FIELDS))
+    validate_id(records["name"], f"{label} name")
+    validate_text(records["description"], f"{label} description")
     for field in BOUND_FIELDS:
         if field in records and (type(records[field]) not in (int, float) or abs(records[field]) > MAX_SAFE_INTEGER):
             raise CatalogError(f"{label}.{field} must be a number")
@@ -251,18 +251,18 @@ def _validate_records(records: Any, label: str) -> None:
 
 
 def _validate_evidence(evidence: Any, label: str) -> None:
-    _validate_list(evidence, f"{label}.evidence")
+    validate_list(evidence, f"{label}.evidence")
     if len(evidence) > MAX_EVIDENCE:
         raise CatalogError(f"{label}.evidence names at most {MAX_EVIDENCE} pieces of evidence")
     seen = set()
     for item in evidence:
-        _validate_fields(item, f"{label}.evidence entry", {"id", "title"}, {"when"})
-        _validate_id(item["id"], f"{label}.evidence id")
-        _validate_text(item["title"], f"{label}.evidence title")
+        validate_fields(item, f"{label}.evidence entry", {"id", "title"}, {"when"})
+        validate_id(item["id"], f"{label}.evidence id")
+        validate_text(item["title"], f"{label}.evidence title")
         if "when" in item:
-            _validate_fields(item["when"], f"{label}.evidence when", {"data"})
+            validate_fields(item["when"], f"{label}.evidence when", {"data"})
             values = item["when"]["data"]
-            _validate_list(values, f"{label}.evidence when.data")
+            validate_list(values, f"{label}.evidence when.data")
             known = [value for value in values if isinstance(value, str) and value in DATA_ANSWERS]
             if len(known) != len(values) or len(set(known)) != len(known):
                 raise CatalogError(f"{label}.evidence when.data lists distinct answers among {', '.join(DATA_ANSWERS)}")
@@ -277,12 +277,12 @@ def _validate_rule(rule: Any, label: str, allow_command: bool) -> None:
     A rule without a check may say in `manual` why only a person can verify it, such as a record kept outside
     the repository or a behaviour that shows only in a running system.
     """
-    _validate_fields(rule, label, {"id"}, {"instruction", "verification", "check", "evidence", "records", "manual"})
+    validate_fields(rule, label, {"id"}, {"instruction", "verification", "check", "evidence", "records", "manual"})
     if "manual" in rule:
-        _validate_text(rule["manual"], f"{label}.manual")
+        validate_text(rule["manual"], f"{label}.manual")
         if "check" in rule:
             raise CatalogError(f"{label} carries a check, which task verify evaluates: remove its manual reason")
-    _validate_id(rule["id"], f"{label}.id")
+    validate_id(rule["id"], f"{label}.id")
     if "check" in rule and isinstance(rule["check"], dict) and rule["check"].keys() == {"max_minutes"}:
         if rule["id"] != EXPORT_EXPIRY_ID or not is_positive_integer(rule["check"]["max_minutes"]):
             raise CatalogError(f"{label}: expected an {EXPORT_EXPIRY_ID} check with positive integer max_minutes")
@@ -293,7 +293,7 @@ def _validate_rule(rule: Any, label: str, allow_command: bool) -> None:
             raise CatalogError(str(error)) from error
     for field in ("instruction", "verification"):
         if field in rule:
-            _validate_text(rule[field], f"{label}.{field}")
+            validate_text(rule[field], f"{label}.{field}")
         elif "check" not in rule:
             raise CatalogError(f"{label} is missing fields: {field}")
     if "evidence" in rule:
@@ -304,7 +304,7 @@ def _validate_rule(rule: Any, label: str, allow_command: bool) -> None:
 
 def _validate_core_roles(pattern: dict[str, Any]) -> None:
     """core_for names roles of the pattern for which a method without a match is preselected."""
-    _validate_list(pattern["core_for"], "core_for")
+    validate_list(pattern["core_for"], "core_for")
     roles = pattern["core_for"]
     if not set(roles) <= set(pattern["roles"]) or len(set(roles)) != len(roles):
         raise CatalogError("core_for must list distinct roles of the pattern")
@@ -315,19 +315,19 @@ def _validate_core_roles(pattern: dict[str, Any]) -> None:
 def _validate_pattern(pattern: dict[str, Any]) -> None:
     for key in ("roles", "packs"):
         identifiers = pattern[key]
-        _validate_list(identifiers, key)
+        validate_list(identifiers, key)
         for item in identifiers:
-            _validate_id(item, f"{key} entry")
+            validate_id(item, f"{key} entry")
         if len(identifiers) != len(set(identifiers)):
             raise CatalogError(f"{key} contains duplicate IDs")
     if "exclusive_group" in pattern:
-        _validate_id(pattern["exclusive_group"], "exclusive_group")
+        validate_id(pattern["exclusive_group"], "exclusive_group")
     if "core_for" in pattern:
         _validate_core_roles(pattern)
     if "references" in pattern:
-        _validate_list(pattern["references"], "references")
+        validate_list(pattern["references"], "references")
         for reference_id in pattern["references"]:
-            _validate_id(reference_id, "references entry")
+            validate_id(reference_id, "references entry")
         if len(set(pattern["references"])) != len(pattern["references"]):
             raise CatalogError("references contains duplicate IDs")
     if pattern.get("kind", "method") not in PATTERN_KINDS:
@@ -335,7 +335,7 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
     if "match" not in pattern:
         return
     match = pattern["match"]
-    _validate_fields(match, "match", set(), {"stack", "sectors", "min_versions", "personal_data", "people_decisions"})
+    validate_fields(match, "match", set(), {"stack", "sectors", "min_versions", "personal_data", "people_decisions"})
     if not match.keys() & {"stack", "sectors", "personal_data", "people_decisions"}:
         raise CatalogError("match needs a stack, sectors, personal_data or people_decisions")
     for flag in ("personal_data", "people_decisions"):
@@ -343,11 +343,11 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
             raise CatalogError(f"match.{flag} must be true; omit it otherwise")
     if "min_versions" in match and "stack" not in match:
         raise CatalogError("match.min_versions needs a match.stack")
-    _validate_list(match.get("stack", []), "match.stack", allow_empty="stack" not in match)
+    validate_list(match.get("stack", []), "match.stack", allow_empty="stack" not in match)
     for group in match.get("stack", []):
-        _validate_list(group, "technology aliases")
+        validate_list(group, "technology aliases")
         for alias in group:
-            _validate_text(alias, "technology alias")
+            validate_text(alias, "technology alias")
             if not any(character.isalnum() for character in alias):
                 raise CatalogError("Technology aliases must contain letters or digits")
     if "min_versions" in match:
@@ -361,9 +361,9 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
             if not isinstance(version, str) or not MIN_VERSION_PATTERN.fullmatch(version):
                 raise CatalogError(f"match.min_versions[{alias!r}] must be a version such as 13.4")
     if "sectors" in match:
-        _validate_list(match["sectors"], "match.sectors")
+        validate_list(match["sectors"], "match.sectors")
         for sector in match["sectors"]:
-            _validate_id(sector, "sector ID")
+            validate_id(sector, "sector ID")
 
 
 # The task surfaces a lens can name; unsure and other are answers that keep every lens, never a lens's scope.
@@ -375,7 +375,7 @@ LENS_CONCERNS = ("money", "ai", "people-decisions", "credentials")
 def _validate_lens_surfaces(specialist: dict[str, Any]) -> None:
     """applies_to names the task surfaces a lens can concern; the task's other surfaces leave it out."""
     surfaces = specialist["applies_to"]
-    _validate_list(surfaces, f"specialist {specialist['id']} applies_to")
+    validate_list(surfaces, f"specialist {specialist['id']} applies_to")
     unknown = [surface for surface in surfaces if surface not in LENS_SURFACES]
     if unknown or len(set(surfaces)) != len(surfaces):
         raise CatalogError(f"specialist {specialist['id']} applies_to lists distinct surfaces among "
@@ -393,45 +393,45 @@ def _validate_lens_concerns(specialist: dict[str, Any]) -> None:
 
 
 def _validate_board_review(review: Any) -> None:
-    _validate_fields(review, "review", {"specialists", "evidence", "challenge", "decision_criteria"})
-    _validate_list(review["specialists"], "review.specialists")
+    validate_fields(review, "review", {"specialists", "evidence", "challenge", "decision_criteria"})
+    validate_list(review["specialists"], "review.specialists")
     seen = set()
     for specialist in review["specialists"]:
-        _validate_fields(specialist, "specialist", {"id", "title", "focus"}, {"checks", "applies_to", "applies_to_concerns"})
+        validate_fields(specialist, "specialist", {"id", "title", "focus"}, {"checks", "applies_to", "applies_to_concerns"})
         specialist_id = specialist["id"]
-        _validate_id(specialist_id, "specialist ID")
+        validate_id(specialist_id, "specialist ID")
         if specialist_id in seen:
             raise CatalogError(f"Duplicate specialist: {specialist_id}")
         seen.add(specialist_id)
-        _validate_text(specialist["title"], "specialist title")
-        _validate_text(specialist["focus"], "specialist focus")
+        validate_text(specialist["title"], "specialist title")
+        validate_text(specialist["focus"], "specialist focus")
         # What an expert of this lens verifies: the discipline's knowledge carried into each consultation.
         if "applies_to" in specialist:
             _validate_lens_surfaces(specialist)
         if "applies_to_concerns" in specialist:
             _validate_lens_concerns(specialist)
         if "checks" in specialist:
-            _validate_list(specialist["checks"], f"specialist {specialist_id} checks")
+            validate_list(specialist["checks"], f"specialist {specialist_id} checks")
             for check in specialist["checks"]:
-                _validate_text(check, f"specialist {specialist_id} check")
+                validate_text(check, f"specialist {specialist_id} check")
     for key in ("evidence", "challenge", "decision_criteria"):
-        _validate_list(review[key], f"review.{key}")
+        validate_list(review[key], f"review.{key}")
         for prompt in review[key]:
-            _validate_text(prompt, f"review.{key} entry")
+            validate_text(prompt, f"review.{key} entry")
 
 
-def _validate_entry(collection: str, entry: Any, *, bundled: bool = False, allow_command: bool = False) -> None:
+def validate_entry(collection: str, entry: Any, *, bundled: bool = False, allow_command: bool = False) -> None:
     required = ENTRY_FIELDS | COLLECTION_FIELDS[collection]
     optional = {
         "packs": {"depends_on", "conflicts_with"},
         "patterns": {"match", "exclusive_group", "references", "kind", "core_for"},
         "boards": {"review"},
     }.get(collection)
-    _validate_fields(entry, "record", required, optional)
-    _validate_id(entry["id"], "id")
-    _validate_text(entry["title"], "title")
-    _validate_text(entry["description"], "description")
-    _validate_sources(entry["sources"], require_checked=bundled)
+    validate_fields(entry, "record", required, optional)
+    validate_id(entry["id"], "id")
+    validate_text(entry["title"], "title")
+    validate_text(entry["description"], "description")
+    validate_sources(entry["sources"], require_checked=bundled)
     if collection == "packs":
         _validate_pack(entry, allow_command)
         return
@@ -441,9 +441,9 @@ def _validate_entry(collection: str, entry: Any, *, bundled: bool = False, allow
     if collection == "boards" and "review" in entry:
         _validate_board_review(entry["review"])
     for field in sorted(COLLECTION_FIELDS[collection]):
-        _validate_list(entry[field], field)
+        validate_list(entry[field], field)
         for index, item in enumerate(entry[field]):
-            _validate_text(item, f"{field}[{index}]")
+            validate_text(item, f"{field}[{index}]")
 
 
 BOARD_LIST_FIELDS = ("expertises", "triggers", "questions", "sources")
@@ -481,13 +481,13 @@ def merge_board(bundled: dict[str, Any], overlay: dict[str, Any]) -> dict[str, A
 def _validate_overlay(overlay: Any) -> None:
     """A project file that completes a bundled brain may carry any board field; the merged board is validated."""
     fields = ENTRY_FIELDS | COLLECTION_FIELDS["boards"] | {"review"}
-    _validate_fields(overlay, "record", {"id"}, fields - {"id"})
+    validate_fields(overlay, "record", {"id"}, fields - {"id"})
     review = overlay.get("review", {})
-    _validate_fields(review, "review", set(), {"specialists", *REVIEW_LIST_FIELDS})
+    validate_fields(review, "review", set(), {"specialists", *REVIEW_LIST_FIELDS})
     for key in (*BOARD_LIST_FIELDS, "specialists"):
         source = review if key == "specialists" else overlay
         if key in source:
-            _validate_list(source[key], key)
+            validate_list(source[key], key)
 
 
 def _load_entry(collection: str, path: Path, entry: Any, entries: dict, bundled: bool) -> tuple[dict, bool]:
@@ -497,10 +497,10 @@ def _load_entry(collection: str, path: Path, entry: Any, entries: dict, bundled:
     if overlay:
         _validate_overlay(entry)
         merged = merge_board(entries[record_id], entry)
-        _validate_entry(collection, merged)
+        validate_entry(collection, merged)
     else:
         # Only the project's own catalog may run commands: it already controls its check commands.
-        _validate_entry(collection, entry, bundled=bundled, allow_command=not bundled)
+        validate_entry(collection, entry, bundled=bundled, allow_command=not bundled)
         merged = entry
         if record_id in entries:
             raise CatalogError(f"duplicate {collection} ID {record_id!r}")
@@ -547,7 +547,7 @@ def board_replacements(catalog: dict) -> list[str]:
     return lines
 
 
-def _validate_dependencies(packs: dict[str, dict[str, Any]]) -> None:
+def validate_dependencies(packs: dict[str, dict[str, Any]]) -> None:
     graph = {pack_id: pack.get("depends_on", []) for pack_id, pack in packs.items()}
     for pack_id, dependencies in graph.items():
         missing = sorted(set(dependencies) - packs.keys())
@@ -585,7 +585,7 @@ def _read_records(collection: str, directory, entries: dict, bundled: bool, over
         if not path.name.endswith(".json"):
             continue
         try:
-            entry = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=_unique_fields)
+            entry = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_fields)
             entry, overlay = _load_entry(collection, path, entry, entries, bundled)
         except RecursionError as exc:
             raise CatalogError(f"{path}: JSON nested too deeply") from exc
@@ -651,7 +651,7 @@ def load_catalog(
 
     if central_policy is not None:
         commit, pack = central_policy
-        _validate_entry("packs", pack)
+        validate_entry("packs", pack)
         rules = pack["rules"]
         check = rule_check(rules[0]) if len(rules) == 1 else None
         if pack["id"] != EXPORT_EXPIRY_ID or check is None or check["kind"] != "field":
@@ -663,7 +663,7 @@ def load_catalog(
 
     if overlays:
         catalog["overlays"] = {"boards": sorted(overlays)}
-    _validate_dependencies(catalog["packs"])
+    validate_dependencies(catalog["packs"])
     for pattern_id, pattern in catalog["patterns"].items():
         unknown_packs = set(pattern["packs"]) - catalog["packs"].keys()
         if unknown_packs:

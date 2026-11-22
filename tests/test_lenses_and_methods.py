@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit.catalog import CatalogError, _validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.cli import main
 from openguildkit.patterns import is_stack_pattern
 from openguildkit.references import find_references, load_references
@@ -66,9 +66,9 @@ class LensScopeTests(unittest.TestCase):
         for value in (["payroll"], ["money", "money"], ["none"], []):
             lens["applies_to_concerns"] = value
             with self.subTest(value=value), self.assertRaisesRegex(CatalogError, "applies_to_concerns"):
-                _validate_entry("boards", board)
+                validate_entry("boards", board)
         lens["applies_to_concerns"] = ["money", "people-decisions"]
-        _validate_entry("boards", board)
+        validate_entry("boards", board)
 
 
 class BriefTests(unittest.TestCase):

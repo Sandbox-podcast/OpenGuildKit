@@ -10,7 +10,6 @@ import unicodedata
 from uuid import uuid4
 
 from . import clock
-from .brains import _task_words, _words
 from .detect import walk
 from .patterns import is_stack_pattern, pattern_selection
 from .relevance import BASELINE_PACKS, judge_rules, pack_relevance
@@ -94,7 +93,7 @@ _QUESTIONS = (
     ),
     (
         "surface",
-        "Which area will this task affect most?",
+        "Which areas will this task affect? Select every area that applies.",
         (
             ("customer", "Customer-facing experience"),
             ("service", "Backend service or data flow"),
@@ -160,8 +159,6 @@ def _choice_question(question_id: str, prompt: str, choices) -> dict:
     }
     if question_id in MULTIPLE:
         question["type"] = "multi-select"
-    if question_id == "surface":
-        question["prompt"] = "Which areas will this task affect? Select every area that applies."
     return question
 
 
@@ -469,9 +466,6 @@ def normalize_text(value: str) -> str:
     return " ".join(_SEPARATORS.sub(" ", _APOSTROPHES.sub("'", folded)).split())
 
 
-_normalized_words = normalize_text
-
-
 def normalize_with_offsets(value: str) -> tuple[str, list[int]]:
     """normalize_text, with the index in value of each character it returns, to quote the words as written."""
     pieces = []
@@ -759,9 +753,9 @@ def scan_triggers(boards: dict, text: str, enabled: set[str] | None = None) -> t
     return selected, {board_id: passages for board_id, passages in excluded.items() if board_id not in selected}
 
 
-def trigger_matches(boards: dict, text: str, enabled: set[str] | None = None) -> dict[str, list[str]]:
+def trigger_matches(boards: dict, text: str) -> dict[str, list[str]]:
     """Return the triggers that select each board; a negated trigger selects nothing (see scan_triggers)."""
-    selected, _ = scan_triggers(boards, text, enabled)
+    selected, _ = scan_triggers(boards, text)
     return {board_id: [trigger for trigger, _, _ in found] for board_id, found in selected.items()}
 
 
@@ -782,18 +776,6 @@ def task_concepts(text: str, answers: dict) -> list[dict]:
 
 def _trigger_reasons(found: list[tuple[str, str, str]]) -> list[str]:
     return [f"Brief mentions {trigger!r}: \"{passage}\"" + (f" ({note})" if note else "") for trigger, passage, note in found]
-
-
-def text_routes(boards: dict, text: str, enabled: set[str] | None = None) -> dict[str, list[str]]:
-    """Boards that the words of a brief select, with the reason: its triggers and the passage that names
-    them, then the concepts it describes."""
-    selected, _ = scan_triggers(boards, text, enabled)
-    routes = {board_id: _trigger_reasons(found) for board_id, found in selected.items()}
-    for concept in _concepts_in_text(text):
-        for board_id, reason in concept["boards"].items():
-            if board_id in boards and (enabled is None or board_id in enabled):
-                routes.setdefault(board_id, []).append(reason)
-    return routes
 
 
 # Words that say who a task serves when they come shortly before a declared role: "for our support agents",
@@ -874,6 +856,14 @@ def _task_text(task: dict, answers: dict) -> str:
     return " ".join([task["brief"], *(answers.get(field, "") for field in ("context", *FOLLOW_UPS))])
 
 
+def text_routes(boards: dict, brief: str, answers: dict | None = None,
+                enabled: set[str] | None = None) -> dict[str, list[str]]:
+    """Boards that the words of a task select, with the reason: the triggers and the passage that names them, the
+    brief and each free-text answer read apart, then the concepts the whole text describes. Every consultation
+    routes its texts here."""
+    return _text_reasons(boards, {"brief": brief}, answers or {}, set(boards if enabled is None else enabled))[0]
+
+
 def _text_reasons(boards: dict, task: dict, answers: dict, enabled: set[str]) -> tuple[dict, dict]:
     """The reasons the brief and answers give each board, and the passages that exclude boards."""
     reasons: dict[str, list[str]] = {}
@@ -914,7 +904,7 @@ def _route_boards(profile: dict, catalog: dict, task: dict, answers: dict) -> di
         for board_id, reason in concept["boards"].items():
             add(board_id, f"Concerns unsure, so this topic stays open: {reason}" if unsure else reason)
 
-    matches, _ = _text_reasons(boards, task, answers, enabled)
+    matches = text_routes(boards, task["brief"], answers, enabled)
     for board_id in sorted(matches):
         for reason in matches[board_id]:
             add(board_id, reason)
@@ -1763,18 +1753,6 @@ def storybook_references(scope: dict) -> frozenset:
         f"storybook:{story}" if index["ref"] == "project" else f"storybook:{index['ref']}_{story}"
         for index in storybook["indexes"] for story in index["stories"]
     )
-
-
-def _evidence_list(
-    value: object, field: str, structured: bool, market_refs: frozenset = frozenset(),
-    storybook_refs: frozenset = frozenset(), tool_ids: frozenset = frozenset(), root: Path | None = None,
-) -> list:
-    """Reviews made before structured evidence keep their text items."""
-    if not structured:
-        return _text_list(value, field)
-    if not isinstance(value, list):
-        raise ValueError(f"{field} must be a list.")
-    return [_evidence_item(item, field, market_refs, storybook_refs, tool_ids, root) for item in value]
 
 
 def _received(value: object) -> str:
