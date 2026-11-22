@@ -18,6 +18,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from . import clock
+from .detect import walk
 from .stack_versions import STORYBOOK_VERSION
 from .storage import json_text, project_lock, read_json, write_json, write_text
 
@@ -561,7 +562,6 @@ INVENTORY = "storybook/inventory.json"
 PROPOSALS = "storybook/proposals.json"
 MANIFEST = "storybook/generated.json"
 STATUSES = ("proposed", "validated", "rejected")
-SKIP_DIRS = {"node_modules", ".git", "dist", "build", "out", "coverage", "storybook-static", ".next", ".openguildkit"}
 MAX_FILE_BYTES = 1_000_000
 _NAME = r"[A-Z][A-Za-z0-9]*[a-z][A-Za-z0-9]*"
 _FUNCTION = re.compile(rf"^[ \t]*(export\s+(?:default\s+)?)?(?:async\s+)?function\s+({_NAME})\s*(?:<[^>()]*>)?\s*\(", re.M)
@@ -780,19 +780,18 @@ def _tag_attributes(text: str, start: int):
 
 
 def _source_files(sources: list[Path]):
-    """Each source file with the folder given for it, in POSIX path order on every system."""
+    """Each source file with the folder given for it, in POSIX path order on every system.
+
+    A folder is walked as every walk of the project is: dependencies, builds and caches are skipped.
+    """
     for base in sources:
         base = base.resolve()
         if base.is_file():
             yield base.parent, base
         elif base.is_dir():
-            files = []
-            for folder, dirs, names in os.walk(base):
-                dirs[:] = [name for name in dirs if name not in SKIP_DIRS]
-                files.extend(Path(folder) / name for name in names)
+            files = [folder / name for folder, _, names, _ in walk(base) for name in names]
             for path in sorted(files, key=lambda item: item.as_posix()):
-                if path.is_file():
-                    yield base, path
+                yield base, path
         else:
             raise ValueError(f"No such file or folder: {base.name}. Give a --src path that exists.")
 

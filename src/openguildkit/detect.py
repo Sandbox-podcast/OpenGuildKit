@@ -5,16 +5,21 @@ network, and the team confirms or corrects the proposal before it reaches the pr
 """
 
 import json
+import os
 import re
 import tomllib
 from pathlib import Path
 
 from .stack_versions import declared_version, version_key
 
-SKIPPED_DIRECTORIES = {
+# The folders no walk of the project enters: version control, OpenGuildKit's state, dependencies, virtual
+# environments, caches and build output. Detection, proposed checks, the code a bug brief names and Storybook
+# extraction all walk the tree with walk() below, so they all skip the same folders.
+SKIPPED_DIRECTORIES = frozenset({
     ".git", ".hg", ".svn", ".openguildkit", "node_modules", ".venv", "venv", "env", "__pycache__",
     "dist", "build", "target", "out", ".next", ".nuxt", "vendor", "coverage", ".tox", ".mypy_cache",
-}
+    "storybook-static",
+})
 MAX_DEPTH = 4
 MAX_MANIFEST_BYTES = 2_000_000
 
@@ -101,6 +106,39 @@ _KOTLIN_PLUGIN = re.compile(r"org\.jetbrains\.kotlin|kotlin\(\s*[\"']|kotlin-and
 _REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])?\s*([^;#]*)")
 _KUBE_API = re.compile(r"""(?m)^apiVersion:[ \t]+["']?(?:([a-z0-9.-]+)/)?v\d+(?:[a-z]+\d+)?["']?[ \t]*(?:#.*)?$""")
 _KUBE_KIND = re.compile(r"""(?m)^kind:[ \t]+["']?([A-Z][A-Za-z0-9]*)["']?[ \t]*(?:#.*)?$""")
+
+
+def walk(root: Path, max_depth: int | None = None):
+    """Each folder from root down, depth first in name order, as (folder, depth, files, folders).
+
+    files and folders are the names the folder holds, sorted. Symbolic links are neither followed nor listed, and
+    folders leaves out the names SKIPPED_DIRECTORIES gives, so a node_modules costs nothing however large it is.
+    The walk then enters the folders still in the list, down to max_depth: a caller removes a name from folders
+    to keep the walk out of that folder.
+    """
+    pending = [(root, 0)]
+    while pending:
+        folder, depth = pending.pop()
+        try:
+            with os.scandir(folder) as listing:
+                entries = sorted(listing, key=lambda entry: entry.name)
+        except OSError:
+            continue
+        files, folders = [], []
+        for entry in entries:
+            try:
+                if entry.is_symlink():
+                    continue
+                if entry.is_dir():
+                    if entry.name not in SKIPPED_DIRECTORIES:
+                        folders.append(entry.name)
+                elif entry.is_file():
+                    files.append(entry.name)
+            except OSError:
+                continue
+        yield folder, depth, files, folders
+        if max_depth is None or depth < max_depth:
+            pending.extend((folder / name, depth + 1) for name in reversed(folders))
 
 
 def _technology(name: str, version: str | None) -> str:
@@ -469,9 +507,9 @@ def _component_id(relative: str, taken: set[str]) -> str:
     return candidate
 
 
-def _kustomize_base(relative: str, entries: list[Path]) -> str:
+def _kustomize_base(relative: str, names: list[str]) -> str:
     """A Kustomize overlay or base folder (k2/overlays/prod, k2/base) belongs to the application above it."""
-    if not any(entry.name in ("kustomization.yaml", "kustomization.yml", "Kustomization") for entry in entries):
+    if not any(name in ("kustomization.yaml", "kustomization.yml", "Kustomization") for name in names):
         return relative
     parts = relative.split("/")
     layout = next((index for index, part in enumerate(parts) if part in ("overlays", "base", "bases")), None)
@@ -485,35 +523,31 @@ def detect_stack(root: Path) -> dict:
     root = root.resolve()
     components: dict[str, _Component] = {}
     gradle_roots: dict[Path, str] = {}
-
-    def visit(directory: Path, depth: int) -> None:
-        try:
-            entries = sorted(directory.iterdir(), key=lambda entry: entry.name)
-        except OSError:
-            return
+    # Each file and marker folder, keyed by its path parts: read in that order, a folder's entries come in name
+    # order with each subfolder's content in its place, so the first evidence of a technology stays the same.
+    found: list[tuple[tuple[str, ...], str, Path, str]] = []
+    for directory, depth, files, folders in walk(root, MAX_DEPTH):
         relative = directory.relative_to(root).as_posix() or "."
-        if any(entry.name in ("settings.gradle", "settings.gradle.kts") for entry in entries):
+        names = files + folders
+        if any(name in ("settings.gradle", "settings.gradle.kts") for name in names):
             for module in _gradle_modules(directory):
                 gradle_roots[module] = relative
-        relative = gradle_roots.get(directory, relative)
-        relative = _kustomize_base(relative, entries)
-        for entry in entries:
-            if entry.is_symlink():
-                continue
-            if entry.is_file():
-                component = components.setdefault(relative, _Component(relative))
-                label = entry.relative_to(root).as_posix()
-                _parse(component, entry, label, root)
-            elif entry.is_dir() and entry.name.endswith(".xcodeproj"):
-                component = components.setdefault(relative, _Component(relative))
-                _xcode_project(component, entry, entry.relative_to(root).as_posix())
-            elif entry.is_dir() and depth < MAX_DEPTH and entry.name not in SKIPPED_DIRECTORIES:
-                if entry.name == "wp-content":
-                    component = components.setdefault(relative, _Component(relative))
-                    component.add("WordPress", None, entry.relative_to(root).as_posix())
-                visit(entry, depth + 1)
-
-    visit(root, 0)
+        relative = _kustomize_base(gradle_roots.get(directory, relative), names)
+        found += [(entry.parts, "file", entry, relative) for entry in (directory / name for name in files)]
+        for name in [name for name in folders if name.endswith(".xcodeproj")]:
+            found.append(((directory / name).parts, "xcode", directory / name, relative))
+            folders.remove(name)
+        if "wp-content" in folders and depth < MAX_DEPTH:
+            found.append(((directory / "wp-content").parts, "wordpress", directory / "wp-content", relative))
+    for _, kind, entry, relative in sorted(found, key=lambda item: item[0]):
+        component = components.setdefault(relative, _Component(relative))
+        label = entry.relative_to(root).as_posix()
+        if kind == "file":
+            _parse(component, entry, label, root)
+        elif kind == "xcode":
+            _xcode_project(component, entry, label)
+        else:
+            component.add("WordPress", None, label)
     workflows = root / ".github" / "workflows"
     if workflows.is_dir() and any(path.suffix in (".yml", ".yaml") for path in workflows.iterdir()):
         components.setdefault(".", _Component(".")).add("GitHub Actions", None, ".github/workflows")

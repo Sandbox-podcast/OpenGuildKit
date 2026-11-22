@@ -4,10 +4,11 @@ Nothing is run here: the person confirms each proposed command before it becomes
 """
 
 import json
+import os
 import re
 from pathlib import Path
 
-from .detect import MAX_DEPTH, SKIPPED_DIRECTORIES
+from .detect import MAX_DEPTH, walk
 
 
 def _read(path: Path) -> str:
@@ -17,54 +18,69 @@ def _read(path: Path) -> str:
         return ""
 
 
-def _npm_script(directory: Path, name: str) -> str | None:
-    """A script of package.json, or None when it is missing or is the npm init placeholder."""
+def _file_names(directory: Path) -> set[str]:
+    """The files a folder holds, for a component folder the walk did not list."""
+    try:
+        with os.scandir(directory) as listing:
+            return {entry.name for entry in listing if entry.is_file() and not entry.is_symlink()}
+    except OSError:
+        return set()
+
+
+def _npm_scripts(directory: Path, names: set[str]) -> dict:
+    """The scripts of the folder's package.json; none when it has none or cannot be read."""
+    if "package.json" not in names:
+        return {}
     try:
         scripts = json.loads(_read(directory / "package.json") or "{}").get("scripts", {})
     except (ValueError, AttributeError):
-        return None
-    script = scripts.get(name) if isinstance(scripts, dict) else None
+        return {}
+    return scripts if isinstance(scripts, dict) else {}
+
+
+def _npm_script(scripts: dict, name: str) -> str | None:
+    """A script of package.json, or None when it is missing or is the npm init placeholder."""
+    script = scripts.get(name)
     if not isinstance(script, str) or not script.strip() or "no test specified" in script:
         return None
     return script
 
 
-def _npm_test(directory: Path) -> str | None:
-    """npm test when package.json has a test script other than the npm init placeholder."""
-    return "npm test" if _npm_script(directory, "test") else None
+PYTHON_MANIFESTS = ("pyproject.toml", "setup.cfg", "tox.ini", "requirements.txt", "requirements-dev.txt", "pytest.ini")
 
 
-def _python_test(directory: Path) -> tuple[str, str] | None:
+def _python_test(directory: Path, names: set[str]) -> tuple[str, str] | None:
     """pytest when the project names it, python -m unittest when it has a tests folder of test_*.py files."""
-    manifests = "\n".join(_read(directory / name) for name in (
-        "pyproject.toml", "setup.cfg", "tox.ini", "requirements.txt", "requirements-dev.txt", "pytest.ini"))
-    if (directory / "pytest.ini").is_file() or re.search(r"\bpytest\b", manifests):
+    manifests = "\n".join(_read(directory / name) for name in PYTHON_MANIFESTS if name in names)
+    if "pytest.ini" in names or re.search(r"\bpytest\b", manifests):
         return "python -m pytest", "pytest named in the project's Python manifests"
     tests = directory / "tests"
     if manifests.strip() and tests.is_dir() and any(tests.glob("test_*.py")):
         return "python -m unittest discover -s tests", "tests/test_*.py without pytest"
-    if any(path.is_file() for path in directory.glob("test_*.py")):
+    if any(name.startswith("test_") and name.endswith(".py") for name in names):
         return "python -m unittest discover", "test_*.py files in the folder itself, without pytest"
     return None
 
 
-def _command(directory: Path) -> tuple[str, str] | None:
-    """The test command a component's manifests show, with the evidence for it."""
-    npm = _npm_test(directory)
-    if npm:
-        return npm, "a test script in package.json"
-    python = _python_test(directory)
+def _command(directory: Path, names: set[str], scripts: dict) -> tuple[str, str] | None:
+    """The test command a component's manifests show, with the evidence for it.
+
+    names are the files the folder holds, and scripts those of its package.json, both read once per folder.
+    """
+    if _npm_script(scripts, "test"):
+        return "npm test", "a test script in package.json"
+    python = _python_test(directory, names)
     if python:
         return python
-    if (directory / "go.mod").is_file():
+    if "go.mod" in names:
         return "go test ./...", "go.mod"
-    if (directory / "Cargo.toml").is_file():
+    if "Cargo.toml" in names:
         return "cargo test", "Cargo.toml"
-    if (directory / "pom.xml").is_file():
-        return ("./mvnw test" if (directory / "mvnw").is_file() else "mvn test"), "pom.xml"
-    if any((directory / name).is_file() for name in ("build.gradle", "build.gradle.kts")):
-        return ("./gradlew test" if (directory / "gradlew").is_file() else "gradle test"), "a Gradle build file"
-    if any(directory.glob("*.sln")) or any(directory.glob("*.csproj")):
+    if "pom.xml" in names:
+        return ("./mvnw test" if "mvnw" in names else "mvn test"), "pom.xml"
+    if {"build.gradle", "build.gradle.kts"} & names:
+        return ("./gradlew test" if "gradlew" in names else "gradle test"), "a Gradle build file"
+    if any(name.endswith((".sln", ".csproj")) for name in names):
         return "dotnet test", "a .NET solution or project file"
     return None
 
@@ -74,51 +90,55 @@ MANIFESTS = ("package.json", "pyproject.toml", "setup.cfg", "tox.ini", "pytest.i
              "build.gradle", "build.gradle.kts")
 
 
-def _test_folders(root: Path) -> list[str]:
-    """Folders under root whose manifests name a test runner, though detection found no technology there,
-    such as a package.json that holds only a test script."""
-    folders = []
-
-    def visit(directory: Path, depth: int) -> None:
-        manifest = any((directory / name).is_file() for name in MANIFESTS) or any(directory.glob("*.csproj")) \
-            or any(directory.glob("*.sln"))
-        if manifest and _command(directory) is not None:
-            folders.append(directory.relative_to(root).as_posix() or ".")
-        if depth >= MAX_DEPTH:
-            return
-        try:
-            children = sorted(entry for entry in directory.iterdir() if entry.is_dir() and not entry.is_symlink())
-        except OSError:
-            return
-        for child in children:
-            if child.name not in SKIPPED_DIRECTORIES:
-                visit(child, depth + 1)
-
-    visit(root, 0)
-    return folders
+def _is_project(names: set[str]) -> bool:
+    return any(name in names for name in MANIFESTS) or any(name.endswith((".csproj", ".sln")) for name in names)
 
 
-def _covered_by_solution(path: str, paths: list[str], root: Path) -> bool:
+def _covered_by_solution(path: str, paths: list[str], listings: dict[str, set[str]]) -> bool:
     """A .NET project inside a folder whose solution dotnet test already runs."""
-    if not any((root / path).glob("*.csproj")) or any((root / path).glob("*.sln")):
+    def has(folder: str, suffix: str) -> bool:
+        return any(name.endswith(suffix) for name in listings.get(folder, ()))
+
+    if not has(path, ".csproj") or has(path, ".sln"):
         return False
     parts = path.split("/")
     ancestors = ["/".join(parts[:index]) or "." for index in range(len(parts))] if path != "." else []
-    return any(ancestor in paths and any((root / ancestor).glob("*.sln")) for ancestor in ancestors)
+    return any(ancestor in paths and has(ancestor, ".sln") for ancestor in ancestors)
 
 
 def propose_checks(root: Path, detected: dict) -> list[dict]:
     """The test command each component shows, and its lint script when package.json has one, run from that
-    component's folder. A .NET project that a solution above it covers gets no command of its own."""
+    component's folder. A .NET project that a solution above it covers gets no command of its own.
+
+    The folders whose manifests name a test runner count too, though detection found no technology there, such
+    as a package.json that holds only a test script. One walk of the tree lists them, and each folder's
+    manifests are read once.
+    """
+    listings, checks = {}, {}
+
+    def folder_checks(path: str) -> list[tuple[str, str]]:
+        if path not in checks:
+            names = listings[path] if path in listings else listings.setdefault(path, _file_names(root / path))
+            scripts = _npm_scripts(root / path, names)
+            found = [_command(root / path, names, scripts)]
+            if _npm_script(scripts, "lint"):
+                found.append(("npm run lint", "a lint script in package.json"))
+            checks[path] = found
+        return checks[path]
+
+    test_folders = []
+    for folder, _, files, _ in walk(root, MAX_DEPTH):
+        relative = folder.relative_to(root).as_posix() or "."
+        listings[relative] = set(files)
+        if _is_project(listings[relative]) and folder_checks(relative)[0] is not None:
+            test_folders.append(relative)
     paths = [component["path"] for component in detected.get("components", [])] or ["."]
-    paths = list(dict.fromkeys(["." if path in ("", ".") else path for path in paths] + _test_folders(root)))
+    paths = list(dict.fromkeys(["." if path in ("", ".") else path for path in paths] + test_folders))
     proposals = []
     for path in paths:
-        if _covered_by_solution(path, paths, root):
+        found = folder_checks(path)  # Lists the folder first if the walk did not reach it.
+        if _covered_by_solution(path, paths, listings):
             continue
-        found = [_command(root / path)]
-        if _npm_script(root / path, "lint"):
-            found.append(("npm run lint", "a lint script in package.json"))
         where = "" if path == "." else f"cd {path} && "
         proposals += [{"command": where + command, "evidence": f"{path}: {evidence}"}
                       for command, evidence in filter(None, found)]

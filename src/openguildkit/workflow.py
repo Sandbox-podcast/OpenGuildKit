@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from . import clock
 from .brains import _task_words, _words
+from .detect import walk
 from .patterns import is_stack_pattern, pattern_selection
 from .relevance import BASELINE_PACKS, pack_relevance
 from .sensitive import credential_problems, public_evidence_url, redact_credentials
@@ -1342,19 +1343,25 @@ _CODE_PATH = re.compile(r"(?<![\w/.-])((?:[\w.-]+/)*[\w-]+\.(?:" + "|".join(_COD
 _CODE_NAME = re.compile(r"`([A-Za-z_][\w.]{2,})(?:\(\))?`|(?<![\w.])([A-Za-z_]\w{2,})\(\)")
 # "function missingFn" in prose: a name written like code (camelCase or snake_case) after the word.
 _NAMED_FUNCTION = re.compile(r"\b(?:function|fonction|method|méthode)\s+([a-z_]\w*(?:[A-Z_]\w*)+)\b", re.IGNORECASE)
-_SKIPPED_FOLDERS = {".git", ".openguildkit", "node_modules", "dist", "build", "target", ".venv", "venv", "__pycache__"}
 MAX_SCANNED_FILES = 5000
 
 
 def _source_files(root: Path):
-    """The project's source files, at most MAX_SCANNED_FILES, outside dependency and build folders."""
+    """The project's source files, at most MAX_SCANNED_FILES, outside the folders every walk of the project skips
+    (dependencies, builds, caches): a large node_modules is never listed."""
     count = 0
-    for path in sorted(root.rglob("*")):
-        if count >= MAX_SCANNED_FILES:
-            return
-        if any(part in _SKIPPED_FOLDERS for part in path.relative_to(root).parts) or not path.is_file():
-            continue
-        if path.suffix[1:] in _CODE_SUFFIXES and path.stat().st_size <= 1_000_000:
+    for folder, _, files, _ in walk(root):
+        for name in files:
+            path = folder / name
+            if path.suffix[1:] not in _CODE_SUFFIXES:
+                continue
+            if count >= MAX_SCANNED_FILES:
+                return
+            try:
+                if path.stat().st_size > 1_000_000:
+                    continue
+            except OSError:
+                continue
             count += 1
             yield path
 
