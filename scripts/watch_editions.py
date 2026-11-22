@@ -1,6 +1,7 @@
 """Watch the edition of each bundled reference on its source page.
 
     python3 -I scripts/watch_editions.py --changes editions.json
+    python3 -I scripts/watch_editions.py --seed
 
 For each reference that declares an `edition`, the script opens its source pages in order
 and looks for the edition's text ("2022", "Rev. 5", "ISO 19005-1:2005") in the page, without
@@ -8,6 +9,11 @@ regard to case, spacing or HTML markup. It records in scripts/edition-watch.json
 reference, the page, the edition last seen there, the day it was seen and the day of the
 check. When an edition recorded as seen is no longer on the page, the reference is marked
 "may-have-changed": the edition may have changed, and a person opens the page to decide.
+
+An edition the watch has not seen yet starts from the catalog: a person read it on its
+sources on the latest `checked` date they carry, so that day counts as the first time it
+was seen ("seen_in": "catalog"). --seed writes that starting point for every reference
+without opening a page, and keeps what earlier runs observed.
 
 What this can and cannot tell. A page that rewrites or reformats its edition text ("Rev 5"
 instead of "Rev. 5") raises a false alarm. A publisher that keeps the old edition's page
@@ -42,13 +48,24 @@ _SPACE = re.compile(r"\s+")
 
 
 def watched(families: dict) -> list[dict]:
-    """The references that declare an edition, with their source pages, by ID."""
+    """The references that declare an edition, with their source pages and the last day a person checked one, by ID."""
     entries = [
         {"reference": record["id"], "family": family["id"], "edition": record["edition"],
-         "pages": [source["url"] for source in record["sources"]]}
+         "pages": [source["url"] for source in record["sources"]],
+         "checked": max((source["checked"] for source in record["sources"] if source.get("checked")), default=None)}
         for family in families.values() for record in family["references"] if record.get("edition")
     ]
     return sorted(entries, key=lambda entry: entry["reference"])
+
+
+def first_observation(entry: dict, previous: dict) -> dict:
+    """When the edition was last seen: on its page by an earlier run, or, for an edition the watch has not seen,
+    on the day the catalog says a person checked the reference's sources."""
+    if previous.get("seen") == entry["edition"]:
+        return {key: previous.get(key) for key in ("seen", "seen_on", "seen_in")}
+    if entry["checked"]:
+        return {"seen": entry["edition"], "seen_on": entry["checked"], "seen_in": "catalog"}
+    return {"seen": previous.get("seen"), "seen_on": previous.get("seen_on"), "seen_in": previous.get("seen_in")}
 
 
 def fetch(url: str, timeout: float = 30) -> dict:
@@ -83,7 +100,7 @@ def _answered(result: dict) -> bool:
 def observe(entry: dict, previous: dict, fetcher, day: str) -> dict:
     """The new state of one reference after opening its pages."""
     record = {"family": entry["family"], "edition": entry["edition"], "page": entry["pages"][0],
-              "seen": previous.get("seen"), "seen_on": previous.get("seen_on"), "checked": day}
+              **first_observation(entry, previous), "checked": day}
     if previous.get("page") in entry["pages"]:
         record["page"] = previous["page"]
     answered = False
@@ -93,10 +110,10 @@ def observe(entry: dict, previous: dict, fetcher, day: str) -> dict:
             continue
         answered = True
         if shows_edition(page_text(result["text"]), entry["edition"]):
-            return {**record, "page": url, "seen": entry["edition"], "seen_on": day, "status": "found"}
+            return {**record, "page": url, "seen": entry["edition"], "seen_on": day, "seen_in": "page", "status": "found"}
     if not answered:
         return {**record, "status": "unreachable"}
-    status = CHANGED if previous.get("seen") == entry["edition"] else "not-found"
+    status = CHANGED if record["seen"] == entry["edition"] else "not-found"
     return {**record, "status": status}
 
 
@@ -113,18 +130,42 @@ def watch(families: dict, state: dict, fetcher=fetch, day: str | None = None) ->
     }
 
 
+def seed(families: dict, state: dict) -> dict:
+    """The watch file without opening a page: what earlier runs observed of the same edition on the same page is
+    kept, and any other reference starts from the catalog's checked date, so the next run can tell when the
+    edition is gone from its page."""
+    known = state.get("references", {})
+    references = {}
+    for entry in watched(families):
+        previous = known.get(entry["reference"], {})
+        if (previous.get("seen") == entry["edition"] and previous.get("page") in entry["pages"]
+                and previous.get("status") not in (None, "not-checked")):
+            references[entry["reference"]] = previous
+            continue
+        start = first_observation(entry, {}) if entry["checked"] else {"seen": None, "seen_on": None, "seen_in": None}
+        references[entry["reference"]] = {
+            "family": entry["family"], "edition": entry["edition"], "page": entry["pages"][0], **start,
+            "checked": None, "status": "from-catalog" if entry["checked"] else "not-checked",
+        }
+    return {"schema_version": 1, "references": references}
+
+
 def issue(reference: str, record: dict) -> dict:
     """The title and body of the issue that asks a person to open the page."""
+    if record.get("seen_in") == "catalog":
+        seen = (f"The catalog records it as read on {record['seen_on']}; the watch has not found it on the page since "
+                "(a page built by scripts or served as a PDF can hide it from this reader)")
+    else:
+        seen = f"It was last seen there on {record['seen_on']}"
     body = (
         f"The page {record['page']} no longer shows the edition \"{record['edition']}\" that the catalog cites "
-        f"for the reference {record['family']}/{reference}. It was last seen there on {record['seen_on']}; "
-        f"checked {record['checked']}.\n\n"
+        f"for the reference {record['family']}/{reference}. {seen}; checked {record['checked']}.\n\n"
         "The edition may have changed. Open the page and decide:\n\n"
         "- A new edition is out: update the reference's `edition` and its source `checked` date, review the packs "
-        "and rules that cite it (see the link report), then run `python3 -I scripts/watch_editions.py` and commit "
-        "`scripts/edition-watch.json`.\n"
-        "- The page only rewrote or moved the edition text: run the script and commit the file, or point the "
-        "reference at the page that names the edition.\n\n"
+        "and rules that cite it (see the link report), then run `python3 -I scripts/watch_editions.py --seed` and "
+        "commit `scripts/edition-watch.json`.\n"
+        "- The page only rewrote, moved or hides the edition text: point the reference at a page that names the "
+        "edition and date that source, then run the same command and commit the file.\n\n"
         "This check compares text only: it can raise a false alarm, and it cannot see a new edition published "
         "on another page."
     )
@@ -157,13 +198,21 @@ def main(argv=None) -> int:
     parser.add_argument("--state", type=Path, default=STATE, help="The watch file to read and update.")
     parser.add_argument("--changes", type=Path, help="Write the references whose edition may have changed, as JSON.")
     parser.add_argument("--timeout", type=float, default=30, help="Seconds to wait for each page.")
+    parser.add_argument("--seed", action="store_true",
+                        help="Open no page: record the catalog's checked date for each edition not seen yet.")
     args = parser.parse_args(argv)
     try:
-        state = watch(load_references(), read_state(args.state), lambda url: fetch(url, args.timeout))
+        if args.seed:
+            state = seed(load_references(), read_state(args.state))
+        else:
+            state = watch(load_references(), read_state(args.state), lambda url: fetch(url, args.timeout))
     except ValueError as error:
         print(f"watch_editions: {error}", file=sys.stderr)
         return 1
     write_json(args.state, state)
+    if args.seed:
+        print(f"{len(state['references'])} references with an edition seeded from the catalog; no page opened.")
+        return 0
     found = changes(state)
     if args.changes:
         write_json(args.changes, found)

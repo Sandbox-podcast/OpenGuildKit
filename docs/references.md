@@ -144,3 +144,15 @@ A reference, the packs built on it and the pattern that applies them name each o
 Save this example as `team-practices.json` and replace the example URL with the source your team uses. Sources follow the [catalog rules](catalog-format.md#rules-common-to-all-records): HTTPS, the canonical page, no tracking parameter, and `checked`, the day you opened the page and checked the entry against it ([source dates](catalog-format.md#source-dates)). To extend a bundled family locally, use its existing family ID and title in your file, and include only the new entries. Reference IDs must be unique across all families. Run `openguildkit references` to validate the result.
 
 For pack fields and verification examples, see the [catalog format](catalog-format.md).
+
+## Edition watch
+
+Every Monday the `Watch reference editions` workflow opens the source pages of each bundled reference that declares an `edition`, and opens an issue titled `Edition may have changed: ID` when the edition is no longer on its page. [Source dates](catalog-format.md#source-dates) says what this text comparison can miss or raise by mistake.
+
+The watch starts from `scripts/edition-watch.json`, which the repository keeps seeded from the catalog. An edition the watch has not yet found on its page counts as seen on the latest `checked` date of the reference's sources, the day a person read it there (`"seen_in": "catalog"`, status `from-catalog`). So the first weekly run already reports an edition that is gone, and the workflow changes no file: it keeps its updated copy of the watch file as an artifact.
+
+Who commits the watch file, and when:
+
+- **A contributor who adds a reference with an edition, or changes a reference's `edition` or sources,** runs `python3 -I scripts/watch_editions.py --seed` and commits the file in the same pull request. The seed opens no page: it keeps what the watch observed for the same edition on the same page and starts every other reference from the catalog. `tests/test_edition_watch.py` fails while a reference is missing from the file, cites another edition, or waits for a first observation.
+- **The maintainer who closes an `Edition may have changed` issue** updates the reference (its `edition`, or a source page that shows it, with that source's `checked` date), then runs the same command and commits the file with that change.
+- **Committing the weekly artifact is optional.** It replaces catalog dates with the days the watch found each edition on its page, which makes a later alarm say "last seen there on" a more recent day. A maintainer who wants that downloads the artifact of the latest run and commits it as is.
