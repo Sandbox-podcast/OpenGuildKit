@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from datetime import date, timedelta
+from functools import lru_cache
 import json
 from pathlib import Path
 import re
@@ -448,11 +449,27 @@ def normalize_with_offsets(value: str) -> tuple[str, list[int]]:
     return "".join(characters), offsets
 
 
+@lru_cache(maxsize=None)
+def _trigger_words(trigger: str) -> tuple[str, ...]:
+    return tuple(normalize_text(trigger).split(" "))
+
+
+@lru_cache(maxsize=None)
 def trigger_pattern(trigger: str) -> re.Pattern:
-    """Match a trigger as whole words, allowing a regular plural on each word."""
-    words = normalize_text(trigger).split(" ")
-    parts = [re.escape(word) + (_PLURAL if word[-1:].isalpha() else "") for word in words]
+    """Match a trigger as whole words, allowing a regular plural on each word.
+
+    Compiled once per process: the catalog holds more triggers than the re module caches, so reading each
+    brief would otherwise compile them all again."""
+    parts = [re.escape(word) + (_PLURAL if word[-1:].isalpha() else "") for word in _trigger_words(trigger)]
     return re.compile(r"(?<![\w-])" + r"\s+".join(parts) + r"(?![\w-])")
+
+
+def _trigger_matches(trigger: str, normalized: str):
+    """The matches of a trigger in a normalized text. A trigger matches only where each of its words is
+    written, so a trigger with a word absent from the text is not compiled at all."""
+    if not all(word in normalized for word in _trigger_words(trigger)):
+        return ()
+    return trigger_pattern(trigger).finditer(normalized)
 
 
 # A trigger preceded in its clause, within NEGATION_WINDOW words, by one of these words is mentioned as
@@ -657,7 +674,7 @@ def scan_triggers(boards: dict, text: str, enabled: set[str] | None = None) -> t
     sources += [(board_id, trigger) for board_id in sorted(enabled if enabled is not None else boards)
                 for trigger in boards[board_id]["triggers"]]
     for board_id, trigger in sources:
-        for match in trigger_pattern(trigger).finditer(normalized):
+        for match in _trigger_matches(trigger, normalized):
             candidates.append((match.end() - match.start(), match.start(), match.end(), board_id or "", trigger))
     claimed: set[tuple[int, int, str]] = set()
     kept = []
