@@ -3,8 +3,9 @@
 When SOURCE_DATE_EPOCH is set, following the reproducible-builds convention, its value in
 seconds since 1970-01-01 UTC replaces the current time in now(), today() and timestamp(), so a
 replay writes the same dates on any day; the first use in a process says so on stderr. Decisions
-that depend on time (a share's end, a waiver's length, an approval's age) read real_now() and
-real_today(), which the variable never changes. Measuring a duration uses time.monotonic instead.
+that depend on time (a share's end, a waiver's length, an approval's age, the age of a market
+observation or a Storybook index, a date in the future) read real_now() and real_today(), which
+the variable never changes. Measuring a duration uses time.monotonic instead.
 """
 
 import os

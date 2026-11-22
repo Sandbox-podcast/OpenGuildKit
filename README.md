@@ -117,19 +117,21 @@ openguildkit task challenge request-status
 - `task deliberate` lists the objections between boards that disagree. With `task respond`, each board maintains, amends or concedes.
 - `task challenge` prints the decision brief the agent shows you: verdicts, objections, blockers and the checks that could change the decision.
 
-**3. Decide.** `task clear` and `task decide` are yours. The agent proposes the evidence, but it never runs these commands for you.
+**3. Decide.** `task clear`, `task decide` and `task revoke` are yours. The agent proposes the evidence, but it never runs these commands for you.
 
 ```bash
 openguildkit task blockers request-status
 openguildkit task clear request-status security:1 --evidence tests/test_access.py --supports "Cross-account access is refused" --by "Camille Martin"
 openguildkit task decide request-status --approve --by "Camille Martin" --reason "Read-only scope agreed with support"
 openguildkit task decide request-status --request-changes --by "Camille Martin" --reason "Include the empty state in scope"
+openguildkit task revoke request-status --by "Camille Martin" --reason "Support moves the portal to another team"
 ```
 
 - `task blockers` lists the blockers the boards set, with their owner and what clears them.
 - `task clear` clears a blocker with evidence, a project file or a link. A blocker of phase `verification` is a condition of approval: you approve first, and clear it once the code exists.
 - `task decide --approve` shows the decision brief and asks you to type the task ID. The approval is sealed.
 - `task decide --request-changes` sends the task back to scoping, and its history is kept.
+- `task revoke` withdraws an approval when the work is abandoned or a condition of the approval cannot be met: the task goes back to changes requested, and the guard stops covering its edits.
 
 **4. Deliver and close.**
 

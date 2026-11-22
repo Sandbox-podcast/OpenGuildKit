@@ -22,7 +22,7 @@ AGENTS = REPO / "src" / "openguildkit" / "agent_files" / "agents"
 JOURNEY = {
     "scope": {"new", "questions", "route", "consult"},
     "consult": {"pass", "submit", "progress", "review", "deliberate", "respond", "challenge"},
-    "decide": {"blockers", "clear", "decide"},
+    "decide": {"blockers", "clear", "decide", "revoke"},
     "deliver": {"handoff", "verify", "result", "complete", "export"},
 }
 COMMAND = re.compile(r"openguildkit task ([a-z-]+)")
@@ -114,7 +114,7 @@ class JourneyTests(unittest.TestCase):
             self.assertIn(words, help_text)
         chart = (REPO / "docs" / "workflow.md").read_text(encoding="utf-8").split("```mermaid", 1)[1].split("```")[0]
         for words in ("task pass", "task submit", "task review", "task decide", "task handoff", "task verify",
-                      "task result", "task complete", "task export"):
+                      "task result", "task complete", "task export", "task revoke"):
             self.assertIn(words, chart)
 
 

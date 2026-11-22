@@ -11,6 +11,7 @@ flowchart LR
     D -- "--approve" --> H["5. task handoff"]
     H --> V["6. task verify<br/>+ task result"]
     V --> C["task complete<br/>+ task export"]
+    H -- "task revoke (the person)" --> Q
 ```
 
 ## 1. Open a task

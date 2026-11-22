@@ -126,8 +126,8 @@ class MalformedDossierTests(unittest.TestCase):
                 validate_dossier(self.broken(change), "support-portals")
 
     def test_dates_after_tomorrow_are_refused(self):
-        later = (clock.today() + timedelta(days=2)).isoformat()
-        tomorrow = (clock.today() + timedelta(days=1)).isoformat()
+        later = (clock.real_today() + timedelta(days=2)).isoformat()
+        tomorrow = (clock.real_today() + timedelta(days=1)).isoformat()
         for change in (lambda d: d["observations"][0]["source"].update(date=later),
                        lambda d: d["watch"]["sources"][0].update(last_checked=later),
                        lambda d: d["watch"]["changes"][0].update(date=later)):
@@ -171,7 +171,7 @@ class MarketCommandTests(unittest.TestCase):
         self.assertFalse(any("Describe" in gap for gap in json.loads(self.cli("market", "check", "nope", "--json"))["gaps"]))
 
     def test_commands_record_observations_changes_and_last_checked(self):
-        today = clock.today().isoformat()
+        today = clock.real_today().isoformat()
         self.cli("market", "new", "portals", "--market", "B2B help desks", "--audience", "Support leads", "--feature", "Status")
         self.cli("market", "competitor", "portals", "--competitor", "vendor-a", "--name", "Vendor A", "--kind", "direct")
         self.assertIn("--kind is direct or substitute",
@@ -360,6 +360,6 @@ class MarketLayoutAndRelevanceTests(unittest.TestCase):
         self.cli("market", "provided", "support-portals", "--url", self.URL, "--by", "Camille Martin")
         source = json.loads(self.path.read_text(encoding="utf-8"))["watch"]["sources"][0]
         self.assertEqual(source["provided_by"], "Camille Martin")
-        self.assertEqual(source["last_checked"], clock.today().isoformat())
+        self.assertEqual(source["last_checked"], clock.real_today().isoformat())
         self.assertEqual(self.cli("market", "due", "support-portals").strip(), "No source due for review.")
         self.assertFalse(any(gap.startswith("- Change 1") for gap in self.cli("market", "check", "support-portals").splitlines()))

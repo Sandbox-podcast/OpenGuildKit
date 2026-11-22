@@ -12,9 +12,11 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from openguildkit import tools_cli, webui
 from openguildkit.cli import _parser, main
+from openguildkit.hosts import approval_warning
 from openguildkit.shell import shell_command, shell_word
 from openguildkit.storage import write_json
 
@@ -196,6 +198,23 @@ class QuotingTests(Project):
         words = powershell_words(line) if os.name == "nt" else shlex.split(line)
         self.assertEqual(words, ["openguildkit", "task", "consult", "q1", "--answers",
                                  (self.root / "answers.json").as_posix(), "--add", "frontend", "--reason", REASON])
+
+
+class ApprovalWarningTests(Project):
+    def test_the_unsigned_approval_warning_names_the_command_that_requires_signatures(self):
+        warning = approval_warning({"guard": "enforce"})
+        self.assertNotIn('"approval": {', warning)
+        start = warning.index("openguildkit profile set")
+        command = warning[start:warning.index(" (docs/", start)]
+        self.assertEqual(command, "openguildkit profile set approval signed --signers PATH --approver NAME --by NAME "
+                                  "--reason WHY")
+        values = {"PATH": ".openguildkit/allowed_signers", "NAME": "camille@example.test", "WHY": "The guard enforces"}
+        words = [values.get(word, word) for word in command.split()[1:]]
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value="signed"):
+            self.cli(*words)
+        profile = json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
+        self.assertEqual(profile["approval"]["mode"], "signed")
+        self.assertIsNone(approval_warning({**profile, "guard": "enforce"}))
 
 
 if __name__ == "__main__":

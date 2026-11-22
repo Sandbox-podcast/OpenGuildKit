@@ -487,9 +487,10 @@ def import_indexes(root: Path, state: Path, project_index: Path | None = None, c
                    today: date | None = None) -> dict:
     """Compare the company Storybook with the project's, report what to map, and record the known stories.
 
-    Only .openguildkit/storybook.json is written: the project's stories and configuration stay as they are.
+    Only .openguildkit/storybook.json is written: the project's stories and configuration stay as they are. The day
+    an index is recorded is the real one, from which its age is counted.
     """
-    today = today or clock.today()
+    today = today or clock.real_today()
     ref = ref_id(ref)
     if ref == PROJECT_REF:
         raise ValueError(f"{PROJECT_REF} is reserved for the project's own Storybook.")
@@ -542,7 +543,7 @@ def scope_entry(state: Path, today: date | None = None) -> dict | None:
     record = load_record(state)
     if not record:
         return None
-    today = today or clock.today()
+    today = today or clock.real_today()
     return {
         "record": f"{state.name}/{RECORD}",
         "cite": "storybook:STORY_ID for the project's stories, storybook:REF_STORY_ID for a composed Storybook. "

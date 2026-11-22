@@ -57,7 +57,10 @@ refused in the task's status names the command that runs next.
    `openguildkit task decide ID --approve --by NAME --reason TEXT` or
    `openguildkit task decide ID --request-changes --by NAME --reason TEXT`.
    Propose the evidence; never clear, waive or approve yourself. After a
-   change request, update the answers and consult again.
+   change request, update the answers and consult again. When the work is
+   abandoned or a condition of the approval cannot be met, the person
+   withdraws the approval in their terminal with
+   `openguildkit task revoke ID --by NAME --reason WHY`; never run it.
 4. Deliver and close. Implement only once `openguildkit task handoff ID`
    returns an approved handoff, within its scope and checks. Then run
    `openguildkit task verify ID`, fill the file of
@@ -1619,14 +1622,14 @@ _LOCATION = re.compile(r"(?:::.*|#.*|:\d+(?:-\d+)?)$")
 
 
 def _evidence_day(value: object, field: str) -> str:
-    """A real YYYY-MM-DD date that is not in the future (one day of margin for time zones)."""
+    """A real YYYY-MM-DD date that is not in the future on the real clock (one day of margin for time zones)."""
     if not isinstance(value, str) or not _DATE.fullmatch(value):
         raise ValueError(f"{field}: got {_received(value)}; write the date YYYY-MM-DD.")
     try:
         day = date.fromisoformat(value)
     except ValueError:
         raise ValueError(f"{field}: {value} is not a real date. Write it YYYY-MM-DD.") from None
-    if day > clock.today() + timedelta(days=1):
+    if day > clock.real_today() + timedelta(days=1):
         raise ValueError(f"{field}: {value} is in the future. Write the day the evidence was observed.")
     return value
 

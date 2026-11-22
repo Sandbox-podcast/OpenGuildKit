@@ -78,6 +78,8 @@ In a project with signed approvals, give the user `openguildkit task decision-pa
 
 Never run `task decide --approve` yourself, and never try to feed it input. Run `--request-changes` only when the user explicitly tells you to, with the name and reason they give. After a change request, update the answers and go back to step 1.4.
 
+An approval is withdrawn the same way, by the user at their terminal, when the work is abandoned or a condition of the approval cannot be met: `openguildkit task revoke ID --by NAME --reason WHY`. The task goes back to changes requested and the guard stops covering its edits; then consult it again, or open a linked task. Never run it yourself.
+
 ### 5. Implement the handoff
 
 When the user says they approved, run `openguildkit task handoff ID`. Implement only the approved scope, follow the rule packs and conventions in the handoff, run the project checks it lists and report their results. If the handoff fails because the approval no longer holds, show the user its message and the command it names, and ask before consulting again. Bring any scope change back to the user before doing it.

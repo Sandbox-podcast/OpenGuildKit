@@ -121,19 +121,21 @@ openguildkit task challenge statut-demandes
 - `task deliberate` liste les objections entre boards en désaccord. Avec `task respond`, chaque board maintient, amende ou cède.
 - `task challenge` imprime la note de décision que l'agent te montre : verdicts, objections, points bloquants et vérifications qui pourraient changer la décision.
 
-**3. Décider.** `task clear` et `task decide` sont à toi. L'agent te propose les preuves, mais il ne lance jamais ces commandes à ta place.
+**3. Décider.** `task clear`, `task decide` et `task revoke` sont à toi. L'agent te propose les preuves, mais il ne lance jamais ces commandes à ta place.
 
 ```bash
 openguildkit task blockers statut-demandes
 openguildkit task clear statut-demandes security:1 --evidence tests/test_access.py --supports "L'accès à un autre compte est refusé" --by "Camille Martin"
 openguildkit task decide statut-demandes --approve --by "Camille Martin" --reason "Périmètre en lecture seule validé"
 openguildkit task decide statut-demandes --request-changes --by "Camille Martin" --reason "Ajouter l'écran sans demande"
+openguildkit task revoke statut-demandes --by "Camille Martin" --reason "Le portail passe à une autre équipe"
 ```
 
 - `task blockers` liste les points bloquants posés par les boards, avec leur responsable et ce qui les lève.
 - `task clear` lève un point bloquant avec une preuve, un fichier du projet ou un lien. Un point de phase `verification` est une condition de l'approbation : tu approuves avant, et tu le lèves une fois le code écrit.
 - `task decide --approve` affiche la note de décision et te demande de taper l'identifiant de la tâche. L'approbation est scellée.
 - `task decide --request-changes` renvoie la tâche au cadrage, et l'historique est gardé.
+- `task revoke` retire une approbation quand le travail est abandonné ou qu'une condition de l'approbation ne peut pas être remplie : la tâche repasse en changements demandés, et le garde-fou ne couvre plus ses modifications.
 
 **4. Réaliser et clore.**
 
