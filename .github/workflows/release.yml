@@ -1,7 +1,8 @@
 name: Release assets
 
-# Builds the wheel and the Node archive from the tagged commit, writes SHA256SUMS.txt and attaches
-# the three files to the release of the tag. A maintainer reviews and publishes the release.
+# Builds the web interface, the wheel that ships it and the Node archive from the tagged commit, writes
+# SHA256SUMS.txt and attaches the three files to the release of the tag. A maintainer reviews and
+# publishes the release.
 on:
   push:
     tags: ["v*"]
@@ -28,7 +29,7 @@ jobs:
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "22"
+          node-version: "24"
 
       - name: Refuse a tag that does not match the versions in the repository
         run: |
@@ -38,12 +39,29 @@ jobs:
           printf 'Tag %s, pyproject.toml %s, package.json %s\n' "$GITHUB_REF_NAME" "$python" "$node"
           test "$version" = "$python" && test "$version" = "$node"
 
-      - name: Build the wheel and the Node archive, then write their hashes
+      # The same three steps as the package job of ci.yml, which installs and runs the wheel they build
+      # (tests/test_release.py compares them).
+      - name: Build the web interface into the package
+        working-directory: web
+        run: |
+          npm ci --ignore-scripts
+          npm run build
+          npm run bundle
+
+      - name: Build the wheel
+        run: |
+          python -m pip install build
+          python -m build --wheel --outdir dist
+
+      - name: Check that the wheel holds the web interface
+        run: python -m zipfile -l dist/openguildkit-*-py3-none-any.whl | grep -F openguildkit/web_dist/index.html
+
+      - name: Build the Node archive, then write the hashes of the assets
         run: |
           version="${GITHUB_REF_NAME#v}"
-          python -m pip install build
-          python -m build --wheel --outdir release
-          npm pack ./integrations/ci --pack-destination release
+          mkdir release
+          cp "dist/openguildkit-$version-py3-none-any.whl" release/
+          npm pack ./integrations/ci --ignore-scripts --pack-destination release
           cd release
           sha256sum "openguildkit-$version-py3-none-any.whl" "openguildkit-$version.tgz" > SHA256SUMS.txt
           cat SHA256SUMS.txt
@@ -77,7 +95,7 @@ jobs:
           cd release
           if ! gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
             gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "$GITHUB_REF_NAME" \
-              --notes "Copy the reviewed notes of the openguildkit-next draft here before publishing."
+              --notes "Copy the section of this version from CHANGELOG.md here before publishing."
           fi
           gh release upload "$GITHUB_REF_NAME" \
             "openguildkit-$VERSION-py3-none-any.whl" "openguildkit-$VERSION.tgz" SHA256SUMS.txt

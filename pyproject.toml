@@ -4,24 +4,40 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openguildkit"
-version = "0.16.1"
+version = "0.17.0"
 description = "Project rules and specialist reviews for AI-assisted work."
-readme = "README.md"
+# The description of the package page: links are absolute, so they work outside GitHub.
+readme = "docs/package-description.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
+authors = [{ name = "OpenGuildKit contributors" }]
 keywords = ["coding-agents", "project-governance", "sdlc"]
+# The Python versions are those of the CI test matrix; tests/test_release.py compares them.
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Topic :: Software Development",
+  "Topic :: Software Development :: Quality Assurance",
 ]
 
 [project.scripts]
 openguildkit = "openguildkit.cli:main"
 
 [project.urls]
+Documentation = "https://github.com/Sandbox-podcast/OpenGuildKit/tree/main/docs"
+Changelog = "https://github.com/Sandbox-podcast/OpenGuildKit/blob/main/CHANGELOG.md"
 Repository = "https://github.com/Sandbox-podcast/OpenGuildKit"
 Issues = "https://github.com/Sandbox-podcast/OpenGuildKit/issues"
 

@@ -29,8 +29,8 @@ jobs:
         # Set the release your project uses and the wheel's hash from that release's SHA256SUMS.txt
         # (docs/install.md). The step fails until the hash matches the downloaded wheel.
         env:
-          OPENGUILDKIT_TAG: v0.16.1
-          OPENGUILDKIT_WHEEL: openguildkit-0.16.1-py3-none-any.whl
+          OPENGUILDKIT_TAG: v0.17.0
+          OPENGUILDKIT_WHEEL: openguildkit-0.17.0-py3-none-any.whl
           OPENGUILDKIT_WHEEL_SHA256: replace-with-the-wheel-hash-from-SHA256SUMS.txt
         run: |
           curl -fsSL -o "$RUNNER_TEMP/$OPENGUILDKIT_WHEEL" \

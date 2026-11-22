@@ -4,8 +4,10 @@
 
 ## Lancer
 
+OpenGuildKit n'est pas sur PyPI : installe la roue d'une release GitHub, qui embarque l'interface construite ([installation](../../docs/install.md)).
+
 ```bash
-pip install openguildkit          # le paquet embarque l'interface construite
+pipx install ./openguildkit-X.Y.Z-py3-none-any.whl
 cd mon-projet
 openguildkit ui                   # http://127.0.0.1:7311, ouvre le navigateur
 openguildkit ui --port 0 --no-browser
@@ -76,11 +78,11 @@ Le code du mode réel est dans `src/project/` : le client de l'API (`api.ts`), l
 ## Empaqueter
 
 ```bash
-cd web && npm ci && npm run build && npm run bundle   # copie dist/ dans src/openguildkit/web_dist
-python -m build
+cd web && npm ci --ignore-scripts && npm run build && npm run bundle   # copie dist/ dans src/openguildkit/web_dist
+python -m build --wheel
 ```
 
-Le job CI `package` fait ces étapes et vérifie que la wheel installée trouve l'interface. Dans un dépôt source, le serveur prend la plus récente des deux : `web/dist` ou la copie de `web_dist`.
+La release (`.github/workflows/release.yml`) et le job CI `package` font ces étapes, et refusent une roue sans `openguildkit/web_dist/index.html`. Le job `package` installe ensuite la roue sur Linux, macOS et Windows (avec `pipx` sous Windows) et vérifie que `openguildkit ui` répond 200 sur `/` avec chaque script de la page (`.github/scripts/check-installed-cli.py`). Dans un dépôt source, le serveur prend la plus récente des deux : `web/dist` ou la copie de `web_dist`.
 
 ## Performances
 

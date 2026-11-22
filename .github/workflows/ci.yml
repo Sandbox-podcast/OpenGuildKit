@@ -81,6 +81,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
+      # The same three steps as the build job of release.yml (tests/test_release.py compares them).
       - name: Build the web interface into the package
         working-directory: web
         run: |
@@ -88,30 +89,51 @@ jobs:
           npm run build
           npm run bundle
 
-      - name: Build
+      - name: Build the wheel
         run: |
           python -m pip install build
-          python -m build
+          python -m build --wheel --outdir dist
 
-      - name: Install the wheel in a clean environment and set up a test project
+      - name: Check that the wheel holds the web interface
+        run: python -m zipfile -l dist/openguildkit-*-py3-none-any.whl | grep -F openguildkit/web_dist/index.html
+
+      - name: Check the package metadata and its README
         run: |
-          python -m venv "$RUNNER_TEMP/wheel-env"
-          if [ -x "$RUNNER_TEMP/wheel-env/bin/python" ]; then bin="$RUNNER_TEMP/wheel-env/bin"; else bin="$RUNNER_TEMP/wheel-env/Scripts"; fi
-          "$bin/python" -m pip install dist/*.whl
+          python -m pip install twine
+          python -m twine check --strict dist/*
+
+      # docs/install.md has teams install the wheel with pipx or uv: pipx on Windows, a fresh virtual
+      # environment on Linux and macOS.
+      - name: Install the wheel in a clean environment
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            python -m pip install pipx
+            export PIPX_HOME="$RUNNER_TEMP/pipx" PIPX_BIN_DIR="$RUNNER_TEMP/pipx-bin"
+            python -m pipx install dist/*.whl
+            echo "OPENGUILDKIT=$PIPX_BIN_DIR/openguildkit" >> "$GITHUB_ENV"
+          else
+            python -m venv "$RUNNER_TEMP/wheel-env"
+            "$RUNNER_TEMP/wheel-env/bin/python" -m pip install dist/*.whl
+            echo "OPENGUILDKIT=$RUNNER_TEMP/wheel-env/bin/openguildkit" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run the installed command and its web interface
+        run: python .github/scripts/check-installed-cli.py -- "$OPENGUILDKIT"
+
+      - name: Set up a test project with the installed command
+        run: |
           project="$RUNNER_TEMP/test-project"
           mkdir -p "$project"
           cd "$project"
-          "$bin/openguildkit" --version
-          "$bin/openguildkit" catalog > /dev/null
-          "$bin/openguildkit" references --id conventional-commits > /dev/null
-          "$bin/openguildkit" patterns > /dev/null
+          "$OPENGUILDKIT" catalog > /dev/null
+          "$OPENGUILDKIT" references --id conventional-commits > /dev/null
+          "$OPENGUILDKIT" patterns > /dev/null
           printf '{"name": "Wheel check", "stack": ["Python"]}' > answers.json
-          "$bin/openguildkit" init --answers answers.json
-          "$bin/openguildkit" check
-          "$bin/openguildkit" integrations --host claude-code
+          "$OPENGUILDKIT" init --answers answers.json
+          "$OPENGUILDKIT" check
+          "$OPENGUILDKIT" integrations --host claude-code
           test -f .claude/skills/openguildkit/SKILL.md
           test -f .claude/agents/guild-board.md
-          "$bin/python" -c "import openguildkit.webui as w; front = w.find_front_end(None); assert front and (front / 'index.html').is_file(), front; print(front)"
 
   ci-coordinator:
     name: CI coordinator on ${{ matrix.os }}

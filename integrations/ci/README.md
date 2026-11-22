@@ -4,13 +4,13 @@ The CI coordinator is an optional Node.js integration for OpenGuildKit. It recon
 
 ## Install
 
-Use the [verified archive from a GitHub release](https://github.com/Sandbox-podcast/OpenGuildKit/blob/v0.16.1/docs/install.md) for a team deployment.
+Use the [verified archive from a GitHub release](https://github.com/Sandbox-podcast/OpenGuildKit/blob/v0.17.0/docs/install.md) for a team deployment.
 
 From the root of a trusted checkout, with Node.js 22+, npm and Git:
 
 ```bash
 npm pack ./integrations/ci
-npm install --global ./openguildkit-0.16.1.tgz
+npm install --global ./openguildkit-0.17.0.tgz
 openguildkit-ci --help
 ```
 
@@ -18,7 +18,7 @@ The package is marked private and is not published to npm. Install it from the v
 
 ## Share the policy
 
-Copy the [example policy repository files](https://github.com/Sandbox-podcast/OpenGuildKit/tree/v0.16.1/examples/export-expiry/policy) into a central Git repository. Both the Python project and the CI coordinator read `packs/export-link-expiry.json`. The CI catalog index provides ownership and selects the file. The approved CI profile, at `openguildkit.json` on a trusted target branch, selects the same path. The two project profiles serve different workflows and can be reviewed independently.
+Copy the [example policy repository files](https://github.com/Sandbox-podcast/OpenGuildKit/tree/v0.17.0/examples/export-expiry/policy) into a central Git repository. Both the Python project and the CI coordinator read `packs/export-link-expiry.json`. The CI catalog index provides ownership and selects the file. The approved CI profile, at `openguildkit.json` on a trusted target branch, selects the same path. The two project profiles serve different workflows and can be reviewed independently.
 
 ```json
 {
@@ -102,13 +102,13 @@ The workflow templates retain their pilot branch names and configuration filenam
 
 For a job that evaluates one target commit, use the [Jenkins check launcher](pilot/run-kit.mjs). The agent needs Node.js 22 or later, Git, GitHub CLI and `tar`. Run the launcher from the root of the target repository with `HEAD` on a trusted revision containing the approved `openguildkit.json` profile and the `openguildkit-kit.json` manifest. Fetch the target commit into that checkout and the policy commit into the policy checkout before running the job.
 
-The manifest pins the release archive by repository, version and SHA-256. For the OpenGuildKit v0.16.1 release, put this in `openguildkit-kit.json`.
+The manifest pins the release archive by repository, version and SHA-256. For the OpenGuildKit v0.17.0 release, put this in `openguildkit-kit.json`, with the hash of `openguildkit-0.17.0.tgz` from that release's `SHA256SUMS.txt`.
 
 ```json
 {
   "repository": "Sandbox-podcast/OpenGuildKit",
-  "version": "0.16.1",
-  "sha256": "7057f7c47d54f5fe48252c8a57f09ac36ceb3d127f51d07a6eef76908b235e78"
+  "version": "0.17.0",
+  "sha256": "replace-with-the-hash-of-openguildkit-0.17.0.tgz-from-SHA256SUMS.txt"
 }
 ```
 
@@ -157,4 +157,4 @@ The required check template evaluates a PR when it is opened or updated, and eve
 
 Both templates read the `OPENGUILDKIT_PROFILE_MAINTAINER` variable. The protected merge template runs only for the logins listed in the `OPENGUILDKIT_MERGE_ACTORS` variable, a JSON array such as `["alice", "release-bot"]`, which works for organization repositories. Protect its `openguildkit-merge-pilot` environment with required reviewers if the request needs a second person. Before merging, it checks with `--app-id` that the merge application (`OPENGUILDKIT_APP_ID`, `OPENGUILDKIT_APP_CLIENT_ID`, `OPENGUILDKIT_APP_PRIVATE_KEY`) is the only bypass actor of ruleset `OPENGUILDKIT_RULESET_ID`. Give that application the administration read permission so it can read the ruleset's bypass list. Otherwise the check stops the merge.
 
-See `openguildkit-ci --help` for the profile, agent brief, release discovery, recheck and merge subcommands. The [tests](https://github.com/Sandbox-podcast/OpenGuildKit/tree/v0.16.1/integrations/ci/test) exercise rule updates, stale evidence, recovery and scoped merge decisions.
+See `openguildkit-ci --help` for the profile, agent brief, release discovery, recheck and merge subcommands. The [tests](https://github.com/Sandbox-podcast/OpenGuildKit/tree/v0.17.0/integrations/ci/test) exercise rule updates, stale evidence, recovery and scoped merge decisions.
