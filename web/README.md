@@ -26,7 +26,7 @@ npm run preview      # sert dist/ sur http://localhost:5198
 npm run bundle       # copie dist/ dans le paquet Python (src/openguildkit/web_dist)
 ```
 
-Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un projet, puis `OGK_API=http://127.0.0.1:7311 npm run dev`. `python scripts/sample-project.py DOSSIER` crée un projet d'exemple avec une quête dans chaque état.
+Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un projet, puis `OGK_API=http://127.0.0.1:7311 npm run dev`, et ouvre une fois `http://localhost:5199/api/session?key=…` avec la clé de l'adresse imprimée avant `http://localhost:5199/`. `python scripts/sample-project.py DOSSIER` crée un projet d'exemple avec une quête dans chaque état.
 
 ## Vérifier
 
@@ -35,7 +35,7 @@ npm run typecheck    # TypeScript strict
 npm test             # 38 tests Vitest : 28 de domaine (règles sensibles, parcours principal) et 10 du mode réel
 npm run e2e          # parcours de la démonstration (Playwright, Chrome installé localement)
 npm run e2e:project  # 25 parcours et 2 balayages du mode réel sur des projets d'exemple neufs servis par openguildkit ui (après npm run build)
-npm run measure:project -- http://127.0.0.1:7311   # temps d'affichage, requêtes et volumes de chaque lieu du mode réel
+npm run measure:project -- 'http://127.0.0.1:7311/?key=…'   # l'adresse imprimée par openguildkit ui ; temps d'affichage, requêtes et volumes de chaque lieu du mode réel
 npm run catalogue    # régénère src/fixtures/catalogue.json depuis data/SOCLE_Catalogue_395_References.md
 npm run docs:roles   # régénère docs/roles.md depuis les capacités du domaine
 CAPTURES=1 npm run e2e -- captures   # régénère docs/captures-apres (RPG) et docs/captures-pro
