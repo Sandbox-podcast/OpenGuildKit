@@ -8,7 +8,7 @@ OpenGuildKit does not scan dependencies. It reads the JSON report of a scanner t
 npm audit --json > npm-audit.json          # or: pip-audit -f json -o pip-audit.json, osv-scanner --format json -r . > osv.json
 openguildkit alerts import npm-audit.json
 openguildkit alerts list --status open
-openguildkit alerts set npm:semver:ghsa-c2qf-rxjj-qqgw --status dismissed --by "Alex Moreau" --reason "Only used at build time"
+openguildkit alerts set npm:semver:ghsa-c2qf-rxjj-qqgw --status dismissed --by AM --reason "Only used at build time"
 ```
 
 The register holds one entry per package and advisory, whatever scanner reported it. An advisory has several IDs (GHSA, CVE, PYSEC, GO, other OSV IDs); the CLI reads the aliases each report gives and merges the entries that share one. Ecosystem names are normalized (`pip` and `PyPI` are the same, `rust` and `crates.io` too). An entry is named after its GHSA ID, else its CVE, else the scanner's own ID, and any of its IDs finds it: `pypi:jinja2:cve-2024-22195` and `pypi:jinja2:pysec-2024-1` name the same entry. When one scanner gives no severity, the severity reported by another scanner for the same advisory is kept.
@@ -47,7 +47,7 @@ A confirmed critical alert that an import resolved is shown to the person when t
 - have a person set it from the advisory, at an interactive terminal where they type the alert ID:
 
 ```bash
-openguildkit alerts severity pypi:urllib3:ghsa-q2q7-5pp4-w6pg --level critical --by "Camille Martin" --reason "CVSS 9.8 on the advisory page"
+openguildkit alerts severity pypi:urllib3:ghsa-q2q7-5pp4-w6pg --level critical --by CM --reason "CVSS 9.8 on the advisory page"
 ```
 
 `--level` is `low`, `moderate`, `high` or `critical`. The register keeps the previous severity, the person, the reason and the time in `severity_set`. Raising an alert to `critical` makes it block once confirmed, and lowering it stops the blocking, so an agent cannot run the command. A severity set by a person stays when later imports report another one; a person changes it again with the same command.
@@ -67,7 +67,7 @@ openguildkit task alerts ID
 A confirmed alert of severity `critical` blocks the approval (`task decide --approve`) and the completion (`task complete`) of each task it is linked to, with a message that names it. It stops blocking when an import shows it resolved, or when a person records why the risk is accepted:
 
 ```bash
-openguildkit alerts accept npm:form-parser:ghsa-xxxx-yyyy-zzzz --by "Camille Martin" --reason "Only reachable by administrators until 2.0.1 ships"
+openguildkit alerts accept npm:form-parser:ghsa-xxxx-yyyy-zzzz --by CM --reason "Only reachable by administrators until 2.0.1 ships"
 ```
 
 `alerts accept`, and dismissing a critical alert or taking a confirmed critical alert back, need a person at an interactive terminal who types the alert ID, as for a waiver. An agent cannot do them.

@@ -121,10 +121,10 @@ openguildkit task challenge request-status
 
 ```bash
 openguildkit task blockers request-status
-openguildkit task clear request-status security:1 --evidence tests/test_access.py --supports "Cross-account access is refused" --by "Camille Martin"
-openguildkit task decide request-status --approve --by "Camille Martin" --reason "Read-only scope agreed with support"
-openguildkit task decide request-status --request-changes --by "Camille Martin" --reason "Include the empty state in scope"
-openguildkit task revoke request-status --by "Camille Martin" --reason "Support moves the portal to another team"
+openguildkit task clear request-status security:1 --evidence tests/test_access.py --supports "Cross-account access is refused" --by CM
+openguildkit task decide request-status --approve --by CM --reason "Read-only scope agreed with support"
+openguildkit task decide request-status --request-changes --by CM --reason "Include the empty state in scope"
+openguildkit task revoke request-status --by CM --reason "Support moves the portal to another team"
 ```
 
 - `task blockers` lists the blockers the boards set, with their owner and what clears them.
@@ -132,6 +132,7 @@ openguildkit task revoke request-status --by "Camille Martin" --reason "Support 
 - `task decide --approve` shows the decision brief and asks you to type the task ID. The approval is sealed.
 - `task decide --request-changes` sends the task back to scoping, and its history is kept.
 - `task revoke` withdraws an approval when the work is abandoned or a condition of the approval cannot be met: the task goes back to changes requested, and the guard stops covering its edits.
+- `--by` takes your initials or your team handle, not your full name: it is copied into files the team commits, and an approval keeps it under its seal ([personal data](docs/personal-data.md)).
 
 **4. Deliver and close.**
 
@@ -182,6 +183,7 @@ openguildkit patterns --id python-fastapi-postgresql
 - [Optional ChaosFolk end-to-end replays](integrations/chaosfolk/)
 
 - [Glossary of the product's words, in English and French](docs/glossary.md)
+- [Personal data the tool records, and how to replace a name](docs/personal-data.md)
 - [Architecture](docs/architecture.md) and [task workflow](docs/workflow.md)
 - [Contributing](CONTRIBUTING.md), [catalog format](docs/catalog-format.md) and [testing](docs/testing.md)
 - [Roadmap](docs/roadmap.md) and [MIT license](LICENSE)

@@ -194,9 +194,9 @@ Les mots qu'OpenGuildKit emploie dans ses commandes, ses questions et ses messag
 
 ### `seal` · sceau
 
-**EN** A fingerprint of what was approved, recorded with the approval, that detects a later accidental change; only a signed approval proves who approved.
+**EN** A fingerprint of what was approved, recorded with the approval, that detects a later accidental change; only a signed approval proves who approved, and the approver's name is part of what it covers, so it cannot be replaced afterwards ([personal data](personal-data.md#the-approver)).
 
-**FR** Une empreinte de ce qui a été approuvé, enregistrée avec l'approbation, qui détecte une modification accidentelle ultérieure ; seule une approbation signée prouve qui a approuvé.
+**FR** Une empreinte de ce qui a été approuvé, enregistrée avec l'approbation, qui détecte une modification accidentelle ultérieure ; seule une approbation signée prouve qui a approuvé, et le nom de la personne qui approuve en fait partie : il ne peut plus être remplacé ensuite ([données personnelles](personal-data.md#the-approver)).
 
 ### `handoff` · brief d'implémentation
 

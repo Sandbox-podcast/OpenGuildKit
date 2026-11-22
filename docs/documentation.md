@@ -99,10 +99,10 @@ Documentalist grants access to a whole space, per email address. A portal is pub
 OpenGuildKit keeps the register of what you shared, with whom, through which space and until when:
 
 ```bash
-openguildkit docs share add --deliverable docs-site/reference/request-status.md --recipient client@example.org --until 2026-12-31 --portal https://docs.example.org/p/support-portal --by "Camille Martin"
+openguildkit docs share add --deliverable docs-site/reference/request-status.md --recipient client@example.org --until 2026-12-31 --portal https://docs.example.org/p/support-portal --by CM
 openguildkit docs share list
 openguildkit docs share check        # exit code 1 while an access past its last day is not recorded as revoked
-openguildkit docs share revoke --id ID --by "Camille Martin"
+openguildkit docs share revoke --id ID --by CM
 ```
 
 **The perimeter is the space.** `--portal` is the address of the shared space's portal, `https://HOST/p/SPACE` (a page address in that space works too); an address without `/p/SPACE` is refused. `share add` records the space and prints it, and `share list` shows it after each deliverable. A reader invited for one page sees every published page of the space that is not hidden: on 2026-11-22, a reader invited for one reference page saw 11 pages and 3 categories. To share one deliverable only, publish it in a space that holds only it, or hide the other pages. `http` is accepted only for an instance on this machine (`localhost`, `127.0.0.1` or `::1`), such as a local test instance.
@@ -117,4 +117,4 @@ openguildkit docs share revoke --id ID --by "Camille Martin"
 
 What OpenGuildKit does not do: it creates no magic link and revokes no access in Documentalist. Inviting the recipients and pressing "Retirer l'accès" happen by hand in the space's reader settings; `share add` and `share revoke` only record that you did it. Keep the portal and the register in step.
 
-What `share check` reads: only the local register, `.openguildkit/shares/shares.json`. It lists every share and exits with code 1 when a share that is not recorded as revoked has a last day of access before today and an address to remove. It does not contact Documentalist, so it cannot see an access removed in the portal without `share revoke`, nor an invitation sent without `share add`. The register is ignored by Git because it contains email addresses: the check runs where the register is, usually the owner's machine (for example from a scheduled task there), not in CI on a fresh clone, where it finds no share and passes. Writes to the register hold the project lock, so shares recorded at the same time are all kept. The boards' reviews stay in the local task records and are never part of a share; Documentalist does not publish its own comments either.
+What `share check` reads: only the local register, `.openguildkit/shares/shares.json`. It lists every share and exits with code 1 when a share that is not recorded as revoked has a last day of access before today and an address to remove. It does not contact Documentalist, so it cannot see an access removed in the portal without `share revoke`, nor an invitation sent without `share add`. The register is ignored by Git because it contains email addresses ([personal data](personal-data.md)): the check runs where the register is, usually the owner's machine (for example from a scheduled task there), not in CI on a fresh clone, where it finds no share and passes. Writes to the register hold the project lock, so shares recorded at the same time are all kept. The boards' reviews stay in the local task records and are never part of a share; Documentalist does not publish its own comments either.

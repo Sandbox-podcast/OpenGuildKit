@@ -96,7 +96,7 @@ Run it on macOS or Linux, from the commit under test, with Claude Code signed in
 
    ```sh
    git checkout -- app.py
-   openguildkit profile set guard enforce --by "Validation owner" --reason "Live run of the guard"
+   openguildkit profile set guard enforce --by CM --reason "Live run of the guard"
    openguildkit host apply
    claude -p "$PROMPT" --permission-mode acceptEdits --output-format stream-json --verbose --include-hook-events --debug-file enforce-debug.log > enforce.jsonl
    grep -c 'Edit refused for: app.py' enforce.jsonl enforce-debug.log

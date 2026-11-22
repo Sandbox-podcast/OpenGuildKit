@@ -20,6 +20,10 @@ OpenGuildKit has one maintainer today (see [GOVERNANCE.md](GOVERNANCE.md)). When
 - Behavior of the host agent or the model it uses.
 - Security of the projects that use OpenGuildKit. The packs help teams ask the right questions; they are not a security audit.
 
+## Personal data
+
+OpenGuildKit records who approved, cleared, waived, closed, reviewed or shared, in files the team commits and in files that stay on each workstation. [Personal data the tool records](docs/personal-data.md) lists each field, why it is kept and how long, and how to replace a name. Give `--by` your initials rather than your full name.
+
 ## Supported versions
 
 Only the latest release receives fixes during the 0.x series.

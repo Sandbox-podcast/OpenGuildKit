@@ -78,7 +78,7 @@ A campaign is run by a person with an agent host, not by CI. What CI runs is the
 
 Approving, waiving and clearing a blocker need a person at a terminal, so an agent cannot do them. The tests drive them through a pseudo-terminal, on Linux and macOS:
 
-- `python -m unittest tests.e2e.test_more_commands.WaiverCommandTests` repeats the waiver flow in a temporary project: an unauthorized person and a wrong confirmation are refused, then a valid waiver is recorded. A waiver needs a policy in the profile, `"waivers": {"allowed_by": ["Camille Martin"], "max_days": 30}`, and `task waive` needs `--by` (a name in `allowed_by`), `--reason`, `--scope` (what the waiver covers) and `--until` (YYYY-MM-DD, at most `max_days` ahead).
+- `python -m unittest tests.e2e.test_more_commands.WaiverCommandTests` repeats the waiver flow in a temporary project: an unauthorized person and a wrong confirmation are refused, then a valid waiver is recorded. A waiver needs a policy in the profile, `"waivers": {"allowed_by": ["CM"], "max_days": 30}`, and `task waive` needs `--by` (a name in `allowed_by`), `--reason`, `--scope` (what the waiver covers) and `--until` (YYYY-MM-DD, at most `max_days` ahead).
 - `python -m unittest tests.e2e.test_more_commands.BlockerCommandTests` repeats clearing: refused without a terminal, cancelled by a wrong confirmation, recorded with the person's name, and a second clearing refused; in a project with signed approvals, the clearance is signed with a synthetic key.
 - `python examples/host-validation/rehearse.py --project FOLDER` replays a whole task, the person's steps included.
 
