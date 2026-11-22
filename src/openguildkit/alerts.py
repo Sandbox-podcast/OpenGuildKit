@@ -158,8 +158,24 @@ def _dependabot_pages(values: list) -> list | None:
     return None
 
 
-def parse_report(content: bytes, label: str) -> tuple[str, list[dict]]:
-    """Recognize the scanner by the report's shape and normalize its alerts."""
+def _npm_analyzed(report: dict) -> int:
+    """npm audit counts the dependencies it audited in metadata.dependencies (total, or one count per kind)."""
+    counts = (report.get("metadata") or {}).get("dependencies")
+    if isinstance(counts, dict):
+        total = counts.get("total")
+        return total if type(total) is int else sum(value for value in counts.values() if type(value) is int)
+    return counts if type(counts) is int else 0
+
+
+def _osv_analyzed(report: dict) -> int:
+    """OSV-Scanner lists, per scanned source, the packages of its report: only the vulnerable ones by default."""
+    return sum(len(result.get("packages", [])) for result in report["results"] if isinstance(result, dict))
+
+
+def read_report(content: bytes, label: str) -> dict:
+    """Recognize the scanner by the report's shape: its name, its normalized alerts, and how many dependencies (or,
+    for Dependabot, alerts of any state) the report shows it analyzed. A report that analyzed nothing resolves
+    nothing (import_report)."""
     try:
         values = _json_documents(content.decode("utf-8-sig"))
     except (UnicodeError, ValueError, RecursionError) as error:
@@ -170,18 +186,33 @@ def parse_report(content: bytes, label: str) -> tuple[str, list[dict]]:
     try:
         dependabot = _dependabot_pages(values)
         if dependabot is not None:
-            return "GitHub Dependabot", _dependabot(dependabot)
+            return {"tool": "GitHub Dependabot", "alerts": _dependabot(dependabot), "analyzed": len(dependabot)}
         if len(values) > 1:
             raise ValueError(f"{label} holds several JSON documents; only Dependabot pages can be concatenated.")
         if isinstance(data, dict) and isinstance(data.get("vulnerabilities"), dict):
-            return "npm audit", _npm(data)
+            return {"tool": "npm audit", "alerts": _npm(data), "analyzed": _npm_analyzed(data)}
         if isinstance(data, dict) and isinstance(data.get("dependencies"), list):
-            return "pip-audit", _pip_audit(data)
+            return {"tool": "pip-audit", "alerts": _pip_audit(data), "analyzed": len(data["dependencies"])}
         if isinstance(data, dict) and isinstance(data.get("results"), list):
-            return "OSV-Scanner", _osv(data)
+            return {"tool": "OSV-Scanner", "alerts": _osv(data), "analyzed": _osv_analyzed(data)}
     except (KeyError, TypeError, AttributeError) as error:
         raise ValueError(f"{label} looks like a scanner report but a field is missing: {error}") from error
     raise ValueError(f"{label} is not an npm audit, pip-audit, OSV-Scanner or Dependabot JSON report.")
+
+
+def parse_report(content: bytes, label: str) -> tuple[str, list[dict]]:
+    """Recognize the scanner by the report's shape and normalize its alerts."""
+    report = read_report(content, label)
+    return report["tool"], report["alerts"]
+
+
+# Why a report that analyzed no dependency leaves the register's alerts as they are, by scanner.
+NOTHING_ANALYZED = {
+    "npm audit": "metadata.dependencies counts no audited dependency",
+    "pip-audit": "its dependencies list is empty",
+    "OSV-Scanner": "its results list no scanned package (run it so it lists every package it scanned)",
+    "GitHub Dependabot": "it lists no alert in any state (fetch the alerts of every state, not only the open ones)",
+}
 
 
 def register_path(state: Path) -> Path:
@@ -239,7 +270,7 @@ def _merge(entry: dict, other: dict) -> dict:
     for key in ("scanners", "seen_by", "tasks"):
         merged[key] = sorted(set(entry.get(key, [])) | set(other.get(key, [])))
     if _KEEP_ORDER.index(_status(other)) < _KEEP_ORDER.index(_status(entry)):
-        for key in ("status", "by", "reason", "decided_at", "accepted", "resolved_on", "resolved_from"):
+        for key in ("status", "by", "reason", "decided_at", "accepted", "resolved_on", "resolved_from", "resolved_by"):
             merged.pop(key, None)
             if key in other:
                 merged[key] = other[key]
@@ -271,6 +302,7 @@ def _absorb(alerts: list[dict], alert: dict, tool: str, today: str) -> tuple[lis
     if entry["status"] == "resolved":
         entry["status"] = entry.pop("resolved_from", "open")
         entry.pop("resolved_on", None)
+        entry.pop("resolved_by", None)
         change = "reopened"
     return [*rest, entry], change
 
@@ -279,14 +311,19 @@ def import_report(register: dict, path: Path, task_id: str | None = None, today:
     """Merge a scanner report into the register.
 
     Alerts that this scanner listed before and no longer lists lose it as a source; when no scanner
-    lists them anymore, open and confirmed ones become resolved. With task_id, the report's alerts
-    are linked to that task.
+    lists them anymore, open and confirmed ones become resolved, and keep the report that resolved them (file,
+    SHA-256, day, dependencies analyzed). A report that analyzed no dependency resolves nothing and says why. With
+    task_id, the report's alerts are linked to that task.
     """
     today = today or _today()
     content = path.read_bytes()
-    tool, reported = parse_report(content, path.name)
+    report = read_report(content, path.name)
+    tool, reported = report["tool"], report["alerts"]
+    digest = hashlib.sha256(content).hexdigest()
     alerts = [{**alert, "status": _status(alert)} for alert in register["alerts"]]
-    changes = {"tool": tool, "new": [], "reopened": [], "resolved": [], "reported": []}
+    changes = {"tool": tool, "new": [], "reopened": [], "resolved": [], "reported": [], "analyzed": report["analyzed"]}
+    if not report["analyzed"]:
+        changes["nothing_analyzed"] = NOTHING_ANALYZED[tool]
     for alert in reported:
         alerts, change = _absorb(alerts, alert, tool, today)
         current = next(entry for entry in alerts if _same(entry, alert))
@@ -296,15 +333,17 @@ def import_report(register: dict, path: Path, task_id: str | None = None, today:
         if task_id and task_id not in current["tasks"]:
             current["tasks"] = sorted([*current["tasks"], task_id])
     reported_ids = set(changes["reported"])
+    source = {"tool": tool, "file": path.name, "sha256": digest, "date": today, "dependencies": report["analyzed"]}
     for alert in alerts:
-        if alert["id"] in reported_ids or tool not in alert.get("scanners", []):
+        # A report that analyzed nothing cannot show that an alert is gone.
+        if alert["id"] in reported_ids or tool not in alert.get("scanners", []) or not report["analyzed"]:
             continue
         alert["scanners"] = [name for name in alert["scanners"] if name != tool]
         if not alert["scanners"] and alert["status"] in ACTIVE:
-            alert.update(resolved_from=alert["status"], status="resolved", resolved_on=today)
+            alert.update(resolved_from=alert["status"], status="resolved", resolved_on=today, resolved_by=source)
             changes["resolved"].append(alert["id"])
     changes = {key: sorted(set(value)) if isinstance(value, list) else value for key, value in changes.items()}
-    entry = {"tool": tool, "file": path.name, "sha256": hashlib.sha256(content).hexdigest(), "date": today,
+    entry = {"tool": tool, "file": path.name, "sha256": digest, "date": today, "dependencies": report["analyzed"],
              "alerts": len(changes["reported"]), "new": len(changes["new"]), "resolved": len(changes["resolved"])}
     imports = [*register.get("imports", []), entry][-IMPORTS_KEPT:]
     return {**register, "alerts": alerts, "imports": imports}, changes
@@ -412,6 +451,23 @@ def blocking_alerts(register: dict, task: dict) -> list[str]:
         for alert in task_alerts(register, task, ("confirmed",))
         if alert["severity"] == "critical" and not alert.get("accepted")
     ]
+
+
+def resolved_by_import(register: dict, task: dict, since: str | None = None) -> list[dict]:
+    """The task's alerts that were confirmed and critical and that an import resolved, not a person, on or after the
+    day of since: the person reads each with its report before deciding."""
+    return [alert for alert in task_alerts(register, task, ("resolved",))
+            if alert.get("resolved_from") == "confirmed" and alert["severity"] == "critical" and alert.get("resolved_by")
+            and (since is None or alert["resolved_by"]["date"] >= since[:10])]
+
+
+def resolution_line(alert: dict) -> str:
+    """One resolved alert and the report that resolved it, as the decision brief shows it."""
+    report = alert["resolved_by"]
+    return (f"Dependency alert {alert['id']} ({alert['package']} {alert['version']}) was confirmed and critical, and an "
+            f"import resolved it on {report['date']}, not a person: {report['tool']} report {report['file']} (sha256 "
+            f"{report['sha256'][:12]}), {report['dependencies']} dependencies analyzed. Check that report before "
+            "deciding.")
 
 
 def summary(alerts: list[dict], imports: list[dict]) -> dict:

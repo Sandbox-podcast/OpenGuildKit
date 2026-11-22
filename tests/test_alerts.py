@@ -101,7 +101,8 @@ class AlertTests(unittest.TestCase):
         register, changes = import_report(register, FIXTURES / "pip-audit-clean.json", today="2026-11-22")
         self.assertEqual(changes["resolved"], [])
         self.assertEqual((register["alerts"][0]["status"], register["alerts"][0]["scanners"]), ("open", ["GitHub Dependabot"]))
-        register, changes = import_report(register, FIXTURES / "dependabot-empty.json", today="2026-11-22")
+        # The alert is listed as fixed in GitHub: an export of every state shows what was analyzed.
+        register, changes = import_report(register, FIXTURES / "dependabot-fixed.json", today="2026-11-22")
         self.assertEqual(changes["resolved"], [JINJA])
 
     def test_reviews_need_a_name_and_a_reason_to_dismiss(self):

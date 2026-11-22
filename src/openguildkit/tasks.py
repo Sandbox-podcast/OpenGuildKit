@@ -19,6 +19,7 @@ from .results import (
     validate_result, waiting_evidence,
 )
 from .storage import read_json, write_json
+from .alerts import resolution_line, resolved_by_import
 from .workflow import (
     RESOLUTION_FIELDS, blocker_list, blocker_resolutions, code_not_found, consult, decision_summary, is_decision_task,
     pending_removals, profile_settings, resolution_field, review_warnings, validate_answers, validate_board_entry,
@@ -705,11 +706,16 @@ def check_command_lines(task: dict, profile: dict, previous: dict | None = None)
     return lines
 
 
-def decision_text(task: dict, profile: dict, previous: dict | None = None) -> list[str]:
+def decision_text(task: dict, profile: dict, previous: dict | None = None, register: dict | None = None) -> list[str]:
     """What the person reads before deciding, built once for the approval prompt, task challenge and task
-    decision-payload: the decision summary (verdicts, warnings, conditions of approval, removals, blockers), and the
-    check commands task verify will run with those changed since the project's last approval."""
-    return decision_summary(task) + check_command_lines(task, profile, previous)
+    decision-payload: the decision summary (verdicts, warnings, conditions of approval, removals, blockers), the check
+    commands task verify will run with those changed since the project's last approval, and the task's confirmed
+    critical alerts that an import resolved since its last decision."""
+    lines = decision_summary(task) + check_command_lines(task, profile, previous)
+    if register is not None:
+        since = task["rounds"][-1]["decision"]["at"] if task["rounds"] else None
+        lines += [resolution_line(alert) for alert in resolved_by_import(register, task, since)]
+    return lines
 
 
 def record_review(task: dict, review: dict, root: Path | None = None, kept: list[str] | None = None) -> dict:

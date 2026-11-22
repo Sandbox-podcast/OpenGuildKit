@@ -22,7 +22,20 @@ Each alert has a status:
 | `dismissed` | Not applicable, with the reason and who decided | `alerts set --status dismissed --by NAME --reason WHY` |
 | `resolved` | No scanner that reported it lists it anymore | An import |
 
-Importing the full report of a scanner marks the alerts that this scanner listed before and no longer lists: when no other scanner still lists them, open and confirmed alerts become `resolved`. An alert that reappears goes back to its previous status. A dismissed alert stays dismissed. Each import is recorded with the scanner, the file name, the SHA-256 of the report and the date (the last 20 imports are kept).
+Importing the full report of a scanner marks the alerts that this scanner listed before and no longer lists: when no other scanner still lists them, open and confirmed alerts become `resolved`, and keep in `resolved_by` the report that resolved them: scanner, file name, SHA-256, day and number of dependencies analyzed. An alert that reappears goes back to its previous status. A dismissed alert stays dismissed. Each import is recorded with the scanner, the file name, the SHA-256 of the report, the date and the number of dependencies analyzed (the last 20 imports are kept).
+
+### A report that analyzed nothing
+
+A clean report resolves its alerts with no other step: that is the normal case. A report that shows no analyzed dependency resolves nothing, and `alerts import` says so (`The report analyzed no dependency (...): it resolves no alert.`), because an empty file is also what anyone can write to make a critical alert disappear. What counts as analyzed, by scanner:
+
+| Scanner | Analyzed | Resolves nothing when |
+|---|---|---|
+| npm audit | `metadata.dependencies.total` (or the sum of its counts) | `metadata.dependencies` is missing or counts none |
+| pip-audit | the entries of `dependencies`, vulnerable or not | `dependencies` is empty |
+| OSV-Scanner | the packages listed under `results` | `results` lists no package: OSV-Scanner lists only vulnerable packages unless it is asked to list every package it scanned |
+| GitHub Dependabot | the alerts listed, in any state | the export is an empty list: fetch the alerts of every state, so a fixed alert shows as fixed |
+
+A confirmed critical alert that an import resolved is shown to the person when they decide: the approval prompt, `task challenge` and `task decision-payload` of each task linked to it name the alert and its report, for the resolutions since the task's last decision.
 
 `to-verify`, the status of earlier versions, is read as `open`.
 
@@ -64,11 +77,11 @@ openguildkit alerts accept npm:form-parser:ghsa-xxxx-yyyy-zzzz --by "Camille Mar
 The Dependabot alerts API returns one page at a time, and `gh api --paginate` follows every page. Recent `gh` releases print the pages of a list as one JSON array; older ones print one array per page, back to back. `openguildkit alerts import` reads both, and also the array of pages that `--slurp` prints:
 
 ```bash
-gh api --paginate "repos/OWNER/REPO/dependabot/alerts?state=open&per_page=100" > dependabot.json
+gh api --paginate "repos/OWNER/REPO/dependabot/alerts?per_page=100" > dependabot.json
 openguildkit alerts import dependabot.json
 ```
 
-The token needs read access to the repository's Dependabot alerts. Closed alerts (fixed or dismissed in GitHub) are skipped, so they count as no longer listed.
+The token needs read access to the repository's Dependabot alerts. The command fetches the alerts of every state: closed ones (fixed or dismissed in GitHub) count as analyzed and are skipped, so they count as no longer listed, and an export where every alert is fixed still resolves them.
 
 Verification note: on 22 November 2026, `gh` 2.100.0 called with `--paginate` and five items per page on a live endpoint of this repository returned one array of 21 items, which `alerts import` reads like a single page; the reading of concatenated and slurped pages is tested on synthetic files. The Dependabot endpoint itself was not called: Dependabot alerts are turned off on the repositories the maintainers could use for the check, and the command answers `Dependabot alerts are disabled for this repository. (HTTP 403)` there. Turn them on in the repository's security settings before running it.
 

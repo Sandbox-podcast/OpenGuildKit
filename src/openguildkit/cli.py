@@ -1523,13 +1523,13 @@ def _revoke(args, state: Path, task: dict, profile: dict, catalog: dict, root: P
           f'the work in a linked task: openguildkit task new "BRIEF" --follows {args.id}', file=sys.stderr)
 
 
-def _decision_prompt(state: Path, task: dict, profile: dict) -> list[str]:
+def _decision_prompt(state: Path, task: dict, profile: dict, register: dict) -> list[str]:
     """What the person reads before approving, the same at the approval prompt and in task decision-payload: the
     previous round, the decision text (tasks.decision_text, also task challenge's), the brief, the summary and each
     board's advice."""
     recall = previous_round_line(task)
     review = validate_review(task["consultation"], task["review"])
-    return [*([recall] if recall else []), *decision_text(task, profile, last_approval(state)),
+    return [*([recall] if recall else []), *decision_text(task, profile, last_approval(state), register),
             "", f"Brief: {task['brief'].strip()}", "", review["summary"], *review_lines(review), "",
             f"Full decision brief, with each board's evidence: openguildkit task challenge {task['id']}",
             *verdict_lines(review, task.get("deliberation"), is_decision_task(task))]
@@ -1560,7 +1560,7 @@ def _decide(args, root: Path, state: Path, task: dict, profile: dict, catalog: d
         if (signature is None or removals) and not sys.stdin.isatty():
             raise ValueError("Approval requires a person at an interactive terminal.")
         # A signed approval shows the same text: the signature replaces the typed ID, not the reading.
-        print("\n".join(_decision_prompt(state, task, profile)), file=sys.stderr)
+        print("\n".join(_decision_prompt(state, task, profile, register)), file=sys.stderr)
         if signature is None:
             print(f"Type {args.id} to approve the reviewed scope: ", end="", file=sys.stderr, flush=True)
             if input().strip() != args.id:
@@ -2121,7 +2121,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         recall = previous_round_line(task)
         if recall:
             print(recall)
-        lines = decision_text(task, profile, last_approval(state)) if "review" in task else None
+        lines = (decision_text(task, profile, last_approval(state), load_register(state))
+                 if "review" in task else None)
         print(challenge_report(task, lines), end="")
     elif action == "route":
         if args.answers is None and "answers" not in task:
@@ -2255,7 +2256,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             raise ValueError(decided_message(task, approval_problem(task, profile, catalog, root))
                              or "Record the boards' review before preparing a decision.")
         # The signer reads what they sign: the same lines as the approval prompt, then the payload with the brief.
-        print("\n".join(_decision_prompt(state, task, profile)), file=sys.stderr)
+        print("\n".join(_decision_prompt(state, task, profile, load_register(state))), file=sys.stderr)
         text = payload_text(decision_payload(task, args.by, args.reason, git_revision(root)))
         if args.output:
             # Exact UTF-8 bytes with LF line endings: a shell redirect could change the encoding.

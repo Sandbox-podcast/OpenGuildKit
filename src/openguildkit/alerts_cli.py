@@ -77,6 +77,8 @@ def _print_changes(changes: dict, as_json: bool) -> None:
         return
     print(f"{changes['tool']}: {len(changes['reported'])} alert(s) reported, {len(changes['new'])} new, "
           f"{len(changes['reopened'])} reopened, {len(changes['resolved'])} resolved.")
+    if changes.get("nothing_analyzed"):
+        print(f"  The report analyzed no dependency ({changes['nothing_analyzed']}): it resolves no alert.")
     for key in ("new", "reopened", "resolved"):
         for alert_id in changes[key]:
             print(f"  {key}: {alert_id}")
