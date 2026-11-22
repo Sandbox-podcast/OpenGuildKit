@@ -1,5 +1,5 @@
 // npm run bundle: what it lets into the Python package, and what it refuses.
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -36,6 +36,12 @@ describe('npm run bundle', () => {
   it('refuses a build that holds the images of the demo', () => {
     const problems = bundleProblems(build({ 'index.html': 700, 'assets/world/guildhall.webp': 1000 }));
     expect(problems).toEqual(['assets/world belongs to the demo: build with npm run build, not npm run build:demo.']);
+  });
+
+  it('builds with the chunk options of the current bundler, which warns about advancedChunks', () => {
+    const config = readFileSync(new URL('../../vite.config.ts', import.meta.url), 'utf8');
+    expect(config).not.toContain('advancedChunks');
+    expect(config).toContain('codeSplitting');
   });
 
   it('refuses a folder without the page', () => {
