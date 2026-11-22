@@ -587,8 +587,12 @@ def _sharing_warnings(root: Path, state: Path, records: list[dict]) -> list[str]
             "task; if the tasks folder was deleted, these records are what remains (openguildkit task list --decisions)."
         )
     warnings += [_clash_message(task_id, path) for task_id, path in _id_clashes(root, state).items()]
-    cited = {row["id"]: cited_evidence(read_task(state, row["id"])) for row in list_tasks(state)
-             if row["status"] != "unreadable"}
+    cited = {}
+    for path in sorted((state / "tasks").glob("*.json")):  # An unreadable record is reported by check already.
+        try:
+            cited[path.stem] = cited_evidence(read_task(state, path.stem))
+        except ValueError:
+            continue
     return warnings + _unshared_evidence(root, cited)
 
 

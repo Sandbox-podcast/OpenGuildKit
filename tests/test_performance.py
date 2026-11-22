@@ -3,10 +3,12 @@
 The measures come from scripts/bench.py: real processes, median of three runs.
 Budgets are ratios to the time of openguildkit --version measured in the same
 run, so a slow CI runner slows the budget down with the commands. Each budget is
-at most ten times the ratio docs/testing.md records, so a tenfold regression
-fails, and at least three times the highest ratio seen, so a busy machine passes. The start itself is held
-to a ratio of a bare interpreter start, and every command to an absolute ceiling
-against hangs.
+at most ten times the lowest ratio recorded (docs/testing.md, or the commit that
+added the command to the benchmark), so a tenfold regression fails, and at least
+three times the highest ratio seen, so a busy machine passes. The start itself is
+held to a ratio of a bare interpreter start, and every command to an absolute
+ceiling against hangs. The bug consult runs with a small node_modules here: the
+walk never enters it, which tests/test_project_walk.py checks without a clock.
 """
 
 import contextlib
@@ -22,7 +24,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import catalog, webui
+from openguildkit import catalog, tasks, webui
 from openguildkit.__main__ import hook_call
 from openguildkit.cli import main
 from openguildkit.storage import write_json
@@ -33,30 +35,34 @@ spec = importlib.util.spec_from_file_location("openguildkit_bench", SCRIPT)
 bench = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bench)
 
-# Times openguildkit --version: at most ten times the lowest ratio docs/testing.md records, and at least
-# three times the highest.
+# Times openguildkit --version: at most ten times the lowest ratio recorded, and at least three times the highest.
 BUDGETS = {
     "catalog --json": 6,
     "init": 6,
     "task consult": 9,
+    "task consult, bug, with node_modules": 18,
     f"task list ({bench.TASKS} tasks)": 13,
+    f"check ({bench.TASKS} tasks)": 29,
     "references search": 6,
     f"guard --hook pre-edit ({bench.TASKS} tasks)": 5,
+    f"guard --hook pre-edit (Git, {bench.APPROVED} approvals)": 13,
+    "guard --hook pre-edit, guard off": 4,
     f"guard --hook prompt ({bench.TASKS} tasks)": 5,
     f"detect (monorepo, {bench.PACKAGES} packages)": 11,
     f"init (monorepo, {bench.PACKAGES} packages)": 11,
 }
 START_BUDGET = 25  # times a bare interpreter start
 CEILING_SECONDS = 60
+DEPENDENCY_FILES = 500  # in the web project's node_modules; scripts/bench.py uses 50 000
 
 
 class PerformanceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.results = bench.measure(repeat=3)
+        cls.results = bench.measure(repeat=3, dependencies=DEPENDENCY_FILES)
         if cls.over_budget(cls.results):
             # Measure once more before failing: a burst of load rarely lasts two measures, a regression does.
-            again = bench.measure(repeat=3)
+            again = bench.measure(repeat=3, dependencies=DEPENDENCY_FILES)
             cls.results = {name: min(item, again[name], key=lambda run: run["x_start"])
                            for name, item in cls.results.items()}
 
@@ -131,6 +137,33 @@ class CatalogLoadTests(unittest.TestCase):
         self.assertNotIn("Changed", [board["title"] for board in second["boards"].values()])
 
 
+class CheckReadTests(unittest.TestCase):
+    """check, which CI and the agent run at the start of a session, reads the task records as few times as it can."""
+
+    def test_check_reads_each_task_record_for_its_approval_and_once_more_for_its_evidence(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_json(root / "profile.json", json.loads((bench.EXAMPLE / "profile.json").read_text(encoding="utf-8")))
+            commands = [("init", "--answers", root / "profile.json")]
+            commands += [("task", "new", f"Brief {index}.", "--id", f"task-{index}") for index in range(6)]
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                for command in commands:
+                    self.assertEqual(main(["--project", str(root), *map(str, command)]), 0)
+            reads = []
+            original = tasks.read_task
+
+            def counting(state, task_id):
+                reads.append(task_id)
+                return original(state, task_id)
+
+            with patch("openguildkit.tasks.read_task", counting), patch("openguildkit.cli.read_task", counting), \
+                    patch("openguildkit.guard.read_task", counting), \
+                    contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as error:
+                self.assertEqual(main(["--project", str(root), "check"]), 0, error.getvalue())
+        self.assertEqual(sorted(set(reads)), [f"task-{index}" for index in range(6)])
+        self.assertLessEqual(max(reads.count(task_id) for task_id in set(reads)), 2)
+
+
 def python(*arguments, stdin=""):
     """Run a fresh interpreter on the source tree, as an installed command or a host hook starts."""
     environment = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"),
@@ -150,13 +183,14 @@ class StartupTests(unittest.TestCase):
     the edit hook, which runs before every edit an agent makes, skips the CLI."""
 
     def test_importing_the_cli_leaves_out_the_web_server_storybook_and_deliverables(self):
-        result = python("-X", "importtime", "-c", "import openguildkit.cli")
+        result = python("-X", "importtime", "-c", "import sys, openguildkit.cli; print('\\n'.join(sorted(sys.modules)))")
         self.assertEqual(result.returncode, 0, result.stderr)
-        loaded = imported(result.stderr)
-        self.assertIn("openguildkit.cli", loaded)
+        listed, modules = imported(result.stderr), set(result.stdout.split())
+        self.assertIn("openguildkit.cli", listed & modules)
         for module in ("openguildkit.webui", "http.server", "openguildkit.storybook", "openguildkit.deliverables"):
             with self.subTest(module=module):
-                self.assertNotIn(module, loaded)
+                self.assertNotIn(module, listed)
+                self.assertNotIn(module, modules)
 
     def test_ui_help_gives_the_default_port_of_the_server(self):
         output = io.StringIO()
@@ -188,7 +222,8 @@ class StartupTests(unittest.TestCase):
             self.assertEqual(hook_call([f"--project={folder}", "guard", "--hook", "prompt"]), ("prompt", Path(folder)))
             # Anything else goes to cli.main, which parses it and words its own errors.
             for arguments in (["guard", "--hook", "post-edit"], ["guard", "--hook", "pre-edit", "--json"],
-                              ["guard", "--hook"], ["guard", "--ci"], ["--policy-repo", folder, "guard", "--hook", "prompt"],
+                              ["guard", "--hook"], ["guard", "--ci"],
+                              ["--policy-repo", folder, "guard", "--hook", "prompt"],
                               ["--project", str(Path(folder) / "missing"), "guard", "--hook", "pre-edit"],
                               ["--project", "--version", "guard", "--hook", "pre-edit"], ["--version"], []):
                 with self.subTest(arguments=arguments):
