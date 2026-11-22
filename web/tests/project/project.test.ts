@@ -240,13 +240,14 @@ describe('project signals', () => {
   });
 
   it('reads the tasks that sync names after a change of rules', () => {
-    const stdout = 'OpenGuildKit instructions updated.\nTasks consulted under the previous rules:\n  request-history (approved): consult it again (openguildkit task consult request-history) or open a linked task with --follows.\n  status-labels (consulting): consult it again.\n';
+    const stdout = 'OpenGuildKit instructions updated.\nTasks consulted under the previous rules:\n  request-history (approved): consult it again (openguildkit task consult request-history), which keeps the passes of unchanged boards, or open a linked task with --follows.\n  status-labels (consulting): consult it again.\n';
     expect(touchedTasks(stdout)).toEqual([
-      { id: 'request-history', status: 'approved', step: 'consult it again (openguildkit task consult request-history) or open a linked task with --follows' },
+      { id: 'request-history', status: 'approved', step: 'consult it again (openguildkit task consult request-history), which keeps the passes of unchanged boards, or open a linked task with --follows' },
       { id: 'status-labels', status: 'consulting', step: 'consult it again' },
     ]);
     expect(touchedTasks('OpenGuildKit instructions updated.\n')).toEqual([]);
     expect(touchedStep('request changes and consult it again')).toMatch(/^demander des changements/);
+    expect(touchedStep('consult it again (openguildkit task consult c), which keeps the passes of unchanged boards, or open a linked task with --follows')).toBe('la consulter à nouveau (task consult c), en gardant les passes des cerveaux inchangés, ou ouvrir une tâche liée (--follows)');
     expect(touchedStep('something new')).toBeNull();
   });
 

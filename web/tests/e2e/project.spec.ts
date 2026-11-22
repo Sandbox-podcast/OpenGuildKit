@@ -223,10 +223,16 @@ test('refuses an external action here and hands an allowance to the terminal', a
 
 test('shows an approval that no longer holds as work for a person, and names the tasks a change of rules touched', async ({ page }) => {
   await open(page, '/blueprint');
+  const profilePath = join(await projectRoot(page), '.openguildkit', 'project.json');
+  const original = readFileSync(profilePath, 'utf-8');
+  // A convention alone voids no approval; a new check command does (only rules, checks and boards count).
   const convention = 'Name each branch after its task.';
   const add = page.getByLabel('Ajouter : Conventions de l’équipe');
   await add.fill(convention);
   await add.press('Enter');
+  const check = page.getByLabel('Ajouter : Commandes de vérification');
+  await check.fill('python -m compileall -q .');
+  await check.press('Enter');
   await page.getByRole('button', { name: 'Enregistrer et synchroniser' }).click();
   const touched = page.locator('.touched-notice');
   await expect(touched).toContainText('request-history');
@@ -237,7 +243,7 @@ test('shows an approval that no longer holds as work for a person, and names the
   const todo = page.locator('.todo', { hasText: 'Consulter à nouveau request-history' });
   await expect(todo).toBeVisible();
   await expect(todo).toContainText(PERSON);
-  await expect(todo).toContainText('L’approbation de request-history a été donnée sous des règles antérieures (conventions modifiées)');
+  await expect(todo).toContainText('L’approbation de request-history a été donnée sous des règles antérieures (vérifications modifiées)');
   await expect(page.getByText('Réaliser request-history')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Synchroniser' })).toHaveCount(0);
   await page.goto('/#/quetes');
@@ -259,12 +265,18 @@ test('shows an approval that no longer holds as work for a person, and names the
   await page.getByRole('button', { name: 'Synchroniser' }).click();
   await expect(touched).toContainText('request-history');
 
-  // Back to the rules it was approved under, the approval holds again.
+  // Removing the check again lowers a protection: the page refuses it and names the person's terminal command.
   await page.goto('/#/blueprint');
-  await page.getByRole('button', { name: `Retirer ${convention}` }).click();
+  await page.getByRole('button', { name: 'Retirer python -m compileall -q .' }).click();
   await page.getByRole('button', { name: 'Enregistrer et synchroniser' }).click();
-  await expect(page.getByText('Profil enregistré et instructions synchronisées')).toBeVisible();
+  await expect(page.getByText('Ce changement affaiblit une protection du profil', { exact: false }).first()).toBeVisible();
+  await expect(page.getByText('profile remove check', { exact: false }).first()).toBeVisible();
+
+  // The person puts back the profile the task was approved under, and syncs: the approval holds again.
+  writeFileSync(profilePath, original);
   await page.goto('/#/royaume');
+  await page.reload();
+  await page.getByRole('button', { name: 'Synchroniser' }).click();
   await expect(page.getByText('Réaliser request-history')).toBeVisible();
 });
 

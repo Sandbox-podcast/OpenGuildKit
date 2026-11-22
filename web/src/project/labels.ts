@@ -190,8 +190,9 @@ export function touchedTasks(stdout: string): { id: string; status: string; step
 export const touchedStep = (step: string) => {
   if (step === 'consult it again') return 'la consulter à nouveau';
   if (step === 'request changes and consult it again') return 'demander des changements, puis la consulter à nouveau';
-  const m = /^consult it again \(openguildkit task consult (\S+)\) or open a linked task with --follows$/.exec(step);
-  return m ? `la consulter à nouveau (task consult ${m[1]}) ou ouvrir une tâche liée (--follows)` : null;
+  const m = /^consult it again \(openguildkit task consult (\S+)\)(, which keeps the passes of unchanged boards,)? or open a linked task with --follows$/.exec(step);
+  if (!m) return null;
+  return `la consulter à nouveau (task consult ${m[1]})${m[2] ? ', en gardant les passes des cerveaux inchangés,' : ''} ou ouvrir une tâche liée (--follows)`;
 };
 /** The CLI's next step of an approved task whose last verification failed. */
 export const hasFailedCheck = (next: string) => / failed.*Fix it, then run task verify /s.test(next);
