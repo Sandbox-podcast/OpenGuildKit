@@ -1,4 +1,5 @@
-"""Release consistency: one version everywhere, and release notes that compare from the last stable release."""
+"""Delivery: one version everywhere, a wheel built and checked as CI proves it, release notes from the last stable
+release, required and bounded CI jobs, and the entry documents (governance, security, French README) kept true."""
 
 import json
 import os
@@ -193,11 +194,56 @@ class GovernanceFilesTest(unittest.TestCase):
         self.assertTrue(catch_all[0][1:] and all(re.fullmatch(r"@[\w-]+(/[\w-]+)?", owner) for owner in catch_all[0][1:]))
         self.assertIn(".github/CODEOWNERS", _read("GOVERNANCE.md"))
 
+    def test_the_governance_names_one_maintainer_as_codeowners_does(self):
+        codeowners = _read(".github/CODEOWNERS")
+        self.assertNotIn("PLACEHOLDER", codeowners)
+        owners = next(line.split()[1:] for line in codeowners.splitlines() if line.startswith("* "))
+        self.assertEqual(len(owners), 1)
+        governance = _read("GOVERNANCE.md")
+        self.assertIn("one maintainer today", governance)
+        self.assertNotIn("Maintainers decide", governance)
+
+    def test_security_reports_get_an_acknowledgement_even_when_the_maintainer_is_away(self):
+        policy = _read("SECURITY.md")
+        self.assertIn("within 14 days", policy)
+        away = next(block for block in policy.split("\n\n") if "away" in block)
+        self.assertIn("stays private", away)
+        self.assertIn("Security", away)
+
     def test_contributing_states_the_licence_of_catalog_content(self):
         self.assertTrue(_read("LICENSE").startswith("MIT License"))
         paragraph = next(block for block in _read("CONTRIBUTING.md").split("\n\n") if "licen" in block.lower())
         for fact in ("catalog", "MIT License", "LICENSE"):
             self.assertIn(fact, paragraph)
+
+
+def _documentation_links(relative: str) -> list[str]:
+    section = _read(relative).split("\n## Documentation\n", 1)[1].split("\n## ", 1)[0]
+    return re.findall(r"\]\(([^)\s]+)\)", section)
+
+
+class FrenchPagesTest(unittest.TestCase):
+    """The French README addresses the reader one way, says once what is in French, and lists the same pages."""
+
+    def test_the_french_readme_says_tu_and_uses_one_kind_of_apostrophe(self):
+        text = _read("README.fr.md")
+        self.assertEqual(re.findall(r"\b(?:vous|votre|vos)\b", text, re.IGNORECASE), [])
+        self.assertNotIn("\u2019", text)
+        self.assertEqual(text.count("Chaque brain traite la demande sous plusieurs angles"), 0)
+
+    def test_both_readmes_list_the_same_documentation(self):
+        english, french = _documentation_links("README.md"), _documentation_links("README.fr.md")
+        self.assertGreater(len(english), 15)
+        self.assertEqual(french, english)
+
+    def test_the_language_rule_names_the_french_folder_and_why(self):
+        rule = next(line for line in _read("CONTRIBUTING.md").splitlines() if line.startswith("- Write code"))
+        self.assertIn("`web/`", rule)
+        self.assertIn("French", rule)
+        self.assertIn("because", rule)
+        top = _read("README.fr.md").split("\n## ", 1)[0]
+        self.assertIn("`web/`", top)
+        self.assertIn("en français", top)
 
 
 class CiWorkflowTest(unittest.TestCase):

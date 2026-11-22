@@ -10,6 +10,8 @@ OpenGuildKit is a catalog maintained by practitioners and a small CLI maintained
 
 **Maintainers** own the CLI, the schema and releases. They are listed in `.github/CODEOWNERS`, so GitHub requests their review on every pull request. A maintainer records the merge decision in the pull request.
 
+OpenGuildKit has one maintainer today. Until a second one joins, that maintainer takes the decisions this page gives to the maintainers, and records the reason in the issue or the pull request. A pull request from the maintainer waits for the checks of `contribution-checks` like any other.
+
 ## Decisions
 
 - **Library changes:** ask the domain steward to review when one is available. The maintainer reviews submissions for domains that have no steward yet.
@@ -20,7 +22,7 @@ The pull request records the proposal, review and decision. Link an existing iss
 
 ## Becoming a steward or maintainer
 
-A contributor with several merged pull requests in a domain can ask, or be proposed, in an issue. Maintainers decide by lazy consensus. Inactive stewards and maintainers move to an emeritus list and can return by asking.
+A contributor with several merged pull requests in a domain can ask, or be proposed, in an issue. The maintainer decides; once there are several maintainers, they decide by lazy consensus. Inactive stewards and maintainers move to an emeritus list and can return by asking.
 
 ## Releases
 

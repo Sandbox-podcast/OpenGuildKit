@@ -101,7 +101,7 @@ A maintainer validates every replacement in the pull request that makes it. Run 
 - Keep the CLI offline. It must never call a model provider or the network.
 - Add unit tests in `tests/` and, for a new command, an end-to-end test in `tests/e2e/`: `tests/test_cli_coverage.py` fails when a command has no test that runs it.
 - Keep messages short and actionable, prefixed `OpenGuildKit:` on errors.
-- Write code, rule packs and contribution docs in English. Reference entries can keep their original language. The French README is maintained alongside the English one.
+- Write code, rule packs and documentation in English, except the web interface. The web interface is written in French, because its screens are in French and the team that builds and uses it so far is French-speaking: `web/` (its screens, `web/README.md` and `web/docs/`) stays in French. Reference entries can keep their original language. The French README is maintained alongside the English one.
 
 ## Pull requests
 
