@@ -1319,7 +1319,7 @@ def _board_template(board: dict, reviewer: str | None = None, surfaces: list[str
 
 # A pass stays under this size: its brief and entry come first, and the rules of its packs fill what is left,
 # the most specific first. The packs that do not fit are named with the command that prints their rules.
-PASS_BUDGET = 9_600
+PASS_BUDGET = 9_800
 # The order in which a board's packs concerning the task are printed: a regulation the task's own answers select
 # (its data or concerns), the stack of the components the task touches, the other stacks, other regulations, the
 # board's methods, then the baseline every task follows.
@@ -2205,7 +2205,10 @@ def _rule_lines(data: dict, task_id: str, room: int) -> list[str]:
     with the reason."""
     lines, unprinted = ["## Rules of this board's packs that concern the task", ""], []
     footer = _not_concerned_lines(data)
-    room -= len("\n".join([*lines, *footer]).encode("utf-8")) + 400
+    # Room is kept for the closing lines at their longest: every pack left unprinted, and the other boards' count.
+    closing = [_unprinted_line([pack["pack"].split("@")[0] for pack in data["rules"]], task_id),
+               _other_packs_line(data["other_packs"])]
+    room -= len("\n".join([*lines, *footer, *closing]).encode("utf-8")) + 1
     for pack in data["rules"]:
         block = [f"{pack['title']} ({pack['pack']}):", *(f"- {rule['id']}: {rule['instruction']}" for rule in pack["rules"])]
         size = len("\n".join(block).encode("utf-8")) + 1
@@ -2217,12 +2220,20 @@ def _rule_lines(data: dict, task_id: str, room: int) -> list[str]:
     if not data["rules"]:
         lines.append("No rule of this board's packs concerns the task.")
     if unprinted:
-        lines.append(f"Also concern the task, not printed to keep this pass short: {', '.join(unprinted)}. One "
-                     f"pack's rules: openguildkit task brief {task_id} --pack PACK.")
+        lines.append(_unprinted_line(unprinted, task_id))
     lines.extend(footer)
     if data["other_packs"]:
-        lines.append(f"{data['other_packs']} other packs are in force for other boards (AGENTS.md).")
+        lines.append(_other_packs_line(data["other_packs"]))
     return lines
+
+
+def _unprinted_line(packs: list[str], task_id: str) -> str:
+    return (f"Also concern the task, not printed to keep this pass short: {', '.join(packs)}. One pack's rules: "
+            f"openguildkit task brief {task_id} --pack PACK.")
+
+
+def _other_packs_line(count: int) -> str:
+    return f"{count} other packs are in force for other boards (AGENTS.md)." if count else ""
 
 
 def pack_rules(consultation: dict, pack_id: str) -> str:

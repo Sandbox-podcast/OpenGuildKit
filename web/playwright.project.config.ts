@@ -27,7 +27,7 @@ export default defineConfig({
     viewport: { width: 1440, height: 900 },
     locale: 'fr-FR',
     trace: 'retain-on-failure',
-    storageState: { cookies: [opened(port), opened(port + 1)], origins: [] },
+    storageState: { cookies: [opened(port), opened(port + 1), opened(port + 2)], origins: [] },
   },
   webServer: [
     {

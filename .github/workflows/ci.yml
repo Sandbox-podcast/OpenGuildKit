@@ -178,6 +178,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - run: npm test
+      - run: npm run check:exports
       - run: npm run build
 
   # The journeys of the demo and of the project interface (openguildkit ui on sample projects), in the
