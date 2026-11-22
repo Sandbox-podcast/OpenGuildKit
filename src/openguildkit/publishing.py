@@ -9,6 +9,7 @@ leave the project: no review, evidence or internal note.
 
 import json
 import re
+import sys
 import uuid
 from collections import Counter
 from datetime import date, timedelta
@@ -61,7 +62,7 @@ def _verification(task: dict) -> str:
             f"{open_objection_count(task)} disagreement(s) remained open.")
 
 
-def _pages(task: dict, position: int, version: str, sections: tuple[str, ...]) -> dict[str, str]:
+def _pages(task: dict, position: int, version: str, sections: tuple[str, ...], export_day: str | None = None) -> dict[str, str]:
     title = _title(task)
     result = task.get("result", {})
     delivered = result.get("pull_request") or result.get("revision") or "not recorded"
@@ -90,7 +91,7 @@ def _pages(task: dict, position: int, version: str, sections: tuple[str, ...]) -
             lines += ["## What to expect", "", *[f"- {criterion}" for criterion in _criteria(task)], ""]
         pages[f"learn/{task['id']}.md"] = _frontmatter({**common, "sidebar_position": position}) + "\n".join(lines)
     if "blog" in sections:
-        day = (task.get("completed_at") or task["created_at"])[:10]
+        day = export_day or (task.get("completed_at") or task["created_at"])[:10]
         lines = [f"# {title}", ""]
         if body:
             lines += [body, ""]
@@ -160,9 +161,12 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
     previous = read_json(manifest_path)["files"] if manifest_path.is_file() else []
     if output.exists() and not manifest_path.is_file() and any(output.iterdir()):
         raise ValueError(f"{output} is not empty and was not created by openguildkit docs export.")
+    fixed = clock.source_date_epoch() if "blog" in sections and tasks else None
+    if fixed:
+        print(f"OpenGuildKit: SOURCE_DATE_EPOCH sets the exported blog date to {fixed.date().isoformat()}.", file=sys.stderr)
     pages = {}
     for position, task in enumerate(tasks, start=1):
-        pages.update(_pages(task, position, version, sections))
+        pages.update(_pages(task, position, version, sections, fixed.date().isoformat() if fixed else None))
     summary = [f"# {project}", ""]
     if "project" in sections and overview is not None:
         consulted = {entry["id"] for task in tasks for entry in task.get("review", {}).get("boards", [])}

@@ -1,10 +1,13 @@
 import copy
 import json
+import os
 import tempfile
 import unittest
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
+from unittest.mock import patch
 
+from openguildkit import clock
 from openguildkit.catalog import load_catalog
 from openguildkit.project import resolved_profile, validate_profile
 from openguildkit.decisions import check_decision
@@ -57,7 +60,7 @@ class BlockerTests(unittest.TestCase):
         task = resolve_blocker(self.task, "security:1", {
             "kind": "cleared", "by": "Alex", "evidence": "tests/test_access.py", "supports": "Cross-account access is refused.",
         }, self.profile, self.root)
-        until = (date.today() + timedelta(days=10)).isoformat()
+        until = (clock.today() + timedelta(days=10)).isoformat()
         waiver = {"kind": "waived", "by": "Camille Martin", "reason": "Pilot with internal users only",
                   "scope": "Internal pilot", "until": until}
         task = resolve_blocker(task, "security:2", waiver, self.profile, self.root)
@@ -90,16 +93,27 @@ class BlockerTests(unittest.TestCase):
         self.assertEqual(blocker_list(cleared)[0]["resolution"]["by"], "Alex")
 
     def test_waivers_follow_the_project_policy(self):
-        until = (date.today() + timedelta(days=10)).isoformat()
+        until = (clock.today() + timedelta(days=10)).isoformat()
         waiver = {"kind": "waived", "by": "Sam", "reason": "x", "scope": "y", "until": until}
         with self.assertRaisesRegex(ValueError, "cannot grant waivers"):
             resolve_blocker(self.task, "security:1", waiver, self.profile, self.root)
-        waiver.update(by="Camille Martin", until=(date.today() + timedelta(days=90)).isoformat())
+        waiver.update(by="Camille Martin", until=(clock.today() + timedelta(days=90)).isoformat())
         with self.assertRaisesRegex(ValueError, "between 1 and 30 days"):
             resolve_blocker(self.task, "security:1", waiver, self.profile, self.root)
         no_policy = {key: value for key, value in self.profile.items() if key != "waivers"}
         with self.assertRaisesRegex(ValueError, "allows no waiver"):
             resolve_blocker(self.task, "security:1", {**waiver, "until": until}, no_policy, self.root)
+
+    def test_waiver_duration_uses_real_time_even_with_a_reproducible_export_date(self):
+        with patch("os.environ", {**os.environ, "SOURCE_DATE_EPOCH": "1763640000"}):
+            today = clock.today()
+            waiver = {"kind": "waived", "by": "Camille Martin", "reason": "Pilot", "scope": "Internal",
+                      "until": (today + timedelta(days=10)).isoformat()}
+            resolved = resolve_blocker(self.task, "security:1", waiver, self.profile, self.root)
+            self.assertEqual(resolved["blocker_resolutions"]["security:1"]["until"], waiver["until"])
+            with self.assertRaisesRegex(ValueError, "between 1 and 30 days"):
+                resolve_blocker(self.task, "security:1", {**waiver, "until": (today - timedelta(days=1)).isoformat()},
+                                self.profile, self.root)
 
 
     def clear(self, evidence, **extra):

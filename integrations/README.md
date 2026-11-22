@@ -78,6 +78,24 @@ Not verified in a live host session: that both hosts apply these settings as doc
 
 When a consultation runs under `local-only` and the host does not block research, the consultation request says so and tells the agent to ask before using any external source.
 
+### Test hook inputs by hand
+
+Run these commands from an initialized project using a shell such as Bash. `printf` preserves the JSON escape sequences in a patch. With `guard` set to `enforce` and no approved task, each pre-edit example refuses the edit; the prompt example returns the guard's context. These commands only check the hook input; they do not edit a file.
+
+Claude Code prompt and edit:
+
+```sh
+printf '%s\n' '{"hook_event_name":"UserPromptSubmit","prompt":"Update app.py"}' | openguildkit guard --hook prompt
+printf '%s\n' '{"hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"app.py","old_string":"before","new_string":"after"}}' | openguildkit guard --hook pre-edit
+```
+
+Codex prompt and patch:
+
+```sh
+printf '%s\n' '{"hook_event_name":"UserPromptSubmit","prompt":"Update app.py"}' | openguildkit guard --hook prompt
+printf '%s\n' '{"hook_event_name":"PreToolUse","tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch\n*** Update File: app.py\n@@\n-before\n+after\n*** End Patch"}}' | openguildkit guard --hook pre-edit
+```
+
 A person records each decision on an external action outside the approved scope:
 
 ```bash

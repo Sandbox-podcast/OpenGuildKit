@@ -81,6 +81,15 @@ class EditionWatchTests(unittest.TestCase):
         for reference, record in state["references"].items():
             self.assertEqual(record["edition"], expected[reference]["edition"], reference)
             self.assertIn(record["page"], expected[reference]["pages"], reference)
+            self.assertNotEqual(record["status"], "not-checked", reference)
+            self.assertEqual(record["seen"], record["edition"], reference)
+            self.assertTrue(record["seen_on"], reference)
+
+    def test_committed_baseline_can_detect_a_missing_edition(self):
+        state = watch_editions.read_state(watch_editions.STATE)
+        missing = watch_editions.watch(load_references(), state,
+                                       lambda url: {"status": 200, "text": "Another edition"}, "2026-11-22")
+        self.assertTrue(watch_editions.changes(missing)["may_have_changed"])
 
     def test_main_updates_the_state_and_writes_the_changes(self):
         with tempfile.TemporaryDirectory() as folder:

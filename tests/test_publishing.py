@@ -10,11 +10,11 @@ import tempfile
 import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import publishing
+from openguildkit import clock, publishing
 from openguildkit.catalog import load_catalog
 from openguildkit.cli import main
 from openguildkit.storage import write_json
@@ -86,6 +86,17 @@ class PublishingTests(unittest.TestCase):
         self.assertFalse((site / "learn" / f"{TASK}.md").exists())
         self.assertEqual(len(list((site / "reference").glob("*.md"))), 1)
 
+    def test_epoch_changes_only_the_exported_blog_date_and_reports_it(self):
+        self.done_task()
+        task = json.loads(self.run_cli("task", "show", TASK)[0])
+        with patch("os.environ", {**os.environ, "SOURCE_DATE_EPOCH": "1763640000"}):
+            _, error = self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0")
+            self.assertIn("SOURCE_DATE_EPOCH", error)
+            self.assertIn("2025-11-20", error)
+            blog = self.root / "docs-site" / "blog" / f"2025-11-20-{TASK}.md"
+            self.assertIn('date: "2025-11-20"', blog.read_text(encoding="utf-8"))
+            self.assertEqual(json.loads(self.run_cli("task", "show", TASK)[0])["completed_at"], task["completed_at"])
+
     def test_export_refuses_a_folder_it_did_not_create(self):
         self.done_task()
         (self.root / "notes").mkdir()
@@ -93,7 +104,7 @@ class PublishingTests(unittest.TestCase):
         self.run_cli("docs", "export", "--tasks", TASK, "--output", "notes", "--version", "1.0.0", code=1)
 
     def test_shares_record_recipients_end_date_and_revocation(self):
-        until = (date.today() + timedelta(days=14)).isoformat()
+        until = (clock.today() + timedelta(days=14)).isoformat()
         common = ["docs", "share", "add", "--deliverable", "docs-site/reference/request-status.md", "--portal", "https://docs.example.org/p/portal"]
         self.run_cli(*common, "--recipient", "not-an-email", "--until", until, "--by", "Camille", code=1)
         output, _ = self.run_cli(*common, "--recipient", "client@example.org", "--until", until, "--by", "Camille")
@@ -103,7 +114,7 @@ class PublishingTests(unittest.TestCase):
         self.run_cli("docs", "share", "check")
         state = self.root / ".openguildkit" / "shares" / "shares.json"
         data = json.loads(state.read_text())
-        data["shares"][0]["until"] = (date.today() - timedelta(days=1)).isoformat()
+        data["shares"][0]["until"] = (clock.today() - timedelta(days=1)).isoformat()
         state.write_text(json.dumps(data), encoding="utf-8")
         self.run_cli("docs", "share", "check", code=1)
         self.run_cli("docs", "share", "revoke", "--id", data["shares"][0]["id"], "--by", "Camille")
@@ -170,7 +181,7 @@ class PublishingTests(unittest.TestCase):
         self.assertEqual(list(outside.iterdir()), [])
 
     def test_twenty_shares_recorded_at_once_are_all_kept(self):
-        until = (date.today() + timedelta(days=30)).isoformat()
+        until = (clock.today() + timedelta(days=30)).isoformat()
         environment = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"), os.environ.get("PYTHONPATH")])),
                        "PYTHONIOENCODING": "utf-8"}
 
@@ -193,7 +204,7 @@ class PublishingTests(unittest.TestCase):
         self.assertEqual(sorted(share["deliverable"] for share in shares), sorted(f"docs-site/d{index}.md" for index in range(20)))
 
     def test_revoking_a_share_holds_the_project_lock(self):
-        until = (date.today() + timedelta(days=30)).isoformat()
+        until = (clock.today() + timedelta(days=30)).isoformat()
         self.run_cli("docs", "share", "add", "--deliverable", "docs-site/d.md", "--recipient", "reader@example.test",
                      "--until", until, "--portal", "https://docs.example.test/p/portal", "--by", "Camille")
         share_id = json.loads(self.run_cli("docs", "share", "list", "--json")[0])[0]["id"]
@@ -213,7 +224,7 @@ class PublishingTests(unittest.TestCase):
         self.assertEqual(held, [True, False])
 
     def test_a_share_names_a_page_of_a_docs_export_and_nothing_else(self):
-        until = (date.today() + timedelta(days=30)).isoformat()
+        until = (clock.today() + timedelta(days=30)).isoformat()
         (self.root / "notes.md").write_text("private", encoding="utf-8")
         (self.root / ".openguildkit" / "tasks").mkdir(exist_ok=True)
         (self.root / ".openguildkit" / "tasks" / "report.json").write_text("{}", encoding="utf-8")
@@ -254,7 +265,7 @@ class PublishingTests(unittest.TestCase):
         common = ["docs", "share", "add", "--deliverable", "docs-site/d.md", "--recipient", "reader@example.test",
                   "--by", "Camille"]
         portal = ["--portal", "https://docs.example.test/p/portal"]
-        later = date.today() + timedelta(days=30)
+        later = clock.today() + timedelta(days=30)
         for until in (later.strftime("%Y%m%d"), later.strftime("%G-W%V-%u"), "9999-12-31", "2026-02-30"):
             _, error = self.run_cli(*common, *portal, "--until", until, code=1)
             self.assertTrue(error.startswith("OpenGuildKit: "), error)

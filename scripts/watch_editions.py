@@ -117,7 +117,8 @@ def issue(reference: str, record: dict) -> dict:
     """The title and body of the issue that asks a person to open the page."""
     body = (
         f"The page {record['page']} no longer shows the edition \"{record['edition']}\" that the catalog cites "
-        f"for the reference {record['family']}/{reference}. It was last seen there on {record['seen_on']}; "
+        f"for the reference {record['family']}/{reference}. The last recorded observation or catalog source "
+        f"check was on {record['seen_on']}; "
         f"checked {record['checked']}.\n\n"
         "The edition may have changed. Open the page and decide:\n\n"
         "- A new edition is out: update the reference's `edition` and its source `checked` date, review the packs "

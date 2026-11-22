@@ -11,7 +11,7 @@ Open an issue with the template that matches your idea (new pattern, new pack, n
 ```bash
 gh repo fork Sandbox-podcast/OpenGuildKit --clone
 cd OpenGuildKit
-git switch -c brain/hr-pay-equity
+git switch -c brain/hr-accessibility
 python -m pip install -e .
 python -m unittest discover -s tests
 ```
@@ -20,13 +20,17 @@ The tests pass before you change anything. If they do not, say so in the issue.
 
 ## 3. Make the change
 
-Example: the HR brain should look at pay equity when a change touches compensation. In `src/openguildkit/registry/boards/hr.json`, add a specialist under `review.specialists`:
+Example: the HR brain should consider accessibility when a change affects an employee onboarding process. In `src/openguildkit/registry/boards/hr.json`, add a specialist under `review.specialists`:
 
 ```json
 {
-  "id": "pay-equity",
-  "title": "Pay equity reviewer",
-  "focus": "Check that a change to compensation rules or job levels can be explained per job category and does not create gaps the team cannot justify."
+  "id": "onboarding-accessibility",
+  "title": "Onboarding accessibility reviewer",
+  "focus": "Check that new employees can request accessible onboarding materials and workplace adjustments.",
+  "checks": [
+    "Onboarding materials have an accessible format or a documented alternative.",
+    "A contact and a process for requesting workplace adjustments are communicated to new employees."
+  ]
 }
 ```
 
@@ -48,15 +52,15 @@ openguildkit brains --id hr
 python -m unittest discover -s tests
 ```
 
-Expected result: the first commands print nothing on error output, `brains --check` reports `27 brains, 0 gap(s).`, `brains --id hr` lists your lens, and the tests pass. A refused record names the file and the field.
+Expected result: the first commands print nothing on error output, `brains --check` reports zero gaps, `brains --id hr` lists your lens, and the tests pass. A refused record names the file and the field.
 
 If you changed triggers, add a brief that must and one that must not select the brain to `tests/routing_cases.json`.
 
 ## 5. Open the pull request
 
 ```bash
-git commit -am "Add a pay equity lens to the HR brain"
-git push -u origin brain/hr-pay-equity
+git commit -am "Add an onboarding accessibility lens to the HR brain"
+git push -u origin brain/hr-accessibility
 gh pr create --fill
 ```
 

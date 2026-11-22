@@ -508,7 +508,7 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
         until = resolution.get("until", "")
         if not _DAY.fullmatch(until):
             raise ValueError("Give the waiver's end date as YYYY-MM-DD.")
-        days = (datetime.fromisoformat(until).date() - clock.now().date()).days
+        days = (datetime.fromisoformat(until).date() - clock.today()).days
         if days < 1 or days > policy["max_days"]:
             raise ValueError(f"A waiver lasts between 1 and {policy['max_days']} days.")
         for field in ("reason", "scope"):

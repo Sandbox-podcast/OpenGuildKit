@@ -53,6 +53,8 @@ No runtime dependency. Tests use `unittest` from the standard library. [Testing]
 
 Boards should map to a real discipline with its own questions. Give it 3 expertises, 3 questions every task should answer, and triggers in English plus at least one other language. Check that your triggers do not fire on common words: add briefs that must and must not select the board to `tests/routing_cases.json`, which CI runs on every change.
 
+Run `openguildkit brains --new ID` in a project to create a skeleton, then replace its TODOs. The board's `review` block needs `specialists`, `evidence`, `challenge` and `decision_criteria`. Run `openguildkit brains --check` to check for gaps before submitting the contribution. See [Specialist brains](docs/brains.md) for the full workflow.
+
 ## Adding a sector
 
 A sector record lists what an agent must ask or check in that industry: roles, data, who approves which decision, regulators. Write context items as instructions, not descriptions of the industry.

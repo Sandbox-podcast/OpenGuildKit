@@ -1,9 +1,4 @@
-"""The clock that stamps every record.
-
-When SOURCE_DATE_EPOCH is set, following the reproducible-builds convention, its value in
-seconds since 1970-01-01 UTC replaces the current time, so a replay writes the same dates
-on any day. Measuring a duration uses time.monotonic instead and is not affected.
-"""
+"""Wall-clock dates for decisions and an optional reproducible date for exports."""
 
 import os
 import re
@@ -12,7 +7,7 @@ from datetime import date, datetime, timezone
 _SECONDS = re.compile(r"[0-9]+")
 
 
-def _source_date_epoch() -> datetime | None:
+def source_date_epoch() -> datetime | None:
     value = os.environ.get("SOURCE_DATE_EPOCH", "")
     if not value:
         return None
@@ -25,14 +20,13 @@ def _source_date_epoch() -> datetime | None:
 
 
 def now() -> datetime:
-    """The current UTC time, or SOURCE_DATE_EPOCH when it is set."""
-    return _source_date_epoch() or datetime.now(timezone.utc)
+    """The current UTC time, independent of reproducible-export settings."""
+    return datetime.now(timezone.utc)
 
 
 def today() -> date:
-    """Today's local date, or the UTC date of SOURCE_DATE_EPOCH when it is set."""
-    fixed = _source_date_epoch()
-    return fixed.date() if fixed else date.today()
+    """Today's local date, independent of reproducible-export settings."""
+    return date.today()
 
 
 def timestamp() -> str:

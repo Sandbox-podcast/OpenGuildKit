@@ -34,6 +34,8 @@ The `work-patterns` family comes from the [pattern catalog](patterns.md). A patt
 
 When turning a new reference into a pack, confirm its edition, the conditions where it applies and the team that owns it. Write the action to take, how to verify it and what evidence to keep. Use your organization's approved interpretation for regulatory requirements and licensed standards.
 
+The weekly edition watch compares each recorded edition with its public source pages. The initial watch state uses the catalog's edition and source-check date as a baseline, not as proof that the automated reader saw the edition on that page. After a weekly run, a maintainer reviews the `edition-watch` workflow artifact and commits `scripts/edition-watch.json`; when an edition is flagged, the maintainer checks the source and updates the catalog and watch state as needed. Pages can move or keep older editions online, so a flag needs review and a missing flag does not prove that an edition is current.
+
 ### From a reference to a verified rule
 
 `openguildkit references --id ID` shows the edition the entry describes, then either the pattern and the packs that apply it, with their version and rule IDs, or `Status: documentary reference` when no pack turns it into rules yet. `--json` returns the same information in the `edition`, `pattern`, `packs` and `status` fields.

@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from datetime import date, timedelta
+from functools import lru_cache
 import json
 from pathlib import Path
 import re
@@ -399,6 +400,7 @@ def normalize_text(value: str) -> str:
 _normalized_words = normalize_text
 
 
+@lru_cache(maxsize=4096)
 def trigger_pattern(trigger: str) -> re.Pattern:
     """Match a trigger as whole words, allowing a regular plural on each word."""
     words = normalize_text(trigger).split(" ")
@@ -670,15 +672,17 @@ def _consultation_markdown(
     if scope["research"] == "public-sources":
         research = (
             "Use authorized project evidence and public sources. Keep private "
-            "project details out of searches and external requests."
+            "project details out of searches and external requests. Public research within this scope needs no "
+            "separate task authorize decision."
         )
     else:
-        research = "Use authorized project files and source material available locally."
+        research = ("Use authorized project files and source material available locally. Public research requires "
+                    "a person to record a task authorize public-research decision first; host restrictions may also need changing.")
         control = next((item for item in scope.get("host_controls", []) if item["id"] == "research"), None)
         if control and control["status"] != "enforced":
             research += (
                 " Public research is off for this project and this host agent has no setting that enforces it: "
-                "do not search, and ask the requester before using any external source."
+                "ask the requester before using any external source."
             )
 
     lines = [

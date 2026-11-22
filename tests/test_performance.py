@@ -14,6 +14,7 @@ import importlib.util
 import io
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -114,6 +115,22 @@ class CatalogLoadTests(unittest.TestCase):
         second = catalog.load_catalog()
         self.assertTrue(second["packs"])
         self.assertNotIn("Changed", [board["title"] for board in second["boards"].values()])
+
+
+class RoutingPerformanceTests(unittest.TestCase):
+    def test_routing_cases_average_under_five_ms(self):
+        from openguildkit.workflow import text_routes
+        from tests.test_routing import CASES
+
+        boards = catalog.load_catalog()["boards"]
+        # Warm the bounded pattern cache as in a consultation that reads several texts.
+        for case in CASES:
+            text_routes(boards, case["brief"])
+        start = time.perf_counter()
+        for case in CASES:
+            text_routes(boards, case["brief"])
+        average = (time.perf_counter() - start) / len(CASES)
+        self.assertLess(average, 0.005, f"Routing averaged {average * 1000:.2f} ms per brief")
 
 
 if __name__ == "__main__":

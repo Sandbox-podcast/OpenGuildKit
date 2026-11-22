@@ -29,13 +29,13 @@ Review the pages before committing them, especially the Learn drafts. The [examp
 
 ## Reproducible dates
 
-Every date OpenGuildKit writes in a record (task creation, board passes, decisions, completion, deliverable drafts, shares and revocations) and every "today" it compares with (share end dates, waiver lengths, market and Storybook ages) comes from one clock. When the environment variable `SOURCE_DATE_EPOCH` is set, following the reproducible builds convention, its value in seconds since 1970-01-01 UTC replaces the current time. A replay run with the same value therefore writes the same dated blog page on any day:
+Task records, approvals, shares and revocations use the real clock, as do expiry checks, waiver lengths and market and Storybook ages. For reproducible documentation exports, `SOURCE_DATE_EPOCH` sets the date used in exported blog page names and front matter to its UTC date. OpenGuildKit reports that date on standard error. It does not change the completion date stored in the task:
 
 ```bash
-SOURCE_DATE_EPOCH=1795176000 openguildkit task complete request-status   # recorded as 2026-11-20T12:00:00+00:00
+SOURCE_DATE_EPOCH=1795176000 openguildkit docs export --tasks request-status --output docs-site --version 1.4.0
 ```
 
-Leave it unset in normal use: approvals, shares and waivers would otherwise be stamped and checked against the fixed date. A value that is not a whole number of seconds is refused.
+Set it on the `docs export` command using your usual export arguments. Without it, the blog date comes from the task's completion date. A value that is not a whole number of seconds is refused when an export needs it.
 
 ## Import into Documentalist
 

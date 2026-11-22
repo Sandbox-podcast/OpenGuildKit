@@ -11,6 +11,7 @@ import unittest
 from datetime import date, timedelta
 from pathlib import Path
 
+from openguildkit import clock
 from openguildkit.cli import main
 from openguildkit.market import dossier_gaps, due_sources, validate_dossier
 from openguildkit.storage import write_json
@@ -124,8 +125,8 @@ class MalformedDossierTests(unittest.TestCase):
                 validate_dossier(self.broken(change), "support-portals")
 
     def test_dates_after_tomorrow_are_refused(self):
-        later = (date.today() + timedelta(days=2)).isoformat()
-        tomorrow = (date.today() + timedelta(days=1)).isoformat()
+        later = (clock.today() + timedelta(days=2)).isoformat()
+        tomorrow = (clock.today() + timedelta(days=1)).isoformat()
         for change in (lambda d: d["observations"][0]["source"].update(date=later),
                        lambda d: d["watch"]["sources"][0].update(last_checked=later),
                        lambda d: d["watch"]["changes"][0].update(date=later)):
@@ -169,7 +170,7 @@ class MarketCommandTests(unittest.TestCase):
         self.assertFalse(any("Describe" in gap for gap in json.loads(self.cli("market", "check", "nope", "--json"))["gaps"]))
 
     def test_commands_record_observations_changes_and_last_checked(self):
-        today = date.today().isoformat()
+        today = clock.today().isoformat()
         self.cli("market", "new", "portals", "--market", "B2B help desks", "--audience", "Support leads", "--feature", "Status")
         self.cli("market", "competitor", "portals", "--competitor", "vendor-a", "--name", "Vendor A", "--kind", "direct")
         self.assertIn("--kind is direct or substitute",

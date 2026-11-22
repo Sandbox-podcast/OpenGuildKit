@@ -8,10 +8,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 
+from openguildkit import clock
 from openguildkit.catalog import CatalogError, _validate_entry, load_catalog
 from openguildkit.cli import _prompt_choices, main
 from openguildkit.storage import write_json
@@ -187,7 +188,7 @@ class CleanErrorTests(unittest.TestCase):
     def test_evidence_dates_must_be_real_and_past_and_cited_files_must_exist(self):
         review = self.consulted()
         path = self.root / "review.json"
-        later = (date.today() + timedelta(days=3)).isoformat()
+        later = (clock.today() + timedelta(days=3)).isoformat()
         for change, message in (({"source": "measurement", "date": "2026-99-99"}, "not a real date"),
                                 ({"source": "measurement", "date": later}, "in the future"),
                                 ({"source": "project-file", "ref": "nowhere/does-not-exist.txt"}, "not a file or folder"),
