@@ -509,13 +509,44 @@ def _clause_words(text: str, normalized: str, offsets: list[int], start: int) ->
     return words[cut:]
 
 
-def _opens_a_condition(text: str, offsets: list[int], clause_start: int, words_before: int, end: int) -> bool:
+# "Also ignore the competitors": an imperative "ignore" at the start of its clause sets its object aside.
+_SET_ASIDE = frozenset(("ignore", "ignorer", "ignorez", "ignorons"))
+_LEADING_WORDS = frozenset(("also", "just", "please", "simply", "then", "and", "now",
+                            "aussi", "simplement", "puis", "et", "merci", "de", "svp"))
+# A clause that opens with one of these, or with a French infinitive or imperative, is an instruction:
+# "Sans les concurrents, ajouter le calcul des prix" sets the competitors aside.
+_INSTRUCTIONS = frozenset((
+    "add", "fix", "update", "change", "create", "remove", "delete", "build", "write", "implement", "show",
+    "display", "move", "rename", "make", "set", "use", "keep", "compute", "calculate", "send", "store",
+    "refactor", "migrate", "test", "check", "list", "export", "import", "document", "replace", "compare",
+    "prepare", "plan",
+))
+_NOT_FRENCH_VERBS = frozenset((
+    "notre", "votre", "entre", "autre", "contre", "outre", "premier", "dernier", "lettre", "titre", "ordre",
+    "nombre", "membre", "offre", "centre", "filtre", "hier", "cher", "super", "user", "leur", "chez", "assez",
+))
+
+
+def _is_instruction(word: str, french: bool) -> bool:
+    """An English imperative from a short list, or, after "sans", a French infinitive (-er, -ir, -re) or
+    imperative (-ez)."""
+    word = _bare(word)
+    if not french:
+        return word in _INSTRUCTIONS
+    return len(word) >= 4 and word not in _NOT_FRENCH_VERBS and word.endswith(("er", "ir", "re", "ez")) \
+        and word.isalpha()
+
+
+def _opens_a_condition(text: str, offsets: list[int], clause_start: int, words_before: int, end: int,
+                       french: bool = False) -> bool:
     """ "Without a payment, the order fails": a short clause that opens with without and goes on after a
     comma. In a list of exclusions ("no AI, without payments, no UI") the clauses around it are negated too."""
     following = text[offsets[end - 1] + 1:].lstrip()
     if words_before > 3 or not following.startswith(",") or not following[1:].strip():
         return False
     next_words = normalize_text(following[1:]).split()
+    if next_words and _is_instruction(next_words[0], french):
+        return False
     head = text[:offsets[clause_start]].rstrip()
     previous = re.split(r"[.,;:!?()\[\]{}\n\r]", head[:-1])[-1] if head.endswith(",") else ""
     previous_words = normalize_text(previous).split()
@@ -527,6 +558,9 @@ def _negation(text: str, normalized: str, offsets: list[int], start: int, end: i
     when it may name what is needed, or None when nothing negates them."""
     clause = _clause_words(text, normalized, offsets, start)
     window = clause[-NEGATION_WINDOW:]
+    for index, (position, word) in enumerate(clause):
+        if _bare(word) in _SET_ASIDE and all(other in _LEADING_WORDS for _, other in clause[:index]):
+            return "excluded", position
     if any(_bare(word) in _OMISSIONS or _bare(word) in _LIMITS for _, word in window):
         return None
     for index in range(len(window) - 1, -1, -1):
@@ -542,7 +576,8 @@ def _negation(text: str, normalized: str, offsets: list[int], start: int, end: i
         if word in _DOUBLE_NEGATION[0] and (before in _DOUBLE_NEGATION[1] or before.endswith("n't")):
             return None
         opens_clause = len(clause) - len(window) + index == 0
-        if word in _DOUBLE_NEGATION[0] and opens_clause and _opens_a_condition(text, offsets, position, len(window) - index, end):
+        if word in _DOUBLE_NEGATION[0] and opens_clause and _opens_a_condition(
+                text, offsets, position, len(window) - index, end, french=word == "sans"):
             return "kept", position
         return "excluded", position
     rest = normalized[end:]
@@ -702,8 +737,9 @@ def _audience_routes(profile: dict, task: dict, answers: dict, enabled: set[str]
             pattern = re.compile("|".join(trigger_pattern(phrase).pattern for phrase in phrases[role]["triggers"]))
             for match in pattern.finditer(normalized):
                 # "Audience: support agents" labels the clause, so the window crosses a colon but not a sentence.
+                # The marker may head a list: "read by the support team and customer-success managers".
                 sentence = re.split(r"[.;!?\n]", normalized[:match.start()])[-1]
-                before = {_bare(word) for word in re.findall(r"[\w']+", sentence)[-4:]}
+                before = {_bare(word) for word in re.findall(r"[\w']+", sentence)[-8:]}
                 if before & _AUDIENCE_WORDS:
                     found[role] = _quote(text, normalized, offsets, match.start(), match.end())
                     break

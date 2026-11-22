@@ -486,5 +486,47 @@
     "must": [
       "sales"
     ]
+  },
+  {
+    "brief": "Rename the comparison page. Also ignore the competitors.",
+    "must_not": [
+      "marketing"
+    ]
+  },
+  {
+    "brief": "Renommer la page. Ignorez les concurrents.",
+    "must_not": [
+      "marketing"
+    ]
+  },
+  {
+    "brief": "Sans les concurrents, ajouter le calcul des prix",
+    "must": [
+      "finance"
+    ],
+    "must_not": [
+      "marketing"
+    ]
+  },
+  {
+    "brief": "Without competitors, add the price calculation",
+    "must": [
+      "finance"
+    ],
+    "must_not": [
+      "marketing"
+    ]
+  },
+  {
+    "brief": "We ignore failed payments in the report: fix it",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Sans paiement, impossible de valider la commande",
+    "must": [
+      "finance"
+    ]
   }
 ]
