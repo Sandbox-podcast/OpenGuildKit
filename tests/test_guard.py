@@ -235,6 +235,37 @@ class GuardTests(unittest.TestCase):
             "command": "*** Begin Patch\n*** Update File: .openguildkit/project.json\n@@\n-  \"guard\": \"enforce\"\n+  \"guard\": \"off\"\n"}})
         self.run_cli("guard", "--hook", "pre-edit", stdin=patch_input, code=2)
 
+    def test_enforce_refuses_the_signers_the_alert_register_and_the_project_catalog_without_an_approved_task(self):
+        (self.root / "keys").mkdir()
+        (self.root / "keys" / "allowed_signers").write_text("pat@example.org ssh-ed25519 AAAA\n", encoding="utf-8")
+        self.init(guard="enforce", approval={"mode": "signed", "allowed_signers": "keys/allowed_signers",
+                                             "approvers": ["pat@example.org"]})
+        paths = ("keys/allowed_signers", ".openguildkit/alerts.json", ".openguildkit/catalog/boards/security.json",
+                 ".openguildkit/catalog/tools/issue-tracking.json")
+        for relative in paths:
+            with self.subTest(path=relative):
+                _, error = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(relative), code=2)
+                self.assertIn(f"Edit refused for: {relative}" if "catalog" in relative or "alerts" in relative
+                              else f"{relative} lists the keys that may sign approvals", error)
+        output, _ = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(".openguildkit/answers.json"))
+        self.assertEqual(output, "")
+
+    def test_an_approved_task_covers_the_catalog_and_the_alert_register_never_the_signers(self):
+        (self.root / "allowed_signers").write_text("pat@example.org ssh-ed25519 AAAA\n", encoding="utf-8")
+        self.init(guard="enforce", approval={"mode": "signed", "allowed_signers": "allowed_signers",
+                                             "approvers": ["pat@example.org"]})
+        approval = {"task": "t1", "brief": "Add a board", "approved_at": "2026-11-22T09:00:00+00:00", "stale": False}
+        with patch("openguildkit.guard.covering_approvals", return_value=[approval]):
+            for relative in (".openguildkit/alerts.json", ".openguildkit/catalog/boards/security.json"):
+                self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(relative))
+            _, error = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(self.root / "ALLOWED_SIGNERS"),
+                                    code=2)
+        self.assertIn("only the person changes it", error)
+        profile = self.root / ".openguildkit" / "project.json"
+        write_json(profile, {**json.loads(profile.read_text(encoding="utf-8")), "guard": "observe"})
+        output, _ = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input("allowed_signers"))
+        self.assertIn("Edit flagged, not blocked", json.loads(output)["hookSpecificOutput"]["additionalContext"])
+
     def test_observe_reports_an_edit_to_the_guard_files_and_lets_it_through(self):
         self.init(guard="observe")
         output, _ = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(self.root / ".openguildkit" / "project.json"))

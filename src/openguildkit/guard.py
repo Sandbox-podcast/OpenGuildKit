@@ -35,6 +35,9 @@ PROTECTED = (
     f"{STATE_DIR}/tasks/", f"{STATE_DIR}/{DECISIONS_DIR}/", f"{STATE_DIR}/project.json", f"{STATE_DIR}/{LOCK_FILE}",
     ".claude/settings.json", ".claude/settings.local.json", ".codex/hooks.json", ".codex/config.toml", ".codex/rules/",
 )
+# Files under .openguildkit/ that are work like any other: an approved task must cover an edit. The project
+# catalog changes what the boards review, and the alert register what blocks an approval.
+STATE_WORK = (f"{STATE_DIR}/alerts.json", f"{STATE_DIR}/catalog/")
 
 
 def guard_mode(profile: dict) -> str:
@@ -117,9 +120,27 @@ def _project_relative(root: Path, path: str) -> str | None:
         return None
 
 
-def _protected(relative: str) -> bool:
+def _listed(relative: str, items: tuple) -> bool:
+    """Whether a project path is one of the items, a folder item covering what it holds; case is ignored."""
     folded = relative.casefold()
-    return any(folded == item.casefold() or (item.endswith("/") and folded.startswith(item.casefold())) for item in PROTECTED)
+    return any(folded == item.casefold() or (item.endswith("/") and folded.startswith(item.casefold())) for item in items)
+
+
+def _protected(relative: str) -> bool:
+    return _listed(relative, PROTECTED)
+
+
+def signers_file(root: Path, profile: dict) -> str | None:
+    """The allowed signers file of a project with signed approvals, as a project path; None otherwise."""
+    approval = profile.get("approval") or {}
+    if approval.get("mode") != "signed" or not isinstance(approval.get("allowed_signers"), str):
+        return None
+    return _project_relative(root, approval["allowed_signers"])
+
+
+def _is_work(relative: str) -> bool:
+    """Work an approved task must cover: any project file, except the state the CLI keeps for itself."""
+    return PurePosixPath(relative).parts[:1] != (STATE_DIR,) or _listed(relative, STATE_WORK)
 
 
 NO_TASK = (
@@ -146,8 +167,8 @@ def _context(event: str, text: str) -> str:
 
 
 # What the guard found: an approved task covers the work, no task covers it, the edit touches a file the guard
-# relies on, the guard could not check, or the edit stays outside the project's work.
-HOOK_OUTCOMES = ("covered", "uncovered", "protected", "unchecked", "outside")
+# relies on or the allowed signers file, the guard could not check, or the edit stays outside the project's work.
+HOOK_OUTCOMES = ("covered", "uncovered", "protected", "signers", "unchecked", "outside")
 SCOPE_NOTE = (
     "The guard does not compare the edited files with a task's scope: keep this work within the approved brief "
     "and bring anything else back to the person."
@@ -176,6 +197,9 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "") -> tuple[
     if outcome == "protected":
         message = (f"OpenGuildKit: {detail} is written by the openguildkit commands and the guard relies on it. "
                    f"{verdict}: ask the person to run the openguildkit command that changes it.")
+    elif outcome == "signers":
+        message = (f"OpenGuildKit: {detail} lists the keys that may sign approvals: only the person changes it, in a "
+                   f"commit they review, even under an approved task. {verdict}: ask the person.")
     elif outcome == "uncovered":
         # In observe, what happened comes first: the instruction must not read stronger than the flag.
         advice = NO_TASK.removeprefix("OpenGuildKit: ")
@@ -197,8 +221,12 @@ def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict
     if event == "prompt":
         return hook_answer(event, mode, "covered" if approvals else "uncovered", _describe(approvals))
     inside = [relative for relative in (_project_relative(root, path) for path in edited_paths(hook_input)) if relative]
+    signers = signers_file(root, profile)
+    keys = [relative for relative in inside if signers and relative.casefold() == signers.casefold()]
     protected = [relative for relative in inside if _protected(relative)]
-    work = [relative for relative in inside if not _protected(relative) and PurePosixPath(relative).parts[:1] != (STATE_DIR,)]
+    work = [relative for relative in inside if relative not in keys and not _protected(relative) and _is_work(relative)]
+    if keys:
+        return hook_answer(event, mode, "signers", ", ".join(keys))
     if protected:
         return hook_answer(event, mode, "protected", ", ".join(protected))
     if work and not approvals:
@@ -415,16 +443,20 @@ def _record_shape(record: dict, relative: str) -> None:
                          "Export the decision again or remove the file.")
 
 
-def _record_problem(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path, earlier: set) -> str | None:
+def _record_problem(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path, earlier: set,
+                    *, extracted: bool = False) -> str | None:
     """Why a decision record cannot cover the changes, or None when it can."""
-    found = _record_check(record, relative, fingerprint, policy, base_root, earlier)
+    found = _record_check(record, relative, fingerprint, policy, base_root, earlier, extracted=extracted)
     return found[1] if found else None
 
 
 def _record_check(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path,
-                  earlier: set) -> tuple[str, str] | None:
-    """The kind of problem a decision record has and its message, or None when it holds."""
-    found = _record_fault(record, relative, fingerprint, policy, base_root, earlier)
+                  earlier: set, *, extracted: bool = False) -> tuple[str, str] | None:
+    """The kind of problem a decision record has and its message, or None when it holds.
+
+    extracted says that base_root holds files copied from a Git revision (CI) rather than a working copy.
+    """
+    found = _record_fault(record, relative, fingerprint, policy, base_root, earlier, extracted=extracted)
     if found is None:
         return None
     if found == "earlier-rules":
@@ -435,7 +467,8 @@ def _record_check(record: dict, relative: str, fingerprint: str, policy: dict, b
     return "invalid-record", found
 
 
-def _record_fault(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path, earlier: set) -> str | None:
+def _record_fault(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path, earlier: set,
+                  *, extracted: bool = False) -> str | None:
     """What is wrong with a record: a message, or the kind "earlier-rules" or "earlier-record"; None when it holds.
 
     Records written from RECORD_VERSION on carry two digests: the approval's seal covers what the record shows of
@@ -473,7 +506,7 @@ def _record_fault(record: dict, relative: str, fingerprint: str, policy: dict, b
         if not isinstance(decision.get("signature"), str) or not isinstance(decision.get("signer"), str):
             return f"{relative}: the project requires signed approvals and this decision is not signed."
         try:
-            verify_signature(base_root, policy, payload, decision["signature"], decision["signer"])
+            verify_signature(base_root, policy, payload, decision["signature"], decision["signer"], committed=not extracted)
         except ValueError as error:
             return f"{relative}: {error}"
     return None
@@ -628,7 +661,7 @@ def ci_guard(root: Path, base: str, catalog_for) -> dict:
                 continue
             record = read_json(path)
             _record_shape(record, relative)
-            problem = _record_problem(record, relative, fingerprint, policy, base_root, earlier)
+            problem = _record_problem(record, relative, fingerprint, policy, base_root, earlier, extracted=True)
             if problem:
                 problems.append(problem)
             else:

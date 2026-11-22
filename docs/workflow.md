@@ -192,7 +192,7 @@ A local approval is sealed with a SHA-256 of data that all sits in the task file
 "approval": {"mode": "signed", "allowed_signers": ".openguildkit/allowed_signers", "approvers": ["camille@example.org"]}
 ```
 
-The allowed signers file uses the `ssh-keygen` format, one line per approver: `camille@example.org ssh-ed25519 AAAA...`. The approver then decides in three steps:
+The allowed signers file uses the `ssh-keygen` format, one line per approver: `camille@example.org ssh-ed25519 AAAA...`. Commit it: a signature is verified against the file as Git holds it at `HEAD`, never against a working copy ([what protects it](architecture.md#design-decisions)). The approver then decides in three steps:
 
 ```bash
 openguildkit task decision-payload request-status --by "Camille Martin" --reason "Read-only scope agreed" --output decision.json

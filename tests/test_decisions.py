@@ -100,15 +100,31 @@ class DecisionTests(unittest.TestCase):
         _, error = self.run_cli("check", code=1)
         self.assertIn("no longer matches what was approved", error)
 
-    @unittest.skipIf(shutil.which("ssh-keygen") is None, "needs ssh-keygen")
-    def test_a_signed_project_verifies_the_approver(self):
+    def keys(self, *names):
+        """A folder outside the project with a synthetic SSH key pair per name."""
         keys = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, keys, ignore_errors=True)
-        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(keys / "camille")], check=True)
-        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(keys / "intruder")], check=True)
+        for name in names:
+            subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(keys / name)], check=True)
+        return keys
+
+    def sign(self, keys, name, payload_name="decision.json"):
+        """Sign the payload with a key; ssh-keygen would ask before replacing an earlier signature."""
+        signature = keys / f"{payload_name}.sig"
+        signature.unlink(missing_ok=True)
+        subprocess.run(["ssh-keygen", "-q", "-Y", "sign", "-f", str(keys / name), "-n", "openguildkit-decision",
+                        str(keys / payload_name)], check=True, capture_output=True, stdin=subprocess.DEVNULL)
+        return signature
+
+    @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
+    def test_a_signed_project_verifies_the_approver(self):
+        keys = self.keys("camille", "intruder")
         public = (keys / "camille.pub").read_text().strip()
         (self.root / "allowed_signers").write_text(f"camille@example.org {public}\n", encoding="utf-8")
+        self.git("init", "-q")
         self.reviewed({"approval": {"mode": "signed", "allowed_signers": "allowed_signers", "approvers": ["camille@example.org"]}})
+        self.git("add", "allowed_signers")
+        self.git("commit", "-q", "-m", "signers")
         _, error = self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed", code=1)
         self.assertIn("requires a signed approval", error)
 
@@ -124,6 +140,60 @@ class DecisionTests(unittest.TestCase):
         with patch("sys.stdin.isatty", return_value=False):
             self.run_cli(*common, "--signature", keys / "camille.sig")
         self.run_cli("task", "handoff", TASK)
+
+    @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
+    def test_a_signature_is_verified_against_the_signers_file_committed_in_git(self):
+        keys = self.keys("camille")
+        signers = self.root / "allowed_signers"
+        signers.write_text(f"camille@example.org {(keys / 'camille.pub').read_text().strip()}\n", encoding="utf-8")
+        self.git("init", "-q")
+        self.reviewed({"approval": {"mode": "signed", "allowed_signers": "allowed_signers", "approvers": ["camille@example.org"]}})
+        self.run_cli("task", "decision-payload", TASK, "--by", "Camille", "--reason", "Agreed", "--output", keys / "decision.json")
+        decide = ["task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed",
+                  "--signer", "camille@example.org", "--signature", self.sign(keys, "camille")]
+        _, error = self.run_cli(*decide, code=1)
+        self.assertIn("The allowed signers file allowed_signers is not committed", error)
+        self.git("add", "allowed_signers")
+        _, error = self.run_cli(*decide, code=1)
+        self.assertIn("allowed_signers is not committed", error)
+        self.git("commit", "-q", "-m", "signers")
+        with signers.open("a", encoding="utf-8") as handle:
+            handle.write("alex@example.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK\n")
+        _, error = self.run_cli(*decide, code=1)
+        self.assertIn("The allowed signers file allowed_signers differs from its version at HEAD", error)
+        self.git("checkout", "--", "allowed_signers")
+        self.run_cli("task", "decision-payload", TASK, "--by", "Camille", "--reason", "Agreed", "--output", keys / "decision.json")
+        decide[-1] = self.sign(keys, "camille")
+        self.assertEqual(self.run_cli(*decide)[0].strip(), "approved")
+
+    @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
+    def test_a_key_the_agent_adds_to_the_signers_file_approves_nothing(self):
+        """The audit's replay: the agent appends its key, signs with it and approves with no terminal."""
+        keys = self.keys("pat", "agent")
+        signers = self.root / ".openguildkit" / "allowed_signers"
+        signers.parent.mkdir()
+        signers.write_text(f"pat@example.org {(keys / 'pat.pub').read_text().strip()}\n", encoding="utf-8")
+        self.git("init", "-q")
+        self.reviewed({"guard": "enforce", "approval": {
+            "mode": "signed", "allowed_signers": ".openguildkit/allowed_signers", "approvers": ["pat@example.org"]}})
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        edit = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": ".openguildkit/allowed_signers"}})
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr), patch("sys.stdin", io.StringIO(edit)):
+            self.assertEqual(main(["--project", str(self.root), "guard", "--hook", "pre-edit"]), 2)
+        self.assertIn(".openguildkit/allowed_signers lists the keys that may sign approvals", stderr.getvalue())
+
+        with signers.open("a", encoding="utf-8") as handle:
+            handle.write(f'pat@example.org namespaces="openguildkit-decision" {(keys / "agent.pub").read_text().strip()}\n')
+        self.run_cli("task", "decision-payload", TASK, "--by", "Pat Example", "--reason", "Looks fine to me",
+                     "--output", keys / "decision.json")
+        with patch("sys.stdin.isatty", return_value=False):
+            _, error = self.run_cli("task", "decide", TASK, "--approve", "--by", "Pat Example", "--reason", "Looks fine to me",
+                                    "--signature", self.sign(keys, "agent"), "--signer", "pat@example.org", code=1)
+        self.assertIn(".openguildkit/allowed_signers differs from its version at HEAD", error)
+        self.assertEqual(json.loads(self.task_path().read_text())["status"], "reviewed")
+        self.assertEqual(json.loads(self.run_cli("guard", "--json")[0])["covered_by"], [])
 
     def forge_approval(self):
         """What an agent can do with file access alone: approve the task and recompute its seal."""

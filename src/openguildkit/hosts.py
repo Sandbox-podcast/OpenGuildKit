@@ -28,14 +28,24 @@ CLAUDE_APPROVAL_RULES = (
     + tuple(f"Bash({tool}:*)" for tool in TERMINAL_EMULATORS)
     + tuple(f"Bash({pattern})" for pattern in CLAUDE_APPROVAL_PATTERNS)
 )
-# Files the guard relies on: the CLI writes them through its own commands. A leading / is relative
-# to the settings source, the project root for .claude/settings.json; ./ would follow the current directory.
+# Files the guard relies on: the CLI writes most of them through its own commands, and the project catalog and the
+# alert register change what the boards review and what blocks an approval. A leading / is relative to the settings
+# source, the project root for .claude/settings.json; ./ would follow the current directory.
 PROTECTED_PATHS = (
     ".openguildkit/tasks/**", ".openguildkit/decisions/**", ".openguildkit/project.json",
     ".openguildkit/catalog.lock.json", ".claude/settings.json", ".claude/settings.local.json",
+    ".openguildkit/alerts.json", ".openguildkit/catalog/**",
 )
 CLAUDE_PROTECTED_RULES = tuple(f"Edit(/{path})" for path in PROTECTED_PATHS)
 OUTDATED_PROTECTED_RULES = tuple(f"Edit(./{path})" for path in PROTECTED_PATHS)
+
+
+def signers_rule(profile: dict) -> str | None:
+    """The deny rule that keeps Claude Code's file tools away from the allowed signers file of a signed project."""
+    approval = profile.get("approval") or {}
+    if approval.get("mode") != "signed" or not isinstance(approval.get("allowed_signers"), str):
+        return None
+    return f"Edit(/{Path(approval['allowed_signers']).as_posix()})"
 CODEX_RULES_FILE = Path(".codex") / "rules" / "openguildkit.rules"
 CODEX_CONFIG_FILE = Path(".codex") / "config.toml"
 CLAUDE_SETTINGS_FILE = Path(".claude") / "settings.json"
@@ -231,12 +241,16 @@ def _board_control(root: Path, host: str, guard: str) -> dict:
         missing = [rule for rule in CLAUDE_PROTECTED_RULES if rule not in _claude_denied(root)]
         hooks = settings.get("hooks", {})
         unblocked = guard == "enforce" and not _blocks_on_failure(hooks)
-        present = _claude_hooks_present(hooks) and not missing and not unblocked
+        switchable = guard == "enforce" and settings.get("disableAllHooks") is not False
+        present = _claude_hooks_present(hooks) and not missing and not unblocked and not switchable
         detail = (f"Claude Code hooks in {CLAUDE_SETTINGS_FILE.as_posix()} run openguildkit guard on each request and "
-                  "before file edits, and file edits to the task records, the profile and the settings are denied."
+                  "before file edits, and file edits to the task records, the profile, the project catalog, the alert "
+                  "register and the settings are denied."
                   + (f" Missing: {', '.join(missing)}." if missing else "")
                   + (" The pre-edit hook lacks \"onFailure\": \"block\", so an edit goes through when the hook cannot start."
-                     if unblocked else "") + shell)
+                     if unblocked else "")
+                  + (" The settings lack \"disableAllHooks\": false, so a user setting can turn the hooks off."
+                     if switchable else "") + shell)
     elif host == "codex":
         present = _claude_hooks_present(_codex_hooks(root).get("hooks", {}))
         detail = (f"{CODEX_HOOKS_FILE.as_posix()} runs openguildkit guard on each request and before patches. "
@@ -284,12 +298,14 @@ def host_controls(root: Path, profile: dict) -> list[dict]:
                 f"{CLAUDE_SETTINGS_FILE.as_posix()} "
                 + (f"still denies {', '.join(left)}." if left else f"does not deny {' or '.join(CLAUDE_RESEARCH_RULES)}."),
             ))
-        missing = [rule for rule in CLAUDE_APPROVAL_RULES if rule not in denied]
+        signers = signers_rule(profile)
+        missing = [rule for rule in (*CLAUDE_APPROVAL_RULES, *([signers] if signers else [])) if rule not in denied]
         controls.append(_control(
-            "approval", approval_title, "missing" if missing else "enforced",
+            "approval", approval_title, "missing" if missing else "partial",
             "Claude Code denies the approval, waiver and allow commands in every documented form, terminal emulators "
-            "and Python pseudo-terminals"
-            + (f"; missing: {', '.join(missing)}" if missing else ". A script file or a shell redirect can still get around them."),
+            "and Python pseudo-terminals" + (", and file edits to the allowed signers file" if signers else "")
+            + (f"; missing: {', '.join(missing)}" if missing else ". Partial: a script file or a shell redirect can "
+               "still get around them."),
         ))
     elif host == "codex":
         config = _codex_config(root)
@@ -313,9 +329,10 @@ def host_controls(root: Path, profile: dict) -> list[dict]:
         rules_path = root / CODEX_RULES_FILE
         current = rules_path.read_text(encoding="utf-8") if rules_path.is_file() else ""
         controls.append(_control(
-            "approval", approval_title, "enforced" if current == _codex_rules() else "missing",
+            "approval", approval_title, "partial" if current == _codex_rules() else "missing",
             f"{CODEX_RULES_FILE.as_posix()} forbids the approval, waiver and authorization commands and terminal emulators. "
-            "Codex reads it only once the project is trusted; a script file or a Python pseudo-terminal can still get around it.",
+            "Codex reads it only once the project is trusted. Partial: a script file or a Python pseudo-terminal can "
+            "still get around it.",
         ))
     else:
         if local_only:
@@ -352,6 +369,8 @@ def apply_host_settings(root: Path, profile: dict) -> list[str]:
         if not isinstance(deny, list):
             raise ValueError(f"{path.as_posix()}: permissions.deny must be a list.")
         wanted = list(CLAUDE_APPROVAL_RULES) + (list(CLAUDE_RESEARCH_RULES) if local_only else [])
+        if signers_rule(profile):
+            wanted.append(signers_rule(profile))
         if profile.get("guard", "off") != "off":
             wanted += CLAUDE_PROTECTED_RULES
         deny[:] = [rule for rule in deny if rule not in OUTDATED_PROTECTED_RULES]
@@ -360,6 +379,9 @@ def apply_host_settings(root: Path, profile: dict) -> list[str]:
             deny[:] = [rule for rule in deny if rule not in CLAUDE_RESEARCH_RULES]
         if profile.get("guard", "off") != "off":
             settings["hooks"] = _merge_hooks(settings.get("hooks"), host, profile.get("guard") == "enforce")
+        if profile.get("guard") == "enforce":
+            # A user setting "disableAllHooks": true turns every hook off unless the project says false.
+            settings["disableAllHooks"] = False
         write_text(path, json.dumps(settings, indent=2, ensure_ascii=False) + "\n")
         written.append(CLAUDE_SETTINGS_FILE.as_posix())
     elif host == "codex":
