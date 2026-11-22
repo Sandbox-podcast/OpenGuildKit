@@ -1281,15 +1281,23 @@ def _consultation_markdown(
     return "\n".join(lines)
 
 
-def _lens_concerned(lens: dict, surfaces: list[str]) -> bool:
-    """A lens that names the surfaces it applies to is concerned when the task's surfaces meet them."""
-    applies = lens.get("applies_to")
-    if not applies or not surfaces or {"unsure", "other"} & set(surfaces):
-        return True
-    return bool(set(applies) & set(surfaces))
+def _scope_met(applies: list[str] | None, answers: list[str] | None) -> bool:
+    """A scope is met when it is absent, when the answer is missing or left open, or when they share a value."""
+    return not applies or not answers or bool({"unsure", "other"} & set(answers)) or bool(set(applies) & set(answers))
 
 
-def _board_template(board: dict, reviewer: str | None = None, surfaces: list[str] | None = None) -> dict:
+def _lens_concerned(lens: dict, surfaces: list[str], concerns: list[str] | None = None) -> bool:
+    """A lens that names the surfaces or the concerns it applies to is concerned when the task's answers meet them."""
+    return _scope_met(lens.get("applies_to"), surfaces) and _scope_met(lens.get("applies_to_concerns"), concerns)
+
+
+def _lens_scope(lens: dict, surfaces: list[str]) -> list[str]:
+    """The scope a lens left out of a task names: its surfaces when they are not met, its concerns otherwise."""
+    return lens["applies_to"] if not _scope_met(lens.get("applies_to"), surfaces) else lens["applies_to_concerns"]
+
+
+def _board_template(board: dict, reviewer: str | None = None, surfaces: list[str] | None = None,
+                    concerns: list[str] | None = None) -> dict:
     entry = {"id": board["id"], "recommendation": "", "evidence": [], "open_questions": []}
     if reviewer:
         entry["reviewer"] = reviewer
@@ -1297,7 +1305,7 @@ def _board_template(board: dict, reviewer: str | None = None, surfaces: list[str
         entry["challenge"] = {
             "specialists": [
                 {"id": specialist["id"], "finding": "", "basis": _choices("basis"), "evidence_refs": []}
-                for specialist in board["review"]["specialists"] if _lens_concerned(specialist, surfaces or [])
+                for specialist in board["review"]["specialists"] if _lens_concerned(specialist, surfaces or [], concerns)
             ],
             "verdict": _choices("verdict"),
             "confidence": _choices("confidence"),
@@ -1403,14 +1411,16 @@ def _board_brief_data(
 ) -> dict:
     """What one board's pass carries: its brief, the rules of its packs and a bounded reading list."""
     surfaces = _as_list(scope["answers"].get("surface"))
+    concerns = _as_list(scope["answers"].get("concerns"))
     review = board.get("review", {})
     lenses = review.get("specialists", [])
     data = {
         "title": board["title"], "purpose": board["description"], "routing": reasons,
         "questions": board["questions"],
-        "lenses": [lens for lens in lenses if _lens_concerned(lens, surfaces)],
+        "lenses": [lens for lens in lenses if _lens_concerned(lens, surfaces, concerns)],
         "lenses_not_concerned": [
-            {"id": lens["id"], "applies_to": lens["applies_to"]} for lens in lenses if not _lens_concerned(lens, surfaces)
+            {"id": lens["id"], "applies_to": _lens_scope(lens, surfaces)} for lens in lenses
+            if not _lens_concerned(lens, surfaces, concerns)
         ],
         "evidence": review.get("evidence", []), "challenge": review.get("challenge", []),
         "decision_criteria": review.get("decision_criteria", []), "source_leads": board.get("sources", []),
@@ -1538,7 +1548,8 @@ def consult(
             "consultation_id": consultation_id,
             "summary": "",
             "boards": [
-                _board_template(boards[board_id], delegations.get(board_id), answers["surface"]) for board_id in routing
+                _board_template(boards[board_id], delegations.get(board_id), answers["surface"],
+                                _as_list(answers.get("concerns"))) for board_id in routing
             ],
             "evidence_item": EVIDENCE_ITEM,
             "blocker_item": BLOCKER_ITEM,
@@ -2109,6 +2120,9 @@ def _legacy_board_section(consultation: dict, board_id: str) -> list[str]:
 _SURFACE_MEANINGS = {
     "customer": "customer-facing experience", "service": "backend services or data flows",
     "infrastructure": "infrastructure or deployment", "business": "business processes or deliverables",
+    # The concerns a lens can need, said the same way.
+    "money": "prices, payments, invoices, payroll or spending", "ai": "AI models or LLMs",
+    "people-decisions": "software that decides about individual people", "credentials": "secrets, keys or tokens",
 }
 
 

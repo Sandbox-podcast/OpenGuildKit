@@ -36,7 +36,7 @@
           "url": "https://mcp.hubspot.com",
           "auth": "oauth",
           "env": [],
-          "status": "ga",
+          "status": "unknown",
           "capabilities": "Read and write CRM records, activities, content, campaigns, marketing email drafts, pipelines and properties, acting with the user's HubSpot permissions.",
           "source": "https://developers.hubspot.com/docs/apps/developer-platform/build-apps/integrate-with-the-remote-hubspot-mcp-server",
           "verified": "2026-11-21",
@@ -49,7 +49,7 @@
         "kind": "rest",
         "docs": "https://developers.hubspot.com/docs/api-reference/latest/overview"
       },
-      "notes": "OAuth 2.1 with PKCE through an MCP connector created in the HubSpot account; GA status comes from HubSpot's changelog. A separate Developer MCP server exists for building on HubSpot (not listed)."
+      "notes": "OAuth 2.1 with PKCE through an MCP connector created in the HubSpot account. The source page states no release status for the server and labels revenue objects and quotes BETA. A separate Developer MCP server exists for building on HubSpot (not listed)."
     },
     {
       "id": "pipedrive",
@@ -112,7 +112,7 @@
           "url": "https://api.salesforce.com/platform/mcp/v1/platform/sobject-all",
           "auth": "oauth",
           "env": [],
-          "status": "ga",
+          "status": "unknown",
           "capabilities": "Read, create, update and delete standard and custom object records; platform/sobject-reads is the read-only variant.",
           "source": "https://developer.salesforce.com/docs/platform/hosted-mcp-servers/references/reference/sobject-reads.html",
           "repository": "https://github.com/forcedotcom/mcp-hosted",

@@ -1,5 +1,6 @@
 {"name": "Acme Shop", "sector": "e-commerce", "stack": ["Next.js 15", "React 19", "TypeScript 5.7", "Stripe"],
  "roles": ["product", "marketing", "sales", "finance"], "personal_data": "yes",
- "norms": {"gdpr-personal-data": "yes", "online-consumer-sales": "yes", "pci-dss-cardholder-data": "yes"},
+ "norms": {"gdpr-personal-data": "yes", "online-consumer-sales": "yes", "pci-dss-cardholder-data": "yes",
+           "european-accessibility-act": "yes"},
  "boards": ["product", "marketing", "sales", "finance", "legal"], "tools": ["HubSpot", "Google Analytics", "Stripe"],
  "host": "claude-code", "guard": "observe", "research": "local-only", "checks": []}

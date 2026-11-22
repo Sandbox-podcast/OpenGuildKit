@@ -1,0 +1,32 @@
+{
+  "id": "european-accessibility-act",
+  "title": "European Accessibility Act (EU)",
+  "description": "Preselected for e-commerce and financial services: keep it when the organization provides e-commerce or consumer banking services to consumers in the EU and is not a micro-enterprise (Directive (EU) 2019/882, Art. 2(2) and 4(5)).",
+  "sources": [
+    {
+      "title": "Directive (EU) 2019/882 on the accessibility requirements for products and services (European Accessibility Act)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2019/882/oj/eng",
+      "checked": "2026-11-22"
+    }
+  ],
+  "roles": [
+    "legal",
+    "design",
+    "qa"
+  ],
+  "packs": [
+    "european-accessibility-act"
+  ],
+  "kind": "regulation",
+  "match": {
+    "sectors": [
+      "e-commerce",
+      "financial-services"
+    ]
+  },
+  "references": [
+    "eu-accessibility-act",
+    "wcag-22",
+    "en-301549"
+  ]
+}

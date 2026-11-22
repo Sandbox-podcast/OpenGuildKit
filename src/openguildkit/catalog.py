@@ -272,8 +272,16 @@ def _validate_evidence(evidence: Any, label: str) -> None:
 
 
 def _validate_rule(rule: Any, label: str, allow_command: bool) -> None:
-    """A rule states an instruction and its verification; a machine check can stand in for both."""
-    _validate_fields(rule, label, {"id"}, {"instruction", "verification", "check", "evidence", "records"})
+    """A rule states an instruction and its verification; a machine check can stand in for both.
+
+    A rule without a check may say in `manual` why only a person can verify it, such as a record kept outside
+    the repository or a behaviour that shows only in a running system.
+    """
+    _validate_fields(rule, label, {"id"}, {"instruction", "verification", "check", "evidence", "records", "manual"})
+    if "manual" in rule:
+        _validate_text(rule["manual"], f"{label}.manual")
+        if "check" in rule:
+            raise CatalogError(f"{label} carries a check, which task verify evaluates: remove its manual reason")
     _validate_id(rule["id"], f"{label}.id")
     if "check" in rule and isinstance(rule["check"], dict) and rule["check"].keys() == {"max_minutes"}:
         if rule["id"] != EXPORT_EXPIRY_ID or not is_positive_integer(rule["check"]["max_minutes"]):
@@ -360,6 +368,8 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
 
 # The task surfaces a lens can name; unsure and other are answers that keep every lens, never a lens's scope.
 LENS_SURFACES = ("customer", "service", "infrastructure", "business")
+# The task concerns a lens can name; none, unsure and other are answers, never a lens's scope.
+LENS_CONCERNS = ("money", "ai", "people-decisions", "credentials")
 
 
 def _validate_lens_surfaces(specialist: dict[str, Any]) -> None:
@@ -372,12 +382,22 @@ def _validate_lens_surfaces(specialist: dict[str, Any]) -> None:
                            f"{', '.join(LENS_SURFACES)}")
 
 
+def _validate_lens_concerns(specialist: dict[str, Any]) -> None:
+    """applies_to_concerns names the task concerns a lens needs; a task that answers none of them leaves it out."""
+    concerns = specialist["applies_to_concerns"]
+    label = f"specialist {specialist['id']} applies_to_concerns"
+    if not isinstance(concerns, list) or not concerns:
+        raise CatalogError(f"{label} must be a non-empty list")
+    if any(item not in LENS_CONCERNS for item in concerns) or len(set(concerns)) != len(concerns):
+        raise CatalogError(f"{label} lists distinct concerns among {', '.join(LENS_CONCERNS)}")
+
+
 def _validate_board_review(review: Any) -> None:
     _validate_fields(review, "review", {"specialists", "evidence", "challenge", "decision_criteria"})
     _validate_list(review["specialists"], "review.specialists")
     seen = set()
     for specialist in review["specialists"]:
-        _validate_fields(specialist, "specialist", {"id", "title", "focus"}, {"checks", "applies_to"})
+        _validate_fields(specialist, "specialist", {"id", "title", "focus"}, {"checks", "applies_to", "applies_to_concerns"})
         specialist_id = specialist["id"]
         _validate_id(specialist_id, "specialist ID")
         if specialist_id in seen:
@@ -388,6 +408,8 @@ def _validate_board_review(review: Any) -> None:
         # What an expert of this lens verifies: the discipline's knowledge carried into each consultation.
         if "applies_to" in specialist:
             _validate_lens_surfaces(specialist)
+        if "applies_to_concerns" in specialist:
+            _validate_lens_concerns(specialist)
         if "checks" in specialist:
             _validate_list(specialist["checks"], f"specialist {specialist_id} checks")
             for check in specialist["checks"]:

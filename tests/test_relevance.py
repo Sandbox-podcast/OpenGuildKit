@@ -57,8 +57,10 @@ class RelevanceTests(RelevanceCase):
         self.assertIn("ai/people-decisions", skipped["llm-evaluations"] + skipped.get("eu-ai-act", "ai/people-decisions"))
         listed = sum(entry["checks"] for entry in template["not_concerned"])
         in_packs = sum(len(pack["rules"]) for pack in template["packs"])
-        self.assertEqual(len(template["checks"]) + in_packs + listed,
-                         len([c for c in every if c["kind"] in ("rule", "evidence")]))
+        # A rule with a machine check is recorded by task verify, listed apart from the answers.
+        verified = len([item for item in template["recorded_by_verify"] if item["check"].startswith("rule:")])
+        self.assertEqual(len(template["checks"]) + in_packs + listed + verified,
+                         len([c for c in every if c["kind"] in ("rule", "evidence", "machine")]))
 
     def test_personal_data_selects_the_gdpr_rules_and_their_evidence(self):
         task, profile = self.task({**BUG, "kind": "feature", "data": "personal"},
@@ -108,7 +110,8 @@ class RelevanceTests(RelevanceCase):
         # A feature keeps every GDPR rule, and required_rules keeps a rule whatever the kind.
         task, profile = self.task({**BUG, "kind": "feature", "data": "personal"}, boards=boards)
         asked = {c["id"] for c in asked_checks(task, profile, self.relevance(task, profile))}
-        self.assertEqual(len([name for name in asked if name.startswith("rule:gdpr/")]), 8)
+        self.assertEqual(len([name for name in asked if name.startswith("rule:gdpr/")]),
+                         len(self.catalog["packs"]["gdpr"]["rules"]))
         required = validate_profile({**dict(field_profile(self.catalog)), "required_rules": ["gdpr/assess-dpia-need"]},
                                     self.catalog)
         task, profile = self.task({**BUG, "data": "personal"}, boards=boards, profile=required)

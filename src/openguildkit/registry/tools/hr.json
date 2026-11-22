@@ -32,8 +32,9 @@
           "status": "beta",
           "capabilities": "Employees and directory, fields, datasets, reports, time off, goals, hiring, global employment and files; mostly read, some write and delete tools.",
           "source": "https://documentation.bamboohr.com/docs/mcp-server",
-          "verified": "2026-11-21",
-          "access": "Read and write."
+          "verified": "2026-11-22",
+          "access": "Read and write.",
+          "status_source": "https://documentation.bamboohr.com/docs/mcp-server"
         }
       ],
       "api": {

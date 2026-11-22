@@ -1,13 +1,28 @@
 {
   "id": "owasp-asvs",
   "title": "OWASP ASVS verification",
-  "version": "1.0.0",
-  "description": "Project checks for choosing and tracking defensive application security requirements from ASVS.",
+  "version": "1.1.0",
+  "description": "Project checks for choosing and tracking defensive application security requirements from ASVS 5.0, with the requirements of the chapters on authentication, authorization and input validation that most changes meet.",
   "sources": [
     {
       "title": "OWASP Application Security Verification Standard",
       "url": "https://asvs.owasp.org/",
       "checked": "2026-11-21"
+    },
+    {
+      "title": "OWASP ASVS 5.0.0, V6 Authentication",
+      "url": "https://github.com/OWASP/ASVS/blob/v5.0.0/5.0/en/0x15-V6-Authentication.md",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "OWASP ASVS 5.0.0, V8 Authorization",
+      "url": "https://github.com/OWASP/ASVS/blob/v5.0.0/5.0/en/0x17-V8-Authorization.md",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "OWASP ASVS 5.0.0, V2 Validation and Business Logic",
+      "url": "https://github.com/OWASP/ASVS/blob/v5.0.0/5.0/en/0x11-V2-Validation-and-Business-Logic.md",
+      "checked": "2026-11-22"
     }
   ],
   "depends_on": [
@@ -28,6 +43,21 @@
       "id": "review-control-exceptions",
       "instruction": "Record unmet requirements and exceptions with an owner, scope and review date. Escalate blockers through the project's release process.",
       "verification": "Verify that release evidence shows the decision for each open requirement and links to remediation or approval."
+    },
+    {
+      "id": "verify-authentication-requirements",
+      "instruction": "When the change touches sign-in, passwords or account activation, verify it against ASVS 5.0 chapter V6 Authentication, such as 6.2.1 (passwords of at least 8 characters), 6.3.1 (controls against credential stuffing and password brute force) and 6.4.1 (initial passwords and activation codes securely randomly generated and short-lived).",
+      "verification": "Record for each requirement named whether the change meets it, with a test or the review that shows it."
+    },
+    {
+      "id": "verify-authorization-requirements",
+      "instruction": "When the change exposes a function or data, verify it against ASVS 5.0 chapter V8 Authorization: 8.2.1 (function-level access only with explicit permissions), 8.2.2 (data-specific access only with explicit permissions to the items, against IDOR and BOLA) and 8.3.1 (rules enforced at a trusted service layer).",
+      "verification": "Run a test as a consumer without the permission for each changed function and data item and assert the refusal."
+    },
+    {
+      "id": "verify-input-validation-requirements",
+      "instruction": "When the change accepts input, verify it against ASVS 5.0 chapter V2 Validation and Business Logic: 2.1.1 (documented validation rules), 2.2.1 (positive validation against allowed values, patterns and ranges) and 2.2.2 (validation enforced at a trusted service layer).",
+      "verification": "Send values outside the documented rules to the changed entry points in a test and assert that the service rejects them."
     }
   ]
 }

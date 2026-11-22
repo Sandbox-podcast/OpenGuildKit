@@ -1,7 +1,7 @@
 {
   "id": "github-actions-security",
   "title": "GitHub Actions security",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Checks for build workflow permissions, action pinning and deployment credentials.",
   "sources": [
     {
@@ -30,6 +30,22 @@
       "id": "scope-deployment-identity",
       "instruction": "Use short-lived deployment credentials when the provider supports them. Restrict the identity to the approved repository, workflow or environment context and the required cloud permissions.",
       "verification": "Check the trust-policy conditions against the approved workflow claims and review the cloud role's permissions for the intended deployment."
+    },
+    {
+      "id": "declare-workflow-permissions",
+      "instruction": "Declare `permissions:` in the workflows, so jobs get the permissions their steps need and not the default.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".github/workflows/*.yml",
+          ".github/workflows/*.yaml"
+        ],
+        "contains": [
+          "permissions:"
+        ],
+        "expect": "present"
+      }
     }
   ]
 }

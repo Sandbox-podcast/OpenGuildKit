@@ -290,7 +290,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/TR/WCAG22/",
-          "checked": "2026-11-20",
+          "checked": "2026-11-22",
           "title": "W3C — Web Content Accessibility Guidelines (WCAG) 2.2"
         }
       ]
@@ -371,12 +371,13 @@
       "summary": "Exigences d'accessibilité applicables aux produits et services des technologies de l'information.",
       "applies_when": "Édition et portée à déterminer selon le contrat et le cadre réglementaire ; publication ne signifie pas harmonisation automatique.",
       "packs": [
-        "public-sector-accessibility"
+        "public-sector-accessibility",
+        "european-accessibility-act"
       ],
       "sources": [
         {
           "url": "https://www.etsi.org/deliver/etsi_en/301500_301599/301549/04.01.01_60/en_301549v040101p.pdf",
-          "checked": "2026-11-21",
+          "checked": "2026-11-22",
           "title": "EN 301 549 - V4.1.1 - Accessibility requirements for ICT products and services"
         }
       ]

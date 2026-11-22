@@ -169,9 +169,13 @@
       "sources": [
         {
           "url": "https://spdx.org/licenses/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-22",
           "title": "SPDX License List"
         }
+      ],
+      "pattern": "licence-policy",
+      "packs": [
+        "licence-policy"
       ]
     },
     {

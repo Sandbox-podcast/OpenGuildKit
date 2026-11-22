@@ -1,7 +1,7 @@
 {
   "id": "aws-iam",
   "title": "AWS IAM permissions",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "For a workload or pipeline that uses AWS: temporary credentials, least-privilege policies, policy validation, trust conditions and unused access.",
   "sources": [
     {
@@ -45,6 +45,23 @@
       "id": "remove-unused-access",
       "instruction": "Remove roles, policies and permissions the change makes unused, using last accessed information to confirm.",
       "verification": "Compare the permissions in the change with the service last accessed data and record the ones removed."
+    },
+    {
+      "id": "no-iam-user-access-keys",
+      "instruction": "Do not declare `aws_iam_access_key` resources in the Terraform code: give workloads roles with temporary credentials.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "*.tf",
+          "*/*.tf",
+          "*/*/*.tf"
+        ],
+        "contains": [
+          "aws_iam_access_key"
+        ],
+        "expect": "absent"
+      }
     }
   ]
 }

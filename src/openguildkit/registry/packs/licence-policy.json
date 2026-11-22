@@ -1,0 +1,60 @@
+{
+  "id": "licence-policy",
+  "title": "Dependency licence policy",
+  "version": "1.0.0",
+  "description": "For a change that adds or upgrades a dependency: the organization's licence policy written as SPDX license identifiers and checked on every change. The legal owner decides the policy; these rules give no legal advice.",
+  "sources": [
+    {
+      "title": "SPDX License List",
+      "url": "https://spdx.org/licenses/",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "GitHub, dependency-review-action (allow-licenses, deny-licenses)",
+      "url": "https://github.com/actions/dependency-review-action",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "pip-licenses on PyPI (--allow-only, --fail-on)",
+      "url": "https://pypi.org/project/pip-licenses/",
+      "checked": "2026-11-22"
+    }
+  ],
+  "rules": [
+    {
+      "id": "declare-licence-policy",
+      "instruction": "Ask the legal owner for the licence policy as identifiers of the SPDX License List: the licences allowed for dependencies, the ones refused and the ones to review, given how the product is distributed.",
+      "verification": "Link the policy and check that each entry is an identifier of the SPDX License List.",
+      "manual": "The policy is the legal owner's decision on how the product is distributed."
+    },
+    {
+      "id": "check-dependency-licences",
+      "instruction": "Check the licences of the dependencies on each change with a tool that fails on a licence outside the policy, such as the allow-licenses option of GitHub's dependency review action or pip-licenses with --allow-only, run from CI or from a script of the dependency file.",
+      "verification": "task verify finds the licence check in a CI workflow or a dependency file; review what it reports for the dependencies the change adds.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".github/workflows/*.yml",
+          ".github/workflows/*.yaml",
+          ".github/dependency-review-config.yml",
+          ".gitlab-ci.yml",
+          ".pre-commit-config.yaml",
+          "package.json",
+          "pyproject.toml"
+        ],
+        "contains": [
+          "allow-licenses",
+          "deny-licenses",
+          "pip-licenses"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "review-unlisted-licences",
+      "instruction": "When a new dependency's licence is not in the policy, or the tool cannot tell it, ask the legal owner before merging, and record the decision with the dependency and its version.",
+      "verification": "Link the legal owner's recorded decision for each dependency the licence check could not settle.",
+      "manual": "Deciding on a licence outside the policy is the legal owner's judgement."
+    }
+  ]
+}

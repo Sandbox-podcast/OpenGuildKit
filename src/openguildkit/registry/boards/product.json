@@ -14,7 +14,12 @@
     "roadmap",
     "feuille de route",
     "product discovery",
-    "onboarding",
+    "user onboarding",
+    "onboarding flow",
+    "onboarding funnel",
+    "product onboarding",
+    "onboarding utilisateur",
+    "parcours d'onboarding",
     "critères d'acceptation",
     "acceptance criteria",
     "mvp",
@@ -60,6 +65,10 @@
         "checks": [
           "The problem is observed in real users' situations, not only requested.",
           "The current workaround and its cost are described."
+        ],
+        "applies_to": [
+          "customer",
+          "business"
         ]
       },
       {

@@ -109,6 +109,9 @@
         "checks": [
           "The task can be completed with keyboard only and at 200 percent zoom.",
           "State changes are announced to screen readers and focus order follows the visual order."
+        ],
+        "applies_to": [
+          "customer"
         ]
       },
       {

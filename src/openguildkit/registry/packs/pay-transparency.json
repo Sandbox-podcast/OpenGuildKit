@@ -1,35 +1,40 @@
 {
   "id": "pay-transparency",
   "title": "Pay transparency",
-  "version": "1.0.0",
-  "description": "For a change to job postings, hiring forms, pay structures or HR reports: the obligations of Directive (EU) 2023/970, to transpose by 7 June 2026.",
+  "version": "1.1.0",
+  "description": "For a change to job postings, hiring forms, pay structures or HR reports: the obligations of Directive (EU) 2023/970, whose transposition deadline was 7 June 2026 (Art. 34(1)); apply the national law that transposes it.",
   "sources": [
     {
       "title": "Directive (EU) 2023/970 on pay transparency",
       "url": "https://eur-lex.europa.eu/eli/dir/2023/970/oj",
-      "checked": "2026-11-21"
+      "checked": "2026-11-22"
     }
   ],
   "rules": [
     {
       "id": "show-pay-before-interview",
-      "instruction": "Give applicants the starting pay or its range in the job posting or before the interview.",
+      "instruction": "Give applicants the starting pay or its range in the job posting or before the interview (Art. 5(1)).",
       "verification": "Open the job posting template and a recent posting and check that the pay or pay range is filled in."
     },
     {
       "id": "remove-pay-history-questions",
-      "instruction": "Remove questions about current or previous pay from application forms, interview guides and recruiter scripts.",
+      "instruction": "Remove questions about current or previous pay from application forms, interview guides and recruiter scripts (Art. 5(2)).",
       "verification": "Search the application form, interview guide and scripts for questions on current or past pay and check that none remain."
     },
     {
       "id": "document-pay-criteria",
-      "instruction": "Write the criteria used to set pay and pay progression, based on skills, effort, responsibility and working conditions, and make them accessible to employees.",
+      "instruction": "Write the criteria used to set pay and pay progression, based on skills, effort, responsibility and working conditions, and make them accessible to employees (Art. 6(1)); national law may exempt employers with fewer than 50 workers from the part on pay progression (Art. 6(2)).",
       "verification": "Open the pay policy and check that it lists the criteria and where employees can read it."
     },
     {
+      "id": "answer-pay-information-requests",
+      "instruction": "Let workers request and receive in writing the pay information of Art. 7(1), tell them of that right every year (Art. 7(3)), answer within two months (Art. 7(4)), and do not stop workers from disclosing their pay (Art. 7(5)).",
+      "verification": "Open the request form or procedure and the annual notice, and check the answer deadline and that no contract or policy forbids disclosing pay."
+    },
+    {
       "id": "report-and-assess-pay-gaps",
-      "instruction": "Compute the gender pay gap by category of workers; where a gap of at least 5 percent is not justified by objective, gender-neutral criteria, plan the joint pay assessment with workers' representatives.",
-      "verification": "Open the latest pay gap report and check the gap per category and the action recorded for each category at 5 percent or more."
+      "instruction": "For an employer with 100 workers or more, report the gender pay gap by category of workers: every year from 7 June 2027 with 250 workers or more (Art. 9(2)), every three years from 7 June 2027 with 150 to 249 (Art. 9(3)) and from 7 June 2031 with 100 to 149 (Art. 9(4)). Where a gap of at least 5 percent in a category is not justified by objective, gender-neutral criteria and not remedied within six months of the report, plan the joint pay assessment with workers' representatives (Art. 10(1)).",
+      "verification": "Check the headcount behind the reporting duty, open the latest pay gap report and check the gap per category, and for each category at 5 percent or more the justification, the remedy or the joint assessment."
     }
   ]
 }

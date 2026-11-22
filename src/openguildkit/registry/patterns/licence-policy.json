@@ -1,0 +1,22 @@
+{
+  "id": "licence-policy",
+  "title": "Dependency licence policy",
+  "description": "Write the licences the organization allows for dependencies as SPDX identifiers, and check them on every change.",
+  "sources": [
+    {
+      "title": "SPDX License List",
+      "url": "https://spdx.org/licenses/",
+      "checked": "2026-11-22"
+    }
+  ],
+  "roles": [
+    "legal",
+    "engineering"
+  ],
+  "packs": [
+    "licence-policy"
+  ],
+  "references": [
+    "spdx-license-list"
+  ]
+}

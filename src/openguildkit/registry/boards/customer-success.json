@@ -81,6 +81,10 @@
           "The time-to-first-value milestone is defined as an observable event, not a call booked.",
           "Onboarding material shows the changed flow, with screenshots of the released version.",
           "Accounts in onboarding during the release get a heads-up and an adjusted plan."
+        ],
+        "applies_to": [
+          "customer",
+          "business"
         ]
       },
       {

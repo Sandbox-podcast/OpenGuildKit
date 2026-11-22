@@ -32,8 +32,9 @@
           "status": "beta",
           "capabilities": "Read builds, tests and review state; chromatic_mutate can accept or deny tests, quarantine tests and create projects.",
           "source": "https://www.chromatic.com/docs/mcp",
-          "verified": "2026-11-21",
-          "access": "Read and write."
+          "verified": "2026-11-22",
+          "access": "Read and write.",
+          "status_source": "https://www.chromatic.com/docs/mcp"
         }
       ],
       "api": {

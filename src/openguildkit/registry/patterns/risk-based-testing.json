@@ -1,0 +1,25 @@
+{
+  "id": "risk-based-testing",
+  "title": "Risk-based testing and regression",
+  "description": "Test each change in proportion to its product risks, confirm each fix and run the regression tests of what it can affect.",
+  "sources": [
+    {
+      "title": "ISTQB Certified Tester Foundation Level Syllabus v4.0.1 (sections 2.2.3 and 5.2)",
+      "url": "https://istqb.org/wp-content/uploads/2024/11/ISTQB_CTFL_Syllabus_v4.0.1.pdf",
+      "checked": "2026-11-22"
+    }
+  ],
+  "roles": [
+    "qa"
+  ],
+  "core_for": [
+    "qa"
+  ],
+  "packs": [
+    "test-strategy"
+  ],
+  "references": [
+    "regression-testing",
+    "iso-iec-ieee-29119"
+  ]
+}

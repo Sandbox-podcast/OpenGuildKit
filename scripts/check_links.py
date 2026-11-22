@@ -92,6 +92,8 @@ def collect_citations(
             cite(tool["api"]["docs"], entry)
         for server in tool["servers"]:
             cite(server["source"], {**entry, "server": server["id"]})
+            if "status_source" in server:
+                cite(server["status_source"], {**entry, "server": server["id"], "status": True})
     return dict(sorted(citations.items()))
 
 
@@ -163,6 +165,8 @@ def _citation(entry: dict) -> str:
         text += f", applied by {', '.join(entry['packs'])}"
     if "server" in entry:
         text += f", server {entry['server']}"
+    if entry.get("status"):
+        text += ", its status"
     if "checked" in entry:
         text += f", checked {entry['checked']}"
     return text

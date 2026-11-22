@@ -69,14 +69,16 @@ class QuestionnaireTests(unittest.TestCase):
     def test_norm_answers_keep_or_decline_each_preselected_regulation(self):
         no = {"answer": "no", "by": "Camille Martin", "reason": "Not a financial entity under DORA Art. 2"}
         answers = {"name": "Ledger", "sector": "financial-services", "personal_data": "yes",
-                   "norms": {"dora-financial-entity": no, "gdpr-personal-data": "yes"}}
+                   "norms": {"dora-financial-entity": no, "gdpr-personal-data": "yes", "european-accessibility-act": "yes"}}
         with patch.dict("os.environ", {"SOURCE_DATE_EPOCH": "1795219200"}):
             profile, _ = setup_profile(answers, self.catalog, init_questions(self.catalog, "Ledger"))
         self.assertEqual(profile["declined"], [{"id": "dora-financial-entity", "by": "Camille Martin",
                                                 "on": "2026-11-21", "reason": no["reason"]}])
         self.assertIn("gdpr-personal-data", profile["patterns"])
         self.assertNotIn("dora-financial-entity", profile["patterns"])
-        with_patterns = {**answers, "patterns": [], "norms": {"gdpr-personal-data": True, "dora-financial-entity": no}}
+        no_bank = {"answer": "no", "by": "Camille Martin", "reason": "No consumer banking service"}
+        with_patterns = {**answers, "patterns": [], "norms": {"gdpr-personal-data": True, "dora-financial-entity": no,
+                                                              "european-accessibility-act": no_bank}}
         profile, _ = setup_profile(with_patterns, self.catalog, init_questions(self.catalog, "Ledger"))
         self.assertEqual(profile["patterns"], ["gdpr-personal-data"])
         for norms, message in (({"gdpr-personal-data": "maybe"}, "yes or no"), ({"python-development": "yes"}, "norm"),
@@ -228,10 +230,10 @@ class InteractiveInitTests(unittest.TestCase):
         return answers, errors.getvalue(), questions
 
     def test_each_norm_is_confirmed_or_declined_with_its_reason(self):
-        # name, sector, stack, roles, personal data, decisions about people, DORA (no, who, why), GDPR, patterns,
-        # packs, boards, tools, host, guard, research, conventions, checks.
+        # name, sector, stack, roles, personal data, decisions about people, DORA (no, who, why), the European
+        # Accessibility Act, GDPR, patterns, packs, boards, tools, host, guard, research, conventions, checks.
         replies = ["Ledger", "financial-services", "Python", "", "yes", "", "n", "Camille Martin",
-                   "Not a financial entity", "", "", "gdpr", "",
+                   "Not a financial entity", "", "", "", "gdpr", "",
                    "Jira, Acme Timesheets", "", "", "", "", ""]
         answers, text, questions = self.run_init(replies)
         self.assertIn("dora-financial-entity", text)

@@ -100,6 +100,9 @@
           "Every tool has a business owner and a renewal date.",
           "Assigned licences are compared with active users over the last 90 days.",
           "A new tool is checked for data handling before employees can sign up with a company account."
+        ],
+        "applies_to_concerns": [
+          "money"
         ]
       },
       {

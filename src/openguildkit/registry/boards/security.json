@@ -170,6 +170,11 @@
         "checks": [
           "Dependency changes, identity scopes and build provenance are reviewed for the exact build.",
           "Secrets are not in code or logs and are rotated when exposed."
+        ],
+        "applies_to": [
+          "customer",
+          "service",
+          "infrastructure"
         ]
       },
       {

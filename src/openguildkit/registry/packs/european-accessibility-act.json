@@ -1,0 +1,52 @@
+{
+  "id": "european-accessibility-act",
+  "title": "European Accessibility Act for consumer services",
+  "version": "1.0.0",
+  "description": "For a service provided to consumers in the EU, such as e-commerce or consumer banking: the accessibility requirements of Directive (EU) 2019/882, which national laws have applied since 28 June 2025. Micro-enterprises providing services are exempt. These rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "Directive (EU) 2019/882 on the accessibility requirements for products and services (European Accessibility Act)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2019/882/oj/eng",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "W3C Web Content Accessibility Guidelines 2.2",
+      "url": "https://www.w3.org/TR/WCAG22/",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "ETSI EN 301 549 V4.1.1 (2026-09), Accessibility requirements for ICT products and services",
+      "url": "https://www.etsi.org/deliver/etsi_en/301500_301599/301549/04.01.01_60/en_301549v040101p.pdf",
+      "checked": "2026-11-22"
+    }
+  ],
+  "depends_on": [
+    "web-accessibility"
+  ],
+  "rules": [
+    {
+      "id": "confirm-eaa-scope",
+      "instruction": "Ask the legal owner whether the service is one of those of Art. 2(2) of Directive (EU) 2019/882 provided to consumers, such as consumer banking services (point d) or e-commerce services (point f), and whether the organization is a micro-enterprise providing services, which Art. 4(5) exempts.",
+      "verification": "Link the legal owner's recorded answer from the change.",
+      "manual": "Whether the service is in scope and the organization a micro-enterprise is a legal assessment."
+    },
+    {
+      "id": "meet-wcag-aa-on-changed-pages",
+      "instruction": "For each changed web page of the service, meet the WCAG 2.2 Level AA success criteria, which EN 301 549 V4.1.1 clause 9.0 maps to clauses 9.1 to 9.4 and 9.6; a service that conforms to harmonised standards published in the Official Journal is presumed to meet the requirements they cover (Art. 15(1)).",
+      "verification": "Test the changed pages against the WCAG 2.2 Level A and AA success criteria with an automated checker, the keyboard and a screen reader, and record each failure with its criterion.",
+      "manual": "Success criteria are tested on rendered pages with a keyboard, an automated checker and a screen reader."
+    },
+    {
+      "id": "publish-accessibility-information",
+      "instruction": "Keep the information of Annex V on how the service meets the accessibility requirements in the general terms and conditions or an equivalent document, in written and oral format, and update it with the change (Art. 13(2)).",
+      "verification": "Open the published terms or accessibility statement and check that it describes the changed service and how it meets the requirements.",
+      "manual": "The terms or the accessibility statement are published outside the repository."
+    },
+    {
+      "id": "record-burden-assessment",
+      "instruction": "When the team considers that a requirement would fundamentally alter the service or impose a disproportionate burden, ask the legal owner to record that assessment before relying on it (Art. 14).",
+      "verification": "Link the legal owner's recorded assessment and the requirements it covers.",
+      "manual": "The burden assessment is a legal decision recorded by the legal owner."
+    }
+  ]
+}

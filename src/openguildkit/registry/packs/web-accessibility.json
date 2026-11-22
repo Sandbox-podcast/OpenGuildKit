@@ -1,13 +1,18 @@
 {
   "id": "web-accessibility",
   "title": "Web accessibility",
-  "version": "1.0.0",
-  "description": "Starter checks for accessible web UI informed by WCAG 2.2. Confirm the required conformance target with the project owner.",
+  "version": "1.1.0",
+  "description": "Accessible web UI at the WCAG 2.2 Level AA target, the level that EN 301 549 clause 9 maps for web pages. Confirm another target with the project owner.",
   "sources": [
     {
       "title": "W3C Web Content Accessibility Guidelines 2.2",
       "url": "https://www.w3.org/TR/WCAG22/",
-      "checked": "2026-11-20"
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "ETSI EN 301 549 V4.1.1 (2026-09), Accessibility requirements for ICT products and services",
+      "url": "https://www.etsi.org/deliver/etsi_en/301500_301599/301549/04.01.01_60/en_301549v040101p.pdf",
+      "checked": "2026-11-22"
     }
   ],
   "rules": [
@@ -25,6 +30,26 @@
       "id": "verify-contrast-and-layout",
       "instruction": "Use the project's accessible color tokens and preserve meaning when the layout reflows or users enlarge text.",
       "verification": "Check the applicable contrast and reflow criteria with automated and manual review."
+    },
+    {
+      "id": "give-text-alternatives",
+      "instruction": "Give each image, icon or other non-text content that conveys information a text alternative that serves the same purpose, and mark decorative images so assistive technologies ignore them (WCAG 2.2 success criterion 1.1.1, Level A).",
+      "verification": "Check the changed screens with a screen reader and an automated checker for non-text content without a text alternative or with one that does not match its purpose."
+    },
+    {
+      "id": "keep-focus-unobscured",
+      "instruction": "Keep the focused component from being entirely hidden by content the page creates, such as sticky headers, banners or panels (WCAG 2.2 success criterion 2.4.11, Level AA).",
+      "verification": "Move through the changed page with the keyboard while sticky headers, banners and open panels are shown, and check that no focused component is entirely hidden."
+    },
+    {
+      "id": "size-pointer-targets",
+      "instruction": "Give pointer targets at least 24 by 24 CSS pixels, or the spacing the criterion allows, unless an exception of WCAG 2.2 success criterion 2.5.8 (Level AA) applies, such as an equivalent control, an inline link or a size the browser sets.",
+      "verification": "Measure the changed buttons, links and icons with the browser's developer tools and list the ones below 24 by 24 CSS pixels without the spacing or an exception."
+    },
+    {
+      "id": "allow-accessible-authentication",
+      "instruction": "Do not require a cognitive function test, such as remembering a password or solving a puzzle, at any step of sign-in, unless the step offers an alternative method, a mechanism such as password managers or copy and paste, object recognition or the user's own content (WCAG 2.2 success criterion 3.3.8, Level AA).",
+      "verification": "Sign in on a test page with a password manager and by pasting the password and any code, and check that each step accepts them."
     }
   ]
 }

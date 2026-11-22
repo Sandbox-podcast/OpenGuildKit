@@ -143,6 +143,10 @@
         "checks": [
           "Each cost line traces to measured usage and a dated price, with tier boundaries shown.",
           "Shared costs use a written allocation key that the budget owner accepts."
+        ],
+        "applies_to": [
+          "infrastructure",
+          "business"
         ]
       },
       {
@@ -169,7 +173,8 @@
         "focus": "Apply the five steps of IFRS 15, or ASC 606 for US GAAP reporters, to the contracts the change creates or modifies: performance obligations, transaction price, allocation and timing.",
         "applies_to": [
           "customer",
-          "business"
+          "business",
+          "service"
         ],
         "checks": [
           "Multi-year and bundled contracts list each performance obligation and its standalone selling price.",

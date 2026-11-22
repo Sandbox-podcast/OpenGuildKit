@@ -1,7 +1,7 @@
 {
   "id": "django",
   "title": "Django applications",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "For a Django project: migrations, deployment settings, form fields, raw SQL, CSRF exemptions and query counts.",
   "sources": [
     {
@@ -57,7 +57,22 @@
     {
       "id": "list-form-fields-explicitly",
       "instruction": "List the editable fields of each ModelForm in `fields`. Do not use `__all__` or `exclude` on forms that users submit.",
-      "verification": "Search the changed forms for `__all__` and `exclude`, and test that a submitted field outside the list leaves the model unchanged."
+      "verification": "task verify checks the forms modules for `fields = \"__all__\"`; search the changed forms for `exclude`, and test that a submitted field outside the list leaves the model unchanged.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "*/forms.py",
+          "*/forms/*.py",
+          "*/*/forms.py"
+        ],
+        "contains": [
+          "fields = \"__all__\"",
+          "fields = '__all__'",
+          "fields=\"__all__\"",
+          "fields='__all__'"
+        ],
+        "expect": "absent"
+      }
     },
     {
       "id": "parameterize-raw-sql",

@@ -219,18 +219,20 @@ class SectorQuestionTests(unittest.TestCase):
 
     def test_interactive_init_shows_the_preselection_and_records_the_decline(self):
         questions = init_questions(self.catalog, "Ledger")
-        # name, sector, stack, roles, personal data, DORA with who and why, patterns, packs, boards, tools, host,
-        # guard, research, conventions, checks.
+        # name, sector, stack, roles, personal data, DORA with who and why, the European Accessibility Act kept,
+        # patterns, packs, boards, tools, host, guard, research, conventions, checks.
         replies = ["Ledger", "financial-services", "Python", "", "no", "n", "Camille Martin", "Not under DORA Art. 2",
-                   "python-development", "", "", "", "", "", "", "", ""]
+                   "", "python-development", "", "", "", "", "", "", "", ""]
         errors = io.StringIO()
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", side_effect=replies), \
                 contextlib.redirect_stderr(errors):
             answers = _interactive_init(questions, self.catalog)
         self.assertIn("dora-financial-entity: sector financial-services", errors.getvalue())
-        self.assertEqual(answers["patterns"], ["python-development"])
+        self.assertEqual(answers["patterns"], ["european-accessibility-act", "python-development"])
         decline = {"answer": "no", "by": "Camille Martin", "reason": "Not under DORA Art. 2"}
-        self.assertEqual(answers["norms"], {"dora-financial-entity": decline})
+        self.assertEqual(answers["norms"], {"dora-financial-entity": decline, "european-accessibility-act": "yes"})
+        # Each norm shows the description that says when it does not apply.
+        self.assertIn("Select when the organization is a financial entity", errors.getvalue())
         self.assertIs(answers["personal_data"], False)
         profile, _ = setup_profile(answers, self.catalog, questions)
         self.assertEqual([entry["id"] for entry in profile["declined"]], ["dora-financial-entity"])
@@ -249,6 +251,82 @@ class SectorQuestionTests(unittest.TestCase):
         self.assertIn("insurance-distribution: sector insurance", text)
         self.assertIn("Declined", text)
         self.assertIn("dora-financial-entity", text.split("Declined", 1)[1])
+
+
+class SoftwarePublisherAndAccessibilityTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = load_catalog()
+
+    def norms(self):
+        questions = {question["id"]: question for question in init_questions(self.catalog, "Ledger")}
+        return {norm["id"]: norm for norm in questions["norms"]["norms"]}
+
+    def test_the_european_accessibility_act_is_proposed_for_shops_and_banks(self):
+        pattern = self.catalog["patterns"]["european-accessibility-act"]
+        self.assertEqual(pattern["kind"], "regulation")
+        self.assertEqual(set(pattern["match"]["sectors"]), {"e-commerce", "financial-services"})
+        self.assertEqual(self.norms()["european-accessibility-act"]["when"],
+                         {"sectors": ["e-commerce", "financial-services"]})
+        pack = self.catalog["packs"]["european-accessibility-act"]
+        self.assertIn("web-accessibility", pack["depends_on"])
+        text = " ".join(f"{rule['instruction']} {rule['verification']}" for rule in pack["rules"])
+        for fact in ("Art. 2(2)", "Art. 4(5)", "micro-enterprise", "WCAG 2.2 Level AA", "EN 301 549", "Annex V",
+                     "Art. 13(2)"):
+            self.assertIn(fact, text)
+        self.assertIn("https://eur-lex.europa.eu/eli/dir/2019/882/oj/eng", [s["url"] for s in pack["sources"]])
+        for sector in ("e-commerce", "financial-services"):
+            with self.subTest(sector=sector):
+                context = " ".join(self.catalog["sectors"][sector]["context"])
+                self.assertIn("Directive (EU) 2019/882", context)
+                self.assertIn("28 June 2025", context)
+                plan = recommend_patterns(self.catalog, [], sector, [])
+                self.assertIn("european-accessibility-act", {entry["id"] for entry in plan["matched"]})
+
+    def test_financial_services_says_to_decline_dora_out_of_scope(self):
+        context = self.catalog["sectors"]["financial-services"]["context"][0]
+        self.assertIn("preselects the dora-financial-entity", context)
+        self.assertIn("decline DORA when it is out of scope", context)
+        self.assertNotIn("select the dora-financial-entity pattern", context)
+
+    def test_web_accessibility_targets_wcag_2_2_level_aa(self):
+        pack = self.catalog["packs"]["web-accessibility"]
+        self.assertIn("WCAG 2.2 Level AA", pack["description"])
+        text = " ".join(rule["instruction"] for rule in pack["rules"])
+        for criterion in ("1.1.1", "2.4.11", "2.5.8", "3.3.8"):
+            self.assertRegex(text, rf"\b{criterion.replace('.', '[.]')}\b")
+        self.assertIn("24 by 24 CSS pixels", text)
+
+    def test_a_software_publisher_is_asked_iso_27001_and_the_cra_with_their_condition(self):
+        output = io.StringIO()
+        with tempfile.TemporaryDirectory() as root, contextlib.redirect_stdout(output):
+            main(["--project", root, "catalog"])
+        self.assertTrue(any(line.strip().startswith("software-publisher ") for line in output.getvalue().splitlines()))
+        norms = self.norms()
+        proposed = {norm_id for norm_id, norm in norms.items()
+                    if "software-publisher" in norm["when"].get("sectors", [])}
+        self.assertEqual(proposed, {"iso-27001-certification", "cyber-resilience-act-product"})
+        for norm_id in proposed:
+            self.assertIn("the sector is software-publisher", norms[norm_id]["prompt"])
+        cra = norms["cyber-resilience-act-product"]
+        self.assertIn("SaaS", cra["help"])
+        self.assertIn("recital 12", cra["help"])
+        self.assertIn("https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
+                      [source["url"] for source in cra["sources"]])
+        plan = recommend_patterns(self.catalog, [], "software-publisher", [])
+        self.assertLessEqual(proposed, {entry["id"] for entry in plan["matched"]})
+        resolved = resolved_profile(validate_profile(
+            {"name": "Ledger", "sector": "software-publisher", "patterns": sorted(proposed)}, self.catalog),
+            self.catalog)
+        self.assertLessEqual({"iso-27001", "cyber-resilience-act"}, set(resolved["packs"]))
+        with tempfile.TemporaryDirectory() as directory:
+            write_json(Path(directory) / "answers.json", {"name": "Ledger", "sector": "software-publisher",
+                                                          "personal_data": "no"})
+            errors = io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(errors):
+                self.assertEqual(main(["--project", directory, "init", "--answers", f"{directory}/answers.json"]), 1)
+            for norm_id in proposed:
+                self.assertIn(norm_id, errors.getvalue())
 
 
 if __name__ == "__main__":

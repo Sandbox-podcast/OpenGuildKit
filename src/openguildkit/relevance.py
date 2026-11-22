@@ -56,13 +56,15 @@ MENTIONS = {
 SUBJECTS = {
     "agent-workflow": ("the change process", None),
     "secure-sdlc": ("secure development of every change", None),
+    # The core methods of QA and data follow the board of their role, which reviews the task.
+    **{pack: ("the work its board reviews", None) for pack in ("test-strategy", "data-definitions")},
     **{pack: ("the project's code", _CODE) for pack in (
         "python", "typescript", "api-design", "django", "fastapi", "express", "spring-boot", "aspnet-core", "rails",
-        "laravel", "go-database", "postgresql", "pytest")},
+        "laravel", "go-database", "postgresql", "pytest", "licence-policy")},
     **{pack: ("the user interface", _UI) for pack in (
         "react", "vue", "angular", "nextjs", "frontend-delivery", "web-accessibility", "web-performance",
         "mobile-accessibility", "ios-app", "android-app", "mobile-store-release", "i18n-readiness", "playwright",
-        "chaosfolk-e2e", "public-sector-accessibility")},
+        "chaosfolk-e2e", "public-sector-accessibility", "european-accessibility-act")},
     **{pack: ("a new customer feature", _PRODUCT) for pack in (
         "design-process", "user-research-practice", "controlled-experiments", "product-discovery",
         "opportunity-solution-tree", "jobs-to-be-done", "web-search-optimization", "release-communication",

@@ -5,7 +5,8 @@
   "context": [
     "Ask the legal owner which countries the shop sells to: EU consumer directives apply through national law, and each country can add rules. This sector preselects the online-consumer-sales pattern.",
     "Record whether the product is a merchant's own shop or a marketplace where third-party traders sell, since DSA Art. 30 and Art. 6a of Directive 2011/83/EU bind marketplaces only.",
-    "Leave card numbers to the payment service provider, which applies strong customer authentication under Directive (EU) 2015/2366 Art. 97; card data security needs its own review."
+    "Leave card numbers to the payment service provider, which applies strong customer authentication under Directive (EU) 2015/2366 Art. 97; card data security needs its own review.",
+    "Directive (EU) 2019/882, the European Accessibility Act, covers e-commerce services (point f) provided to consumers after 28 June 2025 (Art. 2(2)), the date from which national laws apply it (Art. 31(2)); micro-enterprises providing services are exempt (Art. 4(5)). This sector preselects the european-accessibility-act pattern."
   ],
   "sources": [
     {
@@ -22,6 +23,11 @@
       "title": "Directive (EU) 2015/2366 on payment services in the internal market (PSD2)",
       "url": "https://eur-lex.europa.eu/eli/dir/2015/2366/oj/eng",
       "checked": "2026-11-21"
+    },
+    {
+      "title": "Directive (EU) 2019/882 on the accessibility requirements for products and services (European Accessibility Act)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2019/882/oj/eng",
+      "checked": "2026-11-22"
     }
   ]
 }

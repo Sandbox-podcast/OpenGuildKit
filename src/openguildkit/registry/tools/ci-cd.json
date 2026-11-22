@@ -40,7 +40,7 @@
               "description": "Azure DevOps: your organization"
             }
           ],
-          "status": "preview",
+          "status": "unknown",
           "capabilities": "Work items, repos and pull requests, pipelines, wikis, test plans, iterations and Advanced Security alerts; X-MCP-Toolsets and X-MCP-Readonly headers restrict tools.",
           "source": "https://learn.microsoft.com/en-us/azure/devops/mcp-server/remote-mcp-server",
           "verified": "2026-11-21",

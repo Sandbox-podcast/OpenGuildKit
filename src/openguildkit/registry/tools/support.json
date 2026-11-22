@@ -65,8 +65,9 @@
           "status": "ga",
           "capabilities": "36 tools over tickets, replies and notes, contacts, agents, groups, companies and solution articles.",
           "source": "https://support.freshdesk.com/support/solutions/articles/50000012670",
-          "verified": "2026-11-21",
-          "access": "Read and write."
+          "verified": "2026-11-22",
+          "access": "Read and write.",
+          "status_source": "https://support.freshdesk.com/support/solutions/articles/50000012670"
         }
       ],
       "api": {
@@ -178,7 +179,7 @@
               "description": "Zendesk: your subdomain"
             }
           ],
-          "status": "preview",
+          "status": "unknown",
           "capabilities": "Look up tickets, users, organizations and help center content; create or update tickets and business rules after human confirmation.",
           "source": "https://support.zendesk.com/hc/en-us/articles/11400026079130",
           "verified": "2026-11-21",

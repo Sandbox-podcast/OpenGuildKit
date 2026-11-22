@@ -32,8 +32,9 @@
           "source": "https://github.com/atlassian/atlassian-mcp-server",
           "repository": "https://github.com/atlassian/atlassian-mcp-server",
           "license": "Apache-2.0",
-          "verified": "2026-11-21",
-          "access": "Read and write."
+          "verified": "2026-11-22",
+          "access": "Read and write.",
+          "status_source": "https://github.com/atlassian/atlassian-mcp-server"
         }
       ],
       "api": {
@@ -175,8 +176,9 @@
           "status": "ga",
           "capabilities": "Issues, merge requests, pipelines and project data of the GitLab instance, with the user's permissions.",
           "source": "https://docs.gitlab.com/user/gitlab_duo/model_context_protocol/mcp_server/",
-          "verified": "2026-11-21",
-          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
+          "verified": "2026-11-22",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given.",
+          "status_source": "https://docs.gitlab.com/user/gitlab_duo/model_context_protocol/mcp_server/"
         }
       ],
       "api": {

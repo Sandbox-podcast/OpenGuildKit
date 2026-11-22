@@ -109,8 +109,9 @@
           "status": "ga",
           "capabilities": "Prepare and send envelopes, track envelope and recipient status, run Workflow Builder and CLM workflows, query agreements by provisions.",
           "source": "https://www.docusign.com/blog/developers/docusign-mcp-server-general-availability",
-          "verified": "2026-11-21",
-          "access": "Read and write."
+          "verified": "2026-11-22",
+          "access": "Read and write.",
+          "status_source": "https://www.docusign.com/blog/developers/docusign-mcp-server-general-availability"
         }
       ],
       "api": {
@@ -191,7 +192,7 @@
           "status": "unknown",
           "capabilities": "Read-only access to companies, customers and sales invoices, suppliers and purchase invoices, accounting and transactions, products, tax filings and change history.",
           "source": "https://pennylane-mcp.readme.io/docs/getting-started",
-          "verified": "2026-11-21",
+          "verified": "2026-11-22",
           "access": "Read-only.",
           "read_only": {
             "how": "Every tool reads: the publisher describes read-only access."
@@ -202,7 +203,7 @@
         "kind": "rest",
         "docs": "https://pennylane.readme.io"
       },
-      "notes": "Read-only for now. Free for accounting firms; for companies it requires the Essentiel plan or higher (Starter, Collaboratif and Basique are not eligible)."
+      "notes": "Read-only for now. Built for accounting firms, which read across their clients' files; for companies it requires a paid plan, Essentiel or higher (the Free, Starter and Basic plans are not eligible)."
     },
     {
       "id": "qonto",

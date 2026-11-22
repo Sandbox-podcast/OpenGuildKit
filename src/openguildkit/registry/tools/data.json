@@ -114,10 +114,10 @@
           "url": "https://mcp.contentful.com/mcp",
           "auth": "oauth",
           "env": [],
-          "status": "ga",
+          "status": "unknown",
           "capabilities": "Manage entries, assets, content types and environments with the user's Contentful permissions.",
           "source": "https://www.contentful.com/developers/docs/tools/mcp-server/",
-          "verified": "2026-11-21",
+          "verified": "2026-11-22",
           "access": "Read and write."
         },
         {
@@ -191,8 +191,9 @@
           "status": "ga",
           "capabilities": "Ask questions over governed data through Genie from an MCP client.",
           "source": "https://docs.databricks.com/aws/en/generative-ai/mcp/managed-mcp",
-          "verified": "2026-11-21",
-          "access": "Read operations described; no enforced read-only mode is recorded."
+          "verified": "2026-11-22",
+          "access": "Read operations described; no enforced read-only mode is recorded.",
+          "status_source": "https://docs.databricks.com/aws/en/generative-ai/mcp/managed-mcp"
         },
         {
           "id": "databricks-dbsql",
@@ -212,8 +213,9 @@
           "status": "beta",
           "capabilities": "Run SQL on Databricks SQL warehouses.",
           "source": "https://docs.databricks.com/aws/en/generative-ai/mcp/managed-mcp",
-          "verified": "2026-11-21",
-          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
+          "verified": "2026-11-22",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given.",
+          "status_source": "https://docs.databricks.com/aws/en/generative-ai/mcp/managed-mcp"
         }
       ],
       "api": {
@@ -576,8 +578,9 @@
           "source": "https://www.sanity.io/docs/ai/mcp-server",
           "repository": "https://github.com/sanity-io/agent-toolkit",
           "license": "MIT",
-          "verified": "2026-11-21",
-          "access": "Read and write."
+          "verified": "2026-11-22",
+          "access": "Read and write.",
+          "status_source": "https://www.sanity.io/docs/ai/mcp-server"
         }
       ],
       "api": {

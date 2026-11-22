@@ -87,7 +87,8 @@ class OutputSizeTests(unittest.TestCase):
         write(self.root, "infra/main.tf", 'provider "aws" {}\n')
         questions = {item["id"]: item for item in json.loads(self.run_cli("init", "--questions"))}
         answers = {"name": "shop", "sector": "e-commerce", "roles": MONOREPO_ROLES,
-                   "components": questions["components"]["default"], "norms": {"online-consumer-sales": "yes"}}
+                   "components": questions["components"]["default"], "norms": {"online-consumer-sales": "yes",
+                                                         "european-accessibility-act": "yes"}}
         write_json(self.root / "init.json", answers)
         # As heavy as the field projects: every method of the roles, as setup preselected them before #152.
         plan = json.loads(self.run_cli("recommend", "--answers", self.root / "init.json", "--json"))
@@ -119,7 +120,8 @@ class OutputSizeTests(unittest.TestCase):
         questions = {item["id"]: item for item in json.loads(self.run_cli("init", "--questions"))}
         components = questions["components"]["default"]
         write_json(self.root / "init.json", {"name": "shop", "sector": "e-commerce", "roles": MONOREPO_ROLES,
-                                             "components": components, "norms": {"online-consumer-sales": "yes"}})
+                                             "components": components, "norms": {"online-consumer-sales": "yes",
+                                                         "european-accessibility-act": "yes"}})
         self.run_cli("init", "--answers", self.root / "init.json")
         api = next(item for item in components if "Spring" in " ".join(item["stack"]))
         self.run_cli("task", "new", "Return the signed-in customer's orders from GET /orders.", "--id", "orders")

@@ -74,10 +74,10 @@
               "description": "Dynatrace: your environment name"
             }
           ],
-          "status": "ga",
+          "status": "unknown",
           "capabilities": "Query Grail data with DQL, problems, vulnerabilities and Davis AI insights from the agent.",
           "source": "https://docs.dynatrace.com/docs/dynatrace-intelligence/dynatrace-mcp",
-          "verified": "2026-11-21",
+          "verified": "2026-11-22",
           "access": "Read operations described; no enforced read-only mode is recorded."
         }
       ],
@@ -125,8 +125,9 @@
           "status": "ga",
           "capabilities": "Expose Agent Builder tools (search, ES|QL and custom tools over Elasticsearch data) to MCP clients.",
           "source": "https://www.elastic.co/docs/solutions/search/agent-builder/mcp-server",
-          "verified": "2026-11-21",
-          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
+          "verified": "2026-11-22",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given.",
+          "status_source": "https://www.elastic.co/docs/solutions/search/agent-builder/mcp-server"
         }
       ],
       "api": {

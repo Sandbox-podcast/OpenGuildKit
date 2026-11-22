@@ -134,13 +134,19 @@ def norm_reason(pattern: dict) -> str:
 
 
 def _norms_question(catalog: dict) -> dict:
-    """One sub-question per norm, asked only when its condition holds; a no is recorded in declined."""
+    """One sub-question per norm, asked only when its condition holds; a no is recorded in declined.
+
+    The help is the pattern's description, which says when the norm does not apply, with the sources behind it,
+    so that a person who declines it does so knowingly.
+    """
     norms = [
         {
             "id": pattern["id"],
             "title": pattern["title"],
             "when": {key: pattern["match"][key] for key in NORM_CONDITIONS if key in pattern["match"]},
             "prompt": f"{pattern['title']} ({pattern['id']}) is proposed because {norm_reason(pattern)}. Does it apply?",
+            "help": pattern["description"],
+            "sources": [{"title": source["title"], "url": source["url"]} for source in pattern["sources"]],
         }
         for pattern in catalog["patterns"].values() if is_norm(pattern)
     ]

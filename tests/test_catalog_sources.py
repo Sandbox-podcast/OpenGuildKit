@@ -9,6 +9,24 @@ from urllib.parse import urlsplit
 
 from openguildkit.catalog import CatalogError, _validate_entry, load_catalog, tracking_parameters
 from openguildkit.references import load_references
+from openguildkit.tools import load_tools
+
+# The address each source publishes for its pages, checked offline: getbem.com answers 404 for /naming/
+# and 200 for /naming (link check of 22 November 2026).
+CANONICAL = {
+    "getbem.com": re.compile(r"/(?:[a-z-]+)?"),
+}
+
+
+def _tool_urls():
+    for tool in load_tools().values():
+        yield f"tools/{tool['id']}", tool["homepage"]
+        if "api" in tool:
+            yield f"tools/{tool['id']}", tool["api"]["docs"]
+        for server in tool["servers"]:
+            for field in ("source", "repository", "status_source"):
+                if field in server:
+                    yield f"tools/{tool['id']}/{server['id']}", server[field]
 
 
 def _all_sources():
@@ -93,6 +111,15 @@ class BundledSourceTests(unittest.TestCase):
             addresses.setdefault(_document_key(url), {}).setdefault(url, where)
         duplicates = {key: spellings for key, spellings in addresses.items() if len(spellings) > 1}
         self.assertEqual(duplicates, {})
+
+    def test_each_url_follows_the_canonical_form_of_its_source(self):
+        urls = [(where, source["url"]) for where, source in _all_sources()] + list(_tool_urls())
+        wrong = [f"{where}: {url}" for where, url in urls
+                 if (urlsplit(url).hostname or "").removeprefix("www.") in CANONICAL
+                 and not CANONICAL[urlsplit(url).hostname.removeprefix("www.")].fullmatch(urlsplit(url).path)]
+        self.assertEqual(wrong, [])
+        self.assertTrue(any(urlsplit(url).hostname == "getbem.com" for _, url in urls))
+        self.assertIsNone(CANONICAL["getbem.com"].fullmatch("/naming/"))
 
 
 if __name__ == "__main__":

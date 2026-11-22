@@ -109,7 +109,7 @@ Adding or completing a brain changes the record that approvals are bound to. Whe
 ## Run the review
 
 1. `task consult ID` routes the task and lists the selected brains. `task pass ID BOARD` prints one brain's brief: its questions, the lenses to fill, its evidence requests, challenge and decision criteria, the rules of its packs that concern the task and a bounded reading list. When using a host agent, assign one independent pass per board.
-2. Record one finding per specialist before forming the board's verdict. Distinguish a documented fact, an assumption, and a gap. For an observed finding, cite positions in the entry's own evidence list, counted from 1. A lens that names the surfaces it applies to (`applies_to`) and none of the task's is listed as not concerned and left out of the entry.
+2. Record one finding per specialist before forming the board's verdict. Distinguish a documented fact, an assumption, and a gap. For an observed finding, cite positions in the entry's own evidence list, counted from 1. A lens that names the surfaces it applies to (`applies_to`) and none of the task's, or the concerns it needs (`applies_to_concerns`) and none of the task's, is listed as not concerned and left out of the entry.
 3. Compare the proposal with an alternative, name a failure it could cause and specify a test or observation that would change the decision. Identify blocking findings and who can resolve them.
 4. Record the reviews with `task review ID --file FILE`. `task challenge ID` groups the verdicts and shows alternatives, verification steps and unresolved items. The owner makes the decision in their terminal.
 

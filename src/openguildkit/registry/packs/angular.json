@@ -1,7 +1,7 @@
 {
   "id": "angular",
   "title": "Angular applications",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "For an Angular application: supported versions, sanitization, XSRF, strict templates, subscriptions and bundle budgets.",
   "sources": [
     {
@@ -63,6 +63,25 @@
       "id": "enforce-bundle-budgets",
       "instruction": "Set `maximumWarning` and `maximumError` budgets for the initial bundle in `angular.json`.",
       "verification": "Run the production build and compare the reported bundle sizes with the budgets."
+    },
+    {
+      "id": "no-disabled-strict-templates",
+      "instruction": "Do not set `strictTemplates` to false in any tsconfig file of the project.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "tsconfig.json",
+          "tsconfig.*.json",
+          "apps/*/tsconfig.json",
+          "packages/*/tsconfig.json"
+        ],
+        "contains": [
+          "\"strictTemplates\": false",
+          "\"strictTemplates\":false"
+        ],
+        "expect": "absent"
+      }
     }
   ]
 }

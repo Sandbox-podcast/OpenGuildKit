@@ -82,8 +82,10 @@ class PreviewTests(unittest.TestCase):
         return setup_profile(base, self.catalog, init_questions(self.catalog, "Ledger"))[0]
 
     def test_the_preview_gives_each_pattern_its_reason_and_rules_and_each_regulation_what_it_asks(self):
+        no_bank = {"answer": "no", "by": "Camille Martin", "reason": "No consumer banking service"}
         profile = self.profile(**{**FINTECH, "norms": {"dora-financial-entity": "yes", "gdpr-personal-data": "yes",
-                                                       "pci-dss-cardholder-data": "yes"}})
+                                                       "pci-dss-cardholder-data": "yes",
+                                                       "european-accessibility-act": no_bank}})
         plan = rule_plan(profile, self.catalog)
         patterns = {entry["id"]: entry for entry in plan["patterns"]}
         self.assertTrue(patterns["dora-financial-entity"]["reason"].startswith("sector financial-services"))
