@@ -1,12 +1,18 @@
 """Turn verified work into documentation pages and keep track of who it is shared with.
 
 The export writes a Markdown tree that Documentalist imports from a Git repository:
-`project/overview.md` for what the project is and the rules in force, `reference/` for the
-Reference tab, `learn/` for Learn, `blog/` for dated release notes, and `SUMMARY.md` for the order. Paths stay stable, so re-exporting updates the same pages.
+`reference/` for the Reference tab, `learn/` for Learn, `blog/` for dated release notes, each
+page ordered by its `sidebar_position`, plus `project/overview.md` and a root `SUMMARY.md` for
+readers of the repository. Paths stay stable, so a sync after a new export updates the same pages.
 Only tasks completed with recorded checks can be exported, and only the fields listed here
 leave the project: no review, evidence or internal note.
+
+The share register records what was shared, with whom, through which portal space and until when.
+Documentalist gives a reader a whole space and keeps no end date, so the register is a reminder
+the owner acts on in the portal, and its dates follow the real clock.
 """
 
+import ipaddress
 import json
 import re
 import uuid
@@ -223,43 +229,100 @@ def _shared_item(state: Path, deliverable: str) -> None:
                          "share, or the folder that openguildkit docs export wrote.")
 
 
+def _loopback(host: str) -> bool:
+    """True for an address of this machine, where a local Documentalist runs without TLS."""
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def portal_space(portal: str) -> str:
+    """The space a portal address opens, written HOST/p/SPACE: Documentalist shows a reader every page of it.
+
+    The address is https, or http for an instance on this machine (localhost, 127.0.0.1, ::1).
+    """
+    address = urlsplit(portal.strip())
+    try:
+        host, port = address.hostname, address.port
+    except ValueError:
+        host = port = None
+    secure = address.scheme == "https" or (address.scheme == "http" and bool(host) and _loopback(host))
+    if not host or not secure:
+        raise ValueError("Give the https address of the Documentalist portal, such as https://docs.example.org/p/support-portal "
+                         "(http only for an instance on this machine: localhost, 127.0.0.1 or ::1).")
+    parts = address.path.split("/")
+    if len(parts) < 3 or parts[1] != "p" or not parts[2]:
+        raise ValueError(f"--portal {portal} names no space. Give the portal of the space you share, https://HOST/p/SPACE: "
+                         "the recipients see every published page of that space.")
+    shown = f"[{host}]" if ":" in host else host
+    return f"{shown}{f':{port}' if port else ''}/p/{parts[2]}"
+
+
+def _space(share: dict) -> str | None:
+    """The space a share opens; a share recorded before the space was kept gets it from its portal."""
+    if share.get("space"):
+        return share["space"]
+    try:
+        return portal_space(share["portal"])
+    except ValueError:
+        return None
+
+
 def add_share(state: Path, deliverable: str, recipients: list[str], until: str, portal: str, by: str) -> dict:
-    """Record a share before creating it in Documentalist: what, for whom, until when."""
+    """Record a share before creating it in Documentalist: what, for whom, through which space, until when."""
     if not deliverable.strip() or not by.strip():
         raise ValueError("Name the deliverable and the owner of the share.")
     _shared_item(state, deliverable.strip())
     bad = [item for item in recipients if not _EMAIL.fullmatch(item)]
     if not recipients or bad:
         raise ValueError(f"List the recipients' email addresses{': ' + ', '.join(bad) if bad else ''}.")
-    end = _share_end(until)
-    address = urlsplit(portal)
-    if address.scheme != "https" or not address.hostname:
-        raise ValueError("Give the https address of the Documentalist portal.")
+    _share_end(until)
+    space = portal_space(portal)
     share = {"id": uuid.uuid4().hex[:8], "deliverable": deliverable.strip(), "recipients": sorted(set(recipients)),
-             "until": until, "portal": portal, "by": by.strip(),
-             "created_at": clock.timestamp(), "revoked_at": None}
+             "until": until, "portal": portal, "space": space, "by": by.strip(),
+             "created_at": clock.real_timestamp(), "revoked_at": None}
     with project_lock(state):
         write_json(_shares_path(state), {"shares": [*_load_shares(state), share]})
     return share
 
 
 def _share_end(until: str) -> date:
-    """The last day of access: a real YYYY-MM-DD date, after today and within a year."""
+    """The last day of access: a real YYYY-MM-DD date, after today and within a year, on the real clock."""
     try:
         end = date.fromisoformat(until) if _DAY.fullmatch(until) else None
     except ValueError:
         end = None
     if end is None:
         raise ValueError(f"Give the last day of access as YYYY-MM-DD, not {until!r}.")
-    if end <= clock.today():
+    today = clock.real_today()
+    if end <= today:
         raise ValueError("A share ends after today.")
-    if end > clock.today() + timedelta(days=MAX_SHARE_DAYS):
+    if end > today + timedelta(days=MAX_SHARE_DAYS):
         raise ValueError(f"A share lasts at most {MAX_SHARE_DAYS} days. Record a new share when it ends to extend it.")
     return end
 
 
+def _same_access(shares: list[dict], share: dict, today: date | None) -> list[dict]:
+    space, recipients = _space(share), set(share["recipients"])
+    return [item for item in shares
+            if item["id"] != share["id"] and not item["revoked_at"] and space and _space(item) == space
+            and recipients & set(item["recipients"]) and (today is None or date.fromisoformat(item["until"]) >= today)]
+
+
+def same_access(state: Path, share: dict, running: bool = False) -> list[dict]:
+    """The other shares not revoked that give one of the share's recipients the same space.
+
+    Documentalist keeps one access per address and space, so these shares grant and lose that access together.
+    With `running`, only those whose last day is not past on the real clock.
+    """
+    return _same_access(_load_shares(state), share, clock.real_today() if running else None)
+
+
 def revoke_share(state: Path, share_id: str, by: str) -> dict:
-    """Record that the access was removed in Documentalist; the first revocation stays."""
+    """Record that the access was removed in Documentalist; the first revocation stays. Returns it with its space."""
     if not by.strip():
         raise ValueError("Name the person who removed the access with --by.")
     with project_lock(state):
@@ -269,22 +332,37 @@ def revoke_share(state: Path, share_id: str, by: str) -> dict:
             raise ValueError(f"Unknown share {share_id}. Run openguildkit docs share list.")
         if share["revoked_at"]:
             raise ValueError(f"Share {share_id} was already revoked by {share.get('revoked_by') or 'someone'} on {share['revoked_at'][:10]}.")
-        share["revoked_at"] = clock.timestamp()
+        share["revoked_at"] = clock.real_timestamp()
         share["revoked_by"] = by.strip()
         write_json(_shares_path(state), {"shares": shares})
-    return share
+    return {**share, "space": _space(share)}
 
 
 def share_status(state: Path, today: date | None = None) -> list[dict]:
-    """Each share with its state: active, expired (to revoke in Documentalist) or revoked."""
-    today = today or clock.today()
-    rows = []
-    for share in _load_shares(state):
+    """Each share with its space and state, on the real clock: active, expired, covered or revoked.
+
+    A share past its last day is expired when some of its addresses must be removed from the space (listed in
+    `remove`), and covered when other running shares of the same space still give every address access (listed in
+    `kept`, with the share that ends last): there is nothing to remove until those shares end.
+    """
+    today = today or clock.real_today()
+    shares, rows = _load_shares(state), []
+    for share in shares:
+        row = {**share, "space": _space(share), "remove": [], "kept": {}}
         if share["revoked_at"]:
-            state_name = "revoked"
-        elif date.fromisoformat(share["until"]) < today:
-            state_name = "expired: remove the access in Documentalist"
+            row["state"] = "revoked"
+        elif date.fromisoformat(share["until"]) >= today:
+            row["state"] = "active"
         else:
-            state_name = "active"
-        rows.append({**share, "state": state_name})
+            running = _same_access(shares, share, today)
+            for recipient in share["recipients"]:
+                covering = [item for item in running if recipient in item["recipients"]]
+                if covering:
+                    last = max(covering, key=lambda item: item["until"])
+                    row["kept"][recipient] = {"share": last["id"], "until": last["until"]}
+                else:
+                    row["remove"].append(recipient)
+            row["state"] = ("expired: remove the access in Documentalist" if row["remove"]
+                            else "covered: other shares keep the same access, nothing to remove yet")
+        rows.append(row)
     return rows

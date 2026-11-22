@@ -10,11 +10,11 @@ import tempfile
 import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import publishing
+from openguildkit import clock, publishing
 from openguildkit.catalog import load_catalog
 from openguildkit.cli import main
 from openguildkit.storage import write_json
@@ -99,17 +99,17 @@ class PublishingTests(unittest.TestCase):
 
     def test_shares_record_recipients_end_date_and_revocation(self):
         self.deliverable("docs-site/reference/request-status.md")
-        until = (date.today() + timedelta(days=14)).isoformat()
+        until = (clock.real_today() + timedelta(days=14)).isoformat()
         common = ["docs", "share", "add", "--deliverable", "docs-site/reference/request-status.md", "--portal", "https://docs.example.org/p/portal"]
         self.run_cli(*common, "--recipient", "not-an-email", "--until", until, "--by", "Camille", code=1)
         output, _ = self.run_cli(*common, "--recipient", "client@example.org", "--until", until, "--by", "Camille")
-        self.assertIn("remove their access on", output)
+        self.assertIn(f"After {until}, remove it there", output)
         shares = json.loads(self.run_cli("docs", "share", "list", "--json")[0])
         self.assertEqual(shares[0]["state"], "active")
         self.run_cli("docs", "share", "check")
         state = self.root / ".openguildkit" / "shares" / "shares.json"
         data = json.loads(state.read_text())
-        data["shares"][0]["until"] = (date.today() - timedelta(days=1)).isoformat()
+        data["shares"][0]["until"] = (clock.real_today() - timedelta(days=1)).isoformat()
         state.write_text(json.dumps(data), encoding="utf-8")
         self.run_cli("docs", "share", "check", code=1)
         self.run_cli("docs", "share", "revoke", "--id", data["shares"][0]["id"], "--by", "Camille")
@@ -176,7 +176,7 @@ class PublishingTests(unittest.TestCase):
         self.assertEqual(list(outside.iterdir()), [])
 
     def test_twenty_shares_recorded_at_once_are_all_kept(self):
-        until = (date.today() + timedelta(days=30)).isoformat()
+        until = (clock.real_today() + timedelta(days=30)).isoformat()
         environment = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"), os.environ.get("PYTHONPATH")])),
                        "PYTHONIOENCODING": "utf-8"}
 
@@ -203,7 +203,7 @@ class PublishingTests(unittest.TestCase):
 
     def test_revoking_a_share_holds_the_project_lock(self):
         self.deliverable()
-        until = (date.today() + timedelta(days=30)).isoformat()
+        until = (clock.real_today() + timedelta(days=30)).isoformat()
         self.run_cli("docs", "share", "add", "--deliverable", "d", "--recipient", "reader@example.test",
                      "--until", until, "--portal", "https://docs.example.test/p/portal", "--by", "Camille")
         share_id = json.loads(self.run_cli("docs", "share", "list", "--json")[0])[0]["id"]
@@ -223,7 +223,7 @@ class PublishingTests(unittest.TestCase):
         self.assertEqual(held, [True, False])
 
     def test_a_share_names_a_file_of_the_project_or_a_docs_export_and_nothing_else(self):
-        until = (date.today() + timedelta(days=30)).isoformat()
+        until = (clock.real_today() + timedelta(days=30)).isoformat()
         (self.root / "notes").mkdir()
         (self.root / ".openguildkit" / "tasks").mkdir(exist_ok=True)
         (self.root / ".openguildkit" / "tasks" / "report.json").write_text("{}", encoding="utf-8")
@@ -261,7 +261,7 @@ class PublishingTests(unittest.TestCase):
             subprocess.run(["cmd.exe", "/d", "/c", "mklink", "/J", r"docs-site\linked-folder", str(outside)],
                            cwd=self.root, capture_output=True, check=True)
         try:
-            until = (date.today() + timedelta(days=30)).isoformat()
+            until = (clock.real_today() + timedelta(days=30)).isoformat()
             _, error = self.run_cli("docs", "share", "add", "--deliverable", "docs-site/linked-folder/page.md",
                                     "--recipient", "reader@example.test", "--until", until,
                                     "--portal", "https://docs.example.test/p/portal", "--by", "Camille", code=1)
@@ -277,7 +277,7 @@ class PublishingTests(unittest.TestCase):
         self.deliverable()
         common = ["docs", "share", "add", "--deliverable", "d", "--recipient", "reader@example.test", "--by", "Camille"]
         portal = ["--portal", "https://docs.example.test/p/portal"]
-        later = date.today() + timedelta(days=30)
+        later = clock.real_today() + timedelta(days=30)
         for until in (later.strftime("%Y%m%d"), later.strftime("%G-W%V-%u"), "9999-12-31", "2026-02-30"):
             _, error = self.run_cli(*common, *portal, "--until", until, code=1)
             self.assertTrue(error.startswith("OpenGuildKit: "), error)
@@ -363,7 +363,7 @@ class PublishingTests(unittest.TestCase):
             self.skipTest(f"This account cannot create symbolic links: {error}")
 
     def share(self, deliverable, code=0):
-        until = (date.today() + timedelta(days=14)).isoformat()
+        until = (clock.real_today() + timedelta(days=14)).isoformat()
         return self.run_cli("docs", "share", "add", "--deliverable", deliverable, "--recipient", "reader@example.test",
                             "--until", until, "--portal", "https://docs.example.test/p/x", "--by", "Sam", code=code)[1]
 
@@ -450,6 +450,170 @@ class PublishingTests(unittest.TestCase):
         for board_id in boards:
             self.assertEqual(f"({board_id})" in listed, board_id in consulted, board_id)
 
+
+    def add(self, deliverable="d", recipient="reader@example.test", portal="https://docs.example.test/p/support-portal",
+            until=None, code=0):
+        until = until or (clock.real_today() + timedelta(days=14)).isoformat()
+        return self.run_cli("docs", "share", "add", "--deliverable", deliverable, "--recipient", recipient, "--until", until,
+                            "--portal", portal, "--by", "Camille", code=code)
+
+    def shares(self):
+        return json.loads(self.run_cli("docs", "share", "list", "--json")[0])
+
+    def test_a_share_records_and_shows_the_portal_space_as_its_perimeter(self):
+        self.deliverable()
+        self.deliverable("docs-site/reference/request-status.md")
+        output, _ = self.add("docs-site/reference/request-status.md",
+                             portal="https://Docs.Example.test/p/support-portal/reference/request-status")
+        self.assertIn("whole space docs.example.test/p/support-portal", output)
+        self.assertIn("every published page of that space", output)
+        self.assertEqual(self.shares()[0]["space"], "docs.example.test/p/support-portal")
+        listed, _ = self.run_cli("docs", "share", "list")
+        self.assertIn("docs-site/reference/request-status.md (whole space docs.example.test/p/support-portal)", listed)
+        for portal in ("https://docs.example.test", "https://docs.example.test/", "https://docs.example.test/p/",
+                       "https://docs.example.test/support-portal"):
+            with self.subTest(portal=portal):
+                _, error = self.add(portal=portal, code=1)
+                self.assertIn("https://HOST/p/SPACE", error)
+        self.assertEqual(len(self.shares()), 1)
+
+    def test_a_share_recorded_before_the_space_field_shows_the_space_of_its_portal(self):
+        self.deliverable()
+        self.add()
+        register = self.root / ".openguildkit" / "shares" / "shares.json"
+        data = json.loads(register.read_text(encoding="utf-8"))
+        del data["shares"][0]["space"]
+        register.write_text(json.dumps(data), encoding="utf-8")
+        self.assertEqual(self.shares()[0]["space"], "docs.example.test/p/support-portal")
+
+    def test_until_is_a_reminder_and_check_names_the_access_to_remove(self):
+        self.deliverable()
+        until = (clock.real_today() + timedelta(days=14)).isoformat()
+        output, _ = self.add(until=until)
+        self.assertIn("Documentalist keeps no end date", output)
+        self.assertIn(f"After {until}, remove it there", output)
+        share_id = self.shares()[0]["id"]
+        register = self.root / ".openguildkit" / "shares" / "shares.json"
+        data = json.loads(register.read_text(encoding="utf-8"))
+        data["shares"][0]["until"] = (clock.real_today() - timedelta(days=1)).isoformat()
+        register.write_text(json.dumps(data), encoding="utf-8")
+        output, _ = self.run_cli("docs", "share", "check", code=1)
+        self.assertIn("remove reader@example.test from space docs.example.test/p/support-portal", output)
+        self.assertIn(f"openguildkit docs share revoke --id {share_id} --by NAME", output)
+        self.assertEqual(self.shares()[0]["remove"], ["reader@example.test"])
+
+    def test_check_keeps_an_address_that_another_running_share_still_covers(self):
+        self.deliverable()
+        self.deliverable("e")
+        self.run_cli("docs", "share", "add", "--deliverable", "d", "--recipient", "reader@example.test", "--recipient",
+                     "other@example.test", "--until", (clock.real_today() + timedelta(days=14)).isoformat(),
+                     "--portal", "https://docs.example.test/p/support-portal", "--by", "Camille")
+        later = (clock.real_today() + timedelta(days=60)).isoformat()
+        self.add("e", portal="https://docs.example.test/p/support-portal/learn/x", until=later)
+        first, second = (row["id"] for row in self.shares())
+        register = self.root / ".openguildkit" / "shares" / "shares.json"
+        data = json.loads(register.read_text(encoding="utf-8"))
+        data["shares"][0]["until"] = (clock.real_today() - timedelta(days=1)).isoformat()
+        register.write_text(json.dumps(data), encoding="utf-8")
+        output, _ = self.run_cli("docs", "share", "check", code=1)
+        self.assertIn(f"keep reader@example.test: share {second} gives the same space until {later}", output)
+        self.assertIn("remove other@example.test from space docs.example.test/p/support-portal", output)
+        self.assertNotIn("remove reader@example.test", output)
+        self.assertIn(f"openguildkit docs share revoke --id {first} --by NAME", output)
+        self.assertEqual(self.shares()[0]["remove"], ["other@example.test"])
+        data["shares"][0]["recipients"] = ["reader@example.test"]
+        register.write_text(json.dumps(data), encoding="utf-8")
+        output, _ = self.run_cli("docs", "share", "check")
+        self.assertIn("covered: other shares keep the same access, nothing to remove yet", output)
+        self.assertNotIn("revoke", output)
+        self.assertEqual(self.shares()[0]["kept"], {"reader@example.test": {"share": second, "until": later}})
+
+    def test_a_second_share_for_the_same_recipient_and_space_is_announced(self):
+        self.deliverable()
+        self.deliverable("e")
+        self.add()
+        first = self.shares()[0]["id"]
+        _, warning = self.add("e", recipient="reader@example.test",
+                              portal="https://docs.example.test/p/support-portal/reference/other")
+        self.assertIn(f"reader@example.test already has access to space docs.example.test/p/support-portal through share {first}",
+                      warning)
+        self.assertIn("one access per address and space", warning)
+        for other in ({"recipient": "other@example.test"}, {"portal": "https://docs.example.test/p/another-space"},
+                      {"portal": "https://elsewhere.example.test/p/support-portal"}):
+            with self.subTest(other=other):
+                self.assertEqual(self.add("e", **other)[1], "")
+        self.run_cli("docs", "share", "revoke", "--id", first, "--by", "Camille")
+        self.assertNotIn(first, self.add("e")[1])
+
+    def test_revoking_says_the_portal_removal_covers_the_whole_space(self):
+        self.deliverable()
+        self.deliverable("e")
+        self.add()
+        self.add("e")
+        self.add("e", recipient="other@example.test")
+        first, second, third = (row["id"] for row in self.shares())
+        output, _ = self.run_cli("docs", "share", "revoke", "--id", first, "--by", "Camille")
+        self.assertIn("revoked", output)
+        self.assertIn("removes an address from the whole space docs.example.test/p/support-portal", output)
+        self.assertIn("Other shares give reader@example.test the same space", output)
+        self.assertIn(f"openguildkit docs share revoke --id {second} --by NAME", output)
+        self.assertNotIn(third, output)
+        output, _ = self.run_cli("docs", "share", "revoke", "--id", second, "--by", "Camille")
+        self.assertNotIn("--id", output)
+
+    def test_a_local_portal_address_may_use_http_on_this_machine_only(self):
+        self.deliverable()
+        for portal in ("http://127.0.0.1:3000/p/support-portal", "http://localhost:3000/p/support-portal",
+                       "http://[::1]:3000/p/support-portal"):
+            with self.subTest(portal=portal):
+                self.add(portal=portal)
+        self.assertEqual([row["space"] for row in self.shares()],
+                         ["127.0.0.1:3000/p/support-portal", "localhost:3000/p/support-portal", "[::1]:3000/p/support-portal"])
+        for portal in ("http://docs.example.test/p/support-portal", "http://127.0.0.1.example.test/p/support-portal",
+                       "http://10.0.0.8/p/support-portal", "ftp://127.0.0.1/p/support-portal",
+                       "http://127.0.0.1:99999/p/support-portal"):
+            with self.subTest(portal=portal):
+                _, error = self.add(portal=portal, code=1)
+                self.assertTrue(error.startswith("OpenGuildKit: "), error)
+        self.assertEqual(len(self.shares()), 3)
+
+    def section(self, title):
+        guide = (REPO / "docs" / "documentation.md").read_text(encoding="utf-8")
+        return guide.split(f"\n## {title}\n", 1)[1].split("\n## ", 1)[0]
+
+    def test_the_guide_names_the_documentalist_version_checked_and_its_reuse_conditions(self):
+        verified = self.section("Versions verified and reuse")
+        for fact in ("2026-11-22", "947429b", "Node.js 26.13.0", "Node.js 22", "GitHub import was not run", "stand-in",
+                     "no licence file", "`null`", "no `license` field", "Ask its author"):
+            self.assertIn(fact, verified)
+        report = DOCUMENTALIST / "reports" / "2026-11-22.md"
+        self.assertIn("(../examples/documentalist/reports/2026-11-22.md)", verified)
+        addresses = set(re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", report.read_text(encoding="utf-8")))
+        self.assertEqual({address.rsplit("@", 1)[1] for address in addresses}, {"example.test"})
+
+    def test_the_guide_corrects_the_import_paths_the_run_checked(self):
+        imports = self.section("Import into Documentalist")
+        for fact in ('Outils → Importer → "Depuis GitHub"', "github.com only", "Mettre à jour l'espace actuel",
+                     "every page goes to Reference", "creates a new page", "source path and locale", "new ID",
+                     '"Relancer sync"', "never syncs on its own", '"Publier"', "takes a URL", "delete the pages of the previous one"):
+            self.assertIn(fact, imports)
+        export = self.section("Export")
+        self.assertIn("neither imports them nor reads them for the order", export)
+        self.assertNotIn("SUMMARY.md` fixes the order", export)
+
+    def test_the_guide_says_what_a_share_gives_and_what_the_instance_keeps(self):
+        sharing = self.section("Share a deliverable")
+        for fact in ("whole space", "**The perimeter is the space.**", "**`--until` is a reminder.**",
+                     "**One access per address and space.**", "**What the instance does not record.**",
+                     "`DOCUMENTALIST_SMTP_URL`", "`127.0.0.1`"):
+            self.assertIn(fact, sharing)
+
+    def test_the_guide_says_what_source_date_epoch_changes_and_what_it_does_not_decide(self):
+        dates = self.section("Reproducible dates")
+        self.assertIn("once on stderr", dates)
+        decisions = dates.split("What it does not decide:", 1)[1].split("\n\n", 1)[0]
+        for decision in ("docs share add", "docs share check", "waiver", "approval", "real clock"):
+            self.assertIn(decision, decisions)
 
 if __name__ == "__main__":
     unittest.main()

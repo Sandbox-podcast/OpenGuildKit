@@ -1,10 +1,13 @@
 import copy
 import json
+import os
 import tempfile
 import unittest
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
+from unittest.mock import patch
 
+from openguildkit import clock
 from openguildkit.catalog import load_catalog
 from openguildkit.project import resolved_profile, validate_profile
 from openguildkit.decisions import check_decision
@@ -57,7 +60,7 @@ class BlockerTests(unittest.TestCase):
         task = resolve_blocker(self.task, "security:1", {
             "kind": "cleared", "by": "Alex", "evidence": "tests/test_access.py", "supports": "Cross-account access is refused.",
         }, self.profile, self.root)
-        until = (date.today() + timedelta(days=10)).isoformat()
+        until = (clock.real_today() + timedelta(days=10)).isoformat()
         waiver = {"kind": "waived", "by": "Camille Martin", "reason": "Pilot with internal users only",
                   "scope": "Internal pilot", "until": until}
         task = resolve_blocker(task, "security:2", waiver, self.profile, self.root)
@@ -89,12 +92,20 @@ class BlockerTests(unittest.TestCase):
             resolve_blocker(cleared, "security:1", {**resolution, "by": "Bob"}, self.profile, self.root)
         self.assertEqual(blocker_list(cleared)[0]["resolution"]["by"], "Alex")
 
+    def test_a_waiver_length_follows_the_real_clock_under_source_date_epoch(self):
+        until = (clock.real_today() + timedelta(days=10)).isoformat()
+        waiver = {"kind": "waived", "by": "Camille Martin", "reason": "Internal pilot", "scope": "Pilot", "until": until}
+        for fixed in ("2000000000", "1000000000"):  # 2033-05-18 and 2001-09-09
+            with self.subTest(fixed=fixed), patch.dict(os.environ, {"SOURCE_DATE_EPOCH": fixed}):
+                task = resolve_blocker(self.task, "security:1", waiver, self.profile, self.root)
+                self.assertEqual(task["blocker_resolutions"]["security:1"]["until"], until)
+
     def test_waivers_follow_the_project_policy(self):
-        until = (date.today() + timedelta(days=10)).isoformat()
+        until = (clock.real_today() + timedelta(days=10)).isoformat()
         waiver = {"kind": "waived", "by": "Sam", "reason": "x", "scope": "y", "until": until}
         with self.assertRaisesRegex(ValueError, "cannot grant waivers"):
             resolve_blocker(self.task, "security:1", waiver, self.profile, self.root)
-        waiver.update(by="Camille Martin", until=(date.today() + timedelta(days=90)).isoformat())
+        waiver.update(by="Camille Martin", until=(clock.real_today() + timedelta(days=90)).isoformat())
         with self.assertRaisesRegex(ValueError, "between 1 and 30 days"):
             resolve_blocker(self.task, "security:1", waiver, self.profile, self.root)
         no_policy = {key: value for key, value in self.profile.items() if key != "waivers"}

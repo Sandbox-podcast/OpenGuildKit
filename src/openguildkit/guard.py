@@ -48,7 +48,7 @@ def _age_days(moment: str) -> int | None:
         return None
     if approved.tzinfo is None:
         approved = approved.replace(tzinfo=timezone.utc)
-    return (clock.now() - approved).days
+    return (clock.real_now() - approved).days
 
 
 def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) -> list[dict]:
