@@ -1,6 +1,7 @@
 // Builds a fresh sample project and serves it with `openguildkit ui`, for the project end-to-end tests.
 //   node scripts/serve-sample.mjs           (port PW_PROJECT_PORT, 7322 by default)
 //   node scripts/serve-sample.mjs --empty   (a folder without OpenGuildKit, to test the setup)
+//   node scripts/serve-sample.mjs --empty --stripe   (the same, with Stripe in its stack: setup proposes PCI DSS)
 // The built front end (npm run build) is served from web/dist. OGK_PYTHON picks the interpreter.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
@@ -12,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const repo = join(web, '..');
 const empty = process.argv.includes('--empty');
+const stripe = process.argv.includes('--stripe');
 const port = process.env.PW_PROJECT_PORT ?? (empty ? '7323' : '7322');
 const python = process.env.OGK_PYTHON
   ?? [join(repo, '.venv', 'Scripts', 'python.exe'), join(repo, '.venv', 'bin', 'python')].find((p) => existsSync(p))
@@ -27,10 +29,12 @@ if (!free) {
   process.exit(1);
 }
 const env = { ...process.env, PYTHONPATH: [join(repo, 'src'), process.env.PYTHONPATH].filter(Boolean).join(delimiter), PYTHONIOENCODING: 'utf-8' };
-const project = join(mkdtempSync(join(tmpdir(), 'ogk-e2e-')), empty ? 'new-portal' : 'portal');
+const name = stripe ? 'new-shop' : empty ? 'new-portal' : 'portal';
+const project = join(mkdtempSync(join(tmpdir(), 'ogk-e2e-')), name);
 if (empty) {
   mkdirSync(project);
-  writeFileSync(join(project, 'package.json'), JSON.stringify({ name: 'new-portal', dependencies: { react: '^19.0.0' } }, null, 2));
+  const dependencies = { react: '^19.0.0', ...(stripe ? { stripe: '^14.0.0' } : {}) };
+  writeFileSync(join(project, 'package.json'), JSON.stringify({ name, dependencies }, null, 2));
 } else {
   const built = spawnSync(python, [join(web, 'scripts', 'sample-project.py'), project], { env, stdio: 'inherit' });
   if (built.status !== 0) process.exit(built.status ?? 1);

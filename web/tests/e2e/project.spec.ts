@@ -10,7 +10,9 @@ import { fileURLToPath } from 'node:url';
 test.describe.configure({ mode: 'serial' });
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'tests', 'fixtures', 'alerts');
-const EMPTY = `http://127.0.0.1:${Number(process.env.PW_PROJECT_PORT ?? 7322) + 1}`;
+const PORT = Number(process.env.PW_PROJECT_PORT ?? 7322);
+const EMPTY = `http://127.0.0.1:${PORT + 1}`;
+const STRIPE = `http://127.0.0.1:${PORT + 2}`;
 const errors: string[] = [];
 
 function watch(page: Page) {
@@ -505,16 +507,82 @@ test('keeps the Pro style across places', async ({ page }) => {
 
 /* ------------------------------------------------------------------ setup */
 
-test('sets up a folder without OpenGuildKit', async ({ page }) => {
+const settingUp = async (page: Page, origin: string, folder: string) => {
   watch(page);
-  await page.goto(`${EMPTY}/`);
+  await page.goto(`${origin}/`);
   await expect(page).toHaveURL(/#\/installation/);
-  await expect(page.getByRole('heading', { name: /Installer la guilde dans new-portal/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: new RegExp(`Installer la guilde dans ${folder}`) })).toBeVisible();
+};
+const savedProfile = async (page: Page) => JSON.parse((await api<{ text: string }>(page, './api/files/read', { path: '.openguildkit/project.json' })).body.text);
+const patternIds = (profile: { patterns: (string | { id: string })[] }) => profile.patterns.map((p) => (typeof p === 'string' ? p : p.id));
+
+test('sets up a project with personal data once a person accepts the GDPR', async ({ page }) => {
+  await settingUp(page, EMPTY, 'new-portal');
+  const install = page.getByRole('button', { name: 'Installer la guilde' });
+  const plan = page.getByRole('region', { name: 'Règles qui s’appliqueront' });
+  await page.getByLabel('Project name').fill('Brouillon');
+  await expect(page.locator('[data-norm]').first()).toBeAttached();
+  await expect(install).toBeDisabled();
+  await page.locator('#setup-personal_data').selectOption('yes');
+  const gdpr = page.locator('[data-norm="gdpr-personal-data"]').first();
+  await expect(gdpr).toContainText('Proposée à cause de : données personnelles');
+  await expect(plan.getByText(/Réponds à chaque norme proposée/)).toBeVisible();
+  await expect(install).toBeDisabled();
+
+  // A refusal of the plan reads once, and a plan with many rules says so.
+  await page.route('**/api/run', async (route) => {
+    if (route.request().postDataJSON()?.argv?.[0] !== 'preview') return route.continue();
+    await route.fulfill({ json: { code: 1, stdout: '', stderr: 'OpenGuildKit: Sample refusal of the plan.', json: null } });
+  });
+  await gdpr.getByText('Oui, elle s’applique').click();
+  await expect(plan.getByText('Sample refusal of the plan.')).toHaveCount(1);
+  await expect(page.getByText('Sample refusal of the plan.')).toHaveCount(1);
+  await expect(install).toBeDisabled();
+  await page.unroute('**/api/run');
+  await page.route('**/api/run', async (route) => {
+    if (route.request().postDataJSON()?.argv?.[0] !== 'preview') return route.continue();
+    const response = await route.fetch();
+    const body = await response.json();
+    body.json.rule_warning = '120 rules in force. Decline the patterns that do not concern the project.';
+    await route.fulfill({ response, json: body });
+  });
+  await page.getByLabel('Project name').fill('Brouillon 2');
+  await expect(plan.getByText(/120 rules in force/)).toBeVisible();
+  await page.unroute('**/api/run');
   await page.getByLabel('Project name').fill('Nouveau portail');
-  await expect(page.getByRole('region', { name: 'Règles qui s’appliqueront' }).getByText('Agent workflow')).toBeVisible();
-  await page.getByRole('button', { name: 'Installer la guilde' }).click();
+
+  await expect(plan.getByText('GDPR personal data processing')).toBeVisible();
+  await expect(install).toBeEnabled();
+  await install.click();
   await expect(page).toHaveURL(/#\/royaume/);
   await expect(page.locator('.project-chip')).toContainText('Nouveau portail');
+  const profile = await savedProfile(page);
+  expect(patternIds(profile)).toContain('gdpr-personal-data');
   const agents = await api<{ text: string }>(page, './api/files/read', { path: 'AGENTS.md' });
   expect(agents.body.text).toContain('OpenGuildKit');
+});
+
+test('sets up a project with Stripe: PCI DSS accepted, a norm declined with who and why', async ({ page }) => {
+  await settingUp(page, STRIPE, 'new-shop');
+  const install = page.getByRole('button', { name: 'Installer la guilde' });
+  await page.getByLabel('Project name').fill('Nouvelle boutique');
+  const pci = page.locator('[data-norm="pci-dss-cardholder-data"]').first();
+  await expect(pci).toContainText('pile : Stripe');
+  await page.locator('#setup-personal_data').selectOption('yes');
+  const gdpr = page.locator('[data-norm="gdpr-personal-data"]').first();
+  await expect(gdpr).toBeVisible();
+  await pci.getByText('Oui, elle s’applique').click();
+  await expect(install).toBeDisabled();
+  await gdpr.getByText('Non', { exact: true }).click();
+  await expect(gdpr.getByText('Un refus dit pourquoi.')).toBeVisible();
+  await expect(install).toBeDisabled();
+  await gdpr.getByLabel('Personne qui refuse').fill('Camille Martin');
+  await gdpr.getByLabel('Pourquoi').fill('The pilot stores company accounts only');
+  await expect(install).toBeEnabled();
+  await expect(page.getByText(/La commande a échoué|n’est pas encore valide/)).toHaveCount(0);
+  await install.click();
+  await expect(page).toHaveURL(/#\/royaume/);
+  const profile = await savedProfile(page);
+  expect(patternIds(profile)).toContain('pci-dss-cardholder-data');
+  expect(profile.declined).toEqual([expect.objectContaining({ id: 'gdpr-personal-data', by: 'Camille Martin', reason: 'The pilot stores company accounts only' })]);
 });

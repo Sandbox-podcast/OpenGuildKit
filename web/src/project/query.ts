@@ -56,7 +56,7 @@ export function useCli<T>(argv: string[] | null, opts: Pick<RunOptions, 'omit'> 
   remember(key, argv);
   return useQuery<T>(key, useCallback(async () => {
     const result = await run<T>(argv!, undefined, { omit: opts.omit });
-    if (result.json === null) throw new ApiError(`La commande « ${argv!.join(' ')} » n’a pas renvoyé de JSON.${result.stdout ? ` Sortie : ${result.stdout.slice(0, 200)}` : ''}`, 200, null, result);
+    if (result.json === null) throw new ApiError(`La commande « ${argv!.join(' ')} » n’a pas renvoyé de JSON.${result.stdout ? ` Sortie : ${result.stdout.slice(0, 200)}` : ''}`, 200, { result });
     return result.json;
   }, [key]));
 }

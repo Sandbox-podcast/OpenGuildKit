@@ -55,7 +55,12 @@ export interface TaskRecord {
   passes?: Record<string, unknown>;
 }
 
-export interface Question { id: string; prompt: string; type?: string; choices?: { id: string; label: string }[]; default?: unknown }
+/** A question of `init --questions` or `task questions`. help: one line in plain words; unsure: what a "don't know"
+ * answer applies; required: the CLI asks it until answered; norms: the norms a setup proposes, each with its condition. */
+export interface Question {
+  id: string; prompt: string; type?: string; choices?: { id: string; label: string }[]; default?: unknown;
+  help?: string; unsure?: string; required?: boolean; norms?: { id: string; title: string; prompt: string }[];
+}
 /** `task questions`, with or without answers: the questions, the follow-ups still to ask with their prompt, the open points. */
 export interface QuestionSet { questions: Question[]; follow_ups: { id: string; prompt: string }[]; open_points: string[] }
 /** `task route --json`: the boards selected with their reasons; those the brief mentions as excluded, with the
@@ -122,7 +127,8 @@ export interface Brain {
 export interface Sector { id: string; title: string; description: string; context: string[]; sources: { title: string; url: string }[] }
 export interface Catalog { packs: Record<string, Pack>; boards: Record<string, Brain>; sectors: Record<string, Sector> }
 export interface PlanPack { id: string; title: string; version: string; provenance: string[]; scope: unknown; rules: string[] }
-export interface RulePlan { packs: PlanPack[]; excluded: unknown[]; conflicts: unknown[]; conventions: string[]; checks: string[] }
+/** rule_warning: set when many rules are in force, with the command to decline a pattern; declined: what a person declined. */
+export interface RulePlan { packs: PlanPack[]; excluded: unknown[]; conflicts: unknown[]; conventions: string[]; checks: string[]; rule_count?: number; rule_warning?: string | null; declined?: { id: string; by?: string; on?: string; reason?: string }[] }
 
 export interface Reference { id: string; aliases?: string[]; title: string; category: string; kind: string; brains?: string[]; summary: string; applies_when: string; sources: { url: string; title: string }[]; status: string; family: string; family_title: string }
 export interface Pattern { id: string; title: string; description: string; sources: { title: string; url: string }[]; roles: string[]; packs: string[]; match?: unknown; matched_stack?: string[] }

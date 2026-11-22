@@ -1,6 +1,6 @@
 /** Project data every place reads, loaded in one batch and kept in the shared cache. */
 import { useCallback } from 'react';
-import { ApiError, batch, cliMessage, readJson, type CliResult } from './api';
+import { batch, cliError, readJson, type CliResult } from './api';
 import { useCli, useQuery, type Query } from './query';
 import type { AlertRegister, Brain, Guard, HostControl, MarketDue, Profile, Share, StaleTask, TaskListItem, Update } from './types';
 import type { PlaceKey } from '@/shared/pixel/buildings';
@@ -25,7 +25,7 @@ function useOverviewPart<T>(name: OverviewPart): Query<T> {
   const failed = r && (r.code !== 0 || r.json == null);
   return {
     data: r && !failed ? r.json as T : undefined,
-    error: failed ? new ApiError(cliMessage(r), 200, r.command ?? null, r) : overview.error,
+    error: failed ? cliError(r) : overview.error,
     loading: overview.data === undefined && !overview.error,
     reload: overview.reload,
   };

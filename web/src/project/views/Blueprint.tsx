@@ -6,37 +6,54 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Brand } from '@/app/Brand';
 import { Badge, Button, Checkbox, KV, Notice, Panel, Tabs, TextArea, TextField } from '@/shared/ui/core';
 import { Icon } from '@/shared/pixel/icons';
-import { ApiError, cliMessage, currentSession, run, saveProfile } from '../api';
+import { ApiError, cliMessage, currentSession, run, saveProfile, terminalCommand } from '../api';
 import { useBrains, useProfile } from '../data';
 import { invalidate, showTerminal, useAction, useCli, useQuery } from '../query';
 import { toast } from '@/shared/ui/toast';
-import { RESEARCH } from '../labels';
-import { ActionForm, ErrorNotice, JsonDetails, ListEditor, Q, useRemembered } from '../parts';
+import { NORM_FR, RESEARCH, reasonLabel } from '../labels';
+import { ActionForm, CommandLine, En, ErrorNotice, JsonDetails, ListEditor, Q, useDebounced, useRemembered } from '../parts';
+import { missingRequired, pendingNorms, setupAnswers, type NormDraft } from '../setup';
 import type { Profile, Question, Recommendation, RulePlan } from '../types';
 
 /* ------------------------------------------------------------------ setup */
 
 type SetupAnswers = Record<string, unknown>;
+type SetupQuestion = Question & { type: string };
+type Proposed = { id: string; reasons?: string[] };
 
 export function Setup() {
   const session = currentSession();
-  const questions = useCli<(Question & { type: string })[]>(['init', '--questions']);
+  const questions = useCli<SetupQuestion[]>(['init', '--questions']);
   const [answers, setAnswers] = useState<SetupAnswers>({});
+  const [norms, setNorms] = useState<Record<string, NormDraft>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   useEffect(() => {
     if (!questions.data) return;
     const initial: SetupAnswers = {};
     for (const question of questions.data) {
-      // Norm defaults apply to individual prompts. The CLI selects applicable norms when no overrides are sent.
+      // Norms are answered one by one below: the CLI never activates a norm nobody accepted.
       if (question.type !== 'norms' && question.default !== undefined && question.default !== null) {
         initial[question.id] = question.default;
       }
     }
     setAnswers((a) => ({ ...initial, ...a }));
   }, [questions.data]);
-  const json = JSON.stringify(answers);
-  const plan = useQuery<RulePlan | null>(answers.name ? `setup-plan:${json}` : null, useCallback(async () => (await run<RulePlan>(['preview', '--answers', '@upload:profile.json', '--json'], { 'profile.json': json })).json, [json]));
+  // The CLI says which norms these answers make it propose, with the reason of each.
+  const settled = useDebounced(answers, 350);
+  const answered = JSON.stringify(settled);
+  const recommend = useQuery<Proposed[]>(questions.data ? `setup-recommend:${answered}` : null, useCallback(async () => (await run<{ matched: Proposed[] }>(['recommend', '--answers', '@upload:answers.json', '--json'], { 'answers.json': answered })).json?.matched ?? [], [answered]));
+  const catalogNorms = questions.data?.find((q) => q.type === 'norms')?.norms ?? [];
+  const proposed = (recommend.data ?? []).filter((m) => catalogNorms.some((n) => n.id === m.id));
+  // The plan and the install follow the same settled answers, so a norm answered a moment ago is in both.
+  const settledNorms = useDebounced(norms, 350);
+  const pending = pendingNorms(proposed.map((n) => n.id), settledNorms);
+  const required = missingRequired(questions.data ?? [], answers);
+  const json = JSON.stringify(setupAnswers(settled, settledNorms));
+  // Until typing pauses, the plan on screen is that of the previous answers: installing waits for the current ones.
+  const settling = JSON.stringify(answers) !== answered || JSON.stringify(norms) !== JSON.stringify(settledNorms);
+  const ready = !!answers.name && recommend.data !== undefined && pending.length === 0;
+  const plan = useQuery<RulePlan | null>(ready ? `setup-plan:${json}` : null, useCallback(async () => (await run<RulePlan>(['preview', '--answers', '@upload:profile.json', '--json'], { 'profile.json': json })).json, [json]));
   const set = (id: string, value: unknown) => setAnswers((a) => { const next = { ...a }; if (value === undefined || (Array.isArray(value) && !value.length && id !== 'stack')) delete next[id]; else next[id] = value; return next; });
 
   const init = async () => {
@@ -48,6 +65,9 @@ export function Setup() {
       window.location.reload();
     } catch (e) { setError(e as ApiError); } finally { setBusy(false); }
   };
+  const waiting = !answers.name ? 'Donne un nom au projet pour voir le plan.'
+    : recommend.error ? null
+    : pending.length ? `Réponds à chaque norme proposée pour voir le plan (${pending.length} sans réponse).` : null;
 
   return (
     <div className="setup-page">
@@ -57,17 +77,23 @@ export function Setup() {
       <Q q={questions} label="Lecture du questionnaire d’installation">
         {(list) => <div className="grid-2 setup-grid">
           <Panel title="Le profil">
-            <div className="stack">{list.map((q) => <SetupField key={q.id} q={q} value={answers[q.id]} onChange={(v) => set(q.id, v)} />)}</div>
+            <div className="stack">{list.map((q) => q.type === 'norms'
+              ? <NormsField key={q.id} q={q} proposed={proposed} loading={recommend.data === undefined} drafts={norms} onChange={setNorms} />
+              : <SetupField key={q.id} q={q} value={answers[q.id]} onChange={(v) => set(q.id, v)} />)}</div>
           </Panel>
           <div className="stack">
             <Panel title="Règles qui s’appliqueront">
-              {!answers.name ? <p className="muted">Donnez un nom au projet pour voir le plan.</p> : <Q q={plan} label="Calcul du plan">{(p) => p && <PlanView plan={p} />}</Q>}
-              {plan.error && <ErrorNotice error={plan.error} title="Le profil n’est pas encore valide" />}
+              {waiting ? <p className="muted">{waiting}</p>
+                : recommend.error ? <ErrorNotice error={recommend.error} title="Les normes proposées n’ont pas pu être calculées" />
+                : plan.error ? <ErrorNotice error={plan.error} title="Le profil n’est pas encore valide" />
+                  : <Q q={plan} label="Calcul du plan">{(p) => p && <PlanView plan={p} />}</Q>}
             </Panel>
             <Panel title="Écrire le profil">
-              <p className="small">L’installation écrit <code>.openguildkit/project.json</code>, le verrou du catalogue, le bloc géré d’<code>AGENTS.md</code> et <code>CLAUDE.md</code>. Votre propre texte dans ces fichiers reste autour du bloc.</p>
+              <p className="small">L’installation écrit <code>.openguildkit/project.json</code>, le verrou du catalogue, le bloc géré d’<code>AGENTS.md</code> et <code>CLAUDE.md</code>. Ton propre texte dans ces fichiers reste autour du bloc.</p>
+              {required.length > 0 && <p className="small" role="status">Question obligatoire sans réponse : {required.map((id) => list.find((q) => q.id === id)?.prompt ?? id).join(' ; ')}</p>}
               <ErrorNotice error={error} title="Installation refusée" />
-              <Button variant="primary" icon="flag" busy={busy} disabled={!answers.name || !!plan.error} onClick={() => void init()}>Installer la guilde</Button>
+              <Button variant="primary" icon="flag" busy={busy} disabled={!ready || settling || required.length > 0 || !plan.data || !!plan.error} onClick={() => void init()}>Installer la guilde</Button>
+              <div className="tiny muted">Tu peux aussi répondre aux mêmes questions dans un terminal : <CommandLine command={terminalCommand(['init'])} label="Commande d’installation" /></div>
             </Panel>
           </div>
         </div>}
@@ -77,11 +103,12 @@ export function Setup() {
 }
 
 /** A setup question, with its one-line help in plain words (the CLI's help and what an unsure answer means). */
-function SetupField({ q, value, onChange }: { q: Question & { type: string; help?: string; unsure?: string }; value: unknown; onChange: (v: unknown) => void }) {
+function SetupField({ q, value, onChange }: { q: SetupQuestion; value: unknown; onChange: (v: unknown) => void }) {
   const choices = q.choices ?? [];
   const hint = [q.help, q.unsure ? `Sans réponse : ${q.unsure}` : ''].filter(Boolean).join(' ') || undefined;
-  if (q.type === 'text') return <TextField label={q.prompt} hint={hint} value={typeof value === 'string' ? value : ''} onChange={(e) => onChange(e.target.value)} />;
-  if (q.type === 'select') return <div className="field"><label htmlFor={`setup-${q.id}`}>{q.prompt}</label><select id={`setup-${q.id}`} className="input" value={String(value ?? '')} onChange={(e) => onChange(e.target.value || undefined)}>{value === undefined || value === null ? <option value="">Choisir…</option> : null}{choices.map((c) => <option key={c.id} value={c.id}>{RESEARCH[c.id] ?? c.label}</option>)}</select>{hint && <p className="hint">{hint}</p>}</div>;
+  const label = q.required ? <>{q.prompt} <span className="tiny muted">(obligatoire)</span></> : q.prompt;
+  if (q.type === 'text') return <TextField label={label} hint={hint} value={typeof value === 'string' ? value : ''} onChange={(e) => onChange(e.target.value)} />;
+  if (q.type === 'select') return <div className="field"><label htmlFor={`setup-${q.id}`}>{label}</label><select id={`setup-${q.id}`} className="input" value={String(value ?? '')} onChange={(e) => onChange(e.target.value || undefined)}>{value === undefined || value === null ? <option value="">Choisir…</option> : null}{choices.map((c) => <option key={c.id} value={c.id}>{RESEARCH[c.id] ?? c.label}</option>)}</select>{hint && <p className="hint">{hint}</p>}</div>;
   if (q.type === 'list') return <ListEditor label={q.prompt} hint={hint} items={(value as string[]) ?? []} onChange={onChange} />;
   if (q.type === 'components') return <div className="field"><p className="label">{q.prompt}</p>{Array.isArray(q.default) && q.default.length ? <JsonDetails data={q.default} label={`${q.default.length} composant(s) détecté(s)`} /> : <p className="tiny muted">Aucun composant détecté : un seul composant à la racine.</p>}</div>;
   if (q.type === 'multi-select') {
@@ -93,12 +120,58 @@ function SetupField({ q, value, onChange }: { q: Question & { type: string; help
   return <p className="small">{q.prompt}</p>;
 }
 
+/**
+ * The norms question: each norm the CLI proposes for these answers takes a yes or a no, and a no names who decided
+ * and why, as with `init` in a terminal. The other norms of the catalog can be adopted the same way.
+ */
+function NormsField({ q, proposed, loading, drafts, onChange }: { q: SetupQuestion; proposed: Proposed[]; loading: boolean; drafts: Record<string, NormDraft>; onChange: (next: Record<string, NormDraft>) => void }) {
+  const [by] = useRemembered('decider');
+  const all = q.norms ?? [];
+  const others = all.filter((n) => !proposed.some((p) => p.id === n.id));
+  const set = (id: string, draft: NormDraft | null) => { const next = { ...drafts }; if (draft) next[id] = draft; else delete next[id]; onChange(next); };
+  const title = (id: string) => NORM_FR[id] ?? all.find((n) => n.id === id)?.title ?? id;
+  return (
+    <fieldset className="choices setup-norms">
+      <legend>Normes et réglementations</legend>
+      <p className="hint">Chaque norme proposée attend un oui ou un non. Oui la rend active ; non note qui a décidé et pourquoi, et elle ne sera plus proposée. Rien n’est actif sans l’accord d’une personne.</p>
+      {loading ? <p className="tiny muted">Calcul des normes proposées…</p> : proposed.length === 0
+        ? <p className="small muted">Aucune norme n’est proposée pour ces réponses (secteur, données personnelles, décisions sur des personnes, pile).</p>
+        : proposed.map((n) => <NormChoice key={n.id} id={n.id} title={title(n.id)} why={(n.reasons ?? []).map((r) => reasonLabel(r) ?? r).join(', ')} draft={drafts[n.id]} by={by} required onChange={(d) => set(n.id, d)} />)}
+      {others.length > 0 && <details className="small"><summary>Autres normes du catalogue ({others.length})</summary>
+        {others.map((n) => <NormChoice key={n.id} id={n.id} title={title(n.id)} draft={drafts[n.id]} by={by} onChange={(d) => set(n.id, d)} />)}</details>}
+    </fieldset>
+  );
+}
+
+function NormChoice({ id, title, why, draft, by, required, onChange }: { id: string; title: string; why?: string; draft?: NormDraft; by: string; required?: boolean; onChange: (draft: NormDraft | null) => void }) {
+  const missing = draft?.answer === 'no' && (!draft.by?.trim() || !draft.reason?.trim());
+  return (
+    <fieldset className={`card norm-choice ${required && !draft ? 'pending' : ''}`} data-norm={id}>
+      <legend><strong>{title}</strong> <span className="mono tiny">{id}</span></legend>
+      {why && <p className="tiny muted">Proposée à cause de : {why}</p>}
+      <div className="choice-row">
+        {(['yes', 'no'] as const).map((answer) => <label key={answer} className={`choice ${draft?.answer === answer ? 'on' : ''}`}>
+          <input type="radio" name={`norm-${id}`} checked={draft?.answer === answer} onChange={() => onChange(answer === 'yes' ? { answer } : { answer, by: draft?.by ?? by, reason: draft?.reason ?? '' })} />
+          <span>{answer === 'yes' ? 'Oui, elle s’applique' : 'Non'}</span>
+        </label>)}
+        {!required && draft && <Button size="small" variant="ghost" onClick={() => onChange(null)}>Sans réponse</Button>}
+      </div>
+      {draft?.answer === 'no' && <div className="grid-2">
+        <TextField label="Personne qui refuse" value={draft.by ?? ''} onChange={(e) => onChange({ ...draft, by: e.target.value })} error={missing && !draft.by?.trim() ? 'Un refus nomme la personne qui décide.' : null} />
+        <TextField label="Pourquoi" value={draft.reason ?? ''} onChange={(e) => onChange({ ...draft, reason: e.target.value })} error={missing && !draft.reason?.trim() ? 'Un refus dit pourquoi.' : null} />
+      </div>}
+    </fieldset>
+  );
+}
+
 function PlanView({ plan }: { plan: RulePlan }) {
   return <>
+    {plan.rule_warning && <Notice tone="warn" title="Beaucoup de règles :"><En>{plan.rule_warning}</En></Notice>}
     <ul className="plain stack tight rule-plan">{plan.packs.map((p) => <li key={p.id} className="row between"><span><strong>{p.title}</strong> <span className="mono tiny">{p.id} {p.version}</span><span className="tiny muted block">{p.provenance.join(' · ')}</span></span><Badge>{p.rules.length} règle(s)</Badge></li>)}</ul>
     {plan.conflicts.length > 0 && <Notice tone="danger" title="Conflits :"><pre>{JSON.stringify(plan.conflicts, null, 2)}</pre></Notice>}
     {plan.conventions.length > 0 && <p className="small"><strong>Conventions :</strong> {plan.conventions.join(' · ')}</p>}
     {plan.checks.length > 0 && <p className="small rule-checks"><strong>Vérifications :</strong> {plan.checks.map((c) => <code key={c}>{c} </code>)}</p>}
+    {!!plan.declined?.length && <p className="small"><strong>Refusées :</strong> {plan.declined.map((d) => `${NORM_FR[d.id] ?? d.id}${d.by ? ` (${d.by} : ${d.reason})` : ''}`).join(' · ')}</p>}
   </>;
 }
 

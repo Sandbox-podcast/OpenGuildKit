@@ -12,7 +12,7 @@ import { listFiles, run, terminalCommand } from '../api';
 import { boardTitle, useBrains, useProfile, useTasks } from '../data';
 import { invalidate, showTerminal, useAction, useCli, useCliText, useQuery } from '../query';
 import { BASIS, CONFIDENCE, DATA, KIND, PASS, QUESTION_FR, RESEARCH, SURFACE, fmtWhen, isDecided, nextLabel, openPointLabel, verdict } from '../labels';
-import { ActionForm, CommandLine, FilePick, JsonDetails, Q, Section, StepRail, TaskStatusBadge, copyText, useRemembered } from '../parts';
+import { ActionForm, CommandLine, FilePick, JsonDetails, Q, Section, StepRail, TaskStatusBadge, copyText, useDebounced, useRemembered } from '../parts';
 import { usePrefs } from '../prefs';
 import type { Answers, BlockerItem, Brain, Deliberation, PassProgress, Question, QuestionSet, Route, TaskRecord } from '../types';
 
@@ -88,12 +88,6 @@ function useQuestions(id: string, answers: Answers, complete: boolean) {
   const json = JSON.stringify(answers);
   const extra = useQuery<QuestionSet | null>(complete ? `questions:${id}:${json}` : null, useCallback(async () => (await run<QuestionSet>(['task', 'questions', id, '--answers', '@upload:answers.json'], { 'answers.json': json })).json, [id, json]));
   return { base, extra };
-}
-
-function useDebounced<T>(value: T, ms: number): T {
-  const [settled, setSettled] = useState(value);
-  useEffect(() => { const t = setTimeout(() => setSettled(value), ms); return () => clearTimeout(t); }, [value, ms]);
-  return settled;
 }
 
 const isComplete = (a: Answers) => !!a.kind && !!a.data && !!a.research && (Array.isArray(a.surface) ? a.surface.length > 0 : !!a.surface);

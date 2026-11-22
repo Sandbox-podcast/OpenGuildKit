@@ -48,6 +48,33 @@ export const SURFACE: Record<string, string> = { customer: 'Clients', service: '
 export const DATA: Record<string, string> = { none: 'Aucune donnée', internal: 'Interne', personal: 'Personnelle', regulated: 'Réglementée', unsure: 'À préciser' };
 export const RESEARCH: Record<string, string> = { local: 'Sources locales', public: 'Sources publiques', unsure: 'À préciser', 'local-only': 'Locale uniquement', 'public-sources': 'Sources publiques autorisées' };
 
+/** French names of the sectors and norms of the catalog, by ID; an ID the page does not know keeps the CLI's title. */
+export const SECTOR_FR: Record<string, string> = {
+  'critical-infrastructure': 'Infrastructures critiques et industrie', 'e-commerce': 'Commerce en ligne', education: 'Éducation',
+  'financial-services': 'Services financiers', general: 'Général', healthcare: 'Santé', insurance: 'Assurance',
+  'public-sector': 'Secteur public', 'software-publisher': 'Éditeur de logiciels',
+};
+export const NORM_FR: Record<string, string> = {
+  'dora-financial-entity': 'DORA pour les entités financières',
+  'eu-ai-act-system': 'Règlement européen sur l’IA, pour les systèmes d’IA',
+  'gdpr-personal-data': 'RGPD : traitement de données personnelles',
+  'health-data-protection': 'Données de santé et logiciels médicaux (UE)',
+  'insurance-distribution': 'Distribution et tarification de l’assurance (UE)',
+  'minors-data-protection': 'Données des enfants et des élèves (UE)',
+  'nis2-essential-entity': 'NIS 2 pour les entités essentielles et importantes',
+  'online-consumer-sales': 'Vente en ligne aux consommateurs (UE)',
+  'pci-dss-cardholder-data': 'PCI DSS pour les données de carte de paiement',
+  'public-sector-accessibility': 'Accessibilité du secteur public (UE)',
+};
+/** Why the CLI proposes a pattern (recommend --json, reasons), in French; an unknown reason is null. */
+export function reasonLabel(reason: string): string | null {
+  if (reason === 'personal data') return 'données personnelles';
+  if (reason === 'decisions about people') return 'décisions sur des personnes';
+  const m = /^(sector|stack|role) (.+)$/.exec(reason);
+  if (!m) return null;
+  return m[1] === 'sector' ? `secteur ${SECTOR_FR[m[2]] ?? m[2]}` : `${m[1] === 'stack' ? 'pile' : 'rôle'} : ${m[2]}`;
+}
+
 export const VERDICT: Record<string, Label> = {
   proceed: L('Avancer', 'success', 'check'), revise: L('Réviser', 'warning', 'edit'), block: L('Bloquer', 'danger', 'ban'), 'insufficient-evidence': L('Preuves insuffisantes', 'warning', 'question'),
 };

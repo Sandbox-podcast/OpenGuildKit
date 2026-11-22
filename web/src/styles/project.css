@@ -66,6 +66,12 @@
 .choices { border: 0; padding: 0; margin: 0; min-width: 0; }
 .choices legend { font-weight: 600; font-size: 0.9rem; padding: 0; margin-bottom: 6px; }
 .choice-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.setup-norms { display: flex; flex-direction: column; gap: 6px; }
+.setup-norms > .hint { font-size: var(--fs-tiny); color: var(--text-2); margin: 0; }
+.norm-choice { border: 0; min-width: 0; --edge: var(--border); }
+.norm-choice legend { float: left; width: 100%; padding: 0; margin-bottom: 4px; font-weight: 400; }
+.norm-choice > p, .norm-choice > .choice-row, .norm-choice > .grid-2 { clear: both; }
+.norm-choice.pending { --edge: var(--warning); }
 .choice-cloud { display: flex; flex-wrap: wrap; gap: 4px 14px; max-height: 220px; overflow: auto; padding: 6px 0; }
 .field.multi > summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
 .criteria-row > .input:first-child { flex: 2 1 240px; }

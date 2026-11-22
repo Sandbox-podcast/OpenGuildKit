@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { quoteFor } from '@/project/api';
 import { changesCatalog, invalidate, load, peek, remember } from '@/project/query';
 import { placeCounts, signalsOf } from '@/project/data';
-import { hasFailedCheck, isBlocked, isDecided, isDone, nextLabel, openPointLabel, parseTemplates, shareState, stepOf, taskStatus } from '@/project/labels';
+import { hasFailedCheck, isBlocked, isDecided, isDone, nextLabel, openPointLabel, parseTemplates, reasonLabel, shareState, stepOf, taskStatus } from '@/project/labels';
+import { missingRequired, normAnswers, pendingNorms, setupAnswers, type NormDraft } from '@/project/setup';
 import type { CliResult } from '@/project/api';
 
 const ok = (json: unknown): CliResult => ({ code: 0, stdout: JSON.stringify(json), stderr: '', json });
@@ -53,6 +54,26 @@ describe('wording of the CLI', () => {
       { id: 'campaign-brief', title: 'Campaign brief', method: 'marketing-campaign-planning', brains: ['marketing', 'communication', 'legal'] },
       { id: 'support-article', title: 'Knowledge base article', method: '', brains: ['support', 'communication'] },
     ]);
+  });
+});
+
+describe('setup answers', () => {
+  it('sends a yes, or a no with who and why, and waits for every proposed norm', () => {
+    const drafts: Record<string, NormDraft> = { 'gdpr-personal-data': { answer: 'yes' }, 'pci-dss-cardholder-data': { answer: 'no', by: 'Camille Martin', reason: ' ' } };
+    expect(normAnswers(drafts)).toEqual({ 'gdpr-personal-data': 'yes' });
+    expect(pendingNorms(['gdpr-personal-data', 'pci-dss-cardholder-data', 'dora-financial-entity'], drafts)).toEqual(['pci-dss-cardholder-data', 'dora-financial-entity']);
+    drafts['pci-dss-cardholder-data'].reason = 'No card data reaches the project';
+    expect(normAnswers(drafts)['pci-dss-cardholder-data']).toEqual({ answer: 'no', by: 'Camille Martin', reason: 'No card data reaches the project' });
+    expect(pendingNorms(['gdpr-personal-data', 'pci-dss-cardholder-data'], drafts)).toEqual([]);
+    expect(setupAnswers({ name: 'Shop' }, {})).toEqual({ name: 'Shop' });
+    expect(setupAnswers({ name: 'Shop' }, drafts)).toMatchObject({ name: 'Shop', norms: { 'gdpr-personal-data': 'yes' } });
+  });
+
+  it('names the required questions left unanswered and says why a norm is proposed', () => {
+    const questions = [{ id: 'personal_data', prompt: 'Personal data?', required: true }, { id: 'name', prompt: 'Name' }];
+    expect(missingRequired(questions, {})).toEqual(['personal_data']);
+    expect(missingRequired(questions, { personal_data: 'no' })).toEqual([]);
+    expect(['stack Stripe', 'personal data', 'sector healthcare', 'something else'].map(reasonLabel)).toEqual(['pile : Stripe', 'données personnelles', 'secteur Santé', null]);
   });
 });
 

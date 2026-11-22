@@ -1,5 +1,5 @@
 /** Building blocks shared by the places of the project interface. */
-import { useCallback, useId, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Badge, Button, Notice, TextArea, TextField } from '@/shared/ui/core';
 import { Dialog } from '@/shared/ui/overlay';
 import { Icon, type PixelIconName } from '@/shared/pixel/icons';
@@ -14,9 +14,14 @@ export function Loading({ label = 'Chargement' }: { label?: string }) {
   return <p className="muted loading-line" role="status"><Icon name="hourglass" size={14} /> {label}…</p>;
 }
 
+/** Text the CLI wrote in English and the page does not translate: marked so a screen reader reads it in English. */
+export function En({ children, block, className }: { children: ReactNode; block?: boolean; className?: string }) {
+  return block ? <div lang="en" className={className}>{children}</div> : <span lang="en" className={className}>{children}</span>;
+}
+
 export function ErrorNotice({ error, title = 'La commande a échoué' }: { error: ApiError | Error | undefined | null; title?: string }) {
   if (!error) return null;
-  return <Notice tone="danger" title={title}><span className="pre-line">{error.message}</span></Notice>;
+  return <Notice tone="danger" title={title}><span className="pre-line" lang={error instanceof ApiError ? error.lang : undefined}>{error.message}</span></Notice>;
 }
 
 /** Renders a query: a loading line, its error, or the content once the data is there. */
@@ -159,6 +164,13 @@ export function ActionForm({ fields, submit, busy, onSubmit, initial, tone }: {
       <div className="row"><Button type="submit" variant={tone ?? 'primary'} busy={busy} disabled={busy || missing.length > 0}>{submit}</Button></div>
     </form>
   );
+}
+
+/** The value once it has not changed for `ms`: requests follow what a person types once typing pauses. */
+export function useDebounced<T>(value: T, ms: number): T {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => { const t = setTimeout(() => setSettled(value), ms); return () => clearTimeout(t); }, [value, ms]);
+  return settled;
 }
 
 /** Keeps a field's value in this browser between visits (the name of the decision owner), shared by every form of the page. */
