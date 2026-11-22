@@ -52,7 +52,6 @@ class BriefRevisionTests(unittest.TestCase):
         self.run_cli("task", "review", TASK, "--file", self.root / "review.json")
 
     def test_the_brief_is_revised_at_the_new_consultation_and_the_earlier_one_kept(self):
-        self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json", "--brief", REVISED, code=1)
         self.consult_and_review()
         self.run_cli("task", "decide", TASK, "--request-changes", "--by", "Dana Legal", "--reason", "No grade in an email")
         self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json", "--brief", "   ", code=1)

@@ -89,6 +89,7 @@ from .project import (
 from .tools import HOSTS as TOOL_HOSTS
 from .tools import detect_tools, load_tools, match_tools
 from .sensitive import input_warnings, redact_credentials, redact_data
+from .shell import shell_word
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
     SENSITIVE_GROUP,
@@ -123,8 +124,13 @@ from .tasks import (
     require_approval,
     require_current_scope,
     revoke_approval,
+    next_command,
+    passes_left,
+    require_blocker_status,
+    state_refusal,
     task_path,
 )
+from .workflow import TaskStateError
 from .workflow import RESOLUTION_RULE, trigger_matches, blocker_list, board_brief, challenge_report, concerns_question, deliberation_request, handoff, is_decision_task, open_points, pending_removals, require_concerns, select_boards, task_questions, validate_answers, validate_review, verdict_lines, review_lines, pack_rules
 
 
@@ -370,7 +376,8 @@ def _parser() -> argparse.ArgumentParser:
             command.add_argument("--market", metavar="DOSSIER", help="Attach a market dossier from .openguildkit/market/.")
             revised = command.add_mutually_exclusive_group()
             revised.add_argument("--brief", dest="revised_brief", metavar="TEXT",
-                                 help="Revise the brief when consulting again after a change request.")
+                                 help="Revise the brief: the passes start over, and after a change request the "
+                                      "earlier round is kept.")
             revised.add_argument("--brief-file", type=Path, metavar="FILE",
                                  help="Read the revised brief from a UTF-8 text file instead of --brief.")
         if action in ("consult", "route"):
@@ -490,9 +497,12 @@ def _print_json(data) -> None:
 
 @contextmanager
 def _input_file(path: Path):
-    """Name the file a refusal comes from, so the person knows which file to correct."""
+    """Name the file a refusal comes from, so the person knows which file to correct. A refusal of the task's status
+    is not the file's: it goes on as it is."""
     try:
         yield
+    except TaskStateError:
+        raise
     except ValueError as error:
         raise ValueError(f"{path.as_posix()}: {error}") from error
 
@@ -1490,7 +1500,7 @@ def _print_share_row(row: dict) -> None:
 
 def _read_consultation(task: dict) -> dict:
     if "consultation" not in task:
-        raise ValueError("Run task consult first.")
+        raise TaskStateError("The task has no consultation yet.")
     return task["consultation"]
 
 
@@ -1705,23 +1715,15 @@ def _print_route(state: Path, task: dict, answers: dict, profile: dict, selected
     if others:
         print(f"Other boards you can add with --add: {len(others)} (openguildkit brains lists them).")
     task_id = task["id"]
-    answers_file = _shell_word(answers_path.as_posix()) if answers_path else "FILE"
+    answers_file = shell_word(answers_path.as_posix()) if answers_path else "FILE"
     print(f"Change the boards: openguildkit task route {task_id} --answers {answers_file} --add BOARD --remove BOARD "
           "--reason TEXT to preview.")
-    options = [*(f"--add {_shell_word(board_id)}" for board_id in selection.get("add") or []),
-               *(f"--remove {_shell_word(board_id)}" for board_id in selection.get("remove") or []),
-               *(f"--delegate {_shell_word(f'{board_id}={name}')}" for board_id, name in (selection.get("delegate") or {}).items())]
+    options = [*(f"--add {shell_word(board_id)}" for board_id in selection.get("add") or []),
+               *(f"--remove {shell_word(board_id)}" for board_id in selection.get("remove") or []),
+               *(f"--delegate {shell_word(f'{board_id}={name}')}" for board_id, name in (selection.get("delegate") or {}).items())]
     if options:
-        options.append(f"--reason {_shell_word(selection.get('reason') or '')}")
+        options.append(f"--reason {shell_word(selection.get('reason') or '')}")
     print(f"Apply: openguildkit task consult {task_id} --answers {answers_file}{''.join(' ' + item for item in options)}")
-
-
-def _shell_word(value: str) -> str:
-    """A command-line word as typed: quoted only when it holds a space or a character a shell reads. A tilde
-    inside a word, as in a Windows short path (RUNNER~1), is read by no shell; only a leading one is."""
-    if re.fullmatch(r"[\w@%+=:,./-][\w@%+=:,./~-]*", value):
-        return value
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def _relevance(root: Path, task: dict, profile: dict, catalog: dict, every: bool = False) -> dict:
@@ -1919,8 +1921,11 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 raise ValueError(f"Task ID {args.id} is already used by the exported decision "
                                  f"{record.relative_to(root).as_posix()}, a teammate's task or an earlier one: read it "
                                  f"with openguildkit task show {args.id}, and choose another ID.")
-            print(create_task(state, brief, args.id, args.follows))
+            task_id = create_task(state, brief, args.id, args.follows)
+        print(task_id)
         _warn_inputs(brief.strip(), redact_credentials(brief.strip()), "task brief")
+        # Standard output keeps only the ID, which scripts read; the next step goes to the agent on stderr.
+        print(f"Next: {next_command({'id': task_id, 'status': 'draft'})}.", file=sys.stderr)
         return
     if action == "list" and args.decisions:
         rows = exported_decisions(root, state, profile, Fingerprints(profile, catalog))
@@ -2028,6 +2033,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                     print("    recorded without a terminal")
     elif action in ("clear", "waive"):
         require_approval(task, profile, catalog, root)
+        require_blocker_status(task)
         if action == "waive":
             if not sys.stdin.isatty():
                 raise ValueError("A waiver needs a person at an interactive terminal.")
@@ -2069,7 +2075,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         print(details["kind"])
     elif action == "checks":
         if task["status"] not in ("approved", *DONE_STATUSES):
-            raise ValueError("Checks belong to an approved task.")
+            raise TaskStateError("Checks belong to an approved task.")
         relevance = _relevance(root, task, profile, catalog, args.all)
         checks = expected_checks(task, profile, relevance)
         reported = {item["check"]: item for item in task.get("result", {}).get("checks", [])}
@@ -2079,7 +2085,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             _print_checks(checks, reported, task["id"])
     elif action == "result" and args.template:
         if task["status"] != "approved":
-            raise ValueError("Results belong to an approved task that is not done yet.")
+            raise TaskStateError("Results belong to an approved task that is not done yet.")
         relevance = _relevance(root, task, profile, catalog, args.all)
         changed = decision_changes(root, task)
         _print_json(result_template(task, profile, relevance, changed=changed))
@@ -2087,8 +2093,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             print(decision_revision_message(changed), file=sys.stderr)
     elif action in ("verify", "result", "complete"):
         if task["status"] != "approved":
-            raise ValueError("Run checks for an approved task that is not done yet." if action == "verify"
-                             else "Results belong to an approved task that is not done yet.")
+            raise TaskStateError("Run checks for an approved task that is not done yet." if action == "verify"
+                                 else "Results belong to an approved task that is not done yet.")
         decision = is_decision_task(task)
         changed = decision_changes(root, task)
         relevance = _relevance(root, task, profile, catalog, getattr(args, "all", False))
@@ -2170,7 +2176,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
     elif action == "runs":
         comparison = compare_runs(task)
         if comparison is None:
-            raise ValueError("The task has fewer than two ChaosFolk replays to compare.")
+            raise TaskStateError("The task has fewer than two ChaosFolk replays to compare: task verify --chaosfolk "
+                                 "records them on an approved task.")
         if args.json:
             _print_json(comparison)
         else:
@@ -2207,7 +2214,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         print(challenge_report(task, lines), end="")
     elif action == "route":
         if args.answers is None and "answers" not in task:
-            raise ValueError("Pass --answers FILE, or consult the task first.")
+            raise ValueError(f"Pass the answers: openguildkit task route {args.id} --answers FILE previews the boards "
+                             f"before openguildkit task consult {args.id} --answers FILE records them.")
         if args.answers:
             with _input_file(args.answers):
                 answers = validate_answers(read_json(args.answers))
@@ -2322,9 +2330,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             saved_entry = result["passes"]["boards"][entry["id"].strip()]["entry"]
             for warning in tool_evidence_warnings(root, state, [saved_entry]):
                 print(f"Warning: {warning}", file=sys.stderr)
+            print(passes_left(result), file=sys.stderr)
     elif action == "progress":
-        if "consultation" not in task:
-            raise ValueError("Run task consult first.")
+        _read_consultation(task)
         progress = pass_progress(task)
         if args.json:
             _print_json(progress)
@@ -2340,8 +2348,10 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         _revoke(args, state, task, profile, catalog, root)
     elif action == "decision-payload":
         if task["status"] != "reviewed":
-            raise ValueError(decided_message(task, approval_problem(task, profile, catalog, root))
-                             or "Record the boards' review before preparing a decision.")
+            decided = decided_message(task, approval_problem(task, profile, catalog, root))
+            if decided:
+                raise ValueError(decided)
+            raise TaskStateError("Record the boards' review before preparing a decision.")
         # The signer reads what they sign: the same lines as the approval prompt, then the payload with the brief.
         print("\n".join(_decision_prompt(state, task, profile, load_register(state))), file=sys.stderr)
         text = payload_text(decision_payload(task, args.by, args.reason, git_revision(root)))
@@ -2575,7 +2585,12 @@ def _run(args) -> int | None:
             _print_json(result)
             return 0 if result["status"] == "success" else 1
         elif args.command == "task":
-            return _task_command(args, root, state, profile, catalog)
+            try:
+                return _task_command(args, root, state, profile, catalog)
+            except TaskStateError as error:
+                # Every action refused in this status ends with the status and the command that runs next.
+                task = read_task(state, args.id)
+                raise ValueError(state_refusal(task, str(error), approval_problem(task, profile, catalog, root))) from None
 
 
 def _reader_closed() -> int:

@@ -88,7 +88,7 @@ class ClockTests(unittest.TestCase):
         self.assertIn("SOURCE_DATE_EPOCH is set: this command dates what it writes 2025-11-20T12:00:00+00:00, not now", notice)
         with patch.dict(os.environ, {}), patch.object(clock, "_announced", set()):
             os.environ.pop("SOURCE_DATE_EPOCH", None)
-            self.assertEqual(self.cli(root, "task", "new", "Show request history.", "--id", "history")[1], "")
+            self.assertNotIn("SOURCE_DATE_EPOCH", self.cli(root, "task", "new", "Show request history.", "--id", "history")[1])
 
     def test_shares_follow_the_real_clock_under_source_date_epoch(self):
         root = self.project()

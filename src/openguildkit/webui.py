@@ -30,6 +30,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from .shell import shell_command
+
 DEFAULT_PORT = 7311
 MAX_BODY = 8 * 1024 * 1024
 MAX_FILE = 2 * 1024 * 1024
@@ -138,15 +140,9 @@ def _subcommand(args) -> str | None:
     return None
 
 
-def _quote(value: str) -> str:
-    """Single quotes read the same in PowerShell and POSIX shells; only the escape of a quote differs."""
-    if re.fullmatch(r"[A-Za-z0-9._:/@=+-]+", value):
-        return value
-    return "'" + value.replace("'", "''" if os.name == "nt" else "'\\''") + "'"
-
-
 def terminal_command(root: Path, argv: list[str]) -> str:
-    return " ".join(["openguildkit", "--project", _quote(str(root)), *(_quote(item) for item in argv)])
+    """The command the page asks the person to run at their terminal, quoted as the CLI quotes its own."""
+    return shell_command(["openguildkit", "--project", str(root), *argv])
 
 
 def named_command(message: str) -> list[str] | None:

@@ -17,6 +17,11 @@ from .relevance import BASELINE_PACKS, judge_rules, pack_relevance
 from .sensitive import credential_problems, public_evidence_url, redact_credentials
 
 
+class TaskStateError(ValueError):
+    """An action refused because of the task's status. The message says what is refused; the command line adds the
+    status and the next command that runs in it (tasks.state_refusal)."""
+
+
 AGENT_WORKFLOW = """## OpenGuildKit task workflow
 
 Use this workflow for new project work. Ask the questions and write the review
@@ -2438,7 +2443,7 @@ def deliberation_request(task: dict) -> dict:
     """What each board must answer, on the same point, before the person decides: one response per board and
     side, covering every objection it raised or received."""
     if task.get("status") != "reviewed":
-        raise ValueError("Deliberate after the review is recorded and before the decision.")
+        raise TaskStateError("Deliberate after the review is recorded and before the decision.")
     review = validate_review(task["consultation"], task["review"])
     items = objections(review, task["consultation"].get("domains"))
     groups = {}
@@ -2663,7 +2668,7 @@ def challenge_report(task: dict, lines: list[str] | None = None) -> str:
     """The decision brief: the lines the person reads before deciding (tasks.decision_text, the same as the
     approval prompt), then each board's challenge as JSON."""
     if "review" not in task:
-        raise ValueError("Record the board reviews before opening the decision brief.")
+        raise TaskStateError("Record the board reviews before opening the decision brief.")
     review = validate_review(task["consultation"], task["review"])
     findings = []
     verdicts = {}
@@ -2840,8 +2845,7 @@ def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] |
         raise ValueError(f"Task {task['id']} has changes requested by {task['decision']['by']}: there is nothing to "
                          f"implement. Next: openguildkit task consult {task['id']}")
     if status not in ("approved", "done", "done-with-reservations"):
-        raise ValueError("A human approval is required before implementation."
-                         + (f" Next: openguildkit task decide {task['id']}" if status == "reviewed" else ""))
+        raise TaskStateError("A human approval is required before implementation.")
     pending_verification = [item for item in blocker_list(task) if item.get("phase") == "verification"
                             and not item["resolution"]]
     consultation = task["consultation"]

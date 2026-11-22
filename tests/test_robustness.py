@@ -368,8 +368,9 @@ class CommandSequenceTests(FuzzTestCase):
         self.init()
         self.expect("task", "new", "Draft only.", "--id", "draft")
         code, _, stderr = self.cli("task", "pass", "draft", "security")
-        self.assertEqual((code, stderr.strip()),
-                         (1, "OpenGuildKit: Board passes can only run while the task is being consulted."))
+        self.assertEqual(code, 1)
+        self.assertIn("OpenGuildKit: Board passes can only run while the task is being consulted.", stderr)
+        self.assertIn("openguildkit task consult draft --answers FILE", stderr)
 
     def step(self, action, task_id, entries):
         if action == "new":
