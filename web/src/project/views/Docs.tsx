@@ -82,7 +82,7 @@ function Shares() {
       <Q q={shares}>{(list) => <Panel title={`Registre (${list.length})`}>
         {list.some((s) => !s.revoked_at) && <TextField label="Personne qui enregistre un retrait" hint={by.trim() ? undefined : 'Indique ton nom pour enregistrer qu’un accès a été retiré : le registre note qui l’a fait.'} value={by} onChange={(e) => setBy(e.target.value)} />}
         {list.length === 0 ? <p className="muted">Aucun partage.</p> : <TableBox label="Registre des partages"><table className="data compact"><thead><tr><th>Livrable</th><th>Destinataires</th><th>Jusqu’au</th><th>État</th><th><span className="sr-only">Retrait</span></th></tr></thead><tbody>
-          {list.map((s) => { const l = SHARE[shareState(s.state)]; return <tr key={s.id}><td><span className="mono small">{s.deliverable}</span><span className="tiny block"><ExternalLink href={s.portal}>portail</ExternalLink> · {s.by}, {fmtWhen(s.created_at)}</span></td><td className="small">{s.recipients.join(', ')}</td><td>{fmtDay(s.until)}</td><td><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge></td>
+          {list.map((s) => { const l = SHARE[shareState(s.state)]; return <tr key={s.id}><td><span className="mono small">{s.deliverable}</span>{s.space && <span className="tiny block">Espace partagé en entier : <span className="mono">{s.space}</span></span>}<span className="tiny block"><ExternalLink href={s.portal}>portail</ExternalLink> · {s.by}, {fmtWhen(s.created_at)}</span></td><td className="small">{s.recipients.join(', ')}</td><td>{fmtDay(s.until)}</td><td><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge></td>
             <td>{!s.revoked_at && <Button size="small" variant="danger" busy={busy !== null} disabled={!by.trim()} onClick={() => void act(['docs', 'share', 'revoke', '--id', s.id, '--by', by.trim()], { success: 'Retrait enregistré' })}>Accès retiré</Button>}</td></tr>; })}
         </tbody></table></TableBox>}
         <p className="tiny muted">Retirez d’abord l’accès dans Documentalist (« Retirer l’accès »), puis enregistrez-le ici.</p>
@@ -92,7 +92,7 @@ function Shares() {
         <ActionForm busy={busy !== null} submit="Enregistrer le partage" initial={{ by }} problem={recipients.length ? null : 'Il manque un destinataire : ajoute au moins une adresse avec « Ajouter », le registre dit avec qui la page est partagée.'} fields={[
           { name: 'deliverable', label: 'Page ou dossier partagé', required: true, placeholder: 'docs-site/reference/request-status.md', hint: 'Un fichier existant du projet, ou le dossier écrit par l’export, jamais sous .openguildkit/.' },
           { name: 'until', label: 'Dernier jour d’accès', type: 'date', required: true },
-          { name: 'portal', label: 'Adresse du portail Documentalist (https)', type: 'url', required: true },
+          { name: 'portal', label: 'Adresse du portail Documentalist', type: 'url', required: true, hint: 'En https, ou en http pour un portail sur ce poste (localhost, 127.0.0.1, ::1). Le partage ouvre tout l’espace du portail, pas seulement cette page.' },
           { name: 'by', label: 'Responsable du partage', required: true },
         ]} onSubmit={async (v) => { setBy(v.by); if (await act(['docs', 'share', 'add', '--deliverable', v.deliverable, ...recipients.flatMap((r) => ['--recipient', r]), '--until', v.until, '--portal', v.portal, '--by', v.by], { success: 'Partage enregistré' })) setRecipients([]); }} />
       </Panel>

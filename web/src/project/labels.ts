@@ -112,7 +112,7 @@ export const alertLabel = (s: string) => ALERT[s] ?? L(s, 'neutral', 'dot');
 export const SEVERITY: Record<string, Tone> = { critical: 'danger', high: 'danger', moderate: 'warning', medium: 'warning', low: 'info', info: 'muted', unknown: 'neutral' };
 
 export const HOST_CONTROL: Record<string, Label> = {
-  enforced: L('Appliquée par l’hôte', 'success', 'shield'), instruction: L('Consigne seulement', 'warning', 'scroll'), missing: L('Manquante', 'danger', 'warn'), human: L('Décision d’une personne', 'info', 'user'),
+  enforced: L('Appliquée par l’hôte', 'success', 'shield'), partial: L('Appliquée en partie par l’hôte', 'warning', 'shield'), instruction: L('Consigne seulement', 'warning', 'scroll'), missing: L('Manquante', 'danger', 'warn'), human: L('Décision d’une personne', 'info', 'user'),
 };
 export const hostControl = (s: string) => HOST_CONTROL[s] ?? L(s, 'neutral', 'dot');
 

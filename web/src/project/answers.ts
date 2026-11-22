@@ -21,3 +21,9 @@ export function unanswered(questions: Question[], answers: Record<string, unknow
     return Array.isArray(value) ? value.length === 0 : !value;
   }).map((q) => q.id);
 }
+
+/** Every question to draw once: the questions, then those the answers add, then the follow-ups with choices. */
+export function questionList(base: Question[], extra: Question[] = [], followUps: (Question | { id: string; prompt: string })[] = []): Question[] {
+  const seen = new Set<string>();
+  return [...base, ...extra, ...followUps].filter((q) => (seen.has(q.id) ? false : (seen.add(q.id), true)));
+}

@@ -62,7 +62,7 @@ export interface Question {
   help?: string; unsure?: string; required?: boolean; norms?: { id: string; title: string; prompt: string }[];
 }
 /** `task questions`, with or without answers: the questions, the follow-ups still to ask with their prompt, the open points. */
-export interface QuestionSet { questions: Question[]; follow_ups: { id: string; prompt: string }[]; open_points: string[] }
+export interface QuestionSet { questions: Question[]; follow_ups: (Question | { id: string; prompt: string })[]; open_points: string[] }
 /** `task route --json`: the boards selected with their reasons; those the brief mentions as excluded, with the
  * passages; the enabled boards left out; and, among them, those the team expects (declared roles, a listed board). */
 export interface Route {
@@ -136,7 +136,8 @@ export interface Recommendation { matched: Pattern[]; suggested: Pattern[]; excl
 
 export interface Alert { id: string; ecosystem: string; package: string; version: string; advisory: string; aliases: string[]; severity: string; summary: string; fix?: string; url?: string; status: 'open' | 'confirmed' | 'dismissed' | 'resolved'; scanners: string[]; tasks: string[]; first_seen: string; last_seen: string; by?: string; reason?: string; decided_at?: string; accepted?: { by: string; reason: string; at: string } }
 export interface AlertRegister { summary: { total: number; by_status: Record<string, number>; by_severity: Record<string, number>; imports: { tool: string; file: string; sha256: string; at?: string }[] }; alerts: Alert[] }
-export interface Share { id: string; deliverable: string; recipients: string[]; until: string; portal: string; by: string; created_at: string; revoked_at: string | null; state: 'active' | 'expired' | 'revoked' | string }
+/** space: the Documentalist space the share opens; a share covers the whole space, not only the page named. */
+export interface Share { id: string; deliverable: string; recipients: string[]; until: string; portal: string; space?: string; by: string; created_at: string; revoked_at: string | null; state: 'active' | 'expired' | 'revoked' | string }
 export interface HostControl { id: string; title: string; status: 'enforced' | 'instruction' | 'missing' | string; detail: string }
 /** stale_tasks: the open tasks consulted under other rules than the new ones, each with what to do (update names
  * them before --apply). */

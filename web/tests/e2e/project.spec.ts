@@ -522,7 +522,7 @@ test('exports a completed task for Documentalist, then records and revokes a sha
   await expect(page.getByText(/Indique ton nom pour enregistrer qu’un accès a été retiré/)).toBeVisible();
   await page.getByLabel('Page ou dossier partagé').fill('docs-site/reference/request-status.md');
   await page.getByLabel('Dernier jour d’accès').fill('2026-12-20');
-  await page.getByLabel('Adresse du portail Documentalist (https)').fill('https://docs.example.org/p/support-portal');
+  await page.getByLabel('Adresse du portail Documentalist').fill('https://docs.example.org/p/support-portal');
   await page.getByLabel('Responsable du partage').fill('Camille Martin');
   await page.getByRole('button', { name: 'Enregistrer le partage' }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'Il manque un destinataire' })).toBeVisible();
@@ -530,7 +530,7 @@ test('exports a completed task for Documentalist, then records and revokes a sha
   await page.getByLabel('Ajouter : Destinataires (adresses)').press('Enter');
   await page.getByLabel('Page ou dossier partagé').fill('docs-site/reference/request-status.md');
   await page.getByLabel('Dernier jour d’accès').fill('2026-12-20');
-  await page.getByLabel('Adresse du portail Documentalist (https)').fill('https://docs.example.org/p/support-portal');
+  await page.getByLabel('Adresse du portail Documentalist').fill('https://docs.example.org/p/support-portal');
   await page.getByLabel('Responsable du partage').fill('Camille Martin');
   await page.getByRole('button', { name: 'Enregistrer le partage' }).click();
   await expect(page.getByText('Partage enregistré')).toBeVisible();

@@ -14,7 +14,7 @@ import { invalidate, showTerminal, useAction, useCli, useCliText, useQuery } fro
 import { BASIS, CONCERNS, CONFIDENCE, DATA, KIND, PASS, QUESTION_FR, RESEARCH, SURFACE, fmtWhen, isDecided, needsReconsult, nextLabel, nextLang, openPointLabel, verdict } from '../labels';
 import { ActionForm, CommandLine, FilePick, JsonDetails, Q, Section, StepRail, TaskStatusBadge, UnreadableTask, copyText, useDebounced, useRemembered } from '../parts';
 import { usePrefs } from '../prefs';
-import { isMultiple, toggleChoice, unanswered } from '../answers';
+import { isMultiple, questionList, toggleChoice, unanswered } from '../answers';
 import type { Answers, BlockerItem, Brain, Deliberation, PassProgress, Question, QuestionSet, Route, TaskRecord } from '../types';
 
 const LABELS: Record<string, Record<string, string>> = { kind: KIND, surface: SURFACE, data: DATA, research: RESEARCH, concerns: CONCERNS };
@@ -111,7 +111,8 @@ function Framing({ task, collapsed }: { task: TaskRecord; collapsed?: boolean })
   const complete = !!base.data && missing.length === 0;
   const prompts = Object.fromEntries([...asked, ...(extra.data?.questions ?? [])].map((q) => [q.id, q.prompt]));
   const set = (key: string, value: string | string[]) => setAnswers((a) => ({ ...a, [key]: value }));
-  const followUps = (extra.data?.questions ?? []).filter((q) => !asked.some((b) => b.id === q.id));
+  // A question can come back as a follow-up (concerns, once it is required): each one is drawn once.
+  const shown = questionList(asked, extra.data?.questions, extra.data?.follow_ups);
 
   if (!open) return <Panel title="Cadrage"><p className="small">Réponses enregistrées : {KIND[answers.kind ?? ''] ?? '—'}, {[answers.surface].flat().map((s) => SURFACE[s as string] ?? s).join(', ')}, données {DATA[answers.data ?? '']?.toLowerCase() ?? '—'}{answers.concerns ? `, sujets : ${[answers.concerns].flat().map((c) => CONCERNS[c as string]?.toLowerCase() ?? c).join(', ')}` : ''}. <Button size="small" onClick={() => setOpen(true)}>Modifier et consulter à nouveau</Button></p></Panel>;
   return (
@@ -119,7 +120,7 @@ function Framing({ task, collapsed }: { task: TaskRecord; collapsed?: boolean })
       <Section title="Cadrage : le questionnaire" icon="question">
         <p className="small muted">L’agent pose ces questions dans votre langue et confirme ce qu’il a déduit du brief. Vous pouvez aussi répondre ici.</p>
         <Q q={base} label="Lecture du questionnaire">
-          {(qs) => <div className="stack">{[...qs.questions, ...followUps].map((q) => <QuestionField key={q.id} q={q} value={(answers as Record<string, unknown>)[q.id]} onChange={(v) => set(q.id, v)} />)}</div>}
+          {() => <div className="stack">{shown.map((q) => <QuestionField key={q.id} q={q} value={(answers as Record<string, unknown>)[q.id]} onChange={(v) => set(q.id, v)} />)}</div>}
         </Q>
         {extra.data?.open_points && extra.data.open_points.length > 0 && <Notice tone="warn" title="Points ouverts :"><ul>{extra.data.open_points.map((p) => <li key={p}>{openPointLabel(p, prompts)}</li>)}</ul>Ils ne bloquent pas la consultation : chaque cerveau dira comment ils pèsent sur son avis.</Notice>}
         {extra.error && <Notice tone="danger"><span lang={extra.error.lang}>{extra.error.message}</span></Notice>}
@@ -202,7 +203,7 @@ function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
           {r.adjustments.length > 0 && <p className="small">Ajustements : {r.adjustments.map((a) => `${a.action} ${a.board}`).join(', ')}. <Button size="small" variant="ghost" onClick={() => { setAdd([]); setRemove([]); }}>Annuler les ajustements</Button></p>}
         </>}
       </Q>
-      {route.error && <Notice tone="danger">{route.error.message}{/required board/i.test(route.error.message) && ' Nommez la personne qui fera cette revue ci-dessous.'}</Notice>}
+      {route.error && <Notice tone="danger"><span lang={route.error.lang}>{route.error.message}</span>{/required board/i.test(route.error.message) && ' Nommez la personne qui fera cette revue ci-dessous.'}</Notice>}
       <div className="grid-2">
         <div className="field"><label htmlFor="add-board">Ajouter un cerveau</label>
           <select id="add-board" className="input" value="" onChange={(e) => e.target.value && setAdd((x) => [...x, e.target.value])}>

@@ -6,7 +6,7 @@ import { changesCatalog, invalidate, load, peek, remember } from '@/project/quer
 import { onlyTasksFail, placeCounts, signalsOf } from '@/project/data';
 import { decidedBy, deliveryOf, hasFailedCheck, isBlocked, isDecided, isDone, nextLabel, nextLang, openPointLabel, parseTemplates, reasonLabel, shareState, statusesOf, stepOf, taskStatus, touchedStep, touchedTasks } from '@/project/labels';
 import { missingRequired, normAnswers, pendingNorms, setupAnswers, type NormDraft } from '@/project/setup';
-import { isMultiple, toggleChoice, unanswered } from '@/project/answers';
+import { isMultiple, questionList, toggleChoice, unanswered } from '@/project/answers';
 import type { CliResult } from '@/project/api';
 
 const ok = (json: unknown): CliResult => ({ code: 0, stdout: JSON.stringify(json), stderr: '', json });
@@ -72,6 +72,12 @@ describe('task questionnaire', () => {
     expect(toggleChoice(['money', 'ai'], 'none')).toEqual(['none']);
     expect(toggleChoice(['none'], 'ai')).toEqual(['ai']);
     expect(toggleChoice(['money', 'ai'], 'money')).toEqual(['ai']);
+  });
+
+  it('draws a question once when it also comes back as a follow-up', () => {
+    const concerns = questions[1];
+    const list = questionList(questions, [...questions, { id: 'outcome', prompt: 'Outcome?' }], [{ ...concerns }, { id: 'affected', prompt: 'Who?' }]);
+    expect(list.map((q) => q.id)).toEqual(['kind', 'concerns', 'context', 'outcome', 'affected']);
   });
 
   it('waits for every question with choices before routing', () => {
