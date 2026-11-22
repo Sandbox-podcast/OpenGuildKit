@@ -2,7 +2,7 @@
   "id": "european-accessibility-act",
   "title": "European Accessibility Act for consumer services",
   "version": "1.0.0",
-  "description": "For a service provided to consumers in the EU, such as e-commerce or consumer banking: the accessibility requirements of Directive (EU) 2019/882, which national laws apply from 28 June 2025. Micro-enterprises providing services are exempt. These rules do not establish compliance.",
+  "description": "For a service provided to consumers in the EU, such as e-commerce or consumer banking: the accessibility requirements of Directive (EU) 2019/882, which national laws have applied since 28 June 2025. Micro-enterprises providing services are exempt. These rules do not establish compliance.",
   "sources": [
     {
       "title": "Directive (EU) 2019/882 on the accessibility requirements for products and services (European Accessibility Act)",

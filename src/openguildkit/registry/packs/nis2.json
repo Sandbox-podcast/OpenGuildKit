@@ -1,8 +1,8 @@
 {
   "id": "nis2",
   "title": "NIS 2 cybersecurity measures",
-  "version": "2.1.1",
-  "description": "Questions for the security owner and evidence checks for essential and important entities under Directive (EU) 2022/2555 (NIS 2), as transposed into national law. These rules do not establish compliance.",
+  "version": "2.2.0",
+  "description": "Questions for the security owner and evidence checks for essential and important entities under Directive (EU) 2022/2555 (NIS 2), as transposed into national law. For DNS, cloud computing, data centre, content delivery, managed and managed security service providers, online marketplaces, search engines, social networks and trust services, Commission Implementing Regulation (EU) 2024/2690 sets the requirements of the Art. 21(2) measures and the significant incident criteria directly. These rules do not establish compliance.",
   "sources": [
     {
       "title": "Directive (EU) 2022/2555 (NIS 2)",
@@ -13,6 +13,11 @@
       "title": "ANSSI, MesServicesCyber, NIS 2",
       "url": "https://messervices.cyber.gouv.fr/nis2",
       "checked": "2026-11-21"
+    },
+    {
+      "title": "Commission Implementing Regulation (EU) 2024/2690, NIS 2 measures and significant incidents for digital service providers",
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R2690",
+      "checked": "2026-11-22"
     }
   ],
   "depends_on": [
@@ -24,6 +29,12 @@
       "instruction": "Ask the security owner whether the organization is an essential or important entity under the national law transposing NIS 2 (Art. 3), and record which national text applies.",
       "verification": "Link the recorded answer and the national text from the change.",
       "manual": "Whether the organization is an essential or important entity depends on the national law, which the security owner assesses."
+    },
+    {
+      "id": "apply-implementing-regulation",
+      "instruction": "For a cloud computing, managed or other digital service provider of Art. 1 of Implementing Regulation (EU) 2024/2690, ask the security owner to map the change to the requirements of its Annex (Art. 2) and to the significant incident criteria of Art. 3 and, for cloud computing services, Art. 7.",
+      "verification": "Link the security owner's mapping of the changed system to the Annex requirements and incident criteria.",
+      "manual": "The mapping to the Annex of Implementing Regulation (EU) 2024/2690 is the security owner's assessment."
     },
     {
       "id": "publish-vulnerability-handling",
