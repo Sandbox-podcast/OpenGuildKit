@@ -7,7 +7,10 @@ works well. A run that finds nothing wrong is a valid result; a finding that is 
 ## Your tools
 
 - The command line under test: `openguildkit`. Put it on your PATH at the start of every shell command:
-  `export PATH={out}/bin:$PATH`. Check it with `openguildkit --version`.
+  `export PATH={out}/bin:$PATH`. Check it with `openguildkit --version`. Always call it as `openguildkit`, from your
+  workspace or your project, or with `--project` pointing into them: that command appends each call and its output
+  to `commands.log` in your workspace, the transcript of your run. Do not run `python -m openguildkit` instead, and
+  do not edit or delete `commands.log`.
 - The documentation a user has: `{repo}/README.md` (French version: `README.fr.md`), `{repo}/docs/`,
   `{repo}/examples/`, `{repo}/CONTRIBUTING.md`, and `--help` on every command. Read them as a user would. Do NOT
   read `{repo}/src/` or `{repo}/tests/`: a user installs a package and does not read its source. If you are truly
@@ -66,6 +69,7 @@ Report only what you ran yourself. If you did not try something, do not report o
 
 Before you stop, write these files in your workspace folder (not in your project):
 
+- `commands.log` is already there: the `openguildkit` command wrote it. It must reach `task handoff` or a later step.
 - `REPORT.md`: what you did step by step, each finding with its command and output, what worked well.
 - `findings.json`: one object, with
   - `outcome`: `completed`, `partial` or `blocked`;

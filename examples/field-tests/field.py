@@ -4,19 +4,20 @@
     python examples/field-tests/field.py prepare --out DIR
     python examples/field-tests/field.py brief TESTER --out DIR
     python examples/field-tests/field.py cohorts --out DIR [--teams N]
-    python examples/field-tests/field.py collect --out DIR
+    python examples/field-tests/field.py collect --out DIR [--open-issues]
 
 `prepare` creates one folder per tester and the shared repository of the three teammates.
 `brief` prints what one tester is asked to do: give it to an autonomous agent. `cohorts`
 plays the scripted part of each scenario in several folders without any agent and compares
 the results. `collect` checks that every tester reported, merges the findings and compares
-the teams that played the same scenario. No network, no account, no key: company tools are
+the teams that played the same scenario; with --open-issues it files each issue draft with gh. No network, no account, no key: company tools are
 mocks, and every name in the campaign is invented.
 """
 
 import argparse
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -34,6 +35,8 @@ OUTCOMES = ("completed", "partial", "blocked")
 FINDING_KEYS = ("title", "severity", "kind", "command", "observed", "expected")
 PERSONA_KEYS = ("id", "who", "language", "project", "answers", "task", "focus")
 GIT_PERSON = ("-c", "user.name=Team lead", "-c", "user.email=lead@example.test")
+# A tester's transcript must reach the handoff of an approved task, or a step after it.
+REACHED = ("handoff", "verify", "result", "complete")
 
 
 def load_campaign() -> dict:
@@ -110,7 +113,7 @@ def prepare(out: Path) -> dict:
     ids = [tester["id"] for tester in testers(campaign)]
     for name in ids:
         (out / "runs" / name).mkdir(parents=True, exist_ok=True)
-    _wrapper(out / "bin" / "openguildkit", "-m openguildkit")
+    _wrapper(out / "bin" / "openguildkit", f'"{HERE / "logged.py"}" "{out / "runs"}"')
     _wrapper(out / "bin" / "person-decide", f'"{HERE / "person_decide.py"}"')
     _wrapper(out / "bin" / "fingerprint", f'"{HERE / "fingerprint.py"}"')
     remote = out / "shared" / "remote.git"
@@ -288,11 +291,53 @@ def _findings(path: Path) -> tuple[dict | None, str | None]:
     return data, None
 
 
+def transcript(path: Path) -> tuple[str, str | None]:
+    """How far a tester's commands.log goes: missing, before handoff, or handoff or later; and its last command."""
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return "missing", None
+    commands = [line[2:].rsplit("  (in ", 1)[0] for line in text.splitlines() if line.startswith("$ openguildkit")]
+    for command in commands:
+        try:
+            words = shlex.split(command)
+        except ValueError:
+            continue
+        if "task" in words and any(word in REACHED for word in words[words.index("task") + 1:words.index("task") + 2]):
+            return "handoff or later", commands[-1]
+    return "before handoff", commands[-1] if commands else None
+
+
+def _draft_parts(draft: Path) -> tuple[str, list[str], str]:
+    """The title, the labels and the body of an issue draft written by collect."""
+    head, body = draft.read_text(encoding="utf-8").split("---\n", 1)
+    fields = dict(line.split(": ", 1) for line in head.splitlines() if ": " in line)
+    return fields["title"], [label for label in fields.get("labels", "").split(",") if label], body
+
+
+def open_issue(scenario: str, draft: Path) -> tuple[str | None, str | None]:
+    """File one issue draft with gh in this checkout's repository: its address, or why it failed."""
+    title, labels, body = _draft_parts(draft)
+    body_file = draft.with_suffix(".body.md")
+    body_file.write_text(body, encoding="utf-8")
+    command = ["gh", "issue", "create", "--title", title, "--body-file", str(body_file)]
+    for label in labels:
+        command += ["--label", label]
+    try:
+        result = subprocess.run(command, cwd=REPO, capture_output=True, text=True, encoding="utf-8")
+    except OSError as error:
+        return None, f"{scenario}: gh issue create failed: {error}"
+    if result.returncode:
+        return None, f"{scenario}: gh issue create failed: {(result.stderr or result.stdout).strip()}"
+    return result.stdout.strip(), None
+
+
 def _divergence_draft(scenario: str, differing: dict) -> str:
     lines = [f"title: Scenario {scenario}: teams with the same inputs got different results", "labels: bug,field-test", "---",
              "## What differs", "",
              "The scripted part of a scenario is deterministic: the same files and the same commands must give the same",
-             "fingerprint. These keys differ between teams:", ""]
+             "fingerprint, so the threshold is zero: any key that differs is a defect. These keys differ between teams:",
+             ""]
     for key, values in differing.items():
         lines.append(f"- `{key}`: " + "; ".join(f"{team} = {value[:120]}" for team, value in sorted(values.items())))
     lines += ["", "## Acceptance criteria", "",
@@ -301,13 +346,16 @@ def _divergence_draft(scenario: str, differing: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def collect(out: Path) -> tuple[dict, list[str]]:
-    """Check every tester's files, merge the findings and compare the teams of each scenario."""
+def collect(out: Path, open_issues: bool = False) -> tuple[dict, list[str]]:
+    """Check every tester's files and transcript, merge the findings and compare the teams of each scenario.
+
+    With open_issues, each issue draft is filed with gh in this checkout's repository; never otherwise.
+    """
     out = out.resolve()
     campaign = load_campaign()
     results = out / "results"
     results.mkdir(parents=True, exist_ok=True)
-    problems, rows, merged, prints = [], [], [], {}
+    problems, rows, merged, prints, issues = [], [], [], {}, []
     for tester in testers(campaign):
         workspace = out / "runs" / tester["id"]
         report = workspace / "REPORT.md"
@@ -321,8 +369,13 @@ def collect(out: Path) -> tuple[dict, list[str]]:
         for position, finding in enumerate((data or {}).get("findings", []), start=1):
             counts[finding["severity"]] += 1
             merged.append({"ref": f"{tester['id']}#{position}", **finding})
+        reach, last = transcript(workspace / "commands.log")
+        if reach == "missing":
+            problems.append(f"{tester['id']}: no commands.log, the transcript of its openguildkit commands")
+        elif reach == "before handoff":
+            problems.append(f"{tester['id']}: commands.log stops before task handoff (last: {last or 'no command'})")
         rows.append({"id": tester["id"], "group": tester["group"], "report": has_report,
-                     "outcome": (data or {}).get("outcome", "not reported"), **counts})
+                     "outcome": (data or {}).get("outcome", "not reported"), "log": reach, **counts})
         if tester["group"] == "scenario":
             try:
                 prints.setdefault(tester["spec"]["id"], {})[tester["id"]] = json.loads(
@@ -340,7 +393,12 @@ def collect(out: Path) -> tuple[dict, list[str]]:
             draft = results / f"divergence-{scenario['id']}.md"
             draft.write_text(_divergence_draft(scenario["id"], differing), encoding="utf-8")
             problems.append(f"{scenario['id']}: {len(differing)} key(s) differ between teams; issue draft in {draft.as_posix()}")
-    summary = {"testers": rows, "findings": len(merged), "scenarios": comparison, "problems": problems}
+            if open_issues:
+                address, problem = open_issue(scenario["id"], draft)
+                issues += [address] if address else []
+                problems += [problem] if problem else []
+    summary = {"testers": rows, "findings": len(merged), "scenarios": comparison, "issues": issues,
+               "problems": problems}
     (results / "findings.json").write_text(json.dumps(merged, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     (results / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     (results / "summary.md").write_text(_summary_text(summary), encoding="utf-8")
@@ -350,15 +408,18 @@ def collect(out: Path) -> tuple[dict, list[str]]:
 def _summary_text(summary: dict) -> str:
     lines = ["# Field campaign summary", "",
              f"{len(summary['testers'])} testers, {summary['findings']} findings before grouping.", "",
-             "| Tester | Group | Report | Outcome | Blocker | Major | Minor | Suggestion |", "|---|---|---|---|---|---|---|---|"]
+             "| Tester | Group | Report | Transcript | Outcome | Blocker | Major | Minor | Suggestion |",
+             "|---|---|---|---|---|---|---|---|---|"]
     for row in summary["testers"]:
-        lines.append(f"| {row['id']} | {row['group']} | {'yes' if row['report'] else 'MISSING'} | {row['outcome']} | "
+        lines.append(f"| {row['id']} | {row['group']} | {'yes' if row['report'] else 'MISSING'} | {row['log']} | "
+                     f"{row['outcome']} | "
                      + " | ".join(str(row[severity]) for severity in SEVERITIES) + " |")
     lines += ["", "## Same scenario, several teams", "",
               "The scripted part is deterministic, so the threshold is zero: any key that differs is a defect.", ""]
     for scenario, data in summary["scenarios"].items():
         outcome = "identical" if not data["differing"] else "DIFFER on " + ", ".join(data["differing"])
         lines.append(f"- {scenario}: {data['teams']} team(s) compared, {outcome}.")
+    lines += [f"- Issue opened: {address}" for address in summary.get("issues", [])]
     lines += ["", "## To settle before the campaign counts", ""]
     lines += [f"- {problem}" for problem in summary["problems"]] or ["Nothing: every tester reported and no scenario diverged."]
     return "\n".join(lines) + "\n"
@@ -375,6 +436,9 @@ def main() -> int:
         action.add_argument("--out", required=True, type=Path, help="Campaign folder, outside the repository.")
         if name == "cohorts":
             action.add_argument("--teams", type=int, default=3, help="Folders per scenario (default 3).")
+        if name == "collect":
+            action.add_argument("--open-issues", action="store_true",
+                                help="File each divergence draft as a GitHub issue with gh, in this checkout's repository.")
     one = actions.add_parser("brief", help="Print what one tester is asked to do.")
     one.add_argument("tester")
     one.add_argument("--out", required=True, type=Path, help="Campaign folder given to prepare.")
@@ -401,7 +465,9 @@ def main() -> int:
                 else:
                     print(f"{scenario}: {args.teams} teams, {data['keys']} keys, identical.")
         else:
-            summary, problems = collect(args.out)
+            summary, problems = collect(args.out, args.open_issues)
+            for address in summary["issues"]:
+                print(f"Opened {address}")
             print(f"{len(summary['testers'])} testers, {summary['findings']} findings. "
                   f"Summary: {(args.out.resolve() / 'results' / 'summary.md').as_posix()}")
     except ValueError as error:

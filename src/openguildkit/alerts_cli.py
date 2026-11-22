@@ -123,7 +123,8 @@ def run(args, state: Path) -> None:
     if action == "import":
         _print_changes(changes, args.json)
         if args.task:
-            _consult_again_note(read_task(state, args.task), args.json)
+            task = read_task(state, args.task)
+            _consult_again_note(task, task_alerts(register, task), args.json)
     else:
         alert = find_alert(register, args.alert)
         severity = f", severity {alert['severity']}" if action == "severity" else ""
@@ -151,12 +152,14 @@ def task_command(args, state: Path, task: dict) -> None:
     imports = register.get("imports", [])[-1:] if args.import_file else []
     _print_alerts(alerts, {"summary": summary(alerts, imports)} if args.json else {"imports": imports}, args.json)
     if args.import_file:
-        _consult_again_note(migrated, args.json)
+        _consult_again_note(migrated, task_alerts(register, migrated), args.json)
 
 
-def _consult_again_note(task: dict, as_json: bool) -> None:
-    """The boards read a task's alerts when it is consulted: say so when an open task already was."""
-    if "consultation" in task and task["status"] not in DONE_STATUSES and not as_json:
+def _consult_again_note(task: dict, active: list[dict], as_json: bool) -> None:
+    """The boards read a task's alerts when it is consulted: say so when its consultation lacks an active one."""
+    held = {alert["id"] for alert in task.get("consultation", {}).get("scope", {}).get("dependency_alerts", [])}
+    if "consultation" in task and task["status"] not in DONE_STATUSES and not as_json and any(
+            alert["id"] not in held for alert in active):
         print(f"The task was consulted before this import: run openguildkit task consult {task['id']} again "
               "so the boards see its alerts.")
 
