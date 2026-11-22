@@ -628,9 +628,9 @@ def record_consultation(
     """Record a consultation. With the project root, a bug brief's files and functions are looked for in it.
 
     A brief can be revised at any consultation, the passes then start over; after a change request, the earlier round
-    is kept. An approval that no longer holds
-    (earlier rules, a revision a rebase replaced, a seal or a signature that fails) is consulted again under the same
-    ID: it is kept in rounds with the reason, and the passes of the boards whose brief did not change are kept.
+    is kept. An approval that no longer holds (earlier rules, a revision a rebase replaced, a seal or a signature that
+    fails) is consulted again under the same ID: it is kept in rounds with the reason, and the passes of the boards
+    whose brief did not change are kept.
     """
     reopened = None
     if task["status"] == "approved":
