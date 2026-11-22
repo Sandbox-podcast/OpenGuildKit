@@ -4,7 +4,7 @@
  */
 import { services } from '@/adapters/services';
 import { command, DAY, emit, fail, insert, list, must, nextId, requireHuman, type Ctx, clone } from '../engine';
-import { effectiveExceptionStatus, effectiveApprovalStatus, resultFreshness, shareStatus } from '../selectors';
+import { effectiveExceptionStatus, effectiveApprovalStatus, shareStatus } from '../selectors';
 import { advanceRun } from './forge';
 import { produceContribution } from './work';
 import { flagReview, reopenAfterException } from './transitions';
@@ -310,5 +310,4 @@ export const hasActiveWork = (s: AppState) =>
   list(s, 'integration', s.session.orgId).some((i) => i.status === 'connecting') ||
   list(s, 'exception', s.session.orgId).some((e) => e.status === 'approved' && effectiveExceptionStatus(s, e) === 'expired');
 
-export const staleOf = (s: AppState, resultId: ID) => resultFreshness(s, must(s, 'result', resultId));
 export type { SignalType };

@@ -76,7 +76,6 @@ export function useDirtyGuard(key: string, isDirty: boolean) {
     return () => { dirty.delete(key); };
   }, [key, isDirty]);
 }
-export const confirmLeave = () => !dirty.size || window.confirm(DIRTY_MESSAGE);
 
 const ROUTES: Partial<Record<Ref['kind'], (id: string) => string>> = {
   project: (id) => `/projets/${id}`,

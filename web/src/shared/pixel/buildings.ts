@@ -242,7 +242,6 @@ const DRAW: Record<PlaceKey, () => Grid> = {
   },
 };
 
-export const PLACE_SPRITES = Object.keys(DRAW) as PlaceKey[];
 const grids: Partial<Record<string, Grid>> = {};
 const sprite = (key: string, draw: () => Grid) => {
   const g = (grids[key] ??= draw());

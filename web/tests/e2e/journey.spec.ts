@@ -14,6 +14,12 @@ async function actAs(page: Page, name: string) {
   await expect(page.locator('.identity')).toContainText(name.split(' ')[0]);
 }
 const stateOf = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('open-guild-kit.demo')!).state);
+/** A person's decision: the demo shows the terminal command, then simulates its entry. */
+async function decideAtTerminal(page: Page, approve: ReturnType<Page['getByRole']>) {
+  await approve.click();
+  await expect(dialog(page)).toContainText('dans son propre terminal');
+  await dialog(page).getByRole('button', { name: 'Simuler la commande' }).click();
+}
 
 test('parcours principal : de l’inconnue du Blueprint au réexamen', async ({ page }) => {
   await page.goto('/#/entree');
@@ -71,7 +77,8 @@ test('parcours principal : de l’inconnue du Blueprint au réexamen', async ({ 
   await expect(page.locator('.why').filter({ hasText: /assignée|Séparation/ }).first()).toBeVisible();
   await actAs(page, 'Inès Morel');
   await go(page, '#/conseil/cns-export?onglet=arbitrage');
-  await button(page, 'Approuver la décision').click();
+  await decideAtTerminal(page, button(page, 'Approuver la décision'));
+  await expect(page.getByText(/openguildkit task decide/)).toHaveCount(0);
   await expect(page.locator('.panel', { hasText: 'Décisions de la session' }).getByText('Approuvée').first()).toBeVisible();
   await actAs(page, 'Yanis Belkacem');
 
@@ -122,8 +129,8 @@ test('parcours principal : de l’inconnue du Blueprint au réexamen', async ({ 
   await button(page, 'Soumettre les brouillons en revue').click();
   await actAs(page, 'Inès Morel');
   await go(page, '#/tour/revues');
-  for (const box of await page.locator('.panel', { hasText: 'Revues humaines en attente' }).getByRole('checkbox').all()) await box.check();
-  await button(page, /Approuver la sélection/).click();
+  const pending = page.locator('.panel', { hasText: 'Revues humaines en attente' }).getByRole('button', { name: 'Approuver', disabled: false });
+  while (await pending.count()) await decideAtTerminal(page, pending.first());
   await actAs(page, 'Yanis Belkacem');
   await page.goto(questUrl);
   await button(page, 'Mettre en revue').click();
@@ -132,7 +139,7 @@ test('parcours principal : de l’inconnue du Blueprint au réexamen', async ({ 
   await expect(button(page, 'Clôturer')).toBeDisabled();
   await actAs(page, 'Inès Morel');
   await go(page, '#/tour/revues');
-  await page.locator('.card', { hasText: 'clôture' }).getByRole('button', { name: 'Approuver' }).click();
+  await decideAtTerminal(page, page.locator('.card', { hasText: 'clôture' }).getByRole('button', { name: 'Approuver' }));
   await actAs(page, 'Yanis Belkacem');
 
   // 17. Closure, then publication of the documentation.

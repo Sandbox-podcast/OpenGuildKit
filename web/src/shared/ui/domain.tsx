@@ -4,13 +4,14 @@
  */
 import { useState, type ReactNode } from 'react';
 import { can, dispatch, newOpId, useAppState } from '@/app/store';
-import { navigate, routeOf } from '@/app/router';
+import { routeOf } from '@/app/router';
 import { cmd } from '@/domain/commands';
 import type { CommandDef } from '@/domain/engine';
 import { stateDef, transitionsFrom, type MachineKind } from '@/domain/machines';
 import { ROLES, rolesOf } from '@/domain/permissions';
 import { KIND_LABELS, approvalValidity, effectiveApprovalStatus, fmtDate, objectLabel, resultFreshness } from '@/domain/selectors';
-import type { Actor, AppState, ID, Ref, Result } from '@/domain/types';
+import { terminalCommand, type TerminalCommand } from '@/domain/terminal';
+import type { Actor, ID, Ref, RefKind, Result } from '@/domain/types';
 import { Icon } from '@/shared/pixel/icons';
 import { portraitUrl } from '@/shared/pixel/portraits';
 import { Badge, Button, Select } from './core';
@@ -135,19 +136,35 @@ export function ApproverPicker({ value, onChange, exclude }: { value?: string; o
   return <Select label="Approbateur·rice" hint="Une personne distincte de l’auteur lorsque le profil l’exige." value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)} placeholder="Toute personne habilitée" options={[...new Set(people.map((m) => m.userId))].map((id) => ({ value: id, label: `${s.users[id]?.name} (${people.filter((m) => m.userId === id).map((m) => ROLES[m.role].short).join(', ')})` }))} />;
 }
 
+/** A person's decision as OpenGuildKit records it, in their own terminal; the demo then simulates its entry. */
+export function TerminalDecision({ command, note }: TerminalCommand) {
+  return (
+    <div className="stack tight">
+      <p>Dans OpenGuildKit, une personne enregistre cette décision dans son propre terminal : la page ne l’enregistre jamais.</p>
+      {command && <div className="command-line"><code aria-label="Commande à taper dans le terminal">{command}</code></div>}
+      {note && <p className="small muted">{note}</p>}
+      <p className="small muted">La démo n’a pas de terminal : « Simuler la commande » joue la personne qui la tape.</p>
+    </div>
+  );
+}
+
 /** Current state + every transition available from it, each guarded by the domain. */
 export function Lifecycle({ kind, id, state, version, compact, exclude = [] }: { kind: TransitionKind; id: ID; state: string; version?: number; compact?: boolean; exclude?: string[] }) {
   const s = useAppState();
   const me = s.session.actor.type === 'human' ? s.session.actor.userId : undefined;
   const transitions = transitionsFrom(kind as MachineKind, state).filter((t) => !exclude.includes(t.action));
   const withApprover = ['submit', 'request'].map((a) => `${kind}.${a}`);
+  const person = (me && s.users[me]?.name) || 'NOM';
   return (
     <div className="row" style={{ alignItems: 'flex-start' }}>
       {!compact && <StatusBadge kind={kind as MachineKind} state={state} />}
       {transitions.map((t) => (
         <CmdButton key={t.action} def={cmd.transition} payload={{ kind, id, action: t.action, version }} size="small" variant={t.danger ? 'danger' : t.action === 'approve' || t.action === 'publish' || t.action === 'close' ? 'primary' : undefined}
           success={`${t.label} : fait`}
-          confirm={t.needsReason || withApprover.includes(`${kind}.${t.action}`) || t.danger ? {
+          confirm={t.terminal ? {
+            title: `${t.label} : dans le terminal`, needsReason: t.needsReason, danger: t.danger, label: 'Simuler la commande',
+            message: <TerminalDecision {...terminalCommand(s, { kind: kind as RefKind, id }, t.action, person)} />,
+          } : t.needsReason || withApprover.includes(`${kind}.${t.action}`) || t.danger ? {
             title: t.label, needsReason: t.needsReason, danger: t.danger, label: t.label,
             message: <p>{t.needsReason ? 'Cette action modifie le suivi : indiquez son motif.' : 'Confirmez cette action.'}</p>,
             extra: withApprover.includes(`${kind}.${t.action}`) ? (set, p) => <ApproverPicker value={(p as { approverId?: string }).approverId} exclude={me} onChange={(v) => set({ approverId: v } as never)} /> : undefined,
@@ -189,5 +206,3 @@ export function ApprovalList({ subject }: { subject: Ref }) {
   );
 }
 
-export function useCurrent(): AppState { return useAppState(); }
-export const go = (ref: Ref) => navigate(routeOf(ref));

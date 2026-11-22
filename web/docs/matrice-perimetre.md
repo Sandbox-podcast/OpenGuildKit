@@ -1,5 +1,7 @@
 # Périmètre fonctionnel
 
+> Démonstration Atelier Nova : cette page décrit la maquette, pas le produit. [Ce qui les distingue](interface-projet.md#ce-qui-distingue-la-démonstration)
+
 Les tests du domaine exécutent les commandes sans interface. Le [parcours Playwright](../tests/e2e/journey.spec.ts) les rejoue sur Atelier Nova. Les [tests de vues](../tests/e2e/views.spec.ts) couvrent les accès, le clavier, le mobile et les erreurs ciblées. La couverture ci-dessous décrit les assertions présentes. Les résultats d'exécution figurent dans [verification.md](verification.md).
 
 | Espace | Sous-vues | Actions à contrôler | Couverture |

@@ -53,12 +53,6 @@ export interface Decision { ok: boolean; reason?: string }
 export const allow: Decision = { ok: true };
 export const deny = (reason: string): Decision => ({ ok: false, reason });
 
-export function actorLabel(state: AppState, actor: Actor): string {
-  if (actor.type === 'human') return state.users[actor.userId]?.name ?? 'Personne inconnue';
-  if (actor.type === 'agent') return `${state.db.expert[actor.expertId]?.name ?? 'Agent'} (agent IA)`;
-  return 'Système de démonstration';
-}
-
 export function rolesOf(state: AppState, userId: ID, orgId: ID, projectId?: ID): RoleId[] {
   return Object.values(state.db.member)
     .filter((m) => m.orgId === orgId && m.userId === userId && (!m.projectId || m.projectId === projectId))
