@@ -20,8 +20,8 @@ from .results import (
 )
 from .storage import read_json, write_json
 from .workflow import (
-    blocker_list, code_not_found, consult, is_decision_task, pending_removals, profile_settings, validate_answers,
-    validate_board_entry, validate_deliberation, validate_review,
+    RESOLUTION_FIELDS, blocker_list, blocker_resolutions, code_not_found, consult, is_decision_task, pending_removals,
+    profile_settings, resolution_field, validate_answers, validate_board_entry, validate_deliberation, validate_review,
 )
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -160,8 +160,6 @@ _RECORD = {
     "dependency_alerts?": {"alerts?": [dict]},
 }
 _RESOLUTION_FIELDS = {"cleared": ("evidence", "supports"), "waived": ("reason", "scope", "until")}
-# Clearances and waivers are kept apart by phase: the approval's seal covers those given before it.
-RESOLUTION_FIELDS = ("blocker_resolutions", "verification_blocker_resolutions")
 
 
 def _shape_problem(value: object, shape: object, field: str) -> str | None:
@@ -541,7 +539,7 @@ def cited_evidence(task: dict) -> list[str]:
     paths += [item.get("evidence") for item in result.get("packs", [])]
     for criterion in result.get("criteria", []):
         paths += [criterion.get("evidence"), criterion.get("verified_by")]
-    paths += [item["evidence"] for item in task.get("blocker_resolutions", {}).values() if item["kind"] == "cleared"]
+    paths += [item["evidence"] for item in blocker_resolutions(task).values() if item["kind"] == "cleared"]
     logs = f".openguildkit/tasks/{task['id']}-checks/"
     return [path for path in dict.fromkeys(paths)
             if isinstance(path, str) and path and not path.startswith(("https://", "command:", logs))
@@ -872,7 +870,7 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
                 raise ValueError(f"A waiver needs --{field}.")
             entry[field] = resolution[field].strip()
         entry["until"] = until
-    field = "verification_blocker_resolutions" if verification else "blocker_resolutions"
+    field = resolution_field(blocker.get("phase"))
     return {**task, field: {**task.get(field, {}), blocker_id: entry}}
 
 
@@ -1136,7 +1134,7 @@ def revoke_approval(task: dict, by: str, reason: str) -> dict:
     decision = {"outcome": "changes-requested", "by": by.strip(), "reason": f"Approval withdrawn: {reason.strip()}",
                 "at": at, "withdraws": task["decision"]["at"]}
     result = {**task, "status": "changes-requested", "decision": decision, "rounds": [*task["rounds"], archived]}
-    for key in ("verification_blocker_resolutions", "result", "waiting_for", "completed_at"):
+    for key in (resolution_field("verification"), "result", "waiting_for", "completed_at"):
         result.pop(key, None)
     return result
 

@@ -2535,20 +2535,52 @@ def is_decision_task(task: dict) -> bool:
     return task.get("answers", {}).get("kind") == "decision"
 
 
+# Clearances and waivers are stored apart by phase, because the approval's seal covers only those given before it.
+# blocker_resolutions(task) reads both: every reader goes through it.
+RESOLUTION_FIELDS = ("blocker_resolutions", "verification_blocker_resolutions")
+
+
+def resolution_field(phase: str | None) -> str:
+    """Where a clearance or waiver of a blocker of this phase is stored."""
+    return RESOLUTION_FIELDS[1] if phase == "verification" else RESOLUTION_FIELDS[0]
+
+
+def blocker_resolutions(task: dict) -> dict:
+    """Every clearance and waiver of the task's blockers, both phases, by blocker ID: the one way to read them."""
+    resolutions = {}
+    for field in RESOLUTION_FIELDS:
+        resolutions.update(task.get(field, {}))
+    return resolutions
+
+
 def blocker_list(task: dict) -> list[dict]:
     """Every blocker of the recorded review, with how it was resolved so far."""
     if "review" not in task:
         return []
+    resolutions = blocker_resolutions(task)
     items = []
     for entry in task["review"]["boards"]:
         for index, blocker in enumerate(entry.get("challenge", {}).get("blockers", []), start=1):
             key = f"{entry['id']}:{index}"
             details = blocker if isinstance(blocker, dict) else {"finding": blocker}
-            field = "verification_blocker_resolutions" if details.get("phase") == "verification" else "blocker_resolutions"
-            resolutions = task.get(field, {})
             items.append({"id": key, "board": entry["id"], **details, "resolution": resolutions.get(key)})
     return items
 
+
+_SHARED_RESOLUTION = ("kind", "by", "at", "recorded_from", "evidence", "supports", "reason", "scope", "until", "signer")
+
+
+def exported_blockers(task: dict) -> list[dict]:
+    """Each blocker as a shared decision record shows it: its board, phase, finding and condition, and who cleared or
+    waived it, with the evidence and what it establishes, or the waiver's reason, scope and end date."""
+    shown = []
+    for item in blocker_list(task):
+        entry = {"id": item["id"], "board": item["board"], "phase": item.get("phase", "approval"),
+                 **{key: item[key] for key in ("finding", "owner", "clears_when") if key in item}}
+        if item["resolution"]:
+            entry["resolution"] = {key: item["resolution"][key] for key in _SHARED_RESOLUTION if key in item["resolution"]}
+        shown.append(entry)
+    return shown
 
 
 def _evidence_section(evidence: list[dict]) -> list[str]:
