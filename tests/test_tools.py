@@ -378,6 +378,23 @@ class CommandTests(unittest.TestCase):
                 self.assertTrue(result["isError"])
                 self.assertIn(expected, result["content"][0]["text"])
 
+    def test_slack_search_returns_all_matching_messages(self):
+        export_authors = ["Kai Demo", "Lin Sample", "Ada Example"]
+        examples = (
+            ("export", export_authors),
+            ("expor", export_authors),
+            ("CSV EXPORT", export_authors),
+            ("sprint", ["Ada Example"]),
+            ("missing message", []),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            for query, expected in examples:
+                with self.subTest(query=query):
+                    code, out, err = run("--project", directory, "tools", "call", "slack", "search_messages",
+                                         "--args", json.dumps({"query": query}))
+                    self.assertEqual(code, 0, err)
+                    self.assertEqual([row["author"] for row in json.loads(out)["messages"]], expected)
+
     def test_fixture_identifiers_round_trip_to_their_lookup_tools(self):
         def values(value, key):
             if isinstance(value, list):
