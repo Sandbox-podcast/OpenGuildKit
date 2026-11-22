@@ -1,7 +1,7 @@
 {
   "id": "iso-27001",
   "title": "ISO/IEC 27001 context",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Project evidence and ownership prompts for teams working under an information security management system, and the Annex A controls each kind of change concerns. Use the organization's approved scope and controls.",
   "sources": [
     {
@@ -17,7 +17,7 @@
     {
       "title": "ISO/IEC JTC 1/SC 27 Journal, July 2022, ISO/IEC 27002:2022 (93 controls that form Annex A of ISO/IEC 27001)",
       "url": "https://committee.iso.org/files/live/sites/jtc1sc27/files/resources/ISO-IEC%20JTC%201-SC%2027_N22755_SC27%20Journal%20Vol%202%20Issue%202%20(update%20Dec%202022).pdf",
-      "checked": "2026-11-21"
+      "checked": "2026-11-22"
     },
     {
       "title": "ISO/IEC JTC 1/SC 27 Journal 2025, controls in a cybersecurity risk treatment plan",
@@ -78,6 +78,11 @@
     {
       "id": "annex-a-secure-development",
       "instruction": "When the change touches source code, dependencies or system configuration, review it against ISO/IEC 27001:2022 Annex A 8.4 Access to source code, 8.8 Management of technical vulnerabilities and 8.9 Configuration management.",
+      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner."
+    },
+    {
+      "id": "annex-a-development-and-change",
+      "instruction": "When the change is designed, coded, tested or released, review it against ISO/IEC 27001:2022 Annex A 8.25, 8.26, 8.27, 8.28, 8.29, 8.31, 8.32 and 8.33, the controls on development, testing, environments and change; read each control's text in the organization's copy of ISO/IEC 27002:2022.",
       "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner."
     },
     {

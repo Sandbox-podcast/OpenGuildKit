@@ -14,14 +14,14 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | data | 63 | 7 | 56 | 5 | 1 | 7 | 38 |
 | design | 26 | 5 | 21 | 10 | 5 | 17 | 65 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
-| devops | 69 | 22 | 47 | 7 | 6 | 13 | 63 |
-| engineering | 217 | 24 | 193 | 12 | 26 | 41 | 197 |
-| finance | 23 | 14 | 9 | 11 | 1 | 13 | 45 |
+| devops | 69 | 22 | 47 | 7 | 6 | 13 | 64 |
+| engineering | 217 | 24 | 193 | 12 | 26 | 41 | 198 |
+| finance | 23 | 14 | 9 | 11 | 1 | 13 | 49 |
 | frontend | 8 | 3 | 5 | 2 | 0 | 4 | 19 |
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
 | it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 9 |
 | leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
-| legal | 56 | 22 | 34 | 17 | 1 | 20 | 128 |
+| legal | 56 | 22 | 34 | 17 | 1 | 20 | 132 |
 | localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
 | marketing | 22 | 7 | 15 | 8 | 0 | 8 | 17 |
 | operations | 21 | 6 | 15 | 11 | 0 | 11 | 26 |
@@ -32,7 +32,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
 | qa | 50 | 6 | 44 | 5 | 20 | 29 | 139 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 103 | 27 | 76 | 19 | 17 | 43 | 226 |
+| security | 103 | 27 | 76 | 19 | 17 | 43 | 231 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -56,7 +56,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | laravel | laravel | laravel | 6 |
 | nextjs-react | next.js | nextjs, react | 9 |
 | node-express | express / express.js | api-design, express | 9 |
-| pci-dss-cardholder-data | Stripe / Adyen / Braintree / Checkout.com / Worldpay / Mollie | pci-dss | 10 |
+| pci-dss-cardholder-data | Stripe / Adyen / Braintree / Checkout.com / Worldpay / Mollie | pci-dss | 14 |
 | playwright-web | playwright / playwright test | playwright | 4 |
 | postgresql-database | postgresql / postgres | postgresql | 3 |
 | python-development | python / python3 | python | 3 |
@@ -82,7 +82,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | healthcare | health-data-protection | health-data-protection | 7 |
 | insurance | dora-financial-entity, insurance-distribution | dora, incident-notification, insurance-distribution | 19 |
 | public-sector | public-sector-accessibility | public-sector-accessibility, web-accessibility | 14 |
-| software-publisher | cyber-resilience-act-product, iso-27001-certification | cyber-resilience-act, incident-notification, iso-27001, secure-sdlc | 29 |
+| software-publisher | cyber-resilience-act-product, iso-27001-certification | cyber-resilience-act, incident-notification, iso-27001, secure-sdlc | 30 |
 
 ## Not turned into rules
 

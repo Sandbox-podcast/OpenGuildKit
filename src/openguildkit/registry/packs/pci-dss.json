@@ -1,8 +1,8 @@
 {
   "id": "pci-dss",
   "title": "PCI DSS for software teams",
-  "version": "1.0.0",
-  "description": "Requirements of PCI DSS v4.0.1 that a software team acts on in a repository that stores, processes or transmits payment card data. The organization's assessor decides scope and applicability.",
+  "version": "1.1.0",
+  "description": "Requirements of PCI DSS v4.0.1 that a software team acts on in a repository that stores, processes or transmits payment card data, numbered as in the standard and the self-assessment questionnaires of the PCI SSC Document Library. Which questionnaire applies depends on the payment integration; the organization's assessor decides scope and applicability.",
   "sources": [
     {
       "title": "PCI SSC, Just published: PCI DSS v4.0.1 (June 2024, no added or deleted requirements)",
@@ -73,6 +73,31 @@
       "title": "PCI SSC FAQ 1592, script providers and Requirements 12.8 and 12.9",
       "url": "https://www.pcisecuritystandards.org/faqs/1592/",
       "checked": "2026-11-21"
+    },
+    {
+      "title": "PCI SSC Document Library, PCI DSS v4.0.1",
+      "url": "https://www.pcisecuritystandards.org/document_library/?class=pcidss&doc=pci_dss",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "PCI SSC, Self-Assessment Questionnaire D for Merchants, PCI DSS v4.0 (April 2022)",
+      "url": "https://listings.pcisecuritystandards.org/documents/PCI-DSS-v4-0-SAQ-D-Merchant.pdf",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "Gitleaks, repository and documentation",
+      "url": "https://github.com/gitleaks/gitleaks",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "TruffleHog, repository and documentation",
+      "url": "https://github.com/trufflesecurity/trufflehog",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "Yelp, detect-secrets, repository and documentation",
+      "url": "https://github.com/Yelp/detect-secrets",
+      "checked": "2026-11-22"
     }
   ],
   "rules": [
@@ -103,9 +128,24 @@
       "verification": "Review the TLS settings of each new endpoint or client and search notifications and support flows for PANs."
     },
     {
+      "id": "mask-displayed-pan",
+      "instruction": "Mask the PAN wherever the change displays it, so that at most the BIN and the last four digits appear, unless a role with a documented business need sees more (Requirement 3.4.1).",
+      "verification": "Open each changed screen, report and export that shows a PAN with a test card and check that roles without the documented need see at most the BIN and the last four digits."
+    },
+    {
       "id": "authorize-payment-page-scripts",
       "instruction": "When the change adds or alters a script on a payment page, make sure no unauthorized code can run in the page as the customer's browser renders it, using the techniques of Requirements 6.4.3 and 11.6.1.",
       "verification": "List the scripts the payment page loads after the change and show that each one is authorized and that the protection against script changes covers it."
+    },
+    {
+      "id": "no-live-pans-before-production",
+      "instruction": "Use only test card numbers in development, test and staging environments; a live PAN may appear there only when the environment is inside the cardholder data environment and protected under every applicable requirement (Requirement 6.5.5).",
+      "verification": "Check the seed data, fixtures and test configuration the change adds and confirm that every card number is a test number of the payment provider."
+    },
+    {
+      "id": "remove-test-data-before-production",
+      "instruction": "Remove the test data and test accounts the change adds from system components before the system goes into production (Requirement 6.5.6).",
+      "verification": "List the test accounts and test data the change adds and check that the production deployment or migration leaves none of them."
     },
     {
       "id": "no-shared-accounts",
@@ -121,6 +161,31 @@
       "id": "hash-authentication-factors",
       "instruction": "Render passwords and other authentication factors unreadable in storage and transmission with strong cryptography, such as a strong password hash (Requirement 8.3.2).",
       "verification": "Inspect how the change stores and transmits passwords or tokens and name the hashing or encryption used."
+    },
+    {
+      "id": "no-hard-coded-passwords",
+      "instruction": "Keep the passwords of application and system accounts that can log in interactively out of scripts, configuration or property files and source code (Requirement 8.6.2), and run a secret scanner such as Gitleaks, TruffleHog or detect-secrets in CI or in a pre-commit hook.",
+      "verification": "task verify checks that a CI workflow or the pre-commit configuration runs one of these scanners; review the scanner's findings on the change.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".github/workflows/*.yml",
+          ".github/workflows/*.yaml",
+          ".pre-commit-config.yaml",
+          ".gitlab-ci.yml",
+          "bitbucket-pipelines.yml",
+          "azure-pipelines.yml",
+          ".circleci/config.yml",
+          "Jenkinsfile"
+        ],
+        "contains": [
+          "gitleaks",
+          "trufflehog",
+          "detect-secrets"
+        ],
+        "expect": "present",
+        "ignore_case": true
+      }
     },
     {
       "id": "log-cardholder-data-access",

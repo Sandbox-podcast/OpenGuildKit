@@ -1,12 +1,22 @@
 {
   "id": "pci-dss-cardholder-data",
   "title": "PCI DSS for payment card data",
-  "description": "Proposed when the stack names a card payment provider, or to the security, finance and legal roles. Select when the project stores, processes or transmits payment card data, or can affect its security.",
+  "description": "Proposed when the stack names a card payment provider, or to the security, finance and legal roles. Select when the project stores, processes or transmits payment card data, or can affect its security. The self-assessment questionnaire that applies depends on the payment integration: under SAQ A, every element of the payment page comes only and directly from a PCI DSS compliant provider and the merchant stores, processes and transmits no account data on its own systems, so most of these rules do not apply; the acquirer confirms which questionnaire applies.",
   "sources": [
     {
       "title": "PCI SSC, Just published: PCI DSS v4.0.1",
       "url": "https://blog.pcisecuritystandards.org/just-published-pci-dss-v4-0-1",
       "checked": "2026-11-21"
+    },
+    {
+      "title": "PCI SSC, Self-Assessment Questionnaire A, PCI DSS v4.0 (April 2022), merchant eligibility criteria",
+      "url": "https://listings.pcisecuritystandards.org/documents/PCI-DSS-v4-0-SAQ-A.pdf",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "PCI SSC FAQ 1588, scripts on e-commerce pages (Requirements 6.4.3 and 11.6.1)",
+      "url": "https://www.pcisecuritystandards.org/faqs/1588/",
+      "checked": "2026-11-22"
     }
   ],
   "roles": [
