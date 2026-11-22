@@ -6,6 +6,7 @@ pull request carries an exported decision that matches the rules of its base rev
 """
 
 import json
+import os
 import re
 import subprocess
 import tempfile
@@ -14,8 +15,9 @@ from pathlib import Path, PurePosixPath
 
 from . import clock
 from .decisions import (
-    DECISIONS_DIR, approval_policy, check_decision, check_decision_seal, exported_boards, exported_records,
-    exported_rounds, history_message, record_digest, seal, shared_digest, stale_approval_message, verify_signature,
+    DECISIONS_DIR, approval_policy, changed_paths_since, check_decision, check_decision_seal, exported_boards,
+    exported_records, exported_rounds, history_message, record_digest, seal, shared_digest, stale_approval_message,
+    verify_signature,
 )
 from .lock import LOCK_FILE, read_lock
 from .project import STATE_DIR, load_profile, profile_fingerprint
@@ -23,7 +25,7 @@ from .results import DONE_STATUSES, verification_of
 from .storage import read_json, write_json
 from .task_index import tasks_with_status
 from .tasks import STATUSES, read_task, task_path
-from .workflow import mock_evidence
+from .workflow import blocker_list, mock_evidence
 
 MODES = ("off", "observe", "enforce")
 # The mode when the profile cannot be read: the hook refuses edits, as in enforce, and says why.
@@ -304,6 +306,8 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
     }
     if "completed_at" in task:
         record["completed_at"] = task["completed_at"]
+    # What the change touches, so that CI can tell this record from a copy brought with another change.
+    record["files"] = changed_files(root, decision.get("base_revision"))
     record["decision"]["payload"] = check_decision_seal(task)
     for key in ("signer", "signature"):
         if key in decision:
@@ -341,6 +345,9 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
                 record["result"][key] = task["result"][key]
         if "closing" in task["result"]:
             record["result"]["closing"] = task["result"]["closing"]
+    blockers = exported_blockers(task)
+    if blockers:
+        record["blockers"] = blockers
     if task.get("follows"):
         record["follows"] = task["follows"]["task"]
     # The regulations and patterns the profile declined when the task was consulted, with who, when and why.
@@ -354,6 +361,31 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
 
 
 RECORD_VERSION = 2
+BLOCKER_FIELDS = ("finding", "owner", "clears_when")
+RESOLUTION_FIELDS = ("kind", "by", "at", "recorded_from", "evidence", "supports", "reason", "scope", "until", "signer")
+
+
+def changed_files(root: Path, base_revision: dict | None) -> list[str] | None:
+    """The files Git tracks that changed since the approved revision, committed or not, decision records left out.
+
+    None when the approval named no revision (a project outside Git): such a record covers no change in CI.
+    """
+    if not base_revision or not base_revision.get("commit"):
+        return None
+    prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"
+    return sorted({path for path in changed_paths_since(root, base_revision["commit"]) if not path.startswith(prefix)})
+
+
+def exported_blockers(task: dict) -> list[dict]:
+    """Each blocker of the review with its phase and how it was cleared or waived: by whom, the evidence and what it
+    establishes. Teammates and CI see only the record, so the conditions of the approval travel with it."""
+    return [
+        {"id": item["id"], "board": item["board"], "phase": item.get("phase", "approval"),
+         **{key: item[key] for key in BLOCKER_FIELDS if key in item},
+         "resolution": ({key: item["resolution"][key] for key in RESOLUTION_FIELDS if key in item["resolution"]}
+                        if item["resolution"] else None)}
+        for item in blocker_list(task)
+    ]
 
 
 def _same_task(record: object, task: dict) -> bool:
@@ -438,12 +470,15 @@ def _record_shape(record: dict, relative: str) -> None:
         problem = "decision.seal, decision.by and decision.reason must be text"
     elif not isinstance(decision.get("payload", {}), dict):
         problem = "decision.payload must be an object"
+    elif record.get("files") is not None and (not isinstance(record["files"], list)
+                                              or not all(isinstance(item, str) for item in record["files"])):
+        problem = "files must be a list of paths"
     if problem:
         raise ValueError(f"{relative} is not a decision record written by openguildkit task export: {problem}. "
                          "Export the decision again or remove the file.")
 
 
-def _record_problem(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path, earlier: set,
+def _record_problem(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path, earlier: dict,
                     *, extracted: bool = False) -> str | None:
     """Why a decision record cannot cover the changes, or None when it can."""
     found = _record_check(record, relative, fingerprint, policy, base_root, earlier, extracted=extracted)
@@ -451,7 +486,7 @@ def _record_problem(record: dict, relative: str, fingerprint: str, policy: dict,
 
 
 def _record_check(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path,
-                  earlier: set, *, extracted: bool = False) -> tuple[str, str] | None:
+                  earlier: dict, *, extracted: bool = False) -> tuple[str, str] | None:
     """The kind of problem a decision record has and its message, or None when it holds.
 
     extracted says that base_root holds files copied from a Git revision (CI) rather than a working copy.
@@ -467,7 +502,7 @@ def _record_check(record: dict, relative: str, fingerprint: str, policy: dict, b
     return "invalid-record", found
 
 
-def _record_fault(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path, earlier: set,
+def _record_fault(record: dict, relative: str, fingerprint: str, policy: dict, base_root: Path, earlier: dict,
                   *, extracted: bool = False) -> str | None:
     """What is wrong with a record: a message, or the kind "earlier-rules" or "earlier-record"; None when it holds.
 
@@ -477,8 +512,9 @@ def _record_fault(record: dict, relative: str, fingerprint: str, policy: dict, b
     decision = record["decision"]
     payload = decision.get("payload")
     export_again = f"Export it again with openguildkit task export {record['task']}, or restore the file from git."
-    if record["task"] in earlier:
-        return f"{relative}: task {record['task']} already had a decision on the base revision; open a new task for new work."
+    if record["task"] in earlier and not _same_approval(earlier[record["task"]], record):
+        return (f"{relative}: task {record['task']} already had another approval on the base revision; open a new task "
+                "for new work. A record of the same approval (same seal, same consultation) may add its completion.")
     if payload is None:
         return f"{relative} carries no approval payload. {export_again}"
     expected = {"task": record["task"], "outcome": "approved", "profile_fingerprint": record["profile_fingerprint"],
@@ -539,6 +575,16 @@ def conflict_message(path: Path, relative: str) -> str | None:
             f"another ID, and export it again (see {CONFLICT_SECTION}).")
 
 
+def _same_approval(earlier: object, record: dict) -> bool:
+    """Whether a record carries the approval the base revision's record of the same task carried: the same seal over
+    the same consultation, re-exported with its completion or its files, never a new approval under that ID."""
+    before = earlier.get("decision") if isinstance(earlier, dict) else None
+    if not isinstance(before, dict) or before.get("seal") != record["decision"]["seal"]:
+        return False
+    payload = before.get("payload") if isinstance(before.get("payload"), dict) else {}
+    return payload.get("consultation_id") == record["decision"].get("payload", {}).get("consultation_id")
+
+
 def _completion_problem(record: dict) -> str | None:
     """Whether a record's completion agrees with what task complete writes. No person seals a completion, so
     this is consistency, not proof: the record's own digest can be recomputed by whoever edits it."""
@@ -583,7 +629,7 @@ def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str)
                     f"{relative} is not a decision record written by openguildkit task export. "
                     "Export the decision again or remove the file."))
             _record_shape(record, relative)
-            found = _record_check(record, relative, fingerprint, policy, root, set())
+            found = _record_check(record, relative, fingerprint, policy, root, {})
         except (OSError, ValueError) as error:
             row["problem"] = {"kind": "invalid-record", "severity": "error", "message": str(error)}
             rows.append(row)
@@ -605,15 +651,17 @@ def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str)
     return rows
 
 
-def _earlier_tasks(directory: Path) -> set:
-    """Tasks that already had an exported decision on the base revision."""
-    tasks = set()
+def _earlier_records(directory: Path) -> dict:
+    """The exported decisions of the base revision, by task."""
+    records = {}
     for path in sorted(directory.glob("*.json")):
         try:
-            tasks.add(read_json(path).get("task"))
-        except ValueError:
+            record = read_json(path)
+        except (OSError, ValueError):
             continue
-    return tasks
+        if isinstance(record, dict) and isinstance(record.get("task"), str):
+            records[record["task"]] = record
+    return records
 
 
 def _no_base_profile(root: Path) -> str:
@@ -630,22 +678,83 @@ def _no_base_profile(root: Path) -> str:
             f'requests are checked with the mode it sets ("guard": "{mode}" in this change).')
 
 
-def ci_guard(root: Path, base: str, catalog_for) -> dict:
+LOCAL_RECORDS = (
+    "Approvals on the base revision are local: CI recomputes each record's seal, but whoever can write a record can "
+    "recompute it too, so nothing here proves who approved. Require signed approvals (docs/workflow.md#signed-approvals)"
+)
+WORKFLOW_DIR = ".github/workflows/"
+GUARD_STEP = "openguildkit guard --ci"
+
+
+def _shown_files(paths: list[str], limit: int = 10) -> str:
+    return ", ".join(paths[:limit]) + (f" and {len(paths) - limit} more" if len(paths) > limit else "")
+
+
+def _uncovered(work: list[str], covers: dict) -> str | None:
+    """The changed files that no valid record of the change covers, as one problem; None when each is covered.
+
+    covers maps each valid record's task to the files it covers, None when it lists none.
+    """
+    listed = {path for files in covers.values() for path in files or []}
+    missing = [path for path in work if path not in listed]
+    if not missing:
+        return None
+    unlisted = [task for task, files in covers.items() if files is None]
+    detail = (f" The record(s) of {', '.join(unlisted)} list no files: approved before the project had a Git revision, "
+              "or exported by an earlier release." if unlisted else "")
+    return (f"{len(missing)} changed file(s) are in no decision record of this change: {_shown_files(missing)}. A record "
+            "covers the files Git tracks that changed since its approval when it is exported: export it again once the "
+            "work is committed (openguildkit task export ID), or open a task for this change." + detail)
+
+
+def _workflow_ref() -> str | None:
+    """The workflow file GitHub Actions is running, from GITHUB_WORKFLOW_REF (owner/repo/PATH@ref)."""
+    reference = os.environ.get("GITHUB_WORKFLOW_REF", "").split("@", 1)[0]
+    parts = reference.split("/", 2)
+    return parts[2] if len(parts) == 3 and parts[2].startswith(WORKFLOW_DIR) else None
+
+
+def _changed_guard_workflows(root: Path, base: str, changed: list[str]) -> list[str]:
+    """The changed workflow files that run this check, on the base revision or in the change."""
+    running = _workflow_ref()
+    found = []
+    for path in changed:
+        if not path.startswith(WORKFLOW_DIR):
+            continue
+        versions = [_git(root, "show", f"{revision}:{path}") for revision in (base, "HEAD")]
+        if path == running or any(not item.returncode and GUARD_STEP.encode() in item.stdout for item in versions):
+            found.append(path)
+    return found
+
+
+def _workflow_note(paths: list[str]) -> str:
+    return (f"This change edits {', '.join(paths)}, which runs this check: on pull_request, GitHub runs the pull "
+            "request's own copy of a workflow, so this result may come from the edited file. Have a person review the "
+            "change, and keep pull requests from editing the check (CODEOWNERS on .github/workflows/, a ruleset that "
+            "requires the workflow; see integrations/README.md#protect-the-check).")
+
+
+def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False) -> dict:
     """Check that the changes since base come with a decision valid under the base revision's rules.
 
     The mode, the profile, the catalog lock and the allowed signers come from base, so a pull request
-    cannot weaken the rules it is judged by. catalog_for(state) loads the catalog of a state directory.
+    cannot weaken the rules it is judged by. Each changed file must be listed by a valid record the change brings;
+    a record of an approval already on base covers only the files its base version listed, so re-exporting an
+    old approval cannot stretch it over new work. catalog_for(state) loads the catalog of a state directory.
+    require_signed makes local approvals a problem.
     """
-    changed = _git_lines(root, "diff", "--name-only", f"{base}...HEAD")
+    changed = _git_lines(root, "diff", "--name-only", "--no-renames", f"{base}...HEAD")
     prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"
     records = [path for path in changed if path.startswith(prefix) and path.endswith(".json")]
     work = [path for path in changed if path not in records]
-    valid, problems = [], []
+    valid, problems, covers = [], [], {}
+    notes = [_workflow_note(found)] if (found := _changed_guard_workflows(root, base, work)) else []
     with tempfile.TemporaryDirectory() as directory:
         base_root = Path(directory)
         names = _git_lines(root, "ls-tree", "-r", "--name-only", base, "--", STATE_DIR)
         if f"{STATE_DIR}/project.json" not in names:
-            return {"mode": "off", "changed": len(work), "decisions": [], "problems": [_no_base_profile(root)], "ok": True}
+            return {"mode": "off", "changed": len(work), "decisions": [], "problems": [_no_base_profile(root)],
+                    "notes": notes, "ok": True}
         _extract_base(root, base, base_root, [name for name in names if not name.startswith(f"{STATE_DIR}/tasks/")])
         base_state = base_root / STATE_DIR
         catalog = catalog_for(base_state)
@@ -654,7 +763,7 @@ def ci_guard(root: Path, base: str, catalog_for) -> dict:
         if policy["mode"] == "signed":
             _extract_base(root, base, base_root, [PurePosixPath(policy["allowed_signers"]).as_posix()])
         fingerprint = profile_fingerprint(profile, catalog)
-        earlier = _earlier_tasks(base_state / DECISIONS_DIR)
+        earlier = _earlier_records(base_state / DECISIONS_DIR)
         for relative in records:
             path = root / relative
             if not path.is_file():
@@ -666,9 +775,18 @@ def ci_guard(root: Path, base: str, catalog_for) -> dict:
                 problems.append(problem)
             else:
                 valid.append(record["task"])
+                covers[record["task"]] = (earlier.get(record["task"]) or record).get("files")
     if work and not records:
         problems.append("The changes come with no exported decision (openguildkit task export ID).")
     elif work and not valid and not problems:
         problems.append("No exported decision in this change is valid.")
+    elif work and valid and (uncovered := _uncovered(work, covers)):
+        problems.append(uncovered)
+    if policy["mode"] != "signed" and guard_mode(profile) != "off":
+        if require_signed:
+            problems.append(f"{LOCAL_RECORDS}: --require-signed fails this check until they are.")
+        else:
+            notes.append(f"{LOCAL_RECORDS}, or pass --require-signed to fail this check until they are.")
     ok = not problems and (not work or bool(valid))
-    return {"mode": guard_mode(profile), "changed": len(work), "decisions": valid, "problems": problems, "ok": ok}
+    return {"mode": guard_mode(profile), "changed": len(work), "decisions": valid, "problems": problems, "notes": notes,
+            "ok": ok}

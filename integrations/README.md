@@ -98,17 +98,28 @@ openguildkit task authorize ID --action external-api --target api.example.com --
 - in `enforce`, a hook that cannot decide refuses the edit with a one-line reason: an unreadable profile, an input that names no file, or any error. `observe` reports the same reason and lets the edit through. When the profile itself cannot be read, the guard cannot know its mode: it refuses the edit as in `enforce` and says so. A broken task record covers nothing and does not stop the hook.
 - writes through the shell (`sed -i`, `echo > file`, a script) do not go through the hook. In Claude Code the `Edit(/...)` deny rules still cover redirections, `tee` and `sed` on the protected files, not a script. The CI check below is the backstop for the rest.
 
-`openguildkit guard` without options prints the same answer for a person, including that coverage is not tied to files; `--json` lists each covering task with its approval date and a `stale` flag. In CI, export the decision of the approved task with `openguildkit task export ID`: it writes `.openguildkit/decisions/ID.json` with the brief, the verdict of each board, the sealed approval and the approval payload the seal covers (and the signature when there is one), without evidence or internal notes. Commit it with the change. [`github/openguildkit-guard.yml`](github/openguildkit-guard.yml) runs `openguildkit guard --ci --base BASE`, which:
+`openguildkit guard` without options prints the same answer for a person, including that coverage is not tied to files; `--json` lists each covering task with its approval date and a `stale` flag. In CI, export the decision of the approved task with `openguildkit task export ID` once the work is committed: it writes `.openguildkit/decisions/ID.json` with the brief, the verdict of each board, the sealed approval and the approval payload the seal covers (and the signature when there is one), the blockers and how they were cleared, and the files Git tracks that changed since the approved revision, without evidence or internal notes. Commit it with the change. [`github/openguildkit-guard.yml`](github/openguildkit-guard.yml) runs `openguildkit guard --ci --base BASE`, which:
 
 - reads the guard mode, the profile, the catalog lock and the allowed signers from the base revision, so a pull request that sets `"guard": "observe"` or swaps the signers is still judged by the base rules;
-- counts every changed file as work, `.openguildkit/project.json` and the catalog lock included, except the decision records themselves;
+- counts every changed file as work, `.openguildkit/project.json` and the catalog lock included, except the decision records themselves, and requires each one in the `files` of a valid record the pull request brings: a record copied into another change does not cover it, and the check names the files no record lists;
 - recomputes each record's seal from its payload, checks that the payload names the record's task and the base rules, and verifies the signature when the base profile requires signed approvals;
-- refuses a record whose task already had a decision on the base revision: new work needs a new task;
+- refuses a record whose task already had another approval on the base revision: new work needs a new task. A record of the same approval (same seal, same consultation) passes, so the record that adds the completion can come in a pull request of its own; it covers only the files its base version listed;
+- with local approvals on the base revision, says that the records cannot be verified: whoever can write a record can recompute its seal. `guard --ci --require-signed` fails the check until the base revision requires [signed approvals](../docs/workflow.md#signed-approvals);
+- names a changed workflow file that runs the check (see [Protect the check](#protect-the-check));
 - names the task whose decision covers the change, and reports a malformed record as an `OpenGuildKit:` error with exit code 1.
+
+The list of files is written after the approval and sealed by nobody: it stops a record from being reused as it is, and the reviewer compares it with the diff of the pull request.
 
 The pull request that adds the profile runs on a base revision without one: the check reports mode `off` and enforces nothing, which is expected, and says which mode the next pull requests get once the profile is merged (the `"guard"` value of the change).
 
 A change that is not covered is reported, and fails in `enforce` mode; in `observe` the report says it is flagged, not blocking, and the check passes. To change the profile itself, have the task approved before editing `.openguildkit/project.json`, then export its decision: it carries the base rules the CI check compares with.
+
+### Protect the check
+
+The template runs on `pull_request`, and GitHub runs the copy of the workflow file that the pull request carries: a pull request that edits `.github/workflows/openguildkit-guard.yml` can drop the step that judges it. `guard --ci` names a changed workflow file that runs `openguildkit guard --ci` (on the base revision or in the change), but an edited copy may never run it. Keep pull requests from changing the check:
+
+- list `.github/workflows/` in `.github/CODEOWNERS`, with the allowed signers file of a project with signed approvals, and require a review from the code owners in the branch protection or ruleset of the default branch;
+- or require the workflow itself from the default branch: a ruleset with the rule "Require workflows to pass before merging", naming this workflow file, runs that copy whatever the pull request contains.
 
 ## Try the hooks by hand
 

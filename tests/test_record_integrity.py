@@ -118,6 +118,41 @@ class RecordIntegrityTests(SharingCase):
         self.assertIn(row["problem"]["kind"], ("earlier-record", "earlier-rules"))
         self.assertEqual(json.loads(self.run_cli("task", "show", TASK)[0])["task"], TASK)
 
+    def test_the_record_lists_each_blocker_with_its_phase_and_how_it_was_cleared(self):
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
+        write_json(self.root / "answers.json", {**json.loads((EXAMPLE / "answers.json").read_text()),
+                                                "outcome": "Customers see each request's status."})
+        self.run_cli("task", "consult", TASK, "--answers", self.root / "answers.json")
+        template = json.loads(self.run_cli("task", "template", TASK)[0])
+        review = {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text())}
+        security = next(entry for entry in review["boards"] if entry["id"] == "security")
+        security["challenge"]["verdict"] = "block"
+        security["challenge"]["blockers"] = [
+            {"finding": "No test proves a user cannot read another user's request.", "owner": "Security lead",
+             "clears_when": "An automated test with two synthetic accounts passes."},
+            {"finding": "Retention of request history is not decided.", "owner": "Data protection officer",
+             "clears_when": "The retention period is recorded.", "phase": "verification"},
+        ]
+        write_json(self.root / "review.json", review)
+        self.run_cli("task", "review", TASK, "--file", self.root / "review.json")
+        (self.root / "README.md").write_text("Two-account access test: passed.\n", encoding="utf-8")
+        clear = ("task", "clear", TASK, "--by", "Camille", "--evidence", "README.md")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            self.run_cli(*clear[:3], "security:1", *clear[3:], "--supports", "The two-account test passes.")
+            self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed")
+        first, second = self.exported()["blockers"]
+        self.assertEqual({key: first[key] for key in ("id", "board", "phase", "owner")},
+                         {"id": "security:1", "board": "security", "phase": "approval", "owner": "Security lead"})
+        self.assertEqual({key: first["resolution"][key] for key in ("kind", "by", "evidence", "supports", "recorded_from")},
+                         {"kind": "cleared", "by": "Camille", "evidence": "README.md",
+                          "supports": "The two-account test passes.", "recorded_from": "terminal"})
+        self.assertEqual((second["phase"], second["resolution"]), ("verification", None))
+        self.assertEqual(second["finding"], "Retention of request history is not decided.")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            self.run_cli(*clear[:3], "security:2", *clear[3:], "--supports", "Retention is recorded.")
+        self.assertEqual(self.exported()["blockers"][1]["resolution"]["supports"], "Retention is recorded.")
+        self.run_cli("check")
+
     def test_a_record_from_an_earlier_release_loads_as_unverified(self):
         self.approved()
         write_json(self.record_path(), earlier_release_record(self))
@@ -145,6 +180,8 @@ class CiRecordTests(SharingCase):
         self.git("commit", "-q", "-m", "base")
         self.git("checkout", "-q", "-b", "feature")
         path = self.state / "decisions" / f"{TASK}.json"
+        (self.root / "app.py").write_text("print('status')\n", encoding="utf-8")
+        self.git("add", "app.py")
         if record is None:
             self.approved()
             self.run_cli("task", "export", TASK)
@@ -152,15 +189,72 @@ class CiRecordTests(SharingCase):
         if record_change:
             record_change(record)
         write_json(path, record)
-        (self.root / "app.py").write_text("print('status')\n", encoding="utf-8")
-        self.git("add", "-A")
+        self.git("add", "app.py", ".openguildkit/decisions")
         self.git("commit", "-q", "-m", "change")
         return json.loads(self.run_cli("guard", "--ci", "--base", "main", "--json")[0])
+
+    def ci(self):
+        return json.loads(self.run_cli("guard", "--ci", "--base", "main", "--json")[0])
+
+    def commit(self, message, *paths):
+        self.git("add", *paths)
+        self.git("commit", "-q", "-m", message)
+
+    def merged_approval(self):
+        """A task approved, its work and its record merged into main, then a branch to complete it."""
+        self.git("init", "-q", "-b", "main")
+        self.commit("base", "-A")
+        self.git("checkout", "-q", "-b", "feature")
+        self.approved()
+        (self.root / "app.py").write_text("print('status')\n", encoding="utf-8")
+        self.git("add", "app.py")
+        self.run_cli("task", "export", TASK)
+        self.commit("the approved work", "app.py", ".openguildkit/decisions")
+        self.git("checkout", "-q", "main")
+        self.git("merge", "-q", "--ff-only", "feature")
+        self.git("checkout", "-q", "-b", "completion")
 
     def test_ci_accepts_an_intact_record(self):
         if shutil.which("git") is None:
             self.skipTest("needs git")
-        self.assertEqual(self.ci_with()["decisions"], [TASK])
+        result = self.ci_with()
+        self.assertEqual(result["decisions"], [TASK])
+        self.assertEqual((result["problems"], result["ok"]), ([], True))
+
+    def test_ci_accepts_a_record_that_only_adds_the_completion_of_an_approval_on_the_base(self):
+        if shutil.which("git") is None:
+            self.skipTest("needs git")
+        self.merged_approval()
+        message = self.complete()
+        self.assertIn("in a pull request of its own", message)
+        self.run_cli("task", "export", TASK)
+        self.commit("completion", ".openguildkit/decisions")
+        record = read_json(self.state / "decisions" / f"{TASK}.json")
+        self.assertTrue(record["completed"])
+        self.assertEqual(record["files"], ["app.py"])
+        result = self.ci()
+        self.assertEqual((result["decisions"], result["problems"], result["ok"]), ([TASK], [], True))
+
+    def test_ci_refuses_a_new_approval_under_an_id_the_base_already_used(self):
+        if shutil.which("git") is None:
+            self.skipTest("needs git")
+        self.merged_approval()
+        self.git("checkout", "-q", "main")
+        self.change_rules()
+        self.commit("new rules", "-u")
+        self.git("checkout", "-q", "-b", "reapproval")
+        self.run_cli("task", "consult", TASK, "--answers", self.root / "answers.json")
+        template = json.loads(self.run_cli("task", "template", TASK)[0])
+        write_json(self.root / "review.json",
+                   {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text())})
+        self.run_cli("task", "review", TASK, "--file", self.root / "review.json")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed again")
+        self.run_cli("task", "export", TASK)
+        self.commit("a new approval", ".openguildkit/decisions")
+        result = self.ci()
+        self.assertEqual(result["decisions"], [])
+        self.assertIn(f"task {TASK} already had another approval on the base revision", result["problems"][0])
 
     def test_ci_refuses_a_forged_record(self):
         if shutil.which("git") is None:
