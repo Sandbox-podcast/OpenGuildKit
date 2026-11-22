@@ -449,11 +449,12 @@ def require_approval(task: dict, profile: dict, catalog: dict, root: Path | None
 
 def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
                since: str | None = None, until: str | None = None, *, profile: dict | None = None,
-               catalog: dict | None = None, root: Path | None = None) -> list[dict]:
+               catalog: dict | None = None, root: Path | None = None, read: dict | None = None) -> list[dict]:
     """Every task of the project with its status, decision owner and next open point.
 
     With the profile and the catalog, each approval is judged by approval_problem, and with the project root its
-    signature and revision too (one git call for every approval).
+    signature and revision too (one git call for every approval). A dict given as read receives every task record
+    read, by ID, so that a caller that needs them too does not read them again.
     """
     directory = state / "tasks"
     rows = []
@@ -466,6 +467,8 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
         except ValueError as error:
             entries.append({"id": path.stem, "status": "unreadable", "next": str(error)})
             continue
+        if read is not None:
+            read[task["id"]] = task
         day = task["created_at"][:10]
         if status and task["status"] != status:
             continue

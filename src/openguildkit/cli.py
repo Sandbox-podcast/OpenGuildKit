@@ -588,8 +588,10 @@ def _print_decision_rows(rows: list[dict]) -> None:
         print(f"    {'; '.join(notes)}")
 
 
-def _sharing_warnings(root: Path, state: Path, records: list[dict]) -> list[str]:
-    """What git will not carry to a teammate: tasks named only by exported records, evidence left out of the repository."""
+def _sharing_warnings(root: Path, state: Path, records: list[dict], tasks: dict | None = None) -> list[str]:
+    """What git will not carry to a teammate: tasks named only by exported records, evidence left out of the repository.
+
+    tasks holds the task records the caller already read, by ID; without it they are read here."""
     warnings = []
     absent = sorted({row["task"] for row in records if row["status"] != "unreadable" and not row["local"]})
     if absent:
@@ -599,11 +601,14 @@ def _sharing_warnings(root: Path, state: Path, records: list[dict]) -> list[str]
         )
     warnings += [_clash_message(task_id, path) for task_id, path in _id_clashes(root, state).items()]
     cited = {}
-    for path in sorted((state / "tasks").glob("*.json")):  # An unreadable record is reported by check already.
-        try:
-            cited[path.stem] = cited_evidence(read_task(state, path.stem))
-        except ValueError:
-            continue
+    if tasks is not None:
+        cited = {task_id: cited_evidence(task) for task_id, task in sorted(tasks.items())}
+    else:
+        for path in sorted((state / "tasks").glob("*.json")):  # An unreadable record is reported by check already.
+            try:
+                cited[path.stem] = cited_evidence(read_task(state, path.stem))
+            except ValueError:
+                continue
     return warnings + _unshared_evidence(root, cited)
 
 
@@ -2528,8 +2533,9 @@ def _run(args) -> int | None:
             _warn_unsigned(profile)
             # An approval that no longer holds is an error until the task is consulted again; a completed task
             # whose rules changed afterwards is history and stays quiet here (task list shows it).
+            read = {}
             failing = [f"{row['id']}: {row['next']}" for row in list_tasks(state, profile=profile, catalog=catalog,
-                                                                         root=root)
+                                                                         root=root, read=read)
                        if row["status"] == "unreadable" or row.get("severity") == "error"]
             records = exported_decisions(root, state, profile, Fingerprints(profile, catalog))
             failing += [row["problem"]["message"] for row in records
@@ -2558,7 +2564,7 @@ def _run(args) -> int | None:
                       f"{'record' if len(undated) == 1 else 'records'}: {', '.join(undated)}. Open each page, then "
                       'add "checked": "YYYY-MM-DD" after its url with that day\'s date (see docs/catalog-format.md).',
                       file=sys.stderr)
-            for warning in _sharing_warnings(root, state, records):
+            for warning in _sharing_warnings(root, state, records, read):
                 print(f"OpenGuildKit: {warning}", file=sys.stderr)
             if failing:
                 raise ValueError(f"The instructions match the project profile, but {len(failing)} "

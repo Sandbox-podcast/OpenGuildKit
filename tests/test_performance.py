@@ -162,7 +162,7 @@ class CatalogLoadTests(unittest.TestCase):
 class CheckReadTests(unittest.TestCase):
     """check, which CI and the agent run at the start of a session, reads the task records as few times as it can."""
 
-    def test_check_reads_each_task_record_for_its_approval_and_once_more_for_its_evidence(self):
+    def test_check_reads_each_task_record_once(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             write_json(root / "profile.json", json.loads((bench.EXAMPLE / "profile.json").read_text(encoding="utf-8")))
@@ -183,7 +183,7 @@ class CheckReadTests(unittest.TestCase):
                     contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as error:
                 self.assertEqual(main(["--project", str(root), "check"]), 0, error.getvalue())
         self.assertEqual(sorted(set(reads)), [f"task-{index}" for index in range(6)])
-        self.assertLessEqual(max(reads.count(task_id) for task_id in set(reads)), 2)
+        self.assertEqual(max(reads.count(task_id) for task_id in set(reads)), 1)
 
 
 def python(*arguments, stdin=""):
