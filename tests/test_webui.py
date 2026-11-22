@@ -313,12 +313,138 @@ class WebInterfaceTests(unittest.TestCase):
                                       uploads={"answers.json": "{}"})
         self.assertEqual(status, 200)
         self.assertNotIn("command", result)
+        self.assertNotIn("reason", result)
         with patch("openguildkit.cli.main", side_effect=lambda argv: print(
                 "OpenGuildKit: To dismiss X, a person runs the command at an interactive terminal.",
                 file=__import__("sys").stderr) or 1):
             status, result = self.run_cli("alerts", "set", "npm:x:1", "--status", "dismissed", "--by", "Bot", "--reason", "noise")
         self.assertEqual(result["code"], 1)
         self.assertIn("alerts set npm:x:1 --status dismissed", result["command"])
+        self.assertEqual(result["reason"], "alert-status-at-terminal")
+
+    def test_the_command_the_cli_names_in_its_refusal_is_the_one_to_type(self):
+        message = ("OpenGuildKit: 1 data protection, security or AI point(s) are skipped, failed or declared not "
+                   "applicable as a pack. A person confirms closing over them: openguildkit task complete "
+                   "request-history --by NAME, at a terminal.")
+        with patch("openguildkit.cli.main", side_effect=lambda argv: print(message, file=__import__("sys").stderr) or 1):
+            status, result = self.run_cli("task", "complete", "request-history")
+        self.assertEqual((status, result["code"], result["reason"]), (200, 1, "complete-at-terminal"))
+        self.assertTrue(result["command"].startswith("openguildkit --project "), result["command"])
+        self.assertTrue(result["command"].endswith(" task complete request-history --by NAME"), result["command"])
+        batch = self.request("/api/run", {"batch": {"close": ["task", "complete", "request-history", "--by", "Camille"]}})
+        closing = json.loads(batch[2])["results"]["close"]
+        self.assertEqual(closing["reason"], "complete-at-terminal")
+        self.assertTrue(closing["command"].endswith(" task complete request-history --by Camille"), closing["command"])
+
+    def test_the_named_command_keeps_its_words_and_stops_at_the_end_of_the_sentence(self):
+        from openguildkit.webui import named_command
+
+        self.assertEqual(named_command("A person confirms closing over them: openguildkit task complete t1 --by NAME, "
+                                       "at a terminal."), ["task", "complete", "t1", "--by", "NAME"])
+        self.assertEqual(named_command("Run openguildkit task revoke t1 --by NAME --reason WHY."),
+                         ["task", "revoke", "t1", "--by", "NAME", "--reason", "WHY"])
+        self.assertIsNone(named_command("To dismiss X, a person runs the command at an interactive terminal."))
+
+    def test_every_refusal_carries_a_stable_code(self):
+        from types import SimpleNamespace
+
+        from openguildkit.webui import REFUSALS, Refused, check_request
+
+        self.run_cli("task", "new", "Show request status", "--id", "request-status")
+        (self.root / ".env").write_text("A=1", encoding="utf-8")
+        (self.root / "notes.py").write_text("x = 1\n", encoding="utf-8")
+        (self.root / "big.txt").write_text("x" * (2 * 1024 * 1024 + 1), encoding="utf-8")
+        seen = {}
+
+        def expect(code, status, path, body=None, headers=None, method=None):
+            answer_status, _, raw = self.request(path, body, headers, method)
+            answer = json.loads(gzip.decompress(raw) if raw[:2] == b"\x1f\x8b" else raw)
+            self.assertEqual((answer_status, answer.get("reason")), (status, code), answer)
+            self.assertIn("error", answer)
+            seen[code] = True
+
+        def run(code, *argv, status=403):
+            expect(code, status, "/api/run", {"argv": list(argv)})
+
+        run("approve-at-terminal", "task", "decide", "request-status", "--approve", "--by", "C", "--reason", "R")
+        run("cannot-run-at-terminal", "task", "verify", "request-status", "--cannot-run", "command:1", "--by", "C",
+            "--reason", "R")
+        run("clear-at-terminal", "task", "clear", "request-status", "security:1", "--evidence", "x", "--supports", "y",
+            "--by", "C")
+        run("complete-at-terminal", "task", "complete", "request-status", "--by", "C")
+        run("live-plan-at-terminal", "tools", "apply", "sentry", "--host", "codex")
+        run("waiver-at-terminal", "task", "waive", "request-status", "security:1", "--by", "C", "--reason", "R",
+            "--scope", "S", "--until", "2026-12-01")
+        run("external-action-at-terminal", "task", "authorize", "request-status", "--action", "send-message",
+            "--target", "Brevo", "--allow", "--by", "C", "--reason", "R")
+        run("alert-accept-at-terminal", "alerts", "accept", "npm:semver:1", "--by", "C", "--reason", "R")
+        run("alert-severity-at-terminal", "alerts", "severity", "npm:semver:1", "--level", "high", "--by", "C",
+            "--reason", "R")
+        run("send-setup-answers", "init", status=400)
+        run("send-task-answers", "task", "consult", "request-status", status=400)
+        run("not-in-page", "ui")
+        run("not-in-page", "guard", "--hook", "prompt")
+        run("outside-project", "task", "export", "request-status", "--output", "../outside.json", status=400)
+        run("outside-project", "task", "export", "request-status", "--output", ".git/record.json", status=400)
+        run("bad-request", "no-such-command", status=400)
+        expect("weakens-protection", 403, "/api/profile/save", {"text": json.dumps(
+            {**json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8")),
+             "research": "public-sources"})})
+        expect("invalid-profile", 400, "/api/profile/save", {"text": "[1, 2]"})
+        expect("invalid-profile", 400, "/api/profile/save", {"text": "{not json"})
+        expect("secret-file", 403, "/api/files/read", {"path": ".env"})
+        expect("outside-project", 403, "/api/files/read", {"path": ".git/config"})
+        expect("outside-project", 400, "/api/files/read", {"path": "../x.json"})
+        expect("not-readable", 403, "/api/files/read", {"path": "notes.py"})
+        expect("too-large", 413, "/api/files/read", {"path": "big.txt"})
+        expect("not-in-page", 403, "/api/files/write", {"path": ".openguildkit/project.json", "text": "{}"})
+        expect("bad-request", 400, "/api/files/write", {"path": ".openguildkit/storybook/proposals.json", "text": "{x"})
+        expect("not-found", 404, "/api/unknown", {})
+        expect("not-found", 404, "/missing.js", method="GET")
+        expect("bad-request", 405, "/api/run", method="GET")
+        expect("bad-request", 400, "/api/run", ["task"])
+        expect("bad-request", 415, "/api/run", {"argv": ["check"]}, headers={"Content-Type": "text/plain"})
+        expect("too-large", 413, "/api/run", None, headers={"Content-Length": str(64 * 1024 * 1024)}, method="POST")
+        expect("foreign-page", 403, "/api/run", {"argv": ["check"]}, headers={"Origin": "https://evil.example"})
+        expect("foreign-page", 421, "/api/run", {"argv": ["check"]}, headers={"Host": "evil.example:80"})
+        expect("stale-token", 403, "/api/run", {"argv": ["check"]}, headers={"X-OGK-Token": "from-a-stopped-server"})
+        with patch.object(self.app, "handle", side_effect=RuntimeError("boom")):
+            expect("server-error", 500, "/api/run", {"argv": ["check"]})
+        uninitialized = self.root / ".openguildkit" / "project.json"
+        saved = uninitialized.read_text(encoding="utf-8")
+        uninitialized.unlink()
+        try:
+            expect("not-initialized", 409, "/api/profile/save", {"text": saved})
+        finally:
+            uninitialized.write_text(saved, encoding="utf-8")
+        status, _, body = self.request("/api/run", {"batch": {"ui": ["ui"]}})
+        self.assertEqual(json.loads(body)["results"]["ui"]["reason"], "not-in-page")
+        seen["not-in-page"] = True
+        # The withdrawal of an approval is refused like an approval; it is checked on the parsed command.
+        withdrawal = SimpleNamespace(command="task", action="revoke")
+        with self.assertRaises(Refused) as refused:
+            check_request(withdrawal, ["task", "revoke", "t1", "--by", "C", "--reason", "R"], self.root)
+        self.assertEqual(refused.exception.reason, "withdraw-at-terminal")
+        self.assertIn("task revoke t1", refused.exception.command)
+        seen["withdraw-at-terminal"] = True
+        # A refusal of the CLI itself that needs a terminal: the code follows the command the page sent.
+        terminal = "OpenGuildKit: a person runs the command at an interactive terminal."
+        with patch("openguildkit.cli.main", side_effect=lambda argv: print(terminal, file=__import__("sys").stderr) or 1):
+            for code, argv in (("alert-status-at-terminal", ["alerts", "set", "npm:x:1", "--status", "dismissed",
+                                                             "--by", "C", "--reason", "R"]),
+                               ("weakens-protection", ["profile", "set", "guard", "off", "--by", "C", "--reason", "R"]),
+                               ("person-at-terminal", ["host", "apply"])):
+                with self.subTest(code=code):
+                    self.assertEqual(self.run_cli(*argv)[1]["reason"], code)
+                    seen[code] = True
+        self.assertEqual(sorted(seen), sorted(REFUSALS))
+
+    def test_every_code_is_listed_in_the_interface_documentation(self):
+        from openguildkit.webui import REFUSALS
+
+        text = (Path(__file__).resolve().parents[1] / "web" / "docs" / "interface-projet.md").read_text(encoding="utf-8")
+        missing = [code for code in REFUSALS if f"`{code}`" not in text]
+        self.assertEqual(missing, [])
 
     def test_paths_stay_inside_the_project(self):
         self.run_cli("task", "new", "Show request status", "--id", "request-status")

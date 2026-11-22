@@ -37,6 +37,51 @@ WRITABLE_FILES = {".openguildkit/storybook/proposals.json"}
 SECRET_NAME = re.compile(r"(^\.env)|secret|credential|password|private[-_]?key|\.pem$|\.key$|id_rsa|id_ed25519", re.I)
 UPLOAD_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$")
 
+# Why the interface refuses a request: a stable code, sent as "reason" next to the English message, that the page
+# translates. The acts left to a person at a terminal come first; web/docs/interface-projet.md lists every code.
+REFUSALS = {
+    "approve-at-terminal": "Approving a task needs a person at a terminal, or a signature in a project with signed "
+                           "approvals.",
+    "withdraw-at-terminal": "Withdrawing an approval needs the person at a terminal.",
+    "cannot-run-at-terminal": "Declaring that a check command cannot run here, or withdrawing it, needs the person "
+                              "at a terminal.",
+    "clear-at-terminal": "Clearing a blocker without a signature needs the person at a terminal.",
+    "complete-at-terminal": "Closing a task over sensitive points needs the person at a terminal.",
+    "live-plan-at-terminal": "Applying a live MCP plan needs confirmation at a terminal.",
+    "waiver-at-terminal": "A waiver needs the named person at a terminal.",
+    "external-action-at-terminal": "Allowing an external action needs a person at a terminal.",
+    "alert-accept-at-terminal": "Accepting a confirmed alert needs a person at a terminal.",
+    "alert-severity-at-terminal": "Setting the severity of an alert needs a person at a terminal.",
+    "alert-status-at-terminal": "Dismissing a critical or high alert, or calling it a false positive, needs a person "
+                                "at a terminal.",
+    "weakens-protection": "A profile change that weakens a protection is the person's decision at an interactive "
+                          "terminal.",
+    "person-at-terminal": "Another decision the CLI leaves to a person at a terminal.",
+    "send-setup-answers": "Send the setup answers: the interface cannot answer terminal prompts.",
+    "send-task-answers": "Send the task answers: the interface cannot answer terminal prompts.",
+    "invalid-profile": "The profile sent is not a valid profile.",
+    "not-initialized": "The project is not initialized: set it up first.",
+    "outside-project": "A path leaves the project, or enters its .git folder.",
+    "secret-file": "The name of the file suggests a secret: the interface neither lists nor reads it.",
+    "not-readable": "The interface only reads Markdown, JSON, YAML and text files.",
+    "too-large": "The request or the file is too large.",
+    "not-in-page": "A command or a file that does not belong in a page.",
+    "stale-token": "Missing or invalid session token: the server was restarted. Reload the page.",
+    "foreign-page": "The request does not come from the interface's own page.",
+    "bad-request": "A malformed request.",
+    "not-found": "No such endpoint or file.",
+    "server-error": "The server failed while handling the request.",
+}
+# The acts a person records at a terminal, by command and action, with the code of their refusal.
+TERMINAL_ACTS = {
+    ("task", "decide"): "approve-at-terminal", ("task", "revoke"): "withdraw-at-terminal",
+    ("task", "verify"): "cannot-run-at-terminal", ("task", "clear"): "clear-at-terminal",
+    ("task", "complete"): "complete-at-terminal", ("task", "waive"): "waiver-at-terminal",
+    ("task", "authorize"): "external-action-at-terminal", ("tools", "apply"): "live-plan-at-terminal",
+    ("alerts", "accept"): "alert-accept-at-terminal", ("alerts", "severity"): "alert-severity-at-terminal",
+    ("alerts", "set"): "alert-status-at-terminal", ("task", "consult"): "send-task-answers",
+    ("init", None): "send-setup-answers",
+}
 # Commands the interface never runs. Each needs a person at a terminal, or does not belong in a page.
 DENIED_COMMANDS = {
     "ci-check": "ci-check evaluates a central rule in CI.",
@@ -51,12 +96,20 @@ CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
 
 
 class Refused(Exception):
-    """A request the interface will not run. `command` is what a person can type instead."""
+    """A request the interface will not run. `reason` is its code in REFUSALS; `command` is what a person can type
+    instead."""
 
-    def __init__(self, message: str, command: str | None = None, status: HTTPStatus = HTTPStatus.FORBIDDEN):
+    def __init__(self, message: str, command: str | None = None, status: HTTPStatus = HTTPStatus.FORBIDDEN, *,
+                 reason: str):
+        if reason not in REFUSALS:
+            raise ValueError(f"Unknown refusal code: {reason}")
         super().__init__(message)
         self.command = command
         self.status = status
+        self.reason = reason
+
+    def answer(self) -> dict:
+        return {"error": str(self), "command": self.command, "reason": self.reason}
 
 
 def _subcommand(args) -> str | None:
@@ -79,43 +132,65 @@ def terminal_command(root: Path, argv: list[str]) -> str:
     return " ".join(["openguildkit", "--project", _quote(str(root)), *(_quote(item) for item in argv)])
 
 
+def named_command(message: str) -> list[str] | None:
+    """The words of the command a CLI refusal names ("... openguildkit task complete t1 --by NAME, at a terminal."),
+    up to the end of its clause, or None when it names none."""
+    match = re.search(r"\bopenguildkit (.+)", message)
+    if match is None:
+        return None
+    words = []
+    for word in match.group(1).split():
+        words.append(word.rstrip(",;."))
+        if word.endswith((",", ";", ".")):
+            break
+    words = [word for word in words if word]
+    if "--project" in words[:1]:
+        words = words[2:]
+    return words or None
+
+
+def terminal_reason(args) -> str:
+    """The code of a refusal that leaves the act to a person at a terminal, from the command the page sent."""
+    if args.command == "profile":
+        return "weakens-protection"
+    return TERMINAL_ACTS.get((args.command, _subcommand(args)), "person-at-terminal")
+
+
+def _needs_person(args) -> bool:
+    """What the page never records, whatever the CLI would answer: each is the person's act at a terminal."""
+    command, action = args.command, _subcommand(args)
+    if command == "task":
+        return bool(action == "decide" and args.approve and not args.signature
+                    or action == "verify" and (args.cannot_run or args.withdraw)
+                    or action == "clear" and not args.signature and not args.payload
+                    or action == "complete" and args.by
+                    or action in ("waive", "revoke")
+                    or action == "authorize" and args.allow)
+    return bool(command == "tools" and action == "apply" and not args.mock
+                or command == "alerts" and action in ("accept", "severity"))
+
+
 def check_request(args, argv: list[str], root: Path) -> None:
     """Refuse what only a person at a terminal may record, and what does not belong in a page."""
     command = args.command
     if command in DENIED_COMMANDS:
-        raise Refused(DENIED_COMMANDS[command])
+        raise Refused(DENIED_COMMANDS[command], reason="not-in-page")
     action = _subcommand(args)
-    human = None
-    if command == "task" and action == "decide" and args.approve and not args.signature:
-        human = "Approving a task needs a person at a terminal, or a signature in a project with signed approvals."
-    elif command == "task" and action == "verify" and (args.cannot_run or args.withdraw):
-        human = "Declaring that a check command cannot run here, or withdrawing it, needs the person at a terminal."
-    elif command == "task" and action == "clear" and not args.signature and not args.payload:
-        human = "Clearing a blocker without a signature needs the person at a terminal."
-    elif command == "task" and action == "complete" and args.by:
-        human = "Closing a task over sensitive points needs the person at a terminal."
-    elif command == "tools" and action == "apply" and not args.mock:
-        human = "Applying a live MCP plan needs confirmation at a terminal."
-    elif command == "task" and action == "waive":
-        human = "A waiver needs the named person at a terminal."
-    elif command == "task" and action == "authorize" and args.allow:
-        human = "Allowing an external action needs a person at a terminal."
-    elif command == "alerts" and action == "accept":
-        human = "Accepting a confirmed alert needs a person at a terminal."
-    elif command == "alerts" and action == "severity":
-        human = "Setting the severity of an alert needs a person at a terminal."
-    if human:
-        raise Refused(f"{human} {HUMAN_ONLY_TEXT}", terminal_command(root, argv))
+    if _needs_person(args):
+        reason = terminal_reason(args)
+        raise Refused(f"{REFUSALS[reason]} {HUMAN_ONLY_TEXT}", terminal_command(root, argv), reason=reason)
     if command == "guard" and args.hook:
-        raise Refused("guard --hook reads a host hook's input and runs inside the agent host.")
+        raise Refused("guard --hook reads a host hook's input and runs inside the agent host.", reason="not-in-page")
     if command == "tools" and action == "mock":
-        raise Refused("tools mock runs an MCP server on stdio for the agent host; use tools call from the page.")
+        raise Refused("tools mock runs an MCP server on stdio for the agent host; use tools call from the page.",
+                      reason="not-in-page")
     if command == "integrations" and args.user:
-        raise Refused("The interface only installs agent files in this project, not in the home folder.")
+        raise Refused("The interface only installs agent files in this project, not in the home folder.",
+                      reason="not-in-page")
     if command == "init" and not (args.questions or args.answers):
-        raise Refused("Send the setup answers: the interface cannot answer terminal prompts.", status=HTTPStatus.BAD_REQUEST)
+        raise Refused(REFUSALS["send-setup-answers"], status=HTTPStatus.BAD_REQUEST, reason="send-setup-answers")
     if command == "task" and action == "consult" and not args.answers:
-        raise Refused("Send the task answers: the interface cannot answer terminal prompts.", status=HTTPStatus.BAD_REQUEST)
+        raise Refused(REFUSALS["send-task-answers"], status=HTTPStatus.BAD_REQUEST, reason="send-task-answers")
 
 
 def _inside(root: Path, value: Path | str, uploads: set[Path]) -> bool:
@@ -138,7 +213,7 @@ def check_paths(args, root: Path, uploads: set[Path]) -> None:
             path_like = isinstance(item, Path) or (name in ("log", "config_dir") and isinstance(item, str))
             if path_like and not _inside(root, item, uploads):
                 raise Refused(f"--{name.replace('_', '-')} must name a file inside the project: {item}",
-                              status=HTTPStatus.BAD_REQUEST)
+                              status=HTTPStatus.BAD_REQUEST, reason="outside-project")
 
 
 def _files_signature(folder: Path | None) -> tuple:
@@ -238,7 +313,8 @@ def _without(data, keys: set[str]):
 def _options(body: dict) -> dict:
     omit = body.get("omit")
     if omit is not None and (not isinstance(omit, list) or len(omit) > 20 or not all(isinstance(k, str) for k in omit)):
-        raise Refused("omit must be a list of at most 20 key names.", status=HTTPStatus.BAD_REQUEST)
+        raise Refused("omit must be a list of at most 20 key names.", status=HTTPStatus.BAD_REQUEST,
+                      reason="bad-request")
     return {"keep_text": bool(body.get("raw")), "omit": omit}
 
 
@@ -259,7 +335,8 @@ class CliRunner:
                 return cli._parser().parse_args(["--project", str(self.root), *argv])
             except SystemExit:
                 message = err.getvalue().strip().splitlines()
-                raise Refused(message[-1] if message else "Invalid command.", status=HTTPStatus.BAD_REQUEST) from None
+                raise Refused(message[-1] if message else "Invalid command.", status=HTTPStatus.BAD_REQUEST,
+                              reason="bad-request") from None
 
     def run(self, argv: list[str], uploads: dict[str, str] | None = None, *, keep_text: bool = False,
             omit: list[str] | None = None) -> dict:
@@ -269,9 +346,11 @@ class CliRunner:
         from . import cli
 
         if not isinstance(argv, list) or not argv or not all(isinstance(item, str) for item in argv):
-            raise Refused("argv must be a non-empty list of strings.", status=HTTPStatus.BAD_REQUEST)
+            raise Refused("argv must be a non-empty list of strings.", status=HTTPStatus.BAD_REQUEST,
+                          reason="bad-request")
         if argv[0].startswith("-"):
-            raise Refused("Start with a command; the interface sets the project itself.", status=HTTPStatus.BAD_REQUEST)
+            raise Refused("Start with a command; the interface sets the project itself.", status=HTTPStatus.BAD_REQUEST,
+                          reason="bad-request")
         # sys.stdout, sys.stderr and sys.stdin are process-wide: parsing and running hold the same lock, or a
         # concurrent request would capture another command's output.
         typed = list(argv)
@@ -305,20 +384,23 @@ class CliRunner:
         for shown in {str(Path(folder).resolve()), folder}:
             stderr = stderr.replace(shown, "<upload>")
         result = {"code": code, "stdout": stdout, "stderr": stderr, "json": data}
-        # Some decisions need a person at a terminal only in some cases (dismissing a critical alert):
-        # the CLI says so, and the page shows the command to type.
-        if code != 0 and TERMINAL_NEEDED.search(stderr):
-            result["command"] = terminal_command(self.root, typed)
+        # Some decisions need a person at a terminal only in some cases (dismissing a critical alert): the CLI says
+        # so, and the page shows the command to type, the one the CLI names when it names one.
+        refusal = next((line for line in stderr.splitlines() if TERMINAL_NEEDED.search(line)), None)
+        if code != 0 and refusal:
+            result["command"] = terminal_command(self.root, named_command(refusal) or typed)
+            result["reason"] = terminal_reason(args)
         return result
 
     @staticmethod
     def _with_uploads(argv: list[str], uploads: dict[str, str], folder: Path) -> tuple[list[str], set[Path]]:
         if not isinstance(uploads, dict):
-            raise Refused("uploads must be an object of file names and texts.", status=HTTPStatus.BAD_REQUEST)
+            raise Refused("uploads must be an object of file names and texts.", status=HTTPStatus.BAD_REQUEST,
+                          reason="bad-request")
         written: dict[str, Path] = {}
         for name, text in uploads.items():
             if not isinstance(name, str) or not UPLOAD_NAME.match(name) or not isinstance(text, str):
-                raise Refused(f"Invalid upload: {name!r}", status=HTTPStatus.BAD_REQUEST)
+                raise Refused(f"Invalid upload: {name!r}", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
             path = folder / name
             path.write_text(text, encoding="utf-8", newline="")
             written[name] = path.resolve()
@@ -327,7 +409,7 @@ class CliRunner:
             if item.startswith("@upload:"):
                 name = item.removeprefix("@upload:")
                 if name not in written:
-                    raise Refused(f"No upload named {name}.", status=HTTPStatus.BAD_REQUEST)
+                    raise Refused(f"No upload named {name}.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
                 item = str(written[name])
             result.append(item)
         return result, set(written.values())
@@ -341,14 +423,19 @@ class ProjectFiles:
 
     def _resolve(self, relative: str) -> Path:
         if not isinstance(relative, str) or not relative or Path(relative).is_absolute() or "\\" in relative:
-            raise Refused("Give a path relative to the project, with forward slashes.", status=HTTPStatus.BAD_REQUEST)
+            raise Refused("Give a path relative to the project, with forward slashes.", status=HTTPStatus.BAD_REQUEST,
+                          reason="bad-request")
         target = (self.root / relative).resolve()
         try:
             parts = target.relative_to(self.root).parts
         except ValueError:
-            raise Refused("The path leaves the project.", status=HTTPStatus.BAD_REQUEST) from None
-        if ".git" in parts or any(SECRET_NAME.search(part) for part in parts):
-            raise Refused("The interface does not read this path.")
+            raise Refused("The path leaves the project.", status=HTTPStatus.BAD_REQUEST,
+                          reason="outside-project") from None
+        if ".git" in parts:
+            raise Refused("The interface does not read or write inside .git.", reason="outside-project")
+        if any(SECRET_NAME.search(part) for part in parts):
+            raise Refused("The name of this path suggests a secret: the interface does not read it.",
+                          reason="secret-file")
         return target
 
     def list(self, relative: str) -> list[dict]:
@@ -367,25 +454,27 @@ class ProjectFiles:
     def read(self, relative: str) -> dict:
         target = self._resolve(relative)
         if target.suffix.lower() not in READABLE_SUFFIXES:
-            raise Refused("The interface only reads Markdown, JSON, YAML and text files.")
+            raise Refused(REFUSALS["not-readable"], reason="not-readable")
         if not target.exists():
             # A file a project has not created yet (proposals, a dossier) is an answer, not an error.
             return {"path": relative, "text": None, "missing": True}
         if not target.is_file():
-            raise Refused(f"{relative} is not a file.", status=HTTPStatus.BAD_REQUEST)
+            raise Refused(f"{relative} is not a file.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
         if target.stat().st_size > MAX_FILE:
-            raise Refused("The file is larger than 2 MB.", status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+            raise Refused("The file is larger than 2 MB.", status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                          reason="too-large")
         return {"path": relative, "text": target.read_text(encoding="utf-8", errors="replace")}
 
     def write(self, relative: str, text: str) -> dict:
         if relative not in WRITABLE_FILES:
-            raise Refused("The interface only writes the Storybook proposals; the commands write everything else.")
+            raise Refused("The interface only writes the Storybook proposals; the commands write everything else.",
+                          reason="not-in-page")
         if not isinstance(text, str):
-            raise Refused("text must be a string.", status=HTTPStatus.BAD_REQUEST)
+            raise Refused("text must be a string.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
         try:
             json.loads(text)
         except ValueError as error:
-            raise Refused(f"Invalid JSON: {error}", status=HTTPStatus.BAD_REQUEST) from None
+            raise Refused(f"Invalid JSON: {error}", status=HTTPStatus.BAD_REQUEST, reason="bad-request") from None
         from .storage import write_text
 
         target = self._resolve(relative)
@@ -440,6 +529,9 @@ class Handler(BaseHTTPRequestHandler):
         body = self._compressed(json.dumps(data, ensure_ascii=False).encode("utf-8"), extra)
         self._send(status, body, "application/json; charset=utf-8", extra)
 
+    def _refuse(self, refusal: Refused) -> None:
+        self._json(refusal.status, refusal.answer())
+
     def _host_allowed(self) -> bool:
         return (self.headers.get("Host") or "").lower() in self.app.hosts
 
@@ -448,14 +540,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):  # noqa: N802
         if not self._host_allowed():
-            self._json(HTTPStatus.MISDIRECTED_REQUEST, {"error": "Unknown host."})
+            self._refuse(Refused("Unknown host.", status=HTTPStatus.MISDIRECTED_REQUEST, reason="foreign-page"))
             return
         path = urlsplit(self.path).path
         if path == "/api/session":
             self._json(HTTPStatus.OK, self.app.session())
             return
         if path.startswith("/api/"):
-            self._json(HTTPStatus.METHOD_NOT_ALLOWED, {"error": "Use POST for the API."})
+            self._refuse(Refused("Use POST for the API.", status=HTTPStatus.METHOD_NOT_ALLOWED, reason="bad-request"))
             return
         self._static(path)
 
@@ -474,7 +566,7 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             target = front / "missing"
         if not target.is_file():
-            self._json(HTTPStatus.NOT_FOUND, {"error": "Not found."})
+            self._refuse(Refused("Not found.", status=HTTPStatus.NOT_FOUND, reason="not-found"))
             return
         body = target.read_bytes()
         if target.name == "index.html":
@@ -491,38 +583,38 @@ class Handler(BaseHTTPRequestHandler):
         self._send(HTTPStatus.OK, body, kind, extra)
 
     def do_POST(self):  # noqa: N802
+        try:
+            body = self._body()
+            self._json(HTTPStatus.OK, self.app.handle(urlsplit(self.path).path, body))
+        except Refused as refusal:
+            self._refuse(refusal)
+        except Exception as error:  # noqa: BLE001 - report to the page instead of dropping the connection
+            self._refuse(Refused(f"{type(error).__name__}: {error}", status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                                 reason="server-error"))
+
+    def _body(self) -> dict:
+        """The JSON object a request of the interface's own page sends, with its origin and session token."""
         if not self._host_allowed():
-            self._json(HTTPStatus.MISDIRECTED_REQUEST, {"error": "Unknown host."})
-            return
+            raise Refused("Unknown host.", status=HTTPStatus.MISDIRECTED_REQUEST, reason="foreign-page")
         if (self.headers.get("Origin") or "").lower() not in self.app.origins:
-            self._json(HTTPStatus.FORBIDDEN, {"error": "Requests must come from the interface's own page."})
-            return
+            raise Refused("Requests must come from the interface's own page.", reason="foreign-page")
         if not secrets.compare_digest(self.headers.get("X-OGK-Token") or "", self.app.token):
-            self._json(HTTPStatus.FORBIDDEN, {"error": "Missing or invalid session token. Reload the page."})
-            return
+            raise Refused("Missing or invalid session token. Reload the page.", reason="stale-token")
         if not (self.headers.get("Content-Type") or "").startswith("application/json"):
-            self._json(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {"error": "Send JSON."})
-            return
+            raise Refused("Send JSON.", status=HTTPStatus.UNSUPPORTED_MEDIA_TYPE, reason="bad-request")
         try:
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:
             length = -1
         if length < 0 or length > MAX_BODY:
-            self._json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "The request is too large."})
-            return
+            raise Refused("The request is too large.", status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE, reason="too-large")
         try:
             body = json.loads(self.rfile.read(length) or b"{}")
-            if not isinstance(body, dict):
-                raise ValueError("not an object")
         except ValueError:
-            self._json(HTTPStatus.BAD_REQUEST, {"error": "The body is not a JSON object."})
-            return
-        try:
-            self._json(HTTPStatus.OK, self.app.handle(urlsplit(self.path).path, body))
-        except Refused as refusal:
-            self._json(refusal.status, {"error": str(refusal), "command": refusal.command})
-        except Exception as error:  # noqa: BLE001 - report to the page instead of dropping the connection
-            self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"{type(error).__name__}: {error}"})
+            body = None
+        if not isinstance(body, dict):
+            raise Refused("The body is not a JSON object.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
+        return body
 
 
 class WebApp:
@@ -560,7 +652,8 @@ class WebApp:
             if "batch" in body:
                 batch = body["batch"]
                 if not isinstance(batch, dict) or len(batch) > 40:
-                    raise Refused("batch must be an object of at most 40 commands.", status=HTTPStatus.BAD_REQUEST)
+                    raise Refused("batch must be an object of at most 40 commands.", status=HTTPStatus.BAD_REQUEST,
+                                  reason="bad-request")
                 options = _options(body)
                 results = {}
                 for key, argv in batch.items():
@@ -568,7 +661,7 @@ class WebApp:
                         results[key] = self.runner.run(argv, **options)
                     except Refused as refusal:
                         results[key] = {"code": 1, "stdout": "", "stderr": str(refusal), "json": None,
-                                        "command": refusal.command}
+                                        "command": refusal.command, "reason": refusal.reason}
                 return {"results": results}
             return self.runner.run(body.get("argv"), body.get("uploads"), **_options(body))
         if path == "/api/files/list":
@@ -579,7 +672,7 @@ class WebApp:
             return self.files.write(body.get("path", ""), body.get("text"))
         if path == "/api/profile/save":
             return self.save_profile(body.get("text"))
-        raise Refused("Unknown endpoint.", status=HTTPStatus.NOT_FOUND)
+        raise Refused("Unknown endpoint.", status=HTTPStatus.NOT_FOUND, reason="not-found")
 
     def save_profile(self, text) -> dict:
         """Write .openguildkit/project.json and run sync; put the previous profile back when sync refuses it.
@@ -589,26 +682,27 @@ class WebApp:
         from .storage import write_text
 
         if not isinstance(text, str):
-            raise Refused("text must be a string.", status=HTTPStatus.BAD_REQUEST)
+            raise Refused("text must be a string.", status=HTTPStatus.BAD_REQUEST, reason="invalid-profile")
         try:
             profile = json.loads(text)
             if not isinstance(profile, dict):
                 raise ValueError("the profile is a JSON object")
         except ValueError as error:
-            raise Refused(f"Invalid JSON: {error}", status=HTTPStatus.BAD_REQUEST) from None
+            raise Refused(f"Invalid JSON: {error}", status=HTTPStatus.BAD_REQUEST, reason="invalid-profile") from None
         target = self.root / ".openguildkit" / "project.json"
         if not target.is_file():
-            raise Refused("The project is not initialized: set it up first.", status=HTTPStatus.CONFLICT)
+            raise Refused(REFUSALS["not-initialized"], status=HTTPStatus.CONFLICT, reason="not-initialized")
         previous = target.read_text(encoding="utf-8")
         # An invalid profile is refused as such, before anything is compared: the page puts the previous one back.
         problem = profile_problem(self.root, profile)
         if problem:
-            return {"code": 1, "stdout": "", "stderr": f"OpenGuildKit: {problem}", "json": None, "restored": True}
+            return {"code": 1, "stdout": "", "stderr": f"OpenGuildKit: {problem}", "json": None, "restored": True,
+                    "reason": "invalid-profile"}
         weakening = weakening_changes(self.root, json.loads(previous), profile)
         if weakening:
             raise Refused(f"{'; '.join(change for change, _ in weakening)}: this weakens a protection, which is the "
                           f"person's decision at an interactive terminal. {HUMAN_ONLY_TEXT} Nothing was written.",
-                          terminal_command(self.root, weakening[0][1]))
+                          terminal_command(self.root, weakening[0][1]), reason="weakens-protection")
         with self.runner.lock:
             write_text(target, text if text.endswith("\n") else text + "\n")
         result = self.runner.run(["sync"])

@@ -60,6 +60,42 @@ Elle n'appelle aucune IA et n'ouvre aucune connexion vers l'extérieur. Les avis
 
 Un autre programme du poste peut appeler l'API comme il peut lancer la CLI : le serveur ne donne aucun droit de plus que le terminal.
 
+## Codes de refus
+
+Chaque refus du serveur porte un code stable dans le champ `reason`, à côté du message anglais (`error`) et, quand une personne peut taper la commande dans son terminal, de cette commande (`command`) : `{"error", "command", "reason"}`. Le résultat d'une commande que la CLI refuse faute de terminal, seul ou dans un lot (`batch`), porte les mêmes champs `command` et `reason`. La page traduit le code ; le message anglais reste le détail. La liste vit dans `REFUSALS`, dans `src/openguildkit/webui.py`, et un test vérifie que chaque code y figure ici.
+
+La commande rendue est celle que la CLI nomme dans son refus quand elle en nomme une (par exemple `task complete ID --by NAME` pour clore par-dessus des points sensibles), et sinon celle que la page a envoyée.
+
+| Code | Sens |
+|---|---|
+| `approve-at-terminal` | Valider une quête : une personne au terminal, ou une signature dans un projet à approbation signée. |
+| `withdraw-at-terminal` | Retirer une approbation : la personne au terminal. |
+| `cannot-run-at-terminal` | Déclarer qu'une commande de vérification ne peut pas tourner ici, ou retirer cette déclaration. |
+| `clear-at-terminal` | Lever un blocage sans signature. |
+| `complete-at-terminal` | Clore une quête par-dessus des points sensibles (`task complete ID --by NAME`). |
+| `live-plan-at-terminal` | Appliquer un plan MCP réel, hors simulation. |
+| `waiver-at-terminal` | Déroger à un blocage : la personne nommée, au terminal. |
+| `external-action-at-terminal` | Autoriser une action externe. |
+| `alert-accept-at-terminal` | Accepter une alerte confirmée. |
+| `alert-severity-at-terminal` | Fixer la sévérité d'une alerte. |
+| `alert-status-at-terminal` | Écarter une alerte critique ou haute, ou la déclarer fausse. |
+| `weakens-protection` | Un changement du profil qui affaiblit une protection : la commande `profile` à taper, avec `--by` et `--reason`. |
+| `person-at-terminal` | Une autre décision que la CLI réserve à une personne au terminal. |
+| `send-setup-answers` | `init` sans réponses : la page envoie le questionnaire rempli. |
+| `send-task-answers` | `task consult` sans réponses : la page envoie le cadrage rempli. |
+| `invalid-profile` | Le profil envoyé n'est pas du JSON, n'est pas un profil valide, ou modifie l'historique des changements. Rien n'est écrit. |
+| `not-initialized` | Le projet n'est pas encore installé. |
+| `outside-project` | Un chemin sort du projet ou entre dans `.git`. |
+| `secret-file` | Le nom du fichier évoque un secret : la page ne le liste ni ne le lit. |
+| `not-readable` | La page ne lit que le Markdown, le JSON, le YAML et le texte. |
+| `too-large` | La requête ou le fichier est trop gros (8 Mo par requête, 2 Mo par fichier lu). |
+| `not-in-page` | Une commande ou un fichier qui n'a pas sa place dans une page (`ui`, `ci-check`, `guard --hook`, `tools mock`, `integrations --user`, l'écriture d'un autre fichier que les propositions Storybook). |
+| `stale-token` | Jeton de session absent ou périmé : le serveur a redémarré. Recharger la page. |
+| `foreign-page` | La requête ne vient pas de la page du serveur (en-tête `Host` ou `Origin` inconnu). |
+| `bad-request` | Une requête mal formée : corps, commande ou options. |
+| `not-found` | Point d'accès ou fichier inconnu. |
+| `server-error` | Le serveur a échoué en traitant la requête. |
+
 ## Développer l'interface
 
 ```bash
