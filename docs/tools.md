@@ -1,5 +1,44 @@
 # Tools and MCP servers
 
+## Read an OpenGuildKit project through MCP
+
+Add a local server to an MCP client using its [stdio transport](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports).
+Point it at one initialized project. Use the installed command's absolute path if the
+client does not inherit your shell's PATH.
+
+```json
+{
+  "mcpServers": {
+    "openguildkit": {
+      "command": "openguildkit",
+      "args": ["--project", "/absolute/path/to/project", "mcp"]
+    }
+  }
+}
+```
+
+| Tool | Inputs | Result fields |
+| --- | --- | --- |
+| `project_profile` | None | `sector`, `components` (objects with an `id`), `packs` (active pack references) |
+| `project_rule` | `pack_id`, `rule_id` | `pack` (an active pack reference), `rule_id` |
+| `task_status` | `task_id` | `id`, `status` as recorded in the task |
+| `task_check_results` | `task_id` | `id`, `revision`, `checks` (objects with `check`, `status` and `revision`) |
+
+A pack reference contains `id`, `version` and `scope` from the catalog in force.
+Scope is a list of component IDs, or `null` for a project-wide pack. A revision is a
+full Git commit ID, `"working tree"` or `null` when no safe commit reference is recorded.
+Outcomes use the CLI's check IDs. Imported scenario names that contain free text
+are available through `task show` in the terminal. Before a task records any results,
+`checks` is empty and `revision` is `null`.
+
+Each successful call returns the same JSON object as structured content and as a
+text item. Invalid arguments and unknown IDs return a JSON-RPC parameter error.
+If the project files need attention, the tool points to `openguildkit check` for
+diagnostics. Access is limited to the project selected at startup. The responses
+exclude briefs, approval details, command lines, logs and evidence contents.
+Reviews, approvals, changes and publishing stay in the existing human workflows.
+
+
 A company already works with an issue tracker, a time tracker, an HR system, a security scanner, a design tool. An agent that can read them gives the boards real evidence: the ticket, the alert, the design frame. OpenGuildKit keeps a registry of these tools and of the [Model Context Protocol](https://modelcontextprotocol.io) (MCP) servers that connect an agent to them, proposes the ones that match a project, writes the host's configuration once the team accepts it, and can replace every server with a local mock for demos and tests.
 
 The CLI stays offline. It never contacts a tool, never installs a server and never reads a credential. The host agent (Claude Code, Codex) is the MCP client.
