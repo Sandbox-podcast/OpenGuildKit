@@ -2,7 +2,7 @@
 
 Completed tasks already hold what a reader needs: the brief, the expected behaviour, the acceptance criteria that were met, the delivery and the project version. The project profile says what the project is and which rules apply. `openguildkit docs export` turns the profile and the tasks you select into Markdown pages that [Documentalist](https://github.com/azerothl/documentalist) imports from a Git repository.
 
-What this guide says about Documentalist was checked on a local instance on 2026-11-22: see [versions verified and reuse](#versions-verified-and-reuse) and the [dated report](../examples/documentalist/reports/2026-11-22.md).
+See [versions verified and reuse](#versions-verified-and-reuse) for the two local Documentalist runs on 2026-11-22.
 
 ## Export
 
@@ -43,6 +43,12 @@ What it does not decide: the decisions that depend on time follow the real clock
 
 Leave the variable unset in normal use. A value that is not a whole number of seconds is refused.
 
+## Install Documentalist if you need an instance
+
+You can self-host Documentalist on your workstation or on a dedicated server. A local instance is useful to review an export or rehearse import, sync and sharing with sample data. A dedicated server can keep a portal available to the team and its readers. Give a shared instance a reachable HTTPS address, persistent storage and backups. Configure SMTP on the instance if you use email invitations.
+
+Use the [local setup instructions](https://github.com/azerothl/documentalist#d%C3%A9marrer) or the [dedicated server deployment guide](https://github.com/azerothl/documentalist#d%C3%A9ployer-sur-la-dedibox) for your version. The [dated verification report](../examples/documentalist/reports/2026-11-22.md) covers a local instance.
+
 ## Import into Documentalist
 
 Three paths bring the export into a space. Only the GitHub and GitLab imports keep the pages in step with the repository.
@@ -75,7 +81,7 @@ The OpenAPI import (Outils → Intégrations → OpenAPI) takes a URL that the D
 
 ## Versions verified and reuse
 
-Import, synchronization, the OpenAPI import and magic-link sharing were checked on 2026-11-22 on a local instance of Documentalist at commit [`947429b`](https://github.com/azerothl/documentalist/tree/947429b19da6) (2026-11-11), run on Node.js 26.13.0, not the Node.js 22 its README recommends. The GitHub import was not run and the GitLab import ran against a stand-in. The [dated report](../examples/documentalist/reports/2026-11-22.md) lists each step and what it showed. Check again before relying on these details with another version.
+On 2026-11-22, a local macOS instance at [`947429b`](https://github.com/azerothl/documentalist/tree/947429b19da6) on Node.js 26.13.0 exercised synchronization with a GitLab stand-in, OpenAPI import and magic-link sharing. A separate local Windows run used Node.js 22.20.0 and imported three pages from the public OpenGuildKit example on GitHub. Its forced sync kept the same three pages and IDs. The [dated report](../examples/documentalist/reports/2026-11-22.md) records the steps and versions for both runs.
 
 Reuse conditions, as of 2026-11-22: the repository has no licence file, now or in its history; GitHub reports its licence as `null`; `package.json` is marked private and has no `license` field; the README calls Documentalist free software that can be self-hosted, without naming a licence. OpenGuildKit does not redistribute its code. Ask its author before any redistribution or reuse of it. The exported Markdown belongs to your project.
 
