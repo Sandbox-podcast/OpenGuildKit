@@ -9,6 +9,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 KIT = ROOT / "examples" / "field-tests"
@@ -93,6 +94,9 @@ class CollectTests(KitTestCase):
             findings = {"outcome": "completed", "summary": "Went through.", "commands_run": 60,
                         "findings": [self.FINDING], "worked_well": ["Refusals say what to do next."]}
             (workspace / "findings.json").write_text(json.dumps(findings), encoding="utf-8")
+            (workspace / "commands.log").write_text(
+                "$ openguildkit task decide x  (in project)\napproved\n[exit 0]\n\n"
+                "$ openguildkit task handoff x  (in project)\n# Approved task handoff\n[exit 0]\n\n", encoding="utf-8")
             if tester["group"] == "scenario":
                 (workspace / "fingerprint.json").write_text(json.dumps({"route": ["security"], "rule plan": "abc"}),
                                                             encoding="utf-8")
@@ -120,6 +124,50 @@ class CollectTests(KitTestCase):
         self.assertIn("agency: finding 1 has an unknown severity or kind", problems)
         self.assertTrue(any(problem.startswith("oss: findings.json is not valid JSON") for problem in problems), problems)
         self.assertIn("| fintech | persona | MISSING |", (self.out / "results" / "summary.md").read_text(encoding="utf-8"))
+
+    def test_a_tester_whose_transcript_stops_before_the_handoff_is_named(self):
+        self.write_reports()
+        (self.out / "runs" / "fintech" / "commands.log").unlink()
+        (self.out / "runs" / "agency" / "commands.log").write_text(
+            "$ openguildkit task consult x --answers a.json  (in project)\n[exit 0]\n\n"
+            "$ openguildkit task show x  (in project)\nhandoff is next\n[exit 0]\n\n", encoding="utf-8")
+        (self.out / "runs" / "oss" / "commands.log").write_text(
+            "$ openguildkit --project p task complete x  (in .)\ndone\n[exit 0]\n\n", encoding="utf-8")
+        summary, problems = field.collect(self.out)
+        self.assertIn("fintech: no commands.log, the transcript of its openguildkit commands", problems)
+        self.assertIn("agency: commands.log stops before task handoff (last: openguildkit task show x)", problems)
+        self.assertFalse(any(problem.startswith("oss:") for problem in problems), problems)
+        rows = {row["id"]: row for row in summary["testers"]}
+        self.assertEqual((rows["fintech"]["log"], rows["agency"]["log"], rows["oss"]["log"]),
+                         ("missing", "before handoff", "handoff or later"))
+
+    def test_open_issues_files_one_issue_per_draft_and_only_when_asked(self):
+        self.write_reports()
+        (self.out / "runs" / "s2-team3" / "fingerprint.json").write_text(
+            json.dumps({"route": ["security", "legal"], "rule plan": "abc"}), encoding="utf-8")
+        calls = []
+
+        def gh(command, **options):
+            calls.append((command, options))
+            return subprocess.CompletedProcess(command, 0, "https://github.example.test/o/r/issues/7\n", "")
+
+        with mock.patch.object(field.subprocess, "run", side_effect=gh):
+            field.collect(self.out)
+            self.assertEqual(calls, [])
+            summary, problems = field.collect(self.out, open_issues=True)
+        self.assertEqual(len(calls), 1)
+        command, options = calls[0]
+        self.assertEqual(command[:4], ["gh", "issue", "create", "--title"])
+        self.assertEqual(command[4], "Scenario s2: teams with the same inputs got different results")
+        self.assertEqual(command[command.index("--label") + 1:][:3], ["bug", "--label", "field-test"])
+        body = Path(command[command.index("--body-file") + 1]).read_text(encoding="utf-8")
+        self.assertTrue(body.startswith("## What differs"), body)
+        self.assertEqual(options["cwd"], field.REPO)
+        self.assertEqual(summary["issues"], ["https://github.example.test/o/r/issues/7"])
+        with mock.patch.object(field.subprocess, "run",
+                               return_value=subprocess.CompletedProcess([], 1, "", "gh: not logged in")):
+            _, problems = field.collect(self.out, open_issues=True)
+        self.assertIn("s2: gh issue create failed: gh: not logged in", problems)
 
     def test_teams_that_diverge_on_a_scenario_get_an_issue_draft(self):
         self.write_reports()
@@ -154,6 +202,18 @@ class PrepareTests(KitTestCase):
         self.assertIn("AGENTS.md", tracked)
         self.assertNotIn("team-answers.json", tracked)
         self.assertEqual(json.loads((self.out / "campaign.json").read_text(encoding="utf-8"))["testers"], record["testers"])
+        workspace = self.out / "runs" / "fintech"
+        (workspace / "project").mkdir()
+        for folder, arguments in ((workspace / "project", ["--version"]),
+                                  (self.out, ["--project", str(workspace / "project"), "task", "list"])):
+            run = subprocess.run([str(self.out / "bin" / "openguildkit"), *arguments], cwd=folder,
+                                 capture_output=True, text=True)
+            self.assertIn(run.returncode, (0, 1), run.stderr)
+        log = (workspace / "commands.log").read_text(encoding="utf-8")
+        self.assertIn("$ openguildkit --version  (in project)\nopenguildkit ", log)
+        self.assertIn("[exit 0]", log)
+        self.assertIn(f"$ openguildkit --project {(workspace / 'project').as_posix()} task list", log)
+        self.assertFalse((self.out / "runs" / "agency" / "commands.log").exists())
         field.prepare(self.out)  # running it again keeps the shared repository
         self.assertEqual(field.git(remote, "rev-list", "--count", "main"), "1")
 

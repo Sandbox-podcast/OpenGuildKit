@@ -33,7 +33,9 @@ A campaign needs Linux or macOS (the person's stand-in types at a pseudo-termina
 can run an agent in a folder with a shell. Use a clean checkout of the commit under test.
 
 1. Prepare a campaign folder outside the repository. It gets one folder per tester, the commands on a `bin` folder
-   (`openguildkit` running this checkout, `person-decide`, `fingerprint`) and the teammates' shared repository.
+   (`openguildkit` running this checkout, `person-decide`, `fingerprint`) and the teammates' shared repository. The
+   `openguildkit` command on that folder records every call made in a tester's folder, with what it printed and its
+   exit code, in `runs/TESTER/commands.log`: the tester has nothing to do to keep its transcript.
 
    ```bash
    python examples/field-tests/field.py prepare --out ../campaign
@@ -55,9 +57,16 @@ can run an agent in a folder with a shell. Use a clean checkout of the commit un
    python examples/field-tests/field.py collect --out ../campaign
    ```
 
-   The command exits 1 and names what is missing when a tester left no report or unusable findings. It writes
-   `results/summary.md`, the merged `results/findings.json`, and, for a scenario whose teams differ, an issue draft
-   `results/divergence-SCENARIO.md`.
+   The command exits 1 and names what is missing when a tester left no report, unusable findings, or a transcript
+   that stops before `task handoff`. It writes `results/summary.md`, the merged `results/findings.json`, and, for a
+   scenario whose teams differ, an issue draft `results/divergence-SCENARIO.md`. The threshold is zero: one key
+   that differs between two teams is enough for a draft. With `--open-issues`, it also files each draft as a GitHub
+   issue with `gh issue create --title --body-file --label` in the repository of this checkout, and prints the
+   address of each issue it opened; without the flag it opens nothing.
+
+   ```bash
+   python examples/field-tests/field.py collect --out ../campaign --open-issues
+   ```
 
 4. Group the findings that describe the same thing (one group per distinct defect, the references of every finding
    kept, the shortest reproduction taken from the findings), then have each serious group checked independently on
