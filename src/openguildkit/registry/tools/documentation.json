@@ -80,7 +80,7 @@
       "id": "documentalist",
       "title": "Documentalist",
       "vendor": "azerothl",
-      "summary": "Documentation portal that synchronises Markdown and MDX from a repository and imports OpenAPI.",
+      "summary": "Documentation portal that synchronises Markdown and MDX from a repository and imports OpenAPI. You can install it locally or on a dedicated server.",
       "homepage": "https://github.com/azerothl/documentalist",
       "brains": [
         "communication",
