@@ -4,6 +4,7 @@ import { changesCatalog, invalidate, load, peek, remember } from '@/project/quer
 import { onlyTasksFail, placeCounts, signalsOf } from '@/project/data';
 import { hasFailedCheck, isBlocked, isDecided, isDone, nextLabel, nextLang, openPointLabel, parseTemplates, reasonLabel, shareState, statusesOf, stepOf, taskStatus, touchedStep, touchedTasks } from '@/project/labels';
 import { missingRequired, normAnswers, pendingNorms, setupAnswers, type NormDraft } from '@/project/setup';
+import { isMultiple, toggleChoice, unanswered } from '@/project/answers';
 import type { CliResult } from '@/project/api';
 
 const ok = (json: unknown): CliResult => ({ code: 0, stdout: JSON.stringify(json), stderr: '', json });
@@ -53,6 +54,28 @@ describe('wording of the CLI', () => {
       { id: 'campaign-brief', title: 'Campaign brief', method: 'marketing-campaign-planning', brains: ['marketing', 'communication', 'legal'] },
       { id: 'support-article', title: 'Knowledge base article', method: '', brains: ['support', 'communication'] },
     ]);
+  });
+});
+
+describe('task questionnaire', () => {
+  const questions = [
+    { id: 'kind', prompt: 'What?', choices: [{ id: 'feature', label: 'Feature' }] },
+    { id: 'concerns', prompt: 'Topics?', type: 'multi-select', choices: [{ id: 'money', label: 'Money' }, { id: 'ai', label: 'AI' }, { id: 'none', label: 'None' }] },
+    { id: 'context', prompt: 'Context?', type: 'text' },
+  ];
+
+  it('takes several concerns when the CLI says multi-select, and keeps none and unsure alone', () => {
+    expect(questions.map(isMultiple)).toEqual([false, true, false]);
+    expect(toggleChoice(toggleChoice([], 'money'), 'ai')).toEqual(['money', 'ai']);
+    expect(toggleChoice(['money', 'ai'], 'none')).toEqual(['none']);
+    expect(toggleChoice(['none'], 'ai')).toEqual(['ai']);
+    expect(toggleChoice(['money', 'ai'], 'money')).toEqual(['ai']);
+  });
+
+  it('waits for every question with choices before routing', () => {
+    expect(unanswered(questions, { kind: 'feature' })).toEqual(['concerns']);
+    expect(unanswered(questions, { kind: 'feature', concerns: [] })).toEqual(['concerns']);
+    expect(unanswered(questions, { kind: 'feature', concerns: ['money', 'ai'] })).toEqual([]);
   });
 });
 

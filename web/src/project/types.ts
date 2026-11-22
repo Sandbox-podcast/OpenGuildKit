@@ -22,7 +22,7 @@ export interface Closing { open_points: { group: string; points: string[] }[]; n
 /** Named evidence that must be supplied and is not yet (result.waiting_for). */
 export interface WaitingEvidence { check: string; title: string; owner: string; why: string }
 export interface TaskResult { revision?: string; pull_request?: string; criteria: { criterion: string; status: 'met' | 'not-met'; evidence: string; verified_by?: string }[]; checks: CheckResult[]; waiting_for?: WaitingEvidence[]; warnings?: string[]; closing?: Closing }
-export interface Answers { kind?: string; surface?: string | string[]; data?: string; research?: string; context?: string; outcome?: string; affected?: string; options?: string }
+export interface Answers { kind?: string; surface?: string | string[]; data?: string; research?: string; concerns?: string | string[]; context?: string; outcome?: string; affected?: string; options?: string }
 
 export interface Consultation {
   id: string;

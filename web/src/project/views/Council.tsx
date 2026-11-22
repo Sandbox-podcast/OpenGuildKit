@@ -11,13 +11,13 @@ import { Icon } from '@/shared/pixel/icons';
 import { listFiles, run, terminalCommand } from '../api';
 import { boardTitle, useBrains, useProfile, useTasks } from '../data';
 import { invalidate, showTerminal, useAction, useCli, useCliText, useQuery } from '../query';
-import { BASIS, CONFIDENCE, DATA, KIND, PASS, QUESTION_FR, RESEARCH, SURFACE, fmtWhen, isDecided, needsReconsult, nextLabel, nextLang, openPointLabel, verdict } from '../labels';
+import { BASIS, CONCERNS, CONFIDENCE, DATA, KIND, PASS, QUESTION_FR, RESEARCH, SURFACE, fmtWhen, isDecided, needsReconsult, nextLabel, nextLang, openPointLabel, verdict } from '../labels';
 import { ActionForm, CommandLine, FilePick, JsonDetails, Q, Section, StepRail, TaskStatusBadge, UnreadableTask, copyText, useDebounced, useRemembered } from '../parts';
 import { usePrefs } from '../prefs';
+import { isMultiple, toggleChoice, unanswered } from '../answers';
 import type { Answers, BlockerItem, Brain, Deliberation, PassProgress, Question, QuestionSet, Route, TaskRecord } from '../types';
 
-const LABELS: Record<string, Record<string, string>> = { kind: KIND, surface: SURFACE, data: DATA, research: RESEARCH };
-const MULTI = new Set(['surface']);
+const LABELS: Record<string, Record<string, string>> = { kind: KIND, surface: SURFACE, data: DATA, research: RESEARCH, concerns: CONCERNS };
 
 export function CouncilList() {
   const tasks = useTasks();
@@ -90,14 +90,14 @@ function CouncilRecord({ id, reconsult }: { id: string; reconsult: string | null
 
 /* ------------------------------------------------------------------ framing and routing */
 
-function useQuestions(id: string, answers: Answers, complete: boolean) {
+/** The questions of the task, then, once every question with choices is answered, its follow-ups and open points. */
+function useQuestionSets(id: string, answers: Answers) {
   const base = useCli<QuestionSet>(['task', 'questions', id]);
   const json = JSON.stringify(answers);
+  const complete = !!base.data && unanswered(base.data.questions, answers as Record<string, unknown>).length === 0;
   const extra = useQuery<QuestionSet | null>(complete ? `questions:${id}:${json}` : null, useCallback(async () => (await run<QuestionSet>(['task', 'questions', id, '--answers', '@upload:answers.json'], { 'answers.json': json })).json, [id, json]));
   return { base, extra };
 }
-
-const isComplete = (a: Answers) => !!a.kind && !!a.data && !!a.research && (Array.isArray(a.surface) ? a.surface.length > 0 : !!a.surface);
 
 function Framing({ task, collapsed }: { task: TaskRecord; collapsed?: boolean }) {
   const previous = task.answers ?? task.rounds.at(-1)?.answers ?? {};
@@ -105,14 +105,15 @@ function Framing({ task, collapsed }: { task: TaskRecord; collapsed?: boolean })
   const [open, setOpen] = useState(!collapsed);
   // Requests follow the answers once typing pauses, not at every keystroke.
   const settled = useDebounced(answers, 450);
-  const complete = isComplete(settled);
-  const { base, extra } = useQuestions(task.id, settled, complete);
+  const { base, extra } = useQuestionSets(task.id, settled);
   const asked = base.data?.questions ?? [];
+  const missing = unanswered(asked, settled as Record<string, unknown>);
+  const complete = !!base.data && missing.length === 0;
   const prompts = Object.fromEntries([...asked, ...(extra.data?.questions ?? [])].map((q) => [q.id, q.prompt]));
   const set = (key: string, value: string | string[]) => setAnswers((a) => ({ ...a, [key]: value }));
   const followUps = (extra.data?.questions ?? []).filter((q) => !asked.some((b) => b.id === q.id));
 
-  if (!open) return <Panel title="Cadrage"><p className="small">Réponses enregistrées : {KIND[answers.kind ?? ''] ?? '—'}, {[answers.surface].flat().map((s) => SURFACE[s as string] ?? s).join(', ')}, données {DATA[answers.data ?? '']?.toLowerCase() ?? '—'}. <Button size="small" onClick={() => setOpen(true)}>Modifier et consulter à nouveau</Button></p></Panel>;
+  if (!open) return <Panel title="Cadrage"><p className="small">Réponses enregistrées : {KIND[answers.kind ?? ''] ?? '—'}, {[answers.surface].flat().map((s) => SURFACE[s as string] ?? s).join(', ')}, données {DATA[answers.data ?? '']?.toLowerCase() ?? '—'}{answers.concerns ? `, sujets : ${[answers.concerns].flat().map((c) => CONCERNS[c as string]?.toLowerCase() ?? c).join(', ')}` : ''}. <Button size="small" onClick={() => setOpen(true)}>Modifier et consulter à nouveau</Button></p></Panel>;
   return (
     <>
       <Section title="Cadrage : le questionnaire" icon="question">
@@ -121,30 +122,42 @@ function Framing({ task, collapsed }: { task: TaskRecord; collapsed?: boolean })
           {(qs) => <div className="stack">{[...qs.questions, ...followUps].map((q) => <QuestionField key={q.id} q={q} value={(answers as Record<string, unknown>)[q.id]} onChange={(v) => set(q.id, v)} />)}</div>}
         </Q>
         {extra.data?.open_points && extra.data.open_points.length > 0 && <Notice tone="warn" title="Points ouverts :"><ul>{extra.data.open_points.map((p) => <li key={p}>{openPointLabel(p, prompts)}</li>)}</ul>Ils ne bloquent pas la consultation : chaque cerveau dira comment ils pèsent sur son avis.</Notice>}
-        {extra.error && <Notice tone="danger">{extra.error.message}</Notice>}
+        {extra.error && <Notice tone="danger"><span lang={extra.error.lang}>{extra.error.message}</span></Notice>}
+        {base.data && missing.length > 0 && <p className="small muted" role="status">Le routage s’affiche quand chaque question à choix a sa réponse ({missing.length} sans réponse).</p>}
       </Section>
       {complete && <Routing task={task} answers={settled} />}
     </>
   );
 }
 
+/**
+ * One question of the task questionnaire. The prompt and choices are in French when the page knows the question;
+ * the CLI's help and the effect of an unsure answer follow in its English. A multi-select takes several choices.
+ */
 function QuestionField({ q, value, onChange }: { q: Question; value: unknown; onChange: (v: string | string[]) => void }) {
-  const prompt = QUESTION_FR[q.id] ?? q.prompt;
-  if (!q.choices?.length) return <TextArea label={<span title={q.prompt}>{prompt}</span>} value={typeof value === 'string' ? value : ''} onChange={(e) => onChange(e.target.value)} rows={3} />;
-  const multi = MULTI.has(q.id);
+  const prompt = QUESTION_FR[q.id] ? <span title={q.prompt}>{QUESTION_FR[q.id]}</span> : <span lang="en">{q.prompt}</span>;
+  if (!q.choices?.length) return <TextArea label={prompt} hint={<QuestionHelp q={q} />} value={typeof value === 'string' ? value : ''} onChange={(e) => onChange(e.target.value)} rows={3} />;
+  const multi = isMultiple(q);
   const selected = [value].flat().filter(Boolean) as string[];
   return (
-    <fieldset className="choices">
-      <legend title={q.prompt}>{prompt}{multi && <span className="tiny muted"> (plusieurs possibles)</span>}</legend>
+    <fieldset className="choices" data-question={q.id}>
+      <legend>{prompt} <span className="tiny muted">({multi ? 'plusieurs réponses possibles, ' : ''}obligatoire)</span></legend>
       <div className="choice-row">{q.choices.map((c) => {
         const on = selected.includes(c.id);
+        const label = LABELS[q.id]?.[c.id];
         return <label key={c.id} className={`choice ${on ? 'on' : ''}`}>
-          <input type={multi ? 'checkbox' : 'radio'} name={q.id} checked={on} onChange={() => onChange(multi ? (on ? selected.filter((x) => x !== c.id) : [...selected, c.id]) : c.id)} />
-          <span>{LABELS[q.id]?.[c.id] ?? c.label}</span>
+          <input type={multi ? 'checkbox' : 'radio'} name={q.id} value={c.id} checked={on} onChange={() => onChange(multi ? toggleChoice(selected, c.id) : c.id)} />
+          {label ? <span title={c.label}>{label}</span> : <span lang="en">{c.label}</span>}
         </label>;
       })}</div>
+      {(q.help || q.unsure) && <p className="hint"><QuestionHelp q={q} /></p>}
     </fieldset>
   );
+}
+
+/** The CLI's one-line help of a question and what a "don't know" answer applies, in the CLI's English. */
+function QuestionHelp({ q }: { q: Question }) {
+  return <>{q.help && <span lang="en">{q.help}</span>}{q.unsure && <> Si tu ne sais pas : <span lang="en">{q.unsure}</span>.</>}</>;
 }
 
 function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {

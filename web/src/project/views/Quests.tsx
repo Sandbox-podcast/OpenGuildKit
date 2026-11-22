@@ -7,7 +7,7 @@ import { Icon } from '@/shared/pixel/icons';
 import { norm } from '@/shared/text';
 import { useBrains, useTasks, boardTitle } from '../data';
 import { useAction, useCli } from '../query';
-import { DATA, KIND, RESEARCH, SURFACE, fmtDay, fmtWhen, isBlocked, isDecided, needsReconsult, nextLabel, nextLang, statusesOf, taskStatus, verdict } from '../labels';
+import { CONCERNS, DATA, KIND, RESEARCH, SURFACE, fmtDay, fmtWhen, isBlocked, isDecided, needsReconsult, nextLabel, nextLang, statusesOf, taskStatus, verdict } from '../labels';
 import { ExternalLink, JsonDetails, Q, StepRail, TaskLink, TaskStatusBadge, UnreadableTask } from '../parts';
 import { usePrefs } from '../prefs';
 import type { TaskListItem, TaskRecord } from '../types';
@@ -160,6 +160,7 @@ function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
                   ['Nature', KIND[t.answers.kind ?? ''] ?? t.answers.kind ?? '—'],
                   ['Zones', [t.answers.surface].flat().filter(Boolean).map((s) => SURFACE[s as string] ?? s).join(', ') || '—'],
                   ['Données', DATA[t.answers.data ?? ''] ?? '—'],
+                  ...(t.answers.concerns ? [['Sujets', [t.answers.concerns].flat().map((c) => CONCERNS[c as string] ?? c).join(', ')] as [string, string]] : []),
                   ['Preuves consultables', RESEARCH[t.answers.research ?? ''] ?? '—'],
                   ...(t.answers.context ? [['Contexte', t.answers.context] as [string, string]] : []),
                   ...(t.answers.outcome ? [['Résultat attendu', t.answers.outcome] as [string, string]] : []),

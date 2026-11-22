@@ -51,6 +51,12 @@ export function stepOf(status: string, hasResult: boolean): number {
 export const KIND: Record<string, string> = { feature: 'Fonctionnalité', bug: 'Anomalie', maintenance: 'Maintenance', decision: 'Décision', other: 'Autre', unsure: 'À préciser' };
 export const SURFACE: Record<string, string> = { customer: 'Clients', service: 'Service', infrastructure: 'Infrastructure', business: 'Métier', other: 'Autre', unsure: 'À préciser' };
 export const DATA: Record<string, string> = { none: 'Aucune donnée', internal: 'Interne', personal: 'Personnelle', regulated: 'Réglementée', unsure: 'À préciser' };
+/** The topics of the concerns question (workflow.task_questions); each one brings its own specialists. */
+export const CONCERNS: Record<string, string> = {
+  money: 'Prix, paiements, factures, paie ou dépenses', ai: 'Un modèle d’IA ou un LLM qui produit des réponses ou du contenu',
+  'people-decisions': 'Un logiciel qui note, classe ou décide pour des personnes (embauche, crédit, prix par personne)',
+  credentials: 'Secrets, clés, jetons ou mots de passe', none: 'Aucun de ces sujets', unsure: 'À préciser',
+};
 export const RESEARCH: Record<string, string> = { local: 'Sources locales', public: 'Sources publiques', unsure: 'À préciser', 'local-only': 'Locale uniquement', 'public-sources': 'Sources publiques autorisées' };
 
 /** French names of the sectors and norms of the catalog, by ID; an ID the page does not know keeps the CLI's title. */
@@ -190,6 +196,7 @@ export const QUESTION_FR: Record<string, string> = {
   surface: 'Quelles zones la quête touche-t-elle ?',
   data: 'Quelle est la donnée la plus sensible que la quête peut lire ou modifier ?',
   research: 'Quelles preuves les cerveaux peuvent-ils consulter ?',
+  concerns: 'La tâche touche-t-elle à l’un de ces sujets ? Coche chacun de ceux qui s’appliquent, ou « Aucun de ces sujets ».',
   context: 'Critères d’acceptation, contraintes ou autre contexte utile aux cerveaux',
   outcome: 'Quel résultat observable montre que c’est réussi ? (comportement attendu, ou comment reproduire l’anomalie)',
   affected: 'Qui est concerné : utilisateurs, clients, équipes ou partenaires ?',

@@ -147,13 +147,27 @@ test('frames a draft and gathers the council', async ({ page }) => {
   await page.getByText('Clients', { exact: true }).click();
   await page.getByText('Interne', { exact: true }).click();
   await page.getByText('Sources locales', { exact: true }).click();
+  await expect(page.locator('[data-question="kind"] [lang="en"]').first()).toContainText(/Whether you want/);
+  await expect(page.locator('[data-question="data"]')).toContainText('Si tu ne sais pas');
+  // The concerns question takes several answers, in French, and each one brings its board.
+  const concerns = page.locator('[data-question="concerns"]');
+  await expect(concerns.locator('legend')).toContainText('La tâche touche-t-elle à l’un de ces sujets');
+  await expect(concerns.locator('legend')).toContainText('obligatoire');
+  await expect(concerns.locator('input[type="radio"]')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: /Routage/ })).toHaveCount(0);
+  await concerns.getByText('Prix, paiements, factures, paie ou dépenses').click();
+  await concerns.getByText('Un modèle d’IA ou un LLM qui produit des réponses ou du contenu').click();
+  await expect(concerns.locator('input:checked')).toHaveCount(2);
   await expect(page.getByText(/Sans réponse : Quel résultat observable/)).toBeVisible();
   await expect(page.getByRole('heading', { name: /Routage/ })).toBeVisible();
-  await expect(page.locator('.board-pick').first()).toBeVisible();
+  await expect(page.locator('.board-pick', { hasText: 'Finance' })).toBeVisible();
   await page.getByRole('button', { name: 'Réunir le Conseil' }).click();
   await expect(page.getByText('Consultation préparée')).toBeVisible();
   await expect(page.locator('.board-seat').first()).toBeVisible();
   await expect(page.getByText(/0\/\d+ avis déposés/)).toBeVisible();
+  const record = await cli<{ answers: { concerns: string[] }; consultation: { boards: string[] } }>(page, ['task', 'show', 'dark-theme']);
+  expect(record.json.answers.concerns).toEqual(['money', 'ai']);
+  expect(record.json.consultation.boards).toContain('finance');
 });
 
 test('passes each board, records its entry and assembles the review', async ({ page }) => {
