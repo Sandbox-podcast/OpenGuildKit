@@ -453,6 +453,24 @@ def blocking_alerts(register: dict, task: dict) -> list[str]:
     ]
 
 
+def alert_task_id(alert: dict) -> str:
+    """The ID of the task that handles an alert: the same in every copy of the project and in every scheduled run."""
+    words = re.sub(r"[^a-z0-9]+", "-", f"dep-{alert['package']}-{alert['advisory']}".lower()).strip("-")
+    return words[:64].rstrip("-")
+
+
+def unhandled_alerts(register: dict) -> list[dict]:
+    """The confirmed alerts that no task handles yet and no person accepted: each needs a task of its own."""
+    return [alert for alert in register["alerts"]
+            if _status(alert) == "confirmed" and not alert.get("tasks") and not alert.get("accepted")]
+
+
+def task_brief(alert: dict) -> str:
+    """The brief of the task opened for an alert, with what the register knows of it."""
+    return (f"Fix dependency alert {alert['id']}: {alert['package']} {alert['version']} is affected by "
+            f"{alert['advisory']} ({alert['severity']}). Fixed version: {alert.get('fix') or 'unknown'}.")
+
+
 def resolved_by_import(register: dict, task: dict, since: str | None = None) -> list[dict]:
     """The task's alerts that were confirmed and critical and that an import resolved, not a person, on or after the
     day of since: the person reads each with its report before deciding."""

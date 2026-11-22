@@ -11,8 +11,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.alerts import (
-    accept_alert, blocking_alerts, import_report, link_alert, migrate_task, parse_report, set_status, summary,
-    task_alerts,
+    accept_alert, blocking_alerts, find_alert, import_report, link_alert, load_register, migrate_task, parse_report,
+    set_status, summary, task_alerts,
 )
 from openguildkit.cli import main
 from openguildkit.storage import write_json
@@ -278,7 +278,7 @@ class AlertFlowTests(unittest.TestCase):
         self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json")
         self.assertEqual(self.cli("task", "complete", "status").strip(), "done")
 
-    def test_the_scheduled_job_imports_the_report_and_opens_an_issue_per_new_confirmed_alert(self):
+    def test_the_scheduled_job_opens_a_task_per_new_confirmed_alert_and_proposes_the_register(self):
         from tests.test_market import pinned_actions, run_block
         workflow = WATCH_TEMPLATE.read_text(encoding="utf-8")
         repository_pins = set()
@@ -287,40 +287,84 @@ class AlertFlowTests(unittest.TestCase):
         for use in pinned_actions(workflow):
             self.assertRegex(use, r"@[0-9a-f]{40}$")
             self.assertIn(use, repository_pins)
-        bash, jq = shutil.which("bash"), shutil.which("jq")
-        if os.name == "nt" or not bash or not jq:
-            self.skipTest("Running the workflow steps needs bash and jq, as on the GitHub runner.")
+        self.assertIn("contents: write", workflow)
+        self.assertIn("pull-requests: write", workflow)
+        self.assertIn("persist-credentials: false", workflow)
+        bash, jq, git = shutil.which("bash"), shutil.which("jq"), shutil.which("git")
+        if os.name == "nt" or not bash or not jq or not git:
+            self.skipTest("Running the workflow steps needs bash, jq and git, as on the GitHub runner.")
         self.init()
+        for command in (["init", "-q", "-b", "main"], ["add", "-A"],
+                        ["-c", "user.email=dev@example.test", "-c", "user.name=Dev", "commit", "-q", "-m", "base"]):
+            subprocess.run(["git", "-C", str(self.root), *command], check=True, capture_output=True)
         shutil.copy(FIXTURES / "npm-audit-critical.json", self.root / "report.json")
         bin_dir = self.root / "bin"
         bin_dir.mkdir()
         (bin_dir / "openguildkit").write_text(f'#!/bin/sh\nexec "{sys.executable}" -m openguildkit "$@"\n', encoding="utf-8")
-        (bin_dir / "gh").write_text("#!/bin/sh\nif [ \"$2\" = list ]; then cat \"$KNOWN\"; exit 0; fi\n"
-                                    "printf '%s\\n' \"$@\" >> \"$GH_LOG\"\n", encoding="utf-8")
+        # A stand-in for gh: lists answer from files, every other call is logged; no branch or pull request exists.
+        (bin_dir / "gh").write_text(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$GH_LOG\"\n"
+            "if [ \"$1 $2\" = 'issue list' ]; then cat \"$KNOWN\"; exit 0; fi\n"
+            "if [ \"$1 $2\" = 'pr list' ]; then exit 0; fi\n"
+            "case \"$2\" in repos/*/git/ref/heads/*|repos/*/contents/*\\?ref=*) exit 1;; esac\n", encoding="utf-8")
         for name in ("openguildkit", "gh"):
             (bin_dir / name).chmod(0o755)
         (self.root / "known.txt").write_text("", encoding="utf-8")
+        log = self.root / "gh.log"
         environment = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
-                       "PYTHONPATH": str(REPO / "src"), "GH_LOG": str(self.root / "gh.log"),
-                       "KNOWN": str(self.root / "known.txt"), "GITHUB_STEP_SUMMARY": str(self.root / "summary.md")}
+                       "PYTHONPATH": str(REPO / "src"), "GH_LOG": str(log), "KNOWN": str(self.root / "known.txt"),
+                       "GITHUB_STEP_SUMMARY": str(self.root / "summary.md"), "GITHUB_REPOSITORY": "example/portal",
+                       "BASE": "main"}
 
         def step(name):
-            return subprocess.run([bash, "-e", "-c", run_block(workflow, name)], cwd=self.root, env=environment,
-                                  check=True, capture_output=True, text=True)
+            log.unlink(missing_ok=True)
+            result = subprocess.run([bash, "-e", "-c", run_block(workflow, name)], cwd=self.root, env=environment,
+                                    check=True, capture_output=True, text=True)
+            return result.stdout, log.read_text(encoding="utf-8") if log.exists() else ""
 
         step("Import the report into the alert register")
         self.assertIn(f"- {CRITICAL}", (self.root / "summary.md").read_text(encoding="utf-8"))
-        step("Open an issue per new confirmed alert")
-        self.assertFalse((self.root / "gh.log").exists())
+        self.assertNotIn("issue create", step("Open a task per new confirmed alert")[1])
+        _, calls = step("Propose the register in a pull request")
+        self.assertIn("api -X POST repos/example/portal/git/refs -f ref=refs/heads/openguildkit/dependency-watch", calls)
+        self.assertIn("api -X PUT repos/example/portal/contents/.openguildkit/alerts.json -f "
+                      "branch=openguildkit/dependency-watch", calls)
+        self.assertIn("pr create --head openguildkit/dependency-watch --base main", calls)
+        self.assertIn(f"- `{CRITICAL}`", (self.root / "body.md").read_text(encoding="utf-8"))
+
         self.cli("alerts", "set", CRITICAL, "--status", "confirmed", "--by", "Alex")
-        step("Open an issue per new confirmed alert")
-        calls = (self.root / "gh.log").read_text(encoding="utf-8")
-        self.assertIn(f"--title\nDependency alert: {CRITICAL}\n--body\n", calls)
-        self.assertIn(f"openguildkit task alerts TASK --link {CRITICAL}", calls)
-        (self.root / "gh.log").unlink()
-        (self.root / "known.txt").write_text(f"Dependency alert: {CRITICAL}\n", encoding="utf-8")
-        self.assertIn("Already reported", step("Open an issue per new confirmed alert").stdout)
-        self.assertFalse((self.root / "gh.log").exists())
+        task_id = "dep-form-parser-ghsa-xxxx-yyyy-zzzz"
+        _, calls = step("Open a task per new confirmed alert")
+        self.assertIn(f"issue create --title OpenGuildKit task {task_id}: dependency alert {CRITICAL} --body", calls)
+        self.assertIn(f"openguildkit task new \"Fix dependency alert {CRITICAL}", calls)
+        self.assertEqual(find_alert(load_register(self.root / ".openguildkit"), CRITICAL)["tasks"], [task_id])
+        self.assertEqual(json.loads(self.cli("task", "show", task_id))["status"], "draft")
+        self.assertIn(f"`{task_id}` for `{CRITICAL}`", step("Propose the register in a pull request") and
+                      (self.root / "body.md").read_text(encoding="utf-8"))
+        (self.root / "known.txt").write_text(f"OpenGuildKit task {task_id}: dependency alert {CRITICAL}\n",
+                                             encoding="utf-8")
+        output, calls = step("Open a task per new confirmed alert")
+        self.assertNotIn("issue create", calls)
+        self.assertEqual(json.loads((self.root / "opened.json").read_text(encoding="utf-8")), [])
+        for command in (["add", ".openguildkit/alerts.json"], ["-c", "user.email=dev@example.test", "-c",
+                                                                "user.name=Dev", "commit", "-q", "-m", "register"]):
+            subprocess.run(["git", "-C", str(self.root), *command], check=True, capture_output=True)
+        self.assertIn("did not change", step("Propose the register in a pull request")[0])
+
+    def test_alerts_tasks_lists_then_opens_one_task_per_confirmed_alert_without_one(self):
+        self.init()
+        self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json")
+        self.assertIn("No confirmed alert waits for a task.", self.cli("alerts", "tasks"))
+        self.cli("alerts", "set", CRITICAL, "--status", "confirmed", "--by", "Alex")
+        listed = self.cli("alerts", "tasks")
+        self.assertIn(f"{CRITICAL} (critical): task dep-form-parser-ghsa-xxxx-yyyy-zzzz\n", listed)
+        self.assertFalse((self.root / ".openguildkit" / "tasks" / "dep-form-parser-ghsa-xxxx-yyyy-zzzz.json").exists())
+        opened = json.loads(self.cli("alerts", "tasks", "--open", "--json"))
+        self.assertEqual([row["task"] for row in opened], ["dep-form-parser-ghsa-xxxx-yyyy-zzzz"])
+        task = json.loads(self.cli("task", "show", "dep-form-parser-ghsa-xxxx-yyyy-zzzz"))
+        self.assertIn(f"Fix dependency alert {CRITICAL}", task["brief"])
+        self.assertEqual(json.loads(self.cli("alerts", "tasks", "--json")), [])
+        self.assertIn(CRITICAL, self.cli("alerts", "list", "--task", "dep-form-parser-ghsa-xxxx-yyyy-zzzz"))
 
 
 if __name__ == "__main__":
