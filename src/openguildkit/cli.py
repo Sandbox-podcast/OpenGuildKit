@@ -412,7 +412,7 @@ def _prompt_norms(plan: dict, catalog: dict) -> tuple[list[str], dict[str, dict]
         if value in ("", "y", "yes", "o", "oui"):
             kept.append(pattern["id"])
             continue
-        decider = decider or _prompt_line("  Your name, recorded with the decline: ")
+        decider = decider or _prompt_line("  Your initials or team handle, recorded with the decline: ")
         reason = _prompt_line("  Why does it not apply, in one line? ")
         declined[pattern["id"]] = {"answer": "no", "by": decider, "reason": reason}
     if declined:

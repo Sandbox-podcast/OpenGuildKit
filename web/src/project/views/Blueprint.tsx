@@ -207,7 +207,7 @@ async function save(next: Profile | string) {
   } catch (e) {
     // A lower guard, public research or a regulation dropped is the person's decision at a terminal.
     const shown = errorText(e as Error);
-    if (e instanceof ApiError && e.command) showTerminal({ title: 'Changement du profil : à faire dans ton terminal', why: shown.text, lang: shown.lang, detail: shown.detail, command: e.command, after: 'Remplace NAME et WHY par ton nom et la raison. La commande demande de confirmer ; reviens ici et actualise.' });
+    if (e instanceof ApiError && e.command) showTerminal({ title: 'Changement du profil : à faire dans ton terminal', why: shown.text, lang: shown.lang, detail: shown.detail, command: e.command, after: 'Remplace NAME par tes initiales ou l’identifiant de ton équipe, et WHY par la raison. La commande demande de confirmer ; reviens ici et actualise.' });
     else toast({ tone: 'danger', title: 'Enregistrement impossible', text: shown.text, lang: shown.lang });
     return false;
   }
@@ -250,7 +250,7 @@ function ProfileEditor() {
         </tbody></table></TableBox>
       </Panel>
       <Panel title="Dérogations">
-        <ListEditor label="Personnes autorisées à déroger à un point bloquant" items={draft.waivers?.allowed_by ?? []} onChange={(v) => set('waivers', v.length ? { allowed_by: v, max_days: draft.waivers?.max_days ?? 30 } : undefined)} placeholder="Camille Martin" />
+        <ListEditor label="Personnes autorisées à déroger à un point bloquant" items={draft.waivers?.allowed_by ?? []} onChange={(v) => set('waivers', v.length ? { allowed_by: v, max_days: draft.waivers?.max_days ?? 30 } : undefined)} placeholder="CM" />
         {draft.waivers && <TextField label="Durée maximale (jours)" type="number" value={String(draft.waivers.max_days)} onChange={(e) => set('waivers', { ...draft.waivers!, max_days: Number(e.target.value) || 1 })} />}
       </Panel>
       <ProfileDecisions profile={draft} />

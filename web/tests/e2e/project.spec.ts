@@ -321,7 +321,7 @@ test('runs the checks, records the results and completes a task in the forge', a
   await expect(page.locator('tr', { hasText: 'command:1' }).getByText('Réussi')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(/point\(s\) before the task can be done/)).toBeVisible();
   await expect(page.getByText('Une commande ne peut pas tourner ici')).toBeVisible();
-  await page.getByLabel('Ton nom').fill('Camille Martin');
+  await page.getByLabel('Tes initiales').fill('Camille Martin');
   await page.getByRole('button', { name: /Marquer les règles non rapportées/ }).click();
   await page.getByLabel('Adresse de la pull request').fill('https://github.com/example/portal/pull/8');
   await page.getByRole('button', { name: 'Ajouter un critère' }).click();
@@ -429,7 +429,7 @@ test('reviews an alert, and hands the dismissal of a critical one to the termina
   await critical.getByRole('button', { name: 'Revoir' }).click();
   let dialog = page.getByRole('dialog', { name: /Revoir form-parser/ });
   await dialog.getByLabel('Statut').selectOption('confirmed');
-  await dialog.getByLabel('Ton nom').fill('Alex Moreau');
+  await dialog.getByLabel('Tes initiales').fill('Alex Moreau');
   await dialog.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(critical.getByText('Confirmée')).toBeVisible();
   await expect(critical.getByText('Alex Moreau')).toBeVisible();
@@ -458,13 +458,13 @@ test('says a refusal in French by its code, keeps the command copyable, and mark
     await page.locator('tr', { hasText: 'form-parser' }).getByRole('button', { name: 'Revoir' }).click({ timeout: 15_000 });
     const dialog = page.getByRole('dialog', { name: /Revoir form-parser/ });
     await dialog.getByLabel('Statut').selectOption('dismissed');
-    await dialog.getByLabel('Ton nom').fill('Alex Moreau');
+    await dialog.getByLabel('Tes initiales').fill('Alex Moreau');
     await dialog.getByLabel('Motif').fill('Only used at build time');
     await dialog.getByRole('button', { name: 'Enregistrer' }).click();
     return page.getByRole('dialog', { name: 'À faire dans ton terminal' });
   };
   let terminal = await dismiss();
-  await expect(terminal.locator('p').first()).toHaveText('Écarter une alerte critique ou haute se fait par une personne, dans son terminal, avec son nom et la raison.');
+  await expect(terminal.locator('p').first()).toHaveText('Écarter une alerte critique ou haute se fait par une personne, dans son terminal, avec ses initiales et la raison.');
   await expect(terminal.locator('p').first()).not.toHaveAttribute('lang', 'en');
   await expect(terminal.getByLabel('Commande')).toContainText('alerts set npm:form-parser');
   await expect(terminal.getByRole('button', { name: 'Copier' })).toBeVisible();
@@ -577,7 +577,7 @@ test('exports a completed task for Documentalist, then records and revokes a sha
   await page.getByRole('dialog').getByRole('button', { name: 'Fermer' }).last().click();
 
   await page.getByRole('tab', { name: /Partages/ }).click();
-  await expect(page.getByText(/Indique ton nom pour enregistrer qu’un accès a été retiré/)).toBeVisible();
+  await expect(page.getByText(/Indique tes initiales ou l’identifiant de ton équipe pour enregistrer qu’un accès a été retiré/)).toBeVisible();
   await page.getByLabel('Page ou dossier partagé').fill('docs-site/reference/request-status.md');
   await page.getByLabel('Dernier jour d’accès').fill('2026-12-20');
   await page.getByLabel('Adresse du portail Documentalist').fill('https://docs.example.org/p/support-portal');

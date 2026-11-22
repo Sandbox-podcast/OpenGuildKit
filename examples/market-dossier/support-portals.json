@@ -22,7 +22,7 @@
       {"competitor": "vendor-a", "url": "https://example.com/vendor-a/release-notes", "kind": "release notes"}
     ],
     "changes": [
-      {"competitor": "vendor-a", "what": "Added request priority labels to the customer portal.", "date": "2026-11-10", "source": "https://example.com/vendor-a/release-notes", "verified_by": "Camille Martin"}
+      {"competitor": "vendor-a", "what": "Added request priority labels to the customer portal.", "date": "2026-11-10", "source": "https://example.com/vendor-a/release-notes", "verified_by": "CM"}
     ]
   }
 }

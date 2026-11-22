@@ -82,14 +82,14 @@ def main() -> None:
 
     def manual_steps() -> None:
         print("Approval needs a person at a terminal. Run, in your own terminal:")
-        print(f'  openguildkit --project "{project}" task decide {TASK_ID} --approve --by "Your Name" --reason "Scope agreed"')
+        print(f'  openguildkit --project "{project}" task decide {TASK_ID} --approve --by INITIALS --reason "Scope agreed"')
         print(f'  openguildkit --project "{project}" task handoff {TASK_ID}')
 
     if not sys.stdin.isatty():
         manual_steps()
         return
     try:
-        name = input("Your name for the approval record: ").strip() or "Example reviewer"
+        name = input("Your initials or team handle for the approval record: ").strip() or "example-reviewer"
     except EOFError:
         # On Windows, a redirect from NUL looks like a terminal but has no input.
         print()

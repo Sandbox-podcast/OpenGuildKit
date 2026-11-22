@@ -139,8 +139,8 @@ function Checks({ task }: { task: TaskRecord }) {
                 {c.result?.evidence && <span className="tiny muted block mono">{c.result.evidence}</span>}{c.result?.reason && <span className="tiny muted block" data-own>{c.result.reason}{c.result.owner ? ` (${c.result.owner})` : ''}</span>}</td></tr>); })}</tbody></table></TableBox>}
       </Q>
       {task.status === 'approved' && commands.length > 0 && <details className="small"><summary>Une commande ne peut pas tourner ici</summary>
-        <p>Une personne le déclare dans son terminal, avec son nom et la raison : la CLI relance d’abord la commande, puis lui demande de retaper l’identifiant de la tâche. La tâche se termine alors avec cette réserve. L’interface n’enregistre jamais cette déclaration.</p>
-        {commands.map((c) => <div key={c.id}><p className="tiny"><span className="mono">{c.id}</span> : <code>{c.command}</code></p><CommandLine command={terminalCommand(['task', 'verify', task.id, '--cannot-run', c.id, '--by', 'Ton nom', '--reason', 'Pourquoi elle ne peut pas tourner ici'])} /></div>)}
+        <p>Une personne le déclare dans son terminal, avec ses initiales et la raison : la CLI relance d’abord la commande, puis lui demande de retaper l’identifiant de la tâche. La tâche se termine alors avec cette réserve. L’interface n’enregistre jamais cette déclaration.</p>
+        {commands.map((c) => <div key={c.id}><p className="tiny"><span className="mono">{c.id}</span> : <code>{c.command}</code></p><CommandLine command={terminalCommand(['task', 'verify', task.id, '--cannot-run', c.id, '--by', 'TES_INITIALES', '--reason', 'Pourquoi elle ne peut pas tourner ici'])} /></div>)}
       </details>}
       {task.status === 'approved' && <details className="small"><summary>Enregistrer un rejeu ChaosFolk</summary>
         <FilePick label="summary.json du rejeu" onText={(t) => setChaos(t)} />
@@ -162,7 +162,7 @@ function Conditions({ id }: { id: string }) {
       <ul className="plain stack tight">{pending.map((b) => <li key={b.id} className={`card blocker ${b.resolution ? 'resolved' : ''}`}>
         <span className="row between"><span className="mono small">{b.id}</span>{b.resolution ? <Badge tone="success" icon="check">levé par {b.resolution.by}</Badge> : <Badge tone="warning" icon="clock">à lever</Badge>}</span>
         <strong data-own>{b.finding}</strong>{b.owner && <span className="small">Responsable : {b.owner}. Se lève quand : <span data-own>{b.clears_when}</span></span>}
-        {!b.resolution && <CommandLine command={terminalCommand(['task', 'clear', id, b.id, '--evidence', 'CHEMIN_OU_LIEN', '--supports', 'Ce que la preuve établit', '--by', 'Ton nom'])} />}
+        {!b.resolution && <CommandLine command={terminalCommand(['task', 'clear', id, b.id, '--evidence', 'CHEMIN_OU_LIEN', '--supports', 'Ce que la preuve établit', '--by', 'TES_INITIALES'])} />}
       </li>)}</ul>
     </Section>
   );
@@ -210,7 +210,7 @@ function Results({ task }: { task: TaskRecord }) {
       <p className="small muted">Les rapports suivants mettent à jour les précédents, contrôle par contrôle. <code>task complete</code> termine la tâche quand chaque contrôle obligatoire a réussi, ou ne peut pas tourner ici sur la déclaration d’une personne, et que chaque critère est atteint ; ce qui reste ouvert (règle ignorée, réserve, désaccord) la termine « avec réserves ».</p>
       {!!task.result?.waiting_for?.length && <Notice tone="warn" title="En attente de preuves :"><ul>{task.result.waiting_for.map((w) => <li key={w.check}><span className="mono">{w.check}</span> : <span lang="en">{w.title}</span>, fournie par <span lang="en">{w.owner}</span> (<span lang="en">{w.why}</span>). Demande-la ; ne la rédige pas à sa place.</li>)}</ul></Notice>}
       {!!task.result?.warnings?.length && <Notice tone="warn" title="Avertissements :"><ul lang="en">{task.result.warnings.map((w) => <li key={w}>{w}</li>)}</ul></Notice>}
-      <TextField label="Ton nom" hint="Responsable des règles ignorées ou non applicables que tu rapportes." value={owner} onChange={(e) => setOwner(e.target.value)} />
+      <TextField label="Tes initiales" hint="Responsable des règles ignorées ou non applicables que tu rapportes." value={owner} onChange={(e) => setOwner(e.target.value)} />
       <div className="grid-2">
         <div className="field"><label htmlFor="delivery">Livraison</label><select id="delivery" className="input" value={delivery} onChange={(e) => setDelivery(e.target.value as typeof delivery)}><option value="pull_request">Pull request</option><option value="revision">Révision Git</option></select></div>
         <TextField label={delivery === 'pull_request' ? 'Adresse de la pull request' : 'Révision'} value={ref} onChange={(e) => setRef(e.target.value)} placeholder={delivery === 'pull_request' ? 'https://github.com/…/pull/7' : 'abc1234'} />
@@ -231,7 +231,7 @@ function Results({ task }: { task: TaskRecord }) {
           <td>{o.status === 'passed' || o.status === 'failed' ? <input className="input" aria-label="Preuve" value={o.evidence} onChange={(e) => setOutcome(c.id, { evidence: e.target.value })} /> : o.status ? <span className="row"><input className="input" aria-label="Motif" placeholder="Motif" value={o.reason} onChange={(e) => setOutcome(c.id, { reason: e.target.value })} /><input className="input" aria-label="Responsable" placeholder="Responsable" value={o.owner} onChange={(e) => { setOwner(e.target.value); setOutcome(c.id, { owner: e.target.value }); }} /></span> : <span className="tiny muted">—</span>}</td>
         </tr>; })}
       </tbody></table></TableBox>
-      <Button size="small" variant="ghost" className="wrap" disabled={!owner.trim()} title={owner.trim() ? undefined : 'Indique d’abord ton nom'} onClick={() => rules.forEach((c) => !c.result && setOutcome(c.id, { status: 'not-applicable', reason: 'Aucun changement dans ce domaine.', owner }))}>Marquer les règles non rapportées « non applicables »</Button></div>}
+      <Button size="small" variant="ghost" className="wrap" disabled={!owner.trim()} title={owner.trim() ? undefined : 'Indique d’abord tes initiales ou l’identifiant de ton équipe'} onClick={() => rules.forEach((c) => !c.result && setOutcome(c.id, { status: 'not-applicable', reason: 'Aucun changement dans ce domaine.', owner }))}>Marquer les règles non rapportées « non applicables »</Button></div>}
       {incomplete.length > 0 && <Notice tone="warn">Il manque une preuve, ou un motif et un responsable, pour : {incomplete.join(', ')}.</Notice>}
       {error && <ErrorNotice error={error} title="La CLI a refusé :" />}
       <div className="row">

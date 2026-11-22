@@ -64,10 +64,10 @@ def review(project: Path) -> None:
 
 def decide(project: Path) -> bool:
     """Let a person at a terminal approve; return False when nobody can."""
-    command = f'openguildkit --project "{project}" task decide {TASK_ID} --approve --by "Your Name" --reason "Scope agreed"'
+    command = f'openguildkit --project "{project}" task decide {TASK_ID} --approve --by INITIALS --reason "Scope agreed"'
     if sys.stdin.isatty():
         try:
-            name = input("Your name for the approval record: ").strip() or "Example reviewer"
+            name = input("Your initials or team handle for the approval record: ").strip() or "example-reviewer"
         except EOFError:
             name = ""
         if name:

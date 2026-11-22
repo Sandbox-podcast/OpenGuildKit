@@ -421,7 +421,7 @@ function Blockers({ id }: { id: string }) {
             showTerminal({ title: 'Levée du point bloquant : à faire dans ton terminal', why: 'L’interface n’enregistre jamais la levée d’un point bloquant sans la signature de la personne. Elle tape cette commande, puis retape l’identifiant de la tâche.', command: terminalCommand(argv) });
           }} />
           {signed && <details className="small"><summary>Levée signée</summary>
-            <p>1. Écris la levée exacte à signer :</p><CommandLine command={terminalCommand(['task', 'clear', id, clearing.id, '--evidence', 'PREUVE', '--supports', 'CE_QU_ELLE_ETABLIT', '--by', by || 'Ton nom', '--payload', 'clear.json'])} />
+            <p>1. Écris la levée exacte à signer :</p><CommandLine command={terminalCommand(['task', 'clear', id, clearing.id, '--evidence', 'PREUVE', '--supports', 'CE_QU_ELLE_ETABLIT', '--by', by || 'TES_INITIALES', '--payload', 'clear.json'])} />
             <p>2. Signe-la avec ta clé SSH :</p><CommandLine command="ssh-keygen -Y sign -n openguildkit-decision -f ~/.ssh/id_ed25519 clear.json" />
             <p>3. Dépose la signature et nomme le signataire, puis « Préparer la commande » l’enregistre ; la CLI la vérifie avec le fichier des signataires autorisés.</p>
             <TextField label="Signataire (principal)" value={signer} onChange={(e) => setSigner(e.target.value)} />
@@ -460,8 +460,8 @@ function Decide({ task }: { task: TaskRecord }) {
   const conditions = (blockers.data ?? []).filter((b) => !b.resolution && b.phase === 'verification').length;
   const previous = task.rounds.at(-1)?.decision;
   const signed = profile.data?.approval?.mode === 'signed';
-  const approve = useMemo(() => terminalCommand(['task', 'decide', task.id, '--approve', '--by', by || 'Ton nom', '--reason', reason || 'Motif de la décision']), [task.id, by, reason]);
-  const payload = terminalCommand(['task', 'decision-payload', task.id, '--by', by || 'Ton nom', '--reason', reason || 'Motif', '--output', 'decision.json']);
+  const approve = useMemo(() => terminalCommand(['task', 'decide', task.id, '--approve', '--by', by || 'TES_INITIALES', '--reason', reason || 'Motif de la décision']), [task.id, by, reason]);
+  const payload = terminalCommand(['task', 'decision-payload', task.id, '--by', by || 'TES_INITIALES', '--reason', reason || 'Motif', '--output', 'decision.json']);
 
   return (
     <Section id="decision" title="Décision" icon="lock">

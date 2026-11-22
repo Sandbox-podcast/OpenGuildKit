@@ -91,14 +91,14 @@ function Alerts() {
           <p className="small" lang="en">{reviewing.summary}</p>
           <ActionForm busy={busy !== null} submit="Enregistrer" initial={{ by, status: reviewing.status === 'open' ? 'confirmed' : reviewing.status }} fields={[
             { name: 'status', label: 'Statut', required: true, options: [{ value: 'open', label: 'À vérifier' }, { value: 'confirmed', label: 'Confirmée' }, { value: 'dismissed', label: 'Écartée (motif obligatoire)' }] },
-            { name: 'by', label: 'Ton nom', required: true },
+            { name: 'by', label: 'Tes initiales', required: true },
             { name: 'reason', label: 'Motif', hint: 'Obligatoire pour écarter une alerte.' },
           ]} onSubmit={async (v) => { setBy(v.by); if (await act(['alerts', 'set', reviewing.id, '--status', v.status, '--by', v.by, ...(v.reason ? ['--reason', v.reason] : [])], { success: 'Alerte revue' })) setReviewing(null); }} />
           <hr />
           <ActionForm busy={busy !== null} submit="Lier à la tâche" fields={[{ name: 'task', label: 'Tâche qui traite l’alerte', required: true, options: (tasks.data ?? []).map((t) => ({ value: t.id, label: t.id })) }]} onSubmit={async (v) => { if (await act(['alerts', 'link', reviewing.id, '--task', v.task], { success: 'Alerte liée' })) setReviewing(null); }} />
           <div className="row"><a className="btn small" href={`#/quetes?nouvelle=1`}><Icon name="plus" size={12} /> Ouvrir une tâche de correctif</a>
-            {reviewing.severity === 'unknown' && <Button size="small" onClick={() => showTerminal({ title: 'Fixer la sévérité : à faire dans ton terminal', why: 'Le scanner n’a pas donné de sévérité (pip-audit par exemple). Une personne la fixe d’après l’avis, dans son terminal, avec son nom et la raison.', command: terminalCommand(['alerts', 'severity', reviewing.id, '--level', 'high', '--by', by || 'Ton nom', '--reason', 'Score CVSS de l’avis']) })}>Fixer la sévérité…</Button>}
-            {reviewing.status === 'confirmed' && !reviewing.accepted && <Button size="small" onClick={() => showTerminal({ title: 'Accepter le risque : à faire dans ton terminal', why: 'Accepter une alerte confirmée demande une personne devant un terminal.', command: terminalCommand(['alerts', 'accept', reviewing.id, '--by', by || 'Ton nom', '--reason', 'Motif']) })}>Accepter le risque…</Button>}</div>
+            {reviewing.severity === 'unknown' && <Button size="small" onClick={() => showTerminal({ title: 'Fixer la sévérité : à faire dans ton terminal', why: 'Le scanner n’a pas donné de sévérité (pip-audit par exemple). Une personne la fixe d’après l’avis, dans son terminal, avec ses initiales et la raison.', command: terminalCommand(['alerts', 'severity', reviewing.id, '--level', 'high', '--by', by || 'TES_INITIALES', '--reason', 'Score CVSS de l’avis']) })}>Fixer la sévérité…</Button>}
+            {reviewing.status === 'confirmed' && !reviewing.accepted && <Button size="small" onClick={() => showTerminal({ title: 'Accepter le risque : à faire dans ton terminal', why: 'Accepter une alerte confirmée demande une personne devant un terminal.', command: terminalCommand(['alerts', 'accept', reviewing.id, '--by', by || 'TES_INITIALES', '--reason', 'Motif']) })}>Accepter le risque…</Button>}</div>
         </>}
       </Dialog>
     </div>

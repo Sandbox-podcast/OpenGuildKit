@@ -32,6 +32,9 @@ PERSON_OPTION = re.compile(r"""--(?:by|verified-by|allowed-by|approver|signer|ow
 PERSON_JSON = re.compile(r'''"(?:by|owner|verified_by|provided_by|approvers|allowed_by)":\s*\[?\s*"([^"]*)"''')
 DELEGATE = re.compile(r"""--delegate\s+(?:"[^"=]*=([^"]*)"|'[^'=]*=([^']*)'|[\w-]+=("[^"]*"|'[^']*'|\S+))""")
 PLACEHOLDERS = {"NAME", "PRINCIPAL", "PERSON"}
+# A terminal prompt that asks for a name, and a hint or placeholder of the page that does.
+NAME_PROMPT = re.compile(r"""(?:input|_prompt_line)\(\s*f?["'][^"']*\b[Yy]our (?:full )?name\b""")
+WEB_NAME = re.compile(r"""\b[Tt]on nom\b|avec son nom\b|placeholder=["'][A-Z][a-zé]+ [A-Z][a-z]+["']""")
 
 
 def _read(path: Path) -> str:
@@ -61,7 +64,8 @@ def full_names(text: str) -> list[str]:
     for pattern in (PERSON_OPTION, PERSON_JSON, DELEGATE):
         for match in pattern.finditer(text):
             value = next(group for group in match.groups() if group is not None).strip("\"'")
-            if value not in PLACEHOLDERS and (" " in value or "@" in value):
+            # A team handle starts with @ (@security); an address has one after its first character.
+            if value not in PLACEHOLDERS and (" " in value or "@" in value[1:]):
                 found.append(match.group(0))
     return found
 
@@ -144,6 +148,7 @@ class ExampleTests(unittest.TestCase):
         self.assertEqual(full_names("task decide x --approve --by NAME --reason WHY"), [])
         self.assertEqual(len(full_names('task decide x --approve --by "Camille Martin" --reason R')), 1)
         self.assertEqual(len(full_names("--signer camille@example.org")), 1)
+        self.assertEqual(full_names('"owner": "@security"'), [])
         self.assertEqual(len(full_names('"declined": [{"id": "x", "by": "Camille Martin"}]')), 1)
         self.assertEqual(len(full_names('--delegate security="Alex Moreau"')), 1)
 
@@ -151,6 +156,21 @@ class ExampleTests(unittest.TestCase):
         for page in example_pages():
             with self.subTest(page=page.relative_to(REPO).as_posix()):
                 self.assertEqual(full_names(_read(page)), [])
+
+    def test_prompts_and_examples_ask_for_initials_not_a_name(self):
+        """The terminal prompts, the page's hints and placeholders, and the example files follow the same advice."""
+        scripts = [*sorted(SOURCE.rglob("*.py")), *sorted((REPO / "examples").rglob("*.py"))]
+        for path in scripts:
+            with self.subTest(path=path.relative_to(REPO).as_posix()):
+                self.assertEqual(NAME_PROMPT.findall(_read(path)), [])
+        for path in sorted(WEB_SOURCE.rglob("*.ts*")):
+            with self.subTest(path=path.relative_to(REPO).as_posix()):
+                self.assertEqual(WEB_NAME.findall(_read(path)), [])
+        for path in sorted((REPO / "examples").rglob("*.json")):
+            with self.subTest(path=path.relative_to(REPO).as_posix()):
+                self.assertEqual(full_names(_read(path)), [])
+        campaign = json.loads(_read(REPO / "examples" / "field-tests" / "campaign.json"))
+        self.assertNotIn(" ", campaign["person"])
 
     def test_both_readmes_and_the_security_policy_link_to_the_page(self):
         for relative in ("README.md", "README.fr.md"):
