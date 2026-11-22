@@ -1,30 +1,22 @@
-import contextlib
-import io
 import os
 import tempfile
 import unittest
 from pathlib import Path
 
 from openguildkit.catalog import load_catalog
-from openguildkit.cli import main
 from openguildkit.project import BEGIN, END, merged_instructions, validate_profile
 from openguildkit.storage import write_json
 
+from tests.support import CapturedCli
 
-class InstructionFileTests(unittest.TestCase):
+
+class InstructionFileTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.answers = self.root / "answers.json"
         write_json(self.answers, {"name": "Portal", "stack": ["Python"]})
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def test_a_byte_order_mark_is_kept_and_does_not_block_the_project(self):
         agents, claude = self.root / "AGENTS.md", self.root / "CLAUDE.md"

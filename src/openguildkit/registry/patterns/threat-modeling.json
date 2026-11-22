@@ -18,6 +18,9 @@
     "security",
     "engineering"
   ],
+  "core_for": [
+    "security"
+  ],
   "packs": [
     "threat-modeling"
   ],

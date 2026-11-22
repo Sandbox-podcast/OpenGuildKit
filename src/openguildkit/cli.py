@@ -1,105 +1,64 @@
 """Command-line interface for OpenGuildKit."""
 
 import argparse
-import json
+import os
 import re
 import sys
-from contextlib import contextmanager
+from functools import cache
+from importlib import import_module
 from pathlib import Path
 
-from .catalog import load_catalog, undated_sources
-from .ci import check_export, read_policy_pack
-from .decisions import NAMESPACE, approval_policy, check_decision, decision_payload, git_revision, payload_text, verify_signature
-from . import alerts_cli
-from .alerts import blocking_alerts, load_register
-from .deliverables import draft_problems, launch_notice, load_deliverables, new_draft, utm_link
-from .brains import (
-    brain_knowledge, brief_knowledge, consultation_context, knowledge_gaps, reading_list_note, write_brain_skeleton,
-)
+from . import alerts_cli, market_cli, profile_cli, storybook_cli, tasks_cli, tools_cli
+from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
+from .catalog import board_replacements, undated_sources
+from .ci import check_export
 from .detect import components_for_profile, detect_stack, detected_project_name
-from .publishing import add_share, export_docs, project_overview, revoke_share, share_status
-from . import tools_cli
-from .test_commands import suggest_checks
-from . import webui
-from .tools import connected_tools, load_tools, tool_evidence_warnings
-from . import market_cli
-from .market import load_dossier
-from .market import scope_entry as market_scope_entry
-from .storybook import STORYBOOK_VERSION
-from .storybook import run as storybook_command
-from .storybook import scope_entry as storybook_scope_entry
-from .integrations import OTHER_HOST_NOTE, install_agent_files
-from .guard import NO_TASK, STALE_DAYS, ci_guard, covering_approvals, export_decision, exported_decision_problems, guard_mode, run_hook
-from .results import (
-    chaosfolk_checks, command_diagnostics, compare_runs, completion_problems, decision_changes, decision_revision_message,
-    evidence_files_missing, expected_checks, missing_scenarios,
-    result_template, run_command_checks,
+from .guard import (
+    NO_TASK, SCOPE_NOTE, STALE_DAYS, ci_guard, covering_approvals, exported_decisions, guard_mode, hook_command,
 )
 from .hosts import apply_host_settings, approval_warning, host_controls
+from .integrations import OTHER_HOST_NOTE, install_agent_files
 from .lock import (
-    package_version,
-    apply_lock,
-    build_lock,
-    catalog_changes,
-    installed_catalog_date,
-    lock_is_current,
-    read_lock,
-    unshipped_records,
-    update_target,
-    write_lock,
+    apply_lock, build_lock, catalog_changes, installed_catalog, installed_catalog_date, lock_is_current, package_version,
+    project_catalog, read_lock, require_instructions, unshipped_records, update_target, write_lock,
 )
 from .patterns import patterns_to_review, role_choices
+from .profile_cli import print_touched
 from .project import (
-    GUARD_MODES,
-    check_instructions,
-    complete_answers,
-    init_questions,
-    initialize,
-    is_norm,
-    load_profile,
-    profile_recommendations,
-    profile_fingerprint,
-    project_root,
-    resolved_profile,
-    rule_conflicts,
-    rule_plan,
-    setup_profile,
-    state_path,
-    sync_instructions,
-    task_scope_profile,
-    validate_profile,
+    ALREADY_INITIALIZED, GUARD_MODES, RULES_NOTE, Fingerprints, complete_answers, init_questions, initialize, is_norm,
+    load_profile, profile_recommendations, project_root, require_resolved_conflicts, rule_conflicts, rule_plan,
+    setup_profile, state_path, sync_instructions, unsure_answers,
 )
-from .tools import HOSTS as TOOL_HOSTS
+from .project_checks import propose_checks
+from .prompts import prompt_questions
+from .storage import json_text, print_json, project_lock, read_json, write_json
+from .tasks import list_tasks, read_task, task_path, tasks_touched
+from .tasks_cli import sharing_warnings
 from .tools import detect_tools, load_tools, match_tools
-from .references import english_title, find_references, load_references, with_pattern_references
-from .sensitive import contains_email, redact_credentials
-from .storage import json_text, project_lock, read_json, write_json
-from .tasks import (
-    approval_problem,
-    timestamp,
-    list_tasks,
-    complete_task,
-    record_result,
-    resolve_blocker,
-    record_deliberation,
-    assemble_review,
-    pass_progress,
-    points_left_open,
-    start_pass,
-    submit_pass,
-    verification_blocker_problems,
-    ACTIONS,
-    record_authorization,
-    create_task,
-    read_task,
-    consultation_brief,
-    record_consultation,
-    record_decision,
-    record_review,
-    require_current_scope,
-    task_path,
-)
-from .workflow import blocker_list, board_brief, challenge_report, decision_summary, deliberation_request, handoff, is_decision_task, open_points, pending_removals, select_boards, task_questions, validate_answers
+
+
+def _on_first_call(module: str, name: str):
+    """A function of a module that few commands use, imported when it is first called, so that the other commands
+    start without that module (the web server alone added about 30 ms to every command, the edit hook included)."""
+    def call(*args, **kwargs):
+        return getattr(import_module(f"{__package__}.{module}"), name)(*args, **kwargs)
+
+    call.__name__ = call.__qualname__ = name
+    return call
+
+
+draft_problems, launch_notice, load_deliverables, new_draft, project_path, utm_link = (
+    _on_first_call("deliverables", name)
+    for name in ("draft_problems", "launch_notice", "load_deliverables", "new_draft", "project_path", "utm_link"))
+add_share, export_docs, project_overview, revoke_share, same_access, share_status = (
+    _on_first_call("publishing", name)
+    for name in ("add_share", "export_docs", "project_overview", "revoke_share", "same_access", "share_status"))
+english_title, find_references, load_references, with_pattern_references = (
+    _on_first_call("references", name)
+    for name in ("english_title", "find_references", "load_references", "with_pattern_references"))
+# The port of openguildkit ui, here so that the help does not import the web server; webui.DEFAULT_PORT is the
+# same number (tests/test_performance.py compares the help with it).
+UI_PORT = 7311
 
 
 class _Version(argparse.Action):
@@ -114,7 +73,10 @@ class _Version(argparse.Action):
         parser.exit()
 
 
-def _parser() -> argparse.ArgumentParser:
+@cache
+def command_parser() -> argparse.ArgumentParser:
+    """The CLI's argument parser, built once per process: building it costs more than parsing a command, and the
+    web server parses one command after another."""
     parser = argparse.ArgumentParser(prog="openguildkit", description="Project rules and specialist reviews for AI-assisted work.")
     parser.add_argument("--version", action=_Version)
     parser.add_argument("--project", type=Path, help="Project root (defaults to the closest configured ancestor).")
@@ -155,6 +117,8 @@ def _parser() -> argparse.ArgumentParser:
     guard_mode.add_argument("--hook", choices=("prompt", "pre-edit"), help="Run as a host hook; reads the hook input on stdin.")
     guard_mode.add_argument("--ci", action="store_true", help="Check the decisions exported for the changes since --base.")
     guard.add_argument("--base", default="origin/main", help="Base revision for --ci (default origin/main).")
+    guard.add_argument("--require-signed", action="store_true",
+                       help="With --ci, fail while the base revision's approvals are local and cannot be verified.")
     guard.add_argument("--json", action="store_true", help="Print the result as JSON.")
     deliverable = commands.add_parser("deliverable", help="Start and check a business deliverable from an approved task.")
     deliverable_actions = deliverable.add_subparsers(dest="deliverable_action", required=True)
@@ -164,7 +128,7 @@ def _parser() -> argparse.ArgumentParser:
     new_deliverable = deliverable_actions.add_parser("new", help="Write a draft for an approved task.")
     new_deliverable.add_argument("id")
     new_deliverable.add_argument("--task", required=True, help="Approved task the deliverable comes from.")
-    new_deliverable.add_argument("--tool", help="Tool used by the team, when the template requires one.")
+    new_deliverable.add_argument("--tool", help="Tool the team will use, from the profile's approved tools (optional).")
     new_deliverable.add_argument("--output", type=Path, required=True, help="Markdown file to write.")
     check_deliverable = deliverable_actions.add_parser("check", help="List what keeps a draft from review.")
     check_deliverable.add_argument("path", type=Path)
@@ -186,59 +150,17 @@ def _parser() -> argparse.ArgumentParser:
     share.add_argument("share_action", choices=("add", "list", "revoke", "check"))
     share.add_argument("--deliverable", help="Page or folder shared (add).")
     share.add_argument("--recipient", action="append", default=[], help="Recipient email address (add, repeatable).")
-    share.add_argument("--until", help="Last day of access, YYYY-MM-DD (add).")
-    share.add_argument("--portal", help="https address of the Documentalist portal (add).")
+    share.add_argument("--until", help="Last day of access, YYYY-MM-DD: a reminder, Documentalist keeps no end date (add).")
+    share.add_argument("--portal", help="Address of the shared space's portal, https://HOST/p/SPACE; http only on this "
+                                        "machine (add).")
     share.add_argument("--id", dest="share_id", help="Share ID (revoke).")
     share.add_argument("--by", help="Owner of the share (add, revoke).")
     share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
     tools_cli.add_parser(commands)
+    profile_cli.add_parser(commands)
     alerts_cli.add_parser(commands)
     market_cli.add_parser(commands)
-    storybook = commands.add_parser(
-        "storybook", help="Compose the company Storybook, record its stories and extract a design system.")
-    storybook_actions = storybook.add_subparsers(dest="action", required=True)
-    compose = storybook_actions.add_parser(
-        "compose", help="Add a published Storybook to the refs file that .storybook/main imports.")
-    compose.add_argument("ref", help="Ref ID, such as company; its stories are cited as storybook:REF_STORY_ID.")
-    compose.add_argument("--url", help="URL of the published Storybook.")
-    compose.add_argument("--title", help="Title shown in the Storybook sidebar.")
-    compose.add_argument("--remove", action="store_true", help="Remove this ref from the refs file.")
-    compose.add_argument("--config-dir", default=".storybook", help="Storybook configuration folder (default .storybook).")
-    sb_import = storybook_actions.add_parser(
-        "import", help="Compare Storybook index.json files, report what to map and record the known stories.")
-    sb_import.add_argument("--project-index", type=Path,
-                           help="The project's index.json or storybook-static folder (default storybook-static).")
-    sb_import.add_argument("--company-index", type=Path, help="The company Storybook's index.json or static folder.")
-    sb_import.add_argument("--ref", default="company", help="Ref ID of the company Storybook (default company).")
-    sb_import.add_argument("--library", type=Path, help="package.json of the company component library.")
-    sb_import.add_argument("--package", type=Path, help="The project's package.json (default package.json).")
-    sb_extract = storybook_actions.add_parser(
-        "extract", help="Inventory the components, variants and style tokens of an existing React application.",
-        description="Inventory the components, variants and style tokens of an existing React application. "
-                    "Supported: React function components (function declarations, arrow functions, forwardRef and "
-                    "memo) in .tsx and .jsx files, their props, literal defaults and string-union prop types, the "
-                    "export aliases and re-exports of .ts and .js index files, and CSS and SCSS stylesheets. "
-                    "Not supported: class components, Vue, Angular and Svelte components, CSS-in-JS and utility "
-                    "classes such as Tailwind's. The sources are read with text patterns, not a full parser: "
-                    "check the inventory before proposing.")
-    sb_extract.add_argument("--src", type=Path, action="append", required=True,
-                         help="Source folder or file to scan, such as a screen; repeat to select several.")
-    sb_extract.add_argument("--preview", type=Path, action="append", default=[],
-                         help="Screenshot the team may reuse; recorded with its hash, never analyzed.")
-    sb_extract.add_argument("--output", type=Path, help="Inventory file (default .openguildkit/storybook/inventory.json).")
-    sb_propose = storybook_actions.add_parser(
-        "propose", help="Write the proposals to validate from the inventory, keeping the decisions already made.")
-    sb_propose.add_argument("--inventory", type=Path, help="Inventory file (default .openguildkit/storybook/inventory.json).")
-    sb_propose.add_argument("--proposals", type=Path, help="Proposals file (default .openguildkit/storybook/proposals.json).")
-    sb_generate = storybook_actions.add_parser(
-        "generate", help="Write tokens, stories and an index for the validated proposals; never overwrite edits.")
-    sb_generate.add_argument("--proposals", type=Path, help="Proposals file (default .openguildkit/storybook/proposals.json).")
-    sb_generate.add_argument("--out", type=Path, help="Output folder (default src/design-system).")
-    sb_generate.add_argument("--framework", default="@storybook/react-vite", help="Storybook framework package for the types.")
-    for storybook_action in (compose, sb_import, sb_extract, sb_propose, sb_generate):
-        storybook_action.add_argument("--json", action="store_true", help="Print the result as JSON.")
-    storybook.epilog = (f"Create the project Storybook with npm create storybook@{STORYBOOK_VERSION}. "
-                        "storybook compose prints a minimal .storybook/main.ts when the project has none.")
+    storybook_cli.add_parser(commands)
     agent = commands.add_parser("integrations", help="Install the agent skill and subagent of this version.")
     agent.add_argument("--host", required=True, choices=("claude-code", "codex", "other"),
                        help="Agent to configure (other: the Agent Skills folder .agents/skills/).")
@@ -252,203 +174,27 @@ def _parser() -> argparse.ArgumentParser:
     update.add_argument("--json", action="store_true", help="Print the changes as JSON.")
     commands.add_parser("check", help="Check that the instructions match the project profile.")
     ui = commands.add_parser("ui", help="Open the web interface of this project on 127.0.0.1.")
-    ui.add_argument("--port", type=int, default=webui.DEFAULT_PORT, help=f"Port (default {webui.DEFAULT_PORT}; 0 picks a free one).")
+    ui.add_argument("--port", type=int, default=UI_PORT, help=f"Port (default {UI_PORT}; 0 picks a free one).")
     ui.add_argument("--no-browser", action="store_true", help="Print the address without opening a browser.")
     ui.add_argument("--static", type=Path, help="Folder of a built front end (default: the one installed with the package).")
     ci = commands.add_parser("ci-check", help="Evaluate the central export rule on an exact Git commit.")
     ci.add_argument("--target-repo", type=Path, required=True, help="Local Git repository with the target commit.")
     ci.add_argument("--commit", required=True, help="Full Git SHA of the target commit.")
 
-    task = commands.add_parser("task", help="Frame a task, record advice and approve a handoff.")
-    actions = task.add_subparsers(dest="action", required=True)
-    new = actions.add_parser("new", help="Create a task draft.")
-    new.add_argument("brief", nargs="?", help="Short description of the work.")
-    new.add_argument("--file", type=Path, help="Read the brief from a UTF-8 Markdown or text file.")
-    new.add_argument("--id", help="Use a readable lowercase task ID.")
-    new.add_argument("--follows", metavar="TASK", help="Link the task to an earlier task's decision.")
-    listing = actions.add_parser("list", help="List the project's tasks with their status and next open point.")
-    listing.add_argument("--status", help="Only tasks in this status.")
-    listing.add_argument("--owner", help="Only tasks decided by this person.")
-    listing.add_argument("--since", help="Created on or after YYYY-MM-DD.")
-    listing.add_argument("--until", help="Created on or before YYYY-MM-DD.")
-    listing.add_argument("--json", action="store_true", help="Print the tasks as JSON.")
-    descriptions = {
-        "questions": "Print the task questionnaire as JSON.",
-        "route": "Preview the boards a consultation would select, and why.",
-        "consult": "Save task answers and prepare the board consultation.",
-        "brief": "Print the saved consultation for the host agent.",
-        "template": "Print the review template as JSON.",
-        "pass": "Start one board's independent pass and print what it needs.",
-        "submit": "Record one board's review entry from its pass.",
-        "progress": "Show which board passes are done, failed, started or missing.",
-        "review": "Record the completed board reviews.",
-        "challenge": "Print the decision brief and each board's challenge.",
-        "deliberate": "Print the objections between boards and the response template.",
-        "blockers": "List the review's blockers and how each was resolved.",
-        "clear": "Record the evidence that clears a blocker.",
-        "waive": "Waive a blocker within the project's waiver policy (needs a terminal).",
-        "respond": "Record the boards' answers to each other's objections.",
-        "decide": "Record a human decision.",
-        "handoff": "Print the approved implementation handoff, or the decision record of a decision task.",
-        "decision-payload": "Print the exact decision an approver signs in a project that requires signed approvals.",
-        "show": "Print the task record as JSON.",
-        "checks": "List the checks the approved task must report.",
-        "verify": "Run the project's check commands and the rules' machine checks, and record their results.",
-        "result": "Record the delivered revision, criteria and check outcomes.",
-        "complete": "Declare the task done once mandatory checks passed with evidence.",
-        "runs": "Compare the last two ChaosFolk replays of the task.",
-        "alerts": "Import dependency alerts for the task into the project register and review them.",
-        "export": "Write a shareable decision record to .openguildkit/decisions for the pull request.",
-        "authorize": "Record a person's decision on an external action outside the authorized scope.",
-    }
-    for action, description in descriptions.items():
-        command = actions.add_parser(action, help=description)
-        command.add_argument("id", help="Task ID.")
-        if action in ("consult", "questions", "route"):
-            command.add_argument("--answers", type=Path, help="Read task answers from a JSON file.")
-        if action == "consult":
-            brief = command.add_mutually_exclusive_group()
-            brief.add_argument("--brief", help="Revised brief after a request for changes.")
-            brief.add_argument("--brief-file", type=Path, help="Read a revised brief from a text file.")
-            command.add_argument("--market", metavar="DOSSIER", help="Attach a market dossier from .openguildkit/market/.")
-        if action in ("consult", "route"):
-            command.add_argument("--add", action="append", default=[], metavar="BOARD", help="Add a board to the consultation.")
-            command.add_argument("--remove", action="append", default=[], metavar="BOARD", help="Remove a proposed board.")
-            command.add_argument("--reason", help="Why the boards were added or removed.")
-            command.add_argument("--delegate", action="append", default=[], metavar="BOARD=NAME",
-                                 help="Name the person who reviews a required board the project has not enabled.")
-        if action == "route":
-            command.add_argument("--json", action="store_true", help="Print the selection as JSON.")
-        if action == "review":
-            source = command.add_mutually_exclusive_group(required=True)
-            source.add_argument("--file", type=Path, help="Completed review JSON.")
-            source.add_argument("--summary", help="Assemble the review from completed board passes with this summary.")
-        if action == "brief":
-            command.add_argument("--scope", action="store_true",
-                                 help="Print only the project scope and active rules shared by every board.")
-        if action == "pass":
-            command.add_argument("board", help="Board ID.")
-            command.add_argument("--show", action="store_true",
-                                 help="Print the pass again without counting a new attempt.")
-        if action in ("pass", "submit"):
-            command.add_argument("--mode", choices=("subagent", "sequential"), help="How the host runs this pass.")
-        if action in ("clear", "waive"):
-            command.add_argument("blocker", help="Blocker ID such as security:1 (see task blockers).")
-            command.add_argument("--by", required=True, help="Person who resolves the blocker.")
-        if action == "clear":
-            command.add_argument("--evidence", required=True, help="Path, document or link that clears it.")
-            command.add_argument("--supports", required=True, help="What the evidence establishes.")
-            signing = command.add_mutually_exclusive_group()
-            signing.add_argument("--payload", type=Path, help="Write the exact clearance payload to sign.")
-            signing.add_argument("--signature", type=Path, help="SSH signature of the clearance payload.")
-            command.add_argument("--signer", help="Approver principal used to sign the clearance.")
-        if action == "waive":
-            command.add_argument("--reason", required=True, help="Why the risk is accepted.")
-            command.add_argument("--scope", required=True, help="What the waiver covers.")
-            command.add_argument("--until", required=True, help="Last day of the waiver, YYYY-MM-DD.")
-        if action == "blockers":
-            command.add_argument("--json", action="store_true", help="Print the blockers as JSON.")
-        if action == "export":
-            command.add_argument("--output", type=Path, help="Write the shareable record to this file instead.")
-        if action == "checks":
-            command.add_argument("--json", action="store_true", help="Print the checks as JSON.")
-        if action == "result":
-            source = command.add_mutually_exclusive_group(required=True)
-            source.add_argument("--file", type=Path, help="Result JSON.")
-            source.add_argument("--template", action="store_true", help="Print a result file to fill in.")
-        if action == "verify":
-            command.add_argument("--unavailable", action="append", default=[], metavar="CHECK=REASON",
-                                 help="Record a project command that cannot run here (needs a terminal and --by).")
-            command.add_argument("--by", help="Person recording an environment reservation.")
-            command.add_argument("--chaosfolk", type=Path, metavar="SUMMARY",
-                                 help="Record a ChaosFolk regression summary.json instead of running the check commands.")
-            command.add_argument("--tool-version", help="ChaosFolk version or commit that produced the summary.")
-        if action == "alerts":
-            command.add_argument("--import", dest="import_file", type=Path, metavar="REPORT",
-                                 help="npm audit, pip-audit, OSV-Scanner or Dependabot JSON report.")
-            command.add_argument("--set", dest="alert_id", metavar="ALERT", help="Alert ID to review.")
-            command.add_argument("--link", metavar="ALERT", help="Link an alert of the register to the task.")
-            command.add_argument("--status", choices=alerts_cli.STATUS_CHOICES, help="Review status for --set.")
-            command.add_argument("--by", help="Reviewer's name for --set.")
-            command.add_argument("--reason", default="", help="Reason, required to dismiss.")
-            command.add_argument("--json", action="store_true", help="Print the alerts as JSON.")
-        if action == "runs":
-            command.add_argument("--json", action="store_true", help="Print the comparison as JSON.")
-        if action == "respond":
-            command.add_argument("--file", type=Path, required=True, help="Completed deliberation JSON.")
-        if action == "submit":
-            command.add_argument("--file", type=Path, required=True, help="The board's filled-in JSON entry.")
-        if action == "progress":
-            command.add_argument("--json", action="store_true", help="Print the progress as JSON.")
-        if action == "authorize":
-            command.add_argument("--action", dest="external_action", required=True, choices=ACTIONS,
-                                 help="Kind of external action.")
-            command.add_argument("--target", required=True, help="Host or tool name, without query or private details.")
-            outcome = command.add_mutually_exclusive_group(required=True)
-            outcome.add_argument("--allow", action="store_true", help="Allow the action (needs a terminal).")
-            outcome.add_argument("--deny", action="store_true", help="Refuse the action.")
-            command.add_argument("--by", required=True, help="Decision owner's name.")
-            command.add_argument("--reason", required=True, help="Reason for the decision.")
-        if action == "decide":
-            outcome = command.add_mutually_exclusive_group(required=True)
-            outcome.add_argument("--approve", action="store_true", help="Approve the reviewed scope in a terminal.")
-            outcome.add_argument("--request-changes", action="store_true", help="Send the task back to consultation.")
-            command.add_argument("--by", required=True, help="Decision owner's name.")
-            command.add_argument("--reason", required=True, help="Reason for the decision.")
-            command.add_argument("--signature", type=Path, help="SSH signature of task decision-payload (signed projects).")
-            command.add_argument("--signer", help="Principal in the allowed signers file (signed projects).")
-        if action == "decision-payload":
-            command.add_argument("--by", required=True, help="Decision owner's name.")
-            command.add_argument("--reason", required=True, help="Reason for the decision.")
-            command.add_argument("--output", type=Path, help="Write the exact bytes to sign to this file.")
+    tasks_cli.add_parser(commands)
     return parser
 
 
-def _print_json(data) -> None:
-    print(json_text(data), end="")
-
-
-@contextmanager
-def _input_file(path: Path):
-    """Name the file a refusal comes from, so the person knows which file to correct."""
-    try:
-        yield
-    except ValueError as error:
-        raise ValueError(f"{path.as_posix()}: {error}") from error
-
-
-def _installed_catalog(args, state: Path) -> tuple[dict, dict[str, set[str]]]:
-    """The installed catalog with project additions, and the IDs that ship with OpenGuildKit."""
-    if (args.policy_repo is None) != (args.policy_commit is None):
-        raise ValueError("Supply --policy-repo and --policy-commit together.")
-    policy = None
-    if args.policy_repo is not None:
-        policy = (args.policy_commit, read_policy_pack(args.policy_repo, args.policy_commit))
-    live = load_catalog(state / "catalog", central_policy=policy)
-    bundled = {collection: set(entries) for collection, entries in load_catalog().items()}
-    return live, bundled
-
-
-def _load_project_catalog(args, state: Path) -> dict:
-    """The catalog in force for the project: locked records take precedence over installed ones."""
-    live, _ = _installed_catalog(args, state)
-    return apply_lock(live, read_lock(state))
-
-
-def _stale_tasks(state: Path, profile: dict, catalog: dict) -> list[dict]:
-    stale = []
-    directory = state / "tasks"
-    if not directory.is_dir():
-        return stale
-    fingerprint = profile_fingerprint(profile, catalog)
-    for path in sorted(directory.glob("*.json")):
-        try:
-            task = read_task(state, path.stem)
-        except ValueError:
-            continue
-        if task.get("profile_fingerprint") and task["profile_fingerprint"] != fingerprint:
-            stale.append({"id": task["id"], "status": task["status"]})
-    return stale
+def _pending_catalog_changes(lock: dict | None, live: dict, profile: dict, bundled: dict) -> list[str]:
+    """Locked records whose rules the installed catalog changes; a source checked again changes no rule."""
+    if lock is None:
+        return []
+    changes = catalog_changes(lock, live, update_target(live, lock), profile, bundled)
+    return [
+        f"{change['collection']}/{change['id']}" for change in changes
+        if change["status"] != "changed" or set(change["fields"]) != {"sources"}
+        or change["sources"]["added"] or change["sources"]["removed"]
+    ]
 
 
 def _undated_project_sources(state: Path, live: dict) -> list[str]:
@@ -464,7 +210,7 @@ def _undated_project_sources(state: Path, live: dict) -> list[str]:
 
 def _update_catalog(args, root: Path, state: Path) -> None:
     with project_lock(state):
-        live, bundled = _installed_catalog(args, state)
+        live, bundled = installed_catalog(args, state)
         lock = read_lock(state)
         if lock is None:
             catalog = live
@@ -481,9 +227,9 @@ def _update_catalog(args, root: Path, state: Path) -> None:
             target = update_target(live, lock)
             changes = catalog_changes(lock, live, target, profile, bundled)
             conflicts = [conflict for conflict in rule_conflicts(profile, target) if conflict["resolution"] is None]
-            # The tasks the new rules would leave consulted under the previous ones, shown before --apply.
-            result = {"changes": changes, "conflicts": conflicts, "applied": False,
-                      "stale_tasks": _stale_tasks(state, profile, target) if changes else []}
+            # The tasks are named before --apply, and sync names the same ones afterwards.
+            touched = tasks_touched(state, profile, target) if changes else []
+            result = {"changes": changes, "conflicts": conflicts, "applied": False, "stale_tasks": touched}
             if args.apply and changes:
                 sync_instructions(root, profile, target)
                 write_lock(state, build_lock(profile, target, bundled, lock))
@@ -494,7 +240,7 @@ def _update_catalog(args, root: Path, state: Path) -> None:
 
 def _print_update(result: dict, as_json: bool) -> None:
     if as_json:
-        _print_json(result)
+        print_json(result)
         return
     date = result.get("catalog_date") or "unknown"
     if result.get("note"):
@@ -523,8 +269,8 @@ def _print_update(result: dict, as_json: bool) -> None:
             print(f"    - rule {rule_id}")
         for rule in change.get("rules", {}).get("changed", []):
             print(f"    ~ rule {rule['id']}")
-            print(f"        was: {rule['before']}")
-            print(f"        now: {rule['after']}")
+            print(f"        before: {rule['before']}")
+            print(f"        after:  {rule['after']}")
         for url in change["sources"]["added"]:
             print(f"    + source {url}")
         for url in change["sources"]["removed"]:
@@ -536,85 +282,11 @@ def _print_update(result: dict, as_json: bool) -> None:
     for conflict in result["conflicts"]:
         print(f"! {' and '.join(conflict['packs'])} conflict: record a resolution before applying.")
     if not result["applied"]:
-        if result["stale_tasks"]:
-            print("Adopting these rules would leave these tasks consulted under the previous ones:")
-            for task in result["stale_tasks"]:
-                print(f"  Task {task['id']} ({task['status']}): review it again after the update.")
+        print_touched(result["stale_tasks"], before=True)
         print("Nothing changed. Run openguildkit update --apply to adopt these rules.")
         return
     print("Applied. The next consultations use these rules.")
-    for task in result["stale_tasks"]:
-        print(f"  Task {task['id']} ({task['status']}) was consulted under the previous rules: review it again.")
-
-
-def _prompt_choices(question: dict, value: str):
-    choices = question["choices"]
-    ids = [choice["id"] for choice in choices]
-    raw = [item.strip() for item in value.split(",") if item.strip()] if question.get("type") == "multi-select" else [value]
-    selected = []
-    for item in raw:
-        if item in ids:
-            selected.append(item)
-        elif item.isascii() and item.isdecimal() and 1 <= int(item) <= len(ids):
-            selected.append(ids[int(item) - 1])
-        else:
-            raise ValueError(f"Unknown choice: {item}")
-    return selected if question.get("type") == "multi-select" else selected[0]
-
-
-def _prompt_questions(questions: list[dict], command: str) -> dict:
-    if not sys.stdin.isatty():
-        raise ValueError(f"{command} needs a terminal or --answers PATH.")
-    answers = {}
-    for question in questions:
-        print(f"\n{question['prompt']}", file=sys.stderr)
-        for index, choice in enumerate(question.get("choices", []), start=1):
-            print(f"  {index}. {choice['label']} [{choice['id']}]", file=sys.stderr)
-        kind = question.get("type", "select")
-        if kind in {"list", "multi-select"}:
-            print("  Separate multiple entries with commas.", file=sys.stderr)
-        if question["id"] == "packs":
-            print("  Enter '-' to replace the recommended packs: only the required workflow pack and the packs "
-                  "of the selected patterns apply.", file=sys.stderr)
-        if question["id"] == "patterns":
-            print("  Enter '-' to select none of these, or list all the IDs you want to apply.", file=sys.stderr)
-        if "default_label" in question:
-            print(f"  Default: {question['default_label']}", file=sys.stderr)
-        elif "default" in question:
-            default = question["default"]
-            shown = ", ".join(map(str, default)) if isinstance(default, list) else default
-            print(f"  Default: {shown or 'none'}", file=sys.stderr)
-        else:
-            print("  No default: choose an answer.", file=sys.stderr)
-        while True:
-            print("> ", end="", file=sys.stderr, flush=True)
-            value = input().strip()
-            if not value and "default" in question:
-                answers[question["id"]] = question["default"]
-                break
-            if not value and kind in {"list", "multi-select"}:
-                break
-            if value == "-" and question["id"] in {"packs", "patterns"}:
-                answers[question["id"]] = []
-                if question["id"] == "packs":
-                    answers["replace_default_packs"] = True
-                break
-            if not value:
-                print("  Choose an answer.", file=sys.stderr)
-                continue
-            try:
-                if "choices" in question:
-                    answer = _prompt_choices(question, value)
-                elif kind == "list":
-                    answer = [item.strip() for item in value.split(",") if item.strip()]
-                else:
-                    answer = value
-            except ValueError as error:
-                print(f"  {error}", file=sys.stderr)
-                continue
-            answers[question["id"]] = answer
-            break
-    return answers
+    print_touched(result["stale_tasks"])
 
 
 def _prompt_components(question: dict) -> list[dict]:
@@ -670,66 +342,91 @@ def _print_plan_notes(plan: dict) -> None:
         print(f"  {item['id']} does not apply{where}: {'; '.join(item['reasons'])}", file=sys.stderr)
 
 
-def _prompt_task_questions(brief: str) -> dict:
-    """Ask the base questions, then the follow-ups that the first answers call for."""
-    base = [question for question in task_questions(brief) if question["id"] != "context"]
-    answers = _prompt_questions(base, "task consult")
-    follow_ups = [question for question in task_questions(brief, answers) if question["id"] not in answers]
-    answers.update(_prompt_questions(follow_ups, "task consult"))
-    for point in open_points(brief, validate_answers(answers)):
-        print(f"  Open point: {point}", file=sys.stderr)
-    return answers
-
-
 def _interactive_init(questions: list[dict], catalog: dict, registry: dict | None = None) -> dict:
     """Ask the setup questions in order; each norm is confirmed on its own, with the reason it is proposed."""
     by_id = {question["id"]: question for question in questions}
-    answers = _prompt_questions([by_id["name"], by_id["sector"]], "init")
+    answers = prompt_questions([by_id["name"], by_id["sector"]], "init")
     components = _prompt_components(by_id["components"])
     if components:
         answers["components"] = components
     else:
-        answers.update(_prompt_questions([by_id["stack"]], "init"))
-    answers.update(_prompt_questions([by_id["roles"], by_id["personal_data"]], "init"))
+        answers.update(prompt_questions([by_id["stack"]], "init"))
+    answers.update(prompt_questions([by_id["roles"], by_id["personal_data"]], "init"))
     answers["personal_data"] = answers["personal_data"] == "yes"
+    if answers["personal_data"]:
+        answers.update(prompt_questions([by_id["people_decisions"]], "init"))
     plan = profile_recommendations(answers, catalog)
     _print_plan_notes(plan)
     kept, declined = _prompt_norms(plan, catalog)
-    if declined:
-        answers["declined"] = declined
+    answers["norms"] = {**dict.fromkeys(kept, "yes"), **declined}
     _print_preselection(plan, catalog)
     patterns = _patterns_question(by_id["patterns"], plan, catalog)
-    answers.update(_prompt_questions([patterns], "init"))
+    answers.update(prompt_questions([patterns], "init"))
     answers["patterns"] = [*kept, *_scoped_patterns(answers.get("patterns", []), plan)]
     recommended = [pack["id"] for pack in rule_plan(setup_profile(answers, catalog, questions)[0], catalog)["packs"]]
     packs = {**by_id["packs"], "default_label": f"none beyond the recommended packs: {', '.join(recommended)}"}
-    answers.update(_prompt_questions([packs, by_id["boards"]], "init"))
+    answers.update(prompt_questions([packs, by_id["boards"]], "init"))
     answers.update(_prompt_tools(by_id["tools"], load_tools() if registry is None else registry))
-    rest = [by_id[question_id] for question_id in ("host", "guard", "research", "conventions", "checks")]
-    answers.update(_prompt_questions(rest, "init"))
+    rest = [by_id[question_id] for question_id in ("host", "guard", "research", "conventions")]
+    answers.update(prompt_questions(rest, "init"))
+    answers["checks"] = _prompt_checks(by_id["checks"])
     return answers
 
 
-def _prompt_norms(plan: dict, catalog: dict) -> tuple[list[str], list[str]]:
-    """Ask, one norm at a time, whether each regulation preselected by the sector or personal data applies."""
+def _prompt_checks(question: dict) -> list[str]:
+    """Offer each test command the repository shows, kept only on a yes, then ask for other checks."""
+    kept = []
+    proposed = question.get("proposed", [])
+    if proposed:
+        print("\nTest commands found in the repository. task verify runs each kept command, and a task cannot be "
+              "done while one fails: keep a command only if it passes on a workstation with the dependencies "
+              "installed. [y/N]", file=sys.stderr)
+    for item in proposed:
+        print(f"  {item['command']}  ({item['evidence']}). Keep it? [y/N]", file=sys.stderr)
+        print("> ", end="", file=sys.stderr, flush=True)
+        if input().strip().casefold() in ("y", "yes", "o", "oui"):
+            kept.append(item["command"])
+    others = {**question, "prompt": "Other project checks to run, if any?"} if proposed else question
+    extra = prompt_questions([{key: value for key, value in others.items() if key != "proposed"}], "init")
+    return list(dict.fromkeys([*kept, *extra.get("checks", [])]))
+
+
+def _prompt_norms(plan: dict, catalog: dict) -> tuple[list[str], dict[str, dict]]:
+    """Ask, one norm at a time, whether each regulation the project's answers propose applies; a no asks who
+    decides (once) and why, recorded with the decline."""
     norms = [pattern for pattern in plan["matched"] if is_norm(catalog["patterns"][pattern["id"]])]
-    kept, declined = [], []
+    kept, declined, decider = [], {}, None
     if norms:
         print("\nNorms proposed for this project. Enter keeps a norm; n declines it and it is not proposed again.",
               file=sys.stderr)
     for pattern in norms:
         print(f"  {pattern['id']}: {'; '.join(pattern['reasons'])} ({pattern['title']}). Does it apply? [Y/n]",
               file=sys.stderr)
+        print(f"    {pattern['description']}", file=sys.stderr)
         while True:
             print("> ", end="", file=sys.stderr, flush=True)
             value = input().strip().casefold()
             if value in ("", "y", "yes", "o", "oui", "n", "no", "non"):
                 break
             print("  Answer y or n.", file=sys.stderr)
-        (kept if value in ("", "y", "yes", "o", "oui") else declined).append(pattern["id"])
+        if value in ("", "y", "yes", "o", "oui"):
+            kept.append(pattern["id"])
+            continue
+        decider = decider or _prompt_line("  Your initials or team handle, recorded with the decline: ")
+        reason = _prompt_line("  Why does it not apply, in one line? ")
+        declined[pattern["id"]] = {"answer": "no", "by": decider, "reason": reason}
     if declined:
         print(f"  Declined, not proposed again: {', '.join(declined)}", file=sys.stderr)
     return kept, declined
+
+
+def _prompt_line(prompt: str) -> str:
+    """Ask until the person types a non-empty line."""
+    while True:
+        print(prompt, end="", file=sys.stderr, flush=True)
+        value = input().strip()
+        if value:
+            return value
 
 
 def _patterns_question(question: dict, plan: dict, catalog: dict) -> dict:
@@ -747,7 +444,7 @@ def _prompt_tools(question: dict, registry: dict) -> dict:
     print(f"\nThe registry knows {len(registry)} tools: openguildkit tools list shows them.", file=sys.stderr)
     for item in question.get("detected", []):
         print(f"  The repository shows signs of {item['tool']}: {', '.join(item['signals'])}", file=sys.stderr)
-    answers = _prompt_questions([question], "init")
+    answers = prompt_questions([question], "init")
     known, unknown = match_tools(answers.get("tools", []), registry)
     if known:
         print(f"  Known to the registry: {', '.join(known)}", file=sys.stderr)
@@ -762,21 +459,24 @@ def _print_preselection(plan: dict, catalog: dict) -> None:
     if others:
         print("\nPreselected patterns, keep or remove them at the next question:", file=sys.stderr)
         for pattern in others:
-            print(f"  {pattern['id']}: {'; '.join(pattern['reasons'])}", file=sys.stderr)
+            print(f"  {pattern['id']}: {'; '.join(pattern['reasons'])} ({pattern['rules']} rules)", file=sys.stderr)
+        print(f"  {RULES_NOTE}", file=sys.stderr)
     regulations = [pattern["id"] for pattern in plan["suggested"] if pattern.get("kind") == "regulation"]
     methods = [pattern["id"] for pattern in plan["suggested"] if pattern.get("kind") != "regulation"]
     if regulations:
         print(f"Regulations to consider for your roles: {', '.join(regulations)}", file=sys.stderr)
     if methods:
-        print(f"Methods and alternatives to consider: {', '.join(methods)}", file=sys.stderr)
+        counted = [f"{pattern['id']} ({pattern['rules']} rules)" for pattern in plan["suggested"]
+                   if pattern.get("kind") != "regulation"]
+        print(f"Methods and alternatives to consider: {', '.join(counted)}", file=sys.stderr)
 
 
 HOST_STATUS_LABELS = {"instruction": "by instruction", "human": "by a person"}
 NO_HOST_SETTINGS = (
     "the project's host is other, so host apply wrote nothing: OpenGuildKit writes host settings only for "
     "claude-code and codex. The rules above stay with the AGENTS.md instructions and the CI check. To install "
-    'the settings and hooks for one of these agents, set "host" in .openguildkit/project.json, run openguildkit sync, '
-    "then openguildkit host apply."
+    "the settings and hooks for one of these agents, run openguildkit profile set host claude-code (or codex) "
+    "--by NAME --reason WHY, then openguildkit host apply."
 )
 
 
@@ -792,20 +492,22 @@ def _detected_host(root: Path) -> str | None:
 def _setup_questions(root: Path, state: Path, catalog: dict) -> tuple[list[dict], dict]:
     """The questionnaire with the defaults this repository shows: components, tools and host."""
     registry = load_tools(state / "catalog" / "tools")
-    detected = components_for_profile(detect_stack(root))
-    questions = init_questions(catalog, detected_project_name(root), detected, detect_tools(root, registry), _detected_host(root),
-                               suggest_checks(root))
+    listings = {}  # The folders detection walks, so that the proposed checks need no second walk.
+    found = detect_stack(root, listings)
+    questions = init_questions(catalog, detected_project_name(root), components_for_profile(found),
+                               detect_tools(root, registry), _detected_host(root), propose_checks(root, found, listings))
     return questions, registry
 
 
-def _print_setup_notes(profile: dict, left_aside: list[dict], registry: dict) -> None:
+def _print_setup_notes(profile: dict, left_aside: list[dict], registry: dict, proposed: list[dict]) -> None:
     """After init: what the guard lets the agent do, the components left aside and the next steps that apply."""
     mode = profile.get("guard", "off")
     host = profile.get("host", "other")
     print(f"Board guard: {GUARD_MODES[mode]}")
     if mode != "off" and host not in ("claude-code", "codex"):
         print("  This host has no hook: the reminder is the AGENTS.md instruction, and the CI check catches the rest.")
-    print('  To change it, set "guard" to off, observe or enforce in .openguildkit/project.json and run openguildkit sync.')
+    print("  To change it: openguildkit profile set guard off|observe|enforce --by NAME --reason WHY "
+          "(lowering it is typed by the person at a terminal).")
     if left_aside:
         names = "; ".join(f"{item['id']} ({item.get('path', '.')}): {', '.join(item['stack'])}" for item in left_aside)
         print(f"OpenGuildKit: the answers give no components, so these detected ones are left aside: {names}. "
@@ -814,7 +516,7 @@ def _print_setup_notes(profile: dict, left_aside: list[dict], registry: dict) ->
     steps = []
     if host in ("claude-code", "codex"):
         steps.append(f"openguildkit host apply    install the {host} settings and hooks, then openguildkit host check")
-    if known and host in TOOL_HOSTS:
+    if known:
         steps.append(f"openguildkit tools plan {' '.join(known)}    see the MCP servers for the team's tools")
     if steps:
         print("Next steps:")
@@ -823,12 +525,26 @@ def _print_setup_notes(profile: dict, left_aside: list[dict], registry: dict) ->
     if unknown:
         print(f"Tools not in the registry, kept in the profile: {', '.join(unknown)}. "
               "Describe them in .openguildkit/catalog/tools/ or connect them yourself.")
+    _print_check_notes(profile, proposed)
+
+
+def _print_check_notes(profile: dict, proposed: list[dict]) -> None:
+    """Say which checks task verify will run, and the test commands the repository shows that were left out."""
+    if profile["checks"]:
+        print(f"Project checks run by task verify: {'; '.join(profile['checks'])}. Install the project's "
+              "dependencies first: a check that cannot run fails with its cause.")
+    left = [item["command"] for item in proposed if item["command"] not in profile["checks"]]
+    if left:
+        print(f"Test commands found but not kept as project checks: {'; '.join(left)}. "
+              "task verify runs only the project's checks (docs/workflow.md#project-checks).")
+    elif not profile["checks"]:
+        print("No project check: task verify runs no test command (docs/workflow.md#project-checks).")
 
 
 def _print_catalog(catalog: dict, as_json: bool) -> None:
     groups = ("packs", "boards", "sectors")
     if as_json:
-        _print_json({group: catalog[group] for group in groups})
+        print_json({group: catalog[group] for group in groups})
         return
     for group in groups:
         print(group.capitalize())
@@ -857,7 +573,7 @@ def _print_references(args, state: Path, catalog: dict) -> None:
         return
     matches = find_references(families, family_id=args.family, query=args.query, record_id=args.id)
     if args.json:
-        _print_json(matches)
+        print_json(matches)
     elif args.id:
         reference = matches[0]
         print(f"{english_title(reference)} [{reference['id']}]")
@@ -901,7 +617,7 @@ def _print_patterns(args, patterns: dict) -> None:
     if args.id and not matches:
         raise ValueError(f"No pattern matched {args.id!r}.")
     if args.json:
-        _print_json(matches)
+        print_json(matches)
         return
     if args.id:
         pattern = matches[0]
@@ -927,12 +643,12 @@ def _print_patterns(args, patterns: dict) -> None:
 
 def _print_recommendations(plan: dict, as_json: bool) -> None:
     if as_json:
-        _print_json(plan)
+        print_json(plan)
         return
     print("Preselected patterns, confirm or remove them")
     for pattern in plan["matched"]:
         where = f" [{', '.join(pattern['components'])}]" if pattern.get("components") else ""
-        print(f"  {pattern['id']}{where}: {'; '.join(pattern['reasons'])}")
+        print(f"  {pattern['id']}{where}: {'; '.join(pattern['reasons'])} ({pattern['rules']} rules)")
         if pattern.get("version_unknown"):
             print(f"    version unknown, confirm {', '.join(pattern['version_unknown'])}")
     if plan.get("excluded"):
@@ -940,15 +656,17 @@ def _print_recommendations(plan: dict, as_json: bool) -> None:
         for item in plan["excluded"]:
             where = f" [{item['component']}]" if item["component"] else ""
             print(f"  {item['id']}{where}: {'; '.join(item['reasons'])}")
-    print("Methods and alternatives to consider")
+    print("Suggested, not selected: add one only if the team uses it")
     for pattern in plan["suggested"]:
         reason = "choose one overlapping pattern" if pattern.get("choice_required") else "; ".join(pattern["reasons"])
-        print(f"  {pattern['id']}: {reason}")
-    print(f"Recommended packs: {', '.join(plan['recommended_packs'])}")
+        print(f"  {pattern['id']}: {reason} ({pattern['rules']} rules)")
+    print(f"Recommended packs: {', '.join(plan['recommended_packs'])} ({plan['rule_count']} rules in all)")
+    print(RULES_NOTE)
     if plan.get("declined"):
-        print("Declined in the profile, remove from declined to see them again")
-        for pattern_id in plan["declined"]:
-            print(f"  {pattern_id}")
+        print("Declined in the profile, not proposed again (openguildkit profile adopt brings one back)")
+        for entry in plan["declined"]:
+            who = f" by {entry['by']} on {entry['on']}: {entry['reason']}" if isinstance(entry, dict) else ""
+            print(f"  {entry['id'] if isinstance(entry, dict) else entry}{who}")
     if plan.get("review"):
         print("Selected patterns to review")
         for item in plan["review"]:
@@ -960,6 +678,19 @@ def _print_rule_plan(plan: dict, as_json: bool, file=None) -> None:
     if as_json:
         print(json_text(plan), end="", file=file)
         return
+    if plan["patterns"]:
+        print("Patterns, with why they apply and their rules", file=file)
+        for pattern in plan["patterns"]:
+            print(f"  {pattern['id']} ({pattern['rules']} rules): {pattern['reason']}", file=file)
+        print(f"  {RULES_NOTE}", file=file)
+    for regulation in plan["regulations"]:
+        print(f"  {regulation['id']} asks: {regulation['asks']}", file=file)
+    for entry in plan["declined"]:
+        who = f" by {entry['by']} on {entry['on']}: {entry['reason']}" if "by" in entry else ""
+        print(f"  Declined, not active: {entry['id']}{who}", file=file)
+    print(f"{plan['rule_count']} rules in force; a task is asked only those that concern it.", file=file)
+    if plan["rule_warning"]:
+        print(f"Warning: {plan['rule_warning']}", file=file)
     print("Rule packs, in the order AGENTS.md lists them", file=file)
     for pack in plan["packs"]:
         scope = f" [{', '.join(pack['scope'])}]" if pack["scope"] else ""
@@ -983,6 +714,18 @@ def _print_rule_plan(plan: dict, as_json: bool, file=None) -> None:
                 print(f"  - {item}", file=file)
 
 
+def _print_selection(plan: dict) -> None:
+    """Before init --answers writes: each pattern with its reason and rules, so the person sees what the
+    answers they confirmed with preview bring."""
+    print("Writing these patterns (openguildkit profile decline removes one later):", file=sys.stderr)
+    for pattern in plan["patterns"]:
+        print(f"  {pattern['id']} ({pattern['rules']} rules): {pattern['reason']}", file=sys.stderr)
+    print(f"{plan['rule_count']} rules in force; a task is asked only those that concern it. {RULES_NOTE}",
+          file=sys.stderr)
+    if plan["rule_warning"]:
+        print(f"Warning: {plan['rule_warning']}", file=sys.stderr)
+
+
 def _confirm_rule_plan(plan: dict) -> None:
     print("", file=sys.stderr)
     _print_rule_plan(plan, False, file=sys.stderr)
@@ -994,7 +737,7 @@ def _confirm_rule_plan(plan: dict) -> None:
 
 def _print_detection(detected: dict, as_json: bool) -> None:
     if as_json:
-        _print_json(detected)
+        print_json(detected)
         return
     if not detected["components"]:
         print("No known manifest found. Describe the stack during init.")
@@ -1002,62 +745,52 @@ def _print_detection(detected: dict, as_json: bool) -> None:
     for component in detected["components"]:
         print(f"{component['id']} ({component['path']})")
         for item in component["evidence"]:
-            version = item["version"] or "version unknown"
+            version = item["version"] or item.get("note") or "version unknown"
             note = ", inferred from a client library" if item["inferred"] else ""
             print(f"  {item['name']}: {version} [{item['evidence']}{note}]")
 
 
-def _selection(args) -> dict:
-    delegate = {}
-    for item in args.delegate:
-        board_id, separator, name = item.partition("=")
-        if not separator or not board_id.strip() or not name.strip():
-            raise ValueError("Use --delegate BOARD=NAME.")
-        delegate[board_id.strip()] = name.strip()
-    return {"add": args.add, "remove": args.remove, "reason": args.reason, "delegate": delegate}
-
-
 def _guard_hook(args) -> int:
-    """Run as a host hook: in enforce mode, an edit the guard cannot check is refused."""
-    try:
-        raw = "" if sys.stdin.isatty() else sys.stdin.read()
-    except (OSError, UnicodeError):
-        raw = None
+    """Run as a host hook: in enforce mode, an edit the guard cannot check is refused.
 
-    def load():
-        root = project_root(args.project)
-        state = state_path(root)
-        catalog = _load_project_catalog(args, state)
-        return root, state, load_profile(state, catalog), catalog
-
-    code, out, err = run_hook(args.hook, raw, args.project, load)
-    if out:
-        print(out)
-    if err:
-        print(err, file=sys.stderr)
-    return code
+    Hosts reach guard.hook_command through __main__ without this module; this path serves --policy-repo and the
+    tests that call main().
+    """
+    return hook_command(args.hook, args.project, lambda state: project_catalog(args, state))
 
 
 def _guard(args, root: Path, state: Path) -> int:
     if args.ci:
-        result = ci_guard(root, args.base, lambda base_state: _load_project_catalog(args, base_state))
+        result = ci_guard(root, args.base, lambda base_state: project_catalog(args, base_state),
+                          require_signed=args.require_signed)
         if args.json:
-            _print_json(result)
+            print_json(result)
         else:
             print(f"Guard mode on {args.base}: {result['mode']}. {result['changed']} changed file(s).")
             for task_id in result["decisions"]:
-                print(f"  Covered by the decision of task {task_id} (.openguildkit/decisions/{task_id}.json).")
+                # A valid record covers the change only when nothing else is wrong, such as a file it does not list.
+                where = f".openguildkit/decisions/{task_id}.json"
+                print(f"  Covered by the decision of task {task_id} ({where})." if result["ok"]
+                      else f"  Valid decision of task {task_id} ({where}), but the check fails:")
             for problem in result["problems"]:
                 print(f"  {problem}")
+            for note in result["notes"]:
+                print(f"  Note: {note}")
+            if not result["ok"] and result["mode"] != "enforce":
+                print(f"  Flagged, not blocking. Not enforced: the guard mode of {args.base} is {result['mode']}, so "
+                      "this job passes; set \"guard\": \"enforce\" in the profile to fail it.")
         if result["ok"] or result["mode"] != "enforce":
             return 0
         return 1
-    catalog = _load_project_catalog(args, state)
+    catalog = project_catalog(args, state)
     profile = load_profile(state, catalog)
     approvals = covering_approvals(root, state, profile, catalog)
-    result = {"mode": guard_mode(profile), "covered_by": [item["task"] for item in approvals], "approvals": approvals}
+    result = {"mode": guard_mode(profile), "covered_by": [item["task"] for item in approvals], "approvals": approvals,
+              # Committed decisions show what the repository carries; only a local approved task covers new edits.
+              "exported_decisions": [row["task"] for row in exported_decisions(
+                  root, state, profile, Fingerprints(profile, catalog)) if not row["problem"]]}
     if args.json:
-        _print_json(result)
+        print_json(result)
     elif not approvals:
         print(NO_TASK)
     else:
@@ -1065,6 +798,7 @@ def _guard(args, root: Path, state: Path) -> int:
         for item in approvals:
             stale = f" (approved more than {STALE_DAYS} days ago: confirm it still applies)" if item["stale"] else ""
             print(f"  {item['task']}: {item['brief']}{stale}")
+        print(SCOPE_NOTE)
     return 0
 
 
@@ -1081,7 +815,7 @@ def _deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) ->
         print(utm_link(args.url, {name: getattr(args, name) for name in names}))
         return 0
     if action == "check":
-        path = args.path if args.path.is_absolute() else root / args.path
+        path = project_path(root, state, args.path, "deliverable check")
         text = path.read_text(encoding="utf-8")
         match = re.search(r'^deliverable: "([a-z0-9-]+)"$', text, re.MULTILINE)
         if not match or match.group(1) not in templates:
@@ -1104,13 +838,7 @@ def _deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) ->
             print(f"  - {check['id']}: {check['verification']}")
         return 0
     task = read_task(state, args.task)
-    output = args.output if args.output.is_absolute() else root / args.output
-    try:
-        inside = output.resolve().relative_to(root.resolve())
-    except ValueError:
-        raise ValueError(f"--output must name a file inside the project, not {args.output}.") from None
-    if ".openguildkit" in inside.parts or ".openguildkit" in args.output.parts:
-        raise ValueError("--output cannot be under .openguildkit: it holds the local task records. Write the draft in your own folder.")
+    output = project_path(root, state, args.output, "--output")
     entry = new_draft(template, task, args.tool, profile.get("tools", []), output)
     with project_lock(state):
         current = read_task(state, args.task)
@@ -1118,7 +846,7 @@ def _deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) ->
     print("Before starting the tool:")
     for line in launch_notice(template):
         print(f"  - {line}")
-    print(f"Draft written to {args.output}")
+    print(f"Draft written to {args.output.as_posix()}")
     return 0
 
 
@@ -1126,8 +854,9 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
     if args.docs_action == "export":
         tasks = [item.strip() for item in args.tasks.split(",") if item.strip()]
         sections = tuple(item.strip() for item in args.sections.split(",") if item.strip())
-        output = args.output if args.output.is_absolute() else root / args.output
-        result = export_docs(state, tasks, output, args.doc_version, sections, args.openapi, profile["name"],
+        output = project_path(root, state, args.output, "--output")
+        openapi = project_path(root, state, args.openapi, "--openapi") if args.openapi else None
+        result = export_docs(state, tasks, output, args.doc_version, sections, openapi, profile["name"],
                              project_overview(profile, catalog))
         for path in result["written"]:
             print(f"wrote {path}")
@@ -1140,29 +869,62 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
         if not (args.deliverable and args.until and args.portal and args.by):
             raise ValueError("docs share add needs --deliverable, --recipient, --until, --portal and --by.")
         share = add_share(state, args.deliverable, args.recipient, args.until, args.portal, args.by)
-        print(f"Share {share['id']} recorded. Invite the recipients in the portal's reader settings now, "
-              f"and remove their access on {share['until']}.")
+        _print_share_added(share)
+        for other in same_access(state, share, running=True):
+            for recipient in sorted(set(share["recipients"]) & set(other["recipients"])):
+                print(f"OpenGuildKit: {recipient} already has access to space {share['space']} through share {other['id']} "
+                      f"(until {other['until']}). Documentalist keeps one access per address and space: removing it there "
+                      "ends both shares, so revoke them together.", file=sys.stderr)
         return 0
     if args.share_action == "revoke":
         if not args.share_id or not args.by:
             raise ValueError("docs share revoke needs --id and --by.")
-        revoke_share(state, args.share_id, args.by)
+        share = revoke_share(state, args.share_id, args.by)
         print("revoked")
+        space = share["space"] or f"of the portal {share['portal']}"
+        print(f"\"Retirer l'accès\" in Documentalist removes an address from the whole space {space}, not only from "
+              f"{share['deliverable']}.")
+        others = same_access(state, share)
+        if others:
+            shared = sorted({recipient for other in others for recipient in other["recipients"]} & set(share["recipients"]))
+            print(f"Other shares give {', '.join(shared)} the same space: if you removed that access there, they lost it "
+                  "too. Record each one:")
+            for other in others:
+                print(f"  openguildkit docs share revoke --id {other['id']} --by NAME   "
+                      f"# {', '.join(other['recipients'])}, {other['deliverable']}, until {other['until']}")
         return 0
     rows = share_status(state)
     if args.json:
-        _print_json(rows)
+        print_json(rows)
     else:
         for row in rows:
-            print(f"{row['id']} {row['deliverable']} until {row['until']} ({len(row['recipients'])} recipient(s)): {row['state']}")
+            _print_share_row(row)
     expired = [row for row in rows if row["state"].startswith("expired")]
     return 1 if args.share_action == "check" and expired else 0
 
 
-def _read_consultation(task: dict) -> dict:
-    if "consultation" not in task:
-        raise ValueError("Run task consult first.")
-    return task["consultation"]
+def _print_share_added(share: dict) -> None:
+    """Say what the recipients really get and that the end date is the owner's to keep."""
+    print(f"Share {share['id']} recorded. Its perimeter is the whole space {share['space']}: Documentalist shows the "
+          f"recipients every published page of that space, not only {share['deliverable']}. Publish the deliverable in a "
+          "space that holds only it, or hide the other pages.")
+    print("Invite the recipients now in that space's reader settings (magic link mode).")
+    print(f"Documentalist keeps no end date: the access lasts until you remove it. After {share['until']}, remove it there "
+          f"(\"Retirer l'accès\"), then run openguildkit docs share revoke --id {share['id']} --by NAME. "
+          "openguildkit docs share check lists it from the next day.")
+
+
+def _print_share_row(row: dict) -> None:
+    """One share with its perimeter and state; one past its last day says which access to remove and which to keep."""
+    space = row["space"] or "unknown: the portal address names no /p/SPACE"
+    print(f"{row['id']} {row['deliverable']} (whole space {space}) until {row['until']} "
+          f"({len(row['recipients'])} recipient(s)): {row['state']}")
+    for recipient in row["remove"]:
+        print(f"  remove {recipient} from space {space} in Documentalist (\"Retirer l'accès\")")
+    for recipient, other in sorted(row["kept"].items()):
+        print(f"  keep {recipient}: share {other['share']} gives the same space until {other['until']}")
+    if row["remove"]:
+        print(f"  then record it: openguildkit docs share revoke --id {row['id']} --by NAME")
 
 
 def _print_brains(args, catalog: dict, families: dict) -> int:
@@ -1177,9 +939,9 @@ def _print_brains(args, catalog: dict, families: dict) -> int:
         return 1 if gaps else 0
     if args.json:
         if args.id:
-            _print_json({**boards[args.id], "knowledge": brain_knowledge(args.id, catalog, families)})
+            print_json({**boards[args.id], "knowledge": brain_knowledge(args.id, catalog, families)})
         else:
-            _print_json(boards)
+            print_json(boards)
     elif args.id:
         board = boards[args.id]
         print(f"{board['title']} [{board['id']}]")
@@ -1225,7 +987,7 @@ def _new_brain(args, state: Path, catalog: dict) -> int:
     """Write a project brain's skeleton and say which tasks the new brain makes stale."""
     with project_lock(state):
         written = write_brain_skeleton(state / "catalog", args.new, catalog)
-        updated = _load_project_catalog(args, state)
+        updated = project_catalog(args, state)
     for path in written:
         print(f"Wrote {path.as_posix()}")
     print("Replace each TODO, then run openguildkit brains --check and openguildkit sync.")
@@ -1233,11 +995,11 @@ def _new_brain(args, state: Path, catalog: dict) -> int:
         return 0
     profile = load_profile(state, catalog)
     if profile["boards"]:
-        print(f"The profile lists its boards: add {args.new} to boards in .openguildkit/project.json for it to review tasks.")
+        print(f"The profile lists its boards: openguildkit profile add board {args.new} --by NAME --reason WHY "
+              "lets it review tasks.")
         return 0
-    already = {task["id"] for task in _stale_tasks(state, profile, catalog)}
-    stale = [task for task in _stale_tasks(state, profile, updated)
-             if task["id"] not in already and task["status"] != "done"]
+    already = {task["id"] for task in tasks_touched(state, profile, catalog)}
+    stale = [task for task in tasks_touched(state, profile, updated) if task["id"] not in already]
     for task in stale:
         print(f"Task {task['id']} ({task['status']}) was consulted without {args.new}: once you sync, "
               "it needs a new review before work continues.")
@@ -1246,479 +1008,149 @@ def _new_brain(args, state: Path, catalog: dict) -> int:
     return 0
 
 
-def _decide(args, root: Path, state: Path, task: dict, profile: dict) -> None:
-    policy = approval_policy(profile)
-    base = git_revision(root) if args.approve else None
-    signature = None
-    if args.approve and policy["mode"] == "signed":
-        if not args.signature or not args.signer:
-            raise ValueError(
-                "This project requires a signed approval: run task decision-payload, sign it with ssh-keygen -Y sign "
-                f"-n {NAMESPACE}, then pass --signature FILE --signer PRINCIPAL."
-            )
-        text = args.signature.read_text(encoding="utf-8")
-        verify_signature(root, policy, decision_payload(task, args.by, args.reason, base), text, args.signer)
-        signature = {"signer": args.signer, "text": text}
-    blocking = blocking_alerts(load_register(state), task) if args.approve else []
-    if blocking:
-        raise ValueError("Approval is blocked:\n- " + "\n- ".join(blocking))
-    removals = pending_removals(task) if args.approve else []
-    result = record_decision(task, args.approve, args.by, args.reason, base, signature, removals)
-    if args.approve and (signature is None or removals):
-        if not sys.stdin.isatty():
-            raise ValueError("Approval requires a person at an interactive terminal.")
-        print("\n".join(decision_summary(task)), file=sys.stderr)
-        if signature is None:
-            print(json_text({"brief": task["brief"], "answers": task["answers"]}), file=sys.stderr, end="")
-            print(f"The review is {len(task['review']['boards'])} board entries. Read the decision brief with "
-                  f"`openguildkit task challenge {args.id}` and the full record with "
-                  f"`openguildkit task show {args.id}`.", file=sys.stderr)
-            print(f"Type {args.id} to approve the reviewed scope: ", end="", file=sys.stderr, flush=True)
-            if input().strip() != args.id:
-                raise ValueError("Approval cancelled.")
-        for board in removals:
-            print(f"The agent removed the {board} board, which the data answer selected. "
-                  f"Type {board} to confirm the removal: ", end="", file=sys.stderr, flush=True)
-            if input().strip() != board:
-                raise ValueError(
-                    f"Approval cancelled: the removal of the {board} board was not confirmed. "
-                    "Request changes and consult again with it."
-                )
+def _warn_unsigned(profile: dict) -> None:
+    """Say once per setup or check command, not on every command, that local approvals can be forged."""
+    warning = approval_warning(profile)
+    if warning:
+        print(warning, file=sys.stderr)
+
+
+def _init(args, root: Path, state: Path, catalog: dict) -> None:
+    """Print the setup questionnaire, or write the profile, the instructions and the catalog lock from the answers."""
+    questions, registry = _setup_questions(root, state, catalog)
+    if args.questions:
+        print_json(questions)
+        return
+    if (state / "project.json").exists():
+        raise ValueError(ALREADY_INITIALIZED)
+    if not args.answers and not sys.stdin.isatty():
+        raise ValueError("init needs a terminal for its questions. Without one, print them with openguildkit init "
+                         "--questions, save the answers as JSON, then run openguildkit init --answers PATH.")
+    answers = read_json(args.answers) if args.answers else _interactive_init(questions, catalog, registry)
+    if isinstance(answers, dict):
+        for note in unsure_answers(answers, questions)[1]:
+            print(f"OpenGuildKit: {note}", file=sys.stderr)
+    if not args.answers:
+        _confirm_rule_plan(rule_plan(setup_profile(answers, catalog, questions)[0], catalog))
+    else:
+        planned = setup_profile(answers, catalog, questions)[0]
+        require_resolved_conflicts(planned, catalog)
+        _print_selection(rule_plan(planned, catalog))
     with project_lock(state):
-        if read_task(state, args.id) != task:
-            raise ValueError("The task changed while you were deciding. Review it and retry.")
-        if args.approve:
-            catalog = _load_project_catalog(args, state)
-            profile = load_profile(state, catalog)
-            require_current_scope(task, profile, catalog)
-            check_instructions(root, profile, catalog)
-        write_json(task_path(state, args.id), result)
-    print(result["status"])
+        live, bundled = installed_catalog(args, state)
+        profile, left_aside = setup_profile(answers, live, questions)
+        initialize(root, state, profile, live)
+        write_lock(state, build_lock(profile, live, bundled))
+    print(f"Initialized {root}")
+    print("Wrote AGENTS.md, the project rules every agent reads, and CLAUDE.md, one line that imports "
+          "AGENTS.md for Claude Code. Delete CLAUDE.md if nobody uses Claude Code: check does not require it.")
+    proposed = next(question for question in questions if question["id"] == "checks").get("proposed", [])
+    _print_setup_notes(profile, left_aside if args.answers else [], registry, proposed)
+    _warn_unsigned(profile)
 
 
-def _environment_reservations(args, task: dict, profile: dict) -> dict[str, str]:
-    if not args.unavailable:
-        if args.by:
-            raise ValueError("--by belongs with --unavailable.")
-        return {}
-    if args.chaosfolk or not args.by or not args.by.strip() or not sys.stdin.isatty():
-        raise ValueError("--unavailable needs a person at an interactive terminal and --by, without --chaosfolk.")
-    commands = {check["id"]: check["command"] for check in expected_checks(task, profile) if check["kind"] == "command"}
-    reservations = {}
-    for item in args.unavailable:
-        check_id, delimiter, reason = item.partition("=")
-        if not delimiter or not reason.strip() or check_id not in commands or check_id in reservations:
-            raise ValueError("Use --unavailable CHECK=REASON once per existing project command; see task checks.")
-        reservations[check_id] = reason.strip()
-    for check_id, reason in reservations.items():
-        print(f"{check_id} ({commands[check_id]}) cannot run here: {reason}", file=sys.stderr)
-    print(f"Type {task['id']} to record these environment reservations: ", end="", file=sys.stderr, flush=True)
-    if input().strip() != task["id"]:
-        raise ValueError("Environment reservation cancelled.")
-    return reservations
+def _sync(args, root: Path, state: Path) -> None:
+    """Rewrite the managed instructions and the catalog lock from the profile, and say what that touches."""
+    with project_lock(state):
+        live, bundled = installed_catalog(args, state)
+        lock = read_lock(state)
+        catalog = apply_lock(live, lock)
+        profile = load_profile(state, catalog)
+        replaced = sync_instructions(root, profile, catalog)
+        lock = build_lock(profile, catalog, bundled, lock)
+        write_lock(state, lock)
+    print("OpenGuildKit instructions updated.")
+    if replaced:
+        print(f"Replaced {len(replaced)} line(s) edited by hand in the managed block of AGENTS.md; keep your own "
+              "text outside the markers:")
+        for line in replaced[:5]:
+            print(f"  - {line[:100]}")
+    for record in unshipped_records(lock, bundled):
+        print(f"OpenGuildKit: {record} is no longer shipped; it is kept from the catalog lock until you remove it "
+              "from .openguildkit/project.json.", file=sys.stderr)
+    print_touched(tasks_touched(state, profile, catalog))
+    pending = _pending_catalog_changes(lock, live, profile, bundled)
+    if pending:
+        print(f"OpenGuildKit: sync keeps the rules of the catalog lock; the installed catalog changes "
+              f"{len(pending)} of its records ({', '.join(pending)}). Run openguildkit update to review them.",
+              file=sys.stderr)
+    for item in patterns_to_review(profile, catalog):
+        print(f"OpenGuildKit: review pattern {item['id']}: {'; '.join(item['reasons'])}", file=sys.stderr)
 
 
-def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
-    action = args.action
-    if action == "new":
-        if (args.brief is None) == (args.file is None):
-            raise ValueError("Supply either a task brief or --file PATH.")
-        brief = args.file.read_text(encoding="utf-8-sig") if args.file else args.brief
-        redacted = redact_credentials(brief)
-        if redacted != brief:
-            print("Warning: replaced a possible credential in the task brief with a placeholder.", file=sys.stderr)
-        if contains_email(redacted):
-            print("Warning: the task brief contains an email address. "
-                  "Use a placeholder before sharing or exporting the task.", file=sys.stderr)
-        check_instructions(root, profile, catalog)
-        with project_lock(state):
-            print(create_task(state, redacted, args.id, args.follows))
-        return
-    if action == "list":
-        rows = list_tasks(state, args.status, args.owner, args.since, args.until,
-                          current_fingerprint=profile_fingerprint(profile, catalog))
-        if args.json:
-            _print_json(rows)
-        elif not rows:
-            print("No task matches.")
+def _host(args, root: Path, profile: dict) -> int:
+    """Report the rules the host agent enforces (host check), or write its settings and hooks (host apply)."""
+    if args.mode == "check":
+        _warn_unsigned(profile)
+    controls = host_controls(root, profile)
+    written = None
+    if args.mode == "apply":
+        written = apply_host_settings(root, profile)
+        for path in written:
+            print(f"Wrote {path}", file=sys.stderr)
+        if not written and profile.get("host", "other") not in ("claude-code", "codex"):
+            print(f"OpenGuildKit: {NO_HOST_SETTINGS}", file=sys.stderr)
+        controls = host_controls(root, profile)
+    missing = [control for control in controls if control["status"] == "missing"]
+    if args.json:
+        print_json(controls)
+    else:
+        for control in controls:
+            print(f"[{HOST_STATUS_LABELS.get(control['status'], control['status'])}] {control['title']}"
+                  f"\n    {control['detail']}")
+        if missing:
+            print(f"{len(missing)} setting(s) missing. Run openguildkit host apply, then openguildkit host check.")
         else:
-            for row in rows:
-                owner = f" by {row['owner']}" if row.get("owner") else ""
-                follows = f" (follows {row['follows']})" if row.get("follows") else ""
-                print(f"{row['id']} [{row['status']}{owner}] {row.get('brief', '')}{follows}")
-                print(f"    next: {row['next']}")
-        return
+            print("Nothing missing. A rule marked 'by instruction' or 'by a person' is left to the agent's "
+                  "instructions or to a person on purpose: no setting of this host can enforce it.")
+    # host apply that writes nothing for the host other has done nothing the person asked for.
+    wrote_nothing = written == [] and profile.get("host", "other") not in ("claude-code", "codex")
+    return 1 if (missing and args.mode == "check") or wrote_nothing else 0
 
-    task = read_task(state, args.id)
-    if action in ("show", "handoff", "export", "verify", "result", "complete"):
-        problem = approval_problem(task, profile_fingerprint(profile, catalog))
-        if problem:
-            if action != "show":
-                raise ValueError(problem["message"])
-            print(f"Warning: {problem['message']}", file=sys.stderr)
-    if action == "show":
-        _print_json(task)
-    elif action == "questions":
-        if args.answers is None:
-            _print_json(task_questions(task["brief"]))
-        else:
-            answers = read_json(args.answers)
-            with _input_file(args.answers):
-                validated = validate_answers(answers)
-            questions = task_questions(task["brief"], validated)
-            asked = {question["id"] for question in questions if question.get("essential") is not None}
-            _print_json({
-                "questions": questions,
-                "follow_ups": sorted(asked - answers.keys()),
-                "open_points": open_points(task["brief"], validated),
-            })
-    elif action == "brief":
-        markdown = _read_consultation(task)["markdown"]
-        if args.scope:
-            start = markdown.index("## Project scope and active rules")
-            markdown = markdown[start:markdown.index("## Board briefs")].rstrip() + "\n"
-        print(markdown)
-    elif action == "template":
-        _print_json(_read_consultation(task)["review_template"])
-    elif action == "blockers":
-        items = blocker_list(task)
-        if args.json:
-            _print_json(items)
-        elif not items:
-            print("No blockers.")
-        else:
-            for item in items:
-                resolution = item["resolution"]
-                state = f"{resolution['kind']} by {resolution['by']}" if resolution else "open"
-                phase = " (due at verification)" if item.get("phase") == "verification" else ""
-                print(f"{item['id']} [{state}]{phase} {item['finding']}")
-                if item.get("owner"):
-                    print(f"    owner: {item['owner']}; clears when: {item['clears_when']}")
-                if resolution and resolution["kind"] == "cleared":
-                    print(f"    evidence: {resolution['evidence']}; supports: {resolution['supports']}")
-                if resolution and resolution.get("recorded_from") == "no terminal":
-                    print("    recorded without a terminal")
-    elif action in ("clear", "waive"):
-        if task["status"] == "approved":
-            require_current_scope(task, profile, catalog)
-            check_decision(task, root, profile)
-        if action == "waive":
-            if not sys.stdin.isatty():
-                raise ValueError("A waiver needs a person at an interactive terminal.")
-            details = {"kind": "waived", "by": args.by, "reason": args.reason, "scope": args.scope, "until": args.until}
-        else:
-            details = {"kind": "cleared", "by": args.by, "evidence": args.evidence, "supports": args.supports}
-            if (args.signature is None) != (args.signer is None):
-                raise ValueError("Pass --signature and --signer together.")
-            if args.payload:
-                payload = resolve_blocker(task, args.blocker, details, profile, root, signing_payload=True)
-                args.payload.write_bytes(payload_text(payload).encode("utf-8"))
-                print(args.payload)
-                return
-            if args.signature:
-                if approval_policy(profile)["mode"] != "signed":
-                    raise ValueError("A clearance signature is only used in a project with signed approvals.")
-                details.update(signature=args.signature.read_text(encoding="utf-8"), signer=args.signer)
-        details["terminal"] = sys.stdin.isatty()
-        result = resolve_blocker(task, args.blocker, details, profile, root)
-        if action == "waive":
-            print(f"Type {args.id} to waive {args.blocker} until {args.until}: ", end="", file=sys.stderr, flush=True)
-            if input().strip() != args.id:
-                raise ValueError("Waiver cancelled.")
-        with project_lock(state):
-            if read_task(state, args.id) != task:
-                raise ValueError("The task changed while you were deciding. Review it and retry.")
-            write_json(task_path(state, args.id), result)
-        print(details["kind"])
-    elif action == "checks":
-        if task["status"] not in ("approved", "done"):
-            raise ValueError("Checks belong to an approved task.")
-        checks = expected_checks(task, profile)
-        reported = {item["check"]: item for item in task.get("result", {}).get("checks", [])}
-        if args.json:
-            _print_json([{**check, "result": reported.get(check["id"])} for check in checks])
-        else:
-            for check in checks:
-                outcome = reported.get(check["id"], {}).get("status", "not reported")
-                label = check.get("command") or check.get("verification")
-                print(f"{check['id']} [{'mandatory' if check['mandatory'] else 'report'}] {outcome}: {label}")
-    elif action == "result" and args.template:
-        if task["status"] != "approved":
-            raise ValueError("Results belong to an approved task that is not done yet.")
-        changed = decision_changes(root, task)
-        _print_json(result_template(task, profile, changed=changed))
-        if changed:
-            print(decision_revision_message(changed), file=sys.stderr)
-        for check in expected_checks(task, profile):
-            if check["kind"] == "command":
-                print(f"{check['id']} is run and recorded by task verify: {check['command']}", file=sys.stderr)
-            elif check["kind"] == "machine":
-                print(f"{check['id']} is evaluated and recorded by task verify: {check['verification']}",
-                      file=sys.stderr)
-    elif action in ("verify", "result", "complete"):
-        if task["status"] != "approved":
-            raise ValueError("Run checks for an approved task that is not done yet." if action == "verify"
-                             else "Results belong to an approved task that is not done yet.")
-        check_decision(task, root, profile)
-        decision = is_decision_task(task)
-        changed = decision_changes(root, task)
-        if action == "verify":
-            unavailable = _environment_reservations(args, task, profile)
-            payload = {}
-            if not decision:
-                revision = git_revision(root)
-                payload["revision"] = revision["commit"] if revision else "working tree"
-            if decision and args.chaosfolk:
-                raise ValueError("ChaosFolk replays are for implementation tasks.")
-            if args.chaosfolk:
-                imported = chaosfolk_checks(root, args.chaosfolk, args.tool_version)
-                payload.update(checks=imported["checks"], run={**imported["run"], "at": timestamp()})
-            elif not decision:
-                if not any(check["kind"] == "command" for check in expected_checks(task, profile)):
-                    print("No project check command is configured. Ask the project owner to add one to "
-                          ".openguildkit/project.json (checks), then consult the task again before approval.")
-                payload["checks"] = run_command_checks(
-                    root, state, task, profile, unavailable=unavailable, by=(args.by or "").strip(),
-                )
-        with project_lock(state):
-            current_task = read_task(state, args.id)
-            if current_task != task:
-                raise ValueError("The task changed meanwhile. Retry.")
-            if action == "verify":
-                result = record_result(current_task, profile, payload, source="verify", changed=changed)
-            elif action == "result":
-                with _input_file(args.file):
-                    payload = read_json(args.file)
-                    missing = evidence_files_missing(root, payload, current_task, profile)
-                    if missing:
-                        raise ValueError("Named evidence not found:\n- " + "\n- ".join(missing))
-                    result = record_result(current_task, profile, payload, changed=changed)
-            else:
-                blocking = blocking_alerts(load_register(state), current_task)
-                if blocking:
-                    raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(blocking))
-                try:
-                    result = complete_task(current_task, profile, root, changed=changed)
-                except ValueError:
-                    for line in command_diagnostics(root, state, current_task, profile):
-                        print(line, file=sys.stderr)
-                    raise
-            write_json(task_path(state, args.id), result)
-        if action == "complete":
-            print("done")
-            left = points_left_open(result, profile)
-            if left:
-                print(f"Left open: {'; '.join(left)}. To follow up, open a task linked to this one: "
-                      f'openguildkit task new "BRIEF" --follows {args.id}')
-            elif decision:
-                print(f'Open the implementation task with openguildkit task new "BRIEF" --follows {args.id}.')
-        else:
-            for item in result["result"]["checks"]:
-                print(f"{item['check']}: {item['status']}")
-                if item.get("environment_unavailable"):
-                    print(f"  Environment reservation by {item['owner']}: {item['reason']}")
-            for name in (() if decision else missing_scenarios(result)):
-                print(f"chaosfolk:{name}: missing")
-            verification = verification_blocker_problems(result, profile, root)
-            if action == "verify":
-                for problem in verification:
-                    print(problem)
-            if changed and not (result["result"].get("revision") or result["result"].get("pull_request")):
-                print(decision_revision_message(changed))
-            problems = (completion_problems(result, profile, changed=changed)
-                        + blocking_alerts(load_register(state), result) + verification)
-            print(f"{len(problems)} point(s) before the task can be done." if problems else "Ready: run task complete.")
-            if action == "verify":
-                for line in command_diagnostics(root, state, result, profile):
-                    print(line)
-                for problem in problems:
-                    print(f"- {problem}")
-    elif action == "alerts":
-        alerts_cli.task_command(args, state, task)
-    elif action == "runs":
-        comparison = compare_runs(task)
-        if comparison is None:
-            raise ValueError("The task has fewer than two ChaosFolk replays to compare.")
-        if args.json:
-            _print_json(comparison)
-        else:
-            for name, (before, after) in comparison["changed"].items():
-                print(f"{name}: {before or 'absent'} -> {after or 'absent'}")
-            print(f"{len(comparison['unchanged'])} scenario(s) unchanged")
-    elif action == "export":
-        path = export_decision(root, state, task, profile, args.output).resolve()
-        print(path.relative_to(root).as_posix() if root in path.parents else str(path))
-    elif action == "deliberate":
-        _print_json(deliberation_request(task))
-    elif action == "respond":
-        payload = read_json(args.file)
-        with project_lock(state):
-            current_task = read_task(state, args.id)
-            if current_task != task:
-                raise ValueError("The task changed while you were deliberating. Run task deliberate again.")
-            with _input_file(args.file):
-                result = record_deliberation(current_task, payload)
-            write_json(task_path(state, args.id), result)
-        deliberation = result["deliberation"]
-        print(f"{len(deliberation['agreed'])} resolved, {len(deliberation['open'])} open")
-    elif action == "challenge":
-        print(challenge_report(task), end="")
-    elif action == "route":
-        if args.answers is None and "answers" not in task:
-            raise ValueError("Pass --answers FILE, or consult the task first.")
-        if args.answers:
-            with _input_file(args.answers):
-                answers = validate_answers(read_json(args.answers))
-        else:
-            answers = validate_answers(task["answers"])
-        selected = select_boards(
-            task_scope_profile(profile, catalog, answers.get("components", [])),
-            catalog, {**task, "answers": answers}, answers, _selection(args)
-        )
-        if args.json:
-            _print_json(selected)
-        else:
-            for board_id, reasons in selected["routing"].items():
-                print(f"{board_id}: {'; '.join(reasons)}")
-            for item in selected["adjustments"]:
-                print(f"  {item['action']} {item['board']}: {item['reason']}")
-            if selected["not_selected"]:
-                print("Not selected (enabled in the profile):")
-                for item in selected["not_selected"]:
-                    print(f"  {item['board']}: {item['reason']}")
-            print(f"Add a board: openguildkit {selected['commands']['add'].replace('ID', args.id)}")
-            print(f"Remove a board: openguildkit {selected['commands']['remove'].replace('ID', args.id)}")
-            for pattern in selected["patterns"]:
-                print(f"Suggested pattern {pattern['id']}: {pattern['reason']}. See openguildkit patterns --id {pattern['id']}.")
-    elif action == "consult":
-        revised_brief = args.brief_file.read_text(encoding="utf-8-sig") if args.brief_file else args.brief
-        brief = consultation_brief(task, revised_brief)
-        answers = (
-            read_json(args.answers)
-            if args.answers is not None
-            else _prompt_task_questions(brief)
-        )
-        if args.answers is not None:
-            with _input_file(args.answers):
-                validate_answers(answers)
-        with project_lock(state):
-            current_task = read_task(state, args.id)
-            if current_task != task:
-                raise ValueError("The task changed while you were answering. Review it and retry.")
-            catalog = _load_project_catalog(args, state)
-            profile = load_profile(state, catalog)
-            check_instructions(root, profile, catalog)
-            controls = host_controls(root, profile)
-            market = None
-            if args.market:
-                research = "public-sources" if profile.get("research") == "public-sources" and answers.get("research") == "public" else "local-only"
-                market = market_scope_entry(load_dossier(state, args.market), research,
-                                            task_text=" ".join([brief, answers.get("context", "")]))
-            families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
-            scoped_profile = task_scope_profile(profile, catalog, answers.get("components", []))
-            active = set(scoped_profile["packs"])
-            context = consultation_context({**current_task, "brief": brief}, answers, scoped_profile, catalog)
-            knowledge = {board_id: brief_knowledge(board_id, catalog, families, active, context)
-                         for board_id in catalog["boards"]}
-            registry = load_tools(state / "catalog" / "tools")
-            for board_id in catalog["boards"]:
-                usable = connected_tools(state, registry, board_id)
-                if usable:
-                    knowledge[board_id]["tools"] = usable
-            result = record_consultation(alerts_cli.consultation_task(state, current_task), answers, profile, catalog,
-                                         _selection(args), controls, market, storybook_scope_entry(state), knowledge,
-                                         connected_tools(state, registry), revised_brief=revised_brief)
-            result.pop("dependency_alerts")
-            if "dependency_alerts" in current_task:
-                result["dependency_alerts"] = current_task["dependency_alerts"]
-            write_json(task_path(state, args.id), result)
-        print(result["consultation"]["markdown"])
-    elif action == "review":
-        review = read_json(args.file) if args.file else None
-        with project_lock(state):
-            current_task = read_task(state, args.id)
-            if current_task != task:
-                raise ValueError("The task changed while you were reviewing. Read the consultation and retry.")
-            if review is not None:
-                with _input_file(args.file):
-                    result = record_review(current_task, review, root)
-            else:
-                result = assemble_review(current_task, args.summary)
-            write_json(task_path(state, args.id), result)
-        print(result["status"])
-        if review is not None:
-            for warning in tool_evidence_warnings(root, state, result["review"]["boards"]):
-                print(f"Warning: {warning}", file=sys.stderr)
-    elif action in ("pass", "submit"):
-        entry = read_json(args.file) if action == "submit" else None
-        with project_lock(state):
-            current_task = read_task(state, args.id)
-            if action == "pass" and args.show:
-                if "consultation" not in current_task:
-                    raise ValueError("Consult the task first.")
-                print(board_brief(current_task["consultation"], args.board))
-                return
-            if action == "pass":
-                result = start_pass(current_task, args.board, args.mode or "sequential")
-            else:
-                with _input_file(args.file):
-                    result = submit_pass(current_task, entry, args.mode, root)
-            error = result.pop("_error", None)
-            write_json(task_path(state, args.id), result)
-        if action == "pass":
-            print(board_brief(result["consultation"], args.board))
-        elif error:
-            raise ValueError(f"{args.file.as_posix()}: the entry is recorded as failed: {error}\nCorrect the file and send it "
-                             f"again with task submit {args.id} --file {args.file.as_posix()}; no new pass is needed.")
-        else:
-            print("done")
-            saved_entry = result["passes"]["boards"][entry["id"].strip()]["entry"]
-            for warning in tool_evidence_warnings(root, state, [saved_entry]):
-                print(f"Warning: {warning}", file=sys.stderr)
-    elif action == "progress":
-        if "consultation" not in task:
-            raise ValueError("Run task consult first.")
-        progress = pass_progress(task)
-        if args.json:
-            _print_json(progress)
-        else:
-            for item in progress:
-                details = ", ".join(f"{key} {item[key]}" for key in ("mode", "attempts") if key in item)
-                print(f"{item['board']}: {item['status']}{f' ({details})' if details else ''}")
-                if "error" in item:
-                    print(f"    {item['error']}")
-    elif action == "decide":
-        _decide(args, root, state, task, profile)
-    elif action == "decision-payload":
-        if task["status"] != "reviewed":
-            raise ValueError("Record the boards' review before preparing a decision.")
-        text = payload_text(decision_payload(task, args.by, args.reason, git_revision(root)))
-        if args.output:
-            # Exact UTF-8 bytes with LF line endings: a shell redirect could change the encoding.
-            args.output.write_bytes(text.encode("utf-8"))
-            print(args.output)
-        else:
-            print(text, end="")
-    elif action == "authorize":
-        if args.allow and not sys.stdin.isatty():
-            raise ValueError("Allowing an external action requires a person at an interactive terminal.")
-        result = record_authorization(task, args.external_action, args.target, args.allow, args.by, args.reason)
-        if args.allow:
-            print(f"Type {args.id} to allow {args.external_action} on {args.target}: ", end="", file=sys.stderr, flush=True)
-            if input().strip() != args.id:
-                raise ValueError("Authorization cancelled.")
-        with project_lock(state):
-            if read_task(state, args.id) != task:
-                raise ValueError("The task changed while you were deciding. Review it and retry.")
-            write_json(task_path(state, args.id), result)
-        print(result["authorizations"][-1]["decision"])
-    elif action == "handoff":
-        if task["status"] == "done":
-            raise ValueError(f"Task {task['id']} is complete. Use openguildkit task show {task['id']}.")
-        output = handoff(task)
-        check_decision(task, root, profile)
-        check_instructions(root, profile, catalog)
-        print(output)
+
+def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
+    """Check that the instructions, the host settings and the catalog lock match the profile, and that every
+    approval still holds; warn about what git will not carry to a teammate."""
+    _warn_unsigned(profile)
+    # An approval that no longer holds is an error until the task is consulted again; a completed task
+    # whose rules changed afterwards is history and stays quiet here (task list shows it).
+    read = {}
+    failing = [f"{row['id']}: {row['next']}" for row in list_tasks(state, profile=profile, catalog=catalog,
+                                                                 root=root, read=read)
+               if row["status"] == "unreadable" or row.get("severity") == "error"]
+    records = exported_decisions(root, state, profile, Fingerprints(profile, catalog))
+    failing += [row["problem"]["message"] for row in records
+                if row["problem"] and row["problem"]["severity"] == "error"]
+    for line in failing + board_replacements(catalog):
+        print(f"OpenGuildKit: {line}", file=sys.stderr)
+    live, bundled = installed_catalog(args, state)
+    lock = read_lock(state)
+    require_instructions(args, root, state, profile, catalog)
+    missing = [control["title"] for control in host_controls(root, profile) if control["status"] == "missing"]
+    if missing:
+        raise ValueError(f"The host settings do not enforce: {'; '.join(missing)}. "
+                         "Run openguildkit host check for the cause, then openguildkit host apply.")
+    if not lock_is_current(lock, profile, catalog, bundled):
+        raise ValueError("The catalog lock does not match the profile. Run openguildkit sync.")
+    if not failing:
+        print("OpenGuildKit instructions match the project profile.")
+    pending = _pending_catalog_changes(lock, live, profile, bundled)
+    if pending:
+        print(f"OpenGuildKit: the installed catalog changes the rules of {len(pending)} locked "
+              f"{'record' if len(pending) == 1 else 'records'} ({', '.join(pending)}). The project keeps its "
+              "locked rules: run openguildkit update to review the changes.", file=sys.stderr)
+    undated = _undated_project_sources(state, live)
+    if undated:
+        print(f"OpenGuildKit: date the sources of {len(undated)} project "
+              f"{'record' if len(undated) == 1 else 'records'}: {', '.join(undated)}. Open each page, then "
+              'add "checked": "YYYY-MM-DD" after its url with that day\'s date (see docs/catalog-format.md).',
+              file=sys.stderr)
+    for warning in sharing_warnings(root, state, records, read):
+        print(f"OpenGuildKit: {warning}", file=sys.stderr)
+    if failing:
+        raise ValueError(f"The instructions match the project profile, but {len(failing)} "
+                         f"{'approval no longer holds' if len(failing) == 1 else 'approvals no longer hold'}: "
+                         "each line above gives the command to run.")
 
 
 def _run(args) -> int | None:
@@ -1729,8 +1161,10 @@ def _run(args) -> int | None:
     if args.command == "guard":
         return _guard(args, root, state)
     if args.command == "ui":
+        from . import webui  # Only this command serves pages; every other one starts without the web server.
+
         return webui.serve(root, args.port, args.static, not args.no_browser)
-    catalog = _load_project_catalog(args, state)
+    catalog = project_catalog(args, state)
     if args.command == "references":
         _print_references(args, state, catalog)
     elif args.command == "patterns":
@@ -1743,7 +1177,7 @@ def _run(args) -> int | None:
     elif args.command == "integrations":
         base = Path.home() if args.user else root
         for item in install_agent_files(base, args.host, args.force):
-            print(f"{item['file']}: {item['action']} (openguildkit {package_version()})")
+            print(f"{Path(item['file']).as_posix()}: {item['action']} (openguildkit {package_version()})")
         if args.host == "other":
             print(OTHER_HOST_NOTE)
     elif args.command == "detect":
@@ -1764,118 +1198,59 @@ def _run(args) -> int | None:
         _print_recommendations(plan, args.json)
     elif args.command == "catalog":
         _print_catalog(catalog, args.json)
+    elif args.command == "profile":
+        return profile_cli.run(args, root, state)
     elif args.command == "tools":
-        return tools_cli.run(args, root, state, catalog, load_profile)
+        return tools_cli.run(args, root, state, catalog)
     elif args.command == "alerts":
         return alerts_cli.run(args, state)
     elif args.command == "init":
-        questions, registry = _setup_questions(root, state, catalog)
-        if args.questions:
-            _print_json(questions)
-            return
-        if (state / "project.json").exists():
-            raise ValueError("Project is already initialized. Edit .openguildkit/project.json and run openguildkit sync.")
-        answers = read_json(args.answers) if args.answers else _interactive_init(questions, catalog, registry)
-        if not args.answers:
-            _confirm_rule_plan(rule_plan(setup_profile(answers, catalog, questions)[0], catalog))
-        with project_lock(state):
-            live, bundled = _installed_catalog(args, state)
-            profile, left_aside = setup_profile(answers, live, questions)
-            initialize(root, state, profile, live)
-            write_lock(state, build_lock(profile, live, bundled))
-        print(f"Initialized {root}")
-        print("Wrote AGENTS.md, the project rules every agent reads, and CLAUDE.md, one line that imports "
-              "AGENTS.md for Claude Code. Delete CLAUDE.md if nobody uses Claude Code: check does not require it.")
-        _print_setup_notes(profile, left_aside if args.answers else [], registry)
-        warning = approval_warning(profile)
-        if warning:
-            print(warning, file=sys.stderr)
+        _init(args, root, state, catalog)
     elif args.command == "update":
         _update_catalog(args, root, state)
     elif args.command == "sync":
-        with project_lock(state):
-            live, bundled = _installed_catalog(args, state)
-            lock = read_lock(state)
-            catalog = apply_lock(live, lock)
-            profile = load_profile(state, catalog)
-            sync_instructions(root, profile, catalog)
-            lock = build_lock(profile, catalog, bundled, lock)
-            write_lock(state, lock)
-        print("OpenGuildKit instructions updated.")
-        for record in unshipped_records(lock, bundled):
-            print(f"OpenGuildKit: {record} is no longer shipped; it is kept from the catalog lock until you remove it "
-                  "from .openguildkit/project.json.", file=sys.stderr)
-        for task in _stale_tasks(state, profile, catalog):
-            if task["status"] in ("approved", "reviewed", "consulting"):
-                print(f"  Task {task['id']} ({task['status']}) was consulted under the previous rules or boards: review it again.")
-        for item in patterns_to_review(profile, catalog):
-            print(f"OpenGuildKit: review pattern {item['id']}: {'; '.join(item['reasons'])}", file=sys.stderr)
+        _sync(args, root, state)
     else:
-        profile = load_profile(state, catalog)
-        if args.command == "deliverable":
-            return _deliverable(args, root, state, profile, catalog)
-        if args.command == "docs":
-            return _docs(args, root, state, profile, catalog)
-        if args.command == "market":
-            return market_cli.run(args, state, profile)
-        if args.command == "storybook":
-            return storybook_command(args, root, state)
-        if args.command == "host":
-            warning = approval_warning(profile)
-            if warning:
-                print(warning, file=sys.stderr)
-            controls = host_controls(root, profile)
-            if args.mode == "apply":
-                written = apply_host_settings(root, profile)
-                for path in written:
-                    print(f"Wrote {path}", file=sys.stderr)
-                if not written and profile.get("host", "other") not in ("claude-code", "codex"):
-                    print(f"OpenGuildKit: {NO_HOST_SETTINGS}", file=sys.stderr)
-                controls = host_controls(root, profile)
-            missing = [control for control in controls if control["status"] == "missing"]
-            if args.json:
-                _print_json(controls)
-            else:
-                for control in controls:
-                    print(f"[{HOST_STATUS_LABELS.get(control['status'], control['status'])}] {control['title']}"
-                          f"\n    {control['detail']}")
-                if missing:
-                    print(f"{len(missing)} setting(s) missing. Run openguildkit host apply, then openguildkit host check.")
-                else:
-                    print("Nothing missing. A rule marked 'by instruction' or 'by a person' is left to the agent's "
-                          "instructions or to a person on purpose: no setting of this host can enforce it.")
-            return 1 if missing and args.mode == "check" else 0
-        if args.command == "check":
-            fingerprint = profile_fingerprint(profile, catalog)
-            for row in list_tasks(state, current_fingerprint=fingerprint):
-                if row["status"] == "unreadable" or row.get("approval_problem"):
-                    print(f"OpenGuildKit: {row['id']}: {row['next']}", file=sys.stderr)
-            for problem in exported_decision_problems(root, state, profile, fingerprint):
-                print(f"OpenGuildKit: {problem}", file=sys.stderr)
-            check_instructions(root, profile, catalog)
-            missing = [control["title"] for control in host_controls(root, profile) if control["status"] == "missing"]
-            if missing:
-                raise ValueError(f"The host settings do not enforce: {'; '.join(missing)}. "
-                                 "Run openguildkit host check for the cause, then openguildkit host apply.")
-            warning = approval_warning(profile)
-            if warning:
-                print(warning, file=sys.stderr)
-            live, bundled = _installed_catalog(args, state)
-            if not lock_is_current(read_lock(state), profile, catalog, bundled):
-                raise ValueError("The catalog lock does not match the profile. Run openguildkit sync.")
-            print("OpenGuildKit instructions match the project profile.")
-            undated = _undated_project_sources(state, live)
-            if undated:
-                print(f"OpenGuildKit: date the sources of {len(undated)} project "
-                      f"{'record' if len(undated) == 1 else 'records'}: {', '.join(undated)}. Open each page, then "
-                      'add "checked": "YYYY-MM-DD" after its url with that day\'s date (see docs/catalog-format.md).',
-                      file=sys.stderr)
-        elif args.command == "ci-check":
-            result = check_export(profile, catalog, args.target_repo, args.commit)
-            _print_json(result)
-            return 0 if result["status"] == "success" else 1
-        elif args.command == "task":
-            _task_command(args, root, state, profile, catalog)
+        return _project_command(args, root, state, catalog)
+    return None
+
+
+def _project_command(args, root: Path, state: Path, catalog: dict) -> int | None:
+    """The commands that need the project's profile."""
+    profile = load_profile(state, catalog)
+    if args.command == "deliverable":
+        return _deliverable(args, root, state, profile, catalog)
+    if args.command == "docs":
+        return _docs(args, root, state, profile, catalog)
+    if args.command == "market":
+        return market_cli.run(args, state, profile)
+    if args.command == "storybook":
+        return storybook_cli.run(args, root, state)
+    if args.command == "host":
+        return _host(args, root, profile)
+    if args.command == "check":
+        return _check(args, root, state, profile, catalog)
+    if args.command == "ci-check":
+        result = check_export(profile, catalog, args.target_repo, args.commit)
+        print_json(result)
+        return 0 if result["status"] == "success" else 1
+    if args.command == "task":
+        return tasks_cli.run(args, root, state, profile, catalog)
+    return None
+
+
+def _reader_closed() -> int:
+    """The reader of the output stopped early, as `| head` does: end quietly, like a command that finished.
+
+    Standard output then points at the null device, so the interpreter's last flush cannot fail again.
+    """
+    try:
+        null = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(null, sys.stdout.fileno())
+        os.close(null)
+    except (OSError, ValueError, AttributeError):
+        pass  # Not a real file descriptor, as when a test captures the output: nothing is flushed at exit.
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1886,9 +1261,18 @@ def main(argv: list[str] | None = None) -> int:
                 stream.reconfigure(encoding="utf-8", errors="backslashreplace")
         if hasattr(sys.stderr, "reconfigure"):
             sys.stderr.reconfigure(errors="backslashreplace")
-    args = _parser().parse_args(argv)
+    args = command_parser().parse_args(argv)
+    if getattr(args, "project", None) is not None and not args.project.is_dir():
+        what = "is not a folder" if args.project.exists() else "does not exist"
+        print(f"OpenGuildKit: The project folder {args.project.as_posix()} {what}. Check --project, or create the "
+              "folder and run openguildkit init in it.", file=sys.stderr)
+        return 2 if args.command == "ci-check" else 1
     try:
-        return _run(args) or 0
+        code = _run(args) or 0
+        sys.stdout.flush()
+        return code
+    except BrokenPipeError:
+        return _reader_closed()
     except (OSError, ValueError, EOFError) as error:
         print(f"OpenGuildKit: {str(error) or 'Input ended before completion.'}", file=sys.stderr)
         return 2 if args.command == "ci-check" else 1

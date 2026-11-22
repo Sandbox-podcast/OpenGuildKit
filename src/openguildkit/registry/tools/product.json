@@ -26,7 +26,8 @@
           "status": "unknown",
           "capabilities": "List event types, find open slots, update availability, get scheduling links, book and cancel events, create one-time links.",
           "source": "https://developer.calendly.com/calendly-mcp-server",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -64,7 +65,8 @@
           "status": "unknown",
           "capabilities": "Create, edit and publish forms and pages, manage themes and custom domains, analyse responses through insights tools.",
           "source": "https://www.typeform.com/developers/mcp/core-concepts/",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {

@@ -1,7 +1,7 @@
 {
   "id": "dora",
   "title": "DORA ICT risk evidence",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Questions for the ICT risk owner and evidence checks for financial entities under Regulation (EU) 2022/2554 (DORA). Apply the entity's approved interpretation and its competent authority's guidance; these rules do not establish compliance.",
   "sources": [
     {
@@ -17,7 +17,8 @@
     {
       "id": "confirm-dora-scope",
       "instruction": "Ask the compliance owner whether the organization is a financial entity or an ICT third-party service provider within DORA Art. 2, and which business functions the changed system supports.",
-      "verification": "Link the recorded answer and the business functions from the change."
+      "verification": "Link the recorded answer and the business functions from the change.",
+      "manual": "Whether the organization is a financial entity under DORA is a legal assessment of the compliance owner."
     },
     {
       "id": "update-ict-asset-inventory",
@@ -28,17 +29,20 @@
           "id": "ict-asset-inventory",
           "title": "Inventory of ICT assets and the business functions they support"
         }
-      ]
+      ],
+      "manual": "The ICT asset inventory is kept outside the repository; its entry is named evidence."
     },
     {
       "id": "test-backup-restoration",
       "instruction": "Ask the ICT risk owner which backup scope and frequency apply to the changed data (Art. 12), and include the system in the restoration tests.",
-      "verification": "Link the latest restoration test record that covers the changed system."
+      "verification": "Link the latest restoration test record that covers the changed system.",
+      "manual": "Backup scope and restoration tests run on the entity's infrastructure and are recorded outside the repository."
     },
     {
       "id": "capture-incident-classification-data",
       "instruction": "Make the incident template of the changed service capture the criteria used to classify ICT-related incidents under Art. 18, such as clients affected, duration and data losses.",
-      "verification": "Open the incident template and check that it records each Art. 18 criterion."
+      "verification": "Open the incident template and check that it records each Art. 18 criterion.",
+      "manual": "The incident template lives in the entity's incident tool; a person checks its fields."
     },
     {
       "id": "register-ict-third-party",
@@ -49,17 +53,20 @@
           "id": "register-of-information",
           "title": "Register of information on ICT third-party contractual arrangements"
         }
-      ]
+      ],
+      "manual": "The register of information is kept outside the repository; its entry is named evidence."
     },
     {
       "id": "review-ict-contract-terms",
       "instruction": "Ask the legal owner to review a new ICT service contract against the key contractual provisions of Art. 30.",
-      "verification": "Link the legal owner's recorded review from the change."
+      "verification": "Link the legal owner's recorded review from the change.",
+      "manual": "Contract review is the legal owner's assessment of a signed contract."
     },
     {
       "id": "include-in-resilience-testing",
       "instruction": "Ask the ICT risk owner whether the changed system enters the digital operational resilience testing programme (Art. 24 and 25), and record the planned test.",
-      "verification": "Check that the testing programme lists the system or that the owner recorded why it is out of scope."
+      "verification": "Check that the testing programme lists the system or that the owner recorded why it is out of scope.",
+      "manual": "The testing programme is the ICT risk owner's plan, kept outside the repository."
     }
   ]
 }

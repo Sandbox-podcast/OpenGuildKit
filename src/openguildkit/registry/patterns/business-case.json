@@ -20,6 +20,9 @@
     "project-management",
     "product"
   ],
+  "core_for": [
+    "finance"
+  ],
   "packs": [
     "business-case-review"
   ],

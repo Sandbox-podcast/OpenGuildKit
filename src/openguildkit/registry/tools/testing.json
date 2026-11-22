@@ -33,7 +33,8 @@
           "source": "https://www.browserstack.com/docs/browserstack-mcp-server/get-started/remote-mcp-server",
           "repository": "https://github.com/browserstack/mcp-server",
           "license": "AGPL-3.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -87,7 +88,9 @@
           "status": "ga",
           "capabilities": "Read Cypress Cloud runs, test results, flaky tests and accessibility reports for debugging; cannot change code or delete runs.",
           "source": "https://docs.cypress.io/cloud/integrations/cloud-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-22",
+          "access": "Read operations described; no enforced read-only mode is recorded.",
+          "status_source": "https://docs.cypress.io/cloud/integrations/cloud-mcp"
         }
       ],
       "api": {
@@ -138,7 +141,9 @@
           "source": "https://github.com/grafana/mcp-k6",
           "repository": "https://github.com/grafana/mcp-k6",
           "license": "AGPL-3.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-22",
+          "access": "Read and write.",
+          "status_source": "https://github.com/grafana/mcp-k6"
         }
       ],
       "api": {
@@ -193,7 +198,8 @@
           "source": "https://playwright.dev/docs/getting-started-mcp",
           "repository": "https://github.com/microsoft/playwright-mcp",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -229,7 +235,8 @@
           "source": "https://github.com/postmanlabs/postman-mcp-server",
           "repository": "https://github.com/postmanlabs/postman-mcp-server",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         },
         {
           "id": "postman-local",
@@ -254,7 +261,8 @@
           "source": "https://github.com/postmanlabs/postman-mcp-server",
           "repository": "https://github.com/postmanlabs/postman-mcp-server",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {

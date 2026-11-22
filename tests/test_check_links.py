@@ -56,6 +56,9 @@ class CitationTests(unittest.TestCase):
         self.assertIn({"collection": "tools", "id": "jira", "server": server["id"]}, cited)
         self.assertIn("tools/jira, server " + server["id"], [check_links._citation(entry) for entry in cited])
         self.assertIn(tools["gryzzly"]["api"]["docs"], citations)
+        # The page that states a server's status is checked as well.
+        status = tools["jira"]["servers"][0]["status_source"]
+        self.assertIn({"collection": "tools", "id": "jira", "server": server["id"], "status": True}, citations[status])
         self.assertFalse([url for url in citations if not url.startswith("https://")])
 
     def test_every_bundled_source_is_indexed_with_the_records_citing_it(self):

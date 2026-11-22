@@ -1,5 +1,3 @@
-import contextlib
-import io
 import json
 import os
 import subprocess
@@ -10,9 +8,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import CatalogError, load_catalog
-from openguildkit.cli import main
 from openguildkit.project import STATE_DIR, project_root
 from openguildkit.storage import read_json, write_json
+
+from tests.support import CapturedCli
 
 
 class ExecutableCatalogTests(unittest.TestCase):
@@ -26,7 +25,7 @@ class ExecutableCatalogTests(unittest.TestCase):
                 load_catalog(project_catalog, central_policy=("0" * 40, pack))
 
 
-class WorkflowTests(unittest.TestCase):
+class WorkflowTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -40,19 +39,13 @@ class WorkflowTests(unittest.TestCase):
             "surface": "customer",
             "data": "personal",
             "research": "public",
+            "concerns": ["none"],
             "context": "Use test data. Keep the existing permission model.",
         }
         write_json(
             self.input_path,
             {"name": "Support console", "sector": "general", "stack": ["Python"], "packs": ["python"]},
         )
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def init(self):
         self.run_cli("init", "--answers", self.input_path)
@@ -122,10 +115,11 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("Approved task handoff", output)
         exported, _ = self.run_cli("task", "export", self.task_id)
         profile = read_json(self.profile_path)
-        profile["conventions"] = ["Write an audit event for each export."]
+        # A check command is part of what an approval rests on; a convention is not (tests/test_approval_lifecycle.py).
+        profile["checks"] = [*profile.get("checks", []), "python -m pytest tests/test_export.py"]
         write_json(self.profile_path, profile)
         self.run_cli("sync")
-        message = f"The approval for {self.task_id} was recorded under earlier rules."
+        message = f"The approval for {self.task_id} was recorded under earlier rules (checks changed)."
         for action in ("handoff", "export"):
             _, error = self.run_cli("task", action, self.task_id, code=1)
             self.assertIn(message, error)
@@ -137,7 +131,7 @@ class WorkflowTests(unittest.TestCase):
         row, = json.loads(listing)
         self.assertEqual(row["approval_problem"], "earlier-rules")
         self.assertIn(message, row["next"])
-        _, error = self.run_cli("check")
+        _, error = self.run_cli("check", code=1)
         self.assertIn(message, error)
         self.assertIn(exported.strip(), error)
 

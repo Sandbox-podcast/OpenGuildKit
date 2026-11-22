@@ -4,7 +4,7 @@ from pathlib import Path
 
 from .market import (
     KINDS, MARKET_DIR, add_competitor, add_observation, describe, dossier_gaps, dossier_path, due_issue, due_sources,
-    load_dossier, mark_checked, new_dossier, record_change, save_dossier, set_paused, set_unknown, watch_source,
+    load_dossier, mark_checked, mark_provided, new_dossier, record_change, save_dossier, set_paused, set_unknown, watch_source,
 )
 from .storage import json_text, project_lock
 
@@ -17,6 +17,7 @@ MODES = {
     "watch": "follow a public page of a competitor",
     "checked": "record that a watched page was reviewed with no change",
     "change": "record a verified change, which marks its watched page checked",
+    "provided": "record that a person reviewed a watched page and provided it (local-only research)",
     "pause": "pause the watch",
     "resume": "resume the watch",
     "check": "validate and list the gaps",
@@ -28,6 +29,7 @@ _REQUIRED = {
     "unknown": ("text",),
     "watch": ("competitor", "url", "kind"),
     "checked": ("url",),
+    "provided": ("url", "by"),
     "change": ("competitor", "what", "source", "date", "verified_by"),
 }
 
@@ -44,13 +46,15 @@ def add_parser(commands) -> None:
     market.add_argument("--name", help="competitor: its name.")
     market.add_argument("--kind", help="competitor: direct or substitute; watch: what the page is, such as release notes.")
     market.add_argument("--segment", help="competitor: the segment it serves.")
-    market.add_argument("--url", help="competitor, watch, checked: a public https page.")
+    market.add_argument("--url", help="competitor, watch, checked, provided: a public https page.")
     market.add_argument("--observation", help="observe: observation ID; an existing ID is replaced.")
     market.add_argument("--claim", help="observe: what the competitor offers.")
     market.add_argument("--source", help="observe: document or page the claim comes from; change: the page.")
-    market.add_argument("--date", help="observe, change: the date the information dates from, YYYY-MM-DD; checked: today by default.")
+    market.add_argument("--date", help="observe, change: the date the information dates from, YYYY-MM-DD; "
+                                       "checked, provided: today by default.")
     market.add_argument("--what", help="change: what changed.")
     market.add_argument("--verified-by", help="change: the person who verified it.")
+    market.add_argument("--by", help="provided: the person who reviewed the page and provided it.")
     market.add_argument("--text", help="unknown: what is still unknown.")
     market.add_argument("--remove", action="store_true", help="unknown: remove the text instead of adding it.")
     market.add_argument("--every-days", type=int, help="watch: review interval in days (30 by default).")
@@ -83,13 +87,19 @@ def _changed(args, dossier: dict) -> dict:
         return watch_source(dossier, {"competitor": args.competitor, "url": args.url, "kind": args.kind}, args.every_days)
     if mode == "checked":
         return mark_checked(dossier, args.url, args.date)
+    if mode == "provided":
+        return mark_provided(dossier, args.url, args.by, args.date)
     if mode == "change":
         return record_change(dossier, {"competitor": args.competitor, "what": args.what, "date": args.date,
                                        "source": args.source, "verified_by": args.verified_by})
     return set_paused(dossier, mode == "pause")
 
 
-def _due(args, state: Path) -> None:
+LOCAL_ONLY_DUE = ("Research is local-only: a person reviews each page, then records it with "
+                  "openguildkit market provided ID --url URL --by NAME.")
+
+
+def _due(args, state: Path, research: str) -> None:
     if args.all == bool(args.dossier):
         raise ValueError("Name one dossier, or pass --all for every dossier of the project.")
     folder = state / MARKET_DIR
@@ -111,11 +121,13 @@ def _due(args, state: Path) -> None:
         print("\n".join(lines))
     if not results:
         print("No market dossier in .openguildkit/market/.")
+    elif research == "local-only" and any(result["due"] for result in results):
+        print(LOCAL_ONLY_DUE)
 
 
 def run(args, state: Path, profile: dict) -> None:
     if args.mode == "due":
-        return _due(args, state)
+        return _due(args, state, profile.get("research", "local-only"))
     if not args.dossier:
         raise ValueError(f"Name the dossier: openguildkit market {args.mode} ID.")
     if args.mode == "check":

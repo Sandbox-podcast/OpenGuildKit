@@ -9,25 +9,73 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "page_path": {"type": "string", "description": "Page path, for example /requests"},
-          "metric": {"type": "string", "description": "Metric", "enum": ["page_views", "users"]}
+          "page_path": {
+            "type": "string",
+            "description": "Page path, for example /requests"
+          },
+          "metric": {
+            "type": "string",
+            "description": "Metric",
+            "enum": [
+              "page_views",
+              "users"
+            ]
+          }
         },
-        "required": ["page_path"]
+        "required": [
+          "page_path"
+        ]
       },
       "responses": [
         {
-          "when": {"page_path": "/requests", "metric": "users"},
-          "result": {"period": "last 28 days", "rows": [{"page_path": "/requests", "users": 1260}]}
+          "when": {
+            "page_path": "/requests",
+            "metric": "users"
+          },
+          "result": {
+            "period": "last 28 days",
+            "rows": [
+              {
+                "page_path": "/requests",
+                "users": 1260
+              }
+            ]
+          }
         },
         {
-          "when": {"page_path": "/requests"},
-          "result": {"period": "last 28 days", "rows": [{"page_path": "/requests", "page_views": 9840}]}
+          "when": {
+            "page_path": "/requests"
+          },
+          "result": {
+            "period": "last 28 days",
+            "rows": [
+              {
+                "page_path": "/requests",
+                "page_views": 9840
+              }
+            ]
+          }
         },
         {
-          "when": {"page_path": "/pricing"},
-          "result": {"period": "last 28 days", "rows": [{"page_path": "/pricing", "page_views": 2310}]}
+          "when": {
+            "page_path": "/pricing"
+          },
+          "result": {
+            "period": "last 28 days",
+            "rows": [
+              {
+                "page_path": "/pricing",
+                "page_views": 2310
+              }
+            ]
+          }
         },
-        {"result": {"period": "last 28 days", "rows": []}}
+        {
+          "result": {
+            "period": "last 28 days",
+            "rows": []
+          }
+        }
       ]
     },
     {
@@ -36,22 +84,20 @@
       "read_only": true,
       "inputSchema": {
         "type": "object",
-        "properties": {"name": {"type": "string", "description": "Part of a property name"}}
-      },
-      "responses": [
-        {
-          "when": {"name": "docs"},
-          "result": {"properties": [{"property_id": "prop-2", "name": "Support Portal docs"}]}
-        },
-        {
-          "result": {
-            "properties": [
-              {"property_id": "prop-1", "name": "Support Portal"},
-              {"property_id": "prop-2", "name": "Support Portal docs"}
-            ]
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Part of a property name"
           }
         }
-      ]
+      },
+      "serve": {
+        "records": "properties",
+        "action": "list",
+        "filters": {
+          "name": "name"
+        }
+      }
     },
     {
       "name": "get_realtime",
@@ -59,24 +105,64 @@
       "read_only": true,
       "inputSchema": {
         "type": "object",
-        "properties": {"page_path": {"type": "string", "description": "Optional page path"}}
+        "properties": {
+          "page_path": {
+            "type": "string",
+            "description": "Optional page path"
+          }
+        }
       },
       "responses": [
         {
-          "when": {"page_path": "/requests"},
-          "result": {"active_users": 14, "page_path": "/requests"}
+          "when": {
+            "page_path": "/requests"
+          },
+          "result": {
+            "active_users": 14,
+            "page_path": "/requests"
+          }
         },
-        {"when": {"page_path": "/pricing"}, "result": {"active_users": 3, "page_path": "/pricing"}},
+        {
+          "when": {
+            "page_path": "/pricing"
+          },
+          "result": {
+            "active_users": 3,
+            "page_path": "/pricing"
+          }
+        },
         {
           "result": {
             "active_users": 21,
             "top_pages": [
-              {"page_path": "/requests", "active_users": 14},
-              {"page_path": "/pricing", "active_users": 3}
+              {
+                "page_path": "/requests",
+                "active_users": 14
+              },
+              {
+                "page_path": "/pricing",
+                "active_users": 3
+              }
             ]
           }
         }
       ]
     }
-  ]
+  ],
+  "records": {
+    "properties": {
+      "key": "property_id",
+      "title": "name",
+      "items": [
+        {
+          "property_id": "prop-1",
+          "name": "Support Portal"
+        },
+        {
+          "property_id": "prop-2",
+          "name": "Support Portal docs"
+        }
+      ]
+    }
+  }
 }

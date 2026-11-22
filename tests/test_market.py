@@ -1,6 +1,5 @@
-import contextlib
 import copy
-import io
+import difflib
 import json
 import os
 import re
@@ -11,9 +10,11 @@ import unittest
 from datetime import date, timedelta
 from pathlib import Path
 
-from openguildkit.cli import main
-from openguildkit.market import dossier_gaps, due_sources, validate_dossier
+from openguildkit import clock
+from openguildkit.market import dossier_gaps, due_sources, relevance_note, scope_entry, validate_dossier
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli, run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 DOSSIER = json.loads((REPO / "examples" / "market-dossier" / "support-portals.json").read_text(encoding="utf-8"))
@@ -72,32 +73,26 @@ class MarketDossierTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
 
-            def cli(*args, code=0):
-                out, err = io.StringIO(), io.StringIO()
-                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                    self.assertEqual(main(["--project", str(root), *map(str, args)]), code, err.getvalue())
-                return out.getvalue(), err.getvalue()
-
             write_json(root / "profile.json", json.loads((EXAMPLE / "profile.json").read_text()))
-            cli("init", "--answers", root / "profile.json")
+            run_cli(root, "init", "--answers", root / "profile.json")
             (root / ".openguildkit" / "market").mkdir()
             shutil.copy(REPO / "examples" / "market-dossier" / "support-portals.json", root / ".openguildkit" / "market")
-            self.assertIn("local-only", cli("market", "check", "support-portals")[0])
-            cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "status")
-            consultation, _ = cli("task", "consult", "status", "--answers", EXAMPLE / "answers.json", "--market", "support-portals")
+            self.assertIn("local-only", run_cli(root, "market", "check", "support-portals").stdout)
+            run_cli(root, "task", "new", "--file", EXAMPLE / "brief.md", "--id", "status")
+            consultation = run_cli(root, "task", "consult", "status", "--answers", EXAMPLE / "answers.json", "--market", "support-portals").stdout
             self.assertIn('"age_days"', consultation)
-            template = json.loads(cli("task", "template", "status")[0])
+            template = json.loads(run_cli(root, "task", "template", "status").stdout)
             review = {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text())}
             marketing = next(entry for entry in review["boards"] if entry["id"] == "marketing")
             marketing["evidence"].append({"source": "public", "ref": "market:support-portals/unknown", "supports": "x"})
             write_json(root / "review.json", review)
-            _, error = cli("task", "review", "status", "--file", root / "review.json", code=1)
+            error = run_cli(root, "task", "review", "status", "--file", root / "review.json", expect=1).stderr
             self.assertIn("not an observation or change", error)
             marketing["evidence"][-1] = {"source": "public", "ref": "market:support-portals/a-status-page",
                                          "supports": "A direct competitor shows a status and a response date."}
             write_json(root / "review.json", review)
-            cli("task", "review", "status", "--file", root / "review.json")
-            record = json.loads(cli("task", "show", "status")[0])
+            run_cli(root, "task", "review", "status", "--file", root / "review.json")
+            record = json.loads(run_cli(root, "task", "show", "status").stdout)
             self.assertEqual(record["status"], "reviewed")
 
 
@@ -124,8 +119,8 @@ class MalformedDossierTests(unittest.TestCase):
                 validate_dossier(self.broken(change), "support-portals")
 
     def test_dates_after_tomorrow_are_refused(self):
-        later = (date.today() + timedelta(days=2)).isoformat()
-        tomorrow = (date.today() + timedelta(days=1)).isoformat()
+        later = (clock.real_today() + timedelta(days=2)).isoformat()
+        tomorrow = (clock.real_today() + timedelta(days=1)).isoformat()
         for change in (lambda d: d["observations"][0]["source"].update(date=later),
                        lambda d: d["watch"]["sources"][0].update(last_checked=later),
                        lambda d: d["watch"]["changes"][0].update(date=later)):
@@ -141,19 +136,15 @@ class MalformedDossierTests(unittest.TestCase):
         self.assertFalse(any(gap.startswith("Change") for gap in dossier_gaps(dossier, "public-sources", today=date(2026, 11, 20))))
 
 
-class MarketCommandTests(unittest.TestCase):
+class MarketCommandTests(CapturedCli, unittest.TestCase):
+    cli_output = "status-stream"
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"], "research": "public-sources"})
         self.cli("init", "--answers", self.root / "profile.json")
-
-    def cli(self, *args, code=0):
-        out, err = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            self.assertEqual(main(["--project", str(self.root), *map(str, args)]), code, err.getvalue())
-        return out.getvalue() if code == 0 else err.getvalue()
 
     def dossier(self, dossier_id="portals"):
         return json.loads((self.root / ".openguildkit" / "market" / f"{dossier_id}.json").read_text(encoding="utf-8"))
@@ -169,7 +160,7 @@ class MarketCommandTests(unittest.TestCase):
         self.assertFalse(any("Describe" in gap for gap in json.loads(self.cli("market", "check", "nope", "--json"))["gaps"]))
 
     def test_commands_record_observations_changes_and_last_checked(self):
-        today = date.today().isoformat()
+        today = clock.real_today().isoformat()
         self.cli("market", "new", "portals", "--market", "B2B help desks", "--audience", "Support leads", "--feature", "Status")
         self.cli("market", "competitor", "portals", "--competitor", "vendor-a", "--name", "Vendor A", "--kind", "direct")
         self.assertIn("--kind is direct or substitute",
@@ -199,6 +190,36 @@ class MarketCommandTests(unittest.TestCase):
         self.cli("market", "pause", "portals")
         self.assertIn("Watch paused.", self.cli("market", "due", "portals"))
         self.assertEqual(self.dossier()["unknowns"], [])
+
+    def test_market_unknown_preserves_the_other_sections_and_line_endings(self):
+        self.cli("market", "new", "portals", "--market", "B2B help desks", "--audience", "Support leads",
+                 "--feature", "Status")
+        path = self.root / ".openguildkit" / "market" / "portals.json"
+        text = path.read_text(encoding="utf-8").replace(
+            '"observations": [],', '"observations"   :   [],'
+        ).replace('"unknowns": []', '"unknowns": [\n    "Unknown A",\n    "Unknown B"\n  ]')
+        source = b"\xef\xbb\xbf" + text.replace("\n", "\r\n").encode("utf-8")
+        path.write_bytes(source)
+        self.cli("market", "unknown", "portals", "--text", "Unknown A", "--remove")
+        self.assertEqual(path.read_bytes(), source.replace(b'    "Unknown A",\r\n', b""))
+        self.cli("market", "describe", "portals", "--title", "Portals in Europe")
+        self.assertIn(b'"observations"   :   [],', path.read_bytes())
+        self.assertEqual(json.loads(path.read_bytes())["title"], "Portals in Europe")
+
+    def test_local_only_due_explains_how_to_record_a_page_given_by_a_person(self):
+        path = self.root / ".openguildkit" / "project.json"
+        profile = json.loads(path.read_text(encoding="utf-8"))
+        write_json(path, {**profile, "research": "local-only"})
+        self.cli("market", "new", "portals")
+        self.cli("market", "competitor", "portals", "--competitor", "vendor-a", "--name", "Vendor A", "--kind", "direct")
+        url = "https://example.com/vendor-a/releases"
+        self.cli("market", "watch", "portals", "--competitor", "vendor-a", "--url", url, "--kind", "release notes")
+        due = self.cli("market", "due", "portals")
+        self.assertIn("a person reviews each page, then records it with openguildkit market provided", due)
+        self.assertIn(url, due)
+        self.cli("market", "provided", "portals", "--url", url, "--by", "Camille Martin")
+        self.assertEqual(self.dossier()["watch"]["sources"][0]["provided_by"], "Camille Martin")
+        self.assertEqual(json.loads(self.cli("market", "due", "portals", "--json"))["due"], [])
 
     def test_the_scheduled_job_opens_one_issue_per_source_due_in_the_example_dossier(self):
         workflow = WATCH_TEMPLATE.read_text(encoding="utf-8")
@@ -243,3 +264,89 @@ class MarketCommandTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MarketLayoutAndRelevanceTests(CapturedCli, unittest.TestCase):
+    """A dossier keeps one layout, says when it is about another function, and records pages a person provided."""
+
+    cli_output = "status-stream"
+    URL = "https://example.com/vendor-a/release-notes"
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"]})
+        self.cli("init", "--answers", self.root / "profile.json")
+        self.path = self.root / ".openguildkit" / "market" / "support-portals.json"
+        self.path.parent.mkdir()
+        shutil.copy(REPO / "examples" / "market-dossier" / "support-portals.json", self.path)
+
+    def changed_lines(self, *args):
+        """The lines a command removes and adds in the dossier file, as a unified diff counts them."""
+        before = self.path.read_text(encoding="utf-8").splitlines()
+        self.cli("market", *args)
+        after = self.path.read_text(encoding="utf-8").splitlines()
+        diff = list(difflib.unified_diff(before, after, lineterm="", n=0))[2:]
+        removed = [line[1:] for line in diff if line.startswith("-")]
+        added = [line[1:] for line in diff if line.startswith("+")]
+        return removed, added
+
+    def test_a_one_line_change_gives_a_one_line_diff(self):
+        self.assertEqual(self.changed_lines("describe", "support-portals", "--title", "Customer support portals"), ([], []))
+        self.assertEqual(self.changed_lines("describe", "support-portals", "--audience", "Support leads"),
+                         (['  "audience": "Customers of a support desk who follow their own requests",'],
+                          ['  "audience": "Support leads",']))
+        removed, added = self.changed_lines("unknown", "support-portals", "--text", "Renewal discounts.")
+        self.assertEqual(removed, ['    "Prices of direct competitors for the portal option."'])
+        self.assertEqual(added, ['    "Prices of direct competitors for the portal option.",', '    "Renewal discounts."'])
+        self.assertEqual(self.changed_lines("unknown", "support-portals", "--text", "Renewal discounts.", "--remove"),
+                         (added, removed))
+        removed, added = self.changed_lines("checked", "support-portals", "--url", self.URL, "--date", "2026-11-12")
+        self.assertEqual(len(removed), 1)
+        self.assertEqual(len(added), 1)
+        self.assertIn('"last_checked": "2026-11-12"', added[0])
+
+    def test_a_consultation_says_in_one_line_when_the_dossier_is_about_another_function(self):
+        dossier = validate_dossier(copy.deepcopy(DOSSIER), "support-portals")
+        note = scope_entry(dossier, "local-only", date(2026, 11, 20),
+                           brief="Recommend whether the pricing page should compare our plans with competitors.")
+        self.assertEqual(len(note["relevance"].splitlines()), 1)
+        self.assertIn("support-portals", note["relevance"])
+        self.assertNotIn("relevance", scope_entry(dossier, "local-only", date(2026, 11, 20),
+                                                  brief="Show the next step of each request in the customer portal."))
+        self.assertIsNone(relevance_note(dossier, "Add a portal page"))
+        self.cli("task", "new", "Recommend whether the pricing page should compare our plans with competitors.",
+                 "--id", "pricing")
+        write_json(self.root / "a.json", {"kind": "decision", "surface": ["business"], "data": "none", "research": "local",
+                                          "concerns": ["none"]})
+        output = self.cli("task", "consult", "pricing", "--answers", self.root / "a.json", "--market", "support-portals")
+        self.assertIn('\nRelevance: The dossier support-portals is about', output)
+
+    def test_the_field_scenario_that_names_the_dossier_in_its_answers_still_gets_the_note(self):
+        scenario = json.loads((REPO / "examples" / "field-tests" / "scenarios" / "s2" / "task.json").read_text(
+            encoding="utf-8"))
+        self.cli("task", "new", scenario["brief"], "--id", scenario["id"])
+        answers = write_json(self.root / "s2.json", scenario["answers"]) or self.root / "s2.json"
+        output = self.cli("task", "consult", scenario["id"], "--answers", answers, "--market", "support-portals")
+        self.assertIn('\nRelevance: The dossier support-portals is about', output)
+        dossier = validate_dossier(copy.deepcopy(DOSSIER), "support-portals")
+        for mention in ("support-portals", "market/support-portals.json", "SUPPORT-PORTALS"):
+            with self.subTest(mention=mention):
+                self.assertIsNotNone(relevance_note(dossier, f"Compare plan prices. Use the dossier {mention}."))
+        self.assertIsNone(relevance_note(dossier, "Use support-portals to compare the customer portal status pages."))
+
+    def test_under_local_only_a_person_records_a_page_they_provided(self):
+        due = self.cli("market", "due", "support-portals")
+        self.assertIn(self.URL, due)
+        self.assertIn("market provided", due)
+        self.assertIn("needs --by", self.cli("market", "provided", "support-portals", "--url", self.URL, code=1))
+        self.assertIn("not a watched source",
+                      self.cli("market", "provided", "support-portals", "--url", "https://example.com/other", "--by",
+                               "Camille Martin", code=1))
+        self.cli("market", "provided", "support-portals", "--url", self.URL, "--by", "Camille Martin")
+        source = json.loads(self.path.read_text(encoding="utf-8"))["watch"]["sources"][0]
+        self.assertEqual(source["provided_by"], "Camille Martin")
+        self.assertEqual(source["last_checked"], clock.real_today().isoformat())
+        self.assertEqual(self.cli("market", "due", "support-portals").strip(), "No source due for review.")
+        self.assertFalse(any(gap.startswith("- Change 1") for gap in self.cli("market", "check", "support-portals").splitlines()))

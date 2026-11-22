@@ -35,10 +35,12 @@
           "url": "https://aws-mcp.us-east-1.api.aws/mcp",
           "auth": "oauth-or-token",
           "env": [],
-          "status": "preview",
+          "status": "unknown",
           "capabilities": "Call AWS APIs across services with IAM permissions and CloudTrail logging, search AWS documentation and follow Agent SOPs.",
           "source": "https://docs.aws.amazon.com/aws-mcp/latest/userguide/getting-started-aws-mcp-server.html",
-          "verified": "2026-11-21"
+          "verified": "2026-11-22",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given.",
+          "scopes": "AWS IAM actions and resources granted to the session. Consent: Connect with an authorized AWS identity."
         }
       ],
       "api": {
@@ -86,12 +88,24 @@
           },
           "auth": "oauth",
           "env": [],
-          "status": "ga",
+          "status": "unknown",
           "capabilities": "Manage and query Azure resources (storage, Cosmos DB, Key Vault, monitoring, AKS and more) using the signed-in Azure identity.",
-          "source": "https://github.com/microsoft/mcp/tree/main/servers/Azure.Mcp.Server",
+          "source": "https://github.com/Azure/azure-mcp/blob/main/docs/azmcp-commands.md",
           "repository": "https://github.com/microsoft/mcp",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-22",
+          "access": "Read and write.",
+          "scopes": "Azure RBAC roles and resource scope of the signed-in identity. Consent: Sign in locally with an authorized Azure identity.",
+          "read_only": {
+            "how": "The --read-only flag exposes only read tools.",
+            "args": [
+              "-y",
+              "@azure/mcp@latest",
+              "server",
+              "start",
+              "--read-only"
+            ]
+          }
         }
       ],
       "api": {
@@ -133,7 +147,8 @@
           "source": "https://github.com/cloudflare/mcp",
           "repository": "https://github.com/cloudflare/mcp",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         }
       ],
       "api": {
@@ -185,7 +200,9 @@
           "source": "https://github.com/docker/mcp-gateway",
           "repository": "https://github.com/docker/mcp-gateway",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given.",
+          "scopes": "Permissions depend on the enabled servers and their credentials. Consent: Configure the enabled servers and authorize each upstream connection separately."
         }
       ],
       "api": {
@@ -238,7 +255,9 @@
           "source": "https://github.com/googleapis/gcloud-mcp",
           "repository": "https://github.com/googleapis/gcloud-mcp",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-22",
+          "access": "Read and write.",
+          "status_source": "https://github.com/googleapis/gcloud-mcp"
         },
         {
           "id": "gcp-cloud-run-remote",
@@ -250,9 +269,11 @@
           "auth": "oauth",
           "env": [],
           "status": "unknown",
-          "capabilities": "Google-managed remote MCP server for Cloud Run.",
-          "source": "https://docs.cloud.google.com/mcp/supported-products",
-          "verified": "2026-11-21"
+          "capabilities": "Read Cloud Run services, revisions and logs, and deploy services with the signed-in user's Cloud Run permissions.",
+          "source": "https://docs.cloud.google.com/run/docs/use-cloud-run-mcp",
+          "verified": "2026-11-21",
+          "access": "Read and write.",
+          "scopes": "https://www.googleapis.com/auth/run.readonly for read access; https://www.googleapis.com/auth/run for read and write access. Consent: Use a Google Cloud identity with the MCP Tool User role and the required Cloud Run IAM permissions."
         }
       ],
       "api": {
@@ -305,7 +326,17 @@
           "source": "https://github.com/containers/kubernetes-mcp-server",
           "repository": "https://github.com/containers/kubernetes-mcp-server",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write.",
+          "scopes": "Kubernetes RBAC for the selected identity, namespaces and resources. Consent: Set the intended kubeconfig context or configure an in-cluster service account.",
+          "read_only": {
+            "how": "The --read-only flag exposes only read tools.",
+            "args": [
+              "-y",
+              "kubernetes-mcp-server@latest",
+              "--read-only"
+            ]
+          }
         }
       ],
       "api": {
@@ -344,7 +375,8 @@
           "capabilities": "Create, build, deploy and manage Netlify projects, environment variables, forms and extensions.",
           "source": "https://docs.netlify.com/build/build-with-ai/netlify-mcp-server/",
           "repository": "https://github.com/netlify/netlify-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         },
         {
           "id": "netlify-local",
@@ -369,7 +401,8 @@
           "capabilities": "Same capabilities run locally; needs Node.js 22+.",
           "source": "https://github.com/netlify/netlify-mcp",
           "repository": "https://github.com/netlify/netlify-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -427,7 +460,8 @@
           "source": "https://github.com/hashicorp/terraform-mcp-server",
           "repository": "https://github.com/hashicorp/terraform-mcp-server",
           "license": "MPL-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         },
         {
           "id": "terraform-remote",
@@ -443,7 +477,8 @@
           "source": "https://github.com/hashicorp/terraform-mcp-server",
           "repository": "https://github.com/hashicorp/terraform-mcp-server",
           "license": "MPL-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -481,7 +516,8 @@
           "status": "unknown",
           "capabilities": "Search Vercel docs, manage teams, projects and deployments, read deployment logs and query Web Analytics.",
           "source": "https://vercel.com/docs/agent-resources/vercel-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {

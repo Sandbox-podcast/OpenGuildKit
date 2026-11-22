@@ -36,17 +36,20 @@
           "url": "https://mcp.hubspot.com",
           "auth": "oauth",
           "env": [],
-          "status": "ga",
+          "status": "unknown",
           "capabilities": "Read and write CRM records, activities, content, campaigns, marketing email drafts, pipelines and properties, acting with the user's HubSpot permissions.",
           "source": "https://developers.hubspot.com/docs/apps/developer-platform/build-apps/integrate-with-the-remote-hubspot-mcp-server",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Reads and creates or edits CRM records (contacts, companies, deals, tickets, leads), activities, marketing content, campaigns, pipelines, properties, segments and social posts; every create or update asks for the user's confirmation. Users see only the records they can access.",
+          "scopes": "Scopes follow the tools available at install and the permissions the user grants (no manual scope list); social.publish to post, manage revenue objects optional; PKCE.",
+          "reviewed": "2026-11-21"
         }
       ],
       "api": {
         "kind": "rest",
         "docs": "https://developers.hubspot.com/docs/api-reference/latest/overview"
       },
-      "notes": "OAuth 2.1 with PKCE through an MCP connector created in the HubSpot account; GA status comes from HubSpot's changelog. A separate Developer MCP server exists for building on HubSpot (not listed)."
+      "notes": "OAuth 2.1 with PKCE through an MCP connector created in the HubSpot account. The source page states no release status for the server and labels revenue objects and quotes BETA. A separate Developer MCP server exists for building on HubSpot (not listed)."
     },
     {
       "id": "pipedrive",
@@ -71,7 +74,8 @@
           "status": "unknown",
           "capabilities": "Find deals, contacts, organizations and leads; create or update records, add notes, create activities and move deals between stages, within the user's permissions.",
           "source": "https://support.pipedrive.com/en/article/mcp-chatgpt",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -108,12 +112,18 @@
           "url": "https://api.salesforce.com/platform/mcp/v1/platform/sobject-all",
           "auth": "oauth",
           "env": [],
-          "status": "ga",
+          "status": "unknown",
           "capabilities": "Read, create, update and delete standard and custom object records; platform/sobject-reads is the read-only variant.",
-          "source": "https://github.com/forcedotcom/mcp-hosted/wiki/Connecting-Your-MCP-Client",
+          "source": "https://developer.salesforce.com/docs/platform/hosted-mcp-servers/references/reference/sobject-reads.html",
           "repository": "https://github.com/forcedotcom/mcp-hosted",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write.",
+          "scopes": "mcp_api; refresh_token; Salesforce object, field and record permissions still apply. Consent: An administrator enables the selected MCP server and configures an External Client App. Each user authorizes the app.",
+          "read_only": {
+            "how": "The platform/sobject-reads server, https://api.salesforce.com/platform/mcp/v1/platform/sobject-reads, exposes only the read tools.",
+            "url": "https://api.salesforce.com/platform/mcp/v1/platform/sobject-reads"
+          }
         }
       ],
       "api": {

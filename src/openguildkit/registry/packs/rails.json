@@ -1,7 +1,7 @@
 {
   "id": "rails",
   "title": "Ruby on Rails applications",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "For a Rails application: strong parameters, Brakeman, reversible migrations, SQL placeholders, credentials and eager loading.",
   "sources": [
     {
@@ -65,6 +65,21 @@
       "id": "eager-load-associations",
       "instruction": "Load the associations a changed view or serializer reads with `includes`, and enable `strict_loading` where the team uses it to catch lazy loads.",
       "verification": "Run the changed request with strict loading on, or count queries in a test with several records, and confirm no query runs per record."
+    },
+    {
+      "id": "ignore-master-key",
+      "instruction": "List `config/master.key` in `.gitignore`.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".gitignore"
+        ],
+        "contains": [
+          "master.key"
+        ],
+        "expect": "present"
+      }
     }
   ]
 }

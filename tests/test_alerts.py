@@ -1,5 +1,3 @@
-import contextlib
-import io
 import json
 import os
 import shutil
@@ -11,11 +9,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.alerts import (
-    accept_alert, blocking_alerts, import_report, link_alert, migrate_task, parse_report, set_status, summary,
-    task_alerts,
+    accept_alert, blocking_alerts, find_alert, import_report, link_alert, load_register, migrate_task, parse_report,
+    set_status, summary, task_alerts,
 )
-from openguildkit.cli import main
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 FIXTURES = Path(__file__).with_name("fixtures") / "alerts"
 REPO = Path(__file__).resolve().parents[1]
@@ -101,7 +100,8 @@ class AlertTests(unittest.TestCase):
         register, changes = import_report(register, FIXTURES / "pip-audit-clean.json", today="2026-11-22")
         self.assertEqual(changes["resolved"], [])
         self.assertEqual((register["alerts"][0]["status"], register["alerts"][0]["scanners"]), ("open", ["GitHub Dependabot"]))
-        register, changes = import_report(register, FIXTURES / "dependabot-empty.json", today="2026-11-22")
+        # The alert is listed as fixed in GitHub: an export of every state shows what was analyzed.
+        register, changes = import_report(register, FIXTURES / "dependabot-fixed.json", today="2026-11-22")
         self.assertEqual(changes["resolved"], [JINJA])
 
     def test_reviews_need_a_name_and_a_reason_to_dismiss(self):
@@ -143,17 +143,13 @@ class AlertTests(unittest.TestCase):
         self.assertEqual(link_alert(register, JINJA, "next")["alerts"][0]["tasks"], ["next", "upgrade"])
 
 
-class AlertFlowTests(unittest.TestCase):
+class AlertFlowTests(CapturedCli, unittest.TestCase):
+    cli_output = "status-stream"
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-
-    def cli(self, *args, code=0):
-        out, err = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            self.assertEqual(main(["--project", str(self.root), *map(str, args)]), code, err.getvalue())
-        return out.getvalue() if code == 0 else err.getvalue()
 
     def init(self):
         write_json(self.root / "p.json", {"name": "Portal", "stack": ["Python"]})
@@ -165,7 +161,8 @@ class AlertFlowTests(unittest.TestCase):
         output = self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json")
         self.assertIn("Imported 1 alert(s) from pip-audit", output)
         self.assertTrue((self.root / ".openguildkit" / "alerts.json").is_file())
-        write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local"})
+        write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local",
+                                          "concerns": ["none"]})
         self.assertIn("GHSA-H5C8-RQWP-CP95", self.cli("task", "consult", "upgrade", "--answers", self.root / "a.json"))
         record = json.loads(self.cli("task", "show", "upgrade"))
         self.assertNotIn("dependency_alerts", record)
@@ -191,6 +188,60 @@ class AlertFlowTests(unittest.TestCase):
         self.assertEqual([alert["id"] for alert in new["alerts"]], [CRITICAL])
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=CRITICAL):
             self.assertIn("(accepted)", self.cli("alerts", "accept", CRITICAL, "--by", "Camille", "--reason", "Behind a VPN."))
+
+    def test_a_person_sets_the_severity_pip_audit_leaves_unknown_and_it_then_blocks(self):
+        self.init()
+        self.cli("task", "new", "Upgrade Jinja in the report service.", "--id", "upgrade")
+        self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json")
+        self.cli("alerts", "set", JINJA, "--status", "confirmed", "--by", "Alex")
+        register_file = self.root / ".openguildkit" / "alerts.json"
+        task = {"id": "upgrade"}
+
+        def register():
+            return json.loads(register_file.read_text(encoding="utf-8"))
+
+        self.assertEqual(register()["alerts"][0]["severity"], "unknown")
+        self.assertEqual(blocking_alerts(register(), task), [])
+        self.assertIn("interactive terminal", self.cli("alerts", "severity", JINJA, "--level", "critical", "--by", "Bot",
+                                                       "--reason", "CVSS 9.8", code=1, stdin=""))
+        self.assertEqual(register()["alerts"][0]["severity"], "unknown")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=JINJA):
+            output = self.cli("alerts", "severity", JINJA, "--level", "critical", "--by", "Camille", "--reason", "CVSS 9.8")
+        self.assertIn("severity critical", output)
+        alert = register()["alerts"][0]
+        self.assertEqual({key: alert["severity_set"][key] for key in ("from", "by", "reason")},
+                         {"from": "unknown", "by": "Camille", "reason": "CVSS 9.8"})
+        self.assertEqual(len(blocking_alerts(register(), task)), 1)
+        self.cli("alerts", "import", FIXTURES / "pip-audit.json")
+        self.assertEqual(register()["alerts"][0]["severity"], "critical")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=JINJA):
+            self.cli("alerts", "severity", JINJA, "--level", "high", "--by", "Camille", "--reason", "Templates are ours")
+        self.assertEqual(blocking_alerts(register(), task), [])
+        self.cli("alerts", "import", FIXTURES / "osv-jinja2.json")
+        self.assertEqual(register()["alerts"][0]["severity"], "high")
+
+    def test_an_import_after_the_consultation_says_to_consult_again(self):
+        self.init()
+        self.cli("task", "new", "Upgrade Jinja in the report service.", "--id", "upgrade")
+        reminder = "run openguildkit task consult upgrade again"
+        self.assertNotIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json"))
+        write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local",
+                                          "concerns": ["none"]})
+        self.cli("task", "consult", "upgrade", "--answers", self.root / "a.json")
+        self.assertIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "npm-audit-critical.json"))
+
+    def test_an_import_that_brings_nothing_new_to_the_consultation_asks_nothing(self):
+        self.init()
+        self.cli("task", "new", "Upgrade Jinja in the report service.", "--id", "upgrade")
+        reminder = "run openguildkit task consult upgrade again"
+        self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json")
+        write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local",
+                                          "concerns": ["none"]})
+        self.cli("task", "consult", "upgrade", "--answers", self.root / "a.json")
+        self.assertNotIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json"))
+        self.assertIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "npm-audit-critical.json"))
+        self.cli("task", "consult", "upgrade", "--answers", self.root / "a.json")
+        self.assertNotIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "npm-audit-critical.json"))
 
     def test_a_confirmed_critical_alert_blocks_approval_and_completion(self):
         write_json(self.root / "p.json", {"name": "Portal", "stack": ["Python"], "packs": ["python"]})
@@ -225,7 +276,7 @@ class AlertFlowTests(unittest.TestCase):
         self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json")
         self.assertEqual(self.cli("task", "complete", "status").strip(), "done")
 
-    def test_the_scheduled_job_imports_the_report_and_opens_an_issue_per_new_confirmed_alert(self):
+    def test_the_scheduled_job_opens_a_task_per_new_confirmed_alert_and_proposes_the_register(self):
         from tests.test_market import pinned_actions, run_block
         workflow = WATCH_TEMPLATE.read_text(encoding="utf-8")
         repository_pins = set()
@@ -234,40 +285,84 @@ class AlertFlowTests(unittest.TestCase):
         for use in pinned_actions(workflow):
             self.assertRegex(use, r"@[0-9a-f]{40}$")
             self.assertIn(use, repository_pins)
-        bash, jq = shutil.which("bash"), shutil.which("jq")
-        if os.name == "nt" or not bash or not jq:
-            self.skipTest("Running the workflow steps needs bash and jq, as on the GitHub runner.")
+        self.assertIn("contents: write", workflow)
+        self.assertIn("pull-requests: write", workflow)
+        self.assertIn("persist-credentials: false", workflow)
+        bash, jq, git = shutil.which("bash"), shutil.which("jq"), shutil.which("git")
+        if os.name == "nt" or not bash or not jq or not git:
+            self.skipTest("Running the workflow steps needs bash, jq and git, as on the GitHub runner.")
         self.init()
+        for command in (["init", "-q", "-b", "main"], ["add", "-A"],
+                        ["-c", "user.email=dev@example.test", "-c", "user.name=Dev", "commit", "-q", "-m", "base"]):
+            subprocess.run(["git", "-C", str(self.root), *command], check=True, capture_output=True)
         shutil.copy(FIXTURES / "npm-audit-critical.json", self.root / "report.json")
         bin_dir = self.root / "bin"
         bin_dir.mkdir()
         (bin_dir / "openguildkit").write_text(f'#!/bin/sh\nexec "{sys.executable}" -m openguildkit "$@"\n', encoding="utf-8")
-        (bin_dir / "gh").write_text("#!/bin/sh\nif [ \"$2\" = list ]; then cat \"$KNOWN\"; exit 0; fi\n"
-                                    "printf '%s\\n' \"$@\" >> \"$GH_LOG\"\n", encoding="utf-8")
+        # A stand-in for gh: lists answer from files, every other call is logged; no branch or pull request exists.
+        (bin_dir / "gh").write_text(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$GH_LOG\"\n"
+            "if [ \"$1 $2\" = 'issue list' ]; then cat \"$KNOWN\"; exit 0; fi\n"
+            "if [ \"$1 $2\" = 'pr list' ]; then exit 0; fi\n"
+            "case \"$2\" in repos/*/git/ref/heads/*|repos/*/contents/*\\?ref=*) exit 1;; esac\n", encoding="utf-8")
         for name in ("openguildkit", "gh"):
             (bin_dir / name).chmod(0o755)
         (self.root / "known.txt").write_text("", encoding="utf-8")
+        log = self.root / "gh.log"
         environment = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
-                       "PYTHONPATH": str(REPO / "src"), "GH_LOG": str(self.root / "gh.log"),
-                       "KNOWN": str(self.root / "known.txt"), "GITHUB_STEP_SUMMARY": str(self.root / "summary.md")}
+                       "PYTHONPATH": str(REPO / "src"), "GH_LOG": str(log), "KNOWN": str(self.root / "known.txt"),
+                       "GITHUB_STEP_SUMMARY": str(self.root / "summary.md"), "GITHUB_REPOSITORY": "example/portal",
+                       "BASE": "main"}
 
         def step(name):
-            return subprocess.run([bash, "-e", "-c", run_block(workflow, name)], cwd=self.root, env=environment,
-                                  check=True, capture_output=True, text=True)
+            log.unlink(missing_ok=True)
+            result = subprocess.run([bash, "-e", "-c", run_block(workflow, name)], cwd=self.root, env=environment,
+                                    check=True, capture_output=True, text=True)
+            return result.stdout, log.read_text(encoding="utf-8") if log.exists() else ""
 
         step("Import the report into the alert register")
         self.assertIn(f"- {CRITICAL}", (self.root / "summary.md").read_text(encoding="utf-8"))
-        step("Open an issue per new confirmed alert")
-        self.assertFalse((self.root / "gh.log").exists())
+        self.assertNotIn("issue create", step("Open a task per new confirmed alert")[1])
+        _, calls = step("Propose the register in a pull request")
+        self.assertIn("api -X POST repos/example/portal/git/refs -f ref=refs/heads/openguildkit/dependency-watch", calls)
+        self.assertIn("api -X PUT repos/example/portal/contents/.openguildkit/alerts.json -f "
+                      "branch=openguildkit/dependency-watch", calls)
+        self.assertIn("pr create --head openguildkit/dependency-watch --base main", calls)
+        self.assertIn(f"- `{CRITICAL}`", (self.root / "body.md").read_text(encoding="utf-8"))
+
         self.cli("alerts", "set", CRITICAL, "--status", "confirmed", "--by", "Alex")
-        step("Open an issue per new confirmed alert")
-        calls = (self.root / "gh.log").read_text(encoding="utf-8")
-        self.assertIn(f"--title\nDependency alert: {CRITICAL}\n--body\n", calls)
-        self.assertIn(f"openguildkit task alerts TASK --link {CRITICAL}", calls)
-        (self.root / "gh.log").unlink()
-        (self.root / "known.txt").write_text(f"Dependency alert: {CRITICAL}\n", encoding="utf-8")
-        self.assertIn("Already reported", step("Open an issue per new confirmed alert").stdout)
-        self.assertFalse((self.root / "gh.log").exists())
+        task_id = "dep-form-parser-ghsa-xxxx-yyyy-zzzz"
+        _, calls = step("Open a task per new confirmed alert")
+        self.assertIn(f"issue create --title OpenGuildKit task {task_id}: dependency alert {CRITICAL} --body", calls)
+        self.assertIn(f"openguildkit task new \"Fix dependency alert {CRITICAL}", calls)
+        self.assertEqual(find_alert(load_register(self.root / ".openguildkit"), CRITICAL)["tasks"], [task_id])
+        self.assertEqual(json.loads(self.cli("task", "show", task_id))["status"], "draft")
+        self.assertIn(f"`{task_id}` for `{CRITICAL}`", step("Propose the register in a pull request") and
+                      (self.root / "body.md").read_text(encoding="utf-8"))
+        (self.root / "known.txt").write_text(f"OpenGuildKit task {task_id}: dependency alert {CRITICAL}\n",
+                                             encoding="utf-8")
+        output, calls = step("Open a task per new confirmed alert")
+        self.assertNotIn("issue create", calls)
+        self.assertEqual(json.loads((self.root / "opened.json").read_text(encoding="utf-8")), [])
+        for command in (["add", ".openguildkit/alerts.json"], ["-c", "user.email=dev@example.test", "-c",
+                                                                "user.name=Dev", "commit", "-q", "-m", "register"]):
+            subprocess.run(["git", "-C", str(self.root), *command], check=True, capture_output=True)
+        self.assertIn("did not change", step("Propose the register in a pull request")[0])
+
+    def test_alerts_tasks_lists_then_opens_one_task_per_confirmed_alert_without_one(self):
+        self.init()
+        self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json")
+        self.assertIn("No confirmed alert waits for a task.", self.cli("alerts", "tasks"))
+        self.cli("alerts", "set", CRITICAL, "--status", "confirmed", "--by", "Alex")
+        listed = self.cli("alerts", "tasks")
+        self.assertIn(f"{CRITICAL} (critical): task dep-form-parser-ghsa-xxxx-yyyy-zzzz\n", listed)
+        self.assertFalse((self.root / ".openguildkit" / "tasks" / "dep-form-parser-ghsa-xxxx-yyyy-zzzz.json").exists())
+        opened = json.loads(self.cli("alerts", "tasks", "--open", "--json"))
+        self.assertEqual([row["task"] for row in opened], ["dep-form-parser-ghsa-xxxx-yyyy-zzzz"])
+        task = json.loads(self.cli("task", "show", "dep-form-parser-ghsa-xxxx-yyyy-zzzz"))
+        self.assertIn(f"Fix dependency alert {CRITICAL}", task["brief"])
+        self.assertEqual(json.loads(self.cli("alerts", "tasks", "--json")), [])
+        self.assertIn(CRITICAL, self.cli("alerts", "list", "--task", "dep-form-parser-ghsa-xxxx-yyyy-zzzz"))
 
 
 if __name__ == "__main__":

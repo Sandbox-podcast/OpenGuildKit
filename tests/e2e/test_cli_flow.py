@@ -1,4 +1,4 @@
-"""End-to-end tests: run the real CLI in a subprocess against a temporary project.
+"""End-to-end tests invoke the CLI against temporary projects, with real processes for host tests.
 
 The request status example in examples/request-status is the fixture, so the
 example cannot drift from the CLI without failing these tests.
@@ -13,20 +13,24 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.support import copy_initialized_project, run_cli, subprocess_environment
+
+
 REPO = Path(__file__).resolve().parents[2]
 EXAMPLE = REPO / "examples" / "request-status"
 TASK_ID = "request-status"
 EXPECTED_BOARDS = {"product", "engineering", "qa", "design", "marketing", "security", "legal"}
 
-ENV = {
-    **os.environ,
+ENV = subprocess_environment({
     "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"), os.environ.get("PYTHONPATH")])),
     "PYTHONIOENCODING": "utf-8",
     "PYTHONUTF8": "1",
-}
+})
 
 
 class CliTestCase(unittest.TestCase):
+    subprocess_mode = False
+
     def setUp(self):
         self.project = Path(tempfile.mkdtemp(prefix="ogk-e2e-")).resolve()
         self.addCleanup(shutil.rmtree, self.project, ignore_errors=True)
@@ -35,25 +39,38 @@ class CliTestCase(unittest.TestCase):
         return [sys.executable, "-m", "openguildkit", "--project", str(self.project), *map(str, args)]
 
     def run_cli(self, *args, stdin_text="", expect=0):
-        result = subprocess.run(
-            self.command(*args),
-            input=stdin_text,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            env=ENV,
-            timeout=60,
+        return run_cli(
+            self.project, *args, stdin=stdin_text, expect=expect,
+            subprocess_mode=self.subprocess_mode, env=ENV,
         )
-        if expect is not None:
-            self.assertEqual(
-                result.returncode,
-                expect,
-                f"openguildkit {' '.join(map(str, args))}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}",
-            )
-        return result
+
+    def in_terminal(self, args, typed):
+        """(exit code, stdout, stderr) of a command run at a pseudo-terminal where the person types one line.
+
+        The output is captured, so what the command shows the person stays out of the test runner's output."""
+        master, slave = os.openpty()
+        try:
+            process = subprocess.Popen(self.command(*args), stdin=slave, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       text=True, encoding="utf-8", env=ENV)
+            os.close(slave)
+            slave = None
+            os.write(master, f"{typed}\n".encode())
+            stdout, stderr = process.communicate(timeout=60)
+        finally:
+            if slave is not None:
+                os.close(slave)
+            os.close(master)
+        return process.returncode, stdout, stderr
+
+    def decide_in_terminal(self, typed, task_id=TASK_ID):
+        return self.in_terminal(("task", "decide", task_id, "--approve", "--by", "Test Owner", "--reason", "Scope agreed"),
+                                typed)
 
     def init_example(self):
-        self.run_cli("init", "--answers", EXAMPLE / "profile.json")
+        if any(self.project.iterdir()):
+            self.run_cli("init", "--answers", EXAMPLE / "profile.json")
+        else:
+            copy_initialized_project(self, EXAMPLE / "profile.json", self.project)
 
     def consult_example(self):
         self.init_example()
@@ -81,6 +98,8 @@ class CliTestCase(unittest.TestCase):
 
 
 class CatalogTests(CliTestCase):
+    subprocess_mode = True  # python -m openguildkit itself, as the installed command runs it
+
     def test_hr_brain_exposes_distinct_review_lenses(self):
         brain = json.loads(self.run_cli("brains", "--id", "hr", "--json").stdout)
         lenses = brain["review"]["specialists"]
@@ -169,10 +188,12 @@ class ProjectSetupTests(CliTestCase):
         plan = json.loads(self.run_cli("recommend", "--answers", path, "--json").stdout)
         matched = [pattern["id"] for pattern in plan["matched"]]
         self.assertIn("python-fastapi-postgresql", matched)
-        self.assertLessEqual({"scrum", "kanban"}, set(matched))
+        # Scrum and Kanban are suggested to project management, not preselected (#152): the team picks one.
+        suggested = {pattern["id"] for pattern in plan["suggested"]}
+        self.assertLessEqual({"scrum", "kanban"}, suggested)
         self.assertIn("scrum", self.run_cli("patterns", "--role", "project-management").stdout)
         self.assertIn("openguildkit patterns --id scrum", self.run_cli("references", "--id", "pattern-scrum").stdout)
-        answers["patterns"] = [pattern for pattern in matched if pattern != "kanban"]
+        answers["patterns"] = [*matched, "scrum"]
         self.run_cli("init", "--answers", self.write_json("selected.json", answers))
         self.run_cli("check")
         instructions = (self.project / "AGENTS.md").read_text(encoding="utf-8")
@@ -186,6 +207,7 @@ class ProjectSetupTests(CliTestCase):
         web.mkdir(parents=True)
         (web / "package.json").write_text(json.dumps({"dependencies": {"next": "^14.2.0", "react": "^18.3.0"}}), encoding="utf-8")
         detected = json.loads(self.run_cli("detect", "--json").stdout)
+        # The declared range stays as written; pattern matching reads its lower bound.
         self.assertEqual(detected["components"][0]["stack"], ["Next.js ^14.2.0", "React ^18.3.0"])
 
         questions = {question["id"]: question for question in json.loads(self.run_cli("init", "--questions").stdout)}
@@ -303,13 +325,16 @@ class TaskFlowTests(CliTestCase):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK_ID)
         self.assertEqual(self.task_record()["status"], "draft")
 
-        questions = json.loads(self.run_cli("task", "questions", TASK_ID).stdout)
+        # One JSON shape with or without answers (#174).
+        listing = json.loads(self.run_cli("task", "questions", TASK_ID).stdout)
+        self.assertEqual((listing["follow_ups"], listing["open_points"]), ([], []))
+        questions = listing["questions"]
         self.assertEqual([question["id"] for question in questions], ["kind", "surface", "data", "research", "concerns", "context"])
 
         consultation = self.run_cli("task", "consult", TASK_ID, "--answers", EXAMPLE / "answers.json").stdout
         self.assertIn("# Board consultation request", consultation)
         for board in EXPECTED_BOARDS:
-            self.assertIn(f"### {board}", consultation)
+            self.assertIn(f"- {board} (", consultation)
         self.assertEqual(self.run_cli("task", "brief", TASK_ID).stdout.strip(), consultation.strip())
 
         template = json.loads(self.run_cli("task", "template", TASK_ID).stdout)
@@ -360,7 +385,10 @@ class TaskFlowTests(CliTestCase):
         self.assertIn("consultation", stale.stderr)
         self.record_example_review()
         challenge = self.run_cli("task", "challenge", TASK_ID)
-        self.assertIn("Previous decision: changes requested. Reason: Show the last update date", challenge.stdout)
+        recall = challenge.stdout.splitlines()[0]
+        self.assertIn("Round 1: changes requested by Service owner", recall)
+        self.assertIn("Show the last update date", recall)
+        self.assertIn("The brief was revised since.", recall)
 
     def test_review_must_cover_exactly_the_selected_boards(self):
         self.consult_example()
@@ -383,7 +411,10 @@ class TaskFlowTests(CliTestCase):
         self.run_cli("task", "new", "Improve exports", "--id", "vague")
         answers = self.write_json("vague.json", {"kind": "feature", "surface": ["customer", "service"], "data": "none", "research": "local"})
         plan = json.loads(self.run_cli("task", "questions", "vague", "--answers", answers).stdout)
-        self.assertEqual(plan["follow_ups"], ["affected", "outcome"])
+        self.assertEqual([item["id"] for item in plan["follow_ups"]], ["affected", "concerns", "outcome"])
+        answers = self.write_json("vague.json", {"kind": "feature", "surface": ["customer", "service"], "data": "none",
+                                                 "research": "local", "concerns": ["none"]})
+        self.assertTrue(all(item["prompt"].endswith("?") for item in plan["follow_ups"]))
         self.assertTrue(any("brief is short" in point for point in plan["open_points"]))
         consultation = self.run_cli("task", "consult", "vague", "--answers", answers).stdout
         self.assertIn("## Open points", consultation)
@@ -410,7 +441,7 @@ class TaskFlowTests(CliTestCase):
     def test_brief_words_route_to_boards(self):
         self.init_example()
         self.run_cli("task", "new", "Réduire la latence de la page de recherche", "--id", "search-speed")
-        answers = {"kind": "maintenance", "surface": "unsure", "data": "none", "research": "local"}
+        answers = {"kind": "maintenance", "surface": "unsure", "data": "none", "research": "local", "concerns": ["none"]}
         self.run_cli("task", "consult", "search-speed", "--answers", self.write_json("speed.json", answers))
         routing = self.task_record_for("search-speed")["consultation"]["routing"]
         self.assertIn("performance", routing)
@@ -428,28 +459,6 @@ class TaskFlowTests(CliTestCase):
 
 @unittest.skipUnless(os.name == "posix", "approval needs a pseudo-terminal, available on Linux and macOS")
 class ApprovalTests(CliTestCase):
-    def decide_in_terminal(self, typed, task_id=TASK_ID):
-        master, slave = os.openpty()
-        try:
-            process = subprocess.Popen(
-                self.command("task", "decide", task_id, "--approve", "--by", "Test Owner", "--reason", "Scope agreed"),
-                stdin=slave,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                env=ENV,
-            )
-            os.close(slave)
-            slave = None
-            os.write(master, f"{typed}\n".encode())
-            stdout, stderr = process.communicate(timeout=60)
-        finally:
-            if slave is not None:
-                os.close(slave)
-            os.close(master)
-        return process.returncode, stdout, stderr
-
     def test_approval_requires_the_typed_id_and_expires_when_rules_change(self):
         self.consult_example()
         self.record_example_review()
@@ -474,14 +483,15 @@ class ApprovalTests(CliTestCase):
         self.run_cli("sync")
 
         expired = self.run_cli("task", "handoff", TASK_ID, expect=1)
-        self.assertIn(f"The approval for {TASK_ID} was recorded under earlier rules.", expired.stderr)
+        self.assertIn("recorded under earlier rules (pack web-accessibility added)", expired.stderr)
+        self.assertIn(f"The approval for {TASK_ID} was recorded under earlier rules", expired.stderr)
         self.assertIn(f"--follows {TASK_ID}", expired.stderr)
 
     def test_an_approved_decision_task_returns_a_decision_record(self):
         self.init_example()
         task_id = "pricing-choice"
         self.run_cli("task", "new", "Recommend whether to bill support per seat or per request.", "--id", task_id)
-        answers = {"kind": "decision", "surface": "business", "data": "none", "research": "local"}
+        answers = {"kind": "decision", "surface": "business", "data": "none", "research": "local", "concerns": ["none"]}
         self.run_cli("task", "consult", task_id, "--answers", self.write_json("decision.json", answers))
         template = json.loads(self.run_cli("task", "template", task_id).stdout)
         template["summary"] = "Bill per seat for the pilot and measure request volume."

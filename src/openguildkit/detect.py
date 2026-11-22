@@ -5,16 +5,21 @@ network, and the team confirms or corrects the proposal before it reaches the pr
 """
 
 import json
+import os
 import re
 import tomllib
 from pathlib import Path
 
 from .stack_versions import declared_version, version_key
 
-SKIPPED_DIRECTORIES = {
+# The folders no walk of the project enters: version control, OpenGuildKit's state, dependencies, virtual
+# environments, caches and build output. Detection, proposed checks, the code a bug brief names and Storybook
+# extraction all walk the tree with walk() below, so they all skip the same folders.
+SKIPPED_DIRECTORIES = frozenset({
     ".git", ".hg", ".svn", ".openguildkit", "node_modules", ".venv", "venv", "env", "__pycache__",
     "dist", "build", "target", "out", ".next", ".nuxt", "vendor", "coverage", ".tox", ".mypy_cache",
-}
+    "storybook-static",
+})
 MAX_DEPTH = 4
 MAX_MANIFEST_BYTES = 2_000_000
 
@@ -38,6 +43,10 @@ NPM_PACKAGES = {
     "prisma": "Prisma",
     "aws-cdk-lib": "AWS",
     "stripe": "Stripe",
+    "@adyen/api-library": "Adyen",
+    "braintree": "Braintree",
+    "checkout-sdk-node": "Checkout.com",
+    "@mollie/api-client": "Mollie",
 }
 PYTHON_PACKAGES = {
     "fastapi": "FastAPI",
@@ -52,26 +61,85 @@ PYTHON_PACKAGES = {
     "chaosfolk": "ChaosFolk",
     "playwright": "Playwright",
     "stripe": "Stripe",
+    "adyen": "Adyen",
+    "braintree": "Braintree",
+    "checkout-sdk": "Checkout.com",
+    "mollie-api-python": "Mollie",
 }
 GO_MODULES = {
     "github.com/jackc/pgx": "PostgreSQL",
     "github.com/lib/pq": "PostgreSQL",
 }
-RUBY_GEMS = {"rails": "Rails", "pg": "PostgreSQL", "mysql2": "MySQL"}
-COMPOSER_PACKAGES = {"laravel/framework": "Laravel"}
+RUBY_GEMS = {
+    "rails": "Rails", "pg": "PostgreSQL", "mysql2": "MySQL", "stripe": "Stripe",
+    "adyen-ruby-api-library": "Adyen", "braintree": "Braintree", "mollie-api-ruby": "Mollie",
+}
+COMPOSER_PACKAGES = {
+    "laravel/framework": "Laravel", "stripe/stripe-php": "Stripe", "adyen/php-api-library": "Adyen",
+    "braintree/braintree_php": "Braintree", "checkout/checkout-sdk-php": "Checkout.com",
+    "mollie/mollie-api-php": "Mollie",
+}
 IMAGES = {"postgres": "PostgreSQL", "postgis/postgis": "PostgreSQL"}
 IMAGE_PREFIXES = ("docker.io/library/", "docker.io/", "library/")
 INFERRED = {"PostgreSQL", "MySQL"}
-UNVERSIONED = {"AWS", "Stripe"}  # SDK versions are not the versions of the services they use.
+# SDK versions are not the versions of the services they use. The card payment providers are those the
+# pci-dss-cardholder-data pattern names (Worldpay publishes no common SDK package to read).
+PAYMENT_PROVIDERS = {"Stripe", "Adyen", "Braintree", "Checkout.com", "Mollie"}
+UNVERSIONED = {"AWS", *PAYMENT_PROVIDERS}
+ANDROID_NOTE = "the platform has no version of its own; see Android SDK and Android Gradle Plugin"
+
+
+def _sdk_note(spec: object) -> str:
+    """Why a service reached through an SDK has no version: the SDK's declared version is not the service's."""
+    declared = declared_version(spec)
+    if not declared:
+        return "the service itself has no version"
+    exact = declared[0].isdigit()
+    return f"SDK {'==' if exact else ''}{declared}, the service itself has no version"
 
 _VERSION = re.compile(r"\d+(?:\.\d+){0,2}")
 _GEM = re.compile(r"""(?m)^\s*gem\s+["']([\w.-]+)["'](?:\s*,\s*["']([^"']+)["'])?""")
 _ANDROID_PLUGIN = re.compile(r"com\.android\.(?:application|library|tools\.build:gradle)|"
                              r"libs\.plugins\.android\.(?:application|library)")
-_KOTLIN_PLUGIN = re.compile(r"org\.jetbrains\.kotlin|kotlin\(\s*[\"']|kotlin-android|libs\.plugins\.kotlin")
+_KOTLIN_PLUGIN = re.compile(r"org\.jetbrains\.kotlin|kotlin\(\s*[\"']|kotlin-android|libs\.plugins\.kotlin|"
+                            r"plugin:\s*[\"']kotlin[\"'-]")
 _REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])?\s*([^;#]*)")
 _KUBE_API = re.compile(r"""(?m)^apiVersion:[ \t]+["']?(?:([a-z0-9.-]+)/)?v\d+(?:[a-z]+\d+)?["']?[ \t]*(?:#.*)?$""")
 _KUBE_KIND = re.compile(r"""(?m)^kind:[ \t]+["']?([A-Z][A-Za-z0-9]*)["']?[ \t]*(?:#.*)?$""")
+
+
+def walk(root: Path, max_depth: int | None = None):
+    """Each folder from root down, depth first in name order, as (folder, parts, files, folders).
+
+    parts are the names of the folder's path below root, () for root itself, so its depth is len(parts). files
+    and folders are the names the folder holds, sorted. Symbolic links are neither followed nor listed, and
+    folders leaves out the names SKIPPED_DIRECTORIES gives, so a node_modules costs nothing however large it is.
+    The walk then enters the folders still in the list, down to max_depth: a caller removes a name from folders
+    to keep the walk out of that folder.
+    """
+    pending = [(root, ())]
+    while pending:
+        folder, parts = pending.pop()
+        try:
+            with os.scandir(folder) as listing:
+                entries = sorted(listing, key=lambda entry: entry.name)
+        except OSError:
+            continue
+        files, folders = [], []
+        for entry in entries:
+            try:
+                if entry.is_symlink():
+                    continue
+                if entry.is_dir():
+                    if entry.name not in SKIPPED_DIRECTORIES:
+                        folders.append(entry.name)
+                elif entry.is_file():
+                    files.append(entry.name)
+            except OSError:
+                continue
+        yield folder, parts, files, folders
+        if max_depth is None or len(parts) < max_depth:
+            pending.extend((folder / name, (*parts, name)) for name in reversed(folders))
 
 
 def _technology(name: str, version: str | None) -> str:
@@ -83,7 +151,7 @@ class _Component:
         self.path = path
         self.technologies: dict[str, dict] = {}
 
-    def add(self, name: str, version: str | None, evidence: str, inferred: bool = False) -> None:
+    def add(self, name: str, version: str | None, evidence: str, inferred: bool = False, note: str = "") -> None:
         if inferred:
             # A client library's version says nothing about the server it talks to.
             version = None
@@ -95,6 +163,9 @@ class _Component:
                 "evidence": evidence,
                 "inferred": inferred,
             }
+            # Why a technology carries no version although its manifest is read.
+            if note and not version:
+                self.technologies[name]["note"] = note
 
 
 def _read_text(path: Path) -> str | None:
@@ -132,7 +203,8 @@ def _package_json(component: _Component, path: Path, label: str) -> None:
             name = NPM_PACKAGES.get(package)
             if name:
                 version = None if name in UNVERSIONED else declared_version(spec)
-                component.add(name, version, label, inferred=name in INFERRED)
+                note = _sdk_note(spec) if name in UNVERSIONED else ""
+                component.add(name, version, label, inferred=name in INFERRED, note=note)
     engines = data.get("engines")
     if isinstance(engines, dict) and "node" in engines:
         component.add("Node.js", declared_version(engines["node"]), label)
@@ -147,7 +219,8 @@ def _python_requirement(component: _Component, line: str, label: str) -> None:
     if name:
         spec = match.group(2).strip().removeprefix("(").removesuffix(")")
         version = None if name in UNVERSIONED else declared_version(spec)
-        component.add(name, version, label, inferred=name in INFERRED)
+        note = _sdk_note(spec) if name in UNVERSIONED else ""
+        component.add(name, version, label, inferred=name in INFERRED, note=note)
 
 
 def _pyproject(component: _Component, path: Path, label: str) -> None:
@@ -179,7 +252,8 @@ def _pyproject(component: _Component, path: Path, label: str) -> None:
                 if name:
                     spec = spec.get("version") if isinstance(spec, dict) else spec
                     version = None if name in UNVERSIONED else declared_version(spec)
-                    component.add(name, version, label, inferred=name in INFERRED)
+                    note = _sdk_note(spec) if name in UNVERSIONED else ""
+                    component.add(name, version, label, inferred=name in INFERRED, note=note)
 
 
 def _requirements(component: _Component, path: Path, label: str) -> None:
@@ -208,7 +282,8 @@ def _maven(component: _Component, path: Path, label: str) -> None:
 
 
 def _gradle_plugin_version(text: str, plugin: str) -> str | None:
-    match = re.search(rf"""{plugin}['"]?\)?\s+version\s*\(?\s*['"]([^'"]+)""", text)
+    # The group keeps an alternation in plugin from splitting the whole expression.
+    match = re.search(rf"""(?:{plugin})['"]?\)?\s+version\s*\(?\s*['"]([^'"]+)""", text)
     return declared_version(match.group(1)) if match else None
 
 
@@ -248,11 +323,14 @@ def _gradle(component: _Component, path: Path, label: str, root: Path) -> None:
     if has_kotlin:
         explicit = _gradle_plugin_version(text, r"""org\.jetbrains\.kotlin\.[\w-]+|kotlin\(\s*['"][\w-]+""")
         classpath = re.search(r"""org\.jetbrains\.kotlin:kotlin-gradle-plugin:([^'"\s]+)""", text)
-        version = explicit or (declared_version(classpath.group(1)) if classpath else None)
+        # An old-style build names the version in a variable: ext.kotlin_version = '1.9.24'.
+        variable = re.search(r"""\bkotlin_version\s*=\s*['"]([^'"]+)['"]""", text)
+        version = explicit or (declared_version(classpath.group(1)) if classpath else None) \
+            or (declared_version(variable.group(1)) if variable else None)
         component.add("Kotlin", version or kotlin, label if version or not kotlin else catalog_label)
     android = next((version for plugin, version in catalog.items() if plugin.startswith("com.android.")), None)
     if _ANDROID_PLUGIN.search(text) or any(plugin.startswith("com.android.") for plugin in catalog):
-        component.add("Android", None, label)
+        component.add("Android", None, label, note=ANDROID_NOTE)
         sdk = re.search(r"\bcompileSdk(?:Version)?\s*(?:=\s*|\(\s*)?(\d+)", text)
         if sdk:
             component.add("Android SDK", sdk.group(1), label)
@@ -297,7 +375,9 @@ def _gemfile(component: _Component, path: Path, label: str) -> None:
     component.add("Ruby", declared_version(ruby.group(1)) if ruby else None, label)
     for gem, spec in _GEM.findall(text):
         name = RUBY_GEMS.get(gem)
-        if name:
+        if name in UNVERSIONED:
+            component.add(name, None, label, note=_sdk_note(spec))
+        elif name:
             component.add(name, declared_version(spec), label, inferred=name in INFERRED)
 
 
@@ -309,7 +389,9 @@ def _composer(component: _Component, path: Path, label: str) -> None:
     component.add("PHP", declared_version(requirements.get("php")), label)
     for package, spec in requirements.items():
         name = COMPOSER_PACKAGES.get(package)
-        if name:
+        if name in UNVERSIONED:
+            component.add(name, None, label, note=_sdk_note(spec))
+        elif name:
             component.add(name, declared_version(spec), label)
 
 
@@ -426,39 +508,53 @@ def _component_id(relative: str, taken: set[str]) -> str:
     return candidate
 
 
-def detect_stack(root: Path) -> dict:
-    """Return the components found under root, each with its technologies and evidence."""
+def _kustomize_base(relative: str, names: list[str]) -> str:
+    """A Kustomize overlay or base folder (k2/overlays/prod, k2/base) belongs to the application above it."""
+    if not any(name in ("kustomization.yaml", "kustomization.yml", "Kustomization") for name in names):
+        return relative
+    parts = relative.split("/")
+    layout = next((index for index, part in enumerate(parts) if part in ("overlays", "base", "bases")), None)
+    if layout is None or relative == ".":
+        return relative
+    return "/".join(parts[:layout]) or "."
+
+
+def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dict:
+    """Return the components found under root, each with its technologies and evidence.
+
+    listings, when given, receives the files of each folder walked, by path below root ("." for root), so that
+    propose_checks can use them instead of walking the tree again.
+    """
     root = root.resolve()
     components: dict[str, _Component] = {}
     gradle_roots: dict[Path, str] = {}
-
-    def visit(directory: Path, depth: int) -> None:
-        try:
-            entries = sorted(directory.iterdir(), key=lambda entry: entry.name)
-        except OSError:
-            return
-        relative = directory.relative_to(root).as_posix() or "."
-        if any(entry.name in ("settings.gradle", "settings.gradle.kts") for entry in entries):
+    # Each file and marker folder, keyed by its path parts below root: read in that order, a folder's entries come
+    # in name order with each subfolder's content in its place, so the first evidence of a technology stays the same.
+    found: list[tuple[tuple[str, ...], str, Path, str]] = []
+    for directory, parts, files, folders in walk(root, MAX_DEPTH):
+        relative = "/".join(parts) or "."
+        if listings is not None:
+            listings[relative] = set(files)
+        names = files + folders
+        if any(name in ("settings.gradle", "settings.gradle.kts") for name in names):
             for module in _gradle_modules(directory):
                 gradle_roots[module] = relative
-        relative = gradle_roots.get(directory, relative)
-        for entry in entries:
-            if entry.is_symlink():
-                continue
-            if entry.is_file():
-                component = components.setdefault(relative, _Component(relative))
-                label = entry.relative_to(root).as_posix()
-                _parse(component, entry, label, root)
-            elif entry.is_dir() and entry.name.endswith(".xcodeproj"):
-                component = components.setdefault(relative, _Component(relative))
-                _xcode_project(component, entry, entry.relative_to(root).as_posix())
-            elif entry.is_dir() and depth < MAX_DEPTH and entry.name not in SKIPPED_DIRECTORIES:
-                if entry.name == "wp-content":
-                    component = components.setdefault(relative, _Component(relative))
-                    component.add("WordPress", None, entry.relative_to(root).as_posix())
-                visit(entry, depth + 1)
-
-    visit(root, 0)
+        relative = _kustomize_base(gradle_roots.get(directory, relative), names)
+        found += [((*parts, name), "file", directory / name, relative) for name in files]
+        for name in [name for name in folders if name.endswith(".xcodeproj")]:
+            found.append(((*parts, name), "xcode", directory / name, relative))
+            folders.remove(name)
+        if "wp-content" in folders and len(parts) < MAX_DEPTH:
+            found.append(((*parts, "wp-content"), "wordpress", directory / "wp-content", relative))
+    for key, kind, entry, relative in sorted(found, key=lambda item: item[0]):
+        component = components.setdefault(relative, _Component(relative))
+        label = "/".join(key)
+        if kind == "file":
+            _parse(component, entry, label, root)
+        elif kind == "xcode":
+            _xcode_project(component, entry, label)
+        else:
+            component.add("WordPress", None, label)
     workflows = root / ".github" / "workflows"
     if workflows.is_dir() and any(path.suffix in (".yml", ".yaml") for path in workflows.iterdir()):
         components.setdefault(".", _Component(".")).add("GitHub Actions", None, ".github/workflows")

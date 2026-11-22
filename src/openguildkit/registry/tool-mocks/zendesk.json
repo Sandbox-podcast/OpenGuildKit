@@ -9,128 +9,76 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "query": {"type": "string", "description": "Words to look for"},
-          "status": {"type": "string", "description": "Optional status", "enum": ["open", "pending", "solved"]}
+          "query": {
+            "type": "string",
+            "description": "Words that must all appear, whatever the case; an empty text lists everything"
+          },
+          "status": {
+            "type": "string",
+            "description": "Optional status",
+            "enum": [
+              "open",
+              "pending",
+              "solved"
+            ]
+          }
         },
-        "required": ["query"]
+        "required": [
+          "query"
+        ]
       },
-      "responses": [
-        {
-          "when": {"query": "export", "status": "pending"},
-          "result": {
-            "tickets": [
-              {
-                "ticket_id": 4103,
-                "subject": "Need a CSV of last quarter's requests",
-                "status": "pending",
-                "created": "2026-11-05",
-                "requester": "customer-c@example.test"
-              }
-            ]
-          }
-        },
-        {
-          "when": {"query": "export"},
-          "result": {
-            "tickets": [
-              {
-                "ticket_id": 4101,
-                "subject": "Can I download all my requests?",
-                "status": "open",
-                "created": "2026-10-14",
-                "requester": "customer-a@example.test"
-              },
-              {
-                "ticket_id": 4102,
-                "subject": "Export of requests to a spreadsheet",
-                "status": "open",
-                "created": "2026-10-29",
-                "requester": "customer-b@example.test"
-              },
-              {
-                "ticket_id": 4103,
-                "subject": "Need a CSV of last quarter's requests",
-                "status": "pending",
-                "created": "2026-11-05",
-                "requester": "customer-c@example.test"
-              },
-              {
-                "ticket_id": 4104,
-                "subject": "Monthly report: export requests please",
-                "status": "open",
-                "created": "2026-11-12",
-                "requester": "customer-d@example.test"
-              },
-              {
-                "ticket_id": 4105,
-                "subject": "Still no export of my requests",
-                "status": "open",
-                "created": "2026-11-17",
-                "requester": "customer-e@example.test"
-              }
-            ],
-            "count": 5
-          }
-        },
-        {
-          "when": {"query": "csv"},
-          "result": {
-            "tickets": [
-              {
-                "ticket_id": 4103,
-                "subject": "Need a CSV of last quarter's requests",
-                "status": "pending",
-                "created": "2026-11-05",
-                "requester": "customer-c@example.test"
-              }
-            ]
-          }
-        },
-        {"result": {"tickets": [], "count": 0}}
-      ]
+      "serve": {
+        "records": "tickets",
+        "action": "list",
+        "fields": [
+          "ticket_id",
+          "subject",
+          "status",
+          "created",
+          "requester"
+        ]
+      }
     },
     {
       "name": "get_ticket",
       "description": "Get one ticket with its first message.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"ticket_id": {"type": "integer", "description": "Ticket id such as 4105"}}, "required": ["ticket_id"]},
-      "responses": [
-        {
-          "when": {"ticket_id": 4105},
-          "result": {
-            "ticket_id": 4105,
-            "subject": "Still no export of my requests",
-            "status": "open",
-            "created": "2026-11-17",
-            "requester": "customer-e@example.test",
-            "priority": "normal",
-            "assignee": "Kai Demo",
-            "first_message": "This is my third message about this. I need to export my requests and I cannot find a button."
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ticket_id": {
+            "type": "integer",
+            "description": "Ticket id such as 4105"
           }
         },
-        {
-          "when": {"ticket_id": 4101},
-          "result": {
-            "ticket_id": 4101,
-            "subject": "Can I download all my requests?",
-            "status": "open",
-            "created": "2026-10-14",
-            "requester": "customer-a@example.test",
-            "priority": "low",
-            "assignee": "Kai Demo",
-            "first_message": "Is there a way to download all my requests in one file?"
-          }
-        },
-        {"error": "Ticket not found. Known ids in this mock: 4101 to 4105."}
-      ]
+        "required": [
+          "ticket_id"
+        ]
+      },
+      "serve": {
+        "records": "tickets",
+        "action": "get"
+      }
     },
     {
       "name": "add_internal_note",
       "description": "Add an internal note to a ticket. Returns the note.",
       "inputSchema": {
         "type": "object",
-        "properties": {"ticket_id": {"type": "integer", "description": "Ticket id"}, "body": {"type": "string", "description": "Note text"}},
-        "required": ["ticket_id", "body"]
+        "properties": {
+          "ticket_id": {
+            "type": "integer",
+            "description": "Ticket id"
+          },
+          "body": {
+            "type": "string",
+            "description": "Note text"
+          }
+        },
+        "required": [
+          "ticket_id",
+          "body"
+        ]
       },
       "responses": [
         {
@@ -143,7 +91,68 @@
             "created": "2026-11-21"
           }
         }
+      ],
+      "check": {
+        "ticket_id": "tickets"
+      }
+    }
+  ],
+  "records": {
+    "tickets": {
+      "key": "ticket_id",
+      "title": "subject",
+      "items": [
+        {
+          "ticket_id": 4101,
+          "subject": "Can I download all my requests?",
+          "status": "open",
+          "created": "2026-10-14",
+          "requester": "customer-a@example.test",
+          "priority": "low",
+          "assignee": "Kai Demo",
+          "first_message": "Is there a way to download all my requests in one file?"
+        },
+        {
+          "ticket_id": 4102,
+          "subject": "Export of requests to a spreadsheet",
+          "status": "open",
+          "created": "2026-10-29",
+          "requester": "customer-b@example.test",
+          "priority": "normal",
+          "assignee": "Kai Demo",
+          "first_message": "Could I get my requests in a spreadsheet? I need them for an audit."
+        },
+        {
+          "ticket_id": 4103,
+          "subject": "Need a CSV of last quarter's requests",
+          "status": "pending",
+          "created": "2026-11-05",
+          "requester": "customer-c@example.test",
+          "priority": "high",
+          "assignee": "Kai Demo",
+          "first_message": "Our finance team needs a CSV of last quarter's requests by Friday."
+        },
+        {
+          "ticket_id": 4104,
+          "subject": "Monthly report: export requests please",
+          "status": "open",
+          "created": "2026-11-12",
+          "requester": "customer-d@example.test",
+          "priority": "normal",
+          "assignee": "Kai Demo",
+          "first_message": "Every month I copy my requests by hand into a report. An export would save me an hour."
+        },
+        {
+          "ticket_id": 4105,
+          "subject": "Still no export of my requests",
+          "status": "open",
+          "created": "2026-11-17",
+          "requester": "customer-e@example.test",
+          "priority": "normal",
+          "assignee": "Kai Demo",
+          "first_message": "This is my third message about this. I need to export my requests and I cannot find a button."
+        }
       ]
     }
-  ]
+  }
 }

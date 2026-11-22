@@ -90,6 +90,19 @@ def sector_rows(catalog):
     return rows
 
 
+def check_rows(catalog):
+    """Each pack's rules, the rules with a machine check and those whose `manual` says why a person verifies them."""
+    return [
+        {
+            "pack": pack_id,
+            "rules": len(pack["rules"]),
+            "machine": sum(1 for rule in pack["rules"] if "check" in rule),
+            "manual": sum(1 for rule in pack["rules"] if "manual" in rule),
+        }
+        for pack_id, pack in sorted(catalog["packs"].items())
+    ]
+
+
 def render(catalog, families):
     brains = brain_rows(catalog, families)
     lines = [
@@ -133,7 +146,29 @@ def render(catalog, families):
     ]
     for row in sector_rows(catalog):
         lines.append(f"| {row['sector']} | {row['patterns']} | {row['packs']} | {row['rules']} |")
+    checks = check_rows(catalog)
     lines += [
+        "",
+        "## Machine checks by pack",
+        "",
+        f"{sum(row['machine'] for row in checks)} of {sum(row['rules'] for row in checks)} rules carry a machine check "
+        "that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, "
+        "such as a record kept outside the repository, or is answered in the task result.",
+        "",
+        "| Pack | Rules | Machine checks | Verified by a person, reason given |",
+        "|---|---:|---:|---:|",
+    ]
+    lines += [f"| {row['pack']} | {row['rules']} | {row['machine']} | {row['manual']} |" for row in checks]
+    lines += [
+        "",
+        "## Not turned into rules",
+        "",
+        "SOC 2 has no pack, by decision. A SOC 2 report is an examination of controls at a service organization "
+        "that a CPA reports on (AICPA, [System and Organization Controls]"
+        "(https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2), read 2026-11-22), "
+        "not a list of requirements on the code. The organization controls such an examination looks at are asked "
+        "on each change by the `iso-27001` pack and its Annex A rules, which a team under SOC 2 can select; the "
+        "`soc-2` reference stays documentary.",
         "",
         "## To cover",
         "",

@@ -80,7 +80,9 @@
     "job ad",
     "offre d'emploi",
     "employment contract",
-    "contrat de travail"
+    "contrat de travail",
+    "job architecture",
+    "architecture des emplois"
   ],
   "questions": [
     "Which role or team needs the change, and which hiring, onboarding or staffing outcome would improve?",
@@ -155,6 +157,9 @@
           "Each job sits in a pay band built on skills, effort, responsibility and working conditions, the criteria of Directive (EU) 2023/970.",
           "Job offers and postings give the starting pay or its range before the interview, and do not ask for pay history.",
           "The gender pay gap per category of workers is computed; a gap of 5 percent or more that is not justified leads to a joint pay assessment."
+        ],
+        "applies_to_concerns": [
+          "money"
         ]
       },
       {

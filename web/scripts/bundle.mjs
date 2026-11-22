@@ -1,17 +1,52 @@
-// Copies the built front end (web/dist) into the Python package, so `pip install` ships the interface
-// that `openguildkit ui` serves. Run after `npm run build`; the copy is ignored by Git.
-import { cpSync, existsSync, rmSync, statSync } from 'node:fs';
+// Copies the product build (web/dist, without the Atelier Nova demo) into the Python package, so the wheel
+// ships the interface that `openguildkit ui` serves, and refuses a build that holds the demo or exceeds its
+// budget. Run after `npm run build`; the copy is ignored by Git.
+import { cpSync, existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const web = join(dirname(fileURLToPath(import.meta.url)), '..');
-const source = join(web, 'dist');
-const target = join(web, '..', 'src', 'openguildkit', 'web_dist');
-if (!existsSync(join(source, 'index.html'))) {
-  console.error('web/dist/index.html is missing: run npm run build first.');
-  process.exit(1);
+/**
+ * Budget of the copy, in KB as `du -sk` counts them on 4 KB blocks: 1,180 KB measured on 22 November 2026
+ * once the demo was left out, plus 10 %. Raise it only with the measure that justifies it.
+ */
+export const BUDGET_KB = 1298;
+
+/** What only the demo uses: the product build must not contain them (vite.config.ts leaves them out). */
+export const DEMO_ONLY = ['assets/world', 'assets/characters'];
+
+/** The size of a folder in KB, each file rounded up to 4 KB blocks, as `du -sk` reports it on most file systems. */
+export function sizeKb(folder) {
+  let total = 0;
+  for (const entry of readdirSync(folder, { withFileTypes: true })) {
+    const path = join(folder, entry.name);
+    total += entry.isDirectory() ? sizeKb(path) : Math.ceil(statSync(path).size / 4096) * 4;
+  }
+  return total;
 }
-rmSync(target, { recursive: true, force: true });
-// Source drawings (docs/art) are not part of the build; the interface needs only what Vite emitted.
-cpSync(source, target, { recursive: true });
-console.log(`Copied ${source} to ${target} (${statSync(join(target, 'index.html')).size} bytes of index.html).`);
+
+/** The problems that keep a build out of the package: no page, the demo, or more than the budget. */
+export function bundleProblems(folder, budget = BUDGET_KB) {
+  if (!existsSync(join(folder, 'index.html'))) return [`${folder}/index.html is missing: run npm run build first.`];
+  const problems = DEMO_ONLY.filter((path) => existsSync(join(folder, path)))
+    .map((path) => `${path} belongs to the demo: build with npm run build, not npm run build:demo.`);
+  const size = sizeKb(folder);
+  if (size > budget) problems.push(`The build takes ${size} KB, over its budget of ${budget} KB (BUDGET_KB in web/scripts/bundle.mjs).`);
+  return problems;
+}
+
+function main() {
+  const web = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const source = join(web, 'dist');
+  const target = join(web, '..', 'src', 'openguildkit', 'web_dist');
+  const problems = bundleProblems(source);
+  if (problems.length) {
+    for (const problem of problems) console.error(problem);
+    process.exit(1);
+  }
+  rmSync(target, { recursive: true, force: true });
+  // Source drawings (docs/art) are not part of the build; the interface needs only what Vite emitted.
+  cpSync(source, target, { recursive: true });
+  console.log(`Copied ${source} to ${target}: ${sizeKb(target)} KB of a ${BUDGET_KB} KB budget.`);
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

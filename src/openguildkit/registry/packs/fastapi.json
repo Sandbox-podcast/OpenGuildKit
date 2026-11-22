@@ -1,7 +1,7 @@
 {
   "id": "fastapi",
   "title": "FastAPI services",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Checks for API response schemas, resource lifespan and request behavior.",
   "sources": [
     {
@@ -12,7 +12,7 @@
     {
       "title": "FastAPI lifespan events",
       "url": "https://fastapi.tiangolo.com/advanced/events/",
-      "checked": "2026-11-21"
+      "checked": "2026-11-22"
     },
     {
       "title": "FastAPI testing",
@@ -39,6 +39,29 @@
       "id": "verify-request-contract",
       "instruction": "Test changes through the application entry point using its configured route dependencies and test services.",
       "verification": "Check a representative success response, a validation failure and any authorization rules affected by the change."
+    },
+    {
+      "id": "use-lifespan-not-startup-events",
+      "instruction": "Open and close shared resources in the `lifespan` function: do not add `@app.on_event` startup or shutdown handlers, which are deprecated and are not called once a lifespan is set.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "main.py",
+          "app/main.py",
+          "src/main.py",
+          "*/main.py",
+          "app/*.py",
+          "src/*/main.py"
+        ],
+        "contains": [
+          "on_event(\"startup\")",
+          "on_event(\"shutdown\")",
+          "on_event('startup')",
+          "on_event('shutdown')"
+        ],
+        "expect": "absent"
+      }
     }
   ]
 }

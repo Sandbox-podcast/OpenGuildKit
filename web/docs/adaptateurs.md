@@ -1,5 +1,7 @@
 # Adaptateurs de simulation
 
+> Démonstration Atelier Nova : cette page décrit la maquette, pas le produit. [Ce qui les distingue](interface-projet.md#ce-qui-distingue-la-démonstration)
+
 [`services.ts`](../src/adapters/services.ts) regroupe les services simulés. Le domaine possède l'état des opérations et reçoit les résultats par ses commandes.
 
 | Service | Entrée et résultat actuels | Intégration à prévoir |

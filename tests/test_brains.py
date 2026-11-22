@@ -1,7 +1,8 @@
 import unittest
 
 from openguildkit.catalog import load_catalog
-from openguildkit.workflow import challenge_report, consult, handoff, validate_review
+from openguildkit.consultation import consult
+from openguildkit.workflow import challenge_report, handoff, validate_review
 
 
 class BrainReviewTests(unittest.TestCase):
@@ -66,6 +67,7 @@ class BrainReviewTests(unittest.TestCase):
         record = handoff(task)
         self.assertIn("# Approved decision record", record)
         self.assertNotIn("Implement the approved scope", record)
+        self.assertIn("Close the task with `openguildkit task complete request-access`", record)
         task["answers"]["kind"] = "feature"
         self.assertIn("# Approved task handoff", handoff(task))
 

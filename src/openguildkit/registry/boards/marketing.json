@@ -38,7 +38,18 @@
     "programme de parrainage",
     "free trial",
     "essai gratuit",
-    "emailing"
+    "emailing",
+    "promo",
+    "promo code",
+    "code promo",
+    "promotional",
+    "black friday",
+    "loyalty programme",
+    "loyalty program",
+    "programme de fidélité",
+    "call to action",
+    "a/b test",
+    "test a/b"
   ],
   "questions": [
     "What market, audience and time window should the research cover?",
@@ -71,6 +82,10 @@
         "checks": [
           "Evidence is dated and covers competitors, substitutes and doing nothing.",
           "Sample, geography and period are stated for every figure cited."
+        ],
+        "applies_to": [
+          "customer",
+          "business"
         ]
       },
       {
@@ -89,6 +104,10 @@
         "checks": [
           "Channels are chosen from how the audience discovers and evaluates options, with a pilot budget.",
           "Production effort and timing fit the launch date."
+        ],
+        "applies_to": [
+          "customer",
+          "business"
         ]
       },
       {

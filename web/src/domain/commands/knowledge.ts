@@ -3,7 +3,7 @@
  * and Guild (agent configuration) commands.
  */
 import type { ImportRow, Reference } from '@/adapters/catalogue';
-import { command, emit, fail, insert, list, must, nextId, requireHuman, clone } from '../engine';
+import { command, emit, fail, insert, must, nextId, requireHuman, clone } from '../engine';
 import { allReferences, openDraft, referenceById } from '../selectors';
 import { createApproval } from './transitions';
 import type { ApplicabilityStatus, ID } from '../types';
@@ -265,4 +265,3 @@ export const updateExpert = command<{ expertId: ID; budget?: number; active?: bo
   },
 });
 
-export const listExperts = (s: Parameters<typeof list>[0], orgId: ID | null) => list(s, 'expert', orgId);

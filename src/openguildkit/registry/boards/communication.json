@@ -17,7 +17,6 @@
     "changelog",
     "press release",
     "communiqué de presse",
-    "customer email",
     "email aux clients",
     "status page",
     "page de statut",
@@ -45,7 +44,10 @@
     "developer docs",
     "documentation développeur",
     "customer notification",
-    "notification aux clients"
+    "notification aux clients",
+    "email to customers",
+    "email customers",
+    "customer email campaign"
   ],
   "questions": [
     "Who must learn about this change, before or after it ships, and through which channel?",
@@ -87,6 +89,10 @@
         "checks": [
           "Each message says what changes, what the reader must do and by when, in the first lines.",
           "Internal names, ticket numbers and jargon are replaced by words customers use."
+        ],
+        "applies_to": [
+          "customer",
+          "business"
         ]
       },
       {

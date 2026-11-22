@@ -20,5 +20,8 @@
   "kind": "regulation",
   "references": [
     "eu-ai-act"
-  ]
+  ],
+  "match": {
+    "people_decisions": true
+  }
 }

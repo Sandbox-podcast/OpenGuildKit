@@ -1,7 +1,7 @@
 {
   "id": "nextjs",
   "title": "Next.js App Router",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Checks for where components run, what crosses the client boundary and how server actions authorize requests.",
   "sources": [
     {
@@ -18,6 +18,11 @@
       "title": "Next.js App Router revalidation",
       "url": "https://nextjs.org/docs/app/getting-started/revalidating",
       "checked": "2026-11-21"
+    },
+    {
+      "title": "Next.js, next.config.js options: typescript",
+      "url": "https://nextjs.org/docs/app/api-reference/config/next-config-js/typescript",
+      "checked": "2026-11-22"
     }
   ],
   "depends_on": [
@@ -48,6 +53,28 @@
       "id": "check-refetched-state",
       "instruction": "After a server mutation, apply the project's cache and revalidation strategy to affected pages and data.",
       "verification": "Verify the new state after submission, navigation and reload with the page's configured cache behavior."
+    },
+    {
+      "id": "keep-type-errors-failing-builds",
+      "instruction": "Do not set `typescript.ignoreBuildErrors` in `next.config`: it skips type checking and lets production builds complete with type errors.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "next.config.js",
+          "next.config.mjs",
+          "next.config.ts",
+          "apps/*/next.config.js",
+          "apps/*/next.config.mjs",
+          "apps/*/next.config.ts"
+        ],
+        "contains": [
+          "ignoreBuildErrors: true",
+          "ignoreBuildErrors:true",
+          "\"ignoreBuildErrors\": true"
+        ],
+        "expect": "absent"
+      }
     }
   ]
 }

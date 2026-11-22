@@ -13,6 +13,9 @@
     "design",
     "product"
   ],
+  "core_for": [
+    "design"
+  ],
   "packs": [
     "design-process"
   ],

@@ -20,7 +20,7 @@ Before large work, open an issue with the matching template so a steward or main
 
 For larger changes, use an issue to discuss scope. Fork the repository, create a branch for the change and open a pull request against `main`. Use `Closes #123` for the issue the PR resolves, or `Refs #123` for related work. Include the part of the catalog or workflow you exercised.
 
-GitHub labels PRs from their changed files and requests a review from the owners in `.github/CODEOWNERS`. The `contribution-checks` status combines the test matrix and package build. Merges to `main` refresh a draft of the next release notes. Maintainers publish versions with the [release steps](GOVERNANCE.md#releases).
+GitHub labels PRs from their changed files and requests a review from the owners in `.github/CODEOWNERS`. The `contribution-checks` status combines the test matrix (Python 3.11 to 3.15 on Linux, macOS and Windows), the wheel build, the CI coordinator, and the checks and journeys of the web interface; a job that runs past its time limit fails. Merges to `main` refresh a draft of the next release notes. Maintainers publish versions with the [release steps](GOVERNANCE.md#releases).
 
 Everything you add to the repository, catalog content included (packs, references, patterns, boards, sectors and tools), is published under the MIT License in [LICENSE](LICENSE), like the code. Opening a pull request means you agree to that and that you have the right to contribute the content. Write rules and descriptions in your own words and never paste the text of a standard: only text you may license can be published under the MIT License.
 
@@ -35,6 +35,21 @@ python -m openguildkit catalog
 python -m openguildkit references
 python -m openguildkit patterns
 ```
+
+The web interface (`web/`, React and TypeScript) needs Node 22.12 or 24 and has its own checks; `npm run bundle` copies the build into the package, where `openguildkit ui` serves it:
+
+```bash
+cd web
+npm ci --ignore-scripts
+npm run typecheck
+npm test                 # Vitest
+npm run check:exports
+npm run build
+npm run bundle
+npm run e2e:project      # Playwright journeys of openguildkit ui, after npm run build; Chrome installed
+```
+
+[web/README.md](web/README.md) has the other commands and the known pitfalls.
 
 No runtime dependency. Tests use `unittest` from the standard library. [Testing](docs/testing.md) lists the kinds of tests (unit, end to end, concurrency, determinism, robustness, performance, upgrade), how to run each one and what they do not cover; `python scripts/bench.py` prints the time of the main commands.
 
@@ -51,7 +66,15 @@ No runtime dependency. Tests use `unittest` from the standard library. [Testing]
 
 ## Adding a board
 
-Boards should map to a real discipline with its own questions. Give it 3 expertises, 3 questions every task should answer, and triggers in English plus at least one other language. Check that your triggers do not fire on common words: add briefs that must and must not select the board to `tests/routing_cases.json`, which CI runs on every change.
+Boards should map to a real discipline with its own questions. A board in `src/openguildkit/registry/boards/` holds:
+
+- 3 `expertises` and 3 `questions` every task should answer, and `triggers` in English plus at least one other language;
+- dated `sources`, as for every bundled record;
+- a `review` block, which every brain needs: `specialists` (the lenses, each with an `id`, a `title`, a `focus` and the `checks` an expert of that lens makes), the `evidence` to inspect, the `challenge` questions and the `decision_criteria`. See [Brains](docs/brains.md).
+
+To start from a complete record, run `openguildkit brains --new ID` in a scratch project: it writes the board with its review block, a method pattern, a rule pack and a reference family under `.openguildkit/catalog/`, with `TODO:` text to replace. Move the files you keep to the matching folders of `src/openguildkit/registry/`. A brain also needs a method (a pattern that lists its ID in `roles`) and references that list its ID in `brains`.
+
+Then run `openguildkit brains --check`, which CI runs: it fails on a brain without a method or a reference, or with `TODO:` text left, and the catalog refuses a malformed `review` block with its file and field. `openguildkit brains --id ID` shows the lenses with their checks and the knowledge attached. Check that your triggers do not fire on common words: add briefs that must and must not select the board to `tests/routing_cases.json`, which CI runs on every change.
 
 ## Adding a sector
 
@@ -99,9 +122,9 @@ A maintainer validates every replacement in the pull request that makes it. Run 
 
 - Python 3.11+, standard library only at runtime.
 - Keep the CLI offline. It must never call a model provider or the network.
-- Add unit tests in `tests/` and, for a new command, an end-to-end test in `tests/e2e/`: `tests/test_cli_coverage.py` fails when a command has no test that runs it.
+- Add unit tests in `tests/` and, for a new command, an end-to-end test in `tests/e2e/`: `tests/test_cli_coverage.py` fails when a command has no test that runs it. Run the CLI from a test with `tests/support.py` (`run_cli`, `CapturedCli`, `copy_initialized_project`): it runs in the test process unless the test needs a real one ([testing](docs/testing.md#how-the-suite-runs-the-cli)).
 - Keep messages short and actionable, prefixed `OpenGuildKit:` on errors.
-- Write code, rule packs and contribution docs in English. Reference entries can keep their original language. The French README is maintained alongside the English one.
+- Write code, rule packs and documentation in English, except the web interface. The web interface is written in French, because its screens are in French and the team that builds and uses it so far is French-speaking: `web/` (its screens, `web/README.md` and `web/docs/`) stays in French. Reference entries can keep their original language. The French README is maintained alongside the English one.
 
 ## Pull requests
 

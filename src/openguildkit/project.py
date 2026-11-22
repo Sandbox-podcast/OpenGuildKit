@@ -3,25 +3,32 @@
 import hashlib
 import json
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
+from .agent_workflow import AGENT_WORKFLOW
 from .catalog import rule_check
+from .clock import today
 from .patterns import (
     check_pattern_choices,
     condition_reasons,
+    core_roles,
     is_stack_pattern,
     pattern_selection,
     recommend_patterns,
     role_choices,
+    technology_key,
 )
 from .rule_checks import describe_check
 from .storage import read_json, write_json, write_text
-from .workflow import AGENT_WORKFLOW
 
 STATE_DIR = ".openguildkit"
 SCHEMA_VERSION = 1
 BEGIN = "<!-- BEGIN OPENGUILDKIT -->"
 END = "<!-- END OPENGUILDKIT -->"
+ALREADY_INITIALIZED = (
+    "Project is already initialized. Change its profile with openguildkit profile (adopt, decline, add, remove, "
+    "set); openguildkit profile --help lists them."
+)
 PROJECT_IGNORE = "tasks/\nshares/\n.lock\n.*.tmp\n"
 
 
@@ -73,6 +80,18 @@ def _personal_data_question() -> dict:
     return {**question, "required": True}
 
 
+def _people_decisions_question() -> dict:
+    """Software that ranks or decides about people proposes the EU AI Act; stored as people_decisions."""
+    question = _select(
+        "people_decisions",
+        "Does the project score, rank, select or decide about individual people, for example hiring, credit, "
+        "insurance, school places or a price per person? Asked when the project processes personal data.",
+        [{"id": "yes", "title": "Yes"}, {"id": "no", "title": "No"}],
+        "no",
+    )
+    return {**question, "when": {"personal_data": True}}
+
+
 DEFAULT_GUARD = "observe"
 GUARD_MODES = {
     "off": "Off: nothing reminds the agent to consult the board and no edit is checked; it depends on the agent "
@@ -90,11 +109,15 @@ HOST_CHOICES = (
 
 
 def is_norm(pattern: dict) -> bool:
-    """A regulation that the sector or personal data preselects, confirmed one by one at setup."""
+    """A regulation that the sector, personal data, decisions about people or the stack (a card payment
+    provider) proposes, confirmed one by one at setup: it is active only once a person accepts it."""
     match = pattern.get("match", {})
-    return pattern.get("kind") == "regulation" and not match.get("stack") and bool(
-        match.get("sectors") or match.get("personal_data")
+    return pattern.get("kind") == "regulation" and bool(
+        match.get("sectors") or match.get("personal_data") or match.get("people_decisions") or match.get("stack")
     )
+
+
+NORM_CONDITIONS = ("sectors", "personal_data", "people_decisions", "stack")
 
 
 def norm_reason(pattern: dict) -> str:
@@ -103,17 +126,27 @@ def norm_reason(pattern: dict) -> str:
     reasons = [f"the sector is {' or '.join(match['sectors'])}"] if match.get("sectors") else []
     if match.get("personal_data"):
         reasons.append("the project processes personal data")
+    if match.get("people_decisions"):
+        reasons.append("the project scores, ranks or decides about people")
+    if match.get("stack"):
+        reasons.append(f"the stack names {' or '.join(match['stack'][0])}")
     return " or ".join(reasons)
 
 
 def _norms_question(catalog: dict) -> dict:
-    """One sub-question per norm, asked only when its condition holds; a no is recorded in declined."""
+    """One sub-question per norm, asked only when its condition holds; a no is recorded in declined.
+
+    The help is the pattern's description, which says when the norm does not apply, with the sources behind it,
+    so that a person who declines it does so knowingly.
+    """
     norms = [
         {
             "id": pattern["id"],
             "title": pattern["title"],
-            "when": {key: pattern["match"][key] for key in ("sectors", "personal_data") if key in pattern["match"]},
+            "when": {key: pattern["match"][key] for key in NORM_CONDITIONS if key in pattern["match"]},
             "prompt": f"{pattern['title']} ({pattern['id']}) is proposed because {norm_reason(pattern)}. Does it apply?",
+            "help": pattern["description"],
+            "sources": [{"title": source["title"], "url": source["url"]} for source in pattern["sources"]],
         }
         for pattern in catalog["patterns"].values() if is_norm(pattern)
     ]
@@ -121,9 +154,11 @@ def _norms_question(catalog: dict) -> dict:
         "id": "norms",
         "type": "norms",
         "prompt": (
-            "Ask each norm below whose condition the project meets (its sector, or personal data), one at a time. "
-            'Record the answers as {"norms": {"ID": "yes" or "no"}}: a yes keeps the pattern, a no records it in '
-            "declined so that it is not proposed again. Enter keeps the norm."
+            "Ask each norm below whose condition the project meets (its sector, personal data, decisions about "
+            "people, or a technology of its stack), one at a time. Record each answer under norms: \"yes\" makes "
+            'the norm active; a no needs who and why, {"answer": "no", "by": "NAME", "reason": "WHY"}, and is '
+            "recorded in declined so that it is not proposed again. A norm whose condition holds and that is "
+            "not answered stops init: nothing is active that a person did not accept."
         ),
         "norms": norms,
         "default": "yes",
@@ -156,14 +191,32 @@ def _host_question(detected: str | None) -> dict:
     return {**question, "detected": detected} if detected else question
 
 
+def _checks_question(proposed: list[dict]) -> dict:
+    """The project checks, with the test commands the repository shows proposed for the person to confirm."""
+    question = {
+        "id": "checks",
+        "type": "list",
+        "prompt": (
+            "Which project checks should the agent or CI run? task verify runs each one in the project root, and the "
+            "task cannot be done while one fails: keep commands that pass once the project's dependencies are "
+            "installed, and leave to CI a check that needs the network or a service (docs/workflow.md#project-checks)."
+        ),
+        "default": [],
+    }
+    if proposed:
+        question["proposed"] = proposed
+        question["prompt"] += " The repository shows the commands under proposed: confirm or remove each one."
+    return question
+
+
 def init_questions(
     catalog: dict, project_name: str, detected: list[dict] | None = None, tools: list[dict] | None = None,
-    host: str | None = None, checks: list[str] | None = None,
+    host: str | None = None, proposed_checks: list[dict] | None = None,
 ) -> list[dict]:
     """The setup questionnaire, in the order it is asked. Every question has a default or is marked required.
 
     detected: components found in the repository; tools: registry tools it shows signs of; host: the agent
-    host its files point to; checks: test and lint commands the repository's files point to.
+    host its files point to; proposed_checks: test commands the repository shows, for the person to confirm.
     """
     components = {
         "id": "components",
@@ -177,8 +230,9 @@ def init_questions(
     components["default"] = detected or []
     patterns = _select(
         "patterns",
-        "Which other patterns should apply? Enter keeps those preselected by the stack and the roles; "
-        "openguildkit recommend --answers FILE shows why each one is preselected.",
+        "Which other patterns should apply? Enter keeps those preselected by the stack, the sector and the core "
+        "method of each role; the other methods of the roles are suggestions. openguildkit recommend --answers "
+        "FILE shows why each one is preselected or suggested and how many rules it adds.",
         catalog["patterns"].values(),
         multiple=True,
     )
@@ -201,7 +255,7 @@ def init_questions(
         multiple=True,
     )
     boards["default_label"] = "all boards (saved as an empty list)"
-    return [
+    questions = [
         {"id": "name", "type": "text", "prompt": "Project name", "default": project_name},
         _select("sector", SECTOR_PROMPT, catalog["sectors"].values(), "general"),
         {
@@ -220,6 +274,7 @@ def init_questions(
             multiple=True,
         ),
         _personal_data_question(),
+        _people_decisions_question(),
         _norms_question(catalog),
         patterns,
         packs,
@@ -238,15 +293,79 @@ def init_questions(
             "local-only",
         ),
         {"id": "conventions", "type": "list", "prompt": "Which team conventions should the agent follow?", "default": []},
-        {
-            "id": "checks",
-            "type": "list",
-            "prompt": "Which project checks should the agent or CI run? Each one is run by task verify and must pass "
-                      "before a task is done." + (" The repository points to the commands proposed here: keep or remove "
-                                                  "each." if checks else ""),
-            "default": list(checks or []),
-        },
+        _checks_question(proposed_checks or []),
     ]
+    return [{**question, "help": QUESTION_HELP[question["id"]], "unsure": _unsure_text(question)}
+            for question in questions]
+
+
+# One line per question in plain words, for a person who does not know the product's vocabulary.
+QUESTION_HELP = {
+    "name": "The name the rules and the task records show; the folder name is fine.",
+    "sector": "The field the project works in; it decides which laws are proposed, such as DORA for finance.",
+    "stack": "The programming languages, frameworks and databases the code uses, such as Python or React.",
+    "components": "The separate parts of the repository, each in its own folder, such as a website and an API.",
+    "roles": "The jobs whose methods the agent should follow, such as back-end development or marketing.",
+    "personal_data": "Whether the software stores or reads information about people: names, emails, health, payments.",
+    "people_decisions": "Whether the software sorts, scores or picks people, which the EU AI Act regulates.",
+    "norms": "Laws and standards that may apply because of your sector, your data or your tools; each is a yes or a no.",
+    "patterns": "Ready-made sets of rules for a technology or a way of working; keep the ones that fit your team.",
+    "packs": "Extra lists of rules for the agent; most teams keep only those already chosen for them.",
+    "boards": "The panels of specialists (security, legal, design...) that review a task before work starts.",
+    "tools": "The software the team uses every day, such as Jira, Slack or GitHub, so the agent can read from it.",
+    "host": "The AI coding assistant the team uses in the project, such as Claude Code or Codex.",
+    "guard": "How strictly the agent is held to asking the specialists before it changes files.",
+    "research": "Whether the agent may look things up on the internet when a person allows it for a task.",
+    "conventions": "House rules the agent should follow, in one sentence each, such as how branches are named.",
+    "checks": "Commands that test the code, such as npm test, run before a task can be closed.",
+}
+UNSURE = ("unsure", "?")
+# The answer an "I don't know" takes when it is not the question's default: the one that keeps a protection.
+UNSURE_ANSWERS = {"personal_data": "yes"}
+
+
+def _unsure_text(question: dict) -> str:
+    """What an "I don't know" answer applies, said to the person."""
+    if question["id"] in UNSURE_ANSWERS:
+        return (f"{UNSURE_ANSWERS[question['id']]}: the protective answer, so the laws on personal data are proposed "
+                "for a person to accept or decline")
+    if question["id"] == "norms":
+        return "yes: the norm is active until the person responsible declines it with openguildkit profile decline"
+    if "default_label" in question:
+        return f"the default: {question['default_label']}"
+    default = question.get("default")
+    shown = ", ".join(map(_default_item, default)) if isinstance(default, list) else default
+    return f"the default: {shown or 'none'}"
+
+
+def _default_item(item) -> str:
+    """One item of a default answer in words: a detected component by its ID and folder, anything else as is."""
+    if isinstance(item, dict) and "id" in item:
+        return f"{item['id']} ({item['path']})" if item.get("path") else str(item["id"])
+    return str(item)
+
+
+def unsure_answers(answers: dict, questions: list[dict]) -> tuple[dict, list[str]]:
+    """Replace each "unsure" answer by what its question applies, and say so, one line per question."""
+    by_id = {question["id"]: question for question in questions}
+    answers, notes = dict(answers), []
+    for question_id, value in list(answers.items()):
+        if question_id not in by_id or not isinstance(value, str) or value.strip().casefold() not in UNSURE:
+            continue
+        question = by_id[question_id]
+        if question_id in UNSURE_ANSWERS:
+            answers[question_id] = UNSURE_ANSWERS[question_id]
+        elif "default" in question:
+            answers[question_id] = question["default"]
+        else:
+            del answers[question_id]
+        notes.append(f"{question_id}: unsure, so {question['unsure']}.")
+    norms = answers.get("norms")
+    if isinstance(norms, dict):
+        unsure = [norm for norm, value in norms.items() if isinstance(value, str) and value.casefold() in UNSURE]
+        answers["norms"] = {**norms, **dict.fromkeys(unsure, "yes")}
+        notes += [f"norm {norm}: unsure, so {by_id['norms']['unsure']}." for norm in unsure]
+    return answers, notes
 
 
 def _single_line(value: str) -> bool:
@@ -336,20 +455,84 @@ def _project_context(answers: dict, catalog: dict) -> tuple[str, list[str], list
     return sector, stack, roles, components
 
 
-def _personal_data(value) -> bool | None:
-    """The answer to the personal data question: true, false, or None when it was not asked."""
+def _yes_no(value, field: str) -> bool | None:
+    """A yes or no answer: true, false, or None when it was not asked."""
     if value is None or isinstance(value, bool):
         return value
     if value in ("yes", "no"):
         return value == "yes"
-    raise ValueError("personal_data must be yes, no, true or false")
+    raise ValueError(f"{field} must be yes, no, true or false")
+
+
+def _personal_data(value) -> bool | None:
+    """The answer to the personal data question: true, false, or None when it was not asked."""
+    return _yes_no(value, "personal_data")
+
+
+DECISION_FIELDS = ("by", "on", "reason")
+DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def _decision_text(value, field: str) -> str:
+    if not isinstance(value, str) or not value.strip() or not _single_line(value):
+        raise ValueError(f"{field} must be a non-empty single line")
+    return value.strip()
+
+
+def _decision(entry: dict, label: str) -> dict:
+    """Who decided, on which day and why: each a single line, the day as YYYY-MM-DD."""
+    record = {key: _decision_text(entry[key], f"{label} {key}") for key in DECISION_FIELDS}
+    if not DATE.fullmatch(record["on"]):
+        raise ValueError(f"{label} on must be a date written YYYY-MM-DD")
+    return record
+
+
+def _declined(value, catalog: dict) -> list:
+    """Declined patterns: plain IDs (written before declines were recorded), or objects with who, when and why."""
+    if not isinstance(value, list):
+        raise ValueError("declined must be a list")
+    entries, seen = [], set()
+    for entry in value:
+        if isinstance(entry, dict):
+            if set(entry) != {"id", *DECISION_FIELDS}:
+                raise ValueError('A declined entry is an ID or {"id", "by", "on", "reason"}')
+            pattern_id = entry["id"]
+        else:
+            pattern_id = entry
+        if not isinstance(pattern_id, str) or pattern_id not in catalog["patterns"]:
+            raise ValueError(f"Unknown declined: {pattern_id}. Run openguildkit catalog.")
+        if pattern_id in seen:
+            continue
+        seen.add(pattern_id)
+        decided = isinstance(entry, dict)
+        entries.append({"id": pattern_id, **_decision(entry, f"declined {pattern_id}")} if decided else pattern_id)
+    return entries
+
+
+def declined_ids(profile: dict) -> list[str]:
+    return [entry["id"] if isinstance(entry, dict) else entry for entry in profile.get("declined", [])]
+
+
+def _changes(value) -> list[dict]:
+    """The history of profile commands: who changed what, on which day and why."""
+    if not isinstance(value, list):
+        raise ValueError("changes must be a list")
+    result = []
+    for entry in value:
+        if not isinstance(entry, dict) or set(entry) != {"change", *DECISION_FIELDS}:
+            raise ValueError('Each change needs change, by, on and reason')
+        result.append({"change": _decision_text(entry["change"], "change"), **_decision(entry, "change")})
+    return result
 
 
 def _recommendation_inputs(answers: dict, catalog: dict) -> dict:
-    """Everything that preselects patterns besides the stack: personal data and declined patterns."""
+    """Everything that preselects patterns besides the stack: personal data, decisions about people and
+    declined patterns."""
     return {
         "personal_data": _personal_data(answers.get("personal_data")),
-        "declined": _ids(answers.get("declined", []), "declined", catalog["patterns"]),
+        "people_decisions": _yes_no(answers.get("people_decisions"), "people_decisions"),
+        "declined": [entry["id"] if isinstance(entry, dict) else entry
+                     for entry in _declined(answers.get("declined", []), catalog)],
     }
 
 
@@ -358,12 +541,42 @@ def profile_recommendations(answers: dict, catalog: dict) -> dict:
     sector, stack, roles, components = _project_context(answers, catalog)
     inputs = _recommendation_inputs(answers, catalog)
     result = recommend_patterns(catalog, stack, sector, roles, components, **inputs)
-    result["declined"] = inputs["declined"]
+    result["declined"] = _declined(answers.get("declined", []), catalog)
     base_packs = ["agent-workflow", *_recommended_packs(stack, catalog)]
+    for entry in [*result["matched"], *result["suggested"]]:
+        entry["rules"] = pattern_rules(entry, catalog)
     result["recommended_packs"] = list(
         dict.fromkeys([*base_packs, *(pack for pattern in result["matched"] for pack in pattern["packs"])])
     )
+    result["rule_count"] = sum(pack_rule_counts(result["recommended_packs"], catalog).values())
     return result
+
+
+# One meaning for the rule count of a pattern, in recommend, preview and init.
+RULES_NOTE = ("Each pattern's count is the rules of its own packs and their dependencies, even when another "
+              "pattern or the baseline brings the same pack.")
+
+
+def pattern_rules(pattern: dict, catalog: dict) -> int:
+    """The rules of a pattern's packs and their dependencies: the same number wherever it is shown."""
+    return sum(pack_rule_counts(pattern["packs"], catalog).values())
+
+
+def pack_rule_counts(pack_ids: list[str], catalog: dict) -> dict[str, int]:
+    """The rules of these packs and of their dependencies, each pack counted once."""
+    counts: dict[str, int] = {}
+
+    def add(pack_id: str) -> None:
+        if pack_id in counts:
+            return
+        counts[pack_id] = 0
+        for dependency in catalog["packs"][pack_id].get("depends_on", []):
+            add(dependency)
+        counts[pack_id] = len(catalog["packs"][pack_id]["rules"])
+
+    for pack_id in pack_ids:
+        add(pack_id)
+    return counts
 
 
 def _pattern_entries(value, catalog: dict, components: list[dict]) -> list:
@@ -425,7 +638,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     fields = {
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
         "resolutions", "boards", "required_boards", "required_rules", "research", "host", "guard", "waivers", "approval", "tools",
-        "conventions", "checks", "personal_data", "declined",
+        "conventions", "checks", "personal_data", "people_decisions", "declined", "changes", "ask_every_rule",
     }
     unknown = sorted(answers.keys() - fields)
     if unknown:
@@ -447,6 +660,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
             {"id": record["id"], "components": record["components"]} if record.get("components") else record["id"]
             for record in recommend_patterns(catalog, stack, sector, roles, components, **inputs)["matched"]
         ]
+    declined = _declined(answers.get("declined", []), catalog)
     both = sorted(set(inputs["declined"]) & {pattern_selection(entry)[0] for entry in patterns})
     if both:
         raise ValueError(f"Pattern {', '.join(both)} is both selected and declined: remove it from one of the lists.")
@@ -468,10 +682,12 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         profile["roles"] = roles
     if inputs["personal_data"] is not None:
         profile["personal_data"] = inputs["personal_data"]
+    if inputs["people_decisions"] is not None:
+        profile["people_decisions"] = inputs["people_decisions"]
     if patterns:
         profile["patterns"] = patterns
-    if inputs["declined"]:
-        profile["declined"] = inputs["declined"]
+    if declined:
+        profile["declined"] = declined
     host = answers.get("host")
     if host is not None:
         from .hosts import HOSTS
@@ -516,30 +732,63 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         if type(max_days) is not int or not 1 <= max_days <= 366:
             raise ValueError("waivers.max_days must be a whole number of days between 1 and 366")
         profile["waivers"] = {"allowed_by": _texts(waivers["allowed_by"], "waivers.allowed_by"), "max_days": max_days}
+    ask_every_rule = answers.get("ask_every_rule", False)
+    if type(ask_every_rule) is not bool:
+        raise ValueError("ask_every_rule must be true or false")
+    if ask_every_rule:
+        profile["ask_every_rule"] = True
     required = _ids(answers.get("required_boards", []), "required_boards", catalog["boards"])
     if required:
         profile["required_boards"] = required
     resolutions = _resolutions(answers.get("resolutions", []), catalog)
     if resolutions:
         profile["resolutions"] = resolutions
+    changes = _changes(answers.get("changes", []))
+    if changes:
+        profile["changes"] = changes
     return profile
 
 
-SETUP_ONLY_FIELDS = ("norms", "replace_default_packs")
-
-
-def _norm_answers(value, catalog: dict) -> dict[str, bool]:
-    """The answers to the norms question: {"ID": "yes" or "no"}, booleans accepted."""
+def _norm_answers(value, catalog: dict) -> dict[str, dict | None]:
+    """The answers to the norms question: "yes" (or true) accepts a norm; a no names who and why,
+    {"answer": "no", "by": NAME, "reason": WHY}. Returns None for an accepted norm, the decline otherwise."""
     if not isinstance(value, dict):
         raise ValueError('norms must be an object such as {"gdpr-personal-data": "yes"}')
     answers = {}
     for pattern_id, answer in value.items():
         if pattern_id not in catalog["patterns"] or not is_norm(catalog["patterns"][pattern_id]):
             raise ValueError(f"Unknown norm: {pattern_id}. Use the IDs listed in the norms question of init --questions.")
-        if answer not in ("yes", "no", True, False):
+        if answer in ("yes", True):
+            answers[pattern_id] = None
+        elif isinstance(answer, dict) and answer.get("answer") == "no" and set(answer) == {"answer", "by", "reason"}:
+            answers[pattern_id] = {"id": pattern_id, **_decision({**answer, "on": today().isoformat()},
+                                                                 f"norm {pattern_id}")}
+        elif answer in ("no", False) or isinstance(answer, dict):
+            raise ValueError(
+                f'Declining norm {pattern_id} records who and why: write {{"answer": "no", "by": "NAME", '
+                '"reason": "WHY"}, with the name of the person who decided.'
+            )
+        else:
             raise ValueError(f"The answer for norm {pattern_id} must be yes or no")
-        answers[pattern_id] = answer in ("yes", True)
     return answers
+
+
+def _merged_stack(detected: list[str], written: list) -> list[str]:
+    """The detected stack with what the person wrote: their entry wins for a technology both name."""
+    written = [item for item in written if isinstance(item, str) and item.strip()]
+    by_key = {technology_key(item): item for item in written}
+    merged = [by_key.pop(technology_key(item), item) for item in detected]
+    return merged + [item for item in written if technology_key(item) in by_key]
+
+
+def unanswered_norms(answers: dict, catalog: dict, norms: dict) -> list[dict]:
+    """The norms whose condition the answers meet and that no answer accepts, lists or declines."""
+    sector, stack, roles, components = _project_context(answers, catalog)
+    inputs = _recommendation_inputs(answers, catalog)
+    chosen = {pattern_selection(entry)[0] for entry in answers.get("patterns", []) if isinstance(entry, (str, dict))}
+    plan = recommend_patterns(catalog, stack, sector, roles, components, **inputs)["matched"]
+    return [entry for entry in plan if is_norm(catalog["patterns"][entry["id"]])
+            and entry["id"] not in norms and entry["id"] not in chosen]
 
 
 def complete_answers(answers: object, questions: list[dict], catalog: dict) -> tuple[dict, list[dict], list[str]]:
@@ -549,21 +798,26 @@ def complete_answers(answers: object, questions: list[dict], catalog: dict) -> t
     """
     if not isinstance(answers, dict):
         raise ValueError("Setup answers must be a JSON object, such as {} or {\"name\": \"Portal\"}.")
-    completed = dict(answers)
+    completed = unsure_answers(answers, questions)[0]
     defaults = {question["id"]: question["default"] for question in questions if "default" in question}
     detected = defaults.pop("components", [])
     for field in ("name", "sector", "boards", "tools", "host", "guard", "research"):
         if field in defaults:
             completed.setdefault(field, defaults[field])
     root_only = len(detected) == 1 and detected[0].get("path") == "."
-    if "components" not in completed and detected and ("stack" not in completed or (root_only and completed["stack"] == [])):
+    if "components" not in completed and detected and ("stack" not in completed or root_only):
         completed["components"] = detected
+        if root_only and isinstance(completed.get("stack"), list):
+            completed["components"] = [{**detected[0], "stack": _merged_stack(detected[0]["stack"], completed["stack"])}]
     left_aside = detected if detected and not completed.get("components") else []
     norms = _norm_answers(completed.pop("norms", {}), catalog)
-    declined = [pattern_id for pattern_id, kept in norms.items() if not kept]
+    declined = [decline for decline in norms.values() if decline is not None]
     if declined:
-        completed["declined"] = list(dict.fromkeys([*_texts(completed.get("declined", []), "declined"), *declined]))
-    return completed, left_aside, [pattern_id for pattern_id, keep in norms.items() if keep]
+        earlier = _declined(completed.get("declined", []), catalog)
+        named = {decline["id"] for decline in declined}
+        completed["declined"] = [*(entry for entry in earlier if (entry["id"] if isinstance(entry, dict) else entry)
+                                   not in named), *declined]
+    return completed, left_aside, [pattern_id for pattern_id, decline in norms.items() if decline is None]
 
 
 def setup_profile(answers: object, catalog: dict, questions: list[dict]) -> tuple[dict, list[dict]]:
@@ -573,6 +827,13 @@ def setup_profile(answers: object, catalog: dict, questions: list[dict]) -> tupl
     "replace_default_packs" is true, and omitted patterns are preselected even when packs are given.
     """
     completed, left_aside, kept_norms = complete_answers(answers, questions, catalog)
+    missing = unanswered_norms(completed, catalog, {pattern_id: True for pattern_id in kept_norms})
+    if missing:
+        listed = "; ".join(f"{entry['id']} ({', '.join(entry['reasons'])})" for entry in missing)
+        raise ValueError(
+            f"Ask the person about each norm the project meets, then record the answers under norms: {listed}. "
+            'Write "yes", or {"answer": "no", "by": "NAME", "reason": "WHY"}. Nothing was written.'
+        )
     replace = completed.pop("replace_default_packs", False)
     if not isinstance(replace, bool):
         raise ValueError("replace_default_packs must be true or false")
@@ -596,7 +857,10 @@ def setup_profile(answers: object, catalog: dict, questions: list[dict]) -> tupl
 def load_profile(state: Path, catalog: dict) -> dict:
     path = state / "project.json"
     if not path.is_file():
-        raise ValueError("Project is missing a profile. Run openguildkit init.")
+        # Run from the wrong folder, a bare "run init" would start a second project there.
+        raise ValueError(f"No OpenGuildKit project found for {state.parent.as_posix()}: {STATE_DIR}/project.json "
+                         "does not exist. cd into the project folder or pass --project PATH; run openguildkit init "
+                         "only to set up a new project here.")
     answers = read_json(path)
     sector = answers.get("sector", "general")
     if isinstance(sector, str) and sector not in catalog["sectors"]:
@@ -631,7 +895,7 @@ def _missing_records(answers: dict, catalog: dict) -> list[tuple[str, str]]:
     return missing
 
 
-def _selected_packs(profile: dict, catalog: dict) -> list[str]:
+def selected_packs(profile: dict, catalog: dict) -> list[str]:
     """Packs from the profile and its patterns, each after its dependencies, before any resolution."""
     ordered = {}
 
@@ -653,7 +917,7 @@ def _selected_packs(profile: dict, catalog: dict) -> list[str]:
 
 def rule_conflicts(profile: dict, catalog: dict) -> list[dict]:
     """Declared incompatibilities between selected packs that apply to a common scope."""
-    selected = _selected_packs(profile, catalog)
+    selected = selected_packs(profile, catalog)
     scopes = pack_scopes(profile, catalog)
     # A declaration on either pack is enough: conflicts are symmetric.
     declared = {
@@ -698,7 +962,7 @@ def _excluded_packs(profile: dict, catalog: dict) -> set[str]:
 
 def resolved_profile(profile: dict, catalog: dict) -> dict:
     excluded = _excluded_packs(profile, catalog) if profile.get("resolutions") else set()
-    packs = [pack_id for pack_id in _selected_packs(profile, catalog) if pack_id not in excluded]
+    packs = [pack_id for pack_id in selected_packs(profile, catalog) if pack_id not in excluded]
     return {**profile, "packs": packs, "boards": profile["boards"] or sorted(catalog["boards"])}
 
 
@@ -727,20 +991,81 @@ def pattern_origin(pattern: dict, profile: dict) -> str:
     """Why a selected pattern without a stack concerns the project: its sector, personal data or roles."""
     if is_stack_pattern(pattern):
         return ""
-    reasons = condition_reasons(pattern, profile["sector"], profile.get("personal_data"))
+    reasons = condition_reasons(
+        pattern, profile["sector"], profile.get("personal_data"), profile.get("people_decisions"))
     roles = [role for role in pattern["roles"] if role in profile.get("roles", [])]
     if roles:
         reasons.append(f"role {', '.join(roles)}")
     return "; ".join(reasons)
 
 
+# Above this many rules, the preview warns. A rule is read by the agent and answered by every task it
+# concerns, so the count is what a profile brings, whatever a given task is asked. The default selection
+# of each of the thirty field-test teams, recomputed with the core methods of its roles and every norm it
+# meets accepted, stays at or under 74 rules (a payments API with DORA, GDPR and PCI DSS: 62; a seven-role
+# monorepo: 74), and the field called 77 rules and more too heavy: 80 flags what optional methods add on
+# top of a regulated project's own baseline.
+RULE_WARNING = 80
+
+
+def _pattern_reason(pattern: dict, profile: dict) -> str:
+    """Why a selected pattern applies, in one line: its stack, sector, personal data, core role, or a decision."""
+    adopted = [change for change in profile.get("changes", []) if change["change"] == f"adopt {pattern['id']}"]
+    if adopted:
+        last = adopted[-1]
+        return f"adopted by {last['by']} on {last['on']}: {last['reason']}"
+    if is_stack_pattern(pattern):
+        return "stack " + ", ".join(" / ".join(group) for group in pattern["match"]["stack"])
+    conditions = condition_reasons(pattern, profile["sector"], profile.get("personal_data"),
+                                   profile.get("people_decisions"))
+    if conditions:
+        return "; ".join(conditions)
+    core = core_roles(pattern, profile.get("roles", []))
+    return f"role {', '.join(core)} (core method)" if core else "chosen by the team"
+
+
+def regulation_demands(pattern: dict, catalog: dict) -> str:
+    """One sentence saying what a regulation asks of each task: rules to answer, evidence to supply, checks run."""
+    packs = pack_rule_counts(pattern["packs"], catalog)
+    rules = [rule for pack_id in packs for rule in catalog["packs"][pack_id]["rules"]]
+    evidence = [item["title"] for rule in rules for item in rule.get("evidence", [])]
+    machine = sum(1 for rule in rules if rule_check(rule) is not None)
+    text = f"{len(rules)} rules, asked of a task whose data or concerns it touches"
+    if evidence:
+        text += f"; such a task supplies or declares not applicable: {'; '.join(evidence)}"
+    if machine:
+        text += f"; task verify runs {machine} automatic check{'s' if machine > 1 else ''}"
+    return text + "."
+
+
 def rule_plan(profile: dict, catalog: dict) -> dict:
-    """Everything init or sync would write, with the origin and scope of each pack."""
+    """Everything init or sync would write, with the origin and scope of each pack, the patterns with their
+    reason and rule count, what each regulation asks of a task, and the recorded profile decisions."""
     resolved = resolved_profile(profile, catalog)
     scopes = pack_scopes(profile, catalog)
     provenance = pack_provenance(profile, catalog)
-    selected = _selected_packs(profile, catalog)
+    selected = selected_packs(profile, catalog)
+    patterns = [catalog["patterns"][pattern_id] for pattern_id in pattern_ids(profile)]
+    count = sum(len(catalog["packs"][pack_id]["rules"]) for pack_id in resolved["packs"])
     return {
+        "rule_count": count,
+        "rule_warning": (
+            f"{count} rules in force. A task is asked only the rules that concern it, but each pattern adds rules "
+            f"to read and to answer: above {RULE_WARNING}, check that each pattern below concerns the project and "
+            "decline the others (openguildkit profile decline PATTERN --by NAME --reason WHY)."
+            if count > RULE_WARNING else None
+        ),
+        "patterns": [
+            {"id": pattern["id"], "title": pattern["title"], "reason": _pattern_reason(pattern, profile),
+             "rules": pattern_rules(pattern, catalog)}
+            for pattern in patterns
+        ],
+        "regulations": [
+            {"id": pattern["id"], "title": pattern["title"], "asks": regulation_demands(pattern, catalog)}
+            for pattern in patterns if pattern.get("kind") == "regulation"
+        ],
+        "declined": [entry if isinstance(entry, dict) else {"id": entry} for entry in profile.get("declined", [])],
+        "changes": profile.get("changes", []),
         "packs": [
             {
                 "id": pack_id,
@@ -822,14 +1147,53 @@ def task_scope_profile(profile: dict, catalog: dict, component_ids: list[str]) -
             patterns.append(entry)
         elif scoped := [name for name in scope if name in selected]:
             patterns.append({"id": pattern, "components": scoped})
+    resolved["checks"] = [command for command in resolved.get("checks", [])
+                          if check_component(command, resolved.get("components", [])) in (None, *selected)]
     resolved["components"] = components
     resolved["stack"] = list(dict.fromkeys(technology for component in components for technology in component["stack"]))
     resolved["patterns"] = patterns
     return resolved
 
 
-def profile_fingerprint(profile: dict, catalog: dict) -> str:
-    resolved = resolved_profile(profile, catalog)
+_CHECK_FOLDER = re.compile(r"""\s*cd\s+("[^"]+"|'[^']+'|[^\s;&|]+)\s*&&""")
+
+
+def check_component(command: str, components: list[dict]) -> str | None:
+    """The component a check command runs in, from its leading `cd FOLDER &&` as init proposes it, or None when it
+    runs for the whole project. A folder inside a component belongs to it; the deepest component wins."""
+    match = _CHECK_FOLDER.match(command)
+    if not match:
+        return None
+    folder = PurePosixPath(match.group(1).strip("\"'").replace("\\", "/")).as_posix().strip("/")
+    owners = [(len(path), component["id"]) for component in components
+              for path in [PurePosixPath((component.get("path") or "").strip()).as_posix().strip("/")]
+              if path not in ("", ".") and (folder == path or folder.startswith(path + "/"))]
+    return max(owners)[1] if owners else None
+
+
+# Profile fields that change neither the rules, nor the checks, nor the boards of a task: changing one leaves every
+# approval standing. A convention or a tool reaches the next consultations; the guard, host, research, approval and
+# waiver settings are read when they act (the signature, for one, is verified again by every reader of an approval).
+APPROVAL_NEUTRAL_FIELDS = ("name", "conventions", "tools", "host", "guard", "research", "approval", "waivers")
+
+
+def _advice_profile(profile: dict, neutral: tuple = ()) -> dict:
+    """The profile without its decision history, and without the neutral fields given: who declined or changed
+    what does not change the advice."""
+    advice = {key: value for key, value in profile.items() if key != "changes" and key not in neutral}
+    if "declined" in advice:
+        advice["declined"] = declined_ids(profile)
+    return advice
+
+
+def profile_fingerprint(profile: dict, catalog: dict, *, legacy: bool = False) -> str:
+    """The digest of what an approval rests on: the rules, the checks and the boards of the profile.
+
+    legacy gives the digest of releases before 0.17, which covered every field; approvals recorded under it hold
+    while the profile has not changed since (fingerprint_holds).
+    """
+    neutral = () if legacy else APPROVAL_NEUTRAL_FIELDS
+    resolved = resolved_profile(_advice_profile(profile, neutral), catalog)
     snapshot = {
         "profile": resolved,
         "packs": [_without_dates(catalog["packs"][pack_id]) for pack_id in resolved["packs"]],
@@ -837,9 +1201,34 @@ def profile_fingerprint(profile: dict, catalog: dict) -> str:
         "sector": _without_dates(catalog["sectors"][resolved["sector"]]),
     }
     if profile.get("patterns"):
-        snapshot["patterns"] = [_without_dates(catalog["patterns"][pattern_id]) for pattern_id in pattern_ids(profile)]
+        snapshot["patterns"] = [
+            {key: value for key, value in _without_dates(catalog["patterns"][pattern_id]).items() if key != "core_for"}
+            for pattern_id in pattern_ids(profile)
+        ]
     canonical = json.dumps(snapshot, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+class Fingerprints:
+    """The current fingerprint of a profile, and the earlier releases' one computed only when a record needs it."""
+
+    def __init__(self, profile: dict, catalog: dict):
+        self.profile, self.catalog = profile, catalog
+        self.current = profile_fingerprint(profile, catalog)
+        self._legacy = None
+
+    def holds(self, recorded: str | None) -> bool:
+        """Whether rules recorded under this fingerprint are still the rules, checks and boards of the profile."""
+        if recorded == self.current:
+            return True
+        if self._legacy is None:
+            self._legacy = profile_fingerprint(self.profile, self.catalog, legacy=True)
+        return recorded == self._legacy
+
+
+def fingerprint_holds(recorded: str | None, profile: dict, catalog: dict) -> bool:
+    """Whether a fingerprint recorded with an approval still matches the rules, checks and boards of the profile."""
+    return Fingerprints(profile, catalog).holds(recorded)
 
 
 def _bullets(values: list[str]) -> list[str]:
@@ -863,6 +1252,22 @@ def rule_text(rule: dict) -> tuple[str, str]:
         rule.get("instruction", describe_check(check)),
         rule.get("verification", CHECK_VERIFICATION),
     )
+
+
+def profile_decision_lines(profile: dict, catalog: dict) -> list[str]:
+    """The declined patterns and the patterns adopted by a command, with who, when and why when recorded."""
+    lines = []
+    for entry in profile.get("declined", []):
+        if isinstance(entry, dict):
+            lines.append(f"Declined `{entry['id']}` by {entry['by']} on {entry['on']}: {entry['reason']}. "
+                         "It is not active; the person can adopt it again with openguildkit profile adopt.")
+        else:
+            lines.append(f"Declined `{entry}` before declines recorded who and why. It is not active.")
+    for change in profile.get("changes", []):
+        verb, _, target = change["change"].partition(" ")
+        if verb == "adopt" and target in pattern_ids(profile):
+            lines.append(f"Adopted `{target}` by {change['by']} on {change['on']}: {change['reason']}.")
+    return lines
 
 
 def render_instructions(profile: dict, catalog: dict) -> str:
@@ -905,6 +1310,9 @@ def render_instructions(profile: dict, catalog: dict) -> str:
             packs = ", ".join(f"`{pack_id}`" for pack_id in pattern["packs"])
             where = f" Applies to {scope_text(scope)}." if scope else ""
             lines.append(f"- {pattern['title']} (`{pattern_id}`) uses {packs}.{where}")
+    decisions = profile_decision_lines(profile, catalog)
+    if decisions:
+        lines.extend(["", "### Profile decisions", "", *_bullets(decisions)])
     applied = [conflict for conflict in rule_conflicts(profile, catalog) if conflict["resolution"]]
     if applied:
         lines.extend(["", "### Rule decisions", ""])
@@ -1020,6 +1428,23 @@ def merged_instructions(current: str, generated: str, label: str = "AGENTS.md") 
     return current[:matches[0][1]] + block + current[matches[1][2]:]
 
 
+_FINGERPRINT_LINE = re.compile(r"<!-- openguildkit profile [0-9a-f]{64} -->")
+
+
+def hand_edits(current: str, generated: str) -> list[str]:
+    """The lines a person changed in the managed block: lines it holds that the generated block lacks, when the
+    block still carries the same profile fingerprint (otherwise the profile or catalog changed, not a person)."""
+    matches = _marker_positions(current)
+    if [kind for kind, _, _ in matches] != [BEGIN, END]:
+        return []
+    block = current[matches[0][2]:matches[1][1]].replace("\r\n", "\n")
+    stamp = _FINGERPRINT_LINE.search(block)
+    if stamp is None or stamp.group(0) not in generated:
+        return []
+    expected = set(generated.splitlines())
+    return [line.strip() for line in block.splitlines() if line.strip() and line not in expected]
+
+
 def _read_instructions(path: Path) -> tuple[str, bool]:
     """Read an instructions file and report whether it starts with a UTF-8 byte order mark."""
     if path.is_symlink():
@@ -1055,11 +1480,14 @@ def _claude_instructions(current: str) -> str:
     return merged_instructions(current, "@AGENTS.md", "CLAUDE.md")
 
 
-def sync_instructions(root: Path, profile: dict, catalog: dict) -> None:
+def sync_instructions(root: Path, profile: dict, catalog: dict) -> list[str]:
+    """Write the managed instructions; returns the lines a person had edited in the block, which it replaces."""
     state = state_path(root)
     instructions = root / "AGENTS.md"
     current, bom = _read_instructions(instructions)
-    updated = merged_instructions(current, render_instructions(profile, catalog))
+    generated = render_instructions(profile, catalog)
+    replaced = hand_edits(current, generated)
+    updated = merged_instructions(current, generated)
     claude = root / "CLAUDE.md"
     linked = _claude_links_to_agents(root)
     if not linked:
@@ -1074,12 +1502,13 @@ def sync_instructions(root: Path, profile: dict, catalog: dict) -> None:
     write_text(instructions, (BOM if bom else "") + updated)
     if not linked:
         write_text(claude, (BOM if claude_bom else "") + updated_claude)
+    return replaced
 
 
 def initialize(root: Path, state: Path, profile: dict, catalog: dict) -> None:
     path = state / "project.json"
     if path.exists():
-        raise ValueError("Project is already initialized. Edit .openguildkit/project.json and run openguildkit sync.")
+        raise ValueError(ALREADY_INITIALIZED)
     sync_instructions(root, profile, catalog)
     write_json(path, profile)
 
@@ -1089,8 +1518,15 @@ def check_instructions(root: Path, profile: dict, catalog: dict) -> None:
     linked = _claude_links_to_agents(root)
     claude = "" if linked else _instruction_text(root / "CLAUDE.md")
     ignore = _instruction_text(state_path(root) / ".gitignore")
+    generated = render_instructions(profile, catalog)
+    edited = hand_edits(current, generated)
+    if edited:
+        raise ValueError(
+            f"The OpenGuildKit block of AGENTS.md was edited by hand ({len(edited)} line(s), first: {edited[0][:80]}). "
+            "openguildkit sync replaces the block: move your own text outside the markers first."
+        )
     if (
-        current != merged_instructions(current, render_instructions(profile, catalog))
+        current != merged_instructions(current, generated)
         or (not linked and claude != _claude_instructions(claude))
         or not set(PROJECT_IGNORE.splitlines()).issubset(ignore.splitlines())
     ):

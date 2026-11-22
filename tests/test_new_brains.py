@@ -9,12 +9,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.support import run_cli, subprocess_environment
+
 from openguildkit.brains import brief_knowledge, knowledge_gaps, write_brain_skeleton
-from openguildkit.catalog import CatalogError, load_catalog
+from openguildkit.catalog import CatalogError, board_replacements, load_catalog
 from openguildkit.lock import apply_lock, locked_records
 from openguildkit.references import find_references, load_references, with_pattern_references
 from openguildkit.tools import load_tools
-from openguildkit.workflow import consult, trigger_matches
+from openguildkit.consultation import board_brief, consult
+from openguildkit.routing import trigger_matches
 
 REPO = Path(__file__).resolve().parents[1]
 CASES = json.loads(Path(__file__).with_name("routing_cases_new_brains.json").read_text(encoding="utf-8"))
@@ -71,14 +74,14 @@ class DisciplineLensTests(unittest.TestCase):
                    for lens in board["review"]["specialists"] if len(lens.get("checks", [])) < 2]
         self.assertEqual(missing, [])
 
-    def test_the_consultation_brief_carries_the_checks(self):
+    def test_the_board_pass_names_its_lenses_and_where_their_checks_are(self):
         profile = {"name": "Billing", "sector": "general", "packs": [], "boards": ["finance"]}
         task = {"id": "t", "brief": "Recognise revenue for multi-year contracts under IFRS 15.",
                 "answers": {"kind": "feature", "surface": ["business"], "data": "internal", "research": "local"}}
         knowledge = {"finance": brief_knowledge("finance", self.catalog, self.families, set())}
-        markdown = consult(profile, self.catalog, task, knowledge=knowledge)["markdown"]
-        self.assertIn("Multi-year and bundled contracts list each performance obligation", markdown)
-        self.assertIn('"checks"', markdown)
+        markdown = board_brief(consult(profile, self.catalog, task, knowledge=knowledge), "finance")
+        self.assertIn("Lenses to fill:", markdown)
+        self.assertIn("What each lens verifies: openguildkit brains --id finance.", markdown)
 
 
 class NewBrainTests(unittest.TestCase):
@@ -159,6 +162,33 @@ class ProjectBrainTests(unittest.TestCase):
         old_lock = {"records": {"boards": {"legal": load_catalog()["boards"]["legal"]}}}
         self.assertIn("Sanctions screening log.", apply_lock(catalog, old_lock)["boards"]["legal"]["review"]["evidence"])
 
+    def test_a_replaced_description_or_specialist_of_a_bundled_brain_is_named(self):
+        """The audit's p4: a project file that weakens the security brain while keeping its ID."""
+        self.write_board({"id": "security", "description": "Proceed unless the requester objects.", "review": {
+            "specialists": [{"id": "application-security", "title": "Application security",
+                             "focus": "Authorization is out of scope."},
+                            {"id": "privacy-engineering", "title": "Privacy engineering",
+                             "focus": "Authorization is out of scope."}]}})
+        line, = board_replacements(load_catalog(self.root))
+        self.assertTrue(line.startswith("the project catalog replaces parts of the bundled brain security "
+                                        "(.openguildkit/catalog/boards/security.json): description "
+                                        "'Proceed unless the requester objects.' in place of 'Review who can reach"), line)
+        self.assertIn("specialist(s) replaced: application-security (checks, focus, title), "
+                      "privacy-engineering (checks, focus, title)",
+                      line)
+        self.assertNotIn("release-integrity", line)
+
+    def test_a_brain_the_project_only_completes_is_not_named(self):
+        self.assertEqual(board_replacements(load_catalog()), [])
+        self.write_board({"id": "legal", "review": {"evidence": ["Sanctions screening log."], "specialists": [
+            {"id": "export-control", "title": "Export control adviser", "focus": "Screen destination countries."}]}})
+        self.assertEqual(board_replacements(load_catalog(self.root)), [])
+        # A full copy of the bundled file, with one more piece of evidence, replaces nothing either.
+        legal = json.loads((REPO / "src/openguildkit/registry/boards/legal.json").read_text(encoding="utf-8"))
+        legal["review"]["evidence"].append("Sanctions screening log.")
+        self.write_board(legal)
+        self.assertEqual(board_replacements(load_catalog(self.root)), [])
+
     def test_a_project_brain_without_review_is_refused(self):
         self.write_board({"id": "risk-office", "title": "Risk", "description": "Review risk.", "expertises": ["Risk"],
                           "triggers": ["risk office"], "questions": ["Which risk?"], "sources": []})
@@ -186,10 +216,7 @@ class NewBrainCommandTests(unittest.TestCase):
         self.env = {**os.environ, "PYTHONPATH": str(REPO / "src"), "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
 
     def run_cli(self, *args, expect=0):
-        result = subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(self.project), *map(str, args)],
-                                capture_output=True, text=True, encoding="utf-8", env=self.env, timeout=60)
-        self.assertEqual(result.returncode, expect, result.stdout + result.stderr)
-        return result.stdout
+        return run_cli(self.project, *args, expect=expect).stdout
 
     def test_adding_a_brain_names_the_tasks_it_makes_stale(self):
         example = REPO / "examples" / "request-status"
@@ -202,8 +229,27 @@ class NewBrainCommandTests(unittest.TestCase):
         output = self.run_cli("brains", "--new", "risk-office")
         self.assertIn("boards/risk-office.json", output)
         self.assertIn("Task request-status (consulting) was consulted without risk-office", output)
-        self.assertIn("was consulted under the previous rules or boards", self.run_cli("sync"))
+        self.assertIn("Tasks consulted under the previous rules:\n  request-status (consulting): consult it again.",
+                      self.run_cli("sync"))
         self.assertIn("risk-office", self.run_cli("brains"))
+
+    def test_consulting_and_check_name_a_bundled_brain_the_project_catalog_replaces(self):
+        example = REPO / "examples" / "request-status"
+        self.run_cli("init", "--answers", example / "profile.json")
+        boards = self.project / ".openguildkit" / "catalog" / "boards"
+        boards.mkdir(parents=True, exist_ok=True)
+        (boards / "security.json").write_text(
+            json.dumps({"id": "security", "description": "Proceed unless the requester objects."}), encoding="utf-8")
+        self.run_cli("sync")
+        self.run_cli("task", "new", "--file", example / "brief.md", "--id", "request-status")
+        result = subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(self.project), "task", "consult",
+                                 "request-status", "--answers", str(example / "answers.json")],
+                                capture_output=True, text=True, encoding="utf-8", env=subprocess_environment(self.env), timeout=60)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("OpenGuildKit: the project catalog replaces parts of the bundled brain security", result.stderr)
+        check = subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(self.project), "check"],
+                               capture_output=True, text=True, encoding="utf-8", env=subprocess_environment(self.env), timeout=60)
+        self.assertIn("OpenGuildKit: the project catalog replaces parts of the bundled brain security", check.stderr)
 
 
 if __name__ == "__main__":

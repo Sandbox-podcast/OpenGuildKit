@@ -1,7 +1,7 @@
 {
   "id": "iso-27001",
   "title": "ISO/IEC 27001 context",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Project evidence and ownership prompts for teams working under an information security management system, and the Annex A controls each kind of change concerns. Use the organization's approved scope and controls.",
   "sources": [
     {
@@ -17,7 +17,7 @@
     {
       "title": "ISO/IEC JTC 1/SC 27 Journal, July 2022, ISO/IEC 27002:2022 (93 controls that form Annex A of ISO/IEC 27001)",
       "url": "https://committee.iso.org/files/live/sites/jtc1sc27/files/resources/ISO-IEC%20JTC%201-SC%2027_N22755_SC27%20Journal%20Vol%202%20Issue%202%20(update%20Dec%202022).pdf",
-      "checked": "2026-11-21"
+      "checked": "2026-11-22"
     },
     {
       "title": "ISO/IEC JTC 1/SC 27 Journal 2025, controls in a cybersecurity risk treatment plan",
@@ -28,6 +28,16 @@
       "title": "ISO/IEC JTC 1/SC 27 Journal, September 2026, recent SC 27 standards (control 8.24)",
       "url": "https://committee.iso.org/files/live/sites/jtc1sc27/files/resources/Journal-2026-issue-2.pdf",
       "checked": "2026-11-21"
+    },
+    {
+      "title": "GitHub Docs, Configuring Dependabot version updates",
+      "url": "https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuring-dependabot-version-updates",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "Renovate documentation, configuration options (configuration file locations)",
+      "url": "https://docs.renovatebot.com/configuration-options/",
+      "checked": "2026-11-22"
     }
   ],
   "depends_on": [
@@ -37,7 +47,8 @@
     {
       "id": "confirm-isms-scope",
       "instruction": "Ask the security owner which systems, teams and data fall within the organization's information security management system.",
-      "verification": "Link to the approved scope or record a scope question for the owner."
+      "verification": "Link to the approved scope or record a scope question for the owner.",
+      "manual": "The ISMS scope is a decision of the security owner, recorded outside the repository."
     },
     {
       "id": "map-applicable-controls",
@@ -48,57 +59,98 @@
           "id": "statement-of-applicability",
           "title": "Statement of Applicability"
         }
-      ]
+      ],
+      "manual": "The Statement of Applicability is named evidence kept by the ISMS owner."
     },
     {
       "id": "retain-change-evidence",
       "instruction": "Store approvals, risk decisions and verification results in the organization's approved evidence location.",
-      "verification": "Check that reviewers can retrieve each record and that retention follows company policy."
+      "verification": "Check that reviewers can retrieve each record and that retention follows company policy.",
+      "manual": "The approved evidence location and its retention are set by company policy, outside the repository."
     },
     {
       "id": "annex-a-access-control",
       "instruction": "When the change touches access control or authentication, review it against ISO/IEC 27001:2022 Annex A 8.2 Privileged access rights, 8.3 Information access restriction and 8.5 Secure authentication.",
-      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner."
+      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner.",
+      "manual": "Whether the change keeps the Statement of Applicability true is the control owner's judgement."
     },
     {
       "id": "annex-a-cryptography",
       "instruction": "When the change touches cryptography, keys or secrets, review it against ISO/IEC 27001:2022 Annex A 8.24, cryptography and key management.",
-      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner."
+      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner.",
+      "manual": "Whether the change keeps the Statement of Applicability true is the control owner's judgement."
     },
     {
       "id": "annex-a-logging-monitoring",
       "instruction": "When the change touches logging, monitoring or time sources, review it against ISO/IEC 27001:2022 Annex A 8.15 Logging, 8.16 Monitoring activities and 8.17 Clock synchronization.",
-      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner."
+      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner.",
+      "manual": "Whether the change keeps the Statement of Applicability true is the control owner's judgement."
     },
     {
       "id": "annex-a-suppliers",
       "instruction": "When the change touches a supplier, a cloud service or a third-party component, review it against ISO/IEC 27001:2022 Annex A 5.19 Information security in supplier relationships, 5.20 Addressing information security within supplier agreements, 5.21 Managing information security in the ICT supply chain, 5.22 on monitoring suppliers and 5.23 on the use of cloud services.",
-      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner."
+      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner.",
+      "manual": "Whether the change keeps the Statement of Applicability true is the control owner's judgement."
     },
     {
       "id": "annex-a-secure-development",
       "instruction": "When the change touches source code, dependencies or system configuration, review it against ISO/IEC 27001:2022 Annex A 8.4 Access to source code, 8.8 Management of technical vulnerabilities and 8.9 Configuration management.",
-      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner."
+      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner.",
+      "manual": "Whether the change keeps the Statement of Applicability true is the control owner's judgement."
+    },
+    {
+      "id": "annex-a-development-and-change",
+      "instruction": "When the change is designed, coded, tested or released, review it against ISO/IEC 27001:2022 Annex A 8.25, 8.26, 8.27, 8.28, 8.29, 8.31, 8.32 and 8.33, the controls on development, testing, environments and change; read each control's text in the organization's copy of ISO/IEC 27002:2022.",
+      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner.",
+      "manual": "Whether the change keeps the Statement of Applicability true is the control owner's judgement."
+    },
+    {
+      "id": "annex-a-dependency-updates",
+      "instruction": "Keep an automated dependency update configuration in the repository, so that updates of vulnerable components are proposed as changes (ISO/IEC 27001:2022 Annex A 8.8).",
+      "verification": "task verify finds a Dependabot or Renovate configuration; check that it covers each package ecosystem of the project.",
+      "check": {
+        "kind": "file-exists",
+        "paths": [
+          ".github/dependabot.yml",
+          "renovate.json",
+          "renovate.jsonc",
+          "renovate.json5",
+          ".github/renovate.json",
+          ".github/renovate.jsonc",
+          ".github/renovate.json5",
+          ".gitlab/renovate.json",
+          ".gitlab/renovate.jsonc",
+          ".gitlab/renovate.json5",
+          ".renovaterc",
+          ".renovaterc.json",
+          ".renovaterc.jsonc",
+          ".renovaterc.json5"
+        ]
+      }
     },
     {
       "id": "annex-a-networks",
       "instruction": "When the change touches networks, firewalls or network services, review it against ISO/IEC 27001:2022 Annex A 8.20 Networks security, 8.21 Security of networked services and 8.22 Segregation of networks.",
-      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner."
+      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner.",
+      "manual": "Whether the change keeps the Statement of Applicability true is the control owner's judgement."
     },
     {
       "id": "annex-a-data-protection",
       "instruction": "When the change touches data export, copies or backups, review it against ISO/IEC 27001:2022 Annex A 8.12 Data leakage prevention and 8.13 Information backup.",
-      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner."
+      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner.",
+      "manual": "Whether the change keeps the Statement of Applicability true is the control owner's judgement."
     },
     {
       "id": "annex-a-incident-handling",
       "instruction": "When the change touches incident detection, response or evidence, review it against ISO/IEC 27001:2022 Annex A 5.24 Information security incident management planning and preparation, 5.25 Assessment and decision on information security events, 5.26 Response to information security incidents and 5.28 Collection of evidence.",
-      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner."
+      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner.",
+      "manual": "Whether the change keeps the Statement of Applicability true is the control owner's judgement."
     },
     {
       "id": "annex-a-assets",
       "instruction": "When the change touches new systems, data stores or other assets, review it against ISO/IEC 27001:2022 Annex A 5.9 Inventory of information and other associated assets.",
-      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner."
+      "verification": "Record for each control named whether the change keeps the Statement of Applicability true, with its evidence, or the exception for the control owner.",
+      "manual": "Whether the change keeps the Statement of Applicability true is the control owner's judgement."
     }
   ]
 }

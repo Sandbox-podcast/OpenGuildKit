@@ -1,4 +1,5 @@
 import contextlib
+import importlib.util
 import io
 import json
 import re
@@ -10,23 +11,32 @@ import tempfile
 import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import publishing
+from openguildkit import clock, publishing
 from openguildkit.catalog import load_catalog
-from openguildkit.cli import main
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli, run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 EXAMPLE = REPO / "examples" / "request-status"
 DOCUMENTALIST = REPO / "examples" / "documentalist"
+
+
+def load_script(path: Path):
+    """Import an example script, which lives outside the package."""
+    spec = importlib.util.spec_from_file_location(f"example_{path.parent.name}", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 TASK = "request-status"
 BUSY = "is writing this project"
 
 
-class PublishingTests(unittest.TestCase):
+class PublishingTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -34,16 +44,9 @@ class PublishingTests(unittest.TestCase):
         command = f'"{sys.executable}" -c "print(1)"'
         write_json(self.root / "profile.json", {"name": "Support portal", "stack": ["Python"], "packs": [], "checks": [command]})
         self.run_cli("init", "--answers", self.root / "profile.json")
-        # A folder that docs export wrote carries its manifest: only its pages can be shared.
+        # A folder that docs export wrote carries its manifest: it can be shared as a whole.
         (self.root / "docs-site").mkdir()
         (self.root / "docs-site" / publishing.MANIFEST).write_text('{"version": "0", "tasks": [], "files": []}', encoding="utf-8")
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def done_task(self, task_id=TASK, brief_file=EXAMPLE / "brief.md"):
         self.run_cli("task", "new", "--file", brief_file, "--id", task_id)
@@ -73,8 +76,8 @@ class PublishingTests(unittest.TestCase):
         reference = (site / "reference" / f"{TASK}.md").read_text(encoding="utf-8")
         self.assertIn('project_version: "1.4.0"', reference)
         self.assertEqual(reference.count("- Users only see their own requests."), 1)
-        self.assertRegex(reference, r"1 check\(s\) passed, [1-9][0-9]* not applicable")
-        self.assertRegex(reference, r"[1-9][0-9]* disagreement\(s\) remained open")
+        self.assertRegex(reference, r"Checks before release: 1 passed, [1-9][0-9]* not applicable")
+        self.assertRegex(reference, r"[1-9][0-9]* objection\(s\) between the boards were not deliberated")
         self.assertNotIn("tests/test_access.py", reference)
         self.assertNotIn("recommendation", reference)
         blog = next((site / "blog").glob(f"*-{TASK}.md"))
@@ -86,24 +89,46 @@ class PublishingTests(unittest.TestCase):
         self.assertFalse((site / "learn" / f"{TASK}.md").exists())
         self.assertEqual(len(list((site / "reference").glob("*.md"))), 1)
 
+    def test_a_long_first_line_stays_in_reference_and_blog_when_the_title_is_shortened(self):
+        brief = (
+            "Show each signed-in customer the status and next step of their own support requests, "
+            "including the requests created before the portal migration."
+        )
+        brief_path = self.root / "long-brief.md"
+        brief_path.write_text(brief + "\n", encoding="utf-8")
+        self.done_task(brief_file=brief_path)
+        self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0")
+
+        for section in ("reference", "blog"):
+            page, = (self.root / "docs-site" / section).glob(f"*{TASK}.md")
+            markdown = page.read_text(encoding="utf-8")
+            self.assertIn(f"# {brief[:120]}\n", markdown)
+            self.assertIn(f"\n{brief}\n", markdown)
+
     def test_export_refuses_a_folder_it_did_not_create(self):
         self.done_task()
         (self.root / "notes").mkdir()
         (self.root / "notes" / "team.md").write_text("# Team\n", encoding="utf-8")
         self.run_cli("docs", "export", "--tasks", TASK, "--output", "notes", "--version", "1.0.0", code=1)
 
+    def deliverable(self, relative="d"):
+        path = self.root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# Shared page\n", encoding="utf-8")
+
     def test_shares_record_recipients_end_date_and_revocation(self):
-        until = (date.today() + timedelta(days=14)).isoformat()
+        self.deliverable("docs-site/reference/request-status.md")
+        until = (clock.real_today() + timedelta(days=14)).isoformat()
         common = ["docs", "share", "add", "--deliverable", "docs-site/reference/request-status.md", "--portal", "https://docs.example.org/p/portal"]
         self.run_cli(*common, "--recipient", "not-an-email", "--until", until, "--by", "Camille", code=1)
         output, _ = self.run_cli(*common, "--recipient", "client@example.org", "--until", until, "--by", "Camille")
-        self.assertIn("remove their access on", output)
+        self.assertIn(f"After {until}, remove it there", output)
         shares = json.loads(self.run_cli("docs", "share", "list", "--json")[0])
         self.assertEqual(shares[0]["state"], "active")
         self.run_cli("docs", "share", "check")
         state = self.root / ".openguildkit" / "shares" / "shares.json"
         data = json.loads(state.read_text())
-        data["shares"][0]["until"] = (date.today() - timedelta(days=1)).isoformat()
+        data["shares"][0]["until"] = (clock.real_today() - timedelta(days=1)).isoformat()
         state.write_text(json.dumps(data), encoding="utf-8")
         self.run_cli("docs", "share", "check", code=1)
         self.run_cli("docs", "share", "revoke", "--id", data["shares"][0]["id"], "--by", "Camille")
@@ -170,13 +195,16 @@ class PublishingTests(unittest.TestCase):
         self.assertEqual(list(outside.iterdir()), [])
 
     def test_twenty_shares_recorded_at_once_are_all_kept(self):
-        until = (date.today() + timedelta(days=30)).isoformat()
+        until = (clock.real_today() + timedelta(days=30)).isoformat()
         environment = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"), os.environ.get("PYTHONPATH")])),
                        "PYTHONIOENCODING": "utf-8"}
 
+        for index in range(20):
+            self.deliverable(f"d{index}")
+
         def add(index):
             command = [sys.executable, "-m", "openguildkit", "--project", str(self.root), "docs", "share", "add",
-                       "--deliverable", f"docs-site/d{index}.md", "--recipient", f"reader{index}@example.test", "--until", until,
+                       "--deliverable", f"d{index}", "--recipient", f"reader{index}@example.test", "--until", until,
                        "--portal", "https://docs.example.test/p/portal", "--by", "Camille"]
             for _ in range(400):
                 done = subprocess.run(command, env=environment, capture_output=True, text=True, encoding="utf-8")
@@ -190,11 +218,12 @@ class PublishingTests(unittest.TestCase):
             results = list(pool.map(add, range(20)))
         self.assertEqual([item.returncode for item in results], [0] * 20, [item.stderr for item in results])
         shares = json.loads((self.root / ".openguildkit" / "shares" / "shares.json").read_text(encoding="utf-8"))["shares"]
-        self.assertEqual(sorted(share["deliverable"] for share in shares), sorted(f"docs-site/d{index}.md" for index in range(20)))
+        self.assertEqual(sorted(share["deliverable"] for share in shares), sorted(f"d{index}" for index in range(20)))
 
     def test_revoking_a_share_holds_the_project_lock(self):
-        until = (date.today() + timedelta(days=30)).isoformat()
-        self.run_cli("docs", "share", "add", "--deliverable", "docs-site/d.md", "--recipient", "reader@example.test",
+        self.deliverable()
+        until = (clock.real_today() + timedelta(days=30)).isoformat()
+        self.run_cli("docs", "share", "add", "--deliverable", "d", "--recipient", "reader@example.test",
                      "--until", until, "--portal", "https://docs.example.test/p/portal", "--by", "Camille")
         share_id = json.loads(self.run_cli("docs", "share", "list", "--json")[0])[0]["id"]
         held = []
@@ -212,49 +241,62 @@ class PublishingTests(unittest.TestCase):
             self.run_cli("docs", "share", "revoke", "--id", share_id, "--by", "Camille")
         self.assertEqual(held, [True, False])
 
-    def test_a_share_names_a_page_of_a_docs_export_and_nothing_else(self):
-        until = (date.today() + timedelta(days=30)).isoformat()
-        (self.root / "notes.md").write_text("private", encoding="utf-8")
+    def test_a_share_names_a_file_of_the_project_or_a_docs_export_and_nothing_else(self):
+        until = (clock.real_today() + timedelta(days=30)).isoformat()
+        (self.root / "notes").mkdir()
         (self.root / ".openguildkit" / "tasks").mkdir(exist_ok=True)
         (self.root / ".openguildkit" / "tasks" / "report.json").write_text("{}", encoding="utf-8")
         outside = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, outside, True)
         (outside / "secret.md").write_text("outside", encoding="utf-8")
         refused = {
-            "a page that is not in an export folder": "notes.md",
-            "a task record": ".openguildkit/tasks/report.json",
-            "the state folder through a detour": "docs-site/../.openguildkit/tasks/report.json",
-            "a path that climbs out of the project": "../outside/f.md",
-            "an absolute path outside the project": str(outside / "secret.md"),
+            "notes": "a folder that holds no documentation export",
+            "docs-site/missing.md": "does not exist",
+            ".openguildkit/tasks/report.json": "in .openguildkit/",
+            "docs-site/../.openguildkit/tasks/report.json": "in .openguildkit/",
+            "../outside/f.md": "outside the project",
+            str(outside / "secret.md"): "outside the project",
         }
-        for label, path in refused.items():
-            with self.subTest(label):
-                self.run_cli("docs", "share", "add", "--deliverable", path, "--recipient", "reader@example.test",
-                             "--until", until, "--portal", "https://docs.example.test/p/portal", "--by", "Camille", code=1)
-        link = self.root / "docs-site" / "leak.md"
-        try:
-            link.symlink_to(outside / "secret.md")
-        except (OSError, NotImplementedError):
-            pass  # Windows without the privilege to create links: the other refusals cover the rule
-        else:
-            self.run_cli("docs", "share", "add", "--deliverable", "docs-site/leak.md", "--recipient",
-                         "reader@example.test", "--until", until, "--portal", "https://docs.example.test/p/portal",
-                         "--by", "Camille", code=1)
+        for path, reason in refused.items():
+            with self.subTest(path=path):
+                _, error = self.run_cli("docs", "share", "add", "--deliverable", path, "--recipient", "reader@example.test",
+                                        "--until", until, "--portal", "https://docs.example.test/p/portal", "--by", "Camille", code=1)
+                self.assertIn(reason, error)
         self.assertEqual(json.loads(self.run_cli("docs", "share", "list", "--json")[0]), [])
         self.run_cli("docs", "share", "add", "--deliverable", "docs-site", "--recipient", "reader@example.test",
                      "--until", until, "--portal", "https://docs.example.test/p/portal", "--by", "Camille")
 
-    def test_a_deliverable_is_written_inside_the_project_and_outside_the_state_folder(self):
-        for output in ("../elsewhere.md", ".openguildkit/draft.md"):
-            with self.subTest(output=output):
-                self.run_cli("deliverable", "new", "support-article", "--task", "none", "--tool", "Notion",
-                             "--output", output, code=1)
+    def test_a_share_refuses_a_path_through_a_link_out_of_the_project(self):
+        outside = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, outside, True)
+        (outside / "page.md").write_text("outside the project", encoding="utf-8")
+        link = self.root / "docs-site" / "linked-folder"
+        try:
+            link.symlink_to(outside, target_is_directory=True)
+        except OSError:
+            if os.name != "nt":
+                raise
+            # A directory junction does not require Windows symlink privileges.
+            subprocess.run(["cmd.exe", "/d", "/c", "mklink", "/J", r"docs-site\linked-folder", str(outside)],
+                           cwd=self.root, capture_output=True, check=True)
+        try:
+            until = (clock.real_today() + timedelta(days=30)).isoformat()
+            _, error = self.run_cli("docs", "share", "add", "--deliverable", "docs-site/linked-folder/page.md",
+                                    "--recipient", "reader@example.test", "--until", until,
+                                    "--portal", "https://docs.example.test/p/portal", "--by", "Camille", code=1)
+            self.assertIn("outside the project, once links are followed", error)
+            self.assertEqual(json.loads(self.run_cli("docs", "share", "list", "--json")[0]), [])
+        finally:
+            if link.is_symlink():
+                link.unlink()
+            else:
+                link.rmdir()
 
     def test_share_dates_portal_and_revocation_are_checked(self):
-        common = ["docs", "share", "add", "--deliverable", "docs-site/d.md", "--recipient", "reader@example.test",
-                  "--by", "Camille"]
+        self.deliverable()
+        common = ["docs", "share", "add", "--deliverable", "d", "--recipient", "reader@example.test", "--by", "Camille"]
         portal = ["--portal", "https://docs.example.test/p/portal"]
-        later = date.today() + timedelta(days=30)
+        later = clock.real_today() + timedelta(days=30)
         for until in (later.strftime("%Y%m%d"), later.strftime("%G-W%V-%u"), "9999-12-31", "2026-02-30"):
             _, error = self.run_cli(*common, *portal, "--until", until, code=1)
             self.assertTrue(error.startswith("OpenGuildKit: "), error)
@@ -271,18 +313,28 @@ class PublishingTests(unittest.TestCase):
     @unittest.skipIf(shutil.which("git") is None, "The example's only check command is git --version.")
     def test_replaying_the_documentalist_example_gives_its_docs_site(self):
         project = self.root / "replay"
-        command = [sys.executable, str(DOCUMENTALIST / "replay.py"), "--project", str(project)]
-        environment = {**os.environ, "PYTHONIOENCODING": "utf-8"}
-        first = subprocess.run(command, env=environment, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8")
-        self.assertEqual(first.returncode, 0, first.stderr)
-        self.assertIn("Approval needs a person", first.stdout)
-        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK), \
-                contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(main(["--project", str(project), "task", "decide", TASK, "--approve", "--by", "Camille Martin",
-                                   "--reason", "Scope agreed"]), 0)
-        second = subprocess.run(command, env=environment, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8")
-        self.assertEqual(second.returncode, 0, second.stderr)
-        self.assertIn("is identical to examples/documentalist/docs-site", second.stdout)
+        replay = load_script(DOCUMENTALIST / "replay.py")
+
+        def run_here(folder, *args, capture=False):
+            """The script's run(), with the CLI in this process and the script's dates."""
+            result = run_cli(folder, *args, stdin="", expect=None, env={"SOURCE_DATE_EPOCH": replay.COMPLETED})
+            if not capture:
+                print(result.stdout, end="")
+            return result
+
+        def play():
+            shown = io.StringIO()
+            with patch.object(replay, "run", run_here), patch.object(sys, "argv", ["replay.py", "--project", str(project)]), \
+                    patch("sys.stdin", io.StringIO("")), contextlib.redirect_stdout(shown):
+                replay.main()
+            return shown.getvalue()
+
+        self.assertIn("Approval needs a person", play())
+        run_cli(project, "task", "decide", TASK, "--approve", "--by", "CM", "--reason", "Scope agreed", typed=TASK)
+        self.assertIn("is identical to examples/documentalist/docs-site", play())
+        script = subprocess.run([sys.executable, str(DOCUMENTALIST / "replay.py"), "--help"], capture_output=True,
+                                text=True, encoding="utf-8", timeout=60)
+        self.assertEqual(script.returncode, 0, script.stderr)
         produced, expected = project / "docs-site", DOCUMENTALIST / "docs-site"
 
         def tree(folder):
@@ -333,6 +385,265 @@ class PublishingTests(unittest.TestCase):
         self.assertIn("wrote project/overview.md", output)
         self.assertIn("removed reference/request-status.md", output)
 
+    def link(self, name, target):
+        try:
+            (self.root / name).symlink_to(target, target_is_directory=target.is_dir())
+        except OSError as error:
+            self.skipTest(f"This account cannot create symbolic links: {error}")
+
+    def share(self, deliverable, code=0):
+        until = (clock.real_today() + timedelta(days=14)).isoformat()
+        return self.run_cli("docs", "share", "add", "--deliverable", deliverable, "--recipient", "reader@example.test",
+                            "--until", until, "--portal", "https://docs.example.test/p/x", "--by", "Sam", code=code)[1]
+
+    def test_a_share_of_a_task_record_is_refused(self):
+        error = self.share(".openguildkit/tasks/report-csv.json", code=1)
+        self.assertIn("--deliverable .openguildkit/tasks/report-csv.json is in .openguildkit/", error)
+        self.assertIn("--deliverable .openguildkit is in .openguildkit/", self.share(".openguildkit", code=1))
+        self.assertFalse((self.root / ".openguildkit" / "shares" / "shares.json").exists())
+
+    def test_a_share_outside_the_project_is_refused(self):
+        error = self.share("../outside/f.md", code=1)
+        self.assertIn("--deliverable ../outside/f.md is outside the project", error)
+        absolute = Path(tempfile.gettempdir()).resolve() / "elsewhere.md"
+        self.assertIn(f"--deliverable {absolute.as_posix()} is outside the project", self.share(str(absolute), code=1))
+        self.assertFalse((self.root / ".openguildkit" / "shares" / "shares.json").exists())
+
+    def test_a_share_through_a_link_out_of_the_project_is_refused(self):
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        self.link("published", Path(outside.name))
+        self.assertIn("--deliverable published/f.md is outside the project", self.share("published/f.md", code=1))
+
+    def test_a_share_through_a_link_into_the_state_folder_is_refused(self):
+        self.link("records", self.root / ".openguildkit" / "tasks")
+        self.assertIn("--deliverable records/x.json is in .openguildkit/", self.share("records/x.json", code=1))
+
+    def test_a_share_of_the_state_folder_written_in_another_case_is_refused(self):
+        if not (self.root / ".OPENGUILDKIT").exists():
+            self.skipTest("This file system tells .OPENGUILDKIT from .openguildkit: the path is another folder.")
+        error = self.share(".OpenGuildKit/tasks/report-csv.json", code=1)
+        self.assertIn("--deliverable .OpenGuildKit/tasks/report-csv.json is in .openguildkit/", error)
+
+    def test_a_missing_file_or_a_folder_without_an_export_is_not_shared(self):
+        self.assertIn("--deliverable docs-site/reference/nonexistent.md does not exist",
+                      self.share("docs-site/reference/nonexistent.md", code=1))
+        (self.root / "notes").mkdir()
+        self.assertIn("--deliverable notes is a folder that holds no documentation export", self.share("notes", code=1))
+        self.assertFalse((self.root / ".openguildkit" / "shares" / "shares.json").exists())
+
+    def test_the_folder_of_a_documentation_export_can_be_shared(self):
+        self.exported_site()
+        self.share("docs-site")
+        self.assertEqual(json.loads(self.run_cli("docs", "share", "list", "--json")[0])[0]["deliverable"], "docs-site")
+
+    def test_a_share_inside_the_project_is_recorded_as_written(self):
+        self.deliverable("docs-site/reference/request-status.md")
+        self.share("docs-site/reference/request-status.md")
+        shares = json.loads(self.run_cli("docs", "share", "list", "--json")[0])
+        self.assertEqual(shares[0]["deliverable"], "docs-site/reference/request-status.md")
+
+    def test_docs_export_writes_only_inside_the_project_and_outside_the_state_folder(self):
+        self.done_task()
+        common = ("docs", "export", "--tasks", TASK, "--version", "1.4.0")
+        _, error = self.run_cli(*common, "--output", "../site", code=1)
+        self.assertIn("--output ../site is outside the project", error)
+        _, error = self.run_cli(*common, "--output", ".openguildkit/site", code=1)
+        self.assertIn("--output .openguildkit/site is in .openguildkit/", error)
+        _, error = self.run_cli(*common, "--output", "docs-site", "--openapi", ".openguildkit/tasks/x.json", code=1)
+        self.assertIn("--openapi .openguildkit/tasks/x.json is in .openguildkit/", error)
+        self.assertFalse((self.root / ".openguildkit" / "site").exists())
+
+    def test_the_export_summary_is_honest_and_says_each_thing_once(self):
+        site = self.exported_site()
+        reference = (site / "reference" / f"{TASK}.md").read_text(encoding="utf-8")
+        task = json.loads(self.run_cli("task", "show", TASK)[0])
+        checks = task["result"]["checks"]
+        passed = sum(item["status"] == "passed" for item in checks)
+        skipped = sum(item["status"] == "not-applicable" for item in checks)
+        self.assertGreater(skipped, 0)
+        self.assertIn(f"Checks before release: {passed} passed, {skipped} not applicable, "
+                      f"{len(checks) - passed - skipped} open.", reference)
+        bullets = [line for line in reference.splitlines() if line.startswith("- ")]
+        self.assertEqual(len(bullets), len({line.casefold().rstrip(".") for line in bullets}))
+        title = task["brief"].strip().splitlines()[0].rstrip(".")
+        self.assertEqual(reference.count(title), 2, "the title, in the front matter and the heading only")
+
+    def test_the_project_page_lists_only_the_boards_consulted(self):
+        self.done_task()
+        self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0", "--sections", "project")
+        page = (self.root / "docs-site" / "project" / "overview.md").read_text(encoding="utf-8")
+        consulted = json.loads(self.run_cli("task", "show", TASK)[0])["consultation"]["boards"]
+        listed = page.split("## Boards consulted", 1)[1]
+        boards = load_catalog()["boards"]
+        for board_id in boards:
+            self.assertEqual(f"({board_id})" in listed, board_id in consulted, board_id)
+
+
+    def add(self, deliverable="d", recipient="reader@example.test", portal="https://docs.example.test/p/support-portal",
+            until=None, code=0):
+        until = until or (clock.real_today() + timedelta(days=14)).isoformat()
+        return self.run_cli("docs", "share", "add", "--deliverable", deliverable, "--recipient", recipient, "--until", until,
+                            "--portal", portal, "--by", "Camille", code=code)
+
+    def shares(self):
+        return json.loads(self.run_cli("docs", "share", "list", "--json")[0])
+
+    def test_a_share_records_and_shows_the_portal_space_as_its_perimeter(self):
+        self.deliverable()
+        self.deliverable("docs-site/reference/request-status.md")
+        output, _ = self.add("docs-site/reference/request-status.md",
+                             portal="https://Docs.Example.test/p/support-portal/reference/request-status")
+        self.assertIn("whole space docs.example.test/p/support-portal", output)
+        self.assertIn("every published page of that space", output)
+        self.assertEqual(self.shares()[0]["space"], "docs.example.test/p/support-portal")
+        listed, _ = self.run_cli("docs", "share", "list")
+        self.assertIn("docs-site/reference/request-status.md (whole space docs.example.test/p/support-portal)", listed)
+        for portal in ("https://docs.example.test", "https://docs.example.test/", "https://docs.example.test/p/",
+                       "https://docs.example.test/support-portal"):
+            with self.subTest(portal=portal):
+                _, error = self.add(portal=portal, code=1)
+                self.assertIn("https://HOST/p/SPACE", error)
+        self.assertEqual(len(self.shares()), 1)
+
+    def test_a_share_recorded_before_the_space_field_shows_the_space_of_its_portal(self):
+        self.deliverable()
+        self.add()
+        register = self.root / ".openguildkit" / "shares" / "shares.json"
+        data = json.loads(register.read_text(encoding="utf-8"))
+        del data["shares"][0]["space"]
+        register.write_text(json.dumps(data), encoding="utf-8")
+        self.assertEqual(self.shares()[0]["space"], "docs.example.test/p/support-portal")
+
+    def test_until_is_a_reminder_and_check_names_the_access_to_remove(self):
+        self.deliverable()
+        until = (clock.real_today() + timedelta(days=14)).isoformat()
+        output, _ = self.add(until=until)
+        self.assertIn("Documentalist keeps no end date", output)
+        self.assertIn(f"After {until}, remove it there", output)
+        share_id = self.shares()[0]["id"]
+        register = self.root / ".openguildkit" / "shares" / "shares.json"
+        data = json.loads(register.read_text(encoding="utf-8"))
+        data["shares"][0]["until"] = (clock.real_today() - timedelta(days=1)).isoformat()
+        register.write_text(json.dumps(data), encoding="utf-8")
+        output, _ = self.run_cli("docs", "share", "check", code=1)
+        self.assertIn("remove reader@example.test from space docs.example.test/p/support-portal", output)
+        self.assertIn(f"openguildkit docs share revoke --id {share_id} --by NAME", output)
+        self.assertEqual(self.shares()[0]["remove"], ["reader@example.test"])
+
+    def test_check_keeps_an_address_that_another_running_share_still_covers(self):
+        self.deliverable()
+        self.deliverable("e")
+        self.run_cli("docs", "share", "add", "--deliverable", "d", "--recipient", "reader@example.test", "--recipient",
+                     "other@example.test", "--until", (clock.real_today() + timedelta(days=14)).isoformat(),
+                     "--portal", "https://docs.example.test/p/support-portal", "--by", "Camille")
+        later = (clock.real_today() + timedelta(days=60)).isoformat()
+        self.add("e", portal="https://docs.example.test/p/support-portal/learn/x", until=later)
+        first, second = (row["id"] for row in self.shares())
+        register = self.root / ".openguildkit" / "shares" / "shares.json"
+        data = json.loads(register.read_text(encoding="utf-8"))
+        data["shares"][0]["until"] = (clock.real_today() - timedelta(days=1)).isoformat()
+        register.write_text(json.dumps(data), encoding="utf-8")
+        output, _ = self.run_cli("docs", "share", "check", code=1)
+        self.assertIn(f"keep reader@example.test: share {second} gives the same space until {later}", output)
+        self.assertIn("remove other@example.test from space docs.example.test/p/support-portal", output)
+        self.assertNotIn("remove reader@example.test", output)
+        self.assertIn(f"openguildkit docs share revoke --id {first} --by NAME", output)
+        self.assertEqual(self.shares()[0]["remove"], ["other@example.test"])
+        data["shares"][0]["recipients"] = ["reader@example.test"]
+        register.write_text(json.dumps(data), encoding="utf-8")
+        output, _ = self.run_cli("docs", "share", "check")
+        self.assertIn("covered: other shares keep the same access, nothing to remove yet", output)
+        self.assertNotIn("revoke", output)
+        self.assertEqual(self.shares()[0]["kept"], {"reader@example.test": {"share": second, "until": later}})
+
+    def test_a_second_share_for_the_same_recipient_and_space_is_announced(self):
+        self.deliverable()
+        self.deliverable("e")
+        self.add()
+        first = self.shares()[0]["id"]
+        _, warning = self.add("e", recipient="reader@example.test",
+                              portal="https://docs.example.test/p/support-portal/reference/other")
+        self.assertIn(f"reader@example.test already has access to space docs.example.test/p/support-portal through share {first}",
+                      warning)
+        self.assertIn("one access per address and space", warning)
+        for other in ({"recipient": "other@example.test"}, {"portal": "https://docs.example.test/p/another-space"},
+                      {"portal": "https://elsewhere.example.test/p/support-portal"}):
+            with self.subTest(other=other):
+                self.assertEqual(self.add("e", **other)[1], "")
+        self.run_cli("docs", "share", "revoke", "--id", first, "--by", "Camille")
+        self.assertNotIn(first, self.add("e")[1])
+
+    def test_revoking_says_the_portal_removal_covers_the_whole_space(self):
+        self.deliverable()
+        self.deliverable("e")
+        self.add()
+        self.add("e")
+        self.add("e", recipient="other@example.test")
+        first, second, third = (row["id"] for row in self.shares())
+        output, _ = self.run_cli("docs", "share", "revoke", "--id", first, "--by", "Camille")
+        self.assertIn("revoked", output)
+        self.assertIn("removes an address from the whole space docs.example.test/p/support-portal", output)
+        self.assertIn("Other shares give reader@example.test the same space", output)
+        self.assertIn(f"openguildkit docs share revoke --id {second} --by NAME", output)
+        self.assertNotIn(third, output)
+        output, _ = self.run_cli("docs", "share", "revoke", "--id", second, "--by", "Camille")
+        self.assertNotIn("--id", output)
+
+    def test_a_local_portal_address_may_use_http_on_this_machine_only(self):
+        self.deliverable()
+        for portal in ("http://127.0.0.1:3000/p/support-portal", "http://localhost:3000/p/support-portal",
+                       "http://[::1]:3000/p/support-portal"):
+            with self.subTest(portal=portal):
+                self.add(portal=portal)
+        self.assertEqual([row["space"] for row in self.shares()],
+                         ["127.0.0.1:3000/p/support-portal", "localhost:3000/p/support-portal", "[::1]:3000/p/support-portal"])
+        for portal in ("http://docs.example.test/p/support-portal", "http://127.0.0.1.example.test/p/support-portal",
+                       "http://10.0.0.8/p/support-portal", "ftp://127.0.0.1/p/support-portal",
+                       "http://127.0.0.1:99999/p/support-portal"):
+            with self.subTest(portal=portal):
+                _, error = self.add(portal=portal, code=1)
+                self.assertTrue(error.startswith("OpenGuildKit: "), error)
+        self.assertEqual(len(self.shares()), 3)
+
+    def section(self, title):
+        guide = (REPO / "docs" / "documentation.md").read_text(encoding="utf-8")
+        return guide.split(f"\n## {title}\n", 1)[1].split("\n## ", 1)[0]
+
+    def test_the_guide_names_the_documentalist_version_checked_and_its_reuse_conditions(self):
+        verified = self.section("Versions verified and reuse")
+        for fact in ("2026-11-22", "947429b", "Node.js 26.13.0", "Node.js 22.20.0", "imported three pages", "same three pages and IDs",
+                     "stand-in",
+                     "no licence file", "`null`", "no `license` field", "Ask its author"):
+            self.assertIn(fact, verified)
+        report = DOCUMENTALIST / "reports" / "2026-11-22.md"
+        self.assertIn("(../examples/documentalist/reports/2026-11-22.md)", verified)
+        addresses = set(re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", report.read_text(encoding="utf-8")))
+        self.assertEqual({address.rsplit("@", 1)[1] for address in addresses}, {"example.test"})
+
+    def test_the_guide_corrects_the_import_paths_the_run_checked(self):
+        imports = self.section("Import into Documentalist")
+        for fact in ('Outils → Importer → "Depuis GitHub"', "github.com only", "Mettre à jour l'espace actuel",
+                     "every page goes to Reference", "creates a new page", "source path and locale", "new ID",
+                     '"Relancer sync"', "never syncs on its own", '"Publier"', "takes a URL", "delete the pages of the previous one"):
+            self.assertIn(fact, imports)
+        export = self.section("Export")
+        self.assertIn("neither imports them nor reads them for the order", export)
+        self.assertNotIn("SUMMARY.md` fixes the order", export)
+
+    def test_the_guide_says_what_a_share_gives_and_what_the_instance_keeps(self):
+        sharing = self.section("Share a deliverable")
+        for fact in ("whole space", "**The perimeter is the space.**", "**`--until` is a reminder.**",
+                     "**One access per address and space.**", "**What the instance does not record.**",
+                     "`DOCUMENTALIST_SMTP_URL`", "`127.0.0.1`"):
+            self.assertIn(fact, sharing)
+
+    def test_the_guide_says_what_source_date_epoch_changes_and_what_it_does_not_decide(self):
+        dates = self.section("Reproducible dates")
+        self.assertIn("once on stderr", dates)
+        decisions = dates.split("What it does not decide:", 1)[1].split("\n\n", 1)[0]
+        for decision in ("docs share add", "docs share check", "waiver", "approval", "real clock"):
+            self.assertIn(decision, decisions)
 
 if __name__ == "__main__":
     unittest.main()

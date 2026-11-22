@@ -11,9 +11,10 @@ import runpy
 import shutil
 import subprocess
 import unittest
-from datetime import date, timedelta
+from datetime import timedelta
 
-from tests.e2e.test_cli_flow import ENV, EXAMPLE, TASK_ID, CliTestCase
+from openguildkit import clock
+from tests.e2e.test_cli_flow import EXAMPLE, TASK_ID, CliTestCase
 
 
 class ReviewedTaskTestCase(CliTestCase):
@@ -40,7 +41,7 @@ class DeliberationCommandTests(ReviewedTaskTestCase):
         self.run_cli("task", "deliberate", TASK_ID, expect=1)
         self.record_example_review()
         request = json.loads(self.run_cli("task", "deliberate", TASK_ID).stdout)
-        self.assertTrue(any(item["from"] == "security" for item in request["objections"]), request["objections"])
+        self.assertIn("security-to-legal", [item["id"] for item in request["objections"]])
         payload = copy.deepcopy(request["template"])
         for response in payload["responses"]:
             response.update(position="maintain", response="Our evidence still holds.", evidence_refs=[1])
@@ -50,18 +51,25 @@ class DeliberationCommandTests(ReviewedTaskTestCase):
         payload["decision_needed"] = "Choose between shipping read-only now or after the access tests."
         result = self.run_cli("task", "respond", TASK_ID, "--file", self.write_json("d.json", payload))
         self.assertEqual(result.stdout.strip(), f"0 resolved, {len(request['objections'])} open")
+        self.assertIn("An objection is resolved when one of the two boards concedes, or when both amend", result.stderr)
         self.assertEqual(self.task_record()["deliberation"]["decision_needed"], payload["decision_needed"])
         self.assertIn(payload["decision_needed"], self.run_cli("task", "challenge", TASK_ID).stdout)
 
 
 class BlockerCommandTests(ReviewedTaskTestCase):
-    @unittest.skipUnless(shutil.which("ssh-keygen"), "needs ssh-keygen")
+    @unittest.skipUnless(shutil.which("ssh-keygen") and shutil.which("git"), "needs ssh-keygen and git")
     def test_signed_verification_blockers_are_reported_and_clear_with_the_named_signature(self):
         principal = "camille@example.org"
         key = self.project / "synthetic-test-key"
         subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True)
         allowed = self.project / "allowed_signers"
         allowed.write_text(f"{principal} {key.with_suffix('.pub').read_text(encoding='utf-8')}", encoding="utf-8")
+        # Signatures are verified against the allowed signers file as Git holds it at HEAD.
+        identity = {"GIT_AUTHOR_NAME": "Test", "GIT_AUTHOR_EMAIL": "test@example.test",
+                    "GIT_COMMITTER_NAME": "Test", "GIT_COMMITTER_EMAIL": "test@example.test"}
+        for args in (("init", "-q"), ("add", allowed.name), ("commit", "-q", "-m", "signers")):
+            subprocess.run(["git", "-C", str(self.project), *args], check=True, capture_output=True,
+                           env={**os.environ, **identity})
 
         profile = json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8"))
         profile.update(checks=[], approval={"mode": "signed", "allowed_signers": allowed.name, "approvers": [principal]})
@@ -117,12 +125,26 @@ class BlockerCommandTests(ReviewedTaskTestCase):
         self.assertIn("existing file or folder of the project, or an https link", missing_file.stderr)
         (self.project / "tests").mkdir()
         (self.project / "tests" / "test_access.py").write_text("def test_access(): pass\n", encoding="utf-8")
-        cleared = self.run_cli("task", "clear", TASK_ID, "security:1", "--by", "Alex", "--evidence",
-                               "tests/test_access.py", "--supports", "Cross-account access is refused.")
-        self.assertEqual(cleared.stdout.strip(), "cleared")
+        clear = ("task", "clear", TASK_ID, "security:1", "--by", "Alex", "--evidence", "tests/test_access.py",
+                 "--supports", "Cross-account access is refused.")
+        refused = self.run_cli(*clear, expect=1)
+        self.assertIn("Clearing a blocker is the person's act", refused.stderr)
+        self.assertIn("security:1 [open]", self.run_cli("task", "blockers", TASK_ID).stdout)
+        if os.name != "posix":
+            return
+        code, _, stderr = self.in_terminal(clear, "wrong-id")
+        self.assertTrue(stderr.strip().endswith("OpenGuildKit: Clearing cancelled."), stderr)
+        code, stdout, stderr = self.in_terminal(clear, TASK_ID)
+        self.assertEqual((code, stdout.strip()), (0, "cleared"), stderr)
         listing = self.run_cli("task", "blockers", TASK_ID).stdout
         self.assertIn("security:1 [cleared by Alex]", listing)
+        self.assertNotIn("without a terminal", listing)
         self.assertIn("security:2 [open]", listing)
+        code, _, stderr = self.in_terminal(("task", "clear", TASK_ID, "security:1", "--by", "Bob", "--evidence",
+                                            "AGENTS.md", "--supports", "Something else."), TASK_ID)
+        self.assertEqual(code, 1)
+        self.assertIn("already has a resolution: cleared by Alex on ", stderr)
+        self.assertIn("security:1 [cleared by Alex]", self.run_cli("task", "blockers", TASK_ID).stdout)
         missing = self.run_cli("task", "clear", TASK_ID, "security:2", "--by", "Alex", expect=2)
         self.assertIn("--evidence", missing.stderr)
 
@@ -142,7 +164,7 @@ class WaiverCommandTests(ReviewedTaskTestCase):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK_ID)
         self.run_cli("task", "consult", TASK_ID, "--answers", EXAMPLE / "answers.json")
         self.review_with_blockers()
-        self.until = (date.today() + timedelta(days=10)).isoformat()
+        self.until = (clock.real_today() + timedelta(days=10)).isoformat()
 
     def waive(self, by="Camille Martin"):
         return ("task", "waive", TASK_ID, "security:2", "--by", by, "--reason", "Internal pilot only",
@@ -164,22 +186,6 @@ class WaiverCommandTests(ReviewedTaskTestCase):
         code, stdout, stderr = self.in_terminal(self.waive(), TASK_ID)
         self.assertEqual((code, stdout.strip()), (0, "waived"), stderr)
         self.assertIn("security:2 [waived by Camille Martin]", self.run_cli("task", "blockers", TASK_ID).stdout)
-
-    def in_terminal(self, args, typed):
-        master, slave = os.openpty()
-        try:
-            process = subprocess.Popen(self.command(*args), stdin=slave, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                       text=True, encoding="utf-8", env=ENV)
-            os.close(slave)
-            slave = None
-            os.write(master, f"{typed}\n".encode())
-            stdout, stderr = process.communicate(timeout=60)
-        finally:
-            if slave is not None:
-                os.close(slave)
-            os.close(master)
-        return process.returncode, stdout, stderr
-
 
 class StorybookComposeCommandTests(CliTestCase):
     def test_compose_adds_updates_and_removes_a_ref(self):

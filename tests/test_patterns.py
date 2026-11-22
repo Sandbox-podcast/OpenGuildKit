@@ -28,9 +28,13 @@ class PatternTests(unittest.TestCase):
         self.assertEqual(resolved_profile(profile, self.catalog)["packs"], answers["packs"])
 
     def test_each_pattern_activates_its_own_method(self):
-        packs = {pattern_id: frozenset(pattern["packs"]) for pattern_id, pattern in self.catalog["patterns"].items()}
-        shared = [ids for ids in packs.values() if list(packs.values()).count(ids) > 1]
-        self.assertEqual(shared, [])
+        # A norm a sector proposes may activate the pack of a method (iso-27001-certification and iso-27001-isms):
+        # it is the same rules, proposed to the person for the sector. Two methods, or two norms, never share one.
+        for kind in ("method", "regulation"):
+            packs = {pattern_id: frozenset(pattern["packs"]) for pattern_id, pattern in self.catalog["patterns"].items()
+                     if pattern.get("kind", "method") == kind}
+            shared = [ids for ids in packs.values() if list(packs.values()).count(ids) > 1]
+            self.assertEqual(shared, [], kind)
         separated = {
             "a-b-testing": "campaign-measurement", "utm-campaign-measurement": "controlled-experiments",
             "okr": "strategy-map", "strategy-mapping": "leadership-planning",

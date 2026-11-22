@@ -1,0 +1,27 @@
+{
+  "id": "software-publisher",
+  "title": "Software publisher",
+  "description": "Adapt reviews to companies that build and sell software, as a product customers install or as a service they use online (SaaS).",
+  "context": [
+    "Ask the security owner whether customers ask for an ISO/IEC 27001 certification in their purchases and whether the project falls within the certified scope. This sector proposes the iso-27001-certification pattern; decline it when the organization holds or prepares no certification.",
+    "Ask the legal owner whether the organization places on the EU market a product with digital elements, software or hardware with its remote data processing solutions (Regulation (EU) 2024/2847, Art. 3(1) and 3(2)). This sector proposes the cyber-resilience-act-product pattern; a SaaS that is not the remote data processing of such a product falls outside the CRA, and recital 12 points cloud services such as SaaS to NIS 2.",
+    "For a cloud computing or managed service provider within NIS 2, Commission Implementing Regulation (EU) 2024/2690 sets the technical and methodological requirements of the Art. 21(2) measures and the criteria of a significant incident: ask the security owner which national law applies and select the nis2-essential-entity pattern when it does."
+  ],
+  "sources": [
+    {
+      "title": "Regulation (EU) 2024/2847, Cyber Resilience Act",
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "Commission Implementing Regulation (EU) 2024/2690, NIS 2 measures and significant incidents for digital service providers",
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R2690",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "ISO/IEC JTC 1/SC 27 Journal, July 2022, ISO/IEC 27002:2022 (93 controls that form Annex A of ISO/IEC 27001)",
+      "url": "https://committee.iso.org/files/live/sites/jtc1sc27/files/resources/ISO-IEC%20JTC%201-SC%2027_N22755_SC27%20Journal%20Vol%202%20Issue%202%20(update%20Dec%202022).pdf",
+      "checked": "2026-11-22"
+    }
+  ]
+}

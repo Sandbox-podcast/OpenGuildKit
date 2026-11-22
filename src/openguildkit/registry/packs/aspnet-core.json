@@ -1,7 +1,7 @@
 {
   "id": "aspnet-core",
   "title": "ASP.NET Core services",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Configuration, request cancellation and integration checks for ASP.NET Core applications.",
   "sources": [
     {
@@ -43,6 +43,26 @@
       "id": "test-middleware-and-routing",
       "instruction": "Exercise endpoints through the ASP.NET Core test host when a change touches middleware, routing, authorization or serialization.",
       "verification": "Check the request's expected status, response and side effects for the relevant roles and inputs."
+    },
+    {
+      "id": "no-passwords-in-appsettings",
+      "instruction": "Keep passwords out of the committed `appsettings` files: read credentials from the approved secret store.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "appsettings.json",
+          "appsettings.*.json",
+          "*/appsettings.json",
+          "*/appsettings.*.json"
+        ],
+        "contains": [
+          "Password=",
+          "Pwd="
+        ],
+        "expect": "absent",
+        "ignore_case": true
+      }
     }
   ]
 }

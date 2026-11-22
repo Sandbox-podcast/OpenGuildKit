@@ -6,8 +6,8 @@ import { Markdown } from '@/shared/ui/markdown';
 import { listFiles, readText } from '../api';
 import { useShares, useTasks } from '../data';
 import { useAction, useCliResult, useQuery } from '../query';
-import { SHARE, fmtDay, fmtWhen, shareState } from '../labels';
-import { ActionForm, ExternalLink, ListEditor, Pre, Q, useRemembered } from '../parts';
+import { SHARE, fmtDay, fmtWhen, isDone, shareState } from '../labels';
+import { ActionForm, ExternalLink, ListEditor, Pre, Q, TableBox, useRemembered } from '../parts';
 
 export function Docs({ tab = 'export' }: { tab?: string }) {
   const shares = useShares();
@@ -33,7 +33,7 @@ function Export() {
   const [openapi, setOpenapi] = useState('');
   const [preview, setPreview] = useState<string | null>(null);
   const { act, busy } = useAction();
-  const done = (tasks.data ?? []).filter((t) => t.status === 'done');
+  const done = (tasks.data ?? []).filter((t) => isDone(t.status));
   const pages = useQuery<{ section: string; files: string[] }[]>(`docs-pages:${output}`, useCallback(async () => {
     return Promise.all(['reference', 'learn', 'blog'].map(async (section) => {
       try { return { section, files: (await listFiles(`${output}/${section}`)).filter((e) => e.kind === 'file').map((e) => e.name) }; } catch { return { section, files: [] }; }
@@ -42,9 +42,9 @@ function Export() {
   const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   return (
     <div className="page-grid">
-      <Panel title="Exporter les quêtes terminées">
-        <p className="small muted">Seules les quêtes « terminées » s’exportent : leurs vérifications ont réussi et leurs résultats sont enregistrés. Les pages portent le brief, le comportement, les critères atteints, la livraison et la version, jamais les avis des cerveaux ni les preuves internes. Relisez-les avant de les committer, surtout les brouillons Learn.</p>
-        {done.length === 0 ? <Notice tone="warn">Aucune quête terminée pour l’instant.</Notice> : <fieldset className="choices"><legend>Quêtes à documenter</legend>{done.map((t) => <Checkbox key={t.id} label={<><span className="mono">{t.id}</span> {t.brief}</>} checked={picked.includes(t.id)} onChange={() => setPicked((p) => toggle(p, t.id))} />)}</fieldset>}
+      <Panel title="Exporter les tâches terminées">
+        <p className="small muted">Seules les tâches terminées, avec ou sans réserves, s’exportent : leurs résultats sont enregistrés, et la page dit ce qui a été vérifié, ce qui ne s’appliquait pas et ce qui est resté ouvert. Les pages portent le brief, le comportement, les critères atteints, la livraison et la version, jamais les avis des cerveaux ni les preuves internes. Relis-les avant de les committer, surtout les brouillons Learn.</p>
+        {done.length === 0 ? <Notice tone="warn">Aucune tâche terminée pour l’instant.</Notice> : <fieldset className="choices"><legend>Tâches à documenter</legend>{done.map((t) => <Checkbox key={t.id} label={<><span className="mono">{t.id}</span> <span data-own>{t.brief}</span></>} checked={picked.includes(t.id)} onChange={() => setPicked((p) => toggle(p, t.id))} />)}</fieldset>}
         <div className="grid-2">
           <TextField label="Version du projet" value={version} onChange={(e) => setVersion(e.target.value)} placeholder="1.4.0" />
           <TextField label="Dossier de sortie" value={output} onChange={(e) => setOutput(e.target.value)} hint="Relatif au projet. L’export refuse un dossier qu’il n’a pas créé." />
@@ -65,7 +65,7 @@ function Export() {
 function FileDialog({ path, onClose }: { path: string | null; onClose: () => void }) {
   const text = useQuery<string>(path ? `file:${path}` : null, useCallback(() => readText(path!), [path]));
   return <Dialog open={!!path} onClose={onClose} wide title={path ?? ''} footer={<Button onClick={onClose}>Fermer</Button>}>
-    <Q q={text}>{(t) => path?.endsWith('.json') ? <Pre text={t} /> : <div className="scroll-box"><Markdown text={t.replace(/^---[\s\S]*?---\n/, '')} /></div>}</Q>
+    <Q q={text}>{(t) => path?.endsWith('.json') ? <Pre text={t} /> : <div className="scroll-box" tabIndex={0}><Markdown text={t.replace(/^---[\s\S]*?---\n/, '')} /></div>}</Q>
   </Dialog>;
 }
 
@@ -80,20 +80,21 @@ function Shares() {
       <Notice tone="info">Documentalist contrôle l’accès (portail public, code partagé ou adresses invitées). OpenGuildKit tient le registre de ce qui a été partagé, avec qui et jusqu’à quand, pour qu’un accès expiré ne reste pas ouvert. Le registre est local (<code>.openguildkit/shares/</code>, ignoré par Git) car il contient des adresses.</Notice>
       {check.data && check.data.code !== 0 && <Notice tone="danger" title="Partages expirés à retirer :"><Pre text={check.data.stdout || check.data.stderr} /></Notice>}
       <Q q={shares}>{(list) => <Panel title={`Registre (${list.length})`}>
-        {list.length === 0 ? <p className="muted">Aucun partage.</p> : <table className="data compact"><thead><tr><th>Livrable</th><th>Destinataires</th><th>Jusqu’au</th><th>État</th><th /></tr></thead><tbody>
-          {list.map((s) => { const l = SHARE[shareState(s.state)]; return <tr key={s.id}><td><span className="mono small">{s.deliverable}</span><span className="tiny block"><ExternalLink href={s.portal}>portail</ExternalLink> · {s.by}, {fmtWhen(s.created_at)}</span></td><td className="small">{s.recipients.join(', ')}</td><td>{fmtDay(s.until)}</td><td><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge></td>
-            <td>{!s.revoked_at && <Button size="small" variant="danger" busy={busy !== null} disabled={!by} onClick={() => void act(['docs', 'share', 'revoke', '--id', s.id, '--by', by], { success: 'Retrait enregistré' })}>Accès retiré</Button>}</td></tr>; })}
-        </tbody></table>}
-        <p className="tiny muted">Retirez d’abord l’accès dans Documentalist (« Retirer l’accès »), puis enregistrez-le ici.</p>
+        {list.some((s) => !s.revoked_at) && <TextField label="Personne qui enregistre un retrait" hint={by.trim() ? undefined : 'Indique tes initiales ou l’identifiant de ton équipe pour enregistrer qu’un accès a été retiré : le registre note qui l’a fait.'} value={by} onChange={(e) => setBy(e.target.value)} />}
+        {list.length === 0 ? <p className="muted">Aucun partage.</p> : <TableBox label="Registre des partages"><table className="data compact"><thead><tr><th>Livrable</th><th>Destinataires</th><th>Jusqu’au</th><th>État</th><th><span className="sr-only">Retrait</span></th></tr></thead><tbody>
+          {list.map((s) => { const l = SHARE[shareState(s.state)]; return <tr key={s.id}><td><span className="mono small">{s.deliverable}</span>{s.space && <span className="tiny block">Espace partagé en entier : <span className="mono">{s.space}</span></span>}<span className="tiny block"><ExternalLink href={s.portal}>portail</ExternalLink> · {s.by}, {fmtWhen(s.created_at)}</span></td><td className="small">{s.recipients.join(', ')}</td><td>{fmtDay(s.until)}</td><td><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge></td>
+            <td>{!s.revoked_at && <Button size="small" variant="danger" busy={busy !== null} disabled={!by.trim()} onClick={() => void act(['docs', 'share', 'revoke', '--id', s.id, '--by', by.trim()], { success: 'Retrait enregistré' })}>Accès retiré</Button>}</td></tr>; })}
+        </tbody></table></TableBox>}
+        <p className="tiny muted">Retire d’abord l’accès dans Documentalist (« Retirer l’accès »), puis enregistre-le ici.</p>
       </Panel>}</Q>
       <Panel title="Enregistrer un partage">
         <ListEditor label="Destinataires (adresses)" items={recipients} onChange={setRecipients} placeholder="client@example.org" />
-        <ActionForm busy={busy !== null} submit="Enregistrer le partage" initial={{ by }} fields={[
-          { name: 'deliverable', label: 'Page ou dossier partagé', required: true, placeholder: 'docs-site/reference/request-status.md' },
+        <ActionForm busy={busy !== null} submit="Enregistrer le partage" initial={{ by }} problem={recipients.length ? null : 'Il manque un destinataire : ajoute au moins une adresse avec « Ajouter », le registre dit avec qui la page est partagée.'} fields={[
+          { name: 'deliverable', label: 'Page ou dossier partagé', required: true, placeholder: 'docs-site/reference/request-status.md', hint: 'Un fichier existant du projet, ou le dossier écrit par l’export, jamais sous .openguildkit/.' },
           { name: 'until', label: 'Dernier jour d’accès', type: 'date', required: true },
-          { name: 'portal', label: 'Adresse du portail Documentalist (https)', type: 'url', required: true },
+          { name: 'portal', label: 'Adresse du portail Documentalist', type: 'url', required: true, hint: 'En https, ou en http pour un portail sur ce poste (localhost, 127.0.0.1, ::1). Le partage ouvre tout l’espace du portail, pas seulement cette page.' },
           { name: 'by', label: 'Responsable du partage', required: true },
-        ]} onSubmit={async (v) => { setBy(v.by); if (!recipients.length) return; if (await act(['docs', 'share', 'add', '--deliverable', v.deliverable, ...recipients.flatMap((r) => ['--recipient', r]), '--until', v.until, '--portal', v.portal, '--by', v.by], { success: 'Partage enregistré' })) setRecipients([]); }} />
+        ]} onSubmit={async (v) => { setBy(v.by); if (await act(['docs', 'share', 'add', '--deliverable', v.deliverable, ...recipients.flatMap((r) => ['--recipient', r]), '--until', v.until, '--portal', v.portal, '--by', v.by], { success: 'Partage enregistré' })) setRecipients([]); }} />
       </Panel>
     </div>
   );
@@ -105,7 +106,7 @@ function Decisions() {
   return (
     <Panel title="Relevés de décision exportés">
       <p className="small muted"><code>task export</code> écrit un relevé partageable dans <code>.openguildkit/decisions/</code>, à joindre à la pull request : le brief, le verdict de chaque cerveau et l’approbation scellée, sans preuves ni notes internes. La CI peut vérifier ces relevés avec <code>guard --ci</code>.</p>
-      <Q q={files}>{(list) => list.length === 0 ? <p className="muted">Aucun relevé. Exportez-en un depuis la fiche d’une quête validée.</p> : <ul>{list.map((f) => <li key={f}><button className="linklike" onClick={() => setOpen(`.openguildkit/decisions/${f}`)}>{f}</button></li>)}</ul>}</Q>
+      <Q q={files}>{(list) => list.length === 0 ? <p className="muted">Aucun relevé. Exportes-en un depuis la fiche d’une tâche approuvée.</p> : <ul>{list.map((f) => <li key={f}><button className="linklike" onClick={() => setOpen(`.openguildkit/decisions/${f}`)}>{f}</button></li>)}</ul>}</Q>
       <FileDialog path={open} onClose={() => setOpen(null)} />
     </Panel>
   );

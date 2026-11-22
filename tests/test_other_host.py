@@ -1,29 +1,21 @@
 """The host `other`: every command that writes nothing for it says so and gives the way forward."""
 
-import contextlib
-import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit.cli import main
 from openguildkit.lock import package_version
 from openguildkit.storage import write_json
 
+from tests.support import CapturedCli
 
-class OtherHostTests(unittest.TestCase):
+
+class OtherHostTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def init(self, **answers):
         write_json(self.root / "answers.json", {"name": "svc", "host": "other", **answers})
@@ -47,9 +39,10 @@ class OtherHostTests(unittest.TestCase):
 
     def test_host_apply_says_it_writes_nothing_and_host_check_passes(self):
         self.init()
-        output, error = self.run_cli("host", "apply")
+        # Writing nothing is not a success: the command says so and exits 1.
+        output, error = self.run_cli("host", "apply", code=1)
         self.assertIn("the project's host is other, so host apply wrote nothing", error)
-        self.assertIn('set "host" in .openguildkit/project.json', error)
+        self.assertIn("openguildkit profile set host claude-code (or codex)", error)
         self.assertFalse((self.root / ".claude" / "settings.json").exists())
         output, _ = self.run_cli("host", "check")
         self.assertIn("[by instruction]", output)

@@ -7,13 +7,15 @@ is still missing before the brain and the owner review it.
 """
 
 import json
+import os
 import re
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from . import clock
 from .catalog import (
-    CatalogError, _unique_fields, _validate_fields, _validate_id, _validate_list, _validate_sources, _validate_text, package_file,
+    CatalogError, package_file, unique_fields, validate_fields, validate_id, validate_list, validate_sources,
+    validate_text,
 )
 from .storage import write_text
 
@@ -23,6 +25,7 @@ _CHECKED = re.compile(r"^- \[x\] (?P<id>[a-z0-9-]+): .+? Evidence: (?P<evidence>
 _COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 _FENCE = re.compile(r"^\s{0,3}(```|~~~)")
 _FIELD = re.compile(r'^(?P<key>[a-z_]+): (?P<value>".*")$')
+# The approval stays in the task record: a draft may go to a client, so it carries no internal field.
 FRONT_MATTER = ("deliverable", "task")
 # The campaign-measurement pack asks for the agreed values in the same case on every link;
 # lowercase letters, digits, dots, hyphens and underscores keep one spelling per value.
@@ -30,42 +33,68 @@ _UTM_VALUE = re.compile(r"[a-z0-9][a-z0-9._-]*")
 UTM_ORDER = ("source", "medium", "campaign", "content", "term")
 
 
+def _same_or_inside(path: Path, folder: Path) -> bool:
+    """True when path is folder or lies in it, also on a file system that ignores case."""
+    if path == folder or folder in path.parents:
+        return True
+    if not folder.exists():
+        return False
+    return any(ancestor.exists() and os.path.samefile(ancestor, folder) for ancestor in (path, *path.parents))
+
+
+def project_path(root: Path, state: Path, value: Path | str, option: str) -> Path:
+    """A path the team may share: inside the project once symbolic links are resolved, and outside .openguildkit/.
+
+    The refusal shows the path as the person wrote it.
+    """
+    shown = Path(value).as_posix()
+    project = root.resolve()
+    target = (project / Path(value)).resolve()
+    if not _same_or_inside(target, project):
+        raise ValueError(f"{option} {shown} is outside the project, once links are followed. "
+                         "Give a path inside the project folder.")
+    if _same_or_inside(target, state.resolve()):
+        raise ValueError(f"{option} {shown} is in .openguildkit/, OpenGuildKit's own state, such as the task records "
+                         "the team does not share. Give a path outside .openguildkit/.")
+    return target
+
+
 def _validate(record: dict, catalog: dict, bundled: bool = False) -> None:
-    _validate_fields(record, "deliverable", {"id", "title", "description", "brains", "inputs", "tool_actions", "sections", "checks", "sources"}, {"method", "market", "requires_tool"})
+    validate_fields(record, "deliverable", {"id", "title", "description", "brains", "inputs", "tool_actions", "sections", "checks", "sources"}, {"method", "market", "requires_tool"})
     for flag in ("market", "requires_tool"):
         if flag in record and not isinstance(record[flag], bool):
             raise CatalogError(f"{flag} must be true or false")
-    _validate_id(record["id"], "id")
+    validate_id(record["id"], "id")
     for field in ("title", "description"):
-        _validate_text(record[field], field)
-    _validate_sources(record["sources"], require_checked=bundled)
+        validate_text(record[field], field)
+    validate_sources(record["sources"], require_checked=bundled)
     if "method" in record and record["method"] not in catalog["patterns"]:
         raise CatalogError(f"Unknown method pattern {record['method']!r}")
-    _validate_list(record["brains"], "brains")
+    validate_list(record["brains"], "brains")
     unknown = sorted(set(record["brains"]) - catalog["boards"].keys())
     if unknown:
         raise CatalogError(f"Unknown brains: {', '.join(unknown)}")
-    _validate_list(record["inputs"], "inputs")
+    validate_list(record["inputs"], "inputs")
     for item in record["inputs"]:
-        _validate_fields(item, "input", {"id", "label", "data"})
-        _validate_id(item["id"], "input id")
-        _validate_text(item["label"], "input label")
+        validate_fields(item, "input", {"id", "label", "data"})
+        validate_id(item["id"], "input id")
+        validate_text(item["label"], "input label")
         if item["data"] not in DATA_CLASSES:
             raise CatalogError(f"input data must be one of {', '.join(DATA_CLASSES)}")
-    _validate_list(record["tool_actions"], "tool_actions", allow_empty=True)
+    validate_list(record["tool_actions"], "tool_actions", allow_empty=True)
     for item in record["tool_actions"]:
-        _validate_fields(item, "tool action", {"action", "description"})
+        validate_fields(item, "tool action", {"action", "description"})
         if item["action"] not in ACTIONS:
             raise CatalogError(f"tool action must be one of {', '.join(ACTIONS)}")
-        _validate_text(item["description"], "tool action description")
+        validate_text(item["description"], "tool action description")
     for field in ("sections", "checks"):
-        _validate_list(record[field], field)
+        validate_list(record[field], field)
         for item in record[field]:
-            _validate_fields(item, field[:-1], {"id", "title" if field == "sections" else "verification", "prompt"} if field == "sections" else {"id", "verification"})
-            _validate_id(item["id"], f"{field[:-1]} id")
+            validate_fields(item, field[:-1], {"id", "title" if field == "sections" else "verification", "prompt"} if field == "sections" else {"id", "verification"})
+            validate_id(item["id"], f"{field[:-1]} id")
             for key in item:
                 if key != "id":
-                    _validate_text(item[key], f"{field[:-1]} {key}")
+                    validate_text(item[key], f"{field[:-1]} {key}")
 
 
 def load_deliverables(catalog: dict, extra_dir: Path | None = None) -> dict[str, dict]:
@@ -78,7 +107,7 @@ def load_deliverables(catalog: dict, extra_dir: Path | None = None) -> dict[str,
             if not path.name.endswith(".json"):
                 continue
             try:
-                record = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=_unique_fields)
+                record = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_fields)
                 _validate(record, catalog, root == roots[0])
                 if path.name != f"{record['id']}.json" or record["id"] in found:
                     raise CatalogError(f"name the file {record['id']}.json and keep IDs unique")
@@ -90,7 +119,8 @@ def load_deliverables(catalog: dict, extra_dir: Path | None = None) -> dict[str,
 
 def launch_notice(deliverable: dict) -> list[str]:
     """What the requester must know before the tool runs: data needed and actions needing approval."""
-    lines = [f"{item['label']} ({item['data']} data)" for item in deliverable["inputs"]]
+    lines = [f"{item['label']} ({'no sensitive data' if item['data'] == 'none' else item['data'] + ' data'})"
+             for item in deliverable["inputs"]]
     lines += [f"Needs your approval (task authorize --action {item['action']}): {item['description']}" for item in deliverable["tool_actions"]]
     return lines
 
@@ -136,21 +166,23 @@ def _market_lines(deliverable: dict, task: dict) -> tuple[list[str], list[str]]:
 
 
 def new_draft(deliverable: dict, task: dict, tool: str | None, approved_tools: list[str], output: Path) -> dict:
-    if task["status"] not in ("approved", "done"):
+    """Write the draft. The tool is optional unless the template requires one: its actions are authorized one by
+    one with task authorize. The draft may go to a client, so the approval stays in the task record.
+    """
+    if task["status"] not in ("approved", "done", "done-with-reservations"):
         raise ValueError("Start a deliverable from an approved or completed task.")
     if deliverable.get("requires_tool") and not tool:
-        raise ValueError("This template needs --tool.")
-    if tool and approved_tools and tool not in approved_tools:
+        raise ValueError("This template needs --tool, one of the project's approved tools.")
+    if tool is not None and approved_tools and tool not in approved_tools:
         raise ValueError(f"{tool} is not an approved tool for this project. Approved: {', '.join(approved_tools)}.")
     if output.exists():
-        raise ValueError(f"{output} already exists.")
-    tool_fields = [f"tool: {json.dumps(tool)}"] if tool else []
+        raise ValueError(f"{output.as_posix()} already exists.")
     market_fields, market_inputs = _market_lines(deliverable, task)
     lines = [
         "---",
         f"deliverable: {json.dumps(deliverable['id'])}",
         f"task: {json.dumps(task['id'])}",
-        *tool_fields,
+        *([f"tool: {json.dumps(tool)}"] if tool is not None else []),
         *market_fields,
         "---",
         "",
@@ -167,8 +199,10 @@ def new_draft(deliverable: dict, task: dict, tool: str | None, approved_tools: l
     lines += ["## Sources", "", "- TODO: each source with its date or link", "", "## Checks", ""]
     lines += [f"- [ ] {check['id']}: {check['verification']} Evidence: " for check in deliverable["checks"]]
     write_text(output, "\n".join(lines) + "\n")
-    return {"deliverable": deliverable["id"], "path": output.as_posix(), "tool": tool,
-            "created_at": clock.timestamp()}
+    entry = {"deliverable": deliverable["id"], "path": output.as_posix(), "created_at": clock.timestamp()}
+    if tool is not None:
+        entry["tool"] = tool
+    return entry
 
 
 def _front_matter(text: str) -> tuple[dict, str]:

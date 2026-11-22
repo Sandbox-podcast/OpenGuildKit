@@ -19,6 +19,9 @@
     "legal",
     "support"
   ],
+  "core_for": [
+    "trust-and-safety"
+  ],
   "packs": [
     "notice-and-action"
   ],

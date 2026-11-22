@@ -88,6 +88,10 @@
           "Any user, logged in or not, can report content with a reason and a location in the product.",
           "Urgent categories have a separate queue, a response target and an on-call owner.",
           "Removal orders from authorities for terrorist content can be handled within one hour, as Regulation (EU) 2021/784 requires of hosting services."
+        ],
+        "applies_to": [
+          "customer",
+          "business"
         ]
       },
       {

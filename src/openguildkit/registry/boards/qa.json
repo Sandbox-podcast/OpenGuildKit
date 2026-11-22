@@ -80,6 +80,11 @@
         "checks": [
           "Legacy data and every supported version are part of the test set.",
           "Existing integrations are run through the change."
+        ],
+        "applies_to": [
+          "customer",
+          "service",
+          "infrastructure"
         ]
       },
       {
@@ -89,6 +94,10 @@
         "checks": [
           "Sessions include interruptions, partial progress and unusual input.",
           "Findings are recorded with steps to reproduce."
+        ],
+        "applies_to": [
+          "customer",
+          "service"
         ]
       },
       {

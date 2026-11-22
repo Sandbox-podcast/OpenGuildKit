@@ -2,8 +2,10 @@ name: Watch reference editions
 
 # Every Monday, open the source page of each reference that declares an edition and look for
 # the edition's text. One issue per reference whose edition may have changed, never two open
-# for the same reference. The job changes no file in the repository: the updated
-# scripts/edition-watch.json is kept as an artifact for a maintainer to review and commit.
+# for the same reference. The committed scripts/edition-watch.json is seeded from the catalog
+# (python3 -I scripts/watch_editions.py --seed), so the first run can already report a change.
+# The job changes no file in the repository: its updated copy is kept as an artifact, and
+# docs/references.md ("Edition watch") says who commits the file and when.
 
 on:
   schedule:

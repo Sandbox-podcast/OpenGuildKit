@@ -24,7 +24,8 @@ from openguildkit.cli import main  # noqa: E402
 
 EXAMPLE = REPO / "examples" / "request-status"
 REVIEW = json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))
-ANSWERS = json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8"))
+# A consultation needs the concerns answer; the example's own answer, when it has one, wins.
+ANSWERS = {"concerns": ["none"], **json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8"))}
 PASS = f'"{sys.executable}" -c "print(\'ok\')"'
 
 

@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
-export interface Toast { id: number; tone: 'success' | 'danger' | 'info' | 'warning'; title: string; text?: string }
+/** lang: 'en' when the text is a command's English output, so that a screen reader reads it in English. */
+export interface Toast { id: number; tone: 'success' | 'danger' | 'info' | 'warning'; title: string; text?: string; lang?: 'en' }
 let toasts: Toast[] = [];
 let seq = 0;
 const listeners = new Set<() => void>();

@@ -40,20 +40,19 @@
               "description": "Azure DevOps: your organization"
             }
           ],
-          "status": "preview",
+          "status": "unknown",
           "capabilities": "Work items, repos and pull requests, pipelines, wikis, test plans, iterations and Advanced Security alerts; X-MCP-Toolsets and X-MCP-Readonly headers restrict tools.",
           "source": "https://learn.microsoft.com/en-us/azure/devops/mcp-server/remote-mcp-server",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write",
-            "consent": "Sign in with Microsoft Entra for the selected Azure DevOps organization",
-            "scopes": [
-              "Operations are limited by the signed-in user's Azure DevOps permissions"
-            ]
-          },
+          "access": "Work items, repos and pull requests, pipelines, wikis, test plans, iterations and Advanced Security alerts, read and write; Enterprise Live Migration tools (preview) are on by default.",
+          "scopes": "Microsoft Entra ID OAuth with an Entra-backed organization; Claude Code needs a custom app registration with the delegated permissions the team chooses and admin consent. Operations succeed only where both the OAuth scope and the user's Azure DevOps permissions allow.",
           "read_only": {
-            "header": "X-MCP-Readonly"
-          }
+            "how": "The X-MCP-Readonly: true header restricts the server to read-only tools; X-MCP-Toolsets narrows the domains.",
+            "headers": {
+              "X-MCP-Readonly": "true"
+            }
+          },
+          "reviewed": "2026-11-21"
         },
         {
           "id": "azure-devops-local",
@@ -84,7 +83,8 @@
           "source": "https://github.com/microsoft/azure-devops-mcp",
           "repository": "https://github.com/microsoft/azure-devops-mcp",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -121,7 +121,13 @@
           "status": "unknown",
           "capabilities": "Pipelines, builds, jobs, logs and test data; read-only variant at /mcp/readonly, toolset scoping via /x/{toolset}.",
           "source": "https://buildkite.com/docs/apis/mcp-server",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write.",
+          "scopes": "Buildkite permissions in the authorized organization. Consent: Sign in to Buildkite and approve access for the selected organization.",
+          "read_only": {
+            "how": "The endpoint https://mcp.buildkite.com/mcp/readonly exposes only read tools, over the resources of the authorized organization.",
+            "url": "https://mcp.buildkite.com/mcp/readonly"
+          }
         }
       ],
       "api": {
@@ -159,7 +165,8 @@
           "status": "unknown",
           "capabilities": "Pipeline and build status, failure logs and project data.",
           "source": "https://circleci.com/product/mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read operations described; no enforced read-only mode is recorded."
         },
         {
           "id": "circleci-cli",
@@ -183,7 +190,8 @@
           "status": "unknown",
           "capabilities": "Same CircleCI tools, run locally from the CircleCI CLI.",
           "source": "https://circleci.com/product/mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read operations described; no enforced read-only mode is recorded."
         }
       ],
       "api": {
@@ -229,7 +237,8 @@
           "source": "https://plugins.jenkins.io/mcp-server/",
           "repository": "https://github.com/jenkinsci/mcp-server-plugin",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         }
       ],
       "api": {

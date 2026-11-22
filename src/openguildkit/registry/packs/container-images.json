@@ -1,7 +1,7 @@
 {
   "id": "container-images",
   "title": "Container images",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "For a project that builds container images: pinned base images, non-root users, multi-stage builds, build secrets and the build context.",
   "sources": [
     {
@@ -40,6 +40,25 @@
       "id": "trim-the-build-context",
       "instruction": "Exclude `.git`, local environment files, credentials and build output from the build context with `.dockerignore`.",
       "verification": "Review `.dockerignore` and check that the context does not include `.env` files or keys."
+    },
+    {
+      "id": "no-latest-base-images",
+      "instruction": "Do not build from an image tagged `latest`: pin each `FROM` image to a version tag and a digest.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "Dockerfile",
+          "*/Dockerfile",
+          "Dockerfile.*",
+          "*.Dockerfile",
+          "Containerfile"
+        ],
+        "contains": [
+          ":latest"
+        ],
+        "expect": "absent"
+      }
     }
   ]
 }

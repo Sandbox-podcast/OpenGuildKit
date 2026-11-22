@@ -5,21 +5,24 @@ import copy
 import importlib.util
 import io
 import json
+import os
 import re
 import shutil
 import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
+from unittest.mock import patch
 
 from openguildkit import catalog as catalog_module
-from openguildkit.catalog import CatalogError, _validate_entry, load_catalog
-from openguildkit.cli import main
+from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.deliverables import _validate as validate_deliverable, load_deliverables
 from openguildkit.lock import read_lock
 from openguildkit.project import profile_fingerprint
 from openguildkit.references import _validate_family, load_references
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "src" / "openguildkit" / "registry"
@@ -103,8 +106,8 @@ class BundledSourceDateTests(unittest.TestCase):
     def test_each_loader_requires_the_date_for_bundled_records_only(self):
         undated = copy.deepcopy(PACK)
         with self.assertRaisesRegex(CatalogError, "checked is missing"):
-            _validate_entry("packs", undated, bundled=True)
-        _validate_entry("packs", undated)
+            validate_entry("packs", undated, bundled=True)
+        validate_entry("packs", undated)
         family = {"id": "legal", "title": "Legal", "references": [copy.deepcopy(
             load_references()["legal"]["references"][0])]}
         del family["references"][0]["sources"][0]["checked"]
@@ -124,10 +127,10 @@ class BundledSourceDateTests(unittest.TestCase):
             record["sources"][0]["checked"] = value
             for bundled in (True, False):
                 with self.subTest(value=value, bundled=bundled), self.assertRaisesRegex(CatalogError, "YYYY-MM-DD"):
-                    _validate_entry("packs", record, bundled=bundled)
+                    validate_entry("packs", record, bundled=bundled)
 
 
-class ProjectSourceDateTests(unittest.TestCase):
+class ProjectSourceDateTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -135,12 +138,6 @@ class ProjectSourceDateTests(unittest.TestCase):
         write_json(self.root / "p.json", {"name": "Portal", "stack": ["Python"]})
         self.cli("init", "--answers", self.root / "p.json")
         self.state = self.root / ".openguildkit"
-
-    def cli(self, *args, code=0):
-        out, err = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            self.assertEqual(main(["--project", str(self.root), *map(str, args)]), code, err.getvalue())
-        return out.getvalue(), err.getvalue()
 
     def test_an_undated_project_source_loads_and_check_names_its_record(self):
         write_json(self.state / "catalog" / "packs" / "team-review.json", PACK)
@@ -213,7 +210,10 @@ class LinkReportAgeTests(unittest.TestCase):
         self.assertEqual(stale, [{"url": "https://old.example.test/", "checked": "2026-01-02",
                                   "cited_by": [{"collection": "packs", "id": "a", "checked": "2026-01-02"}]}])
         self.assertEqual(len(check_links.stale_sources(self.CITATIONS, date(2026, 11, 21), 10)), 2)
-        report = check_links.check(self.CITATIONS, lambda url: {"status": 200, "final_url": url}, workers=2, max_age=180)
+        # The report is dated by the stamping clock: fix it, so the ages do not depend on the day the test runs.
+        with patch.dict(os.environ, {"SOURCE_DATE_EPOCH": "1795219200"}):  # 2026-11-21
+            report = check_links.check(self.CITATIONS, lambda url: {"status": 200, "final_url": url}, workers=2, max_age=180)
+        self.assertEqual(report["date"], "2026-11-21")
         self.assertEqual(report["max_age_days"], 180)
         markdown = check_links.render_markdown(report)
         self.assertIn("## Checked more than 180 days ago (1)", markdown)

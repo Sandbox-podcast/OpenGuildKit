@@ -1,7 +1,5 @@
 """Host settings follow the research policy and keep `.codex/config.toml` valid."""
 
-import contextlib
-import io
 import json
 import tempfile
 import tomllib
@@ -9,9 +7,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import hosts
-from openguildkit.cli import main
+from openguildkit import consultation, hosts
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
+
+REPO = Path(__file__).resolve().parents[1]
 
 MULTILINE = 'developer_instructions = """\nFollow the plan.\n  [1] run tests\n[2] open a pull request\n"""\n'
 TOOLS_BLOCK = (
@@ -21,20 +22,13 @@ TOOLS_BLOCK = (
 )
 
 
-class HostResearchTests(unittest.TestCase):
+class HostResearchTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.config = self.root / ".codex" / "config.toml"
         self.settings = self.root / ".claude" / "settings.json"
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def init(self, host, config=None):
         if config is not None:
@@ -143,6 +137,37 @@ class HostResearchTests(unittest.TestCase):
         _, error = self.run_cli("host", "apply", code=1)
         self.assertIn('sets web_search = "disabled"', error)
         self.assertEqual(self.config.read_text(encoding="utf-8"), 'web_search = "disabled"\n')
+
+
+class ResearchDecisionTests(unittest.TestCase):
+    """Whether a public search needs a recorded task authorize decision, said once per research policy."""
+
+    def test_the_consultation_says_whether_a_public_search_needs_a_recorded_decision(self):
+        scope = {"task_id": "status-page", "brief": "Add a status page.", "answers": {"kind": "feature"},
+                 "project": "Example", "sector": "general"}
+        public = consultation._consultation_markdown({**scope, "research": "public-sources"}, {}, {})
+        local = consultation._consultation_markdown({**scope, "research": "local-only"}, {}, {})
+        self.assertIn(consultation.research_decision("public-sources"), public)
+        self.assertIn(consultation.research_decision("local-only"), local)
+        self.assertIn("needs no task authorize decision", public)
+        self.assertIn("task authorize ID --action public-research", local)
+        self.assertNotIn("needs no task authorize", local)
+
+    def test_the_skill_says_it_for_every_policy_the_profile_accepts(self):
+        skill = (REPO / "src/openguildkit/agent_files/skills/openguildkit/SKILL.md").read_text(encoding="utf-8")
+        for policy in ("local-only", "public-sources"):
+            self.assertIn(consultation.research_decision(policy), skill)
+        with self.assertRaises(ValueError):
+            consultation.research_decision("anything")
+
+    def test_the_consultation_says_what_made_a_task_local_only(self):
+        self.assertIn("this task's research answer is local", consultation.research_decision("local-only", "local"))
+        self.assertIn("unsure", consultation.research_decision("local-only", "unsure"))
+        self.assertIn("profile does not allow public sources", consultation.research_decision("local-only", "public"))
+        scope = {"task_id": "status-page", "brief": "Add a status page.", "answers": {"kind": "feature", "research": "local"},
+                 "project": "Example", "sector": "general", "research": "local-only"}
+        self.assertIn("this task's research answer is local", consultation._consultation_markdown(scope, {}, {}))
+
 
 
 if __name__ == "__main__":

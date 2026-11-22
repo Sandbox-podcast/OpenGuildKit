@@ -13,6 +13,9 @@
     "support",
     "product"
   ],
+  "core_for": [
+    "support"
+  ],
   "packs": [
     "support-readiness"
   ],

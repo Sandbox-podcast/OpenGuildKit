@@ -25,7 +25,8 @@
           "status": "unknown",
           "capabilities": "Cloud browser sessions driven by Stagehand: start, navigate, act, observe, extract, end.",
           "source": "https://docs.browserbase.com/integrations/mcp/setup",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -72,7 +73,8 @@
           "source": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
           "repository": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -115,7 +117,8 @@
           "source": "https://github.com/h4ckf0r0day/obscura",
           "repository": "https://github.com/h4ckf0r0day/obscura",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -163,7 +166,8 @@
           "source": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
           "repository": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {

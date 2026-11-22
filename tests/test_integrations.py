@@ -8,20 +8,18 @@ from unittest.mock import patch
 from openguildkit.cli import main
 from openguildkit.integrations import HOST_FILES, packaged_file
 
+from tests.support import CapturedCli
+
 REPO = Path(__file__).resolve().parents[1]
 
 
-class IntegrationTests(unittest.TestCase):
+class IntegrationTests(CapturedCli, unittest.TestCase):
+    cli_output = "stdout"
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-
-    def run_cli(self, *arguments):
-        stdout = io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(io.StringIO()):
-            self.assertEqual(main(["--project", str(self.root), *arguments]), 0)
-        return stdout.getvalue()
 
     def test_repository_copies_match_the_packaged_files(self):
         self.assertEqual(packaged_file("skills/openguildkit/SKILL.md"),
@@ -58,6 +56,12 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(skill.with_name("SKILL.md.previous").read_text(encoding="utf-8"), "# Team version\n")
         self.run_cli("integrations", "--host", "codex")
         self.assertTrue((self.root / ".agents/skills/openguildkit/SKILL.md").is_file())
+
+    def test_integrations_prints_only_the_files_it_handled(self):
+        lines = self.run_cli("integrations", "--host", "claude-code").splitlines()
+        self.assertEqual(len(lines), len(HOST_FILES["claude-code"]))
+        for line in lines:
+            self.assertRegex(line, r"^\.claude/\S+\.md: (installed|unchanged|kept|replaced)")
 
     def test_the_version_file_names_a_file_kept_at_another_version(self):
         self.run_cli("integrations", "--host", "claude-code")

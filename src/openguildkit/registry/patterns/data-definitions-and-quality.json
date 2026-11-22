@@ -1,0 +1,25 @@
+{
+  "id": "data-definitions-and-quality",
+  "title": "Data definitions, quality and lineage",
+  "description": "Define each dataset, event or metric a change touches, declare its quality rules and record its lineage.",
+  "sources": [
+    {
+      "title": "Open Data Contract Standard (ODCS)",
+      "url": "https://bitol-io.github.io/open-data-contract-standard/latest/",
+      "checked": "2026-11-22"
+    }
+  ],
+  "roles": [
+    "data"
+  ],
+  "core_for": [
+    "data"
+  ],
+  "packs": [
+    "data-definitions"
+  ],
+  "references": [
+    "open-data-contract-standard",
+    "openlineage"
+  ]
+}

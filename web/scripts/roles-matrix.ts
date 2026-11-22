@@ -14,6 +14,8 @@ const matrix = [
 
 writeFileSync(new URL('../docs/roles.md', import.meta.url), `# Rôles et capacités
 
+> Démonstration Atelier Nova : cette page décrit la maquette, pas le produit. [Ce qui les distingue](interface-projet.md#ce-qui-distingue-la-démonstration)
+
 Matrice générée depuis [permissions.ts](../src/domain/permissions.ts) avec \`npm run docs:roles\`. Une case vide indique que le rôle ne donne pas cette capacité.
 
 ${matrix}

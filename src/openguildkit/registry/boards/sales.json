@@ -18,8 +18,6 @@
     "tarification",
     "procurement",
     "achats",
-    "buyer",
-    "acheteur",
     "sales demo",
     "customer demo",
     "démo client",
@@ -41,8 +39,6 @@
     "tarif",
     "discount",
     "remise",
-    "quote",
-    "quotation",
     "free trial",
     "essai gratuit",
     "partner",
@@ -54,7 +50,16 @@
     "master services agreement",
     "msa",
     "tender",
-    "security questionnaire"
+    "security questionnaire",
+    "b2b buyer",
+    "buying committee",
+    "acheteur b2b",
+    "comité d'achat",
+    "price quote",
+    "sales quote",
+    "customer quote",
+    "quote request",
+    "request a quote"
   ],
   "questions": [
     "Who uses, sponsors and approves the purchase?",
@@ -129,6 +134,9 @@
           "Every discount above the agreed threshold has a named approver at the level the matrix requires.",
           "Non-standard payment terms, caps on liability or service level credits go to finance or legal before the quote is sent.",
           "Quotes are generated from the price book, and manual line items are flagged for review."
+        ],
+        "applies_to_concerns": [
+          "money"
         ]
       },
       {
@@ -139,6 +147,9 @@
           "Renewal dates, notice periods and uplift clauses are read from the signed contract, not from the CRM alone.",
           "An expansion proposal rests on measured usage or a confirmed new need.",
           "Price increases at renewal respect the contract and the notice the customer must receive."
+        ],
+        "applies_to_concerns": [
+          "money"
         ]
       }
     ],

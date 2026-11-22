@@ -11,11 +11,13 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.catalog import CatalogError, _validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.cli import main
-from openguildkit.project import profile_recommendations, resolved_profile, validate_profile
+from openguildkit.project import init_questions, profile_recommendations, resolved_profile, validate_profile
 from openguildkit.rule_checks import MAX_FILE_BYTES, MAX_FILES, evaluate_check, validate_check
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 SOURCE = Path(__file__).resolve().parents[1] / "src" / "openguildkit"
@@ -120,8 +122,8 @@ class CatalogFormatTests(unittest.TestCase):
     def test_a_bundled_pack_cannot_run_a_command(self):
         command = pack([{"id": "lint", "check": {"kind": "command", "command": "make lint"}}])
         with self.assertRaisesRegex(CatalogError, r"\.openguildkit/catalog/packs/"):
-            _validate_entry("packs", command)
-        _validate_entry("packs", command, allow_command=True)
+            validate_entry("packs", command)
+        validate_entry("packs", command, allow_command=True)
 
     def test_a_project_pack_can_run_a_command_and_the_central_policy_cannot(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -136,13 +138,13 @@ class CatalogFormatTests(unittest.TestCase):
 
     def test_a_rule_without_a_check_still_needs_its_text_and_evidence_is_named(self):
         with self.assertRaisesRegex(CatalogError, "missing fields: instruction"):
-            _validate_entry("packs", pack([{"id": "a", "verification": "Look."}]))
+            validate_entry("packs", pack([{"id": "a", "verification": "Look."}]))
         named = {"id": "a", "instruction": "Do it.", "verification": "Look.",
                  "evidence": [{"id": "record", "title": "Record"}, {"id": "record", "title": "Again"}]}
         with self.assertRaisesRegex(CatalogError, "twice"):
-            _validate_entry("packs", pack([named]))
+            validate_entry("packs", pack([named]))
         with self.assertRaisesRegex(CatalogError, "kind"):
-            _validate_entry("packs", pack([{"id": "a", "check": {"kind": "regex", "pattern": "(a+)+"}}]))
+            validate_entry("packs", pack([{"id": "a", "check": {"kind": "regex", "pattern": "(a+)+"}}]))
 
     def test_the_export_threshold_is_data_and_ci_check_names_no_field(self):
         source = (SOURCE / "ci.py").read_text(encoding="utf-8")
@@ -153,18 +155,11 @@ class CatalogFormatTests(unittest.TestCase):
         self.assertEqual((check["kind"], check["path"], check["field"]), ("field", "export.json", "downloadLinkMinutes"))
 
 
-class VerifyAndEvidenceTests(unittest.TestCase):
+class VerifyAndEvidenceTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def approved(self, rules, data="personal", **extra):
         write_json(self.root / ".openguildkit" / "catalog" / "packs" / "team-rules.json", pack(rules))
@@ -209,7 +204,7 @@ class VerifyAndEvidenceTests(unittest.TestCase):
                                code=1)
         self.assertIn("task verify", error)
         output = self.run_cli("task", "verify", TASK)[0]
-        self.assertIn("rule:team-rules/security-policy: failed", output)
+        self.assertIn("rule:team-rules/security-policy: failed\n    Not found: none of SECURITY.md exists.", output)
         self.assertIn("rule:team-rules/link-expiry: failed", output)
         self.assertIn("rule:team-rules/lint: passed", output)
         checks = self.checks()
@@ -221,7 +216,9 @@ class VerifyAndEvidenceTests(unittest.TestCase):
 
         (self.root / "export.json").write_text('{"minutes": 30}', encoding="utf-8")
         (self.root / "SECURITY.md").write_text("Report to security@example.test", encoding="utf-8")
-        self.run_cli("task", "verify", TASK)
+        output = self.run_cli("task", "verify", TASK)[0]
+        self.assertIn("rule:team-rules/security-policy: passed\n    Found SECURITY.md.", output)
+        self.assertIn("rule:team-rules/security-policy [verify] passed: Found SECURITY.md.", self.run_cli("task", "checks", TASK)[0])
         self.assertEqual({self.checks()[f"rule:team-rules/{name}"]["status"] for name in ("security-policy", "link-expiry", "lint")},
                          {"passed"})
         self.report()
@@ -238,8 +235,9 @@ class VerifyAndEvidenceTests(unittest.TestCase):
         self.approved([self.RECORD], data="internal")
         output, _ = self.run_cli("task", "result", TASK, "--template")
         entry = next(item for item in json.loads(output)["checks"] if item["check"] == self.CHECK)
-        self.assertEqual((entry["evidence_name"], entry["mandatory"], entry["must_supply"]),
-                         ("Record of processing activities", True, False))
+        self.assertEqual((entry["evidence_name"], entry["requirement"]),
+                         ("Record of processing activities", "passed-or-not-applicable"))
+        self.assertNotIn("mandatory", entry)
         self.assertIn("not-applicable", entry["answer"])
         self.assertIn("https", entry["answer"])
         self.report(self.RULE)
@@ -256,15 +254,15 @@ class VerifyAndEvidenceTests(unittest.TestCase):
 
     def test_required_rules_make_the_evidence_a_must(self):
         self.approved([self.RECORD], data="internal", required_rules=["team-rules/record-processing"])
-        _, error = self.report(self.RULE, self.NOT_APPLICABLE, code=1)
+        _, error = self.report(self.RULE, self.NOT_APPLICABLE)
         self.assertIn("required_rules", error)
-        self.assertIn("project path", self.report({"check": self.CHECK, "status": "passed", "evidence": "../record.md"},
-                                                  code=1)[1])
+        self.assertIn("project path", self.report({"check": self.CHECK, "status": "passed", "evidence": "../record.md",
+                                                   "owner": "Dana"}, code=1)[1])
         self.assertIn("does not exist", self.report({"check": self.CHECK, "status": "passed",
-                                                     "evidence": "docs/record.md"}, code=1)[1])
+                                                     "evidence": "docs/record.md", "owner": "Dana"})[1])
         (self.root / "docs").mkdir()
         (self.root / "docs" / "record.md").write_text("Processing record", encoding="utf-8")
-        self.report(self.RULE, {"check": self.CHECK, "status": "passed", "evidence": "docs/record.md"})
+        self.report(self.RULE, {"check": self.CHECK, "status": "passed", "evidence": "docs/record.md", "owner": "Dana"})
         self.assertEqual(self.run_cli("task", "complete", TASK)[0].strip(), "done")
         self.assertEqual(self.checks()[self.CHECK]["evidence"], "docs/record.md")
 
@@ -273,16 +271,18 @@ class VerifyAndEvidenceTests(unittest.TestCase):
         self.approved([when], data="personal")
         output, _ = self.run_cli("task", "result", TASK, "--template")
         entry = next(item for item in json.loads(output)["checks"] if item["check"] == self.CHECK)
-        self.assertTrue(entry["must_supply"])
-        _, error = self.report(self.RULE, self.NOT_APPLICABLE, code=1)
+        self.assertEqual(entry["requirement"], "passed")
+        output, error = self.report(self.RULE, self.NOT_APPLICABLE)
+        self.assertIn("Not recorded: " + self.CHECK, error)
         self.assertIn("data is personal", error)
+        self.assertIn("rule:team-rules/record-processing: passed", output)
 
     def test_an_evidence_condition_names_known_data_answers(self):
         bad = {**self.RECORD, "evidence": [{**self.RECORD["evidence"][0], "when": {"data": ["secret"]}}]}
         with self.assertRaisesRegex(CatalogError, "when.data"):
-            _validate_entry("packs", pack([bad]))
+            validate_entry("packs", pack([bad]))
         with self.assertRaisesRegex(CatalogError, "when"):
-            _validate_entry("packs", pack([{**self.RECORD, "evidence": [{**self.RECORD["evidence"][0], "when": {}}]}]))
+            validate_entry("packs", pack([{**self.RECORD, "evidence": [{**self.RECORD["evidence"][0], "when": {}}]}]))
 
     def test_a_named_evidence_can_be_an_https_link_and_appears_in_the_instructions(self):
         self.approved([{"id": "assess-dpia", "instruction": "Ask about the assessment.", "verification": "Link it.",
@@ -291,7 +291,7 @@ class VerifyAndEvidenceTests(unittest.TestCase):
         self.assertIn("Evidence for task result: Decision on the impact assessment", instructions)
         self.report({"check": "rule:team-rules/assess-dpia", "status": "passed", "evidence": "Asked."},
                     {"check": "evidence:team-rules/assess-dpia/dpia-decision", "status": "passed",
-                     "evidence": "https://wiki.example.test/privacy/dpia-42"})
+                     "evidence": "https://wiki.example.test/privacy/dpia-42", "owner": "Dana"})
         self.assertEqual(self.run_cli("task", "complete", TASK)[0].strip(), "done")
 
 
@@ -307,7 +307,56 @@ class RegulationPackTests(unittest.TestCase):
             with self.subTest(rule=rule["id"]):
                 self.assertRegex(rule["instruction"], r"Requirements? \d+(\.\d+)*")
         urls = [source["url"] for source in pci["sources"]]
-        self.assertTrue(all(re.match(r"https://(www|blog)\.pcisecuritystandards\.org/", url) for url in urls))
+        # The requirements come from the PCI SSC; the secret scanners that the 8.6.2 check looks for, from their projects.
+        scanners = {"https://github.com/gitleaks/gitleaks", "https://github.com/trufflesecurity/trufflehog",
+                    "https://github.com/Yelp/detect-secrets"}
+        self.assertTrue(all(re.match(r"https://(www|blog|listings)\.pcisecuritystandards\.org/", url) or url in scanners
+                            for url in urls))
+
+    def test_pci_dss_covers_what_a_development_team_meets_first(self):
+        pci = self.catalog["packs"]["pci-dss"]
+        rules = {rule["id"]: rule for rule in pci["rules"]}
+        for rule_id, requirement in (("mask-displayed-pan", "3.4.1"), ("no-live-pans-before-production", "6.5.5"),
+                                     ("remove-test-data-before-production", "6.5.6"),
+                                     ("no-hard-coded-passwords", "8.6.2")):
+            with self.subTest(rule=rule_id):
+                self.assertIn(f"Requirement {requirement}", rules[rule_id]["instruction"])
+                self.assertTrue(rules[rule_id]["verification"])
+        scanner = rules["no-hard-coded-passwords"]["check"]
+        self.assertEqual((scanner["kind"], scanner["expect"]), ("text", "present"))
+        self.assertIn("gitleaks", scanner["contains"])
+        self.assertIn(".pre-commit-config.yaml", scanner["paths"])
+        self.assertIn("PCI SSC Document Library", pci["description"])
+        dated = {source["url"]: source["checked"] for source in pci["sources"]}
+        self.assertEqual(dated["https://www.pcisecuritystandards.org/document_library/?class=pcidss&doc=pci_dss"],
+                         "2026-11-22")
+        self.assertEqual(dated["https://listings.pcisecuritystandards.org/documents/PCI-DSS-v4-0-SAQ-D-Merchant.pdf"],
+                         "2026-11-22")
+
+    def test_the_pci_dss_proposal_says_the_questionnaire_depends_on_the_integration(self):
+        questions = {question["id"]: question for question in init_questions(self.catalog, "Shop")}
+        norm = next(norm for norm in questions["norms"]["norms"] if norm["id"] == "pci-dss-cardholder-data")
+        self.assertIn("self-assessment questionnaire", norm["help"])
+        self.assertIn("depends on the payment integration", norm["help"])
+        self.assertIn("https://listings.pcisecuritystandards.org/documents/PCI-DSS-v4-0-SAQ-A.pdf",
+                      [source["url"] for source in norm["sources"]])
+
+    def test_iso_27001_names_the_development_controls_and_only_controls_of_annex_a(self):
+        rules = self.catalog["packs"]["iso-27001"]["rules"]
+        text = " ".join(rule["instruction"] for rule in rules)
+        for control in ("8.25", "8.28", "8.29", "8.31", "8.32", "8.33"):
+            self.assertRegex(text, rf"\b{re.escape(control)}\b")
+        # ISO/IEC 27001:2022 Annex A takes the 93 controls of ISO/IEC 27002:2022: 37 organizational (5.x), 8 people
+        # (6.x), 14 physical (7.x) and 34 technological (8.x), as the ISO/IEC JTC 1/SC 27 Journal of July 2022 says.
+        annex_a = {f"{clause}.{number}" for clause, count in ((5, 37), (6, 8), (7, 14), (8, 34))
+                   for number in range(1, count + 1)}
+        self.assertEqual(len(annex_a), 93)
+        cited = {(rule["id"], control) for rule in rules if "Annex A" in rule["instruction"]
+                 for control in re.findall(r"(?<![\d.])(\d+\.\d+)(?![\d])", rule["instruction"])}
+        self.assertGreater(len(cited), 20)
+        for rule_id, control in sorted(cited):
+            with self.subTest(rule=rule_id, control=control):
+                self.assertIn(control, annex_a)
 
     def test_pci_dss_is_proposed_for_a_payment_stack_and_never_imposed(self):
         with_cards = profile_recommendations({"stack": ["Python", "Stripe"]}, self.catalog)
@@ -347,7 +396,8 @@ class RegulationPackTests(unittest.TestCase):
         self.assertIn("register-of-information", evidence["dora"])
         for pack_id in ("nis2", "cyber-resilience-act"):
             checks = [rule["check"] for rule in packs[pack_id]["rules"] if "check" in rule]
-            self.assertEqual(checks[0]["kind"], "file-exists", pack_id)
+            self.assertIn({"kind": "file-exists", "paths": ["SECURITY.md", ".github/SECURITY.md", "docs/SECURITY.md"]},
+                          checks, pack_id)
 
     def test_financial_services_has_dora_and_gdpr_by_default_unless_declined(self):
         default = validate_profile({"name": "Ledger", "sector": "financial-services"}, self.catalog)
@@ -356,7 +406,14 @@ class RegulationPackTests(unittest.TestCase):
                                    self.catalog)
         self.assertNotIn("gdpr", resolved_profile(no_data, self.catalog)["packs"])
         with tempfile.TemporaryDirectory() as directory:
+            # A norm is active only once a person accepts it (#153): init stops until each one is answered.
             write_json(Path(directory) / "answers.json", {"name": "Ledger", "sector": "financial-services"})
+            errors = io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(errors):
+                self.assertEqual(main(["--project", directory, "init", "--answers", f"{directory}/answers.json"]), 1)
+            self.assertIn("dora-financial-entity", errors.getvalue())
+            write_json(Path(directory) / "answers.json", {"name": "Ledger", "sector": "financial-services", "norms": {
+                "dora-financial-entity": "yes", "gdpr-personal-data": "yes", "european-accessibility-act": "yes"}})
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                 self.assertEqual(main(["--project", directory, "init", "--answers", f"{directory}/answers.json"]), 0)
             created = json.loads((Path(directory) / ".openguildkit" / "project.json").read_text(encoding="utf-8"))

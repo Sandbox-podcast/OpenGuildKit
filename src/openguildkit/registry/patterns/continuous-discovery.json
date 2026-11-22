@@ -14,6 +14,9 @@
     "design",
     "project-management"
   ],
+  "core_for": [
+    "product"
+  ],
   "packs": [
     "product-discovery"
   ]

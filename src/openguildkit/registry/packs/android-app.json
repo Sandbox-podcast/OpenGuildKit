@@ -1,7 +1,7 @@
 {
   "id": "android-app",
   "title": "Android apps",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "For an Android app in Kotlin or Java: Play target API level, exported components, cleartext traffic, runtime permissions, release optimization and lint.",
   "sources": [
     {
@@ -65,6 +65,22 @@
       "id": "pass-android-lint",
       "instruction": "Run Android lint on the changed modules and fix new errors, or record them in the lint baseline with a reason.",
       "verification": "Run `./gradlew lint` in CI and check that the report shows no new error compared with the baseline."
+    },
+    {
+      "id": "no-global-cleartext-traffic",
+      "instruction": "Do not set `android:usesCleartextTraffic=\"true\"` in the application manifest.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "app/src/main/AndroidManifest.xml",
+          "*/src/main/AndroidManifest.xml"
+        ],
+        "contains": [
+          "usesCleartextTraffic=\"true\""
+        ],
+        "expect": "absent"
+      }
     }
   ]
 }

@@ -5,6 +5,8 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { ApiError, run, type CliResult, type RunOptions } from './api';
 import { toast } from '@/shared/ui/toast';
+import { touchedTasks } from './labels';
+import { errorText } from './refusals';
 
 interface Entry { data?: unknown; error?: ApiError; loading: boolean; stale: boolean; at: number }
 
@@ -56,7 +58,7 @@ export function useCli<T>(argv: string[] | null, opts: Pick<RunOptions, 'omit'> 
   remember(key, argv);
   return useQuery<T>(key, useCallback(async () => {
     const result = await run<T>(argv!, undefined, { omit: opts.omit });
-    if (result.json === null) throw new ApiError(`La commande « ${argv!.join(' ')} » n’a pas renvoyé de JSON.${result.stdout ? ` Sortie : ${result.stdout.slice(0, 200)}` : ''}`, 200, null, result);
+    if (result.json === null) throw new ApiError(`La commande « ${argv!.join(' ')} » n’a pas renvoyé de JSON.${result.stdout ? ` Sortie : ${result.stdout.slice(0, 200)}` : ''}`, 200, { result });
     return result.json;
   }, [key]));
 }
@@ -74,7 +76,6 @@ export function useCliResult(argv: string[] | null): Query<CliResult> {
   return useQuery<CliResult>(key, useCallback(() => run(argv!, undefined, { allowFailure: true, raw: true }), [key]));
 }
 
-/** Marks everything stale: mounted views reload. Called after each action. */
 /**
  * Commands whose answer depends only on the catalog in force (brains, references, patterns, packs, tools,
  * deliverable templates): an ordinary action leaves them as they are.
@@ -92,11 +93,26 @@ export function invalidate(scope: 'all' | 'project' = 'all') {
 }
 
 /* ------------------------------------------------------------------ terminal hand-off */
-export interface TerminalRequest { title: string; why: string; command: string; after?: string }
+/** why: what the page says, in French or marked English (lang); detail: the server's own words behind a French text. */
+export interface TerminalRequest { title: string; why: string; lang?: 'en'; detail?: string; command: string; after?: string }
 let terminal: TerminalRequest | null = null;
 const terminalListeners = new Set<() => void>();
 export const showTerminal = (request: TerminalRequest | null) => { terminal = request; terminalListeners.forEach((l) => l()); };
 export const useTerminalRequest = () => useSyncExternalStore((l) => { terminalListeners.add(l); return () => { terminalListeners.delete(l); }; }, () => terminal);
+
+/* ------------------------------------------------------------------ tasks a change of rules touched */
+interface Touched { id: string; status: string; step: string }
+let touched: Touched[] | null = null;
+const touchedListeners = new Set<() => void>();
+/** Keeps on screen the tasks that sync, update --apply or a saved profile names, until the person closes the list. */
+export const showTouched = (list: Touched[] | null) => { touched = list?.length ? list : null; touchedListeners.forEach((l) => l()); };
+export const useTouched = () => useSyncExternalStore((l) => { touchedListeners.add(l); return () => { touchedListeners.delete(l); }; }, () => touched);
+/** After a command that rewrites the rules, the tasks it names (or none: the earlier list no longer applies). */
+export function reportTouched(argv: string[], stdout: string) {
+  const list = touchedTasks(stdout);
+  if (list.length || changesCatalog(argv) || argv[0] === 'profile') showTouched(list);
+  return list;
+}
 
 /* ------------------------------------------------------------------ actions */
 export interface ActionOptions { uploads?: Record<string, string>; success?: string; quiet?: boolean; onDone?: (r: CliResult) => void }
@@ -110,14 +126,19 @@ export function useAction() {
     setError(null);
     try {
       const result = await run(argv, opts.uploads, { raw: true });
-      if (!opts.quiet) toast({ tone: 'success', title: opts.success ?? 'Enregistré', text: result.stdout.trim().split('\n').slice(0, 2).join(' ').slice(0, 180) || undefined });
+      const named = reportTouched(argv, result.stdout);
+      const printed = result.stdout.trim().split('\n').slice(0, 2).join(' ').slice(0, 180);
+      if (!opts.quiet) toast({ tone: 'success', title: opts.success ?? 'Enregistré', ...(named.length ? { text: `${named.length} tâche(s) consultée(s) sous les règles précédentes : la liste est affichée sur la page.` } : printed ? { text: printed, lang: 'en' as const } : {}) });
       opts.onDone?.(result);
       invalidate(changesCatalog(argv) ? 'all' : 'project');
       return result;
     } catch (caught) {
       const failure = caught instanceof ApiError ? caught : new ApiError(String(caught), 0);
-      if (failure.command) showTerminal({ title: 'À faire dans votre terminal', why: failure.message, command: failure.command });
-      else { setError(failure); toast({ tone: 'danger', title: 'Commande refusée', text: failure.message.slice(0, 240) }); }
+      // A refused command can still have recorded something: task submit keeps a failed pass, task verify its checks.
+      if (failure.result) invalidate('project');
+      const shown = errorText(failure);
+      if (failure.command) showTerminal({ title: 'À faire dans ton terminal', why: shown.text, lang: shown.lang, detail: shown.detail, command: failure.command });
+      else { setError(failure); toast({ tone: 'danger', title: 'Commande refusée', text: shown.text.slice(0, 240), lang: shown.lang }); }
       return null;
     } finally {
       setBusy(null);

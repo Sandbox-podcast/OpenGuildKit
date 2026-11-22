@@ -18,6 +18,9 @@
     "communication",
     "support"
   ],
+  "core_for": [
+    "communication"
+  ],
   "packs": [
     "release-communication"
   ],

@@ -1,13 +1,22 @@
 """Briefs that must, or must not, reach each brain. CI runs them on every catalog change."""
 
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
 from openguildkit.catalog import load_catalog
-from openguildkit.workflow import normalize_text, select_boards, text_routes, trigger_matches, validate_answers
+from openguildkit.project import check_component, task_scope_profile, validate_profile
+from openguildkit.storage import write_json
+from openguildkit.consultation import consult
+from openguildkit.questionnaire import require_concerns, validate_answers
+from openguildkit.routing import normalize_text, normalize_with_offsets, select_boards, text_routes, trigger_matches
 
-# routing_cases_new_brains.json holds the cases of the brains added after the first eighteen.
+from tests.support import run_cli
+from tests.test_pass_relevance import ProjectCase
+
+# routing_cases_new_brains.json holds the cases of the brains added after the first eighteen, then the cases that
+# route by the project's stack and components: they carry a profile and answers, and the boards the route chooses.
 CASES = [
     case
     for name in ("routing_cases.json", "routing_cases_new_brains.json")
@@ -35,6 +44,41 @@ class RoutingTests(unittest.TestCase):
                     self.assertIn(board, selected, f"{board} should review: {selected}")
                 for board in case.get("must_not", []):
                     self.assertNotIn(board, selected, f"{board} should not review: {selected}")
+
+    def test_a_consultation_routes_the_table_through_the_same_reading(self):
+        # select_boards, which task consult and task route call, selects every board the table expects.
+        for case in CASES:
+            with self.subTest(brief=case["brief"]):
+                must = set(case.get("must", []))
+                routing = self.route(case["brief"])["routing"]
+                self.assertLessEqual(must, set(routing))
+                routes = text_routes(self.boards, case["brief"])
+                self.assertEqual({board: routing[board] for board in must}, {board: routes[board] for board in must})
+
+    def test_the_table_routes_the_same_from_a_free_text_answer(self):
+        # A consultation reads each free-text answer apart from the brief: the same words route from either.
+        for case in CASES:
+            with self.subTest(brief=case["brief"]):
+                selected = text_routes(self.boards, "", {"context": case["brief"]})
+                for board in case.get("must", []):
+                    self.assertIn(board, selected)
+                for board in case.get("must_not", []):
+                    self.assertNotIn(board, selected)
+
+    def test_the_stack_and_the_components_route_the_declared_roles(self):
+        cases = [case for case in CASES if "profile" in case]
+        self.assertGreaterEqual(len(cases), 5)
+        for case in cases:
+            with self.subTest(brief=case["brief"], profile=case["profile"]):
+                answers = validate_answers({**NEUTRAL, "concerns": ["none"], **case["answers"]})
+                profile = task_scope_profile(validate_profile({"name": "Case", **case["profile"]}, self.catalog),
+                                             self.catalog, answers.get("components", []))
+                routing = select_boards(profile, self.catalog, {"id": "t", "brief": case["brief"]}, answers)["routing"]
+                for board in case.get("routes", []):
+                    self.assertIn(board, routing)
+                    self.assertTrue(any(reason.startswith("Declared role of the project") for reason in routing[board]))
+                for board in case.get("not_routes", []):
+                    self.assertNotIn(board, routing)
 
     def test_every_brain_is_reachable_from_a_plain_brief(self):
         reached = {board for case in CASES for board in case.get("must", [])}
@@ -119,19 +163,179 @@ class RoutingTests(unittest.TestCase):
                 routing = self.route("Rotate the leaked AWS access key", {**NEUTRAL, "data": data})["routing"]
                 self.assertLessEqual({"security", "devops"}, set(routing))
 
-    def test_concerns_are_optional_and_checked(self):
+    def test_concerns_are_checked_and_none_or_unsure_stand_alone(self):
+        # A recorded answer file without concerns still reads; task consult and task route ask for it (require_concerns).
         self.assertNotIn("concerns", validate_answers(NEUTRAL))
+        with self.assertRaisesRegex(ValueError, "Answer concerns.*none, unsure"):
+            require_concerns(validate_answers(NEUTRAL))
         self.assertEqual(validate_answers({**NEUTRAL, "concerns": "money"})["concerns"], ["money"])
         with self.assertRaisesRegex(ValueError, "concerns"):
             validate_answers({**NEUTRAL, "concerns": ["money", "weather"]})
-        with self.assertRaisesRegex(ValueError, "none"):
-            validate_answers({**NEUTRAL, "concerns": ["money", "none"]})
+        for alone in ("none", "unsure"):
+            with self.assertRaisesRegex(ValueError, alone):
+                validate_answers({**NEUTRAL, "concerns": ["money", alone]})
+
+    def test_unsure_concerns_route_the_boards_of_every_topic(self):
+        routing = self.route("Change how the scheduler picks the next item", {**NEUTRAL, "concerns": ["unsure"]})["routing"]
+        self.assertLessEqual({"legal", "data", "security", "finance", "devops"}, set(routing))
+        self.assertIn("Concerns unsure, so this topic stays open: Money: prices, payments, invoices, payroll or spending",
+                      routing["finance"])
+        selected = self.route("Use AI to screen and rank job applicants", {**NEUTRAL, "concerns": ["unsure"]})
+        self.assertEqual(selected["patterns"], self.route("Use AI to screen and rank job applicants")["patterns"])
 
     def test_an_unrecognised_brief_asks_the_requester_to_pick_boards(self):
         routing = self.route("Tidy things up")["routing"]
         self.assertEqual(list(routing), ["product"])
         self.assertIn("No discipline recognised", routing["product"][0])
         self.assertIn("--add", routing["product"][0])
+
+    def test_a_negated_mention_selects_no_board_and_is_shown_as_excluded(self):
+        brief = "Add a CSV export to the report page. No personal data, no payments, no AI, nothing customer-facing, " \
+                "no budget impact."
+        answers = {"kind": "bug", "surface": "service", "data": "none", "research": "local", "concerns": ["none"],
+                   "context": "CSV export of the monthly report. No personal data, no payments, no AI model, "
+                              "no customer screen."}
+        selected = self.route(brief, answers)
+        for board in ("data", "finance", "security"):
+            self.assertNotIn(board, selected["routing"])
+        self.assertIn("no payments", selected["excluded"]["finance"])
+        self.assertIn("no budget", selected["excluded"]["finance"])
+        self.assertIn("No personal data", selected["excluded"]["security"])
+        self.assertIn("no AI model", selected["excluded"]["data"])
+        self.assertNotIn("finance", selected["not_selected"])
+        self.assertIn("legal", selected["not_selected"])
+        self.assertNotIn("legal", selected["expected_not_selected"])
+
+    def test_negations_in_english_and_french(self):
+        negated = {
+            "Export the report without personal data": "security",
+            "Rename the export button; it does not touch the API": "engineering",
+            "Réécrire l'export sans paiement": "finance",
+            "Aucune donnée personnelle dans cet export": "security",
+            "Pas de changement d'interface utilisateur": "design",
+            "Neither invoices nor payments change": "finance",
+            "Rename the job; no vendor, no contract": "procurement",
+        }
+        for brief, board in negated.items():
+            with self.subTest(brief=brief):
+                self.assertNotIn(board, text_routes(self.boards, brief))
+        kept = {
+            "Not only payments but also invoices": "finance",
+            "The export is not without personal data": "security",
+            "Ce n'est pas sans paiement": "finance",
+            "No CSV export: payments go to the ledger": "finance",
+            "Allow no more than 2 API calls": "engineering",
+            "Sans doute du paiement": "finance",
+            "No downtime\n- payment retries": "finance",
+        }
+        for brief, board in kept.items():
+            with self.subTest(brief=brief):
+                self.assertIn(board, text_routes(self.boards, brief))
+
+    def test_a_negated_concept_term_does_not_route_the_concept(self):
+        self.assertNotIn("legal", text_routes(self.boards, "Rank the applicants by date, no AI and no model"))
+        self.assertIn("legal", text_routes(self.boards, "Rank the applicants with an AI model"))
+
+    def test_a_reason_quotes_the_passage_that_triggered_it(self):
+        routes = text_routes(self.boards, "Decide whether to adopt Stripe or Adyen for card payments")
+        self.assertIn("Brief mentions 'payment': \"Adyen for card payments\"", routes["finance"])
+        french =text_routes(self.boards, "Masquer les données personnelles des clients")
+        self.assertIn("\"Masquer les données personnelles des clients\"", french["security"][0])
+
+    def test_the_passage_offsets_follow_the_normalised_text(self):
+        for sample in ("Sécurité  DES Données", "l’appel d’offres", "Straße/ÉTÉ_x", " a\n\tb ", "İstanbul ﬁle"):
+            with self.subTest(sample=sample):
+                normalized, offsets = normalize_with_offsets(sample)
+                self.assertEqual(normalized, normalize_text(sample))
+                self.assertEqual(len(offsets), len(normalized))
+
+    def test_a_declared_role_that_the_task_serves_is_proposed(self):
+        profile = {"name": "Support tools", "sector": "general", "packs": [], "boards": [],
+                   "roles": ["support", "customer-success", "communication"]}
+        answers = {**NEUTRAL, "kind": "feature", "surface": ["business", "service"], "data": "personal",
+                   "affected": "Support managers who paste the weekly numbers into a spreadsheet."}
+        routing = self.route("Let the weekly report be written as a CSV file with --csv", answers, profile)["routing"]
+        self.assertIn("support", routing)
+        self.assertIn("\"Support managers", routing["support"][0])
+        self.assertNotIn("customer-success", routing)
+        answers["affected"] = "The support team and customer-success managers"
+        routing = self.route("Let the weekly report be written as a CSV file with --csv", answers, profile)["routing"]
+        self.assertLessEqual({"support", "customer-success"}, set(routing))
+        answers["affected"] = "Not the support team: finance analysts only"
+        routing = self.route("Let the weekly report be written as a CSV file with --csv", answers, profile)["routing"]
+        self.assertNotIn("support", routing)
+        undeclared = {**profile, "roles": []}
+        answers["affected"] = "Support managers"
+        self.assertNotIn("support", self.route("Let the weekly report be written as a CSV file", answers,
+                                               undeclared)["routing"])
+
+    def test_the_route_lists_the_boards_left_out(self):
+        profile = {"name": "Api", "sector": "general", "packs": [], "boards": ["backend", "devops", "qa", "security"]}
+        answers = {**NEUTRAL, "kind": "bug", "surface": ["service"], "data": "internal"}
+        selected = self.route("Neutralise formula characters in every CSV export", answers, profile)
+        self.assertEqual(set(selected["routing"]), {"qa", "security"})
+        self.assertEqual(selected["not_selected"], ["backend", "devops"])
+        self.assertEqual(selected["excluded"], {})
+
+    def test_a_negation_that_asks_for_the_subject_keeps_the_board_and_says_why(self):
+        kept = text_routes(self.boards, "Sans paiement, la commande n'est pas validée : corriger ce cas")
+        self.assertIn("may name what is needed", kept["finance"][0])
+        self.assertNotIn("may name", text_routes(self.boards, "Do not forget payments in the checkout")["finance"][0])
+
+    def test_the_items_of_a_negated_list_are_all_excluded(self):
+        selected = self.route("Rename the job without touching personal data or secrets")
+        self.assertEqual(selected["excluded"]["security"], ["without touching personal data or secrets"])
+
+    def test_the_consultation_shows_what_the_brief_excludes(self):
+        profile = {"name": "Portal", "sector": "general", "packs": [], "boards": []}
+        answers = {**NEUTRAL, "kind": "feature", "surface": ["service"], "context": "No payments involved."}
+        consultation = consult(profile, self.catalog, {"id": "t", "brief": "Add a CSV export", "answers": answers})
+        self.assertIn("Mentioned as excluded, not consulted: finance (No payments)", consultation["markdown"])
+        self.assertEqual(consultation["excluded"], {"finance": ["No payments"]})
+
+    def test_a_quote_comes_from_one_text_and_ends_on_a_word(self):
+        answers = {**NEUTRAL, "context": "Answer questions with an LLM", "affected": "x users"}
+        routing = self.route("Add a help widget", answers)["routing"]
+        self.assertIn('Brief mentions \'llm\': "questions with an LLM"', routing["data"])
+        self.assertFalse(any("users" in reason for reason in routing["data"]), routing["data"])
+        routes = text_routes(self.boards, "Move the payments to the ledger of the shop")
+        self.assertIn('"Move the payments to the ledger"', routes["finance"][0])
+
+    def test_the_audience_named_in_the_brief_or_context_selects_a_declared_role(self):
+        profile = {"name": "Support tools", "sector": "general", "packs": [], "boards": [],
+                   "roles": ["support", "customer-success"]}
+        answers = {**NEUTRAL, "kind": "feature", "surface": ["business"], "affected": "users"}
+        routing = self.route("Zendesk ticket report for our support agents", answers, profile)["routing"]
+        self.assertIn('"report for our support agents"', routing["support"][-1])
+        answers["context"] = "Audience: support team and customer-success managers"
+        routing = self.route("Weekly ticket report", answers, profile)["routing"]
+        self.assertLessEqual({"support", "customer-success"}, set(routing))
+        answers["context"] = "Public : l'équipe support"
+        self.assertIn("support", self.route("Rapport hebdomadaire des tickets", answers, profile)["routing"])
+        answers["context"] = "Add support for Safari 16"
+        self.assertNotIn("support", self.route("Fix the layout", answers, profile)["routing"])
+
+    def test_a_hyphenated_role_further_in_an_audience_list_is_selected(self):
+        profile = {"name": "Support tools", "sector": "general", "packs": [], "boards": [],
+                   "roles": ["support", "customer-success"]}
+        for field, text in (("context", "Read by the support team and customer-success managers"),
+                            ("context", "Pour l'équipe support et les responsables customer-success"),
+                            ("affected", "The support team and customer-success managers")):
+            with self.subTest(text=text):
+                answers = {**NEUTRAL, "kind": "feature", "surface": ["business"], field: text}
+                selected = self.route("Weekly ticket report", answers, profile)
+                self.assertLessEqual({"support", "customer-success"}, set(selected["routing"]))
+                self.assertNotIn("customer-success", selected["expected_not_selected"])
+
+    def test_the_boards_the_team_expects_get_a_reason_each(self):
+        profile = {"name": "Shop", "sector": "general", "packs": [], "boards": [], "roles": ["backend", "finance"]}
+        answers = {**NEUTRAL, "kind": "bug", "surface": ["customer"]}
+        selected = self.route("Fix the colour of the header", answers, profile)
+        self.assertEqual(set(selected["expected_not_selected"]), {"backend", "finance"})
+        self.assertIn("declared role", selected["expected_not_selected"]["backend"])
+        self.assertIn("backend, server-side", selected["expected_not_selected"]["backend"])
+        self.assertIn("legal", selected["not_selected"])
+        self.assertNotIn("legal", selected["expected_not_selected"])
 
     def test_dora_metrics_and_service_discovery_are_not_regulation_or_product(self):
         self.assertNotIn("legal", text_routes(self.boards, "Track DORA lead time for changes"))
@@ -153,18 +357,130 @@ class RoutingTests(unittest.TestCase):
 
     def test_the_reason_quotes_the_passage_that_routes_a_brain(self):
         reasons = text_routes(self.boards, "Add billing and payment retries")["finance"]
-        self.assertTrue(all("add billing and payment retries" in reason for reason in reasons), reasons)
+        self.assertTrue(all("add billing and payment retries" in reason.casefold() for reason in reasons), reasons)
 
     def test_the_route_lists_the_boards_it_leaves_out_and_how_to_change_them(self):
         profile = {"name": "Portal", "sector": "general", "packs": [], "boards": [], "roles": ["support"]}
         routed = self.route("A weekly report for the support team", profile=profile)
         self.assertIn("support", routed["routing"])
-        self.assertIn("Declared role", routed["routing"]["support"][0])
-        left_out = {item["board"]: item["reason"] for item in routed["not_selected"]}
+        self.assertTrue(any("Declared role" in reason for reason in routed["routing"]["support"]), routed["routing"])
+        left_out = set(routed["not_selected"])
         self.assertNotIn("support", left_out)
         self.assertIn("finance", left_out)
-        self.assertEqual(set(left_out) | set(routed["routing"]), set(self.boards))
-        self.assertIn("--add BOARD --reason", routed["commands"]["add"])
+        self.assertEqual(left_out | set(routed["routing"]) | set(routed["excluded"]), set(self.boards))
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_json(root / "p.json", profile)
+            write_json(root / "a.json", {**NEUTRAL, "concerns": ["none"]})
+            run_cli(root, "init", "--answers", root / "p.json")
+            run_cli(root, "task", "new", "A weekly report for the support team", "--id", "report")
+            route = run_cli(root, "task", "route", "report", "--answers", root / "a.json")
+        self.assertIn("--add BOARD --remove BOARD --reason TEXT", route.stdout)
+
+
+
+class RouteOutputTests(unittest.TestCase):
+    def test_route_explains_exclusions_left_out_boards_tools_and_how_to_change(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "setup.json").write_text(json.dumps({
+                "name": "Support tools", "sector": "general", "stack": ["Python"], "personal_data": "no",
+                "roles": ["support", "engineering"], "boards": ["engineering", "product", "qa", "finance", "support"],
+                "host": "other", "guard": "off", "research": "local-only"}), encoding="utf-8")
+            (root / "answers.json").write_text(json.dumps({
+                "kind": "bug", "surface": "service", "data": "none", "research": "local", "concerns": ["none"],
+                "context": "No payments involved.", "affected": "Support managers"}), encoding="utf-8")
+            run_cli(root, "init", "--answers", root / "setup.json")
+            run_cli(root, "tools", "apply", "zendesk", "--mock", "--host", "claude-code")
+            run_cli(root, "task", "new", "Write the weekly report as a CSV file", "--id", "report-csv")
+            route = run_cli(root, "task", "route", "report-csv", "--answers", root / "answers.json").stdout
+            self.assertIn('support: Declared role of the project, and the task is for "Support managers"', route)
+            self.assertIn("  tools: Zendesk (connected)", route)
+            self.assertIn("Mentioned as excluded: finance (No payments)", route)
+            self.assertNotIn("finance:", route)
+            self.assertIn("Not selected, although the project expects them:\n  product: enabled in the profile", route)
+            self.assertNotIn("Other boards", route)
+            self.assertIn("--add BOARD --remove BOARD --reason TEXT", route)
+            answers = (root / "answers.json").as_posix()
+            route = run_cli(root, "task", "route", "report-csv", "--answers", root / "answers.json",
+                             "--add", "product", "--remove", "qa", "--reason", "Scope only, tests exist").stdout
+            self.assertIn(f'Apply: openguildkit task consult report-csv --answers {answers} --add product '
+                          "--remove qa --reason 'Scope only, tests exist'", route)
+            selected = json.loads(run_cli(root, "task", "route", "report-csv", "--answers", root / "answers.json",
+                                           "--json").stdout)
+            self.assertEqual(selected["excluded"], {"finance": ["No payments"]})
+
+    def test_route_shows_the_tools_of_the_project_and_who_can_query_a_named_one(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "setup.json").write_text(json.dumps({
+                "name": "Support tools", "sector": "general", "stack": ["Python"], "personal_data": "no",
+                "roles": ["support", "customer-success"], "tools": ["Zendesk", "Jira"],
+                "host": "other", "guard": "off", "research": "local-only"}), encoding="utf-8")
+            (root / "answers.json").write_text(json.dumps({
+                "kind": "feature", "surface": "business", "data": "none", "research": "local", "concerns": ["none"],
+                "context": "Audience: support agents", "affected": "users"}), encoding="utf-8")
+            run_cli(root, "init", "--answers", root / "setup.json")
+            run_cli(root, "task", "new", "Zendesk ticket report for our support agents", "--id", "report")
+            route = run_cli(root, "task", "route", "report", "--answers", root / "answers.json").stdout
+            self.assertIn("  tools: Zendesk (listed, not connected)", route)
+            self.assertIn("The brief names Zendesk: support (selected) can query it; customer-success, operations, "
+                          "trust-and-safety could, with --add.", route)
+            self.assertIn("Other boards you can add with --add:", route)
+
+
+# The monorepo of the audit (core-06): a web, an API and an infrastructure component, each check run from its folder.
+MONOREPO = {"name": "Nova Shop", "sector": "general",
+            "components": [{"id": "web", "path": "apps/web", "stack": ["React 18.3", "TypeScript 5.6"]},
+                           {"id": "api", "path": "services/api", "stack": ["Python 3.12", "FastAPI 0.115", "PostgreSQL 16"]},
+                           {"id": "infra", "path": "infra", "stack": ["Terraform 1.6"]}],
+            "roles": ["frontend", "backend", "devops", "security", "qa", "product"],
+            "personal_data": "yes", "people_decisions": "no", "norms": {"gdpr-personal-data": "yes"},
+            "host": "other", "guard": "off", "research": "local-only",
+            "checks": ["cd apps/web && npm test", "cd services/api && python3 -m pytest -q", "cd apps/web/e2e && npx playwright test",
+                       "make lint"]}
+PRICE_LABEL = {"kind": "bug", "surface": ["customer"], "data": "none", "research": "local", "concerns": ["none"],
+               "components": ["web"], "outcome": "Cart prices always show two decimals; reproduce with a 1234.5 price.",
+               "affected": "Shoppers"}
+
+
+class ComponentTaskTests(ProjectCase):
+    """A task limited to a component runs that component's checks and consults the board of its stack (issue 11)."""
+
+    def test_a_task_on_one_component_runs_its_checks_and_consults_the_board_of_its_stack(self):
+        self.init(MONOREPO)
+        brief = "Fix the price label: apps/web/src/price.ts shows three decimals in the cart."
+        self.cli("task", "new", brief, "--id", "price-label")
+        write_json(self.root / "price.json", PRICE_LABEL)
+        route = self.cli("task", "route", "price-label", "--answers", self.root / "price.json")
+        self.assertIn("frontend: Declared role of the project, and the task touches component web, whose stack names "
+                      "react, typescript", route)
+        self.assertNotRegex(route, r"(?m)^backend:")
+        self.cli("task", "consult", "price-label", "--answers", self.root / "price.json")
+        scope = json.loads(self.cli("task", "show", "price-label"))["consultation"]["scope"]
+        self.assertEqual(scope["checks"], ["cd apps/web && npm test", "cd apps/web/e2e && npx playwright test",
+                                           "make lint"])
+        self.approve("price-label")
+        checks = json.loads(self.cli("task", "checks", "price-label", "--json"))
+        commands = [check["command"] for check in checks if check["kind"] == "command"]
+        self.assertNotIn("cd services/api && python3 -m pytest -q", commands)
+        asked = {check["pack"] for check in checks if check.get("pack") and check["concerned"]}
+        self.assertLessEqual({"frontend-delivery", "web-accessibility", "web-performance"}, asked)
+
+    def test_a_check_run_from_a_component_folder_belongs_to_that_component(self):
+        profile = validate_profile({key: MONOREPO[key] for key in ("name", "components", "checks")}, self.catalog)
+        self.assertEqual(task_scope_profile(profile, self.catalog, ["api"])["checks"],
+                         ["cd services/api && python3 -m pytest -q", "make lint"])
+        self.assertEqual(task_scope_profile(profile, self.catalog, ["infra"])["checks"], ["make lint"])
+        self.assertEqual(task_scope_profile(profile, self.catalog, [])["checks"], MONOREPO["checks"])
+        self.assertEqual(check_component('cd "apps/web" && npm test', profile["components"]), "web")
+        self.assertEqual(check_component("cd apps/webshop && npm test", profile["components"]), None)
+
+    def test_a_task_that_names_no_component_keeps_every_check(self):
+        self.init(MONOREPO)
+        answers = {key: value for key, value in PRICE_LABEL.items() if key != "components"}
+        task = self.consult("whole", "Show the delivery date on every order page.", answers)
+        self.assertEqual(len(task["consultation"]["scope"]["checks"]), 4)
 
 
 if __name__ == "__main__":

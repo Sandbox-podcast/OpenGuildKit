@@ -34,7 +34,8 @@
           "status": "unknown",
           "capabilities": "List and search bases, change schema, read, create and update records, comment, manage disabled automations, within the user's permissions.",
           "source": "https://airtable.com/developers/agents/mcp/getting-started",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -77,7 +78,8 @@
           "status": "unknown",
           "capabilities": "List datasets and tables, read schemas and run SQL queries in BigQuery.",
           "source": "https://docs.cloud.google.com/bigquery/docs/use-bigquery-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         }
       ],
       "api": {
@@ -112,10 +114,11 @@
           "url": "https://mcp.contentful.com/mcp",
           "auth": "oauth",
           "env": [],
-          "status": "ga",
+          "status": "unknown",
           "capabilities": "Manage entries, assets, content types and environments with the user's Contentful permissions.",
           "source": "https://www.contentful.com/developers/docs/tools/mcp-server/",
-          "verified": "2026-11-21"
+          "verified": "2026-11-22",
+          "access": "Read and write."
         },
         {
           "id": "contentful-local",
@@ -144,7 +147,8 @@
           "source": "https://www.contentful.com/developers/docs/tools/mcp-server/",
           "repository": "https://github.com/contentful/contentful-mcp-server",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -187,7 +191,9 @@
           "status": "ga",
           "capabilities": "Ask questions over governed data through Genie from an MCP client.",
           "source": "https://docs.databricks.com/aws/en/generative-ai/mcp/managed-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-22",
+          "access": "Read operations described; no enforced read-only mode is recorded.",
+          "status_source": "https://docs.databricks.com/aws/en/generative-ai/mcp/managed-mcp"
         },
         {
           "id": "databricks-dbsql",
@@ -207,7 +213,9 @@
           "status": "beta",
           "capabilities": "Run SQL on Databricks SQL warehouses.",
           "source": "https://docs.databricks.com/aws/en/generative-ai/mcp/managed-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-22",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given.",
+          "status_source": "https://docs.databricks.com/aws/en/generative-ai/mcp/managed-mcp"
         }
       ],
       "api": {
@@ -259,7 +267,8 @@
           "source": "https://docs.getdbt.com/docs/dbt-ai/mcp-environment-variables",
           "repository": "https://github.com/dbt-labs/dbt-mcp",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         },
         {
           "id": "dbt-mcp-remote",
@@ -279,7 +288,8 @@
           "status": "unknown",
           "capabilities": "Hosted dbt MCP on the dbt platform: Semantic Layer, Discovery and SQL tools without local install.",
           "source": "https://docs.getdbt.com/docs/dbt-ai/setup-remote-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         }
       ],
       "api": {
@@ -322,7 +332,8 @@
           "status": "unknown",
           "capabilities": "Query and manage Atlas clusters, databases and collections with OAuth sign-in.",
           "source": "https://www.mongodb.com/docs/mcp-server/get-started/",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         },
         {
           "id": "mongodb-mcp-server",
@@ -347,11 +358,16 @@
             "MDB_MCP_API_CLIENT_SECRET"
           ],
           "status": "unknown",
-          "capabilities": "Query and manage any MongoDB deployment by connection string, plus Atlas admin tools with service-account credentials.",
+          "capabilities": "Connect to MongoDB deployments and query data and metadata. The registered invocation sets --readOnly.",
           "source": "https://github.com/mongodb-js/mongodb-mcp-server",
           "repository": "https://github.com/mongodb-js/mongodb-mcp-server",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read-only.",
+          "scopes": "Database or Atlas roles held by the supplied credentials. Consent: Supply a MongoDB connection string or Atlas service account credentials for the intended deployment.",
+          "read_only": {
+            "how": "The registered command starts the server with --readOnly: only read tools are exposed."
+          }
         }
       ],
       "api": {
@@ -391,7 +407,13 @@
           "source": "https://github.com/neondatabase/mcp-server-neon",
           "repository": "https://github.com/neondatabase/mcp-server-neon",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write.",
+          "scopes": "Projects and operations accessible to the authorized identity. Consent: Approve the Neon OAuth request or supply an authorized Neon API key.",
+          "read_only": {
+            "how": "The endpoint https://mcp.neon.tech/mcp?readonly=true exposes only read tools.",
+            "url": "https://mcp.neon.tech/mcp?readonly=true"
+          }
         }
       ],
       "api": {
@@ -456,7 +478,8 @@
           "source": "https://github.com/googleapis/mcp-toolbox",
           "repository": "https://github.com/googleapis/mcp-toolbox",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         }
       ],
       "notes": "PostgreSQL has no vendor MCP server. This one is published by Google (about 16,900 stars, active), so it counts as community for PostgreSQL; database user/password are credentials, so use a dedicated least-privilege role. The archived reference server from modelcontextprotocol/servers should not be used."
@@ -513,7 +536,8 @@
           "source": "https://github.com/redis/mcp-redis",
           "repository": "https://github.com/redis/mcp-redis",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -554,7 +578,9 @@
           "source": "https://www.sanity.io/docs/ai/mcp-server",
           "repository": "https://github.com/sanity-io/agent-toolkit",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-22",
+          "access": "Read and write.",
+          "status_source": "https://www.sanity.io/docs/ai/mcp-server"
         }
       ],
       "api": {
@@ -633,7 +659,8 @@
           "status": "unknown",
           "capabilities": "Expose Cortex Search, Cortex Analyst, Cortex Agents, SQL execution and custom tools defined on an MCP server object.",
           "source": "https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         }
       ],
       "api": {
@@ -670,7 +697,8 @@
           "status": "unknown",
           "capabilities": "Manage content of a Strapi instance with an admin token's permissions.",
           "source": "https://docs.strapi.io/cms/features/strapi-mcp-server",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -716,7 +744,13 @@
           "source": "https://github.com/supabase/mcp",
           "repository": "https://github.com/supabase/mcp",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write.",
+          "scopes": "Authorized organization, subject to any project_ref and features filters. Consent: Sign in to Supabase and authorize access to the intended organization.",
+          "read_only": {
+            "how": "The endpoint https://mcp.supabase.com/mcp?read_only=true exposes only read tools and runs SQL as a read-only Postgres role; project_ref and features filters still apply.",
+            "url": "https://mcp.supabase.com/mcp?read_only=true"
+          }
         }
       ],
       "api": {

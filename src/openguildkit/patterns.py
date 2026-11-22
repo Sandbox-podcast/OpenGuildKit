@@ -53,9 +53,6 @@ def technology_key(text: str) -> str:
     return "".join(character for character in normalized if character.isalnum() or character in "+#")
 
 
-_technology_key = technology_key
-
-
 def technology_version(text: str) -> str | None:
     """Return the numeric lower bound of a version or range written after the technology name."""
     match = STACK_VERSION.search(text.strip())
@@ -119,8 +116,11 @@ def is_stack_pattern(pattern: dict) -> bool:
     return bool(pattern.get("match", {}).get("stack"))
 
 
-def condition_reasons(pattern: dict, sector: str, personal_data: bool | None) -> list[str]:
-    """Why a pattern without a stack is preselected: the project's sector or its personal data.
+def condition_reasons(
+    pattern: dict, sector: str, personal_data: bool | None, people_decisions: bool | None = None
+) -> list[str]:
+    """Why a pattern without a stack is preselected: the project's sector, its personal data, or its
+    decisions about people.
 
     A personal data pattern is never preselected for a project that answered it processes none.
     """
@@ -132,11 +132,27 @@ def condition_reasons(pattern: dict, sector: str, personal_data: bool | None) ->
         reasons.append(f"sector {sector}")
     if match.get("personal_data") and personal_data is True:
         reasons.append("personal data")
+    if match.get("people_decisions") and people_decisions is True:
+        reasons.append("decisions about people")
     return reasons
 
 
 def _role_reason(roles: list[str]) -> str:
     return f"role {', '.join(roles)}"
+
+
+def core_roles(pattern: dict, roles: list[str]) -> list[str]:
+    """The selected roles for which the catalog marks this method as core, preselected by the role alone.
+
+    A method is core for a role when its rules apply to any work of that discipline, whatever the
+    product, its interface or its domain; the catalog marks one or two per role at most.
+    """
+    return [role for role in pattern.get("core_for", []) if role in roles]
+
+
+def _suggestion_reason(pattern: dict, roles: list[str]) -> str:
+    """One line saying why a method is offered to a role without being preselected."""
+    return f"{_role_reason(roles)}: {pattern['description']}"
 
 
 def _conflicting(entry: dict, others: list[dict], packs: dict) -> bool:
@@ -154,14 +170,15 @@ def _conflicting(entry: dict, others: list[dict], packs: dict) -> bool:
 
 def recommend_patterns(
     catalog: dict, stack: list[str], sector: str, roles: list[str], components: list[dict] | None = None,
-    *, personal_data: bool | None = None, declined: list[str] | tuple = (),
+    *, personal_data: bool | None = None, people_decisions: bool | None = None, declined: list[str] | tuple = (),
 ) -> dict:
     """Return the patterns to preselect and the ones to suggest, each with its reasons.
 
     A stack pattern is preselected when its technologies match, inside one component when
     there are components, and in its sectors when it lists some. A pattern without a stack is
     preselected for the sectors it lists or for personal data; otherwise a method is preselected
-    for its roles, while a regulation is only suggested to them. Declined patterns are left out.
+    only for a role it is core for (see core_roles) and suggested to its other roles with a
+    one-line reason, while a regulation is only suggested to them. Declined patterns are left out.
     """
     contexts = stack_contexts(stack, components)
     applicable = []
@@ -189,11 +206,15 @@ def recommend_patterns(
                 entry["version_unknown"] = found["version_unknown"]
             applicable.append(entry)
             continue
-        reasons = condition_reasons(pattern, sector, personal_data)
+        reasons = condition_reasons(pattern, sector, personal_data, people_decisions)
         if reasons:
             applicable.append({**pattern, "reasons": reasons, **({"matched_roles": relevant} if relevant else {})})
-        elif relevant and not match and pattern.get("kind") != "regulation":
-            applicable.append({**pattern, "reasons": [_role_reason(relevant)], "matched_roles": relevant, "by_role": True})
+        elif relevant and not match and pattern.get("kind") != "regulation" and core_roles(pattern, roles):
+            core = core_roles(pattern, roles)
+            applicable.append({**pattern, "reasons": [f"{_role_reason(core)} (core method)"],
+                               "matched_roles": relevant, "by_role": True})
+        elif relevant and pattern.get("kind") != "regulation":
+            suggested.append({**pattern, "matched_roles": relevant, "reasons": [_suggestion_reason(pattern, relevant)]})
         elif relevant:
             suggested.append({**pattern, "matched_roles": relevant, "reasons": [_role_reason(relevant)]})
 

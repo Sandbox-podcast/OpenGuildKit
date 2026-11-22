@@ -4,7 +4,9 @@
 
 Report vulnerabilities privately through GitHub: open the repository's **Security** tab and choose **Report a vulnerability**. Do not open a public issue.
 
-Include the version or commit, the command you ran, what happened and what you expected. Maintainers agree on a disclosure date with the reporter.
+Include the version or commit, the command you ran, what happened and what you expected. The maintainer acknowledges the report within 14 days, then agrees on a disclosure date with the reporter.
+
+OpenGuildKit has one maintainer today (see [GOVERNANCE.md](GOVERNANCE.md)). When the maintainer is away, the report stays private in the **Security** tab, where only the maintainer and the reporter can read it, until the maintainer answers. Keep it private in the meantime; adding a comment to the report brings it back to the maintainer's notifications.
 
 ## In scope
 
@@ -17,6 +19,10 @@ Include the version or commit, the command you ran, what happened and what you e
 
 - Behavior of the host agent or the model it uses.
 - Security of the projects that use OpenGuildKit. The packs help teams ask the right questions; they are not a security audit.
+
+## Personal data
+
+OpenGuildKit records who approved, cleared, waived, closed, reviewed or shared, in files the team commits and in files that stay on each workstation. [Personal data the tool records](docs/personal-data.md) lists each field, why it is kept and how long, and how to replace a name. Give `--by` your initials rather than your full name.
 
 ## Supported versions
 

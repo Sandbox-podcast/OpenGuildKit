@@ -3,10 +3,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit.catalog import CatalogError, _validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.detect import components_for_profile, detect_stack
 from openguildkit.patterns import patterns_to_review, recommend_patterns, technology_version
 from openguildkit.project import pack_scopes, render_instructions, resolved_profile, validate_profile
+from tests.support import run_cli
 
 
 def write(root: Path, relative: str, content) -> None:
@@ -145,10 +146,10 @@ class ComponentPatternTests(unittest.TestCase):
         pattern = json.loads(json.dumps(self.catalog["patterns"]["nextjs-react"]))
         pattern["match"]["min_versions"] = {"vue": "3"}
         with self.assertRaisesRegex(CatalogError, "not a stack alias"):
-            _validate_entry("patterns", pattern)
+            validate_entry("patterns", pattern)
         pattern["match"]["min_versions"] = {"next.js": "13.x"}
         with self.assertRaisesRegex(CatalogError, "version such as"):
-            _validate_entry("patterns", pattern)
+            validate_entry("patterns", pattern)
 
 
 if __name__ == "__main__":
@@ -173,16 +174,12 @@ class ComponentTaskTests(unittest.TestCase):
                 ],
             })
             write(root, "answers.json", {
-                "kind": "feature", "surface": ["customer", "service"], "data": "personal", "research": "local",
+                "kind": "feature", "surface": ["customer", "service"], "data": "personal", "research": "local", "concerns": ["none"],
                 "outcome": "A customer is told when a product is back in stock.", "affected": "Customers",
             })
 
             def run(*arguments):
-                out, err = io.StringIO(), io.StringIO()
-                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                    code = main(["--project", str(root), *map(str, arguments)])
-                self.assertEqual(code, 0, f"{' '.join(map(str, arguments))}: {err.getvalue()}")
-                return out.getvalue()
+                return run_cli(root, *arguments).stdout
 
             run("init", "--answers", root / "profile.json")
             profile = json.loads((root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))

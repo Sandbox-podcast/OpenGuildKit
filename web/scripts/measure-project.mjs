@@ -1,9 +1,12 @@
 // Measures the project interface served by `openguildkit ui`: first screen, then each place.
-//   node scripts/measure-project.mjs http://127.0.0.1:7311 [runs]
+//   node scripts/measure-project.mjs 'http://127.0.0.1:7311/?key=…' [runs]   (the address `openguildkit ui` printed)
 // For each place: time until its content shows, API requests, and bytes downloaded (cold, then warm).
 import { chromium } from '@playwright/test';
 
-const base = (process.argv[2] ?? 'http://127.0.0.1:7311').replace(/\/$/, '');
+// The printed address carries the key that opens the session: the first page of each run goes through it.
+const printed = new URL(process.argv[2] ?? 'http://127.0.0.1:7311/');
+const base = printed.origin;
+const opening = `${base}/${printed.search}`;
 const runs = Number(process.argv[3] ?? 3);
 const PLACES = [
   ['/quetes', '.kanban'], ['/conseil/request-export', '.review-card'], ['/forge/request-history', 'table.data'],
@@ -28,7 +31,7 @@ for (let run = 0; run < runs; run++) {
   page.on('request', (r) => { if (r.url().includes('/api/')) api++; });
   page.on('response', async (r) => { try { bytes += (await r.body()).length; } catch { /* redirects */ } });
   const t0 = Date.now();
-  await page.goto(`${base}/#/royaume`);
+  await page.goto(`${opening}#/royaume`);
   await page.locator('.todo-list').first().waitFor();
   const shownFirst = Math.round(await page.evaluate(() => performance.getEntriesByType('navigation')[0] ? performance.now() : 0)) || Date.now() - t0;
   await page.waitForTimeout(200); // let the requests the place started finish, to count them

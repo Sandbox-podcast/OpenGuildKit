@@ -65,6 +65,9 @@
         "id": "client-responsiveness",
         "title": "Client performance engineer",
         "focus": "Choose a user-visible interaction and measure it across the devices, browsers and network conditions that matter to the audience.",
+        "applies_to": [
+          "customer"
+        ],
         "checks": [
           "The interaction is measured on the devices and networks of real users, at the 75th percentile.",
           "Field data is preferred to lab data when both exist."

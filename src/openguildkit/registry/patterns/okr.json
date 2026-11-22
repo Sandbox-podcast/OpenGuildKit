@@ -15,6 +15,9 @@
     "project-management",
     "operations"
   ],
+  "core_for": [
+    "leadership"
+  ],
   "packs": [
     "leadership-planning"
   ],

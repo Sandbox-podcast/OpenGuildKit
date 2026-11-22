@@ -3,6 +3,7 @@
   "surface": "customer",
   "data": "personal",
   "research": "local",
+  "concerns": ["none"],
   "context": "Customers see the current status and next step of their own support requests in the existing portal. Support agents keep their current view. Acceptance: signed-in users can only see requests they opened. Use synthetic requests and accounts in tests.",
   "affected": "Customers of the support portal",
   "outcome": "Signed-in customers see the status and next step of each request they opened."

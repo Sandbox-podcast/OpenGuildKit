@@ -1,8 +1,8 @@
 {
   "id": "device-and-access-lifecycle",
   "title": "Device and access lifecycle",
-  "version": "1.0.0",
-  "description": "For employee devices and SaaS tools: managed and encrypted devices, single sign-on, automated provisioning and same-day removal of access on departure.",
+  "version": "2.0.0",
+  "description": "For employee devices and SaaS tools: managed and encrypted devices, single sign-on and automated provisioning. Removing access on departure comes from employee-offboarding, which this pack depends on.",
   "sources": [
     {
       "title": "NIST SP 800-124 Rev. 2, Guidelines for Managing the Security of Mobile Devices in the Enterprise",
@@ -25,6 +25,9 @@
       "checked": "2026-11-21"
     }
   ],
+  "depends_on": [
+    "employee-offboarding"
+  ],
   "rules": [
     {
       "id": "enrol-devices",
@@ -45,11 +48,6 @@
       "id": "automate-provisioning",
       "instruction": "Provision and deprovision accounts automatically from the identity provider, for example through SCIM, where the tool supports it.",
       "verification": "Check the provisioning settings of the tools that support it."
-    },
-    {
-      "id": "remove-access-on-departure",
-      "instruction": "Disable a leaver's accounts and devices on their last working day and keep the record.",
-      "verification": "For the last leavers, compare the departure date with the account disable dates in the identity provider log."
     }
   ]
 }

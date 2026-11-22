@@ -2,20 +2,20 @@
   {
     "id": "request-export",
     "brief": "Let signed-in customers export the history of their own support requests as a CSV file.",
-    "answers": {"kind": "feature", "surface": ["customer", "service"], "data": "personal", "research": "local",
+    "answers": {"kind": "feature", "surface": ["customer", "service"], "data": "personal", "research": "local", "concerns": ["none"],
                 "outcome": "A customer downloads a CSV with only the requests they opened.",
                 "affected": "Customers of the support portal"}
   },
   {
     "id": "pricing-comparison",
     "brief": "Recommend whether the pricing page should compare our plans with competitors.",
-    "answers": {"kind": "decision", "surface": ["business"], "data": "none", "research": "local",
+    "answers": {"kind": "decision", "surface": ["business"], "data": "none", "research": "local", "concerns": ["none"],
                 "options": "Show a comparison table, or keep the plans alone.", "context": "No market data was provided."}
   },
   {
     "id": "request-share-link",
     "brief": "Add a share link for a support request, as described in project/research-notes.md, so that a colleague opens the forwarded request without an account.",
-    "answers": {"kind": "feature", "surface": ["customer", "service"], "data": "personal", "research": "local",
+    "answers": {"kind": "feature", "surface": ["customer", "service"], "data": "personal", "research": "local", "concerns": ["none"],
                 "outcome": "A colleague opens the forwarded request without an account.",
                 "affected": "Customers of the support portal and the colleagues they forward a request to"}
   }

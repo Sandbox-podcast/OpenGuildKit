@@ -1056,5 +1056,44 @@
       "legal",
       "data"
     ]
+  },
+  {
+    "brief": "Define the salary bands and the job architecture for the support team and publish the band in every job offer",
+    "must": [
+      "hr"
+    ],
+    "must_not": [
+      "engineering"
+    ]
+  },
+  {
+    "brief": "Write the first-week onboarding checklist for new hires in the support team",
+    "must": [
+      "hr"
+    ],
+    "must_not": [
+      "product"
+    ]
+  },
+  {
+    "brief": "Update the employee onboarding guide for the sales team",
+    "must": [
+      "hr"
+    ],
+    "must_not": [
+      "product"
+    ]
+  },
+  {
+    "brief": "Review the architecture of the payment service",
+    "must": [
+      "engineering"
+    ]
+  },
+  {
+    "brief": "Shorten the user onboarding flow of the mobile app",
+    "must": [
+      "product"
+    ]
   }
 ]

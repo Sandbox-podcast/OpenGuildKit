@@ -80,8 +80,13 @@
     "choose a vendor",
     "vendor selection",
     "choix du fournisseur",
-    "quote",
-    "quotation"
+    "payment token",
+    "jeton de paiement",
+    "price quote",
+    "sales quote",
+    "customer quote",
+    "quote request",
+    "request a quote"
   ],
   "questions": [
     "Which costs occur once and which recur with usage?",
@@ -138,6 +143,10 @@
         "checks": [
           "Each cost line traces to measured usage and a dated price, with tier boundaries shown.",
           "Shared costs use a written allocation key that the budget owner accepts."
+        ],
+        "applies_to": [
+          "infrastructure",
+          "business"
         ]
       },
       {
@@ -162,6 +171,11 @@
         "id": "revenue-accountant",
         "title": "Revenue accountant",
         "focus": "Apply the five steps of IFRS 15, or ASC 606 for US GAAP reporters, to the contracts the change creates or modifies: performance obligations, transaction price, allocation and timing.",
+        "applies_to": [
+          "customer",
+          "business",
+          "service"
+        ],
         "checks": [
           "Multi-year and bundled contracts list each performance obligation and its standalone selling price.",
           "Discounts, free months, credits and usage fees are treated as variable consideration or allocated, not ignored.",
@@ -172,6 +186,10 @@
         "id": "pricing-and-margin-analyst",
         "title": "Pricing and margin analyst",
         "focus": "Check the price, discount and packaging change against gross margin per plan and per customer segment, including the cost to serve.",
+        "applies_to": [
+          "customer",
+          "business"
+        ],
         "checks": [
           "Gross margin per plan includes hosting, third-party fees, payment fees and support time.",
           "The price change is simulated on the current customer base: who pays more, who pays less, who may leave.",
@@ -182,6 +200,11 @@
         "id": "tax-and-invoicing-specialist",
         "title": "Tax and invoicing specialist",
         "focus": "Check VAT treatment, invoice content and e-invoicing obligations for each country the change sells to, and the data the billing system needs to apply them.",
+        "applies_to": [
+          "customer",
+          "business",
+          "service"
+        ],
         "checks": [
           "B2B and B2C sales are told apart, and the VAT place of supply is determined for electronically supplied services.",
           "Invoices carry the mandatory particulars of Directive 2006/112/EC as transposed in each country, including VAT numbers and rates.",

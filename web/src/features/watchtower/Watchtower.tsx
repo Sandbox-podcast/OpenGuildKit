@@ -340,18 +340,16 @@ function Reviews() {
   const all = list(s, 'approval', s.session.orgId).sort((a, b) => b.createdAt - a.createdAt);
   const expected = all.filter((a) => effectiveApprovalStatus(s, a) === 'expected');
   const me = s.session.actor.type === 'human' ? s.session.actor.userId : null;
-  const [sel, setSel] = useState<string[]>([]);
-  const approveSelected = () => sel.forEach((id) => dispatch(cmd.transition, { kind: 'approval', id, action: 'approve' }, { success: `Approuvé : ${objectLabel(s, all.find((a) => a.id === id)!.subject)}` }));
   return (
     <div className="stack">
-      <Panel title={`Revues humaines en attente (${expected.length})`} actions={sel.length > 0 && <Button variant="primary" icon="check" onClick={() => { approveSelected(); setSel([]); }}>Approuver la sélection ({sel.length})</Button>}>
-        <p className="small muted">Chaque approbation porte sur une version et un périmètre déterminés. La séparation auteur-approbateur dépend des identités, pas des rôles. Vous agissez comme : {me ? s.users[me]?.name : 'un agent ou le système'}.</p>
+      <Panel title={`Revues humaines en attente (${expected.length})`}>
+        <p className="small muted">Chaque approbation porte sur une version et un périmètre déterminés. La séparation auteur-approbateur dépend des identités, pas des rôles. Dans OpenGuildKit, une personne approuve ou refuse dans son propre terminal : chaque bouton montre la commande, puis la démo peut simuler sa saisie. Personne simulée : {me ? s.users[me]?.name : 'un agent ou le système'}.</p>
         {expected.length === 0 ? <Empty title="Aucune revue en attente" /> : (
           <ul className="plain stack tight">
             {expected.map((a) => (
               <li key={a.id} className="card">
                 <div className="row between">
-                  <Checkbox label={<span><strong>{objectLabel(s, a.subject)}</strong> <span className="small muted">({a.purpose}, version {a.subject.version})</span></span>} checked={sel.includes(a.id)} onChange={(e) => setSel(e.target.checked ? [...sel, a.id] : sel.filter((x) => x !== a.id))} />
+                  <span><strong>{objectLabel(s, a.subject)}</strong> <span className="small muted">({a.purpose}, version {a.subject.version})</span></span>
                   <span className="tiny muted">{fmtDate(a.createdAt, true)}</span>
                 </div>
                 <div className="row small"><span className="muted">Demandée par</span><Person id={a.authorId} /><span className="muted">· assignée à</span>{a.approverId ? <Person id={a.approverId} /> : 'toute personne habilitée'}{a.requireDistinct && <Badge tone="info" icon="shield">deux identités</Badge>}<ObjectLink to={a.subject}>ouvrir</ObjectLink></div>

@@ -32,7 +32,8 @@
           "status": "unknown",
           "capabilities": "Query analytics; read and create charts, dashboards, notebooks, experiments, cohorts, feature flags and metrics; manage taxonomy.",
           "source": "https://amplitude.com/docs/amplitude-ai/amplitude-mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -86,7 +87,12 @@
           "source": "https://github.com/googleanalytics/google-analytics-mcp",
           "repository": "https://github.com/googleanalytics/google-analytics-mcp",
           "license": "Apache-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read-only.",
+          "scopes": "https://www.googleapis.com/auth/analytics.readonly. Consent: Set up Google Application Default Credentials and grant access to the intended Analytics properties.",
+          "read_only": {
+            "how": "Every tool reads unless the server starts with --allow-write, which the registered command does not pass; it asks only the analytics.readonly scope."
+          }
         }
       ],
       "api": {
@@ -133,7 +139,8 @@
           "source": "https://plugins.matomo.org/McpServer",
           "repository": "https://github.com/matomo-org/plugin-McpServer",
           "license": "GPL-3.0-or-later",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         }
       ],
       "api": {
@@ -172,7 +179,8 @@
           "status": "unknown",
           "capabilities": "Run queries, read reports and dashboards, manage dashboards, events and properties, cohorts, metrics, experiments and feature flags; all writes are audit-logged.",
           "source": "https://docs.mixpanel.com/docs/mcp",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -207,7 +215,8 @@
           "source": "https://github.com/getsentry/plausible-mcp",
           "repository": "https://github.com/getsentry/plausible-mcp",
           "license": "MIT",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read operations described; no enforced read-only mode is recorded."
         }
       ],
       "api": {
@@ -250,7 +259,8 @@
           "status": "unknown",
           "capabilities": "Read and write across PostHog: analytics queries, HogQL, feature flags, experiments, error tracking, CDP destinations, docs search.",
           "source": "https://posthog.com/docs/model-context-protocol",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {

@@ -70,6 +70,10 @@
           "No sentence is built by concatenating fragments; messages use ICU MessageFormat or an equivalent with plural and select.",
           "Dates, numbers and currencies are formatted with locale data such as CLDR, not with hand-written patterns.",
           "Locales are identified with BCP 47 language tags and the fallback chain is defined."
+        ],
+        "applies_to": [
+          "customer",
+          "service"
         ]
       },
       {
@@ -100,6 +104,9 @@
           "A pseudo-localised build shows no hard-coded text, truncation or broken layout with 30 to 40 percent longer strings.",
           "Right-to-left languages are tested for layout mirroring and mixed-direction text.",
           "Names, addresses and input in non-Latin scripts are accepted, stored and sorted correctly."
+        ],
+        "applies_to": [
+          "customer"
         ]
       }
     ],

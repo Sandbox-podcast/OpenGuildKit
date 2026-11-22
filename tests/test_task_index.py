@@ -1,7 +1,5 @@
 """The status index: the edit hook reads only the tasks that can cover an edit, and the index never decides."""
 
-import contextlib
-import io
 import json
 import os
 import tempfile
@@ -10,14 +8,15 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import guard, task_index
-from openguildkit.cli import main
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 HOUR_NS = 3600 * 10 ** 9
 
 
-class TaskIndexTests(unittest.TestCase):
+class TaskIndexTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -27,16 +26,6 @@ class TaskIndexTests(unittest.TestCase):
         profile = {**json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8")), "guard": "enforce"}
         write_json(self.root / "profile.json", profile)
         self.run_cli("init", "--answers", self.root / "profile.json")
-
-    def run_cli(self, *arguments, code=0, stdin=None, typed=None):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        replaced = patch("sys.stdin", io.StringIO(stdin)) if stdin is not None else contextlib.nullcontext()
-        terminal = patch("sys.stdin.isatty", return_value=True) if typed else contextlib.nullcontext()
-        answer = patch("builtins.input", return_value=typed) if typed else contextlib.nullcontext()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr), replaced, terminal, answer:
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def consult(self, task_id):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", task_id)
@@ -87,6 +76,15 @@ class TaskIndexTests(unittest.TestCase):
         self.approve("finished")
         record = json.loads((self.tasks / "finished.json").read_text(encoding="utf-8"))
         write_json(self.tasks / "finished.json", {**record, "status": "done", "result": {"checks": []}})
+        self.age_records()
+        self.assertEqual(self.read_ids(), ([], ["finished"]))
+        self.assertEqual(self.read_ids(), ([], []))
+        self.edit(code=2)
+
+    def test_a_task_closed_with_reservations_is_not_read_again_either(self):
+        self.approve("finished")
+        record = json.loads((self.tasks / "finished.json").read_text(encoding="utf-8"))
+        write_json(self.tasks / "finished.json", {**record, "status": "done-with-reservations", "result": {"checks": []}})
         self.age_records()
         self.assertEqual(self.read_ids(), ([], ["finished"]))
         self.assertEqual(self.read_ids(), ([], []))

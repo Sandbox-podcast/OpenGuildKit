@@ -1,5 +1,3 @@
-import contextlib
-import io
 import json
 import shutil
 import subprocess
@@ -9,26 +7,20 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.cli import main
 from openguildkit.results import validate_result
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "request-status"
 
 
-class ResultTests(unittest.TestCase):
+class ResultCase(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def git(self, *args):
         return subprocess.run(["git", "-C", str(self.root), *args], capture_output=True, text=True, check=True).stdout.strip()
@@ -62,6 +54,15 @@ class ResultTests(unittest.TestCase):
             for check in checks if check["kind"] == "rule"
         ]
 
+    def record(self):
+        return json.loads(self.run_cli("task", "show", TASK)[0])
+
+    def report(self, *checks, criteria=(), code=0):
+        write_json(self.root / "result.json", {"revision": "abc1234", "criteria": list(criteria), "checks": list(checks)})
+        return self.run_cli("task", "result", TASK, "--file", self.root / "result.json", code=code)
+
+
+class ResultTests(ResultCase):
     def test_a_passing_mandatory_check_with_evidence_lets_the_task_finish(self):
         self.approved()
         output, _ = self.run_cli("task", "verify", TASK)
@@ -80,15 +81,25 @@ class ResultTests(unittest.TestCase):
         self.assertEqual(self.run_cli("task", "complete", TASK)[0].strip(), "done")
         record = json.loads(self.run_cli("task", "show", TASK)[0])
         self.assertEqual(record["status"], "done")
+        # The handoff of a closed task speaks of its checks in the past.
+        handoff = self.run_cli("task", "handoff", TASK)[0]
+        self.assertIn("## Checks task verify ran", handoff)
+        self.assertNotIn("must pass before the task is done", handoff)
         self.assertEqual(record["result"]["pull_request"], "https://github.com/example/portal/pull/7")
 
     def test_a_decision_records_its_outcome_without_code_checks_or_a_revision(self):
         outcome = "The project owner selects a format for request history."
         self.approved(exit_code=1, answers={"kind": "decision", "outcome": outcome})
         preview, error = self.run_cli("task", "result", TASK, "--template")
-        self.assertEqual(json.loads(preview), {"criteria": [{"criterion": outcome, "status": "", "evidence": ""}]})
+        template = json.loads(preview)
+        self.assertEqual(template["criteria"], [{"criterion": outcome, "status": "", "evidence": ""}])
+        self.assertEqual(set(template), {"criteria", "not_concerned"})
+        # Nothing is dropped silently: the rules and the check command are listed as not concerned, with the reason.
+        self.assertIn("command:1", [entry.get("check") for entry in template["not_concerned"]])
+        self.assertTrue(all("decision task" in entry["reason"] for entry in template["not_concerned"]))
         self.assertEqual(error, "")
-        self.assertEqual(json.loads(self.run_cli("task", "checks", TASK, "--json")[0]), [])
+        listed = json.loads(self.run_cli("task", "checks", TASK, "--json")[0])
+        self.assertEqual([check["id"] for check in listed if check["concerned"]], [])
         self.assertNotIn("command:1", self.run_cli("task", "verify", TASK)[0])
         report = self.root / "result.json"
         write_json(report, {"criteria": [{"criterion": outcome, "status": "met", "evidence": "Approved decision record."}]})
@@ -120,8 +131,7 @@ class ResultTests(unittest.TestCase):
 
     def test_a_failed_or_unproven_mandatory_check_blocks_completion(self):
         self.approved(exit_code=1, required_rules=["python"])
-        output, _ = self.run_cli("task", "verify", TASK)
-        self.assertIn("checked", output)
+        output, _ = self.run_cli("task", "verify", TASK, code=1)
         self.assertIn(".openguildkit/tasks/", output)
         self.assertIn("command:1 is mandatory and failed", output)
         write_json(self.root / "result.json", {"revision": "abc1234", "criteria": [], "checks": self.rule_outcomes()})
@@ -133,7 +143,7 @@ class ResultTests(unittest.TestCase):
 
     def test_a_person_can_record_an_environment_reservation_for_a_project_command(self):
         self.approved(exit_code=1)
-        options = ("--unavailable", "command:1=Dependencies unavailable offline", "--by", "Camille")
+        options = ("--cannot-run", "command:1", "--by", "Camille", "--reason", "Dependencies unavailable offline")
         with patch("sys.stdin.isatty", return_value=False):
             _, error = self.run_cli("task", "verify", TASK, *options, code=1)
         self.assertIn("interactive terminal", error)
@@ -152,7 +162,7 @@ class ResultTests(unittest.TestCase):
         self.approved(checks=[])
         output, _ = self.run_cli("task", "verify", TASK)
         self.assertIn("No project check command is configured", output)
-        self.assertIn(".openguildkit/project.json (checks)", output)
+        self.assertIn('openguildkit profile add check "COMMAND"', output)
 
     def test_skipped_checks_need_a_reason_and_an_owner(self):
         self.approved()
@@ -166,16 +176,9 @@ class ResultTests(unittest.TestCase):
         self.assertIn("revision or pull request", error)
 
 
-    def record(self):
-        return json.loads(self.run_cli("task", "show", TASK)[0])
-
-    def report(self, *checks, criteria=(), code=0):
-        write_json(self.root / "result.json", {"revision": "abc1234", "criteria": list(criteria), "checks": list(checks)})
-        return self.run_cli("task", "result", TASK, "--file", self.root / "result.json", code=code)
-
     def test_only_task_verify_records_a_command_check(self):
         self.approved(exit_code=1)
-        self.assertIn("command:1: failed", self.run_cli("task", "verify", TASK)[0])
+        self.assertIn("command:1: failed", self.run_cli("task", "verify", TASK, code=1)[0])
         _, error = self.report({"check": "command:1", "status": "passed", "evidence": "trust me"}, code=1)
         self.assertIn("task verify", error)
         checks = {item["check"]: item for item in self.record()["result"]["checks"]}
@@ -232,7 +235,8 @@ class ResultTests(unittest.TestCase):
         write_json(path, profile)
         self.run_cli("sync")
         _, error = self.run_cli("task", "verify", TASK, code=1)
-        self.assertIn("The approval for request-status was recorded under earlier rules.", error)
+        self.assertIn("recorded under earlier rules (pack web-accessibility added)", error)
+        self.assertIn("The approval for request-status was recorded under earlier rules", error)
         self.assertIn("--follows request-status", error)
 
     def test_the_result_template_lists_the_criteria_and_every_expected_check(self):
@@ -240,19 +244,324 @@ class ResultTests(unittest.TestCase):
         self.approved(answers={"outcome": outcome})
         output, notes = self.run_cli("task", "result", TASK, "--template")
         template = json.loads(output)
+        self.assertEqual(notes, "")
         self.assertEqual(template["criteria"][0]["criterion"], outcome)
-        expected = [item["check"] for item in self.rule_outcomes()]
-        self.assertEqual([item["check"] for item in template["checks"]], expected)
-        self.assertIn("command:1", notes)
-        self.assertIn("task verify", notes)
+        listed = json.loads(self.run_cli("task", "checks", TASK, "--json")[0])
+        expected = [item["id"] for item in listed if item["kind"] == "rule" and item["concerned"]]
+        # A pack whose rules can be answered together is one entry of packs; the others are listed rule by rule.
+        in_packs = [rule for pack in template["packs"] for rule in pack["rules"]]
+        self.assertTrue(in_packs)
+        self.assertEqual(sorted([item["check"] for item in template["checks"]] + in_packs), sorted(expected))
+        self.assertLess(len(template["checks"]) + len(template["packs"]), len(expected))
+        self.assertEqual([item["check"] for item in template["recorded_by_verify"]], ["command:1"])
         self.run_cli("task", "verify", TASK)
         template["revision"] = "abc1234"
         template["criteria"][0].update(status="met", evidence="tests/test_status.py")
         for item in template["checks"]:
             item.update(status="not-applicable", reason="No change in this area.", owner="Camille")
+        for item in template["packs"]:
+            item.update(status="passed", evidence="tests/test_status.py")
         write_json(self.root / "filled.json", template)
         self.run_cli("task", "result", TASK, "--file", self.root / "filled.json")
         self.assertEqual(self.run_cli("task", "complete", TASK)[0].strip(), "done")
+
+
+GDPR_RECORD = "evidence:gdpr/update-processing-record/processing-record"
+GDPR_DPIA = "evidence:gdpr/assess-dpia-need/dpia-decision"
+
+
+class ProportionateResultTests(ResultCase):
+    """The closing asks what concerns the task, waits for evidence from its owner and says what stays open."""
+
+    def gdpr_task(self):
+        self.approved(patterns=["gdpr-personal-data"])
+        self.run_cli("task", "verify", TASK)
+
+    def answers(self, status="not-applicable", reason="", skip=()):
+        """An answer for every asked rule, each with its own reason unless one is given; named evidence is left out."""
+        checks = json.loads(self.run_cli("task", "checks", TASK, "--json")[0])
+        return [{"check": c["id"], "status": "skipped" if c["id"] in skip else status,
+                 "reason": reason or f"Nothing in this change touches {c['id']}.", "owner": "Camille"}
+                for c in checks if c["kind"] == "rule" and c["concerned"]]
+
+    def file(self, *checks, packs=(), criteria=None, code=0):
+        criteria = criteria if criteria is not None else [
+            {"criterion": "Users only see their own requests.", "status": "met", "evidence": "tests/test_access.py"}]
+        write_json(self.root / "result.json", {"revision": "abc1234", "criteria": criteria, "checks": list(checks),
+                                               "packs": list(packs)})
+        return self.run_cli("task", "result", TASK, "--file", self.root / "result.json", code=code)
+
+    def documents(self):
+        (self.root / "docs").mkdir(exist_ok=True)
+        for name in ("record.md", "dpia.md"):
+            (self.root / "docs" / name).write_text("Kept by the data protection officer.", encoding="utf-8")
+        return [{"check": GDPR_RECORD, "status": "passed", "evidence": "docs/record.md", "owner": "Dana (DPO)"},
+                {"check": GDPR_DPIA, "status": "passed", "evidence": "docs/dpia.md", "owner": "Dana (DPO)"}]
+
+    def test_checks_list_each_evidence_once_under_its_rule_and_what_is_not_asked(self):
+        self.gdpr_task()
+        listing = self.run_cli("task", "checks", TASK)[0]
+        self.assertEqual(listing.count(GDPR_RECORD), 1)
+        self.assertIn(f"    {GDPR_RECORD} [passed] not reported", listing)
+        self.assertNotIn("[mandatory] not reported: Supply", listing)
+        template = json.loads(self.run_cli("task", "result", TASK, "--template")[0])
+        entry = next(item for item in template["checks"] if item["check"] == GDPR_RECORD)
+        self.assertEqual(entry["requirement"], "passed")
+        self.assertIn("data protection officer", entry["owner_role"])
+        self.assertIn("the person who decides it", template["instructions"])
+        self.assertNotIn("mandatory", json.dumps(template))
+        # One word per meaning: the requirement is written with the status the file accepts.
+        self.assertNotIn("Supply", json.dumps(template))
+        self.assertIn('Only passed is accepted', entry["answer"])
+        _, error = self.file({"check": GDPR_RECORD, "status": "supplied", "evidence": "docs/x.md", "owner": "Dana"},
+                             code=1)
+        self.assertIn(f"{GDPR_RECORD} status is passed, not 'supplied'", error)
+
+    def test_a_result_that_lacks_only_named_evidence_is_recorded_and_the_task_waits_for_its_owner(self):
+        self.gdpr_task()
+        handoff = self.run_cli("task", "handoff", TASK)[0]
+        self.assertLess(handoff.index("## Evidence the closing will ask for"), handoff.index("## Human approval"))
+        self.assertIn("data protection officer", handoff)
+        self.assertIn("do not write them yourself", handoff)
+        output, _ = self.file(*self.answers())
+        self.assertIn(f"Waiting for {GDPR_RECORD}: Record of processing activities, provided by the data protection", output)
+        self.assertEqual(len(self.record()["result"]["checks"]), len(self.answers()) + 1)
+        # The wait is shown next to the status, in task show and in the exported record.
+        self.assertEqual(self.record()["status"], "approved")
+        self.assertTrue(self.record()["waiting_for"][0].startswith("Record of processing activities"))
+        exported = json.loads((self.root / self.run_cli("task", "export", TASK)[0].strip()).read_text(encoding="utf-8"))
+        self.assertEqual(exported["waiting_for"], self.record()["waiting_for"])
+        row = json.loads(self.run_cli("task", "list", "--json")[0])[0]
+        self.assertEqual(row["status"], "approved")
+        self.assertIn("Waiting for evidence: Record of processing activities from the data protection officer", row["next"])
+        _, error = self.run_cli("task", "complete", TASK, code=1)
+        self.assertIn(f"{GDPR_RECORD} waits for the data protection officer", error)
+
+        self.run_cli("task", "new", "Update the record of processing.", "--id", "privacy-record", "--follows", TASK)
+        _, error = self.run_cli("task", "complete", TASK, "--defer", f"{GDPR_RECORD}=privacy-record", code=1)
+        self.assertIn("--by NAME", error)
+        with patch("sys.stdin.isatty", return_value=False):
+            _, error = self.run_cli("task", "complete", TASK, "--defer", f"{GDPR_RECORD}=privacy-record",
+                                    "--defer", f"{GDPR_DPIA}=privacy-record", "--by", "Camille", code=1)
+        self.assertIn("interactive terminal", error)
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            output, notes = self.run_cli("task", "complete", TASK, "--defer", f"{GDPR_RECORD}=privacy-record",
+                                         "--defer", f"{GDPR_DPIA}=privacy-record", "--by", "Camille")
+        self.assertEqual(output.splitlines()[0], "done-with-reservations")
+        self.assertIn("Named evidence handed to a follow-up task:", notes)
+        self.assertIn(f"  - {GDPR_RECORD} is handed to task privacy-record", notes)
+        self.assertEqual(self.record()["status"], "done-with-reservations")
+
+    def test_named_evidence_is_confirmed_by_a_person_and_never_read(self):
+        self.gdpr_task()
+        record, dpia = self.documents()
+        (self.root / "Dockerfile").write_text("FROM python:3.12\n", encoding="utf-8")
+        output, _ = self.file(*self.answers(), {**record, "evidence": "Dockerfile"}, {**dpia, "evidence": "Dockerfile"},
+                              criteria=[{"criterion": "403 for another user's request.", "status": "met",
+                                         "evidence": "Read from code only, NOT executed."}])
+        self.assertIn("looks like configuration, code or an image", output)
+        self.assertIn("The same file is cited for 2 different named evidences", output)
+        self.assertIn("says it was not run", output)
+        self.assertIn("Criteria met: 0 tied to a check or a test, 1 declared only", output)
+        output, _ = self.file(*self.answers(), record, dpia, criteria=[
+            {"criterion": "403 for another user's request.", "status": "met", "evidence": "Test run.",
+             "verified_by": "command:1"},
+            {"criterion": "The list loads.", "status": "met", "evidence": "Tried by hand."}])
+        self.assertIn("Criteria met: 1 tied to a check or a test, 1 declared only (The list loads.)", output)
+        self.assertNotIn("Warning", output)
+        output, notes = self.run_cli("task", "complete", TASK)
+        self.assertEqual(output.strip(), "done")
+        self.assertIn("did not read the documents. Confirmed by: Dana (DPO)", notes)
+        exported = json.loads((self.root / self.run_cli("task", "export", TASK)[0].strip()).read_text(encoding="utf-8"))
+        self.assertIn("did not read", exported["result"]["evidence_note"])
+        self.assertEqual(exported["result"]["evidence_supplied"][0]["confirmed_by"], "Dana (DPO)")
+        self.assertEqual([item["verified_by"] for item in exported["result"]["criteria"]], ["command:1", "declared only"])
+
+    def test_an_answer_not_recorded_says_that_the_earlier_one_stays_and_the_task_is_not_called_ready(self):
+        self.gdpr_task()
+        self.file(*self.answers(), *self.documents())
+        record, dpia = self.documents()
+        output, error = self.file({**record, "evidence": "docs/missing.md"})
+        self.assertIn(f"Not recorded: {GDPR_RECORD}: docs/missing.md does not exist in the project. The earlier answer "
+                      "stays recorded.", error)
+        self.assertNotIn("Ready: run task complete.", output)
+        self.assertIn("some answers were not recorded", output)
+        checks = {item["check"]: item for item in self.record()["result"]["checks"]}
+        self.assertEqual(checks[GDPR_RECORD]["evidence"], "docs/record.md")
+
+    def test_a_criterion_is_tied_only_to_a_known_command_or_an_existing_test(self):
+        self.approved()
+        for verified, message in (("command:9", "not a check command"), ("tests/test_missing.py", "does not exist")):
+            write_json(self.root / "result.json", {"revision": "abc1234", "checks": [], "criteria": [
+                {"criterion": "x", "status": "met", "evidence": "y", "verified_by": verified}]})
+            _, error = self.run_cli("task", "result", TASK, "--file", self.root / "result.json", code=1)
+            self.assertIn(message, error)
+
+    def test_one_answer_covers_a_pack_but_a_sensitive_pack_needs_the_person(self):
+        self.gdpr_task()
+        rules = [item for item in self.answers() if not item["check"].startswith("rule:gdpr/")]
+        output, _ = self.file(*rules, *self.documents(), packs=[
+            {"pack": "gdpr", "status": "not-applicable", "reason": "Not in scope.", "owner": "Camille"}])
+        self.assertIn("Pack gdpr was declared not applicable as a whole by Camille, although the task's answers "
+                      "select it", output)
+        self.assertIn("Ready to close with the person at a terminal", output)
+        # An owner written in the file is not a person's confirmation: closing needs them at a terminal.
+        _, error = self.run_cli("task", "complete", TASK, code=1)
+        self.assertIn("--by NAME", error)
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            output, notes = self.run_cli("task", "complete", TASK, "--by", "Camille")
+        self.assertEqual(output.splitlines()[0], "done-with-reservations")
+        self.assertIn("  - pack gdpr is declared not applicable as a whole: Not in scope. (Camille) [data protection]",
+                      notes)
+        exported = json.loads((self.root / self.run_cli("task", "export", TASK)[0].strip()).read_text(encoding="utf-8"))
+        self.assertEqual(exported["status"], "done-with-reservations")
+        self.assertTrue(any("Pack gdpr" in warning for warning in exported["result"]["warnings"]))
+
+    def test_a_corrected_result_replaces_the_earlier_pack_answers_and_their_warnings(self):
+        self.gdpr_task()
+        rules = [item for item in self.answers() if not item["check"].startswith("rule:gdpr/")]
+        self.file(*rules, *self.documents(), packs=[
+            {"pack": "gdpr", "status": "not-applicable", "reason": "Not in scope.", "owner": "Camille"}])
+        output, _ = self.file(*self.answers(), *self.documents())
+        self.assertNotIn("Pack gdpr", output)
+        self.assertNotIn("packs", self.record()["result"])
+        self.assertNotIn("warnings", self.record()["result"])
+        self.assertEqual(self.run_cli("task", "complete", TASK)[0].strip(), "done")
+
+    def test_rules_the_answers_select_declared_not_applicable_with_a_shared_reason_are_flagged(self):
+        self.gdpr_task()
+        output, _ = self.file(*self.answers(reason="Not relevant."), *self.documents())
+        self.assertIn("rule:gdpr/confirm-lawful-basis", output)
+        self.assertIn("with the same reason as", output)
+
+    def test_closing_over_a_skipped_sensitive_rule_needs_the_person_and_lists_open_points_by_nature(self):
+        self.gdpr_task()
+        skip = ("rule:gdpr/confirm-lawful-basis", "rule:python/follow-python-style")
+        output, _ = self.file(*self.answers(skip=skip), *self.documents())
+        # The result does not say plain Ready when task complete needs the person.
+        self.assertNotIn("Ready: run task complete.", output)
+        self.assertIn(f"Ready to close with the person at a terminal", output)
+        self.assertIn(f"openguildkit task complete {TASK} --by NAME", output)
+        _, error = self.run_cli("task", "complete", TASK, code=1)
+        self.assertIn("data protection, security or AI point(s) are skipped", error)
+        self.assertIn("--by NAME", error)
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            output, notes = self.run_cli("task", "complete", TASK, "--by", "Camille")
+        # The person read the open points at the prompt: they are printed once.
+        self.assertEqual(notes.count("  - rule:gdpr/confirm-lawful-basis is skipped"), 1)
+        self.assertNotIn("rule:gdpr/confirm-lawful-basis", output)
+        self.assertIn("open point(s), listed above", output)
+        self.assertEqual(output.splitlines()[0], "done-with-reservations")
+        self.assertIn("--follows request-status", output)
+        lines = notes.splitlines()
+        self.assertEqual(lines[0], "Data protection, security or AI rules skipped, failed or declared not applicable "
+                                   "as a pack:")
+        self.assertTrue(lines[1].startswith("  - rule:gdpr/confirm-lawful-basis is skipped"))
+        self.assertLess(notes.index("rule:gdpr/confirm"), notes.index("Other rules skipped or failed:"))
+        self.assertIn("  - rule:python/follow-python-style is skipped", notes)
+        self.assertIn("Board verdicts at approval that asked for changes:", notes)
+        record = self.record()
+        self.assertEqual(record["result"]["closing"]["by"], "Camille")
+        listing = self.run_cli("task", "list")[0]
+        # The approver and the person who closed the task are named apart.
+        self.assertIn("request-status [done-with-reservations, approved by Camille, closed by Camille]", listing)
+        self.assertIn("Done with reservations", listing)
+        # Every reader of the status takes a task closed with reservations as completed.
+        self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.0.0")
+        self.run_cli("deliverable", "new", "campaign-brief", "--task", TASK, "--tool", "Brevo", "--output", "brief.md")
+        self.assertEqual(json.loads(self.run_cli("guard", "--json")[0])["covered_by"], [])
+
+    def test_the_listed_next_step_follows_the_recorded_result(self):
+        self.approved(exit_code=1)
+        next_step = lambda: json.loads(self.run_cli("task", "list", "--json")[0])[0]["next"]
+        self.assertIn(f"record the results: task verify {TASK} and task result {TASK}", next_step())
+        output = self.run_cli("task", "verify", TASK, code=1)[0]
+        self.assertIn("- command:1 is mandatory and failed", output)
+        self.assertIn("rule:python/follow-python-style is not reported", output)
+        step = next_step()
+        self.assertTrue(step.startswith("command:1 (`"), step)
+        self.assertIn(f"failed: ", step)
+        self.assertIn(f"Fix it, then run task verify {TASK}.", step)
+        self.assertNotIn("Implement", step)
+
+    def test_a_person_records_a_command_that_cannot_run_here_and_the_task_closes_with_that_reservation(self):
+        failing = f'"{sys.executable}" -c "import sys; print(\'Cannot find module express\'); sys.exit(1)"'
+        self.approved(checks=[failing, failing.replace("express", "jest")])
+        handoff = self.run_cli("task", "handoff", TASK)[0]
+        self.assertIn("## Checks task verify will run", handoff)
+        self.assertIn("- `command:1`: `", handoff)
+        self.assertIn("Install the project's dependencies", handoff)
+        # A failed mandatory command makes task verify exit with 1.
+        self.run_cli("task", "verify", TASK, code=1)
+        declare = lambda check, *extra: ("task", "verify", TASK, "--cannot-run", check, "--by", "Camille", *extra)
+        reason = ("--reason", "The sandbox has no network.")
+        with patch("sys.stdin.isatty", return_value=False):
+            self.assertIn("interactive terminal", self.run_cli(*declare("command:1"), *reason, code=1)[1])
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            self.assertIn("not a check command", self.run_cli(*declare("command:7"), *reason, code=1)[1])
+            self.assertIn("in at least 3 words", self.run_cli(*declare("command:1"), "--reason", "x", code=1)[1])
+            self.run_cli(*declare("command:1"), *reason, code=1)
+            self.run_cli(*declare("command:2"), *reason)
+        checks = {item["check"]: item for item in self.record()["result"]["checks"]}
+        self.assertTrue(checks["command:1"]["cannot_run"] and checks["command:2"]["cannot_run"])
+        # Running task verify again keeps the person's declarations, and says so.
+        output = self.run_cli("task", "verify", TASK)[0]
+        self.assertIn("command:1 still cannot run here: Camille declared it (The sandbox has no network.)", output)
+        self.assertEqual({item["check"]: item["status"] for item in self.record()["result"]["checks"]
+                          if item["check"].startswith("command:")}, {"command:1": "skipped", "command:2": "skipped"})
+        self.report(*self.rule_outcomes(), criteria=[
+            {"criterion": "Users only see their own requests.", "status": "met", "evidence": "Tried by hand."}])
+        output = self.run_cli("task", "complete", TASK)[0]
+        self.assertEqual(output.splitlines()[0], "done-with-reservations")
+        self.assertIn("Project checks that could not run in this environment:", output)
+        self.assertIn("  - command:1 could not run: The sandbox has no network. (recorded by Camille)", output)
+
+    def test_only_the_person_who_declared_it_withdraws_a_declaration_and_a_passing_command_is_not_declared(self):
+        self.approved(exit_code=1)
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            self.run_cli("task", "verify", TASK, "--cannot-run", "command:1", "--by", "Camille",
+                         "--reason", "No network in this sandbox.")
+            error = self.run_cli("task", "verify", TASK, "--withdraw", "command:1", "--by", "Alex", code=1)[1]
+            self.assertIn("Camille declared it: only they withdraw it.", error)
+            self.run_cli("task", "verify", TASK, "--withdraw", "command:1", "--by", "Camille", code=1)
+        statuses = {item["check"]: item for item in self.record()["result"]["checks"]}
+        self.assertEqual(statuses["command:1"]["status"], "failed")
+        self.assertNotIn("cannot_run", statuses["command:1"])
+
+    def test_a_command_that_passes_here_cannot_be_declared_unable_to_run(self):
+        self.approved()
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            error = self.run_cli("task", "verify", TASK, "--cannot-run", "command:1", "--by", "Camille",
+                                 "--reason", "No network in this sandbox.", code=1)[1]
+        self.assertIn("command:1 passes in this environment: nothing to declare", error)
+
+    def test_a_criterion_tied_to_a_check_that_has_not_passed_is_counted_apart(self):
+        self.approved(exit_code=1)
+        self.run_cli("task", "verify", TASK, code=1)
+        output, _ = self.report(*self.rule_outcomes(), criteria=[
+            {"criterion": "Users only see their own requests.", "status": "met", "evidence": "Test run.",
+             "verified_by": "command:1"}])
+        self.assertIn("Criteria met: 0 tied to a check or a test, 1 tied to a check that has not passed, 0 declared "
+                      "only.", output)
+        exported = json.loads((self.root / self.run_cli("task", "export", TASK)[0].strip()).read_text(encoding="utf-8"))
+        self.assertEqual(exported["result"]["criteria"][0]["verified_by"], "command:1, which has not passed")
+
+    def test_task_verify_says_when_no_check_command_is_configured(self):
+        self.approved(checks=[])
+        output = self.run_cli("task", "verify", TASK)[0]
+        self.assertIn("No project check command is configured", output)
+        self.assertIn('openguildkit profile add check "COMMAND"', output)
+
+    def test_a_task_with_nothing_open_is_done_in_one_line_and_says_when_no_command_ran(self):
+        self.approved(checks=[])
+        write_json(self.root / "result.json", {"revision": "abc1234", "criteria": [], "checks": self.rule_outcomes()})
+        self.run_cli("task", "result", TASK, "--file", self.root / "result.json")
+        output, notes = self.run_cli("task", "complete", TASK)
+        self.assertEqual(output, "done\n")
+        self.assertIn("No project check command ran for this task", notes)
+        listing = self.run_cli("task", "list")[0]
+        self.assertIn(f"{TASK} [done, approved by Camille]", listing)
+        self.assertNotIn("closed by", listing)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,3 @@
-import contextlib
-import io
 import json
 import shutil
 import tempfile
@@ -8,9 +6,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import load_catalog
-from openguildkit.cli import main
 from openguildkit.deliverables import load_deliverables
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 REPO = Path(__file__).resolve().parents[1]
 EXAMPLE = REPO / "examples" / "request-status"
@@ -30,20 +29,13 @@ deliverable: "campaign-brief"
 """
 
 
-class DeliverableTests(unittest.TestCase):
+class DeliverableTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         write_json(self.root / "p.json", {"name": "Portal", "stack": ["Python"], "tools": ["Brevo"]})
         self.run_cli("init", "--answers", self.root / "p.json")
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def approved_task(self, *consult_options):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "launch")
@@ -53,6 +45,36 @@ class DeliverableTests(unittest.TestCase):
         self.run_cli("task", "review", "launch", "--file", self.root / "r.json")
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value="launch"):
             self.run_cli("task", "decide", "launch", "--approve", "--by", "Camille Martin", "--reason", "Launch agreed")
+
+    def test_a_draft_is_written_only_inside_the_project_and_outside_the_state_folder(self):
+        self.approved_task()
+        common = ("deliverable", "new", "campaign-brief", "--task", "launch", "--tool", "Brevo", "--output")
+        escape = f"../escape-{self.root.name}.md"  # one name per run: the parent folder is shared
+        _, error = self.run_cli(*common, escape, code=1)
+        self.assertIn(f"--output {escape} is outside the project", error)
+        self.assertFalse((self.root / escape).exists())
+        _, error = self.run_cli(*common, ".openguildkit/tasks/brief.md", code=1)
+        self.assertIn("--output .openguildkit/tasks/brief.md is in .openguildkit/", error)
+        self.assertFalse((self.root / ".openguildkit" / "tasks" / "brief.md").exists())
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        try:
+            (self.root / "marketing").symlink_to(Path(outside.name), target_is_directory=True)
+        except OSError as error:
+            self.skipTest(f"This account cannot create symbolic links: {error}")
+        _, error = self.run_cli(*common, "marketing/brief.md", code=1)
+        self.assertIn("--output marketing/brief.md is outside the project", error)
+        self.assertEqual(list(Path(outside.name).iterdir()), [])
+        _, error = self.run_cli("deliverable", "check", "../escape-test.md", code=1)
+        self.assertIn("deliverable check ../escape-test.md is outside the project", error)
+
+    def test_a_draft_needs_no_tool(self):
+        """A social media plan in a profile whose only tool is a newsletter tool: no tool to name."""
+        self.approved_task()
+        output, _ = self.run_cli("deliverable", "new", "social-media-plan", "--task", "launch", "--output", "plan.md")
+        self.assertIn("Draft written to plan.md", output)
+        self.assertNotIn("tool:", (self.root / "plan.md").read_text(encoding="utf-8"))
+        self.assertNotIn("tool", json.loads(self.run_cli("task", "show", "launch")[0])["deliverables"][0])
 
     def test_bundled_templates_link_a_method_inputs_approvals_and_checks(self):
         templates = load_deliverables(load_catalog())
@@ -72,8 +94,9 @@ class DeliverableTests(unittest.TestCase):
         output, _ = self.run_cli("deliverable", "new", "campaign-brief", "--task", "launch", "--tool", "Brevo", "--output", "brief.md")
         self.assertIn("Audience segment, described without personal data (internal data)", output)
         draft = (self.root / "brief.md").read_text(encoding="utf-8")
-        self.assertNotIn("approved_by:", draft)
-        self.assertNotIn("decision_reason:", draft)
+        # The draft may go to a client: the approval stays in the task record.
+        for internal in ("approved_by", "decision_reason", "Camille Martin", "Launch agreed"):
+            self.assertNotIn(internal, draft)
         self.assertEqual(json.loads(self.run_cli("task", "show", "launch")[0])["deliverables"][0]["tool"], "Brevo")
 
         problems, _ = self.run_cli("deliverable", "check", "brief.md", code=1)
@@ -94,6 +117,21 @@ class DeliverableTests(unittest.TestCase):
         self.run_cli("deliverable", "new", "social-media-plan", "--task", "launch", "--output", "social.md")
         self.assertNotIn("tool:", (self.root / "social.md").read_text(encoding="utf-8"))
 
+    def test_an_approved_task_cannot_write_a_draft_outside_the_project_or_to_task_records(self):
+        self.approved_task()
+        escape = f"../{self.root.name}-outside.md"
+        self.addCleanup((self.root / escape).unlink, missing_ok=True)
+        for output, reason in (
+            (escape, f"--output {escape} is outside the project"),
+            (".openguildkit/draft.md", "--output .openguildkit/draft.md is in .openguildkit/"),
+        ):
+            with self.subTest(output=output):
+                _, error = self.run_cli("deliverable", "new", "social-media-plan", "--task", "launch", "--output", output, code=1)
+                self.assertIn(reason, error)
+                self.assertFalse((self.root / output).exists())
+        record = json.loads(self.run_cli("task", "show", "launch")[0])
+        self.assertFalse(record.get("deliverables"))
+
     def filled(self, draft):
         """A draft with every placeholder, source and check completed."""
         text = draft.replace("TODO: each source with its date or link", "Customer interviews, 2026-11-02").replace("TODO", "Filled.")
@@ -106,6 +144,7 @@ class DeliverableTests(unittest.TestCase):
         for section in ("Inputs", "Message", "Channels and calendar", "Measurement", "Consent and data", "Sources", "Checks"):
             self.assertIn(f'Section "{section}" is missing.', problems)
         self.assertIn("task", problems)
+        self.assertNotIn("approved_by", problems)
         for check in ("claim-substantiated", "consent-confirmed", "measurement-ready"):
             self.assertIn(f"Check {check} is not ticked", problems)
         self.assertNotIn("Ready for review", problems)

@@ -6,77 +6,23 @@
       "name": "list_invoices",
       "description": "List invoices. Amounts are in cents.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"status": {"type": "string", "description": "Invoice status", "enum": ["paid", "open"]}}},
-      "responses": [
-        {
-          "when": {"status": "paid"},
-          "result": {
-            "invoices": [
-              {
-                "invoice_id": "in_test_001",
-                "customer": "cus_test_001",
-                "amount_cents": 180000,
-                "currency": "eur",
-                "status": "paid",
-                "date": "2026-10-31"
-              }
-            ]
-          }
-        },
-        {
-          "when": {"status": "open"},
-          "result": {
-            "invoices": [
-              {
-                "invoice_id": "in_test_002",
-                "customer": "cus_test_002",
-                "amount_cents": 95000,
-                "currency": "eur",
-                "status": "open",
-                "date": "2026-11-15"
-              },
-              {
-                "invoice_id": "in_test_003",
-                "customer": "cus_test_003",
-                "amount_cents": 24000,
-                "currency": "eur",
-                "status": "open",
-                "date": "2026-11-19"
-              }
-            ]
-          }
-        },
-        {
-          "result": {
-            "invoices": [
-              {
-                "invoice_id": "in_test_001",
-                "customer": "cus_test_001",
-                "amount_cents": 180000,
-                "currency": "eur",
-                "status": "paid",
-                "date": "2026-10-31"
-              },
-              {
-                "invoice_id": "in_test_002",
-                "customer": "cus_test_002",
-                "amount_cents": 95000,
-                "currency": "eur",
-                "status": "open",
-                "date": "2026-11-15"
-              },
-              {
-                "invoice_id": "in_test_003",
-                "customer": "cus_test_003",
-                "amount_cents": 24000,
-                "currency": "eur",
-                "status": "open",
-                "date": "2026-11-19"
-              }
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Invoice status",
+            "enum": [
+              "paid",
+              "open"
             ]
           }
         }
-      ]
+      },
+      "serve": {
+        "records": "invoices",
+        "action": "list"
+      }
     },
     {
       "name": "get_subscription",
@@ -84,63 +30,239 @@
       "read_only": true,
       "inputSchema": {
         "type": "object",
-        "properties": {"subscription_id": {"type": "string", "description": "Subscription id such as sub_test_001"}},
-        "required": ["subscription_id"]
+        "properties": {
+          "subscription_id": {
+            "type": "string",
+            "description": "Subscription id such as sub_test_001"
+          }
+        },
+        "required": [
+          "subscription_id"
+        ]
       },
-      "responses": [
-        {
-          "when": {"subscription_id": "sub_test_001"},
-          "result": {
-            "subscription_id": "sub_test_001",
-            "customer": "cus_test_001",
-            "plan": "Portal Business",
-            "amount_cents": 15000,
-            "currency": "eur",
-            "interval": "month",
-            "status": "active",
-            "renews": "2026-12-01"
-          }
-        },
-        {
-          "when": {"subscription_id": "sub_test_002"},
-          "result": {
-            "subscription_id": "sub_test_002",
-            "customer": "cus_test_002",
-            "plan": "Portal Starter",
-            "amount_cents": 4900,
-            "currency": "eur",
-            "interval": "month",
-            "status": "past_due",
-            "renews": "2026-11-25"
-          }
-        },
-        {"error": "Subscription not found. Known ids in this mock: sub_test_001, sub_test_002."}
-      ]
+      "serve": {
+        "records": "subscriptions",
+        "action": "get"
+      }
     },
     {
       "name": "list_customers",
       "description": "List customers. Filter by part of the name.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"query": {"type": "string", "description": "Part of a customer name"}}},
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Words that must all appear, whatever the case; an empty text lists everything"
+          }
+        }
+      },
+      "serve": {
+        "records": "customers",
+        "action": "list"
+      }
+    },
+    {
+      "name": "list_refunds",
+      "description": "List refunds, by invoice or by customer. Amounts are in cents.",
+      "read_only": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "invoice_id": {
+            "type": "string",
+            "description": "Invoice id such as in_test_001"
+          },
+          "customer": {
+            "type": "string",
+            "description": "Customer id such as cus_test_001"
+          }
+        }
+      },
+      "serve": {
+        "records": "refunds",
+        "action": "list"
+      }
+    },
+    {
+      "name": "create_refund",
+      "description": "Refund part or all of a paid invoice, up to its amount. Returns the refund, in test mode.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "invoice_id": {
+            "type": "string",
+            "description": "Invoice id such as in_test_001"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "description": "Amount to refund, in cents",
+            "minimum": 1
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "duplicate",
+              "fraudulent",
+              "requested_by_customer"
+            ]
+          }
+        },
+        "required": [
+          "invoice_id",
+          "amount_cents",
+          "reason"
+        ]
+      },
+      "check": {
+        "invoice_id": {
+          "records": "invoices",
+          "where": {
+            "status": "paid"
+          },
+          "at_most": {
+            "amount_cents": "amount_cents"
+          }
+        }
+      },
+      "example": {
+        "invoice_id": "in_test_001",
+        "amount_cents": 5000,
+        "reason": "requested_by_customer"
+      },
       "responses": [
         {
-          "when": {"query": "logistics"},
-          "result": {"customers": [{"customer_id": "cus_test_001", "name": "Example Logistics", "email": "billing@example.test"}]}
-        },
-        {
-          "when": {"query": "clinic"},
-          "result": {"customers": [{"customer_id": "cus_test_002", "name": "Sample Clinic Group", "email": "accounts@example.test"}]}
-        },
-        {
           "result": {
-            "customers": [
-              {"customer_id": "cus_test_001", "name": "Example Logistics", "email": "billing@example.test"},
-              {"customer_id": "cus_test_002", "name": "Sample Clinic Group", "email": "accounts@example.test"},
-              {"customer_id": "cus_test_003", "name": "Placeholder Retail", "email": "finance@example.test"}
-            ]
+            "refund_id": "$id:re_test_",
+            "invoice_id": "$arg:invoice_id",
+            "amount_cents": "$arg:amount_cents",
+            "currency": "eur",
+            "reason": "$arg:reason",
+            "status": "succeeded",
+            "date": "2026-11-21"
           }
         }
       ]
     }
-  ]
+  ],
+  "records": {
+    "customers": {
+      "key": "customer_id",
+      "title": "name",
+      "items": [
+        {
+          "customer_id": "cus_test_001",
+          "name": "Example Logistics",
+          "email": "billing@example.test",
+          "subscription_id": "sub_test_001"
+        },
+        {
+          "customer_id": "cus_test_002",
+          "name": "Sample Clinic Group",
+          "email": "accounts@example.test",
+          "subscription_id": "sub_test_002"
+        },
+        {
+          "customer_id": "cus_test_003",
+          "name": "Placeholder Retail",
+          "email": "finance@example.test",
+          "subscription_id": "sub_test_003"
+        }
+      ],
+      "refs": {
+        "subscription_id": "subscriptions"
+      }
+    },
+    "invoices": {
+      "key": "invoice_id",
+      "items": [
+        {
+          "invoice_id": "in_test_001",
+          "customer": "cus_test_001",
+          "amount_cents": 180000,
+          "currency": "eur",
+          "status": "paid",
+          "date": "2026-10-31"
+        },
+        {
+          "invoice_id": "in_test_002",
+          "customer": "cus_test_002",
+          "amount_cents": 95000,
+          "currency": "eur",
+          "status": "open",
+          "date": "2026-11-15"
+        },
+        {
+          "invoice_id": "in_test_003",
+          "customer": "cus_test_003",
+          "amount_cents": 24000,
+          "currency": "eur",
+          "status": "open",
+          "date": "2026-11-19"
+        }
+      ],
+      "refs": {
+        "customer": "customers"
+      }
+    },
+    "subscriptions": {
+      "key": "subscription_id",
+      "title": "plan",
+      "items": [
+        {
+          "subscription_id": "sub_test_001",
+          "customer": "cus_test_001",
+          "plan": "Portal Business",
+          "amount_cents": 15000,
+          "currency": "eur",
+          "interval": "month",
+          "status": "active",
+          "renews": "2026-12-01"
+        },
+        {
+          "subscription_id": "sub_test_002",
+          "customer": "cus_test_002",
+          "plan": "Portal Starter",
+          "amount_cents": 4900,
+          "currency": "eur",
+          "interval": "month",
+          "status": "past_due",
+          "renews": "2026-11-25"
+        },
+        {
+          "subscription_id": "sub_test_003",
+          "customer": "cus_test_003",
+          "plan": "Portal Business",
+          "amount_cents": 15000,
+          "currency": "eur",
+          "interval": "month",
+          "status": "canceled",
+          "renews": null
+        }
+      ],
+      "refs": {
+        "customer": "customers"
+      }
+    },
+    "refunds": {
+      "key": "refund_id",
+      "items": [
+        {
+          "refund_id": "re_test_001",
+          "invoice_id": "in_test_001",
+          "customer": "cus_test_001",
+          "amount_cents": 15000,
+          "currency": "eur",
+          "reason": "requested_by_customer",
+          "status": "succeeded",
+          "date": "2026-11-03"
+        }
+      ],
+      "refs": {
+        "invoice_id": "invoices",
+        "customer": "customers"
+      }
+    }
+  }
 }

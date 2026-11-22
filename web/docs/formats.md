@@ -1,5 +1,7 @@
 # Formats d'échange
 
+> Démonstration Atelier Nova : cette page décrit la maquette, pas le produit. [Ce qui les distingue](interface-projet.md#ce-qui-distingue-la-démonstration)
+
 Les exports sont encodés en UTF-8. Les fichiers JSON structurés portent un identifiant de format. Dans l'interface, les imports acceptent les sauvegardes et les catalogues.
 
 | Format | Champs principaux | Entrée ou sortie |

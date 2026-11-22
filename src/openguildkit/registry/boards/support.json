@@ -63,6 +63,10 @@
         "checks": [
           "Each expected question or error has an article, macro or script before release.",
           "Agents can see the customer's state needed to diagnose the problem."
+        ],
+        "applies_to": [
+          "customer",
+          "service"
         ]
       },
       {

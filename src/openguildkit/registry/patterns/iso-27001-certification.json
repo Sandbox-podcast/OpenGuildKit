@@ -1,0 +1,24 @@
+{
+  "id": "iso-27001-certification",
+  "title": "ISO/IEC 27001 certification asked by customers",
+  "description": "Proposed for software publishers: keep it when the organization holds or prepares an ISO/IEC 27001 certification of its information security management system and the project falls within its scope. It activates the same iso-27001 pack as the iso-27001-isms method.",
+  "sources": [
+    {
+      "title": "ISO/IEC JTC 1/SC 27 Journal, July 2022, ISO/IEC 27002:2022 (93 controls that form Annex A of ISO/IEC 27001)",
+      "url": "https://committee.iso.org/files/live/sites/jtc1sc27/files/resources/ISO-IEC%20JTC%201-SC%2027_N22755_SC27%20Journal%20Vol%202%20Issue%202%20(update%20Dec%202022).pdf",
+      "checked": "2026-11-22"
+    }
+  ],
+  "roles": [
+    "security"
+  ],
+  "packs": [
+    "iso-27001"
+  ],
+  "kind": "regulation",
+  "match": {
+    "sectors": [
+      "software-publisher"
+    ]
+  }
+}

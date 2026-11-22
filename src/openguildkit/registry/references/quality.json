@@ -224,9 +224,13 @@
       "sources": [
         {
           "url": "https://istqb.org/wp-content/uploads/2024/11/ISTQB_CTFL_Syllabus_v4.0.1.pdf",
-          "checked": "2026-11-21",
+          "checked": "2026-11-22",
           "title": "ISTQB Certified Tester Foundation Level Syllabus v4.0.1"
         }
+      ],
+      "pattern": "risk-based-testing",
+      "packs": [
+        "test-strategy"
       ]
     },
     {
@@ -623,7 +627,7 @@
       "sources": [
         {
           "url": "https://committee.iso.org/sites/jtc1sc7/home/projects/flagship-standards/isoiecieee-29119-series.html",
-          "checked": "2026-11-21",
+          "checked": "2026-11-22",
           "title": "ISO/IEC JTC 1/SC 7 - ISO/IEC/IEEE 29119 series"
         },
         {
@@ -631,6 +635,9 @@
           "checked": "2026-11-21",
           "title": "ISO/IEC/IEEE 29119-2:2021 - Software and systems engineering - Software testing - Part 2: Test processes"
         }
+      ],
+      "packs": [
+        "test-strategy"
       ]
     }
   ]

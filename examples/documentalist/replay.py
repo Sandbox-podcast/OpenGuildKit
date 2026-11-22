@@ -35,10 +35,15 @@ ENV = {
 }
 
 
+def run(project: Path, *args: str, capture: bool = False) -> subprocess.CompletedProcess:
+    """openguildkit on the project, its output captured or shown. The tests run it in their own process."""
+    command = [sys.executable, "-m", "openguildkit", "--project", str(project), *args]
+    return subprocess.run(command, env=ENV, text=True, encoding="utf-8", capture_output=capture)
+
+
 def cli(project: Path, *args, capture: bool = False) -> str:
-    command = [sys.executable, "-m", "openguildkit", "--project", str(project), *map(str, args)]
     print("$ openguildkit " + " ".join(map(str, args)), flush=True)
-    result = subprocess.run(command, env=ENV, text=True, encoding="utf-8", capture_output=capture)
+    result = run(project, *map(str, args), capture=capture)
     if result.returncode != 0:
         if capture:
             sys.stderr.write(result.stderr)
@@ -64,10 +69,10 @@ def review(project: Path) -> None:
 
 def decide(project: Path) -> bool:
     """Let a person at a terminal approve; return False when nobody can."""
-    command = f'openguildkit --project "{project}" task decide {TASK_ID} --approve --by "Your Name" --reason "Scope agreed"'
+    command = f'openguildkit --project "{project}" task decide {TASK_ID} --approve --by INITIALS --reason "Scope agreed"'
     if sys.stdin.isatty():
         try:
-            name = input("Your name for the approval record: ").strip() or "Example reviewer"
+            name = input("Your initials or team handle for the approval record: ").strip() or "example-reviewer"
         except EOFError:
             name = ""
         if name:

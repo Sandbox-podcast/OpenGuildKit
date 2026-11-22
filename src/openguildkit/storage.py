@@ -63,6 +63,11 @@ def json_text(data) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
 
 
+def print_json(data) -> None:
+    """Print a command's JSON answer on standard output, as every command with --json does."""
+    print(json_text(data), end="")
+
+
 def _replace(source: Path, target: Path) -> None:
     """Put the new file in place, waiting up to three seconds for a reader to let go of the old one."""
     for attempt in range(REPLACE_ATTEMPTS):
@@ -77,8 +82,13 @@ def _replace(source: Path, target: Path) -> None:
 
 def write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    if path.is_symlink():
+    if path.is_symlink() and (not path.exists() or path.is_file() or path.is_dir()):
         raise ValueError(f"Refusing to replace a symbolic link: {path}")
+    if path.exists() and not path.is_file() and not path.is_dir():
+        # A device or a pipe, such as /dev/null, cannot be replaced by a renamed file: write to it.
+        with path.open("wb") as handle:
+            handle.write(content.encode("utf-8"))
+        return
     if path.exists() and read_bytes(path) == content.encode("utf-8"):
         return
     with tempfile.NamedTemporaryFile(

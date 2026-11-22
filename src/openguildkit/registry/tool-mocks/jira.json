@@ -9,89 +9,56 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "query": {"type": "string", "description": "Words to look for"},
-          "status": {"type": "string", "description": "Optional status filter", "enum": ["To do", "In progress", "Blocked", "Done"]}
-        },
-        "required": ["query"]
-      },
-      "responses": [
-        {
-          "when": {"query": "share"},
-          "result": {"issues": [{"key": "SUP-120", "summary": "Share link for a request", "status": "Blocked", "assignee": "Noor Fixture"}]}
-        },
-        {
-          "when": {"query": "neutralised"},
-          "result": {
-            "issues": [{"key": "SUP-143", "summary": "CSV cells starting with = must be neutralised", "status": "To do", "assignee": "Sam Placeholder"}]
-          }
-        },
-        {
-          "when": {"query": "csv"},
-          "result": {
-            "issues": [
-              {"key": "SUP-142", "summary": "Export my requests as CSV", "status": "In progress", "assignee": "Lin Sample"},
-              {"key": "SUP-143", "summary": "CSV cells starting with = must be neutralised", "status": "To do", "assignee": "Sam Placeholder"}
+          "query": {
+            "type": "string",
+            "description": "Words that must all appear, whatever the case; an empty text lists everything"
+          },
+          "status": {
+            "type": "string",
+            "description": "Optional status filter",
+            "enum": [
+              "To do",
+              "In progress",
+              "Blocked",
+              "Done"
             ]
           }
         },
-        {
-          "when": {"query": "export"},
-          "result": {"issues": [{"key": "SUP-142", "summary": "Export my requests as CSV", "status": "In progress", "assignee": "Lin Sample"}]}
-        },
-        {"result": {"issues": []}}
-      ]
+        "required": [
+          "query"
+        ]
+      },
+      "serve": {
+        "records": "issues",
+        "action": "list",
+        "fields": [
+          "key",
+          "summary",
+          "status",
+          "assignee"
+        ]
+      }
     },
     {
       "name": "get_issue",
       "description": "Get one issue by key, with its description and sprint.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"key": {"type": "string", "description": "Issue key such as SUP-142"}}, "required": ["key"]},
-      "responses": [
-        {
-          "when": {"key": "SUP-142"},
-          "result": {
-            "key": "SUP-142",
-            "summary": "Export my requests as CSV",
-            "type": "Story",
-            "status": "In progress",
-            "assignee": "Lin Sample",
-            "reporter": "Ada Example",
-            "sprint": "Sprint 14",
-            "created": "2026-10-19",
-            "description": "Customers want to download their own support requests as a CSV file from the requests list."
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Issue key such as SUP-142"
           }
         },
-        {
-          "when": {"key": "SUP-143"},
-          "result": {
-            "key": "SUP-143",
-            "summary": "CSV cells starting with = must be neutralised",
-            "type": "Task",
-            "status": "To do",
-            "assignee": "Sam Placeholder",
-            "reporter": "Ada Example",
-            "sprint": "Sprint 14",
-            "created": "2026-11-17",
-            "description": "Cells that start with =, +, - or @ must be prefixed so a spreadsheet never runs them as formulas."
-          }
-        },
-        {
-          "when": {"key": "SUP-120"},
-          "result": {
-            "key": "SUP-120",
-            "summary": "Share link for a request",
-            "type": "Story",
-            "status": "Blocked",
-            "assignee": "Noor Fixture",
-            "reporter": "Kai Demo",
-            "sprint": "Sprint 14",
-            "created": "2026-10-06",
-            "description": "Let a customer share a read-only link to one request. Blocked until the security review is done.",
-            "blocked_by": "Security review of public share links"
-          }
-        },
-        {"error": "Issue not found. Known keys in this mock: SUP-120, SUP-142, SUP-143."}
-      ]
+        "required": [
+          "key"
+        ]
+      },
+      "serve": {
+        "records": "issues",
+        "action": "get"
+      }
     },
     {
       "name": "create_issue",
@@ -99,28 +66,112 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "summary": {"type": "string", "description": "Short title"},
-          "type": {"type": "string", "description": "Issue type", "enum": ["Bug", "Story", "Task"]}
+          "summary": {
+            "type": "string",
+            "description": "Short title"
+          },
+          "type": {
+            "type": "string",
+            "description": "Issue type",
+            "enum": [
+              "Bug",
+              "Story",
+              "Task"
+            ]
+          }
         },
-        "required": ["summary"]
+        "required": [
+          "summary"
+        ]
       },
-      "responses": [{"result": {"key": "SUP-200", "summary": "$arg:summary", "type": "$arg:type", "status": "To do", "created": "2026-11-21"}}]
+      "responses": [
+        {
+          "result": {
+            "key": "SUP-200",
+            "summary": "$arg:summary",
+            "type": "$arg:type",
+            "status": "To do",
+            "created": "2026-11-21"
+          }
+        }
+      ]
     },
     {
       "name": "add_comment",
       "description": "Add a comment to an issue. Returns the comment id.",
       "inputSchema": {
         "type": "object",
-        "properties": {"key": {"type": "string", "description": "Issue key"}, "body": {"type": "string", "description": "Comment text"}},
-        "required": ["key", "body"]
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Issue key"
+          },
+          "body": {
+            "type": "string",
+            "description": "Comment text"
+          }
+        },
+        "required": [
+          "key",
+          "body"
+        ]
       },
       "responses": [
         {
-          "when": {"key": "SUP-"},
-          "result": {"key": "$arg:key", "comment_id": "10042", "author": "Ada Example", "body": "$arg:body", "created": "2026-11-21"}
+          "result": {
+            "key": "$arg:key",
+            "comment_id": "10042",
+            "author": "Ada Example",
+            "body": "$arg:body",
+            "created": "2026-11-21"
+          }
+        }
+      ],
+      "check": {
+        "key": "issues"
+      }
+    }
+  ],
+  "records": {
+    "issues": {
+      "key": "key",
+      "title": "summary",
+      "items": [
+        {
+          "key": "SUP-142",
+          "summary": "Export my requests as CSV",
+          "type": "Story",
+          "status": "In progress",
+          "assignee": "Lin Sample",
+          "reporter": "Ada Example",
+          "sprint": "Sprint 14",
+          "created": "2026-10-19",
+          "description": "Customers want to download their own support requests as a CSV file from the requests list."
         },
-        {"error": "Issue not found."}
+        {
+          "key": "SUP-143",
+          "summary": "CSV cells starting with = must be neutralised",
+          "type": "Task",
+          "status": "To do",
+          "assignee": "Sam Placeholder",
+          "reporter": "Ada Example",
+          "sprint": "Sprint 14",
+          "created": "2026-11-17",
+          "description": "Cells that start with =, +, - or @ must be prefixed so a spreadsheet never runs them as formulas."
+        },
+        {
+          "key": "SUP-120",
+          "summary": "Share link for a request",
+          "type": "Story",
+          "status": "Blocked",
+          "assignee": "Noor Fixture",
+          "reporter": "Kai Demo",
+          "sprint": "Sprint 14",
+          "created": "2026-10-06",
+          "description": "Let a customer share a read-only link to one request. Blocked until the security review is done.",
+          "blocked_by": "Security review of public share links"
+        }
       ]
     }
-  ]
+  }
 }

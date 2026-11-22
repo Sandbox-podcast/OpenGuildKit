@@ -22,7 +22,6 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import cli
 from openguildkit.cli import main
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
@@ -97,19 +96,6 @@ def variants(data, rng: random.Random, count: int) -> list[tuple[str, str]]:
     return result
 
 
-_BUNDLED = {}
-_load_catalog = cli.load_catalog
-
-
-def bundled_catalog_once(extra_dir=None, *, central_policy=None):
-    """The bundled catalog validated once per run: it never changes, and validating it is most of a call's time."""
-    if central_policy is not None or (extra_dir is not None and extra_dir.exists()):
-        return _load_catalog(extra_dir, central_policy=central_policy)
-    if "catalog" not in _BUNDLED:
-        _BUNDLED["catalog"] = _load_catalog()
-    return copy.deepcopy(_BUNDLED["catalog"])
-
-
 class Crash(Exception):
     """An exception escaped the CLI: the user would see a traceback."""
 
@@ -121,9 +107,6 @@ class FuzzTestCase(unittest.TestCase):
         self.root = Path(temporary.name)
         self.rng = random.Random(f"{SEED}:{self.id()}")
         self.crashes = []
-        catalog = patch.object(cli, "load_catalog", bundled_catalog_once)
-        catalog.start()
-        self.addCleanup(catalog.stop)
 
     def cli(self, *arguments, stdin="", typed=None):
         """Run the CLI in this process; return (exit code, stdout, stderr) or record a crash."""
@@ -368,8 +351,9 @@ class CommandSequenceTests(FuzzTestCase):
         self.init()
         self.expect("task", "new", "Draft only.", "--id", "draft")
         code, _, stderr = self.cli("task", "pass", "draft", "security")
-        self.assertEqual((code, stderr.strip()),
-                         (1, "OpenGuildKit: Board passes can only run while the task is being consulted."))
+        self.assertEqual(code, 1)
+        self.assertIn("OpenGuildKit: Board passes can only run while the task is being consulted.", stderr)
+        self.assertIn("openguildkit task consult draft --answers FILE", stderr)
 
     def step(self, action, task_id, entries):
         if action == "new":

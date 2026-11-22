@@ -1,29 +1,43 @@
 # Install OpenGuildKit from GitHub Releases
 
-Download the assets for the [release you want to deploy](https://github.com/Sandbox-podcast/OpenGuildKit/releases). The Python wheel provides the catalog, project setup and specialist reviews. The optional Node package coordinates checks across GitHub Actions and Jenkins.
+OpenGuildKit is not published on PyPI: install the wheel attached to a [GitHub release](https://github.com/Sandbox-podcast/OpenGuildKit/releases). The Python wheel provides the CLI, the catalog, the agent files and the web interface that `openguildkit ui` serves. The optional Node package coordinates checks across GitHub Actions and Jenkins.
 
 ## Download and verify
 
-Download the wheel, the optional Node archive and `SHA256SUMS.txt`. For v0.16.1, use the following GitHub CLI command.
+Download the wheel, the optional Node archive and `SHA256SUMS.txt`. For v0.17.0, use the following GitHub CLI command.
 
 ```sh
-gh release download v0.16.1 --repo Sandbox-podcast/OpenGuildKit --pattern 'openguildkit-0.16.1-py3-none-any.whl' --pattern 'openguildkit-0.16.1.tgz' --pattern SHA256SUMS.txt
+gh release download v0.17.0 --repo Sandbox-podcast/OpenGuildKit --pattern 'openguildkit-0.17.0-py3-none-any.whl' --pattern 'openguildkit-0.17.0.tgz' --pattern SHA256SUMS.txt
 ```
 
-On Linux use `sha256sum -c SHA256SUMS.txt`. On macOS use `shasum -a 256 -c SHA256SUMS.txt`. On Windows use `Get-FileHash .\openguildkit-0.16.1-py3-none-any.whl, .\openguildkit-0.16.1.tgz -Algorithm SHA256` in PowerShell and compare each hash to the corresponding line in `SHA256SUMS.txt`.
+On Linux use `sha256sum -c SHA256SUMS.txt`. On macOS use `shasum -a 256 -c SHA256SUMS.txt`. On Windows use `Get-FileHash .\openguildkit-0.17.0-py3-none-any.whl, .\openguildkit-0.17.0.tgz -Algorithm SHA256` in PowerShell and compare each hash to the corresponding line in `SHA256SUMS.txt`.
 
 ## How the release assets are built
 
-Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml` on GitHub Actions, on `ubuntu-latest`, from the tagged commit. The workflow stops if the tag differs from the version in `pyproject.toml` or `integrations/ci/package.json`. It builds the wheel with Python 3.13 (`python -m build --wheel`) and the Node archive with Node.js 22 (`npm pack ./integrations/ci`). It writes `SHA256SUMS.txt` with `sha256sum`, one line per file, then attaches the three files to the release of the tag. When that release does not exist yet, the workflow creates it as a draft, which a maintainer reviews and publishes. The run log on the Actions tab prints the hashes it computed.
+Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml` on GitHub Actions, on `ubuntu-latest`, from the tagged commit. The workflow stops if the tag differs from the version in `pyproject.toml` or `integrations/ci/package.json`. It builds the web interface with Node.js 24 (`npm ci --ignore-scripts`, `npm run build`, then `npm run bundle`, which copies it into `src/openguildkit/web_dist` and fails above its size budget), then the wheel with Python 3.13 (`python -m build --wheel`). It refuses a wheel that does not contain `openguildkit/web_dist/index.html`. It packs the Node archive (`npm pack ./integrations/ci`), writes `SHA256SUMS.txt` with `sha256sum`, one line per file, then attaches the three files to the release of the tag. When that release does not exist yet, the workflow creates it as a draft, which a maintainer reviews and publishes. The run log on the Actions tab prints the hashes it computed. The `package` job of `.github/workflows/ci.yml` builds the wheel with the same steps on every pull request, installs it on Linux, macOS and Windows (with `pipx` on Windows), and checks that `openguildkit ui` serves the interface.
 
 ## Install the Python CLI
 
-Use Python 3.11 or later. Save the path to the wheel before switching to the project directory. On Linux or macOS:
+Use Python 3.11 or later. For a team, install the command once per workstation with [pipx](https://pipx.pypa.io/) or [uv](https://docs.astral.sh/uv/): both put `openguildkit` on the PATH, which the hooks of the board guard need.
+
+```sh
+pipx install ./openguildkit-0.17.0-py3-none-any.whl
+openguildkit --version
+```
+
+Or, with uv:
+
+```sh
+uv tool install ./openguildkit-0.17.0-py3-none-any.whl
+openguildkit --version
+```
+
+To keep OpenGuildKit inside one project instead, install it in a virtual environment. Save the path to the wheel before switching to the project directory. On Linux or macOS:
 
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install ./openguildkit-0.16.1-py3-none-any.whl
+python -m pip install ./openguildkit-0.17.0-py3-none-any.whl
 openguildkit catalog
 ```
 
@@ -31,11 +45,11 @@ On Windows:
 
 ```powershell
 py -3 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install .\openguildkit-0.16.1-py3-none-any.whl
+.\.venv\Scripts\python.exe -m pip install .\openguildkit-0.17.0-py3-none-any.whl
 .\.venv\Scripts\openguildkit.exe catalog
 ```
 
-Check the version you installed with `openguildkit --version`. From the project to equip, run `openguildkit init` and then `openguildkit check`. On Windows, use the full path to `openguildkit.exe` from the installed environment, or activate that environment first. Commit the generated profile, `.openguildkit/catalog.lock.json` and the instructions for the team.
+Check the version you installed with `openguildkit --version`. From the project to equip, run `openguildkit init`, then `openguildkit host apply` when the host is Claude Code or Codex (`check` fails until the host settings are applied), then `openguildkit check`. On Windows, use the full path to `openguildkit.exe` from the installed environment, or activate that environment first. Commit the generated profile, `.openguildkit/catalog.lock.json` and the instructions for the team. `openguildkit ui` then opens the project in the browser, on 127.0.0.1: the wheel ships the built interface.
 
 ## Set up the agent
 
@@ -47,13 +61,21 @@ openguildkit integrations --host codex         # .agents/skills/openguildkit
 openguildkit integrations --host other         # .agents/skills/openguildkit, for another agent
 ```
 
-Add `--user` to install them in your home folder for every project. A file you changed is kept and reported; `--force` replaces it and saves your version as `.previous`. Each folder gets `openguildkit-version.txt` with the installed version, or the name of the file kept at another version. `openguildkit init` asks for the agent host and the board guard (`observe` unless you choose otherwise) and, when the host is Claude Code or Codex, prints `openguildkit host apply` as the next step: it installs the host settings and hooks. With the host `other` (the default), OpenGuildKit writes no host settings: see [other agents](../integrations/README.md#other-agents) for the whole path. For a project set up before, set `"host"` in `.openguildkit/project.json` and run the same command. The hooks of the board guard call `openguildkit` by name: start the agent from the activated environment, or install the CLI on the PATH (for example with `pipx`). `openguildkit host check` reports the guard as `missing` when the command is not on the PATH.
+Add `--user` to install them in your home folder for every project. A file you changed is kept and reported; `--force` replaces it and saves your version as `.previous`. Each folder gets `openguildkit-version.txt` with the installed version, or the name of the file kept at another version. `openguildkit init` asks for the agent host and the board guard (`observe` unless you choose otherwise) and, when the host is Claude Code or Codex, prints `openguildkit host apply` as the next step: it installs the host settings and hooks. With the host `other` (the default), OpenGuildKit writes no host settings: see [other agents](../integrations/README.md#other-agents) for details. For a project set up before, change the host with `openguildkit profile set host claude-code --by NAME --reason WHY` (or `codex`) and run the same command.
+
+For another agent (the host `other`), the whole path is:
+
+1. `openguildkit init`, choosing `other`: it writes `AGENTS.md`, which most agents read, and `CLAUDE.md`, one line for Claude Code that you can delete.
+2. `openguildkit integrations --host other`: the skill goes to `.agents/skills/openguildkit/SKILL.md`; copy it to the folder your agent reads skills or instructions from if it is another one.
+3. `openguildkit host check`: every rule shows `by instruction` or `by a person`, since no setting of this agent can enforce it. `openguildkit host apply` writes nothing for this host, says so and exits with 1.
+4. `openguildkit tools plan TOOL...`: prints each MCP server as an `mcpServers` entry to copy into your agent's MCP settings. `tools apply` writes only for `--host claude-code` or `--host codex`.
+5. `openguildkit check`, then commit `AGENTS.md`, `.openguildkit/project.json` and `.openguildkit/catalog.lock.json`. The board guard has no hook here: the AGENTS.md instruction and `openguildkit guard --ci` in CI are the controls. The hooks of the board guard call `openguildkit` by name: start the agent from the activated environment, or install the CLI on the PATH (for example with `pipx`). `openguildkit host check` reports the guard as `missing` when the command is not on the PATH.
 
 ## Upgrade
 
-1. Download and verify the new release assets as above, then `python -m pip install --upgrade ./openguildkit-NEW-py3-none-any.whl` and check `openguildkit --version`.
+1. Download and verify the new release assets as above, then install the new wheel the way you installed the first one: `pipx install --force ./openguildkit-NEW-py3-none-any.whl`, `uv tool install ./openguildkit-NEW-py3-none-any.whl`, or `python -m pip install --upgrade ./openguildkit-NEW-py3-none-any.whl` in the virtual environment. Check `openguildkit --version`.
 2. Run `openguildkit integrations --host ...` again to update the skill and subagent.
-3. Run `openguildkit update` to see the date of the new catalog, the number of records it changes and what it changes for the project, and `openguildkit update --apply` once the team agrees. Tasks consulted under the previous rules are listed.
+3. Run `openguildkit update` to see the date of the new catalog, the number of records it changes and what it changes for the project, and `openguildkit update --apply` once the team agrees. It shows the old and the new wording of each changed rule and names the tasks the change touches, before you apply it; `update --apply` and the `sync` after it name the same tasks. When the instructions already follow a newer catalog than the lock, `check`, `task new`, `task consult`, `task decide` and `task handoff` refuse and point to `openguildkit update`; when the installed catalog changes locked rules, `check` and `sync` say so. `sync` keeps the lock's rules: it rewrites the instructions from the lock and never adopts a newer catalog.
 4. Run `openguildkit check` and commit the updated files.
 
 ## Add the optional CI coordinator
@@ -61,7 +83,7 @@ Add `--user` to install them in your home folder for every project. A file you c
 Use Node.js 22 or later, npm and Git. The GitHub integration also needs an authenticated GitHub CLI.
 
 ```sh
-npm install --global ./openguildkit-0.16.1.tgz
+npm install --global ./openguildkit-0.17.0.tgz
 openguildkit-ci --version
 ```
 
@@ -75,4 +97,4 @@ To check for a newer pilot package from a machine with GitHub CLI:
 openguildkit-ci releases --repo Sandbox-podcast/OpenGuildKit --channel pilot
 ```
 
-For CI installs, pin the release tag and archive hash. The [guard workflow template](../integrations/github/openguildkit-guard.yml) downloads the wheel of the tag you set and installs it only when its hash matches the one you copied from `SHA256SUMS.txt`. Each consumer repository can use the public release as its distribution source. If using a workflow template that downloads from the consumer repository, set the release download to point to `Sandbox-podcast/OpenGuildKit` or mirror the verified asset under the same tag.
+For CI installs, pin the release tag and archive hash. The [guard workflow template](../integrations/github/openguildkit-guard.yml) downloads the wheel of the tag you set and installs it only when its hash matches the one you copied from `SHA256SUMS.txt`. A pull request runs its own copy of that workflow: protect it with `CODEOWNERS` on `.github/workflows/` or a ruleset that requires it from the default branch ([Protect the check](../integrations/README.md#protect-the-check)), and add `--require-signed` to its guard step to fail while approvals are local. Each consumer repository can use the public release as its distribution source. If using a workflow template that downloads from the consumer repository, set the release download to point to `Sandbox-podcast/OpenGuildKit` or mirror the verified asset under the same tag.

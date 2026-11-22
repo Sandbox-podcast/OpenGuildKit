@@ -1,9 +1,6 @@
 # Maintainers own the CLI, the schema and the releases (GOVERNANCE.md). GitHub requests their review on every change.
+# OpenGuildKit has one maintainer today; a second maintainer is added to this line when they join.
 * @loukan42
 
-# PLACEHOLDER, to complete by the maintainers: the second maintainer's GitHub login is not recorded in the
-# repository yet. Add it to the line above, or replace the line with a team such as
-# @Sandbox-podcast/openguildkit-maintainers once that team exists.
-#
 # Domain stewards are added below with the paths of their domain once named, for example:
 # /src/openguildkit/registry/packs/security-*.json @security-steward-login

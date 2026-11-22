@@ -32,7 +32,8 @@
           "status": "unknown",
           "capabilities": "Contacts, lists, email/SMS/WhatsApp campaigns, CRM deals, templates, analytics and account administration (27 modules).",
           "source": "https://developers.brevo.com/docs/mcp-protocol",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -66,15 +67,63 @@
           "auth": "api-token",
           "env": [],
           "status": "unknown",
-          "capabilities": "Check account status, build templates, call and describe Transactional API endpoints, diagnose failed sends.",
+          "capabilities": "Transactional email (Mandrill) only, not Marketing audiences or campaigns: call and describe Transactional API endpoints, templates, account status, failed sends.",
           "source": "https://mailchimp.com/developer/transactional/guides/how-to-use-mailchimps-transactional-messaging-mcp",
           "verified": "2026-11-21",
-          "access": {
-            "mode": "read-write",
-            "consent": "Use a Mailchimp Transactional (Mandrill) API key",
-            "scopes": [
-              "Transactional messages and templates"
-            ]
+          "access": "Any Transactional Messaging API endpoint the key allows, sending email included.",
+          "scopes": "An API key sent as a bearer token; a key restricted to some API calls needs the AI Agents permission group.",
+          "reviewed": "2026-11-21"
+        },
+        {
+          "id": "mailchimp-docs-mcp",
+          "name": "Mailchimp Marketing API documentation",
+          "publisher": "vendor",
+          "maintainer": "Intuit Mailchimp",
+          "transport": "streamable-http",
+          "url": "https://mailchimp.com/developer/_mcp/server",
+          "auth": "none",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Search public Marketing API documentation. No account, audience or campaign data is exposed.",
+          "source": "https://mailchimp.com/developer/marketing/build/ai-tools/mcp-server/",
+          "verified": "2026-11-21",
+          "access": "Read-only.",
+          "scopes": "Public developer documentation. Consent: No account or consent required.",
+          "read_only": {
+            "how": "Every tool searches public documentation."
+          }
+        },
+        {
+          "id": "mailchimp-marketing-local",
+          "name": "Mailchimp Marketing API MCP (community, local)",
+          "publisher": "community",
+          "maintainer": "Damien Tilman",
+          "transport": "stdio",
+          "command": "uvx",
+          "args": [
+            "mailchimp-mcp==1.3.0"
+          ],
+          "package": {
+            "registry": "pypi",
+            "name": "mailchimp-mcp"
+          },
+          "auth": "api-token",
+          "env": [
+            "MAILCHIMP_API_KEY"
+          ],
+          "status": "unknown",
+          "capabilities": "Browse or manage marketing audiences, subscribers, segments, campaigns and reports. Select read-only mode to block mutations.",
+          "source": "https://pypi.org/project/mailchimp-mcp/1.3.0/",
+          "repository": "https://github.com/damientilman/mailchimp-mcp-server",
+          "license": "MIT",
+          "verified": "2026-11-21",
+          "access": "Read and write.",
+          "scopes": "Marketing API permissions of the supplied key, including access to account audiences. Consent: Review the community server and supply a Mailchimp Marketing API key.",
+          "read_only": {
+            "how": "MAILCHIMP_READ_ONLY=true blocks every mutation.",
+            "env": {
+              "MAILCHIMP_READ_ONLY": "true"
+            }
           }
         }
       ],
@@ -82,7 +131,7 @@
         "kind": "rest",
         "docs": "https://mailchimp.com/developer/marketing/api/"
       },
-      "notes": "The documented server covers Mailchimp Transactional only. Marketing campaigns are reachable through Mailchimp's Claude and ChatGPT connectors, whose endpoint is not published in Mailchimp's docs; a docs-only server is at https://mailchimp.com/developer/_mcp/server."
+      "notes": "Mandrill is the Transactional API. For newsletter audiences, select mailchimp/mailchimp-marketing-local --community --read-only or use the Marketing API. Intuit also offers a separate Claude campaign connector: https://claude.com/marketplace/connectors/intuit-mailchimp."
     },
     {
       "id": "wordpress",
@@ -113,7 +162,8 @@
           "status": "unknown",
           "capabilities": "Work with every WordPress.com or Jetpack-connected site on the account.",
           "source": "https://developer.wordpress.com/docs/mcp/",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         },
         {
           "id": "wordpress-mcp-adapter",
@@ -141,7 +191,8 @@
           "source": "https://github.com/WordPress/mcp-adapter/blob/trunk/docs/guides/cli-usage.md",
           "repository": "https://github.com/WordPress/mcp-adapter",
           "license": "GPL-2.0",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         }
       ],
       "api": {

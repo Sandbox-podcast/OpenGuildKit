@@ -639,10 +639,14 @@
       "applies_when": "Pour les produits et services visés, selon leur mise sur le marché, les exemptions et les règles nationales applicables.",
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dir/2019/882/oj",
-          "checked": "2026-11-20",
+          "url": "https://eur-lex.europa.eu/eli/dir/2019/882/oj/eng",
+          "checked": "2026-11-22",
           "title": "Directive (UE) 2019/882 — Exigences en matière d'accessibilité applicables aux produits et services"
         }
+      ],
+      "pattern": "european-accessibility-act",
+      "packs": [
+        "european-accessibility-act"
       ]
     },
     {

@@ -37,8 +37,6 @@ export const latestPublished = (s: AppState, orgId: ID | null) =>
 export const openDraft = (s: AppState, orgId: ID | null) =>
   blueprintOf(s, orgId)?.versions.find((v) => v.status === 'draft' || v.status === 'review');
 
-export const ruleVersion = (s: AppState, ref: RuleRef): RuleVersion | undefined =>
-  get(s, 'rule', ref.ruleId)?.versions.find((v) => v.number === ref.version);
 export const latestRuleVersion = (r: Rule) => r.versions.filter((v) => v.status === 'published').at(-1) ?? r.versions.at(-1)!;
 
 export const fact = (v: BlueprintVersion | undefined, key: string): ContextFact | undefined => v?.context.find((f) => f.key === key);

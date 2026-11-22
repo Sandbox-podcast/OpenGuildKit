@@ -1,6 +1,4 @@
-import contextlib
 import fnmatch
-import io
 import json
 import re
 import shlex
@@ -10,9 +8,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.cli import main
 from openguildkit.hosts import CLAUDE_APPROVAL_RULES, CLAUDE_PROTECTED_RULES, _codex_rules, host_controls
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 
 APPROVAL_FORMS = (
@@ -57,18 +56,11 @@ def codex_forbids(command: str, rules_text: str) -> bool:
     return False
 
 
-class HostControlTests(unittest.TestCase):
+class HostControlTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def init(self, **extra):
         # These checks cover the research and approval controls; the guard has its own tests.
@@ -105,9 +97,10 @@ class HostControlTests(unittest.TestCase):
         self.assertEqual(parsed["web_search"], "disabled")
         self.assertEqual(parsed["model"], "gpt-6.1-sol")
         rules = (self.root / ".codex" / "rules" / "openguildkit.rules").read_text(encoding="utf-8")
-        self.assertIn('pattern = ["openguildkit", "task", ["decide", "waive", "authorize"]], decision = "forbidden"', rules)
+        self.assertIn('pattern = ["openguildkit", "task", ["decide", "waive", "authorize", "revoke"]], '
+                      'decision = "forbidden"', rules)
         report, _ = self.run_cli("host", "check", "--json")
-        self.assertTrue(all(item["status"] in ("enforced", "human") for item in json.loads(report)))
+        self.assertTrue(all(item["status"] in ("enforced", "partial", "human") for item in json.loads(report)))
 
     def test_codex_settings_that_open_the_network_are_left_to_the_person(self):
         config = self.root / ".codex" / "config.toml"
@@ -125,7 +118,8 @@ class HostControlTests(unittest.TestCase):
         self.assertIn("Nothing missing.", report)
         self.assertNotIn("[missing]", report)
         self.run_cli("task", "new", "Show statuses.", "--id", "status")
-        write_json(self.root / "a.json", {"kind": "bug", "surface": ["service"], "data": "none", "research": "local"})
+        write_json(self.root / "a.json", {"kind": "bug", "surface": ["service"], "data": "none", "research": "local",
+                                          "concerns": ["none"]})
         consultation, _ = self.run_cli("task", "consult", "status", "--answers", self.root / "a.json")
         self.assertIn("Public research is off for this project and this host agent has no setting that enforces it",
                       consultation)
@@ -168,7 +162,64 @@ class HostControlTests(unittest.TestCase):
             self.assertIn(rule, deny)
         self.assertIn("Edit(/.openguildkit/tasks/**)", deny)
         self.assertIn("Edit(/.openguildkit/project.json)", deny)
+        self.assertIn("Edit(/.openguildkit/alerts.json)", deny)
+        self.assertIn("Edit(/.openguildkit/catalog/**)", deny)
         self.assertFalse([rule for rule in deny if rule.startswith("Edit(./")])
+
+    def test_a_signed_project_keeps_the_file_tools_away_from_its_signers_file(self):
+        (self.root / "keys").mkdir()
+        (self.root / "keys" / "allowed_signers").write_text("camille@example.org ssh-ed25519 AAAA\n", encoding="utf-8")
+        self.init(host="claude-code", approval={"mode": "signed", "allowed_signers": "keys/allowed_signers",
+                                                "approvers": ["camille@example.org"]})
+        report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json", code=1)[0])}
+        self.assertEqual(report["approval"]["status"], "missing")
+        self.run_cli("host", "apply")
+        settings = self.root / ".claude" / "settings.json"
+        written = json.loads(settings.read_text(encoding="utf-8"))
+        self.assertIn("Edit(/keys/allowed_signers)", written["permissions"]["deny"])
+        report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json")[0])}
+        self.assertEqual(report["approval"]["status"], "partial")
+        self.assertIn("allowed signers file", report["approval"]["detail"])
+        written["permissions"]["deny"].remove("Edit(/keys/allowed_signers)")
+        settings.write_text(json.dumps(written), encoding="utf-8")
+        report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json", code=1)[0])}
+        self.assertIn("missing: Edit(/keys/allowed_signers)", report["approval"]["detail"])
+
+    def test_host_apply_says_the_approval_rule_is_partial(self):
+        for host in ("claude-code", "codex"):
+            with self.subTest(host=host):
+                (self.root / ".openguildkit" / "project.json").unlink(missing_ok=True)
+                self.init(host=host)
+                output, _ = self.run_cli("host", "apply")
+                self.assertIn("[partial] The agent cannot run the approval command", output)
+                self.assertNotIn("[enforced] The agent cannot run the approval command", output)
+                self.assertIn("Partial: a script file", output)
+
+    def test_in_enforce_a_user_setting_cannot_turn_the_hooks_off(self):
+        self.init(host="claude-code", guard="enforce")
+        self.run_cli("host", "apply")
+        settings = self.root / ".claude" / "settings.json"
+        written = json.loads(settings.read_text(encoding="utf-8"))
+        self.assertIs(written["disableAllHooks"], False)
+        with patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit"):
+            self.assertEqual({item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json")[0])}
+                             ["board"]["status"], "enforced")
+            for value in (None, True):
+                if value is None:
+                    written.pop("disableAllHooks")
+                else:
+                    written["disableAllHooks"] = value
+                settings.write_text(json.dumps(written), encoding="utf-8")
+                report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json", code=1)[0])}
+                self.assertEqual(report["board"]["status"], "missing")
+                self.assertIn('"disableAllHooks": false', report["board"]["detail"])
+            self.run_cli("host", "apply")
+        self.assertIs(json.loads(settings.read_text(encoding="utf-8"))["disableAllHooks"], False)
+
+    def test_in_observe_the_hooks_switch_is_left_to_the_team(self):
+        self.init(host="claude-code", guard="observe")
+        self.run_cli("host", "apply")
+        self.assertNotIn("disableAllHooks", json.loads((self.root / ".claude" / "settings.json").read_text(encoding="utf-8")))
 
     def test_edit_rules_relative_to_the_current_directory_are_replaced(self):
         settings = self.root / ".claude" / "settings.json"
@@ -235,9 +286,11 @@ class HostControlTests(unittest.TestCase):
         self.assertIn("approvals are not signed", error)
         self.assertIn("signed", error)
         _, error = self.run_cli("host", "apply")
-        self.assertEqual(error.count("approvals are not signed"), 1)
+        self.assertNotIn("approvals are not signed", error)
         with patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit"):
+            _, check_error = self.run_cli("host", "check")
             _, error = self.run_cli("check")
+        self.assertEqual(check_error.count("approvals are not signed"), 1)
         self.assertIn("approvals are not signed", error)
 
     def test_signed_approvals_raise_no_warning(self):

@@ -6,60 +6,22 @@
       "name": "search_deals",
       "description": "Search deals by text in their name or notes. Amounts are in EUR.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"query": {"type": "string", "description": "Words to look for"}}, "required": ["query"]},
-      "responses": [
-        {
-          "when": {"query": "export"},
-          "result": {
-            "deals": [
-              {
-                "deal_id": "deal-1",
-                "name": "Example Logistics: portal renewal",
-                "company_id": "company-101",
-                "amount_eur": 18000,
-                "stage": "Negotiation",
-                "notes": "Asked for an export of their own requests as CSV before renewing.",
-                "owner": "Remy Mock"
-              },
-              {
-                "deal_id": "deal-2",
-                "name": "Sample Clinic Group: support plan",
-                "company_id": "company-102",
-                "amount_eur": 9500,
-                "stage": "Proposal",
-                "notes": "Needs a CSV export of requests for their monthly report.",
-                "owner": "Remy Mock"
-              },
-              {
-                "deal_id": "deal-3",
-                "name": "Placeholder Retail: new portal",
-                "company_id": "company-103",
-                "amount_eur": 24000,
-                "stage": "Qualified",
-                "notes": "CSV export of requests is a condition for the pilot.",
-                "owner": "Remy Mock"
-              }
-            ]
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Words that must all appear, whatever the case; an empty text lists everything"
           }
         },
-        {
-          "when": {"query": "renewal"},
-          "result": {
-            "deals": [
-              {
-                "deal_id": "deal-1",
-                "name": "Example Logistics: portal renewal",
-                "company_id": "company-101",
-                "amount_eur": 18000,
-                "stage": "Negotiation",
-                "notes": "Asked for an export of their own requests as CSV before renewing.",
-                "owner": "Remy Mock"
-              }
-            ]
-          }
-        },
-        {"result": {"deals": []}}
-      ]
+        "required": [
+          "query"
+        ]
+      },
+      "serve": {
+        "records": "deals",
+        "action": "list"
+      }
     },
     {
       "name": "get_company",
@@ -67,44 +29,140 @@
       "read_only": true,
       "inputSchema": {
         "type": "object",
-        "properties": {"company_id": {"type": "string", "description": "Company id such as company-101"}},
-        "required": ["company_id"]
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Company id such as company-101"
+          }
+        },
+        "required": [
+          "company_id"
+        ]
       },
-      "responses": [
-        {
-          "when": {"company_id": "company-101"},
-          "result": {
-            "company_id": "company-101",
-            "name": "Example Logistics",
-            "industry": "Transport",
-            "employees": 220,
-            "owner": "Remy Mock",
-            "contact": "buyer@example.test"
-          }
-        },
-        {
-          "when": {"company_id": "company-102"},
-          "result": {
-            "company_id": "company-102",
-            "name": "Sample Clinic Group",
-            "industry": "Health services",
-            "employees": 85,
-            "owner": "Remy Mock",
-            "contact": "office@example.test"
-          }
-        },
-        {"error": "Company not found. Known ids in this mock: company-101, company-102."}
-      ]
+      "serve": {
+        "records": "companies",
+        "action": "get"
+      }
     },
     {
       "name": "create_note",
       "description": "Add a note to a deal. Returns the note.",
       "inputSchema": {
         "type": "object",
-        "properties": {"deal_id": {"type": "string", "description": "Deal id"}, "body": {"type": "string", "description": "Note text"}},
-        "required": ["deal_id", "body"]
+        "properties": {
+          "deal_id": {
+            "type": "string",
+            "description": "Deal id"
+          },
+          "body": {
+            "type": "string",
+            "description": "Note text"
+          }
+        },
+        "required": [
+          "deal_id",
+          "body"
+        ]
       },
-      "responses": [{"result": {"note_id": "note-50", "deal_id": "$arg:deal_id", "body": "$arg:body", "author": "Remy Mock", "created": "2026-11-21"}}]
+      "responses": [
+        {
+          "result": {
+            "note_id": "note-50",
+            "deal_id": "$arg:deal_id",
+            "body": "$arg:body",
+            "author": "Remy Mock",
+            "created": "2026-11-21"
+          }
+        }
+      ],
+      "check": {
+        "deal_id": "deals"
+      }
     }
-  ]
+  ],
+  "records": {
+    "deals": {
+      "key": "deal_id",
+      "title": "name",
+      "items": [
+        {
+          "deal_id": "deal-1",
+          "name": "Example Logistics: portal renewal",
+          "company_id": "company-101",
+          "amount_eur": 18000,
+          "stage": "Negotiation",
+          "notes": "Asked for an export of their own requests as CSV before renewing.",
+          "owner": "Remy Mock"
+        },
+        {
+          "deal_id": "deal-2",
+          "name": "Sample Clinic Group: support plan",
+          "company_id": "company-102",
+          "amount_eur": 9500,
+          "stage": "Proposal",
+          "notes": "Needs a CSV export of requests for their monthly report.",
+          "owner": "Remy Mock"
+        },
+        {
+          "deal_id": "deal-3",
+          "name": "Placeholder Retail: new portal",
+          "company_id": "company-103",
+          "amount_eur": 24000,
+          "stage": "Qualified",
+          "notes": "CSV export of requests is a condition for the pilot.",
+          "owner": "Remy Mock"
+        },
+        {
+          "deal_id": "deal-4",
+          "name": "Demo Campaign Studio: refund dispute",
+          "company_id": "company-104",
+          "amount_eur": 3200,
+          "stage": "Closed lost",
+          "notes": "Asked for a refund of the first month after the onboarding slipped.",
+          "owner": "Remy Mock"
+        }
+      ],
+      "refs": {
+        "company_id": "companies"
+      }
+    },
+    "companies": {
+      "key": "company_id",
+      "title": "name",
+      "items": [
+        {
+          "company_id": "company-101",
+          "name": "Example Logistics",
+          "industry": "Transport",
+          "employees": 220,
+          "owner": "Remy Mock",
+          "contact": "buyer@example.test"
+        },
+        {
+          "company_id": "company-102",
+          "name": "Sample Clinic Group",
+          "industry": "Health services",
+          "employees": 85,
+          "owner": "Remy Mock",
+          "contact": "office@example.test"
+        },
+        {
+          "company_id": "company-103",
+          "name": "Placeholder Retail",
+          "industry": "Retail",
+          "employees": 410,
+          "owner": "Remy Mock",
+          "contact": "pilot@example.test"
+        },
+        {
+          "company_id": "company-104",
+          "name": "Demo Campaign Studio",
+          "industry": "Marketing agency",
+          "employees": 18,
+          "owner": "Remy Mock",
+          "contact": "studio@example.test"
+        }
+      ]
+    }
+  }
 }

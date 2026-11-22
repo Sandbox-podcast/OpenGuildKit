@@ -19,6 +19,9 @@
     "frontend",
     "product"
   ],
+  "core_for": [
+    "localisation"
+  ],
   "packs": [
     "i18n-readiness"
   ],

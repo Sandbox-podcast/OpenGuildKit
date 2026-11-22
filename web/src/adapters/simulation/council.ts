@@ -261,4 +261,3 @@ export function clarificationFor(scenarioKey: string | null, expert: ExpertKey, 
   return answer ?? `Le scénario ne contient pas de réponse préparée à « ${question.slice(0, 80)} ». La question reste ouverte et figure dans la synthèse.`;
 }
 
-export const genericOptions = (): CouncilOption[] => [];

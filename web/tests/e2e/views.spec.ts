@@ -98,6 +98,28 @@ test('permissions dans l’interface : lecteur et agent IA', async ({ page }) =>
   await expect(page.locator('.why').filter({ hasText: /humain/ }).first()).toBeVisible();
 });
 
+test('approuver et refuser montrent la commande du terminal sans rien enregistrer', async ({ page }) => {
+  await loadNova(page);
+  await actAs(page, 'Inès Morel');
+  await go(page, '#/tour/revues');
+  const reviews = page.locator('.panel', { hasText: 'Revues humaines en attente' });
+  const closure = reviews.locator('.card', { hasText: 'clôture' });
+  await expect(reviews.getByRole('heading', { name: /Revues humaines en attente \(2\)/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Approuver la sélection/ })).toHaveCount(0);
+
+  await closure.getByRole('button', { name: 'Approuver' }).click();
+  const shown = page.locator('dialog[open]');
+  await expect(shown.getByLabel('Commande à taper dans le terminal')).toHaveText("openguildkit task decide qst-portal --approve --by 'Inès Morel' --reason '…'");
+  await expect(shown).toContainText('la page ne l’enregistre jamais');
+  await shown.getByRole('button', { name: 'Annuler' }).click();
+
+  await closure.getByRole('button', { name: 'Refuser' }).click();
+  await expect(shown.getByLabel('Commande à taper dans le terminal')).toContainText('--request-changes');
+  await shown.getByRole('button', { name: 'Annuler' }).click();
+
+  await expect(reviews.getByRole('heading', { name: /Revues humaines en attente \(2\)/ })).toBeVisible();
+});
+
 test('les liens directs sont limités à l’organisation active', async ({ page }) => {
   await loadNova(page);
   await go(page, '#/entree');
@@ -161,7 +183,7 @@ test('clavier, palette, styles RPG et Pro et rechargement', async ({ page }) => 
   await page.getByRole('button', { name: 'Pro', exact: true }).click();
   await expect(page.locator('.app')).toHaveClass(/mode-focus/);
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(244, 247, 245)');
-  await expect(page.getByRole('heading', { name: 'Missions', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tâches', exact: true })).toBeVisible();
   await expect(page).toHaveURL(/vue=liste&projet=prj-billing/);
   await expect(page.getByText('Relances automatiques')).toBeVisible();
   await page.getByRole('button', { name: 'RPG', exact: true }).click();
@@ -240,7 +262,7 @@ test('mobile et réduction des mouvements', async ({ page }) => {
   const appearance = page.getByRole('switch', { name: 'Mode Pro' });
   await appearance.click();
   await expect(appearance).toBeChecked();
-  await expect(page.getByRole('heading', { name: 'Missions', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tâches', exact: true })).toBeVisible();
   await appearance.click();
   await expect(appearance).not.toBeChecked();
   await expect(page).toHaveURL(/#\/quetes/);

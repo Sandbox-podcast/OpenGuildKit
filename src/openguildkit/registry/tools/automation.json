@@ -25,7 +25,8 @@
           "status": "unknown",
           "capabilities": "Run active and on-demand scenarios; view and modify scenarios, connections, webhooks, data stores, teams and organizations.",
           "source": "https://developers.make.com/mcp-server/make-mcp-server",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -63,7 +64,8 @@
           "status": "unknown",
           "capabilities": "Search workflows, run MCP-enabled workflows, create and edit workflows and data tables, manage agents.",
           "source": "https://docs.n8n.io/connect/connect-to-n8n-mcp-server",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read and write."
         }
       ],
       "api": {
@@ -96,7 +98,8 @@
           "status": "unknown",
           "capabilities": "Expose actions from 9,000+ connected apps (send emails, create tasks, update records, search data) as MCP tools.",
           "source": "https://docs.zapier.com/mcp/get-started/connect/claude-code",
-          "verified": "2026-11-21"
+          "verified": "2026-11-21",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
         }
       ],
       "api": {

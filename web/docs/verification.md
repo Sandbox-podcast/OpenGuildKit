@@ -19,12 +19,12 @@ $env:PW_PORT = '5208'
 npm run e2e
 ```
 
-| Contrôle | Couverture | Résultat du 21 novembre 2026 |
+| Contrôle | Couverture | Résultat du 22 novembre 2026 |
 | --- | --- | --- |
-| `npm run check` | TypeScript, 38 tests Vitest (28 de domaine, 10 du mode réel) et build Vite | 28/28, build réussie. Chaque lieu est un fichier chargé à la demande ; aucun bloc ne dépasse 500 kB (le plus gros, le domaine de la démo, fait 316 kB). |
-| `npm run e2e` | 11 scénarios Chrome, dont les 20 étapes d'Atelier Nova et le basculement RPG / Pro | 11 réussis. La série de captures est ignorée sauf avec `CAPTURES=1`. |
-| `npm run e2e:project` | 25 parcours du mode réel, une fois par action de l'interface, et 2 balayages de 34 routes (bureau RPG, mobile Pro), sur des projets d'exemple neufs servis par `openguildkit ui` | 27/27, trois exécutions de suite. Demande `npm run build` avant. |
-| `python -m unittest tests.test_webui` (racine) | Serveur local : hôte, origine, jeton, décisions réservées au terminal, chemins, envois, requêtes mal formées, concurrence, cache du catalogue, réponses allégées et compressées, profil, fichiers servis | 20/20 |
+| `npm run check` | TypeScript, tests Vitest (domaine de la démo, mode réel, scripts) et build Vite | Tous réussis, build réussie. Chaque lieu est un fichier chargé à la demande ; aucun bloc ne dépasse 500 kB (le plus gros, le domaine de la démo, fait 316 kB). |
+| `npm run e2e` | Scénarios Chrome, dont les étapes d'Atelier Nova et le basculement RPG / Pro | Tous réussis. La série de captures est ignorée sauf avec `CAPTURES=1`. |
+| `npm run e2e:project` | Un parcours du mode réel par action de l'interface, et deux balayages de toutes les routes (bureau RPG, mobile Pro, avec axe-core), sur des projets d'exemple neufs servis par `openguildkit ui` | Tous réussis. Demande `npm run build` avant. |
+| `python -m unittest tests.test_webui` (racine) | Serveur local : hôte, origine, jeton, décisions réservées au terminal, chemins, envois, requêtes mal formées, concurrence, cache du catalogue, réponses allégées et compressées, profil, fichiers servis | Tous réussis |
 | `npm run measure:project -- URL` | Temps d'affichage, requêtes et volumes de chaque lieu du mode réel | Voir [Performances](interface-projet.md#performances) |
 
 Le mode réel charge 5 kB d'amorce, React (219 kB), le cadre du projet (28 kB) et le lieu ouvert (10 à 30 kB). Il ne charge jamais le domaine ni les données de la démonstration. [Interface d'un projet réel](interface-projet.md)
@@ -39,18 +39,18 @@ Les deux échecs Playwright de la reprise étaient reproductibles. Le glisser-d�
 
 Chrome 157 sous Windows 11, langue `fr-FR`, fuseau Europe/Paris. Chaque série utilise un contexte vierge, le scénario Atelier Nova au 20 novembre 2026 à 14 h, les mêmes routes, le guide masqué et le mouvement réduit. Chaque série compte dix captures à 1440 × 900 et cinq à 390 × 844.
 
-Les séries « Après » (RPG) et « Pro » sont régénérées par `CAPTURES=1 npm run e2e -- captures` sur la dernière build, après le passage à la palette du logo. La série « Avant » vient de la première build du chantier et n'est pas rejouée.
+Les séries RPG (`captures-apres/`) et Pro (`captures-pro/`) sont régénérées par `CAPTURES=1 npm run e2e -- captures` après chaque changement visible de la démonstration. Les séries antérieures ont été retirées du dépôt : l'historique Git les garde.
 
-| Écran | Avant | Après (RPG) | Pro |
-| --- | --- | --- | --- |
-| Entrée sur mobile | [PNG](captures-avant/01-entree-mobile.png) | [PNG](captures-apres/01-entree-mobile.png) | [PNG](captures-pro/01-entree-mobile.png) |
-| Royaume et reprise | [PNG](captures-avant/02-royaume.png) | [PNG](captures-apres/02-royaume.png) | [PNG](captures-pro/02-royaume.png) |
-| Conseil préparé | [PNG](captures-avant/03-conseil.png) | [PNG](captures-apres/03-conseil.png) | [PNG](captures-pro/03-conseil.png) |
-| Bibliothèque filtrée | [PNG](captures-avant/04-bibliotheque.png) | [PNG](captures-apres/04-bibliotheque.png) | [PNG](captures-pro/04-bibliotheque.png) |
-| Quête bloquée | [PNG](captures-avant/05-quete-bloquee.png) | [PNG](captures-apres/05-quete-bloquee.png) | [PNG](captures-pro/05-quete-bloquee.png) |
-| Livrable dans la Forge | [PNG](captures-avant/06-forge.png) | [PNG](captures-apres/06-forge.png) | [PNG](captures-pro/06-forge.png) |
-| Preuve à réévaluer sur mobile | [PNG](captures-avant/07-preuve-a-reevaluer-mobile.png) | [PNG](captures-apres/07-preuve-a-reevaluer-mobile.png) | [PNG](captures-pro/07-preuve-a-reevaluer-mobile.png) |
-| Chroniques | [PNG](captures-avant/08-chroniques.png) | [PNG](captures-apres/08-chroniques.png) | [PNG](captures-pro/08-chroniques.png) |
+| Écran | RPG | Pro |
+| --- | --- | --- |
+| Entrée sur mobile | [PNG](captures-apres/01-entree-mobile.png) | [PNG](captures-pro/01-entree-mobile.png) |
+| Royaume et reprise | [PNG](captures-apres/02-royaume.png) | [PNG](captures-pro/02-royaume.png) |
+| Conseil préparé | [PNG](captures-apres/03-conseil.png) | [PNG](captures-pro/03-conseil.png) |
+| Bibliothèque filtrée | [PNG](captures-apres/04-bibliotheque.png) | [PNG](captures-pro/04-bibliotheque.png) |
+| Quête bloquée | [PNG](captures-apres/05-quete-bloquee.png) | [PNG](captures-pro/05-quete-bloquee.png) |
+| Livrable dans la Forge | [PNG](captures-apres/06-forge.png) | [PNG](captures-pro/06-forge.png) |
+| Preuve à réévaluer sur mobile | [PNG](captures-apres/07-preuve-a-reevaluer-mobile.png) | [PNG](captures-pro/07-preuve-a-reevaluer-mobile.png) |
+| Chroniques | [PNG](captures-apres/08-chroniques.png) | [PNG](captures-pro/08-chroniques.png) |
 
 Sur le viewport de 390 px, le document mesurait 1 046 px à l'entrée, 640 px dans les contrôles et 595 px dans les preuves. Ces trois vues tiennent sur 390 px après correction. La fiche issue du lien direct `preuve=prv-ds1` affiche le motif de réévaluation dès le premier écran. L'inventaire reste accessible sous la fiche en largeur mobile.
 

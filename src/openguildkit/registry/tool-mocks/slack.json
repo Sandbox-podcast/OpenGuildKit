@@ -6,74 +6,131 @@
       "name": "search_messages",
       "description": "Search messages by text. Returns channel, author, date and text.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"query": {"type": "string", "description": "Words to look for"}}, "required": ["query"]},
-      "responses": [
-        {
-          "when": {"query": "export"},
-          "result": {
-            "messages": [
-              {
-                "channel": "#support-portal",
-                "author": "Kai Demo",
-                "date": "2026-11-17",
-                "text": "Three customers asked again for a CSV export of their requests."
-              },
-              {
-                "channel": "#dev",
-                "author": "Lin Sample",
-                "date": "2026-11-18",
-                "text": "PR #87 is open: customers can export their own requests as CSV."
-              }
-            ]
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Words that must all appear, whatever the case; an empty text lists everything"
           }
         },
-        {
-          "when": {"query": "sprint"},
-          "result": {
-            "messages": [
-              {
-                "channel": "#support-portal",
-                "author": "Ada Example",
-                "date": "2026-11-16",
-                "text": "Sprint 14 starts today and ends on 2026-11-27. The CSV export is the main goal."
-              }
-            ]
-          }
-        },
-        {"result": {"messages": []}}
-      ]
+        "required": [
+          "query"
+        ]
+      },
+      "serve": {
+        "records": "messages",
+        "action": "list"
+      }
     },
     {
       "name": "list_channels",
       "description": "List channels. Returns name, visibility and member count.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"visibility": {"type": "string", "description": "Optional filter", "enum": ["public", "private"]}}},
-      "responses": [
-        {"when": {"visibility": "private"}, "result": {"channels": [{"name": "#security-review", "visibility": "private", "members": 4}]}},
-        {
-          "when": {"visibility": "public"},
-          "result": {"channels": [{"name": "#support-portal", "visibility": "public", "members": 12}, {"name": "#dev", "visibility": "public", "members": 7}]}
-        },
-        {
-          "result": {
-            "channels": [
-              {"name": "#support-portal", "visibility": "public", "members": 12},
-              {"name": "#dev", "visibility": "public", "members": 7},
-              {"name": "#security-review", "visibility": "private", "members": 4}
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "visibility": {
+            "type": "string",
+            "description": "Optional filter",
+            "enum": [
+              "public",
+              "private"
             ]
           }
         }
-      ]
+      },
+      "serve": {
+        "records": "channels",
+        "action": "list"
+      }
     },
     {
       "name": "post_message",
       "description": "Post a message in a channel. Returns the message that was posted.",
       "inputSchema": {
         "type": "object",
-        "properties": {"channel": {"type": "string", "description": "Channel name, for example #dev"}, "text": {"type": "string", "description": "Message text"}},
-        "required": ["channel", "text"]
+        "properties": {
+          "channel": {
+            "type": "string",
+            "description": "Channel name, for example #dev"
+          },
+          "text": {
+            "type": "string",
+            "description": "Message text"
+          }
+        },
+        "required": [
+          "channel",
+          "text"
+        ]
       },
-      "responses": [{"result": {"ok": true, "channel": "$arg:channel", "text": "$arg:text", "author": "Ada Example", "date": "2026-11-21"}}]
+      "responses": [
+        {
+          "result": {
+            "ok": true,
+            "channel": "$arg:channel",
+            "text": "$arg:text",
+            "author": "Ada Example",
+            "date": "2026-11-21"
+          }
+        }
+      ],
+      "check": {
+        "channel": "channels"
+      }
     }
-  ]
+  ],
+  "records": {
+    "messages": {
+      "key": "message_id",
+      "title": "text",
+      "items": [
+        {
+          "channel": "#support-portal",
+          "author": "Kai Demo",
+          "date": "2026-11-17",
+          "text": "Three customers asked again for a CSV export of their requests.",
+          "message_id": "msg-1"
+        },
+        {
+          "channel": "#dev",
+          "author": "Lin Sample",
+          "date": "2026-11-18",
+          "text": "PR #87 is open: customers can export their own requests as CSV.",
+          "message_id": "msg-2"
+        },
+        {
+          "channel": "#support-portal",
+          "author": "Ada Example",
+          "date": "2026-11-16",
+          "text": "Sprint 14 starts today and ends on 2026-11-27. The CSV export is the main goal.",
+          "message_id": "msg-3"
+        }
+      ],
+      "refs": {
+        "channel": "channels"
+      }
+    },
+    "channels": {
+      "key": "name",
+      "items": [
+        {
+          "name": "#support-portal",
+          "visibility": "public",
+          "members": 12
+        },
+        {
+          "name": "#dev",
+          "visibility": "public",
+          "members": 7
+        },
+        {
+          "name": "#security-review",
+          "visibility": "private",
+          "members": 4
+        }
+      ]
+    }
+  }
 }

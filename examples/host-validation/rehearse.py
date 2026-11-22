@@ -19,13 +19,21 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
-ENV = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"), os.environ.get("PYTHONPATH")])),
+# Bytecode goes to a folder of its own, not next to the sources, and is reused from one command to the next.
+ENV = {**{key: value for key, value in os.environ.items() if key != "PYTHONDONTWRITEBYTECODE"},
+       "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"), os.environ.get("PYTHONPATH")])),
+       "PYTHONPYCACHEPREFIX": os.environ.get("PYTHONPYCACHEPREFIX") or str(Path(tempfile.gettempdir()) / "openguildkit-pycache"),
        "PYTHONIOENCODING": "utf-8"}
 
 
+def run(project: Path, *args: str) -> subprocess.CompletedProcess:
+    """openguildkit on the project, its output captured. The tests run it in their own process."""
+    return subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(project), *args],
+                          env=ENV, text=True, encoding="utf-8", capture_output=True)
+
+
 def cli(project: Path, *args, check: bool = True) -> subprocess.CompletedProcess:
-    result = subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(project), *map(str, args)],
-                            env=ENV, text=True, encoding="utf-8", capture_output=True)
+    result = run(project, *map(str, args))
     if check and result.returncode:
         raise SystemExit(f"openguildkit {' '.join(map(str, args))} failed:\n{result.stderr}")
     return result
@@ -39,16 +47,21 @@ def approve(project: Path, task_id: str, *, by: str = "Validation owner",
         raise ValueError("Pass both the approval signature and its signer.")
     if signature is not None:
         return cli(project, *args, "--signature", signature, "--signer", signer, check=False).returncode == 0
+    return in_terminal(project, args, task_id)
+
+
+def in_terminal(project: Path, args: tuple, typed: str) -> bool:
+    """Replay a person's command at a terminal, typing the confirmation; a person's act needs a terminal."""
     if os.name != "posix":
         return False
     import pty
 
     master, slave = pty.openpty()
     process = subprocess.Popen(
-        [sys.executable, "-m", "openguildkit", "--project", str(project), *args],
+        [sys.executable, "-m", "openguildkit", "--project", str(project), *map(str, args)],
         stdin=slave, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=ENV)
     os.close(slave)
-    os.write(master, f"{task_id}\n".encode())
+    os.write(master, f"{typed}\n".encode())
     process.communicate(timeout=60)
     os.close(master)
     return process.returncode == 0
@@ -85,9 +98,10 @@ def run_feature(project: Path, observed: dict) -> None:
     test = evidence("project/test_app.py", "A test checks that a user only sees their own requests.", "test")
     for board in boards:
         brief = cli(project, "task", "pass", task["id"], board, "--mode", "sequential").stdout
-        observed.setdefault("briefs_scoped", []).append(f"# Board pass: {board}" in brief and "### " + board in brief)
+        observed.setdefault("briefs_scoped", []).append(f"# Board pass: {board}" in brief and "## Board brief" in brief
+                                                        and '"packs"' not in brief)
         if board == "security":
-            blocker = {"finding": "The export has no rate limit.", "owner": "Security lead",
+            blocker = {"finding": "The export has no rate limit, and the acceptance criteria set no cap per account.", "owner": "Security lead",
                        "clears_when": "The export endpoint is limited per account."}
             item = entry(templates[board], "revise", "Add a per-account limit before exporting.", [code, test], blockers=[blocker])
         else:
@@ -105,8 +119,12 @@ def run_feature(project: Path, observed: dict) -> None:
     payload["decision_needed"] = "Ship now with monitoring, or wait for the rate limit."
     (project / "deliberation.json").write_text(json.dumps(payload), encoding="utf-8")
     observed["deliberation"] = cli(project, "task", "respond", task["id"], "--file", project / "deliberation.json").stdout.strip()
-    cli(project, "task", "clear", task["id"], "security:1", "--evidence", "project/app.py",
-        "--supports", "Limit added in the rehearsal", "--by", "Validation owner")
+    observed["agent_cannot_clear"] = cli(
+        project, "task", "clear", task["id"], "security:1", "--evidence", "project/app.py",
+        "--supports", "Limit added in the rehearsal", "--by", "Validation owner", check=False).returncode == 1
+    observed["cleared"] = in_terminal(project, ("task", "clear", task["id"], "security:1", "--evidence", "project/app.py",
+                                                "--supports", "Limit added in the rehearsal", "--by",
+                                                "Validation owner"), task["id"])
     observed["approved"] = approve(project, task["id"])
     if not observed["approved"]:
         return

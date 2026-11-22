@@ -47,7 +47,9 @@
     "snowflake",
     "bigquery",
     "databricks",
-    "google analytics"
+    "google analytics",
+    "a/b test",
+    "test a/b"
   ],
   "questions": [
     "Which data does the change create, transform or rely on, and who owns its definition and quality?",
@@ -103,6 +105,10 @@
         "checks": [
           "The evaluation set is separate from training data and represents the users the model serves.",
           "The release threshold for quality and safety metrics is set before results are seen."
+        ],
+        "applies_to_concerns": [
+          "ai",
+          "people-decisions"
         ]
       },
       {
@@ -112,6 +118,10 @@
         "checks": [
           "Intended use, known limits and prohibited uses are written in a model or system card.",
           "The use case is classified against the AI Act risk categories with legal."
+        ],
+        "applies_to_concerns": [
+          "ai",
+          "people-decisions"
         ]
       }
     ],

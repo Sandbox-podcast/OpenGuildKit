@@ -1,7 +1,7 @@
 {
   "id": "ios-app",
   "title": "iOS apps",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "For an iOS or iPadOS app: privacy manifest, purpose strings, keychain storage, App Transport Security and the SDK required for upload.",
   "sources": [
     {
@@ -55,6 +55,23 @@
       "id": "build-with-required-sdk",
       "instruction": "Build release archives with the Xcode and SDK versions App Store Connect requires, and keep the minimum deployment target above Apple's announced floor.",
       "verification": "Compare the CI Xcode version and the deployment target with Apple's upcoming requirements page before the release."
+    },
+    {
+      "id": "no-arbitrary-loads",
+      "instruction": "Do not set `NSAllowsArbitraryLoads` in the app's Info.plist files.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "Info.plist",
+          "*/Info.plist",
+          "*/*/Info.plist"
+        ],
+        "contains": [
+          "NSAllowsArbitraryLoads"
+        ],
+        "expect": "absent"
+      }
     }
   ]
 }

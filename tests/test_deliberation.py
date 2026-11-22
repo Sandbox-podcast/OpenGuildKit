@@ -7,7 +7,8 @@ from pathlib import Path
 from openguildkit.catalog import load_catalog
 from openguildkit.project import resolved_profile, validate_profile
 from openguildkit.tasks import record_deliberation, record_review
-from openguildkit.workflow import challenge_report, consult, decision_summary, deliberation_request
+from openguildkit.consultation import consult
+from openguildkit.workflow import challenge_report, decision_summary, deliberation_request, verdict_lines
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 
@@ -22,32 +23,38 @@ class DeliberationTests(unittest.TestCase):
         self.consultation = consult(profile, catalog, self.draft)
         self.task = self.reviewed()
 
-    def reviewed(self, verdicts=None):
-        """The example review, with some boards' verdicts changed; a block carries one blocker."""
+    def reviewed(self, verdicts=None, failure_modes=None):
+        """The example review, with some boards' verdicts changed; a block carries one blocker that meets the
+        domains of Product (acceptance criteria) and Legal (compliance)."""
         review = {"consultation_id": self.consultation["id"], **json.loads((EXAMPLE / "review.json").read_text())}
         for entry in review["boards"]:
             verdict = (verdicts or {}).get(entry["id"])
             if verdict:
-                blockers = [{"finding": f"{entry['id']} finds no rate limit on exports.", "owner": "Security lead",
+                blockers = [{"finding": f"{entry['id']} finds the acceptance criteria have no compliance check "
+                                        "for exports.", "owner": "Security lead",
                              "clears_when": "A limit exists."}] if verdict == "block" else []
                 entry["challenge"].update(verdict=verdict, blockers=blockers)
+            if (failure_modes or {}).get(entry["id"]):
+                entry["challenge"]["failure_mode"] = failure_modes[entry["id"]]
         return record_review({**self.draft, "consultation": self.consultation}, review)
 
-    def responses(self):
-        request = deliberation_request(self.task)
+    def responses(self, task=None, position="maintain"):
+        request = deliberation_request(task or self.task)
         payload = copy.deepcopy(request["template"])
         for response in payload["responses"]:
-            response.update(position="maintain", response="Our evidence still holds.", evidence_refs=[1])
+            response.update(position=position, response="Our evidence still holds.", evidence_refs=[1])
         return request, payload
 
     def test_first_opinions_stay_and_both_boards_answer_the_same_point(self):
         request, payload = self.responses()
         ids = [item["id"] for item in request["objections"]]
-        item = next(item for item in request["objections"] if item["from"] == "security")
+        self.assertIn("security-to-legal", ids)
+        item = next(item for item in request["objections"] if item["id"] == "security-to-legal")
         self.assertTrue(item["point"])
+        self.assertTrue(item["meets"])
         self.assertTrue(item["from_position"].startswith("revise"))
-        boards = {r["board"] for r in payload["responses"] if r["objection"] == item["id"]}
-        self.assertEqual(boards, {"security", item["to"]})
+        boards = {r["board"] for r in payload["responses"] if "security-to-legal" in r["objections"]}
+        self.assertEqual(boards, {"security", "legal"})
         with self.assertRaisesRegex(ValueError, "decision the responsible person"):
             record_deliberation(self.task, payload)
         payload["decision_needed"] = "Choose between shipping read-only now or after the access tests."
@@ -55,26 +62,124 @@ class DeliberationTests(unittest.TestCase):
         self.assertEqual(result["review"], self.task["review"])
         self.assertEqual(sorted(result["deliberation"]["open"]), sorted(ids))
 
+    def test_an_objection_reaches_only_the_boards_whose_domain_it_meets(self):
+        """Issue 158: a generic failure mode was sent to every board that proceeds."""
+        generic = {board: f"Concern of {board}: failure mode specific to {board} board."
+                   for board in ("engineering", "design", "marketing", "security")}
+        task = self.reviewed({"engineering": "revise", "design": "revise", "security": "block"}, generic)
+        items = deliberation_request(task)["objections"]
+        self.assertEqual(sorted(item["id"] for item in items), ["security-to-legal", "security-to-product"])
+        self.assertLess(len(items), 8)
+        self.assertIn("Advice addressed to no other board", challenge_report(task))
+
+    def test_a_word_with_two_meanings_is_not_a_meeting_of_domains(self):
+        """Issue 158: legal's contracts met engineering's contract test."""
+        review = {"consultation_id": self.consultation["id"], **json.loads((EXAMPLE / "review.json").read_text())}
+        for entry in review["boards"]:
+            if entry["id"] == "legal":
+                entry["challenge"].update(verdict="revise", failure_mode="The retention period of the requests is "
+                                          "not decided and could break the customer contract.")
+            if entry["id"] == "engineering":
+                entry["challenge"].update(verdict="proceed", verification="Contract test of the endpoint.")
+                entry["recommendation"] = "Ship the read-only endpoint."
+        task = record_review({**self.draft, "consultation": self.consultation}, review)
+        ids = [item["id"] for item in deliberation_request(task)["objections"]]
+        self.assertNotIn("legal-to-engineering", ids)
+
+    def test_a_concession_closes_the_objection_without_the_other_answer(self):
+        """Issue 158: the other board still had to answer a point the objector had conceded."""
+        _, payload = self.responses()
+        payload["responses"] = [dict(r, position="concede", evidence_refs=[]) for r in payload["responses"]
+                                if r["board"] == "security" and r["objections"] == ["security-to-legal"]]
+        payload["responses"] += [r for r in self.responses()[1]["responses"] if "security-to-legal" not in r["objections"]]
+        payload["decision_needed"] = "Decide on the remaining objections."
+        task = record_deliberation(self.task, payload)
+        self.assertIn("security-to-legal", task["deliberation"]["agreed"])
+        self.assertEqual([r["board"] for r in task["deliberation"]["responses"] if r["objection"] == "security-to-legal"],
+                         ["security"])
+
+    def test_one_response_answers_several_objections(self):
+        task = self.reviewed({"security": "block"})
+        request, payload = self.responses(task)
+        security = [r for r in payload["responses"] if r["board"] == "security"]
+        self.assertEqual(len(security), 1)
+        self.assertEqual(sorted(security[0]["objections"]), ["security-to-legal", "security-to-product"])
+        self.assertEqual(set(request["rules"]["positions"]), {"maintain", "amend", "concede"})
+        self.assertIn("decision_needed", request["rules"])
+        self.assertEqual(request["example"]["position"], "amend")
+        self.assertIn("raised and received", request["rules"]["one_response"])
+        payload["decision_needed"] = "Decide."
+        recorded = record_deliberation(task, payload)["deliberation"]
+        self.assertEqual(len([r for r in recorded["responses"] if r["board"] == "security"]), 2)
+
     def test_a_concession_resolves_the_objection_and_the_brief_separates_agreement(self):
         _, payload = self.responses()
         conceded = next(item for item in deliberation_request(self.task)["objections"] if item["from"] == "security")
         for response in payload["responses"]:
-            if response["objection"] == conceded["id"] and response["board"] == conceded["to"]:
+            if response["board"] == "legal":
                 response.update(position="concede", evidence_refs=[])
         payload["decision_needed"] = "Decide on the remaining objections."
         task = record_deliberation(self.task, payload)
-        self.assertIn(conceded["id"], task["deliberation"]["agreed"])
+        self.assertIn("security-to-legal", task["deliberation"]["agreed"])
         brief = challenge_report(task)
-        self.assertIn('"agreed"', brief)
-        self.assertIn('"disagreements"', brief)
+        self.assertIn('"status": "resolved"', brief)
+        self.assertIn('"status": "open"', brief)
         self.assertIn("Decide on the remaining objections.", brief)
+        self.assertIn("one of the two boards concedes, or when both amend", brief)
+
+    def test_an_amendment_accepted_on_both_sides_resolves_the_objection(self):
+        """Issue 158: two amends were still counted as an open disagreement."""
+        _, payload = self.responses(position="amend")
+        task = record_deliberation(self.task, payload)
+        self.assertEqual(task["deliberation"]["open"], [])
+        brief = challenge_report(task)
+        self.assertNotIn("Disagreement left open", brief)
+        self.assertNotIn("Objection not deliberated", brief)
+        _, payload = self.responses()
+        for response in payload["responses"]:
+            if response["board"] == "security":
+                response["position"] = "amend"
+        payload["decision_needed"] = "Decide."
+        task = record_deliberation(self.task, payload)
+        self.assertIn("security-to-legal", task["deliberation"]["open"])
+        brief = challenge_report(task)
+        self.assertEqual(brief.count("Disagreement left open: security-to-legal"), 1)
+        self.assertNotIn("Objection not deliberated", brief)
+
+    def test_the_warning_follows_the_advice_after_deliberation(self):
+        """Issue 158: the brief warned against advice that a concession had already resolved."""
+        before = challenge_report(self.task)
+        self.assertIn("(engineering, design, security, marketing). Approving goes against their advice.", before)
+        _, payload = self.responses()
+        for response in payload["responses"]:
+            if response["board"] in ("legal", "product"):
+                response.update(position="concede", evidence_refs=[])
+        task = record_deliberation(self.task, payload)
+        after = challenge_report(task)
+        self.assertIn("Objections of marketing, security were all resolved in deliberation.", after)
+        self.assertIn("Warning: 2 of 7 boards say revise, block or insufficient-evidence (engineering, design).", after)
+
+    def test_counts_agree_with_their_noun(self):
+        """"1 objections not deliberated yet" and "1 of 6 boards say revise" were printed."""
+        review = {"boards": [{"id": board, "recommendation": "x", "challenge": {"verdict": verdict}}
+                             for board, verdict in (("security", "revise"), ("product", "proceed"))]}
+        self.assertIn("Warning: 1 of 2 boards says revise, block or insufficient-evidence (security).",
+                      verdict_lines(review)[1])
+        review["boards"][1]["challenge"]["verdict"] = "block"
+        self.assertIn("Warning: 2 of 2 boards say revise", verdict_lines(review)[1])
+        with unittest.mock.patch("openguildkit.workflow.objections", return_value=[{"id": "security-to-legal", "from": "security", "to": "legal", "point": "p"}]):
+            self.assertIn("1 objection not deliberated yet:", challenge_report(self.task))
+        self.assertIn("2 objections not deliberated yet:", challenge_report(self.task))
 
     def test_positions_need_evidence_and_every_answer(self):
         _, payload = self.responses()
         payload["decision_needed"] = "x"
         payload["responses"][0]["evidence_refs"] = []
-        with self.assertRaisesRegex(ValueError, "cite its evidence"):
+        payload["responses"][1]["position"] = "agree"
+        with self.assertRaisesRegex(ValueError, "2 problems") as raised:
             record_deliberation(self.task, payload)
+        self.assertIn("cite its evidence", str(raised.exception))
+        self.assertIn("accepted: maintain, concede, amend", str(raised.exception))
         _, payload = self.responses()
         payload["responses"].pop()
         with self.assertRaisesRegex(ValueError, "Responses are missing"):
@@ -83,26 +188,27 @@ class DeliberationTests(unittest.TestCase):
     def test_structured_blockers_become_the_point_of_the_objection(self):
         review = copy.deepcopy(self.task["review"])
         security = next(entry for entry in review["boards"] if entry["id"] == "security")
-        security["challenge"]["blockers"] = [{"finding": "No rate limit on exports.", "owner": "Security lead", "clears_when": "A limit exists."}]
+        security["challenge"]["blockers"] = [{"finding": "No privacy review of exports.", "owner": "Security lead",
+                                              "clears_when": "A limit exists."}]
         task = {**self.task, "review": review}
         with unittest.mock.patch("openguildkit.workflow.validate_review", return_value=review):
             items = deliberation_request(task)["objections"]
-        self.assertEqual(next(item for item in items if item["from"] == "security")["point"], "No rate limit on exports.")
+        self.assertEqual(next(item for item in items if item["from"] == "security")["point"], "No privacy review of exports.")
 
     def test_a_board_that_blocks_confronts_a_board_that_asks_to_revise_on_its_blocker(self):
         """Issue 129: Product said revise and Security block, and their opinions never met."""
         task = self.reviewed({"product": "revise", "security": "block"})
         request = deliberation_request(task)
         item = next(item for item in request["objections"] if item["id"] == "security-to-product")
-        self.assertEqual(item["point"], "security finds no rate limit on exports.")
+        self.assertEqual(item["point"], "security finds the acceptance criteria have no compliance check for exports.")
         self.assertTrue(item["from_position"].startswith("block: "))
         self.assertTrue(item["to_position"].startswith("revise: "))
         self.assertNotIn("product-to-security", [entry["id"] for entry in request["objections"]])
         payload = copy.deepcopy(request["template"])
-        boards = {r["board"] for r in payload["responses"] if r["objection"] == "security-to-product"}
+        boards = {r["board"] for r in payload["responses"] if "security-to-product" in r["objections"]}
         self.assertEqual(boards, {"security", "product"})
         for response in payload["responses"]:
-            concede = response["objection"] == "security-to-product" and response["board"] == "product"
+            concede = response["board"] == "product"
             response.update(position="concede" if concede else "maintain", response="On the rate limit: agreed.",
                             evidence_refs=[] if concede else [1])
         payload["decision_needed"] = "Decide on the remaining objections."
@@ -147,12 +253,12 @@ class DeliberationTests(unittest.TestCase):
         self.assertTrue(all(count <= 2 for count in per_board.values()), per_board)
         self.assertLess(len(request["objections"]), len(raising) * len(proceeding))
         self.assertEqual(len(request["objections"]), len({item["id"] for item in request["objections"]}))
-        text = " ".join(request["rules"])
-        for word in ("maintain", "concede", "amend", "evidence_refs", "decision_needed", "list of IDs"):
+        text = json.dumps(request["rules"])
+        for word in ("maintain", "concede", "amend", "evidence_refs", "decision_needed", "several objections"):
             self.assertIn(word, text)
 
     def test_one_response_can_answer_several_objections_and_two_amendments_settle_a_point(self):
-        task = self.reviewed({"product": "revise", "engineering": "revise", "security": "revise"})
+        task = self.reviewed({"engineering": "block", "security": "block"})
         request = deliberation_request(task)
         by_target = {}
         for item in request["objections"]:
@@ -160,7 +266,7 @@ class DeliberationTests(unittest.TestCase):
         target, ids = max(by_target.items(), key=lambda pair: len(pair[1]))
         self.assertGreater(len(ids), 1, request["objections"])
         responses = [
-            {"objection": ids, "board": target, "position": "amend", "response": "Agreed on a shared wording.", "evidence_refs": [1]},
+            {"objections": ids, "board": target, "position": "amend", "response": "Agreed on a shared wording.", "evidence_refs": [1]},
         ]
         for item in request["objections"]:
             if item["id"] in ids:
@@ -189,7 +295,7 @@ class DeliberationTests(unittest.TestCase):
         warning = lambda lines: next(line for line in lines if "Approving goes against their advice" in line)
         self.assertIn("security", warning(before))
         self.assertNotIn("security", warning(after))
-        self.assertTrue(any("no longer objecting: security" in line for line in after))
+        self.assertTrue(any("Objections of security were all resolved in deliberation" in line for line in after), after)
         for item in request["objections"]:
             mentions = [line for line in after if item["id"] in line]
             self.assertLessEqual(len(mentions), 1, mentions)

@@ -1,5 +1,6 @@
 """A project connects its tools to mocks, an MCP client talks to them, and a board cites what it read."""
 
+import io
 import json
 import os
 import subprocess
@@ -9,8 +10,12 @@ import tomllib
 import unittest
 from pathlib import Path
 
+from openguildkit.mcp_mock import serve
+from openguildkit.tools import load_mock
+from tests.support import run_cli, subprocess_environment
+
 REPO = Path(__file__).resolve().parents[2]
-ENV = {**os.environ, "PYTHONPATH": str(REPO / "src"), "PYTHONIOENCODING": "utf-8"}
+ENV = subprocess_environment({"PYTHONPATH": str(REPO / "src"), "PYTHONIOENCODING": "utf-8"})
 META = {"io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {}}
 PROFILE = {
     "name": "Support portal", "sector": "general", "stack": ["Python"], "packs": [], "boards": ["product", "qa", "security"],
@@ -19,13 +24,16 @@ PROFILE = {
 
 
 def cli(project: Path, *args, check: bool = True, stdin: str | None = None) -> subprocess.CompletedProcess:
-    result = subprocess.run(
-        [sys.executable, "-m", "openguildkit", "--project", str(project), *map(str, args)],
-        env=ENV, text=True, encoding="utf-8", capture_output=True, input=stdin, timeout=120,
-    )
-    if check and result.returncode:
-        raise AssertionError(f"openguildkit {' '.join(map(str, args))} failed:\n{result.stderr}")
-    return result
+    """The CLI in this process; check=False returns a failed command instead of raising."""
+    return run_cli(project, *args, stdin=stdin, expect=0 if check else None)
+
+
+def exchange_in_process(tool_id: str, messages: list) -> list[dict]:
+    """The same exchange with a bundled mock served in this process, for many calls without a process each."""
+    payload = "".join(json.dumps(item) + "\n" for item in messages).encode("utf-8")
+    answers = io.BytesIO()
+    serve(load_mock(tool_id), stdin=io.BytesIO(payload), stdout=answers)
+    return [json.loads(line) for line in answers.getvalue().decode("utf-8").splitlines()]
 
 
 def exchange(command: list[str], messages: list) -> list[dict]:
@@ -113,10 +121,10 @@ class MockServerTests(unittest.TestCase):
         self.assertEqual(answers[4]["error"]["code"], -32602)
         self.assertEqual(answers[5]["error"]["code"], -32601)
 
-    def test_every_bundled_mock_answers_each_of_its_tools_over_stdio(self):
+    def test_every_bundled_mock_answers_each_of_its_tools(self):
         listed = cli(self.project, "tools", "list", "--mocks", "--json").stdout
         for tool in json.loads(listed):
-            answers = exchange(self.mock + [tool["id"]], [{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}])
+            answers = exchange_in_process(tool["id"], [{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}])
             tools = answers[0]["result"]["tools"]
             self.assertGreaterEqual(len(tools), 3, tool["id"])
             calls = []
@@ -130,7 +138,7 @@ class MockServerTests(unittest.TestCase):
                 }
                 calls.append({"jsonrpc": "2.0", "id": index, "method": "tools/call",
                               "params": {"name": item["name"], "arguments": arguments}})
-            for answer in exchange(self.mock + [tool["id"]], calls):
+            for answer in exchange_in_process(tool["id"], calls):
                 self.assertIn("result", answer, tool["id"])
                 self.assertEqual(answer["result"]["content"][0]["type"], "text")
 
@@ -180,7 +188,7 @@ class ProjectConnectionTests(unittest.TestCase):
         journal = self.project / "mock-calls.jsonl"
         applied = cli(self.project, "tools", "apply", "jira", "snyk", "gryzzly", "--mock", "--log", journal,
                       check=False)
-        self.assertEqual(applied.returncode, 1)
+        self.assertEqual(applied.returncode, 2)
         self.assertIn("Wrote jira, snyk", applied.stdout)
         self.assertIn("Connected mocks: jira, snyk. Tools without a mock: gryzzly.", applied.stdout)
         config = tomllib.loads((self.project / ".codex" / "config.toml").read_text(encoding="utf-8"))
@@ -205,7 +213,7 @@ class ProjectConnectionTests(unittest.TestCase):
         self.assertFalse(answer["result"]["isError"])
 
         cli(self.project, "task", "new", "Let customers export their own support requests as CSV.", "--id", "export")
-        answers = {"kind": "feature", "surface": ["customer"], "data": "personal", "research": "local",
+        answers = {"kind": "feature", "surface": ["customer"], "data": "personal", "research": "local", "concerns": ["none"],
                    "outcome": "A customer downloads their requests.", "affected": "Customers"}
         (self.project / "answers.json").write_text(json.dumps(answers), encoding="utf-8")
         brief = cli(self.project, "task", "consult", "export", "--answers", self.project / "answers.json").stdout
@@ -225,16 +233,35 @@ class ProjectConnectionTests(unittest.TestCase):
         submitted = cli(self.project, "task", "submit", "export", "--file", self.project / "entry.json")
         self.assertEqual(submitted.stdout.strip(), "done")
         self.assertNotIn("no recorded jira call", submitted.stderr)
+        self.assertIn("the cited record comes from the jira mock, synthetic sample data", submitted.stderr)
         entry["evidence"][0]["ref"] = "jira:SUP-99999"
         (self.project / "entry.json").write_text(json.dumps(entry), encoding="utf-8")
         unverified = cli(self.project, "task", "submit", "export", "--file", self.project / "entry.json")
-        self.assertIn("no recorded jira call matches", unverified.stderr)
+        self.assertIn("the jira mock holds no record with the cited id", unverified.stderr)
         self.assertNotIn("SUP-99999", unverified.stderr)
         entry["evidence"][0]["ref"] = "gryzzly:timesheet-4"
         (self.project / "entry.json").write_text(json.dumps(entry), encoding="utf-8")
         refused = cli(self.project, "task", "submit", "export", "--file", self.project / "entry.json", check=False)
         self.assertNotEqual(refused.returncode, 0)
         self.assertIn("Connected: jira, snyk", refused.stderr)
+        for other in record["consultation"]["boards"]:
+            entry = next(item for item in record["consultation"]["review_template"]["boards"] if item["id"] == other)
+            entry["recommendation"] = "Ship the export."
+            entry["evidence"] = [{"source": "tool", "ref": "jira:SUP-142", "supports": "The request is tracked."}]
+            for lens in entry["challenge"]["specialists"]:
+                lens.update(finding="Checked in the tracker.", basis="observed", evidence_refs=[1])
+            entry["challenge"].update(verdict="proceed", confidence="high", alternative="Keep the current screen.",
+                                      failure_mode="A customer sees another customer's request.",
+                                      verification="Run the ownership test.")
+            if other != board:
+                cli(self.project, "task", "pass", "export", other, "--mode", "sequential")
+            (self.project / "entry.json").write_text(json.dumps(entry), encoding="utf-8")
+            cli(self.project, "task", "submit", "export", "--file", self.project / "entry.json")
+        cli(self.project, "task", "review", "export", "--summary", "Ship the export, ownership tested.")
+        count = len(record["consultation"]["boards"])
+        decision_brief = cli(self.project, "task", "challenge", "export").stdout
+        self.assertIn(f"Mock data: {count} evidence item(s) come from mock tools, synthetic sample data and not the "
+                      f"real systems: {board} #1 jira:SUP-142", decision_brief)
 
         removed = cli(self.project, "tools", "remove", "jira", "snyk")
         self.assertIn("Removed jira, snyk", removed.stdout)
@@ -253,11 +280,12 @@ class ProjectConnectionTests(unittest.TestCase):
         self.assertFalse(config.exists())
 
     def test_live_connections_for_claude_code_name_variables_only(self):
-        refused = cli(self.project, "tools", "apply", "jira", "--host", "claude-code", check=False)
-        self.assertRegex(refused.stderr, "needs confirmation|configuration cancelled")
+        unconfirmed = cli(self.project, "tools", "apply", "jira", "--host", "claude-code", check=False, stdin="")
+        self.assertEqual(unconfirmed.returncode, 1)
+        self.assertIn("--yes", unconfirmed.stderr)
         self.assertFalse((self.project / ".mcp.json").exists())
-        cli(self.project, "tools", "apply", "jira", "github/github-local", "linear", "--host", "claude-code", "--yes",
-            "--token-env", "linear=LINEAR_API_KEY")
+        cli(self.project, "tools", "apply", "jira", "github/github-local", "linear", "--host", "claude-code",
+            "--token-env", "linear=LINEAR_API_KEY", "--yes")
         servers = json.loads((self.project / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"]
         self.assertEqual(servers["atlassian-rovo"]["type"], "http")
         self.assertEqual(servers["github-local"]["env"], {"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"})

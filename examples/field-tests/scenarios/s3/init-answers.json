@@ -1,0 +1,32 @@
+{
+ "name": "Acme Tracker API",
+ "sector": "general",
+ "stack": [
+  "Node.js 22",
+  "Express 4",
+  "MongoDB 7"
+ ],
+ "roles": [
+  "backend",
+  "security",
+  "devops"
+ ],
+ "personal_data": "no",
+ "boards": [
+  "backend",
+  "security",
+  "devops",
+  "qa"
+ ],
+ "tools": [
+  "Sentry",
+  "GitHub",
+  "Datadog"
+ ],
+ "host": "claude-code",
+ "guard": "enforce",
+ "research": "local-only",
+ "checks": [
+  "node --test src/export.test.js"
+ ]
+}

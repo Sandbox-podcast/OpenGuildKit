@@ -1,19 +1,18 @@
 """A release that stops shipping a pack or a pattern must not leave the project unusable."""
 
-import contextlib
-import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import cli
+from openguildkit import lock
 from openguildkit.catalog import load_catalog
-from openguildkit.cli import main
 from openguildkit.lock import COLLECTIONS, catalog_changes, lock_is_current, locked_records, update_target
 from openguildkit.project import validate_profile
 from openguildkit.storage import write_json
+
+from tests.support import CapturedCli
 
 DROPPED = {"packs": "playwright", "patterns": "playwright-web"}
 ANSWERS = {
@@ -33,7 +32,7 @@ def release_without_playwright(extra_dir=None, **options):
     return catalog
 
 
-class UpgradeTests(unittest.TestCase):
+class UpgradeTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -43,15 +42,8 @@ class UpgradeTests(unittest.TestCase):
         self.lock_file = self.root / ".openguildkit" / "catalog.lock.json"
         self.profile_file = self.root / ".openguildkit" / "project.json"
 
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
-
     def upgraded(self, *arguments, code=0):
-        with patch.object(cli, "load_catalog", release_without_playwright):
+        with patch.object(lock, "load_catalog", release_without_playwright):
             return self.run_cli(*arguments, code=code)
 
     def locked_ids(self):
@@ -68,7 +60,8 @@ class UpgradeTests(unittest.TestCase):
         self.assert_kept()
 
     def test_check_passes_right_after_the_upgrade(self):
-        self.upgraded("check")
+        output, _ = self.upgraded("check")
+        self.assertIn("OpenGuildKit instructions match the project profile.", output)
 
     def test_update_apply_keeps_the_dropped_records_and_check_passes(self):
         output, _ = self.upgraded("update")

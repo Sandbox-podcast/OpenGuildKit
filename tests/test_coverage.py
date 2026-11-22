@@ -37,6 +37,26 @@ class CoverageTests(unittest.TestCase):
         result = subprocess.run([sys.executable, "-I", str(SCRIPT), "--check"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_the_page_counts_the_machine_checks_of_each_pack(self):
+        rows = {row["pack"]: row for row in coverage_report.check_rows(self.catalog)}
+        self.assertEqual(set(rows), set(self.catalog["packs"]))
+        self.assertEqual((rows["pci-dss"]["machine"], rows["pci-dss"]["manual"]), (1, 13))
+        self.assertEqual(rows["gdpr"]["machine"], 0)
+        self.assertEqual(rows["gdpr"]["manual"], rows["gdpr"]["rules"])
+        text = (ROOT / "docs" / "coverage.md").read_text(encoding="utf-8")
+        self.assertIn("| Pack | Rules | Machine checks | Verified by a person, reason given |", text)
+        self.assertIn("| pci-dss | 14 | 1 | 13 |", text)
+        total = sum(row["machine"] for row in rows.values())
+        self.assertIn(f"{total} of {sum(row['rules'] for row in rows.values())} rules carry a machine check", text)
+
+    def test_the_page_says_why_there_is_no_soc_2_pack(self):
+        text = (ROOT / "docs" / "coverage.md").read_text(encoding="utf-8")
+        section = text.split("## Not turned into rules", 1)[1].split("## To cover", 1)[0]
+        self.assertIn("SOC 2", section)
+        self.assertIn("examination of controls", section)
+        self.assertIn("iso-27001", section)
+        self.assertNotIn("soc", {pack_id.split("-")[0] for pack_id in self.catalog["packs"]})
+
     def test_every_brain_reaches_packs_and_separates_documentary_references(self):
         self.assertEqual(set(self.rows), set(self.catalog["boards"]))
         for brain, row in self.rows.items():
@@ -44,11 +64,13 @@ class CoverageTests(unittest.TestCase):
                 self.assertGreater(row["packs"], 0)
                 self.assertEqual(row["applied"] + len(row["documentary"]), row["references"])
 
-    def test_thin_disciplines_get_their_new_pack_preselected_by_a_role(self):
+    def test_thin_disciplines_get_their_new_pack_proposed_to_a_role(self):
+        # Only a role's core methods are preselected (#152); the others are suggested with their reason.
         for role, pack_id in NEW_PACKS.items():
             with self.subTest(role=role):
-                preselected = recommend_patterns(self.catalog, [], "general", [role])["matched"]
-                self.assertIn(pack_id, {pack for pattern in preselected for pack in pattern["packs"]})
+                plan = recommend_patterns(self.catalog, [], "general", [role])
+                proposed = plan["matched"] + plan["suggested"]
+                self.assertIn(pack_id, {pack for pattern in proposed for pack in pattern["packs"]})
                 pack = self.catalog["packs"][pack_id]
                 self.assertTrue(pack["description"].startswith("For "))
                 self.assertTrue(pack["sources"])

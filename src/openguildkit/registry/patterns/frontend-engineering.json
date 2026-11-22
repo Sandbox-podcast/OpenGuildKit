@@ -22,6 +22,9 @@
   "roles": [
     "frontend"
   ],
+  "core_for": [
+    "frontend"
+  ],
   "packs": [
     "frontend-delivery",
     "web-accessibility",

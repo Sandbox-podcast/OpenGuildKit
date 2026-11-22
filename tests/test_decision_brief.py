@@ -1,8 +1,6 @@
 """What the person approving sees: board changes, open points, objections, blockers, verdicts and review warnings."""
 
-import contextlib
 import copy
-import io
 import json
 import tempfile
 import unittest
@@ -10,16 +8,18 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import load_catalog
-from openguildkit.cli import main
 from openguildkit.project import resolved_profile, validate_profile
 from openguildkit.storage import write_json
-from openguildkit.workflow import select_boards, validate_review
+from openguildkit.routing import select_boards
+from openguildkit.workflow import validate_review
+
+from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "request-status"
 
 
-class DecisionBriefTests(unittest.TestCase):
+class DecisionBriefTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -28,13 +28,6 @@ class DecisionBriefTests(unittest.TestCase):
         self.run_cli("init", "--answers", self.root / "profile.json")
         (self.root / "tests").mkdir()
         (self.root / "tests" / "test_access.py").write_text("def test_access(): pass\n", encoding="utf-8")
-
-    def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
 
     def record(self):
         return json.loads(self.run_cli("task", "show", TASK)[0])
@@ -118,7 +111,12 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertIn("3 proceed", prompt.splitlines()[0])
         self.assertIn("3 revise", prompt.splitlines()[0])
         self.assertIn("Warning: 4 of 7 boards say revise, block or insufficient-evidence", prompt)
-        self.assertRegex(prompt, "Objection not deliberated: engineering-to-")
+        self.assertIn("Objection not deliberated: security-to-legal", prompt)
+        self.assertIn("one of the two boards concedes, or when both amend", prompt)
+        self.assertIn("objections not deliberated yet: approving is still possible", prompt)
+        self.assertIn("Brief: ", prompt)
+        self.assertIn(f"Full decision brief, with each board's evidence: openguildkit task challenge {TASK}", prompt)
+        self.assertNotIn('"specialists"', prompt)
         brief, _ = self.run_cli("task", "challenge", TASK)
         self.assertIn("Warning: 4 of 7 boards", brief)
         self.assertIn("Objection not deliberated", brief)
@@ -139,16 +137,40 @@ class DecisionBriefTests(unittest.TestCase):
         _, error = self.run_cli("task", "clear", TASK, "security:1", "--by", "Alex", "--evidence", "x",
                                 "--supports", "y", code=1)
         self.assertIn("https link", error)
-        self.run_cli("task", "clear", TASK, "security:1", "--by", "Alex", "--evidence", "tests/test_access.py",
-                     "--supports", "Inputs are bound parameters.")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", side_effect=[TASK]):
+            self.run_cli("task", "clear", TASK, "security:1", "--by", "Alex", "--evidence", "tests/test_access.py",
+                         "--supports", "Inputs are bound parameters.")
         listing, _ = self.run_cli("task", "blockers", TASK)
         self.assertIn("tests/test_access.py", listing)
         self.assertIn("Inputs are bound parameters.", listing)
-        self.assertIn("without a terminal", listing)
+        self.assertNotIn("without a terminal", listing)
         _, prompt = self.decide(TASK)
         self.assertIn("Blocker security:1 cleared by Alex", prompt)
         self.assertIn("Evidence: tests/test_access.py", prompt)
         self.assertIn("Supports: Inputs are bound parameters.", prompt)
+
+    def test_a_blocker_cleared_by_the_finished_work_is_a_condition_of_the_approval(self):
+        """Issue 159: a blocker that waits for code deadlocked the approval."""
+        def block(review):
+            security = next(entry for entry in review["boards"] if entry["id"] == "security")
+            security["challenge"].update(verdict="block", blockers=[{
+                "finding": "No test proves a user cannot read another user's request.", "owner": "Security lead",
+                "clears_when": "The cross-account test passes.", "phase": "verification"}])
+        self.reviewed(edit=block)
+        condition = ("Condition of approval security:1, cleared after implementation and before the task completes: "
+                     "No test proves a user cannot read another user's request. Clears when: The cross-account test "
+                     "passes.")
+        brief, _ = self.run_cli("task", "challenge", TASK)
+        self.assertIn(condition, brief)
+        _, prompt = self.decide(TASK)
+        self.assertIn(condition, prompt)
+        self.assertEqual(self.record()["status"], "approved")
+        handoff, _ = self.run_cli("task", "handoff", TASK)
+        self.assertLess(handoff.index("## Conditions of the approval"), handoff.index("## Human approval"))
+        self.assertIn("let them clear it in their terminal", handoff)
+        _, error = self.run_cli("task", "clear", TASK, "security:1", "--by", "Alex", "--evidence", "tests/test_access.py",
+                                "--supports", "The test passes.", code=1, stdin="")
+        self.assertIn("Clearing a blocker is the person's act", error)
 
     def test_a_copied_review_is_recorded_with_warnings(self):
         (self.root / "api").mkdir()

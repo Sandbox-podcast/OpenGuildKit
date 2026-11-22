@@ -42,7 +42,7 @@ The catalog has one brain per discipline of a software publisher:
 
 Each brain has at least four specialists, four evidence requests, four challenge questions, four decision criteria and three primary sources.
 
-`engineering` stays the brain that reviews features, bugs and maintenance across the code base, and every profile that names it keeps working. `frontend` and `backend` add the depth of each side: a brief that names browser support, a component library or the bundle size reaches `frontend`, one that names a migration, a webhook or idempotency reaches `backend`, and `frontend` or `backend` in a brief reaches both them and `engineering`. A profile that lists its boards gets them only once it adds them to `boards`.
+`engineering` stays the brain that reviews features, bugs and maintenance across the code base, and every profile that names it keeps working. `frontend` and `backend` add the depth of each side: a brief that names browser support, a component library or the bundle size reaches `frontend`, one that names a migration, a webhook or idempotency reaches `backend`, and `frontend` or `backend` in a brief reaches both them and `engineering`. When the project declares the role, the stack reaches them too: `frontend` for a customer-facing task on React, Vue, Angular or Svelte, `backend` for a service task on Django, Rails, Spring Boot or FastAPI, and the board of a component's stack when the task names that component ([workflow](workflow.md#how-boards-are-selected)). A profile that lists its boards gets them only once it adds them to `boards`.
 
 ### What each brain knows
 
@@ -104,26 +104,38 @@ Lists gain the new items, a specialist with a bundled `id` replaces it, and `tit
 
 To add a brain of its own, run `openguildkit brains --new risk-office`. It writes the board with its full review block, a method pattern, a rule pack and a reference family under `.openguildkit/catalog/`, with `TODO:` text to replace; `brains --check` reports the brain until none is left. A project board without a `review` block is refused, so that every brain has lenses.
 
-Adding or completing a brain changes the record that approvals are bound to. When the profile uses every board (`"boards": []`), the new brain becomes one of them: `brains --new` names each task consulted or approved without it, and `openguildkit sync` lists them again. Those tasks need a new review before work continues; open a new task for an approved one. A profile that lists its boards is not affected until the team adds the brain to `boards`.
+Adding or completing a brain changes the record that approvals are bound to. When the profile uses every board (`"boards": []`), the new brain becomes one of them: `brains --new` names each task consulted or approved without it, and `openguildkit sync` lists them again. Those tasks need a new review before work continues: consult each again with `task consult ID`. A profile that lists its boards is not affected until the team adds the brain to `boards`.
 
 ## Run the review
 
-1. `task consult ID` routes the task and includes each selected brain's specialties, evidence requests, questions and decision criteria. Give each board the scoped brief and the relevant project rules. When using a host agent, assign one independent review per board.
-2. Record one finding per specialist before forming the board's verdict. Distinguish a documented fact, an assumption, and a gap. For an observed finding, cite positions in the board's evidence list.
+1. `task consult ID` routes the task and lists the selected brains. `task pass ID BOARD` prints one brain's brief: its questions, the lenses to fill, its evidence requests, challenge and decision criteria, the rules of its packs that concern the task and a bounded reading list. When using a host agent, assign one independent pass per board.
+2. Record one finding per specialist before forming the board's verdict. Distinguish a documented fact, an assumption, and a gap. For an observed finding, cite positions in the entry's own evidence list, counted from 1. A lens that names the surfaces it applies to (`applies_to`) and none of the task's, or the concerns it needs (`applies_to_concerns`) and none of the task's, is listed as not concerned and left out of the entry.
 3. Compare the proposal with an alternative, name a failure it could cause and specify a test or observation that would change the decision. Identify blocking findings and who can resolve them.
 4. Record the reviews with `task review ID --file FILE`. `task challenge ID` groups the verdicts and shows alternatives, verification steps and unresolved items. The owner makes the decision in their terminal.
 
 ## Answer the other boards' objections
 
-When boards disagree, each board answers the others on the same point before the person decides. A board whose verdict is `revise`, `block` or `insufficient-evidence` objects to each board whose verdict is `proceed`. A board that answers `block` also objects to each board that answers `revise`, on the point of its blockers, and that board answers on the same point. Boards that give the same verdict do not object to each other. When two verdicts differ and no objection links them (`revise` and `insufficient-evidence`, `block` and `insufficient-evidence`), the decision brief says so and why.
+When boards disagree, each board answers the others on the same point before the person decides. An objection goes from a board to the boards whose position it contradicts, on a named point: the board's blockers, or else its failure mode. A board whose verdict is `revise`, `block` or `insufficient-evidence` can object to a board whose verdict is `proceed`, and a board that answers `block` also to a board that answers `revise`. The objection reaches that board only when their domains meet: the point uses words of the other board's domain (its title and the triggers that route tasks to it), or the other board's recommendation uses words of the objector's domain. Every routed board's words compete for a text, so that "contract test" belongs to QA and does not reach Legal through "contract", and the domains meet on two words, on a phrase of several words, or on a word only one board's domain holds. A generic failure mode is no objection to everyone; a point that meets no board stands as its board's advice, and the decision brief says which boards it concerns. Boards that give the same verdict do not object to each other. When two verdicts differ and no objection links them (`revise` and `insufficient-evidence`, `block` and `insufficient-evidence`), the decision brief says so and why.
 
 ```bash
-openguildkit task deliberate ID      # objections and the response template
+openguildkit task deliberate ID      # objections, the rules of an answer, one filled example and the template
 openguildkit task respond ID --file deliberation.json
-openguildkit task challenge ID       # agreement reached, remaining disagreements, decision needed
+openguildkit task challenge ID       # each objection once, resolved or open, and the decision needed
 ```
 
-An objection goes to the boards that would proceed and whose domain its point touches, at most two, or to the one board with the most confidence when it touches none; a board that blocks always meets the boards that ask to revise. For each objection, both boards record a `position` (`maintain`, `concede` or `amend`), a `response` and the positions in their own evidence list that support it; maintaining or amending a position needs evidence. One response can answer several objections: write `objection` as a list of IDs. An objection is resolved when one board concedes or both amend. When disagreements remain, `decision_needed` says which decision the responsible person must take. `task deliberate` prints these rules with the template. A board that conceded all its objections no longer counts as objecting in the approval warning. The first reviews stay as recorded, and the decision brief lists objections that were not deliberated.
+The template has one response per board and side: a board answers all the objections it raised in one response, and all those it received in another. A board that raised and received objections has two responses: merge them when it takes the same position on all. Split a response when the board takes different positions on different objections; `objections` lists the IDs a response answers. Each response gives:
+
+- `position`: `maintain` (the board keeps its position), `amend` (it changes its position to meet the other's point, and says how) or `concede` (it accepts the other's point);
+- `response`: the answer, in text;
+- `evidence_refs`: positions in the board's own evidence list from its review entry, counted from 1. Maintaining or amending needs at least one; conceding needs none.
+
+An objection is resolved when one of the two boards concedes, or when both amend. A concession closes it alone: the other board need not answer it. Otherwise it stays open, and `decision_needed` must say which decision the responsible person takes. For example:
+
+```json
+{"objections": ["security-to-product"], "board": "product", "position": "amend", "response": "The export goes through the same ownership check as the page; we add the cross-account test.", "evidence_refs": [1]}
+```
+
+The first reviews stay as recorded. The decision brief warns that approving goes against the boards' advice only for the boards whose objections were not all resolved; for a decision task, it says that the decision record carries their reservations.
 
 ## What the verdict means
 
@@ -142,7 +154,7 @@ Each item of a board's `evidence` list records where it comes from and what it e
 
 `source` is one of `requester`, `project-file`, `test`, `measurement`, `public`, `interview`, `ticket`, `decision-record` or `other`. `ref` is a project path, a document title or an https link. Public sources, measurements and interviews carry the `date` they were observed, a real `YYYY-MM-DD` day that is not in the future; a `revision` pins a file to a commit. A `project-file` or `test` item names a file or folder that exists in the project, optionally followed by `:LINE`, `#anchor` or `::test`, when `task review` or `task submit` records it. The template's `evidence_item` shows this shape. The requester's own words (`requester`) cannot be the only support for `proceed` or for high confidence. The decision brief lists, for each board, the evidence its observed findings cite. Reviews recorded before this format keep their text items.
 
-`task template ID` returns the exact shape for the selected boards. In a brain entry, `challenge.specialists` uses the specialist IDs from the prompt. `evidence_refs` contains one-based positions in the board evidence array. For example, `[1, 3]` cites the first and third items. Use `low`, `medium`, or `high` confidence. Proceeding or claiming high confidence requires observed evidence, a block needs at least one blocker, and an insufficient-evidence verdict uses low confidence.
+`task template ID` returns the exact shape for the selected boards. In a brain entry, `challenge.specialists` uses the specialist IDs from the prompt. `evidence_refs` contains positions in this entry's own `evidence` list, counted from 1 (not paths, not counted from 0). For example, `[1, 3]` cites the first and third items; `task submit` names a wrong reference and the valid range. Use `low`, `medium`, or `high` confidence. Proceeding or claiming high confidence requires observed evidence, a block needs at least one blocker, and an insufficient-evidence verdict uses low confidence.
 
 The CLI validates the review record. The host agent or reviewer gathers and interprets the evidence. See the [request status example](../examples/request-status/) for a recorded review with multiple verdicts.
 
@@ -155,4 +167,4 @@ Each board has a JSON file in `src/openguildkit/registry/boards/`. In `review`, 
 - `challenge`, questions about alternatives, failure modes and assumptions.
 - `decision_criteria`, conditions that change the board's verdict.
 
-Scope triggers to a role's actual work. Link to public primary sources and use concrete checks. [Board schema](catalog-format.md#boards)
+Scope triggers to a role's actual work. A trigger written after a negation ("no payments") does not select the brain; see [routing](workflow.md#2-scope-the-task). Link to public primary sources and use concrete checks. [Board schema](catalog-format.md#boards)
