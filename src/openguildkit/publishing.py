@@ -237,23 +237,24 @@ def add_share(state: Path, deliverable: str, recipients: list[str], until: str, 
         raise ValueError("Give the https address of the Documentalist portal.")
     share = {"id": uuid.uuid4().hex[:8], "deliverable": deliverable.strip(), "recipients": sorted(set(recipients)),
              "until": until, "portal": portal, "by": by.strip(),
-             "created_at": clock.timestamp(), "revoked_at": None}
+             "created_at": clock.real_timestamp(), "revoked_at": None}
     with project_lock(state):
         write_json(_shares_path(state), {"shares": [*_load_shares(state), share]})
     return share
 
 
 def _share_end(until: str) -> date:
-    """The last day of access: a real YYYY-MM-DD date, after today and within a year."""
+    """The last day of access: a real YYYY-MM-DD date, after today and within a year, on the real clock."""
     try:
         end = date.fromisoformat(until) if _DAY.fullmatch(until) else None
     except ValueError:
         end = None
     if end is None:
         raise ValueError(f"Give the last day of access as YYYY-MM-DD, not {until!r}.")
-    if end <= clock.today():
+    today = clock.real_today()
+    if end <= today:
         raise ValueError("A share ends after today.")
-    if end > clock.today() + timedelta(days=MAX_SHARE_DAYS):
+    if end > today + timedelta(days=MAX_SHARE_DAYS):
         raise ValueError(f"A share lasts at most {MAX_SHARE_DAYS} days. Record a new share when it ends to extend it.")
     return end
 
@@ -269,15 +270,15 @@ def revoke_share(state: Path, share_id: str, by: str) -> dict:
             raise ValueError(f"Unknown share {share_id}. Run openguildkit docs share list.")
         if share["revoked_at"]:
             raise ValueError(f"Share {share_id} was already revoked by {share.get('revoked_by') or 'someone'} on {share['revoked_at'][:10]}.")
-        share["revoked_at"] = clock.timestamp()
+        share["revoked_at"] = clock.real_timestamp()
         share["revoked_by"] = by.strip()
         write_json(_shares_path(state), {"shares": shares})
     return share
 
 
 def share_status(state: Path, today: date | None = None) -> list[dict]:
-    """Each share with its state: active, expired (to revoke in Documentalist) or revoked."""
-    today = today or clock.today()
+    """Each share with its state on the real clock: active, expired (to revoke in Documentalist) or revoked."""
+    today = today or clock.real_today()
     rows = []
     for share in _load_shares(state):
         if share["revoked_at"]:

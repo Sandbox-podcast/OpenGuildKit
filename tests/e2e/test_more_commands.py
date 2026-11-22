@@ -11,8 +11,9 @@ import runpy
 import shutil
 import subprocess
 import unittest
-from datetime import date, timedelta
+from datetime import timedelta
 
+from openguildkit import clock
 from tests.e2e.test_cli_flow import ENV, EXAMPLE, TASK_ID, CliTestCase
 
 
@@ -172,7 +173,7 @@ class WaiverCommandTests(ReviewedTaskTestCase):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK_ID)
         self.run_cli("task", "consult", TASK_ID, "--answers", EXAMPLE / "answers.json")
         self.review_with_blockers()
-        self.until = (date.today() + timedelta(days=10)).isoformat()
+        self.until = (clock.real_today() + timedelta(days=10)).isoformat()
 
     def waive(self, by="Camille Martin"):
         return ("task", "waive", TASK_ID, "security:2", "--by", by, "--reason", "Internal pilot only",

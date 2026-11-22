@@ -29,13 +29,17 @@ Review the pages before committing them, especially the Learn drafts. The [examp
 
 ## Reproducible dates
 
-Every date OpenGuildKit writes in a record (task creation, board passes, decisions, completion, deliverable drafts, shares and revocations) and every "today" it compares with (share end dates, waiver lengths, market and Storybook ages) comes from one clock. When the environment variable `SOURCE_DATE_EPOCH` is set, following the reproducible builds convention, its value in seconds since 1970-01-01 UTC replaces the current time. A replay run with the same value therefore writes the same dated blog page on any day:
+`SOURCE_DATE_EPOCH`, following the reproducible builds convention, fixes the dates OpenGuildKit writes. When it is set, its value in seconds since 1970-01-01 UTC replaces the current time in what a command records: task creation, board passes, decisions and completion, deliverable drafts, alert, tool and profile records, and so the dated blog page of an export. A replay run with the same value therefore writes the same pages on any day:
 
 ```bash
 SOURCE_DATE_EPOCH=1795176000 openguildkit task complete request-status   # recorded as 2026-11-20T12:00:00+00:00
 ```
 
-Leave it unset in normal use: approvals, shares and waivers would otherwise be stamped and checked against the fixed date. A value that is not a whole number of seconds is refused.
+A command that uses the fixed date says so once on stderr (`SOURCE_DATE_EPOCH is set: this command dates what it writes ...`), so a variable left in a shell, a build or a scheduled task does not go unseen.
+
+What it does not decide: the decisions that depend on time follow the real clock, whatever the variable says. `docs share add` refuses a last day that is not after the real date, `docs share check` reports a share whose last day is past on the real date, the length of a waiver is counted from the real date, and the guard measures the age of an approval from the real time. The share register records the real time a share was added or revoked. A build or a release script that exports the variable therefore neither hides a share to remove nor stretches a waiver.
+
+The variable still sets the day that market dossier and Storybook ages are counted from, and the day after which a date you enter counts as in the future. Leave it unset in normal use. A value that is not a whole number of seconds is refused.
 
 ## Import into Documentalist
 

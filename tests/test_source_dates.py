@@ -5,12 +5,14 @@ import copy
 import importlib.util
 import io
 import json
+import os
 import re
 import shutil
 import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
+from unittest.mock import patch
 
 from openguildkit import catalog as catalog_module
 from openguildkit.catalog import CatalogError, _validate_entry, load_catalog
@@ -213,7 +215,10 @@ class LinkReportAgeTests(unittest.TestCase):
         self.assertEqual(stale, [{"url": "https://old.example.test/", "checked": "2026-01-02",
                                   "cited_by": [{"collection": "packs", "id": "a", "checked": "2026-01-02"}]}])
         self.assertEqual(len(check_links.stale_sources(self.CITATIONS, date(2026, 11, 21), 10)), 2)
-        report = check_links.check(self.CITATIONS, lambda url: {"status": 200, "final_url": url}, workers=2, max_age=180)
+        # The report is dated by the stamping clock: fix it, so the ages do not depend on the day the test runs.
+        with patch.dict(os.environ, {"SOURCE_DATE_EPOCH": "1795219200"}):  # 2026-11-21
+            report = check_links.check(self.CITATIONS, lambda url: {"status": 200, "final_url": url}, workers=2, max_age=180)
+        self.assertEqual(report["date"], "2026-11-21")
         self.assertEqual(report["max_age_days"], 180)
         markdown = check_links.render_markdown(report)
         self.assertIn("## Checked more than 180 days ago (1)", markdown)
