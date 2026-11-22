@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import clock
 from .decisions import (
-    approval_policy, base_commit, check_decision_seal, decision_payload, history_message, reconsult_hint,
+    approval_policy, base_commit, check_decision_seal, decision_payload, history_message,
     revisions_outside_history, seal, signature_or_history_problem, stale_approval_message, verify_signature,
 )
 from .project import Fingerprints, fingerprint_holds, profile_fingerprint, task_scope_profile

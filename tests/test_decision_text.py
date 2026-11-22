@@ -160,7 +160,7 @@ class CopiedAdviceTests(ApprovalCase):
         boards = ", ".join(board["id"] for board in self.template["boards"][:6]) + " and 2 more"
         for text in (f"Boards {boards} give the same recommendation word for word, once each board's name is taken out.",
                      "once each board's name is taken out: product: the export view returns the requested rows.",
-                     "Every finding of a board cites one and the same evidence item: product (api/app/views.py), "):
+                     "Every finding of a board cites one and the same evidence item: product (its evidence #1), "):
             self.assertIn(text, warned)
             self.assertIn(text, challenge)
             self.assertIn(text, prompt)

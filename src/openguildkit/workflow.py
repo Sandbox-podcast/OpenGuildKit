@@ -1933,17 +1933,16 @@ def _shown(items: list[str]) -> str:
     return ", ".join(items[:6]) + (f" and {len(items) - 6} more" if len(items) > 6 else "")
 
 
-def _single_evidence(entry: dict) -> str | None:
-    """The one evidence item every finding of a board cites, when all of them cite that one alone."""
+def _single_evidence(entry: dict) -> int | None:
+    """The number of the one evidence item every finding of a board cites, when all of them cite that one alone.
+
+    The number, not the reference: a reference no tool or file confirms is never echoed (tools.tool_evidence_warnings).
+    """
     lenses = entry.get("challenge", {}).get("specialists", [])
     cited = {tuple(lens["evidence_refs"]) for lens in lenses}
     if len(lenses) < 2 or len(cited) != 1 or len(next(iter(cited))) != 1:
         return None
-    index = next(iter(cited))[0]
-    if not 1 <= index <= len(entry["evidence"]):
-        return None
-    item = entry["evidence"][index - 1]
-    return item.get("ref", "") if isinstance(item, dict) else item
+    return next(iter(cited))[0]
 
 
 def review_warnings(boards: list[dict]) -> list[str]:
@@ -1971,7 +1970,7 @@ def review_warnings(boards: list[dict]) -> list[str]:
             warnings.append(f"The same finding appears in {_shown(lenses)}, once each board's name is taken out: "
                             f"{' '.join(originals[text].split())[:120]}")
     singles = [(entry["id"], _single_evidence(entry)) for entry in boards]
-    singles = [f"{board_id} ({ref})" for board_id, ref in singles if ref is not None]
+    singles = [f"{board_id} (its evidence #{index})" for board_id, index in singles if index is not None]
     if singles:
         warnings.append(f"Every finding of a board cites one and the same evidence item: {_shown(singles)}.")
     unobserved = [

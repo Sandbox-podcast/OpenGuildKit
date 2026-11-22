@@ -324,7 +324,7 @@ def _parser() -> argparse.ArgumentParser:
         "respond": "Record the boards' answers to each other's objections.",
         "decide": "Record a human decision.",
         "revoke": "Withdraw an approval: the task goes back to changes requested (the person, at a terminal).",
-        "handoff":"Print the approved implementation handoff, or the decision record of a decision task.",
+        "handoff": "Print the approved implementation handoff, or the decision record of a decision task.",
         "decision-payload": "Print the exact decision an approver signs in a project that requires signed approvals.",
         "show": "Print the task record as JSON.",
         "checks": "List the checks the approved task must report.",
