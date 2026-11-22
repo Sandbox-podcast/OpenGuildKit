@@ -17,7 +17,7 @@ from .catalog import load_catalog
 from .decisions import (
     DECISIONS_DIR, approval_policy, base_commit, changed_paths_since, check_decision, check_decision_seal,
     exported_boards, exported_records, exported_rounds, history_message, record_digest, revisions_outside_history, seal,
-    shared_digest, stale_approval_message, verify_signature,
+    shared_digest, stale_approval_message, verify_recorded_signature, verify_signature,
 )
 from .lock import LOCK_FILE, apply_lock, read_lock
 from .project import STATE_DIR, Fingerprints, load_profile, project_root, state_path
@@ -505,19 +505,20 @@ def _record_shape(record: dict, relative: str) -> None:
 
 
 def _record_problem(record: dict, relative: str, fingerprint: str | Fingerprints, policy: dict, base_root: Path, earlier: dict,
-                    *, extracted: bool = False) -> str | None:
+                    *, extracted: bool = False, history: Path | None = None) -> str | None:
     """Why a decision record cannot cover the changes, or None when it can."""
-    found = _record_check(record, relative, fingerprint, policy, base_root, earlier, extracted=extracted)
+    found = _record_check(record, relative, fingerprint, policy, base_root, earlier, extracted=extracted, history=history)
     return found[1] if found else None
 
 
 def _record_check(record: dict, relative: str, fingerprint: str | Fingerprints, policy: dict, base_root: Path,
-                  earlier: dict, *, extracted: bool = False) -> tuple[str, str] | None:
+                  earlier: dict, *, extracted: bool = False, history: Path | None = None) -> tuple[str, str] | None:
     """The kind of problem a decision record has and its message, or None when it holds.
 
-    extracted says that base_root holds files copied from a Git revision (CI) rather than a working copy.
+    extracted says that base_root holds files copied from a Git revision (CI) rather than a working copy; history is
+    then the repository whose history holds the signers of an approval the base revision already carries.
     """
-    found = _record_fault(record, relative, fingerprint, policy, base_root, earlier, extracted=extracted)
+    found = _record_fault(record, relative, fingerprint, policy, base_root, earlier, extracted=extracted, history=history)
     if found is None:
         return None
     if found == "earlier-rules":
@@ -535,7 +536,7 @@ def _rules_hold(fingerprint: str | Fingerprints, recorded: str) -> bool:
 
 
 def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, policy: dict, base_root: Path, earlier: dict,
-                  *, extracted: bool = False) -> str | None:
+                  *, extracted: bool = False, history: Path | None = None) -> str | None:
     """What is wrong with a record: a message, or the kind "earlier-rules" or "earlier-record"; None when it holds.
 
     Records written from RECORD_VERSION on carry two digests: the approval's seal covers what the record shows of
@@ -574,7 +575,13 @@ def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, 
         if not isinstance(decision.get("signature"), str) or not isinstance(decision.get("signer"), str):
             return f"{relative}: the project requires signed approvals and this decision is not signed."
         try:
-            verify_signature(base_root, policy, payload, decision["signature"], decision["signer"], committed=not extracted)
+            # An approval the base revision already carries may come from an approver who has left since; a new one
+            # must come from a current approver.
+            if record["task"] in earlier or not extracted:
+                verify_recorded_signature(base_root, policy, payload, decision["signature"], decision["signer"],
+                                          committed=not extracted, history=history)
+            else:
+                verify_signature(base_root, policy, payload, decision["signature"], decision["signer"], committed=False)
         except ValueError as error:
             return f"{relative}: {error}"
     return None
@@ -802,7 +809,7 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
                 continue
             record = read_json(path)
             _record_shape(record, relative)
-            problem = _record_problem(record, relative, fingerprint, policy, base_root, earlier, extracted=True)
+            problem = _record_problem(record, relative, fingerprint, policy, base_root, earlier, extracted=True, history=root)
             if problem:
                 problems.append(problem)
             else:

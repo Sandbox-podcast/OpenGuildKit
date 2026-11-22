@@ -190,6 +190,87 @@ class DecisionTests(CapturedCli, unittest.TestCase):
         self.assertEqual(json.loads(self.task_path().read_text())["status"], "reviewed")
         self.assertEqual(json.loads(self.run_cli("guard", "--json")[0])["covered_by"], [])
 
+    def signed_by_two(self):
+        """A committed signed project where camille and alex may approve, with camille's approval exported."""
+        keys = self.keys("camille", "alex")
+        lines = [f"{name}@example.org {(keys / f'{name}.pub').read_text().strip()}" for name in ("camille", "alex")]
+        (self.root / "allowed_signers").write_text("\n".join(lines) + "\n", encoding="utf-8")
+        self.git("init", "-q")
+        self.reviewed({"approval": {"mode": "signed", "allowed_signers": "allowed_signers",
+                                    "approvers": ["camille@example.org", "alex@example.org"]}})
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "signers")
+        self.run_cli("task", "decision-payload", TASK, "--by", "CM", "--reason", "Agreed", "--output", keys / "decision.json")
+        with patch("sys.stdin.isatty", return_value=False):
+            self.run_cli("task", "decide", TASK, "--approve", "--by", "CM", "--reason", "Agreed",
+                         "--signer", "camille@example.org", "--signature", self.sign(keys, "camille"))
+        self.run_cli("task", "export", TASK)
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "approved")
+        return keys
+
+    def camille_leaves(self, *, approvers=True, key=True):
+        if approvers:
+            project = self.root / ".openguildkit" / "project.json"
+            profile = json.loads(project.read_text(encoding="utf-8"))
+            profile["approval"]["approvers"] = ["alex@example.org"]
+            write_json(project, profile)
+            self.run_cli("sync")
+        if key:
+            signers = self.root / "allowed_signers"
+            kept = [line for line in signers.read_text(encoding="utf-8").splitlines() if line.startswith("alex@")]
+            signers.write_text("\n".join(kept) + "\n", encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "camille leaves")
+
+    @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
+    def test_an_approval_signed_by_a_departed_approver_keeps_holding(self):
+        for approvers, key in ((True, True), (True, False), (False, True)):
+            with self.subTest(approvers=approvers, key=key):
+                for child in list(self.root.iterdir()):
+                    shutil.rmtree(child) if child.is_dir() else child.unlink()
+                keys = self.signed_by_two()
+                self.camille_leaves(approvers=approvers, key=key)
+                self.run_cli("check")
+                rows = json.loads(self.run_cli("task", "list", "--decisions", "--json")[0])
+                self.assertEqual([row.get("problem") for row in rows], [None])
+                self.run_cli("task", "handoff", TASK)
+
+                self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "second")
+                self.run_cli("task", "consult", "second", "--answers", EXAMPLE / "answers.json")
+                template = json.loads(self.run_cli("task", "template", "second")[0])
+                review = {"consultation_id": template["consultation_id"],
+                          **json.loads((EXAMPLE / "review.json").read_text())}
+                write_json(self.root / "review.json", review)
+                self.run_cli("task", "review", "second", "--file", self.root / "review.json")
+                self.run_cli("task", "decision-payload", "second", "--by", "CM", "--reason", "Agreed",
+                             "--output", keys / "decision.json")
+                with patch("sys.stdin.isatty", return_value=False):
+                    _, error = self.run_cli("task", "decide", "second", "--approve", "--by", "CM", "--reason", "Agreed",
+                                            "--signer", "camille@example.org", "--signature", self.sign(keys, "camille"),
+                                            code=1)
+                self.assertRegex(error, "not an approver for this project|does not verify for camille")
+
+    @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
+    def test_ci_refuses_a_record_of_a_departed_approver_that_the_base_revision_does_not_carry(self):
+        self.signed_by_two()
+        self.camille_leaves()
+        self.git("branch", "-M", "main")
+        self.run_cli("guard", "--ci", "--base", "main")
+        record = self.root / ".openguildkit" / "decisions" / f"{TASK}.json"
+        kept = record.read_text(encoding="utf-8")
+        self.git("rm", "-q", str(record))
+        self.git("commit", "-q", "-m", "drop the record")
+        self.git("checkout", "-q", "-b", "change")
+        record.parent.mkdir(exist_ok=True)
+        record.write_text(kept, encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "bring it back")
+        output, _ = self.run_cli("guard", "--ci", "--base", "main", "--json")
+        result = json.loads(output)
+        self.assertFalse(result["ok"])
+        self.assertIn("camille@example.org is not an approver", " ".join(result["problems"]))
+
     def forge_approval(self):
         """What an agent can do with file access alone: approve the task and recompute its seal."""
         record = json.loads(self.task_path().read_text())

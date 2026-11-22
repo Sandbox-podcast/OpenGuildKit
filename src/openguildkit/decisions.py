@@ -159,6 +159,10 @@ def committed_signers(root: Path, relative: str) -> str:
     return committed.stdout
 
 
+class SignerNotCurrent(ValueError):
+    """The signer is not among the current approvers, or the current signers file does not verify their signature."""
+
+
 def verify_signature(root: Path, policy: dict, payload: dict, signature: str, signer: str, *,
                      committed: bool = True) -> None:
     """Check an SSH signature of the decision against the project's allowed signers.
@@ -167,25 +171,80 @@ def verify_signature(root: Path, policy: dict, payload: dict, signature: str, si
     already extracted from a Git revision, such as the base revision CI reads.
     """
     if signer not in policy["approvers"]:
-        raise ValueError(f"{signer} is not an approver for this project. Approvers: {', '.join(policy['approvers'])}.")
+        raise SignerNotCurrent(f"{signer} is not an approver for this project. "
+                               f"Approvers: {', '.join(policy['approvers'])}.")
     allowed = (root / policy["allowed_signers"]).resolve()
     if not allowed.is_file() or root.resolve() not in allowed.parents:
         raise ValueError(f"The allowed signers file {policy['allowed_signers']} is missing from the project.")
     signers = committed_signers(root, Path(policy["allowed_signers"]).as_posix()) if committed else None
+    _ssh_verify(allowed.read_text(encoding="utf-8") if signers is None else signers, payload, signature, signer)
+
+
+def _ssh_verify(signers: str, payload: dict, signature: str, signer: str) -> None:
+    """Verify the signature of the payload for signer, against the text of an allowed signers file."""
     if shutil.which("ssh-keygen") is None:
         raise ValueError("Verifying a signed approval needs ssh-keygen (OpenSSH 8.1 or later).")
     with tempfile.TemporaryDirectory() as directory:
         signature_path = Path(directory) / "decision.sig"
         signature_path.write_text(signature, encoding="utf-8")
-        if signers is not None:
-            allowed = Path(directory) / "allowed_signers"
-            allowed.write_text(signers, encoding="utf-8")
+        allowed = Path(directory) / "allowed_signers"
+        allowed.write_text(signers, encoding="utf-8")
         result = subprocess.run(
             ["ssh-keygen", "-Y", "verify", "-f", str(allowed), "-I", signer, "-n", NAMESPACE, "-s", str(signature_path)],
             input=payload_text(payload).encode("utf-8"), capture_output=True, check=False,
         )
     if result.returncode:
-        raise ValueError(f"The signature does not verify for {signer}: {result.stderr.decode(errors='replace').strip()}")
+        raise SignerNotCurrent(f"The signature does not verify for {signer}: "
+                               f"{result.stderr.decode(errors='replace').strip()}")
+
+
+PROJECT_FILE = ".openguildkit/project.json"
+
+
+def signers_at_approval(history: Path, payload: dict) -> tuple[list[str], str] | None:
+    """The approvers and the allowed signers file as Git held them at the revision an approval was signed at.
+
+    task decide verifies against the signers file at HEAD and records HEAD in the signed payload, so that revision
+    holds the file the signature was verified against. None when the revision is not in the history of HEAD, or
+    does not hold a signed project.json and its signers file.
+    """
+    base = payload.get("base_revision")
+    commit = base.get("commit") if isinstance(base, dict) else None
+    if not isinstance(commit, str) or not commit or commit.startswith("-"):
+        return None
+    ancestor = _git(history, "merge-base", "--is-ancestor", commit, "HEAD")
+    if ancestor is None or ancestor.returncode:
+        return None
+    try:
+        profile = json.loads(_git(history, "show", f"{commit}:./{PROJECT_FILE}").stdout)
+        policy = profile["approval"]
+        approvers, relative = policy["approvers"], Path(policy["allowed_signers"]).as_posix()
+    except (ValueError, TypeError, KeyError):
+        return None
+    signers = _git(history, "show", f"{commit}:./{relative}")
+    if policy.get("mode") != "signed" or not isinstance(approvers, list) or signers.returncode:
+        return None
+    return approvers, signers.stdout
+
+
+def verify_recorded_signature(root: Path, policy: dict, payload: dict, signature: str, signer: str, *,
+                              committed: bool = True, history: Path | None = None) -> None:
+    """Verify the signature of an approval already recorded, which a departed approver may have given.
+
+    Against the current approvers and signers file first. When the signer has left them since, the approval holds
+    if it verifies against those of the revision it was signed at (signers_at_approval), read from the Git
+    repository history (root by default). A new approval goes through verify_signature, which refuses them.
+    """
+    try:
+        verify_signature(root, policy, payload, signature, signer, committed=committed)
+    except SignerNotCurrent as current:
+        recorded = signers_at_approval(history or root, payload) if history or committed else None
+        if recorded is None or signer not in recorded[0]:
+            raise
+        try:
+            _ssh_verify(recorded[1], payload, signature, signer)
+        except ValueError:
+            raise current from None
 
 
 DECISIONS_DIR = "decisions"
@@ -299,7 +358,7 @@ def signature_or_history_problem(task: dict, root: Path, profile: dict, payload:
             return "unsigned", (f"The project requires a signed approval and the approval of {task['id']} is not "
                                 f"signed. {reconsult_hint(task['id'])}")
         try:
-            verify_signature(root, policy, payload, decision["signature"], decision["signer"])
+            verify_recorded_signature(root, policy, payload, decision["signature"], decision["signer"])
         except ValueError as error:
             return "invalid-signature", f"{error} {reconsult_hint(task['id'])}"
     commit = base_commit(task)
