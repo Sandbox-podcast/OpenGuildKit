@@ -348,7 +348,7 @@ class CleanErrorTests(unittest.TestCase):
         self.assertIn("done-with-reservations", output)
         # The open points were shown at the confirmation prompt; the record keeps them.
         record = json.loads(self.output("task", "show", "choice"))
-        self.assertIn("disagreement", json.dumps(record["result"]["closing"]["open_points"]))
+        self.assertIn("Disagreements between boards left open", json.dumps(record["result"]["closing"]["open_points"]))
         self.assertIn('openguildkit task new "BRIEF" --follows choice', output)
         self.run_cli("task", "new", "Add the portal page.", "--id", "page", "--follows", "choice", code=0)
 

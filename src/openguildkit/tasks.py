@@ -319,6 +319,9 @@ def _approved_step(task: dict) -> str:
     """The next step of an approved task, from what its result already holds."""
     task_id = task["id"]
     if is_decision_task(task):
+        if task.get("answers", {}).get("outcome") and not (task.get("result") or {}).get("criteria"):
+            return (f"Decision recorded: report its acceptance criterion with task result {task_id} --template, "
+                    f"then task complete {task_id}, then open a follow-up task to act on it.")
         return f"Decision recorded: close it with task complete {task_id}, then open a follow-up task to act on it."
     result = task.get("result")
     if not result:
@@ -428,11 +431,22 @@ def tasks_touched(state: Path, profile: dict, catalog: dict) -> list[dict]:
 
 
 def cited_evidence(task: dict) -> list[str]:
-    """The project paths a task names as evidence for a reviewer: named evidence and blocker clearings."""
-    paths = [item["evidence"] for item in task.get("result", {}).get("checks", [])
-             if item["check"].startswith("evidence:") and isinstance(item.get("evidence"), str)]
+    """The project paths a task names as evidence for a reviewer: named evidence, rule and pack answers,
+    acceptance criteria and blocker clearings.
+
+    Free text ("Tried by hand.") is not a path and is left out, and so are the logs task verify writes for
+    the check commands under .openguildkit/tasks/: they are the tool's own record, not evidence to share.
+    """
+    result = task.get("result", {})
+    paths = [item.get("evidence") for item in result.get("checks", []) if "exit_code" not in item]
+    paths += [item.get("evidence") for item in result.get("packs", [])]
+    for criterion in result.get("criteria", []):
+        paths += [criterion.get("evidence"), criterion.get("verified_by")]
     paths += [item["evidence"] for item in task.get("blocker_resolutions", {}).values() if item["kind"] == "cleared"]
-    return [path for path in dict.fromkeys(paths) if path and not path.startswith("https://")]
+    logs = f".openguildkit/tasks/{task['id']}-checks/"
+    return [path for path in dict.fromkeys(paths)
+            if isinstance(path, str) and path and not path.startswith(("https://", "command:", logs))
+            and not any(character.isspace() for character in path)]
 
 
 def record_consultation(
@@ -809,6 +823,36 @@ NO_COMMAND = ("No project check command ran for this task: the profile lists non
               ".openguildkit/project.json), so nothing was run to verify the change.")
 
 
+def _open_disagreements(task: dict) -> list[str]:
+    """Each disagreement left open with its point and its two boards, then the decision the person takes."""
+    deliberation = task.get("deliberation", {})
+    objections = {item["id"]: item for item in deliberation.get("objections", [])}
+    points = []
+    for item_id in deliberation.get("open", []):
+        objection = objections.get(item_id)
+        points.append(f"{objection['from']} objects to {objection['to']}: {objection['point']}" if objection
+                      else f"disagreement {item_id} was left open")
+    if points and deliberation.get("decision_needed"):
+        points.append(f"Decision needed: {deliberation['decision_needed']}")
+    return points
+
+
+def _blocks_not_lifted(task: dict) -> list[str]:
+    """A board that said block, approved over blockers that were waived or left open rather than cleared."""
+    points = []
+    for entry in task.get("review", {}).get("boards", []):
+        if entry.get("challenge", {}).get("verdict") != "block":
+            continue
+        open_ones = [item for item in blocker_list(task) if item["board"] == entry["id"]
+                     and not (item["resolution"] and item["resolution"]["kind"] == "cleared")]
+        details = "; ".join(
+            f"blocker {item['id']} is waived until {item['resolution']['until']}, not cleared"
+            if item["resolution"] else f"blocker {item['id']} is not cleared" for item in open_ones)
+        if open_ones:
+            points.append(f"{entry['id']} said block; {details}")
+    return points
+
+
 def points_left_open(task: dict, profile: dict, relevance: dict | None = None) -> list[dict]:
     """What a closed task leaves open, grouped by nature, most serious first; empty groups are left out."""
     checks = {check["id"]: check for check in asked_checks(task, profile, relevance)}
@@ -831,14 +875,14 @@ def points_left_open(task: dict, profile: dict, relevance: dict | None = None) -
                              f"({item['owner']}) [{area}]")
     groups = [
         (SENSITIVE_GROUP, sensitive),
+        ("Board blocks not lifted", _blocks_not_lifted(task)),
         ("Project checks that could not run in this environment", [
             f"{item['check']} could not run: {item['reason']} (recorded by {item['owner']})"
             for item in result.get("checks", []) if item.get("cannot_run")]),
         ("Blockers waived rather than cleared", [
             f"blocker {item['id']} is waived until {item['resolution']['until']}"
             for item in blocker_list(task) if item["resolution"] and item["resolution"]["kind"] == "waived"]),
-        ("Disagreements between boards left open", [
-            f"disagreement {item_id} was left open" for item_id in task.get("deliberation", {}).get("open", [])]),
+        ("Disagreements between boards left open", _open_disagreements(task)),
         ("Named evidence handed to a follow-up task", [
             f"{item['check']} is handed to task {item['task']}, provided by {item['owner']} (recorded by {item['by']})"
             for item in result.get("deferred", [])]),
@@ -847,7 +891,7 @@ def points_left_open(task: dict, profile: dict, relevance: dict | None = None) -
     ]
     found = [{"group": title, "points": points} for title, points in groups if points]
     verdicts = [f"{entry['id']} said {entry['challenge']['verdict']}" for entry in task.get("review", {}).get("boards", [])
-                if entry.get("challenge", {}).get("verdict") in ("revise", "block")]
+                if entry.get("challenge", {}).get("verdict") == "revise"]
     if found and verdicts:
         found.append({"group": "Board verdicts at approval that asked for changes", "points": verdicts})
     return found
