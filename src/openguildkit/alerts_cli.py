@@ -4,12 +4,13 @@ import sys
 from pathlib import Path
 
 from .alerts import (
-    REVIEW_STATUSES, SEVERITIES, STATUSES, accept_alert, find_alert, import_report, link_alert, load_register,
-    migrate_task, needs_person, save_register, set_severity, set_status, summary, task_alerts,
+    REVIEW_STATUSES, SEVERITIES, STATUSES, accept_alert, alert_task_id, find_alert, import_report, link_alert,
+    load_register, migrate_task, needs_person, save_register, set_severity, set_status, summary, task_alerts,
+    task_brief, unhandled_alerts,
 )
 from .results import DONE_STATUSES
 from .storage import json_text, project_lock, write_json
-from .tasks import read_task, task_path
+from .tasks import create_task, read_task, task_path
 
 STATUS_CHOICES = (*REVIEW_STATUSES, "to-verify")
 
@@ -45,6 +46,9 @@ def add_parser(commands) -> None:
     link = actions.add_parser("link", help="Link an alert to the task that handles it.")
     link.add_argument("alert", help="Alert ID.")
     link.add_argument("--task", required=True, help="Task ID.")
+    tasks = actions.add_parser("tasks", help="List the confirmed alerts no task handles, with the task each one gets.")
+    tasks.add_argument("--open", action="store_true", help="Open each task as a draft and link its alert to it.")
+    tasks.add_argument("--json", action="store_true", help="Print the alerts and their tasks as JSON.")
 
 
 def _confirm_person(alert_id: str, what: str) -> None:
@@ -77,6 +81,8 @@ def _print_changes(changes: dict, as_json: bool) -> None:
         return
     print(f"{changes['tool']}: {len(changes['reported'])} alert(s) reported, {len(changes['new'])} new, "
           f"{len(changes['reopened'])} reopened, {len(changes['resolved'])} resolved.")
+    if changes.get("nothing_analyzed"):
+        print(f"  The report analyzed no dependency ({changes['nothing_analyzed']}): it resolves no alert.")
     for key in ("new", "reopened", "resolved"):
         for alert_id in changes[key]:
             print(f"  {key}: {alert_id}")
@@ -89,8 +95,37 @@ def _review(register: dict, alert_id: str, status: str, by: str, reason: str) ->
     return set_status(register, alert_id, status, by, reason)
 
 
+def _alert_tasks(args, state: Path) -> None:
+    """One task per confirmed alert that no task handles: the same ID in every copy and every scheduled run, so the
+    register links the alert to it as soon as the task is opened, here or by the scheduled watch."""
+    rows = []
+    with project_lock(state):
+        register = load_register(state)
+        for alert in unhandled_alerts(register):
+            row = {"alert": alert["id"], "severity": alert["severity"], "task": alert_task_id(alert),
+                   "brief": task_brief(alert)}
+            if args.open:
+                if not task_path(state, row["task"]).is_file():
+                    create_task(state, row["brief"], row["task"])
+                register = link_alert(register, alert["id"], row["task"])
+            rows.append(row)
+        if args.open and rows:
+            save_register(state, register)
+    if args.json:
+        print(json_text(rows), end="")
+    elif not rows:
+        print("No confirmed alert waits for a task.")
+    for row in [] if args.json else rows:
+        print(f"{row['alert']} ({row['severity']}): task {row['task']}{' opened' if args.open else ''}")
+    if rows and not args.open and not args.json:
+        print("Open them with openguildkit alerts tasks --open, then consult each task.")
+
+
 def run(args, state: Path) -> None:
     action = args.alerts_action
+    if action == "tasks":
+        _alert_tasks(args, state)
+        return
     if action == "list":
         register = load_register(state)
         alerts = register["alerts"]

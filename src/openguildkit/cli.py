@@ -15,7 +15,6 @@ from .decisions import (
     DECISIONS_DIR,
     NAMESPACE,
     approval_policy,
-    check_decision,
     decision_payload,
     exported_records,
     git_revision,
@@ -116,12 +115,16 @@ from .tasks import (
     read_task,
     record_consultation,
     decided_message,
+    decision_text,
+    last_approval,
     record_decision,
     record_review,
+    require_approval,
     require_current_scope,
+    revoke_approval,
     task_path,
 )
-from .workflow import RESOLUTION_RULE, trigger_matches, blocker_list, board_brief, challenge_report, concerns_question, decision_summary, deliberation_request, handoff, is_decision_task, open_points, pending_removals, require_concerns, select_boards, task_questions, validate_answers, validate_review, verdict_lines, review_lines, pack_rules
+from .workflow import RESOLUTION_RULE, trigger_matches, blocker_list, board_brief, challenge_report, concerns_question, deliberation_request, handoff, is_decision_task, open_points, pending_removals, require_concerns, select_boards, task_questions, validate_answers, validate_review, verdict_lines, review_lines, pack_rules
 
 
 def _on_first_call(module: str, name: str):
@@ -344,6 +347,7 @@ def _parser() -> argparse.ArgumentParser:
         "waive": "Waive a blocker within the project's waiver policy (needs a terminal).",
         "respond": "Record the boards' answers to each other's objections.",
         "decide": "Record a human decision.",
+        "revoke": "Withdraw an approval: the task goes back to changes requested (the person, at a terminal).",
         "handoff": "Print the approved implementation handoff, or the decision record of a decision task.",
         "decision-payload": "Print the exact decision an approver signs in a project that requires signed approvals.",
         "show": "Print the task record as JSON.",
@@ -469,6 +473,9 @@ def _parser() -> argparse.ArgumentParser:
             command.add_argument("--reason", required=True, help="Reason for the decision.")
             command.add_argument("--signature", type=Path, help="SSH signature of task decision-payload (signed projects).")
             command.add_argument("--signer", help="Principal in the allowed signers file (signed projects).")
+        if action == "revoke":
+            command.add_argument("--by", required=True, help="Person who withdraws the approval.")
+            command.add_argument("--reason", required=True, help="Why the approval is withdrawn.")
         if action == "decision-payload":
             command.add_argument("--by", required=True, help="Decision owner's name.")
             command.add_argument("--reason", required=True, help="Reason for the decision.")
@@ -1561,7 +1568,43 @@ def _new_brain(args, state: Path, catalog: dict) -> int:
     return 0
 
 
-def _decide(args, root: Path, state: Path, task: dict, profile: dict) -> None:
+def _revoke(args, state: Path, task: dict, profile: dict, catalog: dict, root: Path) -> None:
+    """The person withdraws an approval at their terminal, as they gave it: never an agent."""
+    result = revoke_approval(task, args.by, args.reason)
+    if not sys.stdin.isatty():
+        raise ValueError("Withdrawing an approval is the person's act: they run openguildkit task revoke in their own "
+                         "terminal, as they approved.")
+    problem = approval_problem(task, profile, catalog, root)
+    if problem:
+        print(f"OpenGuildKit: {problem['message']}", file=sys.stderr)
+    print(f"Type {args.id} to withdraw the approval {task['decision']['by']} gave on {task['decision']['at'][:10]}: ",
+          end="", file=sys.stderr, flush=True)
+    if input().strip() != args.id:
+        raise ValueError("Withdrawal cancelled.")
+    with project_lock(state):
+        if read_task(state, args.id) != task:
+            raise ValueError("The task changed while you were deciding. Review it and retry.")
+        write_json(task_path(state, args.id), result)
+    print(result["status"])
+    print(f"The guard no longer counts {args.id}. Next: openguildkit task consult {args.id} --answers FILE, or close "
+          f'the work in a linked task: openguildkit task new "BRIEF" --follows {args.id}', file=sys.stderr)
+
+
+def _decision_prompt(state: Path, task: dict, profile: dict, register: dict) -> list[str]:
+    """What the person reads before approving, the same at the approval prompt and in task decision-payload: the
+    previous round, the decision text (tasks.decision_text, also task challenge's), the brief, the summary and each
+    board's advice."""
+    recall = previous_round_line(task)
+    review = validate_review(task["consultation"], task["review"])
+    return [*([recall] if recall else []), *decision_text(task, profile, last_approval(state), register),
+            "", f"Brief: {task['brief'].strip()}", "", review["summary"], *review_lines(review), "",
+            f"Full decision brief, with each board's evidence: openguildkit task challenge {task['id']}",
+            *verdict_lines(review, task.get("deliberation"), is_decision_task(task))]
+
+
+def _decide(args, root: Path, state: Path, task: dict, profile: dict, catalog: dict) -> None:
+    if task["status"] == "approved":
+        raise ValueError(decided_message(task, approval_problem(task, profile, catalog, root)))
     policy = approval_policy(profile)
     base = git_revision(root) if args.approve else None
     signature = None
@@ -1574,24 +1617,18 @@ def _decide(args, root: Path, state: Path, task: dict, profile: dict) -> None:
         text = args.signature.read_text(encoding="utf-8")
         verify_signature(root, policy, decision_payload(task, args.by, args.reason, base), text, args.signer)
         signature = {"signer": args.signer, "text": text}
-    blocking = blocking_alerts(load_register(state), task) if args.approve else []
+    register = load_register(state)
+    blocking = blocking_alerts(register, task) if args.approve else []
     if blocking:
         raise ValueError("Approval is blocked:\n- " + "\n- ".join(blocking))
     removals = pending_removals(task) if args.approve else []
     result = record_decision(task, args.approve, args.by, args.reason, base, signature, removals)
-    if args.approve and (signature is None or removals):
-        if not sys.stdin.isatty():
+    if args.approve:
+        if (signature is None or removals) and not sys.stdin.isatty():
             raise ValueError("Approval requires a person at an interactive terminal.")
-        recall = previous_round_line(task)
-        if recall:
-            print(recall, file=sys.stderr)
-        print("\n".join(decision_summary(task)), file=sys.stderr)
+        # A signed approval shows the same text: the signature replaces the typed ID, not the reading.
+        print("\n".join(_decision_prompt(state, task, profile, register)), file=sys.stderr)
         if signature is None:
-            review = validate_review(task["consultation"], task["review"])
-            print("\n".join(["", f"Brief: {task['brief'].strip()}", "", review["summary"], *review_lines(review),
-                             "", f"Full decision brief, with each board's evidence: openguildkit task challenge "
-                             f"{args.id}", *verdict_lines(review, task.get("deliberation"), is_decision_task(task))]),
-                  file=sys.stderr)
             print(f"Type {args.id} to approve the reviewed scope: ", end="", file=sys.stderr, flush=True)
             if input().strip() != args.id:
                 raise ValueError("Approval cancelled.")
@@ -1886,8 +1923,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             _print_decision_rows(rows)
         return
     if action == "list":
-        rows = list_tasks(state, args.status, args.owner, args.since, args.until,
-                          current_fingerprint=profile_fingerprint(profile, catalog), profile=profile, catalog=catalog)
+        rows = list_tasks(state, args.status, args.owner, args.since, args.until, profile=profile, catalog=catalog,
+                          root=root)
         clashes = _id_clashes(root, state)
         for row in rows:
             if row["id"] in clashes:
@@ -1921,7 +1958,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
     task = read_task(state, args.id)
     if action in ("show", "checks", "handoff", "export", "verify", "result", "complete"):
         # One answer for every reader: an error stops the action; a note (a completed task's history) is shown.
-        problem = approval_problem(task, profile_fingerprint(profile, catalog), profile, catalog)
+        problem = approval_problem(task, profile, catalog, root)
         if problem and problem["severity"] == "error" and action not in ("show", "checks"):
             raise ValueError(problem["message"])
         if problem and action in ("show", "checks", "export"):
@@ -1983,9 +2020,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 if resolution and resolution.get("recorded_from") == "no terminal":
                     print("    recorded without a terminal")
     elif action in ("clear", "waive"):
-        if task["status"] == "approved":
-            require_current_scope(task, profile, catalog)
-            check_decision(task, root, profile)
+        require_approval(task, profile, catalog, root)
         if action == "waive":
             if not sys.stdin.isatty():
                 raise ValueError("A waiver needs a person at an interactive terminal.")
@@ -2047,7 +2082,6 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         if task["status"] != "approved":
             raise ValueError("Run checks for an approved task that is not done yet." if action == "verify"
                              else "Results belong to an approved task that is not done yet.")
-        check_decision(task, root, profile)
         decision = is_decision_task(task)
         changed = decision_changes(root, task)
         relevance = _relevance(root, task, profile, catalog, getattr(args, "all", False))
@@ -2161,7 +2195,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         recall = previous_round_line(task)
         if recall:
             print(recall)
-        print(challenge_report(task), end="")
+        lines = (decision_text(task, profile, last_approval(state), load_register(state))
+                 if "review" in task else None)
+        print(challenge_report(task, lines), end="")
     elif action == "route":
         if args.answers is None and "answers" not in task:
             raise ValueError("Pass --answers FILE, or consult the task first.")
@@ -2245,6 +2281,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 result = assemble_review(current_task, args.summary)
             write_json(task_path(state, args.id), result)
         print(result["status"])
+        for warning in result["review"].get("warnings", []):
+            print(f"Warning: {warning}", file=sys.stderr)
         if review is not None:
             for warning in tool_evidence_warnings(root, state, result["review"]["boards"]):
                 print(f"Warning: {warning}", file=sys.stderr)
@@ -2260,6 +2298,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 with _input_file(args.file):
                     result = submit_pass(current_task, entry, args.mode, root)
             error = result.pop("_error", None)
+            copied = result.pop("_warnings", [])
             write_json(task_path(state, args.id), result)
         if action == "pass":
             print(board_brief(result["consultation"], args.board))
@@ -2271,6 +2310,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                              f"file and send it again: openguildkit task submit {args.id} --file {args.file.as_posix()}")
         else:
             print("done")
+            for warning in copied:
+                print(f"Warning: {warning}", file=sys.stderr)
             saved_entry = result["passes"]["boards"][entry["id"].strip()]["entry"]
             for warning in tool_evidence_warnings(root, state, [saved_entry]):
                 print(f"Warning: {warning}", file=sys.stderr)
@@ -2287,10 +2328,15 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 if "error" in item:
                     print(f"    {item['error']}")
     elif action == "decide":
-        _decide(args, root, state, task, profile)
+        _decide(args, root, state, task, profile, catalog)
+    elif action == "revoke":
+        _revoke(args, state, task, profile, catalog, root)
     elif action == "decision-payload":
         if task["status"] != "reviewed":
-            raise ValueError(decided_message(task) or "Record the boards' review before preparing a decision.")
+            raise ValueError(decided_message(task, approval_problem(task, profile, catalog, root))
+                             or "Record the boards' review before preparing a decision.")
+        # The signer reads what they sign: the same lines as the approval prompt, then the payload with the brief.
+        print("\n".join(_decision_prompt(state, task, profile, load_register(state))), file=sys.stderr)
         text = payload_text(decision_payload(task, args.by, args.reason, git_revision(root)))
         if args.output:
             # Exact UTF-8 bytes with LF line endings: a shell redirect could change the encoding.
@@ -2318,7 +2364,6 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         if task.get("status") == "approved":
             evidence = [check for check in checks if check["concerned"] and check["kind"] == "evidence"]
         output = handoff(task, evidence, checks)
-        check_decision(task, root, profile)
         _require_instructions(args, root, state, profile, catalog)
         print(output)
 
@@ -2482,8 +2527,8 @@ def _run(args) -> int | None:
             fingerprint = profile_fingerprint(profile, catalog)
             # An approval that no longer holds is an error until the task is consulted again; a completed task
             # whose rules changed afterwards is history and stays quiet here (task list shows it).
-            failing = [f"{row['id']}: {row['next']}" for row in list_tasks(state, current_fingerprint=fingerprint,
-                                                                         profile=profile, catalog=catalog)
+            failing = [f"{row['id']}: {row['next']}" for row in list_tasks(state, profile=profile, catalog=catalog,
+                                                                         root=root)
                        if row["status"] == "unreadable" or row.get("severity") == "error"]
             records = exported_decisions(root, state, profile, fingerprint)
             failing += [row["problem"]["message"] for row in records

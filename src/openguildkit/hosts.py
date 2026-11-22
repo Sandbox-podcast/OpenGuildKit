@@ -15,12 +15,14 @@ from .storage import write_text
 
 HOSTS = ("claude-code", "codex", "other")
 LAUNCHERS = (("openguildkit",), ("python", "-m", "openguildkit"), ("python3", "-m", "openguildkit"), ("py", "-m", "openguildkit"))
-APPROVAL_COMMANDS = tuple((*launcher, "task", "decide") for launcher in LAUNCHERS[:3])
+# Approving a task and withdrawing an approval (task revoke) are the person's acts at a terminal.
+APPROVAL_COMMANDS = tuple((*launcher, "task", action) for action in ("decide", "revoke") for launcher in LAUNCHERS[:3])
 TERMINAL_EMULATORS = ("script", "expect", "unbuffer", "tmux", "screen")
 CLAUDE_RESEARCH_RULES = ("WebSearch", "WebFetch")
 # Wildcards match every launcher (a venv path, python -m) and --project before the subcommand.
 CLAUDE_APPROVAL_PATTERNS = (
     "*openguildkit* task decide*", "*openguildkit* task waive*", "*openguildkit* task authorize *--allow*",
+    "*openguildkit* task revoke*",
     "*import pty*", "*pty.spawn*", "*pty.fork*", "*openpty*", "*pexpect*", "*ptyprocess*",
 )
 CLAUDE_APPROVAL_RULES = (
@@ -157,7 +159,8 @@ def _codex_rules() -> str:
     rules = [CODEX_RULES_HEADER]
     for launcher in LAUNCHERS:
         for project in ((), ("--project", [".", "./"])):
-            pattern = ", ".join(json.dumps(part) for part in (*launcher, *project, "task", ["decide", "waive", "authorize"]))
+            actions = ["decide", "waive", "authorize", "revoke"]
+            pattern = ", ".join(json.dumps(part) for part in (*launcher, *project, "task", actions))
             rules.append(
                 f"prefix_rule(pattern = [{pattern}], decision = \"forbidden\", "
                 "justification = \"A person approves OpenGuildKit tasks in their own terminal.\")\n"

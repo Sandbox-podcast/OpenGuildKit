@@ -53,7 +53,7 @@ class RuleChangeTests(SharingCase):
         write_json(self.state / "project.json", profile)
         self.run_cli("sync")
         row, = json.loads(self.run_cli("task", "list", "--json")[0])
-        self.assertIn("(pack extra added; conventions changed)", row["next"])
+        self.assertIn("(pack extra added; checks changed)", row["next"])
 
     def test_consulting_again_reopens_the_approval_and_keeps_it_in_the_rounds(self):
         self.approved()
@@ -69,7 +69,8 @@ class RuleChangeTests(SharingCase):
     def test_a_current_approval_cannot_be_consulted_again(self):
         self.approved()
         error = self.run_cli("task", "consult", TASK, "--answers", self.root / "answers.json", code=1)[1]
-        self.assertIn("request changes before consulting again", error)
+        self.assertIn("is already approved by Camille", error)
+        self.assertIn(f"openguildkit task revoke {TASK} --by NAME --reason TEXT", error)
 
     def test_a_completed_task_under_earlier_rules_is_history(self):
         self.approved()

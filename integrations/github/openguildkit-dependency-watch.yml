@@ -1,9 +1,10 @@
 # Copy to .github/workflows/openguildkit-dependency-watch.yml in a project that uses OpenGuildKit.
-# Every Monday it runs the project's scanner, imports the report into the alert register
-# (.openguildkit/alerts.json) and opens one issue per confirmed alert that has no issue yet.
-# New alerts stay "open" until a person reviews them: the job lists them in its summary and keeps
-# the updated register as an artifact, so the team can confirm or dismiss them and commit the file.
+# Every Monday it runs the project's scanner and imports the report into the alert register
+# (.openguildkit/alerts.json). For each confirmed alert that no task handles yet, it opens a task: the register
+# links the alert to the task's ID and an issue tracks it. It then proposes the updated register in a pull request
+# (branch openguildkit/dependency-watch), where a person confirms or dismisses the new alerts before merging.
 # The job changes no dependency: a fix goes through an OpenGuildKit task and its approval.
+# The repository setting "Allow GitHub Actions to create and approve pull requests" must be on for the pull request.
 name: OpenGuildKit dependency watch
 
 on:
@@ -12,8 +13,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   issues: write
+  pull-requests: write
 
 jobs:
   watch:
@@ -51,31 +53,70 @@ jobs:
           {
             echo "## Dependency alerts"
             echo
-            echo "New or reopened alerts to review (confirm or dismiss them, then commit .openguildkit/alerts.json):"
+            jq -r 'if .nothing_analyzed then "The report analyzed no dependency (\(.nothing_analyzed)): it resolves no alert.\n" else empty end' changes.json
+            echo "New or reopened alerts to review in the pull request (confirm or dismiss each one):"
             jq -r '(.new + .reopened)[] | "- " + .' changes.json
             echo
             echo "Resolved:"
             jq -r '.resolved[] | "- " + .' changes.json
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Open an issue per new confirmed alert
+      - name: Open a task per new confirmed alert
+        # The task ID is the same in every run and every copy: the register links the alert to it, so the alert
+        # leaves the list of alerts without a task, and whoever takes the task creates it with that ID.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          openguildkit alerts list --status confirmed --json > confirmed.json
+          openguildkit alerts tasks --open --json > opened.json
           known_titles=$(gh issue list --state all --limit 500 --json title --jq '.[].title')
-          jq -c '.alerts[] | select(.accepted == null)' confirmed.json | while read -r alert; do
-            title="Dependency alert: $(jq -r '.id' <<<"$alert")"
+          jq -c '.[]' opened.json | while read -r item; do
+            task=$(jq -r '.task' <<<"$item")
+            title="OpenGuildKit task $task: dependency alert $(jq -r '.alert' <<<"$item")"
             if grep -Fxq -- "$title" <<<"$known_titles"; then
-              echo "Already reported: $title"
+              echo "Already opened: $title"
               continue
             fi
-            body=$(jq -r '"\(.package) \(.version) is affected by \(.advisory) (\(.severity)), confirmed by \(.by). Fixed version: \(.fix // "unknown").\n\nOpen a task for the fix and link the alert:\n\n    openguildkit task new \"Fix \(.advisory) in \(.package)\" --id TASK\n    openguildkit task alerts TASK --link \(.id)\n\nA confirmed critical alert blocks the approval and the completion of its tasks until a report shows it resolved or a person records why it is accepted."' <<<"$alert")
+            body=$(jq -r '"\(.brief)\n\nThe alert register links the alert to task \(.task) in the pull request of this run. Open the task in your copy with that ID, then consult the boards:\n\n    openguildkit task new \"\(.brief)\" --id \(.task)\n    openguildkit task consult \(.task)\n\nA confirmed critical alert blocks the approval and the completion of its task until a report shows it resolved or a person records why it is accepted."' <<<"$item")
             gh issue create --title "$title" --body "$body"
           done
-      - name: Keep the updated register
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: alert-register
-          path: .openguildkit/alerts.json
-          retention-days: 30
+      - name: Propose the register in a pull request
+        # The register goes through the GitHub API with the job's token, which never reaches .git/config.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.ref_name }}
+        run: |
+          register=.openguildkit/alerts.json
+          if git ls-files --error-unmatch "$register" >/dev/null 2>&1 && git diff --quiet HEAD -- "$register"; then
+            echo "The alert register did not change: no pull request."
+            exit 0
+          fi
+          branch=openguildkit/dependency-watch
+          head=$(git rev-parse HEAD)
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" >/dev/null 2>&1; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch" -f sha="$head" -F force=true >/dev/null
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/heads/$branch" -f sha="$head" >/dev/null
+          fi
+          current=$(gh api "repos/$GITHUB_REPOSITORY/contents/$register?ref=$branch" --jq .sha 2>/dev/null || true)
+          gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$register" -f branch="$branch" \
+            -f message="Update the dependency alert register" -f content="$(base64 < "$register" | tr -d '\n')" \
+            ${current:+-f sha="$current"} >/dev/null
+          {
+            echo "The weekly dependency watch updated the alert register ($(jq -r '.tool' changes.json), $(jq -r '.analyzed' changes.json) dependencies analyzed)."
+            echo
+            echo "New or reopened alerts to review:"
+            jq -r '(.new + .reopened)[] | "- `" + . + "`"' changes.json
+            echo
+            echo "Resolved by the report:"
+            jq -r '.resolved[] | "- `" + . + "`"' changes.json
+            echo
+            echo "Tasks opened for confirmed alerts:"
+            jq -r '.[] | "- `" + .task + "` for `" + .alert + "`"' opened.json
+            echo
+            echo "Review each new alert on this branch before merging: \`openguildkit alerts set ALERT --status confirmed --by NAME\`, or \`--status dismissed --by NAME --reason WHY\` (dismissing a critical alert needs the person at a terminal), then commit \`.openguildkit/alerts.json\`. The next run opens a task for each confirmed alert."
+          } > body.md
+          number=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh pr edit "$number" --body-file body.md
+          else
+            gh pr create --head "$branch" --base "$BASE" --title "Dependency alerts: review the register" --body-file body.md
+          fi

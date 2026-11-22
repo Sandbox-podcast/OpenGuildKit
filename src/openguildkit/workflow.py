@@ -998,12 +998,13 @@ def select_boards(profile: dict, catalog: dict, task: dict, answers: dict, selec
 
 
 def profile_settings(profile: dict) -> dict:
-    """The project settings that change how a task is guarded, reviewed or researched, by their profile names."""
+    """The project settings besides the packs and checks that decide which boards review a task and which rules it is
+    asked. A change of one voids the approvals (project.profile_fingerprint), and the message names it."""
     return {
-        "guard": profile.get("guard", "off"), "host": profile.get("host", "other"),
-        "research": profile.get("research", "local-only"),
-        "approval mode": (profile.get("approval") or {}).get("mode", "local"),
-        "tools": sorted(profile.get("tools", [])),
+        "boards": sorted(profile.get("boards", [])), "required boards": sorted(profile.get("required_boards", [])),
+        "required rules": sorted(profile.get("required_rules", [])), "roles": sorted(profile.get("roles", [])),
+        "personal data": profile.get("personal_data"), "people decisions": profile.get("people_decisions"),
+        "every rule asked": bool(profile.get("ask_every_rule")),
     }
 
 
@@ -1981,7 +1982,8 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
 
 def validate_review(consultation: dict, review: dict, root: Path | None = None) -> dict:
     """Require a recommendation for every board in the recorded consultation; report every board's problems at once."""
-    allowed = {"consultation_id", "summary", "boards", "execution", "warnings", "evidence_item", "blocker_item"}
+    # kept: the passes a reopened approval kept (tasks.kept_passes); only task review --summary records it.
+    allowed = {"consultation_id", "summary", "boards", "execution", "warnings", "evidence_item", "blocker_item", "kept"}
     if not isinstance(review, dict) or not {"consultation_id", "summary", "boards"} <= review.keys() \
             or not review.keys() <= allowed:
         raise ValueError("A review must contain consultation_id, summary and boards. Run task template.")
@@ -2023,33 +2025,67 @@ def validate_review(consultation: dict, review: dict, root: Path | None = None) 
     }
     if execution != "unspecified":
         validated["execution"] = execution
+    if isinstance(review.get("kept"), list):
+        validated["kept"] = [board_id for board_id in selected if board_id in review["kept"]]
     warnings = review_warnings(validated["boards"])
     if warnings:
         validated["warnings"] = warnings
     return validated
 
 
-def _same_text(value: str) -> str:
-    return " ".join(value.casefold().split())
+def _same_text(value: str, board_id: str = "") -> str:
+    """A text compared across boards: the board's own name taken out, case, punctuation and spacing folded, so
+    "legal: proceed" and "security: proceed" read as the same advice."""
+    if board_id:
+        for name in {board_id, board_id.replace("-", " ")}:
+            value = re.sub(rf"(?<![\w-]){re.escape(name)}(?![\w-])", " ", value, flags=re.IGNORECASE)
+    return " ".join(re.sub(r"[^\w\s]", " ", value.casefold()).split())
+
+
+def _shown(items: list[str]) -> str:
+    return ", ".join(items[:6]) + (f" and {len(items) - 6} more" if len(items) > 6 else "")
+
+
+def _single_evidence(entry: dict) -> int | None:
+    """The number of the one evidence item every finding of a board cites, when all of them cite that one alone.
+
+    The number, not the reference: a reference no tool or file confirms is never echoed (tools.tool_evidence_warnings).
+    """
+    lenses = entry.get("challenge", {}).get("specialists", [])
+    cited = {tuple(lens["evidence_refs"]) for lens in lenses}
+    if len(lenses) < 2 or len(cited) != 1 or len(next(iter(cited))) != 1:
+        return None
+    return next(iter(cited))[0]
 
 
 def review_warnings(boards: list[dict]) -> list[str]:
-    """Signs that the boards did not review the task independently. Computed, never taken from the review."""
+    """Signs that the boards did not review the task independently. Computed, never taken from the review.
+
+    Advice is compared with each board's own name taken out, so a text copied from board to board with the name
+    swapped is found; a board whose every finding rests on one and the same evidence item is named too.
+    """
     warnings = []
     recommendations = {}
     for entry in boards:
-        recommendations.setdefault(_same_text(entry["recommendation"]), []).append(entry["id"])
+        recommendations.setdefault(_same_text(entry["recommendation"], entry["id"]), []).append(entry["id"])
     for board_ids in recommendations.values():
         if len(board_ids) > 1:
-            warnings.append(f"Boards {', '.join(board_ids)} give the same recommendation word for word.")
-    findings = {}
+            warnings.append(f"Boards {_shown(board_ids)} give the same recommendation word for word, once each "
+                            "board's name is taken out.")
+    findings, originals = {}, {}
     for entry in boards:
         for lens in entry.get("challenge", {}).get("specialists", []):
-            findings.setdefault(_same_text(lens["finding"]), []).append(f"{entry['id']}/{lens['id']}")
+            text = _same_text(lens["finding"], entry["id"])
+            findings.setdefault(text, []).append(f"{entry['id']}/{lens['id']}")
+            originals.setdefault(text, lens["finding"])
     for text, lenses in findings.items():
         if len(lenses) > 1:
-            shown = ", ".join(lenses[:6]) + (f" and {len(lenses) - 6} more" if len(lenses) > 6 else "")
-            warnings.append(f"The same finding appears in {shown}: {text[:120]}")
+            warnings.append(f"The same finding appears in {_shown(lenses)}, once each board's name is taken out: "
+                            f"{' '.join(originals[text].split())[:120]}")
+    singles = [(entry["id"], _single_evidence(entry)) for entry in boards]
+    singles = [f"{board_id} (its evidence #{index})" for board_id, index in singles if index is not None]
+    if singles:
+        warnings.append(f"Every finding of a board cites one and the same evidence item: {_shown(singles)}.")
     unobserved = [
         entry["id"] for entry in boards
         if entry.get("challenge", {}).get("specialists")
@@ -2580,6 +2616,9 @@ def decision_summary(task: dict) -> list[str]:
     domains = task["consultation"].get("domains")
     deliberation = task.get("deliberation")
     lines = verdict_lines(review, deliberation, is_decision_task(task)) + unconfronted_verdicts(review, domains)
+    if review.get("kept"):
+        lines.append(f"Passes kept from the approved round, their board, rules and questions unchanged: "
+                     f"{', '.join(review['kept'])}.")
     lines += [f"Review warning: {warning}" for warning in review.get("warnings", [])]
     synthetic = mock_evidence(task)
     if synthetic:
@@ -2606,7 +2645,9 @@ def decision_summary(task: dict) -> list[str]:
     return lines
 
 
-def challenge_report(task: dict) -> str:
+def challenge_report(task: dict, lines: list[str] | None = None) -> str:
+    """The decision brief: the lines the person reads before deciding (tasks.decision_text, the same as the
+    approval prompt), then each board's challenge as JSON."""
     if "review" not in task:
         raise ValueError("Record the board reviews before opening the decision brief.")
     review = validate_review(task["consultation"], task["review"])
@@ -2654,7 +2695,7 @@ def challenge_report(task: dict) -> str:
     resolved = [item for item in blocker_list(task) if item["resolution"]]
     if resolved:
         report["resolved_blockers"] = resolved
-    summary = "\n".join(f"- {line}" for line in decision_summary(task))
+    summary = "\n".join(f"- {line}" for line in (decision_summary(task) if lines is None else lines))
     return "# Decision brief\n\n" + summary + "\n\n" + _json_section(report) + "\n"
 
 
@@ -2663,19 +2704,52 @@ def is_decision_task(task: dict) -> bool:
     return task.get("answers", {}).get("kind") == "decision"
 
 
+# Clearances and waivers are stored apart by phase, because the approval's seal covers only those given before it.
+# blocker_resolutions(task) reads both: every reader goes through it.
+RESOLUTION_FIELDS = ("blocker_resolutions", "verification_blocker_resolutions")
+
+
+def resolution_field(phase: str | None) -> str:
+    """Where a clearance or waiver of a blocker of this phase is stored."""
+    return RESOLUTION_FIELDS[1] if phase == "verification" else RESOLUTION_FIELDS[0]
+
+
+def blocker_resolutions(task: dict) -> dict:
+    """Every clearance and waiver of the task's blockers, both phases, by blocker ID: the one way to read them."""
+    resolutions = {}
+    for field in RESOLUTION_FIELDS:
+        resolutions.update(task.get(field, {}))
+    return resolutions
+
+
 def blocker_list(task: dict) -> list[dict]:
     """Every blocker of the recorded review, with how it was resolved so far."""
     if "review" not in task:
         return []
+    resolutions = blocker_resolutions(task)
     items = []
     for entry in task["review"]["boards"]:
         for index, blocker in enumerate(entry.get("challenge", {}).get("blockers", []), start=1):
             key = f"{entry['id']}:{index}"
             details = blocker if isinstance(blocker, dict) else {"finding": blocker}
-            field = "verification_blocker_resolutions" if details.get("phase") == "verification" else "blocker_resolutions"
-            resolutions = task.get(field, {})
             items.append({"id": key, "board": entry["id"], **details, "resolution": resolutions.get(key)})
     return items
+
+
+_SHARED_RESOLUTION = ("kind", "by", "at", "recorded_from", "evidence", "supports", "reason", "scope", "until", "signer")
+
+
+def exported_blockers(task: dict) -> list[dict]:
+    """Each blocker as a shared decision record shows it: its board, phase, finding and condition, and who cleared or
+    waived it, with the evidence and what it establishes, or the waiver's reason, scope and end date."""
+    shown = []
+    for item in blocker_list(task):
+        entry = {"id": item["id"], "board": item["board"], "phase": item.get("phase", "approval"),
+                 **{key: item[key] for key in ("finding", "owner", "clears_when") if key in item}}
+        entry["resolution"] = ({key: item["resolution"][key] for key in _SHARED_RESOLUTION if key in item["resolution"]}
+                               if item["resolution"] else None)
+        shown.append(entry)
+    return shown
 
 
 def _evidence_section(evidence: list[dict]) -> list[str]:

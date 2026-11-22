@@ -1161,16 +1161,29 @@ def check_component(command: str, components: list[dict]) -> str | None:
     return max(owners)[1] if owners else None
 
 
-def _advice_profile(profile: dict) -> dict:
-    """The profile without its decision history: who declined or changed what does not change the advice."""
-    advice = {key: value for key, value in profile.items() if key != "changes"}
+# Profile fields that change neither the rules, nor the checks, nor the boards of a task: changing one leaves every
+# approval standing. A convention or a tool reaches the next consultations; the guard, host, research, approval and
+# waiver settings are read when they act (the signature, for one, is verified again by every reader of an approval).
+APPROVAL_NEUTRAL_FIELDS = ("name", "conventions", "tools", "host", "guard", "research", "approval", "waivers")
+
+
+def _advice_profile(profile: dict, neutral: tuple = ()) -> dict:
+    """The profile without its decision history, and without the neutral fields given: who declined or changed
+    what does not change the advice."""
+    advice = {key: value for key, value in profile.items() if key != "changes" and key not in neutral}
     if "declined" in advice:
         advice["declined"] = declined_ids(profile)
     return advice
 
 
-def profile_fingerprint(profile: dict, catalog: dict) -> str:
-    resolved = resolved_profile(_advice_profile(profile), catalog)
+def profile_fingerprint(profile: dict, catalog: dict, *, legacy: bool = False) -> str:
+    """The digest of what an approval rests on: the rules, the checks and the boards of the profile.
+
+    legacy gives the digest of releases before 0.17, which covered every field; approvals recorded under it hold
+    while the profile has not changed since (fingerprint_holds).
+    """
+    neutral = () if legacy else APPROVAL_NEUTRAL_FIELDS
+    resolved = resolved_profile(_advice_profile(profile, neutral), catalog)
     snapshot = {
         "profile": resolved,
         "packs": [_without_dates(catalog["packs"][pack_id]) for pack_id in resolved["packs"]],
@@ -1184,6 +1197,28 @@ def profile_fingerprint(profile: dict, catalog: dict) -> str:
         ]
     canonical = json.dumps(snapshot, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+class Fingerprints:
+    """The current fingerprint of a profile, and the earlier releases' one computed only when a record needs it."""
+
+    def __init__(self, profile: dict, catalog: dict):
+        self.profile, self.catalog = profile, catalog
+        self.current = profile_fingerprint(profile, catalog)
+        self._legacy = None
+
+    def holds(self, recorded: str | None) -> bool:
+        """Whether rules recorded under this fingerprint are still the rules, checks and boards of the profile."""
+        if recorded == self.current:
+            return True
+        if self._legacy is None:
+            self._legacy = profile_fingerprint(self.profile, self.catalog, legacy=True)
+        return recorded == self._legacy
+
+
+def fingerprint_holds(recorded: str | None, profile: dict, catalog: dict) -> bool:
+    """Whether a fingerprint recorded with an approval still matches the rules, checks and boards of the profile."""
+    return Fingerprints(profile, catalog).holds(recorded)
 
 
 def _bullets(values: list[str]) -> list[str]:

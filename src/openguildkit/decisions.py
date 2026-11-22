@@ -89,8 +89,10 @@ def record_digest(record: dict) -> str:
     return _sha256({key: value for key, value in record.items() if key != "record_sha256"})
 
 
-# Approvals sealed from this version on also cover what their exported record shows; earlier ones verify as before.
-PAYLOAD_VERSION = 2
+# Approvals sealed from version 2 on also cover what their exported record shows; from version 3 on, the payload a
+# signer reads carries the brief and the review summary in clear. Earlier ones verify as before.
+PAYLOAD_VERSION = 3
+PAYLOAD_VERSIONS = (3, 2, 1)
 
 
 def decision_payload(task: dict, by: str, reason: str, base_revision: dict | None, version: int = PAYLOAD_VERSION) -> dict:
@@ -117,6 +119,8 @@ def decision_payload(task: dict, by: str, reason: str, base_revision: dict | Non
             payload["confirmed_removals"] = confirmed
     if version >= 2:
         payload["shared_sha256"] = task_shared_digest(task)
+    if version >= 3:
+        payload.update(brief=task["brief"], summary=task["review"]["summary"])
     return payload
 
 
@@ -237,27 +241,75 @@ def check_decision_seal(task: dict) -> dict:
     if "seal" not in decision:
         raise ValueError(f"The approval for {task['id']} has no seal: it was edited by hand or written by a release "
                          f"older than sealed decisions. {reconsult_hint(task['id'])}")
-    for version in (PAYLOAD_VERSION, 1):
+    for version in PAYLOAD_VERSIONS:
         payload = decision_payload(task, decision["by"], decision["reason"], decision.get("base_revision"), version)
         if seal(payload) == decision["seal"]:
             return payload
     raise ValueError(f"The record of {task['id']} no longer matches what was approved. {reconsult_hint(task['id'])}")
 
 
-def check_decision(task: dict, root: Path, profile: dict) -> None:
-    """Refuse an approval that no longer matches the record, its signature or the project history."""
-    payload = check_decision_seal(task)
+def base_commit(task: dict) -> str | None:
+    """The commit an approval was given at, when the project was a Git repository then."""
+    base = (task.get("decision") or {}).get("base_revision")
+    return base.get("commit") if isinstance(base, dict) and isinstance(base.get("commit"), str) else None
+
+
+def revisions_outside_history(root: Path, commits: list[str]) -> set[str]:
+    """The commits among these that HEAD no longer contains, found with one git call whatever their number.
+
+    `git rev-list C... --not HEAD` lists what the commits reach and HEAD does not: a commit HEAD contains is not
+    listed, one a rebase, a squash or an amendment replaced is. Outside a Git repository, or for a commit git no
+    longer has, nothing is reported, so the approval is judged on the rest.
+    """
+    wanted = sorted({commit for commit in commits if commit})
+    if not wanted:
+        return set()
+    listed = _git(root, "rev-list", "--ignore-missing", *wanted, "--not", "HEAD")
+    if listed is None or listed.returncode:
+        return set()
+    return set(listed.stdout.split()) & set(wanted)
+
+
+def outside_history_message(task_id: str, commit: str) -> str:
+    return (f"The approved revision {commit[:12]} of {task_id} is no longer in the project history: a rebase, a "
+            f"squash or an amended commit replaced it. {reconsult_hint(task_id)}")
+
+
+def decision_problem(task: dict, root: Path | None, profile: dict, outside: set[str] | None = None) -> tuple | None:
+    """What breaks an approval besides its rules: the seal, the signature, the approved revision. (kind, message).
+
+    Without the project root, only the seal is checked. outside holds the revisions already known to be out of the
+    history (revisions_outside_history), so a reader of many approvals asks git once.
+    """
+    decision = task["decision"]
+    try:
+        payload = check_decision_seal(task)
+    except ValueError as error:
+        return ("invalid-seal" if "seal" in decision else "no-seal"), str(error)
+    return None if root is None else signature_or_history_problem(task, root, profile, payload, outside)
+
+
+def signature_or_history_problem(task: dict, root: Path, profile: dict, payload: dict,
+                                 outside: set[str] | None = None) -> tuple | None:
+    """The signature a signed project requires, then the approved revision, for an approval whose seal holds."""
     decision = task["decision"]
     policy = approval_policy(profile)
     if policy["mode"] == "signed":
         if "signature" not in decision:
-            raise ValueError("The project requires a signed approval and this one is not signed.")
-        verify_signature(root, policy, payload, decision["signature"], decision["signer"])
-    base = decision.get("base_revision")
-    if base:
-        ancestor = _git(root, "merge-base", "--is-ancestor", base["commit"], "HEAD")
-        if ancestor is not None and ancestor.returncode == 1:
-            raise ValueError(
-                f"The approved revision {base['commit'][:12]} is no longer in the project history. "
-                "Review the decision again in a new task."
-            )
+            return "unsigned", (f"The project requires a signed approval and the approval of {task['id']} is not "
+                                f"signed. {reconsult_hint(task['id'])}")
+        try:
+            verify_signature(root, policy, payload, decision["signature"], decision["signer"])
+        except ValueError as error:
+            return "invalid-signature", f"{error} {reconsult_hint(task['id'])}"
+    commit = base_commit(task)
+    if commit and commit in (outside if outside is not None else revisions_outside_history(root, [commit])):
+        return "outside-history", outside_history_message(task["id"], commit)
+    return None
+
+
+def check_decision(task: dict, root: Path, profile: dict) -> None:
+    """Refuse an approval that no longer matches the record, its signature or the project history."""
+    problem = decision_problem(task, root, profile)
+    if problem:
+        raise ValueError(problem[1])

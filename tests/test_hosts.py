@@ -105,7 +105,8 @@ class HostControlTests(unittest.TestCase):
         self.assertEqual(parsed["web_search"], "disabled")
         self.assertEqual(parsed["model"], "gpt-6.1-sol")
         rules = (self.root / ".codex" / "rules" / "openguildkit.rules").read_text(encoding="utf-8")
-        self.assertIn('pattern = ["openguildkit", "task", ["decide", "waive", "authorize"]], decision = "forbidden"', rules)
+        self.assertIn('pattern = ["openguildkit", "task", ["decide", "waive", "authorize", "revoke"]], '
+                      'decision = "forbidden"', rules)
         report, _ = self.run_cli("host", "check", "--json")
         self.assertTrue(all(item["status"] in ("enforced", "partial", "human") for item in json.loads(report)))
 
