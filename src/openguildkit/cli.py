@@ -2305,6 +2305,9 @@ def _run(args) -> int | None:
             return
         if (state / "project.json").exists():
             raise ValueError(ALREADY_INITIALIZED)
+        if not args.answers and not sys.stdin.isatty():
+            raise ValueError("init needs a terminal for its questions. Without one, print them with openguildkit init "
+                             "--questions, save the answers as JSON, then run openguildkit init --answers PATH.")
         answers = read_json(args.answers) if args.answers else _interactive_init(questions, catalog, registry)
         if isinstance(answers, dict):
             for note in unsure_answers(answers, questions)[1]:

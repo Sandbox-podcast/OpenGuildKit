@@ -49,7 +49,7 @@ py -3 -m venv .venv
 .\.venv\Scripts\openguildkit.exe catalog
 ```
 
-Check the version you installed with `openguildkit --version`. From the project to equip, run `openguildkit init` and then `openguildkit check`. On Windows, use the full path to `openguildkit.exe` from the installed environment, or activate that environment first. Commit the generated profile, `.openguildkit/catalog.lock.json` and the instructions for the team. `openguildkit ui` then opens the project in the browser, on 127.0.0.1: the wheel ships the built interface.
+Check the version you installed with `openguildkit --version`. From the project to equip, run `openguildkit init`, then `openguildkit host apply` when the host is Claude Code or Codex (`check` fails until the host settings are applied), then `openguildkit check`. On Windows, use the full path to `openguildkit.exe` from the installed environment, or activate that environment first. Commit the generated profile, `.openguildkit/catalog.lock.json` and the instructions for the team. `openguildkit ui` then opens the project in the browser, on 127.0.0.1: the wheel ships the built interface.
 
 ## Set up the agent
 
