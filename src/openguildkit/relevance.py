@@ -77,6 +77,33 @@ SUBJECTS = {
     "insurance-distribution": ("selling insurance", [{"surface": ["customer"], "concerns": ["money"]},
                                                      {"surface": ["customer"], "concerns": ["people-decisions"]}]),
 }
+# Data protection rules about creating or changing a processing: its record, its lawful basis, its
+# retention, its impact assessment, a new processor or transfer, rights over new data, the consent
+# and notices of a new flow. A fix or maintenance of a processing the project already runs (kind bug
+# or maintenance) does not create one; a feature, or any other kind, keeps them. The rules about the
+# security of the processing, minimisation in what the change touches and documentation of a changed
+# component stay asked.
+FIX_KINDS = ("bug", "maintenance")
+NEW_PROCESSING_RULES = {
+    "gdpr": ("update-processing-record", "confirm-lawful-basis", "apply-retention-period", "assess-dpia-need",
+             "review-processor-terms", "check-transfer-mechanism", "keep-data-subject-rights-working"),
+    "minors-data-protection": ("confirm-age-of-consent", "obtain-parental-consent", "assess-dpia-for-pupils",
+                               "protect-minors-by-default"),
+    "health-data-protection": ("confirm-health-data-condition", "assess-health-data-dpia",
+                               "qualify-medical-device-software", "classify-medical-device-software",
+                               "plan-ehr-harmonised-components"),
+}
+
+
+def rule_not_concerned(task: dict, pack_id: str, rule_id: str) -> str:
+    """Why a rule of a pack that concerns the task does not concern it, or an empty text."""
+    kind = task.get("answers", {}).get("kind")
+    if kind in FIX_KINDS and rule_id in NEW_PROCESSING_RULES.get(pack_id, ()):
+        return (f"the rule applies when a change creates or changes a processing of personal data, and the task is of "
+                f"kind {kind}: it fixes or maintains a processing the project already runs (a feature keeps the rule)")
+    return ""
+
+
 # A regulation pack of the project's own catalog concerns a task that touches personal or regulated data.
 REGULATION_DEFAULT = [{"data": ["personal", "regulated"]}]
 # Rules a person must confirm by name before a task closes with them skipped or failed.

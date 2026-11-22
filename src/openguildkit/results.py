@@ -18,7 +18,7 @@ from .catalog import recorded_value, rule_check
 from .decisions import changed_paths_since, git_revision
 from .project import STATE_DIR, rule_text
 from .project_checks import failure_message
-from .relevance import evidence_owner, sensitive_area
+from .relevance import evidence_owner, rule_not_concerned, sensitive_area
 from .rule_checks import evaluate_check, validate_path
 from .storage import write_text
 from .workflow import is_decision_task
@@ -61,9 +61,14 @@ def expected_checks(task: dict, profile: dict, relevance: dict | None = None) ->
             _, verification = rule_text(rule)
             mandatory = pack["id"] in required or name in required
             concerned = judged["concerned"] or name in required
+            # A rule of a pack that concerns the task can still be outside it, such as the GDPR rules about a
+            # new processing for a bug fix; required_rules and --all keep it.
+            narrowed = "" if mandatory or every or not concerned else rule_not_concerned(task, pack["id"], rule["id"])
+            concerned = concerned and not narrowed
+            reason = "" if concerned else narrowed or judged["reason"]
             check = {"id": f"rule:{name}", "kind": "rule", "pack": pack["id"], "verification": verification,
                      "mandatory": mandatory, "selected": judged["selected"] or mandatory,
-                     "concerned": concerned, "reason": "" if concerned else judged["reason"]}
+                     "concerned": concerned, "reason": reason}
             machine = rule_check(rule)
             if machine is not None:
                 check.update(kind="machine", check=machine)
@@ -77,7 +82,7 @@ def expected_checks(task: dict, profile: dict, relevance: dict | None = None) ->
                     "must_supply": must, "owner_role": evidence_owner(pack["id"]),
                     "selected": bool(must) or judged["selected"],
                     "concerned": concerned and (applies or bool(must)),
-                    "reason": (why or judged["reason"]) if not (concerned and (applies or must)) else "",
+                    "reason": (reason or why) if not (concerned and (applies or must)) else "",
                 })
     if is_decision_task(task):
         for check in checks:

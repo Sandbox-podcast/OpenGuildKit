@@ -6,7 +6,7 @@ from openguildkit.catalog import load_catalog
 from openguildkit.patterns import recommend_patterns
 from openguildkit.project import resolved_profile, validate_profile
 from openguildkit.relevance import pack_relevance
-from openguildkit.results import asked_checks, not_concerned, result_template
+from openguildkit.results import asked_checks, expected_checks, not_concerned, result_template
 
 # The project of the field check that counted 116 answers for a 20-line bug fix.
 FINTECH = {"name": "Ledger", "sector": "financial-services", "stack": ["Python 3.12", "FastAPI", "PostgreSQL 16", "React 18"],
@@ -58,7 +58,8 @@ class RelevanceTests(unittest.TestCase):
                          len([c for c in every if c["kind"] in ("rule", "evidence")]))
 
     def test_personal_data_selects_the_gdpr_rules_and_their_evidence(self):
-        task, profile = self.task({**BUG, "data": "personal"}, boards=("engineering", "qa", "security", "legal"))
+        task, profile = self.task({**BUG, "kind": "feature", "data": "personal"},
+                                  boards=("engineering", "qa", "security", "legal"))
         relevance = self.relevance(task, profile)
         self.assertTrue(relevance["packs"]["gdpr"]["concerned"])
         self.assertTrue(relevance["packs"]["gdpr"]["selected"])
@@ -70,6 +71,41 @@ class RelevanceTests(unittest.TestCase):
                                                        "evidence:gdpr/assess-dpia-need/dpia-decision"})
         self.assertTrue(all(c["must_supply"] for c in evidence))
         self.assertFalse(relevance["packs"]["dora"]["concerned"])
+
+    def test_a_fix_on_existing_personal_data_is_asked_only_the_gdpr_rules_that_concern_it(self):
+        boards = ("engineering", "qa", "security", "legal")
+        for kind in ("bug", "maintenance"):
+            with self.subTest(kind=kind):
+                task, profile = self.task({**BUG, "kind": kind, "data": "personal"}, boards=boards)
+                relevance = self.relevance(task, profile)
+                checks = {c["id"]: c for c in expected_checks(task, profile, relevance)}
+                asked = {name for name, c in checks.items() if c["concerned"]}
+                self.assertIn("rule:gdpr/minimise-collected-fields", asked)
+                for rule in ("update-processing-record", "confirm-lawful-basis", "apply-retention-period",
+                             "assess-dpia-need", "review-processor-terms", "check-transfer-mechanism",
+                             "keep-data-subject-rights-working"):
+                    self.assertNotIn(f"rule:gdpr/{rule}", asked)
+                    self.assertIn(f"kind {kind}", checks[f"rule:gdpr/{rule}"]["reason"])
+                    self.assertIn("creates or changes a processing", checks[f"rule:gdpr/{rule}"]["reason"])
+                self.assertNotIn("evidence:gdpr/update-processing-record/processing-record", asked)
+                template = result_template(task, profile, relevance)
+                answers = (len(template["checks"]) + len(template["criteria"])
+                           + sum(len(pack["rules"]) for pack in template["packs"]))
+                self.assertLess(answers, 25)
+        # A feature keeps every GDPR rule, and required_rules keeps a rule whatever the kind.
+        task, profile = self.task({**BUG, "kind": "feature", "data": "personal"}, boards=boards)
+        asked = {c["id"] for c in asked_checks(task, profile, self.relevance(task, profile))}
+        self.assertEqual(len([name for name in asked if name.startswith("rule:gdpr/")]), 8)
+        required = validate_profile({**dict(field_profile(self.catalog)), "required_rules": ["gdpr/assess-dpia-need"]},
+                                    self.catalog)
+        task, profile = self.task({**BUG, "data": "personal"}, boards=boards, profile=required)
+        asked = {c["id"] for c in asked_checks(task, profile, self.relevance(task, profile))}
+        self.assertIn("rule:gdpr/assess-dpia-need", asked)
+        self.assertIn("evidence:gdpr/assess-dpia-need/dpia-decision", asked)
+        # Every rule stays available on request.
+        task, profile = self.task({**BUG, "data": "personal"}, boards=boards)
+        asked = {c["id"] for c in asked_checks(task, profile, self.relevance(task, profile, every=True))}
+        self.assertIn("rule:gdpr/confirm-lawful-basis", asked)
 
     def test_a_method_pack_needs_its_subject_and_a_board_of_its_role(self):
         credentials = {**BUG, "concerns": ["credentials"]}
