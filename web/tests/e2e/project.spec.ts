@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,6 +15,8 @@ const PORT = Number(process.env.PW_PROJECT_PORT ?? 7322);
 const EMPTY = `http://127.0.0.1:${PORT + 1}`;
 const STRIPE = `http://127.0.0.1:${PORT + 2}`;
 const errors: string[] = [];
+/** How a to-do item names the person who acts, as opposed to the agent. */
+const PERSON = 'Vous';
 
 function watch(page: Page) {
   page.on('pageerror', (e) => errors.push(e.message));
@@ -199,6 +202,74 @@ test('refuses an external action here and hands an allowance to the terminal', a
   await page.getByRole('button', { name: 'J’ai compris' }).click();
 });
 
+test('shows an approval that no longer holds as work for a person, and names the tasks a change of rules touched', async ({ page }) => {
+  await open(page, '/blueprint');
+  const convention = 'Name each branch after its task.';
+  const add = page.getByLabel('Ajouter : Conventions de l’équipe');
+  await add.fill(convention);
+  await add.press('Enter');
+  await page.getByRole('button', { name: 'Enregistrer et synchroniser' }).click();
+  const touched = page.locator('.touched-notice');
+  await expect(touched).toContainText('request-history');
+  await expect(touched).toContainText('la consulter à nouveau (task consult request-history)');
+
+  // The approval no longer holds: a person consults the task again, nothing is left for the agent to build.
+  await page.goto('/#/royaume');
+  const todo = page.locator('.todo', { hasText: 'Consulter à nouveau request-history' });
+  await expect(todo).toBeVisible();
+  await expect(todo).toContainText(PERSON);
+  await expect(todo).toContainText('L’approbation de request-history a été donnée sous des règles antérieures (conventions modifiées)');
+  await expect(page.getByText('Réaliser request-history')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Synchroniser' })).toHaveCount(0);
+  await page.goto('/#/quetes');
+  await expect(page.locator('.task-card', { hasText: 'request-history' })).toContainText('À consulter à nouveau, par une personne');
+  await page.goto('/#/forge');
+  await expect(page.getByRole('region', { name: /Approbation à reprendre/ })).toContainText('request-history');
+  await expect(page.getByRole('region', { name: /à réaliser/ }).last()).not.toContainText('request-history');
+  await page.goto('/#/tour');
+  const instructions = page.getByRole('region', { name: 'Instructions du projet' });
+  await expect(instructions.getByRole('link', { name: 'request-history' })).toBeVisible();
+  await expect(instructions.getByRole('button', { name: 'Synchroniser' })).toHaveCount(0);
+
+  // Instructions edited by hand: syncing them is offered, and afterwards the page names the touched tasks in full.
+  await touched.getByRole('button', { name: 'Masquer' }).click();
+  const agents = join(await projectRoot(page), 'AGENTS.md');
+  writeFileSync(agents, readFileSync(agents, 'utf-8').replace(convention, 'Name branches freely.'));
+  await page.goto('/#/royaume');
+  await page.reload();
+  await page.getByRole('button', { name: 'Synchroniser' }).click();
+  await expect(touched).toContainText('request-history');
+
+  // Back to the rules it was approved under, the approval holds again.
+  await page.goto('/#/blueprint');
+  await page.getByRole('button', { name: `Retirer ${convention}` }).click();
+  await page.getByRole('button', { name: 'Enregistrer et synchroniser' }).click();
+  await expect(page.getByText('Profil enregistré et instructions synchronisées')).toBeVisible();
+  await page.goto('/#/royaume');
+  await expect(page.getByText('Réaliser request-history')).toBeVisible();
+});
+
+test('shows a task record left in conflict, with the error, on the kingdom and the quests', async ({ page }) => {
+  await open(page, '/royaume');
+  const broken = join(await projectRoot(page), '.openguildkit', 'tasks', 'broken.json');
+  writeFileSync(broken, '{\n<<<<<<< HEAD\n  "id": "broken"\n=======\n  "id": "broken-too"\n>>>>>>> other\n}\n');
+  try {
+    await page.reload();
+    const todo = page.locator('.todo', { hasText: 'Réparer le fichier de broken' });
+    await expect(todo).toContainText(PERSON);
+    await expect(todo.locator('[lang="en"]')).toContainText(/broken\.json/);
+    await page.goto('/#/quetes');
+    const card = page.locator('.task-card', { hasText: 'broken' });
+    await expect(card).toContainText('À réparer, par une personne');
+    await expect(card).toContainText(/Invalid JSON|broken\.json/);
+    await card.click();
+    await expect(page.getByText('Le fichier de la tâche broken est illisible.')).toBeVisible();
+    await expect(page.getByText('La commande a échoué')).toHaveCount(0);
+  } finally {
+    unlinkSync(broken);
+  }
+});
+
 test('runs the checks, records the results and completes a task in the forge', async ({ page }) => {
   await open(page, '/forge/request-history');
   await page.getByRole('button', { name: 'Passation (handoff)' }).click();
@@ -316,7 +387,7 @@ test('reviews an alert, and hands the dismissal of a critical one to the termina
 
 test('shows the controls: instructions, host rules and guard', async ({ page }) => {
   await open(page, '/tour');
-  await expect(page.getByText('OpenGuildKit instructions match the project profile.')).toBeVisible();
+  await expect(page.getByText('Les instructions correspondent au profil du projet.')).toBeVisible();
   await expect(page.getByRole('region', { name: 'Ce que l’hôte applique' }).locator('.card').first()).toBeVisible();
   await expect(page.getByText(/La garde est/)).toBeVisible();
   await page.getByRole('tab', { name: 'Blocages' }).click();

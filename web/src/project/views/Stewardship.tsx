@@ -1,10 +1,10 @@
 /** Intendance: host settings and agent files, catalog upgrades, and how the interface itself works. */
 import { Badge, Button, Notice, Panel, Tabs } from '@/shared/ui/core';
 import { currentSession, terminalCommand } from '../api';
-import { useCheck, useHost, useProfile, useUpdate } from '../data';
+import { onlyTasksFail, useCheck, useHost, useProfile, useTasks, useUpdate } from '../data';
 import { useAction } from '../query';
 import { hostControl } from '../labels';
-import { CommandLine, JsonDetails, Pre, Q, TaskLink } from '../parts';
+import { CheckNotice, CommandLine, JsonDetails, Pre, Q, TaskLink } from '../parts';
 import { setPrefs, usePrefs } from '../prefs';
 
 export function Stewardship({ tab = 'hote' }: { tab?: string }) {
@@ -22,6 +22,7 @@ export function Stewardship({ tab = 'hote' }: { tab?: string }) {
 
 function Host() {
   const host = useHost();
+  const tasks = useTasks();
   const check = useCheck();
   const profile = useProfile();
   const { act, busy } = useAction();
@@ -42,8 +43,8 @@ function Host() {
           <p className="tiny muted">Pour tous vos projets, installez-les dans votre dossier personnel depuis un terminal :</p>
           <CommandLine command="openguildkit integrations --host claude-code --user" />
         </Panel>
-        <Panel title="Cohérence des instructions" actions={<Button size="small" busy={busy !== null} onClick={() => void act(['sync'], { success: 'Instructions synchronisées' })}>Synchroniser</Button>}>
-          <Q q={check}>{(r) => <Notice tone={r.code === 0 ? 'success' : 'danger'}>{(r.code === 0 ? r.stdout : r.stderr || r.stdout).replace(/^OpenGuildKit:\s*/gm, '').trim()}</Notice>}</Q>
+        <Panel title="Cohérence des instructions" actions={check.data && check.data.code !== 0 && onlyTasksFail(check.data) ? undefined : <Button size="small" busy={busy !== null} onClick={() => void act(['sync'], { success: 'Instructions synchronisées' })}>Synchroniser</Button>}>
+          <Q q={check}>{(r) => <CheckNotice result={r} tasks={tasks.data ?? []} />}</Q>
         </Panel>
       </div>
     </div>

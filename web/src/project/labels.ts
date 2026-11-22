@@ -14,6 +14,7 @@ export const TASK_STATUS: Record<TaskStatus, Label & { rpg: string; step: number
   approved: { ...L('Validée', 'success', 'check'), rpg: 'Scellée', step: 3 },
   done: { ...L('Terminée', 'success', 'star'), rpg: 'Accomplie', step: 5 },
   'done-with-reservations': { ...L('Terminée avec réserves', 'warning', 'star'), rpg: 'Accomplie, sous réserves', step: 5 },
+  unreadable: { ...L('Illisible', 'danger', 'warn'), rpg: 'Parchemin illisible', step: 0 },
 };
 export const taskStatus = (s: string) => TASK_STATUS[s as TaskStatus] ?? { ...L(s, 'neutral', 'dot'), rpg: s, step: 0 };
 export const TASK_ORDER: TaskStatus[] = ['draft', 'consulting', 'changes-requested', 'reviewed', 'approved', 'done', 'done-with-reservations'];
@@ -21,6 +22,10 @@ export const TASK_ORDER: TaskStatus[] = ['draft', 'consulting', 'changes-request
 export const isDone = (status: string) => status === 'done' || status === 'done-with-reservations';
 /** A task a person approved: still to implement, or completed. */
 export const isDecided = (status: string) => status === 'approved' || isDone(status);
+/** An approved task whose approval no longer holds (rules changed, seal broken): a person consults it again. */
+export const needsReconsult = (t: { status: string; severity?: string }) => t.status === 'approved' && t.severity === 'error';
+/** The columns of a list of tasks: every status, and unreadable records only when there is one. */
+export const statusesOf = (tasks: { status: string }[]): TaskStatus[] => (tasks.some((t) => t.status === 'unreadable') ? [...TASK_ORDER, 'unreadable'] : TASK_ORDER);
 
 export const STEPS = [
   { id: 'frame', label: 'Cadrer', rpg: 'Esquisser', icon: 'quest' },
@@ -134,12 +139,48 @@ const NEXT: [RegExp, (m: RegExpExecArray) => string][] = [
     (m) => `Échec de ${m[1]}${m[2] ? ` (${m[2]})` : ''}${m[3] ? ` : ${m[3]}` : ''}${m[4] ? `, et de ${m[4]} autre(s) contrôle(s)` : ''}. Corriger, puis relancer task verify ${m[5]}.`],
   [/^Done with reservations: see the open points in task show \(result\.closing\)\.$/, () => 'Terminée avec réserves : les points laissés ouverts sont dans la fiche de la quête.'],
   [/^Done\.$/, () => 'Terminée.'],
+  [/^The approval for (\S+) was recorded under earlier rules(?: \((.*)\))?\. Consult it again with openguildkit task consult \S+, or open a linked task with openguildkit task new "BRIEF" --follows \S+\.$/s,
+    (m) => `L’approbation de ${m[1]} a été donnée sous des règles antérieures${m[2] ? ` (${changesLabel(m[2])})` : ''}. ${RECONSULT(m[1])}`],
+  [/^The approval for (\S+) has no seal: .*?\. Consult it again with .*$/s, (m) => `L’approbation de ${m[1]} n’a pas de sceau : elle a été modifiée à la main ou écrite par une ancienne version. ${RECONSULT(m[1])}`],
+  [/^The record of (\S+) no longer matches what was approved\. Consult it again with .*$/s, (m) => `L’enregistrement de ${m[1]} ne correspond plus à ce qui a été approuvé. ${RECONSULT(m[1])}`],
 ];
+const RECONSULT = (id: string) => `La consulter à nouveau (task consult ${id}), ou ouvrir une tâche liée (task new --follows ${id}).`;
+/** What changed in the rules a task was approved under ("pack gdpr added; conventions changed"), in French. */
+function changesLabel(text: string) {
+  const FIELD: Record<string, string> = { sector: 'secteur modifié', stack: 'pile modifiée', conventions: 'conventions modifiées', checks: 'vérifications modifiées' };
+  const DONE: Record<string, string> = { added: 'ajouté', removed: 'retiré', changed: 'modifié' };
+  return text.split('; ').map((item) => {
+    const field = /^(sector|stack|conventions|checks) changed$/.exec(item);
+    if (field) return FIELD[field[1]];
+    const rule = /^(pack|rule) (\S+) (added|removed|changed)$/.exec(item);
+    if (rule) return `${rule[1] === 'pack' ? 'pack' : 'règle'} ${rule[2]} ${DONE[rule[3]]}${rule[1] === 'rule' ? 'e' : ''}`;
+    return item === 'the task\'s components changed' ? 'composants de la tâche modifiés' : item;
+  }).join(' ; ');
+}
 export function nextLabel(text: string) {
   for (const [re, fr] of NEXT) { const m = re.exec(text); if (m) return fr(m); }
   return text;
 }
+/** 'en' when nextLabel leaves the CLI's English as it is. */
+export const nextLang = (text: string): 'en' | undefined => (NEXT.some(([re]) => re.test(text)) ? undefined : 'en');
 export const isBlocked = (next: string) => /^Resolve blockers/i.test(next);
+
+/** The tasks a change of rules touched, as sync, update --apply and the saved profile print them:
+ * "Tasks consulted under the previous rules:", then one "  ID (status): step." line per task. */
+export function touchedTasks(stdout: string): { id: string; status: string; step: string }[] {
+  const lines = stdout.split('\n');
+  const start = lines.findIndex((line) => /^Tasks (consulted under the previous rules|this change touches):$/.test(line.trim()));
+  if (start < 0) return [];
+  return lines.slice(start + 1).map((line) => /^\s+(\S+) \(([^)]+)\): (.*?)\.?$/.exec(line)).filter((m): m is RegExpExecArray => !!m)
+    .map((m) => ({ id: m[1], status: m[2], step: m[3] }));
+}
+/** The step of a touched task, in French when the CLI's wording is known. */
+export const touchedStep = (step: string) => {
+  if (step === 'consult it again') return 'la consulter à nouveau';
+  if (step === 'request changes and consult it again') return 'demander des changements, puis la consulter à nouveau';
+  const m = /^consult it again \(openguildkit task consult (\S+)\) or open a linked task with --follows$/.exec(step);
+  return m ? `la consulter à nouveau (task consult ${m[1]}) ou ouvrir une tâche liée (--follows)` : null;
+};
 /** The CLI's next step of an approved task whose last verification failed. */
 export const hasFailedCheck = (next: string) => / failed.*Fix it, then run task verify /s.test(next);
 

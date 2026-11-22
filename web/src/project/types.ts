@@ -1,10 +1,11 @@
 /** Shapes of the JSON the OpenGuildKit CLI prints. Only the fields the interface reads are typed. */
 
-export type TaskStatus = 'draft' | 'consulting' | 'reviewed' | 'approved' | 'changes-requested' | 'done' | 'done-with-reservations';
+export type TaskStatus = 'draft' | 'consulting' | 'reviewed' | 'approved' | 'changes-requested' | 'done' | 'done-with-reservations' | 'unreadable';
 
 /** A row of `task list --json`. approval_problem and severity say that the task's approval no longer holds (error) or
- * that a completed task was approved under other rules (note); closed_by names who closed it with reservations. */
-export interface TaskListItem { id: string; status: TaskStatus; created: string; owner: string | null; brief: string; next: string; follows?: string; approval_problem?: string; severity?: 'error' | 'note'; closed_by?: string }
+ * that a completed task was approved under other rules (note); closed_by names who closed it with reservations.
+ * A record the CLI cannot read (a merge conflict) has the status unreadable, its ID and the error as next, nothing else. */
+export interface TaskListItem { id: string; status: TaskStatus; created?: string; owner?: string | null; brief?: string; next: string; follows?: string; approval_problem?: string; severity?: 'error' | 'note'; closed_by?: string }
 
 export interface Evidence { source: string; ref: string; supports: string }
 export interface Specialist { id: string; finding: string; basis: string; evidence_refs: number[] }

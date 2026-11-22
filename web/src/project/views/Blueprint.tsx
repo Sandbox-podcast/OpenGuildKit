@@ -8,7 +8,7 @@ import { Badge, Button, Checkbox, KV, Notice, Panel, Tabs, TextArea, TextField }
 import { Icon } from '@/shared/pixel/icons';
 import { ApiError, cliMessage, currentSession, run, saveProfile, terminalCommand } from '../api';
 import { useBrains, useProfile } from '../data';
-import { invalidate, showTerminal, useAction, useCli, useQuery } from '../query';
+import { invalidate, reportTouched, showTerminal, useAction, useCli, useQuery } from '../query';
 import { toast } from '@/shared/ui/toast';
 import { NORM_FR, RESEARCH, reasonLabel } from '../labels';
 import { ActionForm, CommandLine, En, ErrorNotice, JsonDetails, ListEditor, Q, useDebounced, useRemembered } from '../parts';
@@ -196,7 +196,8 @@ async function save(next: Profile | string) {
   try {
     const result = await saveProfile(text);
     if (result.code !== 0) { toast({ tone: 'danger', title: 'Profil refusé, version précédente remise', text: cliMessage(result).slice(0, 240) }); return false; }
-    toast({ tone: 'success', title: 'Profil enregistré et instructions synchronisées' });
+    const named = reportTouched(['sync'], result.stdout);
+    toast({ tone: 'success', title: 'Profil enregistré et instructions synchronisées', text: named.length ? `${named.length} tâche(s) consultée(s) sous les règles précédentes : la liste est affichée sur la page.` : undefined });
     invalidate();
     return true;
   } catch (e) {

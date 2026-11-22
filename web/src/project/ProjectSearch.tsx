@@ -24,7 +24,7 @@ export function ProjectSearch({ open, onClose }: { open: boolean; onClose: () =>
     const out: Hit[] = [];
     PLACES.forEach((p) => { if (!words.length || match(`${p.name} ${PROJECT_PLACES[p.key].role} ${PROJECT_PLACES[p.key].pro}`)) out.push({ kind: 'Lieu', icon: p.icon, title: p.name, detail: PROJECT_PLACES[p.key].role, to: p.route }); });
     if (!words.length) return out;
-    (tasks.data ?? []).forEach((t) => { if (match(`${t.id} ${t.brief}`)) out.push({ kind: 'Quête', icon: 'quest', title: t.id, detail: t.brief, to: `/quetes/${t.id}` }); });
+    (tasks.data ?? []).forEach((t) => { if (match(`${t.id} ${t.brief}`)) out.push({ kind: 'Quête', icon: 'quest', title: t.id, detail: t.brief ?? '', to: `/quetes/${t.id}` }); });
     Object.values(brains.data ?? {}).forEach((b) => { if (match(`${b.id} ${b.title} ${b.description}`)) out.push({ kind: 'Cerveau', icon: 'guild', title: b.title, detail: b.description, to: `/guilde/${b.id}` }); });
     (patterns.data ?? []).forEach((p) => { if (match(`${p.id} ${p.title} ${p.description}`)) out.push({ kind: 'Pattern', icon: 'grid', title: p.title, detail: p.description, to: `/bibliotheque/patterns?q=${encodeURIComponent(p.id)}` }); });
     (refs.data ?? []).forEach((r) => { if (match(`${r.id} ${r.title} ${(r.aliases ?? []).join(' ')} ${r.summary}`)) out.push({ kind: 'Référence', icon: 'book', title: r.title, detail: r.summary, to: `/bibliotheque/ref/${r.id}` }); });

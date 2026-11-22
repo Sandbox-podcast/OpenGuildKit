@@ -11,8 +11,8 @@ import { Icon } from '@/shared/pixel/icons';
 import { listFiles, run, terminalCommand } from '../api';
 import { boardTitle, useBrains, useProfile, useTasks } from '../data';
 import { invalidate, showTerminal, useAction, useCli, useCliText, useQuery } from '../query';
-import { BASIS, CONFIDENCE, DATA, KIND, PASS, QUESTION_FR, RESEARCH, SURFACE, fmtWhen, isDecided, nextLabel, openPointLabel, verdict } from '../labels';
-import { ActionForm, CommandLine, FilePick, JsonDetails, Q, Section, StepRail, TaskStatusBadge, copyText, useDebounced, useRemembered } from '../parts';
+import { BASIS, CONFIDENCE, DATA, KIND, PASS, QUESTION_FR, RESEARCH, SURFACE, fmtWhen, isDecided, needsReconsult, nextLabel, nextLang, openPointLabel, verdict } from '../labels';
+import { ActionForm, CommandLine, FilePick, JsonDetails, Q, Section, StepRail, TaskStatusBadge, UnreadableTask, copyText, useDebounced, useRemembered } from '../parts';
 import { usePrefs } from '../prefs';
 import type { Answers, BlockerItem, Brain, Deliberation, PassProgress, Question, QuestionSet, Route, TaskRecord } from '../types';
 
@@ -23,7 +23,7 @@ export function CouncilList() {
   const tasks = useTasks();
   const { mode } = usePrefs();
   const groups = [
-    { title: mode === 'explorer' ? 'Quêtes à esquisser' : 'À cadrer', statuses: ['draft', 'changes-requested'] },
+    { title: mode === 'explorer' ? 'Quêtes à esquisser' : 'À cadrer', statuses: ['draft', 'changes-requested', 'reconsult'] },
     { title: 'En consultation', statuses: ['consulting'] },
     { title: mode === 'explorer' ? 'À sceller' : 'À décider', statuses: ['reviewed'] },
     { title: 'Décidées', statuses: ['approved', 'done', 'done-with-reservations'] },
@@ -33,14 +33,14 @@ export function CouncilList() {
       {(list) => (
         <div className="grid-2">
           {groups.map((g) => {
-            const items = list.filter((t) => g.statuses.includes(t.status));
+            const items = list.filter((t) => g.statuses.includes(needsReconsult(t) ? 'reconsult' : t.status));
             return (
               <Panel key={g.title} title={<>{g.title} <span className="badge count">{items.length}</span></>}>
                 {items.length === 0 ? <p className="muted small">Aucune quête.</p> : <ul className="plain stack tight">{items.map((t) => (
                   <li key={t.id}><a className="card" href={`#/conseil/${t.id}`}>
                     <span className="row between"><span className="mono small">{t.id}</span><TaskStatusBadge status={t.status} /></span>
                     <strong className="clamp-2">{t.brief}</strong>
-                    <span className="small muted">{nextLabel(t.next)}</span>
+                    <span className="small muted" lang={nextLang(t.next)}>{nextLabel(t.next)}</span>
                   </a></li>
                 ))}</ul>}
               </Panel>
@@ -53,6 +53,12 @@ export function CouncilList() {
 }
 
 export function CouncilRoom({ id }: { id: string }) {
+  const item = useTasks().data?.find((t) => t.id === id);
+  if (item?.status === 'unreadable') return <div className="page-grid"><p className="mono small muted">{id}</p><UnreadableTask id={id} message={item.next} /></div>;
+  return <CouncilRecord id={id} reconsult={!!item && needsReconsult(item) ? item.next : null} />;
+}
+
+function CouncilRecord({ id, reconsult }: { id: string; reconsult: string | null }) {
   // The text of the consultation is read with `task brief` when the person opens it.
   const record = useCli<TaskRecord>(['task', 'show', id], { omit: ['markdown', 'review_template'] });
   return (
@@ -67,12 +73,13 @@ export function CouncilRoom({ id }: { id: string }) {
             </div>
           </div>
           <StepRail status={t.status} hasResult={!!t.result} />
-          {(t.status === 'draft' || t.status === 'changes-requested') && <Framing task={t} />}
+          {reconsult && <Notice tone="danger" title="L’approbation ne tient plus :"><span lang={nextLang(reconsult)}>{nextLabel(reconsult)}</span> Réponds au questionnaire et réunis le Conseil à nouveau : la consultation précédente et l’approbation restent dans l’historique.</Notice>}
+          {(t.status === 'draft' || t.status === 'changes-requested' || !!reconsult) && <Framing task={t} />}
           {t.status === 'changes-requested' && t.decision && <Notice tone="warn" title="Renvoyée au Conseil :">{t.decision.by} — {t.decision.reason}. Une nouvelle consultation archive le tour précédent, avec son brief ; vous pouvez réviser le brief au moment de consulter à nouveau.</Notice>}
           {t.status === 'consulting' && <><Framing task={t} collapsed /><Passes task={t} /></>}
           {(t.status === 'reviewed' || isDecided(t.status)) && <Reviews task={t} />}
           {t.status === 'reviewed' && <><Deliberation id={t.id} /><Blockers id={t.id} /><Decide task={t} /></>}
-          {isDecided(t.status) && t.decision && (
+          {isDecided(t.status) && t.decision && !reconsult && (
             <Notice tone="success" title="Décision scellée :">{t.decision.by}, le {fmtWhen(t.decision.at)} — {t.decision.reason}. {t.status === 'approved' && <a href={`#/forge/${t.id}`}>Passer à la Forge</a>}</Notice>
           )}
         </div>
@@ -196,7 +203,7 @@ function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
       {(dossiers.data?.length ?? 0) > 0 && <div className="field"><label htmlFor="market">Dossier de marché à joindre</label>
         <select id="market" className="input" value={market} onChange={(e) => setMarket(e.target.value)}><option value="">Aucun</option>{dossiers.data!.map((d) => <option key={d} value={d}>{d}</option>)}</select>
         <p className="hint">Les observations datées et les lacunes du dossier accompagnent la consultation.</p></div>}
-      <div className="row"><Button variant="primary" icon="council" busy={busy !== null} disabled={needsReason || !!route.error} onClick={() => void consult()}>{task.status === 'consulting' ? 'Consulter à nouveau' : 'Réunir le Conseil'}</Button></div>
+      <div className="row"><Button variant="primary" icon="council" busy={busy !== null} disabled={needsReason || !!route.error} onClick={() => void consult()}>{task.status === 'consulting' || task.status === 'approved' ? 'Consulter à nouveau' : 'Réunir le Conseil'}</Button></div>
     </Section>
   );
 }

@@ -7,8 +7,8 @@ import { Icon } from '@/shared/pixel/icons';
 import { norm } from '@/shared/text';
 import { useBrains, useTasks, boardTitle } from '../data';
 import { useAction, useCli } from '../query';
-import { DATA, KIND, RESEARCH, SURFACE, TASK_ORDER, fmtDay, fmtWhen, isBlocked, isDecided, nextLabel, taskStatus, verdict } from '../labels';
-import { ExternalLink, JsonDetails, Q, StepRail, TaskLink, TaskStatusBadge } from '../parts';
+import { DATA, KIND, RESEARCH, SURFACE, fmtDay, fmtWhen, isBlocked, isDecided, needsReconsult, nextLabel, nextLang, statusesOf, taskStatus, verdict } from '../labels';
+import { ExternalLink, JsonDetails, Q, StepRail, TaskLink, TaskStatusBadge, UnreadableTask } from '../parts';
 import { usePrefs } from '../prefs';
 import type { TaskListItem, TaskRecord } from '../types';
 
@@ -38,7 +38,7 @@ export function NewQuestDialog({ open, onClose, follows }: { open: boolean; onCl
       <div className="field"><label htmlFor="follows">Fait suite à (facultatif)</label>
         <select id="follows" className="input" value={after} onChange={(e) => setAfter(e.target.value)}>
           <option value="">Aucune quête</option>
-          {(tasks.data ?? []).filter((t) => isDecided(t.status)).map((t) => <option key={t.id} value={t.id}>{t.id} : {t.brief.slice(0, 60)}</option>)}
+          {(tasks.data ?? []).filter((t) => isDecided(t.status)).map((t) => <option key={t.id} value={t.id}>{t.id} : {(t.brief ?? '').slice(0, 60)}</option>)}
         </select>
         <p className="hint">La consultation reprendra la décision de cette quête.</p>
       </div>
@@ -56,14 +56,14 @@ export function Quests() {
   const [open, setOpen] = useState(route.query.has('nouvelle'));
   const items = useMemo(() => (tasks.data ?? []).filter((t) => (!status || t.status === status) && (!owner || t.owner === owner) && (!q || norm(`${t.id} ${t.brief} ${t.next}`).includes(norm(q)))), [tasks.data, q, status, owner]);
   const owners = [...new Set((tasks.data ?? []).map((t) => t.owner).filter(Boolean))] as string[];
-  const columns = TASK_ORDER.filter((s) => !status || s === status);
+  const columns = statusesOf(tasks.data ?? []).filter((s) => !status || s === status);
 
   return (
     <div className="page-grid">
       <div className="toolbar">
         <input className="input" type="search" placeholder="Rechercher une quête…" aria-label="Rechercher une quête" value={q} onChange={(e) => setQuery({ q: e.target.value })} />
         <select className="input" aria-label="État" value={status} onChange={(e) => setQuery({ statut: e.target.value })}>
-          <option value="">Tous les états</option>{TASK_ORDER.map((s) => <option key={s} value={s}>{taskStatus(s).label}</option>)}
+          <option value="">Tous les états</option>{statusesOf(tasks.data ?? []).map((s) => <option key={s} value={s}>{taskStatus(s).label}</option>)}
         </select>
         <select className="input" aria-label="Responsable de la décision" value={owner} onChange={(e) => setQuery({ responsable: e.target.value })}>
           <option value="">Toutes les personnes</option>{owners.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -93,19 +93,23 @@ export function Quests() {
 }
 
 function QuestCard({ t, rpg }: { t: TaskListItem; rpg: boolean }) {
-  const blocked = isBlocked(t.next);
+  const reconsult = needsReconsult(t);
+  const stuck = isBlocked(t.next) || reconsult || t.status === 'unreadable';
   return (
-    <li><a className={`card task-card ${blocked ? 'blocked' : ''}`} href={`#/quetes/${t.id}`}>
+    <li><a className={`card task-card ${stuck ? 'blocked' : ''}`} href={`#/quetes/${t.id}`}>
       <span className="mono small">{t.id}</span>
-      <strong className="clamp-2">{t.brief}</strong>
-      <span className="small muted clamp-2">{blocked && <Icon name="ban" size={12} />} {nextLabel(t.next)}</span>
+      {t.brief && <strong className="clamp-2">{t.brief}</strong>}
+      {reconsult && <Badge tone="danger" icon="replace">À consulter à nouveau, par une personne</Badge>}
+      {t.status === 'unreadable' && <Badge tone="danger" icon="warn">À réparer, par une personne</Badge>}
+      <span className="small muted clamp-2" lang={nextLang(t.next)}>{isBlocked(t.next) && <Icon name="ban" size={12} />} {nextLabel(t.next)}</span>
       <span className="row tiny muted">{fmtDay(t.created)}{t.owner && <> · {rpg ? 'scellée par' : 'décidée par'} {t.owner}</>}{t.follows && <> · suite de {t.follows}</>}</span>
     </a></li>
   );
 }
 
 /** Where the next action of a task happens. */
-export function nextPlace(t: { id: string; status: string }) {
+export function nextPlace(t: { id: string; status: string; severity?: string }) {
+  if (needsReconsult(t)) return { to: `/conseil/${t.id}`, label: 'Consulter à nouveau', icon: 'council' as const };
   switch (t.status) {
     case 'draft': case 'consulting': case 'changes-requested': case 'reviewed': return { to: `/conseil/${t.id}`, label: 'Ouvrir la salle du Conseil', icon: 'council' as const };
     case 'approved': return { to: `/forge/${t.id}`, label: 'Aller à la Forge', icon: 'anvil' as const };
@@ -114,18 +118,25 @@ export function nextPlace(t: { id: string; status: string }) {
 }
 
 export function QuestSheet({ id }: { id: string }) {
+  const list = useTasks();
+  const item = list.data?.find((t) => t.id === id);
+  // A record the CLI cannot read is explained here: task show would only fail without context.
+  if (item?.status === 'unreadable') return <div className="page-grid"><p className="mono small muted">{id}</p><UnreadableTask id={id} message={item.next} /></div>;
+  return <QuestRecord id={id} item={item} />;
+}
+
+function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
   const record = useCli<TaskRecord>(['task', 'show', id], { omit: ['markdown', 'review_template', 'scope'] });
   const list = useTasks();
   const brains = useBrains();
   const [followUp, setFollowUp] = useState(false);
   const { act, busy } = useAction();
-  const item = list.data?.find((t) => t.id === id);
   const children = (list.data ?? []).filter((t) => t.follows === id);
 
   return (
     <Q q={record} label="Lecture de la quête">
       {(t) => {
-        const place = nextPlace(t);
+        const place = nextPlace({ ...t, severity: item?.severity });
         return (
           <div className="page-grid">
             <div className="quest-head">
@@ -141,7 +152,7 @@ export function QuestSheet({ id }: { id: string }) {
               </div>
             </div>
             <StepRail status={t.status} hasResult={!!t.result} />
-            {item && <Notice tone={isBlocked(item.next) ? 'danger' : 'info'} title="Prochaine étape :">{nextLabel(item.next)}</Notice>}
+            {item && <Notice tone={isBlocked(item.next) || needsReconsult(item) ? 'danger' : 'info'} title={needsReconsult(item) ? 'L’approbation ne tient plus :' : 'Prochaine étape :'}><span lang={nextLang(item.next)}>{nextLabel(item.next)}</span></Notice>}
             <div className="grid-2">
               <Panel title="Brief">
                 <p className="pre-line">{t.brief}</p>

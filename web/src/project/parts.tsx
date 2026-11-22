@@ -5,9 +5,11 @@ import { Dialog } from '@/shared/ui/overlay';
 import { Icon, type PixelIconName } from '@/shared/pixel/icons';
 import { toast } from '@/shared/ui/toast';
 import { isSafeUrl } from '@/shared/text';
-import { ApiError } from './api';
-import { showTerminal, useTerminalRequest, type Query } from './query';
-import { STEPS, stepOf, taskStatus } from './labels';
+import { ApiError, cliMessage, type CliResult } from './api';
+import { onlyTasksFail } from './data';
+import type { TaskListItem } from './types';
+import { showTerminal, showTouched, useTerminalRequest, useTouched, type Query } from './query';
+import { STEPS, needsReconsult, stepOf, taskStatus, touchedStep } from './labels';
 import { usePrefs } from './prefs';
 
 export function Loading({ label = 'Chargement' }: { label?: string }) {
@@ -72,6 +74,47 @@ export function TerminalDialog() {
         <p className="muted small">{request.after ?? 'La commande affiche le dossier, puis vous demande de retaper l’identifiant. L’interface se met à jour dès que la commande est enregistrée : revenez ici et actualisez.'}</p>
       </>}
     </Dialog>
+  );
+}
+
+/** The tasks the last change of rules left under the previous ones (sync, update --apply, a saved profile), in full. */
+export function TouchedNotice() {
+  const list = useTouched();
+  if (!list) return null;
+  return (
+    <div className="notice warn touched-notice" role="status">
+      <Icon name="warn" size={16} />
+      <div className="grow"><strong>Tâches consultées sous les règles précédentes :</strong>
+        <ul>{list.map((t) => { const step = touchedStep(t.step); return <li key={t.id}><TaskLink id={t.id} /> ({taskStatus(t.status).label}) : {step ?? <span lang="en">{t.step}</span>}.</li>; })}</ul>
+        <span className="small">Une tâche terminée garde son enregistrement comme historique.</span></div>
+      <Button size="small" variant="ghost" onClick={() => showTouched(null)}>Masquer</Button>
+    </div>
+  );
+}
+
+/**
+ * The result of `check`: the instructions in line with the profile, drifted from it (sync fixes that), or in line
+ * while tasks fail it, an approval that no longer holds or an unreadable record, which only a person can fix.
+ */
+export function CheckNotice({ result, tasks }: { result: CliResult; tasks: TaskListItem[] }) {
+  const notes = result.stderr.replace(/^OpenGuildKit:\s*/gm, '').trim();
+  if (result.code === 0) return <Notice tone="success">Les instructions correspondent au profil du projet.{notes && <span className="block small pre-line" lang="en">{notes}</span>}</Notice>;
+  if (onlyTasksFail(result)) {
+    const named = tasks.filter((t) => needsReconsult(t) || t.status === 'unreadable');
+    return <Notice tone="warn" title="Les instructions correspondent au profil, mais des tâches sont à reprendre par une personne :">
+      <ul>{named.map((t) => <li key={t.id}><TaskLink id={t.id} to={t.status === 'unreadable' ? 'quetes' : 'conseil'} /> : {t.status === 'unreadable' ? 'fichier illisible, à réparer' : 'approbation qui ne tient plus, à consulter à nouveau'}</li>)}</ul>
+      Synchroniser ne change rien à ces tâches.</Notice>;
+  }
+  return <Notice tone="danger" title="À corriger :"><span className="pre-line" lang="en">{cliMessage(result)}</span></Notice>;
+}
+
+/** What a page shows for a task record the CLI cannot read, instead of a failed `task show`. */
+export function UnreadableTask({ id, message }: { id: string; message: string }) {
+  return (
+    <Notice tone="danger" title={`Le fichier de la tâche ${id} est illisible.`}>
+      <span className="block pre-line" lang="en">{message}</span>
+      <span className="block small">C’est souvent un conflit de fusion Git laissé dans <code>.openguildkit/tasks/{id}.json</code>. Ouvre le fichier dans ton éditeur et garde une seule version de chaque bloc (sans les marqueurs <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code>, <code>=======</code>, <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>), ou reprends la version d’une branche avec Git, puis actualise la page. Tant qu’il est illisible, la CLI et la page ne peuvent rien faire de cette tâche.</span>
+    </Notice>
   );
 }
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { quoteFor } from '@/project/api';
 import { changesCatalog, invalidate, load, peek, remember } from '@/project/query';
-import { placeCounts, signalsOf } from '@/project/data';
-import { hasFailedCheck, isBlocked, isDecided, isDone, nextLabel, openPointLabel, parseTemplates, reasonLabel, shareState, stepOf, taskStatus } from '@/project/labels';
+import { onlyTasksFail, placeCounts, signalsOf } from '@/project/data';
+import { hasFailedCheck, isBlocked, isDecided, isDone, nextLabel, nextLang, openPointLabel, parseTemplates, reasonLabel, shareState, statusesOf, stepOf, taskStatus, touchedStep, touchedTasks } from '@/project/labels';
 import { missingRequired, normAnswers, pendingNorms, setupAnswers, type NormDraft } from '@/project/setup';
 import type { CliResult } from '@/project/api';
 
@@ -42,7 +42,6 @@ describe('wording of the CLI', () => {
     expect(taskStatus('done-with-reservations').label).toBe('Terminée avec réserves');
     expect(['approved', 'done', 'done-with-reservations', 'reviewed'].map(isDecided)).toEqual([true, true, true, false]);
     expect(['done', 'done-with-reservations', 'approved'].map(isDone)).toEqual([true, true, false]);
-    expect(taskStatus('unreadable').label).toBe('unreadable');
     expect(shareState('expired: remove the access in Documentalist')).toBe('expired');
     expect(shareState('revoked')).toBe('revoked');
     expect(shareState('active')).toBe('active');
@@ -106,7 +105,7 @@ describe('project signals', () => {
 
   it('derives what waits on whom and the counters of the places', () => {
     const s = signalsOf(overview);
-    expect(s.checkFailed).toBe(true);
+    expect(s.instructionsDrift).toBe(true);
     expect(s.blocked.map((t) => t.id)).toEqual(['a']);
     expect(s.awaitingDecision.map((t) => t.id)).toEqual(['b']);
     expect(s.toBuild.map((t) => t.id)).toEqual(['c']);
@@ -118,6 +117,41 @@ describe('project signals', () => {
     expect(counts.forge?.n).toBe(1);
     expect(counts.documentation?.n).toBe(1);
     expect(counts.intendance?.n).toBe(3);
+  });
+
+  it('sends an approval that no longer holds and an unreadable record to a person, not to the agent', () => {
+    const stale = 'The approval for c was recorded under earlier rules (conventions changed). Consult it again with openguildkit task consult c, or open a linked task with openguildkit task new "BRIEF" --follows c.';
+    const tasks = ok([
+      { id: 'c', status: 'approved', created: '2026-11-21', owner: 'Camille', brief: 'C', next: stale, approval_problem: 'earlier-rules', severity: 'error' },
+      { id: 'f', status: 'approved', created: '2026-11-21', owner: 'Camille', brief: 'F', next: 'Implement, then record the results: task verify f and task result f, then task complete f.' },
+      { id: 'broken', status: 'unreadable', next: 'Invalid JSON in .openguildkit/tasks/broken.json: Expecting property name enclosed in double quotes' },
+    ]);
+    const check = { code: 1, stdout: '', stderr: 'OpenGuildKit: c: ...\nOpenGuildKit: The instructions match the project profile, but 1 approval no longer holds: each line above gives the command to run.', json: null };
+    const s = signalsOf({ tasks, check });
+    expect(s.instructionsDrift).toBe(false);
+    expect(onlyTasksFail(check)).toBe(true);
+    expect(s.reconsult.map((t) => t.id)).toEqual(['c']);
+    expect(s.unreadable.map((t) => t.id)).toEqual(['broken']);
+    expect(s.toBuild.map((t) => t.id)).toEqual(['f']);
+    const counts = placeCounts(s);
+    expect(counts.blueprint).toBeNull();
+    expect(counts.quetes).toMatchObject({ n: 2, label: 'à reprendre par une personne' });
+    expect(nextLabel(stale)).toBe('L’approbation de c a été donnée sous des règles antérieures (conventions modifiées). La consulter à nouveau (task consult c), ou ouvrir une tâche liée (task new --follows c).');
+    expect([nextLang(stale), nextLang('Invalid JSON in x')]).toEqual([undefined, 'en']);
+    expect(statusesOf(tasks.json as { status: string }[])).toContain('unreadable');
+    expect(statusesOf([{ status: 'draft' }])).not.toContain('unreadable');
+    expect(taskStatus('unreadable').label).toBe('Illisible');
+  });
+
+  it('reads the tasks that sync names after a change of rules', () => {
+    const stdout = 'OpenGuildKit instructions updated.\nTasks consulted under the previous rules:\n  request-history (approved): consult it again (openguildkit task consult request-history) or open a linked task with --follows.\n  status-labels (consulting): consult it again.\n';
+    expect(touchedTasks(stdout)).toEqual([
+      { id: 'request-history', status: 'approved', step: 'consult it again (openguildkit task consult request-history) or open a linked task with --follows' },
+      { id: 'status-labels', status: 'consulting', step: 'consult it again' },
+    ]);
+    expect(touchedTasks('OpenGuildKit instructions updated.\n')).toEqual([]);
+    expect(touchedStep('request changes and consult it again')).toMatch(/^demander des changements/);
+    expect(touchedStep('something new')).toBeNull();
   });
 
   it('shows nothing for an empty or failed overview', () => {

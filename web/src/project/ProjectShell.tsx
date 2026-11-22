@@ -16,7 +16,7 @@ import { currentSession } from './api';
 import { invalidate } from './query';
 import { placeCounts, signalsOf, useOverview, useProfile } from './data';
 import { setPrefs, usePrefs } from './prefs';
-import { TerminalDialog } from './parts';
+import { TerminalDialog, TouchedNotice } from './parts';
 import { ProjectSearch } from './ProjectSearch';
 
 export const PROJECT_PLACES: Record<PlaceKey, { role: string; pro: string }> = {
@@ -163,6 +163,7 @@ export function ProjectShell({ children }: { children: ReactNode }) {
       <main id="main" tabIndex={-1} className="main" inert={navOpen}>
         {overview.error && <div className="notice danger" role="alert"><Icon name="warn" size={16} /><div>{overview.error.message}</div></div>}
         {place && <PlaceHeader place={place} pro={pro} compact={route.parts.length > 1} />}
+        <TouchedNotice />
         {children}
       </main>
       <ProjectSearch open={searchOpen} onClose={() => setSearchOpen(false)} />

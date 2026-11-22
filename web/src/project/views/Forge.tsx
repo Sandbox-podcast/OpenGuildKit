@@ -12,8 +12,8 @@ import { toast } from '@/shared/ui/toast';
 import { batchJson, cliMessage, currentSession, readJson, readText, run, terminalCommand, writeFile, type CliResult } from '../api';
 import { useProfile, useTasks } from '../data';
 import { invalidate, showTerminal, useAction, useCli, useCliResult, useCliText, useQuery } from '../query';
-import { checkLabel, fmtWhen, hasFailedCheck, isDecided, isDone, nextLabel, parseTemplates } from '../labels';
-import { ActionForm, CommandLine, ExternalLink, FilePick, JsonDetails, Pre, Q, Section, StepRail, TaskStatusBadge, copyText, useRemembered } from '../parts';
+import { checkLabel, fmtWhen, hasFailedCheck, isDecided, isDone, needsReconsult, nextLabel, nextLang, parseTemplates } from '../labels';
+import { ActionForm, CommandLine, ExternalLink, FilePick, JsonDetails, Pre, Q, Section, StepRail, TaskStatusBadge, UnreadableTask, copyText, useRemembered } from '../parts';
 import type { BlockerItem, ExpectedCheck, TaskRecord, Tool } from '../types';
 
 export function Forge({ tab = 'quetes' }: { tab?: string }) {
@@ -35,9 +35,14 @@ function ToBuild() {
   return (
     <Q q={tasks}>
       {(list) => {
-        const approved = list.filter((t) => t.status === 'approved');
+        const approved = list.filter((t) => t.status === 'approved' && !needsReconsult(t));
+        const reconsult = list.filter(needsReconsult);
         const done = list.filter((t) => isDone(t.status));
         return <div className="grid-2">
+          {reconsult.length > 0 && <Panel title={<>Approbation à reprendre <span className="badge count">{reconsult.length}</span></>} tone="danger">
+            <p className="small">Les règles ont changé depuis l’approbation, ou son enregistrement ne correspond plus : rien n’est à réaliser tant qu’une personne n’a pas consulté la tâche à nouveau.</p>
+            <ul className="plain stack tight">{reconsult.map((t) => <li key={t.id}><a className="card" href={`#/conseil/${t.id}`}><span className="row between"><span className="mono small">{t.id}</span><Badge tone="danger" icon="replace">à consulter à nouveau, par une personne</Badge></span><strong>{t.brief}</strong><span className="small muted" lang={nextLang(t.next)}>{nextLabel(t.next)}</span></a></li>)}</ul>
+          </Panel>}
           <Panel title={<>Validées, à réaliser <span className="badge count">{approved.length}</span></>}>
             {approved.length === 0 ? <Empty title="Rien à forger">Une quête arrive ici quand une personne l’a validée dans son terminal.</Empty>
               : <ul className="plain stack tight">{approved.map((t) => <li key={t.id}><a className="card" href={`#/forge/${t.id}`}><span className="row between"><span className="mono small">{t.id}</span>{hasFailedCheck(t.next) && <Badge tone="danger" icon="cross">contrôle en échec</Badge>}</span><strong>{t.brief}</strong><span className="small muted">{nextLabel(t.next)}</span></a></li>)}</ul>}
@@ -54,6 +59,12 @@ function ToBuild() {
 /* ------------------------------------------------------------------ one task */
 
 export function ForgeTask({ id }: { id: string }) {
+  const item = useTasks().data?.find((t) => t.id === id);
+  if (item?.status === 'unreadable') return <div className="page-grid"><p className="mono small muted">{id}</p><UnreadableTask id={id} message={item.next} /></div>;
+  return <ForgeRecord id={id} reconsult={!!item && needsReconsult(item) ? item.next : null} />;
+}
+
+function ForgeRecord({ id, reconsult }: { id: string; reconsult: string | null }) {
   const record = useCli<TaskRecord>(['task', 'show', id], { omit: ['markdown', 'review_template', 'scope', 'review'] });
   const [handoff, setHandoff] = useState(false);
   return (
@@ -63,7 +74,8 @@ export function ForgeTask({ id }: { id: string }) {
           <div className="quest-head"><div className="grow"><p className="mono small muted"><a href={`#/quetes/${t.id}`}>{t.id}</a></p><h2 className="h-title clamp-2">{t.brief.split('\n')[0]}</h2><TaskStatusBadge status={t.status} /></div>
             <div className="row"><Button icon="scroll" variant="primary" onClick={() => setHandoff(true)}>{t.answers?.kind === 'decision' ? 'Relevé de décision' : 'Passation (handoff)'}</Button></div></div>
           <StepRail status={t.status} hasResult={!!t.result} />
-          {!isDecided(t.status) ? <Notice tone="warn">Cette quête n’est pas validée : la Forge n’a pas de passation. <a href={`#/conseil/${t.id}`}>Ouvrir le Conseil</a></Notice> : <>
+          {reconsult ? <Notice tone="danger" title="L’approbation ne tient plus :"><span lang={nextLang(reconsult)}>{nextLabel(reconsult)}</span> Rien n’est à réaliser avant une nouvelle consultation. <a href={`#/conseil/${t.id}`}>Ouvrir le Conseil</a></Notice>
+            : !isDecided(t.status) ? <Notice tone="warn">Cette quête n’est pas validée : la Forge n’a pas de passation. <a href={`#/conseil/${t.id}`}>Ouvrir le Conseil</a></Notice> : <>
             {t.answers?.kind === 'decision' && <Notice tone="info" title="Quête de décision :">la passation est un relevé de décision. Rapportez la décision sans modifier le projet ; ouvrez une nouvelle quête pour la mettre en œuvre.</Notice>}
             {t.status === 'approved' && <Conditions id={t.id} />}
             <Checks task={t} />

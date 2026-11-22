@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { ApiError, run, type CliResult, type RunOptions } from './api';
 import { toast } from '@/shared/ui/toast';
+import { touchedTasks } from './labels';
 
 interface Entry { data?: unknown; error?: ApiError; loading: boolean; stale: boolean; at: number }
 
@@ -98,6 +99,20 @@ const terminalListeners = new Set<() => void>();
 export const showTerminal = (request: TerminalRequest | null) => { terminal = request; terminalListeners.forEach((l) => l()); };
 export const useTerminalRequest = () => useSyncExternalStore((l) => { terminalListeners.add(l); return () => { terminalListeners.delete(l); }; }, () => terminal);
 
+/* ------------------------------------------------------------------ tasks a change of rules touched */
+export interface Touched { id: string; status: string; step: string }
+let touched: Touched[] | null = null;
+const touchedListeners = new Set<() => void>();
+/** Keeps on screen the tasks that sync, update --apply or a saved profile names, until the person closes the list. */
+export const showTouched = (list: Touched[] | null) => { touched = list?.length ? list : null; touchedListeners.forEach((l) => l()); };
+export const useTouched = () => useSyncExternalStore((l) => { touchedListeners.add(l); return () => { touchedListeners.delete(l); }; }, () => touched);
+/** After a command that rewrites the rules, the tasks it names (or none: the earlier list no longer applies). */
+export function reportTouched(argv: string[], stdout: string) {
+  const list = touchedTasks(stdout);
+  if (list.length || changesCatalog(argv) || argv[0] === 'profile') showTouched(list);
+  return list;
+}
+
 /* ------------------------------------------------------------------ actions */
 export interface ActionOptions { uploads?: Record<string, string>; success?: string; quiet?: boolean; onDone?: (r: CliResult) => void }
 
@@ -110,7 +125,8 @@ export function useAction() {
     setError(null);
     try {
       const result = await run(argv, opts.uploads, { raw: true });
-      if (!opts.quiet) toast({ tone: 'success', title: opts.success ?? 'Enregistré', text: result.stdout.trim().split('\n').slice(0, 2).join(' ').slice(0, 180) || undefined });
+      const named = reportTouched(argv, result.stdout);
+      if (!opts.quiet) toast({ tone: 'success', title: opts.success ?? 'Enregistré', text: named.length ? `${named.length} tâche(s) consultée(s) sous les règles précédentes : la liste est affichée sur la page.` : result.stdout.trim().split('\n').slice(0, 2).join(' ').slice(0, 180) || undefined });
       opts.onDone?.(result);
       invalidate(changesCatalog(argv) ? 'all' : 'project');
       return result;

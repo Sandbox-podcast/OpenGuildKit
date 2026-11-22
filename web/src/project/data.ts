@@ -4,7 +4,7 @@ import { batch, cliError, readJson, type CliResult } from './api';
 import { useCli, useQuery, type Query } from './query';
 import type { AlertRegister, Brain, Guard, HostControl, MarketDue, Profile, Share, StaleTask, TaskListItem, Update } from './types';
 import type { PlaceKey } from '@/shared/pixel/buildings';
-import { isBlocked, shareState } from './labels';
+import { isBlocked, needsReconsult, shareState } from './labels';
 
 export const ARGV = {
   tasks: ['task', 'list', '--json'],
@@ -70,7 +70,12 @@ const count = (n: number, tone: Count['tone'], one: string, many = one): Count |
 
 export interface ProjectSignals {
   tasks: TaskListItem[];
-  checkFailed: boolean;
+  /** check fails because AGENTS.md, the host settings or the catalog lock drifted from the profile: sync fixes it. */
+  instructionsDrift: boolean;
+  /** Approved tasks whose approval no longer holds: check fails for them, and only a new consultation fixes it. */
+  reconsult: TaskListItem[];
+  /** Task records the CLI cannot read, such as a file left with merge conflict markers. */
+  unreadable: TaskListItem[];
   alertsOpen: number;
   sharesExpired: number;
   marketDue: number;
@@ -87,9 +92,12 @@ export function signalsOf(overview: Record<string, CliResult> | undefined): Proj
   const tasks = json<TaskListItem[]>('tasks', []);
   const alerts = json<AlertRegister | null>('alerts', null);
   const update = json<Update | null>('update', null);
+  const check = overview?.check;
   return {
     tasks,
-    checkFailed: !!overview?.check && overview.check.code !== 0,
+    instructionsDrift: !!check && check.code !== 0 && !onlyTasksFail(check),
+    reconsult: tasks.filter(needsReconsult),
+    unreadable: tasks.filter((t) => t.status === 'unreadable'),
     alertsOpen: (alerts?.summary.by_status.open ?? 0) + (alerts?.summary.by_status.confirmed ?? 0),
     sharesExpired: json<Share[]>('shares', []).filter((s) => shareState(s.state) === 'expired').length,
     marketDue: json<MarketDue | null>('due', null)?.due.length ?? 0,
@@ -98,16 +106,20 @@ export function signalsOf(overview: Record<string, CliResult> | undefined): Proj
     hostMissing: json<HostControl[]>('host', []).filter((c) => c.status === 'missing').length,
     blocked: tasks.filter((t) => isBlocked(t.next)),
     awaitingDecision: tasks.filter((t) => t.status === 'reviewed' && !isBlocked(t.next)),
-    toBuild: tasks.filter((t) => t.status === 'approved'),
+    toBuild: tasks.filter((t) => t.status === 'approved' && !needsReconsult(t)),
   };
 }
 
+/** check found the instructions in line with the profile and fails only for tasks (approvals, unreadable records). */
+export const onlyTasksFail = (check: CliResult) => /instructions match the project profile/i.test(`${check.stdout}\n${check.stderr}`);
+
 export function placeCounts(s: ProjectSignals): Partial<Record<PlaceKey, Count | null>> {
   const consulting = s.tasks.filter((t) => t.status === 'consulting' || t.status === 'changes-requested').length;
+  const stuck = s.blocked.length + s.reconsult.length + s.unreadable.length;
   return {
-    blueprint: count(s.checkFailed ? 1 : 0, 'danger', 'instructions à synchroniser'),
+    blueprint: count(s.instructionsDrift ? 1 : 0, 'danger', 'instructions à synchroniser'),
     conseil: count(consulting + s.awaitingDecision.length, 'info', 'à arbitrer'),
-    quetes: count(s.blocked.length, 'danger', 'bloquée', 'bloquées'),
+    quetes: stuck === s.blocked.length ? count(stuck, 'danger', 'bloquée', 'bloquées') : count(stuck, 'danger', 'à reprendre par une personne'),
     forge: count(s.toBuild.length, 'info', 'quête à réaliser', 'quêtes à réaliser'),
     tour: count(s.alertsOpen, 'danger', 'alerte à revoir', 'alertes à revoir'),
     observatoire: count(s.marketDue, 'info', 'source à relire', 'sources à relire'),

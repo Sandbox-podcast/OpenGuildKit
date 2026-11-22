@@ -8,7 +8,7 @@ import { Badge, Button, KV, Panel, Stat } from '@/shared/ui/core';
 import { placeCounts, signalsOf, useOverview, useProfile, type ProjectSignals } from '../data';
 import { usePrefs } from '../prefs';
 import { useAction } from '../query';
-import { RESEARCH, TASK_ORDER, isDone, nextLabel, taskStatus } from '../labels';
+import { RESEARCH, isDone, nextLabel, nextLang, statusesOf, taskStatus } from '../labels';
 import { TaskStatusBadge } from '../parts';
 import type { Profile, TaskListItem } from '../types';
 
@@ -60,11 +60,13 @@ function ProjectMap({ profile, signals }: { profile: Profile | null; signals: Pr
   );
 }
 
-interface Todo { id: string; who: 'person' | 'agent'; icon: PixelIconName; title: string; detail: string; to: string; tone: 'danger' | 'warning' | 'info' | 'ai' }
+interface Todo { id: string; who: 'person' | 'agent'; icon: PixelIconName; title: string; detail: string; lang?: 'en'; to: string; tone: 'danger' | 'warning' | 'info' | 'ai' }
 
 function todos(s: ProjectSignals): Todo[] {
   const out: Todo[] = [];
-  if (s.checkFailed) out.push({ id: 'check', who: 'person', icon: 'warn', title: 'Instructions à synchroniser', detail: 'AGENTS.md, les réglages de l’hôte ou le verrou du catalogue ne correspondent plus au profil.', to: '/intendance', tone: 'danger' });
+  if (s.instructionsDrift) out.push({ id: 'check', who: 'person', icon: 'warn', title: 'Instructions à synchroniser', detail: 'AGENTS.md, les réglages de l’hôte ou le verrou du catalogue ne correspondent plus au profil.', to: '/intendance', tone: 'danger' });
+  s.unreadable.forEach((t) => out.push({ id: `u:${t.id}`, who: 'person', icon: 'warn', title: `Réparer le fichier de ${t.id}`, detail: t.next, lang: 'en', to: `/quetes/${t.id}`, tone: 'danger' }));
+  s.reconsult.forEach((t) => out.push({ id: `a:${t.id}`, who: 'person', icon: 'replace', title: `Consulter à nouveau ${t.id}`, detail: nextLabel(t.next), lang: nextLang(t.next), to: `/conseil/${t.id}`, tone: 'danger' }));
   s.blocked.forEach((t) => out.push({ id: `b:${t.id}`, who: 'person', icon: 'ban', title: `Lever les blocages de ${t.id}`, detail: nextLabel(t.next), to: `/conseil/${t.id}#blocages`, tone: 'danger' }));
   s.awaitingDecision.forEach((t) => out.push({ id: `d:${t.id}`, who: 'person', icon: 'lock', title: `Décider de ${t.id}`, detail: 'Les avis sont rendus : validez dans votre terminal ou renvoyez au Conseil.', to: `/conseil/${t.id}#decision`, tone: 'warning' }));
   s.tasks.filter((t) => t.status === 'draft').forEach((t) => out.push({ id: `q:${t.id}`, who: 'person', icon: 'question', title: `Cadrer ${t.id}`, detail: nextLabel(t.next), to: `/conseil/${t.id}`, tone: 'info' }));
@@ -86,20 +88,20 @@ export function Home() {
   const signals = useMemo(() => signalsOf(overview.data), [overview.data]);
   const list = todos(signals);
   const { act, busy } = useAction();
-  const byStatus = TASK_ORDER.map((status) => ({ status, n: signals.tasks.filter((t) => t.status === status).length }));
+  const byStatus = statusesOf(signals.tasks).map((status) => ({ status, n: signals.tasks.filter((t) => t.status === status).length }));
   const p = profile.data;
 
   return (
     <div className="page-grid">
       {mode === 'explorer' && <ProjectMap profile={p ?? null} signals={signals} />}
       <div className="grid-2">
-        <Panel title={<><Icon name="flag" size={16} /> À faire maintenant</>} actions={signals.checkFailed ? <Button size="small" variant="primary" busy={busy !== null} onClick={() => void act(['sync'], { success: 'Instructions synchronisées' })}>Synchroniser</Button> : undefined}>
+        <Panel title={<><Icon name="flag" size={16} /> À faire maintenant</>} actions={signals.instructionsDrift ? <Button size="small" variant="primary" busy={busy !== null} onClick={() => void act(['sync'], { success: 'Instructions synchronisées' })}>Synchroniser</Button> : undefined}>
           {overview.data === undefined ? <p className="muted">Lecture du projet…</p> : list.length === 0
             ? <p className="muted">Rien n’attend. Ouvrez une quête pour la prochaine demande.</p>
             : <ul className="plain stack tight todo-list">{list.map((t) => (
               <li key={t.id}><a className={`card todo tone-${t.tone}`} href={`#${t.to}`}>
                 <Icon name={t.icon} size={16} />
-                <span className="grow"><strong>{t.title}</strong><span className="small muted block">{t.detail}</span></span>
+                <span className="grow"><strong>{t.title}</strong><span className="small muted block" lang={t.lang}>{t.detail}</span></span>
                 <Badge tone={t.who === 'person' ? 'warning' : 'ai'} icon={t.who === 'person' ? 'user' : 'ai'}>{t.who === 'person' ? 'Vous' : 'Agent'}</Badge>
               </a></li>
             ))}</ul>}
@@ -120,7 +122,7 @@ export function Home() {
       <Panel title={<><Icon name="quest" size={16} /> Quêtes par état</>} actions={<a className="btn small primary" href="#/quetes?nouvelle=1"><Icon name="plus" size={14} /> Nouvelle quête</a>}>
         <div className="stats">{byStatus.map(({ status, n }) => <a key={status} href={`#/quetes?statut=${status}`} className="stat-link"><Stat value={n} label={mode === 'explorer' ? taskStatus(status).rpg : taskStatus(status).label} tone={n ? taskStatus(status).tone : 'muted'} /></a>)}</div>
         {signals.tasks.length > 0 && <table className="data compact"><thead><tr><th>Quête</th><th>État</th><th>Prochaine étape</th></tr></thead>
-          <tbody>{signals.tasks.slice(0, 8).map((t: TaskListItem) => <tr key={t.id}><td><a className="mono" href={`#/quetes/${t.id}`}>{t.id}</a><span className="small muted block clamp-1">{t.brief}</span></td><td><TaskStatusBadge status={t.status} /></td><td className="small">{nextLabel(t.next)}</td></tr>)}</tbody>
+          <tbody>{signals.tasks.slice(0, 8).map((t: TaskListItem) => <tr key={t.id}><td><a className="mono" href={`#/quetes/${t.id}`}>{t.id}</a><span className="small muted block clamp-1">{t.brief}</span></td><td><TaskStatusBadge status={t.status} /></td><td className="small" lang={nextLang(t.next)}>{nextLabel(t.next)}</td></tr>)}</tbody>
         </table>}
       </Panel>
       <Panel title={<><Icon name="question" size={16} /> Comment la guilde travaille</>}>

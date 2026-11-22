@@ -1,14 +1,14 @@
 /** Tour de guet: instruction drift, host enforcement, guard coverage, the dependency alert register and open blockers. */
 import { useCallback, useState } from 'react';
 import { navigate } from '@/app/router';
-import { Badge, Button, Notice, Panel, Tabs } from '@/shared/ui/core';
+import { Badge, Button, Panel, Tabs } from '@/shared/ui/core';
 import { Dialog } from '@/shared/ui/overlay';
 import { Icon } from '@/shared/pixel/icons';
 import { batchJson, terminalCommand } from '../api';
-import { useAlerts, useCheck, useGuard, useHost, useTasks } from '../data';
+import { onlyTasksFail, useAlerts, useCheck, useGuard, useHost, useTasks } from '../data';
 import { showTerminal, useAction, useQuery } from '../query';
 import { GUARD, SEVERITY, alertLabel, hostControl } from '../labels';
-import { ActionForm, ExternalLink, FilePick, Q, TaskLink, useRemembered } from '../parts';
+import { ActionForm, CheckNotice, ExternalLink, FilePick, Q, TaskLink, useRemembered } from '../parts';
 import type { Alert, BlockerItem } from '../types';
 
 export function Watchtower({ tab = 'controles' }: { tab?: string }) {
@@ -29,13 +29,14 @@ export function Watchtower({ tab = 'controles' }: { tab?: string }) {
 
 function Controls() {
   const check = useCheck();
+  const tasks = useTasks();
   const host = useHost();
   const guard = useGuard();
   const { act, busy } = useAction();
   return (
     <div className="grid-2">
-      <Panel title="Instructions du projet" actions={<Button size="small" busy={busy !== null} onClick={() => void act(['sync'], { success: 'Instructions synchronisées' })}>Synchroniser</Button>}>
-        <Q q={check}>{(r) => r.code === 0 ? <Notice tone="success">{r.stdout.trim()}</Notice> : <Notice tone="danger" title="À corriger :">{(r.stderr || r.stdout).replace(/^OpenGuildKit:\s*/gm, '').trim()}</Notice>}</Q>
+      <Panel title="Instructions du projet" actions={check.data && check.data.code !== 0 && onlyTasksFail(check.data) ? undefined : <Button size="small" busy={busy !== null} onClick={() => void act(['sync'], { success: 'Instructions synchronisées' })}>Synchroniser</Button>}>
+        <Q q={check}>{(r) => <CheckNotice result={r} tasks={tasks.data ?? []} />}</Q>
         <p className="small muted"><code>openguildkit check</code> fait échouer la CI quand AGENTS.md, les réglages de l’hôte ou le verrou du catalogue s’écartent du profil.</p>
       </Panel>
       <Panel title="Ce que l’hôte applique" actions={<Button size="small" busy={busy !== null} onClick={() => void act(['host', 'apply'], { success: 'Réglages de l’hôte écrits' })}>Appliquer</Button>}>
