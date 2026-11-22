@@ -1,4 +1,4 @@
 {"id": "csv-injection", "brief": "Fix the export bug: a cell that starts with = is run as a formula when the CSV is opened in a spreadsheet.",
- "answers": {"kind": "bug", "surface": ["service"], "data": "internal", "research": "local",
+ "answers": {"kind": "bug", "surface": ["service"], "data": "internal", "research": "local", "concerns": ["none"],
              "outcome": "Cells that start with =, +, - or @ are neutralised in every export.",
              "affected": "Operators who open exports in a spreadsheet"}}

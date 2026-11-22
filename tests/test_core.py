@@ -40,6 +40,7 @@ class WorkflowTests(unittest.TestCase):
             "surface": "customer",
             "data": "personal",
             "research": "public",
+            "concerns": ["none"],
             "context": "Use test data. Keep the existing permission model.",
         }
         write_json(

@@ -12,7 +12,8 @@ from openguildkit.cli import main
 from openguildkit.catalog import load_catalog
 from openguildkit.storage import write_json
 from openguildkit.workflow import (
-    consult, normalize_text, normalize_with_offsets, select_boards, text_routes, trigger_matches, validate_answers,
+    consult, normalize_text, normalize_with_offsets, require_concerns, select_boards, text_routes, trigger_matches,
+    validate_answers,
 )
 
 # routing_cases_new_brains.json holds the cases of the brains added after the first eighteen.
@@ -127,13 +128,25 @@ class RoutingTests(unittest.TestCase):
                 routing = self.route("Rotate the leaked AWS access key", {**NEUTRAL, "data": data})["routing"]
                 self.assertLessEqual({"security", "devops"}, set(routing))
 
-    def test_concerns_are_optional_and_checked(self):
+    def test_concerns_are_checked_and_none_or_unsure_stand_alone(self):
+        # A recorded answer file without concerns still reads; task consult and task route ask for it (require_concerns).
         self.assertNotIn("concerns", validate_answers(NEUTRAL))
+        with self.assertRaisesRegex(ValueError, "Answer concerns.*none, unsure"):
+            require_concerns(validate_answers(NEUTRAL))
         self.assertEqual(validate_answers({**NEUTRAL, "concerns": "money"})["concerns"], ["money"])
         with self.assertRaisesRegex(ValueError, "concerns"):
             validate_answers({**NEUTRAL, "concerns": ["money", "weather"]})
-        with self.assertRaisesRegex(ValueError, "none"):
-            validate_answers({**NEUTRAL, "concerns": ["money", "none"]})
+        for alone in ("none", "unsure"):
+            with self.assertRaisesRegex(ValueError, alone):
+                validate_answers({**NEUTRAL, "concerns": ["money", alone]})
+
+    def test_unsure_concerns_route_the_boards_of_every_topic(self):
+        routing = self.route("Change how the scheduler picks the next item", {**NEUTRAL, "concerns": ["unsure"]})["routing"]
+        self.assertLessEqual({"legal", "data", "security", "finance", "devops"}, set(routing))
+        self.assertIn("Concerns unsure, so this topic stays open: Money: prices, payments, invoices, payroll or spending",
+                      routing["finance"])
+        selected = self.route("Use AI to screen and rank job applicants", {**NEUTRAL, "concerns": ["unsure"]})
+        self.assertEqual(selected["patterns"], self.route("Use AI to screen and rank job applicants")["patterns"])
 
     def test_an_unrecognised_brief_asks_the_requester_to_pick_boards(self):
         routing = self.route("Tidy things up")["routing"]
@@ -323,7 +336,7 @@ class RoutingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             write_json(root / "p.json", profile)
-            write_json(root / "a.json", NEUTRAL)
+            write_json(root / "a.json", {**NEUTRAL, "concerns": ["none"]})
             run = lambda *args: main(["--project", str(root), *map(str, args)])
             with contextlib.redirect_stdout(io.StringIO()):
                 run("init", "--answers", root / "p.json")

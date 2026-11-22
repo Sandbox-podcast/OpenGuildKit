@@ -104,6 +104,38 @@ def rule_not_concerned(task: dict, pack_id: str, rule_id: str) -> str:
     return ""
 
 
+DECISION_REASON = "a decision task: its approval records the process and it delivers no implementation"
+
+
+def judge_rules(task: dict, profile: dict, relevance: dict | None = None) -> dict[str, dict]:
+    """Each rule of the task's scope by PACK/RULE: whether it concerns the task, is mandatory or selected, and why not.
+
+    The one judgement the board passes, the handoff and the closing share. Without a relevance judgement every
+    rule concerns the task. A rule of a pack that concerns the task can still be outside it, such as the GDPR
+    rules about a new processing for a bug fix; required_rules, --all and ask_every_rule keep it. A decision task
+    delivers no implementation, so no rule concerns it.
+    """
+    required = set(profile.get("required_rules", []))
+    packs = (relevance or {}).get("packs", {})
+    every = bool((relevance or {}).get("every") or profile.get("ask_every_rule"))
+    decision = task.get("answers", {}).get("kind") == "decision"
+    judged = {}
+    for pack in task["consultation"]["scope"].get("packs", []):
+        entry = packs.get(pack["id"], {"concerned": True, "selected": False, "reason": ""})
+        for rule in pack["rules"]:
+            name = f"{pack['id']}/{rule['id']}"
+            mandatory = pack["id"] in required or name in required
+            concerned = entry["concerned"] or name in required
+            narrowed = "" if mandatory or every or not concerned else rule_not_concerned(task, pack["id"], rule["id"])
+            concerned = concerned and not narrowed
+            reason = "" if concerned else narrowed or entry["reason"]
+            if decision and concerned:
+                concerned, reason = False, DECISION_REASON
+            judged[name] = {"mandatory": mandatory, "selected": entry["selected"] or mandatory,
+                            "concerned": concerned, "reason": reason}
+    return judged
+
+
 # A regulation pack of the project's own catalog concerns a task that touches personal or regulated data.
 REGULATION_DEFAULT = [{"data": ["personal", "regulated"]}]
 # Rules a person must confirm by name before a task closes with them skipped or failed.

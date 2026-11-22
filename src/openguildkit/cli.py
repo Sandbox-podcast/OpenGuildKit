@@ -125,7 +125,7 @@ from .tasks import (
     require_current_scope,
     task_path,
 )
-from .workflow import RESOLUTION_RULE, trigger_matches, blocker_list, board_brief, challenge_report, decision_summary, deliberation_request, handoff, is_decision_task, open_points, pending_removals, select_boards, task_questions, validate_answers, validate_review, verdict_lines, review_lines, pack_rules
+from .workflow import RESOLUTION_RULE, trigger_matches, blocker_list, board_brief, challenge_report, concerns_question, decision_summary, deliberation_request, handoff, is_decision_task, open_points, pending_removals, require_concerns, select_boards, task_questions, validate_answers, validate_review, verdict_lines, review_lines, pack_rules
 
 
 class _Version(argparse.Action):
@@ -751,6 +751,11 @@ def _prompt_questions(questions: list[dict], command: str) -> dict:
             print("> ", end="", file=sys.stderr, flush=True)
             value = input().strip()
             if "unsure" in question and value.casefold() in ("?", "unsure", "i don't know", "je ne sais pas"):
+                if any(choice["id"] == "unsure" for choice in question.get("choices", [])):
+                    # A task question offers unsure as an answer of its own, which the task records.
+                    answers[question["id"]] = ["unsure"] if kind == "multi-select" else "unsure"
+                    print(f"  {question['unsure']}.", file=sys.stderr)
+                    break
                 resolved, notes = unsure_answers({question["id"]: "unsure"}, [question])
                 answers.update(resolved)
                 print(f"  {notes[0]}", file=sys.stderr)
@@ -1873,11 +1878,15 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
                 validated = validate_answers(answers)
             open_list = open_points(task["brief"], validated)
         questions = task_questions(task["brief"], validated)
+        follow_ups = [{"id": question["id"], "prompt": question["prompt"]} for question in questions
+                      if question.get("essential") is not None and question["id"] not in answers]
+        if args.answers is not None and "concerns" not in answers:
+            # Required for a new consultation: asked with its choices, as task consult will refuse without it.
+            question = concerns_question()
+            follow_ups.append({key: question[key] for key in ("id", "prompt", "type", "choices", "unsure")})
         _print_json({
             "questions": questions,
-            "follow_ups": sorted(({"id": question["id"], "prompt": question["prompt"]} for question in questions
-                                  if question.get("essential") is not None and question["id"] not in answers),
-                                 key=lambda item: item["id"]),
+            "follow_ups": sorted(follow_ups, key=lambda item: item["id"]),
             "open_points": open_list,
         })
     elif action == "brief":
@@ -2094,6 +2103,7 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         if args.answers:
             with _input_file(args.answers):
                 answers = validate_answers(read_json(args.answers))
+                require_concerns(answers)
         else:
             answers = validate_answers(task["answers"])
         selected = select_boards(
@@ -2116,6 +2126,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         if args.answers is not None:
             with _input_file(args.answers):
                 validate_answers(answers)
+                require_concerns(answers)
+        else:
+            require_concerns(answers)
         with project_lock(state):
             current_task = read_task(state, args.id)
             if current_task != task:
@@ -2232,11 +2245,12 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             write_json(task_path(state, args.id), result)
         print(result["authorizations"][-1]["decision"])
     elif action == "handoff":
-        evidence = []
+        evidence, checks = [], None
+        if task.get("status") in ("approved", *DONE_STATUSES):
+            checks = expected_checks(task, profile, _relevance(root, task, profile, catalog))
         if task.get("status") == "approved":
-            evidence = [check for check in asked_checks(task, profile, _relevance(root, task, profile, catalog))
-                        if check["kind"] == "evidence"]
-        output = handoff(task, evidence)
+            evidence = [check for check in checks if check["concerned"] and check["kind"] == "evidence"]
+        output = handoff(task, evidence, checks)
         check_decision(task, root, profile)
         _require_instructions(args, root, state, profile, catalog)
         print(output)
