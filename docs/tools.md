@@ -141,7 +141,7 @@ openguildkit tools call jira                                            # the mo
 openguildkit tools call jira search_issues --args '{"query": "export"}' # one call, no MCP client needed
 ```
 
-`tools call TOOL` lists each of the mock's tools, marked read or write, with its arguments (type, required or optional, admitted values) and an example call that works. A missing or unknown argument prints the same. A search ignores case and finds every record that contains all the words; an empty query lists them all. An id one call returns is accepted by the other tools of the same mock, except an id a simulated write hands out (`create_issue` returns `SUP-200`): the mock keeps nothing, and a lookup that finds no record names the ids the mock holds, then the ids its writes return and does not keep. A simulated write prints a reminder to use `task authorize` before making a real write.
+`tools call TOOL` lists each of the mock's tools, marked read or write, with its arguments (type, required or optional, admitted values) and an example call that works; `tools call TOOL --json` gives the same list as JSON, for a program that offers the tools by name (the web interface does). A missing or unknown argument prints the same. A search ignores case and finds every record that contains all the words; an empty query lists them all. An id one call returns is accepted by the other tools of the same mock, except an id a simulated write hands out (`create_issue` returns `SUP-200`): the mock keeps nothing, and a lookup that finds no record names the ids the mock holds, then the ids its writes return and does not keep. A simulated write prints a reminder to use `task authorize` before making a real write.
 
 ### Your project's own data
 

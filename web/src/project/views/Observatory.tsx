@@ -36,13 +36,12 @@ export function Observatory({ id }: { id?: string }) {
       {current ? <DossierView id={current} /> : dossiers.data && <Empty title="Aucun dossier de marché" action={<Button variant="primary" onClick={() => setCreating(true)}>Créer un dossier</Button>}>Un dossier compare la fonctionnalité aux concurrents directs et aux substituts (un tableur, un courriel, ne rien faire).</Empty>}
       <Dialog open={creating} onClose={() => setCreating(false)} title="Nouveau dossier de marché">
         <ActionForm busy={busy !== null} submit="Créer" fields={[
-          { name: 'id', label: 'Identifiant', required: true, placeholder: 'support-portals', hint: 'Minuscules et tirets.' },
+          { name: 'id', label: 'Identifiant', required: true, placeholder: 'support-portals', hint: 'Minuscules et tirets.', check: (v) => (SLUG.test(v) ? null : 'Minuscules, chiffres et tirets simples, sans espace ni accent, comme support-portals.') },
           { name: 'title', label: 'Titre', required: true },
           { name: 'market', label: 'Marché', required: true, placeholder: 'Éditeurs B2B en France' },
           { name: 'audience', label: 'Public', required: true },
           { name: 'feature', label: 'Fonctionnalité comparée', required: true },
         ]} onSubmit={async (v) => {
-          if (!SLUG.test(v.id)) return;
           if (await act(['market', 'new', v.id, '--title', v.title, '--market', v.market, '--audience', v.audience, '--feature', v.feature], { success: 'Dossier créé' })) { setCreating(false); navigate(`/observatoire/${v.id}`); }
         }} />
       </Dialog>

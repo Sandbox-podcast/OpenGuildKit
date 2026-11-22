@@ -75,7 +75,6 @@ export function useCliResult(argv: string[] | null): Query<CliResult> {
   return useQuery<CliResult>(key, useCallback(() => run(argv!, undefined, { allowFailure: true, raw: true }), [key]));
 }
 
-/** Marks everything stale: mounted views reload. Called after each action. */
 /**
  * Commands whose answer depends only on the catalog in force (brains, references, patterns, packs, tools,
  * deliverable templates): an ordinary action leaves them as they are.

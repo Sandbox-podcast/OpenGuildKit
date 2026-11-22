@@ -5,9 +5,10 @@ import { Badge, Button, Empty, KV, Notice, Panel, TextArea, TextField } from '@/
 import { Dialog } from '@/shared/ui/overlay';
 import { Icon } from '@/shared/pixel/icons';
 import { norm } from '@/shared/text';
+import { projectPath } from '../api';
 import { useBrains, useTasks, boardTitle } from '../data';
 import { useAction, useCli } from '../query';
-import { CONCERNS, DATA, KIND, RESEARCH, SURFACE, fmtDay, fmtWhen, isBlocked, isDecided, needsReconsult, nextLabel, nextLang, statusesOf, taskStatus, verdict } from '../labels';
+import { CONCERNS, DATA, KIND, RESEARCH, SURFACE, decidedBy, fmtDay, fmtWhen, isBlocked, isDecided, needsReconsult, nextLabel, nextLang, statusesOf, taskStatus, verdict } from '../labels';
 import { ExternalLink, JsonDetails, Q, StepRail, TaskLink, TaskStatusBadge, UnreadableTask } from '../parts';
 import { usePrefs } from '../prefs';
 import type { TaskListItem, TaskRecord } from '../types';
@@ -102,7 +103,7 @@ function QuestCard({ t, rpg }: { t: TaskListItem; rpg: boolean }) {
       {reconsult && <Badge tone="danger" icon="replace">À consulter à nouveau, par une personne</Badge>}
       {t.status === 'unreadable' && <Badge tone="danger" icon="warn">À réparer, par une personne</Badge>}
       <span className="small muted clamp-2" lang={nextLang(t.next)}>{isBlocked(t.next) && <Icon name="ban" size={12} />} {nextLabel(t.next)}</span>
-      <span className="row tiny muted">{fmtDay(t.created)}{t.owner && <> · {rpg ? 'scellée par' : 'décidée par'} {t.owner}</>}{t.follows && <> · suite de {t.follows}</>}</span>
+      <span className="row tiny muted">{fmtDay(t.created)}{t.owner && <> · {decidedBy(t.status, rpg)} {t.owner}</>}{t.follows && <> · suite de {t.follows}</>}</span>
     </a></li>
   );
 }
@@ -192,7 +193,7 @@ function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
                   {t.result.closing.open_points.map((g) => <div key={g.group}><strong>{g.group}</strong><ul>{g.points.map((p) => <li key={p}>{p}</li>)}</ul></div>)}</details>}
               </Panel>}
               {!!t.deliverables?.length && <Panel title="Livrables">
-                <ul className="plain stack tight">{t.deliverables.map((d) => <li key={d.path}><a href={`#/forge/livrables?brouillon=${encodeURIComponent(d.path)}`}>{d.deliverable}</a> <span className="tiny muted">{d.tool ? `${d.tool} · ` : ''}{fmtDay(d.created_at)}</span></li>)}</ul>
+                <ul className="plain stack tight">{t.deliverables.map((d) => <li key={d.path}><a href={`#/forge/livrables?brouillon=${encodeURIComponent(projectPath(d.path))}`}>{d.deliverable}</a> <span className="tiny muted">{d.tool ? `${d.tool} · ` : ''}{fmtDay(d.created_at)}</span></li>)}</ul>
               </Panel>}
             </div>}
             {(t.rounds.length > 0 || children.length > 0) && <Panel title="Historique">

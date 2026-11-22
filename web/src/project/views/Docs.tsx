@@ -80,20 +80,21 @@ function Shares() {
       <Notice tone="info">Documentalist contrôle l’accès (portail public, code partagé ou adresses invitées). OpenGuildKit tient le registre de ce qui a été partagé, avec qui et jusqu’à quand, pour qu’un accès expiré ne reste pas ouvert. Le registre est local (<code>.openguildkit/shares/</code>, ignoré par Git) car il contient des adresses.</Notice>
       {check.data && check.data.code !== 0 && <Notice tone="danger" title="Partages expirés à retirer :"><Pre text={check.data.stdout || check.data.stderr} /></Notice>}
       <Q q={shares}>{(list) => <Panel title={`Registre (${list.length})`}>
+        {list.some((s) => !s.revoked_at) && <TextField label="Personne qui enregistre un retrait" hint={by.trim() ? undefined : 'Indique ton nom pour enregistrer qu’un accès a été retiré : le registre note qui l’a fait.'} value={by} onChange={(e) => setBy(e.target.value)} />}
         {list.length === 0 ? <p className="muted">Aucun partage.</p> : <table className="data compact"><thead><tr><th>Livrable</th><th>Destinataires</th><th>Jusqu’au</th><th>État</th><th /></tr></thead><tbody>
           {list.map((s) => { const l = SHARE[shareState(s.state)]; return <tr key={s.id}><td><span className="mono small">{s.deliverable}</span><span className="tiny block"><ExternalLink href={s.portal}>portail</ExternalLink> · {s.by}, {fmtWhen(s.created_at)}</span></td><td className="small">{s.recipients.join(', ')}</td><td>{fmtDay(s.until)}</td><td><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge></td>
-            <td>{!s.revoked_at && <Button size="small" variant="danger" busy={busy !== null} disabled={!by} onClick={() => void act(['docs', 'share', 'revoke', '--id', s.id, '--by', by], { success: 'Retrait enregistré' })}>Accès retiré</Button>}</td></tr>; })}
+            <td>{!s.revoked_at && <Button size="small" variant="danger" busy={busy !== null} disabled={!by.trim()} onClick={() => void act(['docs', 'share', 'revoke', '--id', s.id, '--by', by.trim()], { success: 'Retrait enregistré' })}>Accès retiré</Button>}</td></tr>; })}
         </tbody></table>}
         <p className="tiny muted">Retirez d’abord l’accès dans Documentalist (« Retirer l’accès »), puis enregistrez-le ici.</p>
       </Panel>}</Q>
       <Panel title="Enregistrer un partage">
         <ListEditor label="Destinataires (adresses)" items={recipients} onChange={setRecipients} placeholder="client@example.org" />
-        <ActionForm busy={busy !== null} submit="Enregistrer le partage" initial={{ by }} fields={[
+        <ActionForm busy={busy !== null} submit="Enregistrer le partage" initial={{ by }} problem={recipients.length ? null : 'Il manque un destinataire : ajoute au moins une adresse avec « Ajouter », le registre dit avec qui la page est partagée.'} fields={[
           { name: 'deliverable', label: 'Page ou dossier partagé', required: true, placeholder: 'docs-site/reference/request-status.md', hint: 'Un fichier existant du projet, ou le dossier écrit par l’export, jamais sous .openguildkit/.' },
           { name: 'until', label: 'Dernier jour d’accès', type: 'date', required: true },
           { name: 'portal', label: 'Adresse du portail Documentalist (https)', type: 'url', required: true },
           { name: 'by', label: 'Responsable du partage', required: true },
-        ]} onSubmit={async (v) => { setBy(v.by); if (!recipients.length) return; if (await act(['docs', 'share', 'add', '--deliverable', v.deliverable, ...recipients.flatMap((r) => ['--recipient', r]), '--until', v.until, '--portal', v.portal, '--by', v.by], { success: 'Partage enregistré' })) setRecipients([]); }} />
+        ]} onSubmit={async (v) => { setBy(v.by); if (await act(['docs', 'share', 'add', '--deliverable', v.deliverable, ...recipients.flatMap((r) => ['--recipient', r]), '--until', v.until, '--portal', v.portal, '--by', v.by], { success: 'Partage enregistré' })) setRecipients([]); }} />
       </Panel>
     </div>
   );

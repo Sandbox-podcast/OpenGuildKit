@@ -3,12 +3,13 @@ import { useMemo } from 'react';
 import { PLACES } from '@/shared/places';
 import { buildingSprite, cottageSprite } from '@/shared/pixel/buildings';
 import { mapHeight, MAP_W, PLACE_POS, terrainUrl, territoryRect } from '@/shared/pixel/terrain';
-import { Icon, type PixelIconName } from '@/shared/pixel/icons';
+import { Icon } from '@/shared/pixel/icons';
 import { Badge, Button, KV, Panel, Stat } from '@/shared/ui/core';
 import { placeCounts, signalsOf, useOverview, useProfile, type ProjectSignals } from '../data';
 import { usePrefs } from '../prefs';
 import { useAction } from '../query';
 import { RESEARCH, isDone, nextLabel, nextLang, statusesOf, taskStatus } from '../labels';
+import { todos } from '../todo';
 import { TaskStatusBadge } from '../parts';
 import type { Profile, TaskListItem } from '../types';
 
@@ -58,27 +59,6 @@ function ProjectMap({ profile, signals }: { profile: Profile | null; signals: Pr
       </div>
     </div>
   );
-}
-
-interface Todo { id: string; who: 'person' | 'agent'; icon: PixelIconName; title: string; detail: string; lang?: 'en'; to: string; tone: 'danger' | 'warning' | 'info' | 'ai' }
-
-function todos(s: ProjectSignals): Todo[] {
-  const out: Todo[] = [];
-  if (s.instructionsDrift) out.push({ id: 'check', who: 'person', icon: 'warn', title: 'Instructions à synchroniser', detail: 'AGENTS.md, les réglages de l’hôte ou le verrou du catalogue ne correspondent plus au profil.', to: '/intendance', tone: 'danger' });
-  s.unreadable.forEach((t) => out.push({ id: `u:${t.id}`, who: 'person', icon: 'warn', title: `Réparer le fichier de ${t.id}`, detail: t.next, lang: 'en', to: `/quetes/${t.id}`, tone: 'danger' }));
-  s.reconsult.forEach((t) => out.push({ id: `a:${t.id}`, who: 'person', icon: 'replace', title: `Consulter à nouveau ${t.id}`, detail: nextLabel(t.next), lang: nextLang(t.next), to: `/conseil/${t.id}`, tone: 'danger' }));
-  s.blocked.forEach((t) => out.push({ id: `b:${t.id}`, who: 'person', icon: 'ban', title: `Lever les blocages de ${t.id}`, detail: nextLabel(t.next), to: `/conseil/${t.id}#blocages`, tone: 'danger' }));
-  s.awaitingDecision.forEach((t) => out.push({ id: `d:${t.id}`, who: 'person', icon: 'lock', title: `Décider de ${t.id}`, detail: 'Les avis sont rendus : validez dans votre terminal ou renvoyez au Conseil.', to: `/conseil/${t.id}#decision`, tone: 'warning' }));
-  s.tasks.filter((t) => t.status === 'draft').forEach((t) => out.push({ id: `q:${t.id}`, who: 'person', icon: 'question', title: `Cadrer ${t.id}`, detail: nextLabel(t.next), to: `/conseil/${t.id}`, tone: 'info' }));
-  s.tasks.filter((t) => t.status === 'changes-requested').forEach((t) => out.push({ id: `r:${t.id}`, who: 'person', icon: 'replace', title: `Reprendre ${t.id}`, detail: nextLabel(t.next), to: `/conseil/${t.id}`, tone: 'warning' }));
-  s.tasks.filter((t) => t.status === 'consulting').forEach((t) => out.push({ id: `c:${t.id}`, who: 'agent', icon: 'council', title: `Avis attendus sur ${t.id}`, detail: nextLabel(t.next), to: `/conseil/${t.id}`, tone: 'ai' }));
-  s.toBuild.forEach((t) => out.push({ id: `f:${t.id}`, who: 'agent', icon: 'anvil', title: `Réaliser ${t.id}`, detail: nextLabel(t.next), to: `/forge/${t.id}`, tone: 'ai' }));
-  if (s.alertsOpen) out.push({ id: 'alerts', who: 'person', icon: 'shield', title: `${s.alertsOpen} alerte(s) de dépendance à revoir`, detail: 'Confirmez, écartez avec un motif, ou ouvrez une quête de correctif.', to: '/tour/alertes', tone: 'danger' });
-  if (s.sharesExpired) out.push({ id: 'shares', who: 'person', icon: 'link', title: `${s.sharesExpired} partage(s) expiré(s)`, detail: 'Retirez l’accès dans Documentalist, puis enregistrez le retrait.', to: '/documentation/partages', tone: 'danger' });
-  if (s.marketDue) out.push({ id: 'market', who: 'agent', icon: 'telescope', title: `${s.marketDue} source(s) de veille à relire`, detail: 'Selon la politique de recherche du projet.', to: '/observatoire', tone: 'info' });
-  if (s.updates) out.push({ id: 'update', who: 'person', icon: 'download', title: `${s.updates} évolution(s) du catalogue installé`, detail: 'Comparez règle par règle, puis adoptez-les.', to: '/intendance/catalogue', tone: 'warning' });
-  if (s.hostMissing) out.push({ id: 'host', who: 'person', icon: 'key', title: `${s.hostMissing} réglage(s) d’hôte manquant(s)`, detail: 'openguildkit host apply écrit les réglages de Claude Code ou Codex.', to: '/intendance/hote', tone: 'warning' });
-  return out;
 }
 
 export function Home() {

@@ -63,6 +63,10 @@ test('lists every task by state and opens a new one', async ({ page }) => {
   for (const id of ['dark-theme', 'status-labels', 'closing-survey', 'request-export', 'request-history', 'request-status']) {
     await expect(board.getByText(id, { exact: true })).toBeVisible();
   }
+  // A task sent back is not sealed: its card says who returned it.
+  const returned = board.locator('.task-card', { hasText: 'closing-survey' });
+  await expect(returned).toContainText('renvoyée par Camille Martin');
+  await expect(returned).not.toContainText('scellée');
   await page.getByRole('combobox', { name: 'État' }).selectOption('done');
   await expect(board.getByText('request-status', { exact: true })).toBeVisible();
   await expect(board.getByText('dark-theme', { exact: true })).toHaveCount(0);
@@ -286,6 +290,17 @@ test('shows a task record left in conflict, with the error, on the kingdom and t
 
 test('runs the checks, records the results and completes a task in the forge', async ({ page }) => {
   await open(page, '/forge/request-history');
+  // A result that records only a Git revision opens on it, and stays a revision when it is saved again.
+  await api(page, './api/run', { argv: ['task', 'result', 'request-history', '--file', '@upload:result.json'], uploads: { 'result.json': JSON.stringify({ revision: 'abc1234', criteria: [], checks: [] }) } });
+  await page.reload();
+  await expect(page.getByLabel('Livraison')).toHaveValue('revision');
+  await expect(page.getByLabel('Révision', { exact: true })).toHaveValue('abc1234');
+  await page.getByRole('button', { name: 'Enregistrer les résultats' }).click();
+  await expect(page.getByText('Résultats enregistrés')).toBeVisible();
+  const saved = await cli<{ result: { revision?: string; pull_request?: string } }>(page, ['task', 'show', 'request-history']);
+  expect(saved.json.result).toMatchObject({ revision: 'abc1234' });
+  expect(saved.json.result.pull_request).toBeUndefined();
+  await page.getByLabel('Livraison').selectOption('pull_request');
   await page.getByRole('button', { name: 'Passation (handoff)' }).click();
   await expect(page.getByRole('dialog', { name: 'Passation validée' }).getByText(/Approved implementation handoff|request-history/).first()).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Fermer' }).last().click();
@@ -329,6 +344,15 @@ test('starts a business deliverable and lists what keeps it from review', async 
   await expect(draft.getByText(/placeholder/)).toBeVisible();
 });
 
+test('opens a task’s deliverable from its sheet', async ({ page }) => {
+  await open(page, '/quetes/request-history');
+  await page.getByRole('region', { name: 'Livrables' }).getByRole('link', { name: 'release-announcement' }).click();
+  const draft = page.getByRole('dialog', { name: 'marketing/request-history-announcement.md' });
+  await expect(draft).toBeVisible();
+  await expect(draft.locator('.scroll-box')).not.toBeEmpty();
+  await expect(draft.getByText(/La commande a échoué|Give a path relative/)).toHaveCount(0);
+});
+
 test('connects a tool with its mock and calls it', async ({ page }) => {
   await open(page, '/forge/outils');
   await page.getByLabel('Rechercher un outil').fill('jira');
@@ -342,6 +366,14 @@ test('connects a tool with its mock and calls it', async ({ page }) => {
   const status = await cli<{ key: string; mode: string }[]>(page, ['tools', 'status', '--json']);
   expect(status.json).toEqual([expect.objectContaining({ key: 'jira', mode: 'mock' })]);
 
+  await page.getByLabel('Rechercher un outil').fill('zendesk');
+  await page.locator('tr').filter({ has: page.getByLabel('Choisir Zendesk', { exact: true }) }).getByRole('button', { name: 'Essayer' }).click();
+  const zendesk = page.getByRole('dialog', { name: 'Simulation zendesk' });
+  await expect(zendesk.getByLabel('Outil de la simulation').locator('option')).toHaveText(['Choisir…', 'search_tickets', 'get_ticket', 'add_internal_note']);
+  await zendesk.getByLabel('Outil de la simulation').selectOption('get_ticket');
+  await expect(zendesk.getByLabel('Arguments (JSON)')).toHaveValue('{"ticket_id":4101}');
+  await zendesk.getByRole('button', { name: 'Fermer' }).last().click();
+  await page.getByLabel('Rechercher un outil').fill('jira');
   await page.locator('tr').filter({ has: page.getByLabel('Choisir Jira', { exact: true }) }).getByRole('button', { name: 'Essayer' }).click();
   const mock = page.getByRole('dialog', { name: 'Simulation jira' });
   await mock.getByLabel('Outil de la simulation').selectOption('search_issues');
@@ -444,6 +476,9 @@ test('creates a market dossier, adds a competitor and an observation, and review
 
   await page.getByRole('button', { name: 'Nouveau dossier' }).click();
   let dialog = page.getByRole('dialog', { name: 'Nouveau dossier de marché' });
+  await dialog.getByLabel('Identifiant').fill('Chat Support');
+  await expect(dialog.getByText(/Minuscules, chiffres et tirets simples, sans espace/)).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Créer' })).toBeDisabled();
   await dialog.getByLabel('Identifiant').fill('chat-support');
   await dialog.getByLabel('Titre').fill('Chat support tools');
   await dialog.getByLabel('Marché').fill('Support desks in France');
@@ -483,6 +518,13 @@ test('exports a completed task for Documentalist, then records and revokes a sha
   await page.getByRole('dialog').getByRole('button', { name: 'Fermer' }).last().click();
 
   await page.getByRole('tab', { name: /Partages/ }).click();
+  await expect(page.getByText(/Indique ton nom pour enregistrer qu’un accès a été retiré/)).toBeVisible();
+  await page.getByLabel('Page ou dossier partagé').fill('docs-site/reference/request-status.md');
+  await page.getByLabel('Dernier jour d’accès').fill('2026-12-20');
+  await page.getByLabel('Adresse du portail Documentalist (https)').fill('https://docs.example.org/p/support-portal');
+  await page.getByLabel('Responsable du partage').fill('Camille Martin');
+  await page.getByRole('button', { name: 'Enregistrer le partage' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'Il manque un destinataire' })).toBeVisible();
   await page.getByLabel('Ajouter : Destinataires (adresses)').fill('partner@example.org');
   await page.getByLabel('Ajouter : Destinataires (adresses)').press('Enter');
   await page.getByLabel('Page ou dossier partagé').fill('docs-site/reference/request-status.md');

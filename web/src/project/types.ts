@@ -52,7 +52,6 @@ export interface TaskRecord {
   completed_at?: string;
   deliverables?: { deliverable: string; path: string; tool?: string; created_at: string }[];
   authorizations?: { action: string; target: string; decision: 'allow' | 'deny'; by: string; reason: string; at: string }[];
-  resolutions?: Record<string, { kind: 'cleared' | 'waived'; by: string; evidence?: string; supports?: string; reason?: string; scope?: string; until?: string }>;
   passes?: Record<string, unknown>;
 }
 
@@ -145,7 +144,8 @@ export interface StaleTask { id: string; status: string; step: string }
 export interface Update { changes: { collection?: string; id?: string; status?: string; fields?: string[]; rules?: unknown }[]; conflicts: unknown[]; applied: boolean; stale_tasks: StaleTask[]; note?: string; catalog_date?: string }
 export interface Guard { mode: string; covered_by: string[] }
 export interface Tool { id: string; title: string; vendor: string; summary: string; homepage: string; brains: string[]; servers: { name?: string; id?: string; kind?: string; maintainer?: string; transport?: string }[]; api?: { kind: string; docs: string }; notes?: string; category: string; mock: boolean }
-export interface ToolStatus { tool: string; server?: string; host?: string; recorded?: boolean; present?: boolean; missing?: string[] }
+/** `tools call ID --json`: the tools of a mock, each with its arguments and an example that works. */
+export interface MockListing { tool: string; instructions: string; generic: boolean; tools: { name: string; read_only: boolean; description: string; arguments: string; example: Record<string, unknown> }[] }
 
 export interface Dossier {
   id: string; title: string; market: string; audience: string; feature: string;
@@ -156,4 +156,7 @@ export interface Dossier {
 }
 export interface MarketDue { dossiers: { dossier: string; due: { competitor: string; url: string; kind: string; dossier: string }[]; paused: boolean }[]; due: { competitor: string; url: string; kind: string; dossier: string }[] }
 
-export interface StorybookProposal { id: string; kind?: string; name?: string; status?: string; decision?: string; source?: string; group?: string; [key: string]: unknown }
+/** One proposal of `.openguildkit/storybook/proposals.json`: a component, a variant or a token, and its decision. */
+export type ProposalStatus = 'proposed' | 'validated' | 'rejected';
+export interface ProposalItem { key: string; name: string; status: ProposalStatus; kind?: string; confidence?: string; basis?: string; observed?: boolean; file?: string; line?: number; component?: string; props?: Record<string, unknown>; value?: string; occurrences?: number; usages?: number; origins?: string[] }
+export interface StorybookProposals { components: ProposalItem[]; variants: ProposalItem[]; tokens: ProposalItem[]; [key: string]: unknown }

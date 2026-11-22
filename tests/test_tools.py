@@ -463,6 +463,22 @@ class CommandTests(unittest.TestCase):
             self.assertEqual(json.loads(out)["body"], "Synthetic note")
             self.assertIn("openguildkit task authorize", err)
 
+    def test_call_lists_only_the_mocks_tools_as_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            code, out, err = run("--project", directory, "tools", "call", "zendesk", "--json")
+            self.assertEqual(code, 0, err)
+            listing = json.loads(out)
+            self.assertEqual([tool["name"] for tool in listing["tools"]],
+                             ["search_tickets", "get_ticket", "add_internal_note"])
+            self.assertEqual([tool["read_only"] for tool in listing["tools"]], [True, True, False])
+            self.assertEqual(listing["tool"], "zendesk")
+            self.assertTrue(listing["generic"])
+            self.assertIn("ticket_id (integer, required)", listing["tools"][1]["arguments"])
+            self.assertEqual(listing["tools"][1]["example"], {"ticket_id": 4101})
+            code, _, err = run("--project", directory, "tools", "call", "zendesk", "get_ticket", "--json")
+            self.assertEqual(code, 1)
+            self.assertIn("--json lists the tools of the mock", err)
+
     def test_mock_help_search_and_simulated_refund(self):
         with tempfile.TemporaryDirectory() as directory:
             code, out, err = run("--project", directory, "tools", "call", "google-analytics")

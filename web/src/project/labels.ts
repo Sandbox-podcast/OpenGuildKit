@@ -22,6 +22,10 @@ export const TASK_ORDER: TaskStatus[] = ['draft', 'consulting', 'changes-request
 export const isDone = (status: string) => status === 'done' || status === 'done-with-reservations';
 /** A task a person approved: still to implement, or completed. */
 export const isDecided = (status: string) => status === 'approved' || isDone(status);
+/** The delivery field a result opens on: a pull request, or the Git revision when that is all it records. */
+export const deliveryOf = (result?: { pull_request?: string; revision?: string }): 'pull_request' | 'revision' => (!result?.pull_request && result?.revision ? 'revision' : 'pull_request');
+/** Who decided a task, as a task card says it: a task sent back is not sealed. */
+export const decidedBy = (status: string, rpg: boolean) => (status === 'changes-requested' ? 'renvoyée par' : rpg ? 'scellée par' : 'approuvée par');
 /** An approved task whose approval no longer holds (rules changed, seal broken): a person consults it again. */
 export const needsReconsult = (t: { status: string; severity?: string }) => t.status === 'approved' && t.severity === 'error';
 /** The columns of a list of tasks: every status, and unreadable records only when there is one. */

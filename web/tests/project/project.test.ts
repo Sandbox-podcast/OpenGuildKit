@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { quoteFor } from '@/project/api';
+import { projectPath, quoteFor } from '@/project/api';
+import { GROUP_ABOVE, todos } from '@/project/todo';
 import { changesCatalog, invalidate, load, peek, remember } from '@/project/query';
 import { onlyTasksFail, placeCounts, signalsOf } from '@/project/data';
-import { hasFailedCheck, isBlocked, isDecided, isDone, nextLabel, nextLang, openPointLabel, parseTemplates, reasonLabel, shareState, statusesOf, stepOf, taskStatus, touchedStep, touchedTasks } from '@/project/labels';
+import { decidedBy, deliveryOf, hasFailedCheck, isBlocked, isDecided, isDone, nextLabel, nextLang, openPointLabel, parseTemplates, reasonLabel, shareState, statusesOf, stepOf, taskStatus, touchedStep, touchedTasks } from '@/project/labels';
 import { missingRequired, normAnswers, pendingNorms, setupAnswers, type NormDraft } from '@/project/setup';
 import { isMultiple, toggleChoice, unanswered } from '@/project/answers';
 import type { CliResult } from '@/project/api';
@@ -96,6 +97,30 @@ describe('setup answers', () => {
     expect(missingRequired(questions, {})).toEqual(['personal_data']);
     expect(missingRequired(questions, { personal_data: 'no' })).toEqual([]);
     expect(['stack Stripe', 'personal data', 'sector healthcare', 'something else'].map(reasonLabel)).toEqual(['pile : Stripe', 'données personnelles', 'secteur Santé', null]);
+  });
+});
+
+describe('task pages', () => {
+  it('opens a result on what it records, and says who sent a task back', () => {
+    expect(deliveryOf({ revision: 'abc1234' })).toBe('revision');
+    expect(deliveryOf({ revision: 'abc1234', pull_request: 'https://example.test/pull/7' })).toBe('pull_request');
+    expect(deliveryOf(undefined)).toBe('pull_request');
+    expect([decidedBy('changes-requested', true), decidedBy('approved', true), decidedBy('done', false)]).toEqual(['renvoyée par', 'scellée par', 'approuvée par']);
+  });
+
+  it('turns a path the CLI records into one the file API takes, on POSIX and Windows', () => {
+    expect(projectPath('/home/camille/portal/marketing/a.md', '/home/camille/portal')).toBe('marketing/a.md');
+    expect(projectPath('C:\\Users\\Camille\\portal\\marketing\\a.md', 'C:\\Users\\Camille\\portal')).toBe('marketing/a.md');
+    expect(projectPath('marketing/a.md', '/home/camille/portal')).toBe('marketing/a.md');
+  });
+
+  it('lists each task to do, and one entry per kind when there are many', () => {
+    const drafts = Array.from({ length: 503 }, (_, i) => ({ id: `t${i}`, status: 'draft', next: 'Answer the questionnaire and consult the boards.' }));
+    const few = signalsOf({ tasks: ok(drafts.slice(0, GROUP_ABOVE)) });
+    expect(todos(few).map((t) => t.title)).toEqual(drafts.slice(0, GROUP_ABOVE).map((t) => `Cadrer ${t.id}`));
+    const many = todos(signalsOf({ tasks: ok(drafts) }));
+    expect(many).toHaveLength(1);
+    expect(many[0]).toMatchObject({ title: '503 quêtes à cadrer', to: '/quetes?statut=draft', who: 'person' });
   });
 });
 

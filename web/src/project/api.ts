@@ -121,6 +121,12 @@ export const saveProfile = (text: string) => post<CliResult>('./api/profile/save
  */
 export const quoteFor = (value: string, windows: boolean) => /^[A-Za-z0-9._:/@=+-]+$/.test(value) ? value : `'${value.replace(/'/g, windows ? "''" : "'\\''")}'`;
 export const shellQuote = (value: string) => quoteFor(value, /^[A-Za-z]:[\\/]/.test(session?.project.root ?? ''));
+/** A path the CLI records (absolute, the project's own separators) as the file API takes it: relative, with slashes. */
+export function projectPath(path: string, root = session?.project.root ?? '') {
+  const normalized = path.replace(/\\/g, '/');
+  const base = root.replace(/\\/g, '/').replace(/\/$/, '');
+  return base && normalized.toLowerCase().startsWith(`${base.toLowerCase()}/`) ? normalized.slice(base.length + 1) : normalized;
+}
 export const terminalCommand = (argv: string[]) => ['openguildkit', '--project', shellQuote(session?.project.root ?? '.'), ...argv.map(shellQuote)].join(' ');
 
 /** Many read commands in as few requests as the server allows (40 per batch); a failed one gives null. */

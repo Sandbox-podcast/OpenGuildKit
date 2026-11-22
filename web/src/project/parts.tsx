@@ -157,7 +157,7 @@ export function FilePick({ label, accept = '.json,application/json', onText, hin
 }
 
 /** Edits a list of single-line texts (conventions, checks, tools, recipients). */
-export function ListEditor({ label, items, onChange, placeholder, hint }: { label: string; items: string[]; onChange: (items: string[]) => void; placeholder?: string; hint?: string }) {
+export function ListEditor({ label, items, onChange, placeholder, hint, error }: { label: string; items: string[]; onChange: (items: string[]) => void; placeholder?: string; hint?: string; error?: string | null }) {
   const [draft, setDraft] = useState('');
   const add = () => { const v = draft.trim(); if (v && !items.includes(v)) onChange([...items, v]); setDraft(''); };
   return (
@@ -171,6 +171,7 @@ export function ListEditor({ label, items, onChange, placeholder, hint }: { labe
         <input className="input" value={draft} placeholder={placeholder} aria-label={`Ajouter : ${label}`} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
         <Button size="small" icon="plus" onClick={add} disabled={!draft.trim()}>Ajouter</Button>
       </div>
+      {error && <p className="error small" role="alert">{error}</p>}
     </fieldset>
   );
 }
@@ -183,18 +184,25 @@ export function Pre({ text }: { text: string }) {
   return <pre className="code-block pre-wrap">{text.trim()}</pre>;
 }
 
-/** A small form with the fields a CLI action needs; the submit runs `onSubmit` with the values. */
-export function ActionForm({ fields, submit, busy, onSubmit, initial, tone }: {
-  fields: { name: string; label: string; required?: boolean; multiline?: boolean; placeholder?: string; type?: string; hint?: string; options?: { value: string; label: string }[] }[];
+/**
+ * A small form with the fields a CLI action needs; the submit runs `onSubmit` with the values. A field's `check`
+ * says why its value is refused, under the field, and `problem` why the form as a whole cannot be sent yet.
+ */
+export function ActionForm({ fields, submit, busy, onSubmit, initial, tone, problem }: {
+  fields: { name: string; label: string; required?: boolean; multiline?: boolean; placeholder?: string; type?: string; hint?: string; options?: { value: string; label: string }[]; check?: (value: string) => string | null }[];
   submit: string; busy?: boolean; tone?: 'primary' | 'danger' | 'ai';
   onSubmit: (values: Record<string, string>) => void | Promise<unknown>;
   initial?: Record<string, string>;
+  problem?: string | null;
 }) {
   const [values, setValues] = useState<Record<string, string>>(initial ?? {});
+  const [tried, setTried] = useState(false);
   const missing = fields.filter((f) => f.required && !values[f.name]?.trim());
+  const errorOf = (f: (typeof fields)[number]) => (values[f.name]?.trim() && f.check ? f.check(values[f.name].trim()) : null);
+  const refused = fields.filter((f) => errorOf(f));
   const set = (name: string, value: string) => setValues((v) => ({ ...v, [name]: value }));
   return (
-    <form className="stack action-form" onSubmit={(e) => { e.preventDefault(); if (!missing.length) void onSubmit(values); }}>
+    <form className="stack action-form" onSubmit={(e) => { e.preventDefault(); setTried(true); if (!missing.length && !refused.length && !problem) void onSubmit(values); }}>
       {fields.map((f) => f.options
         ? <div className="field" key={f.name}><label htmlFor={`f-${f.name}`}>{f.label}</label>
             <select id={`f-${f.name}`} className="input" value={values[f.name] ?? ''} required={f.required} onChange={(e) => set(f.name, e.target.value)}>
@@ -202,9 +210,10 @@ export function ActionForm({ fields, submit, busy, onSubmit, initial, tone }: {
               {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>{f.hint && <p className="hint">{f.hint}</p>}</div>
         : f.multiline
-          ? <TextArea key={f.name} label={f.label} hint={f.hint} value={values[f.name] ?? ''} required={f.required} placeholder={f.placeholder} onChange={(e) => set(f.name, e.target.value)} />
-          : <TextField key={f.name} label={f.label} hint={f.hint} type={f.type ?? 'text'} value={values[f.name] ?? ''} required={f.required} placeholder={f.placeholder} onChange={(e) => set(f.name, e.target.value)} />)}
-      <div className="row"><Button type="submit" variant={tone ?? 'primary'} busy={busy} disabled={busy || missing.length > 0}>{submit}</Button></div>
+          ? <TextArea key={f.name} label={f.label} hint={f.hint} error={errorOf(f)} value={values[f.name] ?? ''} required={f.required} placeholder={f.placeholder} onChange={(e) => set(f.name, e.target.value)} />
+          : <TextField key={f.name} label={f.label} hint={f.hint} error={errorOf(f)} type={f.type ?? 'text'} value={values[f.name] ?? ''} required={f.required} placeholder={f.placeholder} onChange={(e) => set(f.name, e.target.value)} />)}
+      {tried && problem && <p className="error small" role="alert">{problem}</p>}
+      <div className="row"><Button type="submit" variant={tone ?? 'primary'} busy={busy} disabled={busy || missing.length > 0 || refused.length > 0}>{submit}</Button></div>
     </form>
   );
 }

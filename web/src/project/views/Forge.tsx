@@ -9,12 +9,12 @@ import { Dialog } from '@/shared/ui/overlay';
 import { Markdown } from '@/shared/ui/markdown';
 import { norm } from '@/shared/text';
 import { toast } from '@/shared/ui/toast';
-import { batchJson, cliMessage, currentSession, readJson, readText, run, terminalCommand, writeFile, type CliResult } from '../api';
+import { batchJson, cliMessage, projectPath, readJson, readText, run, terminalCommand, writeFile, type CliResult } from '../api';
 import { useProfile, useTasks } from '../data';
 import { invalidate, showTerminal, useAction, useCli, useCliResult, useCliText, useQuery } from '../query';
-import { checkLabel, fmtWhen, hasFailedCheck, isDecided, isDone, needsReconsult, nextLabel, nextLang, parseTemplates } from '../labels';
+import { checkLabel, deliveryOf, fmtWhen, hasFailedCheck, isDecided, isDone, needsReconsult, nextLabel, nextLang, parseTemplates } from '../labels';
 import { ActionForm, CommandLine, ExternalLink, FilePick, JsonDetails, Pre, Q, Section, StepRail, TaskStatusBadge, UnreadableTask, copyText, useRemembered } from '../parts';
-import type { BlockerItem, ExpectedCheck, TaskRecord, Tool } from '../types';
+import type { BlockerItem, ExpectedCheck, MockListing, ProposalItem, ProposalStatus, StorybookProposals, TaskRecord, Tool } from '../types';
 
 export function Forge({ tab = 'quetes' }: { tab?: string }) {
   return (
@@ -188,7 +188,7 @@ type Outcome = { status: string; evidence: string; reason: string; owner: string
 function Results({ task }: { task: TaskRecord }) {
   const checks = useCli<ExpectedCheck[]>(['task', 'checks', task.id, '--json']);
   const [owner, setOwner] = useRemembered('decider');
-  const [delivery, setDelivery] = useState<'pull_request' | 'revision'>(task.result?.pull_request ? 'pull_request' : 'pull_request');
+  const [delivery, setDelivery] = useState(deliveryOf(task.result));
   const [ref, setRef] = useState(task.result?.pull_request ?? task.result?.revision ?? '');
   const [criteria, setCriteria] = useState(task.result?.criteria ?? []);
   const [outcomes, setOutcomes] = useState<Record<string, Outcome>>({});
@@ -281,7 +281,8 @@ function Deliverables() {
   const profile = useProfile();
   const route = useRoute();
   const [show, setShow] = useState<string | null>(null);
-  const [draft, setDraft] = useState<string | null>(route.query.get('brouillon'));
+  const asked = route.query.get('brouillon');
+  const [draft, setDraft] = useState<string | null>(asked && projectPath(asked));
   const { act, busy } = useAction();
   const templates = useMemo(() => parseTemplates(list.data ?? ''), [list.data]);
   const records = useQuery<TaskRecord[]>(tasks.data ? `deliverable-records:${(tasks.data ?? []).map((t) => `${t.id}=${t.status}`).join(',')}` : null, useCallback(async () => {
@@ -290,7 +291,6 @@ function Deliverables() {
     return ids.map((id) => records[id]).filter((r): r is TaskRecord => !!r);
   }, [tasks.data]));
   const drafts = (records.data ?? []).flatMap((t) => (t.deliverables ?? []).map((d) => ({ ...d, task: t.id })));
-  const root = profileRootRelative;
   return (
     <div className="page-grid">
       <Panel title="Modèles de livrables">
@@ -308,19 +308,12 @@ function Deliverables() {
       </Panel>
       <Panel title={<>Brouillons des quêtes <span className="badge count">{drafts.length}</span></>}>
         {drafts.length === 0 ? <p className="muted">Aucun brouillon.</p> : <table className="data compact"><thead><tr><th>Brouillon</th><th>Quête</th><th>Outil</th><th /></tr></thead>
-          <tbody>{drafts.map((d) => <tr key={d.path}><td><span className="mono small">{root(d.path)}</span><span className="tiny muted block">{d.deliverable}</span></td><td><a href={`#/quetes/${d.task}`}>{d.task}</a></td><td>{d.tool ?? '—'}</td><td><Button size="small" onClick={() => setDraft(root(d.path))}>Ouvrir</Button></td></tr>)}</tbody></table>}
+          <tbody>{drafts.map((d) => <tr key={d.path}><td><span className="mono small">{projectPath(d.path)}</span><span className="tiny muted block">{d.deliverable}</span></td><td><a href={`#/quetes/${d.task}`}>{d.task}</a></td><td>{d.tool ?? '—'}</td><td><Button size="small" onClick={() => setDraft(projectPath(d.path))}>Ouvrir</Button></td></tr>)}</tbody></table>}
       </Panel>
       <TemplateDialog id={show} onClose={() => setShow(null)} />
       <DraftDialog path={draft} onClose={() => { setDraft(null); setQuery({ brouillon: null }); }} />
     </div>
   );
-}
-
-/** The CLI records absolute paths; the file API takes paths relative to the project. */
-function profileRootRelative(path: string) {
-  const normalized = path.replace(/\\/g, '/');
-  const root = (currentSession()?.project.root ?? '').replace(/\\/g, '/').replace(/\/$/, '');
-  return root && normalized.toLowerCase().startsWith(`${root.toLowerCase()}/`) ? normalized.slice(root.length + 1) : normalized;
 }
 
 function TemplateDialog({ id, onClose }: { id: string | null; onClose: () => void }) {
@@ -432,31 +425,41 @@ function Tools() {
   );
 }
 
+/** The console of a mock: its tools come from `tools call ID --json`, each with its arguments and a working example. */
 function MockConsole({ id, onClose }: { id: string | null; onClose: () => void }) {
-  const list = useCliText(id ? ['tools', 'call', id] : null);
+  const listing = useCli<MockListing>(id ? ['tools', 'call', id, '--json'] : null);
   const [name, setName] = useState('');
   const [args, setArgs] = useState('{}');
-  const [answer, setAnswer] = useState('');
-  const names = (list.data ?? '').split('\n').map((l) => l.split(/\s+/)[0]).filter(Boolean);
+  const [answer, setAnswer] = useState<{ text: string; failed: boolean } | null>(null);
+  useEffect(() => { setName(''); setArgs('{}'); setAnswer(null); }, [id]);
+  const pick = (tool: string) => {
+    setName(tool);
+    const example = listing.data?.tools.find((t) => t.name === tool)?.example;
+    if (example) setArgs(JSON.stringify(example));
+  };
   return (
     <Dialog open={!!id} onClose={onClose} wide title={`Simulation ${id ?? ''}`} footer={<Button onClick={onClose}>Fermer</Button>}>
       <p className="small muted">La simulation répond avec des données synthétiques : un portail de support fictif, ses tickets, ses alertes. Aucun réseau, aucun compte.</p>
-      <Q q={list}>{(t) => <Pre text={t} />}</Q>
-      <div className="grid-2">
-        <div className="field"><label htmlFor="mock-name">Outil de la simulation</label><select id="mock-name" className="input" value={name} onChange={(e) => setName(e.target.value)}><option value="">Choisir…</option>{names.map((n) => <option key={n} value={n}>{n}</option>)}</select></div>
-        <TextArea label="Arguments (JSON)" value={args} onChange={(e) => setArgs(e.target.value)} rows={2} />
-      </div>
-      <Button variant="primary" disabled={!name} onClick={() => void run(['tools', 'call', id!, name, '--args', args], undefined, { raw: true }).then((r) => setAnswer(r.stdout)).catch((e: Error) => setAnswer(e.message))}>Appeler</Button>
-      {answer && <Pre text={answer} />}
+      <Q q={listing}>{(l) => <>
+        <p className="small" lang="en">{l.instructions}</p>
+        {l.generic && <p className="tiny muted">Données d’exemple génériques, pas celles de ton projet : <code>openguildkit tools scenario</code> écrit les tiennes.</p>}
+        <ul className="small">{l.tools.map((t) => <li key={t.name}><code>{t.name}</code> ({t.read_only ? 'lecture' : 'écriture simulée'}) : <span lang="en">{t.description}</span> <span className="tiny muted block mono">{t.arguments}</span></li>)}</ul>
+        <div className="grid-2">
+          <div className="field"><label htmlFor="mock-name">Outil de la simulation</label><select id="mock-name" className="input" value={name} onChange={(e) => pick(e.target.value)}><option value="">Choisir…</option>{l.tools.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}</select></div>
+          <TextArea label="Arguments (JSON)" value={args} onChange={(e) => setArgs(e.target.value)} rows={2} />
+        </div>
+      </>}</Q>
+      <Button variant="primary" disabled={!name} onClick={() => void run(['tools', 'call', id!, name, '--args', args], undefined, { raw: true, allowFailure: true }).then((r) => setAnswer({ text: r.code === 0 ? r.stdout : cliMessage(r), failed: r.code !== 0 })).catch((e: Error) => setAnswer({ text: e.message, failed: true }))}>Appeler</Button>
+      {answer && <div lang="en"><Pre text={answer.text} /></div>}
     </Dialog>
   );
 }
 
 /* ------------------------------------------------------------------ storybook */
 
-type Status = 'proposed' | 'validated' | 'rejected';
-interface Item { key: string; name: string; status: Status; kind?: string; confidence?: string; basis?: string; observed?: boolean; file?: string; line?: number; component?: string; props?: Record<string, unknown>; value?: string; occurrences?: number; usages?: number; origins?: string[] }
-interface Proposals { components: Item[]; variants: Item[]; tokens: Item[]; [key: string]: unknown }
+type Status = ProposalStatus;
+type Item = ProposalItem;
+type Proposals = StorybookProposals;
 const SECTIONS = [['components', 'Composants'], ['variants', 'Variantes'], ['tokens', 'Jetons']] as const;
 type Section = (typeof SECTIONS)[number][0];
 const STATUS_LABEL: Record<Status, string> = { proposed: 'à décider', validated: 'validé', rejected: 'rejeté' };
