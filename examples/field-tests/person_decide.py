@@ -19,10 +19,14 @@ import os
 import select
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parents[2] / "src"
-ENV = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(SRC), os.environ.get("PYTHONPATH")])),
+# Bytecode goes to a folder of its own, not next to the sources, and is reused from one command to the next.
+ENV = {**{key: value for key, value in os.environ.items() if key != "PYTHONDONTWRITEBYTECODE"},
+       "PYTHONPATH": os.pathsep.join(filter(None, [str(SRC), os.environ.get("PYTHONPATH")])),
+       "PYTHONPYCACHEPREFIX": os.environ.get("PYTHONPYCACHEPREFIX") or str(Path(tempfile.gettempdir()) / "openguildkit-pycache"),
        "PYTHONIOENCODING": "utf-8"}
 
 

@@ -35,10 +35,15 @@ ENV = {
 }
 
 
+def run(project: Path, *args: str, capture: bool = False) -> subprocess.CompletedProcess:
+    """openguildkit on the project, its output captured or shown. The tests run it in their own process."""
+    command = [sys.executable, "-m", "openguildkit", "--project", str(project), *args]
+    return subprocess.run(command, env=ENV, text=True, encoding="utf-8", capture_output=capture)
+
+
 def cli(project: Path, *args, capture: bool = False) -> str:
-    command = [sys.executable, "-m", "openguildkit", "--project", str(project), *map(str, args)]
     print("$ openguildkit " + " ".join(map(str, args)), flush=True)
-    result = subprocess.run(command, env=ENV, text=True, encoding="utf-8", capture_output=capture)
+    result = run(project, *map(str, args), capture=capture)
     if result.returncode != 0:
         if capture:
             sys.stderr.write(result.stderr)

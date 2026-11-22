@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.cli import _prompt_components, main
+from openguildkit.cli import _prompt_components
 from openguildkit.catalog import load_catalog
 from openguildkit.detect import components_for_profile, detect_stack
 from openguildkit.patterns import recommend_patterns, technology_version
@@ -16,7 +16,7 @@ from openguildkit.stack_versions import version_key
 from openguildkit.storage import write_json
 from openguildkit.storybook import dependency_conflicts
 
-from tests.support import CapturedCli
+from tests.support import CapturedCli, run_cli
 
 
 def write(root: Path, relative: str, content) -> None:
@@ -238,11 +238,8 @@ class DetectedVersionTests(CapturedCli, unittest.TestCase):
         self.assertIn("left aside", out + err)
 
     def run_cli_with_errors(self, *arguments):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, 0, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
+        result = run_cli(self.root, *arguments)
+        return result.stdout, result.stderr
 
 
 class ComponentPromptTests(unittest.TestCase):

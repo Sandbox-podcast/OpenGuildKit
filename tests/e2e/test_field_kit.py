@@ -11,6 +11,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from tests.support import run_cli
+
 ROOT = Path(__file__).resolve().parents[2]
 KIT = ROOT / "examples" / "field-tests"
 EXAMPLE = ROOT / "examples" / "request-status"
@@ -218,10 +220,18 @@ class PrepareTests(KitTestCase):
         self.assertEqual(field.git(remote, "rev-list", "--count", "main"), "1")
 
 
+def run_here(root: Path, *arguments) -> tuple[int, str, str]:
+    """The kit's run(), with the CLI in this process."""
+    result = run_cli(root, *arguments, stdin="", expect=None)
+    return result.returncode, result.stdout, result.stderr
+
+
 @unittest.skipUnless(os.name == "posix", POSIX_ONLY)
 class SameScenarioTests(KitTestCase):
     def test_two_teams_that_play_the_same_scenario_get_the_same_results(self):
-        result = field.cohorts(self.out, teams=2)
+        # The kit starts a process per command; here the commands run in this process, as the rest of the suite.
+        with mock.patch.object(field.fingerprint_script, "run", run_here):
+            result = field.cohorts(self.out, teams=2)
         self.assertEqual(sorted(result), ["s1", "s2", "s3"])
         for scenario, data in result.items():
             with self.subTest(scenario=scenario):

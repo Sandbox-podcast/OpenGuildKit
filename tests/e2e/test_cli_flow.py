@@ -44,6 +44,28 @@ class CliTestCase(unittest.TestCase):
             subprocess_mode=self.subprocess_mode, env=ENV,
         )
 
+    def in_terminal(self, args, typed):
+        """(exit code, stdout, stderr) of a command run at a pseudo-terminal where the person types one line.
+
+        The output is captured, so what the command shows the person stays out of the test runner's output."""
+        master, slave = os.openpty()
+        try:
+            process = subprocess.Popen(self.command(*args), stdin=slave, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       text=True, encoding="utf-8", env=ENV)
+            os.close(slave)
+            slave = None
+            os.write(master, f"{typed}\n".encode())
+            stdout, stderr = process.communicate(timeout=60)
+        finally:
+            if slave is not None:
+                os.close(slave)
+            os.close(master)
+        return process.returncode, stdout, stderr
+
+    def decide_in_terminal(self, typed, task_id=TASK_ID):
+        return self.in_terminal(("task", "decide", task_id, "--approve", "--by", "Test Owner", "--reason", "Scope agreed"),
+                                typed)
+
     def init_example(self):
         if any(self.project.iterdir()):
             self.run_cli("init", "--answers", EXAMPLE / "profile.json")
@@ -76,6 +98,8 @@ class CliTestCase(unittest.TestCase):
 
 
 class CatalogTests(CliTestCase):
+    subprocess_mode = True  # python -m openguildkit itself, as the installed command runs it
+
     def test_hr_brain_exposes_distinct_review_lenses(self):
         brain = json.loads(self.run_cli("brains", "--id", "hr", "--json").stdout)
         lenses = brain["review"]["specialists"]
@@ -435,30 +459,6 @@ class TaskFlowTests(CliTestCase):
 
 @unittest.skipUnless(os.name == "posix", "approval needs a pseudo-terminal, available on Linux and macOS")
 class ApprovalTests(CliTestCase):
-    subprocess_mode = True
-
-    def decide_in_terminal(self, typed, task_id=TASK_ID):
-        master, slave = os.openpty()
-        try:
-            process = subprocess.Popen(
-                self.command("task", "decide", task_id, "--approve", "--by", "Test Owner", "--reason", "Scope agreed"),
-                stdin=slave,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                env=ENV,
-            )
-            os.close(slave)
-            slave = None
-            os.write(master, f"{typed}\n".encode())
-            stdout, stderr = process.communicate(timeout=60)
-        finally:
-            if slave is not None:
-                os.close(slave)
-            os.close(master)
-        return process.returncode, stdout, stderr
-
     def test_approval_requires_the_typed_id_and_expires_when_rules_change(self):
         self.consult_example()
         self.record_example_review()

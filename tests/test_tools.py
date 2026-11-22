@@ -1,6 +1,5 @@
 """The tool registry: what it accepts, how it matches a project and what it writes for each host."""
 
-import contextlib
 import copy
 import io
 import json
@@ -12,13 +11,13 @@ from pathlib import Path
 from unittest import mock as patching
 
 from openguildkit.catalog import CatalogError, load_catalog
-from openguildkit.cli import main
 from openguildkit.mcp_mock import call_tool, describe, example_arguments, list_all_arguments, reference_problems
 from openguildkit.tools import (
     CATEGORIES, NOT_DOCUMENTED, _validate_tool, apply_connections, check_tool_links, choose_server, connection_status,
     detect_tools, load_mock, load_tools, match_tools, mock_ids, plan_connections, read_manifest, remove_connections,
     scenario_records,
 )
+from tests.support import run_cli
 
 TOOLS = load_tools()
 REMOTE = {
@@ -33,10 +32,10 @@ TOOL = {
 
 
 def run(*args: str) -> tuple[int, str, str]:
-    out, err = io.StringIO(), io.StringIO()
-    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        code = main([str(arg) for arg in args])
-    return code, out.getvalue(), err.getvalue()
+    """openguildkit [--project PATH] ARGS in this process; without --project, from the current folder."""
+    project, rest = (args[1], args[2:]) if args[:1] == ("--project",) else (Path.cwd(), args)
+    result = run_cli(project, *rest, expect=None)
+    return result.returncode, result.stdout, result.stderr
 
 
 class RegistryTests(unittest.TestCase):

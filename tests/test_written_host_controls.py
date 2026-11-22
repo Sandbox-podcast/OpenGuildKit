@@ -179,9 +179,8 @@ class WrittenDenyRuleTests(unittest.TestCase):
         write_json(self.root / "answers.json", {
             "name": "Portal", "stack": ["Python"], "host": host, "guard": "enforce",
             "approval": {"mode": "signed", "allowed_signers": "keys/allowed_signers", "approvers": ["pat@example.org"]}})
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-            for arguments in (("init", "--answers", self.root / "answers.json"), ("host", "apply")):
-                self.assertEqual(main(["--project", str(self.root), *map(str, arguments)]), 0)
+        for arguments in (("init", "--answers", self.root / "answers.json"), ("host", "apply")):
+            run_cli(self.root, *arguments)
 
     def test_each_claude_code_rule_targets_the_command_or_file_it_is_written_for(self):
         self.apply("claude-code")

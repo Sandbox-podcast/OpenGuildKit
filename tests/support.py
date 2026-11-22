@@ -37,6 +37,8 @@ def run_cli(project, *arguments, expect=0, stdin=None, typed=None, subprocess_mo
         with contextlib.ExitStack() as stack:
             stack.enter_context(contextlib.redirect_stdout(stdout))
             stack.enter_context(contextlib.redirect_stderr(stderr))
+            if env:
+                stack.enter_context(patch.dict(os.environ, {key: str(value) for key, value in env.items()}))
             if stdin is not None:
                 stack.enter_context(patch("sys.stdin", io.StringIO(stdin)))
             if typed is not None:

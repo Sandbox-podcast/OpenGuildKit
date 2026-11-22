@@ -14,12 +14,10 @@ import unittest
 from datetime import timedelta
 
 from openguildkit import clock
-from tests.e2e.test_cli_flow import ENV, EXAMPLE, TASK_ID, CliTestCase
+from tests.e2e.test_cli_flow import EXAMPLE, TASK_ID, CliTestCase
 
 
 class ReviewedTaskTestCase(CliTestCase):
-    subprocess_mode = True
-
     def review_with_blockers(self, phase=None):
         """The example review with a blocking security board, recorded through the CLI."""
         review = self.example_review()
@@ -35,21 +33,6 @@ class ReviewedTaskTestCase(CliTestCase):
             for blocker in security["challenge"]["blockers"]:
                 blocker["phase"] = phase
         self.run_cli("task", "review", TASK_ID, "--file", self.write_json("review.json", review))
-
-    def in_terminal(self, args, typed):
-        master, slave = os.openpty()
-        try:
-            process = subprocess.Popen(self.command(*args), stdin=slave, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                       text=True, encoding="utf-8", env=ENV)
-            os.close(slave)
-            slave = None
-            os.write(master, f"{typed}\n".encode())
-            stdout, stderr = process.communicate(timeout=60)
-        finally:
-            if slave is not None:
-                os.close(slave)
-            os.close(master)
-        return process.returncode, stdout, stderr
 
 
 class DeliberationCommandTests(ReviewedTaskTestCase):

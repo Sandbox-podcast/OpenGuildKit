@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.support import subprocess_environment
+from tests.support import run_cli, subprocess_environment
 
 from openguildkit.brains import brief_knowledge, knowledge_gaps, write_brain_skeleton
 from openguildkit.catalog import CatalogError, board_replacements, load_catalog
@@ -216,10 +216,7 @@ class NewBrainCommandTests(unittest.TestCase):
         self.env = {**os.environ, "PYTHONPATH": str(REPO / "src"), "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
 
     def run_cli(self, *args, expect=0):
-        result = subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(self.project), *map(str, args)],
-                                capture_output=True, text=True, encoding="utf-8", env=subprocess_environment(self.env), timeout=60)
-        self.assertEqual(result.returncode, expect, result.stdout + result.stderr)
-        return result.stdout
+        return run_cli(self.project, *args, expect=expect).stdout
 
     def test_adding_a_brain_names_the_tasks_it_makes_stale(self):
         example = REPO / "examples" / "request-status"

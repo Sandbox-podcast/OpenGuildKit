@@ -5,9 +5,7 @@ keeping the passes of unchanged boards; a person withdraws an approval at a term
 or boards voids an approval; the edit hook checks every approved revision with one git call.
 """
 
-import contextlib
 import copy
-import io
 import json
 import re
 import shutil
@@ -29,6 +27,7 @@ from openguildkit.storage import read_json, write_json
 from openguildkit.tasks import kept_passes
 from openguildkit.webui import Refused, check_request
 from tests.test_hosts import claude_denies, codex_forbids
+from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 EXAMPLE = REPO / "examples" / "request-status"
@@ -53,17 +52,8 @@ class ApprovalCase(unittest.TestCase):
         self.state = self.root / ".openguildkit"
 
     def run_cli(self, *arguments, code=0, typed=None, root=None):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.ExitStack() as stack:
-            if typed is not None:
-                stack.enter_context(patch("sys.stdin.isatty", return_value=True))
-                stack.enter_context(patch("builtins.input", return_value=typed))
-            stack.enter_context(contextlib.redirect_stdout(stdout))
-            stack.enter_context(contextlib.redirect_stderr(stderr))
-            result = main(["--project", str(root or self.root), *map(str, arguments)])
-        if code is not None:
-            self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
+        result = run_cli(root or self.root, *arguments, expect=code, typed=typed)
+        return result.stdout, result.stderr
 
     def git(self, *arguments):
         subprocess.run(["git", "-C", str(self.root), "-c", "user.email=dev@example.test", "-c", "user.name=Dev",

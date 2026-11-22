@@ -1,4 +1,6 @@
 import contextlib
+import importlib.util
+import io
 import json
 import re
 import os
@@ -17,11 +19,19 @@ from openguildkit import clock, publishing
 from openguildkit.catalog import load_catalog
 from openguildkit.storage import write_json
 
-from tests.support import CapturedCli, run_cli, subprocess_environment
+from tests.support import CapturedCli, run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 EXAMPLE = REPO / "examples" / "request-status"
 DOCUMENTALIST = REPO / "examples" / "documentalist"
+
+
+def load_script(path: Path):
+    """Import an example script, which lives outside the package."""
+    spec = importlib.util.spec_from_file_location(f"example_{path.parent.name}", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 TASK = "request-status"
 BUSY = "is writing this project"
 
@@ -303,16 +313,28 @@ class PublishingTests(CapturedCli, unittest.TestCase):
     @unittest.skipIf(shutil.which("git") is None, "The example's only check command is git --version.")
     def test_replaying_the_documentalist_example_gives_its_docs_site(self):
         project = self.root / "replay"
-        command = [sys.executable, str(DOCUMENTALIST / "replay.py"), "--project", str(project)]
-        environment = subprocess_environment({"PYTHONIOENCODING": "utf-8"})
-        first = subprocess.run(command, env=environment, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8")
-        self.assertEqual(first.returncode, 0, first.stderr)
-        self.assertIn("Approval needs a person", first.stdout)
-        run_cli(project, "task", "decide", TASK, "--approve", "--by", "Camille Martin",
-                "--reason", "Scope agreed", typed=TASK)
-        second = subprocess.run(command, env=environment, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8")
-        self.assertEqual(second.returncode, 0, second.stderr)
-        self.assertIn("is identical to examples/documentalist/docs-site", second.stdout)
+        replay = load_script(DOCUMENTALIST / "replay.py")
+
+        def run_here(folder, *args, capture=False):
+            """The script's run(), with the CLI in this process and the script's dates."""
+            result = run_cli(folder, *args, stdin="", expect=None, env={"SOURCE_DATE_EPOCH": replay.COMPLETED})
+            if not capture:
+                print(result.stdout, end="")
+            return result
+
+        def play():
+            shown = io.StringIO()
+            with patch.object(replay, "run", run_here), patch.object(sys, "argv", ["replay.py", "--project", str(project)]), \
+                    patch("sys.stdin", io.StringIO("")), contextlib.redirect_stdout(shown):
+                replay.main()
+            return shown.getvalue()
+
+        self.assertIn("Approval needs a person", play())
+        run_cli(project, "task", "decide", TASK, "--approve", "--by", "CM", "--reason", "Scope agreed", typed=TASK)
+        self.assertIn("is identical to examples/documentalist/docs-site", play())
+        script = subprocess.run([sys.executable, str(DOCUMENTALIST / "replay.py"), "--help"], capture_output=True,
+                                text=True, encoding="utf-8", timeout=60)
+        self.assertEqual(script.returncode, 0, script.stderr)
         produced, expected = project / "docs-site", DOCUMENTALIST / "docs-site"
 
         def tree(folder):

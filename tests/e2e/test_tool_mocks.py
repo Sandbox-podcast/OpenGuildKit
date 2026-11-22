@@ -1,5 +1,6 @@
 """A project connects its tools to mocks, an MCP client talks to them, and a board cites what it read."""
 
+import io
 import json
 import os
 import subprocess
@@ -9,7 +10,9 @@ import tomllib
 import unittest
 from pathlib import Path
 
-from tests.support import subprocess_environment
+from openguildkit.mcp_mock import serve
+from openguildkit.tools import load_mock
+from tests.support import run_cli, subprocess_environment
 
 REPO = Path(__file__).resolve().parents[2]
 ENV = subprocess_environment({"PYTHONPATH": str(REPO / "src"), "PYTHONIOENCODING": "utf-8"})
@@ -21,13 +24,16 @@ PROFILE = {
 
 
 def cli(project: Path, *args, check: bool = True, stdin: str | None = None) -> subprocess.CompletedProcess:
-    result = subprocess.run(
-        [sys.executable, "-m", "openguildkit", "--project", str(project), *map(str, args)],
-        env=ENV, text=True, encoding="utf-8", capture_output=True, input=stdin, timeout=120,
-    )
-    if check and result.returncode:
-        raise AssertionError(f"openguildkit {' '.join(map(str, args))} failed:\n{result.stderr}")
-    return result
+    """The CLI in this process; check=False returns a failed command instead of raising."""
+    return run_cli(project, *args, stdin=stdin, expect=0 if check else None)
+
+
+def exchange_in_process(tool_id: str, messages: list) -> list[dict]:
+    """The same exchange with a bundled mock served in this process, for many calls without a process each."""
+    payload = "".join(json.dumps(item) + "\n" for item in messages).encode("utf-8")
+    answers = io.BytesIO()
+    serve(load_mock(tool_id), stdin=io.BytesIO(payload), stdout=answers)
+    return [json.loads(line) for line in answers.getvalue().decode("utf-8").splitlines()]
 
 
 def exchange(command: list[str], messages: list) -> list[dict]:
@@ -115,10 +121,10 @@ class MockServerTests(unittest.TestCase):
         self.assertEqual(answers[4]["error"]["code"], -32602)
         self.assertEqual(answers[5]["error"]["code"], -32601)
 
-    def test_every_bundled_mock_answers_each_of_its_tools_over_stdio(self):
+    def test_every_bundled_mock_answers_each_of_its_tools(self):
         listed = cli(self.project, "tools", "list", "--mocks", "--json").stdout
         for tool in json.loads(listed):
-            answers = exchange(self.mock + [tool["id"]], [{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}])
+            answers = exchange_in_process(tool["id"], [{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}])
             tools = answers[0]["result"]["tools"]
             self.assertGreaterEqual(len(tools), 3, tool["id"])
             calls = []
@@ -132,7 +138,7 @@ class MockServerTests(unittest.TestCase):
                 }
                 calls.append({"jsonrpc": "2.0", "id": index, "method": "tools/call",
                               "params": {"name": item["name"], "arguments": arguments}})
-            for answer in exchange(self.mock + [tool["id"]], calls):
+            for answer in exchange_in_process(tool["id"], calls):
                 self.assertIn("result", answer, tool["id"])
                 self.assertEqual(answer["result"]["content"][0]["type"], "text")
 

@@ -6,11 +6,11 @@ shows what a newer catalog would change and applies it only when asked.
 """
 
 import json
-from copy import deepcopy
 from pathlib import Path
 
 from .catalog import (
-    CatalogError, file_signature, latest_checked, load_catalog, overlaid_boards, validate_dependencies, validate_entry,
+    CatalogError, file_signature, json_copy, latest_checked, load_catalog, overlaid_boards, validate_dependencies,
+    validate_entry,
 )
 from .ci import read_policy_pack
 from .patterns import pattern_selection
@@ -58,7 +58,7 @@ def read_lock(state: Path) -> dict | None:
         if len(_READ) >= _READ_KEPT:
             _READ.clear()
         _READ[key] = lock
-    return deepcopy(_READ[key])
+    return json_copy(_READ[key])
 
 
 def _validated_lock(path: Path) -> dict:
@@ -137,7 +137,7 @@ def apply_lock(catalog: dict, lock: dict | None) -> dict:
         for record_id, record in entries.items():
             if collection == "boards" and record_id in overlaid:
                 continue
-            effective[collection][record_id] = deepcopy(record)
+            effective[collection][record_id] = json_copy(record)
         effective[collection] = dict(sorted(effective[collection].items()))
     try:
         validate_dependencies(effective["packs"])
@@ -169,7 +169,7 @@ def locked_records(profile: dict, catalog: dict, bundled: dict[str, set[str]], l
     overlaid = overlaid_boards(catalog)
     return {
         collection: {
-            record_id: deepcopy(catalog[collection][record_id])
+            record_id: json_copy(catalog[collection][record_id])
             for record_id in sorted(used[collection])
             if record_id in lockable[collection] and record_id in catalog[collection]
             and not (collection == "boards" and record_id in overlaid)
@@ -276,7 +276,7 @@ def update_target(live: dict, lock: dict) -> dict:
     target = {collection: dict(entries) for collection, entries in live.items()}
     for collection, entries in lock["records"].items():
         for record_id, record in entries.items():
-            target[collection].setdefault(record_id, deepcopy(record))
+            target[collection].setdefault(record_id, json_copy(record))
         target[collection] = dict(sorted(target[collection].items()))
     return target
 

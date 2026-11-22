@@ -14,14 +14,13 @@ import time
 import unittest
 import urllib.error
 import urllib.request
-from contextlib import redirect_stderr, redirect_stdout
-from io import StringIO
 from pathlib import Path
 from queue import Queue
 from unittest.mock import patch
 
 from openguildkit.cli import main
 from tests.e2e.test_cli_flow import ENV, EXAMPLE, EXPECTED_BOARDS, TASK_ID, CliTestCase
+from tests.support import run_cli
 
 HOLD_LOCK = (
     "import sys\n"
@@ -52,7 +51,6 @@ LOCK_MESSAGE = "Another OpenGuildKit command is writing this project. Try again.
 
 
 class ConcurrencyTestCase(CliTestCase):
-    subprocess_mode = True
 
     def start(self, *args, env=None):
         return subprocess.Popen(
@@ -162,7 +160,7 @@ class LockTests(ConcurrencyTestCase):
 
         self.init_example()
         server, app = make_server(self.project, 0, None)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+        threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
         base = f"http://127.0.0.1:{app.port}"
@@ -312,14 +310,8 @@ class ParallelWriteTests(ConcurrencyTestCase):
 
 
 def _in_process(project, *arguments, typed=None):
-    """Run the CLI in this process; a typed answer stands for the person at the terminal."""
-    stdout, stderr = StringIO(), StringIO()
-    with redirect_stdout(stdout), redirect_stderr(stderr), \
-            patch("sys.stdin.isatty", return_value=typed is not None), patch("builtins.input", return_value=typed or ""):
-        code = main(["--project", str(project), *map(str, arguments)])
-    if code != 0:
-        raise AssertionError(f"openguildkit {' '.join(map(str, arguments))} -> {code}: {stderr.getvalue()}")
-    return stdout.getvalue()
+    """The output of a command that must succeed; a typed answer stands for the person at the terminal."""
+    return run_cli(project, *arguments, typed=typed, stdin="" if typed is None else None).stdout
 
 
 @unittest.skipIf(shutil.which("git") is None, "needs git")

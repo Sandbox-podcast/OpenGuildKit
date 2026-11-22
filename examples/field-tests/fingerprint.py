@@ -15,10 +15,14 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parents[2] / "src"
-ENV = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(SRC), os.environ.get("PYTHONPATH")])),
+# Bytecode goes to a folder of its own, not next to the sources, and is reused from one command to the next.
+ENV = {**{key: value for key, value in os.environ.items() if key != "PYTHONDONTWRITEBYTECODE"},
+       "PYTHONPATH": os.pathsep.join(filter(None, [str(SRC), os.environ.get("PYTHONPATH")])),
+       "PYTHONPYCACHEPREFIX": os.environ.get("PYTHONPYCACHEPREFIX") or str(Path(tempfile.gettempdir()) / "openguildkit-pycache"),
        "PYTHONIOENCODING": "utf-8"}
 WRITTEN = ("AGENTS.md", ".openguildkit/project.json", ".openguildkit/catalog.lock.json", ".openguildkit/tools.json",
            ".mcp.json", ".codex/config.toml", ".claude/settings.json")
@@ -37,10 +41,16 @@ def normalise(text: str, root: Path) -> str:
     return _TIMESTAMP.sub("<time>", _IDENTIFIER.sub("<id>", text.replace("\r\n", "\n")))
 
 
-def cli(root: Path, *arguments: str) -> str:
+def run(root: Path, *arguments: str) -> tuple[int, str, str]:
+    """Exit code, output and errors of openguildkit on the project. The kit's tests run it in their own process."""
     result = subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(root), *arguments],
                             capture_output=True, text=True, encoding="utf-8", env=ENV)
-    return normalise(result.stdout if result.returncode == 0 else f"exit {result.returncode}: {result.stderr}", root)
+    return result.returncode, result.stdout, result.stderr
+
+
+def cli(root: Path, *arguments: str) -> str:
+    code, stdout, stderr = run(root, *arguments)
+    return normalise(stdout if code == 0 else f"exit {code}: {stderr}", root)
 
 
 def fingerprint(root: Path, task: str | None = None, answers: Path | None = None) -> dict:

@@ -1,7 +1,5 @@
 """The hook inputs in integrations/README.md stay exact: each is fed to the guard as the README says to run it."""
 
-import contextlib
-import io
 import json
 import os
 import re
@@ -11,10 +9,9 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
-from openguildkit.cli import main
 from openguildkit.storage import write_json
+from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 README = REPO / "integrations" / "README.md"
@@ -52,11 +49,8 @@ class HookExampleTests(unittest.TestCase):
         self.hook("init", "--answers", self.root / "answers.json")
 
     def hook(self, *arguments, stdin=None):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        replaced = patch("sys.stdin", io.StringIO(stdin)) if stdin is not None else contextlib.nullcontext()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr), replaced:
-            code = main(["--project", str(self.root), *map(str, arguments)])
-        return code, stdout.getvalue(), stderr.getvalue()
+        result = run_cli(self.root, *arguments, stdin=stdin, expect=None)
+        return result.returncode, result.stdout, result.stderr
 
     def test_each_host_has_both_hooks_in_both_shells_with_the_same_input(self):
         found = examples()

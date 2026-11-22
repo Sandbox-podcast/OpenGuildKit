@@ -1,7 +1,5 @@
 """The profile changes after setup through openguildkit profile, with who, when and why, never by hand."""
 
-import contextlib
-import io
 import json
 import re
 import tempfile
@@ -9,8 +7,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.cli import main
 from openguildkit.storage import write_json
+from tests.support import run_cli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "request-status"
@@ -26,11 +24,8 @@ class ProfileCommandTests(unittest.TestCase):
         self.run_cli("init", "--answers", self.root / "answers.json")
 
     def run_cli(self, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr), patch.dict("os.environ", DAY):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
+        result = run_cli(self.root, *arguments, expect=code, env=DAY)
+        return result.stdout, result.stderr
 
     def profile(self) -> dict:
         return json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))

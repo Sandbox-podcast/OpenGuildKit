@@ -10,7 +10,7 @@ from unittest.mock import patch
 from openguildkit.cli import main
 from openguildkit.storage import write_json
 
-from tests.support import CapturedCli
+from tests.support import CapturedCli, run_cli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "request-status"
@@ -80,10 +80,7 @@ class ChaosFolkResultTests(CapturedCli, unittest.TestCase):
 
 
     def complete_error(self):
-        stderr = io.StringIO()
-        with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(main(["--project", str(self.root), "task", "complete", TASK]), 1)
-        return stderr.getvalue()
+        return run_cli(self.root, "task", "complete", TASK, expect=1).stderr
 
     def test_a_scenario_listed_twice_keeps_its_failure(self):
         output = self.replay(("login", "failed", "500 on submit"), ("login", "passed", ""), ("checkout", "passed", ""))

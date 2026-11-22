@@ -6,15 +6,14 @@ Each document writes in full, with `openguildkit`, the commands a step runs; a c
 """
 
 import argparse
-import contextlib
-import io
 import re
 import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit.cli import command_parser, main
+from openguildkit.cli import command_parser
 from openguildkit.storage import write_json
+from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 SKILL = REPO / "src" / "openguildkit" / "agent_files" / "skills" / "openguildkit" / "SKILL.md"
@@ -75,8 +74,7 @@ class JourneyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             write_json(root / "setup.json", {"name": "Portal", "stack": ["Python"]})
-            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                self.assertEqual(main(["--project", str(root), "init", "--answers", str(root / "setup.json")]), 0)
+            run_cli(root, "init", "--answers", root / "setup.json")
             return (root / "AGENTS.md").read_text(encoding="utf-8")
 
     def documents(self) -> dict[str, dict[str, str]]:

@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.e2e.test_cli_flow import ENV, EXAMPLE, REPO, TASK_ID, ApprovalTests, CliTestCase
+from tests.e2e.test_cli_flow import ENV, EXAMPLE, REPO, TASK_ID, CliTestCase
 
 
 class CatalogLockTests(CliTestCase):
@@ -165,7 +165,7 @@ class CatalogUpgradeTests(CliTestCase):
     def test_update_shows_old_and_new_text_and_every_task_the_new_edition_touches(self):
         self.consult_example()
         self.record_example_review()
-        code, _, stderr = ApprovalTests.decide_in_terminal(self, TASK_ID)
+        code, _, stderr = self.decide_in_terminal(TASK_ID)
         self.assertEqual(code, 0, stderr)
         self.run_cli("task", "new", "Export request history.", "--id", "export-history")
         self.run_cli("task", "consult", "export-history", "--answers", EXAMPLE / "answers.json")

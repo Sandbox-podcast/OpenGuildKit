@@ -27,7 +27,8 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 SRC = REPO / "src"
 sys.path.insert(0, str(HERE))
-from fingerprint import ENV, fingerprint  # noqa: E402  (the kit's own module, next to this file)
+import fingerprint as fingerprint_script  # noqa: E402  (the kit's own module, next to this file)
+from fingerprint import fingerprint  # noqa: E402
 
 SEVERITIES = ("blocker", "major", "minor", "suggestion")
 KINDS = ("bug", "confusing", "missing", "docs")
@@ -73,8 +74,8 @@ def campaign_problems(campaign: dict) -> list[str]:
 
 
 def cli(project: Path, *arguments, check: bool = True) -> subprocess.CompletedProcess:
-    result = subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(project), *map(str, arguments)],
-                            capture_output=True, text=True, encoding="utf-8", env=ENV)
+    arguments = [str(argument) for argument in arguments]
+    result = subprocess.CompletedProcess(arguments, *fingerprint_script.run(project, *arguments))
     if check and result.returncode:
         raise ValueError(f"openguildkit {' '.join(map(str, arguments))} failed in {project.as_posix()}: "
                          f"{result.stderr.strip() or result.stdout.strip()}")

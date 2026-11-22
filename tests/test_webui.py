@@ -21,6 +21,7 @@ from openguildkit import webui
 from openguildkit.cli import main
 from openguildkit.storage import project_lock, write_json
 from openguildkit.webui import make_server
+from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 EXAMPLE = REPO / "examples" / "request-status"
@@ -61,7 +62,8 @@ class WebInterfaceTests(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(main(["--project", str(self.root), "init", "--answers", str(self.root / "profile.json")]), 0)
         self.server, self.app = make_server(self.root, 0, front)
-        thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        # A short poll interval: shutdown() at cleanup waits up to one interval (0.5 s by default).
+        thread = threading.Thread(target=self.server.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True)
         thread.start()
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
@@ -338,10 +340,7 @@ class WebInterfaceTests(unittest.TestCase):
 
     def profile_command(self, *arguments, confirm=None):
         """A profile command typed in a terminal, confirmed by the person when it asks."""
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as error, \
-                patch("sys.stdin.isatty", return_value=confirm is not None), \
-                patch("builtins.input", return_value=confirm or ""):
-            self.assertEqual(main(["--project", str(self.root), "profile", *arguments]), 0, error.getvalue())
+        run_cli(self.root, "profile", *arguments, typed=confirm, stdin="" if confirm is None else None)
 
     def saved_profile(self) -> dict:
         return json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))

@@ -7,6 +7,7 @@ from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.detect import components_for_profile, detect_stack
 from openguildkit.patterns import patterns_to_review, recommend_patterns, technology_version
 from openguildkit.project import pack_scopes, render_instructions, resolved_profile, validate_profile
+from tests.support import run_cli
 
 
 def write(root: Path, relative: str, content) -> None:
@@ -178,11 +179,7 @@ class ComponentTaskTests(unittest.TestCase):
             })
 
             def run(*arguments):
-                out, err = io.StringIO(), io.StringIO()
-                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                    code = main(["--project", str(root), *map(str, arguments)])
-                self.assertEqual(code, 0, f"{' '.join(map(str, arguments))}: {err.getvalue()}")
-                return out.getvalue()
+                return run_cli(root, *arguments).stdout
 
             run("init", "--answers", root / "profile.json")
             profile = json.loads((root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))

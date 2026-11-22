@@ -15,27 +15,48 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.support import subprocess_environment
-
-from tests.e2e.test_cli_flow import ENV, EXAMPLE, TASK_ID
+from tests.e2e.test_cli_flow import EXAMPLE, REPO, TASK_ID
+from tests.support import run_cli, subprocess_environment
 
 SEEDS = ("0", "1", "4242")
 
 
-class Run:
-    """One fresh project, its outputs, under one hash seed."""
+# One process per hash seed: it plays the commands in itself, as the suite does, and prints their outputs as JSON.
+CHILD = (
+    "import json, sys\n"
+    "from pathlib import Path\n"
+    "sys.path.insert(0, sys.argv[1])\n"
+    "from tests.test_determinism import Run\n"
+    "run = Run(Path(sys.argv[2]))\n"
+    "print(json.dumps(run.play() if sys.argv[3] == 'play' else run.read_only()))\n"
+)
 
-    def __init__(self, folder: Path, seed: str):
+
+def under_seed(folder: Path, seed: str, what: str) -> dict | list:
+    """Run.play() or Run.read_only() in a Python process started with this PYTHONHASHSEED."""
+    result = subprocess.run([sys.executable, "-c", CHILD, str(REPO), str(folder), what], capture_output=True,
+                            text=True, encoding="utf-8", env=subprocess_environment({"PYTHONHASHSEED": seed, "PYTHONPATH": str(REPO / "src")}), timeout=300)
+    if result.returncode:
+        raise AssertionError(result.stderr)
+    return json.loads(result.stdout)
+
+
+class Run:
+    """One fresh project and its outputs, from the commands run in this process."""
+
+    def __init__(self, folder: Path):
         self.project = folder
-        self.env = {**ENV, "PYTHONHASHSEED": seed}
         self.outputs = {}
 
     def cli(self, *args) -> str:
-        result = subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(self.project), *map(str, args)],
-                                capture_output=True, env=subprocess_environment(self.env), timeout=60)
+        result = run_cli(self.project, *args, stdin="", expect=None)
         if result.returncode:
-            raise AssertionError(f"openguildkit {' '.join(map(str, args))}: {result.stderr.decode('utf-8', 'replace')}")
-        return result.stdout.decode("utf-8")
+            raise AssertionError(f"openguildkit {' '.join(map(str, args))}: {result.stderr}")
+        return result.stdout
+
+    def read_only(self) -> list:
+        return [self.cli("catalog", "--json"), self.cli("brains", "--json"),
+                self.cli("recommend", "--answers", EXAMPLE / "profile.json", "--json"), self.cli("references", "--json")]
 
     def record(self, name: str, *args) -> None:
         self.outputs[name] = self.cli(*args)
@@ -74,7 +95,7 @@ class DeterminismTests(unittest.TestCase):
         runs = []
         for folder, seed in zip(folders, SEEDS):
             folder.mkdir(parents=True)
-            runs.append(Run(folder, seed).play())
+            runs.append(under_seed(folder, seed, "play"))
         first, second = runs
         self.assertEqual(sorted(first), sorted(second))
         for name in first:
@@ -88,12 +109,7 @@ class DeterminismTests(unittest.TestCase):
     def test_read_only_outputs_do_not_depend_on_the_hash_seed(self):
         folder = self.base / "seeds"
         folder.mkdir()
-        outputs = set()
-        for seed in SEEDS:
-            run = Run(folder, seed)
-            outputs.add((run.cli("catalog", "--json"), run.cli("brains", "--json"),
-                         run.cli("recommend", "--answers", EXAMPLE / "profile.json", "--json"),
-                         run.cli("references", "--json")))
+        outputs = {tuple(under_seed(folder, seed, "read")) for seed in SEEDS}
         self.assertEqual(len(outputs), 1)
 
 

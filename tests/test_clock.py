@@ -10,13 +10,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import clock
-from openguildkit.cli import main
 from openguildkit.guard import _age_days
 from openguildkit.market import due_sources, dossier_gaps, mark_checked, validate_dossier
 from openguildkit.market import scope_entry as market_scope
 from openguildkit.storybook import scope_entry as storybook_scope
 from openguildkit.workflow import _evidence_day
 from openguildkit.storage import write_json
+from tests.support import run_cli
 
 TESTS = Path(__file__).resolve().parent
 SOURCE = TESTS.parent / "src" / "openguildkit"
@@ -68,10 +68,8 @@ class ClockTests(unittest.TestCase):
                     clock.now()
 
     def cli(self, root, *arguments, code=0):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            self.assertEqual(main(["--project", str(root), *map(str, arguments)]), code, stderr.getvalue())
-        return stdout.getvalue(), stderr.getvalue()
+        result = run_cli(root, *arguments, expect=code)
+        return result.stdout, result.stderr
 
     def project(self):
         folder = tempfile.TemporaryDirectory()

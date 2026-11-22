@@ -1,8 +1,6 @@
 """A refused task command names the command that runs next, and a printed command pastes as typed (issue 40)."""
 
 import argparse
-import contextlib
-import io
 import json
 import os
 import re
@@ -15,10 +13,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import tools_cli, webui
-from openguildkit.cli import command_parser, main
+from openguildkit.cli import command_parser
 from openguildkit.hosts import approval_warning
 from openguildkit.shell import shell_command, shell_word
 from openguildkit.storage import write_json
+from tests.support import run_cli
 
 ANSWERS = {"kind": "bug", "surface": "service", "data": "internal", "research": "local", "concerns": ["none"],
            "context": "The CSV export drops the status column.", "outcome": "The export has a status column."}
@@ -83,13 +82,9 @@ class Project(unittest.TestCase):
 
     def cli(self, *arguments, code=0):
         """Run a command; a file name of the project folder is passed as its path."""
-        stdout, stderr = io.StringIO(), io.StringIO()
         words = [str(self.root / word) if str(word).endswith(".json") else str(word) for word in arguments]
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *words])
-        if code is not None:
-            self.assertEqual(result, code, stderr.getvalue())
-        return result, stdout.getvalue(), stderr.getvalue()
+        result = run_cli(self.root, *words, expect=code)
+        return result.returncode, result.stdout, result.stderr
 
 
 class StateRefusalTests(Project):

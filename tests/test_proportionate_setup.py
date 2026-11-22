@@ -19,6 +19,7 @@ from openguildkit.project import (
 )
 from openguildkit.storage import write_json
 from openguildkit.consultation import _board_template
+from tests.support import run_cli
 
 FINTECH = {"name": "payflow", "sector": "financial-services", "personal_data": "yes",
            "stack": ["Python", "FastAPI", "PostgreSQL", "Stripe"], "roles": ["engineering", "security", "finance", "legal"]}
@@ -138,10 +139,8 @@ class PreviewTests(unittest.TestCase):
                                  "roles": ["engineering", "security"]})
 
             def run(*arguments):
-                out, err = io.StringIO(), io.StringIO()
-                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                    self.assertEqual(main(["--project", directory, *arguments]), 0, err.getvalue())
-                return out.getvalue() + err.getvalue()
+                result = run_cli(directory, *arguments)
+                return result.stdout + result.stderr
 
             recommended = counts(run("recommend", "--answers", str(answers)))
             previewed = counts(run("preview", "--answers", str(answers)))

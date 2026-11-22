@@ -17,6 +17,7 @@ from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.cli import main
 from openguildkit.prompts import prompt_choices
 from openguildkit.storage import write_json
+from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 EXAMPLE = REPO / "examples" / "request-status"
@@ -30,21 +31,14 @@ class CleanErrorTests(unittest.TestCase):
         self.root = Path(temporary.name)
 
     def run_cli(self, *arguments, code=1):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, stderr.getvalue())
-        return stderr.getvalue()
+        return run_cli(self.root, *arguments, expect=code).stderr
 
     def init(self):
         write_json(self.root / "answers.json", {"name": "Portal", "stack": ["Python"]})
         self.run_cli("init", "--answers", self.root / "answers.json", code=0)
 
     def output(self, *arguments) -> str:
-        stdout = io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(io.StringIO()):
-            self.assertEqual(main(["--project", str(self.root), *map(str, arguments)]), 0)
-        return stdout.getvalue()
+        return run_cli(self.root, *arguments).stdout
 
     def consulted(self, profile=None):
         write_json(self.root / "profile.json", profile or json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8")))
