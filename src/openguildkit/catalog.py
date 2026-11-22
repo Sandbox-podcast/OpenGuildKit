@@ -494,6 +494,37 @@ def overlaid_boards(catalog: dict) -> set[str]:
     return set(catalog.get("overlays", {}).get("boards", []))
 
 
+def _changed_fields(before: dict, after: dict) -> list[str]:
+    return sorted(key for key in before.keys() | after.keys() if before.get(key) != after.get(key))
+
+
+def board_replacements(catalog: dict) -> list[str]:
+    """One line per bundled brain whose title, description or specialists the project catalog replaces.
+
+    A project may replace them (docs/catalog-format.md), and a weaker security brain reads like the bundled one:
+    check and task consult print these lines so that the person sees what the project changed.
+    """
+    bundled = _validated_bundled(_registry())["boards"]
+    lines = []
+    for board_id in sorted(overlaid_boards(catalog)):
+        before, after = bundled.get(board_id), catalog["boards"].get(board_id)
+        if before is None or after is None:
+            continue
+        changes = [f"{key} {after[key]!r} in place of {before[key]!r}" for key in ("title", "description")
+                   if after[key] != before[key]]
+        earlier = {item["id"]: item for item in before.get("review", {}).get("specialists", [])}
+        replaced = [f"{item['id']} ({', '.join(_changed_fields(earlier[item['id']], item))})"
+                    for item in after.get("review", {}).get("specialists", [])
+                    if item["id"] in earlier and item != earlier[item["id"]]]
+        if replaced:
+            changes.append(f"specialist(s) replaced: {', '.join(replaced)}")
+        if changes:
+            lines.append(f"the project catalog replaces parts of the bundled brain {board_id} "
+                         f"(.openguildkit/catalog/boards/{board_id}.json): {'; '.join(changes)}. Check that the "
+                         "person accepted this change to the brain's review.")
+    return lines
+
+
 def _validate_dependencies(packs: dict[str, dict[str, Any]]) -> None:
     graph = {pack_id: pack.get("depends_on", []) for pack_id, pack in packs.items()}
     for pack_id, dependencies in graph.items():
@@ -563,12 +594,17 @@ def _read_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
 _BUNDLED: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
 
 
-def _bundled_records(builtin) -> dict[str, dict[str, dict[str, Any]]]:
-    """A copy of the validated bundled records, read and validated once per process."""
+def _validated_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
+    """The validated bundled records, read once per process. Callers that change them work on a copy."""
     key = str(builtin)
     if key not in _BUNDLED:
         _BUNDLED[key] = _read_bundled(builtin)
-    return copy.deepcopy(_BUNDLED[key])
+    return _BUNDLED[key]
+
+
+def _bundled_records(builtin) -> dict[str, dict[str, dict[str, Any]]]:
+    """A copy of the validated bundled records, read and validated once per process."""
+    return copy.deepcopy(_validated_bundled(builtin))
 
 
 def load_catalog(

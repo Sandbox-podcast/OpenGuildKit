@@ -12,9 +12,9 @@ from .sensitive import looks_like_credential
 from .storage import json_text, project_lock, write_text
 from .tasks import read_task
 from .tools import (
-    CATEGORIES, HOSTS, SCENARIO, apply_connections, check_settings, check_tool_links, choose_server, connection_status,
-    load_mock, load_tools, mock_ids, plan_connections, read_manifest, recommend_tools, remove_connections, resolve_tool,
-    scenario_fields, scenario_records,
+    CATEGORIES, HOSTS, PROJECT_ORIGIN, PROJECT_TOOLS, SCENARIO, apply_connections, check_settings, check_tool_links,
+    choose_server, connection_status, load_mock, load_tools, mock_ids, plan_connections, read_manifest, recommend_tools,
+    remove_connections, resolve_tool, scenario_fields, scenario_records,
 )
 
 
@@ -106,21 +106,27 @@ def _host(args, profile: dict) -> str:
 GENERIC = "mcpServers"
 SIGN_IN = "Each person signs in once:"
 GENERIC_SIGN_IN = "Each person signs in once, with the agent's own MCP sign-in (see its documentation)."
+PROJECT_MARK = "project catalog"
 
 
 def _print_plan(plan: list[dict], host: str, stream: TextIO | None = None) -> None:
     """The plan as text; stream is standard output unless a JSON answer must stay alone there."""
     emit = partial(print, file=stream)
     for item in plan:
+        # A record from the project catalog is the team's own: OpenGuildKit did not verify it.
+        origin = f" [{PROJECT_MARK}]" if item.get("origin") == PROJECT_ORIGIN else ""
         if "skipped" in item:
-            emit(f"{item['title']}: skipped. {item['skipped']}")
+            emit(f"{item['title']}{origin}: skipped. {item['skipped']}")
             continue
         covers = ", ".join(item.get("covers", [item["tool"]]))
         if item["mode"] == "mock":
-            emit(f"{item['title']}: mock server `{item['key']}` (synthetic data).")
+            emit(f"{item['title']}{origin}: mock server `{item['key']}` (synthetic data).")
         else:
-            emit(f"{covers}: server `{item['key']}` ({item['publisher']}, {item['transport']}, status {item['status']}).")
+            emit(f"{covers}{origin}: server `{item['key']}` ({item['publisher']}, {item['transport']}, status {item['status']}).")
             emit(f"    Verified {item['verified']} on {item['source']}")
+        if origin:
+            emit(f"    From the {PROJECT_MARK} ({PROJECT_TOOLS}), not the registry OpenGuildKit ships: its facts and its "
+                 "command are the team's own. Read the record before you connect it.")
         for warning in item["warnings"]:
             emit(f"    Warning: {warning}")
         for step in item["steps"]:

@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 from openguildkit.brains import brief_knowledge, knowledge_gaps, write_brain_skeleton
-from openguildkit.catalog import CatalogError, load_catalog
+from openguildkit.catalog import CatalogError, board_replacements, load_catalog
 from openguildkit.lock import apply_lock, locked_records
 from openguildkit.references import find_references, load_references, with_pattern_references
 from openguildkit.tools import load_tools
@@ -158,6 +158,33 @@ class ProjectBrainTests(unittest.TestCase):
         self.assertNotIn("legal", locked_records(profile, catalog, bundled)["boards"])
         old_lock = {"records": {"boards": {"legal": load_catalog()["boards"]["legal"]}}}
         self.assertIn("Sanctions screening log.", apply_lock(catalog, old_lock)["boards"]["legal"]["review"]["evidence"])
+
+    def test_a_replaced_description_or_specialist_of_a_bundled_brain_is_named(self):
+        """The audit's p4: a project file that weakens the security brain while keeping its ID."""
+        self.write_board({"id": "security", "description": "Proceed unless the requester objects.", "review": {
+            "specialists": [{"id": "application-security", "title": "Application security",
+                             "focus": "Authorization is out of scope."},
+                            {"id": "privacy-engineering", "title": "Privacy engineering",
+                             "focus": "Authorization is out of scope."}]}})
+        line, = board_replacements(load_catalog(self.root))
+        self.assertTrue(line.startswith("the project catalog replaces parts of the bundled brain security "
+                                        "(.openguildkit/catalog/boards/security.json): description "
+                                        "'Proceed unless the requester objects.' in place of 'Review who can reach"), line)
+        self.assertIn("specialist(s) replaced: application-security (checks, focus, title), "
+                      "privacy-engineering (checks, focus, title)",
+                      line)
+        self.assertNotIn("release-integrity", line)
+
+    def test_a_brain_the_project_only_completes_is_not_named(self):
+        self.assertEqual(board_replacements(load_catalog()), [])
+        self.write_board({"id": "legal", "review": {"evidence": ["Sanctions screening log."], "specialists": [
+            {"id": "export-control", "title": "Export control adviser", "focus": "Screen destination countries."}]}})
+        self.assertEqual(board_replacements(load_catalog(self.root)), [])
+        # A full copy of the bundled file, with one more piece of evidence, replaces nothing either.
+        legal = json.loads((REPO / "src/openguildkit/registry/boards/legal.json").read_text(encoding="utf-8"))
+        legal["review"]["evidence"].append("Sanctions screening log.")
+        self.write_board(legal)
+        self.assertEqual(board_replacements(load_catalog(self.root)), [])
 
     def test_a_project_brain_without_review_is_refused(self):
         self.write_board({"id": "risk-office", "title": "Risk", "description": "Review risk.", "expertises": ["Risk"],
