@@ -19,7 +19,7 @@ from .decisions import (
 )
 from .lock import LOCK_FILE, read_lock
 from .project import STATE_DIR, load_profile, profile_fingerprint
-from .results import verification_of
+from .results import DONE_STATUSES, verification_of
 from .storage import read_json, write_json
 from .task_index import tasks_with_status
 from .tasks import STATUSES, read_task, task_path
@@ -336,8 +336,21 @@ def _same_task(record: object, task: dict) -> bool:
     if record.get("task_created_at", task["created_at"]) != task["created_at"]:
         return False
     payload = record.get("decision", {}).get("payload") if isinstance(record.get("decision"), dict) else None
-    ids = {task["consultation"]["id"], *(item.get("consultation", {}).get("id") for item in task["rounds"])}
+    ids = {task.get("consultation", {}).get("id"), *(item.get("consultation", {}).get("id") for item in task["rounds"])}
+    ids.discard(None)
     return isinstance(payload, dict) and payload.get("consultation_id") in ids
+
+
+def record_of_another_task(state: Path, task: dict) -> Path | None:
+    """The exported record that uses this local task's ID while it belongs to another task, if any."""
+    path = state / DECISIONS_DIR / f"{task['id']}.json"
+    if not path.is_file():
+        return None
+    try:
+        record = read_json(path)
+    except (OSError, ValueError):
+        return path
+    return None if _same_task(record, task) else path
 
 
 def _refuse_foreign_record(root: Path, path: Path, task: dict) -> None:
@@ -353,6 +366,9 @@ def _refuse_foreign_record(root: Path, path: Path, task: dict) -> None:
         existing = None
     if not _same_task(existing, task):
         shown = path.resolve().relative_to(root.resolve()).as_posix() if root.resolve() in path.resolve().parents else str(path)
+        conflict = conflict_message(path, shown) if existing is None else None
+        if conflict:
+            raise ValueError(conflict)
         raise ValueError(f"{shown} holds a decision record of another task, such as a teammate's task with the same ID: "
                          f"it is left as it is. Read it with openguildkit task list --decisions; export this task "
                          "with --output to another file, or open it again under another ID.")
@@ -445,6 +461,10 @@ def _record_fault(record: dict, relative: str, fingerprint: str, policy: dict, b
     current = record.get("schema_version", 1) >= RECORD_VERSION or "shared_sha256" in payload or "record_sha256" in record
     if current and record.get("record_sha256") != record_digest(record):
         return f"{relative} was changed after it was exported. {export_again}"
+    inconsistent = _completion_problem(record) if current else None
+    if inconsistent:
+        return (f"{relative}: its completion is not consistent ({inconsistent}): a record that says completed carries "
+                f"the closing that task complete writes, and a record that does not carries none. {export_again}")
     if record["profile_fingerprint"] != fingerprint:
         return "earlier-rules"
     if not current:
@@ -456,6 +476,53 @@ def _record_fault(record: dict, relative: str, fingerprint: str, policy: dict, b
             verify_signature(base_root, policy, payload, decision["signature"], decision["signer"])
         except ValueError as error:
             return f"{relative}: {error}"
+    return None
+
+
+_CONFLICT_START = re.compile(r"^<<<<<<< ?(.*)$", re.MULTILINE)
+_CONFLICT_END = re.compile(r"^>>>>>>> ?(.*)$", re.MULTILINE)
+_APPROVER = re.compile(r'"by"\s*:\s*"((?:[^"\\]|\\.)*)"')
+CONFLICT_SECTION = 'docs/workflow.md, "When two copies use the same task ID"'
+
+
+def conflict_message(path: Path, relative: str) -> str | None:
+    """Name a decision record left with git conflict markers, and whose each side is when the text says it."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
+    start, end = _CONFLICT_START.search(text), _CONFLICT_END.search(text)
+    if not start or not end or "\n=======" not in text:
+        return None
+    ours = text[start.end():text.index("\n=======", start.end())]
+    theirs = text[text.index("\n=======", start.end()):end.start()]
+    sides = []
+    for label, side in ((start.group(1).strip() or "ours", ours), (end.group(1).strip() or "theirs", theirs)):
+        approver = _APPROVER.search(side)
+        name = label.split()[0] + (" (this copy)" if label.split()[0] == "HEAD" else "")
+        sides.append(f"{name} approved by {json.loads(chr(34) + approver.group(1) + chr(34))}" if approver else name)
+    return (f"{relative} holds a git merge conflict: two copies exported a decision for task {path.stem} ("
+            f"{'; '.join(sides)}). Two tasks used the same ID: keep the teammate's record, open your work under "
+            f"another ID, and export it again (see {CONFLICT_SECTION}).")
+
+
+def _completion_problem(record: dict) -> str | None:
+    """Whether a record's completion agrees with what task complete writes. No person seals a completion, so
+    this is consistency, not proof: the record's own digest can be recomputed by whoever edits it."""
+    status, completed = record.get("status"), record.get("completed")
+    if status not in ("approved", *DONE_STATUSES):
+        return f"status {status!r} is not a status a task is exported with"
+    if completed is not (status in DONE_STATUSES):
+        return f"completed is {completed!r} while the status is {status}"
+    closing = record.get("result", {}).get("closing") if isinstance(record.get("result"), dict) else None
+    if not completed:
+        return "a closing or a completion time without completion" if closing is not None or "completed_at" in record else None
+    if not isinstance(record.get("completed_at"), str):
+        return "no completion time"
+    if not isinstance(closing, dict) or not isinstance(closing.get("open_points"), list):
+        return "no closing with its open points"
+    if (status == "done-with-reservations") != bool(closing["open_points"]):
+        return f"the status is {status} while the closing lists {len(closing['open_points'])} group(s) of open points"
     return None
 
 
@@ -479,8 +546,9 @@ def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str)
         row = {"task": path.stem, "path": relative, "status": "unreadable", "problem": None}
         try:
             if record is None:
-                raise ValueError(f"{relative} is not a decision record written by openguildkit task export. "
-                                 "Export the decision again or remove the file.")
+                raise ValueError(conflict_message(path, relative) or (
+                    f"{relative} is not a decision record written by openguildkit task export. "
+                    "Export the decision again or remove the file."))
             _record_shape(record, relative)
             found = _record_check(record, relative, fingerprint, policy, root, set())
         except (OSError, ValueError) as error:
