@@ -37,7 +37,7 @@ ARGUMENTS = {
 # The commands that can run on a task in each status.
 RUNS_IN = {"draft": {"questions", "route", "consult"}, "consulting": {"pass", "submit", "progress", "review", "consult"}}
 # A reason with every character a shell reads in a double-quoted word, and both quotes.
-REASON = "Billed at $5 per `page` view, \"net\" of the customer's $(discount) and \\n"
+REASON = "Billed at $5 per `ogk_page` view, \"net\" of the customer's $(ogk_discount) and \\n"
 
 
 def task_actions() -> set[str]:
@@ -195,9 +195,13 @@ class QuotingTests(Project):
         output = self.cli("task", "route", "q1", "--answers", "answers.json", "--add", "frontend",
                           "--reason", REASON)[1]
         line = next(line for line in output.splitlines() if line.startswith("Apply: "))[len("Apply: "):]
-        words = powershell_words(line) if os.name == "nt" else shlex.split(line)
-        self.assertEqual(words, ["openguildkit", "task", "consult", "q1", "--answers",
-                                 (self.root / "answers.json").as_posix(), "--add", "frontend", "--reason", REASON])
+        typed = ["openguildkit", "task", "consult", "q1", "--answers", (self.root / "answers.json").as_posix(),
+                 "--add", "frontend", "--reason", REASON]
+        self.assertEqual(powershell_words(line) if os.name == "nt" else shlex.split(line), typed)
+        if os.name != "nt" and shutil.which("sh"):
+            # shlex expands nothing: a real shell shows what $ and backticks would do to a double-quoted reason.
+            pasted = subprocess.run(["sh", "-c", f"printf '%s\\n' {line}"], capture_output=True, text=True).stdout
+            self.assertEqual(pasted, "".join(f"{word}\n" for word in typed))
 
 
 class ApprovalWarningTests(Project):
