@@ -18,15 +18,17 @@ import os
 import pickle
 import re
 import secrets
+import socket
 import sys
 import tempfile
 import threading
 import time
 import webbrowser
 from http import HTTPStatus
+from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 DEFAULT_PORT = 7311
 MAX_BODY = 8 * 1024 * 1024
@@ -34,7 +36,13 @@ MAX_FILE = 2 * 1024 * 1024
 READABLE_SUFFIXES = {".json", ".jsonl", ".md", ".markdown", ".txt", ".yaml", ".yml"}
 # Files the interface may write, besides what the commands write: the Storybook proposals a person validates.
 WRITABLE_FILES = {".openguildkit/storybook/proposals.json"}
+# Names that suggest a secret, and the files where tools keep their tokens (token.json, auth.json, a cloud service
+# account, Azure Functions' local.settings.json): the page neither lists nor reads them. The tool's own records under
+# .openguildkit/ are named after task IDs, such as token-rotation.json, and stay readable.
 SECRET_NAME = re.compile(r"(^\.env)|secret|credential|password|private[-_]?key|\.pem$|\.key$|id_rsa|id_ed25519", re.I)
+TOKEN_FILE = re.compile(r"^token.*\.json$|^auth\.json$|service[-_]?account.*\.json$|^local\.settings\.json$", re.I)
+# A script that starts the server for its own browser, such as the end-to-end tests, may set the key of the run.
+KEY_VARIABLE = "OPENGUILDKIT_UI_KEY"
 UPLOAD_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$")
 
 # Why the interface refuses a request: a stable code, sent as "reason" next to the English message, that the page
@@ -70,6 +78,7 @@ REFUSALS = {
     "foreign-page": "The request does not come from the interface's own page.",
     "bad-request": "A malformed request.",
     "not-found": "No such endpoint or file.",
+    "open-printed-link": "Open the address openguildkit ui printed in its terminal: it carries the key of this run.",
     "server-error": "The server failed while handling the request.",
 }
 # The acts a person records at a terminal, by command and action, with the code of their refusal.
@@ -90,6 +99,11 @@ DENIED_COMMANDS = {
 HUMAN_ONLY_TEXT = "A person runs this command in their own terminal: the interface never records it."
 TERMINAL_NEEDED = re.compile(
     r"interactive terminal|needs a terminal|at a terminal|in their own terminal|runs the command at", re.I)
+# What a browser without the key of the run sees in place of the page.
+GATE = ("<!doctype html><html lang=\"fr\"><meta charset=utf-8><title>OpenGuildKit</title><p>Ouvre l'adresse que "
+        "<code>openguildkit ui</code> a imprimée dans ton terminal : elle porte la clé de cette session, qui change "
+        "à chaque lancement.</p><p lang=\"en\">Open the address <code>openguildkit ui</code> printed in your "
+        "terminal: it carries the key of this run, which changes at each start.</p></html>")
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
        "font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; "
        "object-src 'none'")
@@ -202,7 +216,19 @@ def _inside(root: Path, value: Path | str, uploads: set[Path]) -> bool:
         relative = target.relative_to(root)
     except ValueError:
         return False
-    return ".git" not in relative.parts
+    return not _in_git(relative.parts)
+
+
+def _in_git(parts) -> bool:
+    """.git whatever its case: a disk that ignores case writes .GIT/x into the repository's own folder."""
+    return any(part.casefold() == ".git" for part in parts)
+
+
+def _secret(parts: tuple[str, ...]) -> bool:
+    """A path the page neither lists nor reads: a name that suggests a secret, or a tool's token file."""
+    if any(SECRET_NAME.search(part) for part in parts):
+        return True
+    return bool(parts) and parts[0] != ".openguildkit" and bool(TOKEN_FILE.search(parts[-1]))
 
 
 def check_paths(args, root: Path, uploads: set[Path]) -> None:
@@ -431,9 +457,9 @@ class ProjectFiles:
         except ValueError:
             raise Refused("The path leaves the project.", status=HTTPStatus.BAD_REQUEST,
                           reason="outside-project") from None
-        if ".git" in parts:
+        if _in_git(parts):
             raise Refused("The interface does not read or write inside .git.", reason="outside-project")
-        if any(SECRET_NAME.search(part) for part in parts):
+        if _secret(parts):
             raise Refused("The name of this path suggests a secret: the interface does not read it.",
                           reason="secret-file")
         return target
@@ -444,7 +470,8 @@ class ProjectFiles:
             return []
         entries = []
         for child in sorted(folder.iterdir(), key=lambda item: item.name):
-            if child.is_symlink() or SECRET_NAME.search(child.name) or child.name == ".git":
+            parts = child.relative_to(self.root).parts
+            if child.is_symlink() or _secret(parts) or _in_git(parts):
                 continue
             stat = child.stat()
             entries.append({"name": child.name, "kind": "folder" if child.is_dir() else "file",
@@ -542,12 +569,26 @@ class Handler(BaseHTTPRequestHandler):
         if not self._host_allowed():
             self._refuse(Refused("Unknown host.", status=HTTPStatus.MISDIRECTED_REQUEST, reason="foreign-page"))
             return
-        path = urlsplit(self.path).path
+        address = urlsplit(self.path)
+        key = parse_qs(address.query).get("key")
+        if key and _same(key[0], self.app.key):
+            # The printed address: its key becomes a cookie of this browser and leaves the address bar.
+            self._send(HTTPStatus.SEE_OTHER, b"", "text/plain; charset=utf-8",
+                       {"Location": address.path or "/", "Set-Cookie": self.app.set_cookie(), "Cache-Control": "no-store"})
+            return
+        path, opened = address.path, self.app.opened(self.headers.get("Cookie"))
         if path == "/api/session":
-            self._json(HTTPStatus.OK, self.app.session())
+            if opened:
+                self._json(HTTPStatus.OK, self.app.session())
+            else:
+                self._refuse(Refused(REFUSALS["open-printed-link"], reason="open-printed-link"))
             return
         if path.startswith("/api/"):
             self._refuse(Refused("Use POST for the API.", status=HTTPStatus.METHOD_NOT_ALLOWED, reason="bad-request"))
+            return
+        if not opened and path in ("", "/", "/index.html"):
+            self._send(HTTPStatus.FORBIDDEN, GATE.encode("utf-8"), "text/html; charset=utf-8",
+                       {"Content-Security-Policy": CSP, "Cache-Control": "no-store"})
             return
         self._static(path)
 
@@ -598,7 +639,7 @@ class Handler(BaseHTTPRequestHandler):
             raise Refused("Unknown host.", status=HTTPStatus.MISDIRECTED_REQUEST, reason="foreign-page")
         if (self.headers.get("Origin") or "").lower() not in self.app.origins:
             raise Refused("Requests must come from the interface's own page.", reason="foreign-page")
-        if not secrets.compare_digest(self.headers.get("X-OGK-Token") or "", self.app.token):
+        if not _same(self.headers.get("X-OGK-Token") or "", self.app.token):
             raise Refused("Missing or invalid session token. Reload the page.", reason="stale-token")
         if not (self.headers.get("Content-Type") or "").startswith("application/json"):
             raise Refused("Send JSON.", status=HTTPStatus.UNSUPPORTED_MEDIA_TYPE, reason="bad-request")
@@ -617,12 +658,32 @@ class Handler(BaseHTTPRequestHandler):
         return body
 
 
+def _same(given: str, secret: str) -> bool:
+    """Compare a secret in constant time, whatever characters a request sent."""
+    return secrets.compare_digest(given.encode("utf-8", "replace"), secret.encode("utf-8"))
+
+
+def launch_key() -> str:
+    """The key of this run, which only the printed address carries. A script that starts the server for its own
+    browser sets it with OPENGUILDKIT_UI_KEY; it is then as secret as that script keeps it."""
+    value = os.environ.get(KEY_VARIABLE, "").strip()
+    if not value:
+        return secrets.token_urlsafe(32)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{32,128}", value):
+        raise ValueError(f"Set {KEY_VARIABLE} to 32 to 128 letters, digits, - or _, or unset it.")
+    return value
+
+
 class WebApp:
+    """The project behind the page. A browser opens the session with the key of the printed address, kept in a
+    cookie; the session gives the page the token that every API call carries."""
+
     def __init__(self, root: Path, front: Path | None, port: int, verbose: bool = False):
         from .lock import package_version
 
         self.root = root
         self.front = front
+        self.key = launch_key()
         self.token = secrets.token_urlsafe(32)
         self.runner = CliRunner(root)
         self.files = ProjectFiles(root)
@@ -634,6 +695,25 @@ class WebApp:
         self.port = port
         self.hosts = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
         self.origins = {f"http://{host}" for host in self.hosts}
+        # A browser shares cookies between the ports of a host: each server keeps its own name.
+        self.cookie = f"ogk-{port}"
+
+    @property
+    def url(self) -> str:
+        return f"http://127.0.0.1:{self.port}/?key={self.key}"
+
+    def set_cookie(self) -> str:
+        return f"{self.cookie}={self.key}; Path=/; HttpOnly; SameSite=Strict"
+
+    def opened(self, header: str | None) -> bool:
+        """Whether the browser opened the printed address of this run."""
+        cookies = SimpleCookie()
+        try:
+            cookies.load(header or "")
+        except CookieError:
+            return False
+        morsel = cookies.get(self.cookie)
+        return morsel is not None and _same(morsel.value, self.key)
 
     def session(self) -> dict:
         return {
@@ -737,6 +817,15 @@ class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
     # A page load opens a dozen connections at once; Windows refuses them past the default backlog of 5.
     request_queue_size = 64
+    # On Windows, SO_REUSEADDR lets another program bind the same port and receive the page's requests: the port is
+    # held exclusively there instead.
+    allow_reuse_address = os.name != "nt"
+
+    def server_bind(self):
+        exclusive = getattr(socket, "SO_EXCLUSIVEADDRUSE", None)
+        if exclusive is not None:
+            self.socket.setsockopt(socket.SOL_SOCKET, exclusive, 1)
+        super().server_bind()
 
     def handle_error(self, request, client_address):
         # A browser that navigates away closes its connections: nothing to report.
@@ -770,8 +859,9 @@ def serve(root: Path, port: int = DEFAULT_PORT, static: Path | None = None, open
             raise
         server, app = make_server(root, 0, front, verbose)
         print(f"Port {port} is busy; using {app.port}.", file=sys.stderr)
-    url = f"http://127.0.0.1:{app.port}/"
-    print(f"OpenGuildKit interface for {root}\n{url}\nPress Ctrl+C to stop.", flush=True)
+    url = app.url
+    print(f"OpenGuildKit interface for {root}\n{url}\nOpen this address: it carries the key of this run. "
+          "Press Ctrl+C to stop.", flush=True)
     if front is None:
         print("OpenGuildKit: the web interface is not built; the page explains how to build it.", file=sys.stderr)
     if open_browser:
