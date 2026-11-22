@@ -46,8 +46,8 @@
   "rules": [
     {
       "id": "update-processing-record",
-      "instruction": "When the change creates or alters a processing of personal data, ask the privacy owner to update the record of processing activities (GDPR Art. 30) with the purpose, data categories, recipients and retention.",
-      "verification": "Link the updated entry of the record of processing activities from the change.",
+      "instruction": "When the change creates or alters a processing of personal data, ask the privacy owner to update the record of processing activities (Art. 30).",
+      "verification": "Link the updated entry of the record of processing activities, with the purpose, data categories, recipients and retention, from the change.",
       "evidence": [
         {
           "id": "processing-record",
@@ -65,19 +65,19 @@
     },
     {
       "id": "confirm-lawful-basis",
-      "instruction": "Ask the privacy owner which lawful basis of Art. 6 covers each new purpose of processing, and record the answer in the processing record.",
+      "instruction": "Ask the privacy owner which lawful basis of Art. 6 covers each new purpose, and record it in the processing record.",
       "verification": "Check that the processing record names a lawful basis for each purpose the change introduces.",
       "manual": "Choosing a lawful basis is a legal decision of the privacy owner, not a property of the code."
     },
     {
       "id": "inform-data-subjects",
-      "instruction": "When the change collects personal data in a new form, screen or flow, or uses it for a new purpose or recipient, ask the privacy owner to update the information given to people: when the data is collected from them (Art. 13), or within one month at the latest when it is not (Art. 14(3)(a)).",
-      "verification": "On a test page of the changed flow, check that the information, or a link to it, is shown where the data is collected, before it is sent, and that it names the controller, the purposes, the legal basis, the recipients and the retention period.",
+      "instruction": "When the change collects personal data in a new flow or for a new purpose, ask the privacy owner to update the information given to people (Art. 13 and Art. 14).",
+      "verification": "On a test page of the changed flow, check that the information, or a link to it, is shown where the data is collected, before it is sent, and names the controller, purposes, legal basis, recipients and retention; for data not collected from the person, check it is given within one month (Art. 14(3)(a)).",
       "manual": "The information must be read on the rendered page of the changed flow and compared with the processing record."
     },
     {
       "id": "gate-trackers-on-consent",
-      "instruction": "When the change stores or reads information on the user's device, such as a cookie, a local storage entry or a tracking pixel, do it only after the user consents, unless it is strictly necessary to transmit the communication or to provide the service the user asked for (Directive 2002/58/EC Art. 5(3)).",
+      "instruction": "Keep cookies, local storage and pixels off the user's device until consent, unless strictly necessary for the transmission or the service asked for (Directive 2002/58/EC Art. 5(3)).",
       "verification": "Open the changed page on a test page in a browser with an empty profile, list the cookies and storage entries set before any choice and check that only strictly necessary ones are present; refuse, reload and check again.",
       "manual": "What a page stores before consent shows only in a browser that loads it, not in the repository's files."
     },
@@ -89,13 +89,13 @@
     },
     {
       "id": "apply-retention-period",
-      "instruction": "Ask the privacy owner for the retention period of the new data (Art. 5(1)(e)), and implement its deletion or anonymisation in the repository.",
+      "instruction": "Ask the privacy owner for the retention period of the new data (Art. 5(1)(e)) and implement its deletion or anonymisation.",
       "verification": "Find the deletion job, policy or test that applies the recorded retention period to the new data.",
       "manual": "The retention period is the privacy owner's decision; a person compares the deletion job with it."
     },
     {
       "id": "assess-dpia-need",
-      "instruction": "Ask the data protection officer whether the change requires a data protection impact assessment under Art. 35, and record the decision with its reason.",
+      "instruction": "Ask the data protection officer whether the change requires an impact assessment (Art. 35), and record the decision and its reason.",
       "verification": "Link the recorded decision or the completed assessment from the change.",
       "evidence": [
         {
@@ -114,13 +114,13 @@
     },
     {
       "id": "review-processor-terms",
-      "instruction": "When a new service provider processes personal data for the organization, ask the legal owner to confirm a contract that meets Art. 28.",
+      "instruction": "When a new service provider processes personal data for the organization, ask the legal owner to confirm an Art. 28 contract.",
       "verification": "Check that the processing record names the provider and links the signed processing terms.",
       "manual": "The processing terms are a signed contract kept outside the repository."
     },
     {
       "id": "check-transfer-mechanism",
-      "instruction": "When personal data leaves the European Economic Area, ask the legal owner which Chapter V mechanism applies: an adequacy decision (Art. 45), appropriate safeguards such as standard contractual clauses (Art. 46), binding corporate rules (Art. 47) or a derogation for a specific situation (Art. 49).",
+      "instruction": "When personal data leaves the EEA, ask the legal owner which mechanism applies: adequacy (Art. 45), safeguards such as standard clauses (Art. 46), binding corporate rules (Art. 47) or a derogation (Art. 49).",
       "verification": "Check that the processing record names the destination country and the transfer mechanism.",
       "manual": "The transfer mechanism is a legal choice that the legal owner records outside the repository."
     },
@@ -132,7 +132,7 @@
     },
     {
       "id": "review-automated-decisions",
-      "instruction": "When the change takes a decision about a person based solely on automated processing, including profiling, with legal or similarly significant effects, ask the privacy owner which exception of Art. 22(2) applies, and for a contract or consent implement the safeguards of Art. 22(3): human intervention, a way for the person to express their view and to contest the decision.",
+      "instruction": "When the change decides about a person solely by automated means with legal or similar effects, ask the privacy owner which Art. 22(2) exception applies and add the Art. 22(3) safeguards: human intervention, a view, a contest.",
       "verification": "Run the decision path in a test and show where the person asks for a human review and contests the outcome, and link the privacy owner's recorded Art. 22(2) exception.",
       "manual": "The Art. 22(2) exception is a legal assessment, and the safeguards show in a running decision path."
     }
