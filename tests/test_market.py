@@ -200,6 +200,36 @@ class MarketCommandTests(unittest.TestCase):
         self.assertIn("Watch paused.", self.cli("market", "due", "portals"))
         self.assertEqual(self.dossier()["unknowns"], [])
 
+    def test_market_unknown_preserves_the_other_sections_and_line_endings(self):
+        self.cli("market", "new", "portals", "--market", "B2B help desks", "--audience", "Support leads",
+                 "--feature", "Status")
+        path = self.root / ".openguildkit" / "market" / "portals.json"
+        text = path.read_text(encoding="utf-8").replace(
+            '"observations": [],', '"observations"   :   [],'
+        ).replace('"unknowns": []', '"unknowns": [\n    "Unknown A",\n    "Unknown B"\n  ]')
+        source = b"\xef\xbb\xbf" + text.replace("\n", "\r\n").encode("utf-8")
+        path.write_bytes(source)
+        self.cli("market", "unknown", "portals", "--text", "Unknown A", "--remove")
+        self.assertEqual(path.read_bytes(), source.replace(b'    "Unknown A",\r\n', b""))
+        self.cli("market", "describe", "portals", "--title", "Portals in Europe")
+        self.assertIn(b'"observations"   :   [],', path.read_bytes())
+        self.assertEqual(json.loads(path.read_bytes())["title"], "Portals in Europe")
+
+    def test_local_only_due_explains_how_to_record_a_page_given_by_a_person(self):
+        path = self.root / ".openguildkit" / "project.json"
+        profile = json.loads(path.read_text(encoding="utf-8"))
+        write_json(path, {**profile, "research": "local-only"})
+        self.cli("market", "new", "portals")
+        self.cli("market", "competitor", "portals", "--competitor", "vendor-a", "--name", "Vendor A", "--kind", "direct")
+        url = "https://example.com/vendor-a/releases"
+        self.cli("market", "watch", "portals", "--competitor", "vendor-a", "--url", url, "--kind", "release notes")
+        due = self.cli("market", "due", "portals")
+        self.assertIn("ask a person for the page", due)
+        self.assertIn(url, due)
+        self.cli("market", "checked", "portals", "--url", url, "--supplied-by", "Camille Martin")
+        self.assertEqual(self.dossier()["watch"]["sources"][0]["supplied_by"], "Camille Martin")
+        self.assertEqual(json.loads(self.cli("market", "due", "portals", "--json"))["due"], [])
+
     def test_the_scheduled_job_opens_one_issue_per_source_due_in_the_example_dossier(self):
         workflow = WATCH_TEMPLATE.read_text(encoding="utf-8")
         repository_pins = set()

@@ -5,13 +5,14 @@ The CLI validates it and attaches it to consultations; the host agent gathers th
 observations within the project's research policy.
 """
 
+import json
 import re
 import unicodedata
 from datetime import date, timedelta
 from pathlib import Path
 
 from . import clock
-from .storage import read_json, write_json
+from .storage import parse_json, read_bytes, read_json, write_json, write_text
 
 MARKET_DIR = "market"
 KINDS = ("direct", "substitute")
@@ -120,14 +121,18 @@ def validate_watch(watch: dict, competitors: dict) -> dict:
         raise ValueError("every_days is a whole number of days between 1 and 366.")
     sources = []
     for item in _list(watch, "sources", "watch.sources"):
-        if not isinstance(item, dict) or not {"competitor", "url", "kind"} <= item.keys() <= {"competitor", "url", "kind", "last_checked"}:
-            raise ValueError("Each watched source needs competitor, url and kind, and can add last_checked.")
+        if not isinstance(item, dict) or not {"competitor", "url", "kind"} <= item.keys() <= {"competitor", "url", "kind", "last_checked", "supplied_by"}:
+            raise ValueError("Each watched source needs competitor, url and kind, and can add last_checked and supplied_by.")
         competitor = _competitor(item, competitors, "A watched source")
         if not isinstance(item["url"], str) or not item["url"].startswith("https://"):
             raise ValueError("Watched sources are public https pages.")
         source = {"competitor": competitor, "url": _text(item["url"], "url"), "kind": _text(item["kind"], "kind")}
         if "last_checked" in item:
             source["last_checked"] = _day(item["last_checked"], "last_checked")
+        if "supplied_by" in item:
+            if "last_checked" not in item:
+                raise ValueError("A supplied source needs its last_checked date.")
+            source["supplied_by"] = _text(item["supplied_by"], "supplied_by")
         sources.append(source)
     changes = []
     for item in _list(watch, "changes", "watch.changes"):
@@ -150,8 +155,59 @@ def load_dossier(state: Path, dossier_id: str) -> dict:
     return validate_dossier(read_json(path), dossier_id)
 
 
+def _update_dossier_fields(source: str, updates: dict) -> str:
+    """Replace top-level values without reformatting the untouched parts of the dossier."""
+    decoder = json.JSONDecoder()
+    whitespace = re.compile(r"[ \t\r\n]*")
+    newline = "\r\n" if "\r\n" in source else "\n"
+    pos = source.index("{") + 1
+    pieces = []
+    last = 0
+    last_value_end = pos
+    while True:
+        field_start = whitespace.match(source, pos).end()
+        if source[field_start] == "}":
+            break
+        key, key_end = decoder.raw_decode(source, field_start)
+        value_start = whitespace.match(source, source.index(":", key_end) + 1).end()
+        _, value_end = decoder.raw_decode(source, value_start)
+        if key in updates:
+            original = source[value_start:value_end]
+            multiline = "\n" in original or ("\n" in source and original in ("[]", "{}"))
+            value = json.dumps(updates.pop(key), ensure_ascii=False, indent=2 if multiline else None, allow_nan=False)
+            if multiline:
+                line_start = source.rfind("\n", 0, field_start) + 1
+                indent = re.match(r"[ \t]*", source[line_start:]).group()
+                value = value.replace("\n", newline + indent)
+            pieces.extend((source[last:value_start], value))
+            last = value_end
+        pos = whitespace.match(source, value_end).end()
+        last_value_end = value_end
+        if source[pos] == "}":
+            break
+        pos += 1
+    if updates:
+        fields = json.dumps(updates, ensure_ascii=False, indent=2, allow_nan=False)[2:-2].replace("\n", newline)
+        pieces.extend((source[last:last_value_end], ",", newline, fields))
+        last = last_value_end
+    pieces.append(source[last:])
+    return "".join(pieces)
+
+
 def save_dossier(state: Path, dossier: dict) -> None:
-    write_json(dossier_path(state, dossier["id"]), validate_dossier(dossier, dossier["id"]))
+    path = dossier_path(state, dossier["id"])
+    validated = validate_dossier(dossier, dossier["id"])
+    if not path.exists():
+        write_json(path, validated)
+        return
+    raw = read_bytes(path)
+    old = validate_dossier(parse_json(raw, str(path)), dossier["id"])
+    changed = {key: value for key, value in validated.items() if old.get(key) != value}
+    if changed:
+        encoding = "utf-8-sig" if raw.startswith(b"\xef\xbb\xbf") else "utf-8"
+        source = raw.decode(encoding)
+        updated = _update_dossier_fields(source, changed)
+        write_text(path, ("\ufeff" if encoding == "utf-8-sig" else "") + updated)
 
 
 def new_dossier(dossier_id: str, fields: dict) -> dict:
@@ -219,17 +275,26 @@ def watch_source(dossier: dict, source: dict, every_days: int | None = None) -> 
     return validate_dossier({**dossier, "watch": watch}, dossier["id"])
 
 
-def _checked(sources: list[dict], url: str, day: str) -> list[dict]:
-    return [{**item, "last_checked": day} if item["url"] == url else item for item in sources]
+def _checked(sources: list[dict], url: str, day: str, supplied_by: str | None = None) -> list[dict]:
+    result = []
+    for source in sources:
+        if source["url"] == url:
+            source = {**source, "last_checked": day}
+            source.pop("supplied_by", None)
+            if supplied_by is not None:
+                source["supplied_by"] = supplied_by
+        result.append(source)
+    return result
 
 
-def mark_checked(dossier: dict, url: str, day: str | None = None) -> dict:
+def mark_checked(dossier: dict, url: str, day: str | None = None, *, supplied_by: str | None = None) -> dict:
     """Record that a watched source was reviewed, with no change to keep."""
     watch = _watch(dossier)
     if not any(item["url"] == url for item in watch["sources"]):
         raise ValueError(f"{url} is not a watched source of the dossier. Run market due to list them.")
     day = _day(day or clock.today().isoformat(), "date")
-    return validate_dossier({**dossier, "watch": {**watch, "sources": _checked(watch["sources"], url, day)}}, dossier["id"])
+    return validate_dossier({**dossier, "watch": {**watch, "sources": _checked(watch["sources"], url, day, supplied_by)}},
+                            dossier["id"])
 
 
 def record_change(dossier: dict, change: dict, today: str | None = None) -> dict:

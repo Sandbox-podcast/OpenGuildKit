@@ -51,6 +51,7 @@ def add_parser(commands) -> None:
     market.add_argument("--date", help="observe, change: the date the information dates from, YYYY-MM-DD; checked: today by default.")
     market.add_argument("--what", help="change: what changed.")
     market.add_argument("--verified-by", help="change: the person who verified it.")
+    market.add_argument("--supplied-by", help="checked: the person who supplied the source.")
     market.add_argument("--text", help="unknown: what is still unknown.")
     market.add_argument("--remove", action="store_true", help="unknown: remove the text instead of adding it.")
     market.add_argument("--every-days", type=int, help="watch: review interval in days (30 by default).")
@@ -82,14 +83,14 @@ def _changed(args, dossier: dict) -> dict:
     if mode == "watch":
         return watch_source(dossier, {"competitor": args.competitor, "url": args.url, "kind": args.kind}, args.every_days)
     if mode == "checked":
-        return mark_checked(dossier, args.url, args.date)
+        return mark_checked(dossier, args.url, args.date, supplied_by=args.supplied_by)
     if mode == "change":
         return record_change(dossier, {"competitor": args.competitor, "what": args.what, "date": args.date,
                                        "source": args.source, "verified_by": args.verified_by})
     return set_paused(dossier, mode == "pause")
 
 
-def _due(args, state: Path) -> None:
+def _due(args, state: Path, research: str) -> None:
     if args.all == bool(args.dossier):
         raise ValueError("Name one dossier, or pass --all for every dossier of the project.")
     folder = state / MARKET_DIR
@@ -111,11 +112,15 @@ def _due(args, state: Path) -> None:
         print("\n".join(lines))
     if not results:
         print("No market dossier in .openguildkit/market/.")
+    if research == "local-only" and any(result["due"] for result in results):
+        print("Local-only research: ask a person for the page and record it with market checked ID --url URL --supplied-by NAME.")
 
 
 def run(args, state: Path, profile: dict) -> None:
+    if args.supplied_by is not None and args.mode != "checked":
+        raise ValueError("--supplied-by is for market checked.")
     if args.mode == "due":
-        return _due(args, state)
+        return _due(args, state, profile.get("research", "local-only"))
     if not args.dossier:
         raise ValueError(f"Name the dossier: openguildkit market {args.mode} ID.")
     if args.mode == "check":
