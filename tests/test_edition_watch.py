@@ -27,8 +27,8 @@ FAMILIES = {"quality": {"id": "quality", "title": "Quality", "references": [
 ]}}
 # The same reference as the bundled catalog records it: each source carries the day a person read it.
 CHECKED = {"quality": {**FAMILIES["quality"], "references": [
-    {**FAMILIES["quality"]["references"][0], "sources": [
-        {"title": "Spec", "url": PAGE, "checked": "2026-11-20"}, {"title": "Mirror", "url": MIRROR, "checked": "2026-11-18"}]},
+    {**FAMILIES["quality"]["references"][0], "sources": [{"title": "Spec", "url": PAGE, "checked": "2026-11-20"},
+                                                         {"title": "Mirror", "url": MIRROR, "checked": "2026-11-18"}]},
     FAMILIES["quality"]["references"][1],
 ]}}
 
@@ -124,8 +124,8 @@ class EditionWatchTests(unittest.TestCase):
 
     def test_the_committed_watch_file_reports_a_new_edition_on_the_next_run(self):
         state = watch_editions.read_state(watch_editions.STATE)
-        later = watch_editions.watch(load_references(), state, lambda url: {"status": 200, "text": "Edition 9999.99 is out"},
-                                     "2026-12-07")
+        other_edition = {"status": 200, "text": "Edition 9999.99 is out"}
+        later = watch_editions.watch(load_references(), state, lambda url: other_edition, "2026-12-07")
         found = watch_editions.changes(later)["may_have_changed"]
         self.assertTrue(found)
         self.assertEqual(len(found), len(state["references"]))

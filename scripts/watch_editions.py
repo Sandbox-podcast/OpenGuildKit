@@ -110,7 +110,8 @@ def observe(entry: dict, previous: dict, fetcher, day: str) -> dict:
             continue
         answered = True
         if shows_edition(page_text(result["text"]), entry["edition"]):
-            return {**record, "page": url, "seen": entry["edition"], "seen_on": day, "seen_in": "page", "status": "found"}
+            return {**record, "page": url, "seen": entry["edition"], "seen_on": day, "seen_in": "page",
+                    "status": "found"}
     if not answered:
         return {**record, "status": "unreachable"}
     status = CHANGED if record["seen"] == entry["edition"] else "not-found"
