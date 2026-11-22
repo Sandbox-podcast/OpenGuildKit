@@ -2,8 +2,7 @@
 
 The guard forbids the agent to edit .openguildkit/project.json, so every change goes through these
 commands. Each one validates the result like init, rewrites the instructions like sync and records the
-change. What weakens a protection (a declined regulation, a lower guard, public research) is the
-person's decision: it needs an interactive terminal and a typed confirmation.
+change. What weakens a protection (see weakening_changes) is the person's decision: it needs an interactive terminal and a typed confirmation.
 """
 
 import sys
@@ -28,6 +27,35 @@ SET_FIELDS = {
     "personal-data": ("yes", "no"), "people-decisions": ("yes", "no"), "sector": None,
 }
 GUARD_LEVEL = {"off": 0, "observe": 1, "enforce": 2}
+# How much each host enforces by itself: Claude Code also denies edits to the profile and the task records,
+# Codex runs the hooks and forbids the approval commands, another agent only reads the instructions.
+HOST_LEVEL = {"other": 0, "codex": 1, "claude-code": 2}
+PROTECTIVE_BOARDS = ("security", "legal")
+AI_PACKS = ("llm-evaluations", "nist-ai-risk", "eu-ai-act")
+
+
+def protective_packs(catalog: dict) -> set[str]:
+    """Packs whose removal weakens a protection: those of a regulation, of a security method, or about AI."""
+    packs = set(AI_PACKS) | {"secure-sdlc"}
+    for pattern in catalog["patterns"].values():
+        security_method = "security" in pattern["roles"] and not pattern.get("match", {}).get("stack")
+        if pattern.get("kind") == "regulation" or security_method:
+            packs.update(pattern["packs"])
+    return packs & set(catalog["packs"])
+
+
+def _packs_in_force(profile: dict, catalog: dict) -> set[str]:
+    """The packs a profile lists or brings through its patterns, without resolving it: the page passes drafts."""
+    packs = set(profile.get("packs", []))
+    for entry in profile.get("patterns", []):
+        if isinstance(entry, (str, dict)):
+            packs.update(catalog["patterns"].get(pattern_selection(entry)[0], {}).get("packs", []))
+    return packs
+
+
+def _boards_in_force(profile: dict, catalog: dict) -> set[str]:
+    """An empty board list lets every board advise."""
+    return set(profile.get("boards") or catalog["boards"])
 
 
 def add_parser(commands) -> None:
@@ -53,7 +81,9 @@ def add_parser(commands) -> None:
 
 def weakening_changes(before: dict, after: dict, catalog: dict) -> list[tuple[str, list[str]]]:
     """What a new profile weakens, each with the profile command a person types for it at a terminal: a lower
-    guard, public research, a regulation that stops being active. The profile commands and the web page ask this."""
+    guard, public research, a regulation that stops being active, a regulation, security or AI pack removed, the
+    security or legal board removed, personal data set to no, a host whose settings enforce less. The profile
+    commands and the web page ask this."""
     person = ["--by", "NAME", "--reason", "WHY"]
     changes = []
     old_guard, new_guard = before.get("guard", "off"), after.get("guard", "off")
@@ -69,6 +99,22 @@ def weakening_changes(before: dict, after: dict, catalog: dict) -> list[tuple[st
     for pattern_id in sorted(item for item in dropped if isinstance(item, str)):
         if catalog["patterns"].get(pattern_id, {}).get("kind") == "regulation":
             changes.append((f"regulation {pattern_id} no longer active", ["profile", "decline", pattern_id, *person]))
+    removed = (_packs_in_force(before, catalog) - _packs_in_force(after, catalog)) & protective_packs(catalog)
+    # A pack that leaves with a regulation reported above is part of that change.
+    removed -= {pack for pattern_id in dropped if isinstance(pattern_id, str)
+                for pack in catalog["patterns"].get(pattern_id, {}).get("packs", [])}
+    for pack_id in sorted(removed):
+        changes.append((f"protective pack {pack_id} removed", ["profile", "remove", "pack", pack_id, *person]))
+    if "boards" in after:
+        for board in PROTECTIVE_BOARDS:
+            if board in _boards_in_force(before, catalog) - _boards_in_force(after, catalog):
+                changes.append((f"board {board} no longer advises", ["profile", "remove", "board", board, *person]))
+    if before.get("personal_data") is not False and after.get("personal_data") is False:
+        changes.append(("personal data set to no", ["profile", "set", "personal-data", "no", *person]))
+    old_host, new_host = before.get("host", "other"), after.get("host", "other")
+    if HOST_LEVEL.get(new_host, 0) < HOST_LEVEL.get(old_host, 0):
+        changes.append((f"host {old_host} -> {new_host}, whose settings enforce less",
+                        ["profile", "set", "host", str(new_host), *person]))
     return changes
 
 
@@ -126,8 +172,8 @@ def _set(profile: dict, field: str, value: str, catalog: dict) -> dict:
     return {**profile, key: new}
 
 
-def _changed(profile: dict, args, catalog: dict) -> tuple[dict, str, bool]:
-    """The profile after the command, the change in a few words, and whether it weakens a protection."""
+def _changed(profile: dict, args, catalog: dict) -> tuple[dict, str, list[str]]:
+    """The profile after the command, the change in a few words, and the protections it weakens."""
     action = args.profile_action
     if action == "adopt":
         updated, change = _adopt(profile, args.pattern, catalog), f"adopt {args.pattern}"
@@ -139,16 +185,17 @@ def _changed(profile: dict, args, catalog: dict) -> tuple[dict, str, bool]:
         change = f"{action} {args.field} {', '.join(args.values)}"
     else:
         updated, change = _set(profile, args.field, args.value, catalog), f"set {args.field} {args.value}"
-    return updated, change, bool(weakening_changes(profile, updated, catalog))
+    return updated, change, [text for text, _ in weakening_changes(profile, updated, catalog)]
 
 
-def _confirm(change: str, target: str) -> None:
+def _confirm(change: str, target: str, weakened: list[str]) -> None:
     """A change that weakens a protection is typed by the person at a terminal, never run by an agent."""
+    what = "; ".join(weakened)
     if not sys.stdin.isatty():
-        raise ValueError(f"'{change}' weakens a protection: it is the person's decision. Ask them to run the same "
-                         "command at an interactive terminal. Nothing was written.")
-    print(f"'{change}' weakens a protection of the project. Type {target} to confirm: ", end="", file=sys.stderr,
-          flush=True)
+        raise ValueError(f"'{change}' weakens a protection ({what}): it is the person's decision. Ask them to run the "
+                         "same command at an interactive terminal. Nothing was written.")
+    print(f"'{change}' weakens a protection of the project ({what}). Type {target} to confirm: ", end="",
+          file=sys.stderr, flush=True)
     if input().strip() != target:
         raise ValueError("Profile change cancelled. Nothing was written.")
 
@@ -162,7 +209,8 @@ def run(args, root: Path, state: Path, installed_catalog, print_touched) -> int:
         profile = load_profile(state, catalog)
         updated, change, weakens = _changed(profile, args, catalog)
         if weakens:
-            _confirm(change, getattr(args, "pattern", None) or args.value)
+            _confirm(change, getattr(args, "pattern", None) or getattr(args, "value", None) or " ".join(args.values),
+                     weakens)
         record = {"change": change, "by": args.by, "on": today().isoformat(), "reason": args.reason}
         updated = validate_profile({**updated, "changes": [*profile.get("changes", []), record]}, catalog)
         sync_instructions(root, updated, catalog)

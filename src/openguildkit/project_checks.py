@@ -7,6 +7,8 @@ import json
 import re
 from pathlib import Path
 
+from .detect import MAX_DEPTH, SKIPPED_DIRECTORIES
+
 
 def _read(path: Path) -> str:
     try:
@@ -67,12 +69,53 @@ def _command(directory: Path) -> tuple[str, str] | None:
     return None
 
 
+# The files that make a folder a project of its own; a tests folder alone is not one.
+MANIFESTS = ("package.json", "pyproject.toml", "setup.cfg", "tox.ini", "pytest.ini", "go.mod", "Cargo.toml", "pom.xml",
+             "build.gradle", "build.gradle.kts")
+
+
+def _test_folders(root: Path) -> list[str]:
+    """Folders under root whose manifests name a test runner, though detection found no technology there,
+    such as a package.json that holds only a test script."""
+    folders = []
+
+    def visit(directory: Path, depth: int) -> None:
+        manifest = any((directory / name).is_file() for name in MANIFESTS) or any(directory.glob("*.csproj")) \
+            or any(directory.glob("*.sln"))
+        if manifest and _command(directory) is not None:
+            folders.append(directory.relative_to(root).as_posix() or ".")
+        if depth >= MAX_DEPTH:
+            return
+        try:
+            children = sorted(entry for entry in directory.iterdir() if entry.is_dir() and not entry.is_symlink())
+        except OSError:
+            return
+        for child in children:
+            if child.name not in SKIPPED_DIRECTORIES:
+                visit(child, depth + 1)
+
+    visit(root, 0)
+    return folders
+
+
+def _covered_by_solution(path: str, paths: list[str], root: Path) -> bool:
+    """A .NET project inside a folder whose solution dotnet test already runs."""
+    if not any((root / path).glob("*.csproj")) or any((root / path).glob("*.sln")):
+        return False
+    parts = path.split("/")
+    ancestors = ["/".join(parts[:index]) or "." for index in range(len(parts))] if path != "." else []
+    return any(ancestor in paths and any((root / ancestor).glob("*.sln")) for ancestor in ancestors)
+
+
 def propose_checks(root: Path, detected: dict) -> list[dict]:
     """The test command each component shows, and its lint script when package.json has one, run from that
-    component's folder."""
+    component's folder. A .NET project that a solution above it covers gets no command of its own."""
     paths = [component["path"] for component in detected.get("components", [])] or ["."]
+    paths = list(dict.fromkeys(["." if path in ("", ".") else path for path in paths] + _test_folders(root)))
     proposals = []
-    for path in dict.fromkeys(["." if path in ("", ".") else path for path in paths]):
+    for path in paths:
+        if _covered_by_solution(path, paths, root):
+            continue
         found = [_command(root / path)]
         if _npm_script(root / path, "lint"):
             found.append(("npm run lint", "a lint script in package.json"))

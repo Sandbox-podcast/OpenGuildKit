@@ -530,14 +530,23 @@ def profile_recommendations(answers: dict, catalog: dict) -> dict:
     result = recommend_patterns(catalog, stack, sector, roles, components, **inputs)
     result["declined"] = _declined(answers.get("declined", []), catalog)
     base_packs = ["agent-workflow", *_recommended_packs(stack, catalog)]
-    base = set(pack_rule_counts(base_packs, catalog))
     for entry in [*result["matched"], *result["suggested"]]:
-        entry["rules"] = sum(pack_rule_counts(entry["packs"], catalog, base).values())
+        entry["rules"] = pattern_rules(entry, catalog)
     result["recommended_packs"] = list(
         dict.fromkeys([*base_packs, *(pack for pattern in result["matched"] for pack in pattern["packs"])])
     )
     result["rule_count"] = sum(pack_rule_counts(result["recommended_packs"], catalog).values())
     return result
+
+
+# One meaning for the rule count of a pattern, in recommend, preview and init.
+RULES_NOTE = ("Each pattern's count is the rules of its own packs and their dependencies, even when another "
+              "pattern or the baseline brings the same pack.")
+
+
+def pattern_rules(pattern: dict, catalog: dict) -> int:
+    """The rules of a pattern's packs and their dependencies: the same number wherever it is shown."""
+    return sum(pack_rule_counts(pattern["packs"], catalog).values())
 
 
 def pack_rule_counts(pack_ids: list[str], catalog: dict, already: set[str] = frozenset()) -> dict[str, int]:
@@ -1026,7 +1035,6 @@ def rule_plan(profile: dict, catalog: dict) -> dict:
     scopes = pack_scopes(profile, catalog)
     provenance = pack_provenance(profile, catalog)
     selected = _selected_packs(profile, catalog)
-    base = set(pack_rule_counts(profile["packs"], catalog))
     patterns = [catalog["patterns"][pattern_id] for pattern_id in pattern_ids(profile)]
     count = sum(len(catalog["packs"][pack_id]["rules"]) for pack_id in resolved["packs"])
     return {
@@ -1039,7 +1047,7 @@ def rule_plan(profile: dict, catalog: dict) -> dict:
         ),
         "patterns": [
             {"id": pattern["id"], "title": pattern["title"], "reason": _pattern_reason(pattern, profile),
-             "rules": sum(pack_rule_counts(pattern["packs"], catalog, base).values())}
+             "rules": pattern_rules(pattern, catalog)}
             for pattern in patterns
         ],
         "regulations": [

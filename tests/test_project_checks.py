@@ -61,6 +61,16 @@ class ProposalTests(ProjectTests):
                     self.write(relative, text)
                 self.assertEqual(self.proposals(), expected)
 
+    def test_a_sub_folder_with_only_a_test_script_gets_its_command(self):
+        self.write("tools/linter/package.json", '{"name": "linter", "scripts": {"test": "node --test"}}')
+        self.assertEqual(self.proposals(), ["cd tools/linter && npm test"])
+
+    def test_a_dotnet_solution_covers_its_test_project(self):
+        self.write("App.sln", "Microsoft Visual Studio Solution File, Format Version 12.00\n")
+        self.write("App/App.csproj", '<Project Sdk="Microsoft.NET.Sdk.Web"></Project>')
+        self.write("App.Tests/App.Tests.csproj", '<Project Sdk="Microsoft.NET.Sdk"></Project>')
+        self.assertEqual(self.proposals(), ["dotnet test"])
+
     def test_a_placeholder_script_or_a_bare_repository_proposes_nothing(self):
         self.write("package.json", '{"scripts": {"test": "echo \\"Error: no test specified\\" && exit 1"}}')
         self.assertEqual(self.proposals(), [])

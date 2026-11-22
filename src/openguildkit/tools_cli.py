@@ -100,6 +100,13 @@ def _host(args, profile: dict) -> str:
     return host
 
 
+# The plan for the host other: complete mcpServers blocks, the format most MCP clients read, and no other
+# host's sign-in command.
+GENERIC = "mcpServers"
+SIGN_IN = "Each person signs in once:"
+GENERIC_SIGN_IN = "Each person signs in once, with the agent's own MCP sign-in (see its documentation)."
+
+
 def _print_plan(plan: list[dict], host: str, stream: TextIO | None = None) -> None:
     """The plan as text; stream is standard output unless a JSON answer must stay alone there."""
     emit = partial(print, file=stream)
@@ -116,9 +123,12 @@ def _print_plan(plan: list[dict], host: str, stream: TextIO | None = None) -> No
         for warning in item["warnings"]:
             emit(f"    Warning: {warning}")
         for step in item["steps"]:
-            emit(f"    {step}")
+            emit(f"    {GENERIC_SIGN_IN if host == GENERIC and step.startswith(SIGN_IN) else step}")
         _print_review(item.get("review"), emit)
-        emit(f"    {host}: {json.dumps(item['entry'], ensure_ascii=False)}")
+        if host == GENERIC:
+            emit(f"    {json.dumps({'mcpServers': {item['key']: item['entry']}}, ensure_ascii=False)}")
+        else:
+            emit(f"    {host}: {json.dumps(item['entry'], ensure_ascii=False)}")
 
 
 def _print_review(facts: dict | None, emit=print) -> None:
@@ -386,8 +396,8 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
         if args.json:
             print(json.dumps(plan, indent=2, ensure_ascii=False))
         elif generic:
-            _print_plan(plan, "mcpServers")
-            print("Nothing is written. The project's host is other: copy each mcpServers entry above into your "
+            _print_plan(plan, GENERIC)
+            print("Nothing is written. The project's host is other: copy each mcpServers block above into your "
                   "agent's MCP settings, or pass --host claude-code or --host codex to plan for one of them.",
                   file=sys.stderr)
         else:
