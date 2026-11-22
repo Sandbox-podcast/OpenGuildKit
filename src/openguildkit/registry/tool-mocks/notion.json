@@ -31,8 +31,29 @@
             "pages": [{"page_id": "sprint-14-plan", "title": "Sprint 14 plan", "edited": "2026-11-16", "owner": "Ada Example"}]
           }
         },
-        {"result": {"pages": []}}
-      ]
+        {"result": {"pages": [
+          {
+            "page_id": "export-spec",
+            "title": "Export my requests as CSV: specification",
+            "edited": "2026-11-19",
+            "owner": "Ada Example"
+          },
+          {
+            "page_id": "sprint-14-plan",
+            "title": "Sprint 14 plan",
+            "edited": "2026-11-16",
+            "owner": "Ada Example"
+          }
+        ]}}
+      ],
+      "search": {
+        "argument": "query",
+        "collection": "pages",
+        "fields": [
+          "title",
+          "page_id"
+        ]
+      }
     },
     {
       "name": "get_page",
@@ -60,6 +81,17 @@
             "title": "Sprint 14 plan",
             "format": "markdown",
             "content": "# Sprint 14\n\nDates: 2026-11-16 to 2026-11-27\n\n## Goal\nShip the CSV export of a customer's own requests.\n\n## Tickets\n- SUP-142 Export my requests as CSV (Lin Sample)\n- SUP-143 CSV cells starting with = must be neutralised (Sam Placeholder)\n- SUP-120 Share link for a request (blocked by the security review)\n"
+          }
+        },
+        {
+          "when": {
+            "page_id": "page-300"
+          },
+          "result": {
+            "page_id": "page-300",
+            "title": "Example created page",
+            "format": "markdown",
+            "content": "Sample lookup after create_page. The mock does not store writes."
           }
         },
         {"error": "Page not found. Known pages in this mock: export-spec, sprint-14-plan."}

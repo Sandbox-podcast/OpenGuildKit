@@ -118,6 +118,39 @@
             "start_date": "2022-11-07"
           }
         },
+        {
+          "when": {
+            "employee_id": "emp-sam"
+          },
+          "result": {
+            "employee_id": "emp-sam",
+            "name": "Sam Placeholder",
+            "role": "QA engineer",
+            "team": "Engineering"
+          }
+        },
+        {
+          "when": {
+            "employee_id": "emp-noor"
+          },
+          "result": {
+            "employee_id": "emp-noor",
+            "name": "Noor Fixture",
+            "role": "Designer",
+            "team": "Product"
+          }
+        },
+        {
+          "when": {
+            "employee_id": "emp-remy"
+          },
+          "result": {
+            "employee_id": "emp-remy",
+            "name": "Remy Mock",
+            "role": "Sales",
+            "team": "Sales"
+          }
+        },
         {"error": "Employee not found. Known ids in this mock: emp-ada, emp-lin, emp-sam, emp-noor, emp-kai, emp-remy."}
       ]
     }

@@ -46,12 +46,20 @@
         {
           "result": {
             "properties": [
-              {"property_id": "prop-1", "name": "Support Portal"},
-              {"property_id": "prop-2", "name": "Support Portal docs"}
+              {"property_id": "prop-2", "name": "Support Portal docs"},
+              {"property_id": "prop-1", "name": "Support Portal"}
             ]
           }
         }
-      ]
+      ],
+      "search": {
+        "argument": "name",
+        "collection": "properties",
+        "fields": [
+          "name",
+          "property_id"
+        ]
+      }
     },
     {
       "name": "get_realtime",

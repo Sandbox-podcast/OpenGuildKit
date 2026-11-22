@@ -38,8 +38,35 @@
           "when": {"query": "export"},
           "result": {"issues": [{"key": "SUP-142", "summary": "Export my requests as CSV", "status": "In progress", "assignee": "Lin Sample"}]}
         },
-        {"result": {"issues": []}}
-      ]
+        {"result": {"issues": [
+          {
+            "key": "SUP-120",
+            "summary": "Share link for a request",
+            "status": "Blocked",
+            "assignee": "Noor Fixture"
+          },
+          {
+            "key": "SUP-143",
+            "summary": "CSV cells starting with = must be neutralised",
+            "status": "To do",
+            "assignee": "Sam Placeholder"
+          },
+          {
+            "key": "SUP-142",
+            "summary": "Export my requests as CSV",
+            "status": "In progress",
+            "assignee": "Lin Sample"
+          }
+        ]}}
+      ],
+      "search": {
+        "argument": "query",
+        "collection": "issues",
+        "fields": [
+          "key",
+          "summary"
+        ]
+      }
     },
     {
       "name": "get_issue",
@@ -88,6 +115,17 @@
             "created": "2026-10-06",
             "description": "Let a customer share a read-only link to one request. Blocked until the security review is done.",
             "blocked_by": "Security review of public share links"
+          }
+        },
+        {
+          "when": {
+            "key": "SUP-200"
+          },
+          "result": {
+            "key": "SUP-200",
+            "summary": "Example created issue",
+            "status": "To do",
+            "description": "Sample lookup after create_issue. The mock does not store writes."
           }
         },
         {"error": "Issue not found. Known keys in this mock: SUP-120, SUP-142, SUP-143."}

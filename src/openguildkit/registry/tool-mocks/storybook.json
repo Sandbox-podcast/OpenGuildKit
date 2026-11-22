@@ -30,7 +30,16 @@
             ]
           }
         }
-      ]
+      ],
+      "search": {
+        "argument": "component",
+        "collection": "stories",
+        "fields": [
+          "title",
+          "name",
+          "story_id"
+        ]
+      }
     },
     {
       "name": "get_story",
@@ -56,6 +65,17 @@
             "source_file": "src/components/ExportButton.stories.tsx"
           }
         },
+        {
+          "when": {
+            "story_id": "requests-requeststable--default"
+          },
+          "result": {
+            "story_id": "requests-requeststable--default",
+            "component": "RequestsTable",
+            "args": {},
+            "source_file": "src/components/RequestsTable.stories.tsx"
+          }
+        },
         {"error": "Story not found. Known ids in this mock: requests-exportbutton--default, requests-exportbutton--disabled, requests-requeststable--default."}
       ]
     },
@@ -74,7 +94,15 @@
             ]
           }
         }
-      ]
+      ],
+      "search": {
+        "argument": "query",
+        "collection": "components",
+        "fields": [
+          "name",
+          "file"
+        ]
+      }
     }
   ]
 }

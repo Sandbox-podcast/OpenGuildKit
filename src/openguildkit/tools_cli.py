@@ -126,6 +126,32 @@ def _print_plan(plan: list[dict], host: str, *, stream: TextIO | None = None) ->
         emit(f"    {host}: {json.dumps(item['entry'], ensure_ascii=False)}")
 
 
+def _print_mock_tools(mock: dict) -> None:
+    print("Generic synthetic examples. These tools use fixture data, independent of your project.")
+    for tool in mock["tools"]:
+        access = "read" if tool.get("read_only") else "write"
+        print(f"{tool['name']:<28} [{access}] {tool['description']}")
+        schema = tool["inputSchema"]
+        required = schema.get("required", [])
+        for name, prop in schema.get("properties", {}).items():
+            requirement = "required" if name in required else "optional"
+            choices = f"; values: {json.dumps(prop['enum'], ensure_ascii=False)}" if "enum" in prop else ""
+            description = f" — {prop['description']}" if prop.get("description") else ""
+            print(f"    {name} ({prop.get('type', 'any')}, {requirement}{choices}){description}")
+        if not schema.get("properties"):
+            print("    No arguments.")
+        if "search" in tool:
+            argument = tool["search"]["argument"]
+            print(f"    List all examples with --args '{json.dumps({argument: ''})}'.")
+        elif tool.get("read_only") and required:
+            example = next((response["when"] for response in tool["responses"]
+                            if set(required) <= response.get("when", {}).keys() and "result" in response), None)
+            if example is not None:
+                print(f"    Example arguments: {json.dumps(example, ensure_ascii=False)}")
+        elif tool.get("read_only"):
+            print("    Run without arguments to see the example response.")
+
+
 def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
     action = args.tools_action
     mock_dir = state / "catalog" / "tool-mocks"
@@ -134,9 +160,7 @@ def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
     if action == "call":
         mock = load_mock(args.id.casefold(), mock_dir)
         if args.name is None:
-            for tool in mock["tools"]:
-                access = "read" if tool.get("read_only") else "write"
-                print(f"{tool['name']:<28} [{access}] {tool['description']}")
+            _print_mock_tools(mock)
             return 0
         try:
             arguments = json.loads(args.args)

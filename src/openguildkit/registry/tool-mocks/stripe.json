@@ -6,10 +6,24 @@
       "name": "list_invoices",
       "description": "List invoices. Amounts are in cents.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"status": {"type": "string", "description": "Invoice status", "enum": ["paid", "open"]}}},
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Invoice status",
+            "enum": [
+              "paid",
+              "open"
+            ]
+          }
+        }
+      },
       "responses": [
         {
-          "when": {"status": "paid"},
+          "when": {
+            "status": "paid"
+          },
           "result": {
             "invoices": [
               {
@@ -24,7 +38,9 @@
           }
         },
         {
-          "when": {"status": "open"},
+          "when": {
+            "status": "open"
+          },
           "result": {
             "invoices": [
               {
@@ -84,12 +100,21 @@
       "read_only": true,
       "inputSchema": {
         "type": "object",
-        "properties": {"subscription_id": {"type": "string", "description": "Subscription id such as sub_test_001"}},
-        "required": ["subscription_id"]
+        "properties": {
+          "subscription_id": {
+            "type": "string",
+            "description": "Subscription id such as sub_test_001"
+          }
+        },
+        "required": [
+          "subscription_id"
+        ]
       },
       "responses": [
         {
-          "when": {"subscription_id": "sub_test_001"},
+          "when": {
+            "subscription_id": "sub_test_001"
+          },
           "result": {
             "subscription_id": "sub_test_001",
             "customer": "cus_test_001",
@@ -102,7 +127,9 @@
           }
         },
         {
-          "when": {"subscription_id": "sub_test_002"},
+          "when": {
+            "subscription_id": "sub_test_002"
+          },
           "result": {
             "subscription_id": "sub_test_002",
             "customer": "cus_test_002",
@@ -114,31 +141,129 @@
             "renews": "2026-11-25"
           }
         },
-        {"error": "Subscription not found. Known ids in this mock: sub_test_001, sub_test_002."}
+        {
+          "error": "Subscription not found. Known ids in this mock: sub_test_001, sub_test_002."
+        }
       ]
     },
     {
       "name": "list_customers",
       "description": "List customers. Filter by part of the name.",
       "read_only": true,
-      "inputSchema": {"type": "object", "properties": {"query": {"type": "string", "description": "Part of a customer name"}}},
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Part of a customer name"
+          }
+        }
+      },
       "responses": [
         {
-          "when": {"query": "logistics"},
-          "result": {"customers": [{"customer_id": "cus_test_001", "name": "Example Logistics", "email": "billing@example.test"}]}
+          "when": {
+            "query": "logistics"
+          },
+          "result": {
+            "customers": [
+              {
+                "customer_id": "cus_test_001",
+                "name": "Example Logistics",
+                "email": "billing@example.test"
+              }
+            ]
+          }
         },
         {
-          "when": {"query": "clinic"},
-          "result": {"customers": [{"customer_id": "cus_test_002", "name": "Sample Clinic Group", "email": "accounts@example.test"}]}
+          "when": {
+            "query": "clinic"
+          },
+          "result": {
+            "customers": [
+              {
+                "customer_id": "cus_test_002",
+                "name": "Sample Clinic Group",
+                "email": "accounts@example.test"
+              }
+            ]
+          }
         },
         {
           "result": {
             "customers": [
-              {"customer_id": "cus_test_001", "name": "Example Logistics", "email": "billing@example.test"},
-              {"customer_id": "cus_test_002", "name": "Sample Clinic Group", "email": "accounts@example.test"},
-              {"customer_id": "cus_test_003", "name": "Placeholder Retail", "email": "finance@example.test"}
+              {
+                "customer_id": "cus_test_001",
+                "name": "Example Logistics",
+                "email": "billing@example.test"
+              },
+              {
+                "customer_id": "cus_test_002",
+                "name": "Sample Clinic Group",
+                "email": "accounts@example.test"
+              },
+              {
+                "customer_id": "cus_test_003",
+                "name": "Placeholder Retail",
+                "email": "finance@example.test"
+              }
             ]
           }
+        }
+      ],
+      "search": {
+        "argument": "query",
+        "collection": "customers",
+        "fields": [
+          "name",
+          "customer_id",
+          "email"
+        ]
+      }
+    },
+    {
+      "name": "refund_invoice",
+      "description": "Rehearse a full refund of a paid sample invoice. No payment is made.",
+      "read_only": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "invoice_id": {
+            "type": "string",
+            "description": "Paid invoice ID from list_invoices"
+          }
+        },
+        "required": [
+          "invoice_id"
+        ]
+      },
+      "responses": [
+        {
+          "when": {
+            "invoice_id": "in_test_001"
+          },
+          "result": {
+            "refund_id": "re_test_001",
+            "invoice_id": "in_test_001",
+            "status": "succeeded",
+            "amount_cents": 180000,
+            "currency": "eur",
+            "simulated": true
+          }
+        },
+        {
+          "when": {
+            "invoice_id": "in_test_002"
+          },
+          "error": "in_test_002 is unpaid and cannot be refunded."
+        },
+        {
+          "when": {
+            "invoice_id": "in_test_003"
+          },
+          "error": "in_test_003 is unpaid and cannot be refunded."
+        },
+        {
+          "error": "Invoice not found. Use list_invoices to get a sample invoice ID."
         }
       ]
     }

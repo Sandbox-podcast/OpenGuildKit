@@ -42,26 +42,109 @@
       "inputSchema": {"type": "object", "properties": {"node_id": {"type": "string", "description": "Node id such as 12:34"}}, "required": ["node_id"]},
       "responses": [
         {
-          "when": {"node_id": "12:34"},
+          "when": {
+            "node_id": "12:34"
+          },
           "result": {
             "node_id": "12:34",
             "name": "Export CSV button",
             "type": "component",
             "label": "Export CSV",
             "states": {
-              "default": {"fill": "color.primary.500", "text": "color.white", "border": "none", "width": 132, "height": 40},
-              "hover": {"fill": "color.primary.600", "text": "color.white", "border": "none", "width": 132, "height": 40},
-              "disabled": {"fill": "color.neutral.200", "text": "color.neutral.500", "border": "none", "width": 132, "height": 40}
+              "default": {
+                "fill": "color.primary.500",
+                "text": "color.white",
+                "border": "none",
+                "width": 132,
+                "height": 40
+              },
+              "hover": {
+                "fill": "color.primary.600",
+                "text": "color.white",
+                "border": "none",
+                "width": 132,
+                "height": 40
+              },
+              "disabled": {
+                "fill": "color.neutral.200",
+                "text": "color.neutral.500",
+                "border": "none",
+                "width": 132,
+                "height": 40
+              }
             },
             "radius": 6,
             "font": "Body / medium 14"
           }
         },
         {
-          "when": {"node_id": "12:35"},
-          "result": {"node_id": "12:35", "name": "Requests table", "type": "frame", "columns": ["Title", "Status", "Created", "Updated"], "row_height": 48}
+          "when": {
+            "node_id": "12:35"
+          },
+          "result": {
+            "node_id": "12:35",
+            "name": "Requests table",
+            "type": "frame",
+            "columns": [
+              "Title",
+              "Status",
+              "Created",
+              "Updated"
+            ],
+            "row_height": 48
+          }
         },
-        {"error": "Node not found. Known ids in this mock: 12:34, 12:35."}
+        {
+          "when": {
+            "node_id": "12:30"
+          },
+          "result": {
+            "node_id": "12:30",
+            "name": "Requests list / desktop",
+            "size": [
+              1280,
+              800
+            ],
+            "type": "frame"
+          }
+        },
+        {
+          "when": {
+            "node_id": "12:31"
+          },
+          "result": {
+            "node_id": "12:31",
+            "name": "Requests list / mobile",
+            "size": [
+              375,
+              812
+            ],
+            "type": "frame"
+          }
+        },
+        {
+          "when": {
+            "node_id": "12:32"
+          },
+          "result": {
+            "node_id": "12:32",
+            "name": "Requests list / empty",
+            "type": "frame"
+          }
+        },
+        {
+          "when": {
+            "node_id": "1:2"
+          },
+          "result": {
+            "node_id": "1:2",
+            "name": "Colour tokens",
+            "type": "frame"
+          }
+        },
+        {
+          "error": "Node not found. Get a known node_id from get_file or list_comments."
+        }
       ]
     },
     {

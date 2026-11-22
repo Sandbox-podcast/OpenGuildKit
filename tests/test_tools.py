@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 from openguildkit.catalog import CatalogError, load_catalog
 from openguildkit.cli import main
+from openguildkit.mcp_mock import call_tool
 from openguildkit.tools import (
     CATEGORIES, _validate_tool, apply_connections, check_tool_links, choose_server, connection_status, detect_tools,
     load_mock, load_tools, match_tools, mock_ids, plan_connections, read_manifest, remove_connections,
@@ -337,6 +338,68 @@ class CommandTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual(json.loads(out)["body"], "Synthetic note")
             self.assertIn("openguildkit task authorize", err)
+
+    def test_mock_help_search_and_simulated_refund(self):
+        with tempfile.TemporaryDirectory() as directory:
+            code, out, err = run("--project", directory, "tools", "call", "google-analytics")
+            self.assertEqual(code, 0, err)
+            self.assertIn("Generic synthetic examples", out)
+            self.assertIn("page_path (string, required)", out)
+            self.assertIn('metric (string, optional; values: ["page_views", "users"])', out)
+            self.assertIn('List all examples with --args \'{"name": ""}\'', out)
+            examples = (
+                ("hubspot", "search_deals", {"query": "LOGIST"}, "deals", "deal_id", ["deal-1"]),
+                ("jira", "search_issues", {"query": "csv", "status": "To do"}, "issues", "key", ["SUP-143"]),
+                ("zendesk", "search_tickets", {"query": "QUARTER", "status": "pending"}, "tickets", "ticket_id", [4103]),
+                ("stripe", "list_customers", {"query": "TAIL"}, "customers", "customer_id", ["cus_test_003"]),
+            )
+            for name, tool, arguments, field, key, expected in examples:
+                with self.subTest(tool=tool):
+                    code, out, err = run("--project", directory, "tools", "call", name, tool,
+                                         "--args", json.dumps(arguments))
+                    self.assertEqual(code, 0, err)
+                    self.assertEqual([row[key] for row in json.loads(out)[field]], expected)
+            command = ("--project", directory, "tools", "call", "stripe", "refund_invoice", "--args")
+            code, out, err = run(*command, '{"invoice_id":"in_test_001"}')
+            self.assertEqual(code, 0, err)
+            self.assertEqual(json.loads(out)["amount_cents"], 180000)
+            self.assertTrue(json.loads(out)["simulated"])
+            code, out, _ = run(*command, '{"invoice_id":"in_test_002"}')
+            self.assertEqual(code, 1)
+            self.assertIn("unpaid", out)
+
+    def test_fixture_identifiers_round_trip_to_their_lookup_tools(self):
+        def values(value, key):
+            if isinstance(value, list):
+                for item in value:
+                    yield from values(item, key)
+            elif isinstance(value, dict):
+                for field, item in value.items():
+                    if field == key and type(item) in (str, int) and not str(item).startswith("$arg:"):
+                        yield item
+                    yield from values(item, key)
+
+        for name in mock_ids():
+            mock = load_mock(name)
+            for lookup in mock["tools"]:
+                required = lookup["inputSchema"].get("required", [])
+                if not lookup["name"].startswith("get_") or len(required) != 1:
+                    continue
+                key = required[0]
+                identifiers = {
+                    value
+                    for tool in mock["tools"] if tool is not lookup
+                    # GitHub numbers are scoped to the entity type.
+                    and (name, lookup["name"], tool["name"]) != ("github", "get_pull_request", "list_security_alerts")
+                    for response in tool["responses"]
+                    for value in values(response.get("result"), key)
+                }
+                for value in sorted(identifiers, key=str):
+                    with self.subTest(mock=name, lookup=lookup["name"], identifier=value):
+                        response = call_tool(mock, lookup["name"], {key: value})
+                        self.assertFalse(response["isError"], response["content"])
+                        if key in response["structuredContent"]:
+                            self.assertEqual(response["structuredContent"][key], value)
 
     def test_every_bundled_mock_loads_and_names_a_registry_tool(self):
         ids = mock_ids()

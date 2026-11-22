@@ -46,7 +46,7 @@ def validate_mock(mock: object, tool_id: str) -> dict:
         raise ValueError(f"Mock {tool_id} must serve at least one tool.")
     names = set()
     for tool in mock["tools"]:
-        allowed = {"name", "description", "inputSchema", "responses", "read_only"}
+        allowed = {"name", "description", "inputSchema", "responses", "read_only", "search"}
         if not isinstance(tool, dict) or not {"name", "description", "inputSchema", "responses"} <= tool.keys() <= allowed:
             raise ValueError(f"Mock {tool_id}: each tool needs name, description, inputSchema and responses.")
         name = tool["name"]
@@ -71,7 +71,30 @@ def validate_mock(mock: object, tool_id: str) -> dict:
                 raise ValueError(f"Mock {tool_id}/{name}: when is an object of argument values.")
         if "when" in responses[-1]:
             raise ValueError(f"Mock {tool_id}/{name}: the last response is the default and has no when.")
+        if "search" in tool:
+            _validate_search(tool, f"Mock {tool_id}/{name}")
     return mock
+
+
+def _validate_search(tool: dict, label: str) -> None:
+    search = tool["search"]
+    if not isinstance(search, dict) or set(search) != {"argument", "collection", "fields"}:
+        raise ValueError(f"{label}: search needs argument, collection and fields.")
+    argument, collection, fields = search["argument"], search["collection"], search["fields"]
+    properties = tool["inputSchema"].get("properties", {})
+    argument_schema = properties.get(argument) if isinstance(argument, str) else None
+    if not isinstance(argument_schema, dict) or argument_schema.get("type") != "string":
+        raise ValueError(f"{label}: the search argument must be a declared string.")
+    if not isinstance(collection, str) or not isinstance(fields, list) or not fields or any(
+        not isinstance(field, str) or not field for field in fields
+    ):
+        raise ValueError(f"{label}: search names a result collection and its searchable fields.")
+    for response in tool["responses"]:
+        result = response.get("result")
+        if not isinstance(result, dict) or not isinstance(result.get(collection), list) or any(
+            not isinstance(row, dict) for row in result[collection]
+        ):
+            raise ValueError(f"{label}: a search response needs an array of objects under {collection}.")
 
 
 def _matches(when: dict, arguments: dict) -> bool:
@@ -113,6 +136,31 @@ def _argument_problem(schema: dict, arguments: dict) -> str | None:
     return None
 
 
+def _search_result(tool: dict, arguments: dict) -> dict:
+    search = tool["search"]
+    argument, collection = search["argument"], search["collection"]
+    query = arguments.get(argument, "").strip().casefold()
+    response = next(
+        (response for response in tool["responses"][:-1]
+         if str(response.get("when", {}).get(argument, "")).casefold() == query
+         and _matches(response.get("when", {}), arguments)),
+        None,
+    )
+    result = (response or tool["responses"][-1])["result"]
+    terms = query.split()
+    rows = []
+    for row in result[collection]:
+        if any(row.get(key) != value for key, value in arguments.items() if key != argument):
+            continue
+        haystack = " ".join(str(row.get(field, "")) for field in search["fields"]).casefold()
+        if response or all(term in haystack for term in terms):
+            rows.append(row)
+    result = {**result, collection: rows}
+    if "count" in result:
+        result["count"] = len(rows)
+    return result
+
+
 def call_tool(mock: dict, name: str, arguments: object) -> dict:
     """Answer one tools/call: the first response whose `when` matches, or a tool error the agent can read."""
     tool = next((item for item in mock["tools"] if item["name"] == name), None)
@@ -125,10 +173,13 @@ def call_tool(mock: dict, name: str, arguments: object) -> dict:
     problem = _argument_problem(tool["inputSchema"], arguments)
     if problem:
         return {"content": [{"type": "text", "text": problem}], "isError": True}
-    response = next(item for item in tool["responses"] if _matches(item.get("when", {}), arguments))
-    if "error" in response:
-        return {"content": [{"type": "text", "text": str(response["error"])}], "isError": True}
-    result = _fill(response["result"], arguments)
+    if "search" in tool:
+        result = _search_result(tool, arguments)
+    else:
+        response = next(item for item in tool["responses"] if _matches(item.get("when", {}), arguments))
+        if "error" in response:
+            return {"content": [{"type": "text", "text": str(response["error"])}], "isError": True}
+        result = _fill(response["result"], arguments)
     answer = {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}], "isError": False}
     if isinstance(result, dict):
         answer["structuredContent"] = result

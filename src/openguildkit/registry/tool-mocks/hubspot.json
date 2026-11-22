@@ -58,8 +58,45 @@
             ]
           }
         },
-        {"result": {"deals": []}}
-      ]
+        {"result": {"deals": [
+          {
+            "deal_id": "deal-1",
+            "name": "Example Logistics: portal renewal",
+            "company_id": "company-101",
+            "amount_eur": 18000,
+            "stage": "Negotiation",
+            "notes": "Asked for an export of their own requests as CSV before renewing.",
+            "owner": "Remy Mock"
+          },
+          {
+            "deal_id": "deal-2",
+            "name": "Sample Clinic Group: support plan",
+            "company_id": "company-102",
+            "amount_eur": 9500,
+            "stage": "Proposal",
+            "notes": "Needs a CSV export of requests for their monthly report.",
+            "owner": "Remy Mock"
+          },
+          {
+            "deal_id": "deal-3",
+            "name": "Placeholder Retail: new portal",
+            "company_id": "company-103",
+            "amount_eur": 24000,
+            "stage": "Qualified",
+            "notes": "CSV export of requests is a condition for the pilot.",
+            "owner": "Remy Mock"
+          }
+        ]}}
+      ],
+      "search": {
+        "argument": "query",
+        "collection": "deals",
+        "fields": [
+          "deal_id",
+          "name",
+          "notes"
+        ]
+      }
     },
     {
       "name": "get_company",
@@ -93,7 +130,17 @@
             "contact": "office@example.test"
           }
         },
-        {"error": "Company not found. Known ids in this mock: company-101, company-102."}
+        {
+          "when": {"company_id": "company-103"},
+          "result": {
+            "company_id": "company-103",
+            "name": "Placeholder Retail",
+            "industry": "Retail",
+            "owner": "Remy Mock",
+            "contact": "finance@example.test"
+          }
+        },
+        {"error": "Company not found. Known ids in this mock: company-101, company-102, company-103."}
       ]
     },
     {

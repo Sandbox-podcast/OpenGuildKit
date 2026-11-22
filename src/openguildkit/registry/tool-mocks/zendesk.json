@@ -86,8 +86,52 @@
             ]
           }
         },
-        {"result": {"tickets": [], "count": 0}}
-      ]
+        {"result": {"tickets": [
+          {
+            "ticket_id": 4101,
+            "subject": "Can I download all my requests?",
+            "status": "open",
+            "created": "2026-10-14",
+            "requester": "customer-a@example.test"
+          },
+          {
+            "ticket_id": 4102,
+            "subject": "Export of requests to a spreadsheet",
+            "status": "open",
+            "created": "2026-10-29",
+            "requester": "customer-b@example.test"
+          },
+          {
+            "ticket_id": 4103,
+            "subject": "Need a CSV of last quarter's requests",
+            "status": "pending",
+            "created": "2026-11-05",
+            "requester": "customer-c@example.test"
+          },
+          {
+            "ticket_id": 4104,
+            "subject": "Monthly report: export requests please",
+            "status": "open",
+            "created": "2026-11-12",
+            "requester": "customer-d@example.test"
+          },
+          {
+            "ticket_id": 4105,
+            "subject": "Still no export of my requests",
+            "status": "open",
+            "created": "2026-11-17",
+            "requester": "customer-e@example.test"
+          }
+        ], "count": 0}}
+      ],
+      "search": {
+        "argument": "query",
+        "collection": "tickets",
+        "fields": [
+          "subject",
+          "ticket_id"
+        ]
+      }
     },
     {
       "name": "get_ticket",
@@ -119,6 +163,51 @@
             "priority": "low",
             "assignee": "Kai Demo",
             "first_message": "Is there a way to download all my requests in one file?"
+          }
+        },
+        {
+          "when": {
+            "ticket_id": 4102
+          },
+          "result": {
+            "ticket_id": 4102,
+            "subject": "Export of requests to a spreadsheet",
+            "status": "open",
+            "created": "2026-10-29",
+            "requester": "customer-b@example.test",
+            "priority": "normal",
+            "assignee": "Kai Demo",
+            "first_message": "Export of requests to a spreadsheet"
+          }
+        },
+        {
+          "when": {
+            "ticket_id": 4103
+          },
+          "result": {
+            "ticket_id": 4103,
+            "subject": "Need a CSV of last quarter's requests",
+            "status": "pending",
+            "created": "2026-11-05",
+            "requester": "customer-c@example.test",
+            "priority": "normal",
+            "assignee": "Kai Demo",
+            "first_message": "Need a CSV of last quarter's requests"
+          }
+        },
+        {
+          "when": {
+            "ticket_id": 4104
+          },
+          "result": {
+            "ticket_id": 4104,
+            "subject": "Monthly report: export requests please",
+            "status": "open",
+            "created": "2026-11-12",
+            "requester": "customer-d@example.test",
+            "priority": "normal",
+            "assignee": "Kai Demo",
+            "first_message": "Monthly report: export requests please"
           }
         },
         {"error": "Ticket not found. Known ids in this mock: 4101 to 4105."}

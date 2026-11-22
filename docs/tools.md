@@ -87,6 +87,8 @@ openguildkit tools call jira search_issues --args '{"query": "export"}' # one ca
 
 The list marks read and write operations. A simulated write prints a reminder to use `task authorize` before making a real write.
 
+The tool list shows each argument's type, whether it is required and any allowed values. Use the example arguments to browse the fixture data. Search tools with an empty query list their examples, and a partial name matches regardless of casing. The Stripe mock can rehearse a full refund of a paid example invoice. Mock writes return synthetic receipts and leave the fixture data unchanged. Fixture authors can add `search` with `argument`, `collection` and `fields` to search an array of records in the tool's default response.
+
 A mock's tool names are its own. It rehearses the agent's flow (find the ticket, cite it, log the time); it does not imitate a publisher's API, and what works against a mock still has to be tried against the real server.
 
 The server answers both generations of the protocol: the revisions that open with an `initialize` handshake (2024-11-05 to 2025-11-25) and the stateless revision 2026-07-28, where each request names its version and `server/discover` replaces the handshake.
