@@ -290,9 +290,13 @@
       "sources": [
         {
           "url": "https://bitol-io.github.io/open-data-contract-standard/latest/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-22",
           "title": "Bitol — Open Data Contract Standard (ODCS)"
         }
+      ],
+      "pattern": "data-definitions-and-quality",
+      "packs": [
+        "data-definitions"
       ]
     },
     {
@@ -379,9 +383,12 @@
       "sources": [
         {
           "url": "https://openlineage.io/docs/spec/object-model/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-22",
           "title": "OpenLineage — Object Model"
         }
+      ],
+      "packs": [
+        "data-definitions"
       ]
     },
     {

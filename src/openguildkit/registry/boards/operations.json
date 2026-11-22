@@ -86,6 +86,11 @@
         "checks": [
           "Arrival and completion rates are measured at the step where work piles up.",
           "Changes to intake, batch size or staffing are compared on the same measure."
+        ],
+        "applies_to": [
+          "business",
+          "service",
+          "infrastructure"
         ]
       },
       {

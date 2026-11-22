@@ -75,6 +75,9 @@
           "Partner discounts and fees are compared with the direct price on the same scope and term.",
           "Revenue presentation is checked with finance: whether the company acts as principal or agent changes revenue under IFRS 15.",
           "Channel conflict rules say who owns a deal when a partner and the direct team meet the same customer."
+        ],
+        "applies_to_concerns": [
+          "money"
         ]
       },
       {

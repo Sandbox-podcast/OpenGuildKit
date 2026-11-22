@@ -67,6 +67,9 @@
           "The comparison uses the same weighted criteria for every vendor, fixed before the offers were read.",
           "Total cost covers licences, implementation, support, usage tiers and price increases over the contract term.",
           "The internal owner and the budget line are named before the order is signed."
+        ],
+        "applies_to_concerns": [
+          "money"
         ]
       },
       {

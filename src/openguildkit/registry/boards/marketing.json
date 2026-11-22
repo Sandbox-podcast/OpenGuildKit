@@ -82,6 +82,10 @@
         "checks": [
           "Evidence is dated and covers competitors, substitutes and doing nothing.",
           "Sample, geography and period are stated for every figure cited."
+        ],
+        "applies_to": [
+          "customer",
+          "business"
         ]
       },
       {
@@ -100,6 +104,10 @@
         "checks": [
           "Channels are chosen from how the audience discovers and evaluates options, with a pilot budget.",
           "Production effort and timing fit the launch date."
+        ],
+        "applies_to": [
+          "customer",
+          "business"
         ]
       },
       {

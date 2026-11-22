@@ -1,0 +1,35 @@
+{
+  "id": "test-strategy",
+  "title": "Risk-based test strategy and regression",
+  "version": "1.0.0",
+  "description": "For any change the QA board reviews: test effort set from the product risks of the change, confirmation of each fix and regression testing of what the change can affect.",
+  "sources": [
+    {
+      "title": "ISTQB Certified Tester Foundation Level Syllabus v4.0.1 (sections 2.2.3 and 5.2)",
+      "url": "https://istqb.org/wp-content/uploads/2024/11/ISTQB_CTFL_Syllabus_v4.0.1.pdf",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "ISO/IEC JTC 1/SC 7, ISO/IEC/IEEE 29119 series on software testing",
+      "url": "https://committee.iso.org/sites/jtc1sc7/home/projects/flagship-standards/isoiecieee-29119-series.html",
+      "checked": "2026-11-22"
+    }
+  ],
+  "rules": [
+    {
+      "id": "analyse-product-risks",
+      "instruction": "Before testing the change, list its product risks with their likelihood and impact, and use the risk level to set the test scope, the test levels and techniques and the order of testing (ISTQB CTFL v4.0.1, 5.2.3).",
+      "verification": "Link the risk list and check that the tests of the highest risks run first and cover them."
+    },
+    {
+      "id": "confirm-each-fix",
+      "instruction": "After a fix, run again the test that found the defect to confirm it is fixed (confirmation testing, ISTQB CTFL v4.0.1, 2.2.3).",
+      "verification": "Show the failing run before the fix and the passing run of the same test after it."
+    },
+    {
+      "id": "run-regression-on-impact",
+      "instruction": "From an impact analysis of the change, run the regression tests of the parts it can affect, connected systems included, and add an automated regression test for each fixed defect (ISTQB CTFL v4.0.1, 2.2.3).",
+      "verification": "Name the impacted areas and the regression suite that ran on the change, with its result."
+    }
+  ]
+}

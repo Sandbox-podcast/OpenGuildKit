@@ -1,0 +1,40 @@
+{
+  "id": "data-definitions",
+  "title": "Data definitions and quality",
+  "version": "1.0.0",
+  "description": "For a change that adds or alters a dataset, an event or a metric the data board reviews: each element defined with its owner, quality rules declared on the data it touches and its lineage recorded.",
+  "sources": [
+    {
+      "title": "Open Data Contract Standard (ODCS), schema",
+      "url": "https://bitol-io.github.io/open-data-contract-standard/latest/schema/",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "Open Data Contract Standard (ODCS), data quality",
+      "url": "https://bitol-io.github.io/open-data-contract-standard/latest/data-quality/",
+      "checked": "2026-11-22"
+    },
+    {
+      "title": "OpenLineage, object model",
+      "url": "https://openlineage.io/docs/spec/object-model/",
+      "checked": "2026-11-22"
+    }
+  ],
+  "rules": [
+    {
+      "id": "define-touched-data",
+      "instruction": "Define each dataset, field, event or metric the change adds or alters in the project's data contract or catalog: its name, business name, description, logical type and classification, as the schema section of the Open Data Contract Standard lists them, and its owner.",
+      "verification": "Open the contract or catalog entry of each touched element and check these fields and its owner."
+    },
+    {
+      "id": "declare-quality-rules",
+      "instruction": "Declare the quality rules of the touched data, such as missing, invalid or duplicate values or a row count, each with a threshold and the dimension it measures (accuracy, completeness, conformity, consistency, coverage, timeliness or uniqueness), as the data quality section of the Open Data Contract Standard does.",
+      "verification": "Run the quality rules on a test dataset and show each threshold with its result."
+    },
+    {
+      "id": "record-lineage",
+      "instruction": "Record where the touched data comes from and what reads it, as jobs, runs and their input and output datasets in the OpenLineage object model or the project's lineage tool, so that a change of definition reaches its consumers.",
+      "verification": "Show the lineage of the touched dataset and the consumers told of the change."
+    }
+  ]
+}

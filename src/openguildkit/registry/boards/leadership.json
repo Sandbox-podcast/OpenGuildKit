@@ -78,6 +78,9 @@
         "checks": [
           "Recurring costs and people needed after launch are counted, not only the build.",
           "The proposal is ranked against the other work competing for the same resources."
+        ],
+        "applies_to_concerns": [
+          "money"
         ]
       },
       {

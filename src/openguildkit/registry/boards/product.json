@@ -60,6 +60,10 @@
         "checks": [
           "The problem is observed in real users' situations, not only requested.",
           "The current workaround and its cost are described."
+        ],
+        "applies_to": [
+          "customer",
+          "business"
         ]
       },
       {

@@ -75,6 +75,9 @@
           "The reference is built from the OpenAPI or schema file in the repository, not written by hand.",
           "Every operation documents authentication, errors, rate limits and at least one request and response example.",
           "Deprecated operations are marked deprecated in the contract and in the reference, with the removal date."
+        ],
+        "applies_to": [
+          "service"
         ]
       },
       {
@@ -95,6 +98,9 @@
           "Code samples are tested in CI against the release candidate.",
           "SDK versions follow semantic versioning and the changelog lists breaking changes first.",
           "Samples contain no real keys or customer data; placeholders are obvious."
+        ],
+        "applies_to": [
+          "service"
         ]
       },
       {

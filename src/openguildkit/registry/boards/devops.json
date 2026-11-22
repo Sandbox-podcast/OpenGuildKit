@@ -119,6 +119,11 @@
         "checks": [
           "The rollout starts with a small exposure and has written advance, pause and stop conditions.",
           "The comparison population is representative of the users who will get the change."
+        ],
+        "applies_to": [
+          "customer",
+          "service",
+          "infrastructure"
         ]
       },
       {
@@ -137,6 +142,11 @@
         "checks": [
           "Rollback was rehearsed, and what persists after it, such as migrated data, is known.",
           "Restore time from backup is measured against the recovery time objective."
+        ],
+        "applies_to": [
+          "customer",
+          "service",
+          "infrastructure"
         ]
       }
     ],

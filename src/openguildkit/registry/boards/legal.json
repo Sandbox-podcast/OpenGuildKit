@@ -145,6 +145,11 @@
         "checks": [
           "New dependencies and assets have licences compatible with how the product is distributed.",
           "Required notices and attributions ship with the product."
+        ],
+        "applies_to": [
+          "customer",
+          "service",
+          "infrastructure"
         ]
       },
       {
