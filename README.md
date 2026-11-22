@@ -27,7 +27,7 @@ The [request status demo](examples/request-status/) creates a temporary project 
 
 `openguildkit ui` opens your project in the browser, on 127.0.0.1: tasks by state, the board consultation and each brain's pass, reviews and blockers, checks and results, dependency alerts, market dossiers, deliverables, tools and MCP servers, documentation exports and shares. Every action runs a CLI command. Approvals, waivers and other decisions that need a person stay in your terminal: the page shows the command to type. The wheel of a release ships the built interface; in a clone, build it once with `cd web && npm ci --ignore-scripts && npm run build`. [Project interface](web/docs/interface-projet.md)
 
-The same interface runs as a demo without the CLI. Explore Atelier Nova, a fictional software company, and follow a change from project rules and expert reviews through a human decision, a deliverable and its checks. The demo simulates external services and stores changes in your browser. [Run the web demo](web/README.md).
+The same interface runs as a demo without the CLI, from a clone (`cd web && npm ci --ignore-scripts && npm run dev`); the wheel does not ship it. Explore Atelier Nova, a fictional software company, and follow a change from project rules and expert reviews through a human decision, a deliverable and its checks. As in the product, Approve and Refuse show the command a person types in their terminal; the demo then simulates it. Its roles and its approvals of each deliverable version exist only in the demo. The demo simulates external services and stores changes in your browser. [Run the web demo](web/README.md).
 
 ## The board of brains
 

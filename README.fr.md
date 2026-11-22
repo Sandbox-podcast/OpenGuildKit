@@ -31,7 +31,7 @@ La [démo](examples/request-status/) crée un projet temporaire et utilise des a
 
 La roue d'une release embarque l'interface construite ; dans un clone, construis-la une fois avec `cd web && npm ci --ignore-scripts && npm run build`.
 
-La même interface fonctionne en démo, sans la CLI. Explore Atelier Nova, un éditeur de logiciels fictif. Retrouve les règles du projet, compare les avis, valide une décision et suis le livrable jusqu'aux contrôles. La démo simule les services externes et enregistre les modifications dans ton navigateur. [Lancer la démo web](web/README.md).
+La même interface fonctionne en démo, sans la CLI, depuis un clone (`cd web && npm ci --ignore-scripts && npm run dev`) ; la roue ne l'embarque pas. Explore Atelier Nova, un éditeur de logiciels fictif. Retrouve les règles du projet, compare les avis, valide une décision et suis le livrable jusqu'aux contrôles. Comme dans le produit, « Approuver » et « Refuser » affichent la commande qu'une personne tape dans son terminal ; la démo simule ensuite sa saisie. Ses rôles et ses validations de chaque version de livrable n'existent que dans la démo. La démo simule les services externes et enregistre les modifications dans ton navigateur. [Lancer la démo web](web/README.md).
 
 ## Le board des brains
 
