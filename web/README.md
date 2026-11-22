@@ -50,6 +50,8 @@ CAPTURES=1 npm run e2e -- captures   # régénère docs/captures-apres (RPG) et 
 node scripts/measure.mjs http://localhost:5209 5   # mesures de performance de la démo servie par `npm run preview:demo`
 ```
 
+Régénère les captures de `docs/captures-apres` (RPG) et `docs/captures-pro` après chaque changement visible de la démonstration (un lieu, un libellé, le style), avec `CAPTURES=1 npm run e2e -- captures`, et commite-les avec ce changement.
+
 `npm run e2e` utilise Chrome installé (`channel: chrome`). Tu peux aussi installer Chromium avec `npx playwright install chromium`, puis définir `PW_CHANNEL=chromium` avant `npm run e2e`. Les tests déposent leurs captures dans `test-results/`. [Captures comparatives et mesures](docs/verification.md)
 
 ## Parcours de démonstration

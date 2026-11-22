@@ -246,6 +246,43 @@ class FrenchPagesTest(unittest.TestCase):
         self.assertIn("en français", top)
 
 
+WEB_DOCS = ROOT / "web" / "docs"
+
+
+class WebDocsTest(unittest.TestCase):
+    """The web pages: no stale screenshot series, links that resolve, and the origin of the images said plainly."""
+
+    def test_only_the_screenshot_series_that_are_regenerated_remain(self):
+        self.assertEqual(sorted(path.name for path in WEB_DOCS.glob("captures*")), ["captures-apres", "captures-pro"])
+        verification = (WEB_DOCS / "verification.md").read_text(encoding="utf-8")
+        self.assertNotIn("Avant", verification)
+        self.assertNotIn("captures-avant", verification)
+
+    def test_relative_links_of_the_web_pages_resolve(self):
+        pages = [ROOT / "web" / "README.md", *sorted(WEB_DOCS.rglob("*.md"))]
+        for page in pages:
+            for target in re.findall(r"\]\(([^)\s]+)\)", page.read_text(encoding="utf-8")):
+                path = target.split("#")[0]
+                if re.match(r"[a-z]+:", target) or not path or "node_modules" in path:
+                    continue
+                with self.subTest(page=page.relative_to(ROOT).as_posix(), link=target):
+                    self.assertTrue((page.parent / path).exists())
+
+    def test_the_web_readme_says_when_to_regenerate_the_screenshots(self):
+        readme = (ROOT / "web" / "README.md").read_text(encoding="utf-8")
+        paragraph = next(block for block in readme.split("\n\n") if "captures-apres" in block and "CAPTURES=1" in block
+                         and not block.startswith("```"))
+        self.assertIn("après", paragraph)
+
+    def test_the_assets_page_says_where_the_images_come_from_and_what_was_not_checked(self):
+        paragraph = next(block for block in (WEB_DOCS / "assets.md").read_text(encoding="utf-8").split("\n\n")
+                         if "ImageGen" in block)
+        self.assertRegex(paragraph, r"\d{1,2} novembre 2026")
+        self.assertIn("docs/art", paragraph)
+        self.assertIn("lecture juridique", paragraph)
+        self.assertNotIn("restent à vérifier", paragraph)
+
+
 class CiWorkflowTest(unittest.TestCase):
     """The checks every pull request must pass: bounded in time, run on the supported Pythons, all required."""
 
