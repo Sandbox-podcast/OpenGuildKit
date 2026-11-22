@@ -51,7 +51,7 @@ Les textes renvoyés par la CLI en anglais (prochaine étape, questions du cadra
 La CLI demande une personne devant un terminal pour valider une quête, lever ou déroger à un blocage, autoriser une action externe, accepter une alerte confirmée, écarter une alerte critique ou fixer la sévérité d'une alerte, déclarer qu'une commande de vérification ne peut pas tourner ici (`task verify --cannot-run`, `--withdraw`), clore une quête par-dessus des points sensibles (`task complete --by`), et pour un changement du profil qui affaiblit une protection : baisser la garde, ouvrir la recherche publique, retirer ou refuser une réglementation, changer l'approbation signée, ouvrir ou élargir les dérogations, retirer une règle, un cerveau ou une commande de vérification obligatoire. L'interface n'enregistre aucune de ces décisions. Elle affiche la commande exacte, à copier dans son propre terminal :
 
 ```text
-openguildkit --project 'C:\…\mon-projet' task decide request-export --approve --by 'Camille Martin' --reason '…'
+openguildkit --project 'C:\…\mon-projet' task decide request-export --approve --by CM --reason '…'
 ```
 
 Dans un projet à approbation signée, la page guide la signature : `task decision-payload` (ou `task clear --payload` pour lever un blocage), `ssh-keygen -Y sign`, puis le dépôt de la signature, que la CLI vérifie.

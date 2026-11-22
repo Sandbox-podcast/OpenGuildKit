@@ -125,10 +125,10 @@ openguildkit task challenge statut-demandes
 
 ```bash
 openguildkit task blockers statut-demandes
-openguildkit task clear statut-demandes security:1 --evidence tests/test_access.py --supports "L'accès à un autre compte est refusé" --by "Camille Martin"
-openguildkit task decide statut-demandes --approve --by "Camille Martin" --reason "Périmètre en lecture seule validé"
-openguildkit task decide statut-demandes --request-changes --by "Camille Martin" --reason "Ajouter l'écran sans demande"
-openguildkit task revoke statut-demandes --by "Camille Martin" --reason "Le portail passe à une autre équipe"
+openguildkit task clear statut-demandes security:1 --evidence tests/test_access.py --supports "L'accès à un autre compte est refusé" --by CM
+openguildkit task decide statut-demandes --approve --by CM --reason "Périmètre en lecture seule validé"
+openguildkit task decide statut-demandes --request-changes --by CM --reason "Ajouter l'écran sans demande"
+openguildkit task revoke statut-demandes --by CM --reason "Le portail passe à une autre équipe"
 ```
 
 - `task blockers` liste les points bloquants posés par les boards, avec leur responsable et ce qui les lève.
@@ -136,6 +136,7 @@ openguildkit task revoke statut-demandes --by "Camille Martin" --reason "Le port
 - `task decide --approve` affiche la note de décision et te demande de taper l'identifiant de la tâche. L'approbation est scellée.
 - `task decide --request-changes` renvoie la tâche au cadrage, et l'historique est gardé.
 - `task revoke` retire une approbation quand le travail est abandonné ou qu'une condition de l'approbation ne peut pas être remplie : la tâche repasse en changements demandés, et le garde-fou ne couvre plus ses modifications.
+- `--by` prend tes initiales ou ton identifiant d'équipe, pas ton nom complet : il est recopié dans des fichiers que l'équipe commite, et une approbation le garde sous son sceau ([données personnelles](docs/personal-data.md)).
 
 **4. Réaliser et clore.**
 
@@ -187,6 +188,7 @@ openguildkit brains --id product
 - [Tests de bout en bout avec ChaosFolk, en option](integrations/chaosfolk/)
 
 - [Glossaire des mots du produit, en anglais et en français](docs/glossary.md)
+- [Données personnelles que l'outil enregistre, et comment remplacer un nom](docs/personal-data.md)
 - [Architecture](docs/architecture.md) et [parcours d'une tâche](docs/workflow.md)
 - [Contribuer](CONTRIBUTING.md), [format du catalogue](docs/catalog-format.md) et [tests](docs/testing.md)
 - [Feuille de route](docs/roadmap.md) et [licence MIT](LICENSE)

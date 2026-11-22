@@ -41,7 +41,7 @@ A regulation pattern (`"kind": "regulation"`) is never preselected because of a 
 Preselected is not imposed. The person keeps or removes each pattern. A norm (a regulation that the sector, personal data, decisions about people or a card payment provider in the stack proposes) is active only once a person accepts it: `init` stops while one is unanswered. A norm the person declines is recorded under `declined` with who, when and why; `AGENTS.md`, `preview`, `recommend`, the consultation of each task and its exported decision record show it. Declines written before this format are plain IDs and stay valid:
 
 ```json
-"declined": [{"id": "dora-financial-entity", "by": "Camille Martin", "on": "2026-11-21", "reason": "Not a financial entity under DORA Art. 2"}]
+"declined": [{"id": "dora-financial-entity", "by": "CM", "on": "2026-11-21", "reason": "Not a financial entity under DORA Art. 2"}]
 ```
 
 ## Change the profile after setup
@@ -49,14 +49,14 @@ Preselected is not imposed. The person keeps or removes each pattern. A norm (a 
 The agent never edits `.openguildkit/project.json`; the person and the agent change it with `openguildkit profile`. Each command works under the project lock, validates the result as `init` does, rewrites `AGENTS.md` and the catalog lock as `sync` does, records the change with `--by NAME` and `--reason WHY` under `changes`, and lists the open tasks consulted under the previous rules with what to do for each. Before it writes, it names the approved tasks whose approval the change voids.
 
 ```sh
-openguildkit profile adopt gdpr-personal-data --by "Camille Martin" --reason "The sign-up form stores emails"
-openguildkit profile decline deal-desk --by "Camille Martin" --reason "No sales team"
-openguildkit profile add check "python -m pytest" --by Sam --reason "Tests run offline"
-openguildkit profile remove tool Slack --by Sam --reason "Not used"
-openguildkit profile set host codex --by Sam --reason "The team moved to Codex"
-openguildkit profile add required-board security --by Sam --reason "Every change gets a security review"
-openguildkit profile set approval signed --signers .openguildkit/allowed_signers --approver camille@example.org --by "Camille Martin" --reason "The guard enforces"
-openguildkit profile set waivers allowed --allowed-by "Camille Martin" --max-days 30 --by "Camille Martin" --reason "Pilot"
+openguildkit profile adopt gdpr-personal-data --by CM --reason "The sign-up form stores emails"
+openguildkit profile decline deal-desk --by CM --reason "No sales team"
+openguildkit profile add check "python -m pytest" --by SL --reason "Tests run offline"
+openguildkit profile remove tool Slack --by SL --reason "Not used"
+openguildkit profile set host codex --by SL --reason "The team moved to Codex"
+openguildkit profile add required-board security --by SL --reason "Every change gets a security review"
+openguildkit profile set approval signed --signers .openguildkit/allowed_signers --approver CM --by CM --reason "The guard enforces"
+openguildkit profile set waivers allowed --allowed-by CM --max-days 30 --by CM --reason "Pilot"
 ```
 
 `add` and `remove` take `pack`, `role`, `tool`, `check`, `convention`, `board`, `required-board` or `required-rule` (`PACK` or `PACK/RULE`); `set` takes `host`, `guard`, `research`, `sector`, `personal-data`, `people-decisions`, `ask-every-rule` (`yes` or `no`), `approval` (`local`, or `signed` with `--signers PATH` and one `--approver NAME` per person) and `waivers` (`none`, or `allowed` with one `--allowed-by NAME` per person and `--max-days DAYS`). What weakens a protection is the person's decision and needs an interactive terminal and the typed ID or value: declining a regulation, removing a regulation, security or AI pack (`secure-sdlc`, `gdpr`, `threat-modeling`, `llm-evaluations`...), removing the `security` or `legal` board (including by listing other boards only), setting `personal-data` to `no`, lowering the guard, setting `research` to `public-sources`, moving to a host whose settings enforce less (`claude-code`, then `codex`, then `other`), turning signed approvals off or on, adding an approver or moving the allowed signers file, allowing waivers or widening them (another person, more days), removing a required rule, a required board or a check command, and setting `ask-every-rule` to `no`. Turning signed approvals on counts too: whoever can write the signers file then approves without a terminal. The web page saves an edited profile through the same path: it refuses the same changes with the command to type, refuses a profile whose history (`changes`) differs from the saved one, and records its own entry, with the name and reason the page sends or `web interface`. A change of the guard, host, research policy, approval mode or tools makes earlier approvals stale, and `check` names the setting that changed. When a change makes a norm concern the project (personal data now yes, a new sector), the command names it: adopt or decline it.
