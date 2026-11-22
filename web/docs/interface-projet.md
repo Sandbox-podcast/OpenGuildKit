@@ -36,7 +36,7 @@ Les textes renvoyés par la CLI en anglais (prochaine étape, questions du cadra
 
 ## Ce que l'interface ne fait jamais
 
-La CLI demande une personne devant un terminal pour valider une quête, lever ou déroger à un blocage, autoriser une action externe, accepter une alerte confirmée, écarter une alerte critique ou fixer la sévérité d'une alerte, déclarer qu'une commande de vérification ne peut pas tourner ici (`task verify --cannot-run`, `--withdraw`), clore une quête par-dessus des points sensibles (`task complete --by`), et pour un changement du profil qui affaiblit une protection : baisser la garde, ouvrir la recherche publique, retirer ou refuser une réglementation. L'interface n'enregistre aucune de ces décisions. Elle affiche la commande exacte, à copier dans son propre terminal :
+La CLI demande une personne devant un terminal pour valider une quête, lever ou déroger à un blocage, autoriser une action externe, accepter une alerte confirmée, écarter une alerte critique ou fixer la sévérité d'une alerte, déclarer qu'une commande de vérification ne peut pas tourner ici (`task verify --cannot-run`, `--withdraw`), clore une quête par-dessus des points sensibles (`task complete --by`), et pour un changement du profil qui affaiblit une protection : baisser la garde, ouvrir la recherche publique, retirer ou refuser une réglementation, changer l'approbation signée, ouvrir ou élargir les dérogations, retirer une règle, un cerveau ou une commande de vérification obligatoire. L'interface n'enregistre aucune de ces décisions. Elle affiche la commande exacte, à copier dans son propre terminal :
 
 ```text
 openguildkit --project 'C:\…\mon-projet' task decide request-export --approve --by 'Camille Martin' --reason '…'
@@ -61,7 +61,7 @@ Tout programme du poste peut ouvrir une connexion vers 127.0.0.1 : ceux d'un aut
 - Les commandes passent par l'analyseur de la CLI, puis par une liste de refus : `ci-check`, `ui`, `guard --hook`, `tools mock`, `integrations --user`, et les décisions réservées au terminal ci-dessus. Les abréviations d'options (`--appr`) sont résolues avant le contrôle.
 - Pendant chaque commande, l'entrée standard n'est jamais un terminal, même si le serveur tourne dans un terminal : une invite interactive échoue au lieu d'attendre.
 - Les fichiers lus ou écrits restent dans le projet, hors de `.git` quelle que soit sa casse : sur un disque qui ignore la casse, `.GIT/x` s'écrirait dans `.git`. Les fichiers envoyés par la page (avis, rapport de scanner, résultats) passent par un dossier temporaire supprimé après la commande. La page ne liste ni ne lit `.env`, les noms qui évoquent un secret, ni les fichiers où les outils gardent leurs jetons : `token*.json`, `auth.json`, `*service-account*.json`, `local.settings.json` (les enregistrements de l'outil sous `.openguildkit/` restent lisibles, même quand une quête s'appelle `token-rotation`).
-- La page écrit directement deux fichiers seulement : `.openguildkit/project.json`, suivi de `sync` (le profil précédent est remis si la CLI le refuse ; un changement qui affaiblit une protection est refusé avant d'écrire, avec la commande `profile` à taper), et `.openguildkit/storybook/proposals.json`.
+- La page enregistre le profil par le chemin des commandes `profile` : sous le verrou du projet, validé comme `init`, inscrit dans l'historique `changes` avec le nom et la raison que la page envoie (`by`, `reason`, sinon `web interface`), puis `AGENTS.md` et le verrou du catalogue sont réécrits. Un changement qui affaiblit une protection est refusé avant d'écrire (`weakens-protection`), avec la commande `profile` à taper ; un profil invalide, ou dont l'historique diffère de celui enregistré (la page l'a modifié, ou une autre commande a changé le profil depuis sa lecture), est refusé (`invalid-profile`) ; dans les deux cas rien n'est écrit. Le seul autre fichier que la page écrit est `.openguildkit/storybook/proposals.json`, sous le même verrou (`project-busy` quand une autre commande le tient trop longtemps).
 - Les commandes s'exécutent une à la fois, dans le processus du serveur, sous un verrou. Une page envoie un fichier absent du projet comme une réponse vide, pas comme une erreur.
 
 ## Codes de refus
@@ -94,6 +94,7 @@ La commande rendue est celle que la CLI nomme dans son refus quand elle en nomme
 | `not-readable` | La page ne lit que le Markdown, le JSON, le YAML et le texte. |
 | `too-large` | La requête ou le fichier est trop gros (8 Mo par requête, 2 Mo par fichier lu). |
 | `not-in-page` | Une commande ou un fichier qui n'a pas sa place dans une page (`ui`, `ci-check`, `guard --hook`, `tools mock`, `integrations --user`, l'écriture d'un autre fichier que les propositions Storybook). |
+| `project-busy` | Une autre commande d'OpenGuildKit écrit le projet : réessayer. |
 | `stale-token` | Jeton de session absent ou périmé : le serveur a redémarré. Recharger la page. |
 | `foreign-page` | La requête ne vient pas de la page du serveur (en-tête `Host` ou `Origin` inconnu). |
 | `bad-request` | Une requête mal formée : corps, commande ou options. |

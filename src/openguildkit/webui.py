@@ -74,6 +74,7 @@ REFUSALS = {
     "not-readable": "The interface only reads Markdown, JSON, YAML and text files.",
     "too-large": "The request or the file is too large.",
     "not-in-page": "A command or a file that does not belong in a page.",
+    "project-busy": "Another OpenGuildKit command is writing this project. Try again.",
     "stale-token": "Missing or invalid session token: the server was restarted. Reload the page.",
     "foreign-page": "The request does not come from the interface's own page.",
     "bad-request": "A malformed request.",
@@ -418,6 +419,25 @@ class CliRunner:
             result["reason"] = terminal_reason(args)
         return result
 
+    def call(self, function) -> tuple[dict, Exception | None]:
+        """Run a function of the CLI's modules as a command runs: under the same lock, with its output captured and
+        a stdin that is not a terminal, a refusal printed as the CLI prints it. Returns the result and the refusal."""
+        out, err = io.StringIO(), io.StringIO()
+        failure = None
+        with self.lock:
+            saved = sys.stdin
+            sys.stdin = io.StringIO("")
+            try:
+                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                    try:
+                        function()
+                    except (OSError, ValueError) as error:
+                        failure = error
+                        print(f"OpenGuildKit: {error}", file=sys.stderr)
+            finally:
+                sys.stdin = saved
+        return {"code": 1 if failure else 0, "stdout": out.getvalue(), "stderr": err.getvalue(), "json": None}, failure
+
     @staticmethod
     def _with_uploads(argv: list[str], uploads: dict[str, str], folder: Path) -> tuple[list[str], set[Path]]:
         if not isinstance(uploads, dict):
@@ -502,10 +522,15 @@ class ProjectFiles:
             json.loads(text)
         except ValueError as error:
             raise Refused(f"Invalid JSON: {error}", status=HTTPStatus.BAD_REQUEST, reason="bad-request") from None
-        from .storage import write_text
+        from .storage import project_lock, write_text
 
         target = self._resolve(relative)
-        write_text(target, text if text.endswith("\n") else text + "\n")
+        # storybook propose writes the same file under the project lock.
+        try:
+            with project_lock(self.root / ".openguildkit"):
+                write_text(target, text if text.endswith("\n") else text + "\n")
+        except ValueError as error:
+            raise Refused(str(error), status=HTTPStatus.CONFLICT, reason="project-busy") from None
         return {"path": relative, "written": True}
 
 
@@ -751,15 +776,17 @@ class WebApp:
         if path == "/api/files/write":
             return self.files.write(body.get("path", ""), body.get("text"))
         if path == "/api/profile/save":
-            return self.save_profile(body.get("text"))
+            return self.save_profile(body.get("text"), body.get("by"), body.get("reason"))
         raise Refused("Unknown endpoint.", status=HTTPStatus.NOT_FOUND, reason="not-found")
 
-    def save_profile(self, text) -> dict:
-        """Write .openguildkit/project.json and run sync; put the previous profile back when sync refuses it.
+    def save_profile(self, text, by=None, reason=None) -> dict:
+        """Save the profile edited in the page by the profile commands' own path: under the project lock, recorded
+        in the history with who and why, then the instructions and the catalog lock are rewritten. A change that
+        weakens a protection is the person's decision at a terminal: it is refused with the profile command to
+        type. An invalid profile, or one that rewrites the history, is refused too; nothing is written then."""
+        from types import SimpleNamespace
 
-        A change that weakens a protection is the person's decision at a terminal, as with the profile commands:
-        it is refused with the command to type, and nothing is written."""
-        from .storage import write_text
+        from . import cli, profile_cli
 
         if not isinstance(text, str):
             raise Refused("text must be a string.", status=HTTPStatus.BAD_REQUEST, reason="invalid-profile")
@@ -769,40 +796,31 @@ class WebApp:
                 raise ValueError("the profile is a JSON object")
         except ValueError as error:
             raise Refused(f"Invalid JSON: {error}", status=HTTPStatus.BAD_REQUEST, reason="invalid-profile") from None
-        target = self.root / ".openguildkit" / "project.json"
-        if not target.is_file():
+        who = _decision_line(by, "by", "web interface")
+        why = _decision_line(reason, "reason", "Saved from the web interface.")
+        state = self.root / ".openguildkit"
+        if not (state / "project.json").is_file():
             raise Refused(REFUSALS["not-initialized"], status=HTTPStatus.CONFLICT, reason="not-initialized")
-        previous = target.read_text(encoding="utf-8")
-        # An invalid profile is refused as such, before anything is compared: the page puts the previous one back.
-        problem = profile_problem(self.root, profile)
-        if problem:
-            return {"code": 1, "stdout": "", "stderr": f"OpenGuildKit: {problem}", "json": None, "restored": True,
-                    "reason": "invalid-profile"}
-        weakening = weakening_changes(self.root, json.loads(previous), profile)
-        if weakening:
-            raise Refused(f"{'; '.join(change for change, _ in weakening)}: this weakens a protection, which is the "
-                          f"person's decision at an interactive terminal. {HUMAN_ONLY_TEXT} Nothing was written.",
-                          terminal_command(self.root, weakening[0][1]), reason="weakens-protection")
-        with self.runner.lock:
-            write_text(target, text if text.endswith("\n") else text + "\n")
-        result = self.runner.run(["sync"])
-        if result["code"] != 0:
-            with self.runner.lock:
-                write_text(target, previous)
-            result["restored"] = True
+        no_policy = SimpleNamespace(policy_repo=None, policy_commit=None)
+        result, failure = self.runner.call(lambda: profile_cli.save_edited(
+            self.root, state, profile, who, why, lambda: cli._installed_catalog(no_policy, state), cli._print_touched))
+        if isinstance(failure, profile_cli.Weakening):
+            raise Refused(f"{failure} {HUMAN_ONLY_TEXT}", terminal_command(self.root, failure.changes[0][1]),
+                          reason="weakens-protection")
+        # Nothing is written when the save fails: the profile on disk is still the previous one.
+        result["restored"] = failure is not None
+        if isinstance(failure, profile_cli.InvalidProfile):
+            result["reason"] = "invalid-profile"
         return result
 
 
-def profile_problem(root: Path, profile: dict) -> str | None:
-    """Why a hand-edited profile cannot be used, by the same validation as init and sync, or None."""
-    from .catalog import load_catalog
-    from .project import validate_profile
-
-    try:
-        validate_profile(profile, load_catalog(root / ".openguildkit" / "catalog"))
-    except ValueError as error:
-        return str(error)
-    return None
+def _decision_line(value, field: str, default: str) -> str:
+    """Who saves the profile from the page and why: one line each, or the page's own words when it sends none."""
+    if value is None:
+        return default
+    if not isinstance(value, str) or not value.strip() or "\n" in value or "\r" in value:
+        raise Refused(f"{field} must be a non-empty single line.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
+    return value.strip()
 
 
 def weakening_changes(root: Path, before: dict, after: dict) -> list[tuple[str, list[str]]]:

@@ -4,6 +4,7 @@ import http.client
 import io
 import json
 import os
+import shlex
 import signal
 import socket
 import subprocess
@@ -18,7 +19,7 @@ from unittest.mock import patch
 
 from openguildkit import webui
 from openguildkit.cli import main
-from openguildkit.storage import write_json
+from openguildkit.storage import project_lock, write_json
 from openguildkit.webui import make_server
 
 REPO = Path(__file__).resolve().parents[1]
@@ -323,6 +324,7 @@ class WebInterfaceTests(unittest.TestCase):
         saved = json.loads(profile.read_text(encoding="utf-8"))
         status, _, body = self.request("/api/profile/save", {"text": json.dumps({**saved, "guard": "enforce"})})
         self.assertEqual((status, json.loads(body)["code"]), (200, 0))
+        saved = json.loads(profile.read_text(encoding="utf-8"))
         for change, command in (({"guard": "off"}, "profile set guard off --by NAME --reason WHY"),
                                 ({"guard": "enforce", "research": "public-sources"},
                                  "profile set research public-sources")):
@@ -338,6 +340,101 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertIn("interactive terminal", result["stderr"])
         self.assertIn("profile set guard observe", result["command"])
         self.assertEqual(json.loads(profile.read_text(encoding="utf-8"))["guard"], "enforce")
+
+    def profile_command(self, *arguments, confirm=None):
+        """A profile command typed in a terminal, confirmed by the person when it asks."""
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as error, \
+                patch("sys.stdin.isatty", return_value=confirm is not None), \
+                patch("builtins.input", return_value=confirm or ""):
+            self.assertEqual(main(["--project", str(self.root), "profile", *arguments]), 0, error.getvalue())
+
+    def saved_profile(self) -> dict:
+        return json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
+
+    def save_from_page(self, profile: dict, **extra):
+        status, _, body = self.request("/api/profile/save", {"text": json.dumps(profile), **extra})
+        return status, json.loads(body)
+
+    def test_the_page_saves_the_profile_by_the_profile_commands_path(self):
+        self.profile_command("add", "tool", "Jira", "--by", "Sam", "--reason", "Tracker")
+        status, answer = self.save_from_page({**self.saved_profile(), "conventions": ["Write tests."]},
+                                             by="Camille Martin", reason="Team rule")
+        self.assertEqual((status, answer["code"], answer["restored"]), (200, 0, False), answer)
+        self.assertIn("Profile changed: edit conventions from the web page, by Camille Martin", answer["stdout"])
+        changes = self.saved_profile()["changes"]
+        self.assertEqual([entry["change"] for entry in changes], ["add tool Jira", "edit conventions from the web page"])
+        self.assertEqual((changes[-1]["by"], changes[-1]["reason"]), ("Camille Martin", "Team rule"))
+        self.assertIn("Write tests.", (self.root / "AGENTS.md").read_text(encoding="utf-8"))
+        status, answer = self.save_from_page({**self.saved_profile(), "name": "Portail"})
+        self.assertEqual(answer["code"], 0, answer)
+        self.assertEqual(self.saved_profile()["changes"][-1]["by"], "web interface")
+        self.assertEqual(self.save_from_page(self.saved_profile(), by="Two\nlines")[0], 400)
+
+    def test_the_page_cannot_rewrite_the_history_of_profile_changes(self):
+        self.profile_command("add", "tool", "Jira", "--by", "Sam", "--reason", "Tracker")
+        self.profile_command("add", "convention", "Write tests.", "--by", "Sam", "--reason", "Team")
+        before = (self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8")
+        saved = self.saved_profile()
+        invented = {"change": "add check true", "by": "Pat Example", "on": "2026-11-01", "reason": "Invented"}
+        for changes in ([invented], saved["changes"][:1], [{**saved["changes"][0], "by": "Pat Example"},
+                                                           saved["changes"][1]], [*saved["changes"], invented]):
+            with self.subTest(changes=[entry["by"] for entry in changes]):
+                status, answer = self.save_from_page({**saved, "name": "Renamed", "changes": changes})
+                self.assertEqual((status, answer["code"], answer["reason"], answer["restored"]),
+                                 (200, 1, "invalid-profile", True), answer)
+                self.assertIn("history of profile changes", answer["stderr"])
+                self.assertEqual((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"), before)
+
+    def test_each_protection_is_lowered_from_the_page_only_by_a_command_typed_at_a_terminal(self):
+        from openguildkit.cli import _parser
+
+        self.profile_command("add", "check", "python -m unittest", "--by", "Sam", "--reason", "Tests")
+        self.profile_command("add", "required-board", "security", "--by", "Sam", "--reason", "Audit")
+        self.profile_command("add", "required-rule", "secure-sdlc", "--by", "Sam", "--reason", "Audit")
+        self.profile_command("set", "ask-every-rule", "yes", "--by", "Sam", "--reason", "Audit")
+        self.profile_command("set", "approval", "signed", "--signers", ".openguildkit/allowed_signers", "--approver",
+                             "camille@example.test", "--by", "Camille", "--reason", "Audit", confirm="signed")
+        self.profile_command("set", "waivers", "allowed", "--allowed-by", "Camille", "--max-days", "30", "--by",
+                             "Camille", "--reason", "Pilot", confirm="allowed")
+        saved = self.saved_profile()
+        before = (self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8")
+        signed = saved["approval"]
+
+        def without(key):
+            return {name: value for name, value in saved.items() if name != key}
+
+        cases = (
+            (without("approval"), "signed approvals turned off", "profile set approval local"),
+            ({**saved, "approval": {**signed, "approvers": [*signed["approvers"], "agent@example.test"]}},
+             "approver agent@example.test added", "--approver agent@example.test"),
+            ({**saved, "approval": {**signed, "allowed_signers": "keys/signers"}}, "allowed signers moved",
+             "profile set approval signed --signers keys/signers"),
+            ({**saved, "waivers": {"allowed_by": ["Camille", "agent"], "max_days": 30}}, "agent may waive",
+             "profile set waivers allowed --allowed-by Camille --allowed-by agent --max-days 30"),
+            ({**saved, "waivers": {"allowed_by": ["Camille"], "max_days": 366}}, "up to 366 days instead of 30",
+             "--max-days 366"),
+            (without("required_rules"), "required rule secure-sdlc removed", "profile remove required-rule secure-sdlc"),
+            (without("required_boards"), "required board security removed", "profile remove required-board security"),
+            ({**saved, "checks": []}, "check command python -m unittest removed",
+             "profile remove check 'python -m unittest'"),
+            (without("ask_every_rule"), "every rule no longer asked", "profile set ask-every-rule no"),
+        )
+        for profile, weakened, command in cases:
+            with self.subTest(weakened=weakened):
+                status, answer = self.save_from_page(profile)
+                self.assertEqual((status, answer["reason"]), (403, "weakens-protection"), answer)
+                self.assertIn(weakened, answer["error"])
+                self.assertIn(command, answer["command"])
+                words = shlex.split(answer["command"])
+                self.assertEqual(words[:2], ["openguildkit", "--project"])
+                self.assertEqual(_parser().parse_args(words[1:]).command, "profile")
+                self.assertEqual((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"), before)
+        # The audit's replay: approval dropped, waivers opened to the agent, the history replaced. Nothing is written.
+        replay = {**without("approval"), "waivers": {"allowed_by": ["agent"], "max_days": 366},
+                  "changes": [{"change": "edit", "by": "Pat Example", "on": "2026-11-01", "reason": "Cleanup"}]}
+        status, answer = self.save_from_page(replay)
+        self.assertEqual((answer["code"], answer["restored"]), (1, True), answer)
+        self.assertEqual((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"), before)
 
     def test_a_regulation_stops_being_active_only_at_a_terminal(self):
         from openguildkit.catalog import load_catalog
@@ -509,6 +606,9 @@ class WebInterfaceTests(unittest.TestCase):
         refused_by_server("foreign-page", 421, "/api/run", {"argv": ["check"]}, headers={"Host": "evil.example:80"})
         refused_by_server("stale-token", 403, "/api/run", {"argv": ["check"]}, headers={"X-OGK-Token": "from-a-stopped-server"})
         refused_by_server("open-printed-link", 403, "/api/session", headers={"Cookie": f"{self.app.cookie}=from-a-stopped-server"})
+        with patch.dict("os.environ", {"OPENGUILDKIT_LOCK_TIMEOUT": "0"}), project_lock(self.root / ".openguildkit"):
+            refused_by_server("project-busy", 409, "/api/files/write",
+                              {"path": ".openguildkit/storybook/proposals.json", "text": "{}"})
         with patch.object(self.app, "handle", side_effect=RuntimeError("boom")):
             refused_by_server("server-error", 500, "/api/run", {"argv": ["check"]})
         uninitialized = self.root / ".openguildkit" / "project.json"
