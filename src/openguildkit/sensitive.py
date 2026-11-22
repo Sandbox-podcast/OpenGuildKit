@@ -9,6 +9,13 @@ from ipaddress import ip_address
 import re
 from urllib.parse import parse_qsl, urlsplit
 
+# A value written in place of a secret, not the secret: a variable (${X}, $X, %X%, {{ x }}), a placeholder (<x>,
+# [credential], YOUR_TOKEN) or an ellipsis.
+_NOT_A_VALUE = r"""(?![\[$<{%]|(?-i:[A-Z_]+)(?![A-Za-z0-9])|[^\s,;"']*(?:\.\.\.|…))"""
+# The value of a setting: quoted, or a run of characters that holds a digit, as generated secrets do and words do not.
+_SETTING_VALUE = (rf"""(?:"{_NOT_A_VALUE}[^"\r\n]{{4,}}"|'{_NOT_A_VALUE}[^'\r\n]{{4,}}'"""
+                  rf"""|{_NOT_A_VALUE}(?=[^\s,;"']*\d)[^\s,;"']{{8,}})""")
+_SECRET_KEY = r"(?:[a-z0-9]+[_-])*(?:api[_-]?key|token|secret|access[_-]?key|secret[_-]?key|client[_-]?secret)"
 # Each shape: its name in messages, the pattern, and the replacement that keeps the surrounding words.
 CREDENTIAL_SHAPES = (
     ("a cloud access key ID", re.compile(r"(?<![A-Za-z0-9_])(?:AKIA|ASIA)[A-Za-z0-9]{16}(?![A-Za-z0-9_])"),
@@ -20,6 +27,24 @@ CREDENTIAL_SHAPES = (
     ("a GitLab token", re.compile(r"(?<![A-Za-z0-9_])glpat-[A-Za-z0-9_-]{20,}"), "[credential]"),
     ("a Google API key", re.compile(r"(?<![A-Za-z0-9_])AIza[A-Za-z0-9_-]{35}(?![A-Za-z0-9_-])"), "[credential]"),
     ("an Anthropic API key", re.compile(r"(?<![A-Za-z0-9_])sk-ant-[A-Za-z0-9_-]{20,}"), "[credential]"),
+    ("an OpenAI API key", re.compile(r"(?<![A-Za-z0-9_-])sk-(?:proj-|svcacct-|admin-)?(?=[A-Za-z0-9_-]*\d)"
+                                     r"[A-Za-z0-9_-]{20,}"), "[credential]"),
+    ("an npm token", re.compile(r"(?<![A-Za-z0-9_])npm_[A-Za-z0-9]{36}(?![A-Za-z0-9_])"), "[credential]"),
+    ("a PyPI token", re.compile(r"(?<![A-Za-z0-9_-])pypi-AgE[A-Za-z0-9_-]{40,}"), "[credential]"),
+    ("a Hugging Face token", re.compile(r"(?<![A-Za-z0-9_])hf_[A-Za-z0-9]{30,}(?![A-Za-z0-9_])"), "[credential]"),
+    ("an Atlassian API token", re.compile(r"(?<![A-Za-z0-9_])ATATT3[A-Za-z0-9_=-]{20,}"), "[credential]"),
+    ("a Linear API key", re.compile(r"(?<![A-Za-z0-9_])lin_(?:api|oauth)_[A-Za-z0-9]{32,}"), "[credential]"),
+    ("a Notion token", re.compile(r"(?<![A-Za-z0-9_])ntn_[A-Za-z0-9]{40,}"), "[credential]"),
+    ("a Sentry token", re.compile(r"(?<![A-Za-z0-9_])sntry[su]_[A-Za-z0-9+/=_-]{30,}"), "[credential]"),
+    ("a Figma token", re.compile(r"(?<![A-Za-z0-9_])figd_[A-Za-z0-9_-]{30,}"), "[credential]"),
+    ("a Slack webhook link", re.compile(r"(https://hooks\.slack\.com/(?:services|workflows|triggers)/)"
+                                        r"[A-Za-z0-9_/-]{20,}"), r"\1[credential]"),
+    ("a Discord webhook link", re.compile(r"(https://(?:(?:ptb|canary)\.)?discord(?:app)?\.com/api/webhooks/)"
+                                          r"\d+/[A-Za-z0-9_-]{20,}"), r"\1[credential]"),
+    ("a Google OAuth client secret", re.compile(r"(?<![A-Za-z0-9_-])GOCSPX-[A-Za-z0-9_-]{20,}"), "[credential]"),
+    ("a SendGrid API key", re.compile(r"(?<![A-Za-z0-9_-])SG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{30,}"), "[credential]"),
+    ("an Azure storage key", re.compile(r"(?i)(\b(?:Account|SharedAccess)Key=)(?![\[$<{%])[A-Za-z0-9+/=]{20,}"),
+     r"\1[credential]"),
     ("a JSON Web Token", re.compile(r"(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
      "[credential]"),
     ("a private key", re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----(?:.*?-----END (?:[A-Z0-9]+ )*PRIVATE KEY-----)?",
@@ -30,6 +55,12 @@ CREDENTIAL_SHAPES = (
         r"(?![\[$<{])[^&#\s\"']+"), r"\1[credential]"),
     ("a password", re.compile(r"""(?i)(\b(?:password|passwd|mot de passe)\s*[:=]\s*)(?!\[)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]*[^\s,;.!?)])"""),
      r"\1[password]"),
+    ("an authorization header", re.compile(
+        r"""(?i)(\bauthorization["']?\s*[:=]\s*["']?(?:bearer|basic|token)\s+)"""
+        rf"""{_NOT_A_VALUE}[A-Za-z0-9._~+/=-]{{8,}}"""), r"\1[credential]"),
+    # api_key: …, token=…, client_secret = "…", AWS_SECRET_ACCESS_KEY=…; a query string has its own shape above.
+    ("a secret in a setting", re.compile(rf"""(?i)(?<![?&;/=\w-])({_SECRET_KEY}["']?\s*[:=]\s*){_SETTING_VALUE}"""),
+     r"\1[credential]"),
 )
 PERSONAL_SHAPES = (
     ("an email address", re.compile(r"[a-z0-9.!#$%&'*+/=?^_\x60{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+", re.IGNORECASE | re.ASCII)),
