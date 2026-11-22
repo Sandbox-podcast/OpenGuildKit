@@ -600,6 +600,10 @@ class WebApp:
         if not target.is_file():
             raise Refused("The project is not initialized: set it up first.", status=HTTPStatus.CONFLICT)
         previous = target.read_text(encoding="utf-8")
+        # An invalid profile is refused as such, before anything is compared: the page puts the previous one back.
+        problem = profile_problem(self.root, profile)
+        if problem:
+            return {"code": 1, "stdout": "", "stderr": f"OpenGuildKit: {problem}", "json": None, "restored": True}
         weakening = weakening_changes(self.root, json.loads(previous), profile)
         if weakening:
             raise Refused(f"{'; '.join(change for change, _ in weakening)}: this weakens a protection, which is the "
@@ -613,6 +617,18 @@ class WebApp:
                 write_text(target, previous)
             result["restored"] = True
         return result
+
+
+def profile_problem(root: Path, profile: dict) -> str | None:
+    """Why a hand-edited profile cannot be used, by the same validation as init and sync, or None."""
+    from .catalog import load_catalog
+    from .project import validate_profile
+
+    try:
+        validate_profile(profile, load_catalog(root / ".openguildkit" / "catalog"))
+    except ValueError as error:
+        return str(error)
+    return None
 
 
 def weakening_changes(root: Path, before: dict, after: dict) -> list[tuple[str, list[str]]]:

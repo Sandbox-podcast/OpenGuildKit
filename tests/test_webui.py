@@ -207,6 +207,17 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(result["code"], 1)
         self.assertNotIn("command", result)
 
+    def test_an_invalid_profile_from_the_page_is_refused_as_invalid_and_nothing_is_written(self):
+        profile = self.root / ".openguildkit" / "project.json"
+        before = profile.read_text(encoding="utf-8")
+        status, _, body = self.request("/api/profile/save",
+                                       {"text": json.dumps({"name": "Portail support", "research": "everywhere"})})
+        answer = json.loads(body)
+        self.assertEqual((status, answer["code"], answer["restored"]), (200, 1, True), answer)
+        self.assertIn("research", answer["stderr"])
+        self.assertNotIn("command", answer)
+        self.assertEqual(profile.read_text(encoding="utf-8"), before)
+
     def test_a_profile_saved_from_the_page_never_weakens_a_protection(self):
         profile = self.root / ".openguildkit" / "project.json"
         saved = json.loads(profile.read_text(encoding="utf-8"))
