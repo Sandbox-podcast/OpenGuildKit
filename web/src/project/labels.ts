@@ -11,13 +11,13 @@ export const TASK_STATUS: Record<TaskStatus, Label & { rpg: string; step: number
   consulting: { ...L('Consultation', 'ai', 'council'), rpg: 'Au Conseil', step: 1 },
   reviewed: { ...L('Avis rendus', 'info', 'eye'), rpg: 'Avis rendus', step: 2 },
   'changes-requested': { ...L('À reprendre', 'warning', 'replace'), rpg: 'Renvoyée au Conseil', step: 1 },
-  approved: { ...L('Validée', 'success', 'check'), rpg: 'Scellée', step: 3 },
+  approved: { ...L('Approuvée', 'success', 'check'), rpg: 'Scellée', step: 3 },
   done: { ...L('Terminée', 'success', 'star'), rpg: 'Accomplie', step: 5 },
   'done-with-reservations': { ...L('Terminée avec réserves', 'warning', 'star'), rpg: 'Accomplie, sous réserves', step: 5 },
   unreadable: { ...L('Illisible', 'danger', 'warn'), rpg: 'Parchemin illisible', step: 0 },
 };
 export const taskStatus = (s: string) => TASK_STATUS[s as TaskStatus] ?? { ...L(s, 'neutral', 'dot'), rpg: s, step: 0 };
-export const TASK_ORDER: TaskStatus[] = ['draft', 'consulting', 'changes-requested', 'reviewed', 'approved', 'done', 'done-with-reservations'];
+const TASK_ORDER: TaskStatus[] = ['draft', 'consulting', 'changes-requested', 'reviewed', 'approved', 'done', 'done-with-reservations'];
 /** A completed task: done, or done with the points it left open recorded in result.closing. */
 export const isDone = (status: string) => status === 'done' || status === 'done-with-reservations';
 /** A task a person approved: still to implement, or completed. */
@@ -119,7 +119,7 @@ export const hostControl = (s: string) => HOST_CONTROL[s] ?? L(s, 'neutral', 'do
 /** The CLI writes an expired share as "expired: remove the access in Documentalist". */
 export const shareState = (state: string) => (state.startsWith('expired') ? 'expired' : state.startsWith('revoked') ? 'revoked' : 'active');
 export const SHARE: Record<string, Label> = { active: L('Actif', 'success', 'link'), expired: L('Expiré, à retirer', 'danger', 'warn'), revoked: L('Retiré', 'muted', 'ban') };
-export const GUARD: Record<string, string> = { off: 'désactivée', observe: 'en observation', enforce: 'appliquée' };
+export const GUARD: Record<string, string> = { off: 'désactivé', observe: 'en observation', enforce: 'appliqué' };
 
 export const fmtDay = (iso?: string | null) => {
   if (!iso) return '—';
@@ -138,18 +138,18 @@ const NEXT: [RegExp, (m: RegExpExecArray) => string][] = [
   [/^Answer the questionnaire and consult the boards\.$/, () => 'Répondre au questionnaire et consulter les cerveaux.'],
   [/^Board reviews pending: (.*)\.$/, (m) => `Avis attendus : ${m[1]}.`],
   [/^Write the summary and record the review\.$/, () => 'Rédiger la synthèse et enregistrer la revue.'],
-  [/^Resolve blockers (.*)\.$/, (m) => `Lever les blocages ${m[1]}.`],
+  [/^Resolve blockers (.*)\.$/, (m) => `Lever les points bloquants ${m[1]}.`],
   [/^Waiting for the person's decision\.$/, () => 'En attente de la décision d’une personne.'],
   [/^Consult again: (.*)$/, (m) => `Consulter à nouveau : ${m[1]}`],
-  [/^Decision recorded: close it with task complete (\S+), then open a follow-up task to act on it\.$/, (m) => `Décision enregistrée : la clore avec task complete ${m[1]}, puis ouvrir une quête de suite pour la mettre en œuvre.`],
+  [/^Decision recorded: close it with task complete (\S+), then open a follow-up task to act on it\.$/, (m) => `Décision enregistrée : la clore avec task complete ${m[1]}, puis ouvrir une tâche de suite pour la mettre en œuvre.`],
   [/^Decision recorded: report its acceptance criterion with task result (\S+) --template, then task complete \S+, then open a follow-up task to act on it\.$/,
-    (m) => `Décision enregistrée : rapporter son critère d’acceptation (task result ${m[1]} --template), la clore avec task complete ${m[1]}, puis ouvrir une quête de suite pour la mettre en œuvre.`],
-  [/^Implement, then record the results: task verify (\S+) and task result \S+, then task complete \S+\.$/, (m) => `Réaliser, puis rapporter les résultats (task verify ${m[1]}, task result) et terminer la quête.`],
+    (m) => `Décision enregistrée : rapporter son critère d’acceptation (task result ${m[1]} --template), la clore avec task complete ${m[1]}, puis ouvrir une tâche de suite pour la mettre en œuvre.`],
+  [/^Implement, then record the results: task verify (\S+) and task result \S+, then task complete \S+\.$/, (m) => `Réaliser, puis rapporter les résultats (task verify ${m[1]}, task result) et terminer la tâche.`],
   [/^Waiting for evidence: (.*)\.$/, (m) => `En attente de preuves : ${m[1]}.`],
-  [/^Result recorded: run task verify (\S+) to list what remains, then task complete \S+\.$/, (m) => `Résultats enregistrés : task verify ${m[1]} liste ce qui reste, puis terminer la quête.`],
+  [/^Result recorded: run task verify (\S+) to list what remains, then task complete \S+\.$/, (m) => `Résultats enregistrés : task verify ${m[1]} liste ce qui reste, puis terminer la tâche.`],
   [/^(\S+)(?: \(`([^`]*)`\))? failed(?:: (.*?))?(?: and (\d+) other check\(s\))?\. Fix it, then run task verify (\S+)\.$/s,
     (m) => `Échec de ${m[1]}${m[2] ? ` (${m[2]})` : ''}${m[3] ? ` : ${m[3]}` : ''}${m[4] ? `, et de ${m[4]} autre(s) contrôle(s)` : ''}. Corriger, puis relancer task verify ${m[5]}.`],
-  [/^Done with reservations: see the open points in task show \(result\.closing\)\.$/, () => 'Terminée avec réserves : les points laissés ouverts sont dans la fiche de la quête.'],
+  [/^Done with reservations: see the open points in task show \(result\.closing\)\.$/, () => 'Terminée avec réserves : les points laissés ouverts sont dans la fiche de la tâche.'],
   [/^Done\.$/, () => 'Terminée.'],
   [/^The approval for (\S+) was recorded under earlier rules(?: \((.*)\))?\. Consult it again with openguildkit task consult \S+, or open a linked task with openguildkit task new "BRIEF" --follows \S+\.$/s,
     (m) => `L’approbation de ${m[1]} a été donnée sous des règles antérieures${m[2] ? ` (${changesLabel(m[2])})` : ''}. ${RECONSULT(m[1])}`],
@@ -199,11 +199,11 @@ export const hasFailedCheck = (next: string) => / failed.*Fix it, then run task 
 /** The groups of what a completion left open (tasks.closing_points), most serious first, in French. */
 export const CLOSING_GROUP: Record<string, string> = {
   'Data protection, security or AI rules skipped, failed or declared not applicable as a pack': 'Règles de protection des données, de sécurité ou d’IA ignorées, en échec ou écartées pack entier',
-  'Board blocks not lifted': 'Blocages des cerveaux non levés',
+  'Board blocks not lifted': 'Points bloquants des cerveaux non levés',
   'Project checks that could not run in this environment': 'Vérifications du projet qui n’ont pas pu tourner ici',
   'Blockers waived rather than cleared': 'Points bloquants couverts par une dérogation plutôt que levés',
   'Disagreements between boards left open': 'Désaccords entre cerveaux restés ouverts',
-  'Named evidence handed to a follow-up task': 'Pièces justificatives confiées à une quête de suite',
+  'Named evidence handed to a follow-up task': 'Pièces justificatives confiées à une tâche de suite',
   'Other rules skipped or failed': 'Autres règles ignorées ou en échec',
   'Warnings on the result': 'Avertissements sur le résultat',
   'Board verdicts at approval that asked for changes': 'Verdicts des cerveaux qui demandaient des changements à l’approbation',
@@ -211,9 +211,9 @@ export const CLOSING_GROUP: Record<string, string> = {
 
 /** French wording of the task questionnaire (workflow.task_questions). The CLI prompt stays as a tooltip. */
 export const QUESTION_FR: Record<string, string> = {
-  kind: 'Que demandez-vous à l’équipe ?',
-  surface: 'Quelles zones la quête touche-t-elle ?',
-  data: 'Quelle est la donnée la plus sensible que la quête peut lire ou modifier ?',
+  kind: 'Que demandes-tu à l’équipe ?',
+  surface: 'Quelles zones la tâche touche-t-elle ?',
+  data: 'Quelle est la donnée la plus sensible que la tâche peut lire ou modifier ?',
   research: 'Quelles preuves les cerveaux peuvent-ils consulter ?',
   concerns: 'La tâche touche-t-elle à l’un de ces sujets ? Coche chacun de ceux qui s’appliquent, ou « Aucun de ces sujets ».',
   context: 'Critères d’acceptation, contraintes ou autre contexte utile aux cerveaux',

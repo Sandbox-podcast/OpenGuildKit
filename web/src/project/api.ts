@@ -17,7 +17,7 @@ export interface CliResult<T = unknown> { code: number; stdout: string; stderr: 
  * A refusal or a failed command. `command` is what a person types in a terminal instead; `reason` is the stable
  * code of a refusal of the local server; `lang` is 'en' when the message is the server's or the CLI's own English.
  */
-export interface ApiErrorDetails { command?: string | null; result?: CliResult; reason?: string | null; lang?: 'en' }
+interface ApiErrorDetails { command?: string | null; result?: CliResult; reason?: string | null; lang?: 'en' }
 export class ApiError extends Error {
   command: string | null;
   result?: CliResult;
@@ -33,16 +33,11 @@ export class ApiError extends Error {
 }
 
 let session: Session | null = null;
-let refused: string | null = null;
-
-/** The code of the server's refusal to open a session (open-printed-link, stale-token), when it refused one. */
-export const sessionRefusal = () => refused;
 
 /** Detects the local API. Static hosting (the demo) answers with HTML or 404, never this JSON. */
 export async function detectSession(): Promise<Session | null> {
   try {
     const response = await fetch('./api/session', { headers: { Accept: 'application/json' }, cache: 'no-store' });
-    if (response.status === 403) refused = ((await response.clone().json().catch(() => ({}))) as { reason?: string }).reason ?? null;
     if (!response.ok || !(response.headers.get('content-type') ?? '').includes('application/json')) return null;
     const data = await response.json() as Session;
     if (data.app !== 'openguildkit-ui' || !data.token) return null;
@@ -56,7 +51,7 @@ export async function detectSession(): Promise<Session | null> {
 export const currentSession = () => session;
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  if (!session) throw new ApiError('Aucune session : rechargez la page.', 0);
+  if (!session) throw new ApiError('Aucune session : recharge la page.', 0);
   const send = () => fetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-OGK-Token': session!.token, Accept: 'application/json' },
@@ -72,7 +67,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
       await new Promise((resolve) => setTimeout(resolve, 400));
       response = await send();
     } catch {
-      throw new ApiError('Le serveur local ne répond plus. Relancez « openguildkit ui » dans votre terminal.', 0);
+      throw new ApiError('Le serveur local ne répond plus. Relance « openguildkit ui » dans ton terminal.', 0);
     }
   }
   const data = await response.json().catch(() => ({ error: `Réponse illisible (${response.status})` }));

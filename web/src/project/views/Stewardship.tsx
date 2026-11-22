@@ -41,7 +41,7 @@ function Host() {
             <Button busy={busy !== null} onClick={() => void act(['integrations', '--host', 'codex'], { success: 'Fichiers Codex installés' })}>Codex</Button>
             <Button variant="ghost" busy={busy !== null} onClick={() => void act(['integrations', '--host', 'claude-code', '--force'], { success: 'Fichiers remplacés, copies .previous gardées' })}>Remplacer les fichiers modifiés</Button>
           </div>
-          <p className="tiny muted">Pour tous vos projets, installez-les dans votre dossier personnel depuis un terminal :</p>
+          <p className="tiny muted">Pour tous tes projets, installe-les dans ton dossier personnel depuis un terminal :</p>
           <CommandLine command="openguildkit integrations --host claude-code --user" />
         </Panel>
         <Panel title="Cohérence des instructions" actions={check.data && check.data.code !== 0 && onlyTasksFail(check.data) ? undefined : <Button size="small" busy={busy !== null} onClick={() => void act(['sync'], { success: 'Instructions synchronisées' })}>Synchroniser</Button>}>
@@ -57,13 +57,13 @@ function CatalogUpdate() {
   const { act, busy } = useAction();
   return (
     <Panel title="Mises à jour du catalogue" actions={<Button variant="primary" size="small" busy={busy !== null} disabled={!update.data?.changes.length} onClick={() => void act(['update', '--apply'], { success: 'Catalogue adopté' })}>Adopter</Button>}>
-      <p className="small muted">Les règles du projet sont verrouillées dans <code>catalog.lock.json</code> : installer une version plus récente d’OpenGuildKit ne les change pas. <code>update</code> liste, règle par règle, ce que le catalogue installé ajouterait, retirerait ou modifierait ; <code>update --apply</code> l’adopte, réécrit les instructions et nomme les quêtes consultées sous les règles précédentes.</p>
+      <p className="small muted">Les règles du projet sont verrouillées dans <code>catalog.lock.json</code> : installer une version plus récente d’OpenGuildKit ne les change pas. <code>update</code> liste, règle par règle, ce que le catalogue installé ajouterait, retirerait ou modifierait ; <code>update --apply</code> l’adopte, réécrit les instructions et nomme les tâches consultées sous les règles précédentes.</p>
       <Q q={update}>{(u) => <>
         {u.changes.length === 0 ? <Notice tone="success">Le projet suit le catalogue installé.</Notice> : <JsonDetails data={u.changes} label={`${u.changes.length} évolution(s)`} />}
         {u.conflicts.length > 0 && <Notice tone="danger" title="Conflits :"><Pre text={JSON.stringify(u.conflicts, null, 2)} /></Notice>}
-        {u.stale_tasks.length > 0 && <Notice tone="warn" title={u.applied ? 'Quêtes consultées sous les règles précédentes :' : 'Adopter ces règles laisserait ces quêtes consultées sous les précédentes :'}>
+        {u.stale_tasks.length > 0 && <Notice tone="warn" title={u.applied ? 'Tâches consultées sous les règles précédentes :' : 'Adopter ces règles laisserait ces tâches consultées sous les précédentes :'}>
           <ul>{u.stale_tasks.map((t) => <li key={t.id}><TaskLink id={t.id} /> ({t.status}) : {t.step}</li>)}</ul>
-          Une quête terminée garde son enregistrement comme historique.</Notice>}
+          Une tâche terminée garde son enregistrement comme historique.</Notice>}
       </>}</Q>
     </Panel>
   );
@@ -77,10 +77,10 @@ function Interface() {
     <div className="grid-2">
       <Panel title="Ce que fait cette interface">
         <ul className="small">
-          <li>Elle tourne sur votre poste, sur 127.0.0.1, et lance les mêmes commandes que vous tapez, une à la fois, dans le projet <code>{session?.project.root}</code>.</li>
+          <li>Elle tourne sur ton poste, sur 127.0.0.1, et lance les mêmes commandes que tu tapes, une à la fois, dans le projet <code>{session?.project.root}</code>.</li>
           <li>Elle n’enregistre jamais ce qui demande une personne devant un terminal : {session?.human_only.join(', ')}. Elle affiche la commande à taper.</li>
           <li>Les chemins restent dans le projet. Elle ne lit pas <code>.git</code>, les fichiers <code>.env</code> ni ce qui ressemble à un secret.</li>
-          <li>Elle n’ouvre aucune connexion vers l’extérieur et n’appelle aucune IA : votre agent reste celui qui rédige les avis.</li>
+          <li>Elle n’ouvre aucune connexion vers l’extérieur et n’appelle aucune IA : ton agent reste celui qui rédige les avis.</li>
         </ul>
         <p className="small">Relancer : <code>{terminalCommand(['ui'])}</code></p>
       </Panel>

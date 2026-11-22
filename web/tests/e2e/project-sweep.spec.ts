@@ -84,6 +84,8 @@ async function audit(page: Page) {
       targets,
       labelled,
       demo: document.querySelectorAll('a[href*="demo=1"]').length,
+      // In the Pro style the page speaks the glossary: a task is a tâche, never a quête.
+      quest: [...new Set(document.body.innerText.match(/\bqu[êe]tes?\b/gi) ?? [])],
       h1: document.querySelectorAll('main h1').length,
       unnamed,
       duplicateIds: [...new Set(ids)],
@@ -145,6 +147,7 @@ for (const [label, viewport, mode] of VARIANTS) {
       await settle(page, () => inflight);
       const a = await audit(page);
       if (a.h1 !== 1) problems.push(`${route}: ${a.h1} h1`);
+      if (mode === 'focus' && a.quest.length) problems.push(`${route}: the Pro style says ${a.quest.join(', ')}`);
       if (a.demo) problems.push(`${route}: links the demo, which the product page does not ship`);
       if (a.unnamed.length) problems.push(`${route}: unnamed ${a.unnamed.join(' | ')}`);
       if (a.duplicateIds.length) problems.push(`${route}: duplicate ids ${a.duplicateIds.join(', ')}`);

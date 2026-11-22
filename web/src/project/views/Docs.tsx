@@ -42,9 +42,9 @@ function Export() {
   const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   return (
     <div className="page-grid">
-      <Panel title="Exporter les quêtes terminées">
-        <p className="small muted">Seules les quêtes terminées, avec ou sans réserves, s’exportent : leurs résultats sont enregistrés, et la page dit ce qui a été vérifié, ce qui ne s’appliquait pas et ce qui est resté ouvert. Les pages portent le brief, le comportement, les critères atteints, la livraison et la version, jamais les avis des cerveaux ni les preuves internes. Relisez-les avant de les committer, surtout les brouillons Learn.</p>
-        {done.length === 0 ? <Notice tone="warn">Aucune quête terminée pour l’instant.</Notice> : <fieldset className="choices"><legend>Quêtes à documenter</legend>{done.map((t) => <Checkbox key={t.id} label={<><span className="mono">{t.id}</span> <span data-own>{t.brief}</span></>} checked={picked.includes(t.id)} onChange={() => setPicked((p) => toggle(p, t.id))} />)}</fieldset>}
+      <Panel title="Exporter les tâches terminées">
+        <p className="small muted">Seules les tâches terminées, avec ou sans réserves, s’exportent : leurs résultats sont enregistrés, et la page dit ce qui a été vérifié, ce qui ne s’appliquait pas et ce qui est resté ouvert. Les pages portent le brief, le comportement, les critères atteints, la livraison et la version, jamais les avis des cerveaux ni les preuves internes. Relis-les avant de les committer, surtout les brouillons Learn.</p>
+        {done.length === 0 ? <Notice tone="warn">Aucune tâche terminée pour l’instant.</Notice> : <fieldset className="choices"><legend>Tâches à documenter</legend>{done.map((t) => <Checkbox key={t.id} label={<><span className="mono">{t.id}</span> <span data-own>{t.brief}</span></>} checked={picked.includes(t.id)} onChange={() => setPicked((p) => toggle(p, t.id))} />)}</fieldset>}
         <div className="grid-2">
           <TextField label="Version du projet" value={version} onChange={(e) => setVersion(e.target.value)} placeholder="1.4.0" />
           <TextField label="Dossier de sortie" value={output} onChange={(e) => setOutput(e.target.value)} hint="Relatif au projet. L’export refuse un dossier qu’il n’a pas créé." />
@@ -85,7 +85,7 @@ function Shares() {
           {list.map((s) => { const l = SHARE[shareState(s.state)]; return <tr key={s.id}><td><span className="mono small">{s.deliverable}</span>{s.space && <span className="tiny block">Espace partagé en entier : <span className="mono">{s.space}</span></span>}<span className="tiny block"><ExternalLink href={s.portal}>portail</ExternalLink> · {s.by}, {fmtWhen(s.created_at)}</span></td><td className="small">{s.recipients.join(', ')}</td><td>{fmtDay(s.until)}</td><td><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge></td>
             <td>{!s.revoked_at && <Button size="small" variant="danger" busy={busy !== null} disabled={!by.trim()} onClick={() => void act(['docs', 'share', 'revoke', '--id', s.id, '--by', by.trim()], { success: 'Retrait enregistré' })}>Accès retiré</Button>}</td></tr>; })}
         </tbody></table></TableBox>}
-        <p className="tiny muted">Retirez d’abord l’accès dans Documentalist (« Retirer l’accès »), puis enregistrez-le ici.</p>
+        <p className="tiny muted">Retire d’abord l’accès dans Documentalist (« Retirer l’accès »), puis enregistre-le ici.</p>
       </Panel>}</Q>
       <Panel title="Enregistrer un partage">
         <ListEditor label="Destinataires (adresses)" items={recipients} onChange={setRecipients} placeholder="client@example.org" />
@@ -106,7 +106,7 @@ function Decisions() {
   return (
     <Panel title="Relevés de décision exportés">
       <p className="small muted"><code>task export</code> écrit un relevé partageable dans <code>.openguildkit/decisions/</code>, à joindre à la pull request : le brief, le verdict de chaque cerveau et l’approbation scellée, sans preuves ni notes internes. La CI peut vérifier ces relevés avec <code>guard --ci</code>.</p>
-      <Q q={files}>{(list) => list.length === 0 ? <p className="muted">Aucun relevé. Exportez-en un depuis la fiche d’une quête validée.</p> : <ul>{list.map((f) => <li key={f}><button className="linklike" onClick={() => setOpen(`.openguildkit/decisions/${f}`)}>{f}</button></li>)}</ul>}</Q>
+      <Q q={files}>{(list) => list.length === 0 ? <p className="muted">Aucun relevé. Exportes-en un depuis la fiche d’une tâche approuvée.</p> : <ul>{list.map((f) => <li key={f}><button className="linklike" onClick={() => setOpen(`.openguildkit/decisions/${f}`)}>{f}</button></li>)}</ul>}</Q>
       <FileDialog path={open} onClose={() => setOpen(null)} />
     </Panel>
   );

@@ -1,4 +1,4 @@
-/** Quêtes: every task of the project by state, a new task, and the sheet of one task with its next step. */
+/** Tâches: every task of the project by state, a new task, and the sheet of one task with its next step. */
 import { useMemo, useState } from 'react';
 import { navigate, setQuery, useRoute } from '@/app/router';
 import { Badge, Button, Empty, KV, Notice, Panel, TextArea, TextField } from '@/shared/ui/core';
@@ -11,6 +11,7 @@ import { useAction, useCli } from '../query';
 import { CLOSING_GROUP, CONCERNS, DATA, KIND, RESEARCH, SURFACE, decidedBy, fmtDay, fmtWhen, isBlocked, isDecided, needsReconsult, nextLabel, nextLang, statusesOf, taskStatus, verdict } from '../labels';
 import { ExternalLink, JsonDetails, Q, StepRail, TaskLink, TaskStatusBadge, UnreadableTask } from '../parts';
 import { usePrefs } from '../prefs';
+import { useWords } from '../words';
 import type { TaskListItem, TaskRecord } from '../types';
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -20,11 +21,12 @@ export function NewQuestDialog({ open, onClose, follows }: { open: boolean; onCl
   const [brief, setBrief] = useState('');
   const [id, setId] = useState('');
   const [after, setAfter] = useState(follows ?? '');
+  const w = useWords();
   const { act, busy } = useAction();
   const idError = id && (!SLUG.test(id) || id.length > 64) ? 'Minuscules, chiffres et tirets simples, 64 caractères au plus.' : null;
   const submit = async () => {
     const argv = ['task', 'new', '--file', '@upload:brief.md', ...(id ? ['--id', id] : []), ...(after ? ['--follows', after] : [])];
-    const result = await act(argv, { uploads: { 'brief.md': brief.trim() + '\n' }, success: 'Quête ouverte' });
+    const result = await act(argv, { uploads: { 'brief.md': brief.trim() + '\n' }, success: 'Tâche ouverte' });
     if (result) {
       const created = result.stdout.trim().split(/\s+/).pop() ?? id;
       setBrief(''); setId(''); onClose();
@@ -32,16 +34,16 @@ export function NewQuestDialog({ open, onClose, follows }: { open: boolean; onCl
     }
   };
   return (
-    <Dialog open={open} onClose={onClose} title="Ouvrir une quête" footer={<><Button onClick={onClose}>Annuler</Button><Button variant="primary" busy={busy !== null} disabled={!brief.trim() || !!idError} onClick={() => void submit()}>Ouvrir la quête</Button></>}>
+    <Dialog open={open} onClose={onClose} title={`Ouvrir une ${w.task}`} footer={<><Button onClick={onClose}>Annuler</Button><Button variant="primary" busy={busy !== null} disabled={!brief.trim() || !!idError} onClick={() => void submit()}>Ouvrir la {w.task}</Button></>}>
       <p className="small muted">La CLI enregistre le brief tel quel, puis le Conseil le cadre avec le questionnaire. <code>openguildkit sync</code> doit être à jour.</p>
       <TextArea label="Ce que l’équipe doit faire" hint="Le besoin, sans la solution. Plusieurs lignes possibles." value={brief} onChange={(e) => setBrief(e.target.value)} rows={5} required />
       <TextField label="Identifiant (facultatif)" hint="Par exemple request-status. Sans identifiant, la CLI en génère un." value={id} error={idError} onChange={(e) => setId(e.target.value.trim())} />
       <div className="field"><label htmlFor="follows">Fait suite à (facultatif)</label>
         <select id="follows" className="input" value={after} onChange={(e) => setAfter(e.target.value)}>
-          <option value="">Aucune quête</option>
+          <option value="">Aucune tâche</option>
           {(tasks.data ?? []).filter((t) => isDecided(t.status)).map((t) => <option key={t.id} value={t.id}>{t.id} : {(t.brief ?? '').slice(0, 60)}</option>)}
         </select>
-        <p className="hint">La consultation reprendra la décision de cette quête.</p>
+        <p className="hint">La consultation reprendra la décision de cette tâche.</p>
       </div>
     </Dialog>
   );
@@ -51,6 +53,7 @@ export function Quests() {
   const tasks = useTasks();
   const route = useRoute();
   const { mode } = usePrefs();
+  const w = useWords();
   const q = route.query.get('q') ?? '';
   const status = route.query.get('statut') ?? '';
   const owner = route.query.get('responsable') ?? '';
@@ -62,7 +65,7 @@ export function Quests() {
   return (
     <div className="page-grid">
       <div className="toolbar">
-        <input className="input" type="search" placeholder="Rechercher une quête…" aria-label="Rechercher une quête" value={q} onChange={(e) => setQuery({ q: e.target.value })} />
+        <input className="input" type="search" placeholder="Rechercher une tâche…" aria-label="Rechercher une tâche" value={q} onChange={(e) => setQuery({ q: e.target.value })} />
         <select className="input" aria-label="État" value={status} onChange={(e) => setQuery({ statut: e.target.value })}>
           <option value="">Tous les états</option>{statusesOf(tasks.data ?? []).map((s) => <option key={s} value={s}>{taskStatus(s).label}</option>)}
         </select>
@@ -70,11 +73,11 @@ export function Quests() {
           <option value="">Toutes les personnes</option>{owners.map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
         <span className="grow" />
-        <Button variant="primary" icon="plus" onClick={() => setOpen(true)}>Nouvelle quête</Button>
+        <Button variant="primary" icon="plus" onClick={() => setOpen(true)}>Nouvelle {w.task}</Button>
       </div>
-      <Q q={tasks} empty={<Empty title="Aucune quête" action={<Button variant="primary" onClick={() => setOpen(true)}>Ouvrir la première quête</Button>}>Une quête décrit une demande : une fonctionnalité, une anomalie, une décision.</Empty>}>
+      <Q q={tasks} empty={<Empty title="Aucune tâche" action={<Button variant="primary" onClick={() => setOpen(true)}>Ouvrir la première tâche</Button>}>Une tâche décrit une demande : une fonctionnalité, une anomalie, une décision.</Empty>}>
         {() => (
-          <div className="kanban" role="list" aria-label="Quêtes par état">
+          <div className="kanban" role="list" aria-label={`${w.Tasks} par état`}>
             {columns.map((s) => {
               const col = items.filter((t) => t.status === s);
               return (
@@ -135,7 +138,7 @@ function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
   const children = (list.data ?? []).filter((t) => t.follows === id);
 
   return (
-    <Q q={record} label="Lecture de la quête">
+    <Q q={record} label="Lecture de la tâche">
       {(t) => {
         const place = nextPlace({ ...t, severity: item?.severity });
         return (
@@ -149,7 +152,7 @@ function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
               <div className="row">
                 <a className="btn primary" href={`#${place.to}`}><Icon name={place.icon} size={14} /> {place.label}</a>
                 {isDecided(t.status) && <Button icon="download" busy={busy !== null} onClick={() => void act(['task', 'export', t.id], { success: 'Décision exportée dans .openguildkit/decisions' })}>Exporter la décision</Button>}
-                {isDecided(t.status) && <Button icon="plus" onClick={() => setFollowUp(true)}>Quête de suite</Button>}
+                {isDecided(t.status) && <Button icon="plus" onClick={() => setFollowUp(true)}>Tâche de suite</Button>}
               </div>
             </div>
             <StepRail status={t.status} hasResult={!!t.result} />
@@ -166,7 +169,7 @@ function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
                   ...(t.answers.context ? [['Contexte', t.answers.context] as [string, string]] : []),
                   ...(t.answers.outcome ? [['Résultat attendu', t.answers.outcome] as [string, string]] : []),
                 ]} />}
-                {t.follows && <p className="small">Fait suite à <TaskLink id={t.follows.task} /> : {t.follows.decision ? `${t.follows.decision.outcome === 'approved' ? 'validée' : 'renvoyée'} par ${t.follows.decision.by}` : t.follows.status}.</p>}
+                {t.follows && <p className="small">Fait suite à <TaskLink id={t.follows.task} /> : {t.follows.decision ? `${t.follows.decision.outcome === 'approved' ? 'approuvée' : 'renvoyée'} par ${t.follows.decision.by}` : t.follows.status}.</p>}
               </Panel>
               <Panel title="Conseil">
                 {t.consultation ? <>
@@ -177,7 +180,7 @@ function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
                     return <li key={b} className="row between"><span><a href={`#/guilde/${b}`}>{boardTitle(brains.data, b)}</a> <span className="tiny muted">{t.consultation!.routing[b]?.join(' · ')}</span></span>{entry ? <Badge tone={v.tone} icon={v.icon}>{v.label}</Badge> : <Badge tone="muted" icon="clock">en attente</Badge>}</li>;
                   })}</ul>
                 </> : <p className="muted">Pas encore de consultation.</p>}
-                {t.decision && <p className="small"><Icon name={t.decision.outcome === 'approved' ? 'lock' : 'replace'} size={12} /> {t.decision.outcome === 'approved' ? 'Validée' : 'Renvoyée'} par <strong>{t.decision.by}</strong> le {fmtWhen(t.decision.at)} : {t.decision.reason}</p>}
+                {t.decision && <p className="small"><Icon name={t.decision.outcome === 'approved' ? 'lock' : 'replace'} size={12} /> {t.decision.outcome === 'approved' ? 'Approuvée' : 'Renvoyée'} par <strong>{t.decision.by}</strong> le {fmtWhen(t.decision.at)} : {t.decision.reason}</p>}
               </Panel>
             </div>
             {(t.result || t.deliverables?.length) && <div className="grid-2">
@@ -197,7 +200,7 @@ function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
               </Panel>}
             </div>}
             {(t.rounds.length > 0 || children.length > 0) && <Panel title="Historique">
-              {t.rounds.map((r, i) => <div key={i} className="small"><p>Tour {i + 1} : {r.decision ? `${r.decision.outcome === 'approved' ? 'validé' : 'renvoyé'} par ${r.decision.by} (${r.decision.reason})` : 'consultation archivée'}.</p>
+              {t.rounds.map((r, i) => <div key={i} className="small"><p>Tour {i + 1} : {r.decision ? `${r.decision.outcome === 'approved' ? 'approuvé' : 'renvoyé'} par ${r.decision.by} (${r.decision.reason})` : 'consultation archivée'}.</p>
                 {r.brief && r.brief.trim() !== t.brief.trim() && <details><summary>Brief de ce tour</summary><p className="pre-line" data-own>{r.brief}</p></details>}</div>)}
               {children.map((c) => <p key={c.id} className="small">Suite : <TaskLink id={c.id} /> <TaskStatusBadge status={c.status} /></p>)}
             </Panel>}

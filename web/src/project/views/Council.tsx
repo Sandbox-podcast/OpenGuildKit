@@ -16,6 +16,7 @@ import { ActionForm, CommandLine, ErrorNotice, FilePick, JsonDetails, Q, Section
 import { usePrefs } from '../prefs';
 import { errorText } from '../refusals';
 import { isMultiple, questionList, toggleChoice, unanswered } from '../answers';
+import { useWords } from '../words';
 import type { Answers, BlockerItem, Brain, Deliberation, PassProgress, Question, QuestionSet, Route, TaskRecord } from '../types';
 
 const LABELS: Record<string, Record<string, string>> = { kind: KIND, surface: SURFACE, data: DATA, research: RESEARCH, concerns: CONCERNS };
@@ -30,14 +31,14 @@ export function CouncilList() {
     { title: 'Décidées', statuses: ['approved', 'done', 'done-with-reservations'] },
   ];
   return (
-    <Q q={tasks} empty={<Empty title="Le Conseil est vide" action={<a className="btn primary" href="#/quetes?nouvelle=1">Ouvrir une quête</a>}>Chaque quête passe par le Conseil avant d’être réalisée.</Empty>}>
+    <Q q={tasks} empty={<Empty title="Le Conseil est vide" action={<a className="btn primary" href="#/quetes?nouvelle=1">Ouvrir une tâche</a>}>Chaque tâche passe par le Conseil avant d’être réalisée.</Empty>}>
       {(list) => (
         <div className="grid-2">
           {groups.map((g) => {
             const items = list.filter((t) => g.statuses.includes(needsReconsult(t) ? 'reconsult' : t.status));
             return (
               <Panel key={g.title} title={<>{g.title} <span className="badge count">{items.length}</span></>}>
-                {items.length === 0 ? <p className="muted small">Aucune quête.</p> : <ul className="plain stack tight">{items.map((t) => (
+                {items.length === 0 ? <p className="muted small">Aucune tâche.</p> : <ul className="plain stack tight">{items.map((t) => (
                   <li key={t.id}><a className="card" href={`#/conseil/${t.id}`}>
                     <span className="row between"><span className="mono small">{t.id}</span><TaskStatusBadge status={t.status} /></span>
                     <strong className="clamp-2" data-own>{t.brief}</strong>
@@ -76,7 +77,7 @@ function CouncilRecord({ id, reconsult }: { id: string; reconsult: string | null
           <StepRail status={t.status} hasResult={!!t.result} />
           {reconsult && <Notice tone="danger" title="L’approbation ne tient plus :"><span lang={nextLang(reconsult)}>{nextLabel(reconsult)}</span> Réponds au questionnaire et réunis le Conseil à nouveau : la consultation précédente et l’approbation restent dans l’historique.</Notice>}
           {(t.status === 'draft' || t.status === 'changes-requested' || !!reconsult) && <Framing task={t} />}
-          {t.status === 'changes-requested' && t.decision && <Notice tone="warn" title="Renvoyée au Conseil :">{t.decision.by} — <span data-own>{t.decision.reason}</span>. Une nouvelle consultation archive le tour précédent, avec son brief ; vous pouvez réviser le brief au moment de consulter à nouveau.</Notice>}
+          {t.status === 'changes-requested' && t.decision && <Notice tone="warn" title="Renvoyée au Conseil :">{t.decision.by} — <span data-own>{t.decision.reason}</span>. Une nouvelle consultation archive le tour précédent, avec son brief ; tu peux réviser le brief au moment de consulter à nouveau.</Notice>}
           {t.status === 'consulting' && <><Framing task={t} collapsed /><Passes task={t} /></>}
           {(t.status === 'reviewed' || isDecided(t.status)) && <Reviews task={t} />}
           {t.status === 'reviewed' && <><Deliberation id={t.id} /><Blockers id={t.id} /><Decide task={t} /></>}
@@ -119,7 +120,7 @@ function Framing({ task, collapsed }: { task: TaskRecord; collapsed?: boolean })
   return (
     <>
       <Section title="Cadrage : le questionnaire" icon="question">
-        <p className="small muted">L’agent pose ces questions dans votre langue et confirme ce qu’il a déduit du brief. Vous pouvez aussi répondre ici.</p>
+        <p className="small muted">L’agent pose ces questions dans ta langue et confirme ce qu’il a déduit du brief. Tu peux aussi répondre ici.</p>
         <Q q={base} label="Lecture du questionnaire">
           {() => <div className="stack">{shown.map((q) => <QuestionField key={q.id} q={q} value={(answers as Record<string, unknown>)[q.id]} onChange={(v) => set(q.id, v)} />)}</div>}
         </Q>
@@ -188,7 +189,7 @@ function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
     { uploads: { 'answers.json': json, ...(brief ? { 'brief.md': brief } : {}) }, success: 'Consultation préparée' });
   return (
     <Section title="Routage : les cerveaux consultés" icon="guild">
-      <p className="small muted">Le routage est déterministe : mêmes réponses, mêmes cerveaux. Ajoutez ou retirez un cerveau avec un motif ; il est consigné dans la consultation.</p>
+      <p className="small muted">Le routage est déterministe : mêmes réponses, mêmes cerveaux. Ajoute ou retire un cerveau avec un motif ; il est consigné dans la consultation.</p>
       <Q q={route} label="Calcul du routage">
         {(r) => r && <>
           <ul className="plain board-grid">{Object.entries(r.routing).map(([b, reasons]) => (
@@ -198,13 +199,13 @@ function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
               <span className="tiny muted" lang="en">{reasons.join(' · ')}</span>
             </li>
           ))}</ul>
-          {Object.keys(r.excluded ?? {}).length > 0 && <Notice tone="info" title="Écartés par le brief, non consultés :"><ul>{Object.entries(r.excluded).map(([b, passages]) => <li key={b}><strong>{boardTitle(brains.data, b)}</strong> : <span data-own>« {passages.join(' », « ')} »</span></li>)}</ul>S’il s’applique quand même, ajoutez-le avec un motif.</Notice>}
+          {Object.keys(r.excluded ?? {}).length > 0 && <Notice tone="info" title="Écartés par le brief, non consultés :"><ul>{Object.entries(r.excluded).map(([b, passages]) => <li key={b}><strong>{boardTitle(brains.data, b)}</strong> : <span data-own>« {passages.join(' », « ')} »</span></li>)}</ul>S’il s’applique quand même, ajoute-le avec un motif.</Notice>}
           {Object.keys(r.expected_not_selected ?? {}).length > 0 && <Notice tone="warn" title="Attendus par l’équipe, non retenus :"><ul>{Object.entries(r.expected_not_selected).map(([b, why]) => <li key={b}><strong>{boardTitle(brains.data, b)}</strong> : <span lang="en">{why}</span></li>)}</ul></Notice>}
-          {(r.not_selected ?? []).length > 0 && <p className="tiny muted">Non retenus : {r.not_selected.map((b) => boardTitle(brains.data, b)).join(', ')}. Ajoutez-en un avec un motif si la quête le concerne.</p>}
+          {(r.not_selected ?? []).length > 0 && <p className="tiny muted">Non retenus : {r.not_selected.map((b) => boardTitle(brains.data, b)).join(', ')}. Ajoutes-en un avec un motif si la tâche le concerne.</p>}
           {r.adjustments.length > 0 && <p className="small">Ajustements : {r.adjustments.map((a) => `${a.action} ${a.board}`).join(', ')}. <Button size="small" variant="ghost" onClick={() => { setAdd([]); setRemove([]); }}>Annuler les ajustements</Button></p>}
         </>}
       </Q>
-      {route.error && <Notice tone="danger"><span lang={errorText(route.error).lang}>{errorText(route.error).text}</span>{/required board/i.test(route.error.message) && ' Nommez la personne qui fera cette revue ci-dessous.'}</Notice>}
+      {route.error && <Notice tone="danger"><span lang={errorText(route.error).lang}>{errorText(route.error).text}</span>{/required board/i.test(route.error.message) && ' Nomme la personne qui fera cette revue ci-dessous.'}</Notice>}
       <div className="grid-2">
         <div className="field"><label htmlFor="add-board">Ajouter un cerveau</label>
           <select id="add-board" className="input" value="" onChange={(e) => e.target.value && setAdd((x) => [...x, e.target.value])}>
@@ -214,7 +215,7 @@ function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
         <TextField label="Motif de l’ajustement" value={reason} onChange={(e) => setReason(e.target.value)} error={needsReason ? 'Un ajout ou un retrait a besoin d’un motif.' : null} />
       </div>
       {required.filter((b) => !enabled.includes(b)).map((b) => <TextField key={b} label={`Revue obligatoire « ${b} » : personne qui la fera`} value={delegates[b] ?? ''} onChange={(e) => setDelegates((d) => ({ ...d, [b]: e.target.value }))} hint="Ce cerveau n’est pas activé dans le profil : l’agent préparera la revue pour cette personne." />)}
-      {task.status === 'changes-requested' && <TextArea label="Brief révisé (facultatif)" hint="Laissez vide pour garder le brief actuel. L’ancien brief reste dans l’historique de la quête." value={revised} onChange={(e) => setRevised(e.target.value)} rows={4} placeholder={task.brief} />}
+      {task.status === 'changes-requested' && <TextArea label="Brief révisé (facultatif)" hint="Laisse vide pour garder le brief actuel. L’ancien brief reste dans l’historique de la tâche." value={revised} onChange={(e) => setRevised(e.target.value)} rows={4} placeholder={task.brief} />}
       {(dossiers.data?.length ?? 0) > 0 && <div className="field"><label htmlFor="market">Dossier de marché à joindre</label>
         <select id="market" className="input" value={market} onChange={(e) => setMarket(e.target.value)}><option value="">Aucun</option>{dossiers.data!.map((d) => <option key={d} value={d}>{d}</option>)}</select>
         <p className="hint">Les observations datées et les lacunes du dossier accompagnent la consultation.</p></div>}
@@ -243,7 +244,7 @@ function Passes({ task }: { task: TaskRecord }) {
         <Button size="small" icon="scroll" onClick={() => setShowBrief(true)}>Brief de consultation</Button>
         <Button size="small" icon="copy" onClick={() => void run(['task', 'template', task.id], undefined, { raw: true }).then((r) => copyText(r.stdout))}>Copier le modèle d’avis</Button>
       </>}>
-        <Notice tone="ai" title="Les avis viennent de votre agent.">Claude Code ou Codex lance une passe indépendante par cerveau et dépose chaque avis. Demandez-lui : <CommandLine command={prompt} label="Consigne pour l’agent" /></Notice>
+        <Notice tone="ai" title="Les avis viennent de ton agent.">Claude Code ou Codex lance une passe indépendante par cerveau et dépose chaque avis. Demande-lui : <CommandLine command={prompt} label="Consigne pour l’agent" /></Notice>
         <Q q={progress} label="Lecture des passes">
           {(list) => <ul className={`plain board-seats ${mode === 'explorer' ? 'rpg' : ''}`}>{list.map((p) => {
             const s = PASS[p.status];
@@ -253,14 +254,14 @@ function Passes({ task }: { task: TaskRecord }) {
                 <strong>{boardTitle(brains.data, p.board)}</strong>
                 <Badge tone={s.tone} icon={s.icon}>{s.label}</Badge>
                 {p.error && <span className="tiny pre-line" lang="en">{p.error}</span>}
-                {p.status === 'started' && <span className="tiny muted">Passe interrompue ? Relancez-la pour ce cerveau seulement.</span>}
+                {p.status === 'started' && <span className="tiny muted">Passe interrompue ? Relance-la pour ce cerveau seulement.</span>}
                 <span className="row"><Button size="small" onClick={() => setPass({ board: p.board, start: p.status === 'missing' })}>{p.status === 'missing' ? 'Préparer la passe' : 'Revoir la passe'}</Button></span>
               </li>
             );
           })}</ul>}
         </Q>
         <p className="small">{done}/{all} avis déposés.</p>
-        {error && <Notice tone="danger" title="Avis refusé :"><span className="pre-line" lang={errorText(error).lang}>{errorText(error).text.replace(/\nFix these points in the file and send it again:.*$/s, '')}</span><span className="block small">Corrigez le fichier et déposez-le à nouveau : la passe reste ouverte, sans nouvelle tentative.</span></Notice>}
+        {error && <Notice tone="danger" title="Avis refusé :"><span className="pre-line" lang={errorText(error).lang}>{errorText(error).text.replace(/\nFix these points in the file and send it again:.*$/s, '')}</span><span className="block small">Corrige le fichier et dépose-le à nouveau : la passe reste ouverte, sans nouvelle tentative.</span></Notice>}
         <div className="grid-2">
           <FilePick label="Déposer l’avis d’un cerveau (JSON)" hint="L’entrée remplie renvoyée par la passe." onText={(text) => void act(['task', 'submit', task.id, '--file', '@upload:entry.json'], { uploads: { 'entry.json': text }, success: 'Avis déposé' })} />
           <FilePick label="Ou déposer la revue complète (JSON)" hint="Un fichier avec consultation_id, summary et une entrée par cerveau." onText={(text) => void act(['task', 'review', task.id, '--file', '@upload:review.json'], { uploads: { 'review.json': text }, success: 'Revue enregistrée' })} />
@@ -287,7 +288,7 @@ function PassDialog({ task, board, start, onClose }: { task: string; board: stri
   }, [task, board, start]);
   return (
     <Dialog open={!!board} onClose={onClose} wide title={`Passe du cerveau ${board ?? ''}`} footer={<><Button onClick={onClose}>Fermer</Button>{text && <Button variant="primary" icon="copy" onClick={() => void copyText(text)}>Copier pour l’agent</Button>}</>}>
-      <p className="small muted">La passe ne montre à ce cerveau que la quête, son brief, les règles de ses packs qui la concernent et son modèle d’entrée, rien des autres cerveaux. Préparée, elle est marquée « commencée » jusqu’au dépôt de l’avis ; la relire ne la relance pas.</p>
+      <p className="small muted">La passe ne montre à ce cerveau que la tâche, son brief, les règles de ses packs qui la concernent et son modèle d’entrée, rien des autres cerveaux. Préparée, elle est marquée « commencée » jusqu’au dépôt de l’avis ; la relire ne la relance pas.</p>
       {error && <Notice tone="danger"><span lang="en">{error}</span></Notice>}
       {text ? <div className="scroll-box" tabIndex={0}><Markdown text={text} /></div> : !error && <p className="muted">Préparation…</p>}
     </Dialog>
@@ -324,6 +325,7 @@ function BoardCard({ entry, brain }: { entry: NonNullable<TaskRecord['review']>[
   const c = entry.challenge;
   const v = verdict(c?.verdict);
   const lens = (id: string) => brain?.review?.specialists.find((s) => s.id === id)?.title ?? id;
+  const w = useWords();
   return (
     <article className={`card review-card verdict-${c?.verdict ?? 'none'}`}>
       <header className="row between"><strong lang="en"><a href={`#/guilde/${entry.id}`}>{brain?.title ?? entry.id}</a></strong><Badge tone={v.tone} icon={v.icon}>{v.label}</Badge></header>
@@ -331,7 +333,7 @@ function BoardCard({ entry, brain }: { entry: NonNullable<TaskRecord['review']>[
       <p data-own>{entry.recommendation}</p>
       {c && <>
         <p className="tiny muted">{CONFIDENCE[c.confidence] ?? c.confidence}</p>
-        <details><summary>Lentilles ({c.specialists.length}), alternative et vérification</summary>
+        <details><summary>{w.Lenses} ({c.specialists.length}), alternative et vérification</summary>
           <ul className="small">{c.specialists.map((s) => <li key={s.id}><strong lang="en">{lens(s.id)}</strong> <span className="tiny muted">({BASIS[s.basis] ?? s.basis}{s.evidence_refs.length ? `, preuves ${s.evidence_refs.join(', ')}` : ''})</span> : <span data-own>{s.finding}</span></li>)}</ul>
           <p className="small"><strong>Alternative :</strong> <span data-own>{c.alternative}</span></p>
           <p className="small"><strong>Mode d’échec :</strong> <span data-own>{c.failure_mode}</span></p>
@@ -389,25 +391,25 @@ function Blockers({ id }: { id: string }) {
   const signed = profile.data?.approval?.mode === 'signed';
   const blocking = blockers.data.filter((b) => !b.resolution && b.phase !== 'verification').length;
   return (
-    <Section id="blocages" title={`Blocages (${blocking} ouvert(s) avant la validation)`} icon="ban">
+    <Section id="blocages" title={`Points bloquants (${blocking} ouvert(s) avant l’approbation)`} icon="ban">
       <ul className="plain stack tight">{blockers.data.map((b) => (
         <li key={b.id} className={`card blocker ${b.resolution ? 'resolved' : ''}`}>
-          <span className="row between"><span className="mono small">{b.id}</span>{b.resolution ? <Badge tone="success" icon="check">{b.resolution.kind === 'waived' ? `dérogation de ${b.resolution.by}` : `levé par ${b.resolution.by}`}</Badge> : b.phase === 'verification' ? <Badge tone="warning" icon="clock">condition de la validation</Badge> : <Badge tone="danger" icon="ban">ouvert</Badge>}</span>
-          {b.phase === 'verification' && !b.resolution && <span className="tiny muted">Seul le travail fini peut le lever : la validation reste possible, et la quête ne se termine pas tant qu’il est ouvert.</span>}
+          <span className="row between"><span className="mono small">{b.id}</span>{b.resolution ? <Badge tone="success" icon="check">{b.resolution.kind === 'waived' ? `dérogation de ${b.resolution.by}` : `levé par ${b.resolution.by}`}</Badge> : b.phase === 'verification' ? <Badge tone="warning" icon="clock">condition de l’approbation</Badge> : <Badge tone="danger" icon="ban">ouvert</Badge>}</span>
+          {b.phase === 'verification' && !b.resolution && <span className="tiny muted">Seul le travail fini peut le lever : l’approbation reste possible, et la tâche ne se termine pas tant qu’il est ouvert.</span>}
           <strong data-own>{b.finding}</strong>
           {b.owner && <span className="small">Responsable : {b.owner}. Se lève quand : <span data-own>{b.clears_when}</span></span>}
           {b.resolution?.evidence && <span className="small muted">Preuve : <code>{b.resolution.evidence}</code> — {b.resolution.supports}</span>}
           {!b.resolution && <span className="row"><Button size="small" variant="primary" onClick={() => setClearing(b)}>Lever avec une preuve (au terminal)</Button>{waivers && <Button size="small" onClick={() => setWaiving(b)}>Déroger (au terminal)</Button>}</span>}
         </li>
       ))}</ul>
-      {!waivers && <p className="tiny muted">Le profil n’autorise pas de dérogation : sans preuve, renvoyez la quête au Conseil.</p>}
+      {!waivers && <p className="tiny muted">Le profil n’autorise pas de dérogation : sans preuve, renvoie la tâche au Conseil.</p>}
       <Dialog open={!!clearing} onClose={() => { setClearing(null); setSignature(''); }} title={`Lever ${clearing?.id ?? ''}`}>
         {clearing && <>
-          <p className="small">Lever un blocage est l’acte d’une personne : elle regarde la preuve, puis tape la commande dans son terminal et retape l’identifiant de la quête. L’interface prépare la commande, sans l’enregistrer.{signed && ' Dans un projet à approbation signée, la levée peut aussi être signée avec la clé SSH de la personne et déposée ici.'}</p>
+          <p className="small">Lever un point bloquant est l’acte d’une personne : elle regarde la preuve, puis tape la commande dans son terminal et retape l’identifiant de la tâche. L’interface prépare la commande, sans l’enregistrer.{signed && ' Dans un projet à approbation signée, la levée peut aussi être signée avec la clé SSH de la personne et déposée ici.'}</p>
           <ActionForm busy={busy !== null} submit="Préparer la commande" initial={{ by }} fields={[
             { name: 'evidence', label: 'Preuve', required: true, placeholder: 'tests/test_access.py, un lien, un document', hint: `Ce qui est attendu : ${clearing.clears_when ?? ''}` },
             { name: 'supports', label: 'Ce que la preuve établit', required: true },
-            { name: 'by', label: 'Personne qui lève le blocage', required: true },
+            { name: 'by', label: 'Personne qui lève le point bloquant', required: true },
           ]} onSubmit={async (v) => {
             setBy(v.by);
             const argv = ['task', 'clear', id, clearing.id, '--evidence', v.evidence, '--supports', v.supports, '--by', v.by];
@@ -416,12 +418,12 @@ function Blockers({ id }: { id: string }) {
               return;
             }
             setClearing(null);
-            showTerminal({ title: 'Levée du blocage : à faire dans votre terminal', why: 'L’interface n’enregistre jamais la levée d’un blocage sans la signature de la personne. Elle tape cette commande, puis retape l’identifiant de la quête.', command: terminalCommand(argv) });
+            showTerminal({ title: 'Levée du point bloquant : à faire dans ton terminal', why: 'L’interface n’enregistre jamais la levée d’un point bloquant sans la signature de la personne. Elle tape cette commande, puis retape l’identifiant de la tâche.', command: terminalCommand(argv) });
           }} />
           {signed && <details className="small"><summary>Levée signée</summary>
-            <p>1. Écrivez la levée exacte à signer :</p><CommandLine command={terminalCommand(['task', 'clear', id, clearing.id, '--evidence', 'PREUVE', '--supports', 'CE_QU_ELLE_ETABLIT', '--by', by || 'Votre nom', '--payload', 'clear.json'])} />
-            <p>2. Signez-la avec votre clé SSH :</p><CommandLine command="ssh-keygen -Y sign -n openguildkit-decision -f ~/.ssh/id_ed25519 clear.json" />
-            <p>3. Déposez la signature et nommez le signataire, puis « Préparer la commande » l’enregistre ; la CLI la vérifie avec le fichier des signataires autorisés.</p>
+            <p>1. Écris la levée exacte à signer :</p><CommandLine command={terminalCommand(['task', 'clear', id, clearing.id, '--evidence', 'PREUVE', '--supports', 'CE_QU_ELLE_ETABLIT', '--by', by || 'Ton nom', '--payload', 'clear.json'])} />
+            <p>2. Signe-la avec ta clé SSH :</p><CommandLine command="ssh-keygen -Y sign -n openguildkit-decision -f ~/.ssh/id_ed25519 clear.json" />
+            <p>3. Dépose la signature et nomme le signataire, puis « Préparer la commande » l’enregistre ; la CLI la vérifie avec le fichier des signataires autorisés.</p>
             <TextField label="Signataire (principal)" value={signer} onChange={(e) => setSigner(e.target.value)} />
             <FilePick label="Signature (clear.json.sig)" accept=".sig,text/plain" onText={(t) => setSignature(t)} />
           </details>}
@@ -435,7 +437,7 @@ function Blockers({ id }: { id: string }) {
             { name: 'reason', label: 'Pourquoi le risque est accepté', required: true },
             { name: 'scope', label: 'Ce que la dérogation couvre', required: true },
             { name: 'until', label: 'Dernier jour', type: 'date', required: true },
-          ]} onSubmit={(v) => { setWaiving(null); showTerminal({ title: 'Dérogation : à faire dans votre terminal', why: 'L’interface n’enregistre jamais une dérogation. La personne nommée tape cette commande, puis retape l’identifiant de la quête.', command: terminalCommand(['task', 'waive', id, waiving.id, '--by', v.by, '--reason', v.reason, '--scope', v.scope, '--until', v.until]) }); }} />
+          ]} onSubmit={(v) => { setWaiving(null); showTerminal({ title: 'Dérogation : à faire dans ton terminal', why: 'L’interface n’enregistre jamais une dérogation. La personne nommée tape cette commande, puis retape l’identifiant de la tâche.', command: terminalCommand(['task', 'waive', id, waiving.id, '--by', v.by, '--reason', v.reason, '--scope', v.scope, '--until', v.until]) }); }} />
         </>}
       </Dialog>
     </Section>
@@ -458,27 +460,27 @@ function Decide({ task }: { task: TaskRecord }) {
   const conditions = (blockers.data ?? []).filter((b) => !b.resolution && b.phase === 'verification').length;
   const previous = task.rounds.at(-1)?.decision;
   const signed = profile.data?.approval?.mode === 'signed';
-  const approve = useMemo(() => terminalCommand(['task', 'decide', task.id, '--approve', '--by', by || 'Votre nom', '--reason', reason || 'Motif de la décision']), [task.id, by, reason]);
-  const payload = terminalCommand(['task', 'decision-payload', task.id, '--by', by || 'Votre nom', '--reason', reason || 'Motif', '--output', 'decision.json']);
+  const approve = useMemo(() => terminalCommand(['task', 'decide', task.id, '--approve', '--by', by || 'Ton nom', '--reason', reason || 'Motif de la décision']), [task.id, by, reason]);
+  const payload = terminalCommand(['task', 'decision-payload', task.id, '--by', by || 'Ton nom', '--reason', reason || 'Motif', '--output', 'decision.json']);
 
   return (
     <Section id="decision" title="Décision" icon="lock">
-      {previous && <Notice tone="info" title="Tour précédent :">{previous.outcome === 'approved' ? 'validé' : 'renvoyé au Conseil'} par {previous.by} : <span data-own>{previous.reason}</span></Notice>}
-      {open > 0 && <Notice tone="danger" title={`${open} blocage(s) ouvert(s).`}>La validation attend qu’ils soient levés. Vous pouvez déjà renvoyer la quête au Conseil.</Notice>}
-      {conditions > 0 && <Notice tone="warn" title={`${conditions} condition(s) de la validation.`}>Ces blocages ne se lèvent qu’une fois le travail fini : la validation reste possible, et la quête ne se terminera pas tant qu’ils sont ouverts.</Notice>}
+      {previous && <Notice tone="info" title="Tour précédent :">{previous.outcome === 'approved' ? 'approuvé' : 'renvoyé au Conseil'} par {previous.by} : <span data-own>{previous.reason}</span></Notice>}
+      {open > 0 && <Notice tone="danger" title={`${open} point(s) bloquant(s) ouvert(s).`}>L’approbation attend qu’ils soient levés. Tu peux déjà renvoyer la tâche au Conseil.</Notice>}
+      {conditions > 0 && <Notice tone="warn" title={`${conditions} condition(s) de l’approbation.`}>Ces points bloquants ne se lèvent qu’une fois le travail fini : l’approbation reste possible, et la tâche ne se terminera pas tant qu’ils sont ouverts.</Notice>}
       <div className="grid-2">
         <TextField label="Personne qui décide" value={by} onChange={(e) => setBy(e.target.value)} />
         <TextField label="Motif" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Périmètre en lecture seule convenu avec le support" />
       </div>
       <div className="grid-2 decision-grid">
         <div className="card">
-          <h3 className="h-card"><Icon name="lock" size={14} /> Valider, dans votre terminal</h3>
-          <p className="small">La CLI affiche le brief et la revue, puis vous demande de retaper <code>{task.id}</code>. Elle scelle la décision avec la révision Git et les règles en vigueur. L’interface ne valide jamais à votre place.</p>
-          <CommandLine command={approve} label="Commande de validation" />
+          <h3 className="h-card"><Icon name="lock" size={14} /> Approuver, dans ton terminal</h3>
+          <p className="small">La CLI affiche le brief et la revue, puis te demande de retaper <code>{task.id}</code>. Elle scelle la décision avec la révision Git et les règles en vigueur. L’interface n’approuve jamais à ta place.</p>
+          <CommandLine command={approve} label="Commande d’approbation" />
           {signed && <details className="small"><summary>Projet à approbation signée</summary>
-            <p>1. Écrivez la décision exacte à signer :</p><CommandLine command={payload} />
-            <p>2. Signez-la avec votre clé SSH :</p><CommandLine command="ssh-keygen -Y sign -n openguildkit-decision -f ~/.ssh/id_ed25519 decision.json" />
-            <p>3. Déposez la signature ici ; la CLI la vérifie avec le fichier des signataires autorisés.</p>
+            <p>1. Écris la décision exacte à signer :</p><CommandLine command={payload} />
+            <p>2. Signe-la avec ta clé SSH :</p><CommandLine command="ssh-keygen -Y sign -n openguildkit-decision -f ~/.ssh/id_ed25519 decision.json" />
+            <p>3. Dépose la signature ici ; la CLI la vérifie avec le fichier des signataires autorisés.</p>
             <TextField label="Signataire (principal)" value={signer} onChange={(e) => setSigner(e.target.value)} />
             <FilePick label="Signature (decision.json.sig)" accept=".sig,text/plain" onText={(t) => setSignature(t)} />
             <Button variant="primary" busy={busy !== null} disabled={!signature || !signer || !by || !reason} onClick={() => void act(['task', 'decide', task.id, '--approve', '--by', by, '--reason', reason, '--signature', '@upload:decision.sig', '--signer', signer], { uploads: { 'decision.sig': signature }, success: 'Décision signée enregistrée' })}>Enregistrer la décision signée</Button>
@@ -486,8 +488,8 @@ function Decide({ task }: { task: TaskRecord }) {
         </div>
         <div className="card">
           <h3 className="h-card"><Icon name="replace" size={14} /> Renvoyer au Conseil</h3>
-          <p className="small">La prochaine consultation archive les réponses, la revue et cette décision dans l’historique de la quête.</p>
-          <Button variant="danger" busy={busy !== null} disabled={!by.trim() || !reason.trim()} onClick={() => void act(['task', 'decide', task.id, '--request-changes', '--by', by.trim(), '--reason', reason.trim()], { success: 'Quête renvoyée au Conseil' }).then((r) => r && navigate(`/conseil/${task.id}`))}>Demander des changements</Button>
+          <p className="small">La prochaine consultation archive les réponses, la revue et cette décision dans l’historique de la tâche.</p>
+          <Button variant="danger" busy={busy !== null} disabled={!by.trim() || !reason.trim()} onClick={() => void act(['task', 'decide', task.id, '--request-changes', '--by', by.trim(), '--reason', reason.trim()], { success: 'Tâche renvoyée au Conseil' }).then((r) => r && navigate(`/conseil/${task.id}`))}>Demander des changements</Button>
         </div>
       </div>
       <JsonDetails data={task.consultation?.scope} label="Périmètre soumis à la décision" />

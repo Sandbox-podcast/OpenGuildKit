@@ -16,7 +16,7 @@ export function Library({ tab = 'references' }: { tab?: string }) {
     <div className="page-grid">
       <Tabs label="Bibliothèque" value={tab} onChange={(t) => { window.location.hash = `#/bibliotheque/${t}`; }} tabs={[
         { id: 'references', label: 'Références', icon: 'book' },
-        { id: 'patterns', label: 'Patterns', icon: 'grid' },
+        { id: 'patterns', label: 'Modèles de projet', icon: 'grid' },
         { id: 'packs', label: 'Packs de règles', icon: 'scroll' },
         { id: 'secteurs', label: 'Secteurs', icon: 'map' },
       ]} />
@@ -49,7 +49,7 @@ function References() {
         <span className="small muted">{shown.length} / {refs.data?.length ?? '…'} références</span>
       </div>
       <Q q={refs} label="Lecture de la bibliothèque">
-        {() => shown.length === 0 ? <Empty title="Aucune référence">Essayez un autre mot ou retirez un filtre.</Empty> : <>
+        {() => shown.length === 0 ? <Empty title="Aucune référence">Essaie un autre mot ou retire un filtre.</Empty> : <>
           <ul className="plain ref-grid">{shown.slice((page - 1) * PAGE, page * PAGE).map((r) => (
             <li key={r.id}><a className="card ref-card" href={`#/bibliotheque/ref/${r.id}`}>
               <span className="row between"><Badge>{r.family_title}</Badge><span className="tiny muted">{r.kind}</span></span>
@@ -98,7 +98,7 @@ function Patterns() {
   const shown = (patterns.data ?? []).filter((p) => !q || norm(`${p.id} ${p.title} ${p.description} ${p.roles.join(' ')}`).includes(norm(q)));
   return (
     <>
-      <div className="toolbar"><input className="input" type="search" placeholder="Pile, méthode, rôle…" aria-label="Rechercher un pattern" value={q} onChange={(e) => setQuery({ q: e.target.value })} /><span className="small muted">{shown.length} patterns · {active.size} actif(s) dans le profil</span></div>
+      <div className="toolbar"><input className="input" type="search" placeholder="Pile, méthode, rôle…" aria-label="Rechercher un modèle de projet" value={q} onChange={(e) => setQuery({ q: e.target.value })} /><span className="small muted">{shown.length} modèles de projet · {active.size} actif(s) dans le profil</span></div>
       <Q q={patterns}>{() => <ul className="plain ref-grid">{shown.map((p) => (
         <li key={p.id} className={`card ref-card ${active.has(p.id) ? 'active' : ''}`}>
           <span className="row between"><span className="mono tiny">{p.id}</span>{active.has(p.id) && <Badge tone="success" icon="check">actif</Badge>}</span>

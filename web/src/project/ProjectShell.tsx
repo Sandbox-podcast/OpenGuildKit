@@ -21,22 +21,23 @@ import { errorText } from './refusals';
 import { ProjectSearch } from './ProjectSearch';
 import { useShortcuts } from '@/shared/shortcuts';
 
-export const PROJECT_PLACES: Record<PlaceKey, { role: string; pro: string }> = {
-  royaume: { role: 'Vue du projet', pro: 'Projet' },
-  blueprint: { role: 'Profil et règles', pro: 'Profil et règles' },
-  guilde: { role: 'Cerveaux métier', pro: 'Cerveaux' },
-  conseil: { role: 'Consultation et décision', pro: 'Consultation' },
-  quetes: { role: 'Tâches du projet', pro: 'Tâches' },
-  bibliotheque: { role: 'Références et packs', pro: 'Bibliothèque' },
-  forge: { role: 'Réalisation et outils', pro: 'Réalisation' },
-  tour: { role: 'Contrôles et alertes', pro: 'Contrôles' },
-  observatoire: { role: 'Marché et veille', pro: 'Marché' },
-  documentation: { role: 'Export et partages', pro: 'Documentation' },
-  chroniques: { role: 'Historique', pro: 'Historique' },
-  intendance: { role: 'Hôte et catalogue', pro: 'Réglages' },
+/** The line under each place in the RPG navigation of a project; the Pro names are shared (shared/places.ts). */
+export const PROJECT_PLACES: Record<PlaceKey, { role: string }> = {
+  royaume: { role: 'Vue du projet' },
+  blueprint: { role: 'Profil et règles' },
+  guilde: { role: 'Cerveaux métier' },
+  conseil: { role: 'Consultation et décision' },
+  quetes: { role: 'Tâches du projet' },
+  bibliotheque: { role: 'Références et packs' },
+  forge: { role: 'Réalisation et outils' },
+  tour: { role: 'Contrôles et alertes' },
+  observatoire: { role: 'Marché et veille' },
+  documentation: { role: 'Export et partages' },
+  chroniques: { role: 'Historique' },
+  intendance: { role: 'Hôte et catalogue' },
 };
 
-export const placeName = (p: Place, pro: boolean) => (pro ? PROJECT_PLACES[p.key].pro : p.name);
+export const placeName = (p: Place, pro: boolean) => (pro ? p.proName : p.name);
 const placeOf = (path: string) => PLACES.find((p) => path.startsWith(p.route));
 
 function useMotion() {

@@ -18,11 +18,11 @@ describe('wording of the CLI', () => {
     expect(nextLabel('Answer the questionnaire and consult the boards.')).toBe('Répondre au questionnaire et consulter les cerveaux.');
     expect(nextLabel('Board reviews pending: marketing, security.')).toBe('Avis attendus : marketing, security.');
     expect(nextLabel('Write the summary and record the review.')).toMatch(/^Rédiger la synthèse/);
-    expect(nextLabel('Resolve blockers security:1, qa:2.')).toBe('Lever les blocages security:1, qa:2.');
+    expect(nextLabel('Resolve blockers security:1, qa:2.')).toBe('Lever les points bloquants security:1, qa:2.');
     expect(nextLabel("Waiting for the person's decision.")).toBe('En attente de la décision d’une personne.');
     expect(nextLabel('Consult again: Check consent first')).toBe('Consulter à nouveau : Check consent first');
     expect(nextLabel('Decision recorded: close it with task complete pick-db, then open a follow-up task to act on it.')).toMatch(/^Décision enregistrée : la clore avec task complete pick-db/);
-    expect(nextLabel('Decision recorded: report its acceptance criterion with task result pick-db --template, then task complete pick-db, then open a follow-up task to act on it.')).toBe('Décision enregistrée : rapporter son critère d’acceptation (task result pick-db --template), la clore avec task complete pick-db, puis ouvrir une quête de suite pour la mettre en œuvre.');
+    expect(nextLabel('Decision recorded: report its acceptance criterion with task result pick-db --template, then task complete pick-db, then open a follow-up task to act on it.')).toBe('Décision enregistrée : rapporter son critère d’acceptation (task result pick-db --template), la clore avec task complete pick-db, puis ouvrir une tâche de suite pour la mettre en œuvre.');
     expect(nextLabel('Implement, then record the results: task verify status and task result status, then task complete status.')).toMatch(/^Réaliser.*task verify status/);
     expect(nextLabel('Waiting for evidence: Record of processing from data protection officer.')).toBe('En attente de preuves : Record of processing from data protection officer.');
     expect(nextLabel('Result recorded: run task verify status to list what remains, then task complete status.')).toMatch(/^Résultats enregistrés : task verify status/);
@@ -130,7 +130,7 @@ describe('task pages', () => {
     expect(todos(few).map((t) => t.title)).toEqual(drafts.slice(0, GROUP_ABOVE).map((t) => `Cadrer ${t.id}`));
     const many = todos(signalsOf({ tasks: ok(drafts) }));
     expect(many).toHaveLength(1);
-    expect(many[0]).toMatchObject({ title: '503 quêtes à cadrer', to: '/quetes?statut=draft', who: 'person' });
+    expect(many[0]).toMatchObject({ title: '503 tâches à cadrer', to: '/quetes?statut=draft', who: 'person' });
   });
 });
 

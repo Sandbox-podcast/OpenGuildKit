@@ -5,16 +5,18 @@ import { useBrains, useProfile } from '../data';
 import { useCliResult } from '../query';
 import { ExternalLink, Pre, Q } from '../parts';
 import { usePrefs } from '../prefs';
+import { useWords } from '../words';
 
 export function Guild() {
   const brains = useBrains();
   const profile = useProfile();
   const { mode } = usePrefs();
+  const w = useWords();
   const enabled = profile.data?.boards ?? [];
   const required = profile.data?.required_boards ?? [];
   return (
     <div className="page-grid">
-      <p className="small muted">Chaque cerveau est une lentille de métier, pas un oracle : l’agent l’applique à la quête et la CLI vérifie que chaque cerveau choisi a répondu. {enabled.length ? `${enabled.length} cerveau(x) activé(s) dans le profil.` : 'Le profil active tous les cerveaux.'}</p>
+      <p className="small muted">Chaque cerveau rassemble des {w.lenses} de métier, pas un oracle : l’agent l’applique à la tâche et la CLI vérifie que chaque cerveau choisi a répondu. {enabled.length ? `${enabled.length} cerveau(x) activé(s) dans le profil.` : 'Le profil active tous les cerveaux.'}</p>
       <Q q={brains}>{(all) => (
         <ul className={`plain brain-grid ${mode === 'explorer' ? 'rpg' : ''}`}>{Object.values(all).map((b) => {
           const on = !enabled.length || enabled.includes(b.id);
@@ -24,7 +26,7 @@ export function Guild() {
                 <span className="row">{required.includes(b.id) && <Badge tone="info" icon="lock">obligatoire</Badge>}{!on && <Badge tone="muted">désactivé</Badge>}</span></span>
               <strong lang="en">{b.title}</strong>
               <span className="small muted clamp-3" lang="en">{b.description}</span>
-              <span className="tiny">{b.review?.specialists.length ?? 0} lentilles · {b.questions.length} questions</span>
+              <span className="tiny">{b.review?.specialists.length ?? 0} {w.lenses} · {b.questions.length} questions</span>
             </a></li>
           );
         })}</ul>
@@ -36,6 +38,7 @@ export function Guild() {
 export function BrainSheet({ id }: { id: string }) {
   const brains = useBrains();
   const knowledge = useCliResult(['brains', '--id', id]);
+  const w = useWords();
   return (
     <Q q={brains}>{(all) => {
       const b = all[id];
@@ -47,7 +50,7 @@ export function BrainSheet({ id }: { id: string }) {
             <p className="small"><strong>Expertises :</strong> <span lang="en">{b.expertises.join(' · ')}</span></p>
             <p className="tiny muted">Déclencheurs dans un brief : <span lang="en">{b.triggers.join(', ')}</span></p></Panel>
           <div className="grid-2">
-            <Panel title={`Lentilles (${b.review?.specialists.length ?? 0})`}>
+            <Panel title={`${w.Lenses} (${b.review?.specialists.length ?? 0})`}>
               <ul className="plain stack tight">{b.review?.specialists.map((s) => <li key={s.id} className="card" lang="en"><strong>{s.title}</strong><span className="small muted">{s.focus}</span><span className="mono tiny">{s.id}</span></li>)}</ul>
             </Panel>
             <Panel title="Ce que ce cerveau demande">

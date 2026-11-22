@@ -123,7 +123,7 @@ export function Shell({ children, bare }: { children: ReactNode; bare?: boolean 
             const p = PLACES.find((candidate) => candidate.key === key)!;
             const c = counts[p.key];
             const current = place?.key === p.key;
-            const name = professional ? p.standardName : p.name;
+            const name = professional ? p.proName : p.name;
             return (
               <li key={p.key}>
                 <a href={`#${p.route}`} aria-current={current ? 'page' : undefined} className="nav-item" title={p.role} onClick={() => setNavOpen(false)}>
@@ -144,7 +144,7 @@ export function Shell({ children, bare }: { children: ReactNode; bare?: boolean 
 
       <main id="main" tabIndex={-1} className="main" inert={navOpen}>
         <StorageBanner />
-        {place && <PlaceHeader place={place} title={project?.name ?? (route.path === '/royaume/projets' ? 'Projets' : professional ? place.standardName : place.name)} compact={!!project || route.path === '/royaume/projets' || route.path === '/guilde' || (route.parts[0] === 'conseil' && !!route.parts[1])} />}
+        {place && <PlaceHeader place={place} title={project?.name ?? (route.path === '/royaume/projets' ? 'Projets' : professional ? place.proName : place.name)} compact={!!project || route.path === '/royaume/projets' || route.path === '/guilde' || (route.parts[0] === 'conseil' && !!route.parts[1])} />}
         {children}
       </main>
 

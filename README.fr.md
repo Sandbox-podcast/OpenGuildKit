@@ -25,7 +25,7 @@ La [démo](examples/request-status/) crée un projet temporaire et utilise des a
 
 ### Interface web
 
-`openguildkit ui` ouvre ton projet dans le navigateur, sur 127.0.0.1 : les quêtes par état, la consultation des brains et la passe de chacun, les avis et les blocages, les vérifications et les résultats, les alertes de dépendances, les dossiers de marché, les livrables, les outils et serveurs MCP, l'export de la documentation et ses partages. Chaque action lance une commande de la CLI. Les validations, dérogations et autres décisions qui demandent une personne restent dans ton terminal : la page affiche la commande à taper. [Interface d'un projet](web/docs/interface-projet.md)
+`openguildkit ui` ouvre ton projet dans le navigateur, sur 127.0.0.1 : les tâches par état, la consultation des brains et la passe de chacun, les avis et les blocages, les vérifications et les résultats, les alertes de dépendances, les dossiers de marché, les livrables, les outils et serveurs MCP, l'export de la documentation et ses partages. Chaque action lance une commande de la CLI. Les validations, dérogations et autres décisions qui demandent une personne restent dans ton terminal : la page affiche la commande à taper. [Interface d'un projet](web/docs/interface-projet.md)
 
 La même interface fonctionne en démo, sans la CLI. Explore Atelier Nova, un éditeur de logiciels fictif. Retrouve les règles du projet, compare les avis, valide une décision et suis le livrable jusqu'aux contrôles. La démo simule les services externes et enregistre les modifications dans ton navigateur. [Lancer la démo web](web/README.md).
 

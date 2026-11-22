@@ -58,7 +58,7 @@ export function ExternalLink({ href, children, className }: { href: string; chil
 
 export async function copyText(text: string) {
   try { await navigator.clipboard.writeText(text); toast({ tone: 'success', title: 'Commande copiée' }); }
-  catch { toast({ tone: 'warning', title: 'Copie impossible', text: 'Sélectionnez la commande et copiez-la.' }); }
+  catch { toast({ tone: 'warning', title: 'Copie impossible', text: 'Sélectionne la commande et copie-la.' }); }
 }
 
 /** A command a person types in their own terminal, with a copy button. */
@@ -132,7 +132,7 @@ export function StepRail({ status, hasResult }: { status: string; hasResult: boo
   const rpg = usePrefs().mode === 'explorer';
   const current = stepOf(status, hasResult);
   return (
-    <ol className="step-rail" aria-label="Étapes de la quête">
+    <ol className="step-rail" aria-label="Étapes de la tâche">
       {STEPS.map((step, i) => {
         const state = i < current ? 'done' : i === current ? 'current' : 'todo';
         return (

@@ -225,13 +225,13 @@ function ProfileEditor() {
   const boards = Object.values(brains.data ?? {});
   return (
     <div className="page-grid">
-      <Notice tone="warn">Changer le profil change l’empreinte des règles : une quête validée sous l’ancien profil doit être consultée à nouveau, ou suivie d’une quête liée, avant sa réalisation. Baisser la garde, ouvrir la recherche publique ou retirer une réglementation se décide dans un terminal : l’interface donne la commande.</Notice>
+      <Notice tone="warn">Changer le profil change l’empreinte des règles : une tâche approuvée sous l’ancien profil doit être consultée à nouveau, ou suivie d’une tâche liée, avant sa réalisation. Baisser le garde-fou, ouvrir la recherche publique ou retirer une réglementation se décide dans un terminal : l’interface donne la commande.</Notice>
       <div className="grid-2">
         <Panel title="Identité et politique">
           <TextField label="Nom du projet" value={draft.name} onChange={(e) => set('name', e.target.value)} />
-          <div className="field"><label htmlFor="research">Recherche publique</label><select id="research" className="input" value={draft.research ?? 'local-only'} onChange={(e) => set('research', e.target.value as Profile['research'])}><option value="local-only">Locale uniquement</option><option value="public-sources">Sources publiques autorisées, quête par quête</option></select></div>
+          <div className="field"><label htmlFor="research">Recherche publique</label><select id="research" className="input" value={draft.research ?? 'local-only'} onChange={(e) => set('research', e.target.value as Profile['research'])}><option value="local-only">Locale uniquement</option><option value="public-sources">Sources publiques autorisées, tâche par tâche</option></select></div>
           <div className="field"><label htmlFor="host">Hôte de l’agent</label><select id="host" className="input" value={draft.host ?? ''} onChange={(e) => set('host', e.target.value || undefined)}><option value="">Non défini</option><option value="claude-code">Claude Code</option><option value="codex">Codex</option></select></div>
-          <div className="field"><label htmlFor="guard">Garde des modifications</label><select id="guard" className="input" value={draft.guard ?? 'off'} onChange={(e) => set('guard', e.target.value as Profile['guard'])}><option value="off">Désactivée</option><option value="observe">Observation</option><option value="enforce">Appliquée</option></select></div>
+          <div className="field"><label htmlFor="guard">Garde-fou des modifications</label><select id="guard" className="input" value={draft.guard ?? 'off'} onChange={(e) => set('guard', e.target.value as Profile['guard'])}><option value="off">Désactivée</option><option value="observe">Observation</option><option value="enforce">Appliquée</option></select></div>
           <KV items={[['Secteur', draft.sector ?? 'general'], ['Pile', (draft.stack ?? []).join(', ')], ['Approbation', draft.approval?.mode === 'signed' ? 'signée (voir project.json)' : 'au terminal']]} />
         </Panel>
         <Panel title="Conventions et vérifications">
@@ -250,7 +250,7 @@ function ProfileEditor() {
         </tbody></table></TableBox>
       </Panel>
       <Panel title="Dérogations">
-        <ListEditor label="Personnes autorisées à déroger à un blocage" items={draft.waivers?.allowed_by ?? []} onChange={(v) => set('waivers', v.length ? { allowed_by: v, max_days: draft.waivers?.max_days ?? 30 } : undefined)} placeholder="Camille Martin" />
+        <ListEditor label="Personnes autorisées à déroger à un point bloquant" items={draft.waivers?.allowed_by ?? []} onChange={(v) => set('waivers', v.length ? { allowed_by: v, max_days: draft.waivers?.max_days ?? 30 } : undefined)} placeholder="Camille Martin" />
         {draft.waivers && <TextField label="Durée maximale (jours)" type="number" value={String(draft.waivers.max_days)} onChange={(e) => set('waivers', { ...draft.waivers!, max_days: Number(e.target.value) || 1 })} />}
       </Panel>
       <ProfileDecisions profile={draft} />
@@ -273,11 +273,11 @@ function ProfileDecisions({ profile }: { profile: Profile }) {
   const declined = (profile.declined ?? []).map((d) => (typeof d === 'string' ? { id: d, by: '', on: '', reason: '' } : d));
   const candidates = [...(recommend.data?.matched ?? []), ...(recommend.data?.suggested ?? [])];
   return (
-    <Panel title="Normes et patterns : décisions">
-      <p className="small muted">Adopter ou refuser une norme ou un pattern passe par <code>openguildkit profile</code>, qui note qui a décidé, quand et pourquoi, et réécrit les instructions.</p>
+    <Panel title="Normes et modèles de projet : décisions">
+      <p className="small muted">Adopter ou refuser une norme ou un modèle de projet passe par <code>openguildkit profile</code>, qui note qui a décidé, quand et pourquoi, et réécrit les instructions.</p>
       <ActionForm busy={busy !== null} submit="Enregistrer la décision" initial={{ by, action: 'adopt' }} fields={[
         { name: 'action', label: 'Décision', required: true, options: [{ value: 'adopt', label: 'Adopter' }, { value: 'decline', label: 'Refuser (une réglementation : au terminal)' }] },
-        { name: 'pattern', label: 'Norme ou pattern', required: true, options: candidates.map((p) => ({ value: p.id, label: `${p.title}${active.has(p.id) ? ' (actif)' : ''}` })) },
+        { name: 'pattern', label: 'Norme ou modèle de projet', required: true, options: candidates.map((p) => ({ value: p.id, label: `${p.title}${active.has(p.id) ? ' (actif)' : ''}` })) },
         { name: 'by', label: 'Personne qui décide', required: true },
         { name: 'reason', label: 'Pourquoi', required: true },
       ]} onSubmit={async (v) => { setBy(v.by); await act(['profile', v.action, v.pattern, '--by', v.by, '--reason', v.reason], { success: 'Profil changé' }); }} />
@@ -296,7 +296,7 @@ function RawProfile() {
   try { JSON.parse(text || '{}'); } catch (e) { error = (e as Error).message; }
   return (
     <Panel title=".openguildkit/project.json">
-      <p className="small muted">Pour les champs sans formulaire (composants, patterns, approbation signée). L’enregistrement lance <code>sync</code> ; si la CLI refuse le profil, la version précédente est remise.</p>
+      <p className="small muted">Pour les champs sans formulaire (composants, modèles de projet, approbation signée). L’enregistrement lance <code>sync</code> ; si la CLI refuse le profil, la version précédente est remise.</p>
       <TextArea label="Profil (JSON)" className="mono-area" data-own value={text} error={error} onChange={(e) => setText(e.target.value)} rows={24} />
       <Button variant="primary" busy={busy} disabled={!!error} onClick={async () => { setBusy(true); await save(text); setBusy(false); }}>Enregistrer et synchroniser</Button>
     </Panel>
@@ -318,7 +318,7 @@ function Detection() {
         <p className="small muted">D’après les manifestes du dépôt, sans lancer de gestionnaire de paquets.</p>
         <Q q={detect}>{(d) => d.components.length === 0 ? <p className="muted">Aucun manifeste reconnu.</p> : <ul className="plain stack tight">{d.components.map((c) => <li key={c.path} className="card"><strong className="mono">{c.path}</strong><JsonDetails data={c} label="Technologies et preuves" /></li>)}</ul>}</Q>
       </Panel>
-      <Panel title="Patterns pour cette pile">
+      <Panel title="Modèles de projet pour cette pile">
         <Q q={recommend}>{(r) => <>
           <h3 className="h-card"><Icon name="check" size={12} /> Retenus ({r.matched.length})</h3>
           <ul className="small" lang="en">{r.matched.map((p) => <li key={p.id}><strong>{p.title}</strong> <span className="tiny muted">{p.matched_stack?.join(', ')}</span></li>)}</ul>

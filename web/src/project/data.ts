@@ -120,7 +120,7 @@ export function placeCounts(s: ProjectSignals): Partial<Record<PlaceKey, Count |
     blueprint: count(s.instructionsDrift ? 1 : 0, 'danger', 'instructions à synchroniser'),
     conseil: count(consulting + s.awaitingDecision.length, 'info', 'à arbitrer'),
     quetes: stuck === s.blocked.length ? count(stuck, 'danger', 'bloquée', 'bloquées') : count(stuck, 'danger', 'à reprendre par une personne'),
-    forge: count(s.toBuild.length, 'info', 'quête à réaliser', 'quêtes à réaliser'),
+    forge: count(s.toBuild.length, 'info', 'tâche à réaliser', 'tâches à réaliser'),
     tour: count(s.alertsOpen, 'danger', 'alerte à revoir', 'alertes à revoir'),
     observatoire: count(s.marketDue, 'info', 'source à relire', 'sources à relire'),
     documentation: count(s.sharesExpired, 'danger', 'partage expiré', 'partages expirés'),

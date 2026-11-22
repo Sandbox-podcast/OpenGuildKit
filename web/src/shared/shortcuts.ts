@@ -18,7 +18,7 @@ export function setSingleKeyShortcuts(on: boolean) {
 }
 export const useSingleKeyShortcuts = () => useSyncExternalStore((l) => { listeners.add(l); return () => { listeners.delete(l); }; }, () => enabled);
 
-export interface ShortcutActions { openSearch: () => void; toggleMode: () => void; go: (route: string) => void; help?: () => void }
+interface ShortcutActions { openSearch: () => void; toggleMode: () => void; go: (route: string) => void; help?: () => void }
 
 /** What a key does, given whether single keys are on and when the last `g` was pressed; null when nothing. */
 export function shortcutFor(e: { key: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean }, single: boolean, sinceG: number): { action: 'search' | 'mode' | 'help' | 'prefix' } | { action: 'go'; route: string } | null {

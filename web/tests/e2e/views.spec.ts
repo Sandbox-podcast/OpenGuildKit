@@ -161,7 +161,7 @@ test('clavier, palette, styles RPG et Pro et rechargement', async ({ page }) => 
   await page.getByRole('button', { name: 'Pro', exact: true }).click();
   await expect(page.locator('.app')).toHaveClass(/mode-focus/);
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(244, 247, 245)');
-  await expect(page.getByRole('heading', { name: 'Missions', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tâches', exact: true })).toBeVisible();
   await expect(page).toHaveURL(/vue=liste&projet=prj-billing/);
   await expect(page.getByText('Relances automatiques')).toBeVisible();
   await page.getByRole('button', { name: 'RPG', exact: true }).click();
@@ -240,7 +240,7 @@ test('mobile et réduction des mouvements', async ({ page }) => {
   const appearance = page.getByRole('switch', { name: 'Mode Pro' });
   await appearance.click();
   await expect(appearance).toBeChecked();
-  await expect(page.getByRole('heading', { name: 'Missions', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tâches', exact: true })).toBeVisible();
   await appearance.click();
   await expect(appearance).not.toBeChecked();
   await expect(page).toHaveURL(/#\/quetes/);

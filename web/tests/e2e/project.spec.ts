@@ -16,7 +16,7 @@ const EMPTY = `http://127.0.0.1:${PORT + 1}`;
 const STRIPE = `http://127.0.0.1:${PORT + 2}`;
 const errors: string[] = [];
 /** How a to-do item names the person who acts, as opposed to the agent. */
-const PERSON = 'Vous';
+const PERSON = 'Toi';
 
 function watch(page: Page) {
   page.on('pageerror', (e) => errors.push(e.message));
@@ -52,7 +52,7 @@ test('opens the project with its counters, map and next actions', async ({ page 
   await expect(page.getByRole('heading', { level: 1, name: 'Royaume' })).toBeVisible();
   await expect(page.locator('.project-chip')).toContainText('Projet réel');
   await expect(page.getByRole('region', { name: 'Carte du projet' })).toBeVisible();
-  await expect(page.getByText('Lever les blocages de request-export')).toBeVisible();
+  await expect(page.getByText('Lever les points bloquants de request-export')).toBeVisible();
   await expect(page.getByText('Réaliser request-history')).toBeVisible();
   // The name of a place link holds its visible words, then its counter for a screen reader.
   await expect(page.getByRole('navigation').getByRole('link', { name: /^Quêtes Tâches du projet\s*, 1 bloquée$/ })).toBeVisible();
@@ -90,8 +90,8 @@ test('lists every task by state and opens a new one', async ({ page }) => {
 test('never approves: the decision is a command for the person’s terminal', async ({ page }) => {
   await open(page, '/conseil/request-export');
   await expect(page.getByRole('heading', { name: 'Avis des cerveaux' })).toBeVisible();
-  await expect(page.getByLabel('Commande de validation')).toContainText('task decide request-export --approve');
-  await expect(page.getByRole('button', { name: /^Valider/ })).toHaveCount(0);
+  await expect(page.getByLabel('Commande d’approbation')).toContainText('task decide request-export --approve');
+  await expect(page.getByRole('button', { name: /^(Valider|Approuver)/ })).toHaveCount(0);
   const refused = await api<{ command: string }>(page, './api/run', { argv: ['task', 'decide', 'request-export', '--approve', '--by', 'Agent', '--reason', 'Self-approval'] });
   expect(refused.status).toBe(403);
   expect(refused.body.command).toContain('task decide request-export --approve');
@@ -106,7 +106,7 @@ test('hands a waiver to the named person’s terminal', async ({ page }) => {
   await dialog.getByLabel('Ce que la dérogation couvre').fill('Support team accounts');
   await dialog.getByLabel('Dernier jour').fill('2026-12-15');
   await dialog.getByRole('button', { name: 'Préparer la commande' }).click();
-  const terminal = page.getByRole('dialog', { name: /Dérogation : à faire dans votre terminal/ });
+  const terminal = page.getByRole('dialog', { name: /Dérogation : à faire dans ton terminal/ });
   await expect(terminal.getByLabel('Commande')).toContainText("task waive request-export security:1 --by 'Camille Martin'");
   await terminal.getByRole('button', { name: 'J’ai compris' }).click();
   expect((await cli<{ resolution: unknown }[]>(page, ['task', 'blockers', 'request-export', '--json'])).json[0].resolution).toBeNull();
@@ -119,9 +119,9 @@ test('hands the clearing of a blocker, with its evidence, to the person’s term
   const evidence = '.sample/request-export-evidence.md';
   await dialog.getByLabel('Preuve', { exact: true }).fill(evidence);
   await dialog.getByLabel('Ce que la preuve établit').fill('The export only holds the requester’s own requests');
-  await dialog.getByLabel('Personne qui lève le blocage').fill('Alex Moreau');
+  await dialog.getByLabel('Personne qui lève le point bloquant').fill('Alex Moreau');
   await dialog.getByRole('button', { name: 'Préparer la commande' }).click();
-  const terminal = page.getByRole('dialog', { name: /Levée du blocage : à faire dans votre terminal/ });
+  const terminal = page.getByRole('dialog', { name: /Levée du point bloquant : à faire dans ton terminal/ });
   await expect(terminal.getByLabel('Commande')).toContainText(`task clear request-export security:1 --evidence ${evidence}`);
   await terminal.getByRole('button', { name: 'J’ai compris' }).click();
   const blockers = await cli<{ id: string; resolution: unknown }[]>(page, ['task', 'blockers', 'request-export', '--json']);
@@ -130,7 +130,7 @@ test('hands the clearing of a blocker, with its evidence, to the person’s term
   expect(refused.status).toBe(403);
   expect(refused.body.command).toContain('task clear request-export security:1');
   await page.goto('/#/royaume');
-  await expect(page.getByText('Lever les blocages de request-export')).toBeVisible();
+  await expect(page.getByText('Lever les points bloquants de request-export')).toBeVisible();
 });
 
 test('reads the decision brief and sends a reviewed task back to the council', async ({ page }) => {
@@ -141,7 +141,7 @@ test('reads the decision brief and sends a reviewed task back to the council', a
   await page.getByLabel('Personne qui décide').fill('Camille Martin');
   await page.getByLabel('Motif', { exact: true }).fill('Agree on the CSV columns with support first');
   await page.getByRole('button', { name: 'Demander des changements' }).click();
-  await expect(page.getByText('Quête renvoyée au Conseil')).toBeVisible();
+  await expect(page.getByText('Tâche renvoyée au Conseil')).toBeVisible();
   await expect(page.locator('.quest-head').getByText('Renvoyée au Conseil')).toBeVisible();
   await expect(page.getByText(/Agree on the CSV columns with support first/).first()).toBeVisible();
 });
@@ -217,7 +217,7 @@ test('refuses an external action here and hands an allowance to the terminal', a
 
   await section.getByLabel('Décision').selectOption('allow');
   await section.getByRole('button', { name: 'Préparer' }).click();
-  await expect(page.getByRole('dialog', { name: /Autorisation : à faire dans votre terminal/ }).getByLabel('Commande')).toContainText('task authorize request-history --action send-message --target Brevo --allow');
+  await expect(page.getByRole('dialog', { name: /Autorisation : à faire dans ton terminal/ }).getByLabel('Commande')).toContainText('task authorize request-history --action send-message --target Brevo --allow');
   await page.getByRole('button', { name: 'J’ai compris' }).click();
 });
 
@@ -302,14 +302,14 @@ test('runs the checks, records the results and completes a task in the forge', a
   expect(saved.json.result).toMatchObject({ revision: 'abc1234' });
   expect(saved.json.result.pull_request).toBeUndefined();
   await page.getByLabel('Livraison').selectOption('pull_request');
-  await page.getByRole('button', { name: 'Passation (handoff)' }).click();
-  await expect(page.getByRole('dialog', { name: 'Passation validée' }).getByText(/Approved implementation handoff|request-history/).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Brief d’implémentation' }).click();
+  await expect(page.getByRole('dialog', { name: 'Brief d’implémentation' }).getByText(/Approved implementation handoff|request-history/).first()).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Fermer' }).last().click();
   await page.getByRole('button', { name: 'Lancer les commandes du projet' }).click();
   await expect(page.locator('tr', { hasText: 'command:1' }).getByText('Réussi')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(/point\(s\) before the task can be done/)).toBeVisible();
   await expect(page.getByText('Une commande ne peut pas tourner ici')).toBeVisible();
-  await page.getByLabel('Votre nom').fill('Camille Martin');
+  await page.getByLabel('Ton nom').fill('Camille Martin');
   await page.getByRole('button', { name: /Marquer les règles non rapportées/ }).click();
   await page.getByLabel('Adresse de la pull request').fill('https://github.com/example/portal/pull/8');
   await page.getByRole('button', { name: 'Ajouter un critère' }).click();
@@ -317,8 +317,8 @@ test('runs the checks, records the results and completes a task in the forge', a
   await page.getByLabel('Preuve', { exact: true }).fill('tests/test_history_access.py');
   await page.getByRole('button', { name: 'Enregistrer les résultats' }).click();
   await expect(page.getByText('Résultats enregistrés')).toBeVisible();
-  await page.getByRole('button', { name: 'Terminer la quête' }).click();
-  await expect(page.getByText('Quête terminée', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Terminer la tâche' }).click();
+  await expect(page.getByText('Tâche terminée', { exact: true })).toBeVisible();
   // Nothing was left open: the closing says so, and the task is done without reservations.
   await expect(page.getByRole('region', { name: 'Clôture' }).getByText('Aucun point laissé ouvert.')).toBeVisible();
   await page.goto('/#/quetes/request-history');
@@ -333,7 +333,7 @@ test('starts a business deliverable and lists what keeps it from review', async 
   await page.getByRole('dialog').getByRole('button', { name: 'Fermer' }).last().click();
   const form = page.getByRole('region', { name: 'Nouveau brouillon' });
   await form.getByLabel('Modèle').selectOption('support-article');
-  await form.getByLabel('Quête validée').selectOption('request-status');
+  await form.getByLabel('Tâche approuvée').selectOption('request-status');
   await form.getByLabel('Outil de l’équipe').selectOption('Notion');
   await form.getByLabel('Fichier Markdown à écrire').fill('support/request-status.md');
   await form.getByRole('button', { name: 'Écrire le brouillon' }).click();
@@ -417,7 +417,7 @@ test('reviews an alert, and hands the dismissal of a critical one to the termina
   await critical.getByRole('button', { name: 'Revoir' }).click();
   let dialog = page.getByRole('dialog', { name: /Revoir form-parser/ });
   await dialog.getByLabel('Statut').selectOption('confirmed');
-  await dialog.getByLabel('Votre nom').fill('Alex Moreau');
+  await dialog.getByLabel('Ton nom').fill('Alex Moreau');
   await dialog.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(critical.getByText('Confirmée')).toBeVisible();
   await expect(critical.getByText('Alex Moreau')).toBeVisible();
@@ -446,7 +446,7 @@ test('says a refusal in French by its code, keeps the command copyable, and mark
     await page.locator('tr', { hasText: 'form-parser' }).getByRole('button', { name: 'Revoir' }).click({ timeout: 15_000 });
     const dialog = page.getByRole('dialog', { name: /Revoir form-parser/ });
     await dialog.getByLabel('Statut').selectOption('dismissed');
-    await dialog.getByLabel('Votre nom').fill('Alex Moreau');
+    await dialog.getByLabel('Ton nom').fill('Alex Moreau');
     await dialog.getByLabel('Motif').fill('Only used at build time');
     await dialog.getByRole('button', { name: 'Enregistrer' }).click();
     return page.getByRole('dialog', { name: 'À faire dans ton terminal' });
@@ -482,9 +482,9 @@ test('shows the controls: instructions, host rules and guard', async ({ page }) 
   await open(page, '/tour');
   await expect(page.getByText('Les instructions correspondent au profil du projet.')).toBeVisible();
   await expect(page.getByRole('region', { name: 'Ce que l’hôte applique' }).locator('.card').first()).toBeVisible();
-  await expect(page.getByText(/La garde est/)).toBeVisible();
-  await page.getByRole('tab', { name: 'Blocages' }).click();
-  await expect(page.getByText(/blocage\(s\) ouvert\(s\)|Aucun blocage/)).toBeVisible();
+  await expect(page.getByText(/Le garde-fou est/)).toBeVisible();
+  await page.getByRole('tab', { name: 'Points bloquants' }).click();
+  await expect(page.getByText(/point\(s\) bloquant\(s\) ouvert\(s\)|Aucun point bloquant/)).toBeVisible();
 });
 
 test('keeps keyboard focus on the selected watchtower tab as the address changes', async ({ page }) => {
@@ -492,7 +492,7 @@ test('keeps keyboard focus on the selected watchtower tab as the address changes
   const tabs = page.getByRole('tablist', { name: 'Tour de guet' });
   const controls = tabs.getByRole('tab', { name: 'Contrôles' });
   const alerts = tabs.getByRole('tab', { name: /Alertes de dépendances/ });
-  const blockers = tabs.getByRole('tab', { name: 'Blocages' });
+  const blockers = tabs.getByRole('tab', { name: 'Points bloquants' });
 
   await controls.focus();
   await page.keyboard.press('ArrowRight');
@@ -590,10 +590,10 @@ test('exports a completed task for Documentalist, then records and revokes a sha
 
 test('rebuilds the history from the task records', async ({ page }) => {
   await open(page, '/chroniques');
-  await expect(page.getByText('Quête terminée').first()).toBeVisible();
+  await expect(page.getByText('Tâche terminée').first()).toBeVisible();
   await expect(page.getByText(/Renvoyée au Conseil par Camille Martin/).first()).toBeVisible();
-  await page.getByRole('combobox', { name: 'Quête', exact: true }).selectOption('request-history');
-  await expect(page.getByText(/Validée par Camille Martin/)).toBeVisible();
+  await page.getByRole('combobox', { name: 'Tâche', exact: true }).selectOption('request-history');
+  await expect(page.getByText(/Approuvée par Camille Martin/)).toBeVisible();
   await expect(page.getByText(/Action externe send-message sur Brevo : refusée/)).toBeVisible();
 });
 

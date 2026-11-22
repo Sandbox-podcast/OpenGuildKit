@@ -3,7 +3,7 @@ import type { Question } from './types';
 
 /** One norm as the page keeps it while the person answers: yes, or no with who and why. */
 export interface NormDraft { answer: 'yes' | 'no'; by?: string; reason?: string }
-export type NormAnswer = 'yes' | { answer: 'no'; by: string; reason: string };
+type NormAnswer = 'yes' | { answer: 'no'; by: string; reason: string };
 
 const complete = (draft: NormDraft) => draft.answer === 'yes' || (!!draft.by?.trim() && !!draft.reason?.trim());
 
@@ -31,7 +31,7 @@ export function setupAnswers(answers: Record<string, unknown>, drafts: Record<st
 }
 
 /** French prompts of the setup questions (init --questions), by ID. */
-export const SETUP_PROMPT: Record<string, string> = {
+const SETUP_PROMPT: Record<string, string> = {
   name: 'Nom du projet',
   sector: 'Quel secteur décrit le projet ? Ses réglementations sont proposées, à confirmer une par une.',
   stack: 'Quels langages, frameworks et services composent la pile ? Ajoute une version quand elle compte.',
@@ -51,7 +51,7 @@ export const SETUP_PROMPT: Record<string, string> = {
 };
 
 /** French labels of the setup choices that are not catalog titles, by question and choice ID. */
-export const SETUP_CHOICE: Record<string, Record<string, string>> = {
+const SETUP_CHOICE: Record<string, Record<string, string>> = {
   personal_data: { yes: 'Oui', no: 'Non' },
   people_decisions: { yes: 'Oui', no: 'Non' },
   host: { 'claude-code': 'Claude Code', codex: 'Codex', other: 'Un autre agent, ou aucun : les règles restent dans AGENTS.md, sans réglage d’hôte' },

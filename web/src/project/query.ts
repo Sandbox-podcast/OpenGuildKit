@@ -101,7 +101,7 @@ export const showTerminal = (request: TerminalRequest | null) => { terminal = re
 export const useTerminalRequest = () => useSyncExternalStore((l) => { terminalListeners.add(l); return () => { terminalListeners.delete(l); }; }, () => terminal);
 
 /* ------------------------------------------------------------------ tasks a change of rules touched */
-export interface Touched { id: string; status: string; step: string }
+interface Touched { id: string; status: string; step: string }
 let touched: Touched[] | null = null;
 const touchedListeners = new Set<() => void>();
 /** Keeps on screen the tasks that sync, update --apply or a saved profile names, until the person closes the list. */
