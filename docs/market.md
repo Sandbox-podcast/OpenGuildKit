@@ -11,7 +11,7 @@ A dossier is a JSON file in `.openguildkit/market/ID.json`, shared through git. 
 - `observations` record what a competitor offers, each with a `source` (`ref` and `date`): a public page, a sales call note, an interview.
 - `unknowns` lists what the team still needs to find out.
 
-The commands write the file in one layout: fields in a fixed order and one competitor, observation, unknown, watched source or change per line, so that a change to one entry shows as a one-line diff in review (adding an entry also adds a comma to the line before). A dossier written by hand in another layout is rewritten in this one by the first command that changes it.
+The commands write the file in one layout: fields in a fixed order and one competitor, observation, unknown, watched source or change per line, so that a change to one entry shows as a one-line diff in review (adding an entry also adds a comma to the line before). A command rewrites only the top-level fields it changes, in this layout; the rest of the file keeps its bytes, so a dossier written by hand keeps its own layout in the fields no command touched, and a byte order mark and Windows line endings (CRLF) stay as they were.
 
 Dates are written `YYYY-MM-DD` and cannot be in the future (one day of margin for time zones). Each list field must be a JSON list and `paused` is `true` or `false`; a malformed dossier gets a one-line error.
 

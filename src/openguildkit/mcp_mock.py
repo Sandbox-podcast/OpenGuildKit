@@ -344,10 +344,26 @@ def _find(mock: dict, collection_name: str, value):
     return next((item for item in collection["items"] if _norm(item.get(collection["key"])) == _norm(value)), None)
 
 
+def _written_ids(mock: dict, key: str) -> list[str]:
+    """The fixed ids that simulated writes return under key, such as the key create_issue hands out."""
+    found = []
+    for tool in mock["tools"]:
+        for response in [] if tool.get("read_only", False) else tool.get("responses", []):
+            value = response.get("result", {}).get(key) if isinstance(response.get("result"), dict) else None
+            if isinstance(value, (str, int)) and not isinstance(value, bool) and not str(value).startswith(("$arg:", "$id:")):
+                found.append(f"{tool['name']} returns {value}")
+    return found
+
+
 def _not_found(mock: dict, collection_name: str, argument: str, value) -> str:
+    """Name the ids the collection holds, and the ids a simulated write returned that the mock did not keep."""
     collection = mock["records"][collection_name]
     known = _known(item.get(collection["key"]) for item in collection["items"])
-    return f"{argument} {value} not found in this mock's {collection_name}. Known {argument} values: {known or 'none'}."
+    text = f"{argument} {value} not found in this mock's {collection_name}. Known {argument} values: {known or 'none'}."
+    written = _written_ids(mock, collection["key"])
+    if written:
+        text += f" {'; '.join(written)} from a simulated write, which the mock does not keep."
+    return text
 
 
 def _check_problem(mock: dict, rule: dict, argument: str, arguments: dict) -> str | None:

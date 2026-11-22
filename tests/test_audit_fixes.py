@@ -74,7 +74,8 @@ class AlertAndDossierTests(unittest.TestCase):
         dossier.update(id="storage", title="Cold storage vendors", market="Object storage in Europe",
                        feature="Archive tiers for rarely read files")
         write_json(market / "storage.json", dossier)
-        self.cli("task", "consult", "status", "--answers", EXAMPLE / "answers.json", "--market", "storage")
+        output, _ = self.cli("task", "consult", "status", "--answers", EXAMPLE / "answers.json", "--market", "storage")
+        self.assertEqual(sum("shares no word with the task brief" in line for line in output.splitlines()), 1)
         scope = json.loads(self.cli("task", "show", "status")[0])["consultation"]["scope"]
         self.assertIn("shares no word with the task brief", scope["market"]["relevance"])
         write_json(market / "support-portals.json", json.loads(

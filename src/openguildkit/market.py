@@ -5,6 +5,7 @@ The CLI validates it and attaches it to consultations; the host agent gathers th
 observations within the project's research policy.
 """
 
+import codecs
 import json
 import re
 import unicodedata
@@ -12,12 +13,13 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from . import clock
-from .storage import read_json, write_text
+from .storage import parse_json, read_bytes, read_json, write_text
 
 MARKET_DIR = "market"
 KINDS = ("direct", "substitute")
 _ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
+_SPACE = re.compile(r"[ \t\r\n]*")
 STALE_DAYS = 180
 TO_DESCRIBE = "To describe."
 COMPETITOR_FIELDS = ("id", "name", "kind", "url", "segment")
@@ -171,17 +173,18 @@ def _json_list(items: list, indent: str) -> str:
     return "[\n" + ",\n".join(inner + json.dumps(item, ensure_ascii=False) for item in items) + f"\n{indent}]"
 
 
+def _json_value(value, indent: str) -> str:
+    """A value in the dossier layout, for a field whose line starts with indent."""
+    if isinstance(value, dict):
+        return _json_fields(value, indent)
+    if isinstance(value, list):
+        return _json_list(value, indent)
+    return json.dumps(value, ensure_ascii=False)
+
+
 def _json_fields(fields: dict, indent: str) -> str:
     inner = indent + "  "
-    lines = []
-    for key, value in fields.items():
-        if isinstance(value, dict):
-            text = _json_fields(value, inner)
-        elif isinstance(value, list):
-            text = _json_list(value, inner)
-        else:
-            text = json.dumps(value, ensure_ascii=False)
-        lines.append(f"{inner}{json.dumps(key)}: {text}")
+    lines = [f"{inner}{json.dumps(key)}: {_json_value(value, inner)}" for key, value in fields.items()]
     return "{\n" + ",\n".join(lines) + f"\n{indent}}}"
 
 
@@ -190,8 +193,72 @@ def dossier_text(dossier: dict) -> str:
     return _json_fields(validate_dossier(dossier, dossier["id"]), "") + "\n"
 
 
+def _top_fields(source: str) -> dict:
+    """Where each top-level field of a JSON object sits: the space before its key, its key, its value's span."""
+    decoder, fields = json.JSONDecoder(), {}
+    position = _SPACE.match(source).end() + 1
+    while True:
+        start = _SPACE.match(source, position).end()
+        if source[start] == "}":
+            return fields
+        key, end = decoder.raw_decode(source, start)
+        value_start = _SPACE.match(source, source.index(":", end) + 1).end()
+        value_end = decoder.raw_decode(source, value_start)[1]
+        fields[key] = (position, start, value_start, value_end)
+        position = _SPACE.match(source, value_end).end()
+        if source[position] == "}":
+            return fields
+        position += 1
+
+
+def _patched(source: str, old: dict, new: dict) -> str:
+    """The file text with only the changed top-level fields rewritten in the dossier layout; the rest keeps its bytes."""
+    newline = "\r\n" if "\r\n" in source else "\n"
+    fields = _top_fields(source)
+    if not fields.keys() <= new.keys():
+        return dossier_text(new).replace("\n", newline)
+
+    def value(key: str, at: int) -> str:
+        """The new value of key, indented like the line of the key that starts at `at`."""
+        line = source[source.rfind("\n", 0, at) + 1:at]
+        indent = line[:len(line) - len(line.lstrip(" \t"))]
+        return _json_value(new[key], indent).replace("\n", newline)
+
+    order, edits = list(new), []
+    for index, key in enumerate(order):
+        if old.get(key) == new[key]:
+            continue
+        if key in fields:
+            _, start, value_start, value_end = fields[key]
+            edits.append((value_start, value_end, value(key, start)))
+            continue
+        # A field the file lacks goes before the next field of the layout, or after the last one.
+        later = next((name for name in order[index + 1:] if name in fields), None)
+        if later is not None:
+            space, start = fields[later][:2]
+            edits.append((start, start, f"{json.dumps(key)}: {value(key, start)}," + source[space:start]))
+        else:
+            space, start, _, value_end = fields[list(fields)[-1]]
+            edits.append((value_end, value_end, "," + source[space:start] + f"{json.dumps(key)}: {value(key, start)}"))
+    pieces, last = [], 0
+    for start, end, text in sorted(edits, key=lambda edit: edit[0]):
+        pieces += [source[last:start], text]
+        last = end
+    return "".join(pieces) + source[last:]
+
+
 def save_dossier(state: Path, dossier: dict) -> None:
-    write_text(dossier_path(state, dossier["id"]), dossier_text(dossier))
+    """Write a dossier. In an existing file only the changed fields are rewritten, so the rest keeps its form,
+    its byte order mark and its line endings, and a one-line change stays a one-line diff."""
+    path = dossier_path(state, dossier["id"])
+    new = validate_dossier(dossier, dossier["id"])
+    if not path.is_file():
+        write_text(path, dossier_text(new))
+        return
+    raw = read_bytes(path)
+    old = validate_dossier(parse_json(raw, str(path)), dossier["id"])
+    mark = "﻿" if raw.startswith(codecs.BOM_UTF8) else ""
+    write_text(path, mark + _patched(raw.decode("utf-8-sig"), old, new))
 
 
 def new_dossier(dossier_id: str, fields: dict) -> dict:

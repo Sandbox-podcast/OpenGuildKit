@@ -463,6 +463,90 @@ class CommandTests(unittest.TestCase):
             self.assertEqual(json.loads(out)["body"], "Synthetic note")
             self.assertIn("openguildkit task authorize", err)
 
+    def test_mock_help_search_and_simulated_refund(self):
+        with tempfile.TemporaryDirectory() as directory:
+            code, out, err = run("--project", directory, "tools", "call", "google-analytics")
+            self.assertEqual(code, 0, err)
+            self.assertIn("Generic sample data, not your project's", out)
+            self.assertIn("page_path (string, required)", out)
+            self.assertIn("metric (string: page_views|users, optional)", out)
+            self.assertIn("google-analytics list_properties --args '{}'", out)
+            code, out, err = run("--project", directory, "tools", "call", "google-analytics", "list_properties", "--args", "{}")
+            self.assertEqual([row["property_id"] for row in json.loads(out)["properties"]], ["prop-1", "prop-2"])
+            examples = (
+                ("hubspot", "search_deals", {"query": "LOGIST"}, "deals", "deal_id", ["deal-1"]),
+                ("jira", "search_issues", {"query": "csv", "status": "To do"}, "issues", "key", ["SUP-143"]),
+                ("zendesk", "search_tickets", {"query": "QUARTER", "status": "pending"}, "tickets", "ticket_id", [4103]),
+                ("stripe", "list_customers", {"query": "TAIL"}, "customers", "customer_id", ["cus_test_003"]),
+            )
+            for name, tool, arguments, field, key, expected in examples:
+                with self.subTest(tool=tool):
+                    code, out, err = run("--project", directory, "tools", "call", name, tool,
+                                         "--args", json.dumps(arguments))
+                    self.assertEqual(code, 0, err)
+                    self.assertEqual([row[key] for row in json.loads(out)[field]], expected)
+            # A full refund of the paid sample invoice (180000 cents); the unpaid one is refused.
+            command = ("--project", directory, "tools", "call", "stripe", "create_refund", "--args")
+            full = {"invoice_id": "in_test_001", "amount_cents": 180000, "reason": "requested_by_customer"}
+            code, out, err = run(*command, json.dumps(full))
+            self.assertEqual(code, 0, err)
+            self.assertEqual(json.loads(out)["amount_cents"], 180000)
+            self.assertIn("simulates a write; the mock keeps nothing", err)
+            code, out, _ = run(*command, json.dumps({**full, "invoice_id": "in_test_002"}))
+            self.assertEqual(code, 1)
+            self.assertIn("this call needs status paid", out)
+
+    def test_unknown_record_help_includes_the_ids_returned_by_mock_creation(self):
+        for name, lookup, field, expected in (
+            ("jira", "get_issue", "key", "SUP-200"),
+            ("notion", "get_page", "page_id", "page-300"),
+        ):
+            with self.subTest(mock=name):
+                result = call_tool(load_mock(name), lookup, {field: "missing"})
+                self.assertTrue(result["isError"])
+                self.assertIn(expected, result["content"][0]["text"])
+                self.assertIn("simulated write, which the mock does not keep", result["content"][0]["text"])
+
+    def test_fixture_identifiers_round_trip_to_their_lookup_tools(self):
+        def values(value, key):
+            if isinstance(value, list):
+                for item in value:
+                    yield from values(item, key)
+            elif isinstance(value, dict):
+                for field, item in value.items():
+                    if field == key and type(item) in (str, int) and not str(item).startswith(("$arg:", "$id:")):
+                        yield item
+                    yield from values(item, key)
+
+        def found(mock, key, read_only):
+            """Ids under key in the records (read data) or in the canned answers of read or write tools."""
+            records = mock["records"].values() if read_only else []
+            answers = [response.get("result") for tool in mock["tools"] if tool.get("read_only", False) == read_only
+                       for response in tool.get("responses", [])]
+            return {value for item in [*(collection["items"] for collection in records), *answers]
+                    for value in values(item, key)}
+
+        walked = 0
+        for name in mock_ids():
+            mock = load_mock(name)
+            for lookup in (tool for tool in mock["tools"] if tool.get("serve", {}).get("action") == "get"):
+                key = mock["records"][lookup["serve"]["records"]]["key"]
+                argument = lookup["serve"].get("argument", key)
+                read = found(mock, key, True)
+                for value in sorted(read, key=str):
+                    with self.subTest(mock=name, lookup=lookup["name"], identifier=value):
+                        response = call_tool(mock, lookup["name"], {argument: value})
+                        self.assertFalse(response["isError"], response["content"])
+                        self.assertEqual(response["structuredContent"][key], value)
+                        walked += 1
+                # The mock keeps no write: an id a simulated write returns is refused, and the refusal says why.
+                for value in sorted(found(mock, key, False) - read, key=str):
+                    with self.subTest(mock=name, lookup=lookup["name"], written=value):
+                        response = call_tool(mock, lookup["name"], {argument: value})
+                        self.assertTrue(response["isError"])
+                        self.assertIn("simulated write, which the mock does not keep", response["content"][0]["text"])
+        self.assertGreater(walked, 30)
+
     def test_every_bundled_mock_loads_and_names_a_registry_tool(self):
         ids = mock_ids()
         self.assertGreaterEqual(len(ids), 15)

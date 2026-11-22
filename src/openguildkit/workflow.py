@@ -1154,8 +1154,10 @@ def _consultation_markdown(
         "",
     ]
     if scope.get("market"):
+        # The relevance note is said once, in its own line above the dossier.
+        dossier = {key: value for key, value in scope["market"].items() if key != "relevance"}
         relevance = [f"Relevance: {scope['market']['relevance']}", ""] if scope["market"].get("relevance") else []
-        lines.extend(["## Market dossier", "", *relevance, _json_section(scope["market"]), ""])
+        lines.extend(["## Market dossier", "", *relevance, _json_section(dossier), ""])
     if scope.get("open_points"):
         lines.extend([
             "## Open points",
