@@ -61,7 +61,7 @@ openguildkit alerts accept npm:form-parser:ghsa-xxxx-yyyy-zzzz --by "Camille Mar
 
 ## GitHub Dependabot alerts
 
-The Dependabot alerts API returns one page at a time. `gh api --paginate` follows every page and prints one JSON array per page, back to back; `openguildkit alerts import` reads that output, and also the single array of pages that `--slurp` prints:
+The Dependabot alerts API returns one page at a time, and `gh api --paginate` follows every page. Recent `gh` releases print the pages of a list as one JSON array; older ones print one array per page, back to back. `openguildkit alerts import` reads both, and also the array of pages that `--slurp` prints:
 
 ```bash
 gh api --paginate "repos/OWNER/REPO/dependabot/alerts?state=open&per_page=100" > dependabot.json
@@ -70,7 +70,7 @@ openguildkit alerts import dependabot.json
 
 The token needs read access to the repository's Dependabot alerts. Closed alerts (fixed or dismissed in GitHub) are skipped, so they count as no longer listed.
 
-Verification note: the reading of concatenated and slurped pages is tested on synthetic files. The `gh` command above was not verified against a live repository.
+Verification note: on 22 November 2026, `gh` 2.100.0 called with `--paginate` and five items per page on a live endpoint of this repository returned one array of 21 items, which `alerts import` reads like a single page; the reading of concatenated and slurped pages is tested on synthetic files. The Dependabot endpoint itself was not called: Dependabot alerts are turned off on the repositories the maintainers could use for the check, and the command answers `Dependabot alerts are disabled for this repository. (HTTP 403)` there. Turn them on in the repository's security settings before running it.
 
 ## The `dependency-watch` agent
 
