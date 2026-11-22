@@ -88,8 +88,9 @@
           "status": "ga",
           "capabilities": "Read Cypress Cloud runs, test results, flaky tests and accessibility reports for debugging; cannot change code or delete runs.",
           "source": "https://docs.cypress.io/cloud/integrations/cloud-mcp",
-          "verified": "2026-11-21",
-          "access": "Read operations described; no enforced read-only mode is recorded."
+          "verified": "2026-11-22",
+          "access": "Read operations described; no enforced read-only mode is recorded.",
+          "status_source": "https://docs.cypress.io/cloud/integrations/cloud-mcp"
         }
       ],
       "api": {
@@ -140,8 +141,9 @@
           "source": "https://github.com/grafana/mcp-k6",
           "repository": "https://github.com/grafana/mcp-k6",
           "license": "AGPL-3.0",
-          "verified": "2026-11-21",
-          "access": "Read and write."
+          "verified": "2026-11-22",
+          "access": "Read and write.",
+          "status_source": "https://github.com/grafana/mcp-k6"
         }
       ],
       "api": {

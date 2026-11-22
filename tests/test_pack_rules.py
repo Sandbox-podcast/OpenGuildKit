@@ -5,7 +5,7 @@ import unittest
 
 from openguildkit.brains import brain_knowledge
 from openguildkit.catalog import load_catalog
-from openguildkit.project import render_instructions, rule_plan, validate_profile
+from openguildkit.project import render_instructions, resolved_profile, rule_plan, validate_profile
 from openguildkit.references import find_references, load_references, with_pattern_references
 
 REGULATORY_PACKS = ("gdpr", "nis2", "dora", "cyber-resilience-act", "eu-ai-act")
@@ -111,6 +111,15 @@ class PackRuleTests(unittest.TestCase):
                 title = record.get("title_en", record["title"])
                 with self.subTest(reference=record["id"]):
                     self.assertEqual(french_marks(title), [], title)
+
+    def test_the_device_lifecycle_pattern_poses_one_access_removal_rule(self):
+        profile = validate_profile({"name": "Team", "patterns": ["device-and-access-lifecycle"], "packs": []},
+                                   self.catalog)
+        packs = resolved_profile(profile, self.catalog)["packs"]
+        removal = [f"{pack_id}/{rule['id']}" for pack_id in packs for rule in self.catalog["packs"][pack_id]["rules"]
+                   if "access" in rule["id"] and ("remov" in rule["id"] or "depart" in rule["id"])]
+        self.assertEqual(removal, ["employee-offboarding/schedule-access-removal"])
+        self.assertIn("employee-offboarding", self.catalog["packs"]["device-and-access-lifecycle"]["depends_on"])
 
 
 if __name__ == "__main__":

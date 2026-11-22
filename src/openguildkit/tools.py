@@ -60,6 +60,7 @@ SERVER_FIELDS = {
 }
 SERVER_OPTIONAL = {
     "url", "command", "args", "package", "repository", "license", "settings", "access", "scopes", "pin", "read_only", "reviewed",
+    "status_source",
 }
 DETECT_FIELDS = {"files", "npm", "pypi"}
 
@@ -108,6 +109,8 @@ def _validate_server(server: object, label: str) -> None:
         raise CatalogError(f"{label}: verified is the date the source was read, YYYY-MM-DD")
     if "repository" in server:
         _https(server["repository"], f"{label} repository")
+    if "status_source" in server:
+        _https(server["status_source"], f"{label} status_source")
     if "license" in server:
         _text(server["license"], f"{label} license")
     if "reviewed" in server and (not isinstance(server["reviewed"], str) or not _DAY.fullmatch(server["reviewed"])):

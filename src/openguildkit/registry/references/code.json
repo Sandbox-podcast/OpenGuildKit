@@ -233,8 +233,8 @@
       "applies_when": "Pour les interfaces qui choisissent cette convention CSS ; ne pas l'imposer à toutes les stratégies de styles.",
       "sources": [
         {
-          "url": "https://getbem.com/naming/",
-          "checked": "2026-11-20",
+          "url": "https://getbem.com/naming",
+          "checked": "2026-11-22",
           "title": "BEM — Naming"
         }
       ]

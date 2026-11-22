@@ -261,7 +261,7 @@ The file name is the category, one of the 22 that `tools.py` admits: `issue-trac
 | `servers[].read_only` | Optional. The publisher's read-only mode: `how` (one line) and what selects it: `headers` (plain names and values, never a credential) or a read-only `url` with the same settings for a remote server; the full `args` (a `docker` command still names each `env` variable with `-e`) or `env`, plain values such as `{"MAILCHIMP_READ_ONLY": "true"}` for a local server that is not run by `docker`. `how` alone says the server only reads as registered: nothing to select. `--read-only` on `tools plan` and `tools apply` selects the mode, and prefers the tool's server that has one. |
 | `servers[].pin` | Optional. What the publisher says about versions, such as the image tags it documents. Whether the documented command pins a version is read from `args`. |
 | `servers[].settings` | `name` and `description` of each `{placeholder}` used in the `url` or the `args`, such as a subdomain. |
-| `servers[].status` | `ga`, `beta`, `preview`, `experimental` or `deprecated` as the publisher states it, `unknown` otherwise. |
+| `servers[].status`, `status_source` | `ga`, `beta`, `preview`, `experimental` or `deprecated` as the publisher states it, with `status_source`, the page where it says so (often the `source` itself); `unknown` otherwise, without `status_source`. A test refuses a known status without the page that states it. |
 | `servers[].source`, `verified` | The publisher's page or the server's repository where the endpoint or the command was read, and the day it was read. A directory site or a blog post is not a source. |
 | `api` | Optional. The tool's main public API: `kind` (`rest`, `graphql`, `other`) and `docs`. |
 

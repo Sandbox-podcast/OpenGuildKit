@@ -149,6 +149,28 @@
       "aliases": [
         "Toggl"
       ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://engineering.toggl.com/docs/track/"
+      },
+      "notes": "No MCP server is on record for Toggl Track: Toggl's MCP server (focus.toggl.com) is documented in the Toggl 2.0 knowledge base, which does not name Toggl Track, and is listed as the tool toggl-focus. Use the Toggl Track API v9."
+    },
+    {
+      "id": "toggl-focus",
+      "title": "Toggl 2.0 (Toggl Focus)",
+      "vendor": "Toggl",
+      "summary": "The Toggl product documented in the Toggl 2.0 knowledge base and served at focus.toggl.com, with tasks, time blocks and time entries.",
+      "homepage": "https://docs.toggl.com/",
+      "brains": [
+        "project-management",
+        "operations",
+        "finance"
+      ],
+      "aliases": [
+        "Toggl Focus",
+        "Toggl 2.0"
+      ],
       "servers": [
         {
           "id": "toggl-remote",
@@ -162,7 +184,7 @@
           "status": "unknown",
           "capabilities": "Tasks, projects, time entries (start, stop, create, update), time blocks, reports and workspace members.",
           "source": "https://docs.toggl.com/toggl-mcp-and-cl",
-          "verified": "2026-11-21",
+          "verified": "2026-11-22",
           "access": "Read and write."
         },
         {
@@ -185,15 +207,11 @@
           "status": "unknown",
           "capabilities": "Same tools as the remote server; browser sign-in, session stored locally.",
           "source": "https://docs.toggl.com/toggl-mcp-and-cl",
-          "verified": "2026-11-21",
+          "verified": "2026-11-22",
           "access": "Read and write."
         }
       ],
-      "api": {
-        "kind": "rest",
-        "docs": "https://engineering.toggl.com/docs/track/"
-      },
-      "notes": "The official server is documented in the 'Toggl 2.0' knowledge base and the docs do not say it reads Toggl Track accounts; a Toggl Track community thread still requested a Track MCP server in 2026. Confirm before recommending it to Track users; otherwise use the Track API v9."
+      "notes": "The docs page names neither Toggl Track nor Toggl Focus; the remote endpoint and the local configuration key ('toggl-focus') point to this product. It is not proposed for Toggl Track."
     }
   ]
 }

@@ -18,8 +18,8 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | engineering | 217 | 29 | 188 | 13 | 26 | 42 | 221 |
 | finance | 23 | 14 | 9 | 11 | 1 | 13 | 50 |
 | frontend | 8 | 3 | 5 | 2 | 0 | 4 | 19 |
-| hr | 10 | 7 | 3 | 6 | 0 | 6 | 22 |
-| it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 9 |
+| hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
+| it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 8 |
 | leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
 | legal | 56 | 23 | 33 | 18 | 1 | 21 | 137 |
 | localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
@@ -32,7 +32,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
 | qa | 50 | 8 | 42 | 6 | 20 | 30 | 157 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 103 | 27 | 76 | 19 | 17 | 43 | 251 |
+| security | 103 | 27 | 76 | 19 | 17 | 43 | 250 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -86,7 +86,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 ## Machine checks by pack
 
-23 of 461 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+23 of 460 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
@@ -109,7 +109,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | data-definitions | 3 | 0 | 0 |
 | deal-approval | 4 | 0 | 0 |
 | design-process | 2 | 0 | 0 |
-| device-and-access-lifecycle | 5 | 0 | 0 |
+| device-and-access-lifecycle | 4 | 0 | 0 |
 | django | 7 | 1 | 0 |
 | dora | 7 | 0 | 7 |
 | employee-offboarding | 4 | 0 | 0 |

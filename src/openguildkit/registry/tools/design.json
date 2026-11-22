@@ -218,8 +218,9 @@
           "source": "https://storybook.js.org/docs/ai/mcp/overview",
           "repository": "https://github.com/storybookjs/storybook",
           "license": "MIT",
-          "verified": "2026-11-21",
-          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given."
+          "verified": "2026-11-22",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given.",
+          "status_source": "https://storybook.js.org/docs/ai/mcp/overview"
         }
       ],
       "notes": "Installed as an addon (the command adds it to the project), then the agent connects to http://localhost:6006/mcp while Storybook runs; the port may differ. The docs toolset needs a supported framework (React, angular-vite, vue3-vite). Code moved from storybookjs/mcp (archived) into the storybook monorepo in v10.6. Add it with `npx storybook add @storybook/addon-mcp`; the endpoint answers while Storybook runs."

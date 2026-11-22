@@ -172,14 +172,15 @@
           "verified": "2026-11-21",
           "access": "Search and summarize Jira, Jira Service Management, Confluence, Bitbucket, Loom and more; create and update work items and pages. Every action respects the user's existing permissions, on all connected products.",
           "scopes": "OAuth 2.1 with the user's own Atlassian permissions; API token authentication is optional and set by an org admin. The page names no scope list.",
-          "reviewed": "2026-11-21"
+          "reviewed": "2026-11-21",
+          "status_source": "https://github.com/atlassian/atlassian-mcp-server"
         }
       ],
       "api": {
         "kind": "rest",
         "docs": "https://developer.atlassian.com/cloud/jira/platform/rest/v3/"
       },
-      "notes": "Atlassian Cloud only. API token auth (Basic email:token or Bearer service-account key) must first be enabled by an org admin under Atlassian Administration > Rovo > Rovo MCP server. v1 endpoints (https://mcp.atlassian.com/v1/mcp) still work but switch to v2 tools on 1 March 2027; the SSE endpoint /v1/sse was retired after 30 June 2026."
+      "notes": "Atlassian Cloud only. API token auth (Basic email:token or Bearer service-account key) must first be enabled by an org admin under Atlassian Administration > Rovo > Rovo MCP server. The source page says existing uses of v1 switch to the v2 tools on 1 March 2027; the repository README says the SSE endpoint https://mcp.atlassian.com/v1/sse is no longer supported after 30 June 2026."
     },
     {
       "id": "linear",
@@ -272,12 +273,12 @@
           "env": [
             "MONDAY_TOKEN"
           ],
-          "status": "beta",
+          "status": "unknown",
           "capabilities": "Board, item and column operations; optional dynamic GraphQL API tools (beta, off by default).",
           "source": "https://github.com/mondaycom/mcp",
           "repository": "https://github.com/mondaycom/mcp",
           "license": "MIT",
-          "verified": "2026-11-21",
+          "verified": "2026-11-22",
           "access": "Read and write."
         }
       ],

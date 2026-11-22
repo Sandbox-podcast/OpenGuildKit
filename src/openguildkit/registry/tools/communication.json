@@ -38,7 +38,8 @@
           "verified": "2026-11-21",
           "access": "Gmail messages, read and write (drafts, labels).",
           "scopes": "OAuth scopes under https://www.googleapis.com/auth/: gmail.readonly, gmail.compose, gmail.modify. Requires the Workspace Developer Preview Program and an OAuth client marked for an AI-powered agent.",
-          "reviewed": "2026-11-21"
+          "reviewed": "2026-11-21",
+          "status_source": "https://developers.google.com/workspace/guides/configure-mcp-servers"
         },
         {
           "id": "calendar-mcp",
@@ -55,7 +56,8 @@
           "verified": "2026-11-21",
           "access": "Calendars and events, read and write.",
           "scopes": "OAuth scopes under https://www.googleapis.com/auth/: calendar.calendarlist.readonly, calendar.events.freebusy, calendar.events.readonly, calendar.events. Requires the Workspace Developer Preview Program and an OAuth client marked for an AI-powered agent.",
-          "reviewed": "2026-11-21"
+          "reviewed": "2026-11-21",
+          "status_source": "https://developers.google.com/workspace/guides/configure-mcp-servers"
         },
         {
           "id": "drive-mcp",
@@ -72,7 +74,8 @@
           "verified": "2026-11-21",
           "access": "Drive files: read all the user can see, write the files the app opened or created.",
           "scopes": "OAuth scopes under https://www.googleapis.com/auth/: drive.readonly, drive.file. Requires the Workspace Developer Preview Program and an OAuth client marked for an AI-powered agent.",
-          "reviewed": "2026-11-21"
+          "reviewed": "2026-11-21",
+          "status_source": "https://developers.google.com/workspace/guides/configure-mcp-servers"
         },
         {
           "id": "workspace-universal-search-mcp",
@@ -92,7 +95,8 @@
           "read_only": {
             "how": "Every tool reads: the server asks only read-only scopes."
           },
-          "reviewed": "2026-11-21"
+          "reviewed": "2026-11-21",
+          "status_source": "https://developers.google.com/workspace/guides/configure-mcp-servers"
         }
       ],
       "api": {
@@ -134,9 +138,10 @@
           "status": "ga",
           "capabilities": "Single endpoint with generic tools to read, create, update and delete Microsoft 365 entities (mail, meetings, files, Teams chats, people); the retrieve tool is still in preview.",
           "source": "https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/work-iq",
-          "verified": "2026-11-21",
+          "verified": "2026-11-22",
           "access": "Read and write.",
-          "scopes": "api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask. Consent: Tenant-wide Entra administrator consent and delegated sign-in with the user's Microsoft 365 permissions."
+          "scopes": "api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask. Consent: Tenant-wide Entra administrator consent and delegated sign-in with the user's Microsoft 365 permissions.",
+          "status_source": "https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/work-iq"
         },
         {
           "id": "work-iq-cli",
@@ -160,8 +165,9 @@
           "capabilities": "Query emails, meetings, documents, Teams messages, people and business-app data from Microsoft 365 Copilot in natural language.",
           "source": "https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/work-iq/cli",
           "repository": "https://github.com/microsoft/work-iq-mcp",
-          "verified": "2026-11-21",
-          "access": "Read operations described; no enforced read-only mode is recorded."
+          "verified": "2026-11-22",
+          "access": "Read operations described; no enforced read-only mode is recorded.",
+          "status_source": "https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/work-iq/cli"
         }
       ],
       "api": {
@@ -202,7 +208,8 @@
           "verified": "2026-11-21",
           "access": "Microsoft 365 emails, meetings, files, chats and business-system data of the signed-in user, within that user's permissions; data may leave the Azure compliance boundary.",
           "scopes": "Delegated Microsoft Entra auth only, scope api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask; a Global Administrator provisions the Work IQ service principal and grants tenant-wide admin consent once; usage is billed in Copilot Credits.",
-          "reviewed": "2026-11-21"
+          "reviewed": "2026-11-21",
+          "status_source": "https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/work-iq"
         },
         {
           "id": "work-iq-cli",
@@ -229,7 +236,8 @@
           "verified": "2026-11-21",
           "access": "Emails, meetings, documents, Teams messages, people and business-application data the signed-in user can already view; nothing is stored by Work IQ.",
           "scopes": "Permissions that need administrative consent for the Work IQ application in the Microsoft Entra tenant, a Copilot Studio usage-based billing plan the user is assigned to, and acceptance of the EULA (workiq accept-eula).",
-          "reviewed": "2026-11-21"
+          "reviewed": "2026-11-21",
+          "status_source": "https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/work-iq/cli"
         }
       ],
       "api": {
