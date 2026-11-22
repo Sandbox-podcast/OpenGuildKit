@@ -119,7 +119,7 @@ A change that is not covered is reported, and fails in `enforce` mode; in `obser
 The template runs on `pull_request`, and GitHub runs the copy of the workflow file that the pull request carries: a pull request that edits `.github/workflows/openguildkit-guard.yml` can drop the step that judges it. `guard --ci` names a changed workflow file that runs `openguildkit guard --ci` (on the base revision or in the change), but an edited copy may never run it. Keep pull requests from changing the check:
 
 - list `.github/workflows/` in `.github/CODEOWNERS`, with the allowed signers file of a project with signed approvals, and require a review from the code owners in the branch protection or ruleset of the default branch;
-- or require the workflow itself from the default branch: a ruleset with the rule "Require workflows to pass before merging", naming this workflow file, runs that copy whatever the pull request contains.
+- or require the workflow itself from the default branch: an organization or enterprise ruleset with the rule "Require workflows to pass before merging", naming this workflow file, runs that copy whatever the pull request contains. The rule exists only at those levels, and the workflow must run on `pull_request` (and `merge_group` with a merge queue); see GitHub's [available rules for rulesets](https://docs.github.com/en/enterprise-cloud@latest/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets) (read on 2026-11-22).
 
 ## Try the hooks by hand
 
