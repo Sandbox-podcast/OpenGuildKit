@@ -30,7 +30,7 @@ from .brains import (
 )
 from .detect import components_for_profile, detect_stack, detected_project_name
 from .project_checks import propose_checks
-from .publishing import add_share, export_docs, project_overview, revoke_share, share_status
+from .publishing import add_share, export_docs, project_overview, revoke_share, same_access, share_status
 from . import profile_cli, tools_cli, webui
 from .tools import connected_tools, load_tools, tool_evidence_warnings
 from . import market_cli
@@ -212,8 +212,9 @@ def _parser() -> argparse.ArgumentParser:
     share.add_argument("share_action", choices=("add", "list", "revoke", "check"))
     share.add_argument("--deliverable", help="Page or folder shared (add).")
     share.add_argument("--recipient", action="append", default=[], help="Recipient email address (add, repeatable).")
-    share.add_argument("--until", help="Last day of access, YYYY-MM-DD (add).")
-    share.add_argument("--portal", help="https address of the Documentalist portal (add).")
+    share.add_argument("--until", help="Last day of access, YYYY-MM-DD: a reminder, Documentalist keeps no end date (add).")
+    share.add_argument("--portal", help="Address of the shared space's portal, https://HOST/p/SPACE; http only on this "
+                                        "machine (add).")
     share.add_argument("--id", dest="share_id", help="Share ID (revoke).")
     share.add_argument("--by", help="Owner of the share (add, revoke).")
     share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
@@ -1388,23 +1389,62 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
         if not (args.deliverable and args.until and args.portal and args.by):
             raise ValueError("docs share add needs --deliverable, --recipient, --until, --portal and --by.")
         share = add_share(state, args.deliverable, args.recipient, args.until, args.portal, args.by)
-        print(f"Share {share['id']} recorded. Invite the recipients in the portal's reader settings now, "
-              f"and remove their access on {share['until']}.")
+        _print_share_added(share)
+        for other in same_access(state, share, running=True):
+            for recipient in sorted(set(share["recipients"]) & set(other["recipients"])):
+                print(f"OpenGuildKit: {recipient} already has access to space {share['space']} through share {other['id']} "
+                      f"(until {other['until']}). Documentalist keeps one access per address and space: removing it there "
+                      "ends both shares, so revoke them together.", file=sys.stderr)
         return 0
     if args.share_action == "revoke":
         if not args.share_id or not args.by:
             raise ValueError("docs share revoke needs --id and --by.")
-        revoke_share(state, args.share_id, args.by)
+        share = revoke_share(state, args.share_id, args.by)
         print("revoked")
+        space = share["space"] or f"of the portal {share['portal']}"
+        print(f"\"Retirer l'accès\" in Documentalist removes an address from the whole space {space}, not only from "
+              f"{share['deliverable']}.")
+        others = same_access(state, share)
+        if others:
+            shared = sorted({recipient for other in others for recipient in other["recipients"]} & set(share["recipients"]))
+            print(f"Other shares give {', '.join(shared)} the same space: if you removed that access there, they lost it "
+                  "too. Record each one:")
+            for other in others:
+                print(f"  openguildkit docs share revoke --id {other['id']} --by NAME   "
+                      f"# {', '.join(other['recipients'])}, {other['deliverable']}, until {other['until']}")
         return 0
     rows = share_status(state)
     if args.json:
         _print_json(rows)
     else:
         for row in rows:
-            print(f"{row['id']} {row['deliverable']} until {row['until']} ({len(row['recipients'])} recipient(s)): {row['state']}")
+            _print_share_row(row)
     expired = [row for row in rows if row["state"].startswith("expired")]
     return 1 if args.share_action == "check" and expired else 0
+
+
+def _print_share_added(share: dict) -> None:
+    """Say what the recipients really get and that the end date is the owner's to keep."""
+    print(f"Share {share['id']} recorded. Its perimeter is the whole space {share['space']}: Documentalist shows the "
+          f"recipients every published page of that space, not only {share['deliverable']}. Publish the deliverable in a "
+          "space that holds only it, or hide the other pages.")
+    print("Invite the recipients now in that space's reader settings (magic link mode).")
+    print(f"Documentalist keeps no end date: the access lasts until you remove it. After {share['until']}, remove it there "
+          f"(\"Retirer l'accès\"), then run openguildkit docs share revoke --id {share['id']} --by NAME. "
+          "openguildkit docs share check lists it from the next day.")
+
+
+def _print_share_row(row: dict) -> None:
+    """One share with its perimeter and state; one past its last day says which access to remove and which to keep."""
+    space = row["space"] or "unknown: the portal address names no /p/SPACE"
+    print(f"{row['id']} {row['deliverable']} (whole space {space}) until {row['until']} "
+          f"({len(row['recipients'])} recipient(s)): {row['state']}")
+    for recipient in row["remove"]:
+        print(f"  remove {recipient} from space {space} in Documentalist (\"Retirer l'accès\")")
+    for recipient, other in sorted(row["kept"].items()):
+        print(f"  keep {recipient}: share {other['share']} gives the same space until {other['until']}")
+    if row["remove"]:
+        print(f"  then record it: openguildkit docs share revoke --id {row['id']} --by NAME")
 
 
 def _read_consultation(task: dict) -> dict:
