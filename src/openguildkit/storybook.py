@@ -18,9 +18,9 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from . import clock
+from .stack_versions import STORYBOOK_VERSION
 from .storage import json_text, project_lock, read_json, write_json, write_text
 
-STORYBOOK_VERSION = "10.6.6"
 RECORD = "storybook.json"
 REFS_FILE = "openguildkit-refs.json"
 PROJECT_REF = "project"

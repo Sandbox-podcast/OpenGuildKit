@@ -13,16 +13,22 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
+import subprocess
+import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import catalog
+from openguildkit import catalog, webui
+from openguildkit.__main__ import hook_call
 from openguildkit.cli import main
 from openguildkit.storage import write_json
 
-SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "bench.py"
+REPO = Path(__file__).resolve().parents[1]
+SCRIPT = REPO / "scripts" / "bench.py"
 spec = importlib.util.spec_from_file_location("openguildkit_bench", SCRIPT)
 bench = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bench)
@@ -107,6 +113,15 @@ class CatalogLoadTests(unittest.TestCase):
                 self.assertEqual(self.bundled_reads(*command), 1)
         self.assertEqual(self.bundled_reads("guard", "--hook", "pre-edit", stdin=hook, code=2), 1)
 
+    def test_the_edit_hook_reads_no_catalog_when_the_guard_is_off(self):
+        profile = {**json.loads((bench.EXAMPLE / "profile.json").read_text(encoding="utf-8")), "guard": "off"}
+        write_json(self.root / "profile.json", profile)
+        self.bundled_reads("init", "--answers", self.root / "profile.json")
+        hook = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(self.root / "app.py")}})
+        for event in ("pre-edit", "prompt"):
+            with self.subTest(event=event):
+                self.assertEqual(self.bundled_reads("guard", "--hook", event, stdin=hook), 0)
+
     def test_a_load_hands_out_its_own_copy(self):
         first = catalog.load_catalog()
         first["packs"].clear()
@@ -114,6 +129,74 @@ class CatalogLoadTests(unittest.TestCase):
         second = catalog.load_catalog()
         self.assertTrue(second["packs"])
         self.assertNotIn("Changed", [board["title"] for board in second["boards"].values()])
+
+
+def python(*arguments, stdin=""):
+    """Run a fresh interpreter on the source tree, as an installed command or a host hook starts."""
+    environment = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"),
+                                                                            os.environ.get("PYTHONPATH")]))}
+    return subprocess.run([sys.executable, *arguments], input=stdin, capture_output=True, text=True, encoding="utf-8",
+                          env=environment, timeout=300)
+
+
+def imported(importtime: str) -> set[str]:
+    """The modules that python -X importtime reports, from its lines on stderr."""
+    return {line.rpartition("|")[2].strip() for line in importtime.splitlines()
+            if line.startswith("import time:") and "imported package" not in line}
+
+
+class StartupTests(unittest.TestCase):
+    """What a command loads before it runs: the web server and the rarely used modules wait for their command, and
+    the edit hook, which runs before every edit an agent makes, skips the CLI."""
+
+    def test_importing_the_cli_leaves_out_the_web_server_storybook_and_deliverables(self):
+        result = python("-X", "importtime", "-c", "import openguildkit.cli")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        loaded = imported(result.stderr)
+        self.assertIn("openguildkit.cli", loaded)
+        for module in ("openguildkit.webui", "http.server", "openguildkit.storybook", "openguildkit.deliverables"):
+            with self.subTest(module=module):
+                self.assertNotIn(module, loaded)
+
+    def test_ui_help_gives_the_default_port_of_the_server(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            main(["ui", "--help"])
+        self.assertEqual(webui.DEFAULT_PORT, 7311)
+        self.assertIn(f"default {webui.DEFAULT_PORT};", " ".join(output.getvalue().split()))
+
+    def test_the_edit_hook_runs_without_importing_the_cli(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            profile = {**json.loads((bench.EXAMPLE / "profile.json").read_text(encoding="utf-8")), "guard": "enforce"}
+            write_json(root / "profile.json", profile)
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(main(["--project", str(root), "init", "--answers", str(root / "profile.json")]), 0)
+            hook = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(root / "app.py")}})
+            result = python("-X", "importtime", "-m", "openguildkit", "--project", str(root), "guard", "--hook",
+                            "pre-edit", stdin=hook)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("Edit refused for: app.py", result.stderr)
+        loaded = imported(result.stderr)
+        self.assertIn("openguildkit.guard", loaded)
+        self.assertNotIn("openguildkit.cli", loaded)
+
+    def test_only_a_plain_hook_call_skips_the_cli(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.assertEqual(hook_call(["guard", "--hook", "pre-edit"]), ("pre-edit", None))
+            self.assertEqual(hook_call(["--project", folder, "guard", "--hook=prompt"]), ("prompt", Path(folder)))
+            self.assertEqual(hook_call([f"--project={folder}", "guard", "--hook", "prompt"]), ("prompt", Path(folder)))
+            # Anything else goes to cli.main, which parses it and words its own errors.
+            for arguments in (["guard", "--hook", "post-edit"], ["guard", "--hook", "pre-edit", "--json"],
+                              ["guard", "--hook"], ["guard", "--ci"], ["--policy-repo", folder, "guard", "--hook", "prompt"],
+                              ["--project", str(Path(folder) / "missing"), "guard", "--hook", "pre-edit"],
+                              ["--project", "--version", "guard", "--hook", "pre-edit"], ["--version"], []):
+                with self.subTest(arguments=arguments):
+                    self.assertIsNone(hook_call(arguments))
+
+    def test_the_installed_command_starts_from_the_same_entry_point_as_python_m(self):
+        project = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
+        self.assertEqual(project["project"]["scripts"]["openguildkit"], "openguildkit.__main__:main")
 
 
 if __name__ == "__main__":

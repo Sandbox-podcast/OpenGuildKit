@@ -19,7 +19,7 @@ classifiers = [
 ]
 
 [project.scripts]
-openguildkit = "openguildkit.cli:main"
+openguildkit = "openguildkit.__main__:main"
 
 [project.urls]
 Repository = "https://github.com/Sandbox-podcast/OpenGuildKit"

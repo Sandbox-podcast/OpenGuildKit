@@ -6,6 +6,7 @@ import os
 import re
 import sys
 from contextlib import contextmanager
+from importlib import import_module
 from pathlib import Path
 
 from .catalog import load_catalog, undated_sources
@@ -24,25 +25,21 @@ from .decisions import (
 )
 from . import alerts_cli
 from .alerts import blocking_alerts, load_register
-from .deliverables import draft_problems, launch_notice, load_deliverables, new_draft, project_path, utm_link
 from .brains import (
     brain_knowledge, brief_knowledge, consultation_context, knowledge_gaps, reading_list_note, write_brain_skeleton,
 )
 from .detect import components_for_profile, detect_stack, detected_project_name
+from .stack_versions import STORYBOOK_VERSION
 from .project_checks import propose_checks
-from .publishing import add_share, export_docs, project_overview, revoke_share, share_status
-from . import profile_cli, tools_cli, webui
+from . import profile_cli, tools_cli
 from .tools import connected_tools, load_tools, tool_evidence_warnings
 from . import market_cli
 from .market import load_dossier
 from .market import scope_entry as market_scope_entry
-from .storybook import STORYBOOK_VERSION
-from .storybook import run as storybook_command
-from .storybook import scope_entry as storybook_scope_entry
 from .integrations import OTHER_HOST_NOTE, install_agent_files
 from .guard import (
     NO_TASK, SCOPE_NOTE, STALE_DAYS, ci_guard, covering_approvals, export_decision, exported_decisions, guard_mode,
-    record_of_another_task, run_hook,
+    hook_command, record_of_another_task,
 )
 from .relevance import changed_files, pack_relevance
 from .results import (
@@ -91,7 +88,6 @@ from .project import (
 )
 from .tools import HOSTS as TOOL_HOSTS
 from .tools import detect_tools, load_tools, match_tools
-from .references import english_title, find_references, load_references, with_pattern_references
 from .sensitive import input_warnings, redact_credentials, redact_data
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import (
@@ -126,6 +122,31 @@ from .tasks import (
     task_path,
 )
 from .workflow import RESOLUTION_RULE, trigger_matches, blocker_list, board_brief, challenge_report, decision_summary, deliberation_request, handoff, is_decision_task, open_points, pending_removals, select_boards, task_questions, validate_answers, validate_review, verdict_lines, review_lines, pack_rules
+
+
+def _on_first_call(module: str, name: str):
+    """A function of a module that few commands use, imported when it is first called, so that the other commands
+    start without that module (the web server alone added about 30 ms to every command, the edit hook included)."""
+    def call(*args, **kwargs):
+        return getattr(import_module(f"{__package__}.{module}"), name)(*args, **kwargs)
+
+    call.__name__ = call.__qualname__ = name
+    return call
+
+
+draft_problems, launch_notice, load_deliverables, new_draft, project_path, utm_link = (
+    _on_first_call("deliverables", name)
+    for name in ("draft_problems", "launch_notice", "load_deliverables", "new_draft", "project_path", "utm_link"))
+add_share, export_docs, project_overview, revoke_share, share_status = (
+    _on_first_call("publishing", name)
+    for name in ("add_share", "export_docs", "project_overview", "revoke_share", "share_status"))
+english_title, find_references, load_references, with_pattern_references = (
+    _on_first_call("references", name)
+    for name in ("english_title", "find_references", "load_references", "with_pattern_references"))
+storybook_command, storybook_scope_entry = (_on_first_call("storybook", name) for name in ("run", "scope_entry"))
+# The port of openguildkit ui, here so that the help does not import the web server; webui.DEFAULT_PORT is the
+# same number (tests/test_performance.py compares the help with it).
+UI_PORT = 7311
 
 
 class _Version(argparse.Action):
@@ -281,7 +302,7 @@ def _parser() -> argparse.ArgumentParser:
     update.add_argument("--json", action="store_true", help="Print the changes as JSON.")
     commands.add_parser("check", help="Check that the instructions match the project profile.")
     ui = commands.add_parser("ui", help="Open the web interface of this project on 127.0.0.1.")
-    ui.add_argument("--port", type=int, default=webui.DEFAULT_PORT, help=f"Port (default {webui.DEFAULT_PORT}; 0 picks a free one).")
+    ui.add_argument("--port", type=int, default=UI_PORT, help=f"Port (default {UI_PORT}; 0 picks a free one).")
     ui.add_argument("--no-browser", action="store_true", help="Print the address without opening a browser.")
     ui.add_argument("--static", type=Path, help="Folder of a built front end (default: the one installed with the package).")
     ci = commands.add_parser("ci-check", help="Evaluate the central export rule on an exact Git commit.")
@@ -1264,24 +1285,12 @@ def _selection(args) -> dict:
 
 
 def _guard_hook(args) -> int:
-    """Run as a host hook: in enforce mode, an edit the guard cannot check is refused."""
-    try:
-        raw = "" if sys.stdin.isatty() else sys.stdin.read()
-    except (OSError, UnicodeError):
-        raw = None
+    """Run as a host hook: in enforce mode, an edit the guard cannot check is refused.
 
-    def load():
-        root = project_root(args.project)
-        state = state_path(root)
-        catalog = _load_project_catalog(args, state)
-        return root, state, load_profile(state, catalog), catalog
-
-    code, out, err = run_hook(args.hook, raw, args.project, load)
-    if out:
-        print(out)
-    if err:
-        print(err, file=sys.stderr)
-    return code
+    Hosts reach guard.hook_command through __main__ without this module; this path serves --policy-repo and the
+    tests that call main().
+    """
+    return hook_command(args.hook, args.project, lambda state: _load_project_catalog(args, state))
 
 
 def _guard(args, root: Path, state: Path) -> int:
@@ -2257,6 +2266,8 @@ def _run(args) -> int | None:
     if args.command == "guard":
         return _guard(args, root, state)
     if args.command == "ui":
+        from . import webui  # Only this command serves pages; every other one starts without the web server.
+
         return webui.serve(root, args.port, args.static, not args.no_browser)
     catalog = _load_project_catalog(args, state)
     if args.command == "references":
