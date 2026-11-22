@@ -71,6 +71,7 @@ async function audit(page: Page) {
       roles: [...document.querySelectorAll('main section[role]')].filter((el) => !SECTION_ROLES.includes(el.getAttribute('role') ?? '')).map(short),
       targets,
       labelled,
+      demo: document.querySelectorAll('a[href*="demo=1"]').length,
       h1: document.querySelectorAll('main h1').length,
       unnamed,
       duplicateIds: [...new Set(ids)],
@@ -132,6 +133,7 @@ for (const [label, viewport, mode] of VARIANTS) {
       await settle(page, () => inflight);
       const a = await audit(page);
       if (a.h1 !== 1) problems.push(`${route}: ${a.h1} h1`);
+      if (a.demo) problems.push(`${route}: links the demo, which the product page does not ship`);
       if (a.unnamed.length) problems.push(`${route}: unnamed ${a.unnamed.join(' | ')}`);
       if (a.duplicateIds.length) problems.push(`${route}: duplicate ids ${a.duplicateIds.join(', ')}`);
       if (a.overflow > 1) problems.push(`${route}: scrolls sideways by ${a.overflow}px`);

@@ -89,7 +89,7 @@ function Interface() {
         <label className="row small pref-check"><input type="checkbox" checked={prefs.motion === 'reduced'} onChange={(e) => setPrefs({ motion: e.target.checked ? 'reduced' : 'system' })} /> Mouvement réduit</label>
         <label className="row small pref-check"><input type="checkbox" checked={single} onChange={(e) => setSingleKeyShortcuts(e.target.checked)} /> Raccourcis à une touche : <kbd>/</kbd> recherche, <kbd>g</kbd> puis une lettre change de lieu, <kbd>m</kbd> change de style</label>
         <p className="tiny muted"><kbd>Ctrl</kbd> + <kbd>K</kbd> ouvre la recherche dans tous les cas. Le choix est gardé dans ce navigateur.</p>
-        <p className="small">OpenGuildKit {session?.version}. <a href="./?demo=1" target="_blank" rel="noopener">Ouvrir la démonstration Atelier Nova</a> (données fictives, dans ce navigateur seulement).</p>
+        <p className="small">OpenGuildKit {session?.version}.</p>
       </Panel>
     </div>
   );

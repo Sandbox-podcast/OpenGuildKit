@@ -141,7 +141,6 @@ export function ProjectShell({ children }: { children: ReactNode }) {
           </ul>
         </div>)}
         <span className="nav-room-note" role="note"><Icon name="shield" size={13} /> OpenGuildKit {session?.version} · 127.0.0.1</span>
-        <a className="guide-link" href="./?demo=1" target="_blank" rel="noopener"><Icon name="dice" size={16} /> <span className="nav-text">Ouvrir la démo Atelier Nova</span></a>
       </nav>
 
       <main id="main" tabIndex={-1} className="main" inert={navOpen}>
