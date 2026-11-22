@@ -572,13 +572,22 @@ def _sharing_warnings(root: Path, state: Path, records: list[dict]) -> list[str]
 
 
 def _id_clashes(root: Path, state: Path) -> dict[str, str]:
-    """Local tasks whose ID an exported record of another task uses, such as a teammate's taken in a merge."""
+    """Local tasks whose ID an exported record of another task uses, such as a teammate's taken in a merge.
+
+    Only the tasks that share an ID with an exported record are read, so a project with many tasks and few
+    records lists its tasks as fast as before.
+    """
     clashes = {}
-    for row in list_tasks(state):
-        if row["status"] != "unreadable":
-            path = record_of_another_task(state, read_task(state, row["id"]))
-            if path is not None:
-                clashes[row["id"]] = path.relative_to(root).as_posix()
+    for record in sorted((state / DECISIONS_DIR).glob("*.json")):
+        try:
+            if not task_path(state, record.stem).is_file():
+                continue
+            task = read_task(state, record.stem)
+        except ValueError:
+            continue
+        path = record_of_another_task(state, task)
+        if path is not None:
+            clashes[record.stem] = path.relative_to(root).as_posix()
     return clashes
 
 
