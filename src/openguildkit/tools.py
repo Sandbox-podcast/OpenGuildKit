@@ -245,13 +245,38 @@ def _endpoint(server: dict) -> tuple:
     return (server["transport"], server.get("url"), server.get("command"), tuple(server.get("args", [])))
 
 
+PROJECT_ORIGIN = "project"
+PROJECT_TOOLS = ".openguildkit/catalog/tools/"
+
+
+def tool_names(tool: dict) -> list[str]:
+    """Every name a person may type for a tool: its ID, its title with and without the vendor, and its aliases."""
+    return [tool["id"], tool["title"], f"{tool['vendor']} {tool['title']}", *tool.get("aliases", [])]
+
+
+def _check_project_names(tool: dict, bundled: dict[str, str], tools: dict) -> None:
+    """Refuse a project tool that takes the name of a bundled one: the person would install it by typing that name."""
+    for name in tool_names(tool):
+        taken = bundled.get(_key(name))
+        if taken is not None:
+            raise CatalogError(
+                f"tool {tool['id']}: the name {name!r} is the bundled tool {taken} ({tools[taken]['title']}). "
+                "A tool of the project catalog takes a name of its own, so that typing a bundled tool's name never "
+                "selects it.")
+
+
 def load_tools(extra_dir: Path | None = None) -> dict[str, dict]:
-    """Every known tool by ID, with its category. A project can add its own in .openguildkit/catalog/tools/."""
+    """Every known tool by ID, with its category. A project can add its own in .openguildkit/catalog/tools/.
+
+    A project tool is marked with its origin and may not take a bundled tool's ID, title or alias.
+    """
     roots = [package_file("registry", "tools")]
     if extra_dir is not None and extra_dir.is_dir():
         roots.append(extra_dir)
-    tools, endpoints = {}, {}
-    for root in roots:
+    tools, endpoints, bundled = {}, {}, {}
+    for from_project, root in enumerate(roots):
+        if from_project:
+            bundled = {_key(name): tool["id"] for tool in tools.values() for name in tool_names(tool)}
         for path in sorted(root.iterdir(), key=lambda item: item.name):
             if not path.name.endswith(".json"):
                 continue
@@ -268,11 +293,13 @@ def load_tools(extra_dir: Path | None = None) -> dict[str, dict]:
                     _validate_tool(tool, record["id"])
                     if tool["id"] in tools:
                         raise CatalogError(f"tool {tool['id']} is already defined")
+                    if from_project:
+                        _check_project_names(tool, bundled, tools)
                     for server in tool["servers"]:
                         known = endpoints.setdefault(server["id"], _endpoint(server))
                         if known != _endpoint(server):
                             raise CatalogError(f"server {server['id']} has two different endpoints")
-                    tools[tool["id"]] = {**tool, "category": record["id"]}
+                    tools[tool["id"]] = {**tool, "category": record["id"], **({"origin": PROJECT_ORIGIN} if from_project else {})}
             except (OSError, ValueError) as error:
                 raise CatalogError(f"{path}: {error}") from error
     return dict(sorted(tools.items()))
@@ -391,7 +418,7 @@ def match_tools(names: list[str], tools: dict) -> tuple[list[str], list[str]]:
     """Resolve the tool names a team wrote ("Jira Cloud", "github") to registry IDs."""
     index = {}
     for tool in tools.values():
-        for name in (tool["id"], tool["title"], f"{tool['vendor']} {tool['title']}", *tool.get("aliases", [])):
+        for name in tool_names(tool):
             index.setdefault(_key(name), tool["id"])
     matched, unknown = [], []
     for name in names:
@@ -679,15 +706,16 @@ def plan_connections(
             continue
         server_id = server_id.strip().casefold()
         tool = tools[tool_id]
+        origin = {"origin": PROJECT_ORIGIN} if tool.get("origin") == PROJECT_ORIGIN else {}
         if mock:
             if tool_id not in mocks:
                 plan.append({"tool": tool_id, "title": tool["title"], "mode": "mock",
-                             "skipped": "No mock is available for this tool."})
+                             "skipped": "No mock is available for this tool.", **origin})
                 continue
             plan.append({
                 "tool": tool_id, "title": tool["title"], "server": "mock", "key": tool_id, "mode": "mock",
                 "transport": "stdio", "needs": {"env": [], "settings": []}, "warnings": [],
-                "steps": ["Synthetic data only: no account, no network."], "entry": mock_entry(host, tool_id, log),
+                "steps": ["Synthetic data only: no account, no network."], "entry": mock_entry(host, tool_id, log), **origin,
             })
             continue
         server = choose_server(tool, server_id or None, community, read_only=read_only)
@@ -695,10 +723,11 @@ def plan_connections(
             reason = "It has no MCP server on record." if not tool["servers"] else (
                 "Its only servers are community-maintained: review their source, then pass --community.")
             plan.append({"tool": tool_id, "title": tool["title"], "mode": "live", "skipped": reason + (
-                f" API: {tool['api']['docs']}" if "api" in tool else "")})
+                f" API: {tool['api']['docs']}" if "api" in tool else ""), **origin})
             continue
         if server["id"] in by_key:
             _cover(by_key[server["id"]], tool, server)
+            by_key[server["id"]].update(origin)
             continue
         label = f"{tool_id}/{server['id']}"
         filled, missing = _settings(server, settings.get(tool_id, {}), label)
@@ -744,7 +773,7 @@ def plan_connections(
             "needs": {"env": list(server["env"]) + ([bearer] if bearer else []), "settings": missing},
             "settings": filled, "warnings": warnings, "steps": steps, "review": facts,
             "read_only": bool(read_only and "read_only" in server),
-            "entry": host_entry(host, server, filled, bearer),
+            "entry": host_entry(host, server, filled, bearer), **origin,
         }
         if bearer:
             item["token_env"] = bearer

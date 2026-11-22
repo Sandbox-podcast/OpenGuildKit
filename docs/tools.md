@@ -239,7 +239,7 @@ The Obscura mock returns the snapshot of a fictional page, so a QA rehearsal run
 
 ## Adding a tool
 
-A project adds its own tools, for example an internal MCP server, in `.openguildkit/catalog/tools/CATEGORY.json`, with the same format as the bundled files in `src/openguildkit/registry/tools/`. A project entry cannot redefine a bundled tool.
+A project adds its own tools, for example an internal MCP server, in `.openguildkit/catalog/tools/CATEGORY.json`, with the same format as the bundled files in `src/openguildkit/registry/tools/`. A project entry cannot redefine a bundled tool or take one of its names (ID, title or alias): typing a bundled tool's name always selects the bundled record. `tools plan` and `tools apply` mark a project tool `[project catalog]` and say that its facts and its command are the team's own, not verified by OpenGuildKit.
 
 To contribute to the bundled registry, read [catalog-format.md](catalog-format.md#tools). Every fact comes from the publisher's own documentation or the server's repository, opened on the date written in `verified`. A directory site or a blog post is not a source.
 

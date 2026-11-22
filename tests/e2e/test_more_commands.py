@@ -72,13 +72,19 @@ class DeliberationCommandTests(ReviewedTaskTestCase):
 
 
 class BlockerCommandTests(ReviewedTaskTestCase):
-    @unittest.skipUnless(shutil.which("ssh-keygen"), "needs ssh-keygen")
+    @unittest.skipUnless(shutil.which("ssh-keygen") and shutil.which("git"), "needs ssh-keygen and git")
     def test_signed_verification_blockers_are_reported_and_clear_with_the_named_signature(self):
         principal = "camille@example.org"
         key = self.project / "synthetic-test-key"
         subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True)
         allowed = self.project / "allowed_signers"
         allowed.write_text(f"{principal} {key.with_suffix('.pub').read_text(encoding='utf-8')}", encoding="utf-8")
+        # Signatures are verified against the allowed signers file as Git holds it at HEAD.
+        identity = {"GIT_AUTHOR_NAME": "Test", "GIT_AUTHOR_EMAIL": "test@example.test",
+                    "GIT_COMMITTER_NAME": "Test", "GIT_COMMITTER_EMAIL": "test@example.test"}
+        for args in (("init", "-q"), ("add", allowed.name), ("commit", "-q", "-m", "signers")):
+            subprocess.run(["git", "-C", str(self.project), *args], check=True, capture_output=True,
+                           env={**os.environ, **identity})
 
         profile = json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8"))
         profile.update(checks=[], approval={"mode": "signed", "allowed_signers": allowed.name, "approvers": [principal]})

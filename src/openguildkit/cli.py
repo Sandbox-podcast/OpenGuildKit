@@ -181,6 +181,8 @@ def _parser() -> argparse.ArgumentParser:
     guard_mode.add_argument("--hook", choices=("prompt", "pre-edit"), help="Run as a host hook; reads the hook input on stdin.")
     guard_mode.add_argument("--ci", action="store_true", help="Check the decisions exported for the changes since --base.")
     guard.add_argument("--base", default="origin/main", help="Base revision for --ci (default origin/main).")
+    guard.add_argument("--require-signed", action="store_true",
+                       help="With --ci, fail while the base revision's approvals are local and cannot be verified.")
     guard.add_argument("--json", action="store_true", help="Print the result as JSON.")
     deliverable = commands.add_parser("deliverable", help="Start and check a business deliverable from an approved task.")
     deliverable_actions = deliverable.add_subparsers(dest="deliverable_action", required=True)
@@ -1287,15 +1289,21 @@ def _guard_hook(args) -> int:
 
 def _guard(args, root: Path, state: Path) -> int:
     if args.ci:
-        result = ci_guard(root, args.base, lambda base_state: _load_project_catalog(args, base_state))
+        result = ci_guard(root, args.base, lambda base_state: _load_project_catalog(args, base_state),
+                          require_signed=args.require_signed)
         if args.json:
             _print_json(result)
         else:
             print(f"Guard mode on {args.base}: {result['mode']}. {result['changed']} changed file(s).")
             for task_id in result["decisions"]:
-                print(f"  Covered by the decision of task {task_id} (.openguildkit/decisions/{task_id}.json).")
+                # A valid record covers the change only when nothing else is wrong, such as a file it does not list.
+                where = f".openguildkit/decisions/{task_id}.json"
+                print(f"  Covered by the decision of task {task_id} ({where})." if result["ok"]
+                      else f"  Valid decision of task {task_id} ({where}), but the check fails:")
             for problem in result["problems"]:
                 print(f"  {problem}")
+            for note in result["notes"]:
+                print(f"  Note: {note}")
             if not result["ok"] and result["mode"] != "enforce":
                 print(f"  Flagged, not blocking. Not enforced: the guard mode of {args.base} is {result['mode']}, so "
                       "this job passes; set \"guard\": \"enforce\" in the profile to fail it.")
@@ -2062,7 +2070,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             _print_closing(result, listed=bool(args.by))
             exported = (state / DECISIONS_DIR / f"{args.id}.json").is_file()
             print(f"OpenGuildKit: {'export the decision record again' if exported else 'export the decision record'} "
-                  f"so it says the task is completed, and commit it: openguildkit task export {args.id}", file=sys.stderr)
+                  f"so it says the task is completed, and commit it: openguildkit task export {args.id}. guard --ci "
+                  "accepts it with the work, or in a pull request of its own once the approval's record is merged: the "
+                  "same approval, with its completion added.", file=sys.stderr)
             return
         for line in notes:
             print(line)
@@ -2107,8 +2117,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
         path = export_decision(root, state, task, profile, args.output).resolve()
         print(path.relative_to(root).as_posix() if root in path.parents else str(path))
         if "completed_at" not in task:
-            print(f"OpenGuildKit: task {args.id} is not completed yet and the record says so. Export it again after "
-                  "task complete, and commit it.", file=sys.stderr)
+            print(f"OpenGuildKit: task {args.id} is not completed yet and the record says so. It lists the files Git "
+                  "tracks that changed since the approval, which guard --ci compares with the pull request: export it "
+                  "again once the work is committed, and after task complete, and commit it.", file=sys.stderr)
     elif action == "deliberate":
         _print_json(deliberation_request(task))
     elif action == "respond":

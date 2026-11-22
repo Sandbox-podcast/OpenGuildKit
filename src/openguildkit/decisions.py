@@ -132,18 +132,50 @@ def approval_policy(profile: dict) -> dict:
     return profile.get("approval") or {"mode": "local"}
 
 
-def verify_signature(root: Path, policy: dict, payload: dict, signature: str, signer: str) -> None:
-    """Check an SSH signature of the decision against the project's allowed signers."""
+def committed_signers(root: Path, relative: str) -> str:
+    """The allowed signers file as Git holds it at HEAD, so that a key added to the working copy signs nothing.
+
+    Refused, naming the file, outside a Git repository, when Git does not track the file, or when the working copy
+    differs from HEAD: who may approve changes through a commit a person reviews.
+    """
+    shown = f"The allowed signers file {relative}"
+    retry = "Have the person review and commit it, then sign again."
+    inside = _git(root, "rev-parse", "--is-inside-work-tree")
+    if inside is None or inside.returncode or inside.stdout.strip() != "true":
+        raise ValueError(f"{shown} is verified as Git holds it at HEAD, and the project is not in a Git repository. "
+                         "Signed approvals need the project and this file in Git.")
+    tracked = _git(root, "ls-files", "--error-unmatch", "--", relative)
+    committed = _git(root, "show", f"HEAD:./{relative}")
+    if tracked.returncode or committed.returncode:
+        raise ValueError(f"{shown} is not committed: a signature is verified against its version at HEAD. {retry}")
+    changed = _git(root, "diff", "--quiet", "HEAD", "--", relative)
+    if changed.returncode:
+        raise ValueError(f"{shown} differs from its version at HEAD (git diff HEAD -- {relative}): a signature is "
+                         f"verified against the committed file, never against a working copy. {retry}")
+    return committed.stdout
+
+
+def verify_signature(root: Path, policy: dict, payload: dict, signature: str, signer: str, *,
+                     committed: bool = True) -> None:
+    """Check an SSH signature of the decision against the project's allowed signers.
+
+    The signers come from HEAD (committed_signers). committed=False reads the file as it is in root, for a copy
+    already extracted from a Git revision, such as the base revision CI reads.
+    """
     if signer not in policy["approvers"]:
         raise ValueError(f"{signer} is not an approver for this project. Approvers: {', '.join(policy['approvers'])}.")
     allowed = (root / policy["allowed_signers"]).resolve()
     if not allowed.is_file() or root.resolve() not in allowed.parents:
         raise ValueError(f"The allowed signers file {policy['allowed_signers']} is missing from the project.")
+    signers = committed_signers(root, Path(policy["allowed_signers"]).as_posix()) if committed else None
     if shutil.which("ssh-keygen") is None:
         raise ValueError("Verifying a signed approval needs ssh-keygen (OpenSSH 8.1 or later).")
     with tempfile.TemporaryDirectory() as directory:
         signature_path = Path(directory) / "decision.sig"
         signature_path.write_text(signature, encoding="utf-8")
+        if signers is not None:
+            allowed = Path(directory) / "allowed_signers"
+            allowed.write_text(signers, encoding="utf-8")
         result = subprocess.run(
             ["ssh-keygen", "-Y", "verify", "-f", str(allowed), "-I", signer, "-n", NAMESPACE, "-s", str(signature_path)],
             input=payload_text(payload).encode("utf-8"), capture_output=True, check=False,
