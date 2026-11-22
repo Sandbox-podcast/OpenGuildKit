@@ -2488,7 +2488,7 @@ def _run(args) -> int | None:
             records = exported_decisions(root, state, profile, fingerprint)
             failing += [row["problem"]["message"] for row in records
                         if row["problem"] and row["problem"]["severity"] == "error"]
-            for line in failing:
+            for line in failing + board_replacements(catalog):
                 print(f"OpenGuildKit: {line}", file=sys.stderr)
             live, bundled = _installed_catalog(args, state)
             lock = read_lock(state)
