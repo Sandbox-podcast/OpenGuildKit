@@ -354,6 +354,8 @@ def _parser() -> argparse.ArgumentParser:
             source.add_argument("--summary", help="Assemble the review from completed board passes with this summary.")
         if action == "pass":
             command.add_argument("board", help="Board ID.")
+            command.add_argument("--again", action="store_true",
+                                 help="Redo a pass whose entry is already submitted; the entry is replaced at the next submit.")
         if action == "brief":
             shown = command.add_mutually_exclusive_group()
             shown.add_argument("--board", help="Print this board's pass again without starting it.")
@@ -2108,7 +2110,8 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             current_task = read_task(state, args.id)
             if action == "pass":
                 board_brief_problem(current_task, args.board)
-                result = start_pass(current_task, args.board, args.mode or "sequential")
+                result = start_pass(current_task, args.board, args.mode or "sequential", args.again)
+                submitted = result.pop("_submitted", False)
             else:
                 with _input_file(args.file):
                     result = submit_pass(current_task, entry, args.mode, root)
@@ -2116,6 +2119,9 @@ def _task_command(args, root: Path, state: Path, profile: dict, catalog: dict) -
             write_json(task_path(state, args.id), result)
         if action == "pass":
             print(board_brief(result["consultation"], args.board))
+            if submitted:
+                print(f"The {args.board} pass is already submitted; to redo it on purpose, run openguildkit task pass "
+                      f"{args.id} {args.board} --again. This copy is for reading only.", file=sys.stderr)
         elif error:
             raise ValueError(f"{args.file.as_posix()}: the pass is recorded as failed. {error}\nFix these points in the "
                              f"file and send it again: openguildkit task submit {args.id} --file {args.file.as_posix()}")

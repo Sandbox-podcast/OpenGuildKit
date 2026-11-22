@@ -165,7 +165,7 @@ class TaskInputTests(unittest.TestCase):
         write_json(self.root / "review.json", review)
         _, error = self.run_cli("task", "review", TASK, "--file", self.root / "review.json", code=1)
         board = review["boards"][0]["id"]
-        self.assertIn(f"{board}.open_questions[{len(review['boards'][0]['open_questions']) - 1}]: contains what looks like "
+        self.assertIn(f"{board}.open_questions[{len(review['boards'][0]['open_questions'])}]: contains what looks like "
                       "a Slack token", error)
         self.assertNotIn(token, error)
 

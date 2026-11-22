@@ -521,15 +521,17 @@ def _passes(task: dict) -> dict:
     return {"consultation_id": passes["consultation_id"], "boards": dict(passes["boards"])}
 
 
-def start_pass(task: dict, board_id: str, mode: str) -> dict:
-    """Mark a board's pass as started. Starting again after a failed or done pass counts a new attempt;
-    printing a pass that is already started does not."""
+def start_pass(task: dict, board_id: str, mode: str, again: bool = False) -> dict:
+    """Mark a board's pass as started. A done pass is only printed, unless again asks to redo it; starting again
+    after a failed or done pass counts a new attempt, printing a pass that is already started does not."""
     passes = _passes(task)
     if board_id not in task["consultation"]["boards"]:
         raise ValueError(f"Board {board_id!r} is not part of this consultation.")
     if mode not in ("subagent", "sequential"):
         raise ValueError("A pass runs as a subagent or in sequence.")
     previous = passes["boards"].get(board_id, {})
+    if previous.get("status") == "done" and not again:
+        return {**task, "passes": passes, "_submitted": True}
     if previous.get("status") == "started" and previous.get("mode") == mode:
         return {**task, "passes": passes}
     passes["boards"][board_id] = {"status": "started", "mode": mode, "started_at": timestamp(),

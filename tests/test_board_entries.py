@@ -77,6 +77,23 @@ class EntryValidationTests(unittest.TestCase):
         self.assertEqual(message.count("blockers[0]"), 1, message)
         self.assertIn("security.challenge.blockers[0]: missing clears_when, owner.", message)
 
+    def test_a_bad_evidence_ref_is_reported_once_counted_from_one(self):
+        entry = copy.deepcopy(example_entries()["security"])
+        entry["evidence"][0] = {"source": "public", "ref": "https://example.com/x?token=ghp_" + "a" * 36,
+                                "supports": "A page.", "date": "2026-11-20"}
+        with self.assertRaises(ValueError) as raised:
+            validate_board_entry(self.consultation, entry, Path(__file__).resolve().parents[1])
+        message = str(raised.exception)
+        self.assertNotIn("evidence[0]", message)
+        self.assertEqual(message.count("security.evidence[1].ref"), 1, message)
+
+    def test_a_tool_name_is_accepted_in_any_case_and_recorded_in_the_registry_case(self):
+        consultation = consult(self.profile, self.catalog, self.task,
+                               tools=[{"id": "jira", "title": "Jira", "server": "jira", "mode": "mock"}])
+        entry = copy.deepcopy(example_entries()["security"])
+        entry["evidence"][0] = {"source": "tool", "ref": "JIRA:SUP-142", "supports": "The ticket."}
+        self.assertEqual(validate_board_entry(consultation, entry)["evidence"][0]["ref"], "jira:SUP-142")
+
     def test_evidence_refs_are_positions_in_the_entry_counted_from_one(self):
         """Issue 166: a team read evidence_refs as paths, another counted from zero."""
         entry = copy.deepcopy(example_entries()["product"])
@@ -115,8 +132,15 @@ class EntryValidationTests(unittest.TestCase):
         self.assertEqual(demanded, [lens["id"] for lens in lenses[2:] if "service" in lens.get("applies_to", ["service"])])
         self.assertNotIn("frontend-rendering", demanded)
         brief = board_brief(consultation, "engineering")
-        self.assertIn(f"- Not concerned: {lenses[0]['id']}, which applies to customer and not to this task's surfaces.",
-                      brief)
+        self.assertIn(f"- Not concerned: {lenses[0]['id']}, which applies to tasks that touch the customer-facing "
+                      "experience, and this task does not.", brief)
+        entry = copy.deepcopy(example_entries()["engineering"])
+        entry["challenge"]["specialists"] = [
+            {"id": lens["id"], "finding": "Checked.", "basis": "assumption", "evidence_refs": []} for lens in lenses]
+        with self.assertRaises(ValueError) as raised:
+            validate_board_entry(consultation, entry)
+        self.assertIn(f"{lenses[0]['id']} is not concerned by this task's surfaces: remove it from the entry.",
+                      str(raised.exception))
         unsure = consult(self.profile, catalog, {**task, "answers": {**task["answers"], "surface": ["unsure"]}})
         template = next(item for item in unsure["review_template"]["boards"] if item["id"] == "engineering")
         self.assertEqual(len(template["challenge"]["specialists"]), len(lenses))
@@ -159,6 +183,33 @@ class PassCommandTests(unittest.TestCase):
     def progress(self, board):
         items = json.loads(self.run_cli("task", "progress", TASK, "--json")[0])
         return next(item for item in items if item["board"] == board)
+
+    def test_a_submitted_pass_is_printed_read_only_unless_asked_again(self):
+        """A host that ran task pass again on a done pass silently reopened it and lost the entry."""
+        self.run_cli("task", "pass", TASK, "qa")
+        write_json(self.root / "qa.json", example_entries()["qa"])
+        self.run_cli("task", "submit", TASK, "--file", self.root / "qa.json")
+        printed, note = self.run_cli("task", "pass", TASK, "qa")
+        self.assertIn("# Board pass: qa", printed)
+        self.assertIn(f"already submitted; to redo it on purpose, run openguildkit task pass {TASK} qa --again", note)
+        self.assertEqual((self.progress("qa")["status"], self.progress("qa")["attempts"]), ("done", 1))
+        self.run_cli("task", "pass", TASK, "qa", "--again")
+        self.assertEqual((self.progress("qa")["status"], self.progress("qa")["attempts"]), ("started", 2))
+
+    def test_a_regulation_the_answers_select_comes_before_the_stack_in_a_pass(self):
+        """A security pass printed nextjs and postgresql rules and left gdpr unprinted for lack of room."""
+        self.root = self.root / "personal-data"
+        self.root.mkdir()
+        profile = json.loads((EXAMPLE / "profile.json").read_text())
+        profile.update(checks=[], patterns=["gdpr-personal-data", "python-fastapi-postgresql", "nextjs-react"])
+        write_json(self.root / "profile.json", profile)
+        self.run_cli("init", "--answers", self.root / "profile.json")
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "personal")
+        self.run_cli("task", "consult", "personal", "--answers", EXAMPLE / "answers.json")
+        security, _ = self.run_cli("task", "pass", "personal", "security")
+        rules = security[security.index("## Rules of this board's packs"):]
+        first_pack = rules.splitlines()[2]
+        self.assertIn("(gdpr@", first_pack)
 
     def test_reading_a_pass_again_counts_no_attempt(self):
         """Issue 166: reading a pass twice showed attempts 2."""
