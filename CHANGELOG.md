@@ -50,6 +50,7 @@ Changes since 0.16.1, the pre-release of 20 November 2026. The wheel now ships t
 - Shares record the Documentalist space they open, which is the whole space; `--until` is a reminder, `share add` warns about a second share of the same space to the same person, and a local portal may use http.
 - `alerts tasks --open` opens one task per confirmed alert, and the dependency watch template proposes the register in a pull request. A scanner report that analyzed nothing resolves no alert.
 - The credential detector recognizes the tokens of the registry's tools, `Authorization` headers and `api_key=`-style settings. A project tool cannot take the name of a bundled one, and `check` and `task consult` name a bundled brain the project catalog replaces.
+- `docs/personal-data.md` lists every name the tool records, where, why and how to replace it; examples now use initials for `--by`.
 - `SOURCE_DATE_EPOCH` dates what exports write; share expiry, waiver length, approval age and market ages follow the real clock.
 - `openguildkit deliverable` turns an approved task into a business deliverable with its checks.
 

@@ -81,7 +81,7 @@ When a consultation runs under `local-only` and the host does not block research
 A person records each decision on an external action outside the approved scope:
 
 ```bash
-openguildkit task authorize ID --action external-api --target api.example.com --allow --by "Camille Martin" --reason "Read the public status page"
+openguildkit task authorize ID --action external-api --target api.example.com --allow --by CM --reason "Read the public status page"
 ```
 
 `--allow` needs a terminal and the typed task ID; `--deny` works anywhere. The target is a host or tool name, never a URL with a query, an address or other private details. The decisions appear in the task record and in the handoff.
