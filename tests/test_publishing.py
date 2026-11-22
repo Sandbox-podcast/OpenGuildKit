@@ -79,6 +79,22 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.assertFalse((site / "learn" / f"{TASK}.md").exists())
         self.assertEqual(len(list((site / "reference").glob("*.md"))), 1)
 
+    def test_a_long_first_line_stays_in_reference_and_blog_when_the_title_is_shortened(self):
+        brief = (
+            "Show each signed-in customer the status and next step of their own support requests, "
+            "including the requests created before the portal migration."
+        )
+        brief_path = self.root / "long-brief.md"
+        brief_path.write_text(brief + "\n", encoding="utf-8")
+        self.done_task(brief_file=brief_path)
+        self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0")
+
+        for section in ("reference", "blog"):
+            page, = (self.root / "docs-site" / section).glob(f"*{TASK}.md")
+            markdown = page.read_text(encoding="utf-8")
+            self.assertIn(f"# {brief[:120]}\n", markdown)
+            self.assertIn(f"\n{brief}\n", markdown)
+
     def test_export_refuses_a_folder_it_did_not_create(self):
         self.done_task()
         (self.root / "notes").mkdir()

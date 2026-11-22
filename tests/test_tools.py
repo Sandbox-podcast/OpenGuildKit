@@ -680,6 +680,18 @@ class MockDataTests(unittest.TestCase):
         self.assertFalse(answer("zendesk", "get_ticket", {"ticket_id": 4104})["error"])
         self.assertFalse(answer("figma", "get_node", {"node_id": "1:2"})["error"])
 
+    def test_slack_full_and_partial_queries_include_every_matching_message(self):
+        mock = load_mock("slack")
+        matched = []
+        for query in ("export", "expor"):
+            response = call_tool(mock, "search_messages", {"query": query})
+            self.assertFalse(response["isError"], response)
+            messages = json.loads(response["content"][0]["text"])["messages"]
+            self.assertEqual(len(messages), 3)
+            self.assertTrue(any("The CSV export is the main goal" in row["text"] for row in messages))
+            matched.append(messages)
+        self.assertEqual(matched[0], matched[1])
+
     def test_a_search_ignores_case_and_finds_part_of_a_name(self):
         for query in ("Logistics", "logistics", "LOGIST", "example logistics"):
             deals = answer("hubspot", "search_deals", {"query": query})["data"]["deals"]

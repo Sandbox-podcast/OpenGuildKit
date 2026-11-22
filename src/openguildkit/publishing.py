@@ -50,9 +50,12 @@ def _criteria(task: dict) -> list[str]:
     return [item["criterion"] for item in task.get("result", {}).get("criteria", []) if item["status"] == "met"]
 
 
-def _body(task: dict) -> list[str]:
-    """The brief after its first line, which is already the title; nothing when the brief is one line."""
-    rest = "\n".join(task["brief"].strip().splitlines()[1:]).strip()
+def _body(task: dict, title: str) -> list[str]:
+    """Keep any brief text that does not fit in the title."""
+    lines = task["brief"].strip().splitlines()
+    if lines[0].rstrip(".") == title:
+        lines = lines[1:]
+    rest = "\n".join(lines).strip()
     return [rest, ""] if rest else []
 
 
@@ -92,7 +95,7 @@ def _pages(task: dict, position: int, version: str, sections: tuple[str, ...]) -
     common = {"title": title, "source_task": task["id"], "project_version": version}
     pages = {}
     if "reference" in sections:
-        lines = [f"# {title}", "", *_body(task)]
+        lines = [f"# {title}", "", *_body(task, title)]
         if _behaviour(task):
             lines += ["## Behaviour", "", *_behaviour(task), ""]
         lines += ["## Verification", "", _verification(task), "",
@@ -108,7 +111,7 @@ def _pages(task: dict, position: int, version: str, sections: tuple[str, ...]) -
         pages[f"learn/{task['id']}.md"] = _frontmatter({**common, "sidebar_position": position}) + "\n".join(lines)
     if "blog" in sections:
         day = (task.get("completed_at") or task["created_at"])[:10]
-        lines = [f"# {title}", "", *_body(task), f"Available in version {version}.", ""]
+        lines = [f"# {title}", "", *_body(task, title), f"Available in version {version}.", ""]
         pages[f"blog/{day}-{task['id']}.md"] = _frontmatter({**common, "date": day}) + "\n".join(lines)
     return pages
 

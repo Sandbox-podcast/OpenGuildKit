@@ -3,6 +3,7 @@
 import contextlib
 import io
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -74,6 +75,27 @@ class ProposalTests(ProjectTests):
         self.write("apps/web/package.json", '{"scripts": {"test": "vitest run"}, "dependencies": {"react": "18.3.1"}}')
         self.write("services/api/go.mod", "module example.test/api\n\ngo 1.22\n")
         self.assertEqual(self.proposals(), ["cd apps/web && npm test", "cd services/api && go test ./..."])
+
+    def test_setup_proposes_unittest_without_a_python_manifest(self):
+        self.write("tests/test_smoke.py", "")
+        questions = json.loads(self.run_cli("init", "--questions")[0])
+        checks = next(question for question in questions if question["id"] == "checks")
+        self.assertEqual([item["command"] for item in checks.get("proposed", [])], ["python -m unittest discover -s tests"])
+
+    def test_a_component_path_with_spaces_works_in_the_check_shell(self):
+        self.write("client app/pyproject.toml", '[project]\nname = "client"\n')
+        self.write("client app/tests/test_smoke.py", """
+import unittest
+
+class SmokeTest(unittest.TestCase):
+    def test_smoke(self):
+        self.assertTrue(True)
+""")
+        command, = self.proposals()
+        self.assertEqual(command, 'cd "client app" && python -m unittest discover -s tests')
+        result = subprocess.run(command, cwd=self.root, shell=True, capture_output=True, text=True, timeout=20)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Ran 1 test", result.stderr)
 
     def test_the_questionnaire_proposes_them_and_keeps_none_without_a_confirmation(self):
         self.write("package.json", '{"name": "web", "scripts": {"test": "jest"}}')

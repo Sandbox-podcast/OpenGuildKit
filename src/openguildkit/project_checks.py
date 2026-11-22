@@ -55,7 +55,7 @@ def _python_test(directory: Path, names: set[str]) -> tuple[str, str] | None:
     if "pytest.ini" in names or re.search(r"\bpytest\b", manifests):
         return "python -m pytest", "pytest named in the project's Python manifests"
     tests = directory / "tests"
-    if manifests.strip() and tests.is_dir() and any(tests.glob("test_*.py")):
+    if tests.is_dir() and any(tests.glob("test_*.py")):
         return "python -m unittest discover -s tests", "tests/test_*.py without pytest"
     if any(name.startswith("test_") and name.endswith(".py") for name in names):
         return "python -m unittest discover", "test_*.py files in the folder itself, without pytest"
@@ -137,7 +137,16 @@ def propose_checks(root: Path, detected: dict, listings: dict[str, set[str]] | N
         found = folder_checks(path)  # Lists the folder first if the walk did not reach it.
         if _covered_by_solution(path, paths, listings):
             continue
-        where = "" if path == "." else f"cd {path} && "
+        where = ""
+        if path != ".":
+            # Stored checks may run under either cmd.exe or a POSIX shell.
+            # Double quotes protect spaces and separators, but both shells still expand some characters.
+            if re.search(r'["\\$\x60%!\x00-\x1f]', path):
+                continue
+            operand = f"./{path}" if path.startswith("-") else path
+            if not re.fullmatch(r"[\w./-]+", operand):
+                operand = f'"{operand}"'
+            where = f"cd {operand} && "
         proposals += [{"command": where + command, "evidence": f"{path}: {evidence}"}
                       for command, evidence in filter(None, found)]
     return proposals
