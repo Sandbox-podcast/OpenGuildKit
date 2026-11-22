@@ -4,6 +4,7 @@ import contextlib
 import copy
 import io
 import json
+import re
 import tempfile
 import unittest
 from collections import Counter
@@ -11,7 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import CatalogError, _validate_entry, load_catalog
-from openguildkit.cli import _prompt_questions, main
+from openguildkit.cli import _print_preselection, _prompt_questions, main
 from openguildkit.project import (
     RULE_WARNING, init_questions, profile_recommendations, rule_plan, setup_profile, validate_profile,
 )
@@ -109,7 +110,7 @@ class PreviewTests(unittest.TestCase):
             with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
                 main(["--project", directory, "preview", "--answers", str(Path(directory) / "answers.json")])
         self.assertIn("rules in force; a task is asked only those that concern it.", output.getvalue())
-        self.assertIn("(+", output.getvalue())
+        self.assertRegex(output.getvalue(), r"\(\d+ rules\)")
 
 
     def test_init_shows_each_pattern_with_its_reason_and_rules_before_writing(self):
@@ -120,8 +121,42 @@ class PreviewTests(unittest.TestCase):
                 main(["--project", directory, "init", "--answers", str(Path(directory) / "answers.json")])
         text = errors.getvalue()
         self.assertIn("Writing these patterns", text)
-        self.assertIn("threat-modeling (+3 rules): role security", text)
+        self.assertIn("threat-modeling (3 rules): role security", text)
         self.assertIn("rules in force", text)
+
+
+    def test_recommend_init_and_preview_give_each_pattern_the_same_rule_count(self):
+        def counts(text):
+            return dict(re.findall(r"^  ([a-z0-9-]+)\b[^\n]*?\((\d+) rules\)", text, re.MULTILINE))
+
+        with tempfile.TemporaryDirectory() as directory:
+            answers = Path(directory) / "answers.json"
+            write_json(answers, {"name": "Ledger", "personal_data": "no", "stack": ["Python"],
+                                 "roles": ["engineering", "security"]})
+
+            def run(*arguments):
+                out, err = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                    self.assertEqual(main(["--project", directory, *arguments]), 0, err.getvalue())
+                return out.getvalue() + err.getvalue()
+
+            recommended = counts(run("recommend", "--answers", str(answers)))
+            previewed = counts(run("preview", "--answers", str(answers)))
+            written = counts(run("init", "--answers", str(answers)))
+            saved = counts(run("preview"))
+        self.assertTrue({"python-development", "secure-software-lifecycle", "threat-modeling"} <= set(saved), saved)
+        for pattern_id, count in saved.items():
+            with self.subTest(pattern=pattern_id):
+                self.assertEqual({recommended[pattern_id], previewed[pattern_id], written[pattern_id]}, {count})
+        self.assertEqual(saved["secure-software-lifecycle"], str(len(self.catalog["packs"]["secure-sdlc"]["rules"])))
+
+    def test_the_interactive_preselection_shows_each_pattern_s_rules(self):
+        plan = profile_recommendations({"stack": ["Python"], "roles": ["security"]}, self.catalog)
+        errors = io.StringIO()
+        with contextlib.redirect_stderr(errors):
+            _print_preselection(plan, self.catalog)
+        self.assertIn("threat-modeling: role security (core method) (3 rules)", errors.getvalue())
+        self.assertIn("Each pattern's count is the rules of its own packs", errors.getvalue())
 
 
 class NormTests(unittest.TestCase):

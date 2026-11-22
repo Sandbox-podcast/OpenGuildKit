@@ -51,7 +51,7 @@ class ProfileCommandTests(unittest.TestCase):
                                                          "on": "2026-11-21", "reason": "The sign-up form stores emails"})
         self.assertIn("Adopted `gdpr-personal-data` by Camille Martin on 2026-11-21", self.agents())
         preview, _ = self.run_cli("preview")
-        self.assertIn("gdpr-personal-data (+", preview)
+        self.assertRegex(preview, r"gdpr-personal-data \(\d+ rules\)")
         self.assertIn("adopted by Camille Martin on 2026-11-21: The sign-up form stores emails", preview)
         self.run_cli("check")
 
@@ -97,12 +97,44 @@ class ProfileCommandTests(unittest.TestCase):
         self.assertIn("openguildkit host apply", output)
         self.assertEqual(self.profile()["guard"], "enforce")
 
+    def test_every_weakening_needs_a_terminal_and_names_what_it_weakens(self):
+        setup = [("add", "pack", "gdpr", "gdpr"), ("add", "pack", "llm-evaluations", "llm-evaluations"),
+                 ("set", "personal-data", "yes", "yes"), ("set", "host", "claude-code", "claude-code")]
+        for action, field, value, _ in setup:
+            self.run_cli("profile", action, field, value, "--by", "Sam", "--reason", "Setup")
+        cases = (
+            (("remove", "pack", "gdpr"), "protective pack gdpr removed", "gdpr"),
+            (("remove", "pack", "secure-sdlc"), "protective pack secure-sdlc removed", "secure-sdlc"),
+            (("remove", "pack", "llm-evaluations"), "protective pack llm-evaluations removed", "llm-evaluations"),
+            (("set", "personal-data", "no"), "personal data set to no", "no"),
+            (("set", "host", "other"), "host claude-code -> other, whose settings enforce less", "other"),
+        )
+        for arguments, weakened, target in cases:
+            with self.subTest(arguments=arguments):
+                before = self.profile()
+                with patch("sys.stdin.isatty", return_value=False):
+                    _, error = self.run_cli("profile", *arguments, "--by", "Sam", "--reason", "Lighter", code=1)
+                self.assertIn(weakened, error)
+                self.assertEqual(self.profile(), before)
+                with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=target):
+                    self.run_cli("profile", *arguments, "--by", "Sam", "--reason", "Lighter")
+        self.run_cli("profile", "remove", "pack", "python", "--by", "Sam", "--reason", "Not a protection")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value="security legal"):
+            self.run_cli("profile", "add", "board", "security", "legal", "--by", "Sam", "--reason", "Both")
+        for board in ("security", "legal"):
+            with self.subTest(board=board), patch("sys.stdin.isatty", return_value=False):
+                _, error = self.run_cli("profile", "remove", "board", board, "--by", "Sam", "--reason", "x", code=1)
+                self.assertIn(f"board {board} no longer advises", error)
+
     def test_lists_change_by_command_and_refuse_what_is_unknown_or_already_there(self):
         self.run_cli("profile", "add", "check", "python -m unittest", "--by", "Sam", "--reason", "Tests exist")
         self.run_cli("profile", "add", "tool", "Jira", "--by", "Sam", "--reason", "Tracker")
         self.run_cli("profile", "add", "role", "backend", "--by", "Sam", "--reason", "API team")
         self.run_cli("profile", "add", "pack", "api-design", "--by", "Sam", "--reason", "Public API")
-        self.run_cli("profile", "add", "board", "security", "--by", "Sam", "--reason", "Always")
+        # From every board to the security board alone: legal stops advising, which the person types.
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value="security"):
+            _, error = self.run_cli("profile", "add", "board", "security", "--by", "Sam", "--reason", "Always")
+        self.assertIn("board legal no longer advises", error)
         self.run_cli("profile", "add", "convention", "Branches are named feature/X", "--by", "Sam", "--reason", "Team")
         profile = self.profile()
         self.assertEqual(profile["checks"], ["python -m unittest"])
@@ -127,6 +159,23 @@ class ProfileCommandTests(unittest.TestCase):
         output, _ = self.run_cli("profile", "add", "pack", "api-design", "--by", "Sam", "--reason", "Public API")
         self.assertIn("Tasks consulted under the previous rules:", output)
         self.assertIn(f"  {TASK} (consulting): ", output)
+
+    def test_a_stale_approval_names_the_setting_that_changed(self):
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
+        self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json")
+        template = json.loads(self.run_cli("task", "template", TASK)[0])
+        review = {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text())}
+        review["boards"] = [entry for entry in review["boards"] if entry["id"] in {b["id"] for b in template["boards"]}]
+        write_json(self.root / "review.json", review)
+        self.run_cli("task", "review", TASK, "--file", self.root / "review.json")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed")
+        self.run_cli("profile", "set", "guard", "enforce", "--by", "Sam", "--reason", "Audit")
+        self.run_cli("profile", "add", "tool", "Jira", "--by", "Sam", "--reason", "Tracker")
+        _, error = self.run_cli("check", code=1)
+        self.assertIn("guard observe -> enforce", error)
+        self.assertIn("tools changed (none -> Jira)", error)
+        self.assertNotIn("the boards or the project settings changed", error)
 
     def test_a_new_condition_names_the_norm_it_brings(self):
         output, _ = self.run_cli("profile", "set", "personal-data", "yes", "--by", "Sam", "--reason", "Accounts")

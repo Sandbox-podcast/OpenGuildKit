@@ -19,7 +19,7 @@ from .results import (
     validate_result, waiting_evidence,
 )
 from .storage import read_json, write_json
-from .workflow import blocker_list, code_not_found, consult, is_decision_task, pending_removals, validate_answers, validate_board_entry, validate_deliberation, validate_review
+from .workflow import blocker_list, code_not_found, consult, is_decision_task, pending_removals, profile_settings, validate_answers, validate_board_entry, validate_deliberation, validate_review
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 WINDOWS_RESERVED_NAMES = {"con", "prn", "aux", "nul"} | {
@@ -289,6 +289,13 @@ def next_step(task: dict) -> str:
     return "Done."
 
 
+def _setting_change(name: str, before, after) -> str:
+    """One setting's change in words, such as "guard enforce -> observe"."""
+    if isinstance(after, list):
+        return f"{name} changed ({', '.join(before or []) or 'none'} -> {', '.join(after) or 'none'})"
+    return f"{name} {before} -> {after}"
+
+
 def rule_changes(task: dict, profile: dict, catalog: dict) -> list[str]:
     """What changed, pack by pack and rule by rule, in the rules the task was consulted under."""
     scope = task["consultation"]["scope"]
@@ -310,8 +317,16 @@ def rule_changes(task: dict, profile: dict, catalog: dict) -> list[str]:
         changes.append("sector changed")
     changes += [f"{field} changed" for field in ("stack", "conventions", "checks")
                 if scope.get(field, []) != current.get(field, [])]
+    settings = profile_settings(profile)
+    if "settings" in scope:
+        changes += [_setting_change(name, scope["settings"].get(name), value)
+                    for name, value in settings.items() if scope["settings"].get(name) != value]
+    if not changes and "settings" in scope:
+        return ["a board's definition changed: openguildkit update shows the catalog changes"]
     if not changes:
-        return ["the boards or the project settings changed"]
+        # A task consulted before the settings were recorded: name what may have changed.
+        return [f"a project setting changed ({', '.join(settings)}), or a board's definition; "
+                "openguildkit preview shows the profile"]
     return changes[:6] + ([f"{len(changes) - 6} more changes: openguildkit update shows them"] if len(changes) > 6 else [])
 
 

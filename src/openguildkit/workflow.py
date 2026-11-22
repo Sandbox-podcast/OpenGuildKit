@@ -184,7 +184,31 @@ def task_questions(brief: str, answers: dict | None = None) -> list[dict]:
             "default": "",
         }
     )
-    return questions
+    return [{**question, **TASK_QUESTION_HELP.get(question["id"], {})} for question in questions]
+
+
+# One line per task question in plain words, and what an "I don't know" answer does, as init --questions has.
+TASK_QUESTION_HELP = {
+    "kind": {"help": "Whether you want something new, a repair, upkeep of what exists, or advice before deciding.",
+             "unsure": "unsure: the project-management board joins to help frame the task"},
+    "surface": {"help": "Which part of the product the change touches: what customers see, the server side, the "
+                        "hosting, or a business process.",
+                "unsure": "unsure: every specialist lens of the boards stays in the review"},
+    "data": {"help": "The most private information the change may read or change, such as emails or health data.",
+             "unsure": "unsure: treated like personal data, so the security board joins and the GDPR evidence is asked"},
+    "research": {"help": "Whether the boards may cite public web pages, or only the project's files and what you gave.",
+                 "unsure": "unsure: counts as local, so only the project's files and the sources you gave"},
+    "concerns": {"help": "Topics that bring their own specialists: money, AI, decisions about people, secrets.",
+                 "unsure": "leave the question out: the boards then keep the rules of every topic open"},
+    "outcome": {"help": "What someone can see or measure once the work is done.",
+                "unsure": "leave it empty: the consultation lists the missing outcome as an open point"},
+    "affected": {"help": "The people or teams who will notice the change.",
+                 "unsure": "leave it empty: the consultation lists it as an open point"},
+    "options": {"help": "The choices being compared, and what would tip the decision.",
+                "unsure": "leave it empty: the consultation lists it as an open point"},
+    "context": {"help": "Anything the boards should know: deadlines, limits, acceptance criteria, links.",
+                "unsure": "the default: empty"},
+}
 
 
 def _as_list(value) -> list:
@@ -896,6 +920,16 @@ def select_boards(profile: dict, catalog: dict, task: dict, answers: dict, selec
             "not_selected": not_selected, "expected_not_selected": expected}
 
 
+def profile_settings(profile: dict) -> dict:
+    """The project settings that change how a task is guarded, reviewed or researched, by their profile names."""
+    return {
+        "guard": profile.get("guard", "off"), "host": profile.get("host", "other"),
+        "research": profile.get("research", "local-only"),
+        "approval mode": (profile.get("approval") or {}).get("mode", "local"),
+        "tools": sorted(profile.get("tools", [])),
+    }
+
+
 def _scope_snapshot(profile: dict, catalog: dict, task: dict, answers: dict) -> dict:
     research = "local-only"
     if profile.get("research") == "public-sources" and answers["research"] == "public":
@@ -913,6 +947,8 @@ def _scope_snapshot(profile: dict, catalog: dict, task: dict, answers: dict) -> 
         "checks": profile.get("checks", []),
         "research": research,
         "open_points": open_points(task["brief"], answers),
+        # The settings an approval rests on besides the rules, so a later change can be named (tasks.rule_changes).
+        "settings": profile_settings(profile),
     }
     if task.get("rounds"):
         scope["previous_decision"] = task["rounds"][-1]["decision"]

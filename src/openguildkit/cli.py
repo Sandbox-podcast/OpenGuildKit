@@ -65,6 +65,7 @@ from .lock import (
 )
 from .patterns import patterns_to_review, role_choices
 from .project import (
+    RULES_NOTE,
     ALREADY_INITIALIZED,
     require_resolved_conflicts,
     unsure_answers,
@@ -953,13 +954,16 @@ def _print_preselection(plan: dict, catalog: dict) -> None:
     if others:
         print("\nPreselected patterns, keep or remove them at the next question:", file=sys.stderr)
         for pattern in others:
-            print(f"  {pattern['id']}: {'; '.join(pattern['reasons'])}", file=sys.stderr)
+            print(f"  {pattern['id']}: {'; '.join(pattern['reasons'])} ({pattern['rules']} rules)", file=sys.stderr)
+        print(f"  {RULES_NOTE}", file=sys.stderr)
     regulations = [pattern["id"] for pattern in plan["suggested"] if pattern.get("kind") == "regulation"]
     methods = [pattern["id"] for pattern in plan["suggested"] if pattern.get("kind") != "regulation"]
     if regulations:
         print(f"Regulations to consider for your roles: {', '.join(regulations)}", file=sys.stderr)
     if methods:
-        print(f"Methods and alternatives to consider: {', '.join(methods)}", file=sys.stderr)
+        counted = [f"{pattern['id']} ({pattern['rules']} rules)" for pattern in plan["suggested"]
+                   if pattern.get("kind") != "regulation"]
+        print(f"Methods and alternatives to consider: {', '.join(counted)}", file=sys.stderr)
 
 
 HOST_STATUS_LABELS = {"instruction": "by instruction", "human": "by a person"}
@@ -1138,7 +1142,7 @@ def _print_recommendations(plan: dict, as_json: bool) -> None:
     print("Preselected patterns, confirm or remove them")
     for pattern in plan["matched"]:
         where = f" [{', '.join(pattern['components'])}]" if pattern.get("components") else ""
-        print(f"  {pattern['id']}{where}: {'; '.join(pattern['reasons'])} (+{pattern['rules']} rules)")
+        print(f"  {pattern['id']}{where}: {'; '.join(pattern['reasons'])} ({pattern['rules']} rules)")
         if pattern.get("version_unknown"):
             print(f"    version unknown, confirm {', '.join(pattern['version_unknown'])}")
     if plan.get("excluded"):
@@ -1149,8 +1153,9 @@ def _print_recommendations(plan: dict, as_json: bool) -> None:
     print("Suggested, not selected: add one only if the team uses it")
     for pattern in plan["suggested"]:
         reason = "choose one overlapping pattern" if pattern.get("choice_required") else "; ".join(pattern["reasons"])
-        print(f"  {pattern['id']}: {reason} (+{pattern['rules']} rules)")
-    print(f"Recommended packs: {', '.join(plan['recommended_packs'])} ({plan['rule_count']} rules)")
+        print(f"  {pattern['id']}: {reason} ({pattern['rules']} rules)")
+    print(f"Recommended packs: {', '.join(plan['recommended_packs'])} ({plan['rule_count']} rules in all)")
+    print(RULES_NOTE)
     if plan.get("declined"):
         print("Declined in the profile, not proposed again (openguildkit profile adopt brings one back)")
         for entry in plan["declined"]:
@@ -1168,9 +1173,10 @@ def _print_rule_plan(plan: dict, as_json: bool, file=None) -> None:
         print(json_text(plan), end="", file=file)
         return
     if plan["patterns"]:
-        print("Patterns, with why they apply and the rules each one adds", file=file)
+        print("Patterns, with why they apply and their rules", file=file)
         for pattern in plan["patterns"]:
-            print(f"  {pattern['id']} (+{pattern['rules']} rules): {pattern['reason']}", file=file)
+            print(f"  {pattern['id']} ({pattern['rules']} rules): {pattern['reason']}", file=file)
+        print(f"  {RULES_NOTE}", file=file)
     for regulation in plan["regulations"]:
         print(f"  {regulation['id']} asks: {regulation['asks']}", file=file)
     for entry in plan["declined"]:
@@ -1207,8 +1213,9 @@ def _print_selection(plan: dict) -> None:
     answers they confirmed with preview bring."""
     print("Writing these patterns (openguildkit profile decline removes one later):", file=sys.stderr)
     for pattern in plan["patterns"]:
-        print(f"  {pattern['id']} (+{pattern['rules']} rules): {pattern['reason']}", file=sys.stderr)
-    print(f"{plan['rule_count']} rules in force; a task is asked only those that concern it.", file=sys.stderr)
+        print(f"  {pattern['id']} ({pattern['rules']} rules): {pattern['reason']}", file=sys.stderr)
+    print(f"{plan['rule_count']} rules in force; a task is asked only those that concern it. {RULES_NOTE}",
+          file=sys.stderr)
     if plan["rule_warning"]:
         print(f"Warning: {plan['rule_warning']}", file=sys.stderr)
 
