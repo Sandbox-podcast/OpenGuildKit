@@ -75,7 +75,7 @@ class RegulatoryPackTests(unittest.TestCase):
         # Each one is verified on a test page of the changed flow.
         for rule in (notice, trackers):
             self.assertIn("test page", rule["verification"])
-        automated = rules["review-automated-decisions"]
+        automated = rules["automated-decision"]
         self.assertRegex(automated["instruction"], r"Art\. 22\(2\).*Art\. 22\(3\)")
         self.assertIn("human intervention", automated["instruction"])
         # Art. 48 is about third-country judgments, not a transfer mechanism.
