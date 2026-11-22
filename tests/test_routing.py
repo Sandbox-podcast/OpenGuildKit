@@ -12,10 +12,9 @@ from openguildkit.cli import main
 from openguildkit.catalog import load_catalog
 from openguildkit.project import check_component, task_scope_profile, validate_profile
 from openguildkit.storage import write_json
-from openguildkit.workflow import (
-    consult, normalize_text, normalize_with_offsets, require_concerns, select_boards, text_routes, trigger_matches,
-    validate_answers,
-)
+from openguildkit.consultation import consult
+from openguildkit.questionnaire import require_concerns, validate_answers
+from openguildkit.routing import normalize_text, normalize_with_offsets, select_boards, text_routes, trigger_matches
 
 from tests.test_pass_relevance import ProjectCase
 

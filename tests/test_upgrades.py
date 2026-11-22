@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import cli
+from openguildkit import lock
 from openguildkit.catalog import load_catalog
 from openguildkit.cli import main
 from openguildkit.lock import COLLECTIONS, catalog_changes, lock_is_current, locked_records, update_target
@@ -51,7 +51,7 @@ class UpgradeTests(unittest.TestCase):
         return stdout.getvalue(), stderr.getvalue()
 
     def upgraded(self, *arguments, code=0):
-        with patch.object(cli, "load_catalog", release_without_playwright):
+        with patch.object(lock, "load_catalog", release_without_playwright):
             return self.run_cli(*arguments, code=code)
 
     def locked_ids(self):

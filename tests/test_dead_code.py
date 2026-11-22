@@ -64,10 +64,16 @@ class DeadCodeTests(unittest.TestCase):
     def test_no_module_imports_a_private_name_of_another(self):
         private = []
         for path, tree in package_modules().items():
+            modules = set()  # The package's modules this one imports whole, as in "from . import cli".
             for node in ast.walk(tree):
                 if isinstance(node, ast.ImportFrom) and (node.level or (node.module or "").startswith("openguildkit")):
                     private += [f"{path.relative_to(REPO).as_posix()}:{node.lineno} {alias.name}"
                                 for alias in node.names if re.match(r"_[a-z]", alias.name)]
+                    if node.level == 1 and node.module is None:
+                        modules.update(alias.asname or alias.name for alias in node.names)
+            private += [f"{path.relative_to(REPO).as_posix()}:{node.lineno} {node.value.id}.{node.attr}"
+                        for node in ast.walk(tree) if isinstance(node, ast.Attribute)
+                        and isinstance(node.value, ast.Name) and node.value.id in modules and re.match(r"_[a-z]", node.attr)]
         self.assertEqual(private, [], "give these names a public name in their module, or keep them in it")
 
 

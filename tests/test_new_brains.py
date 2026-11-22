@@ -14,7 +14,8 @@ from openguildkit.catalog import CatalogError, board_replacements, load_catalog
 from openguildkit.lock import apply_lock, locked_records
 from openguildkit.references import find_references, load_references, with_pattern_references
 from openguildkit.tools import load_tools
-from openguildkit.workflow import board_brief, consult, trigger_matches
+from openguildkit.consultation import board_brief, consult
+from openguildkit.routing import trigger_matches
 
 REPO = Path(__file__).resolve().parents[1]
 CASES = json.loads(Path(__file__).with_name("routing_cases_new_brains.json").read_text(encoding="utf-8"))

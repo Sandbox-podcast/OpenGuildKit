@@ -13,7 +13,8 @@ from openguildkit.tasks import (
     _record_problem, archived_round, cited_evidence, record_consultation, record_decision, record_review,
     resolve_blocker, verification_blocker_problems,
 )
-from openguildkit.workflow import blocker_list, blocker_resolutions, consult, exported_blockers
+from openguildkit.consultation import consult
+from openguildkit.workflow import blocker_list, blocker_resolutions, exported_blockers
 from tests.test_approval_lifecycle import ApprovalCase
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"

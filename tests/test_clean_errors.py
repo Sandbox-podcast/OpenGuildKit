@@ -14,7 +14,8 @@ from unittest.mock import patch
 
 from openguildkit import clock
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
-from openguildkit.cli import _prompt_choices, main
+from openguildkit.cli import main
+from openguildkit.prompts import prompt_choices
 from openguildkit.storage import write_json
 
 REPO = Path(__file__).resolve().parents[1]
@@ -391,7 +392,7 @@ class CleanErrorTests(unittest.TestCase):
 
     def test_prompt_and_identifier_messages_are_precise(self):
         question = {"type": "multi-select", "choices": [{"id": "a"}, {"id": "b"}]}
-        self.assertEqual(_prompt_choices(question, "1,"), ["a"])
+        self.assertEqual(prompt_choices(question, "1,"), ["a"])
         self.init()
         self.assertIn("reserved file name", self.run_cli("task", "new", "x", "--id", "con"))
         self.assertIn("task ID is empty", self.run_cli("task", "new", "x", "--id", ""))

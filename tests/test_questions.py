@@ -1,7 +1,8 @@
 import unittest
 
 from openguildkit.catalog import load_catalog
-from openguildkit.workflow import consult, open_points, task_questions, validate_answers
+from openguildkit.consultation import consult
+from openguildkit.questionnaire import open_points, task_questions, validate_answers
 
 
 class AdaptiveQuestionTests(unittest.TestCase):

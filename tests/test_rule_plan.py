@@ -8,7 +8,7 @@ from openguildkit.project import (
     rule_plan,
     validate_profile,
 )
-from openguildkit.workflow import consult
+from openguildkit.consultation import consult
 
 
 class RulePlanTests(unittest.TestCase):

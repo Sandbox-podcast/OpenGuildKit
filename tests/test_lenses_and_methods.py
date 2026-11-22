@@ -13,7 +13,7 @@ from openguildkit.patterns import is_stack_pattern
 from openguildkit.references import find_references, load_references
 from openguildkit.rule_checks import evaluate_check
 from openguildkit.storage import write_json
-from openguildkit.workflow import _board_template
+from openguildkit.consultation import _board_template
 
 SURFACES = (["customer"], ["service"], ["infrastructure"], ["business"])
 CONCERNS = (["none"], ["money"], ["ai"], ["people-decisions"], ["credentials"])

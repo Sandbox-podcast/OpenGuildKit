@@ -9,11 +9,10 @@ from pathlib import Path
 from unittest import mock
 
 from openguildkit.cli import main
-from openguildkit import storybook
+from openguildkit import storybook, storybook_cli
 from openguildkit.storage import read_json, write_json
-from openguildkit.storybook import (
-    PROPOSALS, _strip_js_comments, extract, generate, normalize_color, propose, validate_proposals,
-)
+from openguildkit.storybook import PROPOSALS, generate, propose, validate_proposals
+from openguildkit.storybook_extract import _strip_js_comments, extract, normalize_color
 
 REPO = Path(__file__).resolve().parents[1]
 APP = REPO / "examples" / "storybook-extract"
@@ -370,7 +369,7 @@ class GeneratedCodeTests(unittest.TestCase):
         for key in ('Chip:tone="info"', 'Chip:tone="warn"', 'Chip:size="sm"', 'Chip:size="lg"', 'Chip:type="submit"',
                     'Tag:kind="new"', 'Tag:kind="old"'):
             self.assertIn(key, variants)
-        self.assertIn("4 variants", "\n".join(storybook._print_extract(
+        self.assertIn("4 variants", "\n".join(storybook_cli._print_extract(
             {**inventory, "variants": inventory["variants"][:4]}, "inventory.json")))
 
     def test_required_props_and_validated_states_generate_typed_args(self):

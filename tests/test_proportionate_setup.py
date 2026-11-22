@@ -12,12 +12,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
-from openguildkit.cli import _print_preselection, _prompt_questions, main
+from openguildkit.cli import _print_preselection, main
+from openguildkit.prompts import prompt_questions
 from openguildkit.project import (
     RULE_WARNING, init_questions, profile_recommendations, rule_plan, setup_profile, validate_profile,
 )
 from openguildkit.storage import write_json
-from openguildkit.workflow import _board_template
+from openguildkit.consultation import _board_template
 
 FINTECH = {"name": "payflow", "sector": "financial-services", "personal_data": "yes",
            "stack": ["Python", "FastAPI", "PostgreSQL", "Stripe"], "roles": ["engineering", "security", "finance", "legal"]}
@@ -221,7 +222,7 @@ class QuestionnaireHelpTests(unittest.TestCase):
         errors = io.StringIO()
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value="?"), \
                 contextlib.redirect_stderr(errors):
-            self.assertEqual(_prompt_questions([question], "init"), {"research": "local-only"})
+            self.assertEqual(prompt_questions([question], "init"), {"research": "local-only"})
         self.assertIn(question["help"], errors.getvalue())
         self.assertIn("research: unsure, so the default: local-only.", errors.getvalue())
 

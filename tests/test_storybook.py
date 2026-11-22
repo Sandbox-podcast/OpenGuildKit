@@ -12,9 +12,10 @@ from pathlib import Path
 from openguildkit.cli import main
 from openguildkit.storage import write_json
 from openguildkit.storybook import (
-    MINIMAL_MAIN, REFS_FILE, _print_compose, compare, compose, dependency_conflicts, import_indexes, read_index,
-    scope_entry, theme_sources,
+    MINIMAL_MAIN, REFS_FILE, compare, compose, dependency_conflicts, import_indexes, read_index, scope_entry,
+    theme_sources,
 )
+from openguildkit.storybook_cli import _print_compose
 
 REPO = Path(__file__).resolve().parents[1]
 FIXTURES = REPO / "tests" / "fixtures" / "storybook"

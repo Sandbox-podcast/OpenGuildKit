@@ -1,7 +1,8 @@
 import unittest
 
 from openguildkit.catalog import load_catalog
-from openguildkit.workflow import challenge_report, consult, handoff, validate_review
+from openguildkit.consultation import consult
+from openguildkit.workflow import challenge_report, handoff, validate_review
 
 
 class BrainReviewTests(unittest.TestCase):

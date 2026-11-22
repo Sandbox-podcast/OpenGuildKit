@@ -2,7 +2,10 @@ import unittest
 
 from openguildkit.catalog import load_catalog
 from openguildkit.project import resolved_profile, validate_profile
-from openguildkit.workflow import consult, select_boards, validate_answers, validate_review
+from openguildkit.consultation import consult
+from openguildkit.questionnaire import validate_answers
+from openguildkit.routing import select_boards
+from openguildkit.workflow import validate_review
 
 
 class BrainSelectionTests(unittest.TestCase):

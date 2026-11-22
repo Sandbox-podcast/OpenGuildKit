@@ -16,6 +16,8 @@ from pathlib import Path, PurePosixPath
 
 from .decisions import changed_paths_since
 from .patterns import is_stack_pattern, pattern_selection
+from .questionnaire import FOLLOW_UPS
+from .routing import trigger_matches
 
 BASELINE_PACKS = ("agent-workflow", "secure-sdlc")
 OPEN_ANSWERS = ("unsure", "other")
@@ -318,8 +320,6 @@ def _answer_list(answers: dict, key: str) -> list[str]:
 
 def _mentioned(task: dict, subject: str) -> bool:
     """Whether the brief or a free-text answer names a subject of MENTIONS, as the routing reads a trigger."""
-    from .workflow import FOLLOW_UPS, trigger_matches  # workflow imports this module
-
     answers = task.get("answers", {})
     texts = [task.get("brief", ""), *(answers.get(field, "") for field in ("context", *FOLLOW_UPS))]
     return any(trigger_matches({"subject": {"triggers": list(MENTIONS[subject])}}, text) for text in texts if text)

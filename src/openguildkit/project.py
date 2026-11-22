@@ -5,6 +5,7 @@ import json
 import re
 from pathlib import Path, PurePosixPath
 
+from .agent_workflow import AGENT_WORKFLOW
 from .catalog import rule_check
 from .clock import today
 from .patterns import (
@@ -19,7 +20,6 @@ from .patterns import (
 )
 from .rule_checks import describe_check
 from .storage import read_json, write_json, write_text
-from .workflow import AGENT_WORKFLOW
 
 STATE_DIR = ".openguildkit"
 SCHEMA_VERSION = 1

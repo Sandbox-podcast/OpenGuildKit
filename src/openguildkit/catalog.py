@@ -2,6 +2,7 @@
 
 import copy
 import json
+import os
 import re
 import unicodedata
 from datetime import date
@@ -612,8 +613,13 @@ def _read_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
 
 
 # Bundled records already validated in this process, by registry folder. They ship with the code that is
-# running, so they cannot change during a command; project records are read again on every load.
+# running, so they cannot change during a command.
 _BUNDLED: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
+# Catalogs with the project's records already validated in this process, by registry folder, project folder and
+# the signature of the project's record files: task consult loads the catalog again under the project lock, and
+# the web server runs one command after another, without validating unchanged records again.
+_MERGED: dict[tuple, dict[str, dict[str, dict[str, Any]]]] = {}
+_MERGED_KEPT = 8
 
 
 def _validated_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
@@ -621,23 +627,37 @@ def _validated_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
     key = str(builtin)
     if key not in _BUNDLED:
         _BUNDLED[key] = _read_bundled(builtin)
+        _MERGED.clear()  # They were merged onto the records read before.
     return _BUNDLED[key]
 
 
-def _bundled_records(builtin) -> dict[str, dict[str, dict[str, Any]]]:
-    """A copy of the validated bundled records, read and validated once per process."""
-    return copy.deepcopy(_validated_bundled(builtin))
+def file_signature(path: Path) -> tuple:
+    """What changes when a file is written: its size, modification time and inode. Writes replace the file."""
+    try:
+        stat = path.stat()
+    except OSError:
+        return (path.name, None)
+    return (path.name, stat.st_mode, stat.st_size, stat.st_mtime_ns, stat.st_ino)
 
 
-def load_catalog(
-    extra_dir: Path | None = None, *, central_policy: tuple[str, dict] | None = None
-) -> dict[str, dict[str, dict[str, Any]]]:
-    """Load bundled records and optional project additions, ordered by ID."""
-    bundled = _bundled_records(_registry())
-    if extra_dir is not None and extra_dir.exists() and not extra_dir.is_dir():
-        raise CatalogError(f"{extra_dir} must be a directory")
-    project = extra_dir if extra_dir is not None and extra_dir.is_dir() else None
+def _records_signature(project: Path | None) -> tuple:
+    """The signature of every record file a load reads in the project's catalog folder."""
+    if project is None:
+        return ()
+    signature = []
+    for collection in COLLECTION_FIELDS:
+        directory = project / collection
+        if directory.is_dir():
+            names = sorted(entry.name for entry in os.scandir(directory) if entry.name.endswith(".json"))
+            signature.append((collection, tuple(file_signature(directory / name) for name in names)))
+        else:
+            signature.append((collection, directory.is_file()))
+    return tuple(signature)
 
+
+def _merged_records(builtin, project: Path | None) -> dict[str, dict[str, dict[str, Any]]]:
+    """The bundled records with the project's, each validated, ordered by ID."""
+    bundled = copy.deepcopy(_validated_bundled(builtin))
     catalog: dict[str, dict[str, dict[str, Any]]] = {}
     overlays: list[str] = []
     for collection in COLLECTION_FIELDS:
@@ -648,21 +668,26 @@ def load_catalog(
         elif directory is not None and directory.is_file():
             raise CatalogError(f"{directory} must be a directory")
         catalog[collection] = dict(sorted(entries.items()))
-
-    if central_policy is not None:
-        commit, pack = central_policy
-        validate_entry("packs", pack)
-        rules = pack["rules"]
-        check = rule_check(rules[0]) if len(rules) == 1 else None
-        if pack["id"] != EXPORT_EXPIRY_ID or check is None or check["kind"] != "field":
-            raise CatalogError(f"The central policy must contain one {EXPORT_EXPIRY_ID} rule with a field check")
-        if EXPORT_EXPIRY_ID in catalog["packs"]:
-            raise CatalogError(f"duplicate packs ID {EXPORT_EXPIRY_ID!r}")
-        catalog["packs"][EXPORT_EXPIRY_ID] = {**pack, "policy_commit": commit}
-        catalog["packs"] = dict(sorted(catalog["packs"].items()))
-
     if overlays:
         catalog["overlays"] = {"boards": sorted(overlays)}
+    return catalog
+
+
+def _add_central_policy(catalog: dict, central_policy: tuple[str, dict]) -> None:
+    commit, pack = central_policy
+    validate_entry("packs", pack)
+    rules = pack["rules"]
+    check = rule_check(rules[0]) if len(rules) == 1 else None
+    if pack["id"] != EXPORT_EXPIRY_ID or check is None or check["kind"] != "field":
+        raise CatalogError(f"The central policy must contain one {EXPORT_EXPIRY_ID} rule with a field check")
+    if EXPORT_EXPIRY_ID in catalog["packs"]:
+        raise CatalogError(f"duplicate packs ID {EXPORT_EXPIRY_ID!r}")
+    catalog["packs"][EXPORT_EXPIRY_ID] = {**pack, "policy_commit": commit}
+    catalog["packs"] = dict(sorted(catalog["packs"].items()))
+
+
+def _check_links(catalog: dict) -> None:
+    """Every pack a pack or a pattern names exists, and every sector a pattern names."""
     validate_dependencies(catalog["packs"])
     for pattern_id, pattern in catalog["patterns"].items():
         unknown_packs = set(pattern["packs"]) - catalog["packs"].keys()
@@ -671,6 +696,28 @@ def load_catalog(
         unknown_sectors = set(pattern.get("match", {}).get("sectors", [])) - catalog["sectors"].keys()
         if unknown_sectors:
             raise CatalogError(f"Pattern {pattern_id!r} links unknown sectors: {', '.join(sorted(unknown_sectors))}")
+
+
+def load_catalog(
+    extra_dir: Path | None = None, *, central_policy: tuple[str, dict] | None = None
+) -> dict[str, dict[str, dict[str, Any]]]:
+    """Load bundled records and optional project additions, ordered by ID. Each call gets its own copy; records
+    already validated in this process are not validated again while their files are unchanged."""
+    builtin = _registry()
+    _validated_bundled(builtin)
+    if extra_dir is not None and extra_dir.exists() and not extra_dir.is_dir():
+        raise CatalogError(f"{extra_dir} must be a directory")
+    project = extra_dir if extra_dir is not None and extra_dir.is_dir() else None
+    key = (str(builtin), str(project), _records_signature(project))
+    if key not in _MERGED:
+        merged = _merged_records(builtin, project)
+        if len(_MERGED) >= _MERGED_KEPT:
+            _MERGED.clear()
+        _MERGED[key] = merged
+    catalog = copy.deepcopy(_MERGED[key])
+    if central_policy is not None:
+        _add_central_policy(catalog, central_policy)
+    _check_links(catalog)
     return catalog
 
 

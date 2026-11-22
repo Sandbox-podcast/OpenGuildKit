@@ -15,7 +15,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.cli import main
-from openguildkit.workflow import validate_answers
+from openguildkit.questionnaire import validate_answers
 
 REPO = Path(__file__).resolve().parents[1]
 CONFIRMATION = "Write this profile and these rules? [Y/n]"
