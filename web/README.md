@@ -42,7 +42,7 @@ Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un proje
 npm run typecheck    # TypeScript strict
 npm test             # tests Vitest : domaine de la démo (règles sensibles, parcours principal, commandes du terminal), mode réel, script d'empaquetage
 npm run e2e          # parcours de la démonstration (Playwright, Chrome installé localement)
-npm run e2e:project  # 25 parcours et 2 balayages du mode réel sur des projets d'exemple neufs servis par openguildkit ui (après npm run build)
+npm run e2e:project  # parcours et balayages du mode réel sur des projets d'exemple neufs servis par openguildkit ui (après npm run build)
 npm run measure:project -- 'http://127.0.0.1:7311/?key=…'   # l'adresse imprimée par openguildkit ui ; temps d'affichage, requêtes et volumes de chaque lieu du mode réel
 npm run catalogue    # régénère src/fixtures/catalogue.json depuis data/SOCLE_Catalogue_395_References.md
 npm run docs:roles   # régénère docs/roles.md depuis les capacités du domaine
@@ -53,6 +53,18 @@ node scripts/measure.mjs http://localhost:5209 5   # mesures de performance de l
 Régénère les captures de `docs/captures-apres` (RPG) et `docs/captures-pro` après chaque changement visible de la démonstration (un lieu, un libellé, le style), avec `CAPTURES=1 npm run e2e -- captures`, et commite-les avec ce changement.
 
 `npm run e2e` utilise Chrome installé (`channel: chrome`). Tu peux aussi installer Chromium avec `npx playwright install chromium`, puis définir `PW_CHANNEL=chromium` avant `npm run e2e`. Les tests déposent leurs captures dans `test-results/`. [Captures comparatives et mesures](docs/verification.md)
+
+## Pièges connus
+
+- Les décisions réservées au terminal (valider, retirer une validation, déroger, lever un blocage sans signature, autoriser une action externe, accepter ou écarter une alerte critique) ne passent jamais par l'interface. Ne « simplifie » pas `check_request` dans `src/openguildkit/webui.py`.
+- Après `npm run build`, une page ouverte doit être rechargée : les noms des fichiers changent.
+- `npm run e2e:project` refuse de démarrer si le port 7322 (`PW_PROJECT_PORT`) ou l’un des deux suivants est occupé, par exemple par le serveur d'une exécution précédente.
+- Le serveur garde le catalogue entre deux commandes (le cache de `catalog.py`, invalidé quand un fichier change) : un nouveau fichier que lit le chargement du catalogue doit entrer dans sa signature.
+- Pour mesurer, n'utilise pas un onglet en arrière-plan : Chrome y ralentit les minuteries. Utilise `npm run measure:project`.
+- Ne lance pas `npm ci` quand un serveur `vite` tourne sur ce dossier : Windows verrouille `@rolldown/.../*.node`. Arrête les serveurs d'abord, ou répare avec `npm install`.
+- Teste la démonstration sur un autre port que celui de ton serveur de développement (5199) : le localStorage est propre à chaque origine. `playwright.config.ts` utilise 5201 par défaut (`PW_PORT`).
+- Les chaînes de l'interface sont en français avec l'apostrophe typographique `’` : les tests comparent des messages.
+- Démonstration : les règles métier vivent dans `src/domain` ; les composants appellent `dispatch(cmd.x, …)`. Mode réel : les règles sont celles de la CLI ; le front ne duplique aucune garde, il affiche le refus de la CLI.
 
 ## Parcours de démonstration
 

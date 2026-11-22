@@ -1,40 +1,89 @@
 # Architecture
 
-OpenGuildKit has two parts: a **knowledge catalog** (JSON data) and a **CLI** that turns the catalog and a project profile into instructions, consultation requests and handoffs for a host agent. The CLI does no AI work itself.
+OpenGuildKit has three parts: a **knowledge catalog** (JSON data), a **CLI** that turns the catalog and a project profile into instructions, consultation requests and handoffs for a host agent, and a **local web interface** over the same CLI. None of them does AI work itself.
 
 ## Components
 
 ```mermaid
 flowchart LR
     subgraph data["Catalog data"]
-        packs["packs/*.json"]
-        boards["boards/*.json"]
-        sectors["sectors/*.json"]
+        registry["registry/**.json<br/>packs, boards, sectors, patterns,<br/>references, tools, mocks, deliverables"]
         local[".openguildkit/catalog/**.json<br/>(project additions)"]
     end
-    catalog["catalog.py<br/>schema validation,<br/>dependency graph"]
-    project["project.py<br/>profile, AGENTS.md block,<br/>fingerprint"]
-    workflow["workflow.py<br/>QCM, routing,<br/>consultation, handoff"]
-    tasks["tasks.py<br/>task state machine"]
-    storage["storage.py<br/>atomic JSON writes,<br/>project lock"]
-    cli["cli.py<br/>argparse entry point"]
+    subgraph people["Entry points"]
+        terminal["terminal<br/>python -m openguildkit"]
+        hook["host hook<br/>guard --hook"]
+        page["browser<br/>web/ front end"]
+    end
+    main["__main__.py"]
+    cli["cli.py and *_cli.py<br/>argparse, one module per command group"]
+    webui["webui.py<br/>local server, JSON API"]
+    core["catalog, lock, project<br/>questionnaire, routing, consultation<br/>workflow, tasks, decisions, results"]
+    guard["guard.py<br/>edit hook and CI check"]
+    storage["storage.py<br/>atomic writes, project lock"]
 
-    packs & boards & sectors & local --> catalog
-    cli --> catalog & project & tasks
-    tasks --> workflow
-    project --> workflow
-    project & tasks --> storage
+    registry & local --> core
+    terminal --> main --> cli
+    hook --> main --> guard
+    page -- "HTTP on 127.0.0.1,<br/>X-OGK-Token" --> webui
+    webui -- "same argv, in process" --> cli
+    cli --> core & guard
+    core & guard --> storage
 ```
+
+The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves the front end built from `web/` (packaged as `web_dist/`) and a JSON API on the loopback interface. Each API call parses the same arguments a person would type and runs them through `cli.py` in the server process, one at a time behind a lock of the server, and a writing command takes the project lock as it does in a terminal, so the page and the terminal share every rule. The server answers only its own host and origin, and every call carries the session token that the printed address gives the browser. It never runs what needs a person at a terminal: approving, withdrawing an approval, clearing a blocker without a signature, waiving, allowing an external action, accepting or downgrading an alert, declaring that a check cannot run, closing over sensitive points, or weakening a protection. For those it answers with the command to type ([interface d'un projet réel](../web/docs/interface-projet.md)).
+
+### Modules
 
 | Module | Responsibility |
 |---|---|
-| `catalog.py` | Loads bundled records from `registry/` and optional project records from `.openguildkit/catalog/`. Rejects unknown fields, duplicate IDs, duplicate JSON keys, non-HTTPS sources, multi-line text and pack dependency cycles. |
+| `__init__.py` | Marks the package; it holds nothing else. |
+| `__main__.py` | Starts `python -m openguildkit` and the installed command; sends a plain `guard --hook` call straight to the guard without importing the rest of the CLI. |
+| `cli.py` | Parses commands, runs setup, sync, check, catalog and the other project commands, and hands each command group to its module. |
+| `tasks_cli.py` | The `task` command, from `task new` to `task export`, including the approval a person types at a terminal. |
+| `profile_cli.py` | The `profile` commands: change the profile after setup, with who, when and why; the page saves through the same path. |
+| `tools_cli.py` | The `tools` commands: browse the registry, plan and apply MCP connections, call and serve mocks. |
+| `market_cli.py` | The `market` command: create, fill, check and watch market dossiers. |
+| `alerts_cli.py` | The `alerts` commands and `task alerts`: import scanner reports and review alerts. |
+| `storybook_cli.py` | The `storybook` command: compose, record and extract; loads the Storybook modules only when it runs. |
+| `prompts.py` | Asks a person at a terminal the setup questions of `init` and the task questions of `task consult`. |
+| `shell.py` | Quotes the commands printed for a person to paste, the same way for POSIX shells and PowerShell. |
+| `webui.py` | The local web interface: serves the built front end and a JSON API over the CLI on 127.0.0.1, refuses what needs a person at a terminal. |
+| `catalog.py` | Loads bundled records from `registry/` and project records from `.openguildkit/catalog/`. Rejects unknown fields, duplicate IDs and keys, non-HTTPS sources, multi-line text and pack dependency cycles. |
+| `lock.py` | Pins the catalog records a project uses in `catalog.lock.json`; `update` shows and applies a newer catalog. |
+| `patterns.py` | Matches the project's stack and context to versioned stack patterns and the packs they apply. |
+| `references.py` | Searches the reference library, separately from the active rule packs. |
+| `brains.py` | Assembles what a brain knows: its specialists' methods, packs and references. |
 | `detect.py` | Proposes components, technologies and versions from the repository's manifests, without running a package manager. |
-| `project.py` | Builds the init questionnaire, validates the profile, recommends packs from the stack, resolves pack dependencies, renders the managed block in `AGENTS.md`, computes the profile fingerprint and checks that instructions are current. |
-| `workflow.py` | Holds the task questionnaire, routes a task to boards, renders the consultation request and the handoff, and validates reviews. |
-| `tasks.py` | Creates task records and enforces the state machine: draft, consulting, reviewed, approved or changes-requested. |
-| `storage.py` | Writes files through a temporary file and `os.replace`, refuses symbolic links, and serialises writing commands with a lock on `.openguildkit/.lock`: a writer waits up to 10 seconds (`OPENGUILDKIT_LOCK_TIMEOUT`, in seconds) for another one to finish, then stops with "Try again". Read commands never take the lock. On Windows, a write waits up to three seconds for another process that is reading the same record to let go of it, and a read waits as long for a record that is being replaced. |
-| `cli.py` | Parses commands, reads answers from files or a terminal, and enforces the interactive approval. |
+| `stack_versions.py` | Reads declared versions and version ranges for detection, patterns and the Storybook dependency report. |
+| `project.py` | Builds the setup questionnaire, validates the profile, resolves packs, renders the managed block of `AGENTS.md`, computes the profile fingerprint and checks that instructions are current. |
+| `project_checks.py` | Proposes the project's test commands at setup and explains why a check command failed. |
+| `agent_workflow.py` | The task workflow that the managed block of `AGENTS.md` teaches every agent. |
+| `integrations.py` | Installs the agent skill and the subagents shipped with this version. |
+| `hosts.py` | Writes the settings and hooks a host agent can enforce (Claude Code, Codex) and reports which rules stay instructions. |
+| `questionnaire.py` | The task questionnaire, its follow-ups and the check of the answers. |
+| `routing.py` | Routes a task to boards from its brief and answers, then applies required boards and the requester's changes. |
+| `relevance.py` | Decides which active packs concern a task, from its answers, boards and brief. |
+| `consultation.py` | Prepares the consultation: scope snapshot, review request and each board's brief with the rules that concern the task. |
+| `workflow.py` | Checks the boards' review entries and evidence, the deliberation, the decision brief, the blockers and the handoff. |
+| `tasks.py` | Task records and their state machine, from draft to done, with blockers, approvals and their withdrawal. |
+| `task_index.py` | Each task's status without parsing every record, so the edit hook reads only the tasks that can cover an edit. |
+| `decisions.py` | Seals an approval to what was approved, verifies signed approvals against the allowed signers in Git, and reads exported records. |
+| `results.py` | Records what was delivered for an approved task and the checks that prove it. |
+| `rule_checks.py` | Validates and evaluates the machine checks that pack rules declare, without executing anything. |
+| `guard.py` | Says whether an approved task covers the work: the host hooks before a request or an edit, and `guard --ci` in a pull request. |
+| `ci.py` | Reads versioned evidence from Git and evaluates the central policy's field check. |
+| `sensitive.py` | Recognizes credentials and personal data in what people and agents give the CLI. |
+| `clock.py` | The two clocks: the date records are written with (`SOURCE_DATE_EPOCH`) and the real time decisions are made with. |
+| `storage.py` | Writes files atomically, refuses symbolic links, and serialises writing commands with the project lock. |
+| `alerts.py` | The dependency alert register, from the reports of the project's own scanners. |
+| `market.py` | Market dossiers: competitors, dated observations, what is still unknown. |
+| `tools.py` | The tool registry and the MCP servers that connect an agent to each tool; plans and writes host connections. |
+| `mcp_mock.py` | Stand-in MCP servers over stdio for demos and tests: synthetic answers, no network, no credentials. |
+| `deliverables.py` | Business deliverable templates: inputs, tool actions that need approval, reviewer checks. |
+| `publishing.py` | Exports verified work as documentation pages for Documentalist and keeps the share register. |
+| `storybook.py` | References the company's Storybook, compares it with the project's, and writes extraction proposals. |
+| `storybook_extract.py` | Inventories the components, variants and style tokens of an existing React application. |
 
 ## What lives in a project
 
@@ -42,17 +91,24 @@ flowchart LR
 your-project/
   AGENTS.md                      managed block between OpenGuildKit markers
   CLAUDE.md                      imports AGENTS.md for Claude Code
+  .mcp.json, .codex/config.toml  MCP connections that tools apply writes (commit them)
+  .claude/, .codex/              host settings, hooks and rules that host apply writes (commit them)
+  .storybook/openguildkit-refs.json   composed Storybooks that storybook compose writes
   .openguildkit/
     project.json                 the profile (commit it)
     catalog.lock.json            the catalog records in force (commit it)
-    catalog/                     optional private packs, boards, sectors (commit it)
-      packs/ boards/ sectors/
+    catalog/                     optional private packs, boards, sectors, patterns, tools, tool mocks, deliverables (commit it)
+      packs/ boards/ sectors/ patterns/ tools/ tool-mocks/ deliverables/
+    tools.json                   the connections tools apply made, and the requests left unconnected (commit it)
+    alerts.json                  the dependency alert register (commit it)
+    storybook.json               the Storybook indexes the project records (commit it)
+    storybook/                   inventory, proposals and generated files of storybook extract
     tasks/                       task records (local, git-ignored)
       .status-index              each record's status, so the edit hook skips the ones that cannot cover an edit
     shares/                      who a deliverable is shared with (local, git-ignored)
     decisions/                   exported decision records (commit them)
     market/                      market dossiers (commit them)
-    .gitignore                   created by init: tasks/, .lock, temp files
+    .gitignore                   created by init: tasks/, shares/, .lock, temp files
 ```
 
 The profile and the managed block are shared through git, so every person and every agent on the project gets the same rules. Task records stay local because they can contain unreleased product details, and `check` expects `tasks/` in `.openguildkit/.gitignore`. A team that needs an audit trail exports `task show ID` or the approved handoff to the evidence location it already uses. The team's own text in `AGENTS.md` and `CLAUDE.md` stays around the block; `sync` refuses a file that is not UTF-8 or that ends inside an unclosed code block, since the rules would otherwise be read as code. In a monorepo, a language pack that a component's pattern brings applies only to that component.

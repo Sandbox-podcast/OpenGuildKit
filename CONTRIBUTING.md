@@ -36,6 +36,21 @@ python -m openguildkit references
 python -m openguildkit patterns
 ```
 
+The web interface (`web/`, React and TypeScript) needs Node 22.12 or 24 and has its own checks; `npm run bundle` copies the build into the package, where `openguildkit ui` serves it:
+
+```bash
+cd web
+npm ci --ignore-scripts
+npm run typecheck
+npm test                 # Vitest
+npm run check:exports
+npm run build
+npm run bundle
+npm run e2e:project      # Playwright journeys of openguildkit ui, after npm run build; Chrome installed
+```
+
+[web/README.md](web/README.md) has the other commands and the known pitfalls.
+
 No runtime dependency. Tests use `unittest` from the standard library. [Testing](docs/testing.md) lists the kinds of tests (unit, end to end, concurrency, determinism, robustness, performance, upgrade), how to run each one and what they do not cover; `python scripts/bench.py` prints the time of the main commands.
 
 ## Adding a pack
@@ -107,7 +122,7 @@ A maintainer validates every replacement in the pull request that makes it. Run 
 
 - Python 3.11+, standard library only at runtime.
 - Keep the CLI offline. It must never call a model provider or the network.
-- Add unit tests in `tests/` and, for a new command, an end-to-end test in `tests/e2e/`: `tests/test_cli_coverage.py` fails when a command has no test that runs it.
+- Add unit tests in `tests/` and, for a new command, an end-to-end test in `tests/e2e/`: `tests/test_cli_coverage.py` fails when a command has no test that runs it. Run the CLI from a test with `tests/support.py` (`run_cli`, `CapturedCli`, `copy_initialized_project`): it runs in the test process unless the test needs a real one ([testing](docs/testing.md#how-the-suite-runs-the-cli)).
 - Keep messages short and actionable, prefixed `OpenGuildKit:` on errors.
 - Write code, rule packs and documentation in English, except the web interface. The web interface is written in French, because its screens are in French and the team that builds and uses it so far is French-speaking: `web/` (its screens, `web/README.md` and `web/docs/`) stays in French. Reference entries can keep their original language. The French README is maintained alongside the English one.
 

@@ -19,12 +19,12 @@ $env:PW_PORT = '5208'
 npm run e2e
 ```
 
-| Contrôle | Couverture | Résultat du 21 novembre 2026 |
+| Contrôle | Couverture | Résultat du 22 novembre 2026 |
 | --- | --- | --- |
-| `npm run check` | TypeScript, 38 tests Vitest (28 de domaine, 10 du mode réel) et build Vite | 28/28, build réussie. Chaque lieu est un fichier chargé à la demande ; aucun bloc ne dépasse 500 kB (le plus gros, le domaine de la démo, fait 316 kB). |
-| `npm run e2e` | 11 scénarios Chrome, dont les 20 étapes d'Atelier Nova et le basculement RPG / Pro | 11 réussis. La série de captures est ignorée sauf avec `CAPTURES=1`. |
-| `npm run e2e:project` | 25 parcours du mode réel, une fois par action de l'interface, et 2 balayages de 34 routes (bureau RPG, mobile Pro), sur des projets d'exemple neufs servis par `openguildkit ui` | 27/27, trois exécutions de suite. Demande `npm run build` avant. |
-| `python -m unittest tests.test_webui` (racine) | Serveur local : hôte, origine, jeton, décisions réservées au terminal, chemins, envois, requêtes mal formées, concurrence, cache du catalogue, réponses allégées et compressées, profil, fichiers servis | 20/20 |
+| `npm run check` | TypeScript, tests Vitest (domaine de la démo, mode réel, scripts) et build Vite | Tous réussis, build réussie. Chaque lieu est un fichier chargé à la demande ; aucun bloc ne dépasse 500 kB (le plus gros, le domaine de la démo, fait 316 kB). |
+| `npm run e2e` | Scénarios Chrome, dont les étapes d'Atelier Nova et le basculement RPG / Pro | Tous réussis. La série de captures est ignorée sauf avec `CAPTURES=1`. |
+| `npm run e2e:project` | Un parcours du mode réel par action de l'interface, et deux balayages de toutes les routes (bureau RPG, mobile Pro, avec axe-core), sur des projets d'exemple neufs servis par `openguildkit ui` | Tous réussis. Demande `npm run build` avant. |
+| `python -m unittest tests.test_webui` (racine) | Serveur local : hôte, origine, jeton, décisions réservées au terminal, chemins, envois, requêtes mal formées, concurrence, cache du catalogue, réponses allégées et compressées, profil, fichiers servis | Tous réussis |
 | `npm run measure:project -- URL` | Temps d'affichage, requêtes et volumes de chaque lieu du mode réel | Voir [Performances](interface-projet.md#performances) |
 
 Le mode réel charge 5 kB d'amorce, React (219 kB), le cadre du projet (28 kB) et le lieu ouvert (10 à 30 kB). Il ne charge jamais le domaine ni les données de la démonstration. [Interface d'un projet réel](interface-projet.md)
