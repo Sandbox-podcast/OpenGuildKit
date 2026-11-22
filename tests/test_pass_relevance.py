@@ -139,7 +139,7 @@ class PassRelevanceTests(ProjectCase):
         self.assertNotIn("update-processing-record", section)
         self.assertEqual(len([line for line in section.splitlines() if line.startswith("Not concerned")]), 1)
         self.assertRegex(section, r"Not concerned by this task, so not asked \(each reason: openguildkit task checks "
-                                  r"pd-bug\): .*gdpr \(\d of \d rules\)")
+                                  r"pd-bug\): .*gdpr \(\d+ of \d+ rules\)")
 
     def test_the_handoff_of_a_decision_task_has_no_rules_to_apply(self):
         self.init()

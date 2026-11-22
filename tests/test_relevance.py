@@ -107,11 +107,17 @@ class RelevanceTests(RelevanceCase):
                     answers = (len(template["checks"]) + len(template["criteria"])
                                + sum(len(pack["rules"]) for pack in template["packs"]))
                     self.assertLess(answers, 25)
-        # A feature keeps every GDPR rule, and required_rules keeps a rule whatever the kind.
+        # A feature keeps every GDPR rule but those with a subject of their own (Art. 22 needs decisions about
+        # people), and required_rules keeps a rule whatever the kind.
         task, profile = self.task({**BUG, "kind": "feature", "data": "personal"}, boards=boards)
         asked = {c["id"] for c in asked_checks(task, profile, self.relevance(task, profile))}
-        self.assertEqual(len([name for name in asked if name.startswith("rule:gdpr/")]),
-                         len(self.catalog["packs"]["gdpr"]["rules"]))
+        self.assertEqual({name for name in asked if name.startswith("rule:gdpr/")},
+                         {f"rule:gdpr/{rule['id']}" for rule in self.catalog["packs"]["gdpr"]["rules"]}
+                         - {"rule:gdpr/automated-decision"})
+        task, profile = self.task({**BUG, "kind": "feature", "data": "personal", "concerns": ["people-decisions"]},
+                                  boards=boards)
+        self.assertIn("rule:gdpr/automated-decision",
+                      {c["id"] for c in asked_checks(task, profile, self.relevance(task, profile))})
         required = validate_profile({**dict(field_profile(self.catalog)), "required_rules": ["gdpr/assess-dpia-need"]},
                                     self.catalog)
         task, profile = self.task({**BUG, "data": "personal"}, boards=boards, profile=required)

@@ -104,6 +104,10 @@
           "The supported browser list is written down and the features used are available in all of them, or have a fallback.",
           "The change is tested on the smallest supported screen and with touch input.",
           "Errors in the browser are reported to monitoring with the release version."
+        ],
+        "applies_to": [
+          "customer",
+          "business"
         ]
       }
     ],

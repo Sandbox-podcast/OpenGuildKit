@@ -81,6 +81,11 @@
           "The contract file is updated in the same change and validated in CI.",
           "Removing or renaming a field, or making one required, is treated as breaking and versioned or deprecated.",
           "Unsafe methods that clients retry are idempotent or take an idempotency key."
+        ],
+        "applies_to": [
+          "customer",
+          "service",
+          "business"
         ]
       },
       {

@@ -107,7 +107,8 @@ SUBJECTS = {
 LEGAL_BASIS = {
     "gdpr": "personal or regulated data: the GDPR applies to the processing of personal data (Art. 2(1)). Within "
             "it, the rules about a new processing (record Art. 30, lawful basis Art. 6, retention Art. 5(1)(e), "
-            "DPIA Art. 35, rights Art. 15 to 17) are left out of a bug or a maintenance, and those about a new "
+            "DPIA Art. 35, rights Art. 15 to 17, information Art. 13 and 14, consent to trackers ePrivacy Art. 5(3)) "
+            "are left out of a bug or a maintenance, and those about a new "
             "processor (Art. 28) or a transfer outside the EEA (Chapter V) out of a bug only: a migration often "
             "changes where the data goes, a fix almost never.",
     "minors-data-protection": "personal or regulated data: GDPR Art. 8 and 35 and DSA Art. 28 apply to the "
@@ -124,6 +125,8 @@ LEGAL_BASIS = {
     "nis2": "regulated data, infrastructure, or a feature or maintenance on a customer or service surface with "
             "personal data: the measures of Art. 21(2) cover the network and information systems an essential or "
             "important entity uses for its services, their suppliers (point d) included.",
+    "european-accessibility-act": "a customer surface: Directive (EU) 2019/882 sets accessibility requirements for "
+                                  "services provided to consumers (Art. 2(2), Annex I), applied since 28 June 2025.",
     "cyber-resilience-act": "infrastructure or credentials: its rules act on how releases are built, shipped and "
                             "updated and how vulnerabilities are handled (Annex I Part II, Art. 13(8)).",
     "incident-notification": "each row follows the pack of its regulation (GDPR Art. 33 and 34, NIS 2 Art. 23, DORA "
@@ -163,7 +166,7 @@ LEGAL_BASIS = {
 FIX_KINDS = ("bug", "maintenance")
 NEW_PROCESSING_RULES = {
     "gdpr": ("update-processing-record", "confirm-lawful-basis", "apply-retention-period", "assess-dpia-need",
-             "keep-data-subject-rights-working"),
+             "keep-data-subject-rights-working", "inform-data-subjects", "gate-trackers-on-consent"),
     "minors-data-protection": ("confirm-age-of-consent", "obtain-parental-consent", "assess-dpia-for-pupils",
                                "protect-minors-by-default"),
     "health-data-protection": ("confirm-health-data-condition", "assess-health-data-dpia",

@@ -20,9 +20,6 @@ CONCERNS = (["none"], ["money"], ["ai"], ["people-decisions"], ["credentials"])
 # Boards whose every lens concerns any task they review, with the reason.
 ALL_LENSES = {
     "project-management": "planning, capacity, decisions and risks concern every task the board reviews",
-    # The lenses of these two boards live in files of the routing work; their scope waits for it.
-    "backend": "waits for the routing work, which owns boards/backend.json",
-    "frontend": "waits for the routing work, which owns boards/frontend.json",
 }
 # Roles without a core method, with the reason: the methods depend on the matter at hand.
 NO_CORE_METHOD = {"legal": "contracts, notices, licences and regulations each have their own method; none fits every matter"}
