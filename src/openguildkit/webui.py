@@ -15,14 +15,12 @@ import io
 import json
 import mimetypes
 import os
-import pickle
 import re
 import secrets
 import socket
 import sys
 import tempfile
 import threading
-import time
 import webbrowser
 from http import HTTPStatus
 from http.cookies import CookieError, SimpleCookie
@@ -30,7 +28,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from . import cli, profile_cli
+from .catalog import load_catalog
+from .lock import package_version
 from .shell import shell_command
+from .storage import project_lock, write_text
 
 DEFAULT_PORT = 7311
 MAX_BODY = 8 * 1024 * 1024
@@ -241,92 +243,6 @@ def check_paths(args, root: Path, uploads: set[Path]) -> None:
                               status=HTTPStatus.BAD_REQUEST, reason="outside-project")
 
 
-def _files_signature(folder: Path | None) -> tuple:
-    """Names, sizes and modification times of the JSON files under a folder: any edit changes it."""
-    if folder is None or not folder.is_dir():
-        return ()
-    return tuple(sorted((str(path), stat.st_size, stat.st_mtime_ns)
-                        for path in folder.rglob("*.json") for stat in (path.stat(),)))
-
-
-def _file_signature(path: Path) -> tuple:
-    try:
-        stat = path.stat()
-    except OSError:
-        return (str(path), None)
-    return (str(path), stat.st_size, stat.st_mtime_ns)
-
-
-class Speedups:
-    """What every command rebuilds, kept between the commands of this server: the argument parser, the
-    validated catalog and the validated catalog lock. Each is reused only while its files are unchanged, and
-    each command gets its own copy. Active only while the server runs a command; the CLI itself is untouched.
-
-    The bundled registry ships with the package and is looked at again every two seconds at most; the
-    project's own catalog folder and lock are looked at before every command."""
-
-    REGISTRY_RECHECK = 2.0
-
-    def __init__(self):
-        self.parser = None
-        self.catalogs: dict[tuple, bytes] = {}
-        self.locks: dict[tuple, bytes] = {}
-        self.registry: tuple[float, tuple] = (0.0, ())
-
-    def _registry_signature(self, builtin: Path) -> tuple:
-        checked, signature = self.registry
-        now = time.monotonic()
-        if now - checked > self.REGISTRY_RECHECK:
-            signature = _files_signature(builtin)
-            self.registry = (now, signature)
-        return signature
-
-    @staticmethod
-    def _remember(cache: dict, key: tuple, value) -> None:
-        if len(cache) >= 4:
-            cache.clear()
-        cache[key] = pickle.dumps(value, protocol=pickle.HIGHEST_PROTOCOL)
-
-    @contextlib.contextmanager
-    def active(self, cli):
-        from importlib.resources import files
-
-        names = ("_parser", "load_catalog", "read_lock")
-        if not all(callable(getattr(cli, name, None)) for name in names):
-            yield  # the CLI changed shape: run its commands as they are, without the cache
-            return
-        originals = tuple(getattr(cli, name) for name in names)
-        original_parser, original_load, original_read_lock = originals
-        builtin = Path(str(files("openguildkit").joinpath("registry")))
-
-        def parser():
-            if self.parser is None:
-                self.parser = original_parser()
-            return self.parser
-
-        def load_catalog(extra_dir=None, *, central_policy=None):
-            if central_policy is not None:
-                return original_load(extra_dir, central_policy=central_policy)
-            key = (str(extra_dir), self._registry_signature(builtin), _files_signature(extra_dir))
-            if key not in self.catalogs:
-                self._remember(self.catalogs, key, original_load(extra_dir))
-            return pickle.loads(self.catalogs[key])
-
-        def read_lock(state):
-            key = _file_signature(state / "catalog.lock.json")
-            if key not in self.locks:
-                self._remember(self.locks, key, original_read_lock(state))
-            return pickle.loads(self.locks[key])
-
-        for name, replacement in zip(names, (parser, load_catalog, read_lock)):
-            setattr(cli, name, replacement)
-        try:
-            yield
-        finally:
-            for name, original in zip(names, originals):
-                setattr(cli, name, original)
-
-
 def _without(data, keys: set[str]):
     if isinstance(data, dict):
         return {key: _without(value, keys) for key, value in data.items() if key not in keys}
@@ -349,15 +265,12 @@ class CliRunner:
     def __init__(self, root: Path):
         self.root = root
         self.lock = threading.Lock()
-        self.speedups = Speedups()
 
     def parse(self, argv: list[str]):
-        from . import cli
-
         err = io.StringIO()
         with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
             try:
-                return cli._parser().parse_args(["--project", str(self.root), *argv])
+                return cli.command_parser().parse_args(["--project", str(self.root), *argv])
             except SystemExit:
                 message = err.getvalue().strip().splitlines()
                 raise Refused(message[-1] if message else "Invalid command.", status=HTTPStatus.BAD_REQUEST,
@@ -368,8 +281,6 @@ class CliRunner:
         """Run one command. Its JSON output comes back parsed; the same text is dropped unless keep_text,
         and the keys named in omit are removed at any depth (a page that shows a list of tasks does not
         need the text of each consultation)."""
-        from . import cli
-
         if not isinstance(argv, list) or not argv or not all(isinstance(item, str) for item in argv):
             raise Refused("argv must be a non-empty list of strings.", status=HTTPStatus.BAD_REQUEST,
                           reason="bad-request")
@@ -379,7 +290,7 @@ class CliRunner:
         # sys.stdout, sys.stderr and sys.stdin are process-wide: parsing and running hold the same lock, or a
         # concurrent request would capture another command's output.
         typed = list(argv)
-        with tempfile.TemporaryDirectory(prefix="ogk-ui-") as folder, self.lock, self.speedups.active(cli):
+        with tempfile.TemporaryDirectory(prefix="ogk-ui-") as folder, self.lock:
             argv, written = self._with_uploads(argv, uploads or {}, Path(folder))
             args = self.parse(argv)
             check_request(args, typed, self.root)
@@ -520,8 +431,6 @@ class ProjectFiles:
             json.loads(text)
         except ValueError as error:
             raise Refused(f"Invalid JSON: {error}", status=HTTPStatus.BAD_REQUEST, reason="bad-request") from None
-        from .storage import project_lock, write_text
-
         target = self._resolve(relative)
         # storybook propose writes the same file under the project lock.
         try:
@@ -702,8 +611,6 @@ class WebApp:
     cookie; the session gives the page the token that every API call carries."""
 
     def __init__(self, root: Path, front: Path | None, port: int, verbose: bool = False):
-        from .lock import package_version
-
         self.root = root
         self.front = front
         self.key = launch_key()
@@ -783,10 +690,6 @@ class WebApp:
         in the history with who and why, then the instructions and the catalog lock are rewritten. A change that
         weakens a protection is the person's decision at a terminal: it is refused with the profile command to
         type. An invalid profile, or one that rewrites the history, is refused too; nothing is written then."""
-        from types import SimpleNamespace
-
-        from . import cli, profile_cli
-
         if not isinstance(text, str):
             raise Refused("text must be a string.", status=HTTPStatus.BAD_REQUEST, reason="invalid-profile")
         try:
@@ -800,9 +703,7 @@ class WebApp:
         state = self.root / ".openguildkit"
         if not (state / "project.json").is_file():
             raise Refused(REFUSALS["not-initialized"], status=HTTPStatus.CONFLICT, reason="not-initialized")
-        no_policy = SimpleNamespace(policy_repo=None, policy_commit=None)
-        result, failure = self.runner.call(lambda: profile_cli.save_edited(
-            self.root, state, profile, who, why, lambda: cli._installed_catalog(no_policy, state), cli._print_touched))
+        result, failure = self.runner.call(lambda: profile_cli.save_edited(self.root, state, profile, who, why))
         if isinstance(failure, profile_cli.Weakening):
             raise Refused(f"{failure} {HUMAN_ONLY_TEXT}", terminal_command(self.root, failure.changes[0][1]),
                           reason="weakens-protection")
@@ -824,10 +725,7 @@ def _decision_line(value, field: str, default: str) -> str:
 
 def weakening_changes(root: Path, before: dict, after: dict) -> list[tuple[str, list[str]]]:
     """What a hand-edited profile weakens, by the profile commands' own rule, each with the command to type."""
-    from .catalog import load_catalog
-    from .profile_cli import weakening_changes as weakened
-
-    return weakened(before, after, load_catalog(root / ".openguildkit" / "catalog"))
+    return profile_cli.weakening_changes(before, after, load_catalog(root / ".openguildkit" / "catalog"))
 
 
 class LocalServer(ThreadingHTTPServer):

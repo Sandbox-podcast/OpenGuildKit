@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TextIO
 
 from .mcp_mock import MockError, call_tool, describe, example_arguments, is_generic, serve, signature
+from .project import load_profile
 from .sensitive import looks_like_credential
 from .shell import shell_command
 from .storage import json_text, project_lock, write_text
@@ -257,7 +258,7 @@ def _print_mock_listing(mock: dict) -> None:
     }, indent=2, ensure_ascii=False))
 
 
-def run(args, root: Path, state: Path, catalog: dict, load_profile) -> int:
+def run(args, root: Path, state: Path, catalog: dict) -> int:
     action = args.tools_action
     mock_dir = state / "catalog" / "tool-mocks"
     if action == "mock":

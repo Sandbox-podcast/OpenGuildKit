@@ -13,7 +13,8 @@ from openguildkit.catalog import load_catalog
 from openguildkit.cli import main
 from openguildkit.project import resolved_profile, validate_profile
 from openguildkit.storage import write_json
-from openguildkit.workflow import board_brief, code_not_found, consult, validate_board_entry
+from openguildkit.consultation import board_brief, code_not_found, consult
+from openguildkit.workflow import validate_board_entry
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "request-status"

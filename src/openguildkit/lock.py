@@ -9,8 +9,12 @@ import json
 from copy import deepcopy
 from pathlib import Path
 
-from .catalog import CatalogError, _validate_dependencies, _validate_entry, latest_checked, load_catalog, overlaid_boards
+from .catalog import (
+    CatalogError, file_signature, latest_checked, load_catalog, overlaid_boards, validate_dependencies, validate_entry,
+)
+from .ci import read_policy_pack
 from .patterns import pattern_selection
+from .project import check_instructions, selected_packs
 from .storage import read_json, write_json
 
 LOCK_FILE = "catalog.lock.json"
@@ -37,10 +41,27 @@ def lock_path(state: Path) -> Path:
     return state / LOCK_FILE
 
 
+# Locks already validated in this process, by the signature of their file: task consult reads the lock again under
+# the project lock, and the web server runs one command after another.
+_READ: dict[tuple, dict] = {}
+_READ_KEPT = 8
+
+
 def read_lock(state: Path) -> dict | None:
+    """The project's catalog lock, validated; each call gets its own copy."""
     path = lock_path(state)
     if not path.is_file():
         return None
+    key = (str(path), file_signature(path))
+    if key not in _READ:
+        lock = _validated_lock(path)
+        if len(_READ) >= _READ_KEPT:
+            _READ.clear()
+        _READ[key] = lock
+    return deepcopy(_READ[key])
+
+
+def _validated_lock(path: Path) -> dict:
     lock = read_json(path)
     if lock.get("schema_version") != 1 or not isinstance(lock.get("records"), dict):
         raise ValueError(f"Unsupported catalog lock: {path}. Run openguildkit update --apply.")
@@ -50,12 +71,60 @@ def read_lock(state: Path) -> dict | None:
             raise ValueError(f"Unknown collection {collection!r} in {path}.")
         for record_id, record in entries.items():
             try:
-                _validate_entry(collection, {key: value for key, value in record.items() if key != "policy_commit"})
+                validate_entry(collection, {key: value for key, value in record.items() if key != "policy_commit"})
             except CatalogError as error:
                 raise ValueError(f"{path}: {collection}/{record_id}: {error}") from error
             if record.get("id") != record_id:
                 raise ValueError(f"{path}: {collection}/{record_id} has a different id.")
     return lock
+
+
+def central_policy(args) -> tuple[str, dict] | None:
+    """The central export rule that --policy-repo and --policy-commit name, read at that commit; None without them,
+    and for a caller without command-line arguments (args None), such as the web page."""
+    repo, commit = (args.policy_repo, args.policy_commit) if args is not None else (None, None)
+    if (repo is None) != (commit is None):
+        raise ValueError("Supply --policy-repo and --policy-commit together.")
+    return None if repo is None else (commit, read_policy_pack(repo, commit))
+
+
+def installed_catalog(args, state: Path) -> tuple[dict, dict[str, set[str]]]:
+    """The installed catalog with project additions, and the IDs that ship with OpenGuildKit."""
+    live = load_catalog(state / "catalog", central_policy=central_policy(args))
+    bundled = {collection: set(entries) for collection, entries in load_catalog().items()}
+    return live, bundled
+
+
+def project_catalog(args, state: Path) -> dict:
+    """The catalog in force for the project: locked records take precedence over installed ones."""
+    live, _ = installed_catalog(args, state)
+    return apply_lock(live, read_lock(state))
+
+
+LOCK_OLDER = (
+    "The instructions follow a newer catalog than the project's lock. Run openguildkit update to review the changes "
+    "and the tasks they touch, then openguildkit update --apply. openguildkit sync would rewrite the instructions from "
+    "the lock's earlier rules and leave the lock as it is."
+)
+
+
+def require_instructions(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
+    """Refuse out-of-date instructions, naming update rather than sync when they follow a newer installed catalog."""
+    try:
+        check_instructions(root, profile, catalog)
+    except ValueError:
+        lock = read_lock(state)
+        if lock is not None and _instructions_match(root, profile, update_target(installed_catalog(args, state)[0], lock)):
+            raise ValueError(LOCK_OLDER) from None
+        raise
+
+
+def _instructions_match(root: Path, profile: dict, catalog: dict) -> bool:
+    try:
+        check_instructions(root, profile, catalog)
+    except ValueError:
+        return False
+    return True
 
 
 def apply_lock(catalog: dict, lock: dict | None) -> dict:
@@ -71,18 +140,16 @@ def apply_lock(catalog: dict, lock: dict | None) -> dict:
             effective[collection][record_id] = deepcopy(record)
         effective[collection] = dict(sorted(effective[collection].items()))
     try:
-        _validate_dependencies(effective["packs"])
+        validate_dependencies(effective["packs"])
     except CatalogError as error:
         raise ValueError(f"The catalog lock is inconsistent: {error}. Run openguildkit update.") from error
     return effective
 
 
 def _used_ids(profile: dict, catalog: dict) -> dict[str, list[str]]:
-    from .project import _selected_packs  # avoid a circular import at module load
-
     patterns = [pattern_selection(entry)[0] for entry in profile.get("patterns", [])]
     return {
-        "packs": _selected_packs(profile, catalog),
+        "packs": selected_packs(profile, catalog),
         "boards": list(profile.get("boards") or catalog["boards"]),
         "sectors": [profile["sector"]],
         "patterns": patterns,

@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit.catalog import CatalogError, _validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.detect import components_for_profile, detect_stack
 from openguildkit.patterns import patterns_to_review, recommend_patterns, technology_version
 from openguildkit.project import pack_scopes, render_instructions, resolved_profile, validate_profile
@@ -145,10 +145,10 @@ class ComponentPatternTests(unittest.TestCase):
         pattern = json.loads(json.dumps(self.catalog["patterns"]["nextjs-react"]))
         pattern["match"]["min_versions"] = {"vue": "3"}
         with self.assertRaisesRegex(CatalogError, "not a stack alias"):
-            _validate_entry("patterns", pattern)
+            validate_entry("patterns", pattern)
         pattern["match"]["min_versions"] = {"next.js": "13.x"}
         with self.assertRaisesRegex(CatalogError, "version such as"):
-            _validate_entry("patterns", pattern)
+            validate_entry("patterns", pattern)
 
 
 if __name__ == "__main__":

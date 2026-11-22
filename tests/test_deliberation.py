@@ -7,7 +7,8 @@ from pathlib import Path
 from openguildkit.catalog import load_catalog
 from openguildkit.project import resolved_profile, validate_profile
 from openguildkit.tasks import record_deliberation, record_review
-from openguildkit.workflow import challenge_report, consult, decision_summary, deliberation_request, verdict_lines
+from openguildkit.consultation import consult
+from openguildkit.workflow import challenge_report, decision_summary, deliberation_request, verdict_lines
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 

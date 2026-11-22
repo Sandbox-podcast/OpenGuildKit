@@ -13,7 +13,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit.cli import _parser, main
+from openguildkit.cli import command_parser, main
 from openguildkit.storage import write_json
 
 REPO = Path(__file__).resolve().parents[1]
@@ -108,7 +108,7 @@ class JourneyTests(unittest.TestCase):
         self.assertIn("close it with `openguildkit task complete ID`", " ".join(decision.split()))
 
     def test_the_task_help_and_the_workflow_chart_go_on_to_the_closing(self):
-        commands_parser = next(action for action in _parser()._actions if isinstance(action, argparse._SubParsersAction))
+        commands_parser = next(action for action in command_parser()._actions if isinstance(action, argparse._SubParsersAction))
         help_text = next(action.help for action in commands_parser._choices_actions if action.dest == "task")
         for words in ("consult", "decision", "verify", "complete", "export"):
             self.assertIn(words, help_text)

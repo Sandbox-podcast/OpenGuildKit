@@ -25,7 +25,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import catalog, tasks, webui
+from openguildkit import catalog, lock, tasks, webui
 from openguildkit.__main__ import hook_call
 from openguildkit.cli import main
 from openguildkit.storage import write_json
@@ -95,7 +95,7 @@ class RoutingSpeedTests(unittest.TestCase):
     BUDGET_MS = 5  # per brief; about 1 ms on a laptop, 48 ms when every trigger was compiled for every text
 
     def test_routing_a_brief_takes_a_few_milliseconds(self):
-        from openguildkit.workflow import text_routes
+        from openguildkit.routing import text_routes
         tests = Path(__file__).resolve().parent
         briefs = [case["brief"] for name in ("routing_cases.json", "routing_cases_new_brains.json")
                   for case in json.loads((tests / name).read_text(encoding="utf-8"))]
@@ -150,6 +150,21 @@ class CatalogLoadTests(unittest.TestCase):
             with self.subTest(event=event):
                 self.assertEqual(self.bundled_reads("guard", "--hook", event, stdin=hook), 0)
 
+    def test_task_consult_validates_the_project_catalog_and_the_lock_once(self):
+        self.bundled_reads("init", "--answers", self.root / "profile.json")
+        pack = {"id": "house-rules", "title": "House rules", "version": "1.0.0", "description": "Team rules.",
+                "sources": [], "rules": [{"id": "small-changes", "instruction": "Keep changes small.",
+                                          "verification": "Check the size of the diff."}]}
+        write_json(self.root / ".openguildkit" / "catalog" / "packs" / "house-rules.json", pack)
+        self.bundled_reads("task", "new", (bench.EXAMPLE / "brief.md").read_text(encoding="utf-8"), "--id", "status")
+        catalog._MERGED.clear()
+        lock._READ.clear()  # As a new process starts.
+        with patch("openguildkit.catalog._merged_records", wraps=catalog._merged_records) as merged, \
+                patch("openguildkit.lock._validated_lock", wraps=lock._validated_lock) as locks:
+            self.bundled_reads("task", "consult", "status", "--answers", bench.EXAMPLE / "answers.json")
+        project = [call for call in merged.call_args_list if call.args[1] is not None]
+        self.assertEqual((len(project), locks.call_count), (1, 1))
+
     def test_a_load_hands_out_its_own_copy(self):
         first = catalog.load_catalog()
         first["packs"].clear()
@@ -178,7 +193,7 @@ class CheckReadTests(unittest.TestCase):
                 reads.append(task_id)
                 return original(state, task_id)
 
-            with patch("openguildkit.tasks.read_task", counting), patch("openguildkit.cli.read_task", counting), \
+            with patch("openguildkit.tasks.read_task", counting), patch("openguildkit.tasks_cli.read_task", counting), \
                     patch("openguildkit.guard.read_task", counting), \
                     contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as error:
                 self.assertEqual(main(["--project", str(root), "check"]), 0, error.getvalue())

@@ -15,7 +15,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import tools_cli, webui
-from openguildkit.cli import _parser, main
+from openguildkit.cli import command_parser, main
 from openguildkit.hosts import approval_warning
 from openguildkit.shell import shell_command, shell_word
 from openguildkit.storage import write_json
@@ -43,7 +43,7 @@ REASON = "Billed at $5 per `ogk_page` view, \"net\" of the customer's $(ogk_disc
 def task_actions() -> set[str]:
     def choices(parser):
         return next(action.choices for action in parser._actions if isinstance(action, argparse._SubParsersAction))
-    return set(choices(choices(_parser())["task"]))
+    return set(choices(choices(command_parser())["task"]))
 
 
 def powershell_words(line: str) -> list[str]:

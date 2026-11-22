@@ -63,6 +63,11 @@ def json_text(data) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
 
 
+def print_json(data) -> None:
+    """Print a command's JSON answer on standard output, as every command with --json does."""
+    print(json_text(data), end="")
+
+
 def _replace(source: Path, target: Path) -> None:
     """Put the new file in place, waiting up to three seconds for a reader to let go of the old one."""
     for attempt in range(REPLACE_ATTEMPTS):

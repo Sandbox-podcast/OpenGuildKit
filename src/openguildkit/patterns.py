@@ -53,9 +53,6 @@ def technology_key(text: str) -> str:
     return "".join(character for character in normalized if character.isalnum() or character in "+#")
 
 
-_technology_key = technology_key
-
-
 def technology_version(text: str) -> str | None:
     """Return the numeric lower bound of a version or range written after the technology name."""
     match = STACK_VERSION.search(text.strip())

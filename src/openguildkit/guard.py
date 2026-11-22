@@ -20,7 +20,7 @@ from .decisions import (
     shared_digest, stale_approval_message, verify_signature,
 )
 from .lock import LOCK_FILE, apply_lock, read_lock
-from .project import STATE_DIR, Fingerprints, load_profile, profile_fingerprint, project_root, state_path
+from .project import STATE_DIR, Fingerprints, load_profile, project_root, state_path
 from .results import DONE_STATUSES, verification_of
 from .storage import read_json, write_json
 from .task_index import tasks_with_status
@@ -85,10 +85,6 @@ def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) ->
         except Exception:  # A broken record covers nothing; it must not stop the guard.
             continue
     return covered
-
-
-def covering_tasks(root: Path, state: Path, profile: dict, catalog: dict) -> list[str]:
-    return [item["task"] for item in covering_approvals(root, state, profile, catalog)]
 
 
 def edited_paths(hook_input: object) -> list[str]:
@@ -185,6 +181,8 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "") -> tuple[
 
     Only enforce refuses an edit (exit code 2, reason on stderr); observe lets it through and says it is flagged.
     """
+    if outcome not in HOOK_OUTCOMES:
+        raise ValueError(f"Unknown guard outcome {outcome!r}: one of {', '.join(HOOK_OUTCOMES)}.")
     if mode == "off" or outcome == "outside":
         return 0, "", ""
     refuse = mode in ("enforce", UNKNOWN_MODE)

@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from openguildkit.catalog import CatalogError, _validate_entry, load_catalog, tracking_parameters
+from openguildkit.catalog import CatalogError, validate_entry, load_catalog, tracking_parameters
 from openguildkit.references import load_references
 from openguildkit.tools import load_tools
 
@@ -58,7 +58,7 @@ class SourceValidationTests(unittest.TestCase):
 
     def check(self, url):
         self.pack["sources"] = [{"title": "Example", "url": url}]
-        _validate_entry("packs", self.pack)
+        validate_entry("packs", self.pack)
 
     def test_tracking_parameters_are_refused(self):
         for url in (

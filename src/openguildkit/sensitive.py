@@ -107,10 +107,6 @@ def personal_data_kinds(value: str) -> list[str]:
     return [name for name, pattern in PERSONAL_SHAPES if pattern.search(value)]
 
 
-def contains_email(value: str) -> bool:
-    return bool(PERSONAL_SHAPES[0][1].search(value))
-
-
 def input_warnings(original: object, recorded: object, label: str) -> list[str]:
     """What a person should know about what was recorded: a credential replaced, personal data kept. No value is shown."""
     warnings = []

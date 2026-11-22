@@ -5,6 +5,7 @@ import json
 import re
 from pathlib import Path, PurePosixPath
 
+from .agent_workflow import AGENT_WORKFLOW
 from .catalog import rule_check
 from .clock import today
 from .patterns import (
@@ -19,7 +20,6 @@ from .patterns import (
 )
 from .rule_checks import describe_check
 from .storage import read_json, write_json, write_text
-from .workflow import AGENT_WORKFLOW
 
 STATE_DIR = ".openguildkit"
 SCHEMA_VERSION = 1
@@ -334,8 +334,15 @@ def _unsure_text(question: dict) -> str:
     if "default_label" in question:
         return f"the default: {question['default_label']}"
     default = question.get("default")
-    shown = ", ".join(map(str, default)) if isinstance(default, list) else default
+    shown = ", ".join(map(_default_item, default)) if isinstance(default, list) else default
     return f"the default: {shown or 'none'}"
+
+
+def _default_item(item) -> str:
+    """One item of a default answer in words: a detected component by its ID and folder, anything else as is."""
+    if isinstance(item, dict) and "id" in item:
+        return f"{item['id']} ({item['path']})" if item.get("path") else str(item["id"])
+    return str(item)
 
 
 def unsure_answers(answers: dict, questions: list[dict]) -> tuple[dict, list[str]]:
@@ -555,12 +562,12 @@ def pattern_rules(pattern: dict, catalog: dict) -> int:
     return sum(pack_rule_counts(pattern["packs"], catalog).values())
 
 
-def pack_rule_counts(pack_ids: list[str], catalog: dict, already: set[str] = frozenset()) -> dict[str, int]:
-    """The rules of these packs and of their dependencies, leaving out the packs already counted."""
+def pack_rule_counts(pack_ids: list[str], catalog: dict) -> dict[str, int]:
+    """The rules of these packs and of their dependencies, each pack counted once."""
     counts: dict[str, int] = {}
 
     def add(pack_id: str) -> None:
-        if pack_id in counts or pack_id in already:
+        if pack_id in counts:
             return
         counts[pack_id] = 0
         for dependency in catalog["packs"][pack_id].get("depends_on", []):
@@ -742,9 +749,6 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     return profile
 
 
-SETUP_ONLY_FIELDS = ("norms", "replace_default_packs")
-
-
 def _norm_answers(value, catalog: dict) -> dict[str, dict | None]:
     """The answers to the norms question: "yes" (or true) accepts a norm; a no names who and why,
     {"answer": "no", "by": NAME, "reason": WHY}. Returns None for an accepted norm, the decline otherwise."""
@@ -891,7 +895,7 @@ def _missing_records(answers: dict, catalog: dict) -> list[tuple[str, str]]:
     return missing
 
 
-def _selected_packs(profile: dict, catalog: dict) -> list[str]:
+def selected_packs(profile: dict, catalog: dict) -> list[str]:
     """Packs from the profile and its patterns, each after its dependencies, before any resolution."""
     ordered = {}
 
@@ -913,7 +917,7 @@ def _selected_packs(profile: dict, catalog: dict) -> list[str]:
 
 def rule_conflicts(profile: dict, catalog: dict) -> list[dict]:
     """Declared incompatibilities between selected packs that apply to a common scope."""
-    selected = _selected_packs(profile, catalog)
+    selected = selected_packs(profile, catalog)
     scopes = pack_scopes(profile, catalog)
     # A declaration on either pack is enough: conflicts are symmetric.
     declared = {
@@ -958,7 +962,7 @@ def _excluded_packs(profile: dict, catalog: dict) -> set[str]:
 
 def resolved_profile(profile: dict, catalog: dict) -> dict:
     excluded = _excluded_packs(profile, catalog) if profile.get("resolutions") else set()
-    packs = [pack_id for pack_id in _selected_packs(profile, catalog) if pack_id not in excluded]
+    packs = [pack_id for pack_id in selected_packs(profile, catalog) if pack_id not in excluded]
     return {**profile, "packs": packs, "boards": profile["boards"] or sorted(catalog["boards"])}
 
 
@@ -1040,7 +1044,7 @@ def rule_plan(profile: dict, catalog: dict) -> dict:
     resolved = resolved_profile(profile, catalog)
     scopes = pack_scopes(profile, catalog)
     provenance = pack_provenance(profile, catalog)
-    selected = _selected_packs(profile, catalog)
+    selected = selected_packs(profile, catalog)
     patterns = [catalog["patterns"][pattern_id] for pattern_id in pattern_ids(profile)]
     count = sum(len(catalog["packs"][pack_id]["rules"]) for pack_id in resolved["packs"])
     return {

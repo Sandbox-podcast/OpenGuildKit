@@ -19,7 +19,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import decisions
-from openguildkit.cli import _parser, main
+from openguildkit.cli import command_parser, main
 from openguildkit.decisions import decision_payload, seal
 from openguildkit.guard import covering_approvals
 from openguildkit.hosts import CLAUDE_APPROVAL_RULES, _codex_rules
@@ -342,7 +342,7 @@ class PersonOnlyTests(unittest.TestCase):
             self.assertTrue(codex_forbids(command, _codex_rules()), command)
         argv = ["task", "revoke", "t", "--by", "Camille", "--reason", "x"]
         with self.assertRaises(Refused) as refused:
-            check_request(_parser().parse_args(argv), argv, Path("/project"))
+            check_request(command_parser().parse_args(argv), argv, Path("/project"))
         self.assertIn("Withdrawing an approval needs the person at a terminal", str(refused.exception))
 
 

@@ -16,7 +16,7 @@ import re
 import unittest
 from pathlib import Path
 
-from openguildkit.cli import _parser
+from openguildkit.cli import command_parser
 
 TESTS = Path(__file__).resolve().parent
 # The helpers of tests/test_webui.py that send a command to the server over HTTP.
@@ -33,7 +33,7 @@ def _subcommands(parser: argparse.ArgumentParser) -> dict:
 def command_paths() -> list[tuple[str, ...]]:
     """Each runnable command: a top-level command, or a group and its action."""
     paths = []
-    for name, command in _subcommands(_parser()).items():
+    for name, command in _subcommands(command_parser()).items():
         actions = _subcommands(command)
         paths.extend([(name, action) for action in actions] if actions else [(name,)])
     return paths

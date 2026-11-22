@@ -249,18 +249,13 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertIsNone(headers["Content-Encoding"])
         self.assertIn("packs", json.loads(body)["json"])
 
-    def test_the_cache_steps_aside_when_the_cli_no_longer_has_what_it_wraps(self):
-        from types import SimpleNamespace
-
+    def test_a_command_of_the_page_leaves_the_cli_module_as_it_is(self):
         from openguildkit import cli
-        from openguildkit.webui import Speedups
 
-        renamed = SimpleNamespace(build_parser=object, load_catalog=object, read_lock=object)
-        with Speedups().active(renamed):
-            self.assertIs(renamed.load_catalog, object)
-        with Speedups().active(cli):
-            self.assertNotEqual(cli.load_catalog.__module__, "openguildkit.catalog")
-        self.assertEqual(cli.load_catalog.__module__, "openguildkit.catalog")
+        before = dict(vars(cli))
+        for argv in (["catalog", "--json"], ["task", "list", "--json"], ["check"]):
+            self.run_in_page(*argv)
+            self.assertEqual([name for name, value in vars(cli).items() if before.get(name) is not value], [])
 
     def test_an_upload_becomes_the_file_a_command_reads(self):
         status, result = self.run_in_page("task", "new", "--file", "@upload:brief.md", "--id", "request-status",
@@ -386,7 +381,7 @@ class WebInterfaceTests(unittest.TestCase):
                 self.assertEqual((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"), before)
 
     def test_each_protection_is_lowered_from_the_page_only_by_a_command_typed_at_a_terminal(self):
-        from openguildkit.cli import _parser
+        from openguildkit.cli import command_parser
 
         self.profile_command("add", "check", "python -m unittest", "--by", "Sam", "--reason", "Tests")
         self.profile_command("add", "required-board", "security", "--by", "Sam", "--reason", "Audit")
@@ -427,7 +422,7 @@ class WebInterfaceTests(unittest.TestCase):
                 self.assertIn(command, answer["command"])
                 words = shlex.split(answer["command"])
                 self.assertEqual(words[:2], ["openguildkit", "--project"])
-                self.assertEqual(_parser().parse_args(words[1:]).command, "profile")
+                self.assertEqual(command_parser().parse_args(words[1:]).command, "profile")
                 self.assertEqual((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"), before)
         # The audit's replay: approval dropped, waivers opened to the agent, the history replaced. Nothing is written.
         replay = {**without("approval"), "waivers": {"allowed_by": ["agent"], "max_days": 366},

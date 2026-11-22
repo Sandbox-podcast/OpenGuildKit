@@ -8,13 +8,13 @@ from pathlib import Path
 from .catalog import (
     ID_PATTERN,
     CatalogError,
-    _unique_fields,
-    _validate_fields,
-    _validate_id,
-    _validate_list,
-    _validate_sources,
-    _validate_text,
     package_file,
+    unique_fields,
+    validate_fields,
+    validate_id,
+    validate_list,
+    validate_sources,
+    validate_text,
 )
 from .patterns import role_choices
 
@@ -48,37 +48,37 @@ PATTERN_FAMILY = "work-patterns"
 def _validate_links(record: dict, record_id: str) -> None:
     if "aliases" in record:
         aliases = record["aliases"]
-        _validate_list(aliases, f"{record_id}.aliases")
+        validate_list(aliases, f"{record_id}.aliases")
         for alias in aliases:
             if not isinstance(alias, str) or not LEGACY_ID.fullmatch(alias) or alias == record_id:
                 raise CatalogError(f"{record_id}.aliases must list former IDs other than the current one")
         if len(set(aliases)) != len(aliases):
             raise CatalogError(f"{record_id}.aliases contains duplicates")
     if "brains" in record:
-        _validate_list(record["brains"], f"{record_id}.brains")
+        validate_list(record["brains"], f"{record_id}.brains")
         for board_id in record["brains"]:
-            _validate_id(board_id, f"{record_id}.brains entry")
+            validate_id(board_id, f"{record_id}.brains entry")
         if len(set(record["brains"])) != len(record["brains"]):
             raise CatalogError(f"{record_id}.brains contains duplicates")
     if "pattern" in record:
-        _validate_id(record["pattern"], f"{record_id}.pattern")
+        validate_id(record["pattern"], f"{record_id}.pattern")
     if "packs" in record:
-        _validate_list(record["packs"], f"{record_id}.packs")
+        validate_list(record["packs"], f"{record_id}.packs")
         for pack_id in record["packs"]:
-            _validate_id(pack_id, f"{record_id}.packs entry")
+            validate_id(pack_id, f"{record_id}.packs entry")
         if len(set(record["packs"])) != len(record["packs"]):
             raise CatalogError(f"{record_id}.packs contains duplicates")
 
 
 def _validate_family(family, filename: str, bundled: bool = False) -> None:
-    _validate_fields(family, "family", {"id", "title", "references"})
-    _validate_id(family["id"], "family ID")
+    validate_fields(family, "family", {"id", "title", "references"})
+    validate_id(family["id"], "family ID")
     if filename != f"{family['id']}.json":
         raise CatalogError(f"Expected the family file to be named {family['id']}.json")
-    _validate_text(family["title"], "family title")
-    _validate_list(family["references"], "references")
+    validate_text(family["title"], "family title")
+    validate_list(family["references"], "references")
     for record in family["references"]:
-        _validate_fields(record, "reference", {"id", "sources", *TEXT_FIELDS}, {*LINK_FIELDS, *OPTIONAL_TEXT_FIELDS})
+        validate_fields(record, "reference", {"id", "sources", *TEXT_FIELDS}, {*LINK_FIELDS, *OPTIONAL_TEXT_FIELDS})
         record_id = record["id"]
         if not isinstance(record_id, str) or not ID_PATTERN.fullmatch(record_id):
             raise CatalogError(
@@ -86,12 +86,12 @@ def _validate_family(family, filename: str, bundled: bool = False) -> None:
                 "and keep a former ID in aliases."
             )
         for field in (*TEXT_FIELDS, *(name for name in OPTIONAL_TEXT_FIELDS if name in record)):
-            _validate_text(record[field], f"{record_id}.{field}")
+            validate_text(record[field], f"{record_id}.{field}")
         if record["kind"] not in KINDS:
             raise CatalogError(f"{record_id}.kind must be one of: {', '.join(KINDS)}")
         _validate_links(record, record_id)
-        _validate_list(record["sources"], f"{record_id}.sources")
-        _validate_sources(record["sources"], require_checked=bundled)
+        validate_list(record["sources"], f"{record_id}.sources")
+        validate_sources(record["sources"], require_checked=bundled)
 
 
 def load_references(extra_dir: Path | None = None) -> dict[str, dict]:
@@ -110,7 +110,7 @@ def load_references(extra_dir: Path | None = None) -> dict[str, dict]:
                 continue
             try:
                 incoming = json.loads(
-                    path.read_text(encoding="utf-8-sig"), object_pairs_hook=_unique_fields
+                    path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_fields
                 )
                 _validate_family(incoming, path.name, directory == bundled)
                 family = families.setdefault(

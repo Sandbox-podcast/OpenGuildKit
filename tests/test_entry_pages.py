@@ -11,7 +11,7 @@ import shlex
 import unittest
 from pathlib import Path
 
-from openguildkit.cli import _parser
+from openguildkit.cli import command_parser
 
 REPO = Path(__file__).resolve().parents[1]
 README_EN = REPO / "README.md"
@@ -56,7 +56,7 @@ def _parse_error(words: list[str]) -> str | None:
     stderr = io.StringIO()
     try:
         with contextlib.redirect_stderr(stderr):
-            _parser().parse_args(words)
+            command_parser().parse_args(words)
     except SystemExit:
         return (stderr.getvalue().strip().splitlines() or ["refused"])[-1]
     return None

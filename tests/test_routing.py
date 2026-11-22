@@ -12,10 +12,9 @@ from openguildkit.cli import main
 from openguildkit.catalog import load_catalog
 from openguildkit.project import check_component, task_scope_profile, validate_profile
 from openguildkit.storage import write_json
-from openguildkit.workflow import (
-    consult, normalize_text, normalize_with_offsets, require_concerns, select_boards, text_routes, trigger_matches,
-    validate_answers,
-)
+from openguildkit.consultation import consult
+from openguildkit.questionnaire import require_concerns, validate_answers
+from openguildkit.routing import normalize_text, normalize_with_offsets, select_boards, text_routes, trigger_matches
 
 from tests.test_pass_relevance import ProjectCase
 
@@ -48,6 +47,26 @@ class RoutingTests(unittest.TestCase):
                     self.assertIn(board, selected, f"{board} should review: {selected}")
                 for board in case.get("must_not", []):
                     self.assertNotIn(board, selected, f"{board} should not review: {selected}")
+
+    def test_a_consultation_routes_the_table_through_the_same_reading(self):
+        # select_boards, which task consult and task route call, selects every board the table expects.
+        for case in CASES:
+            with self.subTest(brief=case["brief"]):
+                must = set(case.get("must", []))
+                routing = self.route(case["brief"])["routing"]
+                self.assertLessEqual(must, set(routing))
+                routes = text_routes(self.boards, case["brief"])
+                self.assertEqual({board: routing[board] for board in must}, {board: routes[board] for board in must})
+
+    def test_the_table_routes_the_same_from_a_free_text_answer(self):
+        # A consultation reads each free-text answer apart from the brief: the same words route from either.
+        for case in CASES:
+            with self.subTest(brief=case["brief"]):
+                selected = text_routes(self.boards, "", {"context": case["brief"]})
+                for board in case.get("must", []):
+                    self.assertIn(board, selected)
+                for board in case.get("must_not", []):
+                    self.assertNotIn(board, selected)
 
     def test_the_stack_and_the_components_route_the_declared_roles(self):
         cases = [case for case in CASES if "profile" in case]

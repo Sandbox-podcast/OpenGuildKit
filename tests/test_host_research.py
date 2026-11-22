@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import hosts, workflow
+from openguildkit import consultation, hosts
 from openguildkit.cli import main
 from openguildkit.storage import write_json
 
@@ -153,10 +153,10 @@ class ResearchDecisionTests(unittest.TestCase):
     def test_the_consultation_says_whether_a_public_search_needs_a_recorded_decision(self):
         scope = {"task_id": "status-page", "brief": "Add a status page.", "answers": {"kind": "feature"},
                  "project": "Example", "sector": "general"}
-        public = workflow._consultation_markdown({**scope, "research": "public-sources"}, {}, {})
-        local = workflow._consultation_markdown({**scope, "research": "local-only"}, {}, {})
-        self.assertIn(workflow.research_decision("public-sources"), public)
-        self.assertIn(workflow.research_decision("local-only"), local)
+        public = consultation._consultation_markdown({**scope, "research": "public-sources"}, {}, {})
+        local = consultation._consultation_markdown({**scope, "research": "local-only"}, {}, {})
+        self.assertIn(consultation.research_decision("public-sources"), public)
+        self.assertIn(consultation.research_decision("local-only"), local)
         self.assertIn("needs no task authorize decision", public)
         self.assertIn("task authorize ID --action public-research", local)
         self.assertNotIn("needs no task authorize", local)
@@ -164,17 +164,17 @@ class ResearchDecisionTests(unittest.TestCase):
     def test_the_skill_says_it_for_every_policy_the_profile_accepts(self):
         skill = (REPO / "src/openguildkit/agent_files/skills/openguildkit/SKILL.md").read_text(encoding="utf-8")
         for policy in ("local-only", "public-sources"):
-            self.assertIn(workflow.research_decision(policy), skill)
+            self.assertIn(consultation.research_decision(policy), skill)
         with self.assertRaises(ValueError):
-            workflow.research_decision("anything")
+            consultation.research_decision("anything")
 
     def test_the_consultation_says_what_made_a_task_local_only(self):
-        self.assertIn("this task's research answer is local", workflow.research_decision("local-only", "local"))
-        self.assertIn("unsure", workflow.research_decision("local-only", "unsure"))
-        self.assertIn("profile does not allow public sources", workflow.research_decision("local-only", "public"))
+        self.assertIn("this task's research answer is local", consultation.research_decision("local-only", "local"))
+        self.assertIn("unsure", consultation.research_decision("local-only", "unsure"))
+        self.assertIn("profile does not allow public sources", consultation.research_decision("local-only", "public"))
         scope = {"task_id": "status-page", "brief": "Add a status page.", "answers": {"kind": "feature", "research": "local"},
                  "project": "Example", "sector": "general", "research": "local-only"}
-        self.assertIn("this task's research answer is local", workflow._consultation_markdown(scope, {}, {}))
+        self.assertIn("this task's research answer is local", consultation._consultation_markdown(scope, {}, {}))
 
 
 

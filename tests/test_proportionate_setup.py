@@ -11,13 +11,14 @@ from collections import Counter
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.catalog import CatalogError, _validate_entry, load_catalog
-from openguildkit.cli import _print_preselection, _prompt_questions, main
+from openguildkit.catalog import CatalogError, validate_entry, load_catalog
+from openguildkit.cli import _print_preselection, main
+from openguildkit.prompts import prompt_questions
 from openguildkit.project import (
     RULE_WARNING, init_questions, profile_recommendations, rule_plan, setup_profile, validate_profile,
 )
 from openguildkit.storage import write_json
-from openguildkit.workflow import _board_template
+from openguildkit.consultation import _board_template
 
 FINTECH = {"name": "payflow", "sector": "financial-services", "personal_data": "yes",
            "stack": ["Python", "FastAPI", "PostgreSQL", "Stripe"], "roles": ["engineering", "security", "finance", "legal"]}
@@ -63,7 +64,7 @@ class CoreMethodTests(unittest.TestCase):
         for bad, message in (({"core_for": ["sales"]}, "roles of the pattern"),
                              ({"core_for": ["security"], "match": {"sectors": ["general"]}}, "without a match")):
             with self.subTest(bad=bad), self.assertRaisesRegex(CatalogError, message):
-                _validate_entry("patterns", {**base, **bad})
+                validate_entry("patterns", {**base, **bad})
 
     def test_a_saved_profile_keeps_its_patterns(self):
         saved = {"schema_version": 1, "name": "Ledger", "sector": "general", "stack": ["Python"], "roles": ["sales"],
@@ -221,7 +222,7 @@ class QuestionnaireHelpTests(unittest.TestCase):
         errors = io.StringIO()
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value="?"), \
                 contextlib.redirect_stderr(errors):
-            self.assertEqual(_prompt_questions([question], "init"), {"research": "local-only"})
+            self.assertEqual(prompt_questions([question], "init"), {"research": "local-only"})
         self.assertIn(question["help"], errors.getvalue())
         self.assertIn("research: unsure, so the default: local-only.", errors.getvalue())
 
@@ -251,9 +252,9 @@ class LensTests(unittest.TestCase):
         for value in (["browser"], ["customer", "customer"], ["unsure"]):
             lens["applies_to"] = value
             with self.subTest(value=value), self.assertRaisesRegex(CatalogError, "applies_to"):
-                _validate_entry("boards", board)
+                validate_entry("boards", board)
         lens["applies_to"] = ["service", "infrastructure"]
-        _validate_entry("boards", board)
+        validate_entry("boards", board)
 
 
 if __name__ == "__main__":

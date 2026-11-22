@@ -20,10 +20,11 @@ from .results import (
 )
 from .storage import read_json, write_json
 from .alerts import resolution_line, resolved_by_import
+from .consultation import code_not_found, consult, profile_settings
+from .questionnaire import validate_answers
 from .workflow import (
-    RESOLUTION_FIELDS, TaskStateError, blocker_list, blocker_resolutions, code_not_found, consult, decision_summary,
-    is_decision_task, pending_removals, profile_settings, resolution_field, review_warnings, validate_answers,
-    validate_board_entry, validate_deliberation, validate_review,
+    RESOLUTION_FIELDS, TaskStateError, blocker_list, blocker_resolutions, decision_summary, is_decision_task,
+    pending_removals, resolution_field, review_warnings, validate_board_entry, validate_deliberation, validate_review,
 )
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")

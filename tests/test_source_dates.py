@@ -15,7 +15,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import catalog as catalog_module
-from openguildkit.catalog import CatalogError, _validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.cli import main
 from openguildkit.deliverables import _validate as validate_deliverable, load_deliverables
 from openguildkit.lock import read_lock
@@ -105,8 +105,8 @@ class BundledSourceDateTests(unittest.TestCase):
     def test_each_loader_requires_the_date_for_bundled_records_only(self):
         undated = copy.deepcopy(PACK)
         with self.assertRaisesRegex(CatalogError, "checked is missing"):
-            _validate_entry("packs", undated, bundled=True)
-        _validate_entry("packs", undated)
+            validate_entry("packs", undated, bundled=True)
+        validate_entry("packs", undated)
         family = {"id": "legal", "title": "Legal", "references": [copy.deepcopy(
             load_references()["legal"]["references"][0])]}
         del family["references"][0]["sources"][0]["checked"]
@@ -126,7 +126,7 @@ class BundledSourceDateTests(unittest.TestCase):
             record["sources"][0]["checked"] = value
             for bundled in (True, False):
                 with self.subTest(value=value, bundled=bundled), self.assertRaisesRegex(CatalogError, "YYYY-MM-DD"):
-                    _validate_entry("packs", record, bundled=bundled)
+                    validate_entry("packs", record, bundled=bundled)
 
 
 class ProjectSourceDateTests(unittest.TestCase):
