@@ -31,7 +31,7 @@ from .relevance import changed_files, pack_relevance
 from .results import (
     DONE_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE, answers_to_report, chaosfolk_checks, compare_runs,
     completion_problems, criteria_summary, decision_changes, decision_revision_message, declared_cannot_run,
-    expected_checks, keep_declarations, missing_scenarios, result_template, run_command_checks,
+    expected_checks, keep_declarations, missing_scenarios, result_template, run_command_checks, set_aside_rules,
 )
 from .routing import select_boards, trigger_matches
 from .sensitive import input_warnings, redact_credentials, redact_data
@@ -646,6 +646,12 @@ def _closing(args, state: Path, task: dict, profile: dict, relevance: dict, root
         deferrals.append((check_id, read_task(state, follow_up)))
     current = defer_evidence(task, profile, deferrals, args.by.strip(), relevance) if deferrals else task
     closed = complete_task(current, profile, root, relevance, args.by, changed=changed)
+    set_aside = set_aside_rules(current, profile, relevance)
+    if set_aside and not (args.by or "").strip():
+        raise ValueError(
+            f"{len(set_aside)} data protection, security or AI rule(s) are declared not applicable:\n- "
+            + "\n- ".join(set_aside) + f"\nA person confirms each: openguildkit task complete {args.id} --by NAME, "
+            "at a terminal.")
     if args.by:
         if not sys.stdin.isatty():
             raise ValueError("Closing a task with --by needs the person at an interactive terminal.")
@@ -653,6 +659,10 @@ def _closing(args, state: Path, task: dict, profile: dict, relevance: dict, root
             print(f"{group['group']}:", file=sys.stderr)
             for point in group["points"]:
                 print(f"  - {point}", file=sys.stderr)
+        if set_aside:
+            print("Data protection, security or AI rules declared not applicable, which you confirm:", file=sys.stderr)
+            for line in set_aside:
+                print(f"  - {line}", file=sys.stderr)
         print(f"Type {args.id} to close it as {closed['status']}: ", end="", file=sys.stderr, flush=True)
         if input().strip() != args.id:
             raise ValueError("Closing cancelled.")
@@ -772,7 +782,8 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
     elif held:
         print("Nothing else is missing, but some answers were not recorded (above): fix them, or run task complete "
               "with the answers already recorded.")
-    elif any(group["group"] == SENSITIVE_GROUP for group in points_left_open(task, profile, relevance)):
+    elif (any(group["group"] == SENSITIVE_GROUP for group in points_left_open(task, profile, relevance))
+          or set_aside_rules(task, profile, relevance)):
         # task complete refuses these without the person: say so now rather than at the closing.
         print(f"Ready to close with the person at a terminal: a data protection, security or AI point stays open, "
               f"so they run openguildkit task complete {args.id} --by NAME.")

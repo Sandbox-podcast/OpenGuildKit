@@ -445,7 +445,7 @@ class ProportionateResultTests(ResultCase):
             {"criterion": "The list loads.", "status": "met", "evidence": "Tried by hand."}])
         self.assertIn("Criteria met: 1 tied to a check or a test, 1 declared only (The list loads.)", output)
         self.assertNotIn("Warning", output)
-        output, notes = self.run_cli("task", "complete", TASK)
+        output, notes = self.run_cli("task", "complete", TASK, "--by", "CM", typed=TASK)
         self.assertEqual(output.strip(), "done")
         self.assertIn("did not read the documents. Confirmed by: Dana (DPO)", notes)
         exported = json.loads((self.root / self.run_cli("task", "export", TASK)[0].strip()).read_text(encoding="utf-8"))
@@ -502,7 +502,31 @@ class ProportionateResultTests(ResultCase):
         self.assertNotIn("Pack gdpr", output)
         self.assertNotIn("packs", self.record()["result"])
         self.assertNotIn("warnings", self.record()["result"])
-        self.assertEqual(self.run_cli("task", "complete", TASK)[0].strip(), "done")
+        self.assertEqual(self.run_cli("task", "complete", TASK, "--by", "CM", typed=TASK)[0].strip(), "done")
+
+    def test_closing_over_rules_the_answers_select_set_aside_lists_them_and_needs_the_person(self):
+        """Issue 288: nine GDPR rules declared not applicable closed the task without a question."""
+        self.gdpr_task()
+        output, _ = self.file(*self.answers(), *self.documents())
+        self.assertIn(f"openguildkit task complete {TASK} --by NAME", output)
+        _, error = self.run_cli("task", "complete", TASK, code=1)
+        self.assertIn("data protection, security or AI rule(s) are declared not applicable", error)
+        self.assertIn("- rule:gdpr/confirm-lawful-basis is not-applicable: Nothing in this change touches "
+                      "rule:gdpr/confirm-lawful-basis. (Camille) [data protection]", error)
+        self.assertIn("rule:gdpr/apply-retention-period", error)
+        # A rule of a pack the answers do not select is not asked again: the python pack is no sensitive area.
+        self.assertNotIn("rule:python/", error)
+        self.assertIn(f"openguildkit task complete {TASK} --by NAME, at a terminal.", error)
+        self.assertEqual(self.record()["status"], "approved")
+        _, error = self.run_cli("task", "complete", TASK, "--by", "CM", typed="another-task", code=1)
+        self.assertIn("Closing cancelled.", error)
+        self.assertEqual(self.record()["status"], "approved")
+        output, notes = self.run_cli("task", "complete", TASK, "--by", "CM", typed=TASK)
+        self.assertIn("AI rules declared not applicable, which you confirm:\n", notes)
+        self.assertIn("\n  - rule:gdpr/confirm-lawful-basis is not-applicable", notes)
+        self.assertLess(notes.index("which you confirm"), notes.index(f"Type {TASK} to close it as done"))
+        self.assertEqual(output.splitlines()[0], "done")
+        self.assertEqual(self.record()["result"]["closing"]["by"], "CM")
 
     def test_rules_the_answers_select_declared_not_applicable_with_a_shared_reason_are_flagged(self):
         self.gdpr_task()

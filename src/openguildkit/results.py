@@ -517,6 +517,20 @@ def answers_to_report(task: dict, profile: dict, relevance: dict | None = None) 
             or (check["kind"] == "evidence" and check["id"] not in deferred)]
 
 
+def set_aside_rules(task: dict, profile: dict, relevance: dict | None = None) -> list[str]:
+    """The data protection, security or AI rules and evidence that the task's answers select (GDPR for personal data,
+    for example) and that were declared not applicable one by one: the person who closes the task confirms each at a
+    terminal. A pack declared not applicable as a whole is an open point already."""
+    checks = {check["id"]: check for check in asked_checks(task, profile, relevance)}
+    lines = []
+    for item in outcomes(task, profile, relevance).values():
+        check = checks.get(item["check"])
+        area = sensitive_area(check.get("pack", "")) if check else None
+        if area and check.get("selected") and item["status"] == "not-applicable" and not item.get("via_pack"):
+            lines.append(f"{item['check']} is not-applicable: {item.get('reason', '')} ({item.get('owner', '')}) [{area}]")
+    return lines
+
+
 def completion_problems(task: dict, profile: dict, relevance: dict | None = None, *,
                         changed: list[str] | None = None) -> list[str]:
     """Why the task cannot be declared done yet: only the checks that concern it count.

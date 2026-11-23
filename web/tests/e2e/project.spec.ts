@@ -14,6 +14,7 @@ const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..',
 const PORT = Number(process.env.PW_PROJECT_PORT ?? 7322);
 const EMPTY = `http://127.0.0.1:${PORT + 1}`;
 const STRIPE = `http://127.0.0.1:${PORT + 2}`;
+const GDPR = `http://127.0.0.1:${PORT + 3}`;
 const errors: string[] = [];
 /** How a to-do item names the person who acts, as opposed to the agent. */
 const PERSON = 'Toi';
@@ -152,8 +153,10 @@ test('frames a draft and gathers the council', async ({ page }) => {
   await page.getByText('Clients', { exact: true }).click();
   await page.getByText('Interne', { exact: true }).click();
   await page.getByText('Sources locales', { exact: true }).click();
-  await expect(page.locator('[data-question="kind"] [lang="en"]').first()).toContainText(/Whether you want/);
-  await expect(page.locator('[data-question="data"]')).toContainText('Si tu ne sais pas');
+  // The help of each question and what a "don't know" answer applies read in French.
+  await expect(page.locator('[data-question="kind"] .hint')).toContainText('Quelque chose de nouveau, une réparation');
+  await expect(page.locator('[data-question="data"] .hint')).toContainText('Si tu ne sais pas : traité comme des données personnelles');
+  await expect(page.locator('[data-question="data"] .hint [lang="en"]')).toHaveCount(0);
   // The concerns question takes several answers, in French, and each one brings its board.
   const concerns = page.locator('[data-question="concerns"]');
   await expect(concerns.locator('legend')).toContainText('La tâche touche-t-elle à l’un de ces sujets');
@@ -321,8 +324,8 @@ test('runs the checks, records the results and completes a task in the forge', a
   await expect(page.locator('tr', { hasText: 'command:1' }).getByText('Réussi')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(/point\(s\) before the task can be done/)).toBeVisible();
   await expect(page.getByText('Une commande ne peut pas tourner ici')).toBeVisible();
-  await page.getByLabel('Tes initiales').fill('Camille Martin');
-  await page.getByRole('button', { name: /Marquer les règles non rapportées/ }).click();
+  await page.getByLabel('Tes initiales').fill('CM');
+  await page.getByRole('button', { name: /Marquer « non applicables » les règles non rapportées/ }).click();
   await page.getByLabel('Adresse de la pull request').fill('https://github.com/example/portal/pull/8');
   await page.getByRole('button', { name: 'Ajouter un critère' }).click();
   await page.getByLabel('Critère', { exact: true }).fill('Customers only see the history of their own requests.');
@@ -335,6 +338,63 @@ test('runs the checks, records the results and completes a task in the forge', a
   await expect(page.getByRole('region', { name: 'Clôture' }).getByText('Aucun point laissé ouvert.')).toBeVisible();
   await page.goto('/#/quetes/request-history');
   await expect(page.locator('.quest-head').getByText('Accomplie')).toBeVisible();
+});
+
+test('records the GDPR named evidence with who provided it and completes a task on personal data', async ({ page }) => {
+  watch(page);
+  await page.goto(`${GDPR}/#/forge/data-export`);
+  await expect(page.locator('.project-chip')).toContainText('Portail RGPD');
+  const expected = page.getByRole('region', { name: 'Tableau des vérifications' });
+  const record = 'evidence:gdpr/update-processing-record/processing-record';
+  const dpia = 'evidence:gdpr/assess-dpia-need/dpia-decision';
+  // A named evidence the task's data requires is mandatory; a rule the task is not asked has nothing to report.
+  const recordRow = expected.locator('tr', { hasText: record });
+  await expect(recordRow.locator('td').nth(2)).toHaveText('oui');
+  await expect(recordRow).toContainText('obligatoire : la tâche touche des données personnelles');
+  const aside = expected.locator('tr', { hasText: 'rule:incident-notification/nis2-significant-incident' });
+  await expect(aside.locator('td').nth(3)).toHaveText('Non demandée');
+
+  const rules = page.getByRole('region', { name: 'Règles à rapporter' });
+  await page.getByLabel('Tes initiales').fill('CM');
+  // The one-click answer leaves the rules the task's answers select: each keeps its own answer.
+  await page.getByRole('button', { name: /Marquer « non applicables » les règles non rapportées/ }).click();
+  await expect(page.getByLabel('Issue de rule:python/follow-python-style')).toHaveValue('not-applicable');
+  await expect(page.getByLabel('Issue de rule:gdpr/confirm-lawful-basis')).toHaveValue('');
+  const selected = await rules.locator('tr', { hasText: 'Demandée par les réponses de la tâche' }).locator('td:first-child .mono').allTextContents();
+  expect(selected).toContain('rule:gdpr/confirm-lawful-basis');
+  for (const id of selected) {
+    await page.getByLabel(`Issue de ${id}`).selectOption('passed');
+    await page.getByLabel(`Preuve de ${id}`).fill('tests/test_data_export.py');
+  }
+  // A named evidence passes with its document and the person who provided it.
+  await page.getByLabel(`Issue de ${record}`).selectOption('passed');
+  await page.getByLabel(`Preuve de ${record}`).fill('records/missing-record.md');
+  await page.getByLabel(`Fournie par, pour ${record}`).fill('Dana (DPO)');
+  await page.getByLabel(`Issue de ${dpia}`).selectOption('passed');
+  await page.getByLabel(`Preuve de ${dpia}`).fill('records/dpia-decision.md');
+  await expect(page.getByText(`Il manque une preuve, ou un motif et un responsable, pour : ${dpia}.`)).toBeVisible();
+  await page.getByLabel(`Fournie par, pour ${dpia}`).fill('Dana (DPO)');
+  await page.getByLabel('Livraison').selectOption('pull_request');
+  await page.getByLabel('Adresse de la pull request').fill('https://github.com/example/portal/pull/9');
+  await page.getByRole('button', { name: 'Enregistrer les résultats' }).click();
+  // What the CLI did not record is said in French, with what to do in the page.
+  await expect(page.getByText(`${record} : records/missing-record.md n’existe pas dans le projet.`, { exact: false })).toBeVisible();
+  await page.getByLabel(`Issue de ${record}`).selectOption('passed');
+  await page.getByLabel(`Preuve de ${record}`).fill('records/processing-record.md');
+  await page.getByLabel(`Fournie par, pour ${record}`).fill('Dana (DPO)');
+  await page.getByRole('button', { name: 'Enregistrer les résultats' }).click();
+  await expect(page.getByText('Non enregistré :')).toHaveCount(0);
+  const saved = await cli<{ result: { checks: { check: string; status: string; owner?: string }[] } }>(page, ['task', 'show', 'data-export']);
+  const evidence = saved.json.result.checks.filter((c) => c.check.startsWith('evidence:'));
+  expect(evidence).toHaveLength(2);
+  expect(evidence).toEqual(expect.arrayContaining([
+    expect.objectContaining({ check: record, status: 'passed', owner: 'Dana (DPO)' }),
+    expect.objectContaining({ check: dpia, status: 'passed', owner: 'Dana (DPO)' }),
+  ]));
+  await page.getByRole('button', { name: 'Terminer la tâche' }).click();
+  await expect(page.getByText('Tâche terminée', { exact: true })).toBeVisible();
+  const done = await cli<{ status: string }>(page, ['task', 'show', 'data-export']);
+  expect(done.json.status).toMatch(/^done/);
 });
 
 test('starts a business deliverable and lists what keeps it from review', async ({ page }) => {
@@ -670,7 +730,8 @@ test('finds a brain from the search and moves with the keyboard', async ({ page 
   await page.keyboard.press('Control+k');
   const search = page.getByRole('dialog', { name: 'Rechercher dans le projet' });
   await search.getByLabel('Rechercher').fill('security privacy');
-  await expect(search.getByText('Security and privacy').first()).toBeVisible();
+  // A brain is named in French, and its English title still finds it.
+  await expect(search.getByText('Sécurité et protection des données').first()).toBeVisible();
   // The count is announced, not the list of results at every keystroke.
   await expect(search.getByRole('status')).toHaveText(/^\d+ résultats?$/);
   await expect(search.locator('[aria-live]')).toHaveCount(0);

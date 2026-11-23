@@ -61,6 +61,8 @@ export const CONCERNS: Record<string, string> = {
   'people-decisions': 'Un logiciel qui note, classe ou décide pour des personnes (embauche, crédit, prix par personne)',
   credentials: 'Secrets, clés, jetons ou mots de passe', none: 'Aucun de ces sujets', unsure: 'À préciser',
 };
+/** The data answer inside a sentence ("touche des données personnelles"), agreed in gender and number. */
+export const DATA_PHRASE: Record<string, string> = { none: 'aucune donnée', internal: 'des données internes', personal: 'des données personnelles', regulated: 'des données réglementées', unsure: 'des données à préciser' };
 export const RESEARCH: Record<string, string> = { local: 'Sources locales', public: 'Sources publiques', unsure: 'À préciser', 'local-only': 'Locale uniquement', 'public-sources': 'Sources publiques autorisées' };
 
 /** French names of the sectors and norms of the catalog, by ID; an ID the page does not know keeps the CLI's title. */
@@ -104,6 +106,18 @@ export const CHECK: Record<string, Label> = {
   passed: L('Réussi', 'success', 'check'), failed: L('Échec', 'danger', 'cross'), skipped: L('Ignoré', 'warning', 'pause'), 'not-applicable': L('Non applicable', 'muted', 'dot'),
 };
 export const checkLabel = (s?: string | null) => (s && CHECK[s]) || L('À rapporter', 'warning', 'clock');
+/** One row of task checks --json, as the tables of the page read it. */
+interface CheckRow { kind: string; mandatory?: boolean; must_supply?: string | null; concerned?: boolean; result?: { status?: string } | null }
+/** A check the closing cannot do without: a mandatory command or rule, or a named evidence that must be supplied. */
+export const isRequiredCheck = (c: CheckRow) => !!c.mandatory || !!c.must_supply;
+/** The outcome of a check as the table shows it: a check the task is not asked has nothing to report. */
+export const checkOutcome = (c: CheckRow) => (c.concerned === false && !c.result?.status ? L('Non demandée', 'muted', 'dot') : checkLabel(c.result?.status));
+/** Why a named evidence must be supplied (results._must_supply), in French; an unknown reason is null. */
+export function mustSupplyLabel(reason: string): string | null {
+  if (reason === 'its rule or pack is listed in the profile\'s required_rules') return 'sa règle ou son pack figure dans les règles exigées du profil (required_rules)';
+  const m = /^the task's data is (\S+)$/.exec(reason);
+  return m ? `la tâche touche ${DATA_PHRASE[m[1]] ?? m[1]}` : null;
+}
 
 export const ALERT: Record<string, Label> = {
   open: L('À vérifier', 'warning', 'question'), confirmed: L('Confirmée', 'danger', 'warn'), dismissed: L('Écartée', 'muted', 'ban'), resolved: L('Corrigée', 'success', 'check'), accepted: L('Risque accepté', 'info', 'lock'),
@@ -226,6 +240,45 @@ export const QUESTION_FR: Record<string, string> = {
   affected: 'Qui est concerné : utilisateurs, clients, équipes ou partenaires ?',
   options: 'Quelles options sont sur la table, et qu’est-ce qui ferait choisir l’une d’elles ?',
 };
+/** French wording of the one-line help of each task question (questionnaire.TASK_QUESTION_HELP). */
+export const QUESTION_HELP_FR: Record<string, string> = {
+  kind: 'Quelque chose de nouveau, une réparation, l’entretien de l’existant, ou un avis avant de décider.',
+  surface: 'La partie du produit que le changement touche : ce que voient les clients, le serveur, l’hébergement, ou un processus métier.',
+  data: 'L’information la plus privée que le changement peut lire ou modifier, comme des e-mails ou des données de santé.',
+  research: 'Si les cerveaux peuvent citer des pages web publiques, ou seulement les fichiers du projet et ce que tu as fourni.',
+  concerns: 'Des sujets qui amènent leurs propres spécialistes : l’argent, l’IA, les décisions sur des personnes, les secrets.',
+  outcome: 'Ce que quelqu’un peut voir ou mesurer une fois le travail fait.',
+  affected: 'Les personnes ou les équipes qui remarqueront le changement.',
+  options: 'Les choix comparés, et ce qui ferait pencher la décision.',
+  context: 'Tout ce que les cerveaux doivent savoir : échéances, limites, critères d’acceptation, liens.',
+};
+/** What a "don't know" answer applies to each task question, in French. */
+export const QUESTION_UNSURE_FR: Record<string, string> = {
+  kind: 'le comité gestion de projet se joint pour aider à cadrer la tâche',
+  surface: 'chaque angle de spécialiste des cerveaux reste dans la revue',
+  data: 'traité comme des données personnelles : le comité sécurité se joint et les preuves RGPD sont demandées',
+  research: 'compte comme local : seulement les fichiers du projet et les sources que tu as fournies',
+  concerns: 'les comités de chaque sujet se joignent, et les règles de chaque sujet restent ouvertes',
+  outcome: 'laisse vide : la consultation note le résultat manquant comme point ouvert',
+  affected: 'laisse vide : la consultation le note comme point ouvert',
+  options: 'laisse vide : la consultation le note comme point ouvert',
+  context: 'par défaut : vide',
+};
+/** French names of the brains of the catalog, by ID (registry/boards); an unknown ID keeps the CLI's title. */
+export const BRAIN_FR: Record<string, string> = {
+  backend: 'Développement back-end', communication: 'Communication', 'customer-success': 'Succès client', data: 'Données et IA',
+  design: 'Design produit', 'developer-relations-and-docs': 'Relations développeurs et documentation', devops: 'DevOps et fiabilité',
+  engineering: 'Développement logiciel (front-end et back-end)', finance: 'Finance et FinOps', frontend: 'Développement front-end',
+  hr: 'Ressources humaines', 'it-and-workplace': 'Informatique interne et poste de travail', leadership: 'Direction générale',
+  legal: 'Juridique et conformité', localisation: 'Localisation et internationalisation', marketing: 'Marketing et études de marché',
+  operations: 'Opérations', partnerships: 'Partenariats et réseaux de distribution', performance: 'Performance',
+  procurement: 'Achats et gestion des fournisseurs', product: 'Gestion de produit', 'project-management': 'Gestion de projet',
+  qa: 'Assurance qualité', sales: 'Ventes', security: 'Sécurité et protection des données', support: 'Support et succès client',
+  'trust-and-safety': 'Confiance et sécurité des utilisateurs',
+};
+/** The name of a brain the page shows: French when the page knows its ID, the CLI's title otherwise. */
+export const brainName = (id: string, title?: string) => BRAIN_FR[id] ?? title ?? id;
+
 /** Open points name the unanswered question in English; show it in French when it is known. */
 export function openPointLabel(text: string, prompts: Record<string, string>) {
   const m = /^Unanswered: (.*)$/.exec(text);
