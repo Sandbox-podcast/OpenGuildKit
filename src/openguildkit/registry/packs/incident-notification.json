@@ -1,7 +1,7 @@
 {
   "id": "incident-notification",
   "title": "Incident notification matrix",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "For an organization subject to EU incident reporting: one matrix with the authority, trigger and deadlines of each regulation, shared by the GDPR, NIS 2, DORA, Cyber Resilience Act and AI Act packs. These rules do not establish compliance.",
   "sources": [
     {
@@ -31,8 +31,8 @@
     },
     {
       "title": "Regulation (EU) 2024/1689, Artificial Intelligence Act, consolidated text",
-      "url": "https://eur-lex.europa.eu/eli/reg/2024/1689",
-      "checked": "2026-11-20"
+      "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/2026-07-27/eng",
+      "checked": "2026-11-23"
     },
     {
       "title": "European Commission, AI Act Service Desk, Article 73: Reporting of serious incidents",

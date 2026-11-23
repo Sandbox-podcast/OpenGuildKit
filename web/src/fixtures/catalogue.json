@@ -4128,7 +4128,7 @@
    "sources": [
     {
      "label": "Règlement (UE) 2024/1689 — Règlement sur l'intelligence artificielle, texte consolidé",
-     "url": "https://eur-lex.europa.eu/eli/reg/2024/1689"
+     "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/2026-07-27/eng"
     }
    ],
    "publicationStatus": "published",
@@ -4340,7 +4340,7 @@
    "sources": [
     {
      "label": "IEC 62304:2006+AMD1:2015 — Medical device software: Software life cycle processes",
-     "url": "https://webstore.iec.ch/en/publication/6792"
+     "url": "https://webstore.iec.ch/en/publication/22794"
     }
    ],
    "publicationStatus": "published",
@@ -5856,8 +5856,8 @@
    "whenToUse": "Pack sectoriel santé ; choisir la version et les profils d'implémentation réellement requis.",
    "sources": [
     {
-     "label": "Overview - FHIR v5.0.0",
-     "url": "https://hl7.org/fhir/overview.html"
+     "label": "HL7 FHIR v5.0.0 (Release 5)",
+     "url": "https://hl7.org/fhir/R5/"
     }
    ],
    "publicationStatus": "published",
