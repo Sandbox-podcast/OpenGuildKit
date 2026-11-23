@@ -19,3 +19,5 @@ To replay the update, evaluate two commits with 45 and 30 minutes at the origina
 The [end-to-end test](../../tests/e2e/test_export_ci.py) runs both phases, checks that the instructions and verdict have the same rule source, and replays the previous policy. Your CI system supplies the trigger and the list of open pull requests.
 
 The [CI coordinator](../../integrations/ci/README.md) can watch open pull requests and schedule these rechecks. It uses the same export pack through the supplied [catalog index](policy/policy/catalog.json).
+
+The [pilot and comparison protocol](pilot.md) uses this rule for the observation run, persistent recovery and the shared workflow baseline.

@@ -19,15 +19,9 @@ import os
 import select
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
-SRC = Path(__file__).resolve().parents[2] / "src"
-# Bytecode goes to a folder of its own, not next to the sources, and is reused from one command to the next.
-ENV = {**{key: value for key, value in os.environ.items() if key != "PYTHONDONTWRITEBYTECODE"},
-       "PYTHONPATH": os.pathsep.join(filter(None, [str(SRC), os.environ.get("PYTHONPATH")])),
-       "PYTHONPYCACHEPREFIX": os.environ.get("PYTHONPYCACHEPREFIX") or str(Path(tempfile.gettempdir()) / "openguildkit-pycache"),
-       "PYTHONIOENCODING": "utf-8"}
+from field_cli import command, environment
 
 
 def decide(project: Path, task: str, action: str, by: str, reason: str, answers: list[str],
@@ -37,12 +31,11 @@ def decide(project: Path, task: str, action: str, by: str, reason: str, answers:
 
     if (signature is None) != (signer is None):
         raise ValueError("Pass both --signature and --signer, or neither.")
-    command = [sys.executable, "-m", "openguildkit", "--project", str(project), "task", "decide", task,
-               f"--{action}", "--by", by, "--reason", reason]
+    argv = command("--project", str(project), "task", "decide", task, f"--{action}", "--by", by, "--reason", reason)
     if signature is not None:
-        command += ["--signature", str(signature), "--signer", signer]
+        argv += ["--signature", str(signature), "--signer", signer]
     master, slave = pty.openpty()
-    process = subprocess.Popen(command, stdin=slave, stdout=slave, stderr=slave, close_fds=True, env=ENV)
+    process = subprocess.Popen(argv, stdin=slave, stdout=slave, stderr=slave, close_fds=True, env=environment())
     os.close(slave)
     typed = [task, *answers]
     shown = b""

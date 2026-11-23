@@ -14,6 +14,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from field_cli import command, environment
+
 LOG = "commands.log"
 
 
@@ -54,8 +56,8 @@ def entry(folder: Path, cwd: Path, arguments: list[str], result: subprocess.Comp
 
 def main(argv: list[str]) -> int:
     runs, arguments = Path(argv[1]), argv[2:]
-    result = subprocess.run([sys.executable, "-m", "openguildkit", *arguments], capture_output=True, text=True,
-                            encoding="utf-8", errors="replace")
+    result = subprocess.run(command(*arguments), capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", env=environment())
     sys.stdout.write(result.stdout)
     sys.stderr.write(result.stderr)
     cwd = Path.cwd()

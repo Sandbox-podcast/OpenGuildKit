@@ -25,14 +25,14 @@ function fixture(t, prefix, workflow = { file: 'recheck.yml', ref: 'pilot/base' 
   return { folder, configPath };
 }
 
-function proofEntry(folder, work, state = 'success') {
-  const proof = { commit: 'a'.repeat(40), policyCommit: 'b'.repeat(40), profileCommit: 'c'.repeat(40), state };
+function proofEntry(folder, work, state = 'success', version = kitVersion) {
+  const proof = { commit: 'a'.repeat(40), policyCommit: 'b'.repeat(40), profileCommit: 'c'.repeat(40), state, kitVersion: version };
   const file = join(folder, `${work}.json`);
   writeFileSync(file, JSON.stringify({ evidence: proof }));
   return {
     project: 'team/repo', work, pullRequest: 1, status: state, evidence: [file], proof,
     commit: proof.commit, policyCommit: proof.policyCommit, profileCommit: proof.profileCommit,
-    profileSha256: 'd'.repeat(64), rule: 'export-link-expiry', kitVersion,
+    profileSha256: 'd'.repeat(64), rule: 'export-link-expiry', kitVersion: version,
   };
 }
 
@@ -183,6 +183,72 @@ test('a lost dispatch response is recovered by attempt before another dispatch',
   now += 120_000;
   assert.match(pass().errors[0].message, /response lost/);
   assert.equal(new Set(attempts).size, 3);
+});
+
+test('a watcher stopped during dispatch recovers the accepted run from persistent state', t => {
+  const { folder: stateDir, configPath } = fixture(t, 'openguildkit-stop-after-dispatch-');
+  const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const options = { stateDir, configPath, kitVersion: version };
+  const kitPins = { ...pins(), kit: `${'a'.repeat(64)}  openguildkit-${version}.tgz\n` };
+  const entry = proofEntry(stateDir, '9'.repeat(64), 'success', version);
+  const acceptedFile = join(stateDir, 'accepted.json');
+
+  // The provider accepts the request, then the process exits before watch can record its response.
+  const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
+    import { writeFileSync } from 'node:fs';
+    import { watchGithub } from ${JSON.stringify(new URL('../lib/watch.mjs', import.meta.url).href)};
+    watchGithub(${JSON.stringify(options)}, {
+      reconcile: () => ({ current: [${JSON.stringify(entry)}] }),
+      actions: {
+        pins: () => (${JSON.stringify(kitPins)}),
+        dispatch(_entry, _workflow, attempt) {
+          writeFileSync(${JSON.stringify(acceptedFile)}, JSON.stringify({ id: '42', attempt }));
+          process.exit(17);
+        },
+      },
+    });
+  `], { encoding: 'utf8', timeout: 15_000 });
+  assert.equal(child.status, 17, child.stderr);
+  const accepted = JSON.parse(readFileSync(acceptedFile, 'utf8'));
+  assert.equal(existsSync(join(stateDir, 'watch.lock')), true);
+  const pending = JSON.parse(readFileSync(join(stateDir, 'actions', `${entry.work}.json`), 'utf8'));
+  assert.equal(pending.state, 'requesting');
+  assert.equal(pending.attempt, accepted.attempt);
+
+  const next = proofEntry(stateDir, '8'.repeat(64), 'success', version);
+  next.policyCommit = next.proof.policyCommit = 'f'.repeat(40);
+  writeFileSync(next.evidence[0], JSON.stringify({ evidence: next.proof }));
+  assert.equal(next.commit, entry.commit);
+  const dispatches = [];
+  let current = entry;
+  const resume = () => watchGithub(options, {
+    reconcile: () => ({ current: [current] }),
+    actions: {
+      pins: () => kitPins,
+      find(_entry, { attempt }) {
+        assert.equal(attempt, accepted.attempt);
+        return { id: accepted.id };
+      },
+      dispatch(entry) {
+        dispatches.push(entry.work);
+        return { id: '43' };
+      },
+      status: () => ({ status: 'completed', conclusion: 'success' }),
+      proof: (_project, id) => id === '42' ? entry : { ...entry, work: next.work },
+    },
+  });
+  const recovered = resume().targets[0].actions;
+  assert.equal(recovered.id, accepted.id);
+  assert.equal(recovered.recovered, true);
+  assert.equal(resume().targets[0].actions.state, 'verified');
+  assert.deepEqual(dispatches, []);
+  assert.equal(existsSync(join(stateDir, 'watch.lock')), false);
+
+  current = next;
+  assert.equal(resume().targets[0].actions.state, 'dispatched');
+  assert.equal(resume().targets[0].actions.state, 'mismatch');
+  assert.deepEqual(dispatches, [next.work]);
+  t.diagnostic(`Recovered run 42 for ${accepted.attempt}; rejected the old policy proof from run 43.`);
 });
 
 test('a failing recheck is retried after a growing delay, then stays failed until it is reset', t => {

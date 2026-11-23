@@ -11,19 +11,12 @@ print the same object; a key that differs names what depends on something else.
 import argparse
 import hashlib
 import json
-import os
 import re
 import subprocess
-import sys
-import tempfile
 from pathlib import Path
 
-SRC = Path(__file__).resolve().parents[2] / "src"
-# Bytecode goes to a folder of its own, not next to the sources, and is reused from one command to the next.
-ENV = {**{key: value for key, value in os.environ.items() if key != "PYTHONDONTWRITEBYTECODE"},
-       "PYTHONPATH": os.pathsep.join(filter(None, [str(SRC), os.environ.get("PYTHONPATH")])),
-       "PYTHONPYCACHEPREFIX": os.environ.get("PYTHONPYCACHEPREFIX") or str(Path(tempfile.gettempdir()) / "openguildkit-pycache"),
-       "PYTHONIOENCODING": "utf-8"}
+from field_cli import command, environment
+
 WRITTEN = ("AGENTS.md", ".openguildkit/project.json", ".openguildkit/catalog.lock.json", ".openguildkit/tools.json",
            ".mcp.json", ".codex/config.toml", ".claude/settings.json")
 _IDENTIFIER = re.compile(r"\b[0-9a-f]{32}\b")
@@ -43,8 +36,8 @@ def normalise(text: str, root: Path) -> str:
 
 def run(root: Path, *arguments: str) -> tuple[int, str, str]:
     """Exit code, output and errors of openguildkit on the project. The kit's tests run it in their own process."""
-    result = subprocess.run([sys.executable, "-m", "openguildkit", "--project", str(root), *arguments],
-                            capture_output=True, text=True, encoding="utf-8", env=ENV)
+    result = subprocess.run(command("--project", str(root), *arguments),
+                            capture_output=True, text=True, encoding="utf-8", env=environment())
     return result.returncode, result.stdout, result.stderr
 
 

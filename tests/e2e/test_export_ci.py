@@ -3,6 +3,7 @@
 import base64
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 from .test_cli_flow import CliTestCase
@@ -140,6 +141,28 @@ class ExportCiTests(CliTestCase):
             self.assertIn(current["policy_commit"], instructions)
             self.assertIn(current["profile_fingerprint"], instructions)
         self.assertEqual(json.loads(self.evaluate(self.original, first, head_a).stdout), before_a)
+
+    def test_the_shared_workflow_generates_guidance_from_the_same_pinned_policy(self):
+        target = self.project / "shared-baseline"
+        head = self.commit(target, "export.json", {"downloadLinkMinutes": 45})
+        self.pack["version"] = "2.0.0"
+        self.pack["rules"][0]["check"]["max"] = 30
+        updated = self.commit(self.policy, POLICY, self.pack)
+        for revision, expected, maximum in ((self.original, "success", 60), (updated, "failure", 30)):
+            with self.subTest(policy=revision):
+                actual = json.loads(self.evaluate(revision, target, head, expect=int(expected == "failure")).stdout)
+                output = self.project / f"shared-{maximum}"
+                baseline = subprocess.run([
+                    sys.executable, str(EXAMPLE / "shared-check.py"), "--policy-repo", str(self.policy),
+                    "--policy-commit", revision, "--target-repo", str(target), "--commit", head, "--output", str(output),
+                ], capture_output=True, text=True, encoding="utf-8", timeout=60)
+                self.assertEqual(baseline.returncode, 0, baseline.stderr)
+                report = json.loads((output / "evidence.json").read_text(encoding="utf-8"))
+                self.assertEqual((report["status"], report["commit"], report["policy_commit"], report["max_minutes"]),
+                                 (actual["status"], actual["commit"], actual["policy_commit"], maximum))
+                guidance = (output / "AGENTS.md").read_text(encoding="utf-8")
+                self.assertIn(f"between 1 and {maximum} minutes", guidance)
+                self.assertIn(revision, guidance)
 
     def test_invalid_values_and_unpinned_revisions_fail_closed(self):
         target = self.project / "repo"
