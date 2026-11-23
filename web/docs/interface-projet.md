@@ -19,11 +19,11 @@ OpenGuildKit n'est pas sur PyPI : installe la roue d'une release GitHub, qui emb
 ```bash
 pipx install ./openguildkit-X.Y.Z-py3-none-any.whl
 cd mon-projet
-openguildkit ui                   # imprime http://127.0.0.1:7311/?key=… et l'ouvre
+openguildkit ui                   # imprime http://ogk-….localhost:7311/?key=… et l'ouvre
 openguildkit ui --port 0 --no-browser
 ```
 
-Le serveur écoute seulement sur 127.0.0.1. Si le port 7311 est pris, il en choisit un libre et l'affiche. Ctrl+C l'arrête.
+Le serveur écoute seulement sur 127.0.0.1, sous un nom d'hôte propre à chaque lancement (`ogk-….localhost`), que les navigateurs envoient à la boucle locale. Si le port 7311 est pris, il en choisit un libre et l'affiche. Ctrl+C l'arrête.
 
 Dans un projet sans `.openguildkit/project.json`, la page ouvre l'installation : le questionnaire de `init`, le plan des packs de règles qui s'appliqueront, puis l'écriture du profil.
 
@@ -64,12 +64,12 @@ Elle n'appelle aucune IA et n'ouvre aucune connexion vers l'extérieur. Les avis
 
 Tout programme du poste peut ouvrir une connexion vers 127.0.0.1 : ceux d'un autre compte sur un poste partagé, une machine de build ou une VM de développement, un processus sandboxé qui a le droit d'ouvrir des sockets locales, et une page d'un autre site chargée dans le navigateur. Le serveur ne fait donc confiance qu'à la clé de l'adresse qu'il imprime.
 
-- Écoute sur 127.0.0.1 uniquement. L'en-tête `Host` doit être `127.0.0.1`, `localhost` ou `[::1]` avec le bon port, ce qui bloque le rebinding DNS.
-- `openguildkit ui` imprime une adresse qui porte une clé tirée au lancement, `http://127.0.0.1:7311/?key=…`, et l'ouvre dans le navigateur. Seul le terminal qui a lancé la commande la voit. En ouvrant cette adresse, le navigateur reçoit la clé dans un cookie `HttpOnly` et `SameSite=Strict` propre au port (`ogk-7311`), et la clé quitte la barre d'adresse. Sans ce cookie, `/api/session` répond 403 (`open-printed-link`) et la page affiche, à la place de l'interface, l'invitation à ouvrir l'adresse imprimée. La clé change à chaque lancement : après un redémarrage, ouvre la nouvelle adresse.
+- Écoute sur 127.0.0.1 uniquement. L'en-tête `Host` doit être le nom d'hôte du lancement avec le bon port, ce qui bloque le rebinding DNS. Sur `127.0.0.1`, `localhost` ou `[::1]`, la page affiche seulement l'invitation à ouvrir l'adresse imprimée, même avec la clé.
+- `openguildkit ui` imprime une adresse qui porte une clé tirée au lancement, `http://ogk-….localhost:7311/?key=…`, et l'ouvre dans le navigateur. Seul le terminal qui a lancé la commande la voit. Le nom d'hôte `ogk-….localhost` est tiré de la clé. En ouvrant cette adresse, le navigateur reçoit la clé dans un cookie `HttpOnly` et `SameSite=Strict` de ce seul nom d'hôte (`ogk-7311`), et la clé quitte la barre d'adresse. Un navigateur envoie un cookie à tous les ports de l'hôte qui l'a posé : posé sur `127.0.0.1`, il partirait vers tout autre serveur du poste, comme le serveur de développement du projet. Sous le nom du lancement, aucun autre serveur ne le reçoit. Sans ce cookie, `/api/session` répond 403 (`open-printed-link`) et la page affiche, à la place de l'interface, l'invitation à ouvrir l'adresse imprimée. La clé change à chaque lancement : après un redémarrage, ouvre la nouvelle adresse.
 - La clé protège la session : le jeton que `/api/session` remet à la page et que chaque appel de l'API porte. Un programme qui ne connaît pas la clé ne lit ni le jeton, ni le profil, ni les fichiers, et ne lance aucune commande. Elle ne protège pas d'un programme qui tourne sous ton propre compte : celui-là peut déjà lire les fichiers du projet et lancer la CLI.
 - Chaque appel de l'API est un `POST` JSON qui porte l'origine de la page et le jeton. Une page d'un autre site ne peut ni lire le jeton ni appeler l'API.
 - Sous Windows, le serveur réserve son port en exclusivité : un autre programme ne peut pas s'y lier pour recevoir les requêtes de la page.
-- Un script qui lance le serveur pour son propre navigateur, comme les tests de bout en bout, peut fixer la clé avec `OPENGUILDKIT_UI_KEY` (32 à 128 lettres, chiffres, `-` ou `_`) ; elle reste aussi secrète que le script la garde. En développement avec `OGK_API`, Vite sert la page : ouvre une fois `http://localhost:5199/api/session?key=…` avec la clé imprimée, puis `http://localhost:5199/`.
+- Un script qui lance le serveur pour son propre navigateur, comme les tests de bout en bout, peut fixer la clé avec `OPENGUILDKIT_UI_KEY` (32 à 128 lettres, chiffres, `-` ou `_`) ; elle reste aussi secrète que le script la garde. En développement avec `OGK_API` (l'origine de l'adresse imprimée), Vite sert la page : ouvre une fois `http://localhost:5199/api/session?key=…` avec la clé imprimée, puis `http://localhost:5199/`. Le cookie est alors posé sur `localhost` et part vers ses autres ports : réserve ce mode à un projet d'exemple.
 - Les commandes passent par l'analyseur de la CLI, puis par une liste de refus : `ci-check`, `ui`, `guard --hook`, `tools mock`, `integrations --user`, et les décisions réservées au terminal ci-dessus. Les abréviations d'options (`--appr`) sont résolues avant le contrôle.
 - Pendant chaque commande, l'entrée standard n'est jamais un terminal, même si le serveur tourne dans un terminal : une invite interactive échoue au lieu d'attendre.
 - Les fichiers lus ou écrits restent dans le projet, hors de `.git` quelle que soit sa casse : sur un disque qui ignore la casse, `.GIT/x` s'écrirait dans `.git`. Les fichiers envoyés par la page (avis, rapport de scanner, résultats) passent par un dossier temporaire supprimé après la commande. La page ne liste ni ne lit `.env`, les noms qui évoquent un secret, ni les fichiers où les outils gardent leurs jetons : `token*.json`, `auth.json`, `*service-account*.json`, `local.settings.json`, ni ceux où les gestionnaires de paquets, Docker et les frameworks gardent un jeton ou un mot de passe en clair : `.yarnrc.yml`, `.npmrc`, `.pypirc`, `.netrc`, `.git-credentials`, `appsettings*.json`, `database.yml`, `.docker/config.json` (les enregistrements de l'outil sous `.openguildkit/` restent lisibles, même quand une quête s'appelle `token-rotation`).
@@ -120,7 +120,7 @@ La commande rendue est celle que la CLI nomme dans son refus quand elle en nomme
 python web/scripts/sample-project.py /tmp/portail     # projet d'exemple : une quête dans chaque état
 openguildkit --project /tmp/portail ui --no-browser --port 7311
 cd web
-OGK_API=http://127.0.0.1:7311 npm run dev             # rechargement à chaud sur le projet réel
+OGK_API=http://ogk-….localhost:7311 npm run dev       # l'origine de l'adresse imprimée ; rechargement à chaud
 ```
 
 Sans `OGK_API`, `npm run dev` ouvre la démonstration ; `?demo=1` l'ouvre aussi quand `OGK_API` est posé. La construction du paquet (`npm run build`) laisse la démo de côté : sur une page servie par `openguildkit ui`, `?demo=1` affiche qu'elle n'est pas incluse et comment la lancer. `npm run build:demo` construit la démo seule, dans `dist-demo/`, pour `npm run preview:demo`.

@@ -1,6 +1,7 @@
 import contextlib
 import gzip
 import http.client
+import http.cookiejar
 import io
 import json
 import os
@@ -13,7 +14,9 @@ import tempfile
 import threading
 import unittest
 import urllib.error
+import urllib.parse
 import urllib.request
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 
@@ -33,15 +36,30 @@ ENV = {
 }
 
 
-def fetch(port: int, path: str, cookie: str | None = None):
-    """A GET as a browser or another local program sends it, without following a redirect."""
+def fetch(port: int, path: str, cookie: str | None = None, host: str | None = None):
+    """A GET as a browser or another local program sends it, without following a redirect. host is the host name
+    of the address, which a browser sends to the loopback interface; 127.0.0.1 when it is left out."""
     connection = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
+    headers = {**({"Cookie": cookie} if cookie else {}), **({"Host": f"{host}:{port}"} if host else {})}
     try:
-        connection.request("GET", path, headers={"Cookie": cookie} if cookie else {})
+        connection.request("GET", path, headers=headers)
         response = connection.getresponse()
         return response.status, response.headers, response.read()
     finally:
         connection.close()
+
+
+class Loopback(http.client.HTTPConnection):
+    """Connects to the loopback interface whatever the host name, as a browser does for a name under .localhost,
+    and still sends that name in the Host header."""
+
+    def __init__(self, host, **options):
+        super().__init__("127.0.0.1", int(host.rpartition(":")[2]), **options)
+
+
+class LoopbackHandler(urllib.request.HTTPHandler):
+    def http_open(self, request):
+        return self.do_open(Loopback, request)
 
 
 def fake_front(folder: Path) -> Path:
@@ -70,9 +88,10 @@ class WebInterfaceTests(unittest.TestCase):
         self.base = f"http://127.0.0.1:{self.app.port}"
 
     def request(self, path, body=None, headers=None, method=None):
-        """A request of the page: the session cookie set by the printed address, its origin and its token."""
-        default = {"Origin": self.base, "X-OGK-Token": self.app.token, "Content-Type": "application/json",
-                   "Cookie": f"{self.app.cookie}={self.app.key}"}
+        """A request of the page: its host name, the session cookie set by the printed address, its origin and its
+        token."""
+        default = {"Host": self.app.host, "Origin": self.app.origin, "X-OGK-Token": self.app.token,
+                   "Content-Type": "application/json", "Cookie": f"{self.app.cookie}={self.app.key}"}
         data = None if body is None else json.dumps(body).encode("utf-8")
         request = urllib.request.Request(self.base + path, data=data, headers={**default, **(headers or {})},
                                          method=method or ("POST" if body is not None else "GET"))
@@ -97,27 +116,72 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(headers["Cache-Control"], "no-store")
 
     def test_only_the_printed_address_opens_the_session(self):
-        port = self.app.port
-        self.assertEqual(self.app.url, f"http://127.0.0.1:{port}/?key={self.app.key}")
+        port, name = self.app.port, self.app.host.rpartition(":")[0]
+        self.assertRegex(name, r"^ogk-[0-9a-f]{24}\.localhost$")
+        self.assertEqual(self.app.url, f"http://{name}:{port}/?key={self.app.key}")
         for cookie in (None, f"{self.app.cookie}=guess", f"ogk-{port + 1}={self.app.key}"):
             with self.subTest(cookie=cookie):
-                status, _, body = fetch(port, "/api/session", cookie)
+                status, _, body = fetch(port, "/api/session", cookie, name)
                 self.assertEqual((status, json.loads(body)["reason"]), (403, "open-printed-link"))
                 self.assertNotIn(self.app.token.encode(), body)
-                status, _, page = fetch(port, "/", cookie)
+                status, _, page = fetch(port, "/", cookie, name)
                 self.assertEqual(status, 403)
                 self.assertIn(b"openguildkit ui", page)
                 self.assertNotIn(b"openguildkit-ui", page)
-        self.assertEqual(fetch(port, "/?key=guess")[0], 403)
-        status, headers, _ = fetch(port, f"/?key={self.app.key}")
+        self.assertEqual(fetch(port, "/?key=guess", None, name)[0], 403)
+        status, headers, _ = fetch(port, f"/?key={self.app.key}", None, name)
         self.assertEqual((status, headers["Location"]), (303, "/"))
         cookie = headers["Set-Cookie"]
         self.assertTrue(cookie.startswith(f"{self.app.cookie}={self.app.key};"), cookie)
         for attribute in ("HttpOnly", "SameSite=Strict", "Path=/"):
             self.assertIn(attribute, cookie)
-        status, _, body = fetch(port, "/api/session", cookie.split(";")[0])
+        self.assertNotIn("Domain", cookie)
+        status, _, body = fetch(port, "/api/session", cookie.split(";")[0], name)
         self.assertEqual((status, json.loads(body)["token"]), (200, self.app.token))
-        self.assertEqual(fetch(port, "/assets/app-0123456789.js")[0], 200)
+        self.assertEqual(fetch(port, "/assets/app-0123456789.js", None, name)[0], 200)
+        # 127.0.0.1 and localhost belong to every local server: the session opens on none of them, even with the key.
+        for host in ("127.0.0.1", "localhost", "[::1]"):
+            with self.subTest(host=host):
+                status, headers, page = fetch(port, f"/?key={self.app.key}", None, host)
+                self.assertEqual(status, 403)
+                self.assertNotIn("Set-Cookie", headers)
+                self.assertIn(b"openguildkit ui", page)
+                status, _, body = fetch(port, "/api/session", cookie.split(";")[0], host)
+                self.assertEqual((status, json.loads(body)["reason"]), (403, "open-printed-link"))
+
+    def test_another_local_server_does_not_receive_the_key_after_the_printed_address(self):
+        """A browser sends a cookie to every port of the host that set it. After the printed address, a visit to
+        another server of the workstation, such as the development server of the project, must not carry the key."""
+        received = []
+
+        class Recorder(BaseHTTPRequestHandler):
+            def do_GET(self):  # noqa: N802 - http.server naming
+                received.append(str(self.headers))
+                self.send_response(200)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+            def log_message(self, format, *args):  # noqa: A002 - signature of the base class
+                pass
+
+        other = ThreadingHTTPServer(("127.0.0.1", 0), Recorder)
+        threading.Thread(target=other.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()
+        self.addCleanup(other.server_close)
+        self.addCleanup(other.shutdown)
+        jar = http.cookiejar.CookieJar()
+        browser = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar), LoopbackHandler())
+        with browser.open(self.app.url, timeout=30) as response:
+            self.assertEqual(response.status, 200)
+        with browser.open(f"{self.app.origin}/api/session", timeout=30) as response:
+            self.assertEqual(json.loads(response.read())["token"], self.app.token)
+        self.assertEqual(len(jar), 1)
+        for host in ("127.0.0.1", "localhost"):
+            with browser.open(f"http://{host}:{other.server_address[1]}/", timeout=30) as response:
+                self.assertEqual(response.status, 200)
+        self.assertEqual(len(received), 2)
+        for headers in received:
+            self.assertNotIn(self.app.key, headers)
+            self.assertNotIn("Cookie", headers)
 
     def test_a_key_set_for_a_scripted_run_is_used_only_when_it_is_long_enough(self):
         from openguildkit.webui import launch_key
@@ -769,22 +833,23 @@ class UiCommandTests(unittest.TestCase):
         return process.returncode, stderr
 
     def open_session(self, url: str) -> dict:
-        port = int(url.split(":")[2].split("/")[0])
-        status, _, body = fetch(port, "/api/session")
+        address = urllib.parse.urlsplit(url)
+        host, port = address.hostname, address.port
+        status, _, body = fetch(port, "/api/session", None, host)
         self.assertEqual((status, json.loads(body)["reason"]), (403, "open-printed-link"))
-        status, headers, _ = fetch(port, url.split(f":{port}", 1)[1])
+        status, headers, _ = fetch(port, f"{address.path}?{address.query}", None, host)
         self.assertEqual(status, 303)
-        status, _, body = fetch(port, "/api/session", headers["Set-Cookie"].split(";")[0])
+        status, _, body = fetch(port, "/api/session", headers["Set-Cookie"].split(";")[0], host)
         self.assertEqual(status, 200)
-        return {**json.loads(body), "port": port, "cookie": headers["Set-Cookie"].split(";")[0]}
+        return {**json.loads(body), "port": port, "host": host, "cookie": headers["Set-Cookie"].split(";")[0]}
 
     def test_the_command_prints_the_address_that_opens_the_session_and_stops_on_ctrl_c(self):
         process, url = self.start("--port", "0", "--static", str(self.front))
-        self.assertRegex(url, r"^http://127\.0\.0\.1:\d+/\?key=[A-Za-z0-9_-]{40,}$")
+        self.assertRegex(url, r"^http://ogk-[0-9a-f]{24}\.localhost:\d+/\?key=[A-Za-z0-9_-]{40,}$")
         session = self.open_session(url)
         self.assertEqual(session["project"]["root"], str(self.root))
         self.assertFalse(session["project"]["initialized"])
-        self.assertEqual(fetch(session["port"], "/", session["cookie"])[0], 200)
+        self.assertEqual(fetch(session["port"], "/", session["cookie"], session["host"])[0], 200)
         code, stderr = self.stop(process)
         if os.name != "nt":
             self.assertEqual(code, 0, stderr)
@@ -809,7 +874,7 @@ class UiCommandTests(unittest.TestCase):
         empty.mkdir()
         process, url = self.start("--port", "0", "--static", str(empty))
         session = self.open_session(url)
-        status, _, page = fetch(session["port"], "/", session["cookie"])
+        status, _, page = fetch(session["port"], "/", session["cookie"], session["host"])
         self.assertEqual(status, 503)
         self.assertIn(b"npm ci", page)
         _, stderr = self.stop(process)

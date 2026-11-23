@@ -10,6 +10,7 @@ built page and each script it loads.
 """
 
 import argparse
+import http.client
 import http.cookiejar
 import re
 import shutil
@@ -20,7 +21,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-ADDRESS = re.compile(r"http://127\.0\.0\.1:\d+/\S*")
+ADDRESS = re.compile(r"http://[a-z0-9-]+\.localhost:\d+/\S*")
 SCRIPT = re.compile(r'<script[^>]*\bsrc="(?:\./|/)?([^"]+)"')
 
 
@@ -29,6 +30,19 @@ def run(command: list[str], *args: str, cwd: Path) -> str:
     if done.returncode != 0:
         raise SystemExit(f"openguildkit {' '.join(args)} exited with {done.returncode}: {done.stderr.strip()}")
     return done.stdout
+
+
+class Loopback(http.client.HTTPConnection):
+    """The printed address names the run under .localhost, which browsers send to the loopback interface; the
+    system resolver of a runner may not. Connect to 127.0.0.1 and keep the name in the Host header."""
+
+    def __init__(self, host, **options):
+        super().__init__("127.0.0.1", int(host.rpartition(":")[2]), **options)
+
+
+class LoopbackHandler(urllib.request.HTTPHandler):
+    def http_open(self, request):
+        return self.do_open(Loopback, request)
 
 
 def fetch(opener: urllib.request.OpenerDirector, url: str) -> tuple[int, bytes]:
@@ -49,7 +63,8 @@ def check_interface(command: list[str], project: Path, extra: list[str]) -> str:
         if address is None:
             raise SystemExit(f"openguildkit ui printed no address: {server.communicate(timeout=10)[1].strip()}")
         # The printed address carries the key of this run: opening it sets the session cookie, then goes to /.
-        opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+        opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()),
+                                             LoopbackHandler())
         status, body = fetch(opener, address)
         address = address.split("?", 1)[0]
         if status != 200:

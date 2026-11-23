@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { defineConfig, devices } from '@playwright/test';
 
 /**
@@ -7,12 +7,15 @@ import { defineConfig, devices } from '@playwright/test';
  */
 const channel = process.env.PW_CHANNEL ?? 'chrome';
 const port = Number(process.env.PW_PROJECT_PORT ?? 7322);
-// The server opens its session only to a browser that holds the key of its printed address. The run picks the key,
-// the servers inherit it, and each browser starts with the cookie the printed address would set. The workers read
-// this file again: the key set here, in the runner, reaches them through the environment.
+// The server opens its session only to a browser that holds the key of its printed address, on the host name of the
+// run under .localhost (drawn from the key, as webui.session_name does). The run picks the key, the servers inherit
+// it, and each browser starts with the cookie the printed address would set. The workers read this file again: the
+// key set here, in the runner, reaches them through the environment.
 process.env.OPENGUILDKIT_UI_KEY ??= randomBytes(32).toString('hex');
 const key = process.env.OPENGUILDKIT_UI_KEY;
-const opened = (serverPort: number) => ({ name: `ogk-${serverPort}`, value: key, domain: '127.0.0.1', path: '/', expires: -1, httpOnly: true, secure: false, sameSite: 'Strict' as const });
+const host = `ogk-${createHash('sha256').update(key).digest('hex').slice(0, 24)}.localhost`;
+process.env.PW_PROJECT_HOST = host;
+const opened = (serverPort: number) => ({ name: `ogk-${serverPort}`, value: key, domain: host, path: '/', expires: -1, httpOnly: true, secure: false, sameSite: 'Strict' as const });
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -23,7 +26,7 @@ export default defineConfig({
   workers: 1,
   reporter: [['list']],
   use: {
-    baseURL: `http://127.0.0.1:${port}`,
+    baseURL: `http://${host}:${port}`,
     viewport: { width: 1440, height: 900 },
     locale: 'fr-FR',
     trace: 'retain-on-failure',

@@ -12,8 +12,10 @@ test.describe.configure({ mode: 'serial' });
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'tests', 'fixtures', 'alerts');
 const PORT = Number(process.env.PW_PROJECT_PORT ?? 7322);
-const EMPTY = `http://127.0.0.1:${PORT + 1}`;
-const STRIPE = `http://127.0.0.1:${PORT + 2}`;
+// The host name of the run, set by playwright.project.config.ts from the key the servers share.
+const HOST = process.env.PW_PROJECT_HOST;
+const EMPTY = `http://${HOST}:${PORT + 1}`;
+const STRIPE = `http://${HOST}:${PORT + 2}`;
 const errors: string[] = [];
 /** How a to-do item names the person who acts, as opposed to the agent. */
 const PERSON = 'Toi';

@@ -167,7 +167,7 @@ class LockTests(ConcurrencyTestCase):
 
         def post(path, body):
             request = urllib.request.Request(base + path, data=json.dumps(body).encode("utf-8"), method="POST", headers={
-                "Origin": base, "X-OGK-Token": app.token, "Content-Type": "application/json"})
+                "Host": app.host, "Origin": app.origin, "X-OGK-Token": app.token, "Content-Type": "application/json"})
             try:
                 with urllib.request.urlopen(request, timeout=60) as response:
                     return response.status, json.loads(response.read())

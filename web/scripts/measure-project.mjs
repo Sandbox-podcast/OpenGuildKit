@@ -1,10 +1,11 @@
 // Measures the project interface served by `openguildkit ui`: first screen, then each place.
-//   node scripts/measure-project.mjs 'http://127.0.0.1:7311/?key=…' [runs]   (the address `openguildkit ui` printed)
+//   node scripts/measure-project.mjs 'http://ogk-….localhost:7311/?key=…' [runs]   (the address `openguildkit ui` printed)
 // For each place: time until its content shows, API requests, and bytes downloaded (cold, then warm).
 import { chromium } from '@playwright/test';
 
 // The printed address carries the key that opens the session: the first page of each run goes through it.
-const printed = new URL(process.argv[2] ?? 'http://127.0.0.1:7311/');
+if (!process.argv[2]) { console.error('Give the address openguildkit ui printed: it carries the key and the host name of the run.'); process.exit(1); }
+const printed = new URL(process.argv[2]);
 const base = printed.origin;
 const opening = `${base}/${printed.search}`;
 const runs = Number(process.argv[3] ?? 3);
