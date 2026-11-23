@@ -78,6 +78,11 @@ class RegulatoryPackTests(unittest.TestCase):
         automated = rules["automated-decision"]
         self.assertRegex(automated["instruction"], r"Art\. 22\(2\).*Art\. 22\(3\)")
         self.assertIn("human intervention", automated["instruction"])
+        # Art. 22(3) opens with "In the cases referred to in points (a) and (c) of paragraph 2": for (b), the law
+        # that authorises the decision lays down the safeguards (#301).
+        self.assertIn("Art. 22(3) safeguards for exception (a) or (c)", automated["instruction"])
+        self.assertIn("for (b), the safeguards the authorising law lays down", automated["instruction"])
+        self.assertNotRegex(automated["instruction"], r"applies and add the Art\. 22\(3\)")
         # Art. 48 is about third-country judgments, not a transfer mechanism.
         transfer = rules["check-transfer-mechanism"]["instruction"]
         for article in ("Art. 45", "Art. 46", "Art. 47", "Art. 49"):

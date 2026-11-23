@@ -171,7 +171,7 @@ The bundled story rarely fits a clinic, a game or a city service. A scenario fil
 openguildkit tools scenario --task booking       # or --brief "Let patients book an appointment online"
 ```
 
-It writes `.openguildkit/catalog/tool-mocks/scenario.json` for the project's tools that have a mock. It names the project, adds to the issue tracker one record for the task (`BOOKING-1`, with the task's brief), and copies the bundled sample records unchanged for you to replace; the brief goes nowhere else. It then prints, per tool, the two or three fields that tell the story, for example `zendesk: tickets (ticket_id, subject, status)`. Name tools to limit it (`tools scenario jira zendesk`); `--force` replaces an existing file. Edit it freely:
+It writes `.openguildkit/catalog/tool-mocks/scenario.json` for the tools that have a mock among the project's tools and the tools connected as mocks (`tools apply --mock`, even when the profile does not name them). When none has one, it names the tools it examined and the command that names them. It names the project, adds to the issue tracker one record for the task (`BOOKING-1`, with the task's brief), and copies the bundled sample records unchanged for you to replace; the brief goes nowhere else. It then prints, per tool, the two or three fields that tell the story, for example `zendesk: tickets (ticket_id, subject, status)`. Name tools to limit it (`tools scenario jira zendesk`); `--force` replaces an existing file. Edit it freely:
 
 ```json
 {

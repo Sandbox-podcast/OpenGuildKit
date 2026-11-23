@@ -9,7 +9,7 @@ openguildkit patterns --role project-management
 openguildkit patterns --role marketing
 openguildkit patterns --role hr
 openguildkit patterns --id python-fastapi-postgresql
-openguildkit references --family work-patterns "SEO"
+openguildkit references --family work-patterns "search engine"
 ```
 
 To preview a project, save this example as `answers.json`.

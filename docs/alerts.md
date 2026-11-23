@@ -104,8 +104,31 @@ A confirmed alert that no task handles and no person accepted gets a task of its
 
 [`integrations/github/openguildkit-dependency-watch.yml`](../integrations/github/openguildkit-dependency-watch.yml) runs every Monday:
 
-1. it runs the scanner (pip-audit in the template; replace it with the project's own) and imports the report, listing the new, reopened and resolved alerts in the job summary, or why a report that analyzed nothing resolves nothing;
+1. it runs the scanner (pip-audit in the template; replace it with the project's own) in a job whose token can only read the repository, and hands the report to a second job as an artifact; that second job, which holds the write permissions, installs only OpenGuildKit and imports the report, listing the new, reopened and resolved alerts in the job summary, or why a report that analyzed nothing resolves nothing;
 2. it opens one task per confirmed alert that no task handles (`alerts tasks --open`): the register links the alert to the task's ID, and an issue titled `OpenGuildKit task ID: dependency alert ALERT` tracks it, with the commands to create the task in a copy of the project and consult its boards; an issue already opened, open or closed, is not opened again;
 3. it proposes the updated register in a pull request from the branch `openguildkit/dependency-watch`, with the alerts to review in its description. A person reviews each new alert on that branch (`alerts set ALERT --status confirmed` or `--status dismissed --reason WHY`, at a terminal for a critical alert), commits the register and merges. The next run opens a task for each alert confirmed there.
 
 The job writes the register to the branch through the GitHub API with its own token, which never reaches `.git/config`; the repository setting that allows GitHub Actions to create pull requests must be on. It changes no dependency: a fix goes through its task and the person's approval. Its actions are pinned by commit SHA.
+
+A scanner such as pip-audit installs the dependencies it audits (its README calls `pip-audit -r requirements.txt` "functionally equivalent to `pip install -r`"), so their code runs during the scan. That is why the scan has a job of its own, with `contents: read` only: a dependency's code never runs next to a token that can push, open issues or open pull requests.
+
+### The pull request and the guard
+
+The register decides what blocks an approval, so `.openguildkit/alerts.json` is work like any other file: in guard mode `enforce`, `openguildkit guard --ci` refuses the job's pull request with `The changes come with no exported decision` until the branch carries a decision record that lists the register. The person who reviews the alerts gives it one:
+
+```bash
+git checkout main                                   # the base branch of the pull request
+openguildkit task new "Review the alerts of the weekly dependency watch." --id alert-review-2026-11-23
+openguildkit task consult alert-review-2026-11-23   # then the boards' review, as for any task
+openguildkit task decide alert-review-2026-11-23 --approve --by NAME --reason WHY
+git checkout openguildkit/dependency-watch
+openguildkit alerts set ALERT --status confirmed --by NAME   # or --status dismissed --reason WHY, for each new alert
+git commit -am "Review the new dependency alerts"
+openguildkit task export alert-review-2026-11-23
+git add -f .openguildkit/decisions/alert-review-2026-11-23.json && git commit -m "Decision of the alert review"
+git push
+```
+
+Approve the task on the base branch, before checking out the job's branch: the record lists the files changed since the approved revision, so it then covers the register the job imported as well as the reviews. A task approved on the job's branch covers only what changed after its approval. In modes `off` and `observe`, the pull request needs no record.
+
+GitHub does not start workflows from events that the job's `GITHUB_TOKEN` causes in the usual way: the `pull_request` runs of the pull request the job opens wait for a maintainer's approval (GitHub documentation, "Triggering a workflow", read on 23 November 2026), so its checks, the guard among them, show as waiting. The reviewer's push above starts them; a maintainer can also approve the waiting runs in the pull request.

@@ -1,7 +1,7 @@
 {
   "id": "gdpr",
   "title": "GDPR personal data processing",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Questions for the privacy owner and repository checks when a change processes personal data under Regulation (EU) 2016/679. Apply the organization's approved interpretation; these rules do not establish compliance.",
   "sources": [
     {
@@ -132,8 +132,8 @@
     },
     {
       "id": "automated-decision",
-      "instruction": "When the change decides about a person solely by automated means with legal or similar effects, ask the privacy owner which Art. 22(2) exception applies and add the Art. 22(3) safeguards: human intervention, a view, a contest.",
-      "verification": "Run the decision path in a test and show where the person asks for a human review and contests the outcome, and link the privacy owner's recorded Art. 22(2) exception.",
+      "instruction": "When the change decides about a person solely by automated means with legal or similar effects, ask the privacy owner which Art. 22(2) exception applies, then add the Art. 22(3) safeguards for exception (a) or (c) (human intervention, a view, a contest); for (b), the safeguards the authorising law lays down.",
+      "verification": "Run the decision path in a test and show its safeguards (for (a) or (c), where the person asks for a human review and contests the outcome), and link the privacy owner's recorded Art. 22(2) exception.",
       "manual": "The Art. 22(2) exception is a legal assessment, and the safeguards show in a running decision path."
     }
   ]
