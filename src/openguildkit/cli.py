@@ -874,8 +874,9 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
         for other in same_access(state, share, running=True):
             for recipient in sorted(set(share["recipients"]) & set(other["recipients"])):
                 print(f"OpenGuildKit: {recipient} already has access to space {share['space']} through share {other['id']} "
-                      f"(until {other['until']}). Documentalist keeps one access per address and space: removing it there "
-                      "ends both shares, so revoke them together.", file=sys.stderr)
+                      f"(until {other['until']}). Documentalist keeps one access per address and space: give it the later "
+                      f"last day, {max(share['until'], other['until'])}, in the portal; removing it there ends both shares, "
+                      "so revoke them together.", file=sys.stderr)
         return 0
     if args.share_action == "revoke":
         if not args.share_id or not args.by:
@@ -907,8 +908,8 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
             if report["problem"]:
                 print(report["problem"])
             for item in report["rows"]:
-                print(f"  {item['recipient']}: register until {item['register_until'] or 'no active share'}; "
-                      f"portal until {item.get('portal_until') or 'not verified or no date'}; {item['status']}")
+                print(f"  {item['recipient']}: register until {item['register_until'] or 'no running share'}; "
+                      f"portal {_portal_state(item)}; {item['status']}")
                 if item.get("action"):
                     print(f"    {item['action']}")
         return 0 if report["source"] == "documentalist-api" and all(row["status"] == "matches" for row in report["rows"]) else 1
@@ -933,6 +934,16 @@ def _print_share_added(share: dict) -> None:
           "The local check is a reminder; it does not contact the portal.")
 
 
+def _portal_state(item: dict) -> str:
+    """What the portal's invitation settings said for one recipient of docs share verify."""
+    if item.get("source") != "documentalist-api":
+        return "not verified"
+    if not item.get("invited"):
+        return "not invited"
+    state = "open" if item.get("policy_active") else "ended"
+    return f"until {item['portal_until']} ({state})" if item.get("portal_until") else "invited with no end date (open)"
+
+
 def _print_share_row(row: dict) -> None:
     """One share with its perimeter and state; one past its last day says which access to remove and which to keep."""
     space = row["space"] or "unknown: the portal address names no /p/SPACE"
@@ -942,7 +953,7 @@ def _print_share_row(row: dict) -> None:
         observed = row["portal_observation"]
         print(f"  last portal observation: {observed['source']} at {observed['checked_at']} (may be outdated)")
         for item in observed["rows"]:
-            print(f"    {item['recipient']}: {item['status']}, portal last day {item.get('portal_until') or 'not verified or no date'}")
+            print(f"    {item.get('recipient')}: {item.get('status')}, portal {_portal_state(item)}")
     for recipient in row["remove"]:
         print(f"  remove {recipient} from space {space} in Documentalist (\"Retirer l'accès\")")
     for recipient, other in sorted(row["kept"].items()):

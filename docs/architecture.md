@@ -82,7 +82,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `mcp_mock.py` | Stand-in MCP servers over stdio for demos and tests: synthetic answers, no network, no credentials. |
 | `deliverables.py` | Business deliverable templates: inputs, tool actions that need approval, reviewer checks. |
 | `publishing.py` | Exports verified work as documentation pages for Documentalist and keeps the share register. |
-| `portal_verification.py` | Compares the share register with invitation expiry settings read from a Documentalist space. |
+| `portal_verification.py` | `docs share verify`: signs in to one Documentalist instance with a password typed at the terminal, reads a space's reader invitations and compares their end dates with the share register. |
 | `storybook.py` | References the company's Storybook, compares it with the project's, and writes extraction proposals. |
 | `storybook_extract.py` | Inventories the components, variants and style tokens of an existing React application. |
 
@@ -148,7 +148,7 @@ sequenceDiagram
 
 ## Design decisions
 
-**No AI calls in the CLI.** Companies already chose an agent, a model provider and a data policy. OpenGuildKit works inside those choices instead of adding another provider, another API key and another data flow. The CLI itself opens no network connection, and it is a small Python package without dependencies that a security team can read in full. What the host agent sends to its provider is governed by that agent's settings, not by OpenGuildKit.
+**No AI calls in the CLI.** Companies already chose an agent, a model provider and a data policy. OpenGuildKit works inside those choices instead of adding another provider, another API key and another data flow. The CLI itself opens no network connection, with one exception a person asks for: `docs share verify` reads one space's reader settings from the Documentalist address given with `--portal`, with a password typed at the terminal ([sharing](documentation.md#compare-the-register-with-a-portal)). It is a small Python package without dependencies that a security team can read in full. What the host agent sends to its provider is governed by that agent's settings, not by OpenGuildKit.
 
 **Catalog as validated JSON.** Contributors can add rules for security, accessibility or a new domain without writing Python. CI checks the schema and reports invalid fields.
 
