@@ -24,14 +24,14 @@ from .hosts import host_controls
 from .lock import project_catalog, require_instructions
 from .market import load_dossier
 from .market import scope_entry as market_scope_entry
-from .project import STATE_DIR, Fingerprints, load_profile, task_scope_profile
+from .project import STATE_DIR, WORK_DIR, Fingerprints, load_profile, task_scope_profile
 from .prompts import prompt_questions
 from .questionnaire import concerns_question, open_points, require_concerns, task_questions, validate_answers
 from .relevance import changed_files, pack_relevance
 from .results import (
-    DONE_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE, chaosfolk_checks, compare_runs, completion_problems,
-    criteria_summary, decision_changes, decision_revision_message, declared_cannot_run, expected_checks,
-    keep_declarations, missing_scenarios, result_template, run_command_checks,
+    DONE_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE, answers_to_report, chaosfolk_checks, compare_runs,
+    completion_problems, criteria_summary, decision_changes, decision_revision_message, declared_cannot_run,
+    expected_checks, keep_declarations, missing_scenarios, result_template, run_command_checks,
 )
 from .routing import select_boards, trigger_matches
 from .sensitive import input_warnings, redact_credentials, redact_data
@@ -48,7 +48,7 @@ from .tasks import (
 from .tools import connected_tools, load_tools, match_tools, tool_evidence_warnings
 from .workflow import (
     RESOLUTION_RULE, TaskStateError, blocker_list, challenge_report, deliberation_request, handoff, is_decision_task,
-    pending_removals, review_lines, validate_review, verdict_lines,
+    nothing_to_deliberate, pending_removals, review_lines, validate_review, verdict_lines,
 )
 
 
@@ -746,8 +746,14 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
         print(NO_CHECK_COMMAND)
     problems = (completion_problems(task, profile, relevance, changed=changed)
                 + blocking_alerts(load_register(state), task) + verification_blocker_problems(task, profile, root))
+    # Before any report, task verify counts the answers the result file gives rather than one line per rule.
+    folded = set(answers_to_report(task, profile, relevance)) if args.action == "verify" else set()
+    if folded:
+        print(f"- {len(folded)} rule(s) and named evidence to report: openguildkit task result {args.id} --template "
+              "lists them with the answers each accepts.")
     for problem in problems:
-        print(f"- {problem}")
+        if problem.split(" ", 1)[0] not in folded:
+            print(f"- {problem}")
     if problems:
         print(f"{len(problems)} point(s) before the task can be done.")
     elif held:
@@ -1020,8 +1026,11 @@ def _export(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
 
 
 def _deliberate(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
-    """The objections between boards and the response template."""
-    print_json(deliberation_request(task))
+    """The objections between boards and the response template; without objection, that there is nothing to answer."""
+    request = deliberation_request(task)
+    print_json(request)
+    if not request["objections"]:
+        print(f"OpenGuildKit: {nothing_to_deliberate(task['id'])}", file=sys.stderr)
 
 
 def _respond(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
@@ -1261,8 +1270,12 @@ def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
         task_id = create_task(state, brief, args.id, args.follows)
     print(task_id)
     _warn_inputs(brief.strip(), redact_credentials(brief.strip()), "task brief")
-    # Standard output keeps only the ID, which scripts read; the next step goes to the agent on stderr.
-    print(f"Next: {next_command({'id': task_id, 'status': 'draft'})}.", file=sys.stderr)
+    # Standard output keeps only the ID, which scripts read; the next steps go to the agent on stderr, in the README's
+    # order, with the folder the working files go in.
+    print(f"Next: read the questions with openguildkit task questions {task_id}; save the answers in {WORK_DIR}/ "
+          f"(Git ignores it), get the follow-up questions they call for with openguildkit task questions {task_id} "
+          f"--answers FILE --follow-ups, preview the boards with openguildkit task route {task_id} --answers FILE, "
+          f"then consult the boards with openguildkit task consult {task_id} --answers FILE.", file=sys.stderr)
 
 
 def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:

@@ -499,6 +499,24 @@ def _evidence_problems(check: dict, outcome: dict | None) -> list[str]:
     return [f"{check['id']} is {outcome['status']}: {supply}."]
 
 
+def answers_to_report(task: dict, profile: dict, relevance: dict | None = None) -> list[str]:
+    """The rules and named evidence a result file answers, when no report has answered any of them yet.
+
+    task verify counts them instead of listing them: the result template lists them with the answers each accepts.
+    A mandatory rule stays listed by its own line. Empty once a report answered a rule, a pack or a named evidence.
+    """
+    result = task.get("result") or {}
+    asked = asked_checks(task, profile, relevance)
+    kinds = {check["id"]: check["kind"] for check in asked}
+    answered = any(kinds.get(item["check"]) in ("rule", "evidence") for item in result.get("checks", []))
+    if answered or result.get("packs"):
+        return []
+    deferred = deferred_evidence(task)
+    return [check["id"] for check in asked
+            if (check["kind"] == "rule" and not check["mandatory"])
+            or (check["kind"] == "evidence" and check["id"] not in deferred)]
+
+
 def completion_problems(task: dict, profile: dict, relevance: dict | None = None, *,
                         changed: list[str] | None = None) -> list[str]:
     """Why the task cannot be declared done yet: only the checks that concern it count.
@@ -571,6 +589,32 @@ def _evidence_warnings(passed: list[dict]) -> list[str]:
     return warnings
 
 
+# One evidence item cited for passed rules of this many packs or more is named, as one evidence item behind every
+# finding of a board is in the review: a unit test rarely proves accessibility, payments and consumer law at once.
+SHARED_EVIDENCE_PACKS = 3
+
+
+def _shared_rule_evidence(checks: dict, reported: dict) -> list[str]:
+    """Evidence items cited for passed rules of several packs, each named once with its rules and packs."""
+    cited: dict[str, dict] = {}
+    for item in reported.values():
+        check = checks.get(item["check"], {})
+        if check.get("kind") != "rule" or item["status"] != "passed" or not item.get("evidence"):
+            continue
+        entry = cited.setdefault(item["evidence"].casefold(),
+                                  {"evidence": item["evidence"], "rules": [], "packs": set()})
+        entry["rules"].append(item["check"])
+        entry["packs"].add(check.get("pack") or item.get("via_pack") or "")
+    warnings = []
+    for entry in cited.values():
+        packs = sorted(pack for pack in entry["packs"] if pack)
+        if len(packs) >= SHARED_EVIDENCE_PACKS:
+            shown = ", ".join(packs[:6]) + (f" and {len(packs) - 6} more" if len(packs) > 6 else "")
+            warnings.append(f"The same evidence {entry['evidence']} is cited for {len(entry['rules'])} passed rules "
+                            f"of {len(packs)} packs ({shown}). Cite what shows each rule holds.")
+    return warnings
+
+
 def result_warnings(task: dict, profile: dict, relevance: dict | None = None) -> list[str]:
     """What a reviewer should look at twice: answers that sweep rules the task's answers select, and weak evidence."""
     result = task.get("result") or {}
@@ -597,6 +641,7 @@ def result_warnings(task: dict, profile: dict, relevance: dict | None = None) ->
     passed = [item for item in result.get("checks", []) if checks.get(item["check"], {}).get("kind") == "evidence"
               and item["status"] == "passed"]
     warnings += _evidence_warnings(passed)
+    warnings += _shared_rule_evidence(checks, reported)
     statuses = {item["check"]: item["status"] for item in result.get("checks", [])}
     for criterion in result.get("criteria", []):
         if criterion["status"] == "met" and NOT_RUN.search(criterion["evidence"]):
@@ -703,10 +748,10 @@ def missing_scenarios(task: dict) -> list[str]:
 SUPPLY = "passed"
 SUPPLY_OR_NOT_APPLICABLE = "passed-or-not-applicable"
 TEMPLATE_INSTRUCTIONS = (
-    "Fill status for each entry; leave an entry's status empty to answer it later. A rule is passed, failed, "
-    "skipped or not-applicable. Each entry of packs answers every rule it lists at once (passed or failed with "
-    "evidence, skipped or not-applicable with a reason and an owner); to answer one of its rules apart, add that rule "
-    "to checks. Any other pack that does not apply can be answered once in packs too: "
+    "Fill status for each entry; leave an entry's status empty to answer it later. A criterion is met or not-met, "
+    "with evidence. A rule is passed, failed, skipped or not-applicable. Each entry of packs answers every rule it "
+    "lists at once (passed or failed with evidence, skipped or not-applicable with a reason and an owner); to answer "
+    "one of its rules apart, add that rule to checks. Any other pack that does not apply can be answered once in packs too: "
     '{"pack": ID, "status": "not-applicable", "reason": ..., "owner": ...}. The owner of a not-applicable or skipped '
     "answer is the person who decides it, and the reason is theirs: the agent proposes, the person confirms, and the "
     "agent never writes a name the person did not give. A named evidence with requirement passed is a document its "
