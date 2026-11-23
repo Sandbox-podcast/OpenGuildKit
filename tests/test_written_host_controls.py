@@ -176,7 +176,7 @@ class WrittenDenyRuleTests(unittest.TestCase):
         (self.root / "keys" / "allowed_signers").write_text("pat@example.org ssh-ed25519 AAAA\n", encoding="utf-8")
 
     def apply(self, host: str) -> None:
-        write_json(self.root / "answers.json", {
+        write_json(self.root / "answers.json", {"personal_data": False,
             "name": "Portal", "stack": ["Python"], "host": host, "guard": "enforce",
             "approval": {"mode": "signed", "allowed_signers": "keys/allowed_signers", "approvers": ["pat@example.org"]}})
         for arguments in (("init", "--answers", self.root / "answers.json"), ("host", "apply")):

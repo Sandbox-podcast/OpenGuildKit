@@ -75,7 +75,7 @@ class ClockTests(unittest.TestCase):
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
         root = Path(folder.name)
-        write_json(root / "p.json", {"name": "Portal", "stack": ["Python"]})
+        write_json(root / "p.json", {"personal_data": False, "name": "Portal", "stack": ["Python"]})
         self.cli(root, "init", "--answers", root / "p.json")
         (root / "d").write_text("# Shared page\n", encoding="utf-8")
         return root

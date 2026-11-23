@@ -64,7 +64,7 @@ class HostControlTests(CapturedCli, unittest.TestCase):
 
     def init(self, **extra):
         # These checks cover the research and approval controls; the guard has its own tests.
-        write_json(self.root / "answers.json", {"name": "Portal", "stack": ["Python"], "guard": "off", **extra})
+        write_json(self.root / "answers.json", {"personal_data": False, "name": "Portal", "stack": ["Python"], "guard": "off", **extra})
         self.run_cli("init", "--answers", self.root / "answers.json")
 
     def test_claude_code_settings_enforce_research_and_approval(self):
@@ -281,7 +281,7 @@ class HostControlTests(CapturedCli, unittest.TestCase):
         self.assertIn("Shell commands", report["board"]["detail"])
 
     def test_enforce_without_signed_approvals_is_flagged(self):
-        write_json(self.root / "answers.json", {"name": "Portal", "stack": ["Python"], "host": "claude-code", "guard": "enforce"})
+        write_json(self.root / "answers.json", {"personal_data": False, "name": "Portal", "stack": ["Python"], "host": "claude-code", "guard": "enforce"})
         _, error = self.run_cli("init", "--answers", self.root / "answers.json")
         self.assertIn("approvals are not signed", error)
         self.assertIn("signed", error)

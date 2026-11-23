@@ -168,7 +168,7 @@ class ComponentTaskTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             write(root, "profile.json", {
-                "name": "Shop", "components": [
+                "name": "Shop", "personal_data": False, "components": [
                     {"id": "web", "path": "web", "stack": ["React", "TypeScript"]},
                     {"id": "api", "path": "api", "stack": ["Python", "FastAPI", "PostgreSQL"]},
                 ],

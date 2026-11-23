@@ -18,7 +18,7 @@ class OtherHostTests(CapturedCli, unittest.TestCase):
         self.root = Path(temporary.name)
 
     def init(self, **answers):
-        write_json(self.root / "answers.json", {"name": "svc", "host": "other", **answers})
+        write_json(self.root / "answers.json", {"personal_data": False, "name": "svc", "host": "other", **answers})
         return self.run_cli("init", "--answers", self.root / "answers.json")
 
     def test_init_says_which_instruction_files_it_writes(self):

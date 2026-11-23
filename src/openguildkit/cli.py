@@ -1027,6 +1027,11 @@ def _init(args, root: Path, state: Path, catalog: dict) -> None:
         raise ValueError("init needs a terminal for its questions. Without one, print them with openguildkit init "
                          "--questions, save the answers as JSON, then run openguildkit init --answers PATH.")
     answers = read_json(args.answers) if args.answers else _interactive_init(questions, catalog, registry)
+    if args.answers and isinstance(answers, dict) and answers.get("personal_data") is None:
+        raise ValueError(
+            'The init answers must include personal_data: answer "yes", "no", or "unsure" '
+            '(unsure applies the protective answer). Nothing was written.'
+        )
     if isinstance(answers, dict):
         for note in unsure_answers(answers, questions)[1]:
             print(f"OpenGuildKit: {note}", file=sys.stderr)

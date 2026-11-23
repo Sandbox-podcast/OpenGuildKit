@@ -79,7 +79,7 @@ class BriefTests(CapturedCli, unittest.TestCase):
         self.root = Path(temporary.name)
 
     def test_task_brief_of_a_billing_service_change_lists_the_revenue_accountant(self):
-        write_json(self.root / "profile.json", {"name": "Billing", "stack": ["Python"], "packs": [], "checks": []})
+        write_json(self.root / "profile.json", {"personal_data": False, "name": "Billing", "stack": ["Python"], "packs": [], "checks": []})
         self.run_cli("init", "--answers", self.root / "profile.json")
         (self.root / "brief.md").write_text(
             "Change how the billing service prorates annual subscriptions and the invoice lines it emits.\n",

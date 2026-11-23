@@ -80,7 +80,7 @@ class OutputSizeTests(CapturedCli, unittest.TestCase):
                                         "<version>3.3.0</version></parent></project>")
         write(self.root, "infra/main.tf", 'provider "aws" {}\n')
         questions = {item["id"]: item for item in json.loads(self.run_cli("init", "--questions"))}
-        answers = {"name": "shop", "sector": "e-commerce", "roles": MONOREPO_ROLES,
+        answers = {"personal_data": False, "name": "shop", "sector": "e-commerce", "roles": MONOREPO_ROLES,
                    "components": questions["components"]["default"], "norms": {"online-consumer-sales": "yes",
                                                          "european-accessibility-act": "yes"}}
         write_json(self.root / "init.json", answers)
@@ -113,7 +113,7 @@ class OutputSizeTests(CapturedCli, unittest.TestCase):
         write(self.root, "infra/main.tf", 'provider "aws" {}\n')
         questions = {item["id"]: item for item in json.loads(self.run_cli("init", "--questions"))}
         components = questions["components"]["default"]
-        write_json(self.root / "init.json", {"name": "shop", "sector": "e-commerce", "roles": MONOREPO_ROLES,
+        write_json(self.root / "init.json", {"personal_data": False, "name": "shop", "sector": "e-commerce", "roles": MONOREPO_ROLES,
                                              "components": components, "norms": {"online-consumer-sales": "yes",
                                                          "european-accessibility-act": "yes"}})
         self.run_cli("init", "--answers", self.root / "init.json")

@@ -19,6 +19,8 @@ To preview a project, save this example as `answers.json`.
   "name": "Support API",
   "sector": "general",
   "stack": ["Python 3.12", "FastAPI", "PostgreSQL 16"],
+  "personal_data": true,
+  "norms": {"gdpr-personal-data": "yes"},
   "roles": ["engineering", "project-management", "security"]
 }
 ```
@@ -96,7 +98,7 @@ A pattern can set a minimum version. The Next.js pattern needs Next.js 13.4 or l
 
 After you change the stack, the components or a version, `openguildkit sync` and `openguildkit recommend` list the selected patterns that no longer match, with the reason. Profiles written before components existed keep working unchanged.
 
-The interactive questionnaire asks each norm that the sector or personal data implies on its own, with the reason it is proposed, then prints the other preselected patterns and why and uses them as the default answer. For an answers file, every omitted question takes the default `init --questions` shows: omitting `patterns` applies the same preselection, whether or not `packs` is given; `"personal_data": true` (or `"yes"`) answers the personal data question, and `"norms": {"dora-financial-entity": {"answer": "no", "by": "NAME", "reason": "WHY"}}` declines a norm, and `"unsure"` for a question applies what its `unsure` field announces. Set `patterns` to the full list you want if you also choose a work method. Use `[]` to select none. `packs` lists packs added to the recommended baseline and language packs; add `"replace_default_packs": true` when the list must replace them instead. The required workflow pack and the packs linked from your selected patterns still apply. A saved `.openguildkit/project.json` is read as written: its `packs` are never completed with recommendations.
+The interactive questionnaire asks each norm that the sector or personal data implies on its own, with the reason it is proposed, then prints the other preselected patterns and why and uses them as the default answer. An answers file for `init` must include `personal_data`: use `true` or `"yes"`, `false` or `"no"`, or `"unsure"` to apply the protective answer. Other omitted questions take the default shown by `init --questions`: omitting `patterns` applies the same preselection, whether or not `packs` is given. `"norms": {"dora-financial-entity": {"answer": "no", "by": "NAME", "reason": "WHY"}}` declines a norm, and `"unsure"` for a question applies what its `unsure` field announces. Set `patterns` to the full list you want if you also choose a work method. Use `[]` to select none. `packs` lists packs added to the recommended baseline and language packs; add `"replace_default_packs": true` when the list must replace them instead. The required workflow pack and the packs linked from your selected patterns still apply. A saved `.openguildkit/project.json` is read as written: its `packs` are never completed with recommendations.
 
 The selected pattern IDs go into `.openguildkit/project.json`. During `init` or `sync`, their packs and dependencies are written in `AGENTS.md` and reused for a task consultation. Use `openguildkit recommend` from an initialized project to preview matches against its current stack, sector and roles. Change the selection with `openguildkit profile adopt` or `decline`. Preselection only happens in `init` and `recommend`: `sync` and an upgrade never add a pattern to a saved profile, so a project created before sectors preselected anything keeps its packs until the team changes the profile.
 

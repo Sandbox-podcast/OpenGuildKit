@@ -360,7 +360,7 @@ class RoutingTests(unittest.TestCase):
         self.assertTrue(all("add billing and payment retries" in reason.casefold() for reason in reasons), reasons)
 
     def test_the_route_lists_the_boards_it_leaves_out_and_how_to_change_them(self):
-        profile = {"name": "Portal", "sector": "general", "packs": [], "boards": [], "roles": ["support"]}
+        profile = {"personal_data": False, "name": "Portal", "sector": "general", "packs": [], "boards": [], "roles": ["support"]}
         routed = self.route("A weekly report for the support team", profile=profile)
         self.assertIn("support", routed["routing"])
         self.assertTrue(any("Declared role" in reason for reason in routed["routing"]["support"]), routed["routing"])

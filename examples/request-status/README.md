@@ -10,6 +10,8 @@ A team wants signed-in customers to see the status and next step of their suppor
 | `review.json` | `task review --file` (findings and recommendation per board) |
 | `replay.py` | Runs the whole flow in an empty folder |
 
+The synthetic profile answers `personal_data: false` to keep the example focused on the task flow. A real project must answer for its own data and confirm any applicable norms.
+
 ## Replay
 
 From the repository root:

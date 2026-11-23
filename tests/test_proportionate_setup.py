@@ -194,6 +194,17 @@ class QuestionnaireHelpTests(unittest.TestCase):
     def setUpClass(cls):
         cls.catalog = load_catalog()
 
+    def test_init_answers_require_personal_data_before_writing_a_project(self):
+        for missing in ({}, {"personal_data": None}):
+            with self.subTest(answers=missing), tempfile.TemporaryDirectory() as directory:
+                answers = Path(directory) / "answers.json"
+                write_json(answers, {"name": "Portal", "stack": ["Python"], **missing})
+                errors = io.StringIO()
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(errors):
+                    self.assertEqual(main(["--project", directory, "init", "--answers", str(answers)]), 1)
+                self.assertIn("personal_data", errors.getvalue())
+                self.assertFalse((Path(directory) / ".openguildkit" / "project.json").exists())
+
     def test_every_question_has_a_one_line_help_and_says_what_unsure_applies(self):
         for question in init_questions(self.catalog, "Ledger"):
             with self.subTest(question=question["id"]):

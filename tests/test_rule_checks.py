@@ -163,7 +163,7 @@ class VerifyAndEvidenceTests(CapturedCli, unittest.TestCase):
 
     def approved(self, rules, data="personal", **extra):
         write_json(self.root / ".openguildkit" / "catalog" / "packs" / "team-rules.json", pack(rules))
-        write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"], "packs": ["team-rules"],
+        write_json(self.root / "profile.json", {"personal_data": False, "name": "Portal", "stack": ["Python"], "packs": ["team-rules"],
                                                  "checks": [], **extra})
         self.run_cli("init", "--answers", self.root / "profile.json")
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
@@ -407,12 +407,12 @@ class RegulationPackTests(unittest.TestCase):
         self.assertNotIn("gdpr", resolved_profile(no_data, self.catalog)["packs"])
         with tempfile.TemporaryDirectory() as directory:
             # A norm is active only once a person accepts it (#153): init stops until each one is answered.
-            write_json(Path(directory) / "answers.json", {"name": "Ledger", "sector": "financial-services"})
+            write_json(Path(directory) / "answers.json", {"personal_data": True, "name": "Ledger", "sector": "financial-services"})
             errors = io.StringIO()
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(errors):
                 self.assertEqual(main(["--project", directory, "init", "--answers", f"{directory}/answers.json"]), 1)
             self.assertIn("dora-financial-entity", errors.getvalue())
-            write_json(Path(directory) / "answers.json", {"name": "Ledger", "sector": "financial-services", "norms": {
+            write_json(Path(directory) / "answers.json", {"personal_data": True, "name": "Ledger", "sector": "financial-services", "norms": {
                 "dora-financial-entity": "yes", "gdpr-personal-data": "yes", "european-accessibility-act": "yes"}})
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                 self.assertEqual(main(["--project", directory, "init", "--answers", f"{directory}/answers.json"]), 0)

@@ -27,7 +27,7 @@ class ResultCase(CapturedCli, unittest.TestCase):
 
     def approved(self, exit_code=0, answers=None, git_project=False, **extra):
         command = f'"{sys.executable}" -c "import sys; print(\'checked\'); sys.exit({exit_code})"'
-        profile = {"name": "Portal", "stack": ["Python"], "packs": ["python"], "checks": [command], **extra}
+        profile = {"personal_data": False, "name": "Portal", "stack": ["Python"], "packs": ["python"], "checks": [command], **extra}
         write_json(self.root / "profile.json", profile)
         self.run_cli("init", "--answers", self.root / "profile.json")
         if git_project:

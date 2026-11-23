@@ -152,7 +152,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.root = Path(temporary.name)
 
     def init(self):
-        write_json(self.root / "p.json", {"name": "Portal", "stack": ["Python"]})
+        write_json(self.root / "p.json", {"personal_data": False, "name": "Portal", "stack": ["Python"]})
         self.cli("init", "--answers", self.root / "p.json")
 
     def test_alerts_imported_before_consulting_reach_the_boards_until_resolved(self):
@@ -244,7 +244,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.assertNotIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "npm-audit-critical.json"))
 
     def test_a_confirmed_critical_alert_blocks_approval_and_completion(self):
-        write_json(self.root / "p.json", {"name": "Portal", "stack": ["Python"], "packs": ["python"]})
+        write_json(self.root / "p.json", {"personal_data": False, "name": "Portal", "stack": ["Python"], "packs": ["python"]})
         self.cli("init", "--answers", self.root / "p.json")
         self.cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "status")
         self.cli("task", "alerts", "status", "--import", FIXTURES / "npm-audit-critical.json")

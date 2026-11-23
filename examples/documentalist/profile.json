@@ -1,5 +1,6 @@
 {
   "name": "Support portal",
+  "personal_data": false,
   "sector": "general",
   "stack": [
     "Python",

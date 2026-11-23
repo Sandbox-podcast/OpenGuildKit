@@ -45,7 +45,7 @@ class HookExampleTests(unittest.TestCase):
         self.root = Path(temporary.name)
 
     def init(self, guard):
-        write_json(self.root / "answers.json", {"name": "Portal", "stack": ["Python"], "guard": guard})
+        write_json(self.root / "answers.json", {"personal_data": False, "name": "Portal", "stack": ["Python"], "guard": guard})
         self.hook("init", "--answers", self.root / "answers.json")
 
     def hook(self, *arguments, stdin=None):

@@ -21,6 +21,7 @@ ENV = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src
        "PYTHONIOENCODING": "utf-8"}
 PROFILE = {
     "name": "Acme Support Portal", "sector": "general", "stack": ["Python"], "packs": [], "host": "codex",
+    "personal_data": False,
     "boards": ["product", "qa", "security", "hr"], "research": "local-only",
     "tools": ["Jira", "GitHub", "Snyk", "Factorial", "Tempo", "Gryzzly"],
 }

@@ -16,7 +16,7 @@ class InstructionFileTests(CapturedCli, unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.answers = self.root / "answers.json"
-        write_json(self.answers, {"name": "Portal", "stack": ["Python"]})
+        write_json(self.answers, {"personal_data": False, "name": "Portal", "stack": ["Python"]})
 
     def test_a_byte_order_mark_is_kept_and_does_not_block_the_project(self):
         agents, claude = self.root / "AGENTS.md", self.root / "CLAUDE.md"

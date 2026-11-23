@@ -75,7 +75,7 @@ class Project(unittest.TestCase):
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
         self.root = Path(folder.name)
-        write_json(self.root / "setup.json", {"name": "Portal", "stack": ["Python"]})
+        write_json(self.root / "setup.json", {"personal_data": False, "name": "Portal", "stack": ["Python"]})
         self.cli("init", "--answers", self.root / "setup.json")
         write_json(self.root / "answers.json", ANSWERS)
         write_json(self.root / "entry.json", {"id": "qa"})

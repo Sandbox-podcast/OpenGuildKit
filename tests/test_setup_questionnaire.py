@@ -129,13 +129,13 @@ class InitCommandTests(CapturedCli, unittest.TestCase):
         self.answers = Path(temporary.name) / "answers.json"
 
     def init(self, answers):
-        write_json(self.answers, answers)
+        write_json(self.answers, {"personal_data": False, **answers})
         return self.run_cli("init", "--answers", self.answers)
 
     def profile(self):
         return read_json(self.root / ".openguildkit" / "project.json")
 
-    def test_empty_answers_take_every_documented_default(self):
+    def test_other_omitted_answers_take_their_documented_defaults(self):
         (self.root / "pyproject.toml").write_text(FASTAPI, encoding="utf-8")
         questions = {item["id"]: item for item in json.loads(self.run_cli("init", "--questions")[0])}
         self.init({})
@@ -202,7 +202,7 @@ class InitCommandTests(CapturedCli, unittest.TestCase):
 
     def test_preview_applies_the_same_defaults_as_init(self):
         (self.root / "pyproject.toml").write_text(FASTAPI, encoding="utf-8")
-        write_json(self.answers, {"name": "svc", "packs": ["gdpr"]})
+        write_json(self.answers, {"personal_data": False, "name": "svc", "packs": ["gdpr"]})
         plan = json.loads(self.run_cli("preview", "--answers", self.answers, "--json")[0])
         packs = [pack["id"] for pack in plan["packs"]]
         self.assertIn("gdpr", packs)

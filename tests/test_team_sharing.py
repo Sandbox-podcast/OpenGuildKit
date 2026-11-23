@@ -26,7 +26,7 @@ class SharingCase(CapturedCli, unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         command = f'"{sys.executable}" -c "print(1)"'
-        write_json(self.root / "profile.json", {"name": "Support portal", "stack": ["Python"], "packs": [], "checks": [command]})
+        write_json(self.root / "profile.json", {"personal_data": False, "name": "Support portal", "stack": ["Python"], "packs": [], "checks": [command]})
         self.run_cli("init", "--answers", self.root / "profile.json")
         self.state = self.root / ".openguildkit"
 

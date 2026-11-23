@@ -50,7 +50,7 @@ class ToolRegistryTests(unittest.TestCase):
         self.assertEqual({server["url"] for server in focus["servers"] if "url" in server}, {"https://focus.toggl.com/mcp"})
         self.assertIn("Toggl Focus", focus.get("aliases", []))
         with tempfile.TemporaryDirectory() as directory:
-            (Path(directory) / "a.json").write_text(json.dumps({"name": "x", "host": "claude-code"}), encoding="utf-8")
+            (Path(directory) / "a.json").write_text(json.dumps({"personal_data": False, "name": "x", "host": "claude-code"}), encoding="utf-8")
             output = io.StringIO()
             with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
                 main(["--project", directory, "init", "--answers", str(Path(directory) / "a.json")])

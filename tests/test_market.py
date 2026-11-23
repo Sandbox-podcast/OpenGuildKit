@@ -143,7 +143,7 @@ class MarketCommandTests(CapturedCli, unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-        write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"], "research": "public-sources"})
+        write_json(self.root / "profile.json", {"personal_data": False, "name": "Portal", "stack": ["Python"], "research": "public-sources"})
         self.cli("init", "--answers", self.root / "profile.json")
 
     def dossier(self, dossier_id="portals"):
@@ -276,7 +276,7 @@ class MarketLayoutAndRelevanceTests(CapturedCli, unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-        write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"]})
+        write_json(self.root / "profile.json", {"personal_data": False, "name": "Portal", "stack": ["Python"]})
         self.cli("init", "--answers", self.root / "profile.json")
         self.path = self.root / ".openguildkit" / "market" / "support-portals.json"
         self.path.parent.mkdir()

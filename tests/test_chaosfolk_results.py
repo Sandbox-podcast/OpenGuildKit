@@ -31,7 +31,7 @@ class ChaosFolkResultTests(CapturedCli, unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         command = f'"{sys.executable}" -c "print(1)"'
-        write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python", "ChaosFolk"], "packs": [], "checks": [command]})
+        write_json(self.root / "profile.json", {"personal_data": False, "name": "Portal", "stack": ["Python", "ChaosFolk"], "packs": [], "checks": [command]})
         self.run_cli("init", "--answers", self.root / "profile.json")
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
         self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json")

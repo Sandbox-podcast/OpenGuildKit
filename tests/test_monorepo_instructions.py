@@ -40,7 +40,7 @@ class MonorepoScopeTests(ProjectTestCase):
         questions = {item["id"]: item for item in json.loads(self.run_cli("init", "--questions")[0])}
         components = questions["components"]["default"]
         self.assertEqual([component["id"] for component in components], ["apps-web", "services-api"])
-        write_json(self.root / "answers.json", {"name": "mono", "components": components, "roles": ["engineering"]})
+        write_json(self.root / "answers.json", {"personal_data": False, "name": "mono", "components": components, "roles": ["engineering"]})
         self.run_cli("init", "--answers", self.root / "answers.json")
 
     def pack_section(self, agents: str, title: str) -> str:
@@ -66,7 +66,7 @@ class MonorepoScopeTests(ProjectTestCase):
         self.run_cli("check")
 
     def test_a_single_component_project_keeps_its_language_packs(self):
-        write_json(self.root / "answers.json", {"name": "api", "stack": ["Python 3.12"]})
+        write_json(self.root / "answers.json", {"personal_data": False, "name": "api", "stack": ["Python 3.12"]})
         self.run_cli("init", "--answers", self.root / "answers.json")
         profile = json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
         self.assertIn("python", profile["packs"])
@@ -75,7 +75,7 @@ class MonorepoScopeTests(ProjectTestCase):
 class TeamInstructionTests(ProjectTestCase):
     def setUp(self):
         super().setUp()
-        write_json(self.root / "answers.json", {"name": "Portal", "stack": ["Python"]})
+        write_json(self.root / "answers.json", {"personal_data": False, "name": "Portal", "stack": ["Python"]})
         self.agents = self.root / "AGENTS.md"
 
     def test_an_unclosed_code_block_is_refused_with_its_line(self):

@@ -178,7 +178,7 @@ class CatalogTests(CliTestCase):
 
 class ProjectSetupTests(CliTestCase):
     def test_recommends_stack_patterns_and_applies_only_chosen_work_methods(self):
-        answers = {
+        answers = {"personal_data": False,
             "name": "Requests API",
             "sector": "general",
             "stack": ["Python 3.12", "FastAPI", "Postgres@16"],
@@ -214,7 +214,7 @@ class ProjectSetupTests(CliTestCase):
         components = questions["components"]["default"]
         self.assertEqual(components[0]["path"], "apps/web")
 
-        self.run_cli("init", "--answers", self.write_json("answers.json", {"name": "Portal", "components": components}))
+        self.run_cli("init", "--answers", self.write_json("answers.json", {"personal_data": False, "name": "Portal", "components": components}))
         agents = (self.project / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("Applies to `apps-web` (apps/web).", agents)
 
@@ -229,7 +229,7 @@ class ProjectSetupTests(CliTestCase):
         self.assertEqual(plan["review"][0]["id"], "nextjs-react")
 
     def test_scrum_and_kanban_patterns_install_together(self):
-        answers = {"name": "Scrumban team", "patterns": ["scrum", "kanban"]}
+        answers = {"personal_data": False, "name": "Scrumban team", "patterns": ["scrum", "kanban"]}
         self.run_cli("init", "--answers", self.write_json("answers.json", answers))
         instructions = (self.project / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("`scrum-delivery@", instructions)
@@ -247,7 +247,7 @@ class ProjectSetupTests(CliTestCase):
                        "verification": "Compare the items started with the sprint plan."}],
         }
         (packs / "fixed-sprint-scope.json").write_text(json.dumps(fixed_scope), encoding="utf-8")
-        answers = {"name": "Team", "stack": ["Python", "FastAPI", "PostgreSQL"], "packs": ["kanban-delivery", "fixed-sprint-scope"]}
+        answers = {"personal_data": False, "name": "Team", "stack": ["Python", "FastAPI", "PostgreSQL"], "packs": ["kanban-delivery", "fixed-sprint-scope"]}
         path = self.write_json("answers.json", answers)
         preview = self.run_cli("preview", "--answers", path).stdout
         self.assertIn("agent-workflow@", preview)

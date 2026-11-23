@@ -58,7 +58,7 @@ class WebInterfaceTests(unittest.TestCase):
         self.root = Path(temporary.name).resolve() / "portal"
         self.root.mkdir()
         front = fake_front(Path(temporary.name).resolve() / "dist")
-        write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"], "packs": ["python"]})
+        write_json(self.root / "profile.json", {"personal_data": False, "name": "Portal", "stack": ["Python"], "packs": ["python"]})
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(main(["--project", str(self.root), "init", "--answers", str(self.root / "profile.json")]), 0)
         self.server, self.app = make_server(self.root, 0, front)

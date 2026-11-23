@@ -151,7 +151,7 @@ jobs:
           "$OPENGUILDKIT" catalog > /dev/null
           "$OPENGUILDKIT" references --id conventional-commits > /dev/null
           "$OPENGUILDKIT" patterns > /dev/null
-          printf '{"name": "Wheel check", "stack": ["Python"]}' > answers.json
+          printf '{"name": "Wheel check", "stack": ["Python"], "personal_data": false}' > answers.json
           "$OPENGUILDKIT" init --answers answers.json
           "$OPENGUILDKIT" check
           "$OPENGUILDKIT" integrations --host claude-code

@@ -44,7 +44,7 @@ class WorkflowTests(CapturedCli, unittest.TestCase):
         }
         write_json(
             self.input_path,
-            {"name": "Support console", "sector": "general", "stack": ["Python"], "packs": ["python"]},
+            {"personal_data": False, "name": "Support console", "sector": "general", "stack": ["Python"], "packs": ["python"]},
         )
 
     def init(self):
@@ -205,7 +205,7 @@ class WorkflowTests(CapturedCli, unittest.TestCase):
             },
         )
         self.assertIn("iso-27001", catalog["packs"])
-        write_json(self.input_path, {"name": "Support console", "packs": ["team-iso"]})
+        write_json(self.input_path, {"personal_data": False, "name": "Support console", "packs": ["team-iso"]})
         self.init()
         instructions = (self.root / "AGENTS.md").read_text(encoding="utf-8")
         self.assertLess(instructions.index("iso-27001@"), instructions.index("team-iso@"))
