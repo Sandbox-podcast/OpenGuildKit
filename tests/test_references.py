@@ -176,6 +176,17 @@ class ReferenceTests(unittest.TestCase):
             with self.subTest(query=query):
                 self.assertEqual(find_references(self.index, query=query)[0]["id"], expected)
 
+    def test_the_e_invoicing_reference_cites_the_page_that_holds_its_reception_rule_and_timetable(self):
+        """impots.gouv.fr gives the start date only; service-public A18953 gives the reception duty and the
+        issuing timetable by company size, which the summary states (#301)."""
+        reference = find_references(self.index, record_id="facturation-electronique-france")[0]
+        self.assertIn("reçoivent", reference["summary"])
+        self.assertIn("1er septembre 2027", reference["summary"])
+        cited = {source["url"]: source.get("checked") for source in reference["sources"]}
+        checked = cited.get("https://entreprendre.service-public.gouv.fr/actualites/A18953?lang=fr")
+        self.assertIsNotNone(checked)
+        self.assertGreaterEqual(checked, "2026-11-23")
+
     def test_references_sit_in_the_family_of_their_discipline(self):
         family_of = {record["id"]: family_id for family_id, family in self.families.items() for record in family["references"]}
         self.assertEqual(family_of["core-web-vitals"], "quality")
