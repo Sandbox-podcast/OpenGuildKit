@@ -152,7 +152,7 @@ Steps:
 4. Record the person's review: `openguildkit alerts set ALERT --status confirmed --by NAME`, or `--status dismissed --by NAME --reason WHY`. An alert from pip-audit alone has no severity; say so and point to `alerts severity`.
 5. For each confirmed alert that no task handles yet (`openguildkit alerts list --status confirmed --without-task`), open one task: `openguildkit task new "Fix ADVISORY in PACKAGE" --id SLUG`, then `openguildkit task alerts SLUG --link ALERT`. Take that task through the usual flow: consultation, review, the person's decision. Once the dependency is changed, import a new report to show the alert resolved.
 
-After `task alerts ID --import` on a task already consulted, run `task consult ID` again. When `task decide` or `task complete` refuses because of a confirmed critical alert, tell the user which alert and what clears it.
+After `task alerts ID --import` on a task already consulted, run `task consult ID --reuse-answers` again. When `task decide` or `task complete` refuses because of a confirmed critical alert, tell the user which alert and what clears it.
 
 ## Storybook
 

@@ -65,6 +65,16 @@ Changes since 0.16.1, the pre-release of 20 November 2026. The wheel now ships t
 
 - Commands start without the web server; the edit hook starts without the CLI and reads no catalog with the guard off; one walk of the project tree serves detection, checks and Storybook; `check` reads each task once; routing compiles each trigger once.
 
+### Third audit
+
+- `guard --ci` refuses a decision record placed below `.openguildkit/decisions/`, an approval whose revision the pull request does not contain, and a record that carries a withdrawal: after `task revoke`, `task export` writes the withdrawal into the record. `task export` names the new files Git does not track yet; the README closes with commit, export, then commit of the record.
+- Signed approvals: an earlier revision's signers count only when the merged branch contains that revision. Waivers expire on their last day (real clock), people's decisions are dated on the real clock, and `task consult ID --reuse-answers` reopens a task without a terminal.
+- `openguildkit ui` serves the page on a host name drawn for each run (`ogk-….localhost`), so its key never reaches another local server. The detector recognizes more passwords and tokens, and the page refuses more credential files.
+- `init --answers` needs `personal_data`; `market checked` is refused under `local-only`; with `openguildkit` off the PATH, `host apply` says so and exits non-zero.
+- The page records named evidence with who provided it, marks required evidence and rules not asked correctly, speaks French in the framing questions, and `task complete` asks the person to confirm data protection, security or AI rules set aside.
+- `task result` flags one evidence cited for passed rules of three packs or more; `task verify` counts the rules to report instead of listing them; working files go in `.openguildkit/work/` (run `openguildkit sync`). French routing no longer sends "le client paie" to HR, and Stripe Elements packages are detected.
+- The catalog and lock caches compare file contents; the dependency watch scans in a read-only job; CI runs four macOS jobs instead of nine.
+
 ### Upgrading from 0.16.1
 
 - Run `openguildkit sync` and `openguildkit host apply` (new deny rules and hook setting).
