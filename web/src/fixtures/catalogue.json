@@ -2770,12 +2770,12 @@
    "whenToUse": "Si les outils retenus prennent en charge cette spécification encore présentée comme draft par son projet.",
    "sources": [
     {
-     "label": "OpenVEX Specification — draft",
-     "url": "https://github.com/openvex/spec"
+     "label": "OpenVEX Spec v0.2.0 release",
+     "url": "https://github.com/openvex/spec/releases/tag/v0.2.0"
     },
     {
      "label": "OpenVEX Specification v0.2.0",
-     "url": "https://github.com/openvex/spec/blob/main/OPENVEX-SPEC.md"
+     "url": "https://raw.githubusercontent.com/openvex/spec/v0.2.0/OPENVEX-SPEC.md"
     }
    ],
    "publicationStatus": "draft",
@@ -3788,7 +3788,7 @@
    "sources": [
     {
      "label": "NIST SP 800-88 Rev. 2 — Guidelines for Media Sanitization",
-     "url": "https://www.nist.gov/news-events/news/2025/09/guidelines-media-sanitization-nist-publishes-sp-800-88r2"
+     "url": "https://csrc.nist.gov/pubs/sp/800/88/r2/final"
     }
    ],
    "publicationStatus": "published",
@@ -6537,8 +6537,8 @@
    "whenToUse": "Pour piloter et améliorer un flux ; les règles sont définies par l'équipe.",
    "sources": [
     {
-     "label": "The Kanban Guide | May 2025 (latest) | Kanban Guides",
-     "url": "https://kanbanguides.org/the-kanban-guide/"
+     "label": "Kanban Guides — The Kanban Guide, May 2025",
+     "url": "https://kanbanguides.org/the-kanban-guide/2025.5/"
     }
    ],
    "publicationStatus": "published",

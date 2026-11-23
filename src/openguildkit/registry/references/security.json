@@ -348,7 +348,7 @@
     {
       "id": "openvex",
       "title": "OpenVEX Specification v0.2.0 (draft)",
-      "edition": "0.2.0, brouillon",
+      "edition": "v0.2.0",
       "category": "Chaîne logicielle et dépendances",
       "kind": "format",
       "brains": [
@@ -359,13 +359,13 @@
       "applies_when": "Si les outils retenus prennent en charge cette spécification encore présentée comme draft par son projet.",
       "sources": [
         {
-          "url": "https://github.com/openvex/spec",
-          "checked": "2026-11-21",
-          "title": "OpenVEX Specification — draft"
+          "url": "https://github.com/openvex/spec/releases/tag/v0.2.0",
+          "checked": "2026-11-23",
+          "title": "OpenVEX Spec v0.2.0 release"
         },
         {
-          "url": "https://github.com/openvex/spec/blob/main/OPENVEX-SPEC.md",
-          "checked": "2026-11-21",
+          "url": "https://raw.githubusercontent.com/openvex/spec/v0.2.0/OPENVEX-SPEC.md",
+          "checked": "2026-11-23",
           "title": "OpenVEX Specification v0.2.0"
         }
       ]
@@ -609,7 +609,7 @@
     {
       "id": "openid-connect",
       "title": "OpenID Connect Core 1.0",
-      "edition": "Core 1.0, errata 2",
+      "edition": "Core 1.0 incorporating errata set 2",
       "category": "Identité, accès et cryptographie",
       "kind": "protocole",
       "brains": [
@@ -621,7 +621,7 @@
       "sources": [
         {
           "url": "https://openid.net/specs/openid-connect-core-1_0.html",
-          "checked": "2026-11-21",
+          "checked": "2026-11-23",
           "title": "OpenID Connect Core 1.0 incorporating errata set 2"
         }
       ]
