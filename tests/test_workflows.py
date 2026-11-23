@@ -4,7 +4,12 @@ GitHub Actions cannot run here, so these tests read the YAML with a small parser
 workflows use (block mappings and lists, flow lists, block scalars) and check what a reviewer would.
 """
 
+import json
+import os
 import re
+import shutil
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -225,6 +230,105 @@ class PackageJobTest(unittest.TestCase):
         script = run_text(job)
         self.assertIn("python -m build", script)
         self.assertIn("pip install dist/*.whl", script)
+
+
+def matrix_jobs(job: dict) -> list[dict]:
+    """The combinations a job's matrix runs: the product of its lists, less its excludes (no include is used)."""
+    matrix = dict(job["strategy"]["matrix"])
+    excluded = matrix.pop("exclude", None) or []
+    combinations = [{}]
+    for key, values in matrix.items():
+        combinations = [{**combination, key: value} for combination in combinations for value in values]
+    return [c for c in combinations if not any(all(c.get(k) == v for k, v in rule.items()) for rule in excluded)]
+
+
+class MacosRunnersTest(unittest.TestCase):
+    """Each macOS job of a CI run waits for a hosted macOS runner, which can take minutes or never come."""
+
+    def setUp(self):
+        self.jobs = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]
+
+    def macos(self, name):
+        job = self.jobs[name]
+        if "matrix" not in job.get("strategy", {}):
+            return [{}] if job["runs-on"] == "macos-latest" else []
+        return [c for c in matrix_jobs(job) if c.get("os") == "macos-latest"]
+
+    def test_a_run_places_at_most_four_jobs_on_macos(self):
+        self.assertEqual([c["python"] for c in self.macos("test")], ["3.11", "3.15"])
+        self.assertEqual(len(self.macos("package")), 1)
+        self.assertEqual(sum(len(self.macos(name)) for name in self.jobs), 4)
+        for name in ("test", "package"):
+            linux = [c for c in matrix_jobs(self.jobs[name]) if c["os"] == "ubuntu-latest"]
+            self.assertEqual(len(linux), len(self.jobs[name]["strategy"]["matrix"]["python"]), name)
+
+    def test_the_matrix_reader_applies_the_excludes(self):
+        job = {"strategy": {"matrix": {"os": ["a", "b"], "python": ["1", "2"], "exclude": [{"os": "b", "python": "1"}]}}}
+        self.assertEqual(matrix_jobs(job), [{"os": "a", "python": "1"}, {"os": "a", "python": "2"},
+                                            {"os": "b", "python": "2"}])
+
+
+class ContributionChecksTest(unittest.TestCase):
+    """The gate tells a job that never got a runner from a job that failed, and says to rerun the first."""
+
+    def setUp(self):
+        self.gate = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["contribution-checks"]
+        self.step = steps(self.gate)[0]
+        self.directory = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.directory)
+
+    def run_gate(self, results: dict, jobs: list) -> subprocess.CompletedProcess:
+        bash, jq = shutil.which("bash"), shutil.which("jq")
+        if os.name == "nt" or not bash or not jq:
+            self.skipTest("The gate's script needs bash and jq, as on the GitHub runner.")
+        (self.directory / "jobs.json").write_text(json.dumps({"jobs": jobs}), encoding="utf-8")
+        # A stand-in for gh api: logs the call and applies its --jq filter to the jobs of the run.
+        gh = self.directory / "gh"
+        gh.write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$GH_LOG"\n'
+                      'while [ $# -gt 0 ]; do [ "$1" = --jq ] && filter="$2"; shift; done\n'
+                      'exec jq -r "$filter" "$JOBS"\n', encoding="utf-8")
+        gh.chmod(0o755)
+        environment = {**os.environ, "PATH": f"{self.directory}{os.pathsep}{os.environ['PATH']}",
+                       "JOBS": str(self.directory / "jobs.json"), "GH_LOG": str(self.directory / "gh.log"),
+                       "GITHUB_REPOSITORY": "o/r", "GITHUB_RUN_ID": "7", "GITHUB_RUN_ATTEMPT": "1"}
+        for variable, value in self.step["env"].items():
+            job = re.search(r"needs\.([\w-]+)\.result", value)
+            environment[variable] = results.get(job.group(1), "success") if job else "token"
+        return subprocess.run([bash, "-e", "-c", self.step["run"]], env=environment, capture_output=True, text=True)
+
+    def test_the_gate_reads_the_jobs_of_its_run_with_a_read_only_token(self):
+        self.assertEqual(self.gate["permissions"], {"actions": "read"})
+        self.assertEqual(self.step["env"]["GH_TOKEN"], "${{ github.token }}")
+
+    def test_a_job_that_never_got_a_runner_is_named_with_the_advice_to_rerun_it(self):
+        jobs = [{"name": "Python 3.11 on macos-latest", "conclusion": "cancelled", "steps": [], "runner_name": ""},
+                {"name": "Python 3.11 on ubuntu-latest", "conclusion": "success", "steps": [{"name": "x"}]}]
+        result = self.run_gate({"test": "cancelled"}, jobs)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("never started", result.stdout)
+        self.assertIn("Python 3.11 on macos-latest", result.stdout)
+        self.assertIn("Re-run failed jobs", result.stdout)
+        self.assertIn("runs/7/attempts/1/jobs", (self.directory / "gh.log").read_text(encoding="utf-8"))
+
+    def test_a_failed_job_is_not_called_a_missing_runner(self):
+        jobs = [{"name": "Python 3.13 on windows-latest", "conclusion": "failure", "steps": [{"name": "Install"}]},
+                {"name": "Web app", "conclusion": "cancelled", "steps": [{"name": "npm test"}]}]
+        result = self.run_gate({"test": "failure", "web": "cancelled"}, jobs)
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn("never started", result.stdout)
+        self.assertIn("Details", result.stdout)
+
+    def test_contributing_describes_both_kinds_of_cancelled_jobs(self):
+        text = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+        section = text.split("## Open a pull request", 1)[1].split("\n## ", 1)[0]
+        for words in ("No runner picked the job up", "These jobs never started", "Re-run failed jobs",
+                      "You pushed again", "cancels the run of the previous commit", "3.11 and 3.15 on macOS"):
+            self.assertIn(words, section)
+
+    def test_every_job_passed(self):
+        result = self.run_gate({}, [])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse((self.directory / "gh.log").exists())
 
 
 if __name__ == "__main__":

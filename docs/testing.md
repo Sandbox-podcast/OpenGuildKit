@@ -1,6 +1,6 @@
 # Testing
 
-The test suite uses `unittest` from the standard library and runs offline. CI runs the standard suite on Linux, macOS and Windows with Python 3.11 through 3.15. A separate job runs the timed performance tests once per operating system on Python 3.14.
+The test suite uses `unittest` from the standard library and runs offline. CI runs the standard suite on Linux and Windows with Python 3.11 through 3.15, and on macOS with 3.11 and 3.15 (hosted macOS runners are scarce: [CONTRIBUTING.md](../CONTRIBUTING.md#open-a-pull-request) says what to do when one never comes). A separate job runs the timed performance tests once per operating system on Python 3.14.
 
 ```bash
 PYTHONPATH=src python -m unittest discover -s tests          # everything, under 5 minutes
