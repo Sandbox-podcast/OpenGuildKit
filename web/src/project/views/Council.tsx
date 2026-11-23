@@ -11,7 +11,7 @@ import { Icon } from '@/shared/pixel/icons';
 import { listFiles, run, terminalCommand } from '../api';
 import { boardTitle, useBrains, useProfile, useTasks } from '../data';
 import { invalidate, showTerminal, useAction, useCli, useCliText, useQuery } from '../query';
-import { BASIS, CONCERNS, CONFIDENCE, DATA, KIND, PASS, QUESTION_FR, RESEARCH, SURFACE, fmtWhen, isDecided, needsReconsult, nextLabel, nextLang, openPointLabel, verdict } from '../labels';
+import { BASIS, BRAIN_FR, CONCERNS, CONFIDENCE, DATA, DATA_PHRASE, KIND, PASS, QUESTION_FR, QUESTION_HELP_FR, QUESTION_UNSURE_FR, RESEARCH, SURFACE, brainName, fmtWhen, isDecided, needsReconsult, nextLabel, nextLang, openPointLabel, verdict } from '../labels';
 import { ActionForm, CommandLine, ErrorNotice, FilePick, JsonDetails, Q, Section, StepRail, TaskStatusBadge, UnreadableTask, copyText, useDebounced, useRemembered } from '../parts';
 import { usePrefs } from '../prefs';
 import { errorText } from '../refusals';
@@ -116,7 +116,7 @@ function Framing({ task, collapsed }: { task: TaskRecord; collapsed?: boolean })
   // A question can come back as a follow-up (concerns, once it is required): each one is drawn once.
   const shown = questionList(asked, extra.data?.questions, extra.data?.follow_ups);
 
-  if (!open) return <Panel title="Cadrage"><p className="small">Réponses enregistrées : {KIND[answers.kind ?? ''] ?? '—'}, {[answers.surface].flat().map((s) => SURFACE[s as string] ?? s).join(', ')}, données {DATA[answers.data ?? '']?.toLowerCase() ?? '—'}{answers.concerns ? `, sujets : ${[answers.concerns].flat().map((c) => CONCERNS[c as string]?.toLowerCase() ?? c).join(', ')}` : ''}. <Button size="small" onClick={() => setOpen(true)}>Modifier et consulter à nouveau</Button></p></Panel>;
+  if (!open) return <Panel title="Cadrage"><p className="small">Réponses enregistrées : {KIND[answers.kind ?? ''] ?? '—'}, {[answers.surface].flat().map((s) => SURFACE[s as string] ?? s).join(', ')}, {DATA_PHRASE[answers.data ?? ''] ?? (DATA[answers.data ?? ''] ? `données : ${DATA[answers.data ?? '']}` : 'données : —')}{answers.concerns ? `, sujets : ${[answers.concerns].flat().map((c) => CONCERNS[c as string]?.toLowerCase() ?? c).join(', ')}` : ''}. <Button size="small" onClick={() => setOpen(true)}>Modifier et consulter à nouveau</Button></p></Panel>;
   return (
     <>
       <Section title="Cadrage : le questionnaire" icon="question">
@@ -134,8 +134,8 @@ function Framing({ task, collapsed }: { task: TaskRecord; collapsed?: boolean })
 }
 
 /**
- * One question of the task questionnaire. The prompt and choices are in French when the page knows the question;
- * the CLI's help and the effect of an unsure answer follow in its English. A multi-select takes several choices.
+ * One question of the task questionnaire. The prompt, choices, help and the effect of an unsure answer are in French
+ * when the page knows the question, the CLI's English otherwise. A multi-select takes several choices.
  */
 function QuestionField({ q, value, onChange }: { q: Question; value: unknown; onChange: (v: string | string[]) => void }) {
   const prompt = QUESTION_FR[q.id] ? <span title={q.prompt}>{QUESTION_FR[q.id]}</span> : <span lang="en">{q.prompt}</span>;
@@ -158,9 +158,12 @@ function QuestionField({ q, value, onChange }: { q: Question; value: unknown; on
   );
 }
 
-/** The CLI's one-line help of a question and what a "don't know" answer applies, in the CLI's English. */
+/** The one-line help of a question and what a "don't know" answer applies: in French when the page knows the
+ * question, the CLI's English otherwise (kept as a tooltip of the French). */
 function QuestionHelp({ q }: { q: Question }) {
-  return <>{q.help && <span lang="en">{q.help}</span>}{q.unsure && <> Si tu ne sais pas : <span lang="en">{q.unsure}</span>.</>}</>;
+  const help = QUESTION_HELP_FR[q.id], unsure = QUESTION_UNSURE_FR[q.id];
+  return <>{q.help && (help ? <span title={q.help}>{help}</span> : <span lang="en">{q.help}</span>)}
+    {q.unsure && <> Si tu ne sais pas : {unsure ? <span title={q.unsure}>{unsure}</span> : <span lang="en">{q.unsure}</span>}.</>}</>;
 }
 
 function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
@@ -328,7 +331,7 @@ function BoardCard({ entry, brain }: { entry: NonNullable<TaskRecord['review']>[
   const w = useWords();
   return (
     <article className={`card review-card verdict-${c?.verdict ?? 'none'}`}>
-      <header className="row between"><strong lang="en"><a href={`#/guilde/${entry.id}`}>{brain?.title ?? entry.id}</a></strong><Badge tone={v.tone} icon={v.icon}>{v.label}</Badge></header>
+      <header className="row between"><strong lang={BRAIN_FR[entry.id] ? undefined : 'en'}><a href={`#/guilde/${entry.id}`}>{brainName(entry.id, brain?.title)}</a></strong><Badge tone={v.tone} icon={v.icon}>{v.label}</Badge></header>
       {entry.reviewer && <p className="tiny muted">Revue préparée pour {entry.reviewer}</p>}
       <p data-own>{entry.recommendation}</p>
       {c && <>

@@ -4,7 +4,7 @@ import { batch, cliError, readJson, type CliResult } from './api';
 import { useCli, useQuery, type Query } from './query';
 import type { AlertRegister, Brain, Guard, HostControl, MarketDue, Profile, Share, StaleTask, TaskListItem, Update } from './types';
 import type { PlaceKey } from '@/shared/pixel/buildings';
-import { isBlocked, needsReconsult, shareState } from './labels';
+import { brainName, isBlocked, needsReconsult, shareState } from './labels';
 
 export const ARGV = {
   tasks: ['task', 'list', '--json'],
@@ -52,7 +52,8 @@ export function useProfile() {
   }, []));
 }
 
-export const boardTitle = (brains: Record<string, Brain> | undefined, id: string) => brains?.[id]?.title ?? id;
+/** The French name of a brain, or the catalog's title for a brain the page does not know. */
+export const boardTitle = (brains: Record<string, Brain> | undefined, id: string) => brainName(id, brains?.[id]?.title);
 
 const OVERVIEW = ['tasks', 'check', 'alerts', 'shares', 'due', 'update', 'host'] as const;
 type OverviewPart = (typeof OVERVIEW)[number];

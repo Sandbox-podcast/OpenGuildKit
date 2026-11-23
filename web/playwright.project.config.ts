@@ -27,7 +27,7 @@ export default defineConfig({
     viewport: { width: 1440, height: 900 },
     locale: 'fr-FR',
     trace: 'retain-on-failure',
-    storageState: { cookies: [opened(port), opened(port + 1), opened(port + 2)], origins: [] },
+    storageState: { cookies: [opened(port), opened(port + 1), opened(port + 2), opened(port + 3)], origins: [] },
   },
   webServer: [
     {
@@ -52,6 +52,14 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 60_000,
       env: { PW_PROJECT_PORT: String(port + 2) },
+    },
+    {
+      // A project with the GDPR pattern and an approved task on personal data: its named evidence comes from the page.
+      command: 'node scripts/serve-sample.mjs --gdpr',
+      url: `http://127.0.0.1:${port + 3}/api/session`,
+      reuseExistingServer: false,
+      timeout: 120_000,
+      env: { PW_PROJECT_PORT: String(port + 3) },
     },
   ],
   projects: [{ name: 'chrome', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, channel: channel === 'chromium' ? undefined : channel } }],
