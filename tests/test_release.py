@@ -72,7 +72,7 @@ class VersionTest(unittest.TestCase):
             with self.subTest(template=template.name):
                 text = template.read_text(encoding="utf-8")
                 self.assertNotRegex(text, r"@main\b|git\+https")
-                install = next(step for step in steps(parse(template)["jobs"][next(iter(parse(template)["jobs"]))])
+                install = next(step for job in parse(template)["jobs"].values() for step in steps(job)
                                if step.get("name") == "Install OpenGuildKit")
                 self.assertEqual(install["env"]["OPENGUILDKIT_TAG"], f"v{version}")
                 self.assertEqual(install["env"]["OPENGUILDKIT_WHEEL"], f"openguildkit-{version}-py3-none-any.whl")
