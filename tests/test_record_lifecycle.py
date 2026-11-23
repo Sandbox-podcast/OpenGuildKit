@@ -37,7 +37,7 @@ class RecordLifecycleTests(CapturedCli, unittest.TestCase):
     def init(self, **extra):
         command = f'"{sys.executable}" -c "print(1)"'
         profile = {"name": "Support portal", "stack": ["Python"], "packs": [], "checks": [command],
-                   "guard": "enforce", **extra}
+                   "guard": "enforce", "personal_data": "no", **extra}
         write_json(self.root / "profile.json", profile)
         self.run_cli("init", "--answers", self.root / "profile.json")
         (self.root / "profile.json").unlink()
