@@ -135,7 +135,7 @@ openguildkit task revoke statut-demandes --by CM --reason "Le portail passe à u
 - `task clear` lève un point bloquant avec une preuve, un fichier du projet ou un lien. Un point de phase `verification` est une condition de l'approbation : tu approuves avant, et tu le lèves une fois le code écrit.
 - `task decide --approve` affiche la note de décision et te demande de taper l'identifiant de la tâche. L'approbation est scellée.
 - `task decide --request-changes` renvoie la tâche au cadrage, et l'historique est gardé.
-- `task revoke` retire une approbation quand le travail est abandonné ou qu'une condition de l'approbation ne peut pas être remplie : la tâche repasse en changements demandés, et le garde-fou ne couvre plus ses modifications.
+- `task revoke` retire une approbation quand le travail est abandonné ou qu'une condition de l'approbation ne peut pas être remplie : la tâche repasse en changements demandés, et le garde-fou ne couvre plus ses modifications. Si la décision était déjà exportée, relance `task export` et commite l'enregistrement : il porte alors le retrait.
 - `--by` prend tes initiales ou ton identifiant d'équipe, pas ton nom complet : il est recopié dans des fichiers que l'équipe commite, et une approbation le garde sous son sceau ([données personnelles](docs/personal-data.md)).
 
 **4. Réaliser et clore.**
@@ -146,7 +146,9 @@ openguildkit task verify statut-demandes
 openguildkit task result statut-demandes --template > result.json
 openguildkit task result statut-demandes --file result.json
 openguildkit task complete statut-demandes
+git add -A && git commit -m "Afficher le statut de chaque demande"
 openguildkit task export statut-demandes
+git add .openguildkit/decisions && git commit -m "Enregistrement de la décision statut-demandes"
 ```
 
 - `task handoff` remet à l'agent le brief d'implémentation : le périmètre approuvé et les règles en vigueur. L'agent ne réalise que ce périmètre.
@@ -154,7 +156,8 @@ openguildkit task export statut-demandes
 - `task result --template` ne demande que les règles qui concernent la tâche. Les autres sont listées comme non concernées, avec la raison.
 - `task result --file` enregistre le résultat que l'agent a rempli. Tu confirmes chaque règle écartée, et le responsable de chaque pièce justificative (registre des traitements, décision d'AIPD) la fournit.
 - `task complete` clôt la tâche en `done` quand rien ne reste ouvert, ou en `done-with-reservations` (terminée avec réserves) avec les points ouverts, du plus grave au moins grave. `task show --closing` les réaffiche, et `task new --follows` ouvre une tâche liée pour les reprendre.
-- `task export` écrit l'enregistrement de la décision, à committer avec le travail : le contrôle de la pull request le lit.
+- Commite le travail avant `task export` : l'enregistrement liste les fichiers suivis par Git qui ont changé depuis l'approbation, et le contrôle de la pull request exige chaque fichier modifié dans cette liste. `task export` nomme les nouveaux fichiers que Git ne suit pas encore, qu'aucun enregistrement ne couvre.
+- `task export` écrit l'enregistrement de la décision ; commite-le dans la même pull request. Après `task revoke`, `task export` écrit le retrait dans l'enregistrement, et le contrôle le refuse alors.
 
 ## Parcourir le catalogue
 

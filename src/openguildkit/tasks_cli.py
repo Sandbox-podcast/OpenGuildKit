@@ -19,7 +19,7 @@ from .decisions import (
     DECISIONS_DIR, NAMESPACE, approval_policy, decision_payload, exported_records, git_revision, ignored_by_git,
     payload_text, verify_signature,
 )
-from .guard import export_decision, exported_decisions, record_of_another_task
+from .guard import export_decision, export_withdrawal, exported_decisions, record_of_another_task, untracked_files
 from .hosts import host_controls
 from .lock import project_catalog, require_instructions
 from .market import load_dossier
@@ -466,6 +466,11 @@ def _revoke(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
     print(result["status"])
     print(f"The guard no longer counts {args.id}. Next: openguildkit task consult {args.id} --answers FILE, or close "
           f'the work in a linked task: openguildkit task new "BRIEF" --follows {args.id}', file=sys.stderr)
+    record = state / DECISIONS_DIR / f"{args.id}.json"
+    if record.is_file():
+        print(f"OpenGuildKit: {record.relative_to(root).as_posix()} still says {args.id} is approved, and guard --ci "
+              f"accepts it until it says otherwise: write the withdrawal into it with openguildkit task export "
+              f"{args.id}, and commit it.", file=sys.stderr)
 
 
 def _decision_prompt(state: Path, task: dict, profile: dict, register: dict) -> list[str]:
@@ -956,10 +961,12 @@ def _outcome(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     if action == "complete":
         _print_closing(result, listed=bool(args.by))
         exported = (state / DECISIONS_DIR / f"{args.id}.json").is_file()
-        print(f"OpenGuildKit: {'export the decision record again' if exported else 'export the decision record'} "
-              f"so it says the task is completed, and commit it: openguildkit task export {args.id}. guard --ci "
-              "accepts it with the work, or in a pull request of its own once the approval's record is merged: the "
-              "same approval, with its completion added.", file=sys.stderr)
+        print(f"OpenGuildKit: commit the work (git add, git commit), then "
+              f"{'export the decision record again' if exported else 'export the decision record'} so it says the "
+              f"task is completed, and commit it: openguildkit task export {args.id}. The record lists the files Git "
+              "tracks, so a new file left out of Git is in no record. guard --ci accepts it with the work, or in a "
+              "pull request of its own once the approval's record is merged: the same approval, with its completion "
+              "added.", file=sys.stderr)
         return
     for line in notes:
         print(line)
@@ -1010,9 +1017,21 @@ def _runs(args, root: Path, state: Path, profile: dict, catalog: dict, task: dic
 
 
 def _export(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
-    """Write the shareable decision record."""
+    """Write the shareable decision record, or the withdrawal of its approval into it."""
+    if task["status"] not in ("approved", *DONE_STATUSES):
+        path = export_withdrawal(root, state, task, args.output).resolve()
+        print(path.relative_to(root).as_posix() if root in path.parents else str(path))
+        print(f"OpenGuildKit: the record now carries the withdrawal of the approval of {args.id}: guard --ci refuses "
+              "it, and task list --decisions shows it as withdrawn. Commit it.", file=sys.stderr)
+        return
     path = export_decision(root, state, task, profile, args.output).resolve()
     print(path.relative_to(root).as_posix() if root in path.parents else str(path))
+    untracked = untracked_files(root) if task["decision"].get("base_revision") else []
+    if untracked:
+        shown = ", ".join(untracked[:10]) + (f" and {len(untracked) - 10} more" if len(untracked) > 10 else "")
+        print(f"OpenGuildKit: {len(untracked)} new file(s) Git does not track yet are not in the record: {shown}. "
+              "Add them with git add (or commit the work) and export again, or guard --ci finds them in no record.",
+              file=sys.stderr)
     if "completed_at" not in task:
         print(f"OpenGuildKit: task {args.id} is not completed yet and the record says so. It lists the files Git "
               "tracks that changed since the approval, which guard --ci compares with the pull request: export it "
