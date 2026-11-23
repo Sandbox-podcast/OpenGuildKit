@@ -85,7 +85,7 @@ The token needs read access to the repository's Dependabot alerts. The command f
 
 Verification note: on 22 November 2026, `gh` 2.100.0 called with `--paginate` and five items per page on a live endpoint of this repository returned one array of 21 items, which `alerts import` reads like a single page; the reading of concatenated and slurped pages, and of exports where alerts are fixed, is tested on synthetic files.
 
-The paginated Dependabot request returned HTTP 403 with `Dependabot alerts are disabled for this repository` on OpenGuildKit and Documentalist on 22 November 2026. The parser tests use fixture data for the alert payloads. On a repository with alerts enabled, run the command with a small `per_page`, import the JSON and compare the result with the repository's security tab.
+On 23 November 2026, a private synthetic repository with Dependabot enabled supplied five real alerts over five pages. The import, repeated import, cross-scanner matching, fixed-alert handling and a separate read-only access check are recorded in the [validation report](../examples/dependabot-validation/2026-11-23.md).
 
 ## The `dependency-watch` agent
 
