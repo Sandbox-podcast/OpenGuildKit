@@ -122,7 +122,8 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         common = ["docs", "share", "add", "--deliverable", "docs-site/reference/request-status.md", "--portal", "https://docs.example.org/p/portal"]
         self.run_cli(*common, "--recipient", "not-an-email", "--until", until, "--by", "Camille", code=1)
         output, _ = self.run_cli(*common, "--recipient", "client@example.org", "--until", until, "--by", "Camille")
-        self.assertIn(f"After {until}, remove it there", output)
+        self.assertIn(f"Set the last day {until} in Documentalist if supported", output)
+        self.assertIn("On older versions remove access", output)
         shares = json.loads(self.run_cli("docs", "share", "list", "--json")[0])
         self.assertEqual(shares[0]["state"], "active")
         self.run_cli("docs", "share", "check")
@@ -519,8 +520,9 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.deliverable()
         until = (clock.real_today() + timedelta(days=14)).isoformat()
         output, _ = self.add(until=until)
-        self.assertIn("Documentalist keeps no end date", output)
-        self.assertIn(f"After {until}, remove it there", output)
+        self.assertIn(f"Set the last day {until} in Documentalist if supported", output)
+        self.assertIn("On older versions remove access", output)
+        self.assertIn("local check is a reminder", output)
         share_id = self.shares()[0]["id"]
         register = self.root / ".openguildkit" / "shares" / "shares.json"
         data = json.loads(register.read_text(encoding="utf-8"))
@@ -697,8 +699,8 @@ class PublishingTests(CapturedCli, unittest.TestCase):
 
     def test_the_guide_says_what_a_share_gives_and_what_the_instance_keeps(self):
         sharing = self.section("Share a deliverable")
-        for fact in ("whole space", "**The perimeter is the space.**", "**`--until` is a reminder.**",
-                     "**One access per address and space.**", "**What the instance does not record.**",
+        for fact in ("whole space", "**The perimeter is the space.**", "**`--until` records the intended last day.**",
+                     "**One access per address and space.**", "**What the instance records.**",
                      "`DOCUMENTALIST_SMTP_URL`", "`127.0.0.1`"):
             self.assertIn(fact, sharing)
 

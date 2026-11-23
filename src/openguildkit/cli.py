@@ -148,16 +148,17 @@ def command_parser() -> argparse.ArgumentParser:
     export.add_argument("--sections", default="project,reference,learn,blog", help="Sections to write.")
     export.add_argument("--openapi", type=Path, help="OpenAPI file to place next to the pages.")
     share = docs_actions.add_parser("share", help="Record, list, revoke or check the shares of a deliverable.")
-    share.add_argument("share_action", choices=("add", "list", "revoke", "check"))
+    share.add_argument("share_action", choices=("add", "list", "revoke", "check", "verify"))
     share.add_argument("--deliverable", help="Page or folder shared (add).")
     share.add_argument("--recipient", action="append", default=[], help="Recipient email address (add, repeatable).")
-    share.add_argument("--until", help="Last day of access, YYYY-MM-DD: a reminder, Documentalist keeps no end date (add).")
+    share.add_argument("--until", help="Last day of access, YYYY-MM-DD; set it in the portal too (add).")
     share.add_argument("--portal", help="Address of the shared space's portal, https://HOST/p/SPACE; http only on this "
-                                        "machine (add).")
+                                        "machine (add, verify).")
     share.add_argument("--id", dest="share_id", help="Share ID (revoke).")
     share.add_argument("--by", help="Owner of the share (add, revoke).")
     share.add_argument("--dedicated-space", action="store_true",
                        help="Record the space as holding this deliverable only: another deliverable is refused in it (add).")
+    share.add_argument("--user", help="Documentalist editor account email (verify; password is prompted at the terminal).")
     share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
     tools_cli.add_parser(commands)
     profile_cli.add_parser(commands)
@@ -901,6 +902,24 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
                 print(f"  openguildkit docs share revoke --id {other['id']} --by NAME   "
                       f"# {', '.join(other['recipients'])}, {other['deliverable']}, until {other['until']}")
         return 0
+    if args.share_action == "verify":
+        if not args.portal or not args.user:
+            raise ValueError("docs share verify needs --portal and --user; the password is requested at the terminal.")
+        from .portal_verification import verify_portal
+        report = verify_portal(state, args.portal, args.user)
+        if args.json:
+            print_json(report)
+        else:
+            print(f"{report['space']}: {report['source']} at {report['checked_at']}")
+            print(report["scope"])
+            if report["problem"]:
+                print(report["problem"])
+            for item in report["rows"]:
+                print(f"  {item['recipient']}: register until {item['register_until'] or 'no active share'}; "
+                      f"portal until {item.get('portal_until') or 'not verified or no date'}; {item['status']}")
+                if item.get("action"):
+                    print(f"    {item['action']}")
+        return 0 if report["source"] == "documentalist-api" and all(row["status"] == "matches" for row in report["rows"]) else 1
     rows = share_status(state)
     if args.json:
         print_json(rows)
@@ -923,9 +942,9 @@ def _print_share_added(share: dict) -> None:
               "deliverable in it. OpenGuildKit cannot see what the space publishes: check from a reader session that "
               "its navigation and search show only this deliverable.")
     print("Invite the recipients now in that space's reader settings (magic link mode).")
-    print(f"Documentalist keeps no end date: the access lasts until you remove it. After {share['until']}, remove it there "
-          f"(\"Retirer l'accès\"), then run openguildkit docs share revoke --id {share['id']} --by NAME. "
-          "openguildkit docs share check lists it from the next day.")
+    print(f"Set the last day {share['until']} in Documentalist if supported. On older versions remove access there "
+          f"after that day, then run openguildkit docs share revoke --id {share['id']} --by NAME. "
+          "The local check is a reminder; it does not contact the portal.")
 
 
 def _print_share_row(row: dict) -> None:
@@ -936,6 +955,11 @@ def _print_share_row(row: dict) -> None:
     if row["also_in_space"]:
         dedicated = " although the space is recorded as dedicated to this deliverable" if row["dedicated"] else ""
         print(f"  its recipients can also read {', '.join(row['also_in_space'])}, shared through the same space{dedicated}")
+    if row.get("portal_observation"):
+        observed = row["portal_observation"]
+        print(f"  last portal observation: {observed['source']} at {observed['checked_at']} (may be outdated)")
+        for item in observed["rows"]:
+            print(f"    {item['recipient']}: {item['status']}, portal last day {item.get('portal_until') or 'not verified or no date'}")
     for recipient in row["remove"]:
         print(f"  remove {recipient} from space {space} in Documentalist (\"Retirer l'accès\")")
     for recipient, other in sorted(row["kept"].items()):
