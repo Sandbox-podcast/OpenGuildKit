@@ -152,7 +152,7 @@ openguildkit task export statut-demandes
 - `task handoff` remet à l'agent le brief d'implémentation : le périmètre approuvé et les règles en vigueur. L'agent ne réalise que ce périmètre.
 - `task verify` lance les contrôles du projet et enregistre leurs résultats.
 - `task result --template` ne demande que les règles qui concernent la tâche. Les autres sont listées comme non concernées, avec la raison.
-- `task result --file` enregistre le résultat que l'agent a rempli. Tu confirmes chaque règle écartée, et le responsable de chaque pièce justificative (registre des traitements, décision d'AIPD) la fournit.
+- `task result --file` enregistre le résultat que l'agent a rempli. Le responsable de chaque pièce justificative (registre des traitements, décision d'AIPD) la fournit : le résultat nomme le document et la personne qui l'a fourni. Quand le résultat déclare non applicable une règle de protection des données, de sécurité ou d'IA que les réponses de la tâche sélectionnent (les règles RGPD pour des données personnelles), `task complete` liste chacune, et la personne qui clôt la tâche les confirme dans son terminal (`--by`, puis l'identifiant de la tâche retapé).
 - `task complete` clôt la tâche en `done` quand rien ne reste ouvert, ou en `done-with-reservations` (terminée avec réserves) avec les points ouverts, du plus grave au moins grave. `task show --closing` les réaffiche, et `task new --follows` ouvre une tâche liée pour les reprendre.
 - `task export` écrit l'enregistrement de la décision, à committer avec le travail : le contrôle de la pull request le lit.
 

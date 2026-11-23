@@ -148,7 +148,7 @@ openguildkit task export request-status
 - `task handoff` gives the agent the implementation brief: the approved scope and the rules in force. The agent delivers that scope only.
 - `task verify` runs the project's checks and records their results.
 - `task result --template` asks only the rules that concern the task. The others are listed as not concerned, with the reason.
-- `task result --file` records the result the agent filled in. You confirm each rule set aside, and the owner of each named evidence (record of processing activities, DPIA decision) provides it.
+- `task result --file` records the result the agent filled in. The owner of each named evidence (record of processing activities, DPIA decision) provides it: the result names the document and who provided it. When the result declares not applicable a data protection, security or AI rule that the task's answers select (the GDPR rules for personal data), `task complete` lists each one and the person who closes the task confirms them at a terminal (`--by`, then retyping the task ID).
 - `task complete` closes the task as `done` when nothing is left open, or as `done-with-reservations` with the open points, the most serious first. `task show --closing` prints them again, and `task new --follows` opens a linked task to take them up.
 - `task export` writes the decision record, to commit with the work: the pull request check reads it.
 

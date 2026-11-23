@@ -101,13 +101,14 @@ class RevisionAndClosingTests(ResultCase):
                                                              "status": "met", "evidence": "tests/test_access.py"}],
                                                "checks": answers})
         self.run_cli("task", "result", TASK, "--file", self.root / "result.json")
-        self.assertEqual(self.run_cli("task", "complete", TASK)[0].splitlines()[0], "done-with-reservations")
+        self.assertEqual(self.run_cli("task", "complete", TASK, "--by", "CM", typed=TASK)[0].splitlines()[0],
+                         "done-with-reservations")
         listed = json.loads(self.run_cli("task", "list", "--json")[0])[0]["next"]
         self.assertEqual(listed, f"Done with reservations: see the open points with openguildkit task show {TASK} "
                                  "--closing.")
         closing = self.run_cli("task", "show", TASK, "--closing")[0]
         whole = self.run_cli("task", "show", TASK)[0]
-        self.assertEqual(json.loads(closing), {"id": TASK, "status": "done-with-reservations",
+        self.assertEqual(json.loads(closing), {"id": TASK, "status": "done-with-reservations", "by": "CM",
                                                "open_points": self.record()["result"]["closing"]["open_points"]})
         self.assertIn("rule:python/follow-python-style is skipped", closing)
         self.assertLess(len(closing.encode("utf-8")), 2_000)
