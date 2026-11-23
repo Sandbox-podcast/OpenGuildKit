@@ -164,6 +164,26 @@ class WebInterfaceTests(unittest.TestCase):
         listed = json.loads(self.request("/api/files/list", {"path": ".openguildkit/decisions"})[2])["entries"]
         self.assertEqual([entry["name"] for entry in listed], ["token-rotation.json"])
 
+    def test_the_files_where_tools_keep_credentials_are_neither_listed_nor_read(self):
+        """The package managers, container and framework settings that hold a password or a token in clear."""
+        covered = (".yarnrc.yml", ".yarnrc", ".npmrc", ".pypirc", ".netrc", ".git-credentials", "appsettings.json",
+                   "appsettings.Production.json", "src/Api/appsettings.Development.json", ".docker/config.json",
+                   "config/database.yml", "config/database.yaml")
+        readable = ("config/app.yml", "docs/config.json", ".openguildkit/decisions/database.json")
+        for name in (*covered, *readable):
+            (self.root / name).parent.mkdir(parents=True, exist_ok=True)
+            (self.root / name).write_text("{}", encoding="utf-8")
+        for name in covered:
+            with self.subTest(name=name):
+                status, _, body = self.request("/api/files/read", {"path": name})
+                self.assertEqual((status, json.loads(body)["reason"]), (403, "secret-file"))
+                folder = name.rpartition("/")[0] or "."
+                listed = json.loads(self.request("/api/files/list", {"path": folder})[2])["entries"]
+                self.assertNotIn(name.rpartition("/")[2], [entry["name"] for entry in listed])
+        for name in readable:
+            with self.subTest(name=name):
+                self.assertEqual(self.request("/api/files/read", {"path": name})[0], 200)
+
     def test_a_foreign_host_origin_or_token_is_refused(self):
         self.assertEqual(self.request("/api/session", headers={"Host": "evil.example:80"})[0], 421)
         self.assertEqual(self.request("/api/run", {"argv": ["check"]}, headers={"Origin": "https://evil.example"})[0], 403)

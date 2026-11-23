@@ -45,6 +45,12 @@ WRITABLE_FILES = {".openguildkit/storybook/proposals.json"}
 # .openguildkit/ are named after task IDs, such as token-rotation.json, and stay readable.
 SECRET_NAME = re.compile(r"(^\.env)|secret|credential|password|private[-_]?key|\.pem$|\.key$|id_rsa|id_ed25519", re.I)
 TOKEN_FILE = re.compile(r"^token.*\.json$|^auth\.json$|service[-_]?account.*\.json$|^local\.settings\.json$", re.I)
+# The settings where package managers, containers and frameworks keep a token or a password in clear: Yarn's
+# npmAuthToken, .npmrc, .pypirc, .netrc, Git's stored credentials, ASP.NET's appsettings*.json, Rails' database.yml.
+CREDENTIAL_FILE = re.compile(r"^\.yarnrc(?:\.ya?ml)?$|^\.npmrc$|^\.pypirc$|^[._]netrc$|^\.git-credentials$"
+                             r"|^appsettings(?:\..+)?\.json$|^database\.ya?ml$", re.I)
+# Files named by their folder: Docker's registry logins.
+CREDENTIAL_PATH = {(".docker", "config.json")}
 # A script that starts the server for its own browser, such as the end-to-end tests, may set the key of the run.
 KEY_VARIABLE = "OPENGUILDKIT_UI_KEY"
 UPLOAD_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$")
@@ -229,7 +235,10 @@ def _secret(parts: tuple[str, ...]) -> bool:
     """A path the page neither lists nor reads: a name that suggests a secret, or a tool's token file."""
     if any(SECRET_NAME.search(part) for part in parts):
         return True
-    return bool(parts) and parts[0] != ".openguildkit" and bool(TOKEN_FILE.search(parts[-1]))
+    if not parts or parts[0] == ".openguildkit":
+        return False
+    return bool(TOKEN_FILE.search(parts[-1]) or CREDENTIAL_FILE.search(parts[-1])
+                or tuple(part.casefold() for part in parts[-2:]) in CREDENTIAL_PATH)
 
 
 def check_paths(args, root: Path, uploads: set[Path]) -> None:
