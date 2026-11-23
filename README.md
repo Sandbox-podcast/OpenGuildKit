@@ -98,6 +98,10 @@ A minimal `answers.json` gives one choice ID per question of `task questions`. `
 }
 ```
 
+The follow-up questions add their answers to the same file under their own IDs: `outcome` (what someone can see or measure once the work is done), `affected` (who notices the change) and, for a decision, `options`.
+
+The JSON files these steps name (the answers, one entry per board, the deliberation, the result) are working files. Write them in `.openguildkit/work/`, not at the project root: Git ignores that folder, and the board guard lets the agent write there before any approval.
+
 **2. Consult the boards.**
 
 ```bash
@@ -114,7 +118,7 @@ openguildkit task challenge request-status
 - `task submit` records the board's review. A malformed review is refused with the list of all its problems.
 - `task progress` says which boards have returned their review.
 - `task review` assembles the reviews with the summary the agent writes.
-- `task deliberate` lists the objections between boards that disagree. With `task respond`, each board maintains, amends or concedes.
+- `task deliberate` lists the objections between boards that disagree. With `task respond`, each board maintains, amends or concedes. When no board objects to another, `task deliberate` says so: skip `task respond`.
 - `task challenge` prints the decision brief the agent shows you: verdicts, objections, blockers and the checks that could change the decision.
 
 **3. Decide.** `task clear`, `task decide` and `task revoke` are yours. The agent proposes the evidence, but it never runs these commands for you.
@@ -148,9 +152,9 @@ git add .openguildkit/decisions && git commit -m "Decision record of request-sta
 ```
 
 - `task handoff` gives the agent the implementation brief: the approved scope and the rules in force. The agent delivers that scope only.
-- `task verify` runs the project's checks and records their results.
-- `task result --template` asks only the rules that concern the task. The others are listed as not concerned, with the reason.
-- `task result --file` records the result the agent filled in. You confirm each rule set aside, and the owner of each named evidence (record of processing activities, DPIA decision) provides it.
+- `task verify` runs the project's checks and records their results. Before any `task result`, it counts the rules to report rather than listing them: the template lists them.
+- `task result --template` asks only the rules that concern the task. The others are listed as not concerned, with the reason. A criterion is `met` or `not-met`; a rule is `passed`, `failed`, `skipped` or `not-applicable`.
+- `task result --file` records the result the agent filled in. You confirm each rule set aside, and the owner of each named evidence (record of processing activities, DPIA decision) provides it. One evidence cited for the passed rules of three packs or more is flagged, and the task then closes with reservations.
 - `task complete` closes the task as `done` when nothing is left open, or as `done-with-reservations` with the open points, the most serious first. `task show --closing` prints them again, and `task new --follows` opens a linked task to take them up.
 - Commit the work before `task export`: the record lists the files Git tracks that changed since the approval, and the pull request check requires each changed file in it. `task export` names the new files Git does not track yet, which no record covers.
 - `task export` writes the decision record; commit it in the same pull request. After `task revoke`, `task export` writes the withdrawal into the record, and the check then refuses it.

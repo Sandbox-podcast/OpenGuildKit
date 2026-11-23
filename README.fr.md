@@ -102,6 +102,10 @@ Un `reponses.json` minimal donne l'identifiant d'un choix pour chaque question d
 }
 ```
 
+Les questions de suivi ajoutent leurs réponses au même fichier, sous leur identifiant : `outcome` (ce qu'on peut voir ou mesurer une fois le travail fini), `affected` (qui remarque le changement) et, pour une décision, `options`.
+
+Les fichiers JSON de ces étapes (les réponses, un avis par board, la délibération, le résultat) sont des fichiers de travail. Écris-les dans `.openguildkit/work/`, pas à la racine du projet : Git ignore ce dossier, et le garde-fou laisse l'agent y écrire avant toute approbation.
+
 **2. Consulter les boards.**
 
 ```bash
@@ -118,7 +122,7 @@ openguildkit task challenge statut-demandes
 - `task submit` enregistre l'avis du board. Un avis mal formé est refusé avec la liste de tous ses problèmes.
 - `task progress` dit quels boards ont rendu leur avis.
 - `task review` rassemble les avis avec le résumé que l'agent écrit.
-- `task deliberate` liste les objections entre boards en désaccord. Avec `task respond`, chaque board maintient, amende ou cède.
+- `task deliberate` liste les objections entre boards en désaccord. Avec `task respond`, chaque board maintient, amende ou cède. Quand aucun board ne fait d'objection à un autre, `task deliberate` le dit : passe `task respond`.
 - `task challenge` imprime la note de décision que l'agent te montre : verdicts, objections, points bloquants et vérifications qui pourraient changer la décision.
 
 **3. Décider.** `task clear`, `task decide` et `task revoke` sont à toi. L'agent te propose les preuves, mais il ne lance jamais ces commandes à ta place.
@@ -152,9 +156,9 @@ git add .openguildkit/decisions && git commit -m "Enregistrement de la décision
 ```
 
 - `task handoff` remet à l'agent le brief d'implémentation : le périmètre approuvé et les règles en vigueur. L'agent ne réalise que ce périmètre.
-- `task verify` lance les contrôles du projet et enregistre leurs résultats.
-- `task result --template` ne demande que les règles qui concernent la tâche. Les autres sont listées comme non concernées, avec la raison.
-- `task result --file` enregistre le résultat que l'agent a rempli. Tu confirmes chaque règle écartée, et le responsable de chaque pièce justificative (registre des traitements, décision d'AIPD) la fournit.
+- `task verify` lance les contrôles du projet et enregistre leurs résultats. Avant tout `task result`, il compte les règles à rapporter sans les lister : le modèle les liste.
+- `task result --template` ne demande que les règles qui concernent la tâche. Les autres sont listées comme non concernées, avec la raison. Un critère est `met` (atteint) ou `not-met` ; une règle est `passed`, `failed`, `skipped` ou `not-applicable`.
+- `task result --file` enregistre le résultat que l'agent a rempli. Tu confirmes chaque règle écartée, et le responsable de chaque pièce justificative (registre des traitements, décision d'AIPD) la fournit. Une même preuve citée pour les règles réussies de trois packs ou plus est signalée, et la tâche se clôt alors avec réserves.
 - `task complete` clôt la tâche en `done` quand rien ne reste ouvert, ou en `done-with-reservations` (terminée avec réserves) avec les points ouverts, du plus grave au moins grave. `task show --closing` les réaffiche, et `task new --follows` ouvre une tâche liée pour les reprendre.
 - Commite le travail avant `task export` : l'enregistrement liste les fichiers suivis par Git qui ont changé depuis l'approbation, et le contrôle de la pull request exige chaque fichier modifié dans cette liste. `task export` nomme les nouveaux fichiers que Git ne suit pas encore, qu'aucun enregistrement ne couvre.
 - `task export` écrit l'enregistrement de la décision ; commite-le dans la même pull request. Après `task revoke`, `task export` écrit le retrait dans l'enregistrement, et le contrôle le refuse alors.

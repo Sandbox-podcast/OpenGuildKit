@@ -913,9 +913,9 @@ def submit_pass(task: dict, entry: dict, mode: str | None = None, root: Path | N
               if other != validated["id"] and state.get("status") == "done"]
     passes["boards"][validated["id"]] = {"status": "done", "mode": mode, "entry": validated, "at": timestamp(),
                                          "attempts": current.get("attempts", 1)}
-    # What this entry adds to the signs of copied advice, against the passes already done.
-    earlier = set(review_warnings(others))
-    copied = [warning for warning in review_warnings([*others, validated]) if warning not in earlier]
+    # The signs of copied advice that concern this entry, against the passes already done: each submit says what
+    # its own pass adds, not the warnings of the earlier passes again.
+    copied = review_warnings([*others, validated], focus=validated["id"])
     return {**task, "passes": passes, **({"_warnings": copied} if copied else {})}
 
 

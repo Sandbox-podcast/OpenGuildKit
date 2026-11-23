@@ -43,7 +43,9 @@ class ChaosFolkResultTests(CapturedCli, unittest.TestCase):
             self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed")
         self.run_cli("task", "verify", TASK)
         checks = json.loads(self.run_cli("task", "checks", TASK, "--json"))
-        rules = [{"check": c["id"], "status": "passed", "evidence": "qa/replays.md"} for c in checks if c["kind"] == "rule"]
+        # Each pack cites its own evidence: one file cited for the rules of every pack is a warning (issue 289).
+        rules = [{"check": c["id"], "status": "passed", "evidence": f"qa/{c['pack']}.md"}
+                 for c in checks if c["kind"] == "rule"]
         write_json(self.root / "rules.json", {"revision": "abc1234", "criteria": [], "checks": rules})
         self.run_cli("task", "result", TASK, "--file", self.root / "rules.json")
 

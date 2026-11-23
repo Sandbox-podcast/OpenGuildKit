@@ -1095,5 +1095,49 @@
     "must": [
       "product"
     ]
+  },
+  {
+    "brief": "Le client paie sa commande par carte",
+    "must": [
+      "finance"
+    ],
+    "must_not": [
+      "hr"
+    ]
+  },
+  {
+    "brief": "Calculer la paie des salariés",
+    "must": [
+      "hr",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Corriger le bulletin de paie des intérimaires",
+    "must": [
+      "hr",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Le client paie sa commande par carte, prix TTC affiché au panier",
+    "must": [
+      "finance",
+      "legal"
+    ],
+    "must_not": [
+      "hr",
+      "sales"
+    ]
+  },
+  {
+    "brief": "Show the price including VAT on the checkout page",
+    "must": [
+      "finance",
+      "legal"
+    ],
+    "must_not": [
+      "sales"
+    ]
   }
 ]
