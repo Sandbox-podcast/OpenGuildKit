@@ -219,7 +219,7 @@ describe('project signals', () => {
   });
 
   it('sends an approval that no longer holds and an unreadable record to a person, not to the agent', () => {
-    const stale = 'The approval for c was recorded under earlier rules (conventions changed). Consult it again with openguildkit task consult c, or open a linked task with openguildkit task new "BRIEF" --follows c.';
+    const stale = 'The approval for c was recorded under earlier rules (conventions changed). Consult it again with openguildkit task consult c --reuse-answers (--answers FILE to change the answers), or open a linked task with openguildkit task new "BRIEF" --follows c.';
     const tasks = ok([
       { id: 'c', status: 'approved', created: '2026-11-21', owner: 'Camille', brief: 'C', next: stale, approval_problem: 'earlier-rules', severity: 'error' },
       { id: 'f', status: 'approved', created: '2026-11-21', owner: 'Camille', brief: 'F', next: 'Implement, then record the results: task verify f and task result f, then task complete f.' },
@@ -235,7 +235,7 @@ describe('project signals', () => {
     const counts = placeCounts(s);
     expect(counts.blueprint).toBeNull();
     expect(counts.quetes).toMatchObject({ n: 2, label: 'à reprendre par une personne' });
-    expect(nextLabel(stale)).toBe('L’approbation de c a été donnée sous des règles antérieures (conventions modifiées). La consulter à nouveau (task consult c), ou ouvrir une tâche liée (task new --follows c).');
+    expect(nextLabel(stale)).toBe('L’approbation de c a été donnée sous des règles antérieures (conventions modifiées). La consulter à nouveau avec ses réponses (task consult c --reuse-answers), ou ouvrir une tâche liée (task new --follows c).');
     expect([nextLang(stale), nextLang('Invalid JSON in x')]).toEqual([undefined, 'en']);
     expect(statusesOf(tasks.json as { status: string }[])).toContain('unreadable');
     expect(statusesOf([{ status: 'draft' }])).not.toContain('unreadable');
@@ -243,14 +243,15 @@ describe('project signals', () => {
   });
 
   it('reads the tasks that sync names after a change of rules', () => {
-    const stdout = 'OpenGuildKit instructions updated.\nTasks consulted under the previous rules:\n  request-history (approved): consult it again (openguildkit task consult request-history), which keeps the passes of unchanged boards, or open a linked task with --follows.\n  status-labels (consulting): consult it again.\n';
+    const stdout = 'OpenGuildKit instructions updated.\nTasks consulted under the previous rules:\n  request-history (approved): consult it again (openguildkit task consult request-history --reuse-answers), which keeps the passes of unchanged boards, or open a linked task with --follows.\n  status-labels (consulting): consult it again.\n';
     expect(touchedTasks(stdout)).toEqual([
-      { id: 'request-history', status: 'approved', step: 'consult it again (openguildkit task consult request-history), which keeps the passes of unchanged boards, or open a linked task with --follows' },
+      { id: 'request-history', status: 'approved', step: 'consult it again (openguildkit task consult request-history --reuse-answers), which keeps the passes of unchanged boards, or open a linked task with --follows' },
       { id: 'status-labels', status: 'consulting', step: 'consult it again' },
     ]);
     expect(touchedTasks('OpenGuildKit instructions updated.\n')).toEqual([]);
     expect(touchedStep('request changes and consult it again')).toMatch(/^demander des changements/);
-    expect(touchedStep('consult it again (openguildkit task consult c), which keeps the passes of unchanged boards, or open a linked task with --follows')).toBe('la consulter à nouveau (task consult c), en gardant les passes des cerveaux inchangés, ou ouvrir une tâche liée (--follows)');
+    expect(touchedStep('consult it again (openguildkit task consult c --reuse-answers), which keeps the passes of unchanged boards, or open a linked task with --follows')).toBe('la consulter à nouveau avec ses réponses (task consult c --reuse-answers), en gardant les passes des cerveaux inchangés, ou ouvrir une tâche liée (--follows)');
+    expect(touchedStep('consult it again (openguildkit task consult c --reuse-answers): its approval has no valid seal, so every board reviews again and check fails on it until then; or open a linked task with --follows')).toMatch(/^la consulter à nouveau avec ses réponses \(task consult c --reuse-answers\) : son approbation n’a pas de sceau valide/);
     expect(touchedStep('something new')).toBeNull();
   });
 

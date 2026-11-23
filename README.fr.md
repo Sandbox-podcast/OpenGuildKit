@@ -87,7 +87,7 @@ openguildkit task consult statut-demandes --answers reponses.json
 - `task questions` donne le questionnaire : l'agent te demande le type de travail, les zones touchées, les données en jeu et les recherches permises.
 - `task questions --answers --follow-ups` donne seulement les questions de suivi qu'appellent tes réponses et les points encore ouverts.
 - `task route` montre les boards retenus et pourquoi, sans rien enregistrer. Toi seul ajoutes ou retires un board, avec une raison.
-- `task consult` enregistre tes réponses et prépare une consultation courte : la tâche, le périmètre du projet, une ligne par board.
+- `task consult` enregistre tes réponses et prépare une consultation courte : la tâche, le périmètre du projet, une ligne par board. Pour consulter de nouveau une tâche avec les réponses qu'elle garde, après une demande de changements, un rebase ou un changement de règles, lance `task consult ID --reuse-answers` : la commande n'a pas besoin de terminal.
 
 Un `reponses.json` minimal donne l'identifiant d'un choix pour chaque question de `task questions`. `concerns` nomme les sujets qui appellent leurs propres spécialistes (argent, IA, décisions sur des personnes, secrets), ou `none` :
 

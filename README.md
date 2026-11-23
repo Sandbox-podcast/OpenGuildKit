@@ -83,7 +83,7 @@ openguildkit task consult request-status --answers answers.json
 - `task questions` prints the questionnaire: the agent asks you the kind of work, the areas it affects, the data involved and the research allowed.
 - `task questions --answers --follow-ups` gives only the follow-up questions your answers call for and the points still open.
 - `task route` shows the boards it would select and why, without recording anything. Only you add or remove a board, with a reason.
-- `task consult` records your answers and prepares a short consultation: the task, the project scope, one line per board.
+- `task consult` records your answers and prepares a short consultation: the task, the project scope, one line per board. To consult a task again with the answers it already holds, after a change request, a rebase or a change of rules, run `task consult ID --reuse-answers`: it needs no terminal.
 
 A minimal `answers.json` gives one choice ID per question of `task questions`. `concerns` names the topics that bring their own specialists (money, AI, decisions about people, credentials), or `none`:
 

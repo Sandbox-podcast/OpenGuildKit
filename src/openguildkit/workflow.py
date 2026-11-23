@@ -1043,7 +1043,7 @@ def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] |
     status = task.get("status")
     if status == "changes-requested":
         raise ValueError(f"Task {task['id']} has changes requested by {task['decision']['by']}: there is nothing to "
-                         f"implement. Next: openguildkit task consult {task['id']}")
+                         f"implement. Next: openguildkit task consult {task['id']} --reuse-answers")
     if status not in ("approved", "done", "done-with-reservations"):
         raise TaskStateError("A human approval is required before implementation.")
     pending_verification = [item for item in blocker_list(task) if item.get("phase") == "verification"

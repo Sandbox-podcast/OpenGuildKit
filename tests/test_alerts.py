@@ -223,7 +223,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
     def test_an_import_after_the_consultation_says_to_consult_again(self):
         self.init()
         self.cli("task", "new", "Upgrade Jinja in the report service.", "--id", "upgrade")
-        reminder = "run openguildkit task consult upgrade again"
+        reminder = "consult it again with openguildkit task consult upgrade --reuse-answers"
         self.assertNotIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json"))
         write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local",
                                           "concerns": ["none"]})
@@ -233,7 +233,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
     def test_an_import_that_brings_nothing_new_to_the_consultation_asks_nothing(self):
         self.init()
         self.cli("task", "new", "Upgrade Jinja in the report service.", "--id", "upgrade")
-        reminder = "run openguildkit task consult upgrade again"
+        reminder = "consult it again with openguildkit task consult upgrade --reuse-answers"
         self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json")
         write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local",
                                           "concerns": ["none"]})
