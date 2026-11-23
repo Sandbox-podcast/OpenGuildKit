@@ -8,8 +8,8 @@ Only tasks completed with recorded checks can be exported, and only the fields l
 leave the project: no review, evidence or internal note.
 
 The share register records what was shared, with whom, through which portal space and until when.
-Documentalist gives a reader a whole space and keeps no end date, so the register is a reminder
-the owner acts on in the portal, and its dates follow the real clock.
+Documentalist gives a reader a whole space. The local register follows the real clock; a separate
+observation may compare it with a compatible portal's invitation settings.
 """
 
 import ipaddress
@@ -215,7 +215,7 @@ def _shares_path(state: Path) -> Path:
     return state / SHARES_DIR / "shares.json"
 
 
-def _load_shares(state: Path) -> list[dict]:
+def load_shares(state: Path) -> list[dict]:
     path = _shares_path(state)
     return read_json(path)["shares"] if path.is_file() else []
 
@@ -264,7 +264,7 @@ def portal_space(portal: str) -> str:
     return f"{shown}{f':{port}' if port else ''}/p/{parts[2]}"
 
 
-def _space(share: dict) -> str | None:
+def share_space(share: dict) -> str | None:
     """The space a share opens; a share recorded before the space was kept gets it from its portal."""
     if share.get("space"):
         return share["space"]
@@ -288,7 +288,7 @@ def add_share(state: Path, deliverable: str, recipients: list[str], until: str, 
              "until": until, "portal": portal, "space": space, "by": by.strip(),
              "created_at": clock.real_timestamp(), "revoked_at": None}
     with project_lock(state):
-        write_json(_shares_path(state), {"shares": [*_load_shares(state), share]})
+        write_json(_shares_path(state), {"shares": [*load_shares(state), share]})
     return share
 
 
@@ -309,9 +309,9 @@ def _share_end(until: str) -> date:
 
 
 def _same_access(shares: list[dict], share: dict, today: date | None) -> list[dict]:
-    space, recipients = _space(share), set(share["recipients"])
+    space, recipients = share_space(share), set(share["recipients"])
     return [item for item in shares
-            if item["id"] != share["id"] and not item["revoked_at"] and space and _space(item) == space
+            if item["id"] != share["id"] and not item["revoked_at"] and space and share_space(item) == space
             and recipients & set(item["recipients"]) and (today is None or date.fromisoformat(item["until"]) >= today)]
 
 
@@ -321,7 +321,7 @@ def same_access(state: Path, share: dict, running: bool = False) -> list[dict]:
     Documentalist keeps one access per address and space, so these shares grant and lose that access together.
     With `running`, only those whose last day is not past on the real clock.
     """
-    return _same_access(_load_shares(state), share, clock.real_today() if running else None)
+    return _same_access(load_shares(state), share, clock.real_today() if running else None)
 
 
 def revoke_share(state: Path, share_id: str, by: str) -> dict:
@@ -329,7 +329,7 @@ def revoke_share(state: Path, share_id: str, by: str) -> dict:
     if not by.strip():
         raise ValueError("Name the person who removed the access with --by.")
     with project_lock(state):
-        shares = _load_shares(state)
+        shares = load_shares(state)
         share = next((item for item in shares if item["id"] == share_id), None)
         if share is None:
             raise ValueError(f"Unknown share {share_id}. Run openguildkit docs share list.")
@@ -338,7 +338,7 @@ def revoke_share(state: Path, share_id: str, by: str) -> dict:
         share["revoked_at"] = clock.real_timestamp()
         share["revoked_by"] = by.strip()
         write_json(_shares_path(state), {"shares": shares})
-    return {**share, "space": _space(share)}
+    return {**share, "space": share_space(share)}
 
 
 def share_status(state: Path, today: date | None = None) -> list[dict]:
@@ -349,9 +349,21 @@ def share_status(state: Path, today: date | None = None) -> list[dict]:
     `kept`, with the share that ends last): there is nothing to remove until those shares end.
     """
     today = today or clock.real_today()
-    shares, rows = _load_shares(state), []
+    shares, rows = load_shares(state), []
+    observation_path = state / SHARES_DIR / "portal-observations.json"
+    try:
+        observations = read_json(observation_path).get("observations", {}) if observation_path.is_file() else {}
+    except ValueError:
+        observations = {}
     for share in shares:
-        row = {**share, "space": _space(share), "remove": [], "kept": {}}
+        row = {**share, "space": share_space(share), "remove": [], "kept": {}}
+        observed = observations.get(row["space"], {}) if isinstance(observations, dict) else {}
+        if isinstance(observed, dict) and observed.get("checked_at"):
+            recipients = {address.strip().lower() for address in share["recipients"]}
+            observed_rows = observed.get("rows") if isinstance(observed.get("rows"), list) else []
+            row["portal_observation"] = {"source": observed.get("source"), "checked_at": observed["checked_at"],
+                                         "rows": [item for item in observed_rows
+                                                  if isinstance(item, dict) and item.get("recipient") in recipients]}
         if share["revoked_at"]:
             row["state"] = "revoked"
         elif date.fromisoformat(share["until"]) >= today:

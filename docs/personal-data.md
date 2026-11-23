@@ -48,6 +48,7 @@ A decision record also carries free text: the `brief`, the review `summary`, eac
 |---|---|---|---|
 | everything the exported record shows, plus `rounds[].revoked.by`, the `by` and `signer` of `blocker_resolutions` and `verification_blocker_resolutions`, `result.checks[].owner` (a person's declaration that a command cannot run included), `authorizations[].by`, `follows.decision.by`, and the person named with `--delegate`, in `consultation.delegations` and `review.boards[].reviewer` | `.openguildkit/tasks/ID.json` | the `task` commands | the task's history, from which `task export` writes the record |
 | `recipients` (email addresses), `by`, `revoked_by` | `.openguildkit/shares/shares.json` | `docs share add`, `docs share revoke` | the only record of who received access to what, and until when ([sharing](documentation.md#share-a-deliverable)) |
+| `recipient` (email address), intended and observed dates, verification time and source | `.openguildkit/shares/portal-observations.json` | `docs share verify` | the last comparison of the register with a portal's invitation settings; each new verification replaces that space's observation |
 | `ogk-ui:decider`, `ogk-ui:signer` | the browser's local storage for the page's address (`http://127.0.0.1:7311` by default) | `openguildkit ui`, when you type who decides or who signs | to fill the field again next time |
 | each call to a mock and its arguments | the file `--log` names | `tools mock ID --log FILE`, `tools plan` or `tools apply` with `--mock --log FILE` | so a test can check what the agent called; mocks serve synthetic data |
 
@@ -120,7 +121,7 @@ An approval signed with a dirty working tree is verified the same way, against t
 
 ### In the task records and the shares register
 
-Both are ignored by Git and stay on the machine that wrote them. Delete a task record once the task is completed and its record exported: `task list --decisions` still reads the exported record, but `task show`, `docs export` and `task export` of that task no longer can. Keep a share in the register until its access is removed in Documentalist and recorded with `docs share revoke`, since the register is the only record of who has access; then delete its entry from `shares.json`.
+Both are ignored by Git and stay on the machine that wrote them. Delete a task record once the task is completed and its record exported: `task list --decisions` still reads the exported record, but `task show`, `docs export` and `task export` of that task no longer can. Keep a share in the register until its access is removed in Documentalist and recorded with `docs share revoke`; then delete its entry from `shares.json`. Delete the matching space entry from `portal-observations.json` or delete the file when the comparison is no longer needed. The next verification recreates it.
 
 ### In the browser
 
