@@ -1,5 +1,6 @@
 {
   "name": "Exports",
   "sector": "general",
+  "personal_data": "no",
   "packs": ["export-link-expiry"]
 }

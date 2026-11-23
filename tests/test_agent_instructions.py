@@ -73,7 +73,7 @@ class JourneyTests(unittest.TestCase):
     def generated_agents(self) -> str:
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            write_json(root / "setup.json", {"name": "Portal", "stack": ["Python"]})
+            write_json(root / "setup.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"]})
             run_cli(root, "init", "--answers", root / "setup.json")
             return (root / "AGENTS.md").read_text(encoding="utf-8")
 

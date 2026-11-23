@@ -22,7 +22,7 @@ export const REFUSAL_FR: Record<string, string> = {
   'send-setup-answers': 'Depuis la page, l’installation envoie les réponses du questionnaire : elle ne répond pas aux questions posées dans un terminal.',
   'send-task-answers': 'Depuis la page, une consultation envoie les réponses du questionnaire : elle ne répond pas aux questions posées dans un terminal.',
   'stale-token': 'Le serveur local a redémarré : ouvre la nouvelle adresse que « openguildkit ui » a écrite dans ton terminal.',
-  'open-printed-link': 'Ouvre l’adresse que « openguildkit ui » a écrite dans ton terminal (http://127.0.0.1:…/?key=…) : elle seule ouvre la session de ce projet.',
+  'open-printed-link': 'Ouvre l’adresse que « openguildkit ui » a écrite dans ton terminal (http://ogk-….localhost:…/?key=…) : elle seule ouvre la session de ce projet.',
   'outside-project': 'Ce chemin sort du projet : donne un chemin relatif à sa racine, avec des barres obliques.',
   'secret-file': 'L’interface ne lit pas ce fichier : il ressemble à un secret, à un fichier de jeton, ou il est dans .git.',
   'not-readable': 'L’interface ne lit que les fichiers Markdown, JSON, YAML et texte.',

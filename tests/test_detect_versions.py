@@ -50,7 +50,7 @@ class DetectedVersionTests(CapturedCli, unittest.TestCase):
         write(self.root, "api/pyproject.toml",
               '[project]\nname = "api"\nrequires-python = ">=3.12"\ndependencies = ["fastapi>=0.115", "psycopg[binary]>=3.2"]\n')
         questions = {item["id"]: item for item in json.loads(self.run_cli("init", "--questions"))}
-        write_json(self.root / "answers.json", {"name": "Acme", "components": questions["components"]["default"]})
+        write_json(self.root / "answers.json", {"personal_data": "no", "name": "Acme", "components": questions["components"]["default"]})
         self.run_cli("init", "--answers", self.root / "answers.json")
         profile = json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
         self.assertIn("PostgreSQL", profile["stack"])
@@ -214,7 +214,7 @@ class DetectedVersionTests(CapturedCli, unittest.TestCase):
 
     def test_setup_uses_the_package_name_and_detected_root_with_an_empty_manual_stack(self):
         write(self.root, "package.json", {"name": "sample-shop", "devDependencies": {"vite": "^8.0.0"}})
-        write(self.root, "answers.json", {"stack": []})
+        write(self.root, "answers.json", {"stack": [], "personal_data": "no"})
         self.run_cli("init", "--answers", self.root / "answers.json")
         profile = json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
         self.assertEqual(profile["name"], "sample-shop")
@@ -222,7 +222,7 @@ class DetectedVersionTests(CapturedCli, unittest.TestCase):
 
     def test_a_single_detected_root_keeps_the_stack_the_person_wrote(self):
         write(self.root, "requirements.txt", "fastapi==0.110\n")
-        write(self.root, "answers.json", {"stack": ["Python 3.12", "PostgreSQL 16"]})
+        write(self.root, "answers.json", {"stack": ["Python 3.12", "PostgreSQL 16"], "personal_data": "no"})
         self.run_cli("init", "--answers", self.root / "answers.json")
         profile = json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
         self.assertEqual(profile["components"],
@@ -231,7 +231,7 @@ class DetectedVersionTests(CapturedCli, unittest.TestCase):
     def test_several_detected_components_still_yield_to_a_written_stack(self):
         write(self.root, "web/package.json", {"dependencies": {"react": "^18.2.0"}})
         write(self.root, "api/requirements.txt", "fastapi==0.110\n")
-        write(self.root, "answers.json", {"stack": ["Python"]})
+        write(self.root, "answers.json", {"stack": ["Python"], "personal_data": "no"})
         out, err = self.run_cli_with_errors("init", "--answers", self.root / "answers.json")
         profile = json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
         self.assertNotIn("components", profile)

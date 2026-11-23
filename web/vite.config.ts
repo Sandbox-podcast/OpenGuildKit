@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url';
 // The demo reads the CLI registry (boards, packs) from ../src/openguildkit/registry,
 // so the dev server must be allowed to serve the parent folder.
 //
-// OGK_API=http://127.0.0.1:7311 forwards /api to a running `openguildkit ui --no-browser`: the page then
-// opens the real project with hot reload. The proxy presents the page as the server's own origin, which
-// the server requires for every API call.
+// OGK_API=http://ogk-….localhost:7311 (the origin of the address `openguildkit ui --no-browser` printed) forwards
+// /api to that server: the page then opens the real project with hot reload. The proxy presents the page as the
+// server's own host and origin, which the server requires for every API call.
 const api = process.env.OGK_API;
 
 // The images that only the Atelier Nova demo shows. The product build (npm run build, which the wheel

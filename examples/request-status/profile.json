@@ -1,6 +1,7 @@
 {
   "name": "Support portal",
   "sector": "general",
+  "personal_data": "no",
   "stack": ["Python", "FastAPI", "PostgreSQL", "TypeScript", "React"],
   "research": "local-only",
   "guard": "off",

@@ -16,7 +16,7 @@ class InstructionFileTests(CapturedCli, unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.answers = self.root / "answers.json"
-        write_json(self.answers, {"name": "Portal", "stack": ["Python"]})
+        write_json(self.answers, {"personal_data": "no", "name": "Portal", "stack": ["Python"]})
 
     def test_a_byte_order_mark_is_kept_and_does_not_block_the_project(self):
         agents, claude = self.root / "AGENTS.md", self.root / "CLAUDE.md"
@@ -48,7 +48,7 @@ class InstructionFileTests(CapturedCli, unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "single line"):
                 validate_profile({"name": "x", "conventions": [value]}, catalog)
             with self.assertRaisesRegex(ValueError, "single line"):
-                validate_profile({"name": "x", "stack": [value]}, catalog)
+                validate_profile({"personal_data": "no", "name": "x", "stack": [value]}, catalog)
 
     @unittest.skipUnless(hasattr(os, "symlink") and os.name == "posix", "symbolic links need POSIX here")
     def test_a_claude_file_linked_to_agents_is_recognised(self):

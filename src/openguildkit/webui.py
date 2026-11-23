@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import contextlib
 import gzip
+import hashlib
 import io
 import json
 import mimetypes
@@ -45,6 +46,12 @@ WRITABLE_FILES = {".openguildkit/storybook/proposals.json"}
 # .openguildkit/ are named after task IDs, such as token-rotation.json, and stay readable.
 SECRET_NAME = re.compile(r"(^\.env)|secret|credential|password|private[-_]?key|\.pem$|\.key$|id_rsa|id_ed25519", re.I)
 TOKEN_FILE = re.compile(r"^token.*\.json$|^auth\.json$|service[-_]?account.*\.json$|^local\.settings\.json$", re.I)
+# The settings where package managers, containers and frameworks keep a token or a password in clear: Yarn's
+# npmAuthToken, .npmrc, .pypirc, .netrc, Git's stored credentials, ASP.NET's appsettings*.json, Rails' database.yml.
+CREDENTIAL_FILE = re.compile(r"^\.yarnrc(?:\.ya?ml)?$|^\.npmrc$|^\.pypirc$|^[._]netrc$|^\.git-credentials$"
+                             r"|^appsettings(?:\..+)?\.json$|^database\.ya?ml$", re.I)
+# Files named by their folder: Docker's registry logins.
+CREDENTIAL_PATH = {(".docker", "config.json")}
 # A script that starts the server for its own browser, such as the end-to-end tests, may set the key of the run.
 KEY_VARIABLE = "OPENGUILDKIT_UI_KEY"
 UPLOAD_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$")
@@ -229,7 +236,10 @@ def _secret(parts: tuple[str, ...]) -> bool:
     """A path the page neither lists nor reads: a name that suggests a secret, or a tool's token file."""
     if any(SECRET_NAME.search(part) for part in parts):
         return True
-    return bool(parts) and parts[0] != ".openguildkit" and bool(TOKEN_FILE.search(parts[-1]))
+    if not parts or parts[0] == ".openguildkit":
+        return False
+    return bool(TOKEN_FILE.search(parts[-1]) or CREDENTIAL_FILE.search(parts[-1])
+                or tuple(part.casefold() for part in parts[-2:]) in CREDENTIAL_PATH)
 
 
 def check_paths(args, root: Path, uploads: set[Path]) -> None:
@@ -498,10 +508,18 @@ class Handler(BaseHTTPRequestHandler):
         self.do_GET()
 
     def do_GET(self):  # noqa: N802
+        address = urlsplit(self.path)
+        if (self.headers.get("Host") or "").lower() in self.app.loopback:
+            # 127.0.0.1 and localhost are shared by every local server: the session never opens there.
+            if address.path.startswith("/api/"):
+                self._refuse(Refused(REFUSALS["open-printed-link"], reason="open-printed-link"))
+            else:
+                self._send(HTTPStatus.FORBIDDEN, GATE.encode("utf-8"), "text/html; charset=utf-8",
+                           {"Content-Security-Policy": CSP, "Cache-Control": "no-store"})
+            return
         if not self._host_allowed():
             self._refuse(Refused("Unknown host.", status=HTTPStatus.MISDIRECTED_REQUEST, reason="foreign-page"))
             return
-        address = urlsplit(self.path)
         key = parse_qs(address.query).get("key")
         if key and _same(key[0], self.app.key):
             # The printed address: its key becomes a cookie of this browser and leaves the address bar.
@@ -595,6 +613,13 @@ def _same(given: str, secret: str) -> bool:
     return secrets.compare_digest(given.encode("utf-8", "replace"), secret.encode("utf-8"))
 
 
+def session_name(key: str) -> str:
+    """The host name of the run, under .localhost, which browsers send to the loopback interface. A browser sends a
+    cookie to every port of the host that set it: on 127.0.0.1, another local server, such as the development server
+    of the project, would receive the key. A name drawn from the key of the run is known only to who holds the key."""
+    return f"ogk-{hashlib.sha256(key.encode('utf-8')).hexdigest()[:24]}.localhost"
+
+
 def launch_key() -> str:
     """The key of this run, which only the printed address carries. A script that starts the server for its own
     browser sets it with OPENGUILDKIT_UI_KEY; it is then as secret as that script keeps it."""
@@ -608,7 +633,7 @@ def launch_key() -> str:
 
 class WebApp:
     """The project behind the page. A browser opens the session with the key of the printed address, kept in a
-    cookie; the session gives the page the token that every API call carries."""
+    cookie of the host name of the run; the session gives the page the token that every API call carries."""
 
     def __init__(self, root: Path, front: Path | None, port: int, verbose: bool = False):
         self.root = root
@@ -623,14 +648,17 @@ class WebApp:
 
     def set_port(self, port: int) -> None:
         self.port = port
-        self.hosts = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
-        self.origins = {f"http://{host}" for host in self.hosts}
-        # A browser shares cookies between the ports of a host: each server keeps its own name.
+        # The page lives on the host name of the run only. The loopback names answer with the gate page.
+        self.host = f"{session_name(self.key)}:{port}"
+        self.hosts = {self.host}
+        self.loopback = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
+        self.origin = f"http://{self.host}"
+        self.origins = {self.origin}
         self.cookie = f"ogk-{port}"
 
     @property
     def url(self) -> str:
-        return f"http://127.0.0.1:{self.port}/?key={self.key}"
+        return f"{self.origin}/?key={self.key}"
 
     def set_cookie(self) -> str:
         return f"{self.cookie}={self.key}; Path=/; HttpOnly; SameSite=Strict"

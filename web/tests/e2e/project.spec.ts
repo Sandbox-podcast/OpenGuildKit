@@ -12,9 +12,11 @@ test.describe.configure({ mode: 'serial' });
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'tests', 'fixtures', 'alerts');
 const PORT = Number(process.env.PW_PROJECT_PORT ?? 7322);
-const EMPTY = `http://127.0.0.1:${PORT + 1}`;
-const STRIPE = `http://127.0.0.1:${PORT + 2}`;
-const GDPR = `http://127.0.0.1:${PORT + 3}`;
+// The host name of the run, set by playwright.project.config.ts from the key the servers share.
+const HOST = process.env.PW_PROJECT_HOST;
+const EMPTY = `http://${HOST}:${PORT + 1}`;
+const STRIPE = `http://${HOST}:${PORT + 2}`;
+const GDPR = `http://${HOST}:${PORT + 3}`;
 const errors: string[] = [];
 /** How a to-do item names the person who acts, as opposed to the agent. */
 const PERSON = 'Toi';
@@ -590,8 +592,13 @@ test('keeps keyboard focus on the selected watchtower tab as the address changes
 
 test('creates a market dossier, adds a competitor and an observation, and reviews a watched source', async ({ page }) => {
   await open(page, '/observatoire');
-  await page.getByRole('button', { name: 'Relue, rien de neuf' }).first().click();
-  await expect(page.getByText('Source marquée relue')).toBeVisible();
+  // The sample project runs under local-only: no agent opens the page, a person records their review under their name.
+  await expect(page.getByRole('button', { name: 'Relue, rien de neuf' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Relue par une personne' }).first().click();
+  const reviewed = page.getByRole('dialog', { name: 'Page relue par une personne' });
+  await reviewed.getByLabel('Qui a relu la page').fill('Camille Martin');
+  await reviewed.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByText('Relecture enregistrée')).toBeVisible();
 
   await page.getByRole('button', { name: 'Nouveau dossier' }).click();
   let dialog = page.getByRole('dialog', { name: 'Nouveau dossier de marché' });

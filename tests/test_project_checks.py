@@ -162,7 +162,7 @@ class FailureTests(ProjectTests):
 
     def approved(self, script: str) -> None:
         command = f'"{sys.executable}" -c "{script}"'
-        profile = {"name": "Portal", "stack": ["Python"], "packs": ["python"], "checks": [command]}
+        profile = {"personal_data": "no", "name": "Portal", "stack": ["Python"], "packs": ["python"], "checks": [command]}
         write_json(self.root / "profile.json", profile)
         self.run_cli("init", "--answers", self.root / "profile.json")
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)

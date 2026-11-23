@@ -73,6 +73,9 @@ export interface ProjectSignals {
   tasks: TaskListItem[];
   /** check fails because AGENTS.md, the host settings or the catalog lock drifted from the profile: sync fixes it. */
   instructionsDrift: boolean;
+  /** check fails because openguildkit is not on this workstation's PATH, so the hooks cannot run it: neither sync nor
+   * host apply fixes that, only installing it with pipx or uv, or activating its environment. */
+  offPath: boolean;
   /** Approved tasks whose approval no longer holds: check fails for them, and only a new consultation fixes it. */
   reconsult: TaskListItem[];
   /** Task records the CLI cannot read, such as a file left with merge conflict markers. */
@@ -96,7 +99,8 @@ export function signalsOf(overview: Record<string, CliResult> | undefined): Proj
   const check = overview?.check;
   return {
     tasks,
-    instructionsDrift: !!check && check.code !== 0 && !onlyTasksFail(check),
+    instructionsDrift: !!check && check.code !== 0 && !onlyTasksFail(check) && !offPath(check),
+    offPath: !!check && check.code !== 0 && offPath(check),
     reconsult: tasks.filter(needsReconsult),
     unreadable: tasks.filter((t) => t.status === 'unreadable'),
     alertsOpen: (alerts?.summary.by_status.open ?? 0) + (alerts?.summary.by_status.confirmed ?? 0),
@@ -113,12 +117,17 @@ export function signalsOf(overview: Record<string, CliResult> | undefined): Proj
 
 /** check found the instructions in line with the profile and fails only for tasks (approvals, unreadable records). */
 export const onlyTasksFail = (check: CliResult) => /instructions match the project profile/i.test(`${check.stdout}\n${check.stderr}`);
+/** check fails because the command the hooks call is not on this workstation's PATH (a CLI started from an inactive
+ * virtual environment): installing it fixes that, synchronizing does not. */
+export const offPath = (check: CliResult) => /not on this workstation's PATH/i.test(`${check.stdout}\n${check.stderr}`);
+/** Whether synchronizing can fix what check reports. */
+export const syncFixes = (check: CliResult | undefined) => !check || check.code === 0 || (!onlyTasksFail(check) && !offPath(check));
 
 export function placeCounts(s: ProjectSignals): Partial<Record<PlaceKey, Count | null>> {
   const consulting = s.tasks.filter((t) => t.status === 'consulting' || t.status === 'changes-requested').length;
   const stuck = s.blocked.length + s.reconsult.length + s.unreadable.length;
   return {
-    blueprint: count(s.instructionsDrift ? 1 : 0, 'danger', 'instructions à synchroniser'),
+    blueprint: s.offPath ? count(1, 'danger', 'commande absente du PATH') : count(s.instructionsDrift ? 1 : 0, 'danger', 'instructions à synchroniser'),
     conseil: count(consulting + s.awaitingDecision.length, 'info', 'à arbitrer'),
     quetes: stuck === s.blocked.length ? count(stuck, 'danger', 'bloquée', 'bloquées') : count(stuck, 'danger', 'à reprendre par une personne'),
     forge: count(s.toBuild.length, 'info', 'tâche à réaliser', 'tâches à réaliser'),

@@ -5,7 +5,7 @@ import { Badge, Button, Panel, Tabs } from '@/shared/ui/core';
 import { Dialog } from '@/shared/ui/overlay';
 import { Icon } from '@/shared/pixel/icons';
 import { batchJson, terminalCommand } from '../api';
-import { onlyTasksFail, useAlerts, useCheck, useGuard, useHost, useTasks } from '../data';
+import { syncFixes, useAlerts, useCheck, useGuard, useHost, useTasks } from '../data';
 import { showTerminal, useAction, useQuery } from '../query';
 import { GUARD, SEVERITY, alertLabel, hostControl } from '../labels';
 import { ActionForm, CheckNotice, ExternalLink, FilePick, Q, TableBox, TaskLink, useRemembered } from '../parts';
@@ -35,7 +35,7 @@ function Controls() {
   const { act, busy } = useAction();
   return (
     <div className="grid-2">
-      <Panel title="Instructions du projet" actions={check.data && check.data.code !== 0 && onlyTasksFail(check.data) ? undefined : <Button size="small" busy={busy !== null} onClick={() => void act(['sync'], { success: 'Instructions synchronisées' })}>Synchroniser</Button>}>
+      <Panel title="Instructions du projet" actions={!syncFixes(check.data) ? undefined : <Button size="small" busy={busy !== null} onClick={() => void act(['sync'], { success: 'Instructions synchronisées' })}>Synchroniser</Button>}>
         <Q q={check}>{(r) => <CheckNotice result={r} tasks={tasks.data ?? []} />}</Q>
         <p className="small muted"><code>openguildkit check</code> fait échouer la CI quand AGENTS.md, les réglages de l’hôte ou le verrou du catalogue s’écartent du profil.</p>
       </Panel>

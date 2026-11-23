@@ -76,6 +76,22 @@ class CapturedCli:
     cli = run_cli
 
 
+def openguildkit_on_path(test) -> Path:
+    """Put an openguildkit launcher on the PATH for the test, as pipx or uv would: host apply and check fail while
+    the hooks cannot find the command, and a source checkout does not install it. Returns the launchers' folder."""
+    temporary = tempfile.TemporaryDirectory(prefix="ogk-test-bin-")
+    test.addCleanup(temporary.cleanup)
+    launchers = Path(temporary.name)
+    posix = launchers / "openguildkit"
+    posix.write_text(f'#!/bin/sh\nexec "{sys.executable}" -m openguildkit "$@"\n', encoding="utf-8")
+    posix.chmod(0o755)
+    (launchers / "openguildkit.cmd").write_text(f'@"{sys.executable}" -m openguildkit %*\r\n', encoding="utf-8")
+    on_path = patch.dict(os.environ, {"PATH": f"{launchers}{os.pathsep}{os.environ.get('PATH', '')}"})
+    on_path.start()
+    test.addCleanup(on_path.stop)
+    return launchers
+
+
 def copy_initialized_project(test, profile: Path, destination: Path) -> None:
     """Initialize once per test class, then give each test its own writable copy."""
     cls = type(test)

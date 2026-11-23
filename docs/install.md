@@ -18,7 +18,7 @@ Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml` on GitHub Actions, o
 
 ## Install the Python CLI
 
-Use Python 3.11 or later. For a team, install the command once per workstation with [pipx](https://pipx.pypa.io/) or [uv](https://docs.astral.sh/uv/): both put `openguildkit` on the PATH, which the hooks of the board guard need.
+Use Python 3.11 or later. For a team, install the command once per workstation with [pipx](https://pipx.pypa.io/) or [uv](https://docs.astral.sh/uv/): both put `openguildkit` on the PATH, which the hooks of the board guard need. `host apply` fails while a setting stays missing.
 
 ```sh
 pipx install ./openguildkit-0.17.0-py3-none-any.whl
@@ -69,7 +69,7 @@ For another agent (the host `other`), the whole path is:
 2. `openguildkit integrations --host other`: the skill goes to `.agents/skills/openguildkit/SKILL.md`; copy it to the folder your agent reads skills or instructions from if it is another one.
 3. `openguildkit host check`: every rule shows `by instruction` or `by a person`, since no setting of this agent can enforce it. `openguildkit host apply` writes nothing for this host, says so and exits with 1.
 4. `openguildkit tools plan TOOL...`: prints each MCP server as an `mcpServers` entry to copy into your agent's MCP settings. `tools apply` writes only for `--host claude-code` or `--host codex`.
-5. `openguildkit check`, then commit `AGENTS.md`, `.openguildkit/project.json` and `.openguildkit/catalog.lock.json`. The board guard has no hook here: the AGENTS.md instruction and `openguildkit guard --ci` in CI are the controls. The hooks of the board guard call `openguildkit` by name: start the agent from the activated environment, or install the CLI on the PATH (for example with `pipx`). `openguildkit host check` reports the guard as `missing` when the command is not on the PATH.
+5. `openguildkit check`, then commit `AGENTS.md`, `.openguildkit/project.json` and `.openguildkit/catalog.lock.json`. The board guard has no hook here: the AGENTS.md instruction and `openguildkit guard --ci` in CI are the controls. The hooks of the board guard call `openguildkit` by name: start the agent from the activated environment, or install the CLI on the PATH (for example with `pipx`). When the command is not on the PATH, `host check`, `host apply` and `check` report the guard as `missing`, say that the PATH is the cause and fail; running `host apply` again does not fix it, installing the CLI or activating its environment does. The web interface shows the same cause instead of offering to synchronize.
 
 ## Upgrade
 
