@@ -153,12 +153,12 @@ const NEXT: [RegExp, (m: RegExpExecArray) => string][] = [
     (m) => `Échec de ${m[1]}${m[2] ? ` (${m[2]})` : ''}${m[3] ? ` : ${m[3]}` : ''}${m[4] ? `, et de ${m[4]} autre(s) contrôle(s)` : ''}. Corriger, puis relancer task verify ${m[5]}.`],
   [/^Done with reservations: see the open points (?:in task show \(result\.closing\)|with openguildkit task show \S+ --closing)\.$/, () => 'Terminée avec réserves : les points laissés ouverts sont dans la fiche de la tâche.'],
   [/^Done\.$/, () => 'Terminée.'],
-  [/^The approval for (\S+) was recorded under earlier rules(?: \((.*)\))?\. Consult it again with openguildkit task consult \S+, or open a linked task with openguildkit task new "BRIEF" --follows \S+\.$/s,
+  [/^The approval for (\S+) was recorded under earlier rules(?: \((.*)\))?\. Consult it again with openguildkit task consult \S+(?: --reuse-answers)?(?: \(--answers FILE to change the answers\))?, or open a linked task with openguildkit task new "BRIEF" --follows \S+\.$/s,
     (m) => `L’approbation de ${m[1]} a été donnée sous des règles antérieures${m[2] ? ` (${changesLabel(m[2])})` : ''}. ${RECONSULT(m[1])}`],
   [/^The approval for (\S+) has no seal: .*?\. Consult it again with .*$/s, (m) => `L’approbation de ${m[1]} n’a pas de sceau : elle a été modifiée à la main ou écrite par une ancienne version. ${RECONSULT(m[1])}`],
   [/^The record of (\S+) no longer matches what was approved\. Consult it again with .*$/s, (m) => `L’enregistrement de ${m[1]} ne correspond plus à ce qui a été approuvé. ${RECONSULT(m[1])}`],
 ];
-const RECONSULT = (id: string) => `La consulter à nouveau (task consult ${id}), ou ouvrir une tâche liée (task new --follows ${id}).`;
+const RECONSULT = (id: string) => `La consulter à nouveau avec ses réponses (task consult ${id} --reuse-answers), ou ouvrir une tâche liée (task new --follows ${id}).`;
 /** What changed in the rules a task was approved under ("pack gdpr added; conventions changed"), in French. */
 function changesLabel(text: string) {
   const FIELD: Record<string, string> = { sector: 'secteur modifié', stack: 'pile modifiée', conventions: 'conventions modifiées', checks: 'vérifications modifiées' };
@@ -192,9 +192,11 @@ export function touchedTasks(stdout: string): { id: string; status: string; step
 export const touchedStep = (step: string) => {
   if (step === 'consult it again') return 'la consulter à nouveau';
   if (step === 'request changes and consult it again') return 'demander des changements, puis la consulter à nouveau';
-  const m = /^consult it again \(openguildkit task consult (\S+)\)(, which keeps the passes of unchanged boards,)? or open a linked task with --follows$/.exec(step);
+  const unsealed = /^consult it again \(openguildkit task consult (\S+) --reuse-answers\): its approval has no valid seal, so every board reviews again and check fails on it until then; or open a linked task with --follows$/.exec(step);
+  if (unsealed) return `la consulter à nouveau avec ses réponses (task consult ${unsealed[1]} --reuse-answers) : son approbation n’a pas de sceau valide, chaque cerveau revoit donc la tâche et check échoue d’ici là ; ou ouvrir une tâche liée (--follows)`;
+  const m = /^consult it again \(openguildkit task consult (\S+)(?: --reuse-answers)?\)(, which keeps the passes of unchanged boards,)? or open a linked task with --follows$/.exec(step);
   if (!m) return null;
-  return `la consulter à nouveau (task consult ${m[1]})${m[2] ? ', en gardant les passes des cerveaux inchangés,' : ''} ou ouvrir une tâche liée (--follows)`;
+  return `la consulter à nouveau avec ses réponses (task consult ${m[1]} --reuse-answers)${m[2] ? ', en gardant les passes des cerveaux inchangés,' : ''} ou ouvrir une tâche liée (--follows)`;
 };
 /** The CLI's next step of an approved task whose last verification failed. */
 export const hasFailedCheck = (next: string) => / failed.*Fix it, then run task verify /s.test(next);

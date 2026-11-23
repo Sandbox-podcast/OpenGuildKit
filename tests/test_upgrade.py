@@ -29,7 +29,8 @@ class UpgradeTestCase(CliTestCase):
     def old_approval_line(self):
         return (f"OpenGuildKit: {self.approved}: The approval for {self.approved} has no seal: it was edited by hand or "
                 "written by a release older than sealed decisions. Consult it again with openguildkit task consult "
-                f'{self.approved}, or open a linked task with openguildkit task new "BRIEF" --follows {self.approved}.')
+                f"{self.approved} --reuse-answers (--answers FILE to change the answers), or open a linked task with "
+                f'openguildkit task new "BRIEF" --follows {self.approved}.')
 
     def assert_upgrades(self):
         """check names the old approval and the next step, update and update --apply succeed, and the rules are current.
@@ -90,6 +91,25 @@ class PreviousReleaseTests(UpgradeTestCase):
     def test_its_draft_continues_through_consultation(self):
         self.run_cli("sync")
         self.assert_old_draft_continues()
+
+    def test_sync_promises_no_kept_pass_for_an_approval_without_a_seal(self):
+        output = self.run_cli("sync").stdout
+        self.assertIn(f"  {self.approved} (approved): consult it again (openguildkit task consult {self.approved} "
+                      "--reuse-answers): its approval has no valid seal, so every board reviews again and check fails "
+                      "on it until then; or open a linked task with --follows.", output)
+        self.assertNotIn("keeps the passes", output)
+        self.assertIn(f"{self.approved} [approved, approved by Test Owner, approval no longer holds]",
+                      self.run_cli("task", "list").stdout)
+
+    def test_the_printed_command_reopens_the_old_approval_without_a_terminal(self):
+        """Its answers predate the concerns question: without a terminal, the command consults them as unsure."""
+        self.run_cli("sync")
+        result = self.run_cli("task", "consult", self.approved, "--reuse-answers")
+        self.assertIn("have no concerns", result.stderr)
+        record = json.loads(self.run_cli("task", "show", self.approved).stdout)
+        self.assertEqual((record["status"], record["answers"]["concerns"]), ("consulting", ["unsure"]))
+        self.assertNotIn("passes", record)
+        self.assertEqual(self.run_cli("check").stderr, "")
 
 
 class FirstReleaseTests(UpgradeTestCase):

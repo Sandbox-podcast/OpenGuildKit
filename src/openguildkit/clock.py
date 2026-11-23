@@ -3,9 +3,20 @@
 When SOURCE_DATE_EPOCH is set, following the reproducible-builds convention, its value in
 seconds since 1970-01-01 UTC replaces the current time in now(), today() and timestamp(), so a
 replay writes the same dates on any day; the first use in a process says so on stderr. Decisions
-that depend on time (a share's end, a waiver's length, an approval's age, the age of a market
-observation or a Storybook index, a date in the future) read real_now() and real_today(), which
-the variable never changes. Measuring a duration uses time.monotonic instead.
+that depend on time (a share's end, a waiver's length and its expiry, an approval's age, the age
+of a market observation or a Storybook index, a date in the future) read real_now() and
+real_today(), which the variable never changes. Measuring a duration uses time.monotonic instead.
+
+Which clock dates which field:
+
+- the record clock (timestamp, today), which SOURCE_DATE_EPOCH replaces: a task's created_at and
+  completed_at, the times of board passes, results, check runs and deferrals, the alert register,
+  a deliverable's created_at, and the dates an exported docs site or record shows, so that a
+  replayed export is the same on any day;
+- the real clock (real_timestamp, real_today), which it never changes: what a person decides and
+  whose age or end is measured later, that is a decision (decision.at), the withdrawal of an
+  approval (revoked.at and the decision that withdraws it), the clearance or waiver of a blocker
+  (at), the authorization of an external action (at), and a share of the publishing register.
 """
 
 import os

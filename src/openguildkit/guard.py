@@ -24,7 +24,7 @@ from .project import STATE_DIR, Fingerprints, load_profile, project_root, state_
 from .results import DONE_STATUSES, verification_of
 from .storage import read_json, write_json
 from .task_index import tasks_with_status
-from .tasks import STALE_DAYS, STATUSES, approval_problem, days_since, read_task, task_path
+from .tasks import STALE_DAYS, STATUSES, approval_problem, days_since, expired_waiver_problem, read_task, task_path
 from .workflow import TaskStateError, exported_blockers, mock_evidence
 
 MODES = ("off", "observe", "enforce")
@@ -76,7 +76,7 @@ def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) ->
         try:
             found = approval_problem(task, profile, catalog, root, fingerprints=fingerprints, outside=outside,
                                      explain=False)
-            if found:
+            if found and found["severity"] == "error":
                 continue
             age = _age_days(task["decision"].get("at"))
             brief = task["brief"].strip().splitlines()
@@ -810,6 +810,8 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
             record = read_json(path)
             _record_shape(record, relative)
             problem = _record_problem(record, relative, fingerprint, policy, base_root, earlier, extracted=True, history=root)
+            # A waiver that expired opens its blocker again: the record no longer covers the change.
+            problem = problem or expired_waiver_problem(record, relative)
             if problem:
                 problems.append(problem)
             else:

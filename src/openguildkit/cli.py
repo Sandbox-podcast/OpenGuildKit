@@ -1115,9 +1115,13 @@ def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     # An approval that no longer holds is an error until the task is consulted again; a completed task
     # whose rules changed afterwards is history and stays quiet here (task list shows it).
     read = {}
-    failing = [f"{row['id']}: {row['next']}" for row in list_tasks(state, profile=profile, catalog=catalog,
-                                                                 root=root, read=read)
+    rows = list_tasks(state, profile=profile, catalog=catalog, root=root, read=read)
+    failing = [f"{row['id']}: {row['next']}" for row in rows
                if row["status"] == "unreadable" or row.get("severity") == "error"]
+    # An approval that holds through the signers of the revision it was signed at: said, never failed.
+    for row in rows:
+        if row.get("note"):
+            print(f"OpenGuildKit: {row['id']}: {row['note']}", file=sys.stderr)
     records = exported_decisions(root, state, profile, Fingerprints(profile, catalog))
     failing += [row["problem"]["message"] for row in records
                 if row["problem"] and row["problem"]["severity"] == "error"]

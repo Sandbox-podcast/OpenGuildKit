@@ -236,7 +236,7 @@ test('shows an approval that no longer holds as work for a person, and names the
   await page.getByRole('button', { name: 'Enregistrer et synchroniser' }).click();
   const touched = page.locator('.touched-notice');
   await expect(touched).toContainText('request-history');
-  await expect(touched).toContainText('la consulter à nouveau (task consult request-history)');
+  await expect(touched).toContainText('la consulter à nouveau avec ses réponses (task consult request-history --reuse-answers)');
 
   // The approval no longer holds: a person consults the task again, nothing is left for the agent to build.
   await page.goto('/#/royaume');
