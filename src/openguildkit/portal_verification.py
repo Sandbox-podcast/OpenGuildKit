@@ -7,6 +7,8 @@ Credentials are requested at a terminal, held in memory and never saved in the r
 import getpass
 import http.cookiejar
 import json
+import re
+import ssl
 import sys
 from datetime import date
 from pathlib import Path
@@ -15,7 +17,7 @@ from urllib.parse import quote, urlsplit
 from urllib.request import HTTPRedirectHandler, HTTPCookieProcessor, Request, build_opener
 
 from . import clock
-from .publishing import load_shares, share_space, portal_space
+from .publishing import load_shares, portal_space, share_space
 from .storage import project_lock, read_json, write_json
 
 
@@ -23,6 +25,34 @@ class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, message, headers, newurl):
         fp.close()
         raise ValueError("Documentalist redirected the request; no credentials were forwarded.")
+
+
+_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def _reason(error: Exception, origin: str) -> str:
+    """Why the comparison could not run, in words the owner can act on."""
+    if isinstance(error, HTTPError):
+        detail = ""
+        try:
+            body = json.loads(error.read(4096).decode("utf-8"))
+            if isinstance(body, dict) and isinstance(body.get("error"), str):
+                detail = " (" + "".join(c for c in body["error"][:200] if c.isprintable()) + ")"
+        except (OSError, ValueError, UnicodeError):
+            pass
+        hint = {400: "give --portal the address the instance is configured with (DOCUMENTALIST_URL)",
+                401: "check the account and its password", 403: "use an editor account allowed in this space",
+                404: "check the space in --portal", 409: "set the space's portal access to magic link",
+                429: "wait ten minutes: the instance limits sign-in attempts"}.get(error.code, "check the instance")
+        return f"Documentalist answered HTTP {error.code}{detail}; {hint}."
+    if isinstance(error, URLError):
+        reason = error.reason
+        if isinstance(reason, ssl.SSLCertVerificationError):
+            return f"the TLS certificate of {origin} could not be verified ({reason.verify_message})."
+        return f"{origin} did not answer ({reason})."
+    if isinstance(error, (TimeoutError, OSError)):
+        return f"{origin} did not answer ({error})."
+    return str(error) if isinstance(error, ValueError) else "the answer could not be read."
 
 
 def _origin(portal: str) -> tuple[str, str, str]:
@@ -50,27 +80,55 @@ def _json(opener, origin: str, path: str, payload=None) -> dict:
     return data
 
 
-def _rows(shares: list[dict], space: str, invited: list[str] | None, expirations: dict | None) -> list[dict]:
+def _action(recipient: str, space: str, expected: str | None, present: bool | None, actual: str | None,
+            no_end_dates: bool = False) -> str | None:
+    """What the owner still does by hand in the portal; None when the portal already agrees."""
+    where = f"in the reader settings of space {space}"
+    if present is None:  # Not verified: the portal enforces nothing OpenGuildKit could read.
+        if expected is None:
+            return f"Check {where} that {recipient} no longer has access; remove it there (\"Retirer l'accès\") if it does."
+        if no_end_dates:
+            return (f"This instance keeps no end date: remove {recipient}'s access {where} (\"Retirer l'accès\") "
+                    f"after {expected}, then record it with docs share revoke.")
+        return (f"Check that {recipient} has the last day {expected} {where}; on an instance without end dates remove "
+                f"the access there (\"Retirer l'accès\") after {expected}, then record it with docs share revoke.")
+    if expected is None:
+        return None if not present else f"Remove {recipient}'s access {where} (\"Retirer l'accès\"): no running share gives it."
+    if not present:
+        return f"Invite {recipient} {where} with the last day {expected}, or revoke the share that still gives that access."
+    if actual is None:
+        return f"Set the last day {expected} for {recipient} {where}: the portal gives that access with no end date."
+    if actual != expected:
+        return f"Change the last day for {recipient} {where} from {actual} to {expected}, or correct the register."
+    return None
+
+
+def _rows(shares: list[dict], space: str, invited: list[str] | None, expirations: dict | None,
+          no_end_dates: bool = False) -> list[dict]:
+    """One row per recipient of the space's shares: the register's last day against the portal's.
+
+    Several running shares of one address and space are one access in Documentalist, so the
+    register's last day is the latest of them; a revoked share gives no access.
+    """
     selected = [share for share in shares if share_space(share) == space]
     recipients = sorted({address.strip().lower() for share in selected for address in share["recipients"]})
     result = []
-    today = clock.real_now().date()  # Documentalist expires at the end of the UTC day.
+    today = clock.real_now().date()  # real_now() is UTC, and Documentalist ends access at 00:00 UTC.
     for recipient in recipients:
         current = [s for s in selected if not s["revoked_at"] and recipient in
                    {address.strip().lower() for address in s["recipients"]}]
         expected = max((s["until"] for s in current), default=None)
         row = {"recipient": recipient, "register_until": expected, "shares": [s["id"] for s in current]}
         if invited is None or expirations is None:
-            row.update(source="local-register", status="unverified", action="Check the invitation and remove or update it in Documentalist.")
+            row.update(source="local-register", status="unverified",
+                       action=_action(recipient, space, expected, None, None, no_end_dates))
         else:
             present = recipient in {address.strip().lower() for address in invited}
             actual = expirations.get(recipient) if present else None
-            # A missing expiry is an indefinite invitation, not a date matching an empty register.
-            matches = (not present if expected is None else present and actual == expected)
+            action = _action(recipient, space, expected, present, actual)
             active = present and (actual is None or date.fromisoformat(actual) >= today)
             row.update(source="documentalist-api", invited=present, portal_until=actual, policy_active=active,
-                       status="matches" if matches else "mismatch",
-                       action=None if matches else "Reconcile the date or invitation in Documentalist with the shares of this space.")
+                       status="matches" if action is None else "mismatch", action=action)
         result.append(row)
     return result
 
@@ -85,7 +143,7 @@ def verify_portal(state: Path, portal: str, user: str) -> dict:
     password = getpass.getpass(f"Documentalist password for {user}: ")
     opener = build_opener(_NoRedirect(), HTTPCookieProcessor(http.cookiejar.CookieJar()))
     logged_in = False
-    source, problem, invited, expirations = "local-register", None, None, None
+    source, problem, invited, expirations, no_end_dates = "local-register", None, None, None, False
     try:
         _json(opener, origin, "/api/auth/login", {"email": user, "password": password})
         password = None
@@ -101,17 +159,21 @@ def verify_portal(state: Path, portal: str, user: str) -> dict:
         if not isinstance(data.get("emails"), list) or not all(isinstance(v, str) for v in data["emails"]):
             raise ValueError("The instance did not return its invitation list.")
         if "expirations" not in data:
-            problem = "This Documentalist version does not expose invitation expiry; check and remove access by hand."
+            no_end_dates = True
+            problem = "This Documentalist version keeps no end date per reader; remove each access by hand after its last day."
         elif not isinstance(data["expirations"], dict) or not all(isinstance(k, str) and isinstance(v, str)
                                                                      for k, v in data["expirations"].items()):
             problem = "The instance returned an invalid expiry list; check access by hand."
+        elif not all(_DAY.fullmatch(day) for day in data["expirations"].values()):
+            problem = "The instance returned an expiry that is not a YYYY-MM-DD day; check access by hand."
         else:
-            invited, expirations, source = data["emails"], data["expirations"], "documentalist-api"
-            for day in expirations.values():
+            for day in data["expirations"].values():
                 date.fromisoformat(day)
-    except (HTTPError, URLError, OSError, ValueError, UnicodeError, json.JSONDecodeError):
+            invited, source = data["emails"], "documentalist-api"
+            expirations = {address.strip().lower(): day for address, day in data["expirations"].items()}
+    except (HTTPError, URLError, OSError, ValueError, UnicodeError) as error:
         invited, expirations, source = None, None, "local-register"
-        problem = "The portal could not be verified. Check the address, account, permissions and access in Documentalist."
+        problem = f"The portal could not be verified: {_reason(error, origin)}"
     finally:
         password = None
         if logged_in:
@@ -120,7 +182,7 @@ def verify_portal(state: Path, portal: str, user: str) -> dict:
             except (HTTPError, URLError, OSError, ValueError, UnicodeError):
                 pass
     report = {"space": space, "checked_at": clock.real_timestamp(), "source": source, "problem": problem,
-              "rows": _rows(shares, space, invited, expirations),
+              "rows": _rows(shares, space, invited, expirations, no_end_dates),
               "scope": "Invitation settings only; verify actual reader access separately."}
     path = state / "shares" / "portal-observations.json"
     with project_lock(state):
