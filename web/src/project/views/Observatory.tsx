@@ -18,6 +18,10 @@ export function Observatory({ id }: { id?: string }) {
   const due = useMarketDue();
   const profile = useProfile();
   const [creating, setCreating] = useState(false);
+  // Under local-only no agent opens a page: a person reviews it and records it under their name (market provided).
+  const localOnly = (profile.data?.research ?? 'local-only') === 'local-only';
+  const [providing, setProviding] = useState<null | { dossier: string; url: string }>(null);
+  const [by, setBy] = useRemembered('decider');
   const { act, busy } = useAction();
   const current = id ?? dossiers.data?.[0];
   return (
@@ -30,10 +34,20 @@ export function Observatory({ id }: { id?: string }) {
       </div>
       {(due.data?.due.length ?? 0) > 0 && <Panel title={`Veille : ${due.data!.due.length} source(s) à relire`} tone="ai">
         <ul className="plain stack tight" data-own>{due.data!.due.map((d) => <li key={d.url} className="row between"><span><strong>{d.competitor}</strong> · {d.kind} · <ExternalLink href={d.url} /> <span className="tiny muted">({d.dossier})</span></span>
-          <Button size="small" busy={busy !== null} onClick={() => void act(['market', 'checked', d.dossier, '--url', d.url], { success: 'Source marquée relue' })}>Relue, rien de neuf</Button></li>)}</ul>
-        <p className="tiny muted">L’agent ne les consulte que si la politique de recherche le permet. Un changement retenu s’enregistre dans le dossier avec la personne qui l’a vérifié.</p>
+          {localOnly
+            ? <Button size="small" busy={busy !== null} onClick={() => setProviding({ dossier: d.dossier, url: d.url })}>Relue par une personne</Button>
+            : <Button size="small" busy={busy !== null} onClick={() => void act(['market', 'checked', d.dossier, '--url', d.url], { success: 'Source marquée relue' })}>Relue, rien de neuf</Button>}</li>)}</ul>
+        <p className="tiny muted">{localOnly ? 'Recherche locale : aucun agent n’ouvre ces pages. Une personne relit chacune, puis l’enregistre sous son nom.' : 'L’agent ne les consulte que si la politique de recherche le permet.'} Un changement retenu s’enregistre dans le dossier avec la personne qui l’a vérifié.</p>
       </Panel>}
       {current ? <DossierView id={current} /> : dossiers.data && <Empty title="Aucun dossier de marché" action={<Button variant="primary" onClick={() => setCreating(true)}>Créer un dossier</Button>}>Un dossier compare la fonctionnalité aux concurrents directs et aux substituts (un tableur, un courriel, ne rien faire).</Empty>}
+      <Dialog open={providing !== null} onClose={() => setProviding(null)} title="Page relue par une personne">
+        {providing && <ActionForm busy={busy !== null} submit="Enregistrer" initial={{ by }} fields={[
+          { name: 'by', label: 'Qui a relu la page', required: true, hint: providing.url },
+        ]} onSubmit={async (v) => {
+          setBy(v.by);
+          if (await act(['market', 'provided', providing.dossier, '--url', providing.url, '--by', v.by], { success: 'Relecture enregistrée' })) setProviding(null);
+        }} />}
+      </Dialog>
       <Dialog open={creating} onClose={() => setCreating(false)} title="Nouveau dossier de marché">
         <ActionForm busy={busy !== null} submit="Créer" fields={[
           { name: 'id', label: 'Identifiant', required: true, placeholder: 'support-portals', hint: 'Minuscules et tirets.', check: (v) => (SLUG.test(v) ? null : 'Minuscules, chiffres et tirets simples, sans espace ni accent, comme support-portals.') },

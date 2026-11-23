@@ -532,8 +532,13 @@ test('keeps keyboard focus on the selected watchtower tab as the address changes
 
 test('creates a market dossier, adds a competitor and an observation, and reviews a watched source', async ({ page }) => {
   await open(page, '/observatoire');
-  await page.getByRole('button', { name: 'Relue, rien de neuf' }).first().click();
-  await expect(page.getByText('Source marquée relue')).toBeVisible();
+  // The sample project runs under local-only: no agent opens the page, a person records their review under their name.
+  await expect(page.getByRole('button', { name: 'Relue, rien de neuf' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Relue par une personne' }).first().click();
+  const reviewed = page.getByRole('dialog', { name: 'Page relue par une personne' });
+  await reviewed.getByLabel('Qui a relu la page').fill('Camille Martin');
+  await reviewed.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByText('Relecture enregistrée')).toBeVisible();
 
   await page.getByRole('button', { name: 'Nouveau dossier' }).click();
   let dialog = page.getByRole('dialog', { name: 'Nouveau dossier de marché' });

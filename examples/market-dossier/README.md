@@ -5,7 +5,7 @@
 ```bash
 openguildkit market check support-portals
 openguildkit market due support-portals
-openguildkit market checked support-portals --url https://example.com/vendor-a/release-notes
+openguildkit market provided support-portals --url https://example.com/vendor-a/release-notes --by CM   # local-only: a person reviewed it
 openguildkit task consult request-status --answers answers.json --market support-portals
 ```
 

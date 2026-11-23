@@ -3,7 +3,8 @@
 # per watched competitor source whose review is due, unless an open issue already has that title.
 # The job only lists sources: it opens no competitor page. A person, or the market-analyst agent
 # under the project's research policy, reviews each source and records the result with
-# `openguildkit market checked` or `openguildkit market change`.
+# `openguildkit market checked` or `openguildkit market change`; under local-only, a person records it
+# with `openguildkit market provided --by NAME`, which the issue says.
 name: OpenGuildKit market watch
 
 on:
