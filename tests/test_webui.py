@@ -76,7 +76,7 @@ class WebInterfaceTests(unittest.TestCase):
         self.root = Path(temporary.name).resolve() / "portal"
         self.root.mkdir()
         front = fake_front(Path(temporary.name).resolve() / "dist")
-        write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"], "packs": ["python"]})
+        write_json(self.root / "profile.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"], "packs": ["python"]})
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(main(["--project", str(self.root), "init", "--answers", str(self.root / "profile.json")]), 0)
         self.server, self.app = make_server(self.root, 0, front)
@@ -393,7 +393,7 @@ class WebInterfaceTests(unittest.TestCase):
         profile = self.root / ".openguildkit" / "project.json"
         before = profile.read_text(encoding="utf-8")
         status, _, body = self.request("/api/profile/save",
-                                       {"text": json.dumps({"name": "Portail support", "research": "everywhere"})})
+                                       {"text": json.dumps({"personal_data": "no", "name": "Portail support", "research": "everywhere"})})
         answer = json.loads(body)
         self.assertEqual((status, answer["code"], answer["restored"]), (200, 1, True), answer)
         self.assertIn("research", answer["stderr"])

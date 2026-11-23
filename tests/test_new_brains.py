@@ -75,7 +75,7 @@ class DisciplineLensTests(unittest.TestCase):
         self.assertEqual(missing, [])
 
     def test_the_board_pass_names_its_lenses_and_where_their_checks_are(self):
-        profile = {"name": "Billing", "sector": "general", "packs": [], "boards": ["finance"]}
+        profile = {"personal_data": "no", "name": "Billing", "sector": "general", "packs": [], "boards": ["finance"]}
         task = {"id": "t", "brief": "Recognise revenue for multi-year contracts under IFRS 15.",
                 "answers": {"kind": "feature", "surface": ["business"], "data": "internal", "research": "local"}}
         knowledge = {"finance": brief_knowledge("finance", self.catalog, self.families, set())}
@@ -157,7 +157,7 @@ class ProjectBrainTests(unittest.TestCase):
         catalog = load_catalog(self.root)
         self.assertIn("Sanctions screening log.", catalog["boards"]["legal"]["review"]["evidence"])
         bundled = {collection: set(entries) for collection, entries in load_catalog().items()}
-        profile = {"name": "P", "sector": "general", "packs": [], "boards": ["legal"]}
+        profile = {"personal_data": "no", "name": "P", "sector": "general", "packs": [], "boards": ["legal"]}
         self.assertNotIn("legal", locked_records(profile, catalog, bundled)["boards"])
         old_lock = {"records": {"boards": {"legal": load_catalog()["boards"]["legal"]}}}
         self.assertIn("Sanctions screening log.", apply_lock(catalog, old_lock)["boards"]["legal"]["review"]["evidence"])

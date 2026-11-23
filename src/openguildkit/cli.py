@@ -1015,6 +1015,18 @@ def _warn_unsigned(profile: dict) -> None:
         print(warning, file=sys.stderr)
 
 
+def _require_answers(answers: dict, questions: list[dict]) -> None:
+    """The questions an answers file cannot leave out: those without a default, such as personal data, which
+    decides whether the laws on personal data are proposed."""
+    missing = [question for question in questions if question.get("required") and question["id"] not in answers]
+    if missing:
+        lines = "\n".join(f"- {question['id']}: {question['prompt']} Answer "
+                          f"{', '.join(choice['id'] for choice in question.get('choices', []))} or unsure "
+                          f"({question['unsure']})." for question in missing)
+        raise ValueError(f"The setup answers leave out {len(missing)} question(s) that need an answer. Nothing was "
+                         f"written.\n{lines}")
+
+
 def _init(args, root: Path, state: Path, catalog: dict) -> None:
     """Print the setup questionnaire, or write the profile, the instructions and the catalog lock from the answers."""
     questions, registry = _setup_questions(root, state, catalog)
@@ -1027,6 +1039,8 @@ def _init(args, root: Path, state: Path, catalog: dict) -> None:
         raise ValueError("init needs a terminal for its questions. Without one, print them with openguildkit init "
                          "--questions, save the answers as JSON, then run openguildkit init --answers PATH.")
     answers = read_json(args.answers) if args.answers else _interactive_init(questions, catalog, registry)
+    if args.answers and isinstance(answers, dict):
+        _require_answers(answers, questions)
     if isinstance(answers, dict):
         for note in unsure_answers(answers, questions)[1]:
             print(f"OpenGuildKit: {note}", file=sys.stderr)

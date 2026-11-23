@@ -20,7 +20,7 @@ REPO = Path(__file__).resolve().parents[2]
 ENV = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"), os.environ.get("PYTHONPATH")])),
        "PYTHONIOENCODING": "utf-8"}
 PROFILE = {
-    "name": "Acme Support Portal", "sector": "general", "stack": ["Python"], "packs": [], "host": "codex",
+    "name": "Acme Support Portal", "sector": "general", "personal_data": "no", "stack": ["Python"], "packs": [], "host": "codex",
     "boards": ["product", "qa", "security", "hr"], "research": "local-only",
     "tools": ["Jira", "GitHub", "Snyk", "Factorial", "Tempo", "Gryzzly"],
 }

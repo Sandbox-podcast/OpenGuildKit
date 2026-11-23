@@ -115,7 +115,7 @@ class AdditivePackTests(unittest.TestCase):
             self.profile(stack=NEXTJS, replace_default_packs="yes")
 
     def test_a_saved_profile_keeps_its_packs_on_load(self):
-        saved = {"name": "Shop", "stack": NEXTJS, "packs": ["agent-workflow", "gdpr"]}
+        saved = {"personal_data": "no", "name": "Shop", "stack": NEXTJS, "packs": ["agent-workflow", "gdpr"]}
         self.assertEqual(validate_profile(saved, self.catalog)["packs"], ["agent-workflow", "gdpr"])
         self.assertNotIn("patterns", validate_profile(saved, self.catalog))
 
@@ -135,10 +135,26 @@ class InitCommandTests(CapturedCli, unittest.TestCase):
     def profile(self):
         return read_json(self.root / ".openguildkit" / "project.json")
 
+    def test_answers_without_personal_data_are_refused_with_the_question_named(self):
+        for answers in ({}, {"name": "X", "sector": "general", "stack": ["Python"]}):
+            with self.subTest(answers=answers):
+                write_json(self.answers, answers)
+                _, error = self.run_cli("init", "--answers", self.answers, code=1)
+                self.assertIn("personal_data", error)
+                self.assertIn("Does the project process personal data", error)
+                self.assertIn("Nothing was written", error)
+                self.assertFalse((self.root / ".openguildkit").exists())
+        # "unsure" is an answer: the protective one, which proposes the laws on personal data.
+        write_json(self.answers, {"name": "X", "stack": ["Python"], "personal_data": "unsure"})
+        _, error = self.run_cli("init", "--answers", self.answers, code=1)
+        self.assertIn("gdpr-personal-data", error)
+        self.init({"name": "X", "stack": ["Python"], "personal_data": "no"})
+        self.assertIs(self.profile()["personal_data"], False)
+
     def test_empty_answers_take_every_documented_default(self):
         (self.root / "pyproject.toml").write_text(FASTAPI, encoding="utf-8")
         questions = {item["id"]: item for item in json.loads(self.run_cli("init", "--questions")[0])}
-        self.init({})
+        self.init({"personal_data": "no"})
         profile = self.profile()
         self.assertEqual(profile["name"], "ledger")
         self.assertEqual(profile["components"], questions["components"]["default"])
@@ -152,14 +168,14 @@ class InitCommandTests(CapturedCli, unittest.TestCase):
         for folder in ("api", "worker"):
             (self.root / folder).mkdir()
             (self.root / folder / "pyproject.toml").write_text(FASTAPI, encoding="utf-8")
-        _, error = self.init({"name": "svc", "stack": ["Python"]})
+        _, error = self.init({"personal_data": "no", "name": "svc", "stack": ["Python"]})
         self.assertIn("components", error)
         self.assertIn("FastAPI", error)
         self.assertNotIn("components", self.profile())
 
     def test_init_keeps_a_single_detected_root_with_the_written_stack(self):
         (self.root / "pyproject.toml").write_text(FASTAPI, encoding="utf-8")
-        _, error = self.init({"name": "svc", "stack": ["Python"]})
+        _, error = self.init({"personal_data": "no", "name": "svc", "stack": ["Python"]})
         self.assertNotIn("left aside", error)
         [component] = self.profile()["components"]
         self.assertEqual(component["path"], ".")
@@ -167,7 +183,7 @@ class InitCommandTests(CapturedCli, unittest.TestCase):
         self.assertTrue(any(item.startswith("Python") for item in component["stack"]), component)
 
     def test_a_new_project_without_a_guard_answer_brings_the_board_without_blocking(self):
-        output, _ = self.init({"name": "svc"})
+        output, _ = self.init({"name": "svc", "personal_data": "no"})
         self.assertEqual(self.profile()["guard"], "observe")
         self.assertIn("observe", output)
         self.assertIn("not blocked", output)
@@ -178,7 +194,7 @@ class InitCommandTests(CapturedCli, unittest.TestCase):
         self.assertIn("flagged, not blocked", json.loads(output)["hookSpecificOutput"]["additionalContext"])
 
     def test_an_existing_profile_without_a_guard_stays_off(self):
-        self.init({"name": "svc", "guard": "off"})
+        self.init({"personal_data": "no", "name": "svc", "guard": "off"})
         profile = self.profile()
         del profile["guard"]
         write_json(self.root / ".openguildkit" / "project.json", profile)
@@ -188,7 +204,7 @@ class InitCommandTests(CapturedCli, unittest.TestCase):
         self.assertEqual(self.run_cli("guard", "--hook", "prompt", stdin=""), ("", ""))
 
     def test_init_prints_only_the_next_steps_that_apply(self):
-        output, error = self.init({"name": "svc", "host": "claude-code", "tools": ["Jira", "Acme Timesheets"]})
+        output, error = self.init({"personal_data": "no", "name": "svc", "host": "claude-code", "tools": ["Jira", "Acme Timesheets"]})
         self.assertIn("openguildkit host apply", output)
         self.assertIn("openguildkit tools plan jira", output)
         self.assertIn("Acme Timesheets", output)
@@ -196,13 +212,13 @@ class InitCommandTests(CapturedCli, unittest.TestCase):
         other = Path(self.root.parent / "plain")
         other.mkdir()
         self.root = other
-        output, _ = self.init({"name": "plain"})
+        output, _ = self.init({"name": "plain", "personal_data": "no"})
         self.assertNotIn("host apply", output)
         self.assertNotIn("tools plan", output)
 
     def test_preview_applies_the_same_defaults_as_init(self):
         (self.root / "pyproject.toml").write_text(FASTAPI, encoding="utf-8")
-        write_json(self.answers, {"name": "svc", "packs": ["gdpr"]})
+        write_json(self.answers, {"personal_data": "no", "name": "svc", "packs": ["gdpr"]})
         plan = json.loads(self.run_cli("preview", "--answers", self.answers, "--json")[0])
         packs = [pack["id"] for pack in plan["packs"]]
         self.assertIn("gdpr", packs)

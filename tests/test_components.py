@@ -98,7 +98,7 @@ class ComponentPatternTests(unittest.TestCase):
         self.assertEqual(compound["components"], ["api"])
 
     def test_scoped_patterns_reach_the_instructions_and_their_packs(self):
-        answers = {
+        answers = {"personal_data": "no", 
             "name": "Portal",
             "components": [
                 {"id": "web", "path": "apps/web", "stack": ["Next.js 14.2", "React 18"]},
@@ -118,7 +118,7 @@ class ComponentPatternTests(unittest.TestCase):
         self.assertIn("nextjs", resolved_profile(profile, self.catalog)["packs"])
 
     def test_a_context_change_lists_the_patterns_to_review(self):
-        profile = validate_profile({"name": "Portal", "stack": ["Next.js 14", "React"]}, self.catalog)
+        profile = validate_profile({"personal_data": "no", "name": "Portal", "stack": ["Next.js 14", "React"]}, self.catalog)
         self.assertEqual(patterns_to_review(profile, self.catalog), [])
         profile["stack"] = ["Next.js 12", "React"]
         review = patterns_to_review(profile, self.catalog)
@@ -126,7 +126,7 @@ class ComponentPatternTests(unittest.TestCase):
         self.assertIn("below", review[0]["reasons"][0])
 
     def test_previous_profiles_keep_their_instructions(self):
-        answers = {"name": "Backend", "stack": ["Python", "FastAPI", "PostgreSQL"], "patterns": ["python-fastapi-postgresql"]}
+        answers = {"personal_data": "no", "name": "Backend", "stack": ["Python", "FastAPI", "PostgreSQL"], "patterns": ["python-fastapi-postgresql"]}
         profile = validate_profile(answers, self.catalog)
         self.assertEqual(profile["patterns"], ["python-fastapi-postgresql"])
         self.assertNotIn("components", profile)
@@ -137,10 +137,10 @@ class ComponentPatternTests(unittest.TestCase):
     def test_profile_rejects_unknown_component_scopes_and_unsafe_paths(self):
         components = [{"id": "web", "path": "apps/web", "stack": ["React"]}]
         with self.assertRaisesRegex(ValueError, "unknown components"):
-            validate_profile({"name": "x", "components": components,
+            validate_profile({"personal_data": "no", "name": "x", "components": components,
                               "patterns": [{"id": "react-web", "components": ["api"]}]}, self.catalog)
         with self.assertRaisesRegex(ValueError, "relative"):
-            validate_profile({"name": "x", "components": [{"id": "web", "path": "../web", "stack": ["React"]}]}, self.catalog)
+            validate_profile({"personal_data": "no", "name": "x", "components": [{"id": "web", "path": "../web", "stack": ["React"]}]}, self.catalog)
 
     def test_catalog_checks_minimum_versions(self):
         pattern = json.loads(json.dumps(self.catalog["patterns"]["nextjs-react"]))
@@ -167,7 +167,7 @@ class ComponentTaskTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            write(root, "profile.json", {
+            write(root, "profile.json", {"personal_data": "no", 
                 "name": "Shop", "components": [
                     {"id": "web", "path": "web", "stack": ["React", "TypeScript"]},
                     {"id": "api", "path": "api", "stack": ["Python", "FastAPI", "PostgreSQL"]},

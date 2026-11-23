@@ -19,7 +19,8 @@ To preview a project, save this example as `answers.json`.
   "name": "Support API",
   "sector": "general",
   "stack": ["Python 3.12", "FastAPI", "PostgreSQL 16"],
-  "roles": ["engineering", "project-management", "security"]
+  "roles": ["engineering", "project-management", "security"],
+  "personal_data": "no"
 }
 ```
 
@@ -86,7 +87,8 @@ Use `e` in the interactive questionnaire to correct a component's stack and vers
   "components": [
     {"id": "web", "path": "apps/web", "stack": ["Next.js 14.2", "React 18.3", "TypeScript"]},
     {"id": "api", "path": "services/api", "stack": ["Python 3.12", "FastAPI", "PostgreSQL 16"]}
-  ]
+  ],
+  "personal_data": "no"
 }
 ```
 

@@ -132,7 +132,7 @@ class ProjectCatalogToolTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             answers = root / "profile.json"
-            answers.write_text(json.dumps({"name": "Portal", "host": "claude-code"}), encoding="utf-8")
+            answers.write_text(json.dumps({"personal_data": "no", "name": "Portal", "host": "claude-code"}), encoding="utf-8")
             self.assertEqual(run("--project", root, "init", "--answers", answers)[0], 0)
             extra = root / ".openguildkit" / "catalog" / "tools"
             extra.mkdir(parents=True)
@@ -466,7 +466,7 @@ class CommandTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             answers = root / "profile.json"
-            answers.write_text(json.dumps({"name": "Portal", "host": "claude-code"}), encoding="utf-8")
+            answers.write_text(json.dumps({"personal_data": "no", "name": "Portal", "host": "claude-code"}), encoding="utf-8")
             self.assertEqual(run("--project", root, "init", "--answers", answers)[0], 0)
             apply = ("--project", root, "tools", "apply", "Sentry")
             config = root / ".mcp.json"
@@ -760,7 +760,7 @@ class MockDataTests(unittest.TestCase):
                          load_mock("jira")["records"]["issues"]["items"])
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "a.json").write_text(json.dumps({"name": "Clinic booking", "host": "codex", "tools": ["Jira", "Zendesk", "Gryzzly"]}),
+            (root / "a.json").write_text(json.dumps({"personal_data": "no", "name": "Clinic booking", "host": "codex", "tools": ["Jira", "Zendesk", "Gryzzly"]}),
                                          encoding="utf-8")
             self.assertEqual(run("--project", directory, "init", "--answers", root / "a.json")[0], 0)
             self.assertEqual(run("--project", directory, "task", "new", brief, "--id", "booking")[0], 0)
@@ -867,7 +867,7 @@ class ReviewPlanTests(unittest.TestCase):
     def test_tool_names_are_accepted_whatever_their_case(self):
         self.assertEqual(plan_connections(TOOLS, ["Notion", "JIRA", "GitHub/GitHub-Local"], "codex")[2]["key"], "github-local")
         with tempfile.TemporaryDirectory() as directory:
-            (Path(directory) / "a.json").write_text(json.dumps({"name": "x", "host": "codex"}), encoding="utf-8")
+            (Path(directory) / "a.json").write_text(json.dumps({"personal_data": "no", "name": "x", "host": "codex"}), encoding="utf-8")
             run("--project", directory, "init", "--answers", Path(directory) / "a.json")
             code, out, _ = run("--project", directory, "tools", "plan", "Notion", "SonarQube", "--read-only")
             self.assertEqual(code, 0)
@@ -880,7 +880,7 @@ class ReviewPlanTests(unittest.TestCase):
     def test_applying_a_live_server_needs_a_yes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "a.json").write_text(json.dumps({"name": "x", "host": "claude-code"}), encoding="utf-8")
+            (root / "a.json").write_text(json.dumps({"personal_data": "no", "name": "x", "host": "claude-code"}), encoding="utf-8")
             run("--project", directory, "init", "--answers", root / "a.json")
             with patching.patch("sys.stdin", io.StringIO("")):
                 code, _, err = run("--project", directory, "tools", "apply", "sentry")
@@ -911,7 +911,7 @@ class ApplyOutcomeTests(unittest.TestCase):
         self._directory = tempfile.TemporaryDirectory()
         self.addCleanup(self._directory.cleanup)
         self.root = Path(self._directory.name)
-        (self.root / "a.json").write_text(json.dumps({"name": "x", "host": "codex"}), encoding="utf-8")
+        (self.root / "a.json").write_text(json.dumps({"personal_data": "no", "name": "x", "host": "codex"}), encoding="utf-8")
         run("--project", self.root, "init", "--answers", self.root / "a.json")
 
     def apply(self, *args: str) -> tuple[int, str, str]:
@@ -960,7 +960,7 @@ class MockEvidenceTests(unittest.TestCase):
         example = Path(__file__).resolve().parents[1] / "examples" / "request-status"
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            write_json(root / "profile.json", {"name": "Support portal", "stack": ["Python"], "packs": [], "host": "codex"})
+            write_json(root / "profile.json", {"personal_data": "no", "name": "Support portal", "stack": ["Python"], "packs": [], "host": "codex"})
             run("--project", root, "init", "--answers", root / "profile.json")
             self.assertEqual(run("--project", root, "tools", "apply", "jira", "--mock")[0], 0)
             run("--project", root, "task", "new", "--file", example / "brief.md", "--id", "status")
@@ -1011,7 +1011,7 @@ class MockWriteAndApplyDetailTests(unittest.TestCase):
     def test_plan_apply_remove_and_recommend_details(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "a.json").write_text(json.dumps({"name": "x", "host": "codex", "tools": ["Jira"]}), encoding="utf-8")
+            (root / "a.json").write_text(json.dumps({"personal_data": "no", "name": "x", "host": "codex", "tools": ["Jira"]}), encoding="utf-8")
             run("--project", root, "init", "--answers", root / "a.json")
             code, _, err = run("--project", root, "tools", "plan", "kubernetes")
             self.assertEqual(code, 0)
@@ -1071,7 +1071,7 @@ class PolishTests(unittest.TestCase):
     def test_an_unknown_tool_is_left_unconnected_and_the_others_connect(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "a.json").write_text(json.dumps({"name": "x", "host": "codex", "tools": ["Jira", "Steam"]}), encoding="utf-8")
+            (root / "a.json").write_text(json.dumps({"personal_data": "no", "name": "x", "host": "codex", "tools": ["Jira", "Steam"]}), encoding="utf-8")
             run("--project", root, "init", "--answers", root / "a.json")
             code, out, err = run("--project", root, "tools", "apply", "jira", "steam", "--mock")
             self.assertEqual(code, 2, err)

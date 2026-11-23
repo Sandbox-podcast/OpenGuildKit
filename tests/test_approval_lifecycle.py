@@ -46,7 +46,7 @@ class ApprovalCase(unittest.TestCase):
 
     def init(self, **profile):
         command = f'"{sys.executable}" -c "print(1)"'
-        write_json(self.root / "profile.json", {"name": "Support portal", "stack": ["Python"], "packs": [],
+        write_json(self.root / "profile.json", {"personal_data": "no", "name": "Support portal", "stack": ["Python"], "packs": [],
                                                 "checks": [command], **profile})
         self.run_cli("init", "--answers", self.root / "profile.json")
         self.state = self.root / ".openguildkit"

@@ -163,7 +163,7 @@ class VerifyAndEvidenceTests(CapturedCli, unittest.TestCase):
 
     def approved(self, rules, data="personal", **extra):
         write_json(self.root / ".openguildkit" / "catalog" / "packs" / "team-rules.json", pack(rules))
-        write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"], "packs": ["team-rules"],
+        write_json(self.root / "profile.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"], "packs": ["team-rules"],
                                                  "checks": [], **extra})
         self.run_cli("init", "--answers", self.root / "profile.json")
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
@@ -365,10 +365,10 @@ class RegulationPackTests(unittest.TestCase):
         self.assertNotIn("pci-dss-cardholder-data", {entry["id"] for entry in without["matched"]})
         security = profile_recommendations({"stack": ["Python"], "roles": ["security"]}, self.catalog)
         self.assertIn("pci-dss-cardholder-data", {entry["id"] for entry in security["suggested"]})
-        chosen = validate_profile({"name": "Shop", "stack": ["Python"], "patterns": ["pci-dss-cardholder-data"]},
+        chosen = validate_profile({"personal_data": "no", "name": "Shop", "stack": ["Python"], "patterns": ["pci-dss-cardholder-data"]},
                                   self.catalog)
         self.assertIn("pci-dss", resolved_profile(chosen, self.catalog)["packs"])
-        declined = validate_profile({"name": "Shop", "stack": ["Stripe"], "declined": ["pci-dss-cardholder-data"]},
+        declined = validate_profile({"personal_data": "no", "name": "Shop", "stack": ["Stripe"], "declined": ["pci-dss-cardholder-data"]},
                                     self.catalog)
         self.assertNotIn("pci-dss", resolved_profile(declined, self.catalog)["packs"])
 
@@ -407,18 +407,18 @@ class RegulationPackTests(unittest.TestCase):
         self.assertNotIn("gdpr", resolved_profile(no_data, self.catalog)["packs"])
         with tempfile.TemporaryDirectory() as directory:
             # A norm is active only once a person accepts it (#153): init stops until each one is answered.
-            write_json(Path(directory) / "answers.json", {"name": "Ledger", "sector": "financial-services"})
+            write_json(Path(directory) / "answers.json", {"personal_data": "no", "name": "Ledger", "sector": "financial-services"})
             errors = io.StringIO()
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(errors):
                 self.assertEqual(main(["--project", directory, "init", "--answers", f"{directory}/answers.json"]), 1)
             self.assertIn("dora-financial-entity", errors.getvalue())
-            write_json(Path(directory) / "answers.json", {"name": "Ledger", "sector": "financial-services", "norms": {
+            write_json(Path(directory) / "answers.json", {"personal_data": "no", "name": "Ledger", "sector": "financial-services", "norms": {
                 "dora-financial-entity": "yes", "gdpr-personal-data": "yes", "european-accessibility-act": "yes"}})
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                 self.assertEqual(main(["--project", directory, "init", "--answers", f"{directory}/answers.json"]), 0)
             created = json.loads((Path(directory) / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
             self.assertLessEqual({"dora", "gdpr"}, set(resolved_profile(created, self.catalog)["packs"]))
-        declined = validate_profile({"name": "Ledger", "sector": "financial-services",
+        declined = validate_profile({"personal_data": "no", "name": "Ledger", "sector": "financial-services",
                                      "declined": ["gdpr-personal-data", "dora-financial-entity"]}, self.catalog)
         self.assertFalse({"dora", "gdpr"} & set(resolved_profile(declined, self.catalog)["packs"]))
 
