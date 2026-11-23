@@ -373,7 +373,7 @@
     {
       "id": "csaf",
       "title": "Common Security Advisory Framework (CSAF) 2.0",
-      "edition": "2.0, errata 01",
+      "edition": "2.0 Errata 01",
       "category": "Chaîne logicielle et dépendances",
       "kind": "format",
       "brains": [
@@ -385,7 +385,7 @@
       "sources": [
         {
           "url": "https://docs.oasis-open.org/csaf/csaf/v2.0/csaf-v2.0.html",
-          "checked": "2026-11-21",
+          "checked": "2026-11-23",
           "title": "Common Security Advisory Framework Version 2.0 Errata 01"
         }
       ]
