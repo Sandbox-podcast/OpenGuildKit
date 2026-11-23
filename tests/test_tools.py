@@ -173,6 +173,18 @@ class MatchingTests(unittest.TestCase):
         self.assertEqual(found["sentry"], ["pypi:sentry-sdk"])
         self.assertNotIn("jira", found)
 
+    def test_stripe_is_proposed_for_its_browser_packages(self):
+        """A front end that uses Stripe Elements declares only @stripe/stripe-js and @stripe/react-stripe-js."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "package.json").write_text(json.dumps({"dependencies": {
+                "@stripe/stripe-js": "^4.0.0", "@stripe/react-stripe-js": "^2.8.0"}}), encoding="utf-8")
+            found = {item["tool"]: item["signals"] for item in detect_tools(root, TOOLS)}
+            questions = json.loads(run_cli(root, "init", "--questions").stdout)
+        self.assertEqual(found["stripe"], ["npm:@stripe/stripe-js", "npm:@stripe/react-stripe-js"])
+        listed = questions if isinstance(questions, list) else questions["questions"]
+        self.assertIn("stripe", next(item for item in listed if item["id"] == "tools")["default"])
+
     def test_the_vendor_remote_server_comes_first_and_community_servers_need_consent(self):
         self.assertEqual(choose_server(TOOLS["github"])["id"], "github-remote")
         self.assertIsNone(choose_server(TOOLS["redmine"]))
