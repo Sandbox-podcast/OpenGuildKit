@@ -131,7 +131,7 @@ openguildkit task revoke request-status --by CM --reason "Support moves the port
 - `task clear` clears a blocker with evidence, a project file or a link. A blocker of phase `verification` is a condition of approval: you approve first, and clear it once the code exists.
 - `task decide --approve` shows the decision brief and asks you to type the task ID. The approval is sealed.
 - `task decide --request-changes` sends the task back to scoping, and its history is kept.
-- `task revoke` withdraws an approval when the work is abandoned or a condition of the approval cannot be met: the task goes back to changes requested, and the guard stops covering its edits.
+- `task revoke` withdraws an approval when the work is abandoned or a condition of the approval cannot be met: the task goes back to changes requested, and the guard stops covering its edits. When the decision was already exported, run `task export` again and commit the record: it then carries the withdrawal.
 - `--by` takes your initials or your team handle, not your full name: it is copied into files the team commits, and an approval keeps it under its seal ([personal data](docs/personal-data.md)).
 
 **4. Deliver and close.**
@@ -142,7 +142,9 @@ openguildkit task verify request-status
 openguildkit task result request-status --template > result.json
 openguildkit task result request-status --file result.json
 openguildkit task complete request-status
+git add -A && git commit -m "Show each request's status"
 openguildkit task export request-status
+git add .openguildkit/decisions && git commit -m "Decision record of request-status"
 ```
 
 - `task handoff` gives the agent the implementation brief: the approved scope and the rules in force. The agent delivers that scope only.
@@ -150,7 +152,8 @@ openguildkit task export request-status
 - `task result --template` asks only the rules that concern the task. The others are listed as not concerned, with the reason.
 - `task result --file` records the result the agent filled in. You confirm each rule set aside, and the owner of each named evidence (record of processing activities, DPIA decision) provides it.
 - `task complete` closes the task as `done` when nothing is left open, or as `done-with-reservations` with the open points, the most serious first. `task show --closing` prints them again, and `task new --follows` opens a linked task to take them up.
-- `task export` writes the decision record, to commit with the work: the pull request check reads it.
+- Commit the work before `task export`: the record lists the files Git tracks that changed since the approval, and the pull request check requires each changed file in it. `task export` names the new files Git does not track yet, which no record covers.
+- `task export` writes the decision record; commit it in the same pull request. After `task revoke`, `task export` writes the withdrawal into the record, and the check then refuses it.
 
 ## Browse the catalog
 

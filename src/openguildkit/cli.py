@@ -769,7 +769,7 @@ def _guard(args, root: Path, state: Path) -> int:
             print(f"Guard mode on {args.base}: {result['mode']}. {result['changed']} changed file(s).")
             for task_id in result["decisions"]:
                 # A valid record covers the change only when nothing else is wrong, such as a file it does not list.
-                where = f".openguildkit/decisions/{task_id}.json"
+                where = result["records"][task_id]
                 print(f"  Covered by the decision of task {task_id} ({where})." if result["ok"]
                       else f"  Valid decision of task {task_id} ({where}), but the check fails:")
             for problem in result["problems"]:
