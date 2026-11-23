@@ -699,7 +699,7 @@
     {
       "id": "toml",
       "title": "TOML",
-      "edition": "1.1.0",
+      "edition": "v1.1.0",
       "category": "Formats et schémas",
       "kind": "format",
       "brains": [
@@ -711,7 +711,7 @@
       "sources": [
         {
           "url": "https://toml.io/en/v1.1.0",
-          "checked": "2026-11-21",
+          "checked": "2026-11-23",
           "title": "TOML v1.1.0"
         }
       ]
