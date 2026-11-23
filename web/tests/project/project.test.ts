@@ -5,7 +5,7 @@ import { REFUSAL_FR, errorText, refusalText } from '@/project/refusals';
 import { ApiError } from '@/project/api';
 import { GROUP_ABOVE, todos } from '@/project/todo';
 import { changesCatalog, invalidate, load, peek, remember } from '@/project/query';
-import { onlyTasksFail, placeCounts, signalsOf } from '@/project/data';
+import { offPath, onlyTasksFail, placeCounts, signalsOf, syncFixes } from '@/project/data';
 import { decidedBy, deliveryOf, hasFailedCheck, isBlocked, isDecided, isDone, nextLabel, nextLang, openPointLabel, parseTemplates, reasonLabel, shareState, statusesOf, stepOf, taskStatus, touchedStep, touchedTasks } from '@/project/labels';
 import { missingRequired, normAnswers, pendingNorms, setupAnswers, type NormDraft } from '@/project/setup';
 import { isMultiple, questionList, toggleChoice, unanswered } from '@/project/answers';
@@ -216,6 +216,18 @@ describe('project signals', () => {
     expect(counts.forge?.n).toBe(1);
     expect(counts.documentation?.n).toBe(1);
     expect(counts.intendance?.n).toBe(3);
+  });
+
+  it('names a command off the PATH as the cause, and does not offer to synchronize', () => {
+    const check = { code: 1, stdout: '', stderr: "OpenGuildKit: openguildkit is not on this workstation's PATH, so the hooks of the host cannot run it: the board is not consulted here. Install it with pipx install or uv tool install, or activate its environment before starting the agent; host apply cannot fix this.", json: null };
+    const s = signalsOf({ tasks: ok([]), check });
+    expect([s.offPath, s.instructionsDrift, offPath(check), syncFixes(check)]).toEqual([true, false, true, false]);
+    const list = todos(s);
+    expect(list.map((t) => t.title)).toEqual(['Installer openguildkit sur le PATH']);
+    expect(list[0].detail).toMatch(/pipx ou uv tool install/);
+    expect(list.map((t) => t.title).join(' ')).not.toMatch(/synchroniser/i);
+    expect(placeCounts(s).blueprint).toMatchObject({ n: 1, label: 'commande absente du PATH' });
+    expect(syncFixes({ code: 1, stdout: '', stderr: 'OpenGuildKit: AGENTS.md is out of date.', json: null })).toBe(true);
   });
 
   it('sends an approval that no longer holds and an unreadable record to a person, not to the agent', () => {

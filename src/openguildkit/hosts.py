@@ -231,8 +231,18 @@ def _merge_hooks(current: object, host: str, block_on_failure: bool = False) -> 
     return hooks
 
 
-def _control(control_id: str, title: str, status: str, detail: str) -> dict:
-    return {"id": control_id, "title": title, "status": status, "detail": detail}
+# What host check, host apply, check and the page say when the only thing missing is the command on the PATH:
+# host apply cannot fix it, so none of them sends back to host apply.
+OFF_PATH = ("openguildkit is not on this workstation's PATH, so the hooks of the host cannot run it: the board is not "
+            "consulted here. Install it with pipx install or uv tool install, or activate its environment before "
+            "starting the agent; host apply cannot fix this.")
+
+
+def _control(control_id: str, title: str, status: str, detail: str, cause: str | None = None) -> dict:
+    control = {"id": control_id, "title": title, "status": status, "detail": detail}
+    if cause:
+        control["cause"] = cause
+    return control
 
 
 def _board_control(root: Path, host: str, guard: str) -> dict:
@@ -262,9 +272,7 @@ def _board_control(root: Path, host: str, guard: str) -> dict:
         return _control("board", title, "instruction",
                         "This host has no known hook: AGENTS.md tells the agent to open a task, and CI checks decisions.")
     if present and shutil.which("openguildkit") is None:
-        return _control("board", title, "missing",
-                        "The hooks call openguildkit, which is not on this workstation's PATH: the guard is not enforced "
-                        "here. Install it on the PATH (for example with pipx) or activate its environment before starting the agent.")
+        return _control("board", title, "missing", f"The hooks are installed, but {OFF_PATH}", cause="path")
     return _control("board", title, "enforced" if present else "missing", detail)
 
 

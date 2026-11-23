@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from tests.support import run_cli
+from tests.support import openguildkit_on_path, run_cli
 
 ROOT = Path(__file__).resolve().parents[2]
 KIT = ROOT / "examples" / "field-tests"
@@ -38,6 +38,11 @@ class KitTestCase(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.out = Path(temporary.name).resolve()
+        # Testers install the CLI with pipx or uv: its hooks find it on the PATH, which host apply requires.
+        openguildkit_on_path(self)
+        on_path = mock.patch.dict(field.fingerprint_script.ENV, {"PATH": os.environ["PATH"]})
+        on_path.start()
+        self.addCleanup(on_path.stop)
 
 
 class CampaignTests(KitTestCase):

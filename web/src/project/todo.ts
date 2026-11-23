@@ -26,6 +26,7 @@ function entries(kind: Kind): Todo[] {
 export function todos(s: ProjectSignals): Todo[] {
   const out: Todo[] = [];
   const status = (value: string) => s.tasks.filter((t) => t.status === value);
+  if (s.offPath) out.push({ id: 'path', who: 'person', icon: 'warn', title: 'Installer openguildkit sur le PATH', detail: 'Les crochets de l’hôte appellent openguildkit, introuvable sur ce poste : le garde-fou ne s’applique pas. Installe-le avec pipx ou uv tool install, ou active son environnement avant de lancer l’agent.', to: '/intendance', tone: 'danger' });
   if (s.instructionsDrift) out.push({ id: 'check', who: 'person', icon: 'warn', title: 'Instructions à synchroniser', detail: 'AGENTS.md, les réglages de l’hôte ou le verrou du catalogue ne correspondent plus au profil.', to: '/intendance', tone: 'danger' });
   out.push(...entries({ key: 'u', tasks: s.unreadable, who: 'person', icon: 'warn', tone: 'danger', title: (id) => `Réparer le fichier de ${id}`, to: (id) => `/quetes/${id}`, many: (n) => `${n} fichiers de tâche illisibles à réparer`, list: '/quetes?statut=unreadable', detail: (t) => ({ text: t.next, lang: 'en' }) }));
   out.push(...entries({ key: 'a', tasks: s.reconsult, who: 'person', icon: 'replace', tone: 'danger', title: (id) => `Consulter à nouveau ${id}`, to: (id) => `/conseil/${id}`, many: (n) => `${n} approbations à reprendre`, list: '/forge' }));

@@ -7,7 +7,7 @@ import { toast } from '@/shared/ui/toast';
 import { isSafeUrl } from '@/shared/text';
 import { ApiError, cliMessage, type CliResult } from './api';
 import { errorText } from './refusals';
-import { onlyTasksFail } from './data';
+import { offPath, onlyTasksFail } from './data';
 import type { TaskListItem } from './types';
 import { showTerminal, showTouched, useTerminalRequest, useTouched, type Query } from './query';
 import { STEPS, needsReconsult, stepOf, taskStatus, touchedStep } from './labels';
@@ -108,6 +108,11 @@ export function TouchedNotice() {
 export function CheckNotice({ result, tasks }: { result: CliResult; tasks: TaskListItem[] }) {
   const notes = result.stderr.replace(/^OpenGuildKit:\s*/gm, '').trim();
   if (result.code === 0) return <Notice tone="success">Les instructions correspondent au profil du projet.{notes && <span className="block small pre-line" lang="en">{notes}</span>}</Notice>;
+  if (offPath(result)) {
+    return <Notice tone="danger" title="openguildkit n’est pas sur le PATH de ce poste">
+      Les crochets de l’hôte l’appellent : le garde-fou ne s’applique pas ici. Synchroniser ou appliquer les réglages de l’hôte n’y change rien. Installe-le avec <code>pipx install</code> ou <code>uv tool install</code>, ou active son environnement avant de lancer l’agent, puis actualise la page.
+      <span className="block small pre-line" lang="en">{cliMessage(result)}</span></Notice>;
+  }
   if (onlyTasksFail(result)) {
     const named = tasks.filter((t) => needsReconsult(t) || t.status === 'unreadable');
     return <Notice tone="warn" title="Les instructions correspondent au profil, mais des tâches sont à reprendre par une personne :">

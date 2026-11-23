@@ -61,6 +61,11 @@ class HostControlTests(CapturedCli, unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
+        # The hooks need openguildkit on the PATH, which a test run from a source checkout may not have: each test
+        # that wants it missing says so.
+        on_path = patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit")
+        on_path.start()
+        self.addCleanup(on_path.stop)
 
     def init(self, **extra):
         # These checks cover the research and approval controls; the guard has its own tests.
@@ -269,16 +274,30 @@ class HostControlTests(CapturedCli, unittest.TestCase):
         self.run_cli("host", "apply")
         with patch("openguildkit.hosts.shutil.which", return_value=None):
             report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json", code=1)[0])}
-            output, _ = self.run_cli("host", "check", code=1)
-            self.assertIn("1 setting(s) missing. Run openguildkit host apply", output)
+            checked, _ = self.run_cli("host", "check", code=1)
+            # host apply writes what it can, then fails while the cause remains, and does not send back to itself.
+            applied, _ = self.run_cli("host", "apply", code=1)
             _, error = self.run_cli("check", code=1)
-        self.assertEqual(report["board"]["status"], "missing")
+        self.assertEqual((report["board"]["status"], report["board"]["cause"]), ("missing", "path"))
         self.assertIn("not on this workstation's PATH", report["board"]["detail"])
-        self.assertIn("host check", error)
+        for output in (checked, applied, error):
+            with self.subTest(output=output[-120:]):
+                self.assertIn("not on this workstation's PATH", output)
+                self.assertIn("pipx install or uv tool install", output)
+                self.assertNotIn("Run openguildkit host apply", output)
+                self.assertNotIn("then openguildkit host apply", output)
         with patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit"):
             report = {item["id"]: item for item in json.loads(self.run_cli("host", "check", "--json")[0])}
         self.assertEqual(report["board"]["status"], "enforced")
         self.assertIn("Shell commands", report["board"]["detail"])
+
+    def test_host_apply_fails_while_a_setting_stays_missing(self):
+        self.init(host="claude-code", guard="enforce")
+        # A setting the write did not install, as when the settings file cannot be written.
+        with patch("openguildkit.cli.apply_host_settings", return_value=[]):
+            output, _ = self.run_cli("host", "apply", code=1)
+        self.assertIn("setting(s) missing. Run openguildkit host apply", output)
+        self.run_cli("host", "apply")
 
     def test_enforce_without_signed_approvals_is_flagged(self):
         write_json(self.root / "answers.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"], "host": "claude-code", "guard": "enforce"})

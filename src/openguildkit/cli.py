@@ -16,7 +16,7 @@ from .detect import components_for_profile, detect_stack, detected_project_name
 from .guard import (
     NO_TASK, SCOPE_NOTE, STALE_DAYS, ci_guard, covering_approvals, exported_decisions, guard_mode, hook_command,
 )
-from .hosts import apply_host_settings, approval_warning, host_controls
+from .hosts import OFF_PATH, apply_host_settings, approval_warning, host_controls
 from .integrations import OTHER_HOST_NOTE, install_agent_files
 from .lock import (
     apply_lock, build_lock, catalog_changes, installed_catalog, installed_catalog_date, lock_is_current, package_version,
@@ -1112,14 +1112,18 @@ def _host(args, root: Path, profile: dict) -> int:
         for control in controls:
             print(f"[{HOST_STATUS_LABELS.get(control['status'], control['status'])}] {control['title']}"
                   f"\n    {control['detail']}")
-        if missing:
-            print(f"{len(missing)} setting(s) missing. Run openguildkit host apply, then openguildkit host check.")
-        else:
+        settings = [control for control in missing if control.get("cause") != "path"]
+        if settings:
+            print(f"{len(settings)} setting(s) missing. Run openguildkit host apply, then openguildkit host check.")
+        if len(settings) < len(missing):
+            print(OFF_PATH)
+        if not missing:
             print("Nothing missing. A rule marked 'by instruction' or 'by a person' is left to the agent's "
                   "instructions or to a person on purpose: no setting of this host can enforce it.")
-    # host apply that writes nothing for the host other has done nothing the person asked for.
+    # host apply that writes nothing for the host other has done nothing the person asked for, and one that leaves a
+    # setting missing has not done it either.
     wrote_nothing = written == [] and profile.get("host", "other") not in ("claude-code", "codex")
-    return 1 if (missing and args.mode == "check") or wrote_nothing else 0
+    return 1 if missing or wrote_nothing else 0
 
 
 def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
@@ -1140,10 +1144,13 @@ def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     live, bundled = installed_catalog(args, state)
     lock = read_lock(state)
     require_instructions(args, root, state, profile, catalog)
-    missing = [control["title"] for control in host_controls(root, profile) if control["status"] == "missing"]
+    missing = [control for control in host_controls(root, profile) if control["status"] == "missing"]
+    settings = [control["title"] for control in missing if control.get("cause") != "path"]
     if missing:
-        raise ValueError(f"The host settings do not enforce: {'; '.join(missing)}. "
-                         "Run openguildkit host check for the cause, then openguildkit host apply.")
+        raise ValueError(" ".join(
+            ([f"The host settings do not enforce: {'; '.join(settings)}. Run openguildkit host check for the cause, "
+              "then openguildkit host apply."] if settings else [])
+            + ([OFF_PATH] if len(settings) < len(missing) else [])))
     if not lock_is_current(lock, profile, catalog, bundled):
         raise ValueError("The catalog lock does not match the profile. Run openguildkit sync.")
     if not failing:

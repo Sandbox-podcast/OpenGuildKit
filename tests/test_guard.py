@@ -11,7 +11,7 @@ from openguildkit.decisions import record_digest
 from openguildkit.guard import HOOK_OUTCOMES, MODES, UNKNOWN_MODE, hook_answer
 from openguildkit.storage import write_json
 
-from tests.support import CapturedCli
+from tests.support import CapturedCli, openguildkit_on_path
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "request-status"
@@ -24,6 +24,7 @@ class GuardTests(CapturedCli, unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
+        openguildkit_on_path(self)
 
     def write_profile(self, **extra):
         profile = {**json.loads((EXAMPLE / "profile.json").read_text()), **extra}

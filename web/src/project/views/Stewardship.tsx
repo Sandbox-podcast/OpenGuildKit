@@ -1,7 +1,7 @@
 /** Intendance: host settings and agent files, catalog upgrades, and how the interface itself works. */
 import { Badge, Button, Notice, Panel, Tabs } from '@/shared/ui/core';
 import { currentSession, terminalCommand } from '../api';
-import { onlyTasksFail, useCheck, useHost, useProfile, useTasks, useUpdate } from '../data';
+import { syncFixes, useCheck, useHost, useProfile, useTasks, useUpdate } from '../data';
 import { useAction } from '../query';
 import { hostControl } from '../labels';
 import { CheckNotice, CommandLine, JsonDetails, Pre, Q, TaskLink } from '../parts';
@@ -44,7 +44,7 @@ function Host() {
           <p className="tiny muted">Pour tous tes projets, installe-les dans ton dossier personnel depuis un terminal :</p>
           <CommandLine command="openguildkit integrations --host claude-code --user" />
         </Panel>
-        <Panel title="Cohérence des instructions" actions={check.data && check.data.code !== 0 && onlyTasksFail(check.data) ? undefined : <Button size="small" busy={busy !== null} onClick={() => void act(['sync'], { success: 'Instructions synchronisées' })}>Synchroniser</Button>}>
+        <Panel title="Cohérence des instructions" actions={!syncFixes(check.data) ? undefined : <Button size="small" busy={busy !== null} onClick={() => void act(['sync'], { success: 'Instructions synchronisées' })}>Synchroniser</Button>}>
           <Q q={check}>{(r) => <CheckNotice result={r} tasks={tasks.data ?? []} />}</Q>
         </Panel>
       </div>
