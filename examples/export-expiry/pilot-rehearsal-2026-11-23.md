@@ -19,20 +19,20 @@ produced the agent instruction for each policy commit.
 | 45 min | Conforms | Deviates |
 | 30 min | Conforms | Conforms |
 
-Recorded identifiers from the temporary repositories:
+The temporary repositories used these references.
 
-- Target commits: `495c0d8c15d35926c36bd9c69783f1c84d88b794` (45 minutes)
+- The target commits were `495c0d8c15d35926c36bd9c69783f1c84d88b794` (45 minutes)
   and `7d9e9155a2add114c1b46857da2863792e78112d` (30 minutes).
-- Central policy: `594ab3a4331bacde09bfca9712f46df5f4115ae6` (60 minutes)
+- The central policy commits were `594ab3a4331bacde09bfca9712f46df5f4115ae6` (60 minutes)
   and `f0e610baddd023a4ac9a6daeb65cd6f9a2dad690` (30 minutes).
-- Node profile commit in both repositories: `764f5d42076d9899916a1b36e6c6c2124d7317f1`.
+- Both Node profiles used commit `764f5d42076d9899916a1b36e6c6c2124d7317f1`.
   The Python profile and policy fingerprint changed with the policy,
   from `a2ce9ec2eb4c6430c1de48b3c8703b51908ce3a57f6e7fae787bdd9137f25878`
   to `83392576c901f08823bc71b6a345e40da4ceda78d5081a44c2f828eb54e44619`.
 
 The local process times, one sample for each evaluation with startup, ranged
-from 397 to 430 ms for the Python check, 296 to 352 ms for the Node coordinator,
-and 235 to 282 ms for the reference script. Hosted timing, GitHub Actions
+from 407 to 439 ms for the Python check, 298 to 339 ms for the Node coordinator,
+and 239 to 260 ms for the reference script. Hosted timing, GitHub Actions
 and Jenkins parity on the two pilot repositories, operator work and review
 time remain to be measured.
 
@@ -44,7 +44,7 @@ against the installed Node archive with a simulated GitHub provider.
 | Event | Result |
 | --- | --- |
 | Provider accepted run 42 | The child process exited while the local attempt was still requesting. The run ID was saved only in the simulated provider. |
-| Watch started again | It recovered run 42 by attempt `9bbde5b7-8298-4a27-9ec1-b595dbc01167`, verified the proof and issued no duplicate dispatch. |
+| Watch started again | It recovered run 42 by attempt `7eb0b24c-b094-4052-b1fa-efd3400681f3`, verified the proof and issued no duplicate dispatch. |
 | Policy changed, PR SHA stayed fixed | Run 43 was dispatched. A proof bearing the old policy was marked as a mismatch. |
 
 These are local process and state observations. The same sequence with an
@@ -79,7 +79,7 @@ Pack, pattern and sector coverage was read from the candidate's source commit.
 | Manifest | Detected in the sample | Catalog coverage to build on |
 | --- | --- | --- |
 | `build.gradle.kts` with the Kotlin JVM plugin | Kotlin 2.2.0 | The Android pattern includes Kotlin. Evaluate non-Android Kotlin requests separately. |
-| `Cargo.toml` with a standalone package | No component returned | Cargo detection is the first gap to verify if Rust appears in the team pilot. |
+| `Cargo.toml` with a standalone package | Empty component list | Cargo detection is the first gap to verify if Rust appears in the team pilot. |
 | `composer.json` with `php: ^8.3` | PHP ^8.3 | Language detected. No dedicated PHP pattern was found. |
 | `Gemfile` with a Ruby declaration | Ruby 3.4.2 | Language detected. No dedicated Ruby pattern was found. |
 

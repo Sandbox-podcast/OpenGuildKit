@@ -8,13 +8,31 @@ import sys
 from pathlib import Path
 
 
+MAX_SAFE_INTEGER = (1 << 53) - 1
+
+
+def unique_object(pairs: list[tuple[str, object]]) -> dict:
+    data = {}
+    for key, value in pairs:
+        if key in data:
+            raise ValueError("Duplicate key in JSON.")
+        data[key] = value
+    return data
+
+
+def safe_integer(value: object) -> int | None:
+    integer = type(value) is int or (type(value) is float and value.is_integer())
+    return int(value) if integer and abs(value) <= MAX_SAFE_INTEGER else None
+
+
 def committed_json(repo: Path, revision: str, name: str) -> dict:
     if not re.fullmatch(r"(?:[a-f0-9]{40}|[a-f0-9]{64})", revision):
         raise ValueError("Use a full Git commit ID.")
-    options = {"cwd": repo, "encoding": "utf-8", "capture_output": True, "check": True}
-    if subprocess.run(["git", "cat-file", "-t", revision], **options).stdout.strip() != "commit":
+    options = {"cwd": repo, "capture_output": True, "check": True}
+    if subprocess.run(["git", "cat-file", "-t", revision], **options).stdout.strip() != b"commit":
         raise ValueError("The Git object must be a commit.")
-    data = json.loads(subprocess.run(["git", "show", f"{revision}:{name}"], **options).stdout)
+    content = subprocess.run(["git", "show", f"{revision}:{name}"], **options).stdout
+    data = json.loads(content.decode("utf-8-sig"), object_pairs_hook=unique_object)
     if not isinstance(data, dict):
         raise ValueError(f"{name} must contain a JSON object.")
     return data
@@ -34,14 +52,12 @@ def evaluate(policy_repo: Path, policy_commit: str, target_repo: Path, head: str
     required = {"kind": "field", "path": "export.json", "field": "downloadLinkMinutes"}
     if not isinstance(check, dict) or any(check.get(key) != value for key, value in required.items()):
         raise ValueError("Expected the shared integer check for export.json.")
-    if check.get("integer") is not True or type(check.get("min")) is not int or check["min"] != 1:
+    if check.get("integer") is not True or safe_integer(check.get("min")) != 1:
         raise ValueError("Expected a minimum integer value of 1.")
-    maximum = check.get("max")
-    if type(maximum) is not int or not 1 <= maximum <= (1 << 53) - 1:
+    maximum = safe_integer(check.get("max"))
+    if maximum is None or maximum < 1:
         raise ValueError("The policy needs a positive integer maximum.")
-    actual = committed_json(target_repo, head, "export.json").get("downloadLinkMinutes")
-    if type(actual) is not int or abs(actual) > (1 << 53) - 1:
-        actual = None
+    actual = safe_integer(committed_json(target_repo, head, "export.json").get("downloadLinkMinutes"))
     passed = actual is not None and 1 <= actual <= maximum
     guidance = f"Keep downloadLinkMinutes in export.json between 1 and {maximum} minutes."
     return guidance, {
@@ -65,7 +81,7 @@ def main() -> int:
             f"# Export link policy\n\n{guidance}\n\nPolicy commit: {args.policy_commit}\n", encoding="utf-8",
         )
         (args.output / "evidence.json").write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
-    except (ValueError, OSError, subprocess.CalledProcessError) as error:
+    except (ValueError, OSError, RecursionError, subprocess.CalledProcessError) as error:
         print(f"Shared workflow: {error}", file=sys.stderr)
         return 2
     # The pilot runs in observation mode. Keep the raw verdict in the evidence.

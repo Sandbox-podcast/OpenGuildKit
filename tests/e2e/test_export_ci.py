@@ -58,6 +58,12 @@ class ExportCiTests(CliTestCase):
     def evaluate(self, policy, repo, commit, expect=0):
         return self.with_policy(policy, "ci-check", "--target-repo", repo, "--commit", commit, expect=expect)
 
+    def shared_check(self, policy, target, head, output):
+        return subprocess.run([
+            sys.executable, str(EXAMPLE / "shared-check.py"), "--policy-repo", str(self.policy),
+            "--policy-commit", policy, "--target-repo", str(target), "--commit", head, "--output", str(output),
+        ], capture_output=True, text=True, encoding="utf-8", timeout=60)
+
     def commit_bytes(self, repo, path, content, object_format="sha1"):
         if not (repo / ".git").is_dir():
             repo.mkdir()
@@ -80,6 +86,12 @@ class ExportCiTests(CliTestCase):
             with self.subTest(export=case["name"]):
                 head = self.commit_bytes(target, "export.json", fixture_bytes(case))
                 self.evaluate(policy, target, head, expect=EXIT_CODES[case["verdict"]])
+                output = self.project / ("shared-" + head)
+                baseline = self.shared_check(policy, target, head, output)
+                self.assertEqual(baseline.returncode, 2 if case["verdict"] == "error" else 0, baseline.stderr)
+                if baseline.returncode == 0:
+                    report = json.loads((output / "evidence.json").read_text(encoding="utf-8"))
+                    self.assertEqual(report["status"], case["verdict"])
 
         head = self.commit_bytes(target, "export.json", VALID_EXPORT)
         for case in fixture["packs"]:
@@ -152,10 +164,7 @@ class ExportCiTests(CliTestCase):
             with self.subTest(policy=revision):
                 actual = json.loads(self.evaluate(revision, target, head, expect=int(expected == "failure")).stdout)
                 output = self.project / f"shared-{maximum}"
-                baseline = subprocess.run([
-                    sys.executable, str(EXAMPLE / "shared-check.py"), "--policy-repo", str(self.policy),
-                    "--policy-commit", revision, "--target-repo", str(target), "--commit", head, "--output", str(output),
-                ], capture_output=True, text=True, encoding="utf-8", timeout=60)
+                baseline = self.shared_check(revision, target, head, output)
                 self.assertEqual(baseline.returncode, 0, baseline.stderr)
                 report = json.loads((output / "evidence.json").read_text(encoding="utf-8"))
                 self.assertEqual((report["status"], report["commit"], report["policy_commit"], report["max_minutes"]),
