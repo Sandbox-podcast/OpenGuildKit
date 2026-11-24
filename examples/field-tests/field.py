@@ -15,9 +15,9 @@ mocks, and every name in the campaign is invented.
 """
 
 import argparse
+import contextlib
 import json
 import os
-import shlex
 import shlex
 import shutil
 import subprocess
@@ -103,6 +103,32 @@ def _wrapper(path: Path, script: str, *arguments: Path) -> None:
     path.chmod(0o755)
 
 
+@contextlib.contextmanager
+def _launcher_on_path(out: Path):
+    """Put the campaign's openguildkit command first on the PATH while the kit sets projects up.
+
+    host apply fails while the hooks of the host cannot find openguildkit, and a source checkout does not install it.
+    The testers get the same command on their PATH, so the kit's projects match theirs."""
+    folder = out / "bin"
+    folder.mkdir(parents=True, exist_ok=True)
+    if os.name == "posix":
+        _wrapper(folder / "openguildkit", "logged.py", out / "runs")
+    else:
+        invocation = subprocess.list2cmdline([sys.executable, str(HERE / "logged.py"), str(out / "runs")])
+        installed = int(uses_installed_package())
+        (folder / "openguildkit.cmd").write_text(f"@set {INSTALLED_ENV}={installed}\r\n@{invocation} %*\r\n",
+                                                 encoding="utf-8")
+    before = os.environ.get("PATH")
+    os.environ["PATH"] = os.pathsep.join(filter(None, [str(folder), before]))
+    try:
+        yield
+    finally:
+        if before is None:
+            os.environ.pop("PATH", None)
+        else:
+            os.environ["PATH"] = before
+
+
 def prepare(out: Path) -> dict:
     """Create every folder the briefs name, the commands on PATH and the teammates' shared repository."""
     if os.name != "posix":
@@ -118,19 +144,19 @@ def prepare(out: Path) -> dict:
     ids = [tester["id"] for tester in testers(campaign)]
     for name in ids:
         (out / "runs" / name).mkdir(parents=True, exist_ok=True)
-    _wrapper(out / "bin" / "openguildkit", "logged.py", out / "runs")
     _wrapper(out / "bin" / "person-decide", "person_decide.py")
     _wrapper(out / "bin" / "fingerprint", "fingerprint.py")
     remote = out / "shared" / "remote.git"
-    if not remote.exists():
-        seed = out / "shared" / "seed"
-        shutil.copytree(HERE / "scenarios" / "s1" / "project", seed)
-        git(seed, "init", "-q", "-b", "main")
-        cli(seed, "init", "--answers", HERE / "scenarios" / "team-answers.json")
-        cli(seed, "integrations", "--host", "claude-code")
-        cli(seed, "host", "apply")
-        _commit_all(seed, "Support portal with OpenGuildKit set up")
-        git(out / "shared", "clone", "-q", "--bare", "seed", "remote.git")
+    with _launcher_on_path(out):
+        if not remote.exists():
+            seed = out / "shared" / "seed"
+            shutil.copytree(HERE / "scenarios" / "s1" / "project", seed)
+            git(seed, "init", "-q", "-b", "main")
+            cli(seed, "init", "--answers", HERE / "scenarios" / "team-answers.json")
+            cli(seed, "integrations", "--host", "claude-code")
+            cli(seed, "host", "apply")
+            _commit_all(seed, "Support portal with OpenGuildKit set up")
+            git(out / "shared", "clone", "-q", "--bare", "seed", "remote.git")
     try:
         commit = git(REPO, "rev-parse", "HEAD")
     except (ValueError, OSError):
@@ -267,15 +293,16 @@ def cohorts(out: Path, teams: int = 3) -> dict:
     """Play each scenario's scripted part in several folders, with no agent, and compare the fingerprints."""
     out = out.resolve()
     result = {}
-    for scenario in load_campaign()["scenarios"]:
-        prints = {}
-        for number in range(1, teams + 1):
-            folder = out / "cohorts" / f"{scenario['id']}-team{number}"
-            if folder.exists():
-                shutil.rmtree(folder)
-            folder.mkdir(parents=True)
-            prints[f"team{number}"] = play_scenario(scenario, folder / "project")
-        result[scenario["id"]] = {"keys": len(prints["team1"]), "differing": differing_keys(prints)}
+    with _launcher_on_path(out):
+        for scenario in load_campaign()["scenarios"]:
+            prints = {}
+            for number in range(1, teams + 1):
+                folder = out / "cohorts" / f"{scenario['id']}-team{number}"
+                if folder.exists():
+                    shutil.rmtree(folder)
+                folder.mkdir(parents=True)
+                prints[f"team{number}"] = play_scenario(scenario, folder / "project")
+            result[scenario["id"]] = {"keys": len(prints["team1"]), "differing": differing_keys(prints)}
     return result
 
 

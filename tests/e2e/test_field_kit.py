@@ -232,6 +232,19 @@ class PrepareTests(KitTestCase):
         field.prepare(self.out)  # running it again keeps the shared repository
         self.assertEqual(field.git(remote, "rev-list", "--count", "main"), "1")
 
+    def test_prepare_and_cohorts_work_from_a_checkout_where_openguildkit_is_not_installed(self):
+        # A maintainer runs the kit from a clean checkout: host apply needs the command on the PATH for its hooks.
+        bare = os.pathsep.join(folder for folder in ("/usr/bin", "/bin") if Path(folder).is_dir())
+        with mock.patch.dict(os.environ, {"PATH": bare}):
+            record = field.prepare(self.out)
+            self.assertEqual(os.environ["PATH"], bare)
+            with mock.patch.object(field.fingerprint_script, "run", run_here):
+                result = field.cohorts(self.out, teams=2)
+        self.assertEqual(len(record["testers"]), 30)
+        self.assertTrue((self.out / "shared" / "remote.git").is_dir())
+        self.assertEqual({scenario: data["differing"] for scenario, data in result.items()},
+                         {"s1": {}, "s2": {}, "s3": {}})
+
 
 def run_here(root: Path, *arguments) -> tuple[int, str, str]:
     """The kit's run(), with the CLI in this process."""
