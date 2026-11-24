@@ -34,7 +34,7 @@ The rehearsal plays a host without subagents: it runs `task pass ... --mode sequ
 - [Claude Code, 2026-11-21](reports/claude-code-2026-11-21.md): a host without subagents, a disagreement between two boards, a change request, the decision, the implementation and the results, to `done`.
 - [Codex, 2026-11-21](reports/codex-2026-11-21.md): the export task from the request to `done` with board passes as subagents, the case without evidence, and a case with blockers.
 - [Claude Code, 2026-11-22, controls](reports/claude-code-2026-11-22-controls.md): the settings `host apply` writes, loaded by a live session: 31 deny rules and the request hook's reminder. The model was not called (the command was not signed in), so the edit hook and the deny rules were not exercised by an agent.
-- [Claude Code, 2026-11-23, controls](reports/claude-code-2026-11-23-controls.md): a connected Windows session exercised the edit hook in `observe` and `enforce` and the approval command's deny rule. The edit after a person's approval is still to be observed.
+- [Claude Code, 2026-11-23, controls](reports/claude-code-2026-11-23-controls.md): a connected Windows session exercised the edit hook in `observe` and `enforce` and the approval command's deny rule. The edit after a person's approval is still to be observed: on 2026-11-24 the copy was rebuilt on macOS up to the person's decision, with the commands for the approval and the last run.
 
 ## What the reports show for issue #23
 
