@@ -41,6 +41,14 @@ class RegulatoryPackTests(unittest.TestCase):
                 self.assertIn(official, [source["url"] for source in self.catalog["packs"][pack_id]["sources"]])
                 self.assertIn(official, [source["url"] for source in self.catalog["patterns"][pattern_id]["sources"]])
 
+    def test_incident_notification_uses_the_same_ai_act_consolidation(self):
+        ai_act = self.catalog["packs"]["eu-ai-act"]
+        consolidated_url = next(
+            source["url"] for source in ai_act["sources"] if source["url"].startswith("https://eur-lex.europa.eu/")
+        )
+        incident_sources = self.catalog["packs"]["incident-notification"]["sources"]
+        self.assertIn(consolidated_url, [source["url"] for source in incident_sources])
+
     def test_legal_and_security_roles_reach_the_packs_and_references_link_them(self):
         for role in ("legal", "security"):
             suggested = {item["id"] for item in recommend_patterns(self.catalog, [], "general", [role])["suggested"]}

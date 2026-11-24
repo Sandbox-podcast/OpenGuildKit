@@ -518,7 +518,7 @@
       "id": "eu-ai-act",
       "title": "Règlement européen sur l'intelligence artificielle (UE 2024/1689)",
       "title_en": "Artificial Intelligence Act, Regulation (EU) 2024/1689",
-      "edition": "texte consolidé, modifié par le règlement (UE) 2026/1744",
+      "edition": "02024R1689-20260727",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -534,9 +534,14 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/reg/2024/1689",
-          "checked": "2026-11-20",
+          "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/2026-07-27/eng",
+          "checked": "2026-11-23",
           "title": "Règlement (UE) 2024/1689 — Règlement sur l'intelligence artificielle, texte consolidé"
+        },
+        {
+          "url": "https://publications.europa.eu/resource/celex/02024R1689-20260727",
+          "checked": "2026-11-23",
+          "title": "EU Publications Office metadata for consolidated text 02024R1689-20260727"
         }
       ]
     },
@@ -756,7 +761,7 @@
       "id": "iec-62304",
       "title": "IEC 62304:2006 avec amendement 1:2015",
       "title_en": "IEC 62304:2006 with Amendment 1:2015",
-      "edition": "2006 avec amendement 1:2015",
+      "edition": "IEC 62304:2006+AMD1:2015 CSV",
       "category": "Qualité et sûreté sectorielles",
       "kind": "norme",
       "brains": [
@@ -767,8 +772,8 @@
       "applies_when": "Pour le développement et la maintenance d'un logiciel qui est un dispositif médical ou fait partie d'un tel dispositif.",
       "sources": [
         {
-          "url": "https://webstore.iec.ch/en/publication/6792",
-          "checked": "2026-11-21",
+          "url": "https://webstore.iec.ch/en/publication/22794",
+          "checked": "2026-11-23",
           "title": "IEC 62304:2006+AMD1:2015 — Medical device software: Software life cycle processes"
         }
       ]
