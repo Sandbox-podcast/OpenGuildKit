@@ -166,6 +166,47 @@ class CatalogLoadTests(unittest.TestCase):
         project = [call for call in merged.call_args_list if call.args[1] is not None]
         self.assertEqual((len(project), locks.call_count), (1, 1))
 
+    def rewrite_in_place(self, path: Path, old: bytes, new: bytes) -> None:
+        """Rewrite a file in place with the same size and give it back its modification time, as an editor that
+        saves in place within one tick of a coarse file system (HFS+, FAT, SMB) leaves it (issue 285)."""
+        info = path.stat()
+        content = path.read_bytes()
+        self.assertEqual(len(old), len(new))
+        self.assertIn(old, content)
+        with open(path, "r+b") as handle:
+            handle.write(content.replace(old, new))
+        os.utime(path, ns=(info.st_atime_ns, info.st_mtime_ns))
+        self.assertEqual((path.stat().st_size, path.stat().st_mtime_ns), (info.st_size, info.st_mtime_ns))
+
+    def test_a_same_size_rewrite_that_keeps_the_modification_time_is_read_again(self):
+        self.bundled_reads("init", "--answers", self.root / "profile.json")
+        state = self.root / ".openguildkit"
+        pack = {"id": "house-rules", "title": "House rules", "version": "1.0.0", "description": "Team rules.",
+                "sources": [], "rules": [{"id": "small-changes", "instruction": "Rule EEEE 0049.",
+                                          "verification": "Check the size of the diff."}]}
+        path = state / "catalog" / "packs" / "house-rules.json"
+        write_json(path, pack)
+        rule = lambda: catalog.load_catalog(state / "catalog")["packs"]["house-rules"]["rules"][0]["instruction"]
+        self.assertEqual(rule(), "Rule EEEE 0049.")
+        self.rewrite_in_place(path, b"EEEE", b"FFFF")
+        self.assertEqual(rule(), "Rule FFFF 0049.")
+        # The CLI, which keeps its caches between commands in one process (openguildkit ui), reads it too.
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            main(["--project", str(self.root), "catalog", "--json"])
+        self.assertIn("Rule FFFF 0049", output.getvalue())
+
+        described = lambda: lock.read_lock(state)["records"]["packs"]["python"]["description"]
+        self.assertTrue(described().startswith("Repository conventions for Python code"))
+        self.rewrite_in_place(state / lock.LOCK_FILE, b"conventions for Python code", b"conventions for PYTHON code")
+        self.assertTrue(described().startswith("Repository conventions for PYTHON code"))
+
+    def test_the_task_index_the_catalog_and_the_lock_compare_one_file_signature(self):
+        from openguildkit import storage, task_index
+        for module in (catalog, lock, task_index):
+            with self.subTest(module=module.__name__):
+                self.assertIs(module.file_signature, storage.file_signature)
+
     def test_a_load_hands_out_its_own_copy(self):
         first = catalog.load_catalog()
         first["packs"].clear()

@@ -24,6 +24,15 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         # 3.11 is the floor of requires-python; 3.15 is the version the maintainers work with.
         python: ["3.11", "3.12", "3.13", "3.14", "3.15"]
+        # Hosted macOS runners are scarce: a macOS job can wait 10 to 20 minutes for one, or never get one. macOS
+        # runs the floor and the maintainers' version; Linux and Windows run every version.
+        exclude:
+          - os: macos-latest
+            python: "3.12"
+          - os: macos-latest
+            python: "3.13"
+          - os: macos-latest
+            python: "3.14"
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -83,6 +92,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python: ["3.11", "3.13", "3.14"]
+        # One wheel on macOS, for the same reason as the test matrix.
+        exclude:
+          - os: macos-latest
+            python: "3.11"
+          - os: macos-latest
+            python: "3.13"
     defaults:
       run:
         shell: bash
@@ -151,7 +166,7 @@ jobs:
           "$OPENGUILDKIT" catalog > /dev/null
           "$OPENGUILDKIT" references --id conventional-commits > /dev/null
           "$OPENGUILDKIT" patterns > /dev/null
-          printf '{"name": "Wheel check", "stack": ["Python"]}' > answers.json
+          printf '{"name": "Wheel check", "stack": ["Python"], "personal_data": "no"}' > answers.json
           "$OPENGUILDKIT" init --answers answers.json
           "$OPENGUILDKIT" check
           "$OPENGUILDKIT" integrations --host claude-code
@@ -244,10 +259,13 @@ jobs:
     needs: [test, performance, package, ci-coordinator, web, web-e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    permissions: {}
+    # Reads the jobs of this run, to tell a job that no runner picked up from a job that failed.
+    permissions:
+      actions: read
     steps:
       - name: Require all checks to pass
         env:
+          GH_TOKEN: ${{ github.token }}
           TEST_RESULT: ${{ needs.test.result }}
           PERFORMANCE_RESULT: ${{ needs.performance.result }}
           PACKAGE_RESULT: ${{ needs.package.result }}
@@ -256,4 +274,17 @@ jobs:
           WEB_E2E_RESULT: ${{ needs.web-e2e.result }}
         run: |
           printf 'Tests: %s\nPerformance: %s\nWheel: %s\nCI coordinator: %s\nWeb: %s\nWeb journeys: %s\n' "$TEST_RESULT" "$PERFORMANCE_RESULT" "$PACKAGE_RESULT" "$COORDINATOR_RESULT" "$WEB_RESULT" "$WEB_E2E_RESULT"
-          test "$TEST_RESULT" = success && test "$PERFORMANCE_RESULT" = success && test "$PACKAGE_RESULT" = success && test "$COORDINATOR_RESULT" = success && test "$WEB_RESULT" = success && test "$WEB_E2E_RESULT" = success
+          if test "$TEST_RESULT" = success && test "$PERFORMANCE_RESULT" = success && test "$PACKAGE_RESULT" = success && test "$COORDINATOR_RESULT" = success && test "$WEB_RESULT" = success && test "$WEB_E2E_RESULT" = success; then
+            exit 0
+          fi
+          # A job cancelled before any step ran never got a runner: GitHub gave up waiting for one. That says
+          # nothing about the change, and rerunning the job is enough.
+          never_started=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" \
+            --jq '.jobs[] | select(.conclusion == "cancelled" and (.steps | length) == 0) | .name') || never_started=""
+          if [ -n "$never_started" ]; then
+            echo "These jobs never started: no runner picked them up, which is not a failure of the change."
+            printf '  - %s\n' "$never_started"
+            echo "Rerun them: Re-run jobs, then Re-run failed jobs, on the run page. contribution-checks runs again after them."
+          fi
+          echo "For any other job, open Details next to it to read the log, fix, and push again."
+          exit 1

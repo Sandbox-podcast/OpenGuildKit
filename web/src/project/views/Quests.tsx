@@ -40,7 +40,7 @@ export function NewQuestDialog({ open, onClose, follows }: { open: boolean; onCl
       <TextField label="Identifiant (facultatif)" hint="Par exemple request-status. Sans identifiant, la CLI en génère un." value={id} error={idError} onChange={(e) => setId(e.target.value.trim())} />
       <div className="field"><label htmlFor="follows">Fait suite à (facultatif)</label>
         <select id="follows" className="input" value={after} onChange={(e) => setAfter(e.target.value)}>
-          <option value="">Aucune tâche</option>
+          <option value="">Aucune {w.task}</option>
           {(tasks.data ?? []).filter((t) => isDecided(t.status)).map((t) => <option key={t.id} value={t.id}>{t.id} : {(t.brief ?? '').slice(0, 60)}</option>)}
         </select>
         <p className="hint">La consultation reprendra la décision de cette tâche.</p>
@@ -65,7 +65,7 @@ export function Quests() {
   return (
     <div className="page-grid">
       <div className="toolbar">
-        <input className="input" type="search" placeholder="Rechercher une tâche…" aria-label="Rechercher une tâche" value={q} onChange={(e) => setQuery({ q: e.target.value })} />
+        <input className="input" type="search" placeholder={`Rechercher une ${w.task}…`} aria-label={`Rechercher une ${w.task}`} value={q} onChange={(e) => setQuery({ q: e.target.value })} />
         <select className="input" aria-label="État" value={status} onChange={(e) => setQuery({ statut: e.target.value })}>
           <option value="">Tous les états</option>{statusesOf(tasks.data ?? []).map((s) => <option key={s} value={s}>{taskStatus(s).label}</option>)}
         </select>
@@ -75,7 +75,7 @@ export function Quests() {
         <span className="grow" />
         <Button variant="primary" icon="plus" onClick={() => setOpen(true)}>Nouvelle {w.task}</Button>
       </div>
-      <Q q={tasks} empty={<Empty title="Aucune tâche" action={<Button variant="primary" onClick={() => setOpen(true)}>Ouvrir la première tâche</Button>}>Une tâche décrit une demande : une fonctionnalité, une anomalie, une décision.</Empty>}>
+      <Q q={tasks} empty={<Empty title={`Aucune ${w.task}`} action={<Button variant="primary" onClick={() => setOpen(true)}>Ouvrir la première {w.task}</Button>}>Une {w.task} décrit une demande : une fonctionnalité, une anomalie, une décision.</Empty>}>
         {() => (
           <div className="kanban" role="list" aria-label={`${w.Tasks} par état`}>
             {columns.map((s) => {

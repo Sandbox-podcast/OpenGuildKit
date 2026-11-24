@@ -12,6 +12,7 @@ from typing import Any
 from urllib.parse import parse_qsl, urlsplit
 
 from .rule_checks import validate_check
+from .storage import file_signature
 
 
 COLLECTION_FIELDS = {
@@ -631,15 +632,6 @@ def _validated_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
     return _BUNDLED[key]
 
 
-def file_signature(path: Path) -> tuple:
-    """What changes when a file is written: its size, modification time and inode. Writes replace the file."""
-    try:
-        stat = path.stat()
-    except OSError:
-        return (path.name, None)
-    return (path.name, stat.st_mode, stat.st_size, stat.st_mtime_ns, stat.st_ino)
-
-
 def _records_signature(project: Path | None) -> tuple:
     """The signature of every record file a load reads in the project's catalog folder."""
     if project is None:
@@ -649,7 +641,8 @@ def _records_signature(project: Path | None) -> tuple:
         directory = project / collection
         if directory.is_dir():
             names = sorted(entry.name for entry in os.scandir(directory) if entry.name.endswith(".json"))
-            signature.append((collection, tuple(file_signature(directory / name) for name in names)))
+            signature.append((collection, tuple((name, file_signature(directory / name, content=True))
+                                                for name in names)))
         else:
             signature.append((collection, directory.is_file()))
     return tuple(signature)

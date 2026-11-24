@@ -44,7 +44,7 @@ class WorkflowTests(CapturedCli, unittest.TestCase):
         }
         write_json(
             self.input_path,
-            {"name": "Support console", "sector": "general", "stack": ["Python"], "packs": ["python"]},
+            {"personal_data": "no", "name": "Support console", "sector": "general", "stack": ["Python"], "packs": ["python"]},
         )
 
     def init(self):
@@ -136,7 +136,7 @@ class WorkflowTests(CapturedCli, unittest.TestCase):
         self.assertIn(exported.strip(), error)
 
     def test_a_consultation_checks_only_the_components_named_in_its_answers(self):
-        profile = {"name": "Shop", "components": [
+        profile = {"personal_data": "no", "name": "Shop", "components": [
             {"id": "web", "path": "apps/web", "stack": ["Next.js 14.2", "React 18"]},
             {"id": "api", "path": "services/api", "stack": ["Python", "Django"]},
         ]}
@@ -205,7 +205,7 @@ class WorkflowTests(CapturedCli, unittest.TestCase):
             },
         )
         self.assertIn("iso-27001", catalog["packs"])
-        write_json(self.input_path, {"name": "Support console", "packs": ["team-iso"]})
+        write_json(self.input_path, {"personal_data": "no", "name": "Support console", "packs": ["team-iso"]})
         self.init()
         instructions = (self.root / "AGENTS.md").read_text(encoding="utf-8")
         self.assertLess(instructions.index("iso-27001@"), instructions.index("team-iso@"))

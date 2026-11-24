@@ -1,6 +1,7 @@
 {
   "name": "Host validation portal",
   "sector": "general",
+  "personal_data": "no",
   "stack": [
     "Python"
   ],

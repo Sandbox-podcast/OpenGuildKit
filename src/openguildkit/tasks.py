@@ -3,13 +3,14 @@
 import difflib
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from . import clock
 from .decisions import (
-    approval_policy, base_commit, check_decision_seal, decision_payload, history_message,
-    revisions_outside_history, seal, signature_or_history_problem, stale_approval_message, verify_signature,
+    EARLIER_SIGNERS, approval_policy, base_commit, check_decision_seal, decision_payload, history_message,
+    reconsult_command, revisions_outside_history, seal, signature_or_history_problem, stale_approval_message,
+    verify_signature,
 )
 from .project import Fingerprints, fingerprint_holds, profile_fingerprint, task_scope_profile
 from .relevance import sensitive_area
@@ -334,7 +335,7 @@ def next_command(task: dict) -> str:
                     f"BLOCKER --evidence PATH --supports TEXT --by NAME) or requests changes, then {decide}")
         return decide
     if status == "changes-requested":
-        return f"consult again: openguildkit task consult {task_id} --answers FILE"
+        return f"consult again: {reconsult_command(task_id)} (--answers FILE to change the answers)"
     if status == "approved":
         if is_decision_task(task):
             return f"close the decision with openguildkit task complete {task_id}"
@@ -425,17 +426,19 @@ def days_since(moment: str | None) -> int | None:
 
 
 def _conditions_step(task: dict, profile: dict | None) -> str:
-    """The conditions of approval still open and, without a waiver policy, the way out if one cannot be met."""
+    """The conditions of approval still open and, without a waiver policy, the way out if one cannot be met; then the
+    waivers that expired since, each with what the person can do."""
     waiting = [item["id"] for item in blocker_list(task)
                if item.get("phase") == "verification" and not item["resolution"]]
+    expired = "".join(f" {expired_waiver_step(task, item)}" for item in expired_waivers(blocker_list(task)))
     if not waiting:
-        return ""
+        return expired
     text = (f" Condition(s) of approval still open: {', '.join(waiting)}. The person clears each with its evidence at "
             f"their terminal: openguildkit task clear {task['id']} BLOCKER --evidence PATH --supports TEXT --by NAME.")
     if profile is not None and not waiver_policy(profile):
         text += (" The project allows no waiver, so the task cannot complete while one is open: if one cannot be met, "
                  f"the person withdraws the approval at their terminal: {revoke_command(task['id'])}.")
-    return text
+    return text + expired
 
 
 def _abandoned_step(task: dict) -> str:
@@ -505,7 +508,9 @@ def approval_problem(task: dict, profile: dict, catalog: dict, root: Path | None
         return {"kind": "earlier-rules", "severity": "error", "message": stale_approval_message(task["id"], changes)}
     # A completed task's record is history: a squash merge is expected to take its revision out of the history.
     found = None if completed or root is None else signature_or_history_problem(task, root, profile, payload, outside)
-    return {"kind": found[0], "severity": "error", "message": found[1]} if found else None
+    if not found:
+        return None
+    return {"kind": found[0], "severity": "note" if found[0] == EARLIER_SIGNERS else "error", "message": found[1]}
 
 
 def require_approval(task: dict, profile: dict, catalog: dict, root: Path | None = None) -> None:
@@ -554,14 +559,22 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
         day = task["created_at"][:10]
         problem = (approval_problem(task, profile, catalog, root, fingerprints=fingerprints, outside=outside)
                    if judged else None)
+        # owner is who took the task's current decision: the approval, the change request or the withdrawal.
         decided_by = task.get("decision", {}).get("by")
         if problem and problem["kind"] == "invalid-seal":
             decided_by = None
         if owner and (decided_by or "").casefold() != owner.casefold():
             continue
+        # An approval that holds through the signers of the revision it was signed at keeps its next step.
+        note = problem if problem and problem["kind"] == EARLIER_SIGNERS else None
         row = {"id": task["id"], "status": task["status"], "created": day, "owner": decided_by,
                "brief": task["brief"].splitlines()[0][:80],
-               "next": problem["message"] if problem else next_step(task, profile)}
+               "next": problem["message"] if problem and not note else next_step(task, profile)}
+        decided = decision_words(task, problem)
+        if decided:
+            row["decided"] = decided
+        if note:
+            row["note"] = note["message"]
         if problem:
             row.update(approval_problem=problem["kind"], severity=problem["severity"])
         closed_by = task.get("result", {}).get("closing", {}).get("by")
@@ -573,13 +586,43 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
     return rows
 
 
+def decision_words(task: dict, problem: dict | None = None) -> str | None:
+    """Who took the task's current decision, in the words task list prints: "approved by X", "changes requested by
+    X", "withdrawn by X (approved by Y)", or that the approval no longer holds (problem is its approval_problem)."""
+    decision = task.get("decision")
+    if not decision:
+        return None
+    by = decision["by"]
+    if decision["outcome"] == "changes-requested":
+        if decision.get("withdraws"):
+            approver = next((entry["decision"]["by"] for entry in reversed(task["rounds"]) if entry.get("revoked")), None)
+            return f"withdrawn by {by}" + (f" (approved by {approver})" if approver else "")
+        return f"changes requested by {by}"
+    if problem and problem["severity"] == "error":
+        # A broken seal means the name itself may have been edited.
+        return ("approval no longer holds" if problem["kind"] == "invalid-seal"
+                else f"approved by {by}, approval no longer holds")
+    return f"approved by {by}"
+
+
 # What a change of rules means for a task in each status; a completed task keeps its record as history.
 _TOUCHED_STEP = {
     "consulting": "consult it again",
     "reviewed": "request changes and consult it again",
-    "approved": "consult it again (openguildkit task consult ID), which keeps the passes of unchanged boards, or open "
-                "a linked task with --follows",
+    "approved": "consult it again (openguildkit task consult ID --reuse-answers), which keeps the passes of unchanged "
+                "boards, or open a linked task with --follows",
 }
+# An approval without a seal, written by a release older than sealed decisions, or with a broken one keeps no pass.
+_UNSEALED_STEP = ("consult it again (openguildkit task consult ID --reuse-answers): its approval has no valid seal, so "
+                  "every board reviews again and check fails on it until then; or open a linked task with --follows")
+
+
+def _seal_holds(task: dict) -> bool:
+    try:
+        check_decision_seal(task)
+    except ValueError:
+        return False
+    return True
 
 
 def tasks_touched(state: Path, profile: dict, catalog: dict) -> list[dict]:
@@ -596,6 +639,8 @@ def tasks_touched(state: Path, profile: dict, catalog: dict) -> list[dict]:
         except ValueError:
             continue
         step = _TOUCHED_STEP.get(task["status"])
+        if task["status"] == "approved" and not _seal_holds(task):
+            step = _UNSEALED_STEP
         if step and not fingerprints.holds(task.get("profile_fingerprint")):
             touched.append({"id": task["id"], "status": task["status"], "step": step.replace("ID", task["id"])})
     return touched
@@ -868,9 +913,9 @@ def submit_pass(task: dict, entry: dict, mode: str | None = None, root: Path | N
               if other != validated["id"] and state.get("status") == "done"]
     passes["boards"][validated["id"]] = {"status": "done", "mode": mode, "entry": validated, "at": timestamp(),
                                          "attempts": current.get("attempts", 1)}
-    # What this entry adds to the signs of copied advice, against the passes already done.
-    earlier = set(review_warnings(others))
-    copied = [warning for warning in review_warnings([*others, validated]) if warning not in earlier]
+    # The signs of copied advice that concern this entry, against the passes already done: each submit says what
+    # its own pass adds, not the warnings of the earlier passes again.
+    copied = review_warnings([*others, validated], focus=validated["id"])
     return {**task, "passes": passes, **({"_warnings": copied} if copied else {})}
 
 
@@ -919,6 +964,52 @@ _DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 def waiver_policy(profile: dict) -> dict | None:
     return profile.get("waivers")
+
+
+def expired_on(resolution: object) -> str | None:
+    """The end date of a waiver that has passed, by the real clock whatever SOURCE_DATE_EPOCH says; None for a waiver
+    still running, a clearance or no resolution. A waiver holds through its until day."""
+    if not isinstance(resolution, dict) or resolution.get("kind") != "waived":
+        return None
+    until = resolution.get("until")
+    try:
+        end = date.fromisoformat(until) if isinstance(until, str) and _DAY.fullmatch(until) else None
+    except ValueError:
+        return None
+    return until if end is not None and end < clock.real_today() else None
+
+
+def expired_waivers(blockers: list) -> list[dict]:
+    """The blockers whose waiver expired: blocker_list of a task, or the blockers of an exported record."""
+    return [item for item in blockers if isinstance(item, dict) and expired_on(item.get("resolution"))]
+
+
+def expired_waiver_step(task: dict, item: dict) -> str:
+    """What the person does about a waiver that expired on an approved task. A condition of approval is resolved
+    again; a blocker the approval rested on is under its seal, so the approval is withdrawn."""
+    task_id, blocker_id, until = task["id"], item["id"], item["resolution"]["until"]
+    if item.get("phase") == "verification":
+        return (f"The waiver of {blocker_id} expired on {until}, so the blocker is open again: the person clears it with "
+                f"its evidence (openguildkit task clear {task_id} {blocker_id} --evidence PATH --supports TEXT --by "
+                f"NAME), grants a new waiver (openguildkit task waive {task_id} {blocker_id} --by NAME --reason TEXT "
+                f"--scope TEXT --until YYYY-MM-DD), or withdraws the approval: {revoke_command(task_id)}.")
+    return (f"The waiver of {blocker_id} expired on {until}, and the approval rested on it: the person withdraws the "
+            f"approval ({revoke_command(task_id)}), then the task is consulted again and the blocker cleared with its "
+            "evidence or waived anew before the next decision.")
+
+
+def expired_waiver_problem(record: dict, relative: str) -> str | None:
+    """guard --ci: a record of a task not completed whose waiver expired is refused. A completed task's record is
+    history: its waiver covered the work it delivered."""
+    if record.get("completed") or record.get("status") in DONE_STATUSES:
+        return None
+    expired = expired_waivers(record.get("blockers") if isinstance(record.get("blockers"), list) else [])
+    if not expired:
+        return None
+    named = ", ".join(f"{item.get('id')} on {item['resolution']['until']}" for item in expired)
+    return (f"{relative}: the waiver of a blocker expired ({named}) and task {record['task']} is not completed, so the "
+            "blocker is open again. The person clears it with its evidence, grants a new waiver or withdraws the "
+            f"approval (openguildkit task list names the step), then export the record again.")
 
 
 def _clearing_evidence(value: str, root: Path) -> str:
@@ -974,11 +1065,14 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
         listed = ", ".join(known) or "none"
         raise ValueError(f"Unknown blocker {blocker_id}. Blockers: {listed}.")
     blocker = known[blocker_id]
-    if blocker["resolution"]:
-        first = blocker["resolution"]
+    first = blocker["resolution"]
+    expired = expired_on(first)
+    if first and not expired:
         raise ValueError(f"Blocker {blocker_id} already has a resolution: {first['kind']} by {first['by']} on "
                          f"{first.get('at', '')[:10]}. It stays as recorded; see task blockers.")
     verification = blocker.get("phase") == "verification"
+    if expired and not verification and task["status"] == "approved":
+        raise ValueError(expired_waiver_step(task, blocker))
     if verification and task["status"] != "approved":
         raise ValueError("Resolve a verification blocker after approval and before completion.")
     if not verification and task["status"] != "reviewed":
@@ -986,7 +1080,7 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
     by = resolution.get("by", "").strip()
     if not by:
         raise ValueError("Name the person who resolves the blocker.")
-    entry = {"kind": resolution["kind"], "by": by, "at": timestamp(),
+    entry = {"kind": resolution["kind"], "by": by, "at": clock.real_timestamp(),
              "recorded_from": "terminal" if resolution.get("terminal") else "no terminal"}
     if resolution["kind"] == "cleared":
         for field in ("evidence", "supports"):
@@ -1025,12 +1119,16 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
                 raise ValueError(f"A waiver needs --{field}.")
             entry[field] = resolution[field].strip()
         entry["until"] = until
+    if expired:
+        # The expired waiver stays in the record, under the resolution that replaces it.
+        entry["replaces"] = first
     field = resolution_field(blocker.get("phase"))
     return {**task, field: {**task.get(field, {}), blocker_id: entry}}
 
 
 def unresolved_blockers(task: dict) -> list[str]:
-    return [item["id"] for item in blocker_list(task) if not item["resolution"] and item.get("phase") != "verification"]
+    return [item["id"] for item in blocker_list(task)
+            if (not item["resolution"] or expired_on(item["resolution"])) and item.get("phase") != "verification"]
 
 
 def verification_blocker_problems(task: dict, profile: dict, root: Path | None = None) -> list[str]:
@@ -1042,6 +1140,8 @@ def verification_blocker_problems(task: dict, profile: dict, root: Path | None =
         resolution = item["resolution"]
         if not resolution:
             problems.append(f"Verification blocker {item['id']} is open. Clear it when {item['clears_when']}")
+        elif expired_on(resolution):
+            problems.append(f"Verification blocker {item['id']}: {expired_waiver_step(task, item)}")
         elif root is not None and policy["mode"] == "signed" and resolution["kind"] == "cleared":
             try:
                 _check_clearance_signature(task, item["id"], resolution, policy, root)
@@ -1111,6 +1211,8 @@ def complete_task(task: dict, profile: dict, root: Path | None = None, relevance
     needs the person's name (the command line also asks for a terminal).
     """
     problems = (verification_blocker_problems(task, profile, root)
+                + [f"Blocker {item['id']}: {expired_waiver_step(task, item)}" for item in expired_waivers(blocker_list(task))
+                   if item.get("phase") != "verification"]
                 + completion_problems(task, profile, relevance, changed=changed))
     if problems:
         raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(problems))
@@ -1235,8 +1337,8 @@ def decided_message(task: dict, problem: dict | None = None) -> str | None:
         return (f"Task {task_id} is already decided and {status}: approved {who}. To change the work, open a follow-up: "
                 f"openguildkit task new \"BRIEF\" --follows {task_id}")
     if status == "changes-requested":
-        return (f"Task {task_id} already has changes requested {who}. Next: openguildkit task consult {task_id}, "
-                "then record the new review before deciding.")
+        return (f"Task {task_id} already has changes requested {who}. Next: {reconsult_command(task_id)}, then "
+                "record the new review before deciding.")
     return None
 
 
@@ -1265,7 +1367,8 @@ def record_decision(
     if not by.strip() or not reason.strip():
         raise ValueError("Supply the decision owner and a reason.")
     status = "approved" if approve else "changes-requested"
-    decision = {"outcome": status, "by": by.strip(), "reason": reason.strip(), "at": timestamp()}
+    # A person's decision is dated by the real clock, which its age is measured with (clock.py).
+    decision = {"outcome": status, "by": by.strip(), "reason": reason.strip(), "at": clock.real_timestamp()}
     if approve:
         payload = decision_payload(task, by, reason, base_revision)
         decision.update(base_revision=base_revision, seal=seal(payload))
@@ -1287,7 +1390,7 @@ def revoke_approval(task: dict, by: str, reason: str) -> dict:
         raise TaskStateError("Only an approved task has an approval to withdraw.")
     if not by.strip() or not reason.strip():
         raise ValueError("Name the person who withdraws the approval with --by and say why with --reason.")
-    at = timestamp()
+    at = clock.real_timestamp()
     archived = {**archived_round(task), "revoked": {"by": by.strip(), "reason": reason.strip(), "at": at}}
     decision = {"outcome": "changes-requested", "by": by.strip(), "reason": f"Approval withdrawn: {reason.strip()}",
                 "at": at, "withdraws": task["decision"]["at"]}
@@ -1311,7 +1414,7 @@ def record_authorization(task: dict, action: str, target: str, allow: bool, by: 
         raise ValueError("Supply the decision owner and a reason.")
     entry = {
         "action": action, "target": target, "decision": "allow" if allow else "deny",
-        "by": by.strip(), "reason": reason.strip(), "at": timestamp(),
+        "by": by.strip(), "reason": reason.strip(), "at": clock.real_timestamp(),
     }
     return {**task, "authorizations": [*task.get("authorizations", []), entry]}
 

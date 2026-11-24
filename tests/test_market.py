@@ -143,7 +143,7 @@ class MarketCommandTests(CapturedCli, unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-        write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"], "research": "public-sources"})
+        write_json(self.root / "profile.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"], "research": "public-sources"})
         self.cli("init", "--answers", self.root / "profile.json")
 
     def dossier(self, dossier_id="portals"):
@@ -276,7 +276,7 @@ class MarketLayoutAndRelevanceTests(CapturedCli, unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-        write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"]})
+        write_json(self.root / "profile.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"]})
         self.cli("init", "--answers", self.root / "profile.json")
         self.path = self.root / ".openguildkit" / "market" / "support-portals.json"
         self.path.parent.mkdir()
@@ -302,6 +302,8 @@ class MarketLayoutAndRelevanceTests(CapturedCli, unittest.TestCase):
         self.assertEqual(added, ['    "Prices of direct competitors for the portal option.",', '    "Renewal discounts."'])
         self.assertEqual(self.changed_lines("unknown", "support-portals", "--text", "Renewal discounts.", "--remove"),
                          (added, removed))
+        profile = self.root / ".openguildkit" / "project.json"
+        write_json(profile, {**json.loads(profile.read_text(encoding="utf-8")), "research": "public-sources"})
         removed, added = self.changed_lines("checked", "support-portals", "--url", self.URL, "--date", "2026-11-12")
         self.assertEqual(len(removed), 1)
         self.assertEqual(len(added), 1)
@@ -335,6 +337,30 @@ class MarketLayoutAndRelevanceTests(CapturedCli, unittest.TestCase):
             with self.subTest(mention=mention):
                 self.assertIsNotNone(relevance_note(dossier, f"Compare plan prices. Use the dossier {mention}."))
         self.assertIsNone(relevance_note(dossier, "Use support-portals to compare the customer portal status pages."))
+
+    def test_under_local_only_no_page_is_marked_reviewed_without_a_person(self):
+        before = self.path.read_bytes()
+        refused = self.cli("market", "checked", "support-portals", "--url", self.URL, code=1)
+        self.assertIn("Research is local-only", refused)
+        self.assertIn(f"openguildkit market provided support-portals --url {self.URL} --by NAME", refused)
+        change = ("market", "change", "support-portals", "--competitor", "vendor-a", "--what", "Added labels.",
+                  "--source", self.URL, "--date", "2026-11-10", "--verified-by", "Camille Martin")
+        refused = self.cli(*change, code=1)
+        self.assertIn(f"openguildkit market provided support-portals --url {self.URL} --by NAME", refused)
+        self.assertEqual(self.path.read_bytes(), before)
+        self.assertIn(self.URL, self.cli("market", "due", "support-portals"))
+        # The issue the scheduled job opens names the command the policy allows.
+        body = json.loads(self.cli("market", "due", "--all", "--json"))["due"][0]["issue"]["body"]
+        self.assertIn(f"openguildkit market provided support-portals --url {self.URL} --by NAME", body)
+        self.assertNotIn("market checked", body)
+        # A change from a page that is not watched does not mark a page reviewed: it is recorded.
+        self.cli("market", "change", "support-portals", "--competitor", "vendor-a", "--what", "Shared in a meeting.",
+                 "--source", "Notes of the sales meeting", "--date", "2026-11-10", "--verified-by", "Camille Martin")
+        # Once a person provided the page, the change it holds is recorded.
+        self.cli("market", "provided", "support-portals", "--url", self.URL, "--by", "Camille Martin")
+        self.cli(*change)
+        changes = json.loads(self.path.read_text(encoding="utf-8"))["watch"]["changes"]
+        self.assertEqual([item["what"] for item in changes][-2:], ["Shared in a meeting.", "Added labels."])
 
     def test_under_local_only_a_person_records_a_page_they_provided(self):
         due = self.cli("market", "due", "support-portals")

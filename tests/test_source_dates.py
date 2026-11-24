@@ -135,7 +135,7 @@ class ProjectSourceDateTests(CapturedCli, unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-        write_json(self.root / "p.json", {"name": "Portal", "stack": ["Python"]})
+        write_json(self.root / "p.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"]})
         self.cli("init", "--answers", self.root / "p.json")
         self.state = self.root / ".openguildkit"
 

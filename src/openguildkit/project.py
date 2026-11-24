@@ -29,7 +29,10 @@ ALREADY_INITIALIZED = (
     "Project is already initialized. Change its profile with openguildkit profile (adopt, decline, add, remove, "
     "set); openguildkit profile --help lists them."
 )
-PROJECT_IGNORE = "tasks/\nshares/\n.lock\n.*.tmp\n"
+# The agent's working files (answers, board entries, deliberation, result) go in work/: Git ignores it, and the guard
+# lets the agent write there before any approval, as it is state the CLI reads rather than project work.
+WORK_DIR = f"{STATE_DIR}/work"
+PROJECT_IGNORE = "tasks/\nshares/\nwork/\n.lock\n.*.tmp\n"
 
 
 def project_root(path: Path | None) -> Path:

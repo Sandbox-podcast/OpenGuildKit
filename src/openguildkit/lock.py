@@ -9,13 +9,13 @@ import json
 from pathlib import Path
 
 from .catalog import (
-    CatalogError, file_signature, json_copy, latest_checked, load_catalog, overlaid_boards, validate_dependencies,
+    CatalogError, json_copy, latest_checked, load_catalog, overlaid_boards, validate_dependencies,
     validate_entry,
 )
 from .ci import read_policy_pack
 from .patterns import pattern_selection
 from .project import check_instructions, selected_packs
-from .storage import read_json, write_json
+from .storage import file_signature, read_json, write_json
 
 LOCK_FILE = "catalog.lock.json"
 COLLECTIONS = ("packs", "boards", "sectors", "patterns")
@@ -52,7 +52,7 @@ def read_lock(state: Path) -> dict | None:
     path = lock_path(state)
     if not path.is_file():
         return None
-    key = (str(path), file_signature(path))
+    key = (str(path), file_signature(path, content=True))
     if key not in _READ:
         lock = _validated_lock(path)
         if len(_READ) >= _READ_KEPT:

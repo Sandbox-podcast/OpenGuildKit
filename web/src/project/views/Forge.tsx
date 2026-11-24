@@ -12,9 +12,9 @@ import { toast } from '@/shared/ui/toast';
 import { batchJson, cliMessage, projectPath, readJson, readText, run, terminalCommand, writeFile, type CliResult } from '../api';
 import { useProfile, useTasks } from '../data';
 import { invalidate, showTerminal, useAction, useCli, useCliResult, useCliText, useQuery } from '../query';
-import { CLOSING_GROUP, checkLabel, deliveryOf, fmtWhen, hasFailedCheck, isDecided, isDone, needsReconsult, nextLabel, nextLang, parseTemplates } from '../labels';
+import { CLOSING_GROUP, checkLabel, checkOutcome, deliveryOf, isRequiredCheck, mustSupplyLabel, fmtWhen, hasFailedCheck, isDecided, isDone, needsReconsult, nextLabel, nextLang, parseTemplates } from '../labels';
 import { ActionForm, CommandLine, ErrorNotice, ExternalLink, FilePick, JsonDetails, Pre, Q, Section, StepRail, TableBox, TaskStatusBadge, UnreadableTask, copyText, useRemembered } from '../parts';
-import { errorText } from '../refusals';
+import { errorText, notRecorded } from '../refusals';
 import type { BlockerItem, ExpectedCheck, MockListing, ProposalItem, ProposalStatus, StorybookProposals, TaskRecord, Tool } from '../types';
 
 export function Forge({ tab = 'quetes' }: { tab?: string }) {
@@ -102,6 +102,12 @@ function HandoffDialog({ id, open, onClose }: { id: string; open: boolean; onClo
   );
 }
 
+/** Why a named evidence must be supplied: in French when the page knows the reason. */
+function MustSupply({ reason }: { reason: string }) {
+  const fr = mustSupplyLabel(reason);
+  return fr ? <span title={reason}>{fr}</span> : <span lang="en">{reason}</span>;
+}
+
 const KIND_LABEL: Record<string, string> = { command: 'commande', rule: 'règle', machine: 'contrôle automatique', evidence: 'preuve nommée', scenario: 'scénario' };
 
 function Checks({ task }: { task: TaskRecord }) {
@@ -128,15 +134,15 @@ function Checks({ task }: { task: TaskRecord }) {
       {verified && <Notice tone={verified.code === 0 ? 'success' : 'warn'} title={verified.code === 0 ? 'task verify :' : 'task verify a trouvé des points à reprendre :'}><Pre text={(verified.stdout || cliMessage(verified)).trim()} /></Notice>}
       <Q q={checks}>
         {(list) => <TableBox label="Tableau des vérifications"><table className="data compact"><thead><tr><th>Contrôle</th><th>Type</th><th>Obligatoire</th><th>Résultat</th></tr></thead>
-          <tbody>{list.map((c) => { const l = checkLabel(c.result?.status); return (
+          <tbody>{list.map((c) => { const l = checkOutcome(c); return (
             <tr key={c.id} className={c.concerned === false ? 'muted' : undefined}><td><span className="mono small">{c.id}</span>{c.command ? <code className="small block">{c.command}</code> : <span className="small block" lang="en">{c.title ?? c.instruction ?? c.rule}</span>}{c.verification && <span className="tiny muted block" lang="en">{c.verification}</span>}
-              {c.owner_role && <span className="tiny muted block">Fournie par <span lang="en">{c.owner_role}</span>{c.must_supply && <> (obligatoire : <span lang="en">{c.must_supply}</span>)</>}</span>}
+              {c.owner_role && <span className="tiny muted block">Fournie par <span lang="en">{c.owner_role}</span>{c.must_supply && <> (obligatoire : <MustSupply reason={c.must_supply} />)</>}</span>}
               {c.concerned === false && <span className="tiny muted block">Non demandé à cette tâche{c.reason && <> : <span lang="en">{c.reason}</span></>}</span>}</td>
               <td className="small">{KIND_LABEL[c.kind] ?? c.kind}</td>
-              <td>{c.mandatory ? <Badge tone="warning" icon="lock">oui</Badge> : <span className="tiny muted">non</span>}</td>
+              <td>{isRequiredCheck(c) ? <Badge tone="warning" icon="lock">oui</Badge> : <span className="tiny muted">non</span>}</td>
               <td><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge>{c.result?.cannot_run && <span className="block"><Badge tone="warning" icon="user">ne peut pas tourner ici</Badge></span>}
                 {c.result?.message && <span className="tiny block" lang="en">{c.result.message}</span>}
-                {c.result?.evidence && <span className="tiny muted block mono">{c.result.evidence}</span>}{c.result?.reason && <span className="tiny muted block" data-own>{c.result.reason}{c.result.owner ? ` (${c.result.owner})` : ''}</span>}</td></tr>); })}</tbody></table></TableBox>}
+                {c.result?.evidence && <span className="tiny muted block mono">{c.result.evidence}</span>}{c.kind === 'evidence' && c.result?.owner && !c.result.reason && <span className="tiny muted block">fournie par <span data-own>{c.result.owner}</span></span>}{c.result?.reason && <span className="tiny muted block" data-own>{c.result.reason}{c.result.owner ? ` (${c.result.owner})` : ''}</span>}</td></tr>); })}</tbody></table></TableBox>}
       </Q>
       {task.status === 'approved' && commands.length > 0 && <details className="small"><summary>Une commande ne peut pas tourner ici</summary>
         <p>Une personne le déclare dans son terminal, avec ses initiales et la raison : la CLI relance d’abord la commande, puis lui demande de retaper l’identifiant de la tâche. La tâche se termine alors avec cette réserve. L’interface n’enregistre jamais cette déclaration.</p>
@@ -184,7 +190,8 @@ function Closing({ task }: { task: TaskRecord }) {
   );
 }
 
-type Outcome = { status: string; evidence: string; reason: string; owner: string };
+/** owner: who answers for a rule set aside; supplier: who provided a named evidence (its owner, never the agent). */
+type Outcome = { status: string; evidence: string; reason: string; owner: string; supplier: string };
 
 function Results({ task }: { task: TaskRecord }) {
   const checks = useCli<ExpectedCheck[]>(['task', 'checks', task.id, '--json']);
@@ -193,24 +200,33 @@ function Results({ task }: { task: TaskRecord }) {
   const [ref, setRef] = useState(task.result?.pull_request ?? task.result?.revision ?? '');
   const [criteria, setCriteria] = useState(task.result?.criteria ?? []);
   const [outcomes, setOutcomes] = useState<Record<string, Outcome>>({});
+  const [held, setHeld] = useState<{ text: string; lang?: 'en' }[]>([]);
   const { act, busy, error } = useAction();
   // The page reports the rules and named evidence the task is asked; commands and automatic checks are run by task verify.
   const rules = (checks.data ?? []).filter((c) => (c.kind === 'rule' || c.kind === 'evidence') && c.concerned !== false);
-  const outcome = (id: string): Outcome => outcomes[id] ?? { status: '', evidence: '', reason: '', owner };
+  const kinds = Object.fromEntries(rules.map((c) => [c.id, c.kind]));
+  const outcome = (id: string): Outcome => outcomes[id] ?? { status: '', evidence: '', reason: '', owner, supplier: '' };
   const setOutcome = (id: string, patch: Partial<Outcome>) => setOutcomes((o) => ({ ...o, [id]: { ...outcome(id), ...patch } }));
   const result = {
     ...(ref ? { [delivery]: ref.trim() } : {}),
     criteria: criteria.filter((c) => c.criterion.trim()),
-    checks: Object.entries(outcomes).filter(([, o]) => o.status).map(([check, o]) => (o.status === 'passed' || o.status === 'failed' ? { check, status: o.status, evidence: o.evidence } : { check, status: o.status, reason: o.reason, owner: o.owner || owner })),
+    checks: Object.entries(outcomes).filter(([, o]) => o.status).map(([check, o]) => (o.status === 'passed' || o.status === 'failed'
+      // A named evidence passes with the person who provided it: the CLI refuses it without them.
+      ? { check, status: o.status, evidence: o.evidence, ...(kinds[check] === 'evidence' && o.status === 'passed' ? { owner: o.supplier } : {}) }
+      : { check, status: o.status, reason: o.reason, owner: o.owner || owner })),
   };
-  const incomplete = result.checks.filter((c) => ('reason' in c && (!c.reason?.trim() || !c.owner?.trim())) || ('evidence' in c && !c.evidence?.trim())).map((c) => c.check);
-  const save = () => act(['task', 'result', task.id, '--file', '@upload:result.json'], { uploads: { 'result.json': JSON.stringify(result, null, 2) }, success: 'Résultats enregistrés' });
+  const incomplete = result.checks.filter((c) => ('reason' in c && (!c.reason?.trim() || !c.owner?.trim())) || ('evidence' in c && (!c.evidence?.trim() || ('owner' in c && !c.owner?.trim())))).map((c) => c.check);
+  const save = () => act(['task', 'result', task.id, '--file', '@upload:result.json'], { uploads: { 'result.json': JSON.stringify(result, null, 2) }, success: 'Résultats enregistrés', onDone: (r) => setHeld(notRecorded(r.stderr)) });
+  // The rules the page may set aside in one click: never one the task's answers select (GDPR for personal data),
+  // a mandatory one, or a named evidence; each of those keeps its own answer, with its own reason.
+  const sweepable = rules.filter((c) => c.kind === 'rule' && !c.selected && !isRequiredCheck(c));
+  const kept = rules.filter((c) => !c.result && !sweepable.includes(c)).length;
   return (
     <Section title="Rapporter les résultats" icon="flag">
       <p className="small muted">Les rapports suivants mettent à jour les précédents, contrôle par contrôle. <code>task complete</code> termine la tâche quand chaque contrôle obligatoire a réussi, ou ne peut pas tourner ici sur la déclaration d’une personne, et que chaque critère est atteint ; ce qui reste ouvert (règle ignorée, réserve, désaccord) la termine « avec réserves ».</p>
       {!!task.result?.waiting_for?.length && <Notice tone="warn" title="En attente de preuves :"><ul>{task.result.waiting_for.map((w) => <li key={w.check}><span className="mono">{w.check}</span> : <span lang="en">{w.title}</span>, fournie par <span lang="en">{w.owner}</span> (<span lang="en">{w.why}</span>). Demande-la ; ne la rédige pas à sa place.</li>)}</ul></Notice>}
       {!!task.result?.warnings?.length && <Notice tone="warn" title="Avertissements :"><ul lang="en">{task.result.warnings.map((w) => <li key={w}>{w}</li>)}</ul></Notice>}
-      <TextField label="Tes initiales" hint="Responsable des règles ignorées ou non applicables que tu rapportes." value={owner} onChange={(e) => setOwner(e.target.value)} />
+      <TextField label="Tes initiales" hint="Responsable des règles ignorées ou non applicables que tu rapportes, par exemple CM." value={owner} onChange={(e) => setOwner(e.target.value)} />
       <div className="grid-2">
         <div className="field"><label htmlFor="delivery">Livraison</label><select id="delivery" className="input" value={delivery} onChange={(e) => setDelivery(e.target.value as typeof delivery)}><option value="pull_request">Pull request</option><option value="revision">Révision Git</option></select></div>
         <TextField label={delivery === 'pull_request' ? 'Adresse de la pull request' : 'Révision'} value={ref} onChange={(e) => setRef(e.target.value)} placeholder={delivery === 'pull_request' ? 'https://github.com/…/pull/7' : 'abc1234'} />
@@ -226,12 +242,15 @@ function Results({ task }: { task: TaskRecord }) {
       </fieldset>
       {rules.length > 0 && <div><TableBox label="Règles à rapporter"><table className="data compact"><thead><tr><th>Règle</th><th>Issue</th><th>Preuve, ou motif et responsable</th></tr></thead><tbody>
         {rules.map((c) => { const o = outcome(c.id); return <tr key={c.id}>
-          <td><span className="mono small">{c.id}</span><span className="tiny muted block" lang="en">{c.title ?? c.instruction ?? c.verification}</span>{c.must_supply && <span className="tiny block">Fournie par <span lang="en">{c.owner_role}</span> : ne peut pas être déclarée non applicable (<span lang="en">{c.must_supply}</span>).</span>}</td>
-          <td><select className="input" aria-label={`Issue de ${c.id}`} value={o.status || (c.result?.status ?? '')} onChange={(e) => setOutcome(c.id, { status: e.target.value })}><option value="">{c.result ? checkLabel(c.result.status).label : 'À rapporter'}</option><option value="passed">réussie</option><option value="failed">en échec</option><option value="skipped">ignorée</option><option value="not-applicable">non applicable</option></select></td>
-          <td>{o.status === 'passed' || o.status === 'failed' ? <input className="input" aria-label="Preuve" value={o.evidence} onChange={(e) => setOutcome(c.id, { evidence: e.target.value })} /> : o.status ? <span className="row"><input className="input" aria-label="Motif" placeholder="Motif" value={o.reason} onChange={(e) => setOutcome(c.id, { reason: e.target.value })} /><input className="input" aria-label="Responsable" placeholder="Responsable" value={o.owner} onChange={(e) => { setOwner(e.target.value); setOutcome(c.id, { owner: e.target.value }); }} /></span> : <span className="tiny muted">—</span>}</td>
+          <td><span className="mono small">{c.id}</span><span className="tiny muted block" lang="en">{c.title ?? c.instruction ?? c.verification}</span>{c.must_supply && <span className="tiny block">Fournie par <span lang="en">{c.owner_role}</span> : ne peut pas être déclarée non applicable (<MustSupply reason={c.must_supply} />).</span>}{c.selected && c.kind === 'rule' && <span className="tiny muted block">Demandée par les réponses de la tâche : un motif propre si elle ne s’applique pas.</span>}</td>
+          <td><select className="input" aria-label={`Issue de ${c.id}`} value={o.status || (c.result?.status ?? '')} onChange={(e) => setOutcome(c.id, { status: e.target.value })}><option value="">{c.result ? checkLabel(c.result.status).label : 'À rapporter'}</option><option value="passed">réussie</option>{c.kind === 'evidence' ? !c.must_supply && <option value="not-applicable">non applicable</option> : <><option value="failed">en échec</option><option value="skipped">ignorée</option><option value="not-applicable">non applicable</option></>}</select></td>
+          <td>{o.status === 'passed' || o.status === 'failed' ? <span className="row"><input className="input" aria-label={`Preuve de ${c.id}`} placeholder={c.kind === 'evidence' ? 'Chemin du projet ou lien https' : 'Preuve'} value={o.evidence} onChange={(e) => setOutcome(c.id, { evidence: e.target.value })} />
+            {c.kind === 'evidence' && o.status === 'passed' && <input className="input" aria-label={`Fournie par, pour ${c.id}`} placeholder="Fournie par" title="La personne qui a fourni ou confirmé le document" value={o.supplier} onChange={(e) => setOutcome(c.id, { supplier: e.target.value })} />}</span> : o.status ? <span className="row"><input className="input" aria-label="Motif" placeholder="Motif" value={o.reason} onChange={(e) => setOutcome(c.id, { reason: e.target.value })} /><input className="input" aria-label="Responsable" placeholder="Responsable" value={o.owner} onChange={(e) => { setOwner(e.target.value); setOutcome(c.id, { owner: e.target.value }); }} /></span> : <span className="tiny muted">—</span>}</td>
         </tr>; })}
       </tbody></table></TableBox>
-      <Button size="small" variant="ghost" className="wrap" disabled={!owner.trim()} title={owner.trim() ? undefined : 'Indique d’abord tes initiales ou l’identifiant de ton équipe'} onClick={() => rules.forEach((c) => !c.result && setOutcome(c.id, { status: 'not-applicable', reason: 'Aucun changement dans ce domaine.', owner }))}>Marquer les règles non rapportées « non applicables »</Button></div>}
+      <Button size="small" variant="ghost" className="wrap" disabled={!owner.trim()} title={owner.trim() ? undefined : 'Indique d’abord tes initiales ou l’identifiant de ton équipe'} onClick={() => sweepable.forEach((c) => !c.result && setOutcome(c.id, { status: 'not-applicable', reason: 'Aucun changement dans ce domaine.', owner }))}>Marquer « non applicables » les règles non rapportées que la tâche ne demande pas</Button>
+      {kept > 0 && <p className="tiny muted">{kept} règle(s) ou preuve(s) restent à rapporter une par une : les réponses de la tâche les demandent, ou elles sont obligatoires. Une règle de protection des données, de sécurité ou d’IA écartée se confirme ensuite au terminal, par la personne qui clôt la tâche.</p>}</div>}
+      {held.length > 0 && <Notice tone="warn" title="Non enregistré :"><ul>{held.map((h) => <li key={h.text} lang={h.lang}>{h.text}</li>)}</ul></Notice>}
       {incomplete.length > 0 && <Notice tone="warn">Il manque une preuve, ou un motif et un responsable, pour : {incomplete.join(', ')}.</Notice>}
       {error && <ErrorNotice error={error} title="La CLI a refusé :" />}
       <div className="row">
@@ -255,7 +274,7 @@ function Authorizations({ task }: { task: TaskRecord }) {
       {task.authorizations?.length ? <ul className="small">{task.authorizations.map((a, i) => <li key={i}><strong>{ACTIONS.find(([id]) => id === a.action)?.[1] ?? a.action}</strong> sur {a.target} : {a.decision === 'allow' ? 'autorisée' : 'refusée'} par {a.by} ({a.reason}), {fmtWhen(a.at)}</li>)}</ul> : <p className="tiny muted">Aucune décision enregistrée.</p>}
       <ActionForm busy={busy !== null} submit="Préparer" initial={{ by, decision: 'deny' }} fields={[
         { name: 'action', label: 'Action', required: true, options: ACTIONS.map(([value, label]) => ({ value, label })) },
-        { name: 'target', label: 'Hôte ou outil', required: true, placeholder: 'Brevo, api.example.org', hint: 'Un nom d’hôte ou d’outil, sans retâche, adresse ni détail privé.' },
+        { name: 'target', label: 'Hôte ou outil', required: true, placeholder: 'Brevo, api.example.org', hint: 'Un nom d’hôte ou d’outil, sans requête, adresse ni détail privé.' },
         { name: 'decision', label: 'Décision', required: true, options: [{ value: 'deny', label: 'Refuser (enregistré ici)' }, { value: 'allow', label: 'Autoriser (commande au terminal)' }] },
         { name: 'by', label: 'Personne qui décide', required: true },
         { name: 'reason', label: 'Motif', required: true },

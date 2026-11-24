@@ -48,7 +48,8 @@ A decision record also carries free text: the `brief`, the review `summary`, eac
 |---|---|---|---|
 | everything the exported record shows, plus `rounds[].revoked.by`, the `by` and `signer` of `blocker_resolutions` and `verification_blocker_resolutions`, `result.checks[].owner` (a person's declaration that a command cannot run included), `authorizations[].by`, `follows.decision.by`, and the person named with `--delegate`, in `consultation.delegations` and `review.boards[].reviewer` | `.openguildkit/tasks/ID.json` | the `task` commands | the task's history, from which `task export` writes the record |
 | `recipients` (email addresses), `by`, `revoked_by` | `.openguildkit/shares/shares.json` | `docs share add`, `docs share revoke` | the only record of who received access to what, and until when ([sharing](documentation.md#share-a-deliverable)) |
-| `ogk-ui:decider`, `ogk-ui:signer` | the browser's local storage for the page's address (`http://127.0.0.1:7311` by default) | `openguildkit ui`, when you type who decides or who signs | to fill the field again next time |
+| whatever the agent writes in them: the answers, the boards' entries, the deliberation, the result | `.openguildkit/work/` | the agent, before it passes them to a `task` command | working files; the task record keeps what the commands accept |
+| `ogk-ui:decider`, `ogk-ui:signer` | the browser's local storage for the page's address (`http://ogk-….localhost:7311`, a host name drawn at each start) | `openguildkit ui`, when you type who decides or who signs | to fill the field again while the server runs |
 | each call to a mock and its arguments | the file `--log` names | `tools mock ID --log FILE`, `tools plan` or `tools apply` with `--mock --log FILE` | so a test can check what the agent called; mocks serve synthetic data |
 
 The task record also keeps the brief, the answers, the boards' reviews, the reasons and the evidence. `task new` and `task consult` replace what looks like a credential with a placeholder, and warn when a brief or answers hold an email address, a phone number or a bank account number: they record them anyway. `task list --json` shows the approver as `owner` and the person who closed the task as `closed_by`. The tool does not store what commands print, but a CI log keeps what the commands it runs print.
@@ -112,7 +113,7 @@ Earlier commits keep every replaced name. Removing them means rewriting the repo
 
 ### When an approver leaves
 
-In a signed project, `check`, `task list --decisions` and the commands that read an approval verify each signature against `approval.approvers` and the allowed signers file as Git holds them at `HEAD`. When the signer is no longer in either, the approval is verified against `approval.approvers` in `.openguildkit/project.json` and the allowed signers file as Git holds them at the revision the approval was signed at: `task decide` records that revision in what the approver signs, and verifies the signature against the signers file committed there. The approval holds when that revision is in the history of `HEAD`, both files are committed in it, and the signature verifies against them.
+In a signed project, `check`, `task list --decisions` and the commands that read an approval verify each signature against `approval.approvers` and the allowed signers file as Git holds them at `HEAD`. When the signer is no longer in either, the approval is verified against `approval.approvers` in `.openguildkit/project.json` and the allowed signers file as Git holds them at the revision the approval was signed at: `task decide` records that revision in what the approver signs, and verifies the signature against the signers file committed there. The approval holds when that revision is in the history of `HEAD` and on the merged branch (`origin/HEAD`, or else the branch's upstream), both files are committed in it, and the signature verifies against them. `task list` and `check` say so, with the signer and the revision. A revision only a local branch holds does not count: a key an agent committed and then reverted approves nothing ([signed approvals](workflow.md#signed-approvals)).
 
 So remove a departed approver's principal from `approvers` and their key from the allowed signers file, and commit both: what they approved while they were an approver keeps holding, and `task decide` refuses their new signature ("PRINCIPAL is not an approver for this project"). `guard --ci` verifies a record that a pull request brings against the approvers and signers of its base revision, unless the base revision already carries the same approval: a departed approver's new record fails it. A record they signed by hand with an old revision passes `check` on a copy that holds it, and fails `guard --ci` in the pull request that brings it.
 
@@ -124,7 +125,7 @@ Both are ignored by Git and stay on the machine that wrote them. Delete a task r
 
 ### In the browser
 
-Empty the field in the page, or clear the site data of `127.0.0.1` in the browser.
+Empty the field in the page, or clear the site data of the `ogk-….localhost` addresses in the browser.
 
 ## What was tried
 

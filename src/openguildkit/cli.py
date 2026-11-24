@@ -16,7 +16,7 @@ from .detect import components_for_profile, detect_stack, detected_project_name
 from .guard import (
     NO_TASK, SCOPE_NOTE, STALE_DAYS, ci_guard, covering_approvals, exported_decisions, guard_mode, hook_command,
 )
-from .hosts import apply_host_settings, approval_warning, host_controls
+from .hosts import OFF_PATH, apply_host_settings, approval_warning, host_controls
 from .integrations import OTHER_HOST_NOTE, install_agent_files
 from .lock import (
     apply_lock, build_lock, catalog_changes, installed_catalog, installed_catalog_date, lock_is_current, package_version,
@@ -770,7 +770,7 @@ def _guard(args, root: Path, state: Path) -> int:
             print(f"Guard mode on {args.base}: {result['mode']}. {result['changed']} changed file(s).")
             for task_id in result["decisions"]:
                 # A valid record covers the change only when nothing else is wrong, such as a file it does not list.
-                where = f".openguildkit/decisions/{task_id}.json"
+                where = result["records"][task_id]
                 print(f"  Covered by the decision of task {task_id} ({where})." if result["ok"]
                       else f"  Valid decision of task {task_id} ({where}), but the check fails:")
             for problem in result["problems"]:
@@ -1016,6 +1016,18 @@ def _warn_unsigned(profile: dict) -> None:
         print(warning, file=sys.stderr)
 
 
+def _require_answers(answers: dict, questions: list[dict]) -> None:
+    """The questions an answers file cannot leave out: those without a default, such as personal data, which
+    decides whether the laws on personal data are proposed."""
+    missing = [question for question in questions if question.get("required") and question["id"] not in answers]
+    if missing:
+        lines = "\n".join(f"- {question['id']}: {question['prompt']} Answer "
+                          f"{', '.join(choice['id'] for choice in question.get('choices', []))} or unsure "
+                          f"({question['unsure']})." for question in missing)
+        raise ValueError(f"The setup answers leave out {len(missing)} question(s) that need an answer. Nothing was "
+                         f"written.\n{lines}")
+
+
 def _init(args, root: Path, state: Path, catalog: dict) -> None:
     """Print the setup questionnaire, or write the profile, the instructions and the catalog lock from the answers."""
     questions, registry = _setup_questions(root, state, catalog)
@@ -1028,6 +1040,8 @@ def _init(args, root: Path, state: Path, catalog: dict) -> None:
         raise ValueError("init needs a terminal for its questions. Without one, print them with openguildkit init "
                          "--questions, save the answers as JSON, then run openguildkit init --answers PATH.")
     answers = read_json(args.answers) if args.answers else _interactive_init(questions, catalog, registry)
+    if args.answers and isinstance(answers, dict):
+        _require_answers(answers, questions)
     if isinstance(answers, dict):
         for note in unsure_answers(answers, questions)[1]:
             print(f"OpenGuildKit: {note}", file=sys.stderr)
@@ -1099,14 +1113,18 @@ def _host(args, root: Path, profile: dict) -> int:
         for control in controls:
             print(f"[{HOST_STATUS_LABELS.get(control['status'], control['status'])}] {control['title']}"
                   f"\n    {control['detail']}")
-        if missing:
-            print(f"{len(missing)} setting(s) missing. Run openguildkit host apply, then openguildkit host check.")
-        else:
+        settings = [control for control in missing if control.get("cause") != "path"]
+        if settings:
+            print(f"{len(settings)} setting(s) missing. Run openguildkit host apply, then openguildkit host check.")
+        if len(settings) < len(missing):
+            print(OFF_PATH)
+        if not missing:
             print("Nothing missing. A rule marked 'by instruction' or 'by a person' is left to the agent's "
                   "instructions or to a person on purpose: no setting of this host can enforce it.")
-    # host apply that writes nothing for the host other has done nothing the person asked for.
+    # host apply that writes nothing for the host other has done nothing the person asked for, and one that leaves a
+    # setting missing has not done it either.
     wrote_nothing = written == [] and profile.get("host", "other") not in ("claude-code", "codex")
-    return 1 if (missing and args.mode == "check") or wrote_nothing else 0
+    return 1 if missing or wrote_nothing else 0
 
 
 def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
@@ -1116,9 +1134,13 @@ def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     # An approval that no longer holds is an error until the task is consulted again; a completed task
     # whose rules changed afterwards is history and stays quiet here (task list shows it).
     read = {}
-    failing = [f"{row['id']}: {row['next']}" for row in list_tasks(state, profile=profile, catalog=catalog,
-                                                                 root=root, read=read)
+    rows = list_tasks(state, profile=profile, catalog=catalog, root=root, read=read)
+    failing = [f"{row['id']}: {row['next']}" for row in rows
                if row["status"] == "unreadable" or row.get("severity") == "error"]
+    # An approval that holds through the signers of the revision it was signed at: said, never failed.
+    for row in rows:
+        if row.get("note"):
+            print(f"OpenGuildKit: {row['id']}: {row['note']}", file=sys.stderr)
     records = exported_decisions(root, state, profile, Fingerprints(profile, catalog))
     failing += [row["problem"]["message"] for row in records
                 if row["problem"] and row["problem"]["severity"] == "error"]
@@ -1127,10 +1149,13 @@ def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     live, bundled = installed_catalog(args, state)
     lock = read_lock(state)
     require_instructions(args, root, state, profile, catalog)
-    missing = [control["title"] for control in host_controls(root, profile) if control["status"] == "missing"]
+    missing = [control for control in host_controls(root, profile) if control["status"] == "missing"]
+    settings = [control["title"] for control in missing if control.get("cause") != "path"]
     if missing:
-        raise ValueError(f"The host settings do not enforce: {'; '.join(missing)}. "
-                         "Run openguildkit host check for the cause, then openguildkit host apply.")
+        raise ValueError(" ".join(
+            ([f"The host settings do not enforce: {'; '.join(settings)}. Run openguildkit host check for the cause, "
+              "then openguildkit host apply."] if settings else [])
+            + ([OFF_PATH] if len(settings) < len(missing) else [])))
     if not lock_is_current(lock, profile, catalog, bundled):
         raise ValueError("The catalog lock does not match the profile. Run openguildkit sync.")
     if not failing:

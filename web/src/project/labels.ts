@@ -61,6 +61,8 @@ export const CONCERNS: Record<string, string> = {
   'people-decisions': 'Un logiciel qui note, classe ou décide pour des personnes (embauche, crédit, prix par personne)',
   credentials: 'Secrets, clés, jetons ou mots de passe', none: 'Aucun de ces sujets', unsure: 'À préciser',
 };
+/** The data answer inside a sentence ("touche des données personnelles"), agreed in gender and number. */
+export const DATA_PHRASE: Record<string, string> = { none: 'aucune donnée', internal: 'des données internes', personal: 'des données personnelles', regulated: 'des données réglementées', unsure: 'des données à préciser' };
 export const RESEARCH: Record<string, string> = { local: 'Sources locales', public: 'Sources publiques', unsure: 'À préciser', 'local-only': 'Locale uniquement', 'public-sources': 'Sources publiques autorisées' };
 
 /** French names of the sectors and norms of the catalog, by ID; an ID the page does not know keeps the CLI's title. */
@@ -104,6 +106,18 @@ export const CHECK: Record<string, Label> = {
   passed: L('Réussi', 'success', 'check'), failed: L('Échec', 'danger', 'cross'), skipped: L('Ignoré', 'warning', 'pause'), 'not-applicable': L('Non applicable', 'muted', 'dot'),
 };
 export const checkLabel = (s?: string | null) => (s && CHECK[s]) || L('À rapporter', 'warning', 'clock');
+/** One row of task checks --json, as the tables of the page read it. */
+interface CheckRow { kind: string; mandatory?: boolean; must_supply?: string | null; concerned?: boolean; result?: { status?: string } | null }
+/** A check the closing cannot do without: a mandatory command or rule, or a named evidence that must be supplied. */
+export const isRequiredCheck = (c: CheckRow) => !!c.mandatory || !!c.must_supply;
+/** The outcome of a check as the table shows it: a check the task is not asked has nothing to report. */
+export const checkOutcome = (c: CheckRow) => (c.concerned === false && !c.result?.status ? L('Non demandée', 'muted', 'dot') : checkLabel(c.result?.status));
+/** Why a named evidence must be supplied (results._must_supply), in French; an unknown reason is null. */
+export function mustSupplyLabel(reason: string): string | null {
+  if (reason === 'its rule or pack is listed in the profile\'s required_rules') return 'sa règle ou son pack figure dans les règles exigées du profil (required_rules)';
+  const m = /^the task's data is (\S+)$/.exec(reason);
+  return m ? `la tâche touche ${DATA_PHRASE[m[1]] ?? m[1]}` : null;
+}
 
 export const ALERT: Record<string, Label> = {
   open: L('À vérifier', 'warning', 'question'), confirmed: L('Confirmée', 'danger', 'warn'), dismissed: L('Écartée', 'muted', 'ban'), resolved: L('Corrigée', 'success', 'check'), accepted: L('Risque accepté', 'info', 'lock'),
@@ -153,12 +167,12 @@ const NEXT: [RegExp, (m: RegExpExecArray) => string][] = [
     (m) => `Échec de ${m[1]}${m[2] ? ` (${m[2]})` : ''}${m[3] ? ` : ${m[3]}` : ''}${m[4] ? `, et de ${m[4]} autre(s) contrôle(s)` : ''}. Corriger, puis relancer task verify ${m[5]}.`],
   [/^Done with reservations: see the open points (?:in task show \(result\.closing\)|with openguildkit task show \S+ --closing)\.$/, () => 'Terminée avec réserves : les points laissés ouverts sont dans la fiche de la tâche.'],
   [/^Done\.$/, () => 'Terminée.'],
-  [/^The approval for (\S+) was recorded under earlier rules(?: \((.*)\))?\. Consult it again with openguildkit task consult \S+, or open a linked task with openguildkit task new "BRIEF" --follows \S+\.$/s,
+  [/^The approval for (\S+) was recorded under earlier rules(?: \((.*)\))?\. Consult it again with openguildkit task consult \S+(?: --reuse-answers)?(?: \(--answers FILE to change the answers\))?, or open a linked task with openguildkit task new "BRIEF" --follows \S+\.$/s,
     (m) => `L’approbation de ${m[1]} a été donnée sous des règles antérieures${m[2] ? ` (${changesLabel(m[2])})` : ''}. ${RECONSULT(m[1])}`],
   [/^The approval for (\S+) has no seal: .*?\. Consult it again with .*$/s, (m) => `L’approbation de ${m[1]} n’a pas de sceau : elle a été modifiée à la main ou écrite par une ancienne version. ${RECONSULT(m[1])}`],
   [/^The record of (\S+) no longer matches what was approved\. Consult it again with .*$/s, (m) => `L’enregistrement de ${m[1]} ne correspond plus à ce qui a été approuvé. ${RECONSULT(m[1])}`],
 ];
-const RECONSULT = (id: string) => `La consulter à nouveau (task consult ${id}), ou ouvrir une tâche liée (task new --follows ${id}).`;
+const RECONSULT = (id: string) => `La consulter à nouveau avec ses réponses (task consult ${id} --reuse-answers), ou ouvrir une tâche liée (task new --follows ${id}).`;
 /** What changed in the rules a task was approved under ("pack gdpr added; conventions changed"), in French. */
 function changesLabel(text: string) {
   const FIELD: Record<string, string> = { sector: 'secteur modifié', stack: 'pile modifiée', conventions: 'conventions modifiées', checks: 'vérifications modifiées' };
@@ -192,9 +206,11 @@ export function touchedTasks(stdout: string): { id: string; status: string; step
 export const touchedStep = (step: string) => {
   if (step === 'consult it again') return 'la consulter à nouveau';
   if (step === 'request changes and consult it again') return 'demander des changements, puis la consulter à nouveau';
-  const m = /^consult it again \(openguildkit task consult (\S+)\)(, which keeps the passes of unchanged boards,)? or open a linked task with --follows$/.exec(step);
+  const unsealed = /^consult it again \(openguildkit task consult (\S+) --reuse-answers\): its approval has no valid seal, so every board reviews again and check fails on it until then; or open a linked task with --follows$/.exec(step);
+  if (unsealed) return `la consulter à nouveau avec ses réponses (task consult ${unsealed[1]} --reuse-answers) : son approbation n’a pas de sceau valide, chaque cerveau revoit donc la tâche et check échoue d’ici là ; ou ouvrir une tâche liée (--follows)`;
+  const m = /^consult it again \(openguildkit task consult (\S+)(?: --reuse-answers)?\)(, which keeps the passes of unchanged boards,)? or open a linked task with --follows$/.exec(step);
   if (!m) return null;
-  return `la consulter à nouveau (task consult ${m[1]})${m[2] ? ', en gardant les passes des cerveaux inchangés,' : ''} ou ouvrir une tâche liée (--follows)`;
+  return `la consulter à nouveau avec ses réponses (task consult ${m[1]} --reuse-answers)${m[2] ? ', en gardant les passes des cerveaux inchangés,' : ''} ou ouvrir une tâche liée (--follows)`;
 };
 /** The CLI's next step of an approved task whose last verification failed. */
 export const hasFailedCheck = (next: string) => / failed.*Fix it, then run task verify /s.test(next);
@@ -224,6 +240,45 @@ export const QUESTION_FR: Record<string, string> = {
   affected: 'Qui est concerné : utilisateurs, clients, équipes ou partenaires ?',
   options: 'Quelles options sont sur la table, et qu’est-ce qui ferait choisir l’une d’elles ?',
 };
+/** French wording of the one-line help of each task question (questionnaire.TASK_QUESTION_HELP). */
+export const QUESTION_HELP_FR: Record<string, string> = {
+  kind: 'Quelque chose de nouveau, une réparation, l’entretien de l’existant, ou un avis avant de décider.',
+  surface: 'La partie du produit que le changement touche : ce que voient les clients, le serveur, l’hébergement, ou un processus métier.',
+  data: 'L’information la plus privée que le changement peut lire ou modifier, comme des e-mails ou des données de santé.',
+  research: 'Si les cerveaux peuvent citer des pages web publiques, ou seulement les fichiers du projet et ce que tu as fourni.',
+  concerns: 'Des sujets qui amènent leurs propres spécialistes : l’argent, l’IA, les décisions sur des personnes, les secrets.',
+  outcome: 'Ce que quelqu’un peut voir ou mesurer une fois le travail fait.',
+  affected: 'Les personnes ou les équipes qui remarqueront le changement.',
+  options: 'Les choix comparés, et ce qui ferait pencher la décision.',
+  context: 'Tout ce que les cerveaux doivent savoir : échéances, limites, critères d’acceptation, liens.',
+};
+/** What a "don't know" answer applies to each task question, in French. */
+export const QUESTION_UNSURE_FR: Record<string, string> = {
+  kind: 'le comité gestion de projet se joint pour aider à cadrer la tâche',
+  surface: 'chaque angle de spécialiste des cerveaux reste dans la revue',
+  data: 'traité comme des données personnelles : le comité sécurité se joint et les preuves RGPD sont demandées',
+  research: 'compte comme local : seulement les fichiers du projet et les sources que tu as fournies',
+  concerns: 'les comités de chaque sujet se joignent, et les règles de chaque sujet restent ouvertes',
+  outcome: 'laisse vide : la consultation note le résultat manquant comme point ouvert',
+  affected: 'laisse vide : la consultation le note comme point ouvert',
+  options: 'laisse vide : la consultation le note comme point ouvert',
+  context: 'par défaut : vide',
+};
+/** French names of the brains of the catalog, by ID (registry/boards); an unknown ID keeps the CLI's title. */
+export const BRAIN_FR: Record<string, string> = {
+  backend: 'Développement back-end', communication: 'Communication', 'customer-success': 'Succès client', data: 'Données et IA',
+  design: 'Design produit', 'developer-relations-and-docs': 'Relations développeurs et documentation', devops: 'DevOps et fiabilité',
+  engineering: 'Développement logiciel (front-end et back-end)', finance: 'Finance et FinOps', frontend: 'Développement front-end',
+  hr: 'Ressources humaines', 'it-and-workplace': 'Informatique interne et poste de travail', leadership: 'Direction générale',
+  legal: 'Juridique et conformité', localisation: 'Localisation et internationalisation', marketing: 'Marketing et études de marché',
+  operations: 'Opérations', partnerships: 'Partenariats et réseaux de distribution', performance: 'Performance',
+  procurement: 'Achats et gestion des fournisseurs', product: 'Gestion de produit', 'project-management': 'Gestion de projet',
+  qa: 'Assurance qualité', sales: 'Ventes', security: 'Sécurité et protection des données', support: 'Support et succès client',
+  'trust-and-safety': 'Confiance et sécurité des utilisateurs',
+};
+/** The name of a brain the page shows: French when the page knows its ID, the CLI's title otherwise. */
+export const brainName = (id: string, title?: string) => BRAIN_FR[id] ?? title ?? id;
+
 /** Open points name the unanswered question in English; show it in French when it is known. */
 export function openPointLabel(text: string, prompts: Record<string, string>) {
   const m = /^Unanswered: (.*)$/.exec(text);

@@ -13,15 +13,13 @@ import os
 import tempfile
 from pathlib import Path
 
+from .storage import file_signature
+
 INDEX_FILE = ".status-index"
 SCHEMA_VERSION = 1
 # A file changed less than this long before the index was written may have changed again within the same
 # timestamp tick of a coarse file system, so its entry is checked again (2 s covers FAT).
 RACY_NANOSECONDS = 2_000_000_000
-
-
-def _stamp(info: os.stat_result) -> list[int]:
-    return [info.st_size, info.st_mtime_ns, info.st_ctime_ns, info.st_ino]
 
 
 def _read_index(directory: Path) -> tuple[dict, int]:
@@ -81,7 +79,7 @@ def tasks_with_status(state: Path, skipped: set[str]) -> list[str]:
         try:
             if not entry.is_file():
                 continue
-            stamp = _stamp(entry.stat())
+            stamp = list(file_signature(Path(entry.path), entry.stat()))
         except OSError:
             candidates.append(entry.name[:-5])
             continue

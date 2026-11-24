@@ -44,6 +44,11 @@ SAMPLES = {
     "a Notion token": fake("nt" + "n_", "T5", 23),
     "a Sentry token": fake("sntr" + "ys_", "S3", 20),
     "a Figma token": fake("fig" + "d_", "F2", 20),
+    "a Google OAuth access token": fake("ya" + "29.", "Y2", 20),
+    "a Slack app token": "xa" + "pp-1-" + "A0" * 6 + "-" + "X3" * 12,
+    "a Stripe webhook secret": fake("wh" + "sec_", "W8", 16),
+    "a DigitalOcean token": fake("do" + "p_v1_", "d0", 32),
+    "a Shopify token": fake("shp" + "at_", "a9", 16),
     "a Slack webhook link": "https://hooks." + "slack.com/services/" + "T0" * 5 + "/" + "B0" * 5 + "/" + "w9" * 12,
     "a Discord webhook link": "https://discord" + ".com/api/webhooks/" + "1" * 18 + "/" + "D4" * 20,
     "a Google OAuth client secret": fake("GOC" + "SPX-", "G6", 14),
@@ -54,6 +59,7 @@ SAMPLES = {
     "a link with a password": "https://deploy:" + "w" * 10 + "@git.example.test/repo",
     "a secret in a query string": "https://api.example.test/v1?access_" + "token=" + "q" * 20,
     "a password": "pass" + "word=" + "v" * 10,
+    "a password on a command line": "mysql -u app -" + "p" + "Mq" * 6 + " shop",
     "an authorization header": "Authorization: " + "Bearer " + "o7" * 12,
     "a secret in a setting": "client_" + "secret: " + "c5" * 10,
 }
@@ -65,6 +71,8 @@ SECRET_PARTS = {
     "an OpenAI API key": "Ab3" * 16, "an npm token": "N4" * 18, "a PyPI token": "Ip" * 30, "a Hugging Face token": "H7" * 17,
     "an Atlassian API token": "F0" * 40, "a Linear API key": "L9" * 20, "a Notion token": "T5" * 23,
     "a Sentry token": "S3" * 20, "a Figma token": "F2" * 20, "a Slack webhook link": "w9" * 12,
+    "a Google OAuth access token": "Y2" * 20, "a Slack app token": "X3" * 12, "a Stripe webhook secret": "W8" * 16,
+    "a DigitalOcean token": "d0" * 32, "a Shopify token": "a9" * 16, "a password on a command line": "Mq" * 6,
     "a Discord webhook link": "D4" * 20, "a Google OAuth client secret": "G6" * 14, "a SendGrid API key": "g1" * 22,
     "an Azure storage key": "Az0+" * 10, "an authorization header": "o7" * 12, "a secret in a setting": "c5" * 10,
 }
@@ -118,6 +126,29 @@ class ShapeTests(unittest.TestCase):
         # In a link the query string shape replaces it, and keeps the rest of the link.
         self.assertEqual(redact_credentials(f"https://api.example.test/v1?token={value}&page=2"),
                          "https://api.example.test/v1?token=[credential]&page=2")
+
+    def test_a_password_or_a_passphrase_under_a_prefixed_name_is_replaced(self):
+        value = "Xq7vLm2pRt9w"
+        for key in ("DB_PASSWORD", "POSTGRES_PASSWORD", "MYSQL_ROOT_PASSWORD", "DB_PWD", "PASSPHRASE", "GPG_PASSPHRASE",
+                    "smtp-password", "dbPassword", '"password"', "--password"):
+            for separator in ("=", ": "):
+                with self.subTest(key=key, separator=separator):
+                    text = f"Set {key}{separator}{value} on the server."
+                    self.assertEqual(credential_kind(text), "a password")
+                    self.assertEqual(redact_credentials(text), f"Set {key}{separator}[password] on the server.")
+        for text in ("Set POSTGRES_PASSWORD=${PG_PASSWORD} in compose.", "Rotate the DB_PASSWORD every month.",
+                     "Run mysql -p to be asked the password.", "passwordless login", "pwd: command not found"):
+            with self.subTest(text=text):
+                self.assertIsNone(credential_kind(text))
+
+    def test_a_camel_case_token_key_is_a_secret_in_a_setting(self):
+        value = "x7" * 8
+        for key in ("accessToken", "refreshToken", "idToken", "clientSecret"):
+            for text in (f'{{"{key}": "{value}"}}', f"{key}={value}", f"{key}: {value}"):
+                with self.subTest(text=text):
+                    self.assertEqual(credential_kind(text), "a secret in a setting")
+                    self.assertNotIn(value, redact_credentials(text))
+        self.assertIsNone(credential_kind("maxTokens: 4000"))
 
     def test_an_openai_key_is_recognized_with_or_without_its_project_prefix(self):
         for prefix in ("sk-", "sk-proj-", "sk-svcacct-", "sk-admin-"):
@@ -187,6 +218,18 @@ class TaskInputTests(CapturedCli, unittest.TestCase):
         for value in (key, SECRET_PARTS["a password"], "ops@example.test", "56 78"):
             self.assertNotIn(value, warning)
         self.assertEqual(self.brief(), "Publish with [credential], password=[password]. Ask ops@example.test or +33 6 12 34 56 78.")
+
+    def test_a_prefixed_password_and_a_google_access_token_in_a_brief_are_replaced(self):
+        password, token = "Xq7vLm2pRt9w", SAMPLES["a Google OAuth access token"]
+        _, warning = self.run_cli("task", "new", f"Move the database: POSTGRES_PASSWORD={password} and the accessToken "
+                                                 f"{token} are in the old runbook.", "--id", TASK)
+        self.assertIn("replaced a possible credential in the task brief with a placeholder", warning)
+        self.assertEqual(self.brief(), "Move the database: POSTGRES_PASSWORD=[password] and the accessToken [credential] "
+                                       "are in the old runbook.")
+        record = (self.root / ".openguildkit" / "tasks" / f"{TASK}.json").read_text(encoding="utf-8")
+        for part in (password, SECRET_PARTS["a Google OAuth access token"]):
+            self.assertNotIn(part, record)
+            self.assertNotIn(part, warning)
 
     def test_a_brief_with_registry_tokens_is_recorded_without_them(self):
         atlassian, openai = SAMPLES["an Atlassian API token"], SAMPLES["an OpenAI API key"]

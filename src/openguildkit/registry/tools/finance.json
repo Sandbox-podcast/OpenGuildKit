@@ -327,7 +327,9 @@
       ],
       "detect": {
         "npm": [
-          "stripe"
+          "stripe",
+          "@stripe/stripe-js",
+          "@stripe/react-stripe-js"
         ],
         "pypi": [
           "stripe"

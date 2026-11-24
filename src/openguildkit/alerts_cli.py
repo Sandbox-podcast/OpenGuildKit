@@ -195,8 +195,8 @@ def _consult_again_note(task: dict, active: list[dict], as_json: bool) -> None:
     held = {alert["id"] for alert in task.get("consultation", {}).get("scope", {}).get("dependency_alerts", [])}
     if "consultation" in task and task["status"] not in DONE_STATUSES and not as_json and any(
             alert["id"] not in held for alert in active):
-        print(f"The task was consulted before this import: run openguildkit task consult {task['id']} again "
-              "so the boards see its alerts.")
+        print(f"The task was consulted before this import: consult it again with openguildkit task consult "
+              f"{task['id']} --reuse-answers so the boards see its alerts.")
 
 
 def consultation_task(state: Path, task: dict) -> dict:

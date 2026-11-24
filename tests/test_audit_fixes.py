@@ -58,9 +58,9 @@ class AlertAndDossierTests(CapturedCli, unittest.TestCase):
         same, _ = self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json", "--task", "status")
         self.assertNotIn("consult", same)
         note, _ = self.cli("alerts", "import", FIXTURES / "pip-audit.json", "--task", "status")
-        self.assertIn("openguildkit task consult status again", note)
+        self.assertIn("consult it again with openguildkit task consult status --reuse-answers", note)
         note, _ = self.cli("task", "alerts", "status", "--import", FIXTURES / "npm-audit-critical.json")
-        self.assertIn("task consult status again", note)
+        self.assertIn("task consult status --reuse-answers", note)
 
     def test_a_dossier_about_another_subject_is_flagged_in_the_consultation(self):
         market = self.root / ".openguildkit" / "market"

@@ -51,7 +51,7 @@ openguildkit host apply
 openguildkit check
 ```
 
-Avec Claude Code ou Codex comme agent hôte, `check` échoue tant que `host apply` n'a pas installé les réglages et les hooks de l'hôte : lance-le d'abord. Avec un autre agent, passe-le ; il n'écrit rien pour cet hôte. Sans terminal, dans un script ou depuis ton agent, `openguildkit init --questions` imprime le questionnaire en JSON et `openguildkit init --answers reponses.json` lit les réponses dans un fichier.
+Avec Claude Code ou Codex comme agent hôte, `check` échoue tant que `host apply` n'a pas installé les réglages et les hooks de l'hôte : lance-le d'abord. Avec un autre agent, passe-le ; il n'écrit rien pour cet hôte. Sans terminal, dans un script ou depuis ton agent, `openguildkit init --questions` imprime le questionnaire en JSON et `openguildkit init --answers reponses.json` lit les réponses dans un fichier. Le fichier doit répondre à `personal_data` (`yes`, `no` ou `unsure`, qui propose les lois sur les données personnelles) : sans cette réponse, `init` n'écrit rien et nomme la question.
 
 `init` enregistre ton profil dans `.openguildkit/project.json` et écrit les règles dans un bloc géré de `AGENTS.md`. Il ajoute un import dans `CLAUDE.md` pour Claude Code. Les règles en vigueur sont figées dans `.openguildkit/catalog.lock.json` : après une mise à jour d'OpenGuildKit, `openguildkit update` montre la date du catalogue installé (le jour où ses sources ont été vérifiées pour la dernière fois), le nombre d'enregistrements modifiés et ce qui changerait, et `openguildkit update --apply` l'adopte. Il affiche ensuite les étapes suivantes qui s'appliquent, comme `openguildkit host apply` pour ton agent et `openguildkit tools plan ...` pour les outils que le registre connaît. [Installe le skill](integrations/) pour répondre au questionnaire dans Claude Code ou Codex et lancer des tâches depuis la conversation. Pour changer le profil ensuite (adopter ou refuser une réglementation, ajouter un contrôle, changer d'agent ou de garde-fou), utilise `openguildkit profile` : la commande enregistre qui, quand et pourquoi, et réécrit `AGENTS.md` ([patterns](docs/patterns.md#change-the-profile-after-setup)).
 
@@ -87,7 +87,7 @@ openguildkit task consult statut-demandes --answers reponses.json
 - `task questions` donne le questionnaire : l'agent te demande le type de travail, les zones touchées, les données en jeu et les recherches permises.
 - `task questions --answers --follow-ups` donne seulement les questions de suivi qu'appellent tes réponses et les points encore ouverts.
 - `task route` montre les boards retenus et pourquoi, sans rien enregistrer. Toi seul ajoutes ou retires un board, avec une raison.
-- `task consult` enregistre tes réponses et prépare une consultation courte : la tâche, le périmètre du projet, une ligne par board.
+- `task consult` enregistre tes réponses et prépare une consultation courte : la tâche, le périmètre du projet, une ligne par board. Pour consulter de nouveau une tâche avec les réponses qu'elle garde, après une demande de changements, un rebase ou un changement de règles, lance `task consult ID --reuse-answers` : la commande n'a pas besoin de terminal.
 
 Un `reponses.json` minimal donne l'identifiant d'un choix pour chaque question de `task questions`. `concerns` nomme les sujets qui appellent leurs propres spécialistes (argent, IA, décisions sur des personnes, secrets), ou `none` :
 
@@ -101,6 +101,10 @@ Un `reponses.json` minimal donne l'identifiant d'un choix pour chaque question d
   "context": "Les clients connectés voient le statut de leurs propres demandes support."
 }
 ```
+
+Les questions de suivi ajoutent leurs réponses au même fichier, sous leur identifiant : `outcome` (ce qu'on peut voir ou mesurer une fois le travail fini), `affected` (qui remarque le changement) et, pour une décision, `options`.
+
+Les fichiers JSON de ces étapes (les réponses, un avis par board, la délibération, le résultat) sont des fichiers de travail. Écris-les dans `.openguildkit/work/`, pas à la racine du projet : Git ignore ce dossier, et le garde-fou laisse l'agent y écrire avant toute approbation.
 
 **2. Consulter les boards.**
 
@@ -118,7 +122,7 @@ openguildkit task challenge statut-demandes
 - `task submit` enregistre l'avis du board. Un avis mal formé est refusé avec la liste de tous ses problèmes.
 - `task progress` dit quels boards ont rendu leur avis.
 - `task review` rassemble les avis avec le résumé que l'agent écrit.
-- `task deliberate` liste les objections entre boards en désaccord. Avec `task respond`, chaque board maintient, amende ou cède.
+- `task deliberate` liste les objections entre boards en désaccord. Avec `task respond`, chaque board maintient, amende ou cède. Quand aucun board ne fait d'objection à un autre, `task deliberate` le dit : passe `task respond`.
 - `task challenge` imprime la note de décision que l'agent te montre : verdicts, objections, points bloquants et vérifications qui pourraient changer la décision.
 
 **3. Décider.** `task clear`, `task decide` et `task revoke` sont à toi. L'agent te propose les preuves, mais il ne lance jamais ces commandes à ta place.
@@ -135,7 +139,7 @@ openguildkit task revoke statut-demandes --by CM --reason "Le portail passe à u
 - `task clear` lève un point bloquant avec une preuve, un fichier du projet ou un lien. Un point de phase `verification` est une condition de l'approbation : tu approuves avant, et tu le lèves une fois le code écrit.
 - `task decide --approve` affiche la note de décision et te demande de taper l'identifiant de la tâche. L'approbation est scellée.
 - `task decide --request-changes` renvoie la tâche au cadrage, et l'historique est gardé.
-- `task revoke` retire une approbation quand le travail est abandonné ou qu'une condition de l'approbation ne peut pas être remplie : la tâche repasse en changements demandés, et le garde-fou ne couvre plus ses modifications.
+- `task revoke` retire une approbation quand le travail est abandonné ou qu'une condition de l'approbation ne peut pas être remplie : la tâche repasse en changements demandés, et le garde-fou ne couvre plus ses modifications. Si la décision était déjà exportée, relance `task export` et commite l'enregistrement : il porte alors le retrait.
 - `--by` prend tes initiales ou ton identifiant d'équipe, pas ton nom complet : il est recopié dans des fichiers que l'équipe commite, et une approbation le garde sous son sceau ([données personnelles](docs/personal-data.md)).
 
 **4. Réaliser et clore.**
@@ -146,15 +150,18 @@ openguildkit task verify statut-demandes
 openguildkit task result statut-demandes --template > result.json
 openguildkit task result statut-demandes --file result.json
 openguildkit task complete statut-demandes
+git add -A && git commit -m "Afficher le statut de chaque demande"
 openguildkit task export statut-demandes
+git add .openguildkit/decisions && git commit -m "Enregistrement de la décision statut-demandes"
 ```
 
 - `task handoff` remet à l'agent le brief d'implémentation : le périmètre approuvé et les règles en vigueur. L'agent ne réalise que ce périmètre.
-- `task verify` lance les contrôles du projet et enregistre leurs résultats.
-- `task result --template` ne demande que les règles qui concernent la tâche. Les autres sont listées comme non concernées, avec la raison.
-- `task result --file` enregistre le résultat que l'agent a rempli. Tu confirmes chaque règle écartée, et le responsable de chaque pièce justificative (registre des traitements, décision d'AIPD) la fournit.
+- `task verify` lance les contrôles du projet et enregistre leurs résultats. Avant tout `task result`, il compte les règles à rapporter sans les lister : le modèle les liste.
+- `task result --template` ne demande que les règles qui concernent la tâche. Les autres sont listées comme non concernées, avec la raison. Un critère est `met` (atteint) ou `not-met` ; une règle est `passed`, `failed`, `skipped` ou `not-applicable`.
+- `task result --file` enregistre le résultat que l'agent a rempli. Le responsable de chaque pièce justificative (registre des traitements, décision d'AIPD) la fournit : le résultat nomme le document et la personne qui l'a fourni. Quand le résultat déclare non applicable une règle de protection des données, de sécurité ou d'IA que les réponses de la tâche sélectionnent (les règles RGPD pour des données personnelles), `task complete` liste chacune, et la personne qui clôt la tâche les confirme dans son terminal (`--by`, puis l'identifiant de la tâche retapé). Une même preuve citée pour les règles réussies de trois packs ou plus est signalée, et la tâche se clôt alors avec réserves.
 - `task complete` clôt la tâche en `done` quand rien ne reste ouvert, ou en `done-with-reservations` (terminée avec réserves) avec les points ouverts, du plus grave au moins grave. `task show --closing` les réaffiche, et `task new --follows` ouvre une tâche liée pour les reprendre.
-- `task export` écrit l'enregistrement de la décision, à committer avec le travail : le contrôle de la pull request le lit.
+- Commite le travail avant `task export` : l'enregistrement liste les fichiers suivis par Git qui ont changé depuis l'approbation, et le contrôle de la pull request exige chaque fichier modifié dans cette liste. `task export` nomme les nouveaux fichiers que Git ne suit pas encore, qu'aucun enregistrement ne couvre.
+- `task export` écrit l'enregistrement de la décision ; commite-le dans la même pull request. Après `task revoke`, `task export` écrit le retrait dans l'enregistrement, et le contrôle le refuse alors.
 
 ## Parcourir le catalogue
 

@@ -68,4 +68,4 @@ Fill the template: what changes, the issue (`Closes #123` if the pull request re
 
 ## 6. Follow the checks
 
-The pull request page shows `contribution-checks`, which combines the test matrix on Linux, macOS and Windows, the wheel build and the CI coordinator tests. Open "Details" next to a failed job to read the log, fix, and push again on the same branch. A maintainer or the steward of the domain reviews and merges with a squash.
+The pull request page shows `contribution-checks`, which combines the test matrix on Linux, macOS and Windows, the wheel build and the CI coordinator tests. Open "Details" next to a failed job to read the log, fix, and push again on the same branch. A job cancelled before any step ran never got a runner: `contribution-checks` names it under `These jobs never started`, and rerunning it is enough ([CONTRIBUTING.md](../CONTRIBUTING.md#open-a-pull-request)). A maintainer or the steward of the domain reviews and merges with a squash.

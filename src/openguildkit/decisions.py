@@ -201,12 +201,24 @@ def _ssh_verify(signers: str, payload: dict, signature: str, signer: str) -> Non
 PROJECT_FILE = ".openguildkit/project.json"
 
 
-def signers_at_approval(history: Path, payload: dict) -> tuple[list[str], str] | None:
+def merged_reference(root: Path) -> str | None:
+    """The branch that holds reviewed, merged work: the remote's default branch (origin/HEAD, which git clone sets), or
+    else the upstream branch the current branch tracks. None when the repository has neither."""
+    for reference in ("refs/remotes/origin/HEAD", "@{upstream}"):
+        found = _git(root, "rev-parse", "--verify", "--quiet", "--symbolic-full-name", reference)
+        if found is not None and not found.returncode and found.stdout.strip():
+            name = found.stdout.strip()
+            return name.removeprefix("refs/remotes/")
+    return None
+
+
+def signers_at_approval(history: Path, payload: dict, *, merged_only: bool = False) -> tuple[list[str], str] | None:
     """The approvers and the allowed signers file as Git held them at the revision an approval was signed at.
 
     task decide verifies against the signers file at HEAD and records HEAD in the signed payload, so that revision
     holds the file the signature was verified against. None when the revision is not in the history of HEAD, or
-    does not hold a signed project.json and its signers file.
+    does not hold a signed project.json and its signers file. merged_only also asks that the revision be on the merged
+    branch (merged_reference): a commit only this copy holds, which an agent can write and revert, does not count.
     """
     base = payload.get("base_revision")
     commit = base.get("commit") if isinstance(base, dict) else None
@@ -215,6 +227,10 @@ def signers_at_approval(history: Path, payload: dict) -> tuple[list[str], str] |
     ancestor = _git(history, "merge-base", "--is-ancestor", commit, "HEAD")
     if ancestor is None or ancestor.returncode:
         return None
+    if merged_only:
+        merged = merged_reference(history)
+        if merged is None or _git(history, "merge-base", "--is-ancestor", commit, merged).returncode:
+            return None
     try:
         profile = json.loads(_git(history, "show", f"{commit}:./{PROJECT_FILE}").stdout)
         policy = profile["approval"]
@@ -227,24 +243,45 @@ def signers_at_approval(history: Path, payload: dict) -> tuple[list[str], str] |
     return approvers, signers.stdout
 
 
+def _not_merged(history: Path, payload: dict) -> str:
+    """Why the signers of the approval's revision were not read: that revision is not on the merged branch."""
+    commit = str((payload.get("base_revision") or {}).get("commit", ""))[:12]
+    merged = merged_reference(history)
+    where = (f"which {merged} does not contain" if merged else
+             "and this repository has no merged branch to read it from (no origin/HEAD and no upstream branch)")
+    return (f" The approval was signed at revision {commit}, {where}: the approvers and signers of an earlier "
+            "revision count only once it is merged. Merge it, or have a current approver sign again.")
+
+
 def verify_recorded_signature(root: Path, policy: dict, payload: dict, signature: str, signer: str, *,
-                              committed: bool = True, history: Path | None = None) -> None:
+                              committed: bool = True, history: Path | None = None) -> str | None:
     """Verify the signature of an approval already recorded, which a departed approver may have given.
 
-    Against the current approvers and signers file first. When the signer has left them since, the approval holds
-    if it verifies against those of the revision it was signed at (signers_at_approval), read from the Git
-    repository history (root by default). A new approval goes through verify_signature, which refuses them.
+    Against the current approvers and signers file first: None when they verify it. When the signer has left them
+    since, the approval holds if it verifies against those of the revision it was signed at (signers_at_approval), read
+    from the Git repository history (root by default); that revision is returned. Read from root, in a local copy,
+    the revision must also be on the merged branch, so that a key an agent committed and then reverted approves
+    nothing; CI passes history and judges the record against its base revision instead. A new approval goes through
+    verify_signature, which refuses them.
     """
     try:
         verify_signature(root, policy, payload, signature, signer, committed=committed)
+        return None
     except SignerNotCurrent as current:
-        recorded = signers_at_approval(history or root, payload) if history or committed else None
+        if not (history or committed):
+            raise
+        source = history or root
+        recorded = signers_at_approval(source, payload, merged_only=history is None)
         if recorded is None or signer not in recorded[0]:
+            unmerged = history is None and signers_at_approval(source, payload)
+            if unmerged and signer in unmerged[0]:
+                raise SignerNotCurrent(f"{current}{_not_merged(source, payload)}") from None
             raise
         try:
             _ssh_verify(recorded[1], payload, signature, signer)
         except ValueError:
             raise current from None
+        return payload["base_revision"]["commit"]
 
 
 DECISIONS_DIR = "decisions"
@@ -274,9 +311,14 @@ def ignored_by_git(root: Path, paths: list[str]) -> set[str]:
     return {line.strip().replace("\\", "/") for line in result.stdout.splitlines() if line.strip()}
 
 
+def reconsult_command(task_id: str) -> str:
+    """The command that consults a task again with its recorded answers: it runs without a terminal."""
+    return f"openguildkit task consult {task_id} --reuse-answers"
+
+
 def reconsult_hint(task_id: str) -> str:
     """The next command for an approval that no longer holds, the same in every message."""
-    return (f"Consult it again with openguildkit task consult {task_id}, "
+    return (f"Consult it again with {reconsult_command(task_id)} (--answers FILE to change the answers), "
             f'or open a linked task with openguildkit task new "BRIEF" --follows {task_id}.')
 
 
@@ -348,27 +390,40 @@ def decision_problem(task: dict, root: Path | None, profile: dict, outside: set[
     return None if root is None else signature_or_history_problem(task, root, profile, payload, outside)
 
 
+# The one kind signature_or_history_problem returns that does not break the approval: a reader shows it as a note.
+EARLIER_SIGNERS = "earlier-signers"
+
+
 def signature_or_history_problem(task: dict, root: Path, profile: dict, payload: dict,
                                  outside: set[str] | None = None) -> tuple | None:
-    """The signature a signed project requires, then the approved revision, for an approval whose seal holds."""
+    """The signature a signed project requires, then the approved revision, for an approval whose seal holds.
+
+    An approval verified by the approvers and signers of the revision it was signed at holds, and comes back as
+    (EARLIER_SIGNERS, a note naming the signer and the revision), for the readers to say so.
+    """
     decision = task["decision"]
     policy = approval_policy(profile)
+    earlier = None
     if policy["mode"] == "signed":
         if "signature" not in decision:
             return "unsigned", (f"The project requires a signed approval and the approval of {task['id']} is not "
                                 f"signed. {reconsult_hint(task['id'])}")
         try:
-            verify_recorded_signature(root, policy, payload, decision["signature"], decision["signer"])
+            earlier = verify_recorded_signature(root, policy, payload, decision["signature"], decision["signer"])
         except ValueError as error:
             return "invalid-signature", f"{error} {reconsult_hint(task['id'])}"
     commit = base_commit(task)
     if commit and commit in (outside if outside is not None else revisions_outside_history(root, [commit])):
         return "outside-history", outside_history_message(task["id"], commit)
+    if earlier:
+        return EARLIER_SIGNERS, (f"The approval of {task['id']} was signed by {decision['signer']}, who is no longer a "
+                                 f"current approver: it holds through the approvers and signers file of revision "
+                                 f"{earlier[:12]}, where it was signed.")
     return None
 
 
 def check_decision(task: dict, root: Path, profile: dict) -> None:
     """Refuse an approval that no longer matches the record, its signature or the project history."""
     problem = decision_problem(task, root, profile)
-    if problem:
+    if problem and problem[0] != EARLIER_SIGNERS:
         raise ValueError(problem[1])

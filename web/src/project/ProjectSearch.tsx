@@ -7,6 +7,7 @@ import { Icon, type PixelIconName } from '@/shared/pixel/icons';
 import { norm } from '@/shared/text';
 import { useCli } from './query';
 import { useBrains, useTasks } from './data';
+import { brainName } from './labels';
 import { PROJECT_PLACES } from './ProjectShell';
 import type { Pattern, Reference } from './types';
 
@@ -25,7 +26,7 @@ export function ProjectSearch({ open, onClose }: { open: boolean; onClose: () =>
     PLACES.forEach((p) => { if (!words.length || match(`${p.name} ${PROJECT_PLACES[p.key].role} ${p.proName}`)) out.push({ kind: 'Lieu', icon: p.icon, title: p.name, detail: PROJECT_PLACES[p.key].role, to: p.route }); });
     if (!words.length) return out;
     (tasks.data ?? []).forEach((t) => { if (match(`${t.id} ${t.brief}`)) out.push({ kind: 'Tâche', icon: 'quest', title: t.id, detail: t.brief ?? '', to: `/quetes/${t.id}` }); });
-    Object.values(brains.data ?? {}).forEach((b) => { if (match(`${b.id} ${b.title} ${b.description}`)) out.push({ kind: 'Cerveau', icon: 'guild', title: b.title, detail: b.description, to: `/guilde/${b.id}` }); });
+    Object.values(brains.data ?? {}).forEach((b) => { if (match(`${b.id} ${brainName(b.id, b.title)} ${b.title} ${b.description}`)) out.push({ kind: 'Cerveau', icon: 'guild', title: brainName(b.id, b.title), detail: b.description, to: `/guilde/${b.id}` }); });
     (patterns.data ?? []).forEach((p) => { if (match(`${p.id} ${p.title} ${p.description}`)) out.push({ kind: 'Modèle de projet', icon: 'grid', title: p.title, detail: p.description, to: `/bibliotheque/patterns?q=${encodeURIComponent(p.id)}` }); });
     (refs.data ?? []).forEach((r) => { if (match(`${r.id} ${r.title} ${(r.aliases ?? []).join(' ')} ${r.summary}`)) out.push({ kind: 'Référence', icon: 'book', title: r.title, detail: r.summary, to: `/bibliotheque/ref/${r.id}` }); });
     return out.slice(0, 40);

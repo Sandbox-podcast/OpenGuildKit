@@ -33,7 +33,7 @@ class RoutingTests(unittest.TestCase):
 
     def route(self, brief: str, answers: dict | None = None, profile: dict | None = None) -> dict:
         answers = validate_answers(answers or NEUTRAL)
-        profile = profile or {"name": "Portal", "sector": "general", "packs": [], "boards": []}
+        profile = profile or {"personal_data": "no", "name": "Portal", "sector": "general", "packs": [], "boards": []}
         return select_boards(profile, self.catalog, {"id": "t", "brief": brief}, answers)
 
     def test_briefs_reach_the_right_brains(self):
@@ -135,7 +135,7 @@ class RoutingTests(unittest.TestCase):
         self.assertIn("Annex III, point 4", rules["classify-employment-use"]["instruction"])
 
     def test_an_active_pattern_is_not_suggested_again(self):
-        profile = {"name": "Portal", "sector": "general", "packs": [], "boards": [], "patterns": ["eu-ai-act-system"]}
+        profile = {"personal_data": "no", "name": "Portal", "sector": "general", "packs": [], "boards": [], "patterns": ["eu-ai-act-system"]}
         selected = self.route("Use AI to screen and rank job applicants", profile=profile)
         self.assertEqual(selected["patterns"], [])
 
@@ -250,7 +250,7 @@ class RoutingTests(unittest.TestCase):
                 self.assertEqual(len(offsets), len(normalized))
 
     def test_a_declared_role_that_the_task_serves_is_proposed(self):
-        profile = {"name": "Support tools", "sector": "general", "packs": [], "boards": [],
+        profile = {"personal_data": "no", "name": "Support tools", "sector": "general", "packs": [], "boards": [],
                    "roles": ["support", "customer-success", "communication"]}
         answers = {**NEUTRAL, "kind": "feature", "surface": ["business", "service"], "data": "personal",
                    "affected": "Support managers who paste the weekly numbers into a spreadsheet."}
@@ -270,7 +270,7 @@ class RoutingTests(unittest.TestCase):
                                                undeclared)["routing"])
 
     def test_the_route_lists_the_boards_left_out(self):
-        profile = {"name": "Api", "sector": "general", "packs": [], "boards": ["backend", "devops", "qa", "security"]}
+        profile = {"personal_data": "no", "name": "Api", "sector": "general", "packs": [], "boards": ["backend", "devops", "qa", "security"]}
         answers = {**NEUTRAL, "kind": "bug", "surface": ["service"], "data": "internal"}
         selected = self.route("Neutralise formula characters in every CSV export", answers, profile)
         self.assertEqual(set(selected["routing"]), {"qa", "security"})
@@ -287,7 +287,7 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(selected["excluded"]["security"], ["without touching personal data or secrets"])
 
     def test_the_consultation_shows_what_the_brief_excludes(self):
-        profile = {"name": "Portal", "sector": "general", "packs": [], "boards": []}
+        profile = {"personal_data": "no", "name": "Portal", "sector": "general", "packs": [], "boards": []}
         answers = {**NEUTRAL, "kind": "feature", "surface": ["service"], "context": "No payments involved."}
         consultation = consult(profile, self.catalog, {"id": "t", "brief": "Add a CSV export", "answers": answers})
         self.assertIn("Mentioned as excluded, not consulted: finance (No payments)", consultation["markdown"])
@@ -302,7 +302,7 @@ class RoutingTests(unittest.TestCase):
         self.assertIn('"Move the payments to the ledger"', routes["finance"][0])
 
     def test_the_audience_named_in_the_brief_or_context_selects_a_declared_role(self):
-        profile = {"name": "Support tools", "sector": "general", "packs": [], "boards": [],
+        profile = {"personal_data": "no", "name": "Support tools", "sector": "general", "packs": [], "boards": [],
                    "roles": ["support", "customer-success"]}
         answers = {**NEUTRAL, "kind": "feature", "surface": ["business"], "affected": "users"}
         routing = self.route("Zendesk ticket report for our support agents", answers, profile)["routing"]
@@ -316,7 +316,7 @@ class RoutingTests(unittest.TestCase):
         self.assertNotIn("support", self.route("Fix the layout", answers, profile)["routing"])
 
     def test_a_hyphenated_role_further_in_an_audience_list_is_selected(self):
-        profile = {"name": "Support tools", "sector": "general", "packs": [], "boards": [],
+        profile = {"personal_data": "no", "name": "Support tools", "sector": "general", "packs": [], "boards": [],
                    "roles": ["support", "customer-success"]}
         for field, text in (("context", "Read by the support team and customer-success managers"),
                             ("context", "Pour l'équipe support et les responsables customer-success"),
@@ -328,7 +328,7 @@ class RoutingTests(unittest.TestCase):
                 self.assertNotIn("customer-success", selected["expected_not_selected"])
 
     def test_the_boards_the_team_expects_get_a_reason_each(self):
-        profile = {"name": "Shop", "sector": "general", "packs": [], "boards": [], "roles": ["backend", "finance"]}
+        profile = {"personal_data": "no", "name": "Shop", "sector": "general", "packs": [], "boards": [], "roles": ["backend", "finance"]}
         answers = {**NEUTRAL, "kind": "bug", "surface": ["customer"]}
         selected = self.route("Fix the colour of the header", answers, profile)
         self.assertEqual(set(selected["expected_not_selected"]), {"backend", "finance"})
@@ -360,7 +360,7 @@ class RoutingTests(unittest.TestCase):
         self.assertTrue(all("add billing and payment retries" in reason.casefold() for reason in reasons), reasons)
 
     def test_the_route_lists_the_boards_it_leaves_out_and_how_to_change_them(self):
-        profile = {"name": "Portal", "sector": "general", "packs": [], "boards": [], "roles": ["support"]}
+        profile = {"personal_data": "no", "name": "Portal", "sector": "general", "packs": [], "boards": [], "roles": ["support"]}
         routed = self.route("A weekly report for the support team", profile=profile)
         self.assertIn("support", routed["routing"])
         self.assertTrue(any("Declared role" in reason for reason in routed["routing"]["support"]), routed["routing"])

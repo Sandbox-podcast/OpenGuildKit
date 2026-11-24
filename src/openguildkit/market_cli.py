@@ -107,7 +107,8 @@ def _due(args, state: Path, research: str) -> None:
     results = []
     for dossier_id in ids:
         dossier = load_dossier(state, dossier_id)
-        due = [{**source, "dossier": dossier_id, "issue": due_issue(dossier_id, source)} for source in due_sources(dossier)]
+        due = [{**source, "dossier": dossier_id, "issue": due_issue(dossier_id, source, research)}
+               for source in due_sources(dossier)]
         results.append({"dossier": dossier_id, "due": due, "paused": dossier.get("watch", {}).get("paused", False)})
     if args.json:
         print(json_text(results[0] if not args.all else {"dossiers": results,
@@ -123,6 +124,22 @@ def _due(args, state: Path, research: str) -> None:
         print("No market dossier in .openguildkit/market/.")
     elif research == "local-only" and any(result["due"] for result in results):
         print(LOCAL_ONLY_DUE)
+
+
+def _person_reviews(args, dossier: dict, research: str) -> None:
+    """Under local-only, no agent opens a page: a watched page counts as reviewed only when a person recorded it
+    with market provided. market checked would mark it reviewed without anyone; market change on a watched page
+    would too, unless a person provided that page."""
+    if research != "local-only":
+        return
+    url = args.url if args.mode == "checked" else args.source
+    sources = dossier.get("watch", {}).get("sources", [])
+    watched = next((item for item in sources if item.get("url") == url), None)
+    if watched is None or (args.mode == "change" and watched.get("provided_by")):
+        return
+    then = " first, then record the change" if args.mode == "change" else ""
+    raise ValueError(f"Research is local-only: no agent opens {url}. A person reviews it and records it with "
+                     f"openguildkit market provided {args.dossier} --url {url} --by NAME{then}.")
 
 
 def run(args, state: Path, profile: dict) -> None:
@@ -146,6 +163,9 @@ def run(args, state: Path, profile: dict) -> None:
                 raise ValueError(f"Market dossier {args.dossier} already exists. Update it with the other market commands.")
             dossier = new_dossier(args.dossier, {name: getattr(args, name) for name in ("title", "market", "audience", "feature")})
         else:
-            dossier = _changed(args, load_dossier(state, args.dossier))
+            dossier = load_dossier(state, args.dossier)
+            if args.mode in ("checked", "change"):
+                _person_reviews(args, dossier, profile.get("research", "local-only"))
+            dossier = _changed(args, dossier)
         save_dossier(state, dossier)
     print(f"Market dossier {args.dossier}: {MODES[args.mode]}, done. Run openguildkit market check {args.dossier}.")
