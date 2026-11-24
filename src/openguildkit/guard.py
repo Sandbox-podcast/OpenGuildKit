@@ -355,22 +355,24 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
     if task.get("rounds"):
         record["rounds"] = exported_rounds(task)
     if task.get("result"):
+        # A decision task closes without a result file: its result holds only the closing.
+        checks = task["result"].get("checks", [])
         record["result"] = {
             key: task["result"][key] for key in ("revision", "pull_request") if key in task["result"]
         }
-        record["result"]["checks"] = {item["check"]: item["status"] for item in task["result"]["checks"]}
+        record["result"]["checks"] = {item["check"]: item["status"] for item in checks}
         record["result"]["check_exceptions"] = [
             {key: item[key] for key in ("check", "status", "reason", "owner") if key in item}
-            for item in task["result"]["checks"] if item["status"] in ("skipped", "not-applicable")
+            for item in checks if item["status"] in ("skipped", "not-applicable")
         ]
         # A reviewer sees which named evidence was declared not applicable, by whom and why.
         record["result"]["evidence_not_applicable"] = [
-            {key: item[key] for key in ("check", "reason", "owner")} for item in task["result"]["checks"]
+            {key: item[key] for key in ("check", "reason", "owner")} for item in checks
             if item["check"].startswith("evidence:") and item["status"] == "not-applicable"
         ]
         # The tool checks that a named evidence exists, never what it says: the record names who confirmed it.
         supplied = [{"check": item["check"], "evidence": item["evidence"], "confirmed_by": item.get("owner")}
-                    for item in task["result"]["checks"]
+                    for item in checks
                     if item["check"].startswith("evidence:") and item["status"] == "passed"]
         if supplied:
             record["result"]["evidence_supplied"] = supplied

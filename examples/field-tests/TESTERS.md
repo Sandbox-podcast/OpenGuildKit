@@ -40,6 +40,12 @@ The decision is the person's. When your scenario reaches the moment the person d
 at a terminal as the person would and prints what the prompt showed. If the prompt asks something more (for example
 to confirm a removed board), pass `--answer TEXT` for each extra line. Never approve in any other way.
 
+The person's other acts at a terminal go through `person-act`, only when the person would act: clearing a blocker
+with its evidence, closing a task over a skipped sensitive rule or a deferred evidence, declaring that a check cannot
+run, allowing an external action, accepting an alert. Give it the command without `openguildkit` and without
+`--project`: `person-act --project DIR task clear TASK_ID BLOCKER --by "NAME" --evidence PATH --supports "TEXT"`, or
+`person-act --project DIR task complete TASK_ID --by "NAME"`. It types the task or alert ID at the confirmation prompt.
+
 Company tools (issue tracker, time tracking, HR, scanner...): there are no accounts here. Connect mocks with
 `openguildkit tools apply TOOL... --mock` and query them the way an agent would through MCP with
 `openguildkit tools call TOOL` (lists what the mock offers) and `openguildkit tools call TOOL NAME --args '{...}'`.

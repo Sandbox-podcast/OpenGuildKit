@@ -126,7 +126,7 @@ A maintainer validates every replacement in the pull request that makes it. Run 
 - The agent skill and subagent live in `src/openguildkit/agent_files/` and are copied in `integrations/`; edit both, the tests check that they match.
 
 - Python 3.11+, standard library only at runtime.
-- Keep the CLI offline. It must never call a model provider or the network.
+- Keep the CLI offline. It must never call a model provider or the network. The one exception is `docs share verify`, which a person runs to read their own Documentalist instance; do not add another without discussing it in an issue.
 - Add unit tests in `tests/` and, for a new command, an end-to-end test in `tests/e2e/`: `tests/test_cli_coverage.py` fails when a command has no test that runs it. Run the CLI from a test with `tests/support.py` (`run_cli`, `CapturedCli`, `copy_initialized_project`): it runs in the test process unless the test needs a real one ([testing](docs/testing.md#how-the-suite-runs-the-cli)).
 - Keep messages short and actionable, prefixed `OpenGuildKit:` on errors.
 - Write code, rule packs and documentation in English, except the web interface. The web interface is written in French, because its screens are in French and the team that builds and uses it so far is French-speaking: `web/` (its screens, `web/README.md` and `web/docs/`) stays in French. Reference entries can keep their original language. The French README is maintained alongside the English one.

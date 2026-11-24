@@ -515,6 +515,14 @@ class ApprovalTests(CliTestCase):
         self.assertNotIn("Implement the approved scope", record)
         self.assertNotIn("# Approved task handoff", record)
 
+        # Closed without a result file, as the handoff says, the decision's record exports with its closing.
+        self.assertIn("done", self.run_cli("task", "complete", task_id).stdout)
+        self.run_cli("task", "export", task_id)
+        exported = json.loads((self.project / ".openguildkit" / "decisions" / f"{task_id}.json").read_text(encoding="utf-8"))
+        self.assertTrue(exported["completed"])
+        self.assertEqual(exported["result"]["checks"], {})
+        self.assertIn("closing", exported["result"])
+
 
 if __name__ == "__main__":
     unittest.main()

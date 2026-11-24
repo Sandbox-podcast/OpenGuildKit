@@ -164,6 +164,12 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local",
                                           "concerns": ["none"]})
         self.assertIn("GHSA-H5C8-RQWP-CP95", self.cli("task", "consult", "upgrade", "--answers", self.root / "a.json"))
+        # A subagent gets one board's pass and nothing else: the pass carries the task's alerts too.
+        boards = json.loads(self.cli("task", "show", "upgrade"))["consultation"]["boards"]
+        self.assertTrue(boards)
+        for board in boards:
+            self.assertIn(f"- Dependency alert {JINJA} (GHSA-H5C8-RQWP-CP95)",
+                          self.cli("task", "brief", "upgrade", "--board", board))
         record = json.loads(self.cli("task", "show", "upgrade"))
         self.assertNotIn("dependency_alerts", record)
         self.cli("task", "new", "Upgrade Jinja again.", "--id", "again")
