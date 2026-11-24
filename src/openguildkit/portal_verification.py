@@ -39,13 +39,8 @@ def _reason(error: Exception, origin: str, signed_in: bool = False) -> str:
     http address cannot return unless the instance runs with DOCUMENTALIST_COOKIE_SECURE=false.
     """
     if isinstance(error, HTTPError):
-        detail = ""
-        try:
-            body = json.loads(error.read(4096).decode("utf-8"))
-            if isinstance(body, dict) and isinstance(body.get("error"), str):
-                detail = " (" + "".join(c for c in body["error"][:200] if c.isprintable()) + ")"
-        except (OSError, ValueError, UnicodeError):
-            pass
+        # The report is persisted. Server error bodies may echo credentials.
+        error.close()
         hint = {400: "give --portal the address the instance is configured with (DOCUMENTALIST_URL)",
                 401: "check the account and its password", 403: "use an editor account allowed in this space",
                 404: "check the space in --portal", 409: "set the space's portal access to magic link",
@@ -56,7 +51,7 @@ def _reason(error: Exception, origin: str, signed_in: bool = False) -> str:
         retry = error.headers.get("Retry-After", "") if error.headers else ""
         if error.code == 429 and retry.isdigit():
             hint = f"wait {retry} seconds: the instance limits requests"
-        return f"Documentalist answered HTTP {error.code}{detail}; {hint}."
+        return f"Documentalist answered HTTP {error.code}; {hint}."
     if isinstance(error, URLError):
         reason = error.reason
         if isinstance(reason, ssl.SSLCertVerificationError):

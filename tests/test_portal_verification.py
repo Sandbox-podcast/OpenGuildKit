@@ -68,7 +68,7 @@ class Portal(BaseHTTPRequestHandler):
             self.reply({}, 302, {"Location": "/elsewhere"})
         elif self.path == "/api/auth/login":
             if body.get("password") != PASSWORD:
-                self.reply({"error": "Identifiants incorrects."}, 401)
+                self.reply({"error": f"Invalid credentials: {body.get('password')}"}, 401)
             else:
                 secure = "; Secure" if self.secure_cookie else ""
                 self.reply({"ok": True}, headers={"Set-Cookie": f"documentalist-session=s1; Path=/; HttpOnly{secure}"})
@@ -252,14 +252,18 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
 
     def test_refusals_of_the_instance_say_what_to_fix(self):
         self.share(["reader@example.test"], day(10))
-        output, _ = self.verify(code=1, password="wrong")
-        self.assertIn("Documentalist answered HTTP 401 (Identifiants incorrects.); check the account and its password.",
+        password = "test-invalid-password"
+        output, _ = self.verify(code=1, password=password)
+        self.assertNotIn(password, output)
+        observation = self.state / "shares" / "portal-observations.json"
+        self.assertNotIn(password, observation.read_text(encoding="utf-8"))
+        self.assertIn("Documentalist answered HTTP 401; check the account and its password.",
                       output)
         # The instance accepts changes only from its own address, here 127.0.0.1 and not localhost.
         local = self.portal.replace("127.0.0.1", "localhost")
         self.share(["reader@example.test"], day(10), portal=local)
         output, _ = self.verify(code=1, portal=local)
-        self.assertIn("HTTP 400 (Origine de la requête refusée.); give --portal the address the instance is configured "
+        self.assertIn("HTTP 400; give --portal the address the instance is configured "
                       "with (DOCUMENTALIST_URL).", output)
         Portal.mode = "password"
         output, _ = self.verify(code=1)
@@ -274,7 +278,7 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
         self.share(["reader@example.test"], day(10))
         Portal.secure_cookie = True
         output, _ = self.verify(code=1)
-        self.assertIn("HTTP 401 (Connexion requise.); the instance kept no session after the sign-in; over http, start "
+        self.assertIn("HTTP 401; the instance kept no session after the sign-in; over http, start "
                       "it with DOCUMENTALIST_COOKIE_SECURE=false, or give --portal its https address.", output)
         self.assertNotIn("check the account and its password", output)
         self.assertIn(("POST", "/api/auth/logout", f"http://127.0.0.1:{self.server.server_port}"), Portal.calls)
@@ -283,10 +287,10 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
         self.share(["reader@example.test"], day(10))
         Portal.limited = "sign-in"
         output, _ = self.verify(code=1)
-        self.assertIn("HTTP 429 (Trop de tentatives. Réessayez dans dix minutes.); wait ten minutes", output)
+        self.assertIn("HTTP 429; wait ten minutes", output)
         Portal.limited = "route"
         output, _ = self.verify(code=1)
-        self.assertIn("HTTP 429 (Trop de requêtes. Réessayez dans une minute.); wait 60 seconds: the instance limits "
+        self.assertIn("HTTP 429; wait 60 seconds: the instance limits "
                       "requests.", output)
 
     def test_credentials_are_not_forwarded_to_a_redirect(self):
