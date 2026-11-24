@@ -161,7 +161,7 @@
       "id": "docker",
       "title": "Docker",
       "vendor": "Docker",
-      "summary": "Container build and runtime tooling (Docker Desktop, Docker Hub).",
+      "summary": "Container build and runtime tooling (Docker Engine, Docker Desktop); Docker Hub is the docker-hub tool.",
       "homepage": "https://www.docker.com",
       "brains": [
         "devops",

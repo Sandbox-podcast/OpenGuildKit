@@ -14,6 +14,7 @@ src/openguildkit/registry/          shared catalog, shipped with the package
   deliverables/<id>.json            deliverable templates, see deliverables.md
   tools/<category>.json             tools and their MCP servers, see tools.md
   tool-mocks/<tool>.json            synthetic answers of a tool's mock, see tools.md
+  features/features.json            features: a lead tool and three alternatives, see tools.md
 .openguildkit/catalog/              optional, private to one project
   packs/ boards/ sectors/ patterns/ references/ deliverables/ tools/ tool-mocks/
 ```
@@ -246,7 +247,9 @@ A file in `deliverables/` is the template of a business deliverable: its method,
 }
 ```
 
-The file name is the category, one of the 22 that `tools.py` admits: `issue-tracking`, `source-control`, `ci-cd`, `documentation`, `design`, `communication`, `time-tracking`, `hr`, `finance`, `crm`, `marketing`, `support`, `security`, `quality`, `observability`, `cloud`, `data`, `browser`, `testing`, `analytics`, `automation`, `product`. A file with another name is refused. A project file in `.openguildkit/catalog/tools/` uses the same names and adds tools to the category; a tool ID that already exists is refused, and so is a project tool whose ID, title (with or without its vendor) or alias is a bundled tool's name, so that typing `Jira` never selects a project record. `tools plan` and `tools apply` mark each project tool `[project catalog]`.
+The file name is the category, one of the 27 that `tools.py` admits: `issue-tracking`, `source-control`, `ci-cd`, `documentation`, `design`, `communication`, `time-tracking`, `hr`, `finance`, `crm`, `marketing`, `support`, `security`, `quality`, `observability`, `cloud`, `data`, `browser`, `testing`, `analytics`, `automation`, `product`, `identity`, `ide`, `registries`, `containers`, `api-management`. A file with another name is refused. A project file in `.openguildkit/catalog/tools/` uses the same names and adds tools to the category; a tool ID that already exists is refused, and so is a project tool whose ID, title (with or without its vendor) or alias is a bundled tool's name, so that typing `Jira` never selects a project record. `tools plan` and `tools apply` mark each project tool `[project catalog]`.
+
+`registry/features/features.json` groups tools into features (see [tools.md](tools.md#features)). Each feature has an `id`, a `purpose`, a `lead` and exactly three `alternatives`; each option names a `tool` of the registry and may carry an `as` label, such as `{"tool": "aws", "as": "Amazon ECR"}`. The four tools of a feature are different. A project cannot add features.
 
 | Field | Constraint |
 |---|---|

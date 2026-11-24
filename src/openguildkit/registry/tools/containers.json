@@ -1,0 +1,172 @@
+{
+  "id": "containers",
+  "title": "Container management",
+  "tools": [
+    {
+      "id": "portainer",
+      "title": "Portainer",
+      "vendor": "Portainer",
+      "summary": "Web UI and API to manage Docker, Swarm, Kubernetes and edge environments.",
+      "homepage": "https://www.portainer.io",
+      "brains": [
+        "devops"
+      ],
+      "aliases": [
+        "Portainer CE",
+        "Portainer BE"
+      ],
+      "servers": [
+        {
+          "id": "portainer-mcp",
+          "name": "Portainer MCP",
+          "publisher": "vendor",
+          "maintainer": "Portainer",
+          "transport": "stdio",
+          "command": "uvx",
+          "args": [
+            "--from",
+            "mcp-portainer~=2.45.0",
+            "mcp-portainer"
+          ],
+          "package": {
+            "registry": "pypi",
+            "name": "mcp-portainer"
+          },
+          "auth": "api-token",
+          "env": [
+            "PORTAINER_URL",
+            "PORTAINER_API_KEY"
+          ],
+          "status": "deprecated",
+          "status_source": "https://github.com/portainer/portainer-mcp",
+          "capabilities": "Portainer REST API as tools: environments, settings, stacks, GitOps, Docker and Kubernetes workloads and proxy calls; profiles choose the tag sets.",
+          "source": "https://github.com/portainer/portainer-mcp",
+          "repository": "https://github.com/portainer/portainer-mcp",
+          "license": "MIT",
+          "verified": "2026-11-24",
+          "access": "Read and write.",
+          "pin": "mcp-portainer~=2.45.0: match the server's minor version to the Portainer minor version.",
+          "scopes": "The Portainer API key's user and its roles. Consent: Create an access token under My Account, Access tokens.",
+          "read_only": {
+            "how": "PORTAINER_READ_ONLY=1 keeps only GET and HEAD operations.",
+            "env": {
+              "PORTAINER_READ_ONLY": "1"
+            }
+          }
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.portainer.io/api/docs"
+      },
+      "notes": "The README says Portainer MCP is no longer the supported way to use an LLM with Portainer (Portainer Command, Business Edition, is), has no support or further development and may be archived; recorded as deprecated. A team container (portainer/portainer-mcp) also serves HTTP."
+    },
+    {
+      "id": "rancher",
+      "title": "Rancher",
+      "vendor": "SUSE",
+      "summary": "Multi-cluster Kubernetes management platform (Rancher Manager, Rancher Prime).",
+      "homepage": "https://www.rancher.com",
+      "brains": [
+        "devops"
+      ],
+      "aliases": [
+        "Rancher Manager",
+        "SUSE Rancher",
+        "Rancher Prime"
+      ],
+      "servers": [
+        {
+          "id": "rancher-ai-mcp",
+          "name": "MCP Server for Rancher",
+          "publisher": "vendor",
+          "maintainer": "Rancher (SUSE)",
+          "transport": "stdio",
+          "command": "mcp",
+          "args": [
+            "serve",
+            "--stdio"
+          ],
+          "package": {
+            "registry": "other",
+            "name": "github.com/rancher/rancher-ai-mcp (clone and build with Go; binary named mcp)"
+          },
+          "auth": "api-token",
+          "env": [
+            "RANCHER_URL",
+            "RANCHER_TOKEN"
+          ],
+          "status": "unknown",
+          "capabilities": "Kubernetes and Rancher resources across local and downstream clusters: inspection, Fleet diagnostics, provisioning, snapshots, node pool scaling and autoscaling, audit log search.",
+          "source": "https://github.com/rancher/rancher-ai-mcp",
+          "repository": "https://github.com/rancher/rancher-ai-mcp",
+          "license": "Apache-2.0",
+          "verified": "2026-11-24",
+          "access": "Read and write.",
+          "scopes": "The Rancher token's user permissions. Consent: Create a Rancher API token for the intended user.",
+          "read_only": {
+            "how": "The --read-only flag registers only read-only tools (TOOLS.md marks each tool).",
+            "args": [
+              "serve",
+              "--stdio",
+              "--read-only"
+            ]
+          }
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://ranchermanager.docs.rancher.com/api/quickstart"
+      },
+      "notes": "Built mainly for the Rancher AI agent, deployed in the cluster over HTTP with the token in a header; stdio mode is for local clients. No release binaries, tags are v1.2.0-alpha.x on 2026-11-24, so status is left unknown."
+    },
+    {
+      "id": "lens",
+      "title": "Lens",
+      "vendor": "Mirantis",
+      "summary": "Desktop IDE for Kubernetes clusters (Lens K8S IDE).",
+      "homepage": "https://lenshq.io",
+      "brains": [
+        "devops",
+        "engineering"
+      ],
+      "aliases": [
+        "Lens IDE",
+        "Lens Desktop",
+        "Lens K8S IDE",
+        "OpenLens"
+      ],
+      "servers": [
+        {
+          "id": "lens-mcp-server",
+          "name": "Lens MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Mirantis (Lens)",
+          "transport": "stdio",
+          "command": "path/to/bundled-lens-cli",
+          "args": [
+            "mcp-server"
+          ],
+          "package": {
+            "registry": "other",
+            "name": "Bundled with Lens Desktop (Plus, Pro or Enterprise plan)"
+          },
+          "auth": "none",
+          "env": [
+            "LENS_CLI_API_SOCKET"
+          ],
+          "status": "unknown",
+          "capabilities": "List, connect and disconnect the clusters known to Lens (kubeconfig, EKS, AKS, Teamwork spaces) and run read-only kubectl commands.",
+          "source": "https://docs.lenshq.io/k8slens/mcp-server/getting-started/",
+          "verified": "2026-11-24",
+          "access": "Read only.",
+          "scopes": "The cluster credentials Lens already holds. Consent: Enable the MCP server in Lens under Preferences, Integrations.",
+          "read_only": {
+            "how": "Every tool only reads; kubectl runs read-only commands."
+          }
+        }
+      ],
+      "notes": "Command path and LENS_CLI_API_SOCKET (a socket path, not a credential) differ per platform: copy the snippet Lens shows. Needs a Plus, Pro or Enterprise plan. Lens publishes no public REST API."
+    }
+  ]
+}
