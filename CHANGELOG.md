@@ -48,7 +48,7 @@ Changes since 0.16.1, the pre-release of 20 November 2026. The wheel now ships t
 - Market dossiers: `openguildkit market` keeps a dossier of competitors and lists the sources due for review; the market watch template opens an issue for each.
 - Storybook: `openguildkit storybook` composes the company Storybook, records its stories and extracts a design system from an existing application.
 - Documentation export: `openguildkit docs export` writes the documentation of completed tasks for Documentalist, and `openguildkit docs share` keeps a register of who it is shared with.
-- Shares record the Documentalist space they open, which is the whole space; `--until` is a reminder, `share add` warns about a second share of the same space to the same person, and a local portal may use http.
+- Shares record the Documentalist space they open, which is the whole space; `--until` records the last day, to set in the portal too: Documentalist enforces it from commit `46976a9`, and an older instance keeps the access until it is removed. `share add` warns about a second share of the same space to the same person, and a local portal may use http.
 - `alerts tasks --open` opens one task per confirmed alert, and the dependency watch template proposes the register in a pull request. A scanner report that analyzed nothing resolves no alert.
 - The credential detector recognizes the tokens of the registry's tools, `Authorization` headers and `api_key=`-style settings. A project tool cannot take the name of a bundled one, and `check` and `task consult` name a bundled brain the project catalog replaces.
 - `docs/personal-data.md` lists every name the tool records, where, why and how to replace it; examples now use initials for `--by`.
