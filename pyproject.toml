@@ -13,7 +13,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "OpenGuildKit contributors" }]
 keywords = ["coding-agents", "project-governance", "sdlc"]
-# The Python versions are those of the CI test matrix; tests/test_release.py compares them.
+# Python classifiers describe compatibility. CI exercises the minimum and the maintainers' version.
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
