@@ -32,6 +32,22 @@ python examples/field-tests/field.py list
 A campaign needs Linux or macOS (the person's stand-in types at a pseudo-terminal), `git`, and an agent host that
 can run an agent in a folder with a shell. Use a clean checkout of the commit under test.
 
+To rehearse an installable release, install the verified wheel in a fresh virtual
+environment and run the kit with that interpreter and
+`OPENGUILDKIT_FIELD_INSTALLED=1`. The setup and scripted runs use the installed
+package. The generated commands for logging, fingerprints and the simulated
+person's input keep that interpreter and mode. The campaign manifest records
+the kit's Git commit and the CLI version it ran.
+
+```bash
+OPENGUILDKIT_FIELD_INSTALLED=1 "$VENV/bin/python" examples/field-tests/field.py prepare --out ../campaign-release
+OPENGUILDKIT_FIELD_INSTALLED=1 "$VENV/bin/python" examples/field-tests/field.py cohorts --out ../campaign-release
+```
+
+Use a fresh output directory for each version. The scripted comparison also
+runs on Windows. Preparing a full campaign and running the simulated person's
+terminal still require Linux or macOS.
+
 1. Prepare a campaign folder outside the repository. It gets one folder per tester, the commands on a `bin` folder
    (`openguildkit` running this checkout, `person-decide`, `fingerprint`) and the teammates' shared repository. The
    `openguildkit` command on that folder records every call made in a tester's folder, with what it printed and its
