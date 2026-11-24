@@ -127,23 +127,52 @@ What `share check` reads: only the local register, `.openguildkit/shares/shares.
 
 ### Share one deliverable in an isolated space
 
-Use one private Documentalist space for each deliverable whose access you need to
-grant or revoke independently. This works with an instance installed locally or
-on a dedicated server.
+Documentalist cannot limit a reader to some pages of a space: once a reader's session is open, every published page of
+the space that is not hidden is in the portal's navigation, search and direct links (read in its code: the portal page
+`src/app/p/[spaceSlug]/[[...path]]/page.tsx` checks the space with `portalAllowed` in `src/lib/auth.ts`, then hands the
+whole published snapshot to the portal, whose search runs in the browser over those pages). "Masquer du site" hides a page from
+every reader of the space, not from one. To give a deliverable its own reader list, give it its own private space, and
+record that space as dedicated to it:
+
+```bash
+openguildkit docs share add --deliverable docs-site/reference/request-status.md --recipient client@example.org --until 2026-12-31 --portal https://docs.example.org/p/request-status --by CM --dedicated-space
+```
+
+What `--dedicated-space` does, in the register only:
+
+- `share add` refuses it when the register already holds a share not revoked of another deliverable in that space,
+  and, once recorded, refuses any share of another deliverable in that space, with or without the option. A new
+  share of the same deliverable in that space is dedicated too, so the space stays dedicated after the first share is
+  revoked. Shares are compared by space (`HOST/p/SPACE`) and by deliverable path (`d.md` and `./d.md` are one).
+- Without the option, `share add` warns on stderr when the space already carries another deliverable, and `share list`
+  and `share check` print, under each share, the other deliverables its recipients can read in the same space.
+- `share check` exits with code 1 when a dedicated space carries another deliverable in the register, which only a
+  hand edit of the register can cause.
+
+What it does not do: OpenGuildKit does not see what the space publishes. A page imported, synchronized or published in
+that space by hand, or a revoked share whose page was left in it, is not in the register. Existing shares and spaces
+keep working as before: a share recorded without the option is not dedicated, and nothing is refused for it.
 
 1. Import only that deliverable into a new space. Check the pages and sections
    included in the publication after each import or sync.
 2. Select magic-link access and use a test invitation to publish and verify the
    space. Check the contents and search from that separate reader session.
    Invite the intended readers and record the dedicated portal with
-   `docs share add`.
-3. Republish updates in the same space when the audience stays the same. When a
-   copy replaces a document in another space, review the intended readers for
-   the destination, then remove the old copy from the source publication and
-   verify its former URL. If access to the entire source space must end, revoke
-   it in Documentalist and record the removal in OpenGuildKit.
+   `docs share add --dedicated-space`.
+3. Republish updates in the same space when the audience stays the same: a new
+   publication replaces the whole snapshot, so every invited reader sees every
+   page published at that moment. When a copy replaces a document in another
+   space, review the intended readers for the destination, then remove the old
+   copy from the source publication and verify its former URL. Documentalist
+   has no move of a page between spaces: a page reaches another space only as a
+   copy (import or upload), and the readers of the source keep the last
+   publication of the source until it is published again. If access to the
+   entire source space must end, revoke it in Documentalist and record the
+   removal in OpenGuildKit.
 4. To end one share, remove the reader in that deliverable's space and record
-   the revocation against its share ID. If the reader has access to other spaces,
-   verify those portals remain available.
+   the revocation against its share ID. "Retirer l'accès" removes that address's
+   links and sessions for that space only: if the reader has access to other
+   spaces, verify those portals remain available.
 
-See the [two-space validation and remaining cases](../examples/documentalist/reports/2026-11-23-space-isolation.md).
+See the [two-space validation and remaining cases](../examples/documentalist/reports/2026-11-23-space-isolation.md)
+and the [options considered for issue #266](documentalist-sharing-scope.md), with the open questions for the maintainers.

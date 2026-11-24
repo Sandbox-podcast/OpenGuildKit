@@ -50,9 +50,10 @@ def _on_first_call(module: str, name: str):
 draft_problems, launch_notice, load_deliverables, new_draft, project_path, utm_link = (
     _on_first_call("deliverables", name)
     for name in ("draft_problems", "launch_notice", "load_deliverables", "new_draft", "project_path", "utm_link"))
-add_share, export_docs, project_overview, revoke_share, same_access, share_status = (
+add_share, export_docs, project_overview, revoke_share, same_access, share_status, space_neighbours = (
     _on_first_call("publishing", name)
-    for name in ("add_share", "export_docs", "project_overview", "revoke_share", "same_access", "share_status"))
+    for name in ("add_share", "export_docs", "project_overview", "revoke_share", "same_access", "share_status",
+                 "space_neighbours"))
 english_title, find_references, load_references, with_pattern_references = (
     _on_first_call("references", name)
     for name in ("english_title", "find_references", "load_references", "with_pattern_references"))
@@ -155,6 +156,8 @@ def command_parser() -> argparse.ArgumentParser:
                                         "machine (add).")
     share.add_argument("--id", dest="share_id", help="Share ID (revoke).")
     share.add_argument("--by", help="Owner of the share (add, revoke).")
+    share.add_argument("--dedicated-space", action="store_true",
+                       help="Record the space as holding this deliverable only: another deliverable is refused in it (add).")
     share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
     tools_cli.add_parser(commands)
     profile_cli.add_parser(commands)
@@ -869,8 +872,12 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
     if args.share_action == "add":
         if not (args.deliverable and args.until and args.portal and args.by):
             raise ValueError("docs share add needs --deliverable, --recipient, --until, --portal and --by.")
-        share = add_share(state, args.deliverable, args.recipient, args.until, args.portal, args.by)
+        share = add_share(state, args.deliverable, args.recipient, args.until, args.portal, args.by, args.dedicated_space)
         _print_share_added(share)
+        for other in space_neighbours(state, share):
+            print(f"OpenGuildKit: space {share['space']} also carries {other['deliverable']} (share {other['id']}): the "
+                  f"recipients of each share can read both deliverables. To share {share['deliverable']} on its own, "
+                  "publish it in a space of its own and record it with --dedicated-space.", file=sys.stderr)
         for other in same_access(state, share, running=True):
             for recipient in sorted(set(share["recipients"]) & set(other["recipients"])):
                 print(f"OpenGuildKit: {recipient} already has access to space {share['space']} through share {other['id']} "
@@ -901,7 +908,9 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
         for row in rows:
             _print_share_row(row)
     expired = [row for row in rows if row["state"].startswith("expired")]
-    return 1 if args.share_action == "check" and expired else 0
+    # A dedicated space that carries another deliverable no longer isolates it: the register was edited by hand.
+    breached = [row for row in rows if row["dedicated"] and row["also_in_space"]]
+    return 1 if args.share_action == "check" and (expired or breached) else 0
 
 
 def _print_share_added(share: dict) -> None:
@@ -909,6 +918,10 @@ def _print_share_added(share: dict) -> None:
     print(f"Share {share['id']} recorded. Its perimeter is the whole space {share['space']}: Documentalist shows the "
           f"recipients every published page of that space, not only {share['deliverable']}. Publish the deliverable in a "
           "space that holds only it, or hide the other pages.")
+    if share.get("dedicated"):
+        print(f"Space {share['space']} is recorded as dedicated to {share['deliverable']}: the register refuses another "
+              "deliverable in it. OpenGuildKit cannot see what the space publishes: check from a reader session that "
+              "its navigation and search show only this deliverable.")
     print("Invite the recipients now in that space's reader settings (magic link mode).")
     print(f"Documentalist keeps no end date: the access lasts until you remove it. After {share['until']}, remove it there "
           f"(\"Retirer l'accès\"), then run openguildkit docs share revoke --id {share['id']} --by NAME. "
@@ -920,6 +933,9 @@ def _print_share_row(row: dict) -> None:
     space = row["space"] or "unknown: the portal address names no /p/SPACE"
     print(f"{row['id']} {row['deliverable']} (whole space {space}) until {row['until']} "
           f"({len(row['recipients'])} recipient(s)): {row['state']}")
+    if row["also_in_space"]:
+        dedicated = " although the space is recorded as dedicated to this deliverable" if row["dedicated"] else ""
+        print(f"  its recipients can also read {', '.join(row['also_in_space'])}, shared through the same space{dedicated}")
     for recipient in row["remove"]:
         print(f"  remove {recipient} from space {space} in Documentalist (\"Retirer l'accès\")")
     for recipient, other in sorted(row["kept"].items()):

@@ -481,10 +481,10 @@ class PublishingTests(CapturedCli, unittest.TestCase):
 
 
     def add(self, deliverable="d", recipient="reader@example.test", portal="https://docs.example.test/p/support-portal",
-            until=None, code=0):
+            until=None, code=0, dedicated=False):
         until = until or (clock.real_today() + timedelta(days=14)).isoformat()
         return self.run_cli("docs", "share", "add", "--deliverable", deliverable, "--recipient", recipient, "--until", until,
-                            "--portal", portal, "--by", "Camille", code=code)
+                            "--portal", portal, "--by", "Camille", *(["--dedicated-space"] if dedicated else []), code=code)
 
     def shares(self):
         return json.loads(self.run_cli("docs", "share", "list", "--json")[0])
@@ -570,9 +570,73 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         for other in ({"recipient": "other@example.test"}, {"portal": "https://docs.example.test/p/another-space"},
                       {"portal": "https://elsewhere.example.test/p/support-portal"}):
             with self.subTest(other=other):
-                self.assertEqual(self.add("e", **other)[1], "")
+                self.assertNotIn("already has access", self.add("e", **other)[1])
         self.run_cli("docs", "share", "revoke", "--id", first, "--by", "Camille")
         self.assertNotIn(first, self.add("e")[1])
+
+    def test_two_deliverables_in_one_space_are_announced_as_readable_by_both_audiences(self):
+        self.deliverable()
+        self.deliverable("e")
+        self.add()
+        first = self.shares()[0]["id"]
+        _, warning = self.add("./e", recipient="other@example.test")
+        self.assertIn(f"space docs.example.test/p/support-portal also carries d (share {first})", warning)
+        self.assertIn("can read both deliverables", warning)
+        self.assertIn("--dedicated-space", warning)
+        rows = self.shares()
+        self.assertEqual([row["also_in_space"] for row in rows], [["./e"], ["d"]])
+        listed, _ = self.run_cli("docs", "share", "list")
+        self.assertIn("its recipients can also read ./e, shared through the same space", listed)
+        self.run_cli("docs", "share", "check")
+        self.assertEqual(self.add("./d", recipient="third@example.test")[1].count("also carries d "), 0)
+        self.assertEqual(self.add("e", portal="https://docs.example.test/p/another-space")[1], "")
+        self.run_cli("docs", "share", "revoke", "--id", first, "--by", "Camille")
+        self.assertEqual(self.shares()[0]["also_in_space"], [])
+
+    def test_a_dedicated_space_refuses_a_second_deliverable_and_keeps_existing_spaces_working(self):
+        self.deliverable()
+        self.deliverable("e")
+        dedicated = "https://docs.example.test/p/deliverable-d"
+        output, _ = self.add(portal=dedicated, dedicated=True)
+        self.assertIn("is recorded as dedicated to d", output)
+        self.assertIn("check from a reader session", output)
+        self.assertTrue(self.shares()[0]["dedicated"])
+        _, error = self.add("e", portal=dedicated + "/reference/x", code=1)
+        self.assertIn("Space docs.example.test/p/deliverable-d is dedicated to d", error)
+        _, error = self.add("e", portal=dedicated, dedicated=True, code=1)
+        self.assertIn("is dedicated to d", error)
+        self.assertEqual(len(self.shares()), 1)
+        output, _ = self.add("./d", recipient="other@example.test", portal=dedicated)
+        self.assertIn("is recorded as dedicated to ./d", output)
+        self.add("e")
+        self.add("d")
+        _, error = self.add("e", recipient="third@example.test", dedicated=True, code=1)
+        self.assertIn("already carries d (share", error)
+        self.assertIn("cannot be dedicated", error)
+        self.assertEqual([row["dedicated"] for row in self.shares()], [True, True, False, False])
+        self.run_cli("docs", "share", "check")
+        for row in self.shares()[2:]:
+            self.run_cli("docs", "share", "revoke", "--id", row["id"], "--by", "Camille")
+        self.add("e", recipient="third@example.test", dedicated=True)
+        first = self.shares()[0]["id"]
+        self.run_cli("docs", "share", "revoke", "--id", first, "--by", "Camille")
+        _, error = self.add("e", portal=dedicated, code=1)
+        self.assertIn("is dedicated to ./d", error)
+
+    def test_check_fails_when_a_dedicated_space_carries_another_deliverable_after_an_edit(self):
+        self.deliverable()
+        self.deliverable("e")
+        self.add(dedicated=True)
+        self.add("e", portal="https://docs.example.test/p/other-space")
+        register = self.root / ".openguildkit" / "shares" / "shares.json"
+        data = json.loads(register.read_text(encoding="utf-8"))
+        data["shares"][1]["portal"] = data["shares"][0]["portal"]
+        data["shares"][1]["space"] = data["shares"][0]["space"]
+        register.write_text(json.dumps(data), encoding="utf-8")
+        output, _ = self.run_cli("docs", "share", "check", code=1)
+        self.assertIn("its recipients can also read e, shared through the same space although the space is recorded "
+                      "as dedicated to this deliverable", output)
+        self.run_cli("docs", "share", "list")
 
     def test_revoking_says_the_portal_removal_covers_the_whole_space(self):
         self.deliverable()
