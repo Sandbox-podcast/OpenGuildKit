@@ -207,7 +207,18 @@ class DecisionTests(CapturedCli, unittest.TestCase):
         self.run_cli("task", "export", TASK)
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "approved")
+        self.publish()
         return keys
+
+    def publish(self):
+        """Push the branch to a bare origin, as merged work is: origin/HEAD then names its default branch."""
+        origin = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, origin, ignore_errors=True)
+        subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True, capture_output=True)
+        self.git("remote", "add", "origin", str(origin))
+        self.git("push", "-q", "origin", "HEAD:refs/heads/main")
+        self.git("fetch", "-q", "origin")
+        self.git("remote", "set-head", "origin", "main")
 
     def camille_leaves(self, *, approvers=True, key=True):
         if approvers:
@@ -230,10 +241,17 @@ class DecisionTests(CapturedCli, unittest.TestCase):
                 self.root = Path(directory)
                 keys = self.signed_by_two()
                 self.camille_leaves(approvers=approvers, key=key)
-                self.run_cli("check")
+                _, said = self.run_cli("check")
                 rows = json.loads(self.run_cli("task", "list", "--decisions", "--json")[0])
                 self.assertEqual([row.get("problem") for row in rows], [None])
                 self.run_cli("task", "handoff", TASK)
+                # The approval holds through an earlier revision, and task list and check name the signer and it.
+                row, = json.loads(self.run_cli("task", "list", "--json")[0])
+                self.assertEqual(row["severity"], "note")
+                self.assertRegex(row["note"], r"signed by camille@example\.org, who is no longer a current approver: "
+                                              r"it holds through the approvers and signers file of revision [0-9a-f]{12}")
+                self.assertIn(f"OpenGuildKit: {TASK}: {row['note']}", said)
+                self.assertEqual(len(json.loads(self.run_cli("guard", "--json")[0])["covered_by"]), 1)
 
                 self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "second")
                 self.run_cli("task", "consult", "second", "--answers", EXAMPLE / "answers.json")
@@ -269,6 +287,55 @@ class DecisionTests(CapturedCli, unittest.TestCase):
         result = json.loads(output)
         self.assertFalse(result["ok"])
         self.assertIn("camille@example.org is not an approver", " ".join(result["problems"]))
+
+    @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
+    def test_a_key_the_agent_committed_then_reverted_approves_nothing(self):
+        """The third audit's replay, with no terminal: the agent commits its key as an approver, approves with it,
+        then commits the files back. Only the merged branch's revisions can vouch for a departed signer."""
+        keys = self.keys("pat", "mal")
+        signers = self.root / "allowed_signers"
+        signers.write_text(f"pat@example.org {(keys / 'pat.pub').read_text().strip()}\n", encoding="utf-8")
+        self.git("init", "-q")
+        self.reviewed({"guard": "enforce", "approval": {
+            "mode": "signed", "allowed_signers": "allowed_signers", "approvers": ["pat@example.org"]}})
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.publish()
+        project = self.root / ".openguildkit" / "project.json"
+        honest_profile, honest_signers = project.read_text(encoding="utf-8"), signers.read_text(encoding="utf-8")
+        profile = json.loads(honest_profile)
+        profile["approval"]["approvers"].append("MAL")
+        write_json(project, profile)
+        with signers.open("a", encoding="utf-8") as handle:
+            handle.write(f"MAL {(keys / 'mal.pub').read_text().strip()}\n")
+        self.run_cli("sync")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "add a key")
+        self.run_cli("task", "decision-payload", TASK, "--by", "MAL", "--reason", "Fine", "--output", keys / "decision.json")
+        with patch("sys.stdin.isatty", return_value=False):
+            approved, _ = self.run_cli("task", "decide", TASK, "--approve", "--by", "MAL", "--reason", "Fine",
+                                       "--signer", "MAL", "--signature", self.sign(keys, "mal"))
+        self.assertEqual(approved.strip(), "approved")
+        project.write_text(honest_profile, encoding="utf-8")
+        signers.write_text(honest_signers, encoding="utf-8")
+        self.run_cli("sync")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "put the files back")
+
+        row, = json.loads(self.run_cli("task", "list", "--json")[0])
+        self.assertEqual((row["approval_problem"], row["severity"]), ("invalid-signature", "error"))
+        self.assertIn("MAL is not an approver for this project", row["next"])
+        self.assertIn("which origin/main does not contain", row["next"])
+        self.assertIn("approval no longer holds", self.run_cli("task", "list")[0])
+        _, error = self.run_cli("check", code=1)
+        self.assertIn("MAL is not an approver", error)
+        _, error = self.run_cli("task", "handoff", TASK, code=1)
+        self.assertIn("MAL is not an approver", error)
+        self.assertEqual(json.loads(self.run_cli("guard", "--json")[0])["covered_by"], [])
+        edit = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": "src/app.py"}})
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr), patch("sys.stdin", io.StringIO(edit)):
+            self.assertEqual(main(["--project", str(self.root), "guard", "--hook", "pre-edit"]), 2)
 
     def forge_approval(self):
         """What an agent can do with file access alone: approve the task and recompute its seal."""

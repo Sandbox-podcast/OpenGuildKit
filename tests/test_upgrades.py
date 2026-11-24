@@ -15,7 +15,7 @@ from openguildkit.storage import write_json
 from tests.support import CapturedCli
 
 DROPPED = {"packs": "playwright", "patterns": "playwright-web"}
-ANSWERS = {
+ANSWERS = {"personal_data": "no", 
     "name": "Mono",
     "components": [
         {"id": "apps-web", "path": "apps/web", "stack": ["Next.js 14.2.3", "Playwright 1.44.0", "React 18.3.1"]},

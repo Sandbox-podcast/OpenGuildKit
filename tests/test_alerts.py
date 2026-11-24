@@ -152,7 +152,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.root = Path(temporary.name)
 
     def init(self):
-        write_json(self.root / "p.json", {"name": "Portal", "stack": ["Python"]})
+        write_json(self.root / "p.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"]})
         self.cli("init", "--answers", self.root / "p.json")
 
     def test_alerts_imported_before_consulting_reach_the_boards_until_resolved(self):
@@ -223,7 +223,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
     def test_an_import_after_the_consultation_says_to_consult_again(self):
         self.init()
         self.cli("task", "new", "Upgrade Jinja in the report service.", "--id", "upgrade")
-        reminder = "run openguildkit task consult upgrade again"
+        reminder = "consult it again with openguildkit task consult upgrade --reuse-answers"
         self.assertNotIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json"))
         write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local",
                                           "concerns": ["none"]})
@@ -233,7 +233,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
     def test_an_import_that_brings_nothing_new_to_the_consultation_asks_nothing(self):
         self.init()
         self.cli("task", "new", "Upgrade Jinja in the report service.", "--id", "upgrade")
-        reminder = "run openguildkit task consult upgrade again"
+        reminder = "consult it again with openguildkit task consult upgrade --reuse-answers"
         self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json")
         write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local",
                                           "concerns": ["none"]})
@@ -244,7 +244,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.assertNotIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "npm-audit-critical.json"))
 
     def test_a_confirmed_critical_alert_blocks_approval_and_completion(self):
-        write_json(self.root / "p.json", {"name": "Portal", "stack": ["Python"], "packs": ["python"]})
+        write_json(self.root / "p.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"], "packs": ["python"]})
         self.cli("init", "--answers", self.root / "p.json")
         self.cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "status")
         self.cli("task", "alerts", "status", "--import", FIXTURES / "npm-audit-critical.json")

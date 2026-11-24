@@ -79,7 +79,9 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `alerts.py` | The dependency alert register, from the reports of the project's own scanners. |
 | `market.py` | Market dossiers: competitors, dated observations, what is still unknown. |
 | `tools.py` | The tool registry and the MCP servers that connect an agent to each tool; plans and writes host connections. |
+| `mcp_protocol.py` | Shared stdio transport, handshake and tool dispatch for local MCP servers. |
 | `mcp_mock.py` | Stand-in MCP servers over stdio for demos and tests: synthetic answers, no network, no credentials. |
+| `project_mcp.py` | Read-only MCP access to the selected project’s profile, rule references, task status and check outcomes. |
 | `deliverables.py` | Business deliverable templates: inputs, tool actions that need approval, reviewer checks. |
 | `publishing.py` | Exports verified work as documentation pages for Documentalist and keeps the share register. |
 | `portal_verification.py` | `docs share verify`: signs in to one Documentalist instance with a password typed at the terminal, reads a space's reader invitations and compares their end dates with the share register. |

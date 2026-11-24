@@ -17,7 +17,7 @@ from tests.support import run_cli, subprocess_environment
 REPO = Path(__file__).resolve().parents[2]
 ENV = subprocess_environment({"PYTHONPATH": str(REPO / "src"), "PYTHONIOENCODING": "utf-8"})
 META = {"io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {}}
-PROFILE = {
+PROFILE = {"personal_data": "no", 
     "name": "Support portal", "sector": "general", "stack": ["Python"], "packs": [], "boards": ["product", "qa", "security"],
     "research": "local-only", "host": "codex", "tools": ["Jira Cloud", "Snyk", "Gryzzly", "Our intranet"],
 }

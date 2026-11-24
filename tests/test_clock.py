@@ -16,7 +16,9 @@ from openguildkit.market import scope_entry as market_scope
 from openguildkit.storybook import scope_entry as storybook_scope
 from openguildkit.workflow import _evidence_day
 from openguildkit.storage import write_json
+from openguildkit.tasks import expired_on
 from tests.support import run_cli
+from tests.test_approval_lifecycle import ApprovalCase
 
 TESTS = Path(__file__).resolve().parent
 SOURCE = TESTS.parent / "src" / "openguildkit"
@@ -75,7 +77,7 @@ class ClockTests(unittest.TestCase):
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
         root = Path(folder.name)
-        write_json(root / "p.json", {"name": "Portal", "stack": ["Python"]})
+        write_json(root / "p.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"]})
         self.cli(root, "init", "--answers", root / "p.json")
         (root / "d").write_text("# Shared page\n", encoding="utf-8")
         return root
@@ -162,6 +164,44 @@ class ClockTests(unittest.TestCase):
                 self.assertEqual(_evidence_day(today, "date"), today)
                 with self.assertRaisesRegex(ValueError, "in the future"):
                     _evidence_day(later, "date")
+
+
+# The replay date the third audit used: 2020-01-01.
+REPLAY = "1577836800"
+
+
+class DecisionClockTests(ApprovalCase):
+    """What a person decides is dated by the real clock, which its age is measured with (issue #287)."""
+
+    def test_decisions_under_source_date_epoch_carry_the_real_date(self):
+        self.init(waivers={"allowed_by": ["Camille"], "max_days": 30})
+        (self.root / "README.md").write_text("Portal\n", encoding="utf-8")
+        today = clock.real_today().isoformat()
+        with patch.dict(os.environ, {"SOURCE_DATE_EPOCH": REPLAY}), contextlib.redirect_stderr(io.StringIO()):
+            self.approve("vb", verification_blocker=True)
+            row, = json.loads(self.run_cli("task", "list", "--json")[0])
+            self.assertNotIn("days ago", row["next"])
+            self.run_cli("task", "waive", "vb", "security:1", "--by", "Camille", "--reason", "Pilot", "--scope",
+                         "Pilot", "--until", (clock.real_today() + timedelta(days=5)).isoformat(), typed="vb")
+            self.run_cli("task", "authorize", "vb", "--action", "external-api", "--target", "status.example.test",
+                         "--allow", "--by", "Camille", "--reason", "Status page", typed="vb")
+            self.run_cli("task", "revoke", "vb", "--by", "Camille", "--reason", "Stop.", typed="vb")
+        task = self.task("vb")
+        self.assertEqual(task["created_at"][:10], "2020-01-01")
+        withdrawn = task["rounds"][-1]
+        dated = {"decision": withdrawn["decision"]["at"], "withdrawal": withdrawn["revoked"]["at"],
+                 "withdrawing decision": task["decision"]["at"], "authorization": task["authorizations"][0]["at"],
+                 "waiver": withdrawn["verification_blocker_resolutions"]["security:1"]["at"]}
+        self.assertEqual({name: moment[:10] for name, moment in dated.items()}, dict.fromkeys(dated, today))
+
+    def test_a_waiver_expiry_follows_the_real_clock_under_source_date_epoch(self):
+        waiver = {"kind": "waived", "until": (clock.real_today() + timedelta(days=3)).isoformat()}
+        later = clock.real_today() + timedelta(days=40)
+        for fixed in (LATER, EARLIER, REPLAY):
+            with self.subTest(fixed=fixed), patch.dict(os.environ, {"SOURCE_DATE_EPOCH": fixed}):
+                self.assertIsNone(expired_on(waiver))
+                with patch.object(clock, "real_today", return_value=later):
+                    self.assertEqual(expired_on(waiver), waiver["until"])
 
 
 if __name__ == "__main__":

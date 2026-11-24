@@ -7,16 +7,19 @@ or boards voids an approval; the edit hook checks every approved revision with o
 
 import copy
 import json
+import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import decisions
+from openguildkit import clock, decisions
 from openguildkit.cli import command_parser, main
 from openguildkit.decisions import decision_payload, seal
 from openguildkit.guard import covering_approvals
@@ -27,7 +30,7 @@ from openguildkit.storage import read_json, write_json
 from openguildkit.tasks import kept_passes
 from openguildkit.webui import Refused, check_request
 from tests.test_hosts import claude_denies, codex_forbids
-from tests.support import run_cli
+from tests.support import run_cli, subprocess_environment
 
 REPO = Path(__file__).resolve().parents[1]
 EXAMPLE = REPO / "examples" / "request-status"
@@ -46,7 +49,7 @@ class ApprovalCase(unittest.TestCase):
 
     def init(self, **profile):
         command = f'"{sys.executable}" -c "print(1)"'
-        write_json(self.root / "profile.json", {"name": "Support portal", "stack": ["Python"], "packs": [],
+        write_json(self.root / "profile.json", {"personal_data": "no", "name": "Support portal", "stack": ["Python"], "packs": [],
                                                 "checks": [command], **profile})
         self.run_cli("init", "--answers", self.root / "profile.json")
         self.state = self.root / ".openguildkit"
@@ -172,6 +175,35 @@ class RebaseTests(ApprovalCase):
         self.assertEqual(self.follow("rb", texts), [])
 
 
+    def test_the_reconsult_command_printed_after_a_rebase_runs_as_it_is_without_a_terminal(self):
+        message = self.rebased()
+        command = re.search(r"openguildkit task consult rb[^,(]*", message).group(0).strip()
+        self.assertEqual(command, "openguildkit task consult rb --reuse-answers")
+        answers = self.task("rb")["answers"]
+        result = subprocess.run([sys.executable, "-m", "openguildkit", *shlex.split(command)[1:]], cwd=self.root,
+                                stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", timeout=120,
+                                env=subprocess_environment({"PYTHONPATH": os.pathsep.join(
+                                    [str(REPO / "src"), os.environ.get("PYTHONPATH", "")])}))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("## Passes kept from the approved round", result.stdout)
+        task = self.task("rb")
+        self.assertEqual((task["status"], task["answers"]), ("consulting", answers))
+
+    def test_every_reconsult_message_gives_the_one_command(self):
+        texts = [self.rebased(), self.run_cli("check", code=1)[1]]
+        self.run_cli("task", "consult", "rb", "--reuse-answers")
+        self.run_cli("task", "review", "rb", "--summary", "The same scope after the rebase.")
+        self.run_cli("task", "decide", "rb", "--request-changes", "--by", "AM", "--reason", "Add the empty state")
+        row, = json.loads(self.run_cli("task", "list", "--json")[0])
+        texts.append(row["next"])
+        texts.append(self.run_cli("task", "handoff", "rb", code=1)[1])
+        texts.append(self.run_cli("task", "decide", "rb", "--request-changes", "--by", "AM", "--reason", "x", code=1)[1])
+        commands = {match.strip() for text in texts for match in re.findall(r"task consult rb[^,.;(]*", text)}
+        self.assertEqual(commands, {"task consult rb --reuse-answers"}, texts)
+        self.assertEqual(row["decided"], "changes requested by AM")
+        self.assertIn("rb [changes-requested, changes requested by AM]", self.run_cli("task", "list")[0])
+
+
 class StuckApprovalTests(ApprovalCase):
     """An approval with a condition that only evidence clears, in a project that allows no waiver."""
 
@@ -206,7 +238,7 @@ class StuckApprovalTests(ApprovalCase):
         self.assertEqual(self.task("vb")["status"], "approved")
         output, error = self.run_cli(*revoke, typed="vb")
         self.assertEqual(output, "changes-requested\n")
-        self.assertIn("Next: openguildkit task consult vb --answers FILE", error)
+        self.assertIn("Next: openguildkit task consult vb --reuse-answers", error)
         task = self.task("vb")
         self.assertEqual((task["status"], task["decision"]["by"]), ("changes-requested", "Camille"))
         withdrawn = task["rounds"][-1]
@@ -219,6 +251,16 @@ class StuckApprovalTests(ApprovalCase):
         task = self.task("vb")
         self.assertEqual((task["status"], len(task["rounds"])), ("consulting", 1))
         self.assertNotIn("passes", task)
+
+    def test_task_list_names_who_withdrew_and_who_had_approved(self):
+        self.run_cli("task", "revoke", "vb", "--by", "T O", "--reason", "Cannot be met.", typed="vb")
+        row, = json.loads(self.run_cli("task", "list", "--json")[0])
+        self.assertEqual((row["owner"], row["decided"]), ("T O", "withdrawn by T O (approved by Camille)"))
+        self.assertIn("vb [changes-requested, withdrawn by T O (approved by Camille)]", self.run_cli("task", "list")[0])
+        # --owner filters on who took the current decision: here the withdrawal.
+        self.assertEqual([row["id"] for row in json.loads(self.run_cli("task", "list", "--owner", "t o", "--json")[0])],
+                         ["vb"])
+        self.assertEqual(json.loads(self.run_cli("task", "list", "--owner", "Camille", "--json")[0]), [])
 
     def test_every_next_printed_on_a_stuck_approval_runs(self):
         texts = [json.loads(self.run_cli("task", "list", "--json")[0])[0]["next"]]
@@ -238,6 +280,92 @@ class StuckApprovalTests(ApprovalCase):
                                                        "result": {"checks": [], "closing": {"open_points": []}}})
         _, error = self.run_cli("task", "revoke", "vb", "--by", "Camille", "--reason", "Late.", code=1, typed="vb")
         self.assertIn("--follows vb", error)
+
+
+class WaiverExpiryTests(ApprovalCase):
+    """A waiver ends on its until day, by the real clock: its blocker is open again after it (issue #284)."""
+
+    def setUp(self):
+        super().setUp()
+        self.until = (clock.real_today() + timedelta(days=10)).isoformat()
+        self.later = clock.real_today() + timedelta(days=40)
+
+    def waive(self, task_id):
+        self.run_cli("task", "waive", task_id, "security:1", "--by", "Camille", "--reason", "Internal pilot",
+                     "--scope", "Pilot users", "--until", self.until, typed=task_id)
+
+    def expired(self):
+        return patch.object(clock, "real_today", return_value=self.later)
+
+    def test_an_expired_waiver_of_a_condition_opens_it_again(self):
+        self.init(waivers={"allowed_by": ["Camille"], "max_days": 30})
+        (self.root / "README.md").write_text("Portal\n", encoding="utf-8")
+        self.approve("vb", verification_blocker=True)
+        self.waive("vb")
+        self.assertIn("[waived by Camille]", self.run_cli("task", "blockers", "vb")[0])
+        with self.expired():
+            output, _ = self.run_cli("task", "blockers", "vb")
+            self.assertIn(f"security:1 [waiver expired on {self.until}] (due at verification)", output)
+            row, = json.loads(self.run_cli("task", "list", "--json")[0])
+            self.assertIn(f"The waiver of security:1 expired on {self.until}, so the blocker is open again", row["next"])
+            for step in ("openguildkit task clear vb security:1", "openguildkit task waive vb security:1",
+                         "openguildkit task revoke vb --by NAME --reason TEXT"):
+                self.assertIn(step, row["next"])
+            _, error = self.run_cli("task", "complete", "vb", code=1)
+            self.assertIn(f"Verification blocker security:1: The waiver of security:1 expired on {self.until}", error)
+            self.until = (self.later + timedelta(days=10)).isoformat()
+            with patch.object(clock, "real_now", return_value=clock.real_now() + timedelta(days=40)):
+                self.waive("vb")
+            resolution = self.task("vb")["verification_blocker_resolutions"]["security:1"]
+            self.assertEqual((resolution["until"], resolution["replaces"]["kind"]), (self.until, "waived"))
+            self.assertIn("[waived by Camille]", self.run_cli("task", "blockers", "vb")[0])
+
+    def test_an_expired_waiver_the_approval_rested_on_leads_to_the_withdrawal(self):
+        self.init(waivers={"allowed_by": ["Camille"], "max_days": 30})
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "ab")
+        write_json(self.root / "answers.json", json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8")))
+        self.run_cli("task", "consult", "ab", "--answers", self.root / "answers.json")
+        template = json.loads(self.run_cli("task", "template", "ab")[0])
+        review = {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text())}
+        security = next(entry for entry in review["boards"] if entry["id"] == "security")
+        security["challenge"].update(verdict="block", blockers=[{
+            "finding": "Retention is not decided.", "owner": "DPO", "clears_when": "The period is recorded."}])
+        write_json(self.root / "review.json", review)
+        self.run_cli("task", "review", "ab", "--file", self.root / "review.json")
+        self.waive("ab")
+        self.run_cli("task", "decide", "ab", "--approve", "--by", "Camille", "--reason", "Agreed", typed="ab")
+        with self.expired():
+            row, = json.loads(self.run_cli("task", "list", "--json")[0])
+            self.assertIn("and the approval rested on it: the person withdraws the approval "
+                          "(openguildkit task revoke ab --by NAME --reason TEXT)", row["next"])
+            _, error = self.run_cli("task", "complete", "ab", code=1)
+            self.assertIn(f"Blocker security:1: The waiver of security:1 expired on {self.until}", error)
+            _, error = self.run_cli("task", "waive", "ab", "security:1", "--by", "Camille", "--reason", "Again",
+                                    "--scope", "Pilot", "--until", self.until, code=1, typed="ab")
+            self.assertIn("the approval rested on it", error)
+
+    @unittest.skipIf(shutil.which("git") is None, "needs git")
+    def test_guard_ci_refuses_a_record_whose_waiver_expired(self):
+        self.git("init", "-q", "-b", "main")
+        self.init(guard="enforce", waivers={"allowed_by": ["Camille"], "max_days": 30})
+        (self.root / "README.md").write_text("Portal\n", encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("checkout", "-q", "-b", "feature")
+        self.approve("vb", verification_blocker=True)
+        self.waive("vb")
+        (self.root / "status.py").write_text("STATUS = 1\n", encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "work")
+        self.run_cli("task", "export", "vb")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "record")
+        self.assertTrue(json.loads(self.run_cli("guard", "--ci", "--base", "main", "--json")[0])["ok"])
+        with self.expired():
+            result = json.loads(self.run_cli("guard", "--ci", "--base", "main", "--json", code=1)[0])
+        self.assertFalse(result["ok"])
+        self.assertIn(f"the waiver of a blocker expired (security:1 on {self.until}) and task vb is not completed",
+                      " ".join(result["problems"]))
 
 
 class ProfileChangeTests(ApprovalCase):

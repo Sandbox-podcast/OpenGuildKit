@@ -4,6 +4,7 @@ import { Icon } from '@/shared/pixel/icons';
 import { useBrains, useProfile } from '../data';
 import { useCliResult } from '../query';
 import { ExternalLink, Pre, Q } from '../parts';
+import { BRAIN_FR, brainName } from '../labels';
 import { usePrefs } from '../prefs';
 import { useWords } from '../words';
 
@@ -24,7 +25,7 @@ export function Guild() {
             <li key={b.id}><a className={`card brain-card ${on ? '' : 'off'}`} href={`#/guilde/${b.id}`}>
               <span className="row between"><span className="brain-emblem"><Icon name="guild" size={18} /></span>
                 <span className="row">{required.includes(b.id) && <Badge tone="info" icon="lock">obligatoire</Badge>}{!on && <Badge tone="muted">désactivé</Badge>}</span></span>
-              <strong lang="en">{b.title}</strong>
+              <strong lang={BRAIN_FR[b.id] ? undefined : 'en'}>{brainName(b.id, b.title)}</strong>
               <span className="small muted clamp-3" lang="en">{b.description}</span>
               <span className="tiny">{b.review?.specialists.length ?? 0} {w.lenses} · {b.questions.length} questions</span>
             </a></li>
@@ -46,7 +47,7 @@ export function BrainSheet({ id }: { id: string }) {
       return (
         <div className="page-grid">
           <p><a href="#/guilde"><Icon name="chevron" size={12} /> Guilde</a></p>
-          <Panel title={<span lang="en">{b.title}</span>}><p lang="en">{b.description}</p>
+          <Panel title={<span lang={BRAIN_FR[b.id] ? undefined : 'en'}>{brainName(b.id, b.title)}</span>}><p lang="en">{b.description}</p>
             <p className="small"><strong>Expertises :</strong> <span lang="en">{b.expertises.join(' · ')}</span></p>
             <p className="tiny muted">Déclencheurs dans un brief : <span lang="en">{b.triggers.join(', ')}</span></p></Panel>
           <div className="grid-2">

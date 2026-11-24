@@ -224,10 +224,16 @@ def _scenario(args, root: Path, state: Path, tools: dict, profile: dict) -> int:
     if args.tool:
         wanted = [resolve_tool(name, tools) for name in args.tool]
     else:
+        # The project's tools, then those connected as mocks (tools apply --mock), which the profile may not name.
         wanted = [item["id"] for item in recommend_tools(profile, root, tools)["tools"]]
-    served = [tool_id for tool_id in dict.fromkeys(wanted) if tool_id in mock_ids() and load_mock(tool_id).get("records")]
+        wanted += [item["tool"] for item in read_manifest(state)["connections"] if item["mode"] == "mock"]
+    wanted = list(dict.fromkeys(wanted))
+    served = [tool_id for tool_id in wanted if tool_id in mock_ids() and load_mock(tool_id).get("records")]
     if not served:
-        raise ValueError("None of these tools has a mock with records. Name some: openguildkit tools list --mocks.")
+        examined = (f"None of these tools has a mock with records: {', '.join(wanted)}." if wanted else
+                    "The profile names no tool and no tool is connected as a mock.")
+        raise ValueError(f"{examined} Name the tools: openguildkit tools scenario TOOL [TOOL ...] "
+                         f"(those with a mock: openguildkit tools list --mocks).")
     brief = read_task(state, args.task)["brief"] if args.task else (args.brief or "")
     scenario = scenario_records(served, profile.get("name") or root.name, tools, args.task, brief)
     with project_lock(state):

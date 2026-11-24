@@ -75,7 +75,7 @@ class Project(unittest.TestCase):
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
         self.root = Path(folder.name)
-        write_json(self.root / "setup.json", {"name": "Portal", "stack": ["Python"]})
+        write_json(self.root / "setup.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"]})
         self.cli("init", "--answers", self.root / "setup.json")
         write_json(self.root / "answers.json", ANSWERS)
         write_json(self.root / "entry.json", {"id": "qa"})
@@ -117,8 +117,13 @@ class StateRefusalTests(Project):
     def test_new_and_submit_say_what_comes_next(self):
         _, output, error = self.cli("task", "new", "Fix the export", "--id", "open")
         self.assertEqual(output, "open\n")
-        self.assertIn("openguildkit task questions open, then consult the boards with openguildkit task consult open "
-                      "--answers FILE", error)
+        # The steps of the README, in its order, with the folder Git ignores for the working files.
+        steps = ["openguildkit task questions open;", "save the answers in .openguildkit/work/",
+                 "openguildkit task questions open --answers FILE --follow-ups",
+                 "openguildkit task route open --answers FILE", "openguildkit task consult open --answers FILE"]
+        positions = [error.find(step) for step in steps]
+        self.assertNotIn(-1, positions, error)
+        self.assertEqual(positions, sorted(positions))
         self.cli("task", "consult", "open", "--answers", "answers.json")
         boards = json.loads(self.cli("task", "show", "open")[1])["consultation"]["boards"]
         template = {entry["id"]: entry for entry in json.loads(self.cli("task", "template", "open")[1])["boards"]}

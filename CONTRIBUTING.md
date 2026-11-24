@@ -20,7 +20,12 @@ Before large work, open an issue with the matching template so a steward or main
 
 For larger changes, use an issue to discuss scope. Fork the repository, create a branch for the change and open a pull request against `main`. Use `Closes #123` for the issue the PR resolves, or `Refs #123` for related work. Include the part of the catalog or workflow you exercised.
 
-GitHub labels PRs from their changed files and requests a review from the owners in `.github/CODEOWNERS`. The `contribution-checks` status combines the test matrix (Python 3.11 to 3.15 on Linux, macOS and Windows), the wheel build, the CI coordinator, and the checks and journeys of the web interface; a job that runs past its time limit fails. Merges to `main` refresh a draft of the next release notes. Maintainers publish versions with the [release steps](GOVERNANCE.md#releases).
+GitHub labels PRs from their changed files and requests a review from the owners in `.github/CODEOWNERS`. The `contribution-checks` status combines the test matrix (Python 3.11 to 3.15 on Linux and Windows, 3.11 and 3.15 on macOS), the wheel build, the CI coordinator, and the checks and journeys of the web interface; a job that runs past its time limit fails.
+
+Two kinds of cancelled jobs are not failures of your change:
+
+- **No runner picked the job up.** Hosted macOS runners are scarce: a macOS job can wait 10 to 20 minutes, and GitHub cancels a job it cannot place after several attempts ("The job was not acquired by Runner of type hosted even after multiple attempts"). The job shows as cancelled with no step, and `contribution-checks` fails with `These jobs never started` and their names. Rerun them from the run page (Re-run jobs, then Re-run failed jobs); `contribution-checks` runs again after them. That is why `ci.yml` puts only four jobs on macOS per run.
+- **You pushed again.** A new push to the pull request cancels the run of the previous commit, `contribution-checks` included, and starts one for the new commit. Read the checks of the latest commit only; nothing needs a rerun. Merges to `main` refresh a draft of the next release notes. Maintainers publish versions with the [release steps](GOVERNANCE.md#releases).
 
 Everything you add to the repository, catalog content included (packs, references, patterns, boards, sectors and tools), is published under the MIT License in [LICENSE](LICENSE), like the code. Opening a pull request means you agree to that and that you have the right to contribute the content. Write rules and descriptions in your own words and never paste the text of a standard: only text you may license can be published under the MIT License.
 

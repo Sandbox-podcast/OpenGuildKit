@@ -24,7 +24,7 @@ from unittest.mock import patch
 from openguildkit.cli import main
 from openguildkit.storage import write_json
 from tests.test_hosts import AGENT_FORMS, claude_denies, codex_forbids
-from tests.support import run_cli
+from tests.support import openguildkit_on_path, run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 EXAMPLE = REPO / "examples" / "request-status"
@@ -91,14 +91,8 @@ class WrittenHookTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.base = Path(temporary.name)
-        launchers = self.base / "bin"
-        launchers.mkdir()
-        posix = launchers / "openguildkit"
-        posix.write_text(f'#!/bin/sh\nexec "{sys.executable}" -m openguildkit "$@"\n', encoding="utf-8")
-        posix.chmod(0o755)
-        (launchers / "openguildkit.cmd").write_text(f'@"{sys.executable}" -m openguildkit %*\r\n', encoding="utf-8")
-        self.environment = {**os.environ, "PATH": f"{launchers}{os.pathsep}{os.environ.get('PATH', '')}",
-                            "PYTHONPATH": str(REPO / "src"), "PYTHONIOENCODING": "utf-8"}
+        openguildkit_on_path(self)
+        self.environment = {**os.environ, "PYTHONPATH": str(REPO / "src"), "PYTHONIOENCODING": "utf-8"}
 
     def project(self, host: str, guard: str) -> Path:
         root = self.base / f"{host}-{guard}"
@@ -172,11 +166,12 @@ class WrittenDenyRuleTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
+        openguildkit_on_path(self)
         (self.root / "keys").mkdir()
         (self.root / "keys" / "allowed_signers").write_text("pat@example.org ssh-ed25519 AAAA\n", encoding="utf-8")
 
     def apply(self, host: str) -> None:
-        write_json(self.root / "answers.json", {
+        write_json(self.root / "answers.json", {"personal_data": "no", 
             "name": "Portal", "stack": ["Python"], "host": host, "guard": "enforce",
             "approval": {"mode": "signed", "allowed_signers": "keys/allowed_signers", "approvers": ["pat@example.org"]}})
         for arguments in (("init", "--answers", self.root / "answers.json"), ("host", "apply")):

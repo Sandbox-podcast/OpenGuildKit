@@ -181,7 +181,7 @@ class DemoProjectTests(CapturedCli, unittest.TestCase):
         for name, content in self.FILES.items():
             (self.root / name).parent.mkdir(parents=True, exist_ok=True)
             (self.root / name).write_text(content, encoding="utf-8")
-        write_json(self.root / "profile.json", {"name": "Shop", "stack": ["Python", "Django", "Express"], "packs": [],
+        write_json(self.root / "profile.json", {"personal_data": "no", "name": "Shop", "stack": ["Python", "Django", "Express"], "packs": [],
                                                  "patterns": self.PATTERNS, "ask_every_rule": True, "checks": []})
         self.run_cli("init", "--answers", self.root / "profile.json")
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)

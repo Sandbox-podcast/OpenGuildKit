@@ -476,18 +476,24 @@ def _single_evidence(entry: dict) -> int | None:
     return next(iter(cited))[0]
 
 
-def review_warnings(boards: list[dict]) -> list[str]:
+def review_warnings(boards: list[dict], focus: str | None = None) -> list[str]:
     """Signs that the boards did not review the task independently. Computed, never taken from the review.
 
     Advice is compared with each board's own name taken out, so a text copied from board to board with the name
-    swapped is found; a board whose every finding rests on one and the same evidence item is named too.
+    swapped is found; a board whose every finding rests on one and the same evidence item is named too. With focus,
+    only the signs that concern that board are given: task submit says what the pass it records adds, once.
     """
     warnings = []
+
+    def concerns(names: list[str]) -> bool:
+        """A board, or a board/lens, list that names the focused board, or any list without a focus."""
+        return focus is None or any(name.split("/")[0] == focus for name in names)
+
     recommendations = {}
     for entry in boards:
         recommendations.setdefault(_same_text(entry["recommendation"], entry["id"]), []).append(entry["id"])
     for board_ids in recommendations.values():
-        if len(board_ids) > 1:
+        if len(board_ids) > 1 and concerns(board_ids):
             warnings.append(f"Boards {_shown(board_ids)} give the same recommendation word for word, once each "
                             "board's name is taken out.")
     findings, originals = {}, {}
@@ -497,16 +503,16 @@ def review_warnings(boards: list[dict]) -> list[str]:
             findings.setdefault(text, []).append(f"{entry['id']}/{lens['id']}")
             originals.setdefault(text, lens["finding"])
     for text, lenses in findings.items():
-        if len(lenses) > 1:
+        if len(lenses) > 1 and concerns(lenses):
             warnings.append(f"The same finding appears in {_shown(lenses)}, once each board's name is taken out: "
                             f"{' '.join(originals[text].split())[:120]}")
-    singles = [(entry["id"], _single_evidence(entry)) for entry in boards]
+    singles = [(entry["id"], _single_evidence(entry)) for entry in boards if concerns([entry["id"]])]
     singles = [f"{board_id} (its evidence #{index})" for board_id, index in singles if index is not None]
     if singles:
         warnings.append(f"Every finding of a board cites one and the same evidence item: {_shown(singles)}.")
     unobserved = [
         entry["id"] for entry in boards
-        if entry.get("challenge", {}).get("specialists")
+        if concerns([entry["id"]]) and entry.get("challenge", {}).get("specialists")
         and all(lens["basis"] != "observed" for lens in entry["challenge"]["specialists"])
     ]
     if unobserved:
@@ -692,12 +698,18 @@ def _response_problems(response: object, items: dict, evidence: dict) -> tuple[l
     return [(item_id, board) for item_id in ids], problems
 
 
+def nothing_to_deliberate(task_id: str) -> str:
+    """What task deliberate and task respond say when no board objects to another: respond has nothing to record."""
+    return ("The boards do not disagree on this task: there is nothing to deliberate, so skip task respond. Next: "
+            f"openguildkit task challenge {task_id} prints the decision brief.")
+
+
 def validate_deliberation(task: dict, payload: dict) -> dict:
     """Both boards answer each objection with a position and evidence from their first review."""
     request = deliberation_request(task)
     items = {item["id"]: item for item in request["objections"]}
     if not items:
-        raise ValueError("The boards do not disagree on this task: there is nothing to deliberate.")
+        raise ValueError(nothing_to_deliberate(task["id"]))
     if not isinstance(payload, dict) or payload.keys() != {"consultation_id", "responses", "decision_needed"}:
         raise ValueError("A deliberation contains consultation_id, responses and decision_needed. Run task deliberate.")
     if payload["consultation_id"] != task["consultation"]["id"]:
@@ -1043,7 +1055,7 @@ def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] |
     status = task.get("status")
     if status == "changes-requested":
         raise ValueError(f"Task {task['id']} has changes requested by {task['decision']['by']}: there is nothing to "
-                         f"implement. Next: openguildkit task consult {task['id']}")
+                         f"implement. Next: openguildkit task consult {task['id']} --reuse-answers")
     if status not in ("approved", "done", "done-with-reservations"):
         raise TaskStateError("A human approval is required before implementation.")
     pending_verification = [item for item in blocker_list(task) if item.get("phase") == "verification"

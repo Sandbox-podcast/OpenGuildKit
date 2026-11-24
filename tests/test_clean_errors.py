@@ -34,7 +34,7 @@ class CleanErrorTests(unittest.TestCase):
         return run_cli(self.root, *arguments, expect=code).stderr
 
     def init(self):
-        write_json(self.root / "answers.json", {"name": "Portal", "stack": ["Python"]})
+        write_json(self.root / "answers.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"]})
         self.run_cli("init", "--answers", self.root / "answers.json", code=0)
 
     def output(self, *arguments) -> str:
@@ -274,7 +274,7 @@ class CleanErrorTests(unittest.TestCase):
         for host, name in (("codex", ".codex/hooks.json"), ("claude-code", ".claude/settings.json")):
             with self.subTest(host=host):
                 shutil.rmtree(self.root / ".openguildkit", ignore_errors=True)
-                write_json(self.root / "profile.json", {"name": "Portal", "stack": ["Python"], "host": host, "guard": "observe"})
+                write_json(self.root / "profile.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"], "host": host, "guard": "observe"})
                 self.run_cli("init", "--answers", self.root / "profile.json", code=0)
                 target = self.root / name
                 target.parent.mkdir(exist_ok=True)
@@ -296,7 +296,7 @@ class CleanErrorTests(unittest.TestCase):
             "rules": [{"id": "freeze-sprint-scope", "instruction": "Start no new item before the sprint ends.",
                        "verification": "Compare the items started with the sprint plan."}],
         })
-        write_json(self.root / "conflict.json", {"name": "c", "packs": ["kanban-delivery", "fixed-sprint-scope"]})
+        write_json(self.root / "conflict.json", {"personal_data": "no", "name": "c", "packs": ["kanban-delivery", "fixed-sprint-scope"]})
         error = self.refusal("init", "--answers", self.root / "conflict.json")
         self.assertIn("the file passed to init --answers", error)
         self.assertFalse((self.root / ".openguildkit" / "project.json").exists())
@@ -390,7 +390,7 @@ class CleanErrorTests(unittest.TestCase):
         self.init()
         self.assertIn("reserved file name", self.run_cli("task", "new", "x", "--id", "con"))
         self.assertIn("task ID is empty", self.run_cli("task", "new", "x", "--id", ""))
-        write_json(self.root / "policy.json", {"name": "x", "packs": ["export-link-expiry"]})
+        write_json(self.root / "policy.json", {"personal_data": "no", "name": "x", "packs": ["export-link-expiry"]})
         self.assertIn("--policy-repo", self.run_cli("preview", "--answers", self.root / "policy.json"))
 
     def test_catalog_text_refuses_control_characters_and_misnamed_files(self):

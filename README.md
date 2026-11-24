@@ -47,7 +47,7 @@ openguildkit host apply
 openguildkit check
 ```
 
-With Claude Code or Codex as the agent host, `check` fails until `host apply` has installed the host settings and hooks: run it first. With another agent, skip it; it writes nothing for that host. Without a terminal, as in a script or from your agent, `openguildkit init --questions` prints the questionnaire as JSON and `openguildkit init --answers answers.json` reads the answers from a file.
+With Claude Code or Codex as the agent host, `check` fails until `host apply` has installed the host settings and hooks: run it first. With another agent, skip it; it writes nothing for that host. Without a terminal, as in a script or from your agent, `openguildkit init --questions` prints the questionnaire as JSON and `openguildkit init --answers answers.json` reads the answers from a file. The file must answer `personal_data` (`yes`, `no` or `unsure`, which proposes the laws on personal data): without it, `init` writes nothing and names the question.
 
 `init` saves the profile in `.openguildkit/project.json` and writes the rules in a managed block in `AGENTS.md`. It adds an import to `CLAUDE.md` for Claude Code. The catalog records in force are pinned in `.openguildkit/catalog.lock.json`: after upgrading OpenGuildKit, `openguildkit update` shows the date of the installed catalog (the day its sources were last checked), how many records changed and what would change, and `openguildkit update --apply` adopts it. It then prints the next steps that apply, such as `openguildkit host apply` for your agent host and `openguildkit tools plan ...` for the tools the registry knows. [Install the agent skill](integrations/) to answer the questionnaire in Claude Code or Codex and run tasks from the conversation. To change the profile later (adopt or decline a regulation, add a check, change the host or the guard), use `openguildkit profile`: it records who, when and why, and rewrites `AGENTS.md` ([patterns](docs/patterns.md#change-the-profile-after-setup)).
 
@@ -83,7 +83,7 @@ openguildkit task consult request-status --answers answers.json
 - `task questions` prints the questionnaire: the agent asks you the kind of work, the areas it affects, the data involved and the research allowed.
 - `task questions --answers --follow-ups` gives only the follow-up questions your answers call for and the points still open.
 - `task route` shows the boards it would select and why, without recording anything. Only you add or remove a board, with a reason.
-- `task consult` records your answers and prepares a short consultation: the task, the project scope, one line per board.
+- `task consult` records your answers and prepares a short consultation: the task, the project scope, one line per board. To consult a task again with the answers it already holds, after a change request, a rebase or a change of rules, run `task consult ID --reuse-answers`: it needs no terminal.
 
 A minimal `answers.json` gives one choice ID per question of `task questions`. `concerns` names the topics that bring their own specialists (money, AI, decisions about people, credentials), or `none`:
 
@@ -97,6 +97,10 @@ A minimal `answers.json` gives one choice ID per question of `task questions`. `
   "context": "Signed-in customers see the status of their own support requests."
 }
 ```
+
+The follow-up questions add their answers to the same file under their own IDs: `outcome` (what someone can see or measure once the work is done), `affected` (who notices the change) and, for a decision, `options`.
+
+The JSON files these steps name (the answers, one entry per board, the deliberation, the result) are working files. Write them in `.openguildkit/work/`, not at the project root: Git ignores that folder, and the board guard lets the agent write there before any approval.
 
 **2. Consult the boards.**
 
@@ -114,7 +118,7 @@ openguildkit task challenge request-status
 - `task submit` records the board's review. A malformed review is refused with the list of all its problems.
 - `task progress` says which boards have returned their review.
 - `task review` assembles the reviews with the summary the agent writes.
-- `task deliberate` lists the objections between boards that disagree. With `task respond`, each board maintains, amends or concedes.
+- `task deliberate` lists the objections between boards that disagree. With `task respond`, each board maintains, amends or concedes. When no board objects to another, `task deliberate` says so: skip `task respond`.
 - `task challenge` prints the decision brief the agent shows you: verdicts, objections, blockers and the checks that could change the decision.
 
 **3. Decide.** `task clear`, `task decide` and `task revoke` are yours. The agent proposes the evidence, but it never runs these commands for you.
@@ -131,7 +135,7 @@ openguildkit task revoke request-status --by CM --reason "Support moves the port
 - `task clear` clears a blocker with evidence, a project file or a link. A blocker of phase `verification` is a condition of approval: you approve first, and clear it once the code exists.
 - `task decide --approve` shows the decision brief and asks you to type the task ID. The approval is sealed.
 - `task decide --request-changes` sends the task back to scoping, and its history is kept.
-- `task revoke` withdraws an approval when the work is abandoned or a condition of the approval cannot be met: the task goes back to changes requested, and the guard stops covering its edits.
+- `task revoke` withdraws an approval when the work is abandoned or a condition of the approval cannot be met: the task goes back to changes requested, and the guard stops covering its edits. When the decision was already exported, run `task export` again and commit the record: it then carries the withdrawal.
 - `--by` takes your initials or your team handle, not your full name: it is copied into files the team commits, and an approval keeps it under its seal ([personal data](docs/personal-data.md)).
 
 **4. Deliver and close.**
@@ -142,15 +146,18 @@ openguildkit task verify request-status
 openguildkit task result request-status --template > result.json
 openguildkit task result request-status --file result.json
 openguildkit task complete request-status
+git add -A && git commit -m "Show each request's status"
 openguildkit task export request-status
+git add .openguildkit/decisions && git commit -m "Decision record of request-status"
 ```
 
 - `task handoff` gives the agent the implementation brief: the approved scope and the rules in force. The agent delivers that scope only.
-- `task verify` runs the project's checks and records their results.
-- `task result --template` asks only the rules that concern the task. The others are listed as not concerned, with the reason.
-- `task result --file` records the result the agent filled in. You confirm each rule set aside, and the owner of each named evidence (record of processing activities, DPIA decision) provides it.
+- `task verify` runs the project's checks and records their results. Before any `task result`, it counts the rules to report rather than listing them: the template lists them.
+- `task result --template` asks only the rules that concern the task. The others are listed as not concerned, with the reason. A criterion is `met` or `not-met`; a rule is `passed`, `failed`, `skipped` or `not-applicable`.
+- `task result --file` records the result the agent filled in. The owner of each named evidence (record of processing activities, DPIA decision) provides it: the result names the document and who provided it. When the result declares not applicable a data protection, security or AI rule that the task's answers select (the GDPR rules for personal data), `task complete` lists each one and the person who closes the task confirms them at a terminal (`--by`, then retyping the task ID). One evidence cited for the passed rules of three packs or more is flagged, and the task then closes with reservations.
 - `task complete` closes the task as `done` when nothing is left open, or as `done-with-reservations` with the open points, the most serious first. `task show --closing` prints them again, and `task new --follows` opens a linked task to take them up.
-- `task export` writes the decision record, to commit with the work: the pull request check reads it.
+- Commit the work before `task export`: the record lists the files Git tracks that changed since the approval, and the pull request check requires each changed file in it. `task export` names the new files Git does not track yet, which no record covers.
+- `task export` writes the decision record; commit it in the same pull request. After `task revoke`, `task export` writes the withdrawal into the record, and the check then refuses it.
 
 ## Browse the catalog
 

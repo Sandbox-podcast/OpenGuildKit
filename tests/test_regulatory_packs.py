@@ -41,6 +41,14 @@ class RegulatoryPackTests(unittest.TestCase):
                 self.assertIn(official, [source["url"] for source in self.catalog["packs"][pack_id]["sources"]])
                 self.assertIn(official, [source["url"] for source in self.catalog["patterns"][pattern_id]["sources"]])
 
+    def test_incident_notification_uses_the_same_ai_act_consolidation(self):
+        ai_act = self.catalog["packs"]["eu-ai-act"]
+        consolidated_url = next(
+            source["url"] for source in ai_act["sources"] if source["url"].startswith("https://eur-lex.europa.eu/")
+        )
+        incident_sources = self.catalog["packs"]["incident-notification"]["sources"]
+        self.assertIn(consolidated_url, [source["url"] for source in incident_sources])
+
     def test_legal_and_security_roles_reach_the_packs_and_references_link_them(self):
         for role in ("legal", "security"):
             suggested = {item["id"] for item in recommend_patterns(self.catalog, [], "general", [role])["suggested"]}
@@ -78,6 +86,11 @@ class RegulatoryPackTests(unittest.TestCase):
         automated = rules["automated-decision"]
         self.assertRegex(automated["instruction"], r"Art\. 22\(2\).*Art\. 22\(3\)")
         self.assertIn("human intervention", automated["instruction"])
+        # Art. 22(3) opens with "In the cases referred to in points (a) and (c) of paragraph 2": for (b), the law
+        # that authorises the decision lays down the safeguards (#301).
+        self.assertIn("Art. 22(3) safeguards for exception (a) or (c)", automated["instruction"])
+        self.assertIn("for (b), the safeguards the authorising law lays down", automated["instruction"])
+        self.assertNotRegex(automated["instruction"], r"applies and add the Art\. 22\(3\)")
         # Art. 48 is about third-country judgments, not a transfer mechanism.
         transfer = rules["check-transfer-mechanism"]["instruction"]
         for article in ("Art. 45", "Art. 46", "Art. 47", "Art. 49"):

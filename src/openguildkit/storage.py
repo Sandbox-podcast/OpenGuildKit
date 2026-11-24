@@ -1,5 +1,6 @@
 """Local state helpers shared by the profile and task commands."""
 
+import hashlib
 import json
 import os
 import stat
@@ -57,6 +58,27 @@ def read_bytes(path: Path) -> bytes:
 
 def read_json(path: Path) -> dict:
     return parse_json(read_bytes(path), str(path))
+
+
+def file_signature(path: Path, info: os.stat_result | None = None, *, content: bool = False) -> tuple:
+    """What changes when a file is written: its size, modification and change times and inode, and with content a
+    digest of its bytes. The one signature the task index and the caches of the catalog and its lock compare.
+
+    The times alone miss a rewrite of the same size within one tick of a coarse file system (HFS+, FAT, SMB) or one
+    that restores the modification time, and Windows reports the creation time as the change time: the task index
+    reads again an entry written less than RACY_NANOSECONDS before it (task_index.py), and a cache of a file's parsed
+    content asks for the digest. None for a file that cannot be read.
+    """
+    try:
+        if not content:
+            info = info or path.stat()
+            return (info.st_size, info.st_mtime_ns, info.st_ctime_ns, info.st_ino)
+        with open(path, "rb") as handle:
+            info = os.fstat(handle.fileno())
+            digest = hashlib.sha256(handle.read()).hexdigest()
+    except OSError:
+        return None
+    return (info.st_size, info.st_mtime_ns, info.st_ctime_ns, info.st_ino, digest)
 
 
 def json_text(data) -> str:

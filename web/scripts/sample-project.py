@@ -1,8 +1,11 @@
 """Build a sample OpenGuildKit project whose tasks cover every state, to try or test the web interface.
 
     python web/scripts/sample-project.py DIR
+    python web/scripts/sample-project.py DIR --gdpr
 
 DIR must be empty or missing. The project reuses the fictional support portal of examples/request-status.
+With --gdpr, the project has the GDPR pattern and one approved task on personal data, whose named evidence
+(record of processing activities, DPIA decision) a person provides from the page.
 Approvals need a person at a terminal: this script simulates that person for its own fixture tasks only,
 the way the CLI's own tests do. Never use it on a real project.
 """
@@ -166,14 +169,34 @@ def build(root: Path) -> None:
     run(root, "storybook", "propose")
 
 
+def build_gdpr(root: Path) -> None:
+    """A project on personal data with the GDPR pattern, and one approved task on personal data."""
+    profile = json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8"))
+    profile.update({"name": "Portail RGPD", "checks": [PASS], "patterns": ["gdpr-personal-data"]})
+    run(root, "init", "--answers", write(root, "profile.json", profile))
+    (root / ".gitignore").write_text(".sample/\n", encoding="utf-8")
+    run(root, "task", "new", "Let customers download the data held about them.", "--id", "data-export")
+    consult(root, "data-export", {**ANSWERS, "context": "Customers download their own data as a JSON file."})
+    run(root, "task", "review", "data-export", "--file", review_for(root, "data-export", REVIEW["summary"]))
+    approve(root, "data-export", "Camille Martin", "Export limited to the requester's own data")
+    run(root, "task", "verify", "data-export")
+    # The documents the evidence owners provide, ready for the page to cite.
+    for name in ("records/processing-record.md", "records/dpia-decision.md"):
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"# {path.stem}\n\nFictional document of the sample project.\n", encoding="utf-8")
+
+
 def main_() -> None:
-    if len(sys.argv) != 2:
+    gdpr = "--gdpr" in sys.argv[1:]
+    args = [arg for arg in sys.argv[1:] if arg != "--gdpr"]
+    if len(args) != 1:
         raise SystemExit(__doc__)
-    root = Path(sys.argv[1]).resolve()
+    root = Path(args[0]).resolve()
     if root.exists() and any(root.iterdir()):
         raise SystemExit(f"{root} is not empty. Pick an empty folder.")
     root.mkdir(parents=True, exist_ok=True)
-    build(root)
+    (build_gdpr if gdpr else build)(root)
     print(f"Sample project ready: {root}\nRun: openguildkit --project \"{root}\" ui")
 
 

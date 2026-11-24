@@ -179,6 +179,22 @@ class CopiedAdviceTests(ApprovalCase):
         self.assertIn("Warning: Boards product, engineering give the same recommendation word for word", warned)
         self.assertIn("Warning: The same finding appears in", warned)
 
+    def test_each_submit_prints_only_the_warnings_its_own_pass_adds(self):
+        """Eight passes printed the earlier boards' warnings again at each submit, each time a little longer."""
+        entries = {entry["id"]: entry for entry in self.review["boards"]}
+        boards = [board["id"] for board in self.template["boards"]][:3]
+        printed = []
+        for board in boards:
+            self.run_cli("task", "pass", "timesheet-export", board)
+            write_json(self.root / f"{board}.json", entries[board])
+            printed.append(self.run_cli("task", "submit", "timesheet-export", "--file", self.root / f"{board}.json")[1])
+        first, _, third = boards
+        self.assertIn(f"Every finding of a board cites one and the same evidence item: {third} (its evidence #1).",
+                      printed[2])
+        self.assertNotIn(f"{first} (its evidence #1)", printed[2])
+        self.assertNotIn(f"{boards[1]} (its evidence #1)", printed[2])
+        self.assertIn(f"Boards {', '.join(boards)} give the same recommendation word for word", printed[2])
+
 
 if __name__ == "__main__":
     unittest.main()

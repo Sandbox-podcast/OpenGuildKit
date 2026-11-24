@@ -364,8 +364,20 @@ def set_paused(dossier: dict, paused: bool) -> dict:
     return validate_dossier({**dossier, "watch": {**_watch(dossier), "paused": paused}}, dossier["id"])
 
 
-def due_issue(dossier_id: str, source: dict) -> dict:
-    """The title and body of the issue a scheduled job opens for a source to review."""
+def due_issue(dossier_id: str, source: dict, research: str = "public-sources") -> dict:
+    """The title and body of the issue a scheduled job opens for a source to review. Under local-only, no agent
+    opens the page: a person reviews it and records it with market provided."""
+    if research == "local-only":
+        return {
+            "title": f"Market watch: review {source['competitor']} {source['kind']} ({dossier_id})",
+            "body": (f"The watched source {source['url']} of market dossier `{dossier_id}` is due for review "
+                     f"(last checked: {source.get('last_checked', 'never')}).\n\n"
+                     f"Research is local-only: no agent opens the page. A person reviews it, then records it:\n\n"
+                     f"- `openguildkit market provided {dossier_id} --url {source['url']} --by NAME`\n"
+                     f"- then, for a change to keep: `openguildkit market change {dossier_id} --competitor "
+                     f"{source['competitor']} --what TEXT --source {source['url']} --date YYYY-MM-DD "
+                     f"--verified-by NAME`\n"),
+        }
     return {
         "title": f"Market watch: review {source['competitor']} {source['kind']} ({dossier_id})",
         "body": (f"The watched source {source['url']} of market dossier `{dossier_id}` is due for review "

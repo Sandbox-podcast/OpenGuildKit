@@ -16,15 +16,15 @@ from pathlib import Path, PurePosixPath
 from .catalog import load_catalog
 from .decisions import (
     DECISIONS_DIR, approval_policy, base_commit, changed_paths_since, check_decision, check_decision_seal,
-    exported_boards, exported_records, exported_rounds, history_message, record_digest, revisions_outside_history, seal,
-    shared_digest, stale_approval_message, verify_recorded_signature, verify_signature,
+    exported_boards, exported_records, exported_rounds, history_message, outside_history_message, record_digest,
+    revisions_outside_history, seal, shared_digest, stale_approval_message, verify_recorded_signature, verify_signature,
 )
 from .lock import LOCK_FILE, apply_lock, read_lock
 from .project import STATE_DIR, Fingerprints, load_profile, project_root, state_path
 from .results import DONE_STATUSES, verification_of
 from .storage import read_json, write_json
 from .task_index import tasks_with_status
-from .tasks import STALE_DAYS, STATUSES, approval_problem, days_since, read_task, task_path
+from .tasks import STALE_DAYS, STATUSES, approval_problem, days_since, expired_waiver_problem, read_task, task_path
 from .workflow import TaskStateError, exported_blockers, mock_evidence
 
 MODES = ("off", "observe", "enforce")
@@ -76,7 +76,7 @@ def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) ->
         try:
             found = approval_problem(task, profile, catalog, root, fingerprints=fingerprints, outside=outside,
                                      explain=False)
-            if found:
+            if found and found["severity"] == "error":
                 continue
             age = _age_days(task["decision"].get("at"))
             brief = task["brief"].strip().splitlines()
@@ -499,6 +499,9 @@ def _record_shape(record: dict, relative: str) -> None:
     elif record.get("files") is not None and (not isinstance(record["files"], list)
                                               or not all(isinstance(item, str) for item in record["files"])):
         problem = "files must be a list of paths"
+    elif "withdrawn" in record and (not isinstance(record["withdrawn"], dict) or not all(
+            isinstance(record["withdrawn"].get(key), str) for key in ("by", "reason", "at"))):
+        problem = "withdrawn must name who withdrew the approval, why and when (by, reason, at)"
     if problem:
         raise ValueError(f"{relative} is not a decision record written by openguildkit task export: {problem}. "
                          "Export the decision again or remove the file.")
@@ -526,7 +529,29 @@ def _record_check(record: dict, relative: str, fingerprint: str | Fingerprints, 
     if found == "earlier-record":
         return found, (f"{relative} was exported by an earlier release, before records carried a digest: its "
                        f"content is not verified. Export it again with openguildkit task export {record['task']}.")
+    if found == "withdrawn":
+        withdrawn = record.get("withdrawn") or earlier[record["task"]]["withdrawn"]
+        return found, (f"{relative}: the approval of {record['task']} was withdrawn by {withdrawn['by']} on "
+                       f"{withdrawn['at'][:10]} ({withdrawn['reason']}): the record covers no change. Open a new task "
+                       "for this work.")
     return "invalid-record", found
+
+
+_COMMIT = re.compile(r"[0-9a-f]{7,64}")
+
+
+def in_history(history: Path, commit: object) -> bool:
+    """Whether HEAD of the repository contains the commit: a commit git does not have, or one HEAD does not reach,
+    is outside its history."""
+    if not isinstance(commit, str) or not _COMMIT.fullmatch(commit):
+        return False
+    return _git(history, "merge-base", "--is-ancestor", commit, "HEAD").returncode == 0
+
+
+def _earlier_withdrawal(earlier: dict, task_id: str) -> bool:
+    before = earlier.get(task_id)
+    return isinstance(before, dict) and isinstance(before.get("withdrawn"), dict) and all(
+        isinstance(before["withdrawn"].get(key), str) for key in ("by", "reason", "at"))
 
 
 def _rules_hold(fingerprint: str | Fingerprints, recorded: str) -> bool:
@@ -545,6 +570,8 @@ def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, 
     decision = record["decision"]
     payload = decision.get("payload")
     export_again = f"Export it again with openguildkit task export {record['task']}, or restore the file from git."
+    if _earlier_withdrawal(earlier, record["task"]) and _same_approval(earlier[record["task"]], record):
+        return "withdrawn"
     if record["task"] in earlier and not _same_approval(earlier[record["task"]], record):
         return (f"{relative}: task {record['task']} already had another approval on the base revision; open a new task "
                 "for new work. A record of the same approval (same seal, same consultation) may add its completion.")
@@ -567,10 +594,18 @@ def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, 
     if inconsistent:
         return (f"{relative}: its completion is not consistent ({inconsistent}): a record that says completed carries "
                 f"the closing that task complete writes, and a record that does not carries none. {export_again}")
+    if record.get("withdrawn"):
+        return "withdrawn"
     if not _rules_hold(fingerprint, record["profile_fingerprint"]):
         return "earlier-rules"
     if not current:
         return "earlier-record"
+    # In CI, a new approval must have been given on a revision of this change's history, as task list requires
+    # locally: a record approved on an abandoned branch and copied into another pull request covers nothing.
+    commit = (payload.get("base_revision") or {}).get("commit") if isinstance(payload.get("base_revision"), dict) else None
+    if extracted and history is not None and record["task"] not in earlier and commit is not None \
+            and not in_history(history, commit):
+        return f"{relative}: {outside_history_message(record['task'], str(commit))}"
     if policy["mode"] == "signed":
         if not isinstance(decision.get("signature"), str) or not isinstance(decision.get("signer"), str):
             return f"{relative}: the project requires signed approvals and this decision is not signed."
@@ -683,23 +718,84 @@ def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str 
             kind, message = found
             if kind == "earlier-rules" and completed:
                 message = f"{relative}: {history_message(record['task'])}"
-            note = kind == "earlier-record" or (kind == "earlier-rules" and completed)
+            # A record that carries its withdrawal is history: it covers nothing and says so.
+            note = kind in ("earlier-record", "withdrawn") or (kind == "earlier-rules" and completed)
             row["problem"] = {"kind": kind, "severity": "note" if note else "error",
                               "message": message}
+        elif row["local"] and (withdrawn := _withdrawn_here(state, record)):
+            row["problem"] = {"kind": "withdrawn-here", "severity": "error", "message": (
+                f"{relative}: the approval of {record['task']} was withdrawn in this copy by {withdrawn['by']} on "
+                f"{withdrawn['at'][:10]}, and the record still says it is approved, so guard --ci keeps accepting it. "
+                f"Write the withdrawal into it with openguildkit task export {record['task']}, and commit it.")}
         rows.append(row)
     return rows
 
 
+def _withdrawn_here(state: Path, record: dict) -> dict | None:
+    """The withdrawal the local task records for the approval an exported record carries, if any."""
+    try:
+        task = read_task(state, record["task"])
+    except Exception:  # An unreadable task record is reported by task list and check.
+        return None
+    return withdrawal_of(task, record)
+
+
+def withdrawal_of(task: dict, record: dict) -> dict | None:
+    """Who withdrew, why and when, from the round of the task that holds the approval the record carries."""
+    for previous in task.get("rounds", []):
+        if isinstance(previous.get("revoked"), dict) and \
+                previous.get("decision", {}).get("seal") == record["decision"].get("seal"):
+            return {key: previous["revoked"][key] for key in ("by", "reason", "at")}
+    return None
+
+
+def export_withdrawal(root: Path, state: Path, task: dict, output: Path | None = None) -> Path:
+    """Write the withdrawal of an approval into the record that task export wrote of it, so that CI refuses it.
+
+    The record keeps the approval as it was, with who withdrew it, why and when; its digest is computed again.
+    """
+    path = output if output is not None else state / DECISIONS_DIR / f"{task['id']}.json"
+    shown = path.resolve().relative_to(root.resolve()).as_posix() if root.resolve() in path.resolve().parents else str(path)
+    if not any(isinstance(item.get("revoked"), dict) for item in task.get("rounds", [])):
+        raise TaskStateError("Only an approved or completed task can be exported, or one whose approval was withdrawn.")
+    if not path.is_file():
+        raise ValueError(f"The approval of {task['id']} was withdrawn and {shown} does not exist: there is no exported "
+                         "record to write the withdrawal into, and nothing for guard --ci to accept.")
+    _refuse_foreign_record(root, path, task)
+    record = read_json(path)
+    _record_shape(record, shown)
+    withdrawn = withdrawal_of(task, record)
+    if withdrawn is None:
+        raise ValueError(f"{shown} holds an approval of {task['id']} that was not withdrawn: it is left as it is.")
+    record = {key: value for key, value in record.items() if key != "record_sha256"}
+    record["withdrawn"] = withdrawn
+    record["record_sha256"] = record_digest(record)
+    write_json(path, record)
+    return path
+
+
+def untracked_files(root: Path) -> list[str]:
+    """The new files Git does not track yet, ignored files and decision records left out: no record lists them."""
+    result = _git(root, "ls-files", "-z", "--others", "--exclude-standard", "--full-name")
+    if result.returncode:
+        return []
+    prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"
+    return sorted(path for path in result.stdout.decode("utf-8", errors="replace").split("\0")
+                  if path and not path.startswith(prefix))
+
+
 def _earlier_records(directory: Path) -> dict:
-    """The exported decisions of the base revision, by task."""
+    """The exported decisions of the base revision, by task, at any depth below the decisions folder, as the change's
+    own records are found: a record merged in a subfolder still binds its approval. The record in the folder itself
+    comes first when a task has several."""
     records = {}
-    for path in sorted(directory.glob("*.json")):
+    for path in sorted(directory.rglob("*.json"), key=lambda item: (item.parent != directory, item.as_posix())):
         try:
             record = read_json(path)
         except (OSError, ValueError):
             continue
         if isinstance(record, dict) and isinstance(record.get("task"), str):
-            records[record["task"]] = record
+            records.setdefault(record["task"], record)
     return records
 
 
@@ -786,14 +882,14 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
     prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"
     records = [path for path in changed if path.startswith(prefix) and path.endswith(".json")]
     work = [path for path in changed if path not in records]
-    valid, problems, covers = [], [], {}
+    valid, problems, covers, where = [], [], {}, {}
     notes = [_workflow_note(found)] if (found := _changed_guard_workflows(root, base, work)) else []
     with tempfile.TemporaryDirectory() as directory:
         base_root = Path(directory)
         names = _git_lines(root, "ls-tree", "-r", "--name-only", base, "--", STATE_DIR)
         if f"{STATE_DIR}/project.json" not in names:
-            return {"mode": "off", "changed": len(work), "decisions": [], "problems": [_no_base_profile(root)],
-                    "notes": notes, "ok": True}
+            return {"mode": "off", "changed": len(work), "decisions": [], "records": {},
+                    "problems": [_no_base_profile(root)], "notes": notes, "ok": True}
         _extract_base(root, base, base_root, [name for name in names if not name.startswith(f"{STATE_DIR}/tasks/")])
         base_state = base_root / STATE_DIR
         catalog = catalog_for(base_state)
@@ -807,13 +903,21 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
             path = root / relative
             if not path.is_file():
                 continue
+            if PurePosixPath(relative).parent != PurePosixPath(prefix):
+                problems.append(f"{relative} is not directly under {prefix}: task export writes each record there, "
+                                f"named after its task, and no record elsewhere covers a change. Move it to "
+                                f"{prefix}TASK.json or remove it.")
+                continue
             record = read_json(path)
             _record_shape(record, relative)
             problem = _record_problem(record, relative, fingerprint, policy, base_root, earlier, extracted=True, history=root)
+            # A waiver that expired opens its blocker again: the record no longer covers the change.
+            problem = problem or expired_waiver_problem(record, relative)
             if problem:
                 problems.append(problem)
             else:
                 valid.append(record["task"])
+                where[record["task"]] = relative
                 covers[record["task"]] = (earlier.get(record["task"]) or record).get("files")
     if work and not records:
         problems.append("The changes come with no exported decision (openguildkit task export ID).")
@@ -827,5 +931,5 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
         else:
             notes.append(f"{LOCAL_RECORDS}, or pass --require-signed to fail this check until they are.")
     ok = not problems and (not work or bool(valid))
-    return {"mode": guard_mode(profile), "changed": len(work), "decisions": valid, "problems": problems, "notes": notes,
-            "ok": ok}
+    return {"mode": guard_mode(profile), "changed": len(work), "decisions": valid, "records": where,
+            "problems": problems, "notes": notes, "ok": ok}

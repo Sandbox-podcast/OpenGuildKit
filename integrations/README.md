@@ -9,7 +9,7 @@ Any agent that reads `AGENTS.md` and runs shell commands can follow the OpenGuil
 | `claude-code/agents/guild-board.md` | Claude Code subagent that reviews a task through one board and returns a JSON entry |
 | `claude-code/agents/market-analyst.md` | Claude Code subagent that fills and refreshes a market dossier through `openguildkit market` commands, within the research policy |
 | `claude-code/agents/dependency-watch.md` | Claude Code subagent that runs the project's scanners, imports their reports into the alert register and opens a task per new confirmed alert |
-| `github/openguildkit-dependency-watch.yml`, `github/openguildkit-market-watch.yml` | Scheduled jobs: import a scanner report, open a task per new confirmed alert and propose the alert register in a pull request; open an issue per competitor source due for review |
+| `github/openguildkit-dependency-watch.yml`, `github/openguildkit-market-watch.yml` | Scheduled jobs: import a scanner report, open a task per new confirmed alert and propose the alert register in a pull request (the scanner runs in a read-only job; in guard mode `enforce` the pull request needs a review task's exported decision, and its checks wait for a maintainer's approval because the job's `GITHUB_TOKEN` opened it: [docs/alerts.md](../docs/alerts.md#the-pull-request-and-the-guard)); open an issue per competitor source due for review |
 
 Both agents use the same `SKILL.md` format (a folder with a `SKILL.md` file and `name` and `description` in the front matter).
 
@@ -106,9 +106,12 @@ openguildkit task authorize ID --action external-api --target api.example.com --
 - refuses a record whose task already had another approval on the base revision: new work needs a new task. A record of the same approval (same seal, same consultation) passes, so the record that adds the completion can come in a pull request of its own; it covers only the files its base version listed;
 - with local approvals on the base revision, says that the records cannot be verified: whoever can write a record can recompute its seal. `guard --ci --require-signed` fails the check until the base revision requires [signed approvals](../docs/workflow.md#signed-approvals);
 - names a changed workflow file that runs the check (see [Protect the check](#protect-the-check));
-- names the task whose decision covers the change, and reports a malformed record as an `OpenGuildKit:` error with exit code 1.
+- refuses a record placed anywhere but directly in `.openguildkit/decisions/`, where `task export` writes it, and reads the base revision's records at any depth below that folder, so a record merged in a subfolder still binds its approval;
+- refuses a new approval whose approved revision is not in the history of the pull request (an approval given on an abandoned branch and copied into another change), with the message `task list` gives;
+- refuses a record that carries the withdrawal of its approval (`task revoke`, then `task export`), and a copy of that approval made before the withdrawal once the withdrawn record is on the base revision;
+- names the task whose decision covers the change with the record it read, and reports a malformed record as an `OpenGuildKit:` error with exit code 1.
 
-The list of files is written after the approval and sealed by nobody: it stops a record from being reused as it is, and the reviewer compares it with the diff of the pull request.
+The list of files is written after the approval and sealed by nobody, not even by a signature: it stops a record from being reused as it is, and the reviewer compares it with the diff of the pull request.
 
 The pull request that adds the profile runs on a base revision without one: the check reports mode `off` and enforces nothing, which is expected, and says which mode the next pull requests get once the profile is merged (the `"guard"` value of the change).
 

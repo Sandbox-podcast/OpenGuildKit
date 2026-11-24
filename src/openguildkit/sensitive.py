@@ -15,7 +15,13 @@ _NOT_A_VALUE = r"""(?![\[$<{%]|(?-i:[A-Z_]+)(?![A-Za-z0-9])|[^\s,;"']*(?:\.\.\.|
 # The value of a setting: quoted, or a run of characters that holds a digit, as generated secrets do and words do not.
 _SETTING_VALUE = (rf"""(?:"{_NOT_A_VALUE}[^"\r\n]{{4,}}"|'{_NOT_A_VALUE}[^'\r\n]{{4,}}'"""
                   rf"""|{_NOT_A_VALUE}(?=[^\s,;"']*\d)[^\s,;"']{{8,}})""")
-_SECRET_KEY = r"(?:[a-z0-9]+[_-])*(?:api[_-]?key|token|secret|access[_-]?key|secret[_-]?key|client[_-]?secret)"
+# The name of a secret setting: api_key, AWS_SECRET_ACCESS_KEY, x-api-key, or a camelCase name such as accessToken.
+_SECRET_KEY = (r"(?:(?:[a-z0-9]+[_-])*(?:api[_-]?key|token|secret|access[_-]?key|secret[_-]?key|client[_-]?secret)"
+               r"|[a-z][a-z0-9]*(?-i:Token|Secret))")
+# The name of a password: password, DB_PASSWORD, POSTGRES_PASSWORD, DB_PWD, PASSPHRASE, dbPassword, --password.
+# A bare pwd is the shell command: only a prefixed name (DB_PWD) is a password.
+_PASSWORD_KEY = (r"(?:(?<![A-Za-z0-9])(?:(?:[a-z0-9]+[_-])*(?:password|passwd|passphrase)|(?:[a-z0-9]+[_-])+pwd)"
+                 r"|[a-z][a-z0-9]*(?-i:Password|Passphrase)|mot de passe)")
 # Each shape: its name in messages, the pattern, and the replacement that keeps the surrounding words.
 CREDENTIAL_SHAPES = (
     ("a cloud access key ID", re.compile(r"(?<![A-Za-z0-9_])(?:AKIA|ASIA)[A-Za-z0-9]{16}(?![A-Za-z0-9_])"),
@@ -37,6 +43,11 @@ CREDENTIAL_SHAPES = (
     ("a Notion token", re.compile(r"(?<![A-Za-z0-9_])ntn_[A-Za-z0-9]{40,}"), "[credential]"),
     ("a Sentry token", re.compile(r"(?<![A-Za-z0-9_])sntry[su]_[A-Za-z0-9+/=_-]{30,}"), "[credential]"),
     ("a Figma token", re.compile(r"(?<![A-Za-z0-9_])figd_[A-Za-z0-9_-]{30,}"), "[credential]"),
+    ("a Google OAuth access token", re.compile(r"(?<![A-Za-z0-9_])ya29\.[A-Za-z0-9_-]{20,}"), "[credential]"),
+    ("a Slack app token", re.compile(r"(?<![A-Za-z0-9_])xapp-\d+-[A-Za-z0-9-]{16,}"), "[credential]"),
+    ("a Stripe webhook secret", re.compile(r"(?<![A-Za-z0-9_])whsec_[A-Za-z0-9]{20,}"), "[credential]"),
+    ("a DigitalOcean token", re.compile(r"(?<![A-Za-z0-9_])do[opr]_v1_[A-Za-z0-9]{32,}"), "[credential]"),
+    ("a Shopify token", re.compile(r"(?<![A-Za-z0-9_])shp(?:at|ca|pa|ss)_[A-Za-z0-9]{20,}"), "[credential]"),
     ("a Slack webhook link", re.compile(r"(https://hooks\.slack\.com/(?:services|workflows|triggers)/)"
                                         r"[A-Za-z0-9_/-]{20,}"), r"\1[credential]"),
     ("a Discord webhook link", re.compile(r"(https://(?:(?:ptb|canary)\.)?discord(?:app)?\.com/api/webhooks/)"
@@ -53,7 +64,10 @@ CREDENTIAL_SHAPES = (
     ("a secret in a query string", re.compile(
         r"(?i)([?&;](?:[a-z0-9_.-]*[_-])?(?:token|secret|password|passwd|api[_-]?key|access[_-]?key|signature|sig)=)"
         r"(?![\[$<{])[^&#\s\"']+"), r"\1[credential]"),
-    ("a password", re.compile(r"""(?i)(\b(?:password|passwd|mot de passe)\s*[:=]\s*)(?!\[)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]*[^\s,;.!?)])"""),
+    ("a password", re.compile(rf"""(?i)({_PASSWORD_KEY}["']?\s*[:=]\s*)(?![\[$<{{%])(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]*[^\s,;.!?)])"""),
+     r"\1[password]"),
+    # mysql -pSECRET, mysqldump -pSECRET: the value follows -p without a space; -p alone asks for it.
+    ("a password on a command line", re.compile(r"(\bmysql(?:dump|admin|import|check|show)?\b[^\n]*?\s-p)(?![\[$<{%])[^\s'\"]{4,}"),
      r"\1[password]"),
     ("an authorization header", re.compile(
         r"""(?i)(\bauthorization["']?\s*[:=]\s*["']?(?:bearer|basic|token)\s+)"""

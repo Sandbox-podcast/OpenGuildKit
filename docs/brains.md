@@ -104,7 +104,7 @@ Lists gain the new items, a specialist with a bundled `id` replaces it, and `tit
 
 To add a brain of its own, run `openguildkit brains --new risk-office`. It writes the board with its full review block, a method pattern, a rule pack and a reference family under `.openguildkit/catalog/`, with `TODO:` text to replace; `brains --check` reports the brain until none is left. A project board without a `review` block is refused, so that every brain has lenses.
 
-Adding or completing a brain changes the record that approvals are bound to. When the profile uses every board (`"boards": []`), the new brain becomes one of them: `brains --new` names each task consulted or approved without it, and `openguildkit sync` lists them again. Those tasks need a new review before work continues: consult each again with `task consult ID`. A profile that lists its boards is not affected until the team adds the brain to `boards`.
+Adding or completing a brain changes the record that approvals are bound to. When the profile uses every board (`"boards": []`), the new brain becomes one of them: `brains --new` names each task consulted or approved without it, and `openguildkit sync` lists them again. Those tasks need a new review before work continues: consult each again with `task consult ID --reuse-answers`. A profile that lists its boards is not affected until the team adds the brain to `boards`.
 
 ## Run the review
 

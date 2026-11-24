@@ -49,7 +49,7 @@
     {
       "id": "kanban-guide",
       "title": "Kanban",
-      "edition": "mai 2025",
+      "edition": "May 2025",
       "category": "Produit et organisation",
       "kind": "méthode",
       "brains": [
@@ -65,7 +65,7 @@
       "sources": [
         {
           "url": "https://kanbanguides.org/the-kanban-guide/2025.5/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-23",
           "title": "Kanban Guides — The Kanban Guide, May 2025"
         }
       ]
