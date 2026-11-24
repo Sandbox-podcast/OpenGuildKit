@@ -41,6 +41,16 @@ class KitTestCase(unittest.TestCase):
 
 
 class CampaignTests(KitTestCase):
+    def test_an_installed_campaign_keeps_its_interpreter_and_ignores_the_checkout(self):
+        cli = load("field_cli")
+        with mock.patch.dict(os.environ, {cli.INSTALLED_ENV: "1", "PYTHONPATH": str(ROOT / "src")}):
+            self.assertEqual(cli.command("--version"), [sys.executable, "-I", "-X", "utf8", "-m", "openguildkit", "--version"])
+            self.assertNotIn("PYTHONPATH", cli.environment())
+            for name in ("logged.py", "person_decide.py", "fingerprint.py"):
+                launcher = self.out / name
+                field._wrapper(launcher, name)
+                self.assertIn(f"{cli.INSTALLED_ENV}=1 exec ", launcher.read_text(encoding="utf-8"))
+
     def test_the_campaign_has_thirty_testers_in_three_groups_and_no_problem(self):
         campaign = field.load_campaign()
         testers = field.testers(campaign)
@@ -198,6 +208,7 @@ class PrepareTests(KitTestCase):
         version = subprocess.run([str(self.out / "bin" / "openguildkit"), "--version"], capture_output=True, text=True)
         self.assertEqual(version.returncode, 0, version.stderr)
         self.assertTrue(version.stdout.startswith("openguildkit "), version.stdout)
+        self.assertEqual(record["cli_version"], version.stdout.strip())
         remote = self.out / "shared" / "remote.git"
         tracked = field.git(remote, "ls-tree", "-r", "--name-only", "main").splitlines()
         self.assertIn(".openguildkit/project.json", tracked)

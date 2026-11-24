@@ -173,6 +173,7 @@ def command_parser() -> argparse.ArgumentParser:
     update.add_argument("--apply", action="store_true", help="Adopt the installed catalog's records for this project.")
     update.add_argument("--json", action="store_true", help="Print the changes as JSON.")
     commands.add_parser("check", help="Check that the instructions match the project profile.")
+    commands.add_parser("mcp", help="Serve read-only project metadata to a local MCP client. Requires --project.")
     ui = commands.add_parser("ui", help="Open the web interface of this project on 127.0.0.1.")
     ui.add_argument("--port", type=int, default=UI_PORT, help=f"Port (default {UI_PORT}; 0 picks a free one).")
     ui.add_argument("--no-browser", action="store_true", help="Print the address without opening a browser.")
@@ -1156,8 +1157,16 @@ def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
 def _run(args) -> int | None:
     if args.command == "guard" and args.hook:
         return _guard_hook(args)
+    if args.command == "mcp" and args.project is None:
+        raise ValueError("Supply --project PATH to open a project MCP server.")
     root = project_root(args.project)
     state = state_path(root)
+    if args.command == "mcp":
+        if args.policy_repo is not None or args.policy_commit is not None:
+            raise ValueError("The MCP server reads the project catalog in force without policy overrides.")
+        from .project_mcp import serve_project
+
+        return serve_project(state)
     if args.command == "guard":
         return _guard(args, root, state)
     if args.command == "ui":

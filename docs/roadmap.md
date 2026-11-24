@@ -21,6 +21,8 @@ This page separates what exists from what is planned. Open an issue to discuss o
 
 - A tool registry of the company's tools and the MCP servers verified on each publisher's documentation, the tooling section of the setup, connection plans for Claude Code and Codex, and mocks: stand-in MCP servers with synthetic data, to rehearse a task without an account (`openguildkit tools`, [tools](tools.md)).
 
+- A [local project MCP server](tools.md#read-an-openguildkit-project-through-mcp) for active rule references, recorded task status and check outcomes.
+
 **Web interface**
 
 - `openguildkit ui`: a local web interface on 127.0.0.1 over the same commands, which leaves every decision of a person to their terminal ([interface d'un projet réel](../web/docs/interface-projet.md)).
@@ -43,7 +45,6 @@ This page separates what exists from what is planned. Open an issue to discuss o
 
 - Finish the Codex validation of [#23](https://github.com/Sandbox-podcast/OpenGuildKit/issues/23): the Codex report of 21 November 2026 shows evidence, a decision and results up to `done`, but no disagreement between boards, and the hooks and rules that `host apply` writes for Codex were never seen in a live session. What is left is in the [host validation scenario](../examples/host-validation/README.md#what-the-reports-show-for-issue-23).
 - More sectors (automotive, aerospace), national packs on top of the EU ones, and more stacks (Kotlin, Rust, PHP, Ruby).
-- An MCP server exposing the CLI to MCP-capable agents.
 
 ## How items move up
 
