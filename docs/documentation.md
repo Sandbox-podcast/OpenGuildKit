@@ -148,10 +148,10 @@ Configuration:
 
 | Instance | `--portal` | Notes |
 |---|---|---|
-| On this machine | `http://127.0.0.1:PORT/p/SPACE` (or `localhost`, `::1`) | Use the exact address of the instance's `DOCUMENTALIST_URL`: Documentalist refuses a sign-in from another origin (HTTP 400, "Origine de la requête refusée"), so `localhost` does not reach an instance configured as `127.0.0.1`. |
+| On this machine | `http://127.0.0.1:PORT/p/SPACE` (or `localhost`, `::1`) | Use the exact address of the instance's `DOCUMENTALIST_URL`: Documentalist refuses a sign-in from another origin (HTTP 400, "Origine de la requête refusée"), so `localhost` does not reach an instance configured as `127.0.0.1`. An instance started for production over http needs `DOCUMENTALIST_COOKIE_SECURE=false`, or its session cookie does not come back (HTTP 401 after the sign-in). |
 | Dedicated server | `https://HOST/p/SPACE` | HTTPS is required off this machine. The certificate must be trusted by Python's default store; for an internal authority, point `SSL_CERT_FILE` at its certificate. |
 
-The account needs access to the space and the reader settings (an editor or administrator; a viewer is refused). Documentalist allows 10 sign-ins per account in 10 minutes. The register's last day follows the local calendar (`share check` lists a share from the next local day), the portal's ends at 00:00 UTC the next day: east of UTC the portal closes the access a few hours before the local day ends, west of UTC a few hours after.
+The account needs access to the space and the reader settings (an editor or administrator; a viewer is refused). Documentalist allows 10 sign-ins per account in 10 minutes, and 30 unauthenticated requests per route in a minute. The register's last day follows the local calendar (`share check` lists a share from the next local day), the portal's ends at 00:00 UTC the next day: east of UTC the portal closes the access a few hours before the local day ends, west of UTC a few hours after.
 
 **One access per address and space.** Two shares of the same address and space are one access in Documentalist. `share add` warns on stderr when a running share already gives one of its recipients the same space. `share revoke` reminds you that "Retirer l'accès" covers the whole space, and prints a `share revoke` command for each other share that gives one of the same addresses that space: one removal in the portal ends them all, so record each one.
 

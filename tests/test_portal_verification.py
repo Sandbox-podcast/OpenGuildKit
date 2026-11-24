@@ -38,6 +38,8 @@ class Portal(BaseHTTPRequestHandler):
     expirations: dict | None = {}
     mode = "magic_link"
     redirect_login = False
+    secure_cookie = False  # As an instance started for production without DOCUMENTALIST_COOKIE_SECURE=false.
+    limited: str | None = None  # "sign-in" or "route": the instance's two 429 answers.
     calls: list = []
 
     def log_message(self, *args):
@@ -58,13 +60,18 @@ class Portal(BaseHTTPRequestHandler):
         type(self).calls.append(("POST", self.path, self.headers.get("Origin")))
         if self.headers.get("Origin") != f"http://127.0.0.1:{self.server.server_port}":
             self.reply({"error": "Origine de la requête refusée."}, 400)
+        elif self.path == "/api/auth/login" and self.limited == "sign-in":
+            self.reply({"error": "Trop de tentatives. Réessayez dans dix minutes."}, 429)
+        elif self.path == "/api/auth/login" and self.limited == "route":
+            self.reply({"error": "Trop de requêtes. Réessayez dans une minute."}, 429, {"Retry-After": "60"})
         elif self.path == "/api/auth/login" and self.redirect_login:
             self.reply({}, 302, {"Location": "/elsewhere"})
         elif self.path == "/api/auth/login":
             if body.get("password") != PASSWORD:
                 self.reply({"error": "Identifiants incorrects."}, 401)
             else:
-                self.reply({"ok": True}, headers={"Set-Cookie": "documentalist-session=s1; Path=/; HttpOnly"})
+                secure = "; Secure" if self.secure_cookie else ""
+                self.reply({"ok": True}, headers={"Set-Cookie": f"documentalist-session=s1; Path=/; HttpOnly{secure}"})
         elif self.path == "/api/auth/logout":
             self.reply({"ok": True}, headers={"Set-Cookie": "documentalist-session=; Path=/; Max-Age=0"})
         else:
@@ -99,7 +106,7 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
         (self.root / "page.md").write_text("# Page\n", encoding="utf-8")
         self.state = self.root / ".openguildkit"
         Portal.emails, Portal.expirations, Portal.mode = [], {}, "magic_link"
-        Portal.redirect_login, Portal.calls = False, []
+        Portal.redirect_login, Portal.secure_cookie, Portal.limited, Portal.calls = False, False, None, []
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), Portal)
         thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         thread.start()
@@ -262,6 +269,25 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
         Portal.emails, Portal.expirations = ["reader@example.test"], {"reader@example.test": "31/12/2030"}
         output, _ = self.verify(code=1)
         self.assertIn("not a YYYY-MM-DD day", output)
+
+    def test_a_session_cookie_an_http_address_cannot_return_names_the_instance_setting(self):
+        self.share(["reader@example.test"], day(10))
+        Portal.secure_cookie = True
+        output, _ = self.verify(code=1)
+        self.assertIn("HTTP 401 (Connexion requise.); the instance kept no session after the sign-in; over http, start "
+                      "it with DOCUMENTALIST_COOKIE_SECURE=false, or give --portal its https address.", output)
+        self.assertNotIn("check the account and its password", output)
+        self.assertIn(("POST", "/api/auth/logout", f"http://127.0.0.1:{self.server.server_port}"), Portal.calls)
+
+    def test_the_two_request_limits_of_the_instance_name_their_own_wait(self):
+        self.share(["reader@example.test"], day(10))
+        Portal.limited = "sign-in"
+        output, _ = self.verify(code=1)
+        self.assertIn("HTTP 429 (Trop de tentatives. Réessayez dans dix minutes.); wait ten minutes", output)
+        Portal.limited = "route"
+        output, _ = self.verify(code=1)
+        self.assertIn("HTTP 429 (Trop de requêtes. Réessayez dans une minute.); wait 60 seconds: the instance limits "
+                      "requests.", output)
 
     def test_credentials_are_not_forwarded_to_a_redirect(self):
         self.share(["reader@example.test"], day(10))

@@ -30,8 +30,14 @@ class _NoRedirect(HTTPRedirectHandler):
 _DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
-def _reason(error: Exception, origin: str) -> str:
-    """Why the comparison could not run, in words the owner can act on."""
+def _reason(error: Exception, origin: str, signed_in: bool = False) -> str:
+    """Why the comparison could not run, in words the owner can act on.
+
+    Documentalist answers 429 for its sign-in limit (10 per account in 10 minutes, no Retry-After)
+    and for its per-route limit (Retry-After in seconds). A 401 after a successful sign-in means the
+    session cookie did not come back: an instance started for production marks it Secure, which an
+    http address cannot return unless the instance runs with DOCUMENTALIST_COOKIE_SECURE=false.
+    """
     if isinstance(error, HTTPError):
         detail = ""
         try:
@@ -44,6 +50,12 @@ def _reason(error: Exception, origin: str) -> str:
                 401: "check the account and its password", 403: "use an editor account allowed in this space",
                 404: "check the space in --portal", 409: "set the space's portal access to magic link",
                 429: "wait ten minutes: the instance limits sign-in attempts"}.get(error.code, "check the instance")
+        if error.code == 401 and signed_in:
+            hint = ("the instance kept no session after the sign-in; over http, start it with "
+                    "DOCUMENTALIST_COOKIE_SECURE=false, or give --portal its https address")
+        retry = error.headers.get("Retry-After", "") if error.headers else ""
+        if error.code == 429 and retry.isdigit():
+            hint = f"wait {retry} seconds: the instance limits requests"
         return f"Documentalist answered HTTP {error.code}{detail}; {hint}."
     if isinstance(error, URLError):
         reason = error.reason
@@ -173,7 +185,7 @@ def verify_portal(state: Path, portal: str, user: str) -> dict:
             expirations = {address.strip().lower(): day for address, day in data["expirations"].items()}
     except (HTTPError, URLError, OSError, ValueError, UnicodeError) as error:
         invited, expirations, source = None, None, "local-register"
-        problem = f"The portal could not be verified: {_reason(error, origin)}"
+        problem = f"The portal could not be verified: {_reason(error, origin, logged_in)}"
     finally:
         password = None
         if logged_in:
