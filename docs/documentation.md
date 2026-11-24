@@ -111,7 +111,7 @@ openguildkit docs share check        # exit code 1 while an access past its last
 openguildkit docs share revoke --id ID --by CM
 ```
 
-**The perimeter is the space.** `--portal` is the address of the shared space's portal, `https://HOST/p/SPACE` (a page address in that space works too); an address without `/p/SPACE` is refused. `share add` records the space and prints it, and `share list` shows it after each deliverable. A reader invited for one page sees every published page of the space that is not hidden: on 2026-11-22, a reader invited for one reference page saw 11 pages and 3 categories. To share one deliverable only, publish it in a space that holds only it, or hide the other pages. `http` is accepted only for an instance on this machine (`localhost`, `127.0.0.1` or `::1`), such as a local test instance.
+**The perimeter is the space.** `--portal` is the address of the shared space's portal, `https://HOST/p/SPACE` (a page address in that space works too); an address without `/p/SPACE` is refused. `share add` records the space and prints it, and `share list` shows it after each deliverable. A reader invited for one page sees every published page of the space that is not hidden: on 2026-11-22, a reader invited for one reference page saw 11 pages and 3 categories. To share one deliverable with its own reader list, [give it a dedicated space](#share-one-deliverable-in-an-isolated-space). `http` is accepted only for an instance on this machine (`localhost`, `127.0.0.1` or `::1`), such as a local test instance.
 
 **`--until` is a reminder.** Documentalist keeps no end date: the reader keeps access after `--until` until you remove it. From the next day, `share check` lists the share as expired, names each address to remove and the space to remove it from, then prints the `share revoke` command that records it. An address that another running share gives the same space is listed as kept, with the last day of the share that ends last; a share whose addresses are all kept is `covered`, with nothing to remove until those shares end.
 
@@ -124,3 +124,26 @@ openguildkit docs share revoke --id ID --by CM
 What OpenGuildKit does not do: it creates no magic link and revokes no access in Documentalist. Inviting the recipients and pressing "Retirer l'accès" happen by hand in the space's reader settings; `share add` and `share revoke` only record that you did it. Keep the portal and the register in step.
 
 What `share check` reads: only the local register, `.openguildkit/shares/shares.json`. It lists every share and exits with code 1 when a share that is not recorded as revoked has a last day of access before today and an address to remove. It does not contact Documentalist, so it cannot see an access removed in the portal without `share revoke`, nor an invitation sent without `share add`. The register is ignored by Git because it contains email addresses ([personal data](personal-data.md)): the check runs where the register is, usually the owner's machine (for example from a scheduled task there), not in CI on a fresh clone, where it finds no share and passes. Writes to the register hold the project lock, so shares recorded at the same time are all kept. The boards' reviews stay in the local task records and are never part of a share; Documentalist does not publish its own comments either.
+
+### Share one deliverable in an isolated space
+
+Use one private Documentalist space for each deliverable whose access you need to
+grant or revoke independently. This works with an instance installed locally or
+on a dedicated server.
+
+1. Import only that deliverable into a new space. Check the pages and sections
+   included in the publication after each import or sync.
+2. Select magic-link access and use a test invitation to publish and verify the
+   space. Check the contents and search from that separate reader session.
+   Invite the intended readers and record the dedicated portal with
+   `docs share add`.
+3. Republish updates in the same space when the audience stays the same. When a
+   copy replaces a document in another space, review the intended readers for
+   the destination, then remove the old copy from the source publication and
+   verify its former URL. If access to the entire source space must end, revoke
+   it in Documentalist and record the removal in OpenGuildKit.
+4. To end one share, remove the reader in that deliverable's space and record
+   the revocation against its share ID. If the reader has access to other spaces,
+   verify those portals remain available.
+
+See the [two-space validation and remaining cases](../examples/documentalist/reports/2026-11-23-space-isolation.md).

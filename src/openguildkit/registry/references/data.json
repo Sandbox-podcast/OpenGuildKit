@@ -492,7 +492,7 @@
     {
       "id": "hl7-fhir",
       "title": "HL7 FHIR",
-      "edition": "R5 (v5.0.0)",
+      "edition": "v5.0.0: R5",
       "category": "Interopérabilité santé",
       "kind": "norme",
       "brains": [
@@ -504,9 +504,9 @@
       "applies_when": "Pour les échanges de données de santé ; choisir la version et les profils d'implémentation réellement requis.",
       "sources": [
         {
-          "url": "https://hl7.org/fhir/overview.html",
-          "checked": "2026-11-21",
-          "title": "HL7 FHIR v5.0.0 — Overview"
+          "url": "https://hl7.org/fhir/R5/",
+          "checked": "2026-11-23",
+          "title": "HL7 FHIR v5.0.0 (Release 5)"
         }
       ]
     },

@@ -1,13 +1,13 @@
 {
   "id": "eu-ai-act",
   "title": "EU AI Act obligations",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "Questions for the legal and AI owners and evidence checks for AI systems under Regulation (EU) 2024/1689, as amended by the AI Omnibus in force since 27 July 2026. Prohibitions and AI literacy have applied since 2 February 2025 and the transparency rules of Art. 50 since 2 August 2026; the rules for high-risk systems apply from 2 December 2027 (Annex III) and 2 August 2028 (Annex I). Obligations depend on the organization's role and on the system's classification; these rules do not establish compliance.",
   "sources": [
     {
       "title": "Regulation (EU) 2024/1689, Artificial Intelligence Act, consolidated text",
-      "url": "https://eur-lex.europa.eu/eli/reg/2024/1689",
-      "checked": "2026-11-20"
+      "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/2026-07-27/eng",
+      "checked": "2026-11-23"
     },
     {
       "title": "European Commission, AI Act",
