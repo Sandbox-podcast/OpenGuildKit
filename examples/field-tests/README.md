@@ -49,7 +49,7 @@ runs on Windows. Preparing a full campaign and running the simulated person's
 terminal still require Linux or macOS.
 
 1. Prepare a campaign folder outside the repository. It gets one folder per tester, the commands on a `bin` folder
-   (`openguildkit` running this checkout, `person-decide`, `fingerprint`) and the teammates' shared repository. The
+   (`openguildkit` running this checkout, `person-decide`, `person-act`, `fingerprint`) and the teammates' shared repository. The
    `openguildkit` command on that folder records every call made in a tester's folder, with what it printed and its
    exit code, in `runs/TESTER/commands.log`: the tester has nothing to do to keep its transcript.
 
@@ -97,7 +97,9 @@ terminal still require Linux or macOS.
 `TESTERS.md` is given to every tester. Its main rule: a tester plays the team's coding agent and the person it
 works for, and never lets the first decide for the second. The agent may not approve its own plan, and
 `openguildkit task decide` only accepts a person at a terminal. When the scenario says the person decides, the tester
-runs `person-decide`, which types the decision at a pseudo-terminal and prints what the prompt showed. Outside a
+runs `person-decide`, which types the decision at a pseudo-terminal and prints what the prompt showed. The person's
+other acts at a terminal (clearing a blocker, closing over a skipped sensitive rule, declaring that a check cannot run)
+go through `person-act` the same way. Outside a
 campaign, nothing of the kind exists: a person decides.
 
 ## Same scenario, same results

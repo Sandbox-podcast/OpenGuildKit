@@ -8,12 +8,15 @@ Only tasks completed with recorded checks can be exported, and only the fields l
 leave the project: no review, evidence or internal note.
 
 The share register records what was shared, with whom, through which portal space and until when.
-Documentalist gives a reader a whole space and keeps no end date, so the register is a reminder
-the owner acts on in the portal, and its dates follow the real clock.
+Documentalist gives a reader a whole space. The local register follows the real clock; a separate
+observation may compare it with a compatible portal's invitation settings. A share can mark its space as
+dedicated to its deliverable: the register then refuses another deliverable in that space, so that
+one space per deliverable gives each deliverable its own reader list.
 """
 
 import ipaddress
 import json
+import posixpath
 import re
 import uuid
 from datetime import date, timedelta
@@ -215,7 +218,7 @@ def _shares_path(state: Path) -> Path:
     return state / SHARES_DIR / "shares.json"
 
 
-def _load_shares(state: Path) -> list[dict]:
+def load_shares(state: Path) -> list[dict]:
     path = _shares_path(state)
     return read_json(path)["shares"] if path.is_file() else []
 
@@ -264,7 +267,7 @@ def portal_space(portal: str) -> str:
     return f"{shown}{f':{port}' if port else ''}/p/{parts[2]}"
 
 
-def _space(share: dict) -> str | None:
+def share_space(share: dict) -> str | None:
     """The space a share opens; a share recorded before the space was kept gets it from its portal."""
     if share.get("space"):
         return share["space"]
@@ -274,8 +277,14 @@ def _space(share: dict) -> str | None:
         return None
 
 
-def add_share(state: Path, deliverable: str, recipients: list[str], until: str, portal: str, by: str) -> dict:
-    """Record a share before creating it in Documentalist: what, for whom, through which space, until when."""
+def add_share(state: Path, deliverable: str, recipients: list[str], until: str, portal: str, by: str,
+              dedicated: bool = False) -> dict:
+    """Record a share before creating it in Documentalist: what, for whom, through which space, until when.
+
+    With `dedicated`, the space is recorded as holding this deliverable only: refused when another deliverable is
+    already shared through it, and any later share of another deliverable through it is refused too. A new share of
+    the same deliverable through a dedicated space is dedicated as well.
+    """
     if not deliverable.strip() or not by.strip():
         raise ValueError("Name the deliverable and the owner of the share.")
     _shared_item(state, deliverable.strip())
@@ -288,8 +297,52 @@ def add_share(state: Path, deliverable: str, recipients: list[str], until: str, 
              "until": until, "portal": portal, "space": space, "by": by.strip(),
              "created_at": clock.real_timestamp(), "revoked_at": None}
     with project_lock(state):
-        write_json(_shares_path(state), {"shares": [*_load_shares(state), share]})
+        shares = load_shares(state)
+        # Another share of the same deliverable keeps a dedicated space dedicated after the first one is revoked.
+        if dedicated or any(item.get("dedicated") for item in _same_deliverable(shares, share)):
+            share["dedicated"] = True
+        _check_dedication(_space_neighbours(shares, share), share)
+        write_json(_shares_path(state), {"shares": [*shares, share]})
     return share
+
+
+def _deliverable_key(deliverable: str) -> str:
+    """The same deliverable written `d.md` or `./d.md` is one deliverable."""
+    return posixpath.normpath(Path(deliverable).as_posix())
+
+
+def _space_neighbours(shares: list[dict], share: dict) -> list[dict]:
+    """The shares not revoked of another deliverable through the same space: Documentalist shows a reader every
+    published page of a space, so the recipients of each of them can read the other deliverables too."""
+    space, key = share_space(share), _deliverable_key(share["deliverable"])
+    return [item for item in shares
+            if item["id"] != share["id"] and not item["revoked_at"] and space and share_space(item) == space
+            and _deliverable_key(item["deliverable"]) != key]
+
+
+def _same_deliverable(shares: list[dict], share: dict) -> list[dict]:
+    space, key = share_space(share), _deliverable_key(share["deliverable"])
+    return [item for item in shares
+            if not item["revoked_at"] and space and share_space(item) == space and _deliverable_key(item["deliverable"]) == key]
+
+
+def _check_dedication(neighbours: list[dict], share: dict) -> None:
+    claimed = [item for item in neighbours if item.get("dedicated")]
+    if claimed:
+        owner = claimed[0]
+        raise ValueError(f"Space {share['space']} is dedicated to {owner['deliverable']} (share {owner['id']}): its "
+                         f"readers would see {share['deliverable']} too. Publish {share['deliverable']} in a space of its "
+                         "own and give its portal address.")
+    if share.get("dedicated") and neighbours:
+        listed = ", ".join(f"{item['deliverable']} (share {item['id']})" for item in neighbours)
+        raise ValueError(f"Space {share['space']} already carries {listed}: its readers would see "
+                         f"{share['deliverable']} too, so it cannot be dedicated to it. Use a new space, or revoke those "
+                         "shares and remove their pages from the space first.")
+
+
+def space_neighbours(state: Path, share: dict) -> list[dict]:
+    """The shares not revoked of other deliverables through the share's space."""
+    return _space_neighbours(load_shares(state), share)
 
 
 def _share_end(until: str) -> date:
@@ -309,9 +362,9 @@ def _share_end(until: str) -> date:
 
 
 def _same_access(shares: list[dict], share: dict, today: date | None) -> list[dict]:
-    space, recipients = _space(share), set(share["recipients"])
+    space, recipients = share_space(share), set(share["recipients"])
     return [item for item in shares
-            if item["id"] != share["id"] and not item["revoked_at"] and space and _space(item) == space
+            if item["id"] != share["id"] and not item["revoked_at"] and space and share_space(item) == space
             and recipients & set(item["recipients"]) and (today is None or date.fromisoformat(item["until"]) >= today)]
 
 
@@ -321,7 +374,7 @@ def same_access(state: Path, share: dict, running: bool = False) -> list[dict]:
     Documentalist keeps one access per address and space, so these shares grant and lose that access together.
     With `running`, only those whose last day is not past on the real clock.
     """
-    return _same_access(_load_shares(state), share, clock.real_today() if running else None)
+    return _same_access(load_shares(state), share, clock.real_today() if running else None)
 
 
 def revoke_share(state: Path, share_id: str, by: str) -> dict:
@@ -329,7 +382,7 @@ def revoke_share(state: Path, share_id: str, by: str) -> dict:
     if not by.strip():
         raise ValueError("Name the person who removed the access with --by.")
     with project_lock(state):
-        shares = _load_shares(state)
+        shares = load_shares(state)
         share = next((item for item in shares if item["id"] == share_id), None)
         if share is None:
             raise ValueError(f"Unknown share {share_id}. Run openguildkit docs share list.")
@@ -338,7 +391,7 @@ def revoke_share(state: Path, share_id: str, by: str) -> dict:
         share["revoked_at"] = clock.real_timestamp()
         share["revoked_by"] = by.strip()
         write_json(_shares_path(state), {"shares": shares})
-    return {**share, "space": _space(share)}
+    return {**share, "space": share_space(share)}
 
 
 def share_status(state: Path, today: date | None = None) -> list[dict]:
@@ -349,9 +402,23 @@ def share_status(state: Path, today: date | None = None) -> list[dict]:
     `kept`, with the share that ends last): there is nothing to remove until those shares end.
     """
     today = today or clock.real_today()
-    shares, rows = _load_shares(state), []
+    shares, rows = load_shares(state), []
+    observation_path = state / SHARES_DIR / "portal-observations.json"
+    try:
+        observations = read_json(observation_path).get("observations", {}) if observation_path.is_file() else {}
+    except ValueError:
+        observations = {}
     for share in shares:
-        row = {**share, "space": _space(share), "remove": [], "kept": {}}
+        row = {**share, "space": share_space(share), "remove": [], "kept": {}, "dedicated": bool(share.get("dedicated")),
+               "also_in_space": [] if share["revoked_at"] else
+               sorted({item["deliverable"] for item in _space_neighbours(shares, share)})}
+        observed = observations.get(row["space"], {}) if isinstance(observations, dict) else {}
+        if isinstance(observed, dict) and observed.get("checked_at"):
+            recipients = {address.strip().lower() for address in share["recipients"]}
+            observed_rows = observed.get("rows") if isinstance(observed.get("rows"), list) else []
+            row["portal_observation"] = {"source": observed.get("source"), "checked_at": observed["checked_at"],
+                                         "rows": [item for item in observed_rows
+                                                  if isinstance(item, dict) and item.get("recipient") in recipients]}
         if share["revoked_at"]:
             row["state"] = "revoked"
         elif date.fromisoformat(share["until"]) >= today:

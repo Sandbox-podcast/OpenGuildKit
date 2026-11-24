@@ -38,7 +38,8 @@ class KitTestCase(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.out = Path(temporary.name).resolve()
-        # Testers install the CLI with pipx or uv: its hooks find it on the PATH, which host apply requires.
+        # Testers install the CLI with pipx or uv: its hooks find it on the PATH, which host apply requires. The kit
+        # copies os.environ for each command (field_cli.environment), so it sees this PATH.
         openguildkit_on_path(self)
 
 
@@ -48,7 +49,7 @@ class CampaignTests(KitTestCase):
         with mock.patch.dict(os.environ, {cli.INSTALLED_ENV: "1", "PYTHONPATH": str(ROOT / "src")}):
             self.assertEqual(cli.command("--version"), [sys.executable, "-I", "-X", "utf8", "-m", "openguildkit", "--version"])
             self.assertNotIn("PYTHONPATH", cli.environment())
-            for name in ("logged.py", "person_decide.py", "fingerprint.py"):
+            for name in ("logged.py", "person_decide.py", "person_act.py", "fingerprint.py"):
                 launcher = self.out / name
                 field._wrapper(launcher, name)
                 self.assertIn(f"{cli.INSTALLED_ENV}=1 exec ", launcher.read_text(encoding="utf-8"))
@@ -90,6 +91,7 @@ class CampaignTests(KitTestCase):
                 self.assertIn(f"export PATH={self.out.as_posix()}/bin:$PATH", text)
                 self.assertNotRegex(text, r"\{(out|repo|kit)\}")
         self.assertIn("person-decide", field.brief("s1-team1", self.out))
+        self.assertIn("person-act --project DIR task clear", field.brief("s1-team1", self.out))
         self.assertIn((self.out / "shared" / "remote.git").as_posix(), field.brief("mate-ada", self.out))
         with self.assertRaisesRegex(ValueError, "Unknown tester: nobody"):
             field.brief("nobody", self.out)
@@ -207,6 +209,7 @@ class PrepareTests(KitTestCase):
         self.assertEqual(len(record["testers"]), 30)
         for name in record["testers"]:
             self.assertTrue((self.out / "runs" / name).is_dir(), name)
+        self.assertTrue(os.access(self.out / "bin" / "person-act", os.X_OK))
         version = subprocess.run([str(self.out / "bin" / "openguildkit"), "--version"], capture_output=True, text=True)
         self.assertEqual(version.returncode, 0, version.stderr)
         self.assertTrue(version.stdout.startswith("openguildkit "), version.stdout)
@@ -231,6 +234,19 @@ class PrepareTests(KitTestCase):
         self.assertFalse((self.out / "runs" / "agency" / "commands.log").exists())
         field.prepare(self.out)  # running it again keeps the shared repository
         self.assertEqual(field.git(remote, "rev-list", "--count", "main"), "1")
+
+    def test_prepare_and_cohorts_work_from_a_checkout_where_openguildkit_is_not_installed(self):
+        # A maintainer runs the kit from a clean checkout: host apply needs the command on the PATH for its hooks.
+        bare = os.pathsep.join(folder for folder in ("/usr/bin", "/bin") if Path(folder).is_dir())
+        with mock.patch.dict(os.environ, {"PATH": bare}):
+            record = field.prepare(self.out)
+            self.assertEqual(os.environ["PATH"], bare)
+            with mock.patch.object(field.fingerprint_script, "run", run_here):
+                result = field.cohorts(self.out, teams=2)
+        self.assertEqual(len(record["testers"]), 30)
+        self.assertTrue((self.out / "shared" / "remote.git").is_dir())
+        self.assertEqual({scenario: data["differing"] for scenario, data in result.items()},
+                         {"s1": {}, "s2": {}, "s3": {}})
 
 
 def run_here(root: Path, *arguments) -> tuple[int, str, str]:
@@ -278,6 +294,36 @@ class PersonDecideTests(KitTestCase):
         self.assertEqual(code, 0, shown)
         self.assertIn("request-status", shown)
         self.assertEqual(json.loads(field.cli(project, "task", "show", "request-status").stdout)["status"], "approved")
+
+    def test_the_person_clears_a_condition_of_approval_through_its_own_stand_in(self):
+        project = self.out / "project"
+        project.mkdir()
+        field.cli(project, "init", "--answers", EXAMPLE / "profile.json")
+        field.cli(project, "task", "new", "--file", EXAMPLE / "brief.md", "--id", "request-status")
+        field.cli(project, "task", "consult", "request-status", "--answers", EXAMPLE / "answers.json")
+        template = json.loads(field.cli(project, "task", "template", "request-status").stdout)
+        review = {"consultation_id": template["consultation_id"],
+                  **json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))}
+        qa = next(entry for entry in review["boards"] if entry["id"] == "qa")
+        qa["challenge"]["blockers"] = [{"finding": "No regression test yet", "owner": "Camille Martin",
+                                        "clears_when": "the regression test passes", "phase": "verification"}]
+        (self.out / "review.json").write_text(json.dumps(review), encoding="utf-8")
+        field.cli(project, "task", "review", "request-status", "--file", self.out / "review.json")
+        code, shown = load("person_decide").decide(project, "request-status", "approve", "Camille Martin", "Agreed", [])
+        self.assertEqual(code, 0, shown)
+        (project / "test_status.py").write_text("# regression test\n", encoding="utf-8")
+        clear = ["task", "clear", "request-status", "qa:1", "--by", "Camille Martin", "--evidence", "test_status.py",
+                 "--supports", "The regression test passes"]
+        refused = field.cli(project, *clear, check=False)
+        self.assertEqual(refused.returncode, 1, "without a terminal the clearance is refused")
+        act = load("person_act").act
+        with self.assertRaisesRegex(ValueError, "person-decide"):
+            act(project, ["task", "decide", "request-status", "--approve"], [])
+        code, shown = act(project, clear, [])
+        self.assertEqual(code, 0, shown)
+        self.assertIn("Type request-status to clear qa:1", shown)
+        self.assertIn("cleared", shown)
+        self.assertIn("qa:1 [cleared", field.cli(project, "task", "blockers", "request-status").stdout)
 
     def test_the_stand_in_passes_a_signature_on_and_never_half_of_one(self):
         decide = load("person_decide").decide

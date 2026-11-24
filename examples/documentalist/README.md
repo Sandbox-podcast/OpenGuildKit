@@ -9,6 +9,7 @@
 | `result.json` | `task result --file`: the pull request and the two acceptance criteria met |
 | `replay.py` | Runs the whole flow and compares the export with `docs-site/` |
 | `reports/2026-11-22.md` | Not an input: the dated run that imported this export into a local Documentalist instance, synchronized an update, then shared and revoked a reader's access |
+| `reports/2026-11-23-expiry.md` | Not an input: the dated run of reader end dates in Documentalist and of `docs share verify` against local instances |
 
 ## Replay
 

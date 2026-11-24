@@ -96,11 +96,11 @@ class PackageMetadataTest(unittest.TestCase):
     def setUp(self):
         self.project = tomllib.loads(_read("pyproject.toml"))["project"]
 
-    def test_declares_the_tested_pythons_the_licence_the_authors_and_the_documentation(self):
+    def test_declares_the_supported_pythons_the_licence_the_authors_and_the_documentation(self):
         tested = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["test"]["strategy"]["matrix"]["python"]
         declared = [c.rsplit(" :: ", 1)[1] for c in self.project["classifiers"]
                     if re.fullmatch(r"Programming Language :: Python :: 3\.\d+", c)]
-        self.assertEqual(declared, tested)
+        self.assertLessEqual(set(tested), set(declared))
         self.assertEqual(self.project["requires-python"], f">={tested[0]}")
         self.assertEqual(self.project["license"], "MIT")
         self.assertEqual(self.project["license-files"], ["LICENSE"])
@@ -297,8 +297,8 @@ class CiWorkflowTest(unittest.TestCase):
     def test_the_matrix_runs_from_the_floor_to_the_maintainers_python(self):
         versions = self.jobs["test"]["strategy"]["matrix"]["python"]
         floor = tomllib.loads(_read("pyproject.toml"))["project"]["requires-python"].removeprefix(">=")
-        self.assertEqual(versions[0], floor)
-        self.assertIn("3.15", versions)
+        self.assertEqual(versions, [floor, "3.15"])
+        self.assertEqual(self.jobs["package"]["strategy"]["matrix"]["python"], versions)
 
     def test_contribution_checks_require_every_other_job(self):
         gate = self.jobs["contribution-checks"]

@@ -83,7 +83,11 @@ The OpenAPI import (Outils → Intégrations → OpenAPI) takes a URL that the D
 
 On 2026-11-22, a local macOS instance at [`947429b`](https://github.com/azerothl/documentalist/tree/947429b19da6) on Node.js 26.13.0 exercised synchronization with a GitLab stand-in, OpenAPI import and magic-link sharing. A separate local Windows run used Node.js 22.20.0 and imported three pages from the public OpenGuildKit example on GitHub. Its forced sync kept the same three pages and IDs. The [dated report](../examples/documentalist/reports/2026-11-22.md) records the steps and versions for both runs.
 
+On 2026-11-23, reader end dates and `share verify` were checked on macOS with Node.js 26.13.0 against two local builds: [PR #25](https://github.com/azerothl/documentalist/pull/25) as it stood that day (`7dbc66e`, two commits on top of `947429b`), on HTTP and behind HTTPS, and `947429b` itself. PR #25 was merged on 2026-11-24 as [`46976a9`](https://github.com/azerothl/documentalist/commit/46976a97397718061a218d8a72ddc6d9b47fd421), with no release yet; the routes and fields `share verify` reads were compared with that commit's code, not run against it. Invitations and open sessions created on `947429b` kept working after the upgrade, with no end date until one was set. The [report](../examples/documentalist/reports/2026-11-23-expiry.md) lists the steps. Repeat the comparison on the version you deploy.
+
 Reuse conditions, as of 2026-11-22: the repository has no licence file, now or in its history; GitHub reports its licence as `null`; `package.json` is marked private and has no `license` field; the README calls Documentalist free software that can be self-hosted, without naming a licence. OpenGuildKit does not redistribute its code. Ask its author before any redistribution or reuse of it. The exported Markdown belongs to your project.
+
+Reader end dates need Documentalist at [`46976a9`](https://github.com/azerothl/documentalist/commit/46976a97397718061a218d8a72ddc6d9b47fd421) or later, the merge of [PR #25](https://github.com/azerothl/documentalist/pull/25) into `main` on 2026-11-24. No tag or published release contains it yet (`package.json` still says 0.1.0 and the v0.1.0 release is a draft): deploy that commit or a later one, and name the commit. From it, an invitation in magic-link mode can carry a last day of access per address and space. The day is included, in UTC: the access ends at 00:00 UTC the next day, for unused links, open sessions and new link requests alike, and "Retirer l'accès" still ends it at once. Invitations made before the upgrade keep working with no end date until someone sets one in the reader settings: after upgrading, give each address the last day that `share list` shows for it. An instance older than `46976a9` has no end date at all: there, `share check` is the only reminder and "Retirer l'accès" the only way to end an access. On 2026-11-24, `npm test` (36 of 36) and `npm run test:http` (12 of 12, including a reader's old link, open session and new request after the last day) passed at `46976a9` on macOS with Node.js 26.13.0. Its tree is the same as `8e36a7c`, the commit of the browser run and of the compatibility run on data created at `947429b` reported in PR #25. A dedicated server with real SMTP was not tried.
 
 ## Read published pages through MCP
 
@@ -100,7 +104,7 @@ The MCP connection is read-only. Import and publication stay in Documentalist, a
 
 ## Share a deliverable
 
-Documentalist grants access to a whole space, per email address. A portal is public, protected by a shared code, or limited to invited addresses with magic links: choose the "lien magique" mode in the space's Paramètres before the first invitation. Magic links need SMTP on the instance (`DOCUMENTALIST_SMTP_URL` and `DOCUMENTALIST_EMAIL_FROM`); without it the invitation is refused (read in the code, not run). A link lasts 24 hours and works once, a reading session lasts 8 hours, and an invited reader can ask the portal for a new link at any time. An access therefore lasts until an administrator presses "Retirer l'accès", which removes every link and session of that address for the whole space. The instance has no share of a single page, no end date per reader and no access duration chosen by the owner.
+Documentalist grants access to a whole space, per email address. A portal is public, protected by a shared code, or limited to invited addresses with magic links: choose the "lien magique" mode in the space's Paramètres before the first invitation. Magic links need SMTP on the instance (`DOCUMENTALIST_SMTP_URL` and `DOCUMENTALIST_EMAIL_FROM`); without it the invitation is refused. A link lasts 24 hours and works once, and a reading session lasts up to 8 hours. A Documentalist that includes [PR #25](https://github.com/azerothl/documentalist/pull/25) also enforces an optional last day per invited address and space; an earlier one, such as `947429b`, keeps the access until an administrator removes it. "Retirer l'accès" removes every link and session of that address for the whole space. The portal does not share a single page independently.
 
 OpenGuildKit keeps the register of what you shared, with whom, through which space and until when:
 
@@ -113,13 +117,49 @@ openguildkit docs share revoke --id ID --by CM
 
 **The perimeter is the space.** `--portal` is the address of the shared space's portal, `https://HOST/p/SPACE` (a page address in that space works too); an address without `/p/SPACE` is refused. `share add` records the space and prints it, and `share list` shows it after each deliverable. A reader invited for one page sees every published page of the space that is not hidden: on 2026-11-22, a reader invited for one reference page saw 11 pages and 3 categories. To share one deliverable with its own reader list, [give it a dedicated space](#share-one-deliverable-in-an-isolated-space). `http` is accepted only for an instance on this machine (`localhost`, `127.0.0.1` or `::1`), such as a local test instance.
 
-**`--until` is a reminder.** Documentalist keeps no end date: the reader keeps access after `--until` until you remove it. From the next day, `share check` lists the share as expired, names each address to remove and the space to remove it from, then prints the `share revoke` command that records it. An address that another running share gives the same space is listed as kept, with the last day of the share that ends last; a share whose addresses are all kept is `covered`, with nothing to remove until those shares end.
+**`--until` records the intended last day.** Set the same day in the portal's reader settings ("Dernier jour d'accès") when the instance supports it: the day is included, in UTC, and the access ends at 00:00 UTC the next day, for links already sent, open sessions and new link requests alike. On an earlier instance, remove the invitation by hand after the last day. From the next local day, `share check` lists the share as expired and names the addresses to review; it reads the register only and keeps this reminder even after a portal observation. An address that another running share gives the same space is listed as kept, with the last day of the share that ends last; a share whose addresses are all kept is `covered`.
+
+### Compare the register with a portal
+
+`share verify` compares the register with the reader settings of one space, on request:
+
+```bash
+openguildkit docs share verify --portal https://docs.example.org/p/support-portal --user editor@example.org
+openguildkit docs share verify --portal http://127.0.0.1:3000/p/support-portal --user editor@example.org --json
+```
+
+It asks the password of a Documentalist editor or administrator account at the terminal (it refuses to run without one, and never reads a password from an argument, a file or the environment), signs in, reads the space list and that space's invitations, then signs out. It changes nothing in the portal and saves no credential. It is the only command that opens a network connection, and only to the address given with `--portal`.
+
+For each address of the register's shares in that space, it prints the register's last day, the portal's, the state of the portal's access (`open` or `ended`) and `matches` or `mismatch`, and for a mismatch what to change in the portal:
+
+```text
+127.0.0.1:3000/p/expiry-portal: documentalist-api at 2026-11-23T13:05:21+00:00
+Invitation settings only; verify actual reader access separately.
+  reader@example.test: register until 2026-12-31; portal until 2026-12-15 (open); mismatch
+    Change the last day for reader@example.test in the reader settings of space 127.0.0.1:3000/p/expiry-portal from 2026-12-15 to 2026-12-31, or correct the register.
+```
+
+- **Several shares to the same address and space** are one access in Documentalist: the register's last day is the latest of the shares not revoked, and that is the day to set in the portal. `share add` names it when it warns about the second share. An address whose shares are all revoked must not be invited any more.
+- **An invitation without a last day** in the portal is open with no end: it is a mismatch against a share that has one. Invitations made before the portal supported end dates have none until someone sets it.
+- **The source is printed:** `documentalist-api` when the portal's settings were read, `local-register` when they could not be. Exit code 0 only when every row matches.
+- **An earlier instance or one that does not answer** leaves the register as it is: the command prints why (no end dates on that version, no answer, a refused account, a certificate it cannot verify), marks each address `unverified`, prints the action to take by hand (on a version without end dates, remove the access after the last day with "Retirer l'accès", then `share revoke`), and exits 1. `share list` and `share check` keep working.
+- **What it shows is the settings, not a reader's session.** On 2026-11-23 the settings and a real reader's browser agreed before and after the last day ([report](../examples/documentalist/reports/2026-11-23-expiry.md)); the portal's own tests check old links, open sessions and new link requests after the end.
+- `share list` repeats the last observation of each share's space, with its time and source: it can be outdated. It is kept in `.openguildkit/shares/portal-observations.json`, ignored by Git like the register ([personal data](personal-data.md)).
+
+Configuration:
+
+| Instance | `--portal` | Notes |
+|---|---|---|
+| On this machine | `http://127.0.0.1:PORT/p/SPACE` (or `localhost`, `::1`) | Use the exact address of the instance's `DOCUMENTALIST_URL`: Documentalist refuses a sign-in from another origin (HTTP 400, "Origine de la requête refusée"), so `localhost` does not reach an instance configured as `127.0.0.1`. An instance started for production over http needs `DOCUMENTALIST_COOKIE_SECURE=false`, or its session cookie does not come back (HTTP 401 after the sign-in). |
+| Dedicated server | `https://HOST/p/SPACE` | HTTPS is required off this machine. The certificate must be trusted by Python's default store; for an internal authority, point `SSL_CERT_FILE` at its certificate. |
+
+The account needs access to the space and the reader settings (an editor or administrator; a viewer is refused). Documentalist allows 10 sign-ins per account in 10 minutes, and 30 unauthenticated requests per route in a minute. The register's last day follows the local calendar (`share check` lists a share from the next local day), the portal's ends at 00:00 UTC the next day: east of UTC the portal closes the access a few hours before the local day ends, west of UTC a few hours after.
 
 **One access per address and space.** Two shares of the same address and space are one access in Documentalist. `share add` warns on stderr when a running share already gives one of its recipients the same space. `share revoke` reminds you that "Retirer l'accès" covers the whole space, and prints a `share revoke` command for each other share that gives one of the same addresses that space: one removal in the portal ends them all, so record each one.
 
 `--deliverable` is a path inside the project, written relative to its root; a path outside it once symbolic links are followed, or under `.openguildkit/` (task records and other state the team does not share), is refused. It names the deliverable you share: an existing file, or the folder that `docs export` wrote (the one that holds `.openguildkit-export.json`); a path that does not exist, or another folder, is refused. The owner chooses the deliverable, the recipients and the last day of access (`YYYY-MM-DD`, after today and at most 366 days ahead, on the real clock) before inviting them in the portal. A revocation records who removed the access and when; a second revocation of the same share is refused, so the first record stays.
 
-**What the instance does not record.** The space's Paramètres list only the addresses invited now, with no date, no expiry and no page list. The activity log records the time and the administrator of each invitation and removal, not the address. The register is the only record of who received access, to what and until when: keep it.
+**What the instance records.** A compatible space's Paramètres list invited addresses and their optional expiry dates, but not the individual pages shared. The activity log records the time and the administrator of each invitation and removal, not the address. Keep the register to record which deliverable was shared and why each address has access. Older instances record no expiry date.
 
 What OpenGuildKit does not do: it creates no magic link and revokes no access in Documentalist. Inviting the recipients and pressing "Retirer l'accès" happen by hand in the space's reader settings; `share add` and `share revoke` only record that you did it. Keep the portal and the register in step.
 
@@ -127,23 +167,52 @@ What `share check` reads: only the local register, `.openguildkit/shares/shares.
 
 ### Share one deliverable in an isolated space
 
-Use one private Documentalist space for each deliverable whose access you need to
-grant or revoke independently. This works with an instance installed locally or
-on a dedicated server.
+Documentalist cannot limit a reader to some pages of a space: once a reader's session is open, every published page of
+the space that is not hidden is in the portal's navigation, search and direct links (read in its code: the portal page
+`src/app/p/[spaceSlug]/[[...path]]/page.tsx` checks the space with `portalAllowed` in `src/lib/auth.ts`, then hands the
+whole published snapshot to the portal, whose search runs in the browser over those pages). "Masquer du site" hides a page from
+every reader of the space, not from one. To give a deliverable its own reader list, give it its own private space, and
+record that space as dedicated to it:
+
+```bash
+openguildkit docs share add --deliverable docs-site/reference/request-status.md --recipient client@example.org --until 2026-12-31 --portal https://docs.example.org/p/request-status --by CM --dedicated-space
+```
+
+What `--dedicated-space` does, in the register only:
+
+- `share add` refuses it when the register already holds a share not revoked of another deliverable in that space,
+  and, once recorded, refuses any share of another deliverable in that space, with or without the option. A new
+  share of the same deliverable in that space is dedicated too, so the space stays dedicated after the first share is
+  revoked. Shares are compared by space (`HOST/p/SPACE`) and by deliverable path (`d.md` and `./d.md` are one).
+- Without the option, `share add` warns on stderr when the space already carries another deliverable, and `share list`
+  and `share check` print, under each share, the other deliverables its recipients can read in the same space.
+- `share check` exits with code 1 when a dedicated space carries another deliverable in the register, which only a
+  hand edit of the register can cause.
+
+What it does not do: OpenGuildKit does not see what the space publishes. A page imported, synchronized or published in
+that space by hand, or a revoked share whose page was left in it, is not in the register. Existing shares and spaces
+keep working as before: a share recorded without the option is not dedicated, and nothing is refused for it.
 
 1. Import only that deliverable into a new space. Check the pages and sections
    included in the publication after each import or sync.
 2. Select magic-link access and use a test invitation to publish and verify the
    space. Check the contents and search from that separate reader session.
    Invite the intended readers and record the dedicated portal with
-   `docs share add`.
-3. Republish updates in the same space when the audience stays the same. When a
-   copy replaces a document in another space, review the intended readers for
-   the destination, then remove the old copy from the source publication and
-   verify its former URL. If access to the entire source space must end, revoke
-   it in Documentalist and record the removal in OpenGuildKit.
+   `docs share add --dedicated-space`.
+3. Republish updates in the same space when the audience stays the same: a new
+   publication replaces the whole snapshot, so every invited reader sees every
+   page published at that moment. When a copy replaces a document in another
+   space, review the intended readers for the destination, then remove the old
+   copy from the source publication and verify its former URL. Documentalist
+   has no move of a page between spaces: a page reaches another space only as a
+   copy (import or upload), and the readers of the source keep the last
+   publication of the source until it is published again. If access to the
+   entire source space must end, revoke it in Documentalist and record the
+   removal in OpenGuildKit.
 4. To end one share, remove the reader in that deliverable's space and record
-   the revocation against its share ID. If the reader has access to other spaces,
-   verify those portals remain available.
+   the revocation against its share ID. "Retirer l'accès" removes that address's
+   links and sessions for that space only: if the reader has access to other
+   spaces, verify those portals remain available.
 
-See the [two-space validation and remaining cases](../examples/documentalist/reports/2026-11-23-space-isolation.md).
+See the [two-space validation and remaining cases](../examples/documentalist/reports/2026-11-23-space-isolation.md)
+and the [options considered for issue #266](documentalist-sharing-scope.md), with the open questions for the maintainers.

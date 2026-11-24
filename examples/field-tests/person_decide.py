@@ -27,17 +27,23 @@ from field_cli import command, environment
 def decide(project: Path, task: str, action: str, by: str, reason: str, answers: list[str],
            signature: Path | None = None, signer: str | None = None) -> tuple[int, str]:
     """Run the decision at a pseudo-terminal and return the exit code and what was shown."""
-    import pty
-
     if (signature is None) != (signer is None):
         raise ValueError("Pass both --signature and --signer, or neither.")
-    argv = command("--project", str(project), "task", "decide", task, f"--{action}", "--by", by, "--reason", reason)
+    arguments = ["task", "decide", task, f"--{action}", "--by", by, "--reason", reason]
     if signature is not None:
-        argv += ["--signature", str(signature), "--signer", signer]
+        arguments += ["--signature", str(signature), "--signer", signer]
+    return at_terminal(project, arguments, [task, *answers])
+
+
+def at_terminal(project: Path, arguments: list[str], typed: list[str]) -> tuple[int, str]:
+    """Run openguildkit on the project at a pseudo-terminal, type each line of typed at a prompt, return what showed."""
+    import pty
+
+    argv = command("--project", str(project), *arguments)
     master, slave = pty.openpty()
     process = subprocess.Popen(argv, stdin=slave, stdout=slave, stderr=slave, close_fds=True, env=environment())
     os.close(slave)
-    typed = [task, *answers]
+    typed = list(typed)
     shown = b""
     while True:
         ready, _, _ = select.select([master], [], [], 1.0)

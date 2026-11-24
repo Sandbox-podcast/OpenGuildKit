@@ -46,6 +46,8 @@ run ID, PR SHA, profile SHA, policy SHA and verdict.
 The automated [watcher test](../../integrations/ci/test/watch.test.mjs) stops
 a real local process during dispatch with a simulated provider. The hosted
 counterpart remains part of [#261](https://github.com/Sandbox-podcast/OpenGuildKit/issues/261).
+The [local rerun of 24 November 2026](resume-check-2026-11-24.md) repeats
+both checks with the built 0.17.0 archive and a local GitHub stand-in.
 
 ## Compare against a shared GitHub workflow
 
