@@ -883,10 +883,10 @@
     },
     "scim-2": {
       "family": "security",
-      "edition": "2.0 (RFC 7644)",
+      "edition": "RFC 7644",
       "page": "https://www.rfc-editor.org/info/rfc7644/",
-      "seen": "2.0 (RFC 7644)",
-      "seen_on": "2026-11-21",
+      "seen": "RFC 7644",
+      "seen_on": "2026-11-23",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -933,20 +933,20 @@
     },
     "tls-1-3": {
       "family": "security",
-      "edition": "1.3 (RFC 8446)",
-      "page": "https://www.rfc-editor.org/info/rfc8446/",
-      "seen": "1.3 (RFC 8446)",
-      "seen_on": "2026-11-21",
+      "edition": "RFC 9846",
+      "page": "https://www.rfc-editor.org/info/rfc9846/",
+      "seen": "RFC 9846",
+      "seen_on": "2026-11-23",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
     },
     "toml": {
       "family": "architecture",
-      "edition": "1.1.0",
+      "edition": "v1.1.0",
       "page": "https://toml.io/en/v1.1.0",
-      "seen": "1.1.0",
-      "seen_on": "2026-11-21",
+      "seen": "v1.1.0",
+      "seen_on": "2026-11-23",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
