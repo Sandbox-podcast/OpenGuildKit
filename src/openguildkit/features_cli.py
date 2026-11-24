@@ -64,6 +64,12 @@ def _edit(args, features: list[dict], tools: dict):
             if enable and present or not enable and not present:
                 state = "already on" if enable else "not on"
                 raise ValueError(f"{tool_id} is {state}. Nothing was written.")
+            uses = [feature["id"] for feature in features
+                    if any(option["tool"] == tool_id for option in feature["options"])]
+            if not enable and len(uses) > 1:
+                raise ValueError(
+                    f"{tools[tool_id]['title']} serves several features: {', '.join(uses)}. "
+                    "Nothing was written. Use profile remove tool to remove it from the whole profile.")
             names = [*names, tools[tool_id]["title"]] if enable else [name for name in names if name not in present]
         return {**profile, "tools": names}, f"features {args.features_action} {', '.join(args.names)}"
     return edit

@@ -216,6 +216,7 @@ def _undated_project_sources(state: Path, live: dict) -> list[str]:
 
 def _update_catalog(args, root: Path, state: Path) -> None:
     with project_lock(state):
+        load_tools(state / "catalog" / "tools")
         live, bundled = installed_catalog(args, state)
         lock = read_lock(state)
         if lock is None:
@@ -1182,6 +1183,7 @@ def _host(args, root: Path, profile: dict) -> int:
 def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     """Check that the instructions, the host settings and the catalog lock match the profile, and that every
     approval still holds; warn about what git will not carry to a teammate."""
+    load_tools(state / "catalog" / "tools")
     _warn_unsigned(profile)
     # An approval that no longer holds is an error until the task is consulted again; a completed task
     # whose rules changed afterwards is history and stays quiet here (task list shows it).
