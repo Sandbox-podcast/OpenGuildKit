@@ -343,7 +343,7 @@ def voided_approvals(state: Path, profile: dict, catalog: dict) -> list[str]:
     return [task["id"] for task in tasks_touched(state, profile, catalog) if task["status"] == "approved"]
 
 
-def _write(root: Path, state: Path, args, edit, by: str, reason: str, confirm) -> tuple[dict, dict, dict]:
+def write_change(root: Path, state: Path, args, edit, by: str, reason: str, confirm) -> tuple[dict, dict, dict]:
     """Under the project lock: apply edit to the profile, name the approvals it voids, have the person confirm what
     it weakens, record who, when and why, then write the instructions, the profile and the catalog lock. args carries
     the central policy options of the command, or is None for the web page."""
@@ -378,7 +378,7 @@ def print_touched(tasks: list[dict], before: bool = False) -> None:
         print(f"  {task['id']} ({task['status']}): {task['step']}.")
 
 
-def _report(state: Path, updated: dict, record: dict, catalog: dict, host_settings: bool) -> None:
+def report_change(state: Path, updated: dict, record: dict, catalog: dict, host_settings: bool) -> None:
     """What follows a change: the norms it brings, the host settings to apply, the tasks it touches."""
     print(f"Profile changed: {record['change']}, by {record['by']} on {record['on']}. AGENTS.md is up to date.")
     for norm in unanswered_norms(updated, catalog, {}):
@@ -396,11 +396,11 @@ def _report(state: Path, updated: dict, record: dict, catalog: dict, host_settin
 def run(args, root: Path, state: Path) -> int:
     """Apply one profile command, rewrite the instructions and the catalog lock, and say what follows."""
     target = getattr(args, "pattern", None) or getattr(args, "value", None) or " ".join(args.values)
-    updated, record, catalog = _write(
+    updated, record, catalog = write_change(
         root, state, args, lambda profile, catalog: _changed(profile, args, catalog),
         args.by, args.reason, lambda change, weakened, voided: _confirm(change, target, weakened, voided))
     host_settings = args.profile_action == "set" and args.field in ("host", "guard", "research")
-    _report(state, updated, record, catalog, host_settings)
+    report_change(state, updated, record, catalog, host_settings)
     return 0
 
 
@@ -432,5 +432,5 @@ def save_edited(root: Path, state: Path, edited: dict, by: str, reason: str) -> 
         raise Weakening(f"{what}: this weakens a protection, which is the person's decision at an interactive "
                         f"terminal.{_voids(voided)} Nothing was written.", weakened)
 
-    updated, record, catalog = _write(root, state, None, edit, by, reason, refuse)
-    _report(state, updated, record, catalog, bool({"host", "guard", "research"} & set(changed)))
+    updated, record, catalog = write_change(root, state, None, edit, by, reason, refuse)
+    report_change(state, updated, record, catalog, bool({"host", "guard", "research"} & set(changed)))

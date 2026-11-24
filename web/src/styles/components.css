@@ -245,3 +245,8 @@ dialog.dialog > .dialog-foot { display: flex; justify-content: flex-end; gap: 8p
 @keyframes slide-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes appear { 0% { opacity: 0; transform: translateY(6px) scale(0.98); } 100% { opacity: 1; transform: none; } }
 [data-motion='reduced'] *, [data-motion='reduced'] *::before, [data-motion='reduced'] *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+
+/* Arsenal: an option keeps its button on its line, whatever the length of its name. */
+.feature-option { display: flex; align-items: center; justify-content: space-between; gap: var(--gap); }
+.feature-option > span { flex: 1; min-width: 0; }
+.feature-option > button { flex-shrink: 0; }

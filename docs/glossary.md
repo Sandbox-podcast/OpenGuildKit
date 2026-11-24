@@ -281,3 +281,4 @@ Each place of the interface, with what it shows. · Chaque lieu de l'interface, 
 | Documentation | Documentation | `docs export`, `docs share`, `task export` |
 | Chroniques | Historique | `task show` |
 | Intendance | Réglages | `host apply`, `update`, `integrations` |
+| Arsenal | Fonctionnalités | `features`, `tools plan` |

@@ -141,7 +141,7 @@ class Refused(Exception):
 
 
 def _subcommand(args) -> str | None:
-    for name in ("action", "tools_action", "alerts_action", "deliverable_action", "docs_action", "profile_action",
+    for name in ("action", "tools_action", "features_action", "alerts_action", "deliverable_action", "docs_action", "profile_action",
                  "mode"):
         value = getattr(args, name, None)
         if isinstance(value, str):

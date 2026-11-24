@@ -35,6 +35,7 @@ export const PROJECT_PLACES: Record<PlaceKey, { role: string }> = {
   documentation: { role: 'Export et partages' },
   chroniques: { role: 'Historique' },
   intendance: { role: 'Hôte et catalogue' },
+  arsenal: { role: 'Fonctionnalités et MCP' },
 };
 
 export const placeName = (p: Place, pro: boolean) => (pro ? p.proName : p.name);

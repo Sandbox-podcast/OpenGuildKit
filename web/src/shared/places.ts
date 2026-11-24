@@ -1,4 +1,4 @@
-/** The twelve places, shared by the demo and the project interface. */
+/** The thirteen places, shared by the demo and the project interface. */
 import type { PixelIconName } from '@/shared/pixel/icons';
 import type { PlaceKey } from '@/shared/pixel/buildings';
 
@@ -21,11 +21,12 @@ export const PLACES: Place[] = [
   { key: 'documentation', name: 'Documentation', proName: 'Documentation', role: 'Documents et partages', route: '/documentation', icon: 'scroll', shortcut: 'd' },
   { key: 'chroniques', name: 'Chroniques', proName: 'Historique', role: 'Historique et traces', route: '/chroniques', icon: 'hourglass', shortcut: 'h' },
   { key: 'intendance', name: 'Intendance', proName: 'Réglages', role: 'Membres et réglages', route: '/intendance', icon: 'key', shortcut: 'i' },
+  { key: 'arsenal', name: 'Arsenal', proName: 'Fonctionnalités', role: 'Outils et connexions MCP', route: '/arsenal', icon: 'shield', shortcut: 'a' },
 ];
 
 
 export const PLACE_GROUPS = [
   { name: 'Pilotage', keys: ['royaume', 'blueprint', 'conseil', 'quetes', 'forge', 'tour'] },
-  { name: 'Ressources', keys: ['bibliotheque', 'guilde', 'observatoire'] },
+  { name: 'Ressources', keys: ['bibliotheque', 'guilde', 'observatoire', 'arsenal'] },
   { name: 'Organisation', keys: ['documentation', 'chroniques', 'intendance'] },
 ] as const satisfies readonly { name: string; keys: readonly PlaceKey[] }[];

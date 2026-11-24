@@ -13,6 +13,7 @@ const OUTLINES: Record<PlaceKey, string> = {
   documentation: 'M8 3.5h7l4 4v10H8z M15 3.5v5h4 M5 6.5v14h11 M11 11h5 M11 14h5',
   chroniques: 'M3.5 12a8.5 8.5 0 1 1 2 5.5 M3.5 7.5V12h4.5 M12 7.5V12l3 2',
   intendance: 'M4 6h16 M4 12h16 M4 18h16 M8 4v4 M15 10v4 M10 16v4',
+  arsenal: 'M9 3v5 M15 3v5 M6 8h12v4a6 6 0 0 1-12 0z M12 18v3',
 };
 
 export function NavigationIcon({ place }: { place: PlaceKey }) {

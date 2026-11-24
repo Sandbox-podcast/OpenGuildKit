@@ -20,6 +20,7 @@ export const PLACE_POS: Record<PlaceKey, { x: number; y: number; door: [number, 
   documentation: { x: 38, y: 161, door: [69, 219] },
   chroniques: { x: 166, y: 181, door: [193, 259] },
   intendance: { x: 303, y: 191, door: [341, 247] },
+  arsenal: { x: 424, y: 36, door: [452, 93] },
 };
 
 export const mapHeight = (count: number) => TOWN_END + TERRACE_HEIGHT * Math.max(1, Math.ceil(count / TERRACES_PER_ROW)) + 10;
@@ -50,7 +51,7 @@ const RIVER: Point[] = [
 const PLAZA: Point = [267, 222];
 const FOOTPRINTS: Record<PlaceKey, number> = {
   royaume: 35, blueprint: 27, guilde: 38, conseil: 37, quetes: 24, bibliotheque: 30,
-  forge: 34, tour: 15, observatoire: 30, documentation: 28, chroniques: 22, intendance: 38,
+  forge: 34, tour: 15, observatoire: 30, documentation: 28, chroniques: 22, intendance: 38, arsenal: 26,
 };
 
 export function terrainUrl(territories: Territory[]): string {
@@ -141,6 +142,7 @@ function paintPaths(g: Grid, random: ReturnType<typeof rng>) {
     [doors.forge.door, [471, 203], [430, 201], [397, 193], doors.quetes.door],
     [doors.chroniques.door, [216, 257], [232, 242], PLAZA],
     [doors.intendance.door, [309, 257], [282, 251], PLAZA],
+    [doors.arsenal.door, [452, 110], [453, 123], [430, 146], [410, 166], doors.quetes.door],
     [PLAZA, [267, 275]], [[14, 275], [545, 275]],
   ];
   for (const road of lanes) g.stroke(road.map(([x, y]) => [x, y + 2]), 6, WORLD_COLORS.ink);

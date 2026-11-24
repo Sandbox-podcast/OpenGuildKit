@@ -8,7 +8,7 @@ from functools import cache
 from importlib import import_module
 from pathlib import Path
 
-from . import alerts_cli, market_cli, profile_cli, storybook_cli, tasks_cli, tools_cli
+from . import alerts_cli, features_cli, market_cli, profile_cli, storybook_cli, tasks_cli, tools_cli
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
 from .catalog import board_replacements, undated_sources
 from .ci import check_export
@@ -157,6 +157,7 @@ def command_parser() -> argparse.ArgumentParser:
     share.add_argument("--by", help="Owner of the share (add, revoke).")
     share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
     tools_cli.add_parser(commands)
+    features_cli.add_parser(commands)
     profile_cli.add_parser(commands)
     alerts_cli.add_parser(commands)
     market_cli.add_parser(commands)
@@ -1236,6 +1237,8 @@ def _run(args) -> int | None:
         return profile_cli.run(args, root, state)
     elif args.command == "tools":
         return tools_cli.run(args, root, state, catalog)
+    elif args.command == "features":
+        return features_cli.run(args, root, state, catalog)
     elif args.command == "alerts":
         return alerts_cli.run(args, state)
     elif args.command == "init":
