@@ -1,0 +1,265 @@
+name: Release check
+
+# Checks a published release the way a team installs it (docs/install.md): downloads the wheel, the Node
+# archive and SHA256SUMS.txt of the release, checks the hashes, installs each file and runs it on Linux,
+# macOS and Windows, then upgrades a project set up with v0.16.1 to the release (CHANGELOG.md, "Upgrading
+# from 0.16.1"). It builds nothing: the files come from the release. Runs when a release is published, or
+# by hand with the tag (step 4 of GOVERNANCE.md#releases).
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag of the published release to check, for example v0.17.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-check-${{ inputs.tag || github.event.release.tag_name }}
+
+env:
+  TAG: ${{ inputs.tag || github.event.release.tag_name }}
+
+jobs:
+  install:
+    name: Install the release on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # One job per system, so one macOS runner per run (CONTRIBUTING.md#open-a-pull-request).
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # The checkout brings the scripts and answer files of the check, not the code that is installed.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      # The floor of pyproject.toml and of integrations/ci/package.json.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      - name: Read the version from the tag
+        run: |
+          printf '%s\n' "$TAG" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+'
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+
+      - name: Download the release assets
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir "$RUNNER_TEMP/release"
+          cd "$RUNNER_TEMP/release"
+          gh release download "$TAG" --pattern "openguildkit-$VERSION-py3-none-any.whl" \
+            --pattern "openguildkit-$VERSION.tgz" --pattern SHA256SUMS.txt
+          ls -l
+          cat SHA256SUMS.txt
+
+      - name: Check the hashes with the command docs/install.md gives for the system
+        run: |
+          cd "$RUNNER_TEMP/release"
+          grep -Fq "openguildkit-$VERSION-py3-none-any.whl" SHA256SUMS.txt
+          grep -Fq "openguildkit-$VERSION.tgz" SHA256SUMS.txt
+          if [ "$RUNNER_OS" = macOS ]; then
+            shasum -a 256 -c SHA256SUMS.txt
+          else
+            sha256sum --strict -c SHA256SUMS.txt
+          fi
+
+      - name: Check the hashes with Get-FileHash, as docs/install.md gives for Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Set-Location "$env:RUNNER_TEMP/release"
+          $expected = @{}
+          foreach ($line in Get-Content SHA256SUMS.txt) {
+            $hash, $name = $line -split '\s+', 2
+            $expected[$name.TrimStart('*')] = $hash
+          }
+          foreach ($file in "openguildkit-$env:VERSION-py3-none-any.whl", "openguildkit-$env:VERSION.tgz") {
+            $actual = (Get-FileHash ".\$file" -Algorithm SHA256).Hash
+            if ($actual -ne $expected[$file]) { throw "${file}: $actual differs from SHA256SUMS.txt" }
+            "${file}: OK"
+          }
+
+      - name: Install the wheel in a fresh virtual environment
+        run: |
+          python -m venv "$RUNNER_TEMP/venv"
+          if [ "$RUNNER_OS" = Windows ]; then bin="$RUNNER_TEMP/venv/Scripts"; else bin="$RUNNER_TEMP/venv/bin"; fi
+          "$bin/python" -m pip install "$RUNNER_TEMP/release/openguildkit-$VERSION-py3-none-any.whl"
+          echo "OPENGUILDKIT=$bin/openguildkit" >> "$GITHUB_ENV"
+
+      - name: Check that the installed command reports the version of the tag
+        run: |
+          version=$("$OPENGUILDKIT" --version | tr -d '\r')
+          echo "$version"
+          test "$version" = "openguildkit $VERSION"
+
+      # Opens the address that ui --port 0 --no-browser prints (200 with its key), with the scripts of the page,
+      # then stops the server.
+      - name: Open the web interface of the installed command
+        run: python .github/scripts/check-installed-cli.py -- "$OPENGUILDKIT"
+
+      # The approval of a task is typed by the person at a terminal, so the task stops before task verify.
+      - name: Set up a minimal project and consult a task
+        run: |
+          project="$RUNNER_TEMP/project"
+          mkdir "$project"
+          cd "$project"
+          git init -q
+          printf '{"name": "Release check", "stack": ["Python"], "personal_data": "no"}' > "$RUNNER_TEMP/answers.json"
+          "$OPENGUILDKIT" init --answers "$RUNNER_TEMP/answers.json"
+          "$OPENGUILDKIT" check
+          test -f .openguildkit/catalog.lock.json
+          "$OPENGUILDKIT" task new --id add-greeting "Add a greeting function"
+          "$OPENGUILDKIT" task consult add-greeting --answers "$GITHUB_WORKSPACE/examples/request-status/answers.json" \
+            < /dev/null > /dev/null
+          "$OPENGUILDKIT" task list
+          "$OPENGUILDKIT" check
+
+      - name: Install the Node archive and check a state directory
+        run: |
+          npm install --global --ignore-scripts --prefix "$RUNNER_TEMP/npm" "$RUNNER_TEMP/release/openguildkit-$VERSION.tgz"
+          if [ "$RUNNER_OS" = Windows ]; then bin="$RUNNER_TEMP/npm"; else bin="$RUNNER_TEMP/npm/bin"; fi
+          version=$("$bin/openguildkit-ci" --version | tr -d '\r')
+          echo "openguildkit-ci $version"
+          test "$version" = "$VERSION"
+          test -e "$bin/openguildkit-ci-agent"
+          "$bin/openguildkit-ci" check-state --state "$RUNNER_TEMP/state"
+          test -d "$RUNNER_TEMP/state"
+          # A path to a file is refused with exit code 2.
+          touch "$RUNNER_TEMP/not-a-directory"
+          status=0
+          "$bin/openguildkit-ci" check-state --state "$RUNNER_TEMP/not-a-directory" || status=$?
+          test "$status" = 2
+
+  # Linux only: the upgrade rewrites project files with the code the install job already runs on each system.
+  migration:
+    name: Upgrade a v0.16.1 project to the release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    env:
+      FROM: v0.16.1
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+
+      - name: Read the version from the tag
+        run: |
+          printf '%s\n' "$TAG" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+'
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+
+      - name: Download and check the wheels of v0.16.1 and of the release
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for tag in "$FROM" "$TAG"; do
+            mkdir "$RUNNER_TEMP/$tag"
+            cd "$RUNNER_TEMP/$tag"
+            gh release download "$tag" --pattern "openguildkit-${tag#v}-py3-none-any.whl" --pattern SHA256SUMS.txt
+            sha256sum --strict -c --ignore-missing SHA256SUMS.txt | tee checked.txt
+            grep -Fqx "openguildkit-${tag#v}-py3-none-any.whl: OK" checked.txt
+          done
+
+      # The command goes on the PATH, as the hooks of the board guard need (docs/install.md).
+      - name: Install v0.16.1 in a fresh virtual environment
+        run: |
+          python -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/python" -m pip install "$RUNNER_TEMP/$FROM/openguildkit-${FROM#v}-py3-none-any.whl"
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+
+      # 0.16.1 has no personal_data question, no concerns question and no --version.
+      - name: Set up a project with v0.16.1, with one task consulted and one draft
+        run: |
+          project="$RUNNER_TEMP/project"
+          mkdir "$project"
+          cd "$project"
+          git init -q
+          printf '{"name": "Release check", "stack": ["Python"]}' > "$RUNNER_TEMP/answers-016.json"
+          printf '{"kind": "feature", "surface": "service", "data": "none", "research": "local", "context": "%s"}' \
+            "Add a greeting function to the command line. Acceptance: it prints the name it is given." \
+            > "$RUNNER_TEMP/task-016.json"
+          openguildkit init --answers "$RUNNER_TEMP/answers-016.json"
+          openguildkit check
+          openguildkit task new --id add-greeting "Add a greeting function"
+          openguildkit task consult add-greeting --answers "$RUNNER_TEMP/task-016.json" < /dev/null > /dev/null
+          openguildkit task new --id open-draft "Rename the settings page"
+          git add -A
+          git -c user.name="Release check" -c user.email=release-check@example.invalid commit -q -m "Project set up with 0.16.1"
+          # Git ignores the task records: their hashes show that the upgrade leaves them as they are.
+          (cd .openguildkit/tasks && sha256sum *.json) | tee "$RUNNER_TEMP/tasks.sha256"
+
+      # The steps of "Upgrade" in docs/install.md and of "Upgrading from 0.16.1" in CHANGELOG.md.
+      - name: Upgrade to the release and follow the documented steps
+        run: |
+          cd "$RUNNER_TEMP/project"
+          "$RUNNER_TEMP/venv/bin/python" -m pip install --upgrade "$RUNNER_TEMP/$TAG/openguildkit-$VERSION-py3-none-any.whl"
+          test "$(openguildkit --version)" = "openguildkit $VERSION"
+          openguildkit integrations --host other
+          test -f .agents/skills/openguildkit/SKILL.md
+          openguildkit sync
+          test -f .openguildkit/catalog.lock.json
+          openguildkit profile set host claude-code --by "Release check" --reason "Upgrade check of the release"
+          openguildkit host apply
+          test -f .claude/settings.json
+          openguildkit update
+          openguildkit check
+          openguildkit task list
+          (cd .openguildkit/tasks && sha256sum --strict -c "$RUNNER_TEMP/tasks.sha256")
+          git status --short
+
+      # tests/fixtures/upgrade/v0.16.1.json holds the files 0.16.1 wrote for a task a person approved at a
+      # terminal, which no job can type.
+      - name: Upgrade the approved task that 0.16.1 wrote
+        run: |
+          project="$RUNNER_TEMP/approved"
+          python - "$GITHUB_WORKSPACE/tests/fixtures/upgrade/v0.16.1.json" "$project" <<'EOF'
+          import json, pathlib, sys
+          bundle = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          for name, content in bundle["files"].items():
+              path = pathlib.Path(sys.argv[2], name)
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_bytes(content.encode("utf-8"))
+          EOF
+          approved=$(python -c 'import json, sys; print(json.load(open(sys.argv[1]))["approved_task"])' \
+            "$GITHUB_WORKSPACE/tests/fixtures/upgrade/v0.16.1.json")
+          cd "$project"
+          git init -q
+          git add -A
+          git -c user.name="Release check" -c user.email=release-check@example.invalid commit -q -m "Project of 0.16.1"
+          before=$(sha256sum ".openguildkit/tasks/$approved.json")
+          # The approval has no seal: check names it with the command that consults it again.
+          status=0
+          openguildkit check 2> "$RUNNER_TEMP/check.err" || status=$?
+          cat "$RUNNER_TEMP/check.err"
+          test "$status" = 1
+          grep -Fq "has no seal" "$RUNNER_TEMP/check.err"
+          openguildkit sync
+          openguildkit task list
+          openguildkit task show "$approved" > /dev/null
+          test "$(sha256sum ".openguildkit/tasks/$approved.json")" = "$before"
+          openguildkit task consult "$approved" --reuse-answers < /dev/null > /dev/null
+          openguildkit check
