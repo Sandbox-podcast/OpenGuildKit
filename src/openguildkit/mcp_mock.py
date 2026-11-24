@@ -12,34 +12,15 @@ import copy
 import hashlib
 import json
 import re
-import sys
 from pathlib import Path
 
-# Revisions up to 2025-11-25 open with an initialize handshake. From 2026-07-28 every request
-# names its protocol version in params._meta and the server keeps no connection state.
-LEGACY_VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")
-MODERN_VERSIONS = ("2026-07-28",)
-META_VERSION = "io.modelcontextprotocol/protocolVersion"
-META_CAPABILITIES = "io.modelcontextprotocol/clientCapabilities"
-META_SERVER = "io.modelcontextprotocol/serverInfo"
+from .mcp_protocol import INVALID_PARAMS, ProtocolError as MockError, ToolServer, serve as serve_stdio
+
+
 SERVER_VERSION = "1"
-LIST_TTL_MS = 300_000
-PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS = -32700, -32600, -32601, -32602
-UNSUPPORTED_VERSION = -32022
 _JSON_TYPES = {
     "string": str, "integer": int, "number": (int, float), "boolean": bool, "object": dict, "array": list,
 }
-MAX_LINE_BYTES = 1_000_000
-
-
-class MockError(Exception):
-    """A JSON-RPC protocol error."""
-
-    def __init__(self, code: int, message: str, data: dict | None = None):
-        super().__init__(message)
-        self.code = code
-        self.data = data
-
 
 _SERVE_ACTIONS = ("list", "get")
 _MAX_LISTED = 12
@@ -481,76 +462,6 @@ def _tool_list(mock: dict) -> list[dict]:
     ]
 
 
-def _modern(mock: dict, method: str, params: dict, meta: dict) -> dict:
-    """Stateless requests of the 2026-07-28 revision: the version travels with each request."""
-    requested = meta[META_VERSION]
-    if requested not in MODERN_VERSIONS:
-        raise MockError(UNSUPPORTED_VERSION, "Unsupported protocol version",
-                        {"supported": list(MODERN_VERSIONS + LEGACY_VERSIONS[::-1]), "requested": requested})
-    if not isinstance(meta.get(META_CAPABILITIES), dict):
-        raise MockError(INVALID_PARAMS, f"params._meta needs {META_CAPABILITIES}")
-    if method == "server/discover":
-        return {
-            "resultType": "complete", "supportedVersions": list(MODERN_VERSIONS), "capabilities": {"tools": {}},
-            "instructions": _instructions(mock), "ttlMs": LIST_TTL_MS, "cacheScope": "public",
-            "_meta": {META_SERVER: _server_info(mock)},
-        }
-    if method == "tools/list":
-        return {"resultType": "complete", "tools": _tool_list(mock), "ttlMs": LIST_TTL_MS, "cacheScope": "public"}
-    if method == "tools/call":
-        if not isinstance(params.get("name"), str):
-            raise MockError(INVALID_PARAMS, "tools/call needs the tool name")
-        return {"resultType": "complete", **call_tool(mock, params["name"], params.get("arguments"))}
-    raise MockError(METHOD_NOT_FOUND, f"Method not found: {method}")
-
-
-def _legacy(mock: dict, method: str, params: dict) -> dict:
-    """Requests of the revisions that open with initialize."""
-    if method == "initialize":
-        requested = params.get("protocolVersion")
-        return {
-            "protocolVersion": requested if requested in LEGACY_VERSIONS else LEGACY_VERSIONS[-1],
-            "capabilities": {"tools": {"listChanged": False}},
-            "serverInfo": _server_info(mock),
-            "instructions": _instructions(mock),
-        }
-    if method == "ping":
-        return {}
-    if method == "tools/list":
-        return {"tools": _tool_list(mock)}
-    if method == "tools/call":
-        if not isinstance(params.get("name"), str):
-            raise MockError(INVALID_PARAMS, "tools/call needs the tool name")
-        return call_tool(mock, params["name"], params.get("arguments"))
-    if method == "server/discover":
-        raise MockError(INVALID_PARAMS, f"server/discover needs params._meta with {META_VERSION}")
-    raise MockError(METHOD_NOT_FOUND, f"Method not found: {method}")
-
-
-def handle(mock: dict, message: object) -> dict | None:
-    """Answer one JSON-RPC message, in the era the request opens with. Notifications get no answer."""
-    if not isinstance(message, dict) or message.get("jsonrpc") != "2.0" or not isinstance(message.get("method"), str):
-        identifier = message.get("id") if isinstance(message, dict) else None
-        return {"jsonrpc": "2.0", "id": identifier, "error": {"code": INVALID_REQUEST, "message": "Invalid request"}}
-    if "id" not in message:
-        return None
-    identifier, method, params = message["id"], message["method"], message.get("params") or {}
-    try:
-        if not isinstance(params, dict):
-            raise MockError(INVALID_PARAMS, "params must be an object")
-        meta = params.get("_meta")
-        if method != "initialize" and isinstance(meta, dict) and META_VERSION in meta:
-            result = _modern(mock, method, params, meta)
-        else:
-            result = _legacy(mock, method, params)
-    except MockError as error:
-        failure = {"code": error.code, "message": str(error)}
-        if error.data is not None:
-            failure["data"] = error.data
-        return {"jsonrpc": "2.0", "id": identifier, "error": failure}
-    return {"jsonrpc": "2.0", "id": identifier, "result": result}
-
-
 def log_call(journal, tool_id: str, name, arguments, write: bool = False) -> None:
     """Append one call to the journal that --log names, so a test can assert what the agent did."""
     entry = {"tool": tool_id, "call": name, "arguments": arguments}
@@ -562,32 +473,19 @@ def log_call(journal, tool_id: str, name, arguments, write: bool = False) -> Non
 
 def serve(mock: dict, stdin=None, stdout=None, log: Path | None = None) -> int:
     """Serve the mock over stdio until the client closes the stream."""
-    stdin = stdin or sys.stdin.buffer
-    stdout = stdout or sys.stdout.buffer
-    journal = log.open("a", encoding="utf-8") if log else None
-    try:
-        for line in stdin:
-            if not line.strip():
-                continue
-            if len(line) > MAX_LINE_BYTES:
-                answer = {"jsonrpc": "2.0", "id": None, "error": {"code": INVALID_REQUEST, "message": "Message too long"}}
-            else:
-                try:
-                    message = json.loads(line.decode("utf-8"))
-                except (ValueError, RecursionError):
-                    message, answer = None, {"jsonrpc": "2.0", "id": None,
-                                             "error": {"code": PARSE_ERROR, "message": "Parse error"}}
-                else:
-                    answer = handle(mock, message)
-                    if journal and isinstance(message, dict) and message.get("method") == "tools/call":
-                        params = message.get("params") if isinstance(message.get("params"), dict) else {}
-                        tool = next((item for item in mock["tools"] if item["name"] == params.get("name")), None)
-                        log_call(journal, mock["tool"], params.get("name"), params.get("arguments"),
-                                 write=tool is not None and not tool.get("read_only", False))
-            if answer is not None:
-                stdout.write(json.dumps(answer, ensure_ascii=False).encode("utf-8") + b"\n")
-                stdout.flush()
-    finally:
-        if journal:
-            journal.close()
-    return 0
+    server = ToolServer(
+        info=_server_info(mock), instructions=_instructions(mock), tools=_tool_list(mock),
+        call=lambda name, arguments: call_tool(mock, name, arguments),
+    )
+    if log is None:
+        return serve_stdio(server, stdin, stdout)
+    with log.open("a", encoding="utf-8") as journal:
+        def record(message: object) -> None:
+            if not isinstance(message, dict) or message.get("method") != "tools/call":
+                return
+            params = message.get("params") if isinstance(message.get("params"), dict) else {}
+            tool = next((item for item in mock["tools"] if item["name"] == params.get("name")), None)
+            log_call(journal, mock["tool"], params.get("name"), params.get("arguments"),
+                     write=tool is not None and not tool.get("read_only", False))
+
+        return serve_stdio(server, stdin, stdout, on_message=record)
