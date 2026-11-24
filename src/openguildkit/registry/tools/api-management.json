@@ -1,0 +1,162 @@
+{
+  "id": "api-management",
+  "title": "API management",
+  "tools": [
+    {
+      "id": "gravitee",
+      "title": "Gravitee API Management",
+      "vendor": "Gravitee",
+      "summary": "API gateway and management platform for REST, event-driven and AI APIs.",
+      "homepage": "https://www.gravitee.io",
+      "brains": [
+        "backend",
+        "devops"
+      ],
+      "aliases": [
+        "Gravitee",
+        "Gravitee APIM",
+        "Gravitee.io"
+      ],
+      "servers": [
+        {
+          "id": "gravitee-apim-mcp",
+          "name": "Gravitee APIM MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Gravitee",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@gravitee/apim-mcp-server",
+            "start",
+            "--mode",
+            "dynamic",
+            "--server-url",
+            "https://{management_api_host}/management/v2"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@gravitee/apim-mcp-server"
+          },
+          "auth": "api-token",
+          "env": [
+            "GRAVITEEAPIM_BEARER_AUTH"
+          ],
+          "settings": [
+            {
+              "name": "management_api_host",
+              "description": "Gravitee: your Management API host, without https://"
+            }
+          ],
+          "status": "unknown",
+          "capabilities": "Management API v2 APIs surface: create, import, update and deploy APIs, plans, subscriptions, members, analytics, logs, health and scoring.",
+          "source": "https://github.com/gravitee-io/gravitee-apim-mcp-server",
+          "repository": "https://github.com/gravitee-io/gravitee-apim-mcp-server",
+          "license": "MIT",
+          "verified": "2026-11-24",
+          "access": "Read and write.",
+          "scopes": "The APIM service user's organisation and environment roles; the read, write and dangerous scopes mount tool groups. Consent: Create a dedicated service user and a personal token.",
+          "read_only": {
+            "how": "--scope read mounts only read tools.",
+            "args": [
+              "-y",
+              "@gravitee/apim-mcp-server",
+              "start",
+              "--mode",
+              "dynamic",
+              "--scope",
+              "read",
+              "--server-url",
+              "https://{management_api_host}/management/v2"
+            ]
+          }
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://documentation.gravitee.io/apim/reference/management-api-reference"
+      },
+      "notes": "The README passes the token with --bearer-auth; the server also reads GRAVITEEAPIM_BEARER_AUTH (src/lib/security.ts), which keeps it out of the arguments. Version 0.2.1 targets APIM 4.12; documentation.gravitee.io describes it for APIM 4.9+."
+    },
+    {
+      "id": "kong",
+      "title": "Kong Konnect",
+      "vendor": "Kong",
+      "summary": "API platform: Kong Gateway, Konnect control planes, analytics and Dev Portal.",
+      "homepage": "https://konghq.com",
+      "brains": [
+        "backend",
+        "devops"
+      ],
+      "aliases": [
+        "Kong",
+        "Kong Gateway",
+        "Konnect",
+        "Kong Konnect"
+      ],
+      "servers": [
+        {
+          "id": "konnect-mcp",
+          "name": "Kong Konnect MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Kong",
+          "transport": "streamable-http",
+          "url": "https://global.mcp.konghq.com/",
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Search, get_schema and execute over Konnect resources: gateway entities, analytics, debug sessions, Kong docs and Dev Portal pages and snippets.",
+          "source": "https://developer.konghq.com/konnect-platform/konnect-mcp/installation/",
+          "verified": "2026-11-24",
+          "access": "Read and write.",
+          "scopes": "The Konnect personal or system account access token's permissions. Consent: Use a Konnect PAT as a bearer token, or sign in with OAuth where the client supports it; admins can turn MCP off in AI Settings."
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.konghq.com/api/"
+      },
+      "notes": "Konnect only: no MCP server for a self-managed Kong Gateway found. Regional endpoints (us, eu, au, in .mcp.konghq.com) also exist. The docs list a Public Beta (2025-12-19) but no current status. The older Kong/mcp-konnect repository is archived."
+    },
+    {
+      "id": "apigee",
+      "title": "Apigee",
+      "vendor": "Google Cloud",
+      "summary": "Google Cloud API management platform, with Apigee API hub as the API catalogue.",
+      "homepage": "https://cloud.google.com/apigee",
+      "brains": [
+        "backend",
+        "devops"
+      ],
+      "aliases": [
+        "Google Apigee",
+        "Apigee X",
+        "Apigee hybrid",
+        "Apigee API hub"
+      ],
+      "servers": [
+        {
+          "id": "apigee-api-hub-mcp",
+          "name": "Apigee API hub remote MCP server",
+          "publisher": "vendor",
+          "maintainer": "Google Cloud",
+          "transport": "streamable-http",
+          "url": "https://apihub.googleapis.com/mcp",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Create, update and query APIs, versions, specs and deployments in Apigee API hub.",
+          "source": "https://docs.cloud.google.com/apigee/docs/reference/apis/apihub/mcp/use-apihub-mcp",
+          "verified": "2026-11-24",
+          "access": "Read or write, depending on the server configuration, the tools enabled or the consent given.",
+          "scopes": "roles/mcp.toolUser plus roles/apihub.viewer, editor or admin; OAuth scopes apihub.readonly or apihub.readwrite. Consent: Sign in with Google (IAM); API keys are not accepted."
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://cloud.google.com/apigee/docs/reference/apis/apigee/rest"
+      },
+      "notes": "The server covers API hub only: no Google MCP server for managing Apigee proxies, products or environments found on 2026-11-24. Apigee's own MCP feature exposes your APIs as MCP tools instead. Regional endpoint: apihub.REGION.rep.googleapis.com/mcp; no launch stage stated."
+    }
+  ]
+}

@@ -42,6 +42,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `cli.py` | Parses commands, runs setup, sync, check, catalog and the other project commands, and hands each command group to its module. |
 | `tasks_cli.py` | The `task` command, from `task new` to `task export`, including the approval a person types at a terminal. |
 | `profile_cli.py` | The `profile` commands: change the profile after setup, with who, when and why; the page saves through the same path. |
+| `features_cli.py` | The `features` commands: list the features, turn an option on or off through the profile's path. |
 | `tools_cli.py` | The `tools` commands: browse the registry, plan and apply MCP connections, call and serve mocks. |
 | `market_cli.py` | The `market` command: create, fill, check and watch market dossiers. |
 | `alerts_cli.py` | The `alerts` commands and `task alerts`: import scanner reports and review alerts. |
@@ -78,6 +79,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `storage.py` | Writes files atomically, refuses symbolic links, and serialises writing commands with the project lock. |
 | `alerts.py` | The dependency alert register, from the reports of the project's own scanners. |
 | `market.py` | Market dossiers: competitors, dated observations, what is still unknown. |
+| `features.py` | The features: a purpose, its lead tool and three alternatives from the tool registry, and which are on. |
 | `tools.py` | The tool registry and the MCP servers that connect an agent to each tool; plans and writes host connections. |
 | `mcp_protocol.py` | Shared stdio transport, handshake and tool dispatch for local MCP servers. |
 | `mcp_mock.py` | Stand-in MCP servers over stdio for demos and tests: synthetic answers, no network, no credentials. |

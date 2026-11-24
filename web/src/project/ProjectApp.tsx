@@ -27,12 +27,13 @@ const Observatory = named(() => import('./views/Observatory'), 'Observatory');
 const Docs = named(() => import('./views/Docs'), 'Docs');
 const Chronicles = named(() => import('./views/Chronicles'), 'Chronicles');
 const Stewardship = named(() => import('./views/Stewardship'), 'Stewardship');
+const Arsenal = named(() => import('./views/Arsenal'), 'Arsenal');
 
-const PLACES = [Home, Quests, CouncilRoom, ForgeTask, Library, Guild, Watchtower, Observatory, Docs, Chronicles, Stewardship, Blueprint];
+const PLACES = [Home, Quests, CouncilRoom, ForgeTask, Library, Guild, Watchtower, Observatory, Docs, Chronicles, Stewardship, Arsenal, Blueprint];
 const BY_ROUTE: Record<string, Place[]> = {
   royaume: [Home], blueprint: [Blueprint], guilde: [Guild, BrainSheet], conseil: [CouncilList, CouncilRoom], quetes: [Quests, QuestSheet],
   bibliotheque: [Library, ReferenceSheet], forge: [Forge, ForgeTask], tour: [Watchtower], observatoire: [Observatory],
-  documentation: [Docs], chroniques: [Chronicles], intendance: [Stewardship], installation: [Setup],
+  documentation: [Docs], chroniques: [Chronicles], intendance: [Stewardship], arsenal: [Arsenal], installation: [Setup],
 };
 
 /** Loads the place of the address being opened, before the first render: the first screen then never waits. */
@@ -69,6 +70,7 @@ export function ProjectApp() {
     case 'documentation': page = <Docs tab={b} />; break;
     case 'chroniques': page = <Chronicles />; break;
     case 'intendance': page = <Stewardship tab={b} />; break;
+    case 'arsenal': page = <Arsenal />; break;
     default: page = <Empty title="Lien introuvable">Cette adresse ne correspond à aucun lieu. <a href="#/royaume">Revenir au projet</a></Empty>;
   }
   return <ProjectShell><ErrorBoundary resetKey={route.path}><Suspense fallback={<Loading label="Chargement du lieu" />}>{page}</Suspense></ErrorBoundary></ProjectShell>;

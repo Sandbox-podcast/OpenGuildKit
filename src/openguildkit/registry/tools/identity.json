@@ -1,0 +1,185 @@
+{
+  "id": "identity",
+  "title": "Identity and access",
+  "tools": [
+    {
+      "id": "keycloak",
+      "title": "Keycloak",
+      "vendor": "Keycloak (CNCF)",
+      "summary": "Open source identity and access management: single sign-on, OpenID Connect, SAML and user federation.",
+      "homepage": "https://www.keycloak.org",
+      "brains": [
+        "security",
+        "it-and-workplace",
+        "backend"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://www.keycloak.org/docs-api/latest/rest-api/index.html"
+      },
+      "notes": "No MCP server published by the Keycloak project found on 2026-11-24 (keycloak.org and the keycloak GitHub organization); keycloak.org documents Keycloak as the authorization server of MCP servers (https://www.keycloak.org/securing-apps/mcp-authz-server), not an MCP server for Keycloak itself. Community servers exist over the Admin REST API (ChristophEnglisch/keycloak-model-context-protocol, idoyudha/mcp-keycloak, paoloamato2/keycloak-mcp-server), all small single-maintainer projects, not registered."
+    },
+    {
+      "id": "okta",
+      "title": "Okta",
+      "vendor": "Okta",
+      "summary": "Workforce identity cloud: single sign-on, MFA, user lifecycle and access policies.",
+      "homepage": "https://www.okta.com",
+      "brains": [
+        "security",
+        "it-and-workplace",
+        "backend"
+      ],
+      "servers": [
+        {
+          "id": "okta-mcp-server",
+          "name": "Okta MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Okta",
+          "transport": "stdio",
+          "command": "uvx",
+          "args": [
+            "okta-mcp-server"
+          ],
+          "package": {
+            "registry": "pypi",
+            "name": "okta-mcp-server"
+          },
+          "auth": "oauth",
+          "env": [
+            "OKTA_ORG_URL",
+            "OKTA_CLIENT_ID",
+            "OKTA_SCOPES"
+          ],
+          "status": "ga",
+          "status_source": "https://github.com/okta/okta-mcp-server",
+          "capabilities": "Users, groups, applications, policies and rules, device assurance, system logs, brands and themes, custom pages, email templates, custom and email domains of an Okta org.",
+          "source": "https://github.com/okta/okta-mcp-server",
+          "repository": "https://github.com/okta/okta-mcp-server",
+          "license": "Apache-2.0",
+          "verified": "2026-11-24",
+          "access": "Read or write, depending on the scopes listed in OKTA_SCOPES: tools whose scope is not granted are removed at startup; deletes and deactivations ask for confirmation through MCP elicitation.",
+          "scopes": "Okta API scopes granted to the Okta app and listed in OKTA_SCOPES: okta.users.read or okta.users.manage, okta.groups.*, okta.apps.*, okta.policies.*, okta.deviceAssurance.*, okta.logs.read, okta.brands.*, okta.templates.*, okta.domains.*, okta.emailDomains.*. Grant only the .read scopes for read-only use."
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developer.okta.com/docs/api/"
+      },
+      "notes": "Needs an Okta app (client ID) with the API scopes granted in the Admin Console. Device Authorization Grant signs each person in through the browser (not supported on private cloud tenants); Private Key JWT is the browserless alternative and reads OKTA_PRIVATE_KEY and OKTA_KEY_ID. Python 3.13+ or the Docker image built from the repository."
+    },
+    {
+      "id": "auth0",
+      "title": "Auth0",
+      "vendor": "Okta",
+      "summary": "Customer identity platform: authentication, authorization and user management for applications.",
+      "homepage": "https://auth0.com",
+      "brains": [
+        "security",
+        "backend",
+        "it-and-workplace"
+      ],
+      "detect": {
+        "npm": [
+          "auth0",
+          "@auth0/auth0-react",
+          "@auth0/nextjs-auth0"
+        ],
+        "pypi": [
+          "auth0-python"
+        ]
+      },
+      "servers": [
+        {
+          "id": "auth0-mcp-server",
+          "name": "Auth0 MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Auth0 (Okta)",
+          "transport": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@auth0/auth0-mcp-server",
+            "run"
+          ],
+          "package": {
+            "registry": "npm",
+            "name": "@auth0/auth0-mcp-server"
+          },
+          "auth": "oauth",
+          "env": [],
+          "status": "beta",
+          "status_source": "https://github.com/auth0/auth0-mcp-server",
+          "capabilities": "List, read, create and update applications, resource servers, actions and forms of an Auth0 tenant, deploy actions, publish forms, read logs.",
+          "source": "https://github.com/auth0/auth0-mcp-server",
+          "repository": "https://github.com/auth0/auth0-mcp-server",
+          "license": "MIT",
+          "verified": "2026-11-24",
+          "access": "Read and write.",
+          "scopes": "Management API scopes chosen at init (none by default, globs such as read:* accepted): read/create/update:clients, read/create/update:resource_servers, read/create/update:actions, read:logs, read/create/update:forms.",
+          "read_only": {
+            "how": "The --read-only flag exposes only the read tools and takes priority over --tools.",
+            "args": [
+              "-y",
+              "@auth0/auth0-mcp-server",
+              "run",
+              "--read-only"
+            ]
+          }
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://auth0.com/docs/api/management/v2"
+      },
+      "notes": "Run npx @auth0/auth0-mcp-server init once per person: OAuth 2.0 device authorization, credentials kept in the system keychain. Private cloud tenants use client credentials instead. The publisher marks it beta and not recommended for production. Node.js 18+."
+    },
+    {
+      "id": "microsoft-entra-id",
+      "title": "Microsoft Entra ID",
+      "vendor": "Microsoft",
+      "summary": "Microsoft's cloud identity and access management service, formerly Azure Active Directory.",
+      "homepage": "https://learn.microsoft.com/en-us/entra/fundamentals/whatis",
+      "brains": [
+        "security",
+        "it-and-workplace"
+      ],
+      "aliases": [
+        "Entra",
+        "Entra ID",
+        "Microsoft Entra",
+        "Azure AD",
+        "Azure Active Directory",
+        "AAD"
+      ],
+      "servers": [
+        {
+          "id": "microsoft-mcp-server-enterprise",
+          "name": "Microsoft MCP Server for Enterprise",
+          "publisher": "vendor",
+          "maintainer": "Microsoft",
+          "transport": "streamable-http",
+          "url": "https://mcp.svc.cloud.microsoft/enterprise",
+          "auth": "oauth",
+          "env": [],
+          "status": "preview",
+          "status_source": "https://learn.microsoft.com/en-us/graph/mcp-server/overview",
+          "capabilities": "Query Entra tenant data in natural language through read-only Microsoft Graph calls: users, groups, applications, devices, policies, audit and sign-in reports.",
+          "source": "https://learn.microsoft.com/en-us/graph/mcp-server/get-started",
+          "verified": "2026-11-24",
+          "access": "Read only: the tools run read-only Microsoft Graph calls with the user's privileges and the scopes granted to the MCP client.",
+          "scopes": "Delegated MCP.* scopes only (MCP.User.Read.All, MCP.Group.Read.All, MCP.Policy.Read.All...), granted with Grant-EntraBetaMCPServerPermission; app-only permissions are not supported.",
+          "read_only": {
+            "how": "The preview exposes only read-only Microsoft Graph calls."
+          }
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://learn.microsoft.com/en-us/graph/overview"
+      },
+      "notes": "An Application Administrator provisions the server once per tenant (Microsoft.Entra.Beta PowerShell, Grant-EntraBetaMCPServerPermission); this pre-authorizes VS Code, other clients need their own app registration and a granted scope. Global cloud only, 100 calls per minute per user, logged in Microsoft Graph activity logs under appId e8c77dc2-69b3-43f4-bc51-3213c9d915b4."
+    }
+  ]
+}

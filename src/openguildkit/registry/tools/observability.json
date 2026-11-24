@@ -3,6 +3,88 @@
   "title": "Observability and incidents",
   "tools": [
     {
+      "id": "appdynamics",
+      "title": "Splunk AppDynamics",
+      "vendor": "Splunk (Cisco)",
+      "summary": "Application performance monitoring: APM, end-user, infrastructure and database monitoring, SaaS or on-premises.",
+      "homepage": "https://www.splunk.com/en_us/products/splunk-appdynamics.html",
+      "brains": [
+        "devops",
+        "performance",
+        "engineering"
+      ],
+      "aliases": [
+        "AppDynamics",
+        "AppD",
+        "Cisco AppDynamics"
+      ],
+      "servers": [
+        {
+          "id": "appdynamics-mcp-docker",
+          "name": "Splunk AppDynamics MCP Server (Docker, stdio)",
+          "publisher": "vendor",
+          "maintainer": "Splunk AppDynamics",
+          "transport": "stdio",
+          "command": "docker",
+          "args": [
+            "run",
+            "--rm",
+            "-i",
+            "-e",
+            "MCP_TRANSPORT=stdio",
+            "-e",
+            "APPD_AUTH_MODE=env_bearer",
+            "-e",
+            "APPD_ENVIRONMENT",
+            "-e",
+            "APPD_API_TOKEN",
+            "appdynamics/appdynamics-mcp-server:latest"
+          ],
+          "package": {
+            "registry": "docker",
+            "name": "appdynamics/appdynamics-mcp-server"
+          },
+          "auth": "api-token",
+          "env": [
+            "APPD_ENVIRONMENT",
+            "APPD_API_TOKEN"
+          ],
+          "status": "unknown",
+          "capabilities": "107 tools and 22 guided prompts over APM, end-user monitoring, analytics events (ADQL), machine and cluster agents and database monitoring.",
+          "source": "https://help.splunk.com/en/appdynamics-saas/mcp-server-integration/26.10.0/configure-an-mcp-client",
+          "verified": "2026-11-24",
+          "access": "Read operations described (the publisher calls it a read-oriented interface); no enforced read-only mode is recorded.",
+          "pin": "Docker image tag latest, as documented: each start may pull a newer image."
+        },
+        {
+          "id": "appdynamics-mcp-http",
+          "name": "Splunk AppDynamics MCP Server (self-hosted HTTP)",
+          "publisher": "vendor",
+          "maintainer": "Splunk AppDynamics",
+          "transport": "streamable-http",
+          "url": "https://{mcp_host}/mcp",
+          "settings": [
+            {
+              "name": "mcp_host",
+              "description": "AppDynamics: the host where your team deployed the MCP server, without https://"
+            }
+          ],
+          "auth": "api-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Same tools as the stdio server, shared by a team deployment that connects to one or several Controllers.",
+          "source": "https://help.splunk.com/en/appdynamics-saas/mcp-server-integration/26.10.0/configure-an-mcp-client",
+          "verified": "2026-11-24",
+          "access": "Read operations described (the publisher calls it a read-oriented interface); no enforced read-only mode is recorded."
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://help.splunk.com/en/appdynamics-saas/extend-splunk-appdynamics/26.10.0/extend-splunk-appdynamics/splunk-appdynamics-apis"
+      },
+      "notes": "APPD_ENVIRONMENT is the Controller URL and APPD_API_TOKEN a Controller token; the stdio server also accepts OAuth API clients (APPD_AUTH_MODE=oauth with APPD_CLIENT_ID, APPD_CLIENT_SECRET, APPD_CUSTOMER). The docs write --env, registered here as its short form -e. The HTTP server takes the Controller token as a bearer token (--token-env appdynamics=VARIABLE) and an optional X-Events-API-Key header for analytics. Also installable as a Python wheel (3.12+). Documented for SaaS and on-premises."
+    },
+    {
       "id": "datadog",
       "title": "Datadog",
       "vendor": "Datadog",
@@ -97,6 +179,9 @@
         "data",
         "devops",
         "security"
+      ],
+      "aliases": [
+        "Kibana"
       ],
       "detect": {
         "npm": [
@@ -404,6 +489,52 @@
         "docs": "https://docs.sentry.io/api/"
       },
       "notes": "AI-powered search tools need an LLM provider key configured on the stdio server. The older `npx @sentry/mcp-server` is described as legacy; getsentry/sentry-mcp now redirects to getsentry/toolkit."
+    },
+    {
+      "id": "splunk",
+      "title": "Splunk",
+      "vendor": "Splunk (Cisco)",
+      "summary": "Search, monitoring and security analytics platform for machine data, as Splunk Enterprise or Splunk Cloud Platform.",
+      "homepage": "https://www.splunk.com",
+      "brains": [
+        "devops",
+        "security",
+        "performance"
+      ],
+      "aliases": [
+        "Splunk Enterprise",
+        "Splunk Cloud",
+        "Splunk Cloud Platform"
+      ],
+      "servers": [
+        {
+          "id": "splunk-mcp-server",
+          "name": "Splunk MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Splunk",
+          "transport": "streamable-http",
+          "url": "https://{mcp_server_endpoint}",
+          "settings": [
+            {
+              "name": "mcp_server_endpoint",
+              "description": "Splunk: the endpoint shown by the Splunk MCP Server app, without https://"
+            }
+          ],
+          "auth": "api-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Run SPL searches and saved searches, list indexes, sourcetypes, metadata, knowledge objects, KV Store collections and alerts; optional AI Assistant (saia_) and Observability (o11y_) tools.",
+          "source": "https://help.splunk.com/en/splunk-enterprise/mcp-server-for-splunk-platform/2.1/set-up-and-connect-to-splunk-mcp-server/connecting-to-the-mcp-server-and-settings",
+          "verified": "2026-11-24",
+          "access": "Read operations described; no enforced read-only mode is recorded. Administrators choose the enabled tools and the allowed SPL commands in the app.",
+          "scopes": "Users need the mcp_tool_execute capability; creating an encrypted MCP token needs edit_tokens_own and mcp_tool_admin. Consent: each person creates their own encrypted MCP token in the Splunk MCP Server app."
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://help.splunk.com/en/splunk-enterprise/leverage-rest-apis/rest-api-reference"
+      },
+      "notes": "Install the Splunk MCP Server app on the deployment and enable token authentication. The app shows the endpoint (Splunk Web URL on port 443); the older direct endpoint /services/mcp on the management port (default 8089) still works. Send the encrypted MCP token as a bearer token: --token-env splunk=VARIABLE. The publisher's sample config wraps the endpoint in npx mcp-remote. The cloud-hosted *.api.scs.splunk.com endpoint is being phased out."
     }
   ]
 }

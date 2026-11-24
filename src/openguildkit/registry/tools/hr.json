@@ -3,6 +3,29 @@
   "title": "People and HR",
   "tools": [
     {
+      "id": "adp",
+      "title": "ADP",
+      "vendor": "ADP",
+      "summary": "Payroll, HR, benefits and time and attendance software.",
+      "homepage": "https://www.adp.com",
+      "brains": [
+        "hr",
+        "finance",
+        "operations"
+      ],
+      "aliases": [
+        "ADP Workforce Now",
+        "ADP Vantage HCM",
+        "ADP Enterprise HR"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.adp.com"
+      },
+      "notes": "Searched on 2026-11-24: ADP has no public MCP endpoint. Its API Central subscription lets a developer configure MCP projects (prebuilt ADP capabilities, user-level sign-in; organization-level access is marked coming soon), currently for ADP Enterprise HR and ADP Vantage HCM (https://apps.adp.com/apps/419897), and ADP publishes an ADP MCP connector (preview) for Microsoft Copilot Studio and Power Platform that takes an API Central client ID and secret (https://learn.microsoft.com/en-us/connectors/adpmcp/). Neither page gives an endpoint an MCP client can use; third-party servers exist (CData, Apideck, StackOne)."
+    },
+    {
       "id": "bamboohr",
       "title": "BambooHR",
       "vendor": "BambooHR",
@@ -151,6 +174,27 @@
         "docs": "https://developer.personio.de"
       },
       "notes": "Open beta for Core Pro plan customers; an admin enables MCP access, then each user signs in. Not verified: the support article returned 403 and the product page 429 on 2026-11-21, so the endpoint comes from search excerpts of those vendor pages. Personio announces an MCP server (Personio MCP Server); its endpoint could not be read on its own documentation on 2026-11-21, so it is not listed."
+    },
+    {
+      "id": "silae",
+      "title": "Silae",
+      "vendor": "Silae",
+      "summary": "French payroll software (Silae Paie, My Silae) used by accounting firms and companies.",
+      "homepage": "https://www.silae.fr",
+      "brains": [
+        "hr",
+        "finance"
+      ],
+      "aliases": [
+        "Silae Paie",
+        "My Silae"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://www.silae.fr/api-silae/"
+      },
+      "notes": "Searched on 2026-11-24: no MCP server on silae.fr or its API page; only third-party unified APIs (Unified.to, Apideck). The REST API uses OAuth 2.0 with a ClientID, ClientSecret and SubscriptionKey issued on the Silae API portal; its reference is at https://silae-api.document360.io and the test environment is reserved for Silae partners."
     },
     {
       "id": "workday",

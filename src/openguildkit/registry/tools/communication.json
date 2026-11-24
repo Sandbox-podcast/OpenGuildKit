@@ -3,6 +3,69 @@
   "title": "Communication and office suites",
   "tools": [
     {
+      "id": "discord",
+      "title": "Discord",
+      "vendor": "Discord",
+      "summary": "Community chat: servers, text and voice channels, threads and direct messages.",
+      "homepage": "https://discord.com",
+      "brains": [
+        "communication",
+        "developer-relations-and-docs",
+        "support",
+        "marketing"
+      ],
+      "detect": {
+        "npm": [
+          "discord.js"
+        ],
+        "pypi": [
+          "discord.py"
+        ]
+      },
+      "servers": [
+        {
+          "id": "discord-mcp-saseq",
+          "name": "Discord MCP (community)",
+          "publisher": "community",
+          "maintainer": "SaseQ",
+          "transport": "stdio",
+          "command": "docker",
+          "args": [
+            "run",
+            "--rm",
+            "-i",
+            "-e",
+            "DISCORD_TOKEN",
+            "-e",
+            "DISCORD_GUILD_ID",
+            "saseq/discord-mcp:latest"
+          ],
+          "package": {
+            "registry": "docker",
+            "name": "saseq/discord-mcp"
+          },
+          "auth": "api-token",
+          "env": [
+            "DISCORD_TOKEN",
+            "DISCORD_GUILD_ID"
+          ],
+          "status": "unknown",
+          "capabilities": "Read, search, send, edit and delete channel and private messages; manage channels, categories, webhooks, roles, members (kick, ban, timeout), voice channels and scheduled events of a guild, through a Discord bot.",
+          "source": "https://github.com/SaseQ/discord-mcp",
+          "repository": "https://github.com/SaseQ/discord-mcp",
+          "license": "MIT",
+          "verified": "2026-11-24",
+          "access": "Read and write, including moderation and deletion, within the permissions of the bot in the guilds it has joined; no read-only mode is documented.",
+          "pin": "Docker Hub has the tags latest and 1.0.0 (GitHub release v1.0.0, 2026-03-16); the README documents latest."
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.discord.com/developers/intro"
+      },
+      "notes": "Searched on 2026-11-24: Discord publishes no MCP server for guild data. Its only MCP endpoint, https://docs.discord.com/mcp, only searches and reads the developer documentation and is not listed here. The listed server is a community project; DISCORD_GUILD_ID is optional and its stdio mode is called legacy by its README, which recommends a long-running HTTP container on localhost:8085."
+    },
+    {
       "id": "google-workspace",
       "title": "Google Workspace (Gmail, Calendar, Drive)",
       "vendor": "Google",
@@ -104,6 +167,50 @@
         "docs": "https://developers.google.com/workspace"
       },
       "notes": "Developer Preview: requires membership in the Google Workspace Developer Preview Program, a Google Cloud project with the product API and its MCP service enabled, and an OAuth client. Docs, Sheets, Slides, Chat, People and Classroom have their own endpoints on the same page."
+    },
+    {
+      "id": "mattermost",
+      "title": "Mattermost",
+      "vendor": "Mattermost",
+      "summary": "Self-hostable team messaging with channels, threads and playbooks.",
+      "homepage": "https://mattermost.com",
+      "brains": [
+        "communication",
+        "project-management",
+        "operations",
+        "it-and-workplace",
+        "security"
+      ],
+      "servers": [
+        {
+          "id": "mattermost-agents-mcp",
+          "name": "Mattermost MCP Server (Agents plugin)",
+          "publisher": "vendor",
+          "maintainer": "Mattermost",
+          "transport": "streamable-http",
+          "url": "https://{site_host}/plugins/mattermost-ai/mcp-server/mcp",
+          "settings": [
+            {
+              "name": "site_host",
+              "description": "Mattermost: host name of your server's Site URL, for example chat.example.com"
+            }
+          ],
+          "auth": "oauth-or-token",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "121 tools over channels, posts, threads, teams, users, files and more: 74 read-only and 47 that change state.",
+          "source": "https://docs.mattermost.com/agents/docs/mcp_server",
+          "verified": "2026-11-24",
+          "access": "Every call runs as the signed-in user, within that user's channel, team and role permissions; read-only tools work at every license level, state-changing tools need an Enterprise license.",
+          "scopes": "OAuth sign-in through Mattermost (dynamic client registration, or an OAuth 2.0 application created under Integrations), or a personal access token sent as a bearer token, which an admin must enable. Requires Mattermost Server v12.0 or later with the Agents plugin (mattermost-ai) and Site URL set; an admin enables the endpoint, which needs an Enterprise license.",
+          "reviewed": "2026-11-24"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.mattermost.com/api"
+      },
+      "notes": "The server runs inside the Mattermost Agents plugin on your own Mattermost server, over streamable HTTP only (no SSE, no stdio). A standalone mattermost-mcp-server binary exists for plugin development and local testing and is not supported in production. Limits: 32 in-flight requests per user, 30 minutes per request. Tool list: https://docs.mattermost.com/agents/docs/mcp_tools"
     },
     {
       "id": "microsoft-365",
@@ -293,6 +400,48 @@
         "docs": "https://docs.slack.dev/apis/web-api/"
       },
       "notes": "The client must be backed by a Slack app published in the Slack Marketplace or an internal app, and workspace admins approve MCP clients; no SSE and no dynamic client registration."
+    },
+    {
+      "id": "zoom",
+      "title": "Zoom",
+      "vendor": "Zoom Communications",
+      "summary": "Video meetings, team chat, phone, whiteboards and docs (Zoom Workplace).",
+      "homepage": "https://www.zoom.com",
+      "brains": [
+        "communication",
+        "project-management",
+        "operations",
+        "sales",
+        "it-and-workplace"
+      ],
+      "aliases": [
+        "Zoom Workplace",
+        "Zoom Meetings"
+      ],
+      "servers": [
+        {
+          "id": "zoom-mcp",
+          "name": "Zoom MCP server",
+          "publisher": "vendor",
+          "maintainer": "Zoom",
+          "transport": "streamable-http",
+          "url": "https://mcp.zoom.us/mcp/zoom/streamable",
+          "auth": "oauth",
+          "env": [],
+          "status": "unknown",
+          "capabilities": "Agentic search across meetings, chat, Canvas docs and phone data; read meeting assets, recordings, transcripts and summaries; create, update and delete meetings; in-meeting controls; create and share Canvas and Hub files.",
+          "source": "https://developers.zoom.us/docs/mcp/zoom/",
+          "verified": "2026-11-24",
+          "access": "Read and write: each tool needs its own scope (for example meeting:read:assets, meeting:write:meeting, meeting:delete:meeting, docs:write:import), and reaches only content the signed-in Zoom account can already access.",
+          "scopes": "OAuth 2.1 authorization code with PKCE through a General app created in the Zoom App Marketplace (manual client registration: no dynamic client registration); the scopes of the chosen tools are added to that app. Requires a licensed user on Zoom Workplace Pro, Pro Plus, Business, Business Plus, Enterprise, Enterprise Plus or Enterprise Bundle with Meeting summary or Smart Recording on; the ask tool uses Zoom AI Credits.",
+          "reviewed": "2026-11-24"
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://developers.zoom.us/docs/api/"
+      },
+      "notes": "Regional gateways replace the host for accounts outside the global region (mcp-eu.zoom.us, mcp-us.zoom.us, mcp-au.zoom.us, mcp-ca.zoom.us, mcp-in.zoom.us, mcp-sa.zoom.us, mcp-sg.zoom.us; see https://developers.zoom.us/docs/mcp/). Zoom also documents product servers (Meetings, Chat, Phone, Whiteboard, Canvas, Admin, Rooms, Contact Center and others) that are not listed here; rate limits are shared with the Zoom APIs at account level."
     }
   ]
 }

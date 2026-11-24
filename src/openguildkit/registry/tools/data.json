@@ -45,6 +45,63 @@
       "notes": "All plans; calls count against Airtable API rate limits. Personal access tokens are the alternative to OAuth for CLI and server-side use."
     },
     {
+      "id": "apache-spark",
+      "title": "Apache Spark",
+      "vendor": "Apache Software Foundation",
+      "summary": "Distributed engine for large-scale data processing, SQL, streaming and machine learning.",
+      "homepage": "https://spark.apache.org",
+      "brains": [
+        "data",
+        "backend"
+      ],
+      "aliases": [
+        "Spark",
+        "PySpark",
+        "Spark SQL"
+      ],
+      "detect": {
+        "pypi": [
+          "pyspark"
+        ]
+      },
+      "servers": [
+        {
+          "id": "spark-history-server-mcp",
+          "name": "MCP Server for Apache Spark History Server",
+          "publisher": "community",
+          "maintainer": "Kubeflow",
+          "transport": "stdio",
+          "command": "uvx",
+          "args": [
+            "--from",
+            "mcp-apache-spark-history-server",
+            "spark-mcp"
+          ],
+          "package": {
+            "registry": "pypi",
+            "name": "mcp-apache-spark-history-server"
+          },
+          "auth": "none",
+          "env": [
+            "SHS_MCP__TRANSPORT",
+            "SHS_SERVERS__LOCAL__URL"
+          ],
+          "status": "unknown",
+          "capabilities": "Inspect applications, jobs, stages, executors, SQL plans and environment of a Spark History Server, compare runs and investigate failures; guided prompts.",
+          "source": "https://github.com/kubeflow/mcp-apache-spark-history-server",
+          "repository": "https://github.com/kubeflow/mcp-apache-spark-history-server",
+          "license": "Apache-2.0",
+          "verified": "2026-11-24",
+          "access": "Read operations described; no enforced read-only mode is recorded."
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://spark.apache.org/docs/latest/monitoring.html"
+      },
+      "notes": "No MCP server from the Apache Spark project found on 2026-11-24 (spark.apache.org). The registered server is a Kubeflow project: set SHS_MCP__TRANSPORT=stdio and SHS_SERVERS__LOCAL__URL to the History Server URL (default http://localhost:18080); a History Server behind authentication also reads SHS_SERVERS__LOCAL__AUTH__USERNAME, __PASSWORD or __TOKEN, or a config.yaml passed with --config."
+    },
+    {
       "id": "bigquery",
       "title": "BigQuery",
       "vendor": "Google",

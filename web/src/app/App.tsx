@@ -33,14 +33,15 @@ const DocsSpace = named(() => import('@/features/docs/Docs'), 'DocsSpace');
 const SharePage = named(() => import('@/features/docs/Docs'), 'SharePage');
 const ChroniclesSpace = named(() => import('@/features/chronicles/Chronicles'), 'ChroniclesSpace');
 const StewardshipSpace = named(() => import('@/features/stewardship/Stewardship'), 'StewardshipSpace');
+const ArsenalSpace = named(() => import('@/features/arsenal/Arsenal'), 'ArsenalSpace');
 const Wait = () => <p className="muted loading-line" role="status">Chargement du lieu…</p>;
 
-const PLACES = [Kingdom, BlueprintSpace, GuildSpace, CouncilRoom, QuestsSpace, LibrarySpace, ForgeSpace, WatchtowerSpace, ObservatorySpace, DocsSpace, ChroniclesSpace, StewardshipSpace];
+const PLACES = [Kingdom, BlueprintSpace, GuildSpace, CouncilRoom, QuestsSpace, LibrarySpace, ForgeSpace, WatchtowerSpace, ObservatorySpace, DocsSpace, ChroniclesSpace, StewardshipSpace, ArsenalSpace];
 
 /** Loads the screen of the address being opened before the first render, so it does not wait. */
 export function preloadRoute() {
   const first = window.location.hash.replace(/^#\/?/, '').split(/[/?]/)[0];
-  const place = ({ '': Kingdom, royaume: Kingdom, entree: Entry, onboarding: Onboarding, blueprint: BlueprintSpace, guilde: GuildSpace, conseil: CouncilList, quetes: QuestsSpace, bibliotheque: LibrarySpace, forge: ForgeSpace, tour: WatchtowerSpace, observatoire: ObservatorySpace, documentation: DocsSpace, chroniques: ChroniclesSpace, intendance: StewardshipSpace } as Record<string, Place>)[first];
+  const place = ({ '': Kingdom, royaume: Kingdom, entree: Entry, onboarding: Onboarding, blueprint: BlueprintSpace, guilde: GuildSpace, conseil: CouncilList, quetes: QuestsSpace, bibliotheque: LibrarySpace, forge: ForgeSpace, tour: WatchtowerSpace, observatoire: ObservatorySpace, documentation: DocsSpace, chroniques: ChroniclesSpace, intendance: StewardshipSpace, arsenal: ArsenalSpace } as Record<string, Place>)[first];
   return (place?.preload() ?? Promise.resolve()).catch(() => undefined);
 }
 
@@ -79,6 +80,7 @@ export function App() {
     case 'documentation': page = <DocsSpace tab={b} />; break;
     case 'chroniques': page = <ChroniclesSpace tab={b} />; break;
     case 'intendance': page = <StewardshipSpace tab={b} />; break;
+    case 'arsenal': page = <ArsenalSpace />; break;
     default: page = <Empty title="Lien introuvable">Cette adresse ne correspond à aucun lieu. <a href="#/royaume">Revenir au Royaume</a></Empty>;
   }
   return <Shell><ErrorBoundary resetKey={route.path}><Suspense fallback={<Wait />}>{page}</Suspense></ErrorBoundary></Shell>;

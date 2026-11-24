@@ -44,7 +44,7 @@ Reviews, approvals, changes and publishing stay in the existing human workflows.
 
 ## The registry
 
-`openguildkit tools list` shows 133 tools in 22 categories, from issue tracking and time tracking to finance, support, security, observability, design and browsers for agents. Each entry names the brains that use the tool, and each MCP server on record carries:
+`openguildkit tools list` shows 161 tools in 27 categories, from issue tracking and time tracking to finance, support, security, observability, design and browsers for agents. Each entry names the brains that use the tool, and each MCP server on record carries:
 
 - who publishes it (`vendor` when it is the tool's own company, `community` otherwise) and its status when the publisher states one (`ga`, `beta`, `preview`...);
 - its transport and endpoint: a remote URL, or the command that starts a local server;
@@ -60,6 +60,43 @@ openguildkit tools show jira
 A tool without an MCP server is still listed, with its public API, so that nobody goes looking twice. On 2026-11-21 that is the case of Gryzzly, Lucca, PayFit, Spendesk, Agicap, Timely and a few others. When a publisher announces a server but its endpoint could not be read on its own documentation, the entry says so and lists no server.
 
 The registry is checked like the rest of the catalog: the weekly link check opens every `source`, and a server whose page disappears is reported.
+
+## Features
+
+A feature is a purpose a team covers with a tool: issue tracking, payroll, a container registry, a documentation portal. OpenGuildKit ships 20 of them in `src/openguildkit/registry/features/features.json`, each with a lead tool and the three best-known alternatives to it. Every option is a tool of the registry, so its MCP servers, or the lack of one, are those `tools show` prints.
+
+```bash
+openguildkit features list
+openguildkit features enable gryzzly --by CM --reason "We track time in Gryzzly"
+openguildkit features disable jira --by CM --reason "We moved to Linear"
+```
+
+`features enable` takes a feature ID (its lead tool) or any tool of a feature, and adds that tool to the profile's tools by the path of `profile add tool`: under the project lock, recorded in the profile's history with who, when and why, and `AGENTS.md` follows. `features disable` removes every name of the profile that resolves to the tool, so "Jira Cloud" goes when Jira is turned off. A feature is on when one of its options is. Nothing else records it, so a tool named at `init` or by `profile add tool` turns its feature on too. A tool outside the features still goes through `profile add tool`.
+
+Turning a feature on connects nothing. `features enable` prints the `tools plan` command for the tools it added; `tools apply` writes the connection once the team accepts the plan. In the web interface, the Arsenal (Fonctionnalités in the Pro style) shows the features as cards and asks who decides and why before it turns an option on or off.
+
+| Feature | Lead | Alternatives |
+| --- | --- | --- |
+| Documentation portal | Documentalist | Confluence, Notion, GitBook |
+| Issue tracking | Jira (Atlassian) | Linear, Asana, monday.com |
+| Team wiki | Confluence (Atlassian) | Notion, SharePoint, GitBook |
+| Meetings and chat | Microsoft Teams | Slack, Google Chat and Meet, Zoom |
+| Team messaging | Slack | Microsoft Teams, Discord, Mattermost |
+| Payroll | PayFit | Lucca, ADP, Silae |
+| HR management | Factorial | Lucca, HiBob, Personio |
+| Time tracking | Gryzzly | Harvest, Toggl Track, Clockify |
+| Source control | GitHub | GitLab, Bitbucket, Azure DevOps |
+| Container registry | Docker Hub | GitHub Container Registry, Amazon ECR, Harbor |
+| Package registry | npm registry | GitHub Packages, Artifactory, Nexus Repository |
+| Container management | Portainer | Rancher, Lens, Kubernetes Dashboard |
+| Identity and access | Keycloak | Okta, Auth0, Microsoft Entra ID |
+| Development environment | JetBrains IDEs | Visual Studio Code, Visual Studio, Eclipse IDE |
+| Dashboards and metrics | Grafana | Datadog, Kibana, New Relic |
+| Logs and search | Kibana (Elastic) | Grafana, Splunk, Datadog |
+| Application performance monitoring | Dynatrace | Datadog, New Relic, Splunk AppDynamics |
+| API management | Gravitee API Management | Kong Konnect, Apigee, Azure API Management |
+| Browser debugging | Chrome DevTools | Playwright, Puppeteer, Selenium |
+| Large-scale data processing | Apache Spark | Databricks, Snowflake, BigQuery |
 
 ## From a project's stack to its servers
 

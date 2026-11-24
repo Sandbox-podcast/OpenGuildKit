@@ -1,0 +1,120 @@
+{
+  "id": "ide",
+  "title": "Development environments",
+  "tools": [
+    {
+      "id": "jetbrains",
+      "title": "JetBrains IDEs",
+      "vendor": "JetBrains",
+      "summary": "IntelliJ-based IDEs: IntelliJ IDEA, PyCharm, WebStorm, PhpStorm, GoLand, Rider, CLion, RubyMine.",
+      "homepage": "https://www.jetbrains.com",
+      "brains": [
+        "engineering",
+        "backend",
+        "frontend"
+      ],
+      "aliases": [
+        "JetBrains",
+        "IntelliJ",
+        "IntelliJ IDEA",
+        "PyCharm",
+        "WebStorm",
+        "PhpStorm",
+        "GoLand",
+        "Rider",
+        "CLion",
+        "RubyMine"
+      ],
+      "detect": {
+        "files": [
+          ".idea"
+        ]
+      },
+      "servers": [],
+      "api": {
+        "kind": "other",
+        "docs": "https://plugins.jetbrains.com/docs/intellij/welcome.html"
+      },
+      "notes": "IntelliJ IDEA ships a built-in MCP server since 2025.2 (https://www.jetbrains.com/help/idea/mcp-server.html, read 2026-11-24): enable it in Settings | AI | MCP Server, then Auto-Configure Claude Code, Codex and other clients or copy the SSE, stdio or HTTP stream config the IDE generates. The page gives no fixed endpoint or command, so no server is registered; tools cover files, search, analysis, run configurations, refactoring, VCS and the terminal (shell commands ask for confirmation unless brave mode is on). The help page names IntelliJ IDEA; support in the other IDEs is not stated there. The npm proxy @jetbrains/mcp-proxy is no longer maintained."
+    },
+    {
+      "id": "vscode",
+      "title": "Visual Studio Code",
+      "vendor": "Microsoft",
+      "summary": "Source code editor with extensions, GitHub Copilot agent mode and MCP client support.",
+      "homepage": "https://code.visualstudio.com",
+      "brains": [
+        "engineering",
+        "frontend",
+        "backend"
+      ],
+      "aliases": [
+        "VS Code",
+        "VSCode"
+      ],
+      "detect": {
+        "files": [
+          ".vscode"
+        ]
+      },
+      "servers": [],
+      "api": {
+        "kind": "other",
+        "docs": "https://code.visualstudio.com/api"
+      },
+      "notes": "VS Code is an MCP client only (https://code.visualstudio.com/docs/agent-customization/mcp-servers, read 2026-11-24): it connects to servers and exposes none of its own to external agents. The MCP gateway in the extension API is a proposed API, not stable. Community extensions that turn VS Code into a server are not registered."
+    },
+    {
+      "id": "visual-studio",
+      "title": "Visual Studio",
+      "vendor": "Microsoft",
+      "summary": "Microsoft's IDE for .NET and C++ on Windows, with GitHub Copilot agent mode.",
+      "homepage": "https://visualstudio.microsoft.com",
+      "brains": [
+        "engineering",
+        "backend"
+      ],
+      "aliases": [
+        "Visual Studio 2022",
+        "Visual Studio 2026"
+      ],
+      "detect": {
+        "files": [
+          ".vs"
+        ]
+      },
+      "servers": [],
+      "api": {
+        "kind": "other",
+        "docs": "https://learn.microsoft.com/en-us/visualstudio/extensibility/"
+      },
+      "notes": "Visual Studio 2026 and 2022 17.14 are MCP clients (https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers, read 2026-11-24): they read .mcp.json, .vs/mcp.json and .vscode/mcp.json and ship built-in servers such as Azure MCP for Copilot, but expose no MCP server to external agents."
+    },
+    {
+      "id": "eclipse",
+      "title": "Eclipse IDE",
+      "vendor": "Eclipse Foundation",
+      "summary": "Open source IDE for Java and other languages, extended through plug-ins.",
+      "homepage": "https://eclipseide.org",
+      "brains": [
+        "engineering",
+        "backend"
+      ],
+      "aliases": [
+        "Eclipse"
+      ],
+      "detect": {
+        "files": [
+          ".project",
+          ".classpath"
+        ]
+      },
+      "servers": [],
+      "api": {
+        "kind": "other",
+        "docs": "https://help.eclipse.org/latest/index.jsp"
+      },
+      "notes": "No MCP server from the Eclipse Foundation found on 2026-11-24 (eclipseide.org, eclipse.org). Community plug-ins run a server inside the IDE on a workspace-specific port with a bearer token (vogellacompany/eclipse-mcp-server, AssistAI by gradusnikov on the Eclipse Marketplace); they are configured from the IDE and not registered."
+    }
+  ]
+}

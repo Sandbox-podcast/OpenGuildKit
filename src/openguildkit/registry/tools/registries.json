@@ -1,0 +1,186 @@
+{
+  "id": "registries",
+  "title": "Package and container registries",
+  "tools": [
+    {
+      "id": "docker-hub",
+      "title": "Docker Hub",
+      "vendor": "Docker",
+      "summary": "Public and private container image registry: repositories, tags, image search.",
+      "homepage": "https://hub.docker.com",
+      "brains": [
+        "devops",
+        "engineering"
+      ],
+      "aliases": [
+        "Docker Hub",
+        "hub.docker.com"
+      ],
+      "servers": [
+        {
+          "id": "docker-hub-mcp",
+          "name": "Docker Hub MCP Server",
+          "publisher": "vendor",
+          "maintainer": "Docker",
+          "transport": "stdio",
+          "command": "docker",
+          "args": [
+            "run",
+            "-i",
+            "--rm",
+            "-e",
+            "HUB_PAT_TOKEN",
+            "docker/dockerhub-mcp:0.17.0",
+            "--username={hub_username}"
+          ],
+          "package": {
+            "registry": "docker",
+            "name": "docker/dockerhub-mcp"
+          },
+          "auth": "api-token",
+          "env": [
+            "HUB_PAT_TOKEN"
+          ],
+          "settings": [
+            {
+              "name": "hub_username",
+              "description": "Docker Hub: the username that owns the personal access token"
+            }
+          ],
+          "status": "unknown",
+          "capabilities": "Search images and Docker Hardened Images, read repository info, tags and Dockerfiles; create repositories and update repository info and Dockerfiles.",
+          "source": "https://docs.docker.com/ai/mcp-catalog-and-toolkit/hub-mcp/",
+          "repository": "https://github.com/docker/hub-mcp",
+          "license": "Apache-2.0",
+          "verified": "2026-11-24",
+          "access": "Read and write.",
+          "pin": "docker/dockerhub-mcp:0.17.0 (version in the repository's server.json)",
+          "scopes": "The rights of the Docker Hub personal access token. Consent: Create a PAT with the least permissions; without HUB_PAT_TOKEN the server reads public content only."
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.docker.com/reference/api/hub/latest/"
+      },
+      "notes": "Docker's docs also install it from the MCP Toolkit catalog (Docker Desktop 4.43+) or from a clone (node dist/index.js --transport=stdio). The image and its --username argument come from server.json in docker/hub-mcp; no status is stated."
+    },
+    {
+      "id": "harbor",
+      "title": "Harbor",
+      "vendor": "CNCF (Harbor project)",
+      "summary": "Open source cloud native registry for container images and Helm charts, with scanning, signing and replication.",
+      "homepage": "https://goharbor.io",
+      "brains": [
+        "devops",
+        "security"
+      ],
+      "aliases": [
+        "goharbor",
+        "Harbor registry"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://goharbor.io/docs/main/working-with-projects/using-api-explorer/"
+      },
+      "notes": "No MCP server from the Harbor project found on 2026-11-24 (goharbor GitHub organisation and goharbor.io). Community servers (bupd/harbor-mcp-server, mshegolev/harbor-registry-mcp, oreondev/harbor-mcp) have under 10 stars each and were not registered."
+    },
+    {
+      "id": "jfrog-artifactory",
+      "title": "Artifactory",
+      "vendor": "JFrog",
+      "summary": "Universal artifact repository manager, part of the JFrog Platform with Xray, Curation and Distribution.",
+      "homepage": "https://jfrog.com/artifactory/",
+      "brains": [
+        "devops",
+        "security",
+        "engineering"
+      ],
+      "aliases": [
+        "Artifactory",
+        "JFrog Artifactory",
+        "JFrog Platform",
+        "JFrog"
+      ],
+      "servers": [
+        {
+          "id": "jfrog-remote-mcp",
+          "name": "JFrog MCP Server",
+          "publisher": "vendor",
+          "maintainer": "JFrog",
+          "transport": "streamable-http",
+          "url": "https://{jfrog_host}/mcp",
+          "auth": "oauth",
+          "env": [],
+          "settings": [
+            {
+              "name": "jfrog_host",
+              "description": "JFrog: your platform host, without https:// (for example company.jfrog.io)"
+            }
+          ],
+          "status": "ga",
+          "status_source": "https://github.com/jfrog/jfrog-mcp-server",
+          "capabilities": "Create and view projects and repositories, find packages, artifacts and builds (AQL), Catalog and Curation status, Xray summaries, violations and CVE impact; Beta tools need enabling.",
+          "source": "https://docs.jfrog.com/integrations/docs/add-the-jfrog-mcp-server-to-an-mcp-client",
+          "repository": "https://github.com/jfrog/jfrog-mcp-server",
+          "verified": "2026-11-24",
+          "access": "Read and write.",
+          "scopes": "The signed-in user's JFrog Platform permissions. Consent: A Platform Admin enables the server on the JPD, then each client completes the OAuth flow."
+        }
+      ],
+      "api": {
+        "kind": "rest",
+        "docs": "https://docs.jfrog.com/integrations/docs/jfrog-api"
+      },
+      "notes": "GA on JFrog Cloud (SaaS) per the jfrog/jfrog-mcp-server README; the self-managed server is Beta and uses an access token. The client config uses type http, so streamable-http is assumed. The older local jfrog/mcp-jfrog is deprecated."
+    },
+    {
+      "id": "sonatype-nexus",
+      "title": "Nexus Repository",
+      "vendor": "Sonatype",
+      "summary": "Artifact and component repository manager for Maven, npm, PyPI, Docker and other formats.",
+      "homepage": "https://www.sonatype.com/products/sonatype-nexus-repository",
+      "brains": [
+        "devops",
+        "security"
+      ],
+      "aliases": [
+        "Nexus",
+        "Sonatype Nexus",
+        "Nexus Repository Manager",
+        "Nexus 3"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://help.sonatype.com/en/api-reference.html"
+      },
+      "notes": "No Sonatype MCP server for Nexus Repository found on 2026-11-24 (help.sonatype.com, sonatype GitHub organisations). Sonatype's own MCP server (mcp.guide.sonatype.com) serves Sonatype Guide dependency data, not Nexus; community Nexus servers (brianveltman/sonatype-mcp, about 8 stars) were not registered."
+    },
+    {
+      "id": "npm",
+      "title": "npm registry",
+      "vendor": "GitHub (npm)",
+      "summary": "Public JavaScript package registry at npmjs.com, with private packages and organisations.",
+      "homepage": "https://www.npmjs.com",
+      "brains": [
+        "engineering",
+        "frontend",
+        "backend",
+        "security"
+      ],
+      "aliases": [
+        "npmjs",
+        "npmjs.com",
+        "npm Registry",
+        "registry.npmjs.org"
+      ],
+      "servers": [],
+      "api": {
+        "kind": "rest",
+        "docs": "https://github.com/npm/registry/blob/main/docs/REGISTRY-API.md"
+      },
+      "notes": "No MCP server published by npm or GitHub found on 2026-11-24 (npm GitHub organisation, docs.npmjs.com). Community servers (YawLabs/npmjs-mcp, OleFabS/npm-Registry-MCP) have under 10 stars and were not registered."
+    }
+  ]
+}

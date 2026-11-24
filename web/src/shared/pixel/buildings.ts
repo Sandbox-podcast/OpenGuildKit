@@ -4,7 +4,7 @@
  */
 import { Grid, WORLD_COLORS, toDataUrl, type Ramp } from './painter';
 
-export type PlaceKey = 'royaume' | 'blueprint' | 'guilde' | 'conseil' | 'quetes' | 'bibliotheque' | 'forge' | 'tour' | 'observatoire' | 'documentation' | 'chroniques' | 'intendance';
+export type PlaceKey = 'royaume' | 'blueprint' | 'guilde' | 'conseil' | 'quetes' | 'bibliotheque' | 'forge' | 'tour' | 'observatoire' | 'documentation' | 'chroniques' | 'intendance' | 'arsenal';
 
 const STONE: Ramp = ['#c7dcd4', '#839e95', '#55736b', '#263e38'];
 const BASALT: Ramp = ['#89a79c', '#56736a', '#354f48', '#1b312c'];
@@ -238,6 +238,20 @@ const DRAW: Record<PlaceKey, () => Grid> = {
     g.hline(4, 25, 58, TIMBER[3]).hline(5, 26, 56, TIMBER[1]);
     g.frame(65, 40, 4, 3, PAPER[2]).set(67, 41, WORLD_COLORS.mint);
     plinth(g, 4, 55, 70);
+    return g.outline(WORLD_COLORS.ink);
+  },
+  arsenal: () => {
+    const g = new Grid(56, 58);
+    g.bricks(6, 24, 44, 31, STONE);
+    battlements(g, 6, 19, 44, STONE);
+    g.gable(28, 2, 14, 17, SLATE, 1);
+    g.rect(20, 36, 16, 19, TIMBER[3]).hline(21, 35, 14, TIMBER[3]).hline(23, 34, 10, TIMBER[3]);
+    for (let i = 22; i < 35; i += 3) g.vline(i, 36, 18, STEEL[2]);
+    g.disc(28, 27, 5, BRONZE[1]).disc(28, 27, 3, BRONZE[2]).set(28, 27, WORLD_COLORS.paleMint);
+    for (const x of [10, 41]) { g.rect(x, 30, 5, 14, TIMBER[2]); g.hline(x, 30, 5, TIMBER[0]); }
+    standard(g, 11, 31, VERDIGRIS); standard(g, 42, 31, ENAMEL);
+    g.window(26, 8, 5, 6);
+    plinth(g, 6, 55, 44);
     return g.outline(WORLD_COLORS.ink);
   },
 };

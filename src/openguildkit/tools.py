@@ -26,7 +26,7 @@ from .storage import read_json, write_json, write_text
 CATEGORIES = (
     "issue-tracking", "source-control", "ci-cd", "documentation", "design", "communication", "time-tracking", "hr",
     "finance", "crm", "marketing", "support", "security", "quality", "observability", "cloud", "data", "browser",
-    "testing", "analytics", "automation", "product",
+    "testing", "analytics", "automation", "product", "identity", "ide", "registries", "containers", "api-management",
 )
 TRANSPORTS = ("streamable-http", "sse", "stdio")
 PUBLISHERS = ("vendor", "community")
