@@ -93,7 +93,7 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
         self.addCleanup(folder.cleanup)
         self.root = Path(folder.name)
         profile = self.root / "profile.json"
-        write_json(profile, {"name": "Support portal", "stack": ["Python"], "packs": [],
+        write_json(profile, {"personal_data": "no", "name": "Support portal", "stack": ["Python"], "packs": [],
                              "checks": [f'"{sys.executable}" -c "print(1)"']})
         copy_initialized_project(self, profile, self.root)
         (self.root / "page.md").write_text("# Page\n", encoding="utf-8")
