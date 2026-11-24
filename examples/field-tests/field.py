@@ -145,6 +145,7 @@ def prepare(out: Path) -> dict:
     for name in ids:
         (out / "runs" / name).mkdir(parents=True, exist_ok=True)
     _wrapper(out / "bin" / "person-decide", "person_decide.py")
+    _wrapper(out / "bin" / "person-act", "person_act.py")
     _wrapper(out / "bin" / "fingerprint", "fingerprint.py")
     remote = out / "shared" / "remote.git"
     with _launcher_on_path(out):
