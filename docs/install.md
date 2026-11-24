@@ -78,6 +78,8 @@ For another agent (the host `other`), the whole path is:
 3. Run `openguildkit update` to see the date of the new catalog, the number of records it changes and what it changes for the project, and `openguildkit update --apply` once the team agrees. It shows the old and the new wording of each changed rule and names the tasks the change touches, before you apply it; `update --apply` and the `sync` after it name the same tasks. When the instructions already follow a newer catalog than the lock, `check`, `task new`, `task consult`, `task decide` and `task handoff` refuse and point to `openguildkit update`; when the installed catalog changes locked rules, `check` and `sync` say so. `sync` keeps the lock's rules: it rewrites the instructions from the lock and never adopts a newer catalog.
 4. Run `openguildkit check` and commit the updated files.
 
+From 0.16.1, also follow "Upgrading from 0.16.1" at the end of the 0.17.0 section of the [changelog](../CHANGELOG.md): run `openguildkit sync` before `check`, and set the agent host before `openguildkit host apply`.
+
 ## Add the optional CI coordinator
 
 Use Node.js 22 or later, npm and Git. The GitHub integration also needs an authenticated GitHub CLI.

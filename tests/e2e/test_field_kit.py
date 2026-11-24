@@ -38,7 +38,8 @@ class KitTestCase(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.out = Path(temporary.name).resolve()
-        # Testers install the CLI with pipx or uv: its hooks find it on the PATH, which host apply requires.
+        # Testers install the CLI with pipx or uv: its hooks find it on the PATH, which host apply requires. The kit
+        # copies os.environ for each command (field_cli.environment), so it sees this PATH.
         openguildkit_on_path(self)
 
 

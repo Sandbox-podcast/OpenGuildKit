@@ -77,7 +77,8 @@ Changes since 0.16.1, the pre-release of 20 November 2026. The wheel now ships t
 
 ### Upgrading from 0.16.1
 
-- Run `openguildkit sync` and `openguildkit host apply` (new deny rules and hook setting).
+- Run `openguildkit sync`: it writes `.openguildkit/catalog.lock.json`, which 0.16.1 did not have, and names the tasks consulted under the earlier rules. A task reviewed but not decided waits for the person to request changes (`openguildkit task decide ID --request-changes`), then it is consulted again.
+- A 0.16.1 profile has no agent host, so it counts as `other` and `host apply` writes nothing and exits 1. For Claude Code or Codex, set the host first (`openguildkit profile set host claude-code --by NAME --reason WHY`, or `codex`), then run `openguildkit host apply` (new deny rules and hook setting).
 - Approvals recorded by 0.16.1 have no seal, so none of them holds any more: until each approved task that is not completed is consulted again, `check` exits 1 on it, and `handoff`, `verify`, `export` and `complete` refuse it. `sync` names them. Consult each again with `openguildkit task consult ID --reuse-answers` (or open a linked task with `--follows`): every board reviews again, since an approval without a seal keeps no pass, and the person approves again. Their answers predate the `concerns` question: it is asked at a terminal, and without one the task is consulted as `unsure` unless `--answers FILE` gives it. A completed task keeps its record as history.
 - Signed approvals need the project and its signers file committed in Git.
 - Answer files of a new consultation need `concerns`, and setup answers for e-commerce or financial services answer the European Accessibility Act norm.

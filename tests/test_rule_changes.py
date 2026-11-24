@@ -3,15 +3,20 @@ history for a completed task, and a way back through a new consultation of the s
 
 import json
 import shutil
+from unittest.mock import patch
 
 from openguildkit.storage import read_json, write_json
-from tests.test_team_sharing import TASK, SharingCase
+from tests.test_team_sharing import EXAMPLE, TASK, SharingCase
 
 TEAM_PACK = {
     "id": "team-review", "title": "Team review", "version": "1.0.0", "description": "Follow the team's review.",
     "rules": [{"id": "owner", "instruction": "Name a change owner.", "verification": "Read the change record."}],
     "sources": [],
 }
+
+
+def read_task_status(state, task_id):
+    return read_json(state / "tasks" / f"{task_id}.json")["status"]
 
 
 class RuleChangeTests(SharingCase):
@@ -43,6 +48,34 @@ class RuleChangeTests(SharingCase):
         self.assertTrue(error.endswith("but 1 approval no longer holds: each line above gives the command to run.\n"))
         self.assertNotIn("instructions match", self.run_cli("check", code=1)[0])
         self.assertIn(message, self.run_cli("task", "checks", TASK)[1])
+
+    def test_a_review_under_earlier_rules_gives_the_same_next_step_everywhere(self):
+        """A task reviewed but not decided when the rules change (every reviewed task of a project upgraded from
+        0.16.1): task list, task consult and task decide all say that the person requests changes first."""
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
+        answers = {**json.loads((EXAMPLE / "answers.json").read_text()), "outcome": "Customers see each request's status."}
+        write_json(self.root / "answers.json", answers)
+        self.run_cli("task", "consult", TASK, "--answers", self.root / "answers.json")
+        template = json.loads(self.run_cli("task", "template", TASK)[0])
+        review = {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text())}
+        write_json(self.root / "review.json", review)
+        self.run_cli("task", "review", TASK, "--file", self.root / "review.json")
+        row, = json.loads(self.run_cli("task", "list", "--json")[0])
+        self.assertEqual(row["next"], "Waiting for the person's decision.")
+        self.edit_team_rule()
+        message = (f"The rules, checks or boards of the project changed since {TASK} was consulted. The person requests "
+                   f"changes (openguildkit task decide {TASK} --request-changes --by NAME --reason TEXT), then you "
+                   "consult again.")
+        row, = json.loads(self.run_cli("task", "list", "--json")[0])
+        self.assertEqual(row["next"], message)
+        self.assertIn(message, self.run_cli("task", "consult", TASK, "--answers", self.root / "answers.json", code=1)[1])
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            self.assertIn(message, self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason",
+                                                "Agreed", code=1)[1])
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            self.run_cli("task", "decide", TASK, "--request-changes", "--by", "Camille", "--reason", "Rules changed")
+        self.run_cli("task", "consult", TASK, "--answers", self.root / "answers.json")
+        self.assertEqual(read_task_status(self.state, TASK), "consulting")
 
     def test_a_new_pack_is_named(self):
         self.approved()

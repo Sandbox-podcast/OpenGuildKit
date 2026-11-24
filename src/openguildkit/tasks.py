@@ -570,6 +570,8 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
         row = {"id": task["id"], "status": task["status"], "created": day, "owner": decided_by,
                "brief": task["brief"].splitlines()[0][:80],
                "next": problem["message"] if problem and not note else next_step(task, profile)}
+        if judged and task["status"] == "reviewed" and not fingerprints.holds(task.get("profile_fingerprint")):
+            row["next"] = stale_review_message(task["id"])
         decided = decision_words(task, problem)
         if decided:
             row["decided"] = decided
@@ -683,6 +685,8 @@ def record_consultation(
         reopened = approval_problem(task, profile, catalog, root)
         if not reopened or reopened["severity"] != "error":
             raise ValueError(decided_message(task))
+    elif task["status"] == "reviewed" and not fingerprint_holds(task.get("profile_fingerprint"), profile, catalog):
+        raise ValueError(stale_review_message(task["id"]))
     elif task["status"] not in {"draft", "consulting", "changes-requested"}:
         raise ValueError(decided_message(task) or (
             f"The review of {task['id']} is recorded and waits for the person's decision: they approve it or request "
@@ -1419,11 +1423,17 @@ def record_authorization(task: dict, action: str, target: str, allow: bool, by: 
     return {**task, "authorizations": [*task.get("authorizations", []), entry]}
 
 
+def stale_review_message(task_id: str) -> str:
+    """What a review given under other rules, checks or boards than the profile's waits for: task decide, task list
+    and task consult say it in the same words (a project upgraded from 0.16.1 has its reviewed tasks in this state)."""
+    return (f"The rules, checks or boards of the project changed since {task_id} was consulted. The person requests "
+            f"changes (openguildkit task decide {task_id} --request-changes --by NAME --reason TEXT), then you consult "
+            "again.")
+
+
 def require_current_scope(task: dict, profile: dict, catalog: dict) -> None:
     """Refuse to decide over a review given under other rules, checks or boards than the profile's."""
     if not fingerprint_holds(task.get("profile_fingerprint"), profile, catalog):
         if task["status"] in ("approved", *DONE_STATUSES):
             raise ValueError(stale_approval_message(task["id"], rule_changes(task, profile, catalog)))
-        raise ValueError(f"The rules, checks or boards of the project changed since {task['id']} was consulted. The "
-                         f"person requests changes (openguildkit task decide {task['id']} --request-changes --by NAME "
-                         "--reason TEXT), then you consult again.")
+        raise ValueError(stale_review_message(task["id"]))
