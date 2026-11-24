@@ -137,7 +137,7 @@ export interface Recommendation { matched: Pattern[]; suggested: Pattern[]; excl
 export interface Alert { id: string; ecosystem: string; package: string; version: string; advisory: string; aliases: string[]; severity: string; summary: string; fix?: string; url?: string; status: 'open' | 'confirmed' | 'dismissed' | 'resolved'; scanners: string[]; tasks: string[]; first_seen: string; last_seen: string; by?: string; reason?: string; decided_at?: string; accepted?: { by: string; reason: string; at: string } }
 export interface AlertRegister { summary: { total: number; by_status: Record<string, number>; by_severity: Record<string, number>; imports: { tool: string; file: string; sha256: string; at?: string }[] }; alerts: Alert[] }
 /** space: the Documentalist space the share opens; a share covers the whole space, not only the page named. */
-export interface Share { id: string; deliverable: string; recipients: string[]; until: string; portal: string; space?: string; by: string; created_at: string; revoked_at: string | null; state: 'active' | 'expired' | 'revoked' | string }
+export interface Share { id: string; deliverable: string; recipients: string[]; until: string; portal: string; space?: string; also_in_space?: string[]; by: string; created_at: string; revoked_at: string | null; state: 'active' | 'expired' | 'revoked' | string }
 export interface HostControl { id: string; title: string; status: 'enforced' | 'instruction' | 'missing' | string; detail: string }
 /** stale_tasks: the open tasks consulted under other rules than the new ones, each with what to do (update names
  * them before --apply). */

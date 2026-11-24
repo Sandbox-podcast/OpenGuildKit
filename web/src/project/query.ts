@@ -114,6 +114,20 @@ export function reportTouched(argv: string[], stdout: string) {
   return list;
 }
 
+/* ------------------------------------------------------------------ action warnings */
+let actionWarning = '';
+const warningListeners = new Set<() => void>();
+export function showActionWarning(text: string) {
+  actionWarning = text;
+  warningListeners.forEach((listener) => listener());
+}
+export function useActionWarning() {
+  return useSyncExternalStore((listener) => {
+    warningListeners.add(listener);
+    return () => { warningListeners.delete(listener); };
+  }, () => actionWarning);
+}
+
 /* ------------------------------------------------------------------ actions */
 export interface ActionOptions { uploads?: Record<string, string>; success?: string; quiet?: boolean; onDone?: (r: CliResult) => void }
 
@@ -127,6 +141,10 @@ export function useAction() {
     try {
       const result = await run(argv, opts.uploads, { raw: true });
       const named = reportTouched(argv, result.stdout);
+      const revoke = argv[0] === 'docs' && argv[1] === 'share' && argv[2] === 'revoke';
+      const relatedShares = revoke ? result.stdout.trim().split('\n').slice(2).join('\n') : '';
+      const warnings = [result.stderr.trim(), relatedShares].filter(Boolean).join('\n');
+      if (warnings) showActionWarning(warnings);
       const printed = result.stdout.trim().split('\n').slice(0, 2).join(' ').slice(0, 180);
       if (!opts.quiet) toast({ tone: 'success', title: opts.success ?? 'Enregistré', ...(named.length ? { text: `${named.length} tâche(s) consultée(s) sous les règles précédentes : la liste est affichée sur la page.` } : printed ? { text: printed, lang: 'en' as const } : {}) });
       opts.onDone?.(result);

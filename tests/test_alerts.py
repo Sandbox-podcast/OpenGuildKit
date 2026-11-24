@@ -318,7 +318,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         environment = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
                        "PYTHONPATH": str(REPO / "src"), "GH_LOG": str(log), "KNOWN": str(self.root / "known.txt"),
                        "GITHUB_STEP_SUMMARY": str(self.root / "summary.md"), "GITHUB_REPOSITORY": "example/portal",
-                       "BASE": "main"}
+                       "BASE": "main", "GITHUB_RUN_ID": "42", "GITHUB_RUN_ATTEMPT": "1"}
 
         def step(name):
             log.unlink(missing_ok=True)
@@ -330,10 +330,10 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.assertIn(f"- {CRITICAL}", (self.root / "summary.md").read_text(encoding="utf-8"))
         self.assertNotIn("issue create", step("Open a task per new confirmed alert")[1])
         _, calls = step("Propose the register in a pull request")
-        self.assertIn("api -X POST repos/example/portal/git/refs -f ref=refs/heads/openguildkit/dependency-watch", calls)
+        self.assertIn("api -X POST repos/example/portal/git/refs -f ref=refs/heads/openguildkit/dependency-watch-42-1", calls)
         self.assertIn("api -X PUT repos/example/portal/contents/.openguildkit/alerts.json -f "
-                      "branch=openguildkit/dependency-watch", calls)
-        self.assertIn("pr create --head openguildkit/dependency-watch --base main", calls)
+                      "branch=openguildkit/dependency-watch-42-1", calls)
+        self.assertIn("pr create --head openguildkit/dependency-watch-42-1 --base main", calls)
         self.assertIn(f"- `{CRITICAL}`", (self.root / "body.md").read_text(encoding="utf-8"))
 
         self.cli("alerts", "set", CRITICAL, "--status", "confirmed", "--by", "Alex")
