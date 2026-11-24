@@ -179,10 +179,7 @@ def scope_lines(scope: dict) -> list[str]:
         follows = scope["follows"]
         lines.append(f"- Follows task {follows['task']}: {follows['decision']['outcome']} by "
                      f"{follows['decision']['by']}: {follows['decision']['reason']}")
-    for alert in scope.get("dependency_alerts", []):
-        lines.append(f"- Dependency alert {alert['id']} ({alert.get('advisory', '')}): {alert.get('package')} "
-                     f"{alert.get('version', '')} "
-                     f"({alert.get('severity', 'unknown')}, {alert.get('status')}).")
+    lines.extend(_alert_lines(scope))
     if scope.get("storybook"):
         stories = sum(len(index["stories"]) for index in scope["storybook"]["indexes"])
         lines.append(f"- Storybook: {stories} recorded stories; cite one as storybook:STORY_ID, or "
@@ -191,6 +188,13 @@ def scope_lines(scope: dict) -> list[str]:
         lines.append("- The brief names code not found in the project: " + ", ".join(scope["code_not_found"])
                      + ". Check the brief with the requester or find the code it means.")
     return lines
+
+
+def _alert_lines(scope: dict) -> list[str]:
+    """The task's open and confirmed dependency alerts, one line each: the consultation and every board pass."""
+    return [f"- Dependency alert {alert['id']} ({alert.get('advisory', '')}): {alert.get('package')} "
+            f"{alert.get('version', '')} ({alert.get('severity', 'unknown')}, {alert.get('status')})."
+            for alert in scope.get("dependency_alerts", [])]
 
 
 def _research_line(scope: dict) -> str:
@@ -805,6 +809,8 @@ def board_brief(consultation: dict, board_id: str, shared_from: str | None = Non
         *(f"- Open point: {point}" for point in scope.get("open_points", [])),
         *([f"- Code named in the brief and not found: {', '.join(scope['code_not_found'])}."]
           if scope.get("code_not_found") else []),
+        # A subagent gets this pass and nothing else: the alerts the consultation carries reach each board.
+        *_alert_lines(scope),
         "",
         f"## Board brief: {data['title'] if data else board_id}",
         "",
