@@ -18,6 +18,7 @@ import argparse
 import json
 import os
 import shlex
+import shlex
 import shutil
 import subprocess
 import sys
@@ -25,9 +26,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
-SRC = REPO / "src"
 sys.path.insert(0, str(HERE))
 import fingerprint as fingerprint_script  # noqa: E402  (the kit's own module, next to this file)
+from field_cli import INSTALLED_ENV, uses_installed_package  # noqa: E402
 from fingerprint import fingerprint  # noqa: E402
 
 SEVERITIES = ("blocker", "major", "minor", "suggestion")
@@ -94,9 +95,11 @@ def _commit_all(folder: Path, message: str) -> None:
     git(folder, *GIT_PERSON, "commit", "-q", "-m", message)
 
 
-def _wrapper(path: Path, module_or_script: str) -> None:
-    """A command on the testers' PATH that runs this checkout, whatever is installed on the machine."""
-    path.write_text(f'#!/bin/sh\nPYTHONPATH="{SRC}" exec "{sys.executable}" {module_or_script} "$@"\n', encoding="utf-8")
+def _wrapper(path: Path, script: str, *arguments: Path) -> None:
+    """Keep the selected package and interpreter when a tester runs the command later."""
+    invocation = shlex.join([sys.executable, str(HERE / script), *map(str, arguments)])
+    installed = int(uses_installed_package())
+    path.write_text(f'#!/bin/sh\n{INSTALLED_ENV}={installed} exec {invocation} "$@"\n', encoding="utf-8")
     path.chmod(0o755)
 
 
@@ -108,15 +111,16 @@ def prepare(out: Path) -> dict:
     problems = campaign_problems(campaign)
     if problems:
         raise ValueError("The campaign file is not usable: " + "; ".join(problems))
+    cli_version = cli(HERE, "--version").stdout.strip()
     out = out.resolve()
     for name in ("bin", "results", "shared"):
         (out / name).mkdir(parents=True, exist_ok=True)
     ids = [tester["id"] for tester in testers(campaign)]
     for name in ids:
         (out / "runs" / name).mkdir(parents=True, exist_ok=True)
-    _wrapper(out / "bin" / "openguildkit", f'"{HERE / "logged.py"}" "{out / "runs"}"')
-    _wrapper(out / "bin" / "person-decide", f'"{HERE / "person_decide.py"}"')
-    _wrapper(out / "bin" / "fingerprint", f'"{HERE / "fingerprint.py"}"')
+    _wrapper(out / "bin" / "openguildkit", "logged.py", out / "runs")
+    _wrapper(out / "bin" / "person-decide", "person_decide.py")
+    _wrapper(out / "bin" / "fingerprint", "fingerprint.py")
     remote = out / "shared" / "remote.git"
     if not remote.exists():
         seed = out / "shared" / "seed"
@@ -131,7 +135,7 @@ def prepare(out: Path) -> dict:
         commit = git(REPO, "rev-parse", "HEAD")
     except (ValueError, OSError):
         commit = "unknown"
-    record = {"commit": commit, "python": sys.version.split()[0], "testers": ids}
+    record = {"commit": commit, "cli_version": cli_version, "python": sys.version.split()[0], "testers": ids}
     (out / "campaign.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     return record
 

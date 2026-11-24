@@ -866,6 +866,8 @@ test('sets up a project with Stripe: PCI DSS accepted, a norm declined with who 
   await expect(page.getByText(/La commande a échoué|n’est pas encore valide/)).toHaveCount(0);
   await install.click();
   await expect(page).toHaveURL(/#\/royaume/);
+  // Setup sets the hash before reloading, so wait for the installed project's shell.
+  await expect(page.locator('.project-chip-name')).toHaveText('Nouvelle boutique');
   const profile = await savedProfile(page);
   expect(patternIds(profile)).toContain('pci-dss-cardholder-data');
   expect(profile.declined).toEqual([expect.objectContaining({ id: 'gdpr-personal-data', by: 'Camille Martin', reason: 'The pilot stores company accounts only' })]);
