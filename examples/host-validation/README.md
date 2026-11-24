@@ -35,6 +35,7 @@ The rehearsal plays a host without subagents: it runs `task pass ... --mode sequ
 - [Codex, 2026-11-21](reports/codex-2026-11-21.md): the export task from the request to `done` with board passes as subagents, the case without evidence, and a case with blockers.
 - [Claude Code, 2026-11-22, controls](reports/claude-code-2026-11-22-controls.md): the settings `host apply` writes, loaded by a live session: 31 deny rules and the request hook's reminder. The model was not called (the command was not signed in), so the edit hook and the deny rules were not exercised by an agent.
 - [Claude Code, 2026-11-23, controls](reports/claude-code-2026-11-23-controls.md): a connected Windows session exercised the edit hook in `observe` and `enforce` and the approval command's deny rule. The edit after a person's approval is still to be observed: on 2026-11-24 the copy was rebuilt on macOS up to the person's decision, with the commands for the approval and the last run.
+- [Codex, 2026-11-24, steps](reports/codex-2026-11-24-replay-steps.md): what `host apply` writes for Codex and what its hooks answer to replayed inputs (not a live session), then the steps of the live run for issues #257 (the controls) and #256 (`request-share-link` with a disagreement), each criterion mapped to a step.
 
 ## What the reports show for issue #23
 
@@ -46,7 +47,7 @@ Issue #23 asks for the whole flow in Codex and in Claude Code. Each line says wh
 | A host without subagents and a case of insufficient evidence, with what was observed | A host without subagents: report of 2026-11-21. Insufficient evidence: the CLI rehearsal | Insufficient evidence: task 2 of the report of 2026-11-21 (with subagents) |
 | The scenario replays without customer data, keys or private details | The project and the tasks are synthetic, and `rehearse.py` runs in CI (`tests/e2e/test_host_rehearsal.py`) | Same scenario |
 
-Both reports ran on `main` of 21 November 2026, before the changes to the result template, to the rules asked per task and to the deliberation routing that followed. To close the Codex line, a maintainer with Codex tokens runs `request-share-link` (the task built to make Product and Security disagree) on a copy of `project/` with `"host": "codex"`, through `task deliberate`, `task respond`, the person's decision in their own terminal and `task complete`, and adds `reports/codex-DATE.md` quoting the objection and the decision brief.
+Both reports ran on `main` of 21 November 2026, before the changes to the result template, to the rules asked per task and to the deliberation routing that followed. To close the Codex line, a maintainer with Codex tokens runs `request-share-link` (the task built to make Product and Security disagree) on a copy of `project/` with `"host": "codex"`, through `task deliberate`, `task respond`, the person's decision in their own terminal and `task complete`, and adds `reports/codex-DATE.md` quoting the objection and the decision brief. The [steps of 24 November](reports/codex-2026-11-24-replay-steps.md#steps-for-the-live-run) give the commands.
 
 ## The controls that `host apply` writes
 
@@ -125,4 +126,4 @@ codex exec -s workspace-write "$PROMPT"
 codex exec -s workspace-write "Run this command and show its output: openguildkit task decide demo --approve --by Agent --reason 'Live run'"
 ```
 
-Observe the same three things as under Claude Code: the reminder, the patch flagged in `observe` and refused in `enforce` (`Edit refused for: app.py`), and `task decide` forbidden by `.codex/rules/openguildkit.rules`. Report them in `reports/codex-DATE-controls.md`.
+Observe the same three things as under Claude Code: the reminder, the patch flagged in `observe` and refused in `enforce` (`Edit refused for: app.py`), and `task decide` forbidden by `.codex/rules/openguildkit.rules`. Report them in `reports/codex-DATE-controls.md`. The [steps of 24 November](reports/codex-2026-11-24-replay-steps.md#steps-for-the-live-run) give each command, what to observe and what to paste back; the same report records the hook answers replayed without a session.
