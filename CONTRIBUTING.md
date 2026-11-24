@@ -20,7 +20,7 @@ Before large work, open an issue with the matching template so a steward or main
 
 For larger changes, use an issue to discuss scope. Fork the repository, create a branch for the change and open a pull request against `main`. Use `Closes #123` for the issue the PR resolves, or `Refs #123` for related work. Include the part of the catalog or workflow you exercised.
 
-GitHub labels PRs from their changed files and requests a review from the owners in `.github/CODEOWNERS`. The `contribution-checks` status combines the test matrix (Python 3.11 to 3.15 on Linux and Windows, 3.11 and 3.15 on macOS), the wheel build, the CI coordinator, and the checks and journeys of the web interface; a job that runs past its time limit fails.
+GitHub labels PRs from their changed files and requests a review from the owners in `.github/CODEOWNERS`. The `contribution-checks` status combines the test matrix (Python 3.11 and 3.15 on Linux, macOS and Windows), the wheel build, the CI coordinator, and the checks and journeys of the web interface; a job that runs past its time limit fails.
 
 Two kinds of cancelled jobs are not failures of your change:
 

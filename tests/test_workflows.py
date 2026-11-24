@@ -224,7 +224,7 @@ class PackageJobTest(unittest.TestCase):
         job = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["package"]
         matrix = job["strategy"]["matrix"]
         self.assertEqual(set(matrix["os"]), {"ubuntu-latest", "macos-latest", "windows-latest"})
-        self.assertLessEqual({"3.11", "3.14"}, set(matrix["python"]))
+        self.assertEqual({"3.11", "3.15"}, set(matrix["python"]))
         setup = next(s for s in steps(job) if "setup-python" in str(s.get("uses")))
         self.assertEqual(setup["with"]["python-version"], "${{ matrix.python }}")
         script = run_text(job)
@@ -311,7 +311,7 @@ class ContributionChecksTest(unittest.TestCase):
         self.assertIn("runs/7/attempts/1/jobs", (self.directory / "gh.log").read_text(encoding="utf-8"))
 
     def test_a_failed_job_is_not_called_a_missing_runner(self):
-        jobs = [{"name": "Python 3.13 on windows-latest", "conclusion": "failure", "steps": [{"name": "Install"}]},
+        jobs = [{"name": "Python 3.15 on windows-latest", "conclusion": "failure", "steps": [{"name": "Install"}]},
                 {"name": "Web app", "conclusion": "cancelled", "steps": [{"name": "npm test"}]}]
         result = self.run_gate({"test": "failure", "web": "cancelled"}, jobs)
         self.assertEqual(result.returncode, 1)
@@ -322,7 +322,7 @@ class ContributionChecksTest(unittest.TestCase):
         text = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
         section = text.split("## Open a pull request", 1)[1].split("\n## ", 1)[0]
         for words in ("No runner picked the job up", "These jobs never started", "Re-run failed jobs",
-                      "You pushed again", "cancels the run of the previous commit", "3.11 and 3.15 on macOS"):
+                      "You pushed again", "cancels the run of the previous commit", "3.11 and 3.15 on Linux, macOS and Windows"):
             self.assertIn(words, section)
 
     def test_every_job_passed(self):
