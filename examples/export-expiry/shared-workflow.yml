@@ -1,0 +1,56 @@
+name: Shared export check
+
+on:
+  workflow_call:
+    inputs:
+      comparison_commit:
+        description: Approved commit that contains the reference script
+        required: true
+        type: string
+      policy_repository:
+        required: true
+        type: string
+      policy_commit:
+        required: true
+        type: string
+      target_commit:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          repository: Sandbox-podcast/OpenGuildKit
+          ref: ${{ inputs.comparison_commit }}
+          path: comparison
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          repository: ${{ inputs.policy_repository }}
+          ref: ${{ inputs.policy_commit }}
+          path: policy
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.target_commit }}
+          path: target
+          persist-credentials: false
+      - name: Read the shared rule and generate guidance for the agent
+        env:
+          POLICY_COMMIT: ${{ inputs.policy_commit }}
+          TARGET_COMMIT: ${{ inputs.target_commit }}
+        run: >-
+          python3 comparison/examples/export-expiry/shared-check.py
+          --policy-repo policy --policy-commit "$POLICY_COMMIT"
+          --target-repo target --commit "$TARGET_COMMIT"
+          --output shared-check-result
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v4.6.2
+        with:
+          name: shared-export-check
+          path: shared-check-result
