@@ -583,10 +583,10 @@
     },
     "kanban-guide": {
       "family": "product",
-      "edition": "mai 2025",
+      "edition": "May 2025",
       "page": "https://kanbanguides.org/the-kanban-guide/2025.5/",
-      "seen": "mai 2025",
-      "seen_on": "2026-11-21",
+      "seen": "May 2025",
+      "seen_on": "2026-11-23",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -633,10 +633,10 @@
     },
     "nist-media-sanitization": {
       "family": "governance",
-      "edition": "SP 800-88 Rev. 2",
-      "page": "https://www.nist.gov/news-events/news/2025/09/guidelines-media-sanitization-nist-publishes-sp-800-88r2",
-      "seen": "SP 800-88 Rev. 2",
-      "seen_on": "2026-11-21",
+      "edition": "NIST.SP.800-88r2",
+      "page": "https://csrc.nist.gov/pubs/sp/800/88/r2/final",
+      "seen": "NIST.SP.800-88r2",
+      "seen_on": "2026-11-23",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -743,20 +743,20 @@
     },
     "openid-connect": {
       "family": "security",
-      "edition": "Core 1.0, errata 2",
+      "edition": "Core 1.0 incorporating errata set 2",
       "page": "https://openid.net/specs/openid-connect-core-1_0.html",
-      "seen": "Core 1.0, errata 2",
-      "seen_on": "2026-11-21",
+      "seen": "Core 1.0 incorporating errata set 2",
+      "seen_on": "2026-11-23",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
     },
     "openvex": {
       "family": "security",
-      "edition": "0.2.0, brouillon",
-      "page": "https://github.com/openvex/spec",
-      "seen": "0.2.0, brouillon",
-      "seen_on": "2026-11-21",
+      "edition": "v0.2.0",
+      "page": "https://github.com/openvex/spec/releases/tag/v0.2.0",
+      "seen": "v0.2.0",
+      "seen_on": "2026-11-23",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -803,10 +803,10 @@
     },
     "pci-dss": {
       "family": "governance",
-      "edition": "4.0.1",
+      "edition": "v4.0.1",
       "page": "https://www.pcisecuritystandards.org/document_library/?class=pcidss&doc=pci_dss",
-      "seen": "4.0.1",
-      "seen_on": "2026-11-21",
+      "seen": "v4.0.1",
+      "seen_on": "2026-11-23",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"

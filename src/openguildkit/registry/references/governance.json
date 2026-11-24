@@ -156,7 +156,7 @@
     {
       "id": "nist-media-sanitization",
       "title": "NIST SP 800-88 Rev. 2 — Media Sanitization",
-      "edition": "SP 800-88 Rev. 2",
+      "edition": "NIST.SP.800-88r2",
       "category": "Vie privée et protection des données",
       "kind": "référentiel",
       "brains": [
@@ -167,9 +167,14 @@
       "applies_when": "Pour le retrait, la réaffectation ou la fin de vie des supports et systèmes de stockage.",
       "sources": [
         {
-          "url": "https://www.nist.gov/news-events/news/2025/09/guidelines-media-sanitization-nist-publishes-sp-800-88r2",
-          "checked": "2026-11-21",
+          "url": "https://csrc.nist.gov/pubs/sp/800/88/r2/final",
+          "checked": "2026-11-23",
           "title": "NIST SP 800-88 Rev. 2 — Guidelines for Media Sanitization"
+        },
+        {
+          "url": "https://api.crossref.org/works/10.6028/NIST.SP.800-88r2",
+          "checked": "2026-11-23",
+          "title": "Crossref metadata deposited by NIST for Guidelines for Media Sanitization"
         }
       ]
     },
@@ -700,7 +705,7 @@
     {
       "id": "pci-dss",
       "title": "Payment Card Industry Data Security Standard (PCI DSS) v4.0.1",
-      "edition": "4.0.1",
+      "edition": "v4.0.1",
       "category": "Réglementations et exigences sectorielles",
       "kind": "norme",
       "brains": [
@@ -717,7 +722,7 @@
       "sources": [
         {
           "url": "https://www.pcisecuritystandards.org/document_library/?class=pcidss&doc=pci_dss",
-          "checked": "2026-11-21",
+          "checked": "2026-11-23",
           "title": "PCI Security Standards Council — PCI DSS v4.0.1"
         },
         {
