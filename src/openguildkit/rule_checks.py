@@ -50,6 +50,13 @@ def validate_path(path: object, label: str, *, pattern: bool = True) -> None:
         raise ValueError(f"{label} {path!r} names one file: wildcards are not allowed")
 
 
+def _validate_check_path(path: object, label: str, *, pattern: bool = True) -> None:
+    """A check path also stays out of the folders no search reads: a check never looks inside .git or .openguildkit."""
+    validate_path(path, label, pattern=pattern)
+    if SKIPPED_DIRECTORIES & {part.casefold() for part in path.split("/")}:
+        raise ValueError(f"{label} {path!r} is not searched: a check does not read inside .git or .openguildkit")
+
+
 def _is_number(value: object) -> bool:
     return type(value) in (int, float) and not (isinstance(value, float) and math.isnan(value))
 
@@ -63,7 +70,7 @@ def _validate_paths(check: dict, label: str) -> None:
     if not isinstance(paths, list) or not paths or len(paths) > MAX_PATHS:
         raise ValueError(f"{label}.paths must list 1 to {MAX_PATHS} paths")
     for index, path in enumerate(paths):
-        validate_path(path, f"{label}.paths[{index}]")
+        _validate_check_path(path, f"{label}.paths[{index}]")
 
 
 def _validate_text(check: dict, label: str) -> None:
@@ -85,7 +92,7 @@ def _validate_text(check: dict, label: str) -> None:
 
 def _validate_field(check: dict, label: str) -> None:
     _fields(check, label, {"path", "field"}, set(FIELD_OPERATORS))
-    validate_path(check["path"], f"{label}.path", pattern=False)
+    _validate_check_path(check["path"], f"{label}.path", pattern=False)
     if Path(check["path"]).suffix not in FIELD_FORMATS:
         raise ValueError(f"{label}.path must name a .json or .toml file")
     field = check["field"]

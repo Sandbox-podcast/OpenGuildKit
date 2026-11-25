@@ -127,6 +127,24 @@ class EvaluatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "wildcards"):
             validate_check({"kind": "field", "path": "*.json", "field": "a", "equals": 1}, "check", allow_command=False)
 
+    def test_a_check_cannot_name_a_path_inside_git_or_the_project_state(self):
+        for check in (
+            {"kind": "text", "paths": [".git/config"], "contains": ["tok"], "expect": "present"},
+            {"kind": "text", "paths": ["*.md", "vendor/.GIT/config"], "contains": ["tok"], "expect": "absent"},
+            {"kind": "file-exists", "paths": [".git/config"]},
+            {"kind": "file-exists", "paths": [".openguildkit/project.json"]},
+            {"kind": "field", "path": ".openguildkit/project.json", "field": "name", "equals": "x"},
+        ):
+            with self.subTest(check=check), self.assertRaisesRegex(ValueError, "not searched"):
+                validate_check(check, "check", allow_command=False)
+        for path in (".github/workflows/ci.yml", ".gitignore", ".gitattributes", "docs/.git-notes.md"):
+            with self.subTest(path=path):
+                validate_check({"kind": "file-exists", "paths": [path]}, "check", allow_command=False)
+        leak = pack([{"id": "leak", "check": {"kind": "text", "paths": [".git/config"], "contains": ["tok"],
+                                               "expect": "present"}}])
+        with self.assertRaisesRegex(CatalogError, "not searched"):
+            validate_entry("packs", leak)
+
     @unittest.skipIf(os.name == "nt", "Creating a symbolic link needs a privilege Windows does not grant by default.")
     def test_a_link_that_leaves_the_project_is_not_read(self):
         outside = tempfile.TemporaryDirectory()
