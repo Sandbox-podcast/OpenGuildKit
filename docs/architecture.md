@@ -90,7 +90,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `portal_verification.py` | `docs share verify`: signs in to one Documentalist instance with a password typed at the terminal, reads a space's reader invitations and compares their end dates with the share register. |
 | `storybook.py` | References the company's Storybook, compares it with the project's, and writes extraction proposals. |
 | `storybook_extract.py` | Inventories the components, variants and style tokens of an existing React application. |
-| `surfaces.py` | Reads the instruction files and agent settings of a project for hidden characters, phrases that cancel the rules and downloads piped into an interpreter (`host scan`), offline and read-only. |
+| `surfaces.py` | Lists the agent tools, MCP servers and permissive settings a project shows, and reads its instruction files and settings for hidden characters, phrases that cancel the rules and downloads piped into an interpreter (`host scan`), offline and read-only. |
 
 ## What lives in a project
 

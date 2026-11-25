@@ -276,6 +276,11 @@ def _board_control(root: Path, host: str, guard: str) -> dict:
     return _control("board", title, "enforced" if present else "missing", detail)
 
 
+def board_control(root: Path, host: str, guard: str) -> dict:
+    """What host check says about the guard hooks of one host, whichever host the profile names."""
+    return _board_control(root, host, guard)
+
+
 def approval_warning(profile: dict) -> str | None:
     """One line when the guard enforces but approvals are only sealed locally."""
     if profile.get("guard", "off") != "enforce" or (profile.get("approval") or {}).get("mode") == "signed":

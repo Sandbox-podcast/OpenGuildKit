@@ -1199,9 +1199,11 @@ def _host(args, root: Path, profile: dict) -> int:
     return 1 if missing or wrote_nothing else 0
 
 
-def _host_scan(args, root: Path) -> int:
-    """Read the instruction files and settings of the project, and report what could mislead an agent."""
-    result = scan_report(root)
+def _host_scan(args, root: Path, state: Path) -> int:
+    """Read the instruction files and settings of the project, list its agent tools and MCP servers, and report what
+    could mislead an agent. The profile, when there is one, gives the guard; the project's own tools join the registry."""
+    profile = load_profile(state, project_catalog(args, state)) if (state / "project.json").is_file() else {}
+    result = scan_report(root, profile, load_tools(state / "catalog" / "tools"))
     if args.json:
         print_json(result)
     else:
@@ -1284,7 +1286,7 @@ def _run(args) -> int | None:
 
         return webui.serve(root, args.port, args.static, not args.no_browser)
     if args.command == "host" and args.mode == "scan":
-        return _host_scan(args, root)
+        return _host_scan(args, root, state)
     catalog = project_catalog(args, state)
     if args.command == "references":
         _print_references(args, state, catalog)

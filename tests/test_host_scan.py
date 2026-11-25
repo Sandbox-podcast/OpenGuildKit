@@ -21,7 +21,9 @@ from openguildkit.project import BEGIN, END
 
 from tests.support import run_cli
 
+REPO = Path(__file__).resolve().parents[1]
 FINDING_KEYS = {"code", "level", "message", "path", "line"}
+POSIX_LINKS = unittest.skipUnless(hasattr(os, "symlink") and os.name == "posix", "symbolic links need POSIX here")
 # Error characters of hidden-character: the tag block, the bidirectional controls, the directional marks, the zero width
 # space and the word joiner. Their code points, not the characters.
 ERROR_CODE_POINTS = [0xE0000, 0xE0041, 0xE007F, *range(0x202A, 0x202F), *range(0x2066, 0x206A),
@@ -304,9 +306,16 @@ class FileSelectionTests(ScanCase):
                          ".claude/skills/audit/.git/x.md", ".claude/commands/.git/x.md", ".roo/node_modules/y.md",
                          ".openguildkit/tasks/t.md"):
             write(self.root, relative, self.PLANTED)
-        os.symlink("../.openguildkit/tasks", self.root / ".claude" / "agents")  # a link into the task records
         self.assertEqual(self.scan()["findings"], [])
 
+    @POSIX_LINKS
+    def test_a_link_into_the_task_records_is_not_read(self):
+        write(self.root, ".openguildkit/tasks/t.md", self.PLANTED)
+        (self.root / ".claude").mkdir()
+        os.symlink("../.openguildkit/tasks", self.root / ".claude" / "agents")
+        self.assertEqual(self.scan()["findings"], [])
+
+    @POSIX_LINKS
     def test_a_symbolic_link_out_of_the_project_is_not_followed_and_is_listed_as_skipped(self):
         outside = tempfile.TemporaryDirectory()
         self.addCleanup(outside.cleanup)
@@ -321,6 +330,7 @@ class FileSelectionTests(ScanCase):
                          [".claude/agents", ".junie", "GEMINI.md"])
         self.assertTrue(all("outside" in item["reason"] for item in result["scanned"]["skipped"]))
 
+    @POSIX_LINKS
     def test_a_link_inside_the_project_is_read_once_under_the_first_name(self):
         write(self.root, "AGENTS.md", self.PLANTED)
         os.symlink("AGENTS.md", self.root / "CLAUDE.md")
@@ -435,6 +445,17 @@ class CommandTests(ScanCase):
             self.cli(code=1)
             self.cli("--json", code=1)
         self.assertEqual(fingerprint(self.root), before)
+
+
+class SourceTests(unittest.TestCase):
+    def test_the_sources_of_the_scan_and_of_its_tests_hold_no_hidden_character(self):
+        """The tool that looks for invisible characters has none in its own source: each is written as an escape."""
+        for relative in ("src/openguildkit/surfaces.py", "tests/test_host_scan.py", "tests/test_host_surfaces.py"):
+            text = (REPO / relative).read_text(encoding="utf-8")
+            hidden = sorted({f"U+{ord(char):04X}" for char in text
+                             if unicodedata.category(char) in ("Cf", "Cc", "Zl", "Zp", "Zs") and char not in "\t\n\r "})
+            with self.subTest(source=relative):
+                self.assertEqual(hidden, [])
 
 
 if __name__ == "__main__":
