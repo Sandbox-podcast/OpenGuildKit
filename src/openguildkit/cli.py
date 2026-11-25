@@ -823,7 +823,10 @@ def _deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) ->
         return 0
     if action == "check":
         path = project_path(root, state, args.path, "deliverable check")
-        text = path.read_text(encoding="utf-8")
+        try:
+            text = path.read_text(encoding="utf-8-sig")
+        except UnicodeError as error:
+            raise ValueError(f"{args.path} is not UTF-8 text ({error}): save the draft as UTF-8.") from error
         match = re.search(r'^deliverable: "([a-z0-9-]+)"$', text, re.MULTILINE)
         if not match or match.group(1) not in templates:
             raise ValueError(f"{args.path} is not a draft written by openguildkit deliverable new.")

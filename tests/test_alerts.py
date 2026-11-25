@@ -1,3 +1,4 @@
+import codecs
 import json
 import os
 import shutil
@@ -55,6 +56,18 @@ class AlertTests(unittest.TestCase):
         self.assertEqual((tool, alerts[0]["fix"]), ("GitHub Dependabot", "4.17.21"))
         with self.assertRaisesRegex(ValueError, "is not an npm audit"):
             parse_report(b'{"hello": 1}', "x")
+
+    def test_a_report_saved_with_a_byte_order_mark_is_read_and_another_encoding_is_named(self):
+        text = (FIXTURES / "pip-audit.json").read_text(encoding="utf-8")
+        for encoding in ("utf-8-sig", "utf-16", "utf-16-le", "utf-16-be"):
+            with self.subTest(encoding=encoding):
+                bom = {"utf-16-le": codecs.BOM_UTF16_LE, "utf-16-be": codecs.BOM_UTF16_BE}.get(encoding, b"")
+                tool, alerts = parse_report(bom + text.encode(encoding), "report.json")
+                self.assertEqual((tool, alerts[0]["package"]), ("pip-audit", "jinja2"))
+        with self.assertRaisesRegex(ValueError, r"report\.json is not valid UTF-8 text"):
+            parse_report(text.replace("Jinja", "J\xe9").encode("latin-1"), "report.json")
+        with self.assertRaisesRegex(ValueError, r"report\.json is not valid UTF-16 text"):
+            parse_report(codecs.BOM_UTF16_LE + text.encode("utf-16-le") + b"\x00", "report.json")
 
     def test_every_page_of_a_paginated_dependabot_export_is_read(self):
         page = json.loads((FIXTURES / "dependabot-jinja2.json").read_text(encoding="utf-8"))

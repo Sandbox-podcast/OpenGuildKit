@@ -8,6 +8,7 @@ Tasks link the alerts that concern them; a confirmed critical alert blocks their
 completion until it is resolved or a person records why it is accepted.
 """
 
+import codecs
 import hashlib
 import json
 import re
@@ -177,13 +178,25 @@ def _pip_audit_skipped(report: dict) -> list[tuple[str, str]]:
             if "skip_reason" in dependency]
 
 
+def _report_text(content: bytes, label: str) -> str:
+    """The report's text: UTF-8 with or without a byte order mark, or UTF-16 with its mark (what PowerShell 5.1 writes
+    for `npm audit --json > file`)."""
+    utf16 = content.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE))
+    try:
+        return content.decode("utf-16" if utf16 else "utf-8-sig")
+    except UnicodeError as error:
+        raise ValueError(f"{label} is not valid {'UTF-16' if utf16 else 'UTF-8'} text: {error}. Save the scanner's "
+                         "report as UTF-8.") from error
+
+
 def read_report(content: bytes, label: str) -> dict:
     """Recognize the scanner by the report's shape: its name, its normalized alerts, how many dependencies (or, for
     Dependabot, alerts of any state) the report shows it analyzed, and the packages it skipped. A report that analyzed
     nothing resolves nothing, and neither does it for a package it skipped (import_report)."""
+    text = _report_text(content, label)
     try:
-        values = _json_documents(content.decode("utf-8-sig"))
-    except (UnicodeError, ValueError, RecursionError) as error:
+        values = _json_documents(text)
+    except (ValueError, RecursionError) as error:
         raise ValueError(f"Invalid JSON in {label}: {error}") from error
     if not values:
         raise ValueError(f"{label} is empty: give the scanner's JSON report.")

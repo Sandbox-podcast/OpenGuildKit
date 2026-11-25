@@ -11,6 +11,8 @@ openguildkit alerts list --status open
 openguildkit alerts set npm:semver:ghsa-c2qf-rxjj-qqgw --status dismissed --by AM --reason "Only used at build time"
 ```
 
+A report is UTF-8, with or without a byte order mark, or UTF-16 with its mark, which is what PowerShell 5.1 writes for `npm audit --json > npm-audit.json`; a report in another encoding is refused with its file name and the encoding that failed.
+
 The register holds one entry per package and advisory, whatever scanner reported it. An advisory has several IDs (GHSA, CVE, PYSEC, GO, other OSV IDs); the CLI reads the aliases each report gives and merges the entries that share one. Ecosystem names are normalized (`pip` and `PyPI` are the same, `rust` and `crates.io` too). An entry is named after its GHSA ID, else its CVE, else the scanner's own ID, and any of its IDs finds it: `pypi:jinja2:cve-2024-22195` and `pypi:jinja2:pysec-2024-1` name the same entry. When one scanner gives no severity, the severity reported by another scanner for the same advisory is kept.
 
 Each alert has a status:
