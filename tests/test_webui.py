@@ -927,16 +927,35 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(self.request("/api/files/write", {"path": ".openguildkit/project.json", "text": "{}"})[0], 403)
 
     def test_a_path_with_a_nul_is_a_bad_request(self):
-        for path, body in (("/api/files/read", {"path": "a\0b.md"}), ("/api/files/list", {"path": "a\0b"}),
-                           ("/api/run", {"argv": ["task", "new", "--file", "a\0b.md"]}),
-                           ("/api/run", {"argv": ["task", "new", "--file", "a\ud800b.md"]})):
+        """Where the platform cannot resolve such a path (a NUL, a lone surrogate: POSIX), the page answers bad-request.
+        Where it can (Windows accepts a lone surrogate in a name, and Python 3.15 no longer raises for a NUL), the page
+        answers as it does for a file that is not there. It never answers with a server error."""
+        def unresolvable(text):
+            try:
+                (self.root / text).resolve()
+            except ValueError:
+                return True
+            return False
+        for path, body, text in (("/api/files/read", {"path": "a\0b.md"}, "a\0b.md"),
+                                 ("/api/files/list", {"path": "a\0b"}, "a\0b"),
+                                 ("/api/run", {"argv": ["task", "new", "--file", "a\0b.md"]}, "a\0b.md"),
+                                 ("/api/run", {"argv": ["task", "new", "--file", "a\ud800b.md"]}, "a\ud800b.md")):
             with self.subTest(path=path, body=body):
                 status, _, raw = self.request(path, body)
-                self.assertEqual((status, json.loads(raw)["reason"]), (400, "bad-request"))
+                answer = json.loads(raw)
+                if unresolvable(text):
+                    self.assertEqual((status, answer["reason"]), (400, "bad-request"))
+                else:
+                    self.assertLess(status, 500)
+                    self.assertNotEqual(answer.get("reason"), "server-error")
         status, _, raw = self.request("/api/run", {"batch": {"nul": ["task", "new", "--file", "a\0b.md"],
                                                              "tasks": ["task", "list", "--json"]}})
         results = json.loads(raw)["results"]
-        self.assertEqual((status, results["nul"]["reason"], results["tasks"]["code"]), (200, "bad-request", 0))
+        self.assertEqual((status, results["tasks"]["code"]), (200, 0))
+        if unresolvable("a\0b.md"):
+            self.assertEqual(results["nul"]["reason"], "bad-request")
+        else:
+            self.assertNotEqual(results["nul"].get("reason"), "server-error")
 
     def test_a_proposals_text_a_file_cannot_hold_is_a_bad_request_not_a_busy_project(self):
         status, _, raw = self.request("/api/files/write", {"path": ".openguildkit/storybook/proposals.json",
