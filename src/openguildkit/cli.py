@@ -55,6 +55,8 @@ add_share, export_docs, project_overview, revoke_share, same_access, share_statu
     _on_first_call("publishing", name)
     for name in ("add_share", "export_docs", "project_overview", "revoke_share", "same_access", "share_status",
                  "shared_addresses", "space_neighbours"))
+render_scan, scan_exit_code, scan_report = (
+    _on_first_call("surfaces", name) for name in ("render_scan", "scan_exit_code", "scan_report"))
 english_title, find_references, load_references, with_pattern_references = (
     _on_first_call("references", name)
     for name in ("english_title", "find_references", "load_references", "with_pattern_references"))
@@ -172,9 +174,13 @@ def command_parser() -> argparse.ArgumentParser:
                        help="Agent to configure (other: the Agent Skills folder .agents/skills/).")
     agent.add_argument("--user", action="store_true", help="Install in the home folder for every project.")
     agent.add_argument("--force", action="store_true", help="Replace modified files, keeping a .previous copy.")
-    host = commands.add_parser("host", help="Show or apply the rules the host agent can enforce.")
-    host.add_argument("mode", choices=("check", "apply"), help="check reports each rule; apply writes the host settings.")
+    host = commands.add_parser("host", help="Show or apply the rules the host agent can enforce, or scan its files.")
+    host.add_argument("mode", choices=("check", "apply", "scan"),
+                      help="check reports each rule; apply writes the host settings; scan reads the instruction files "
+                           "and agent settings for hidden characters, phrases that cancel the rules and risky commands.")
     host.add_argument("--json", action="store_true", help="Print the report as JSON.")
+    host.add_argument("--strict", action="store_true",
+                      help="With scan: exit 1 on any finding, not only on an error.")
     update = commands.add_parser("update", help="Show what the installed catalog would change and adopt it.")
     update.add_argument("--apply", action="store_true", help="Adopt the installed catalog's records for this project.")
     update.add_argument("--json", action="store_true", help="Print the changes as JSON.")
@@ -1193,6 +1199,16 @@ def _host(args, root: Path, profile: dict) -> int:
     return 1 if missing or wrote_nothing else 0
 
 
+def _host_scan(args, root: Path) -> int:
+    """Read the instruction files and settings of the project, and report what could mislead an agent."""
+    result = scan_report(root)
+    if args.json:
+        print_json(result)
+    else:
+        print(render_scan(result))
+    return scan_exit_code(result, args.strict)
+
+
 def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     """Check that the instructions, the host settings and the catalog lock match the profile, and that every
     approval still holds; warn about what git will not carry to a teammate."""
@@ -1249,6 +1265,8 @@ def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
 def _run(args) -> int | None:
     if args.command == "guard" and args.hook:
         return _guard_hook(args)
+    if args.command == "host" and args.strict and args.mode != "scan":
+        raise ValueError("--strict is an option of openguildkit host scan.")
     if args.command == "mcp" and args.project is None:
         raise ValueError("Supply --project PATH to open a project MCP server.")
     root = project_root(args.project)
@@ -1265,6 +1283,8 @@ def _run(args) -> int | None:
         from . import webui  # Only this command serves pages; every other one starts without the web server.
 
         return webui.serve(root, args.port, args.static, not args.no_browser)
+    if args.command == "host" and args.mode == "scan":
+        return _host_scan(args, root)
     catalog = project_catalog(args, state)
     if args.command == "references":
         _print_references(args, state, catalog)
