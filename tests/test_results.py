@@ -69,6 +69,67 @@ class ResultCase(CapturedCli, unittest.TestCase):
         return self.run_cli("task", "result", TASK, "--file", self.root / "result.json", code=code)
 
 
+class ResultCredentialTests(ResultCase):
+    """What a result cites is recorded and published without the credentials in it (issue #390)."""
+
+    PASSWORD = "hunter" + "2pass"
+    TOKEN = "abcdef1234567890" + "SECRET"
+    KEY = "AK" + "IA" + "IOSFODNN7EXAMPLE"
+    SECRETS = (PASSWORD, TOKEN, KEY)
+
+    def result(self, **fields):
+        return {"pull_request": f"https://user:{self.PASSWORD}@github.com/example/portal/pull/7",
+                "criteria": [{"criterion": f"Calls https://api.example.org/v1?token={self.TOKEN} ok with {self.KEY}",
+                              "status": "met", "evidence": "tests/test_access.py"}],
+                "checks": self.rule_outcomes(), **fields}
+
+    def assertNoSecret(self, folder):
+        for path in sorted(item for item in folder.rglob("*") if item.is_file()):
+            for secret in self.SECRETS:
+                self.assertNotIn(secret, path.read_text(encoding="utf-8"), path.name)
+
+    def test_a_result_is_recorded_exported_and_published_without_the_credentials_it_cites(self):
+        self.approved()
+        self.run_cli("task", "verify", TASK)
+        write_json(self.root / "result.json", self.result())
+        _, warning = self.run_cli("task", "result", TASK, "--file", self.root / "result.json")
+        self.assertIn("replaced a possible credential in the task result with a placeholder", warning)
+        for secret in self.SECRETS:
+            self.assertNotIn(secret, warning)
+        self.run_cli("task", "complete", TASK)
+        record = self.record()["result"]
+        self.assertEqual(record["pull_request"], "https://user:[password]@github.com/example/portal/pull/7")
+        self.assertEqual(record["criteria"][0]["criterion"], "Calls https://api.example.org/v1?token=[credential] ok with [credential]")
+        self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.0.0")
+        self.run_cli("task", "export", TASK)
+        self.assertNoSecret(self.root / "docs-site")
+        self.assertNoSecret(self.root / ".openguildkit" / "decisions")
+
+    def test_the_evidence_and_the_reasons_of_a_result_lose_their_credentials_too(self):
+        self.approved()
+        rules = self.rule_outcomes()
+        rules[0].update(reason=f"Out of scope, see password={self.PASSWORD}", owner="Camille")
+        self.run_cli("task", "verify", TASK)
+        write_json(self.root / "result.json", self.result(checks=rules, revision=f"abc1234 {self.KEY}"))
+        self.run_cli("task", "result", TASK, "--file", self.root / "result.json")
+        record = json.dumps(self.record())
+        for secret in self.SECRETS:
+            self.assertNotIn(secret, record)
+        self.assertIn("password=[password]", record)
+
+    def test_personal_data_in_a_result_is_recorded_with_a_warning_that_does_not_repeat_it(self):
+        self.approved()
+        self.run_cli("task", "verify", TASK)
+        criterion = "Mails ops@example.test, +33 6 12 34 56 78 and FR76 3000 6000 0112 3456 7890 189 are masked."
+        write_json(self.root / "result.json", self.result(criteria=[
+            {"criterion": criterion, "status": "met", "evidence": "tests/test_access.py"}]))
+        _, warning = self.run_cli("task", "result", TASK, "--file", self.root / "result.json")
+        self.assertIn("the task result contains an email address and a phone number and a bank account number", warning)
+        for value in ("ops@example.test", "56 78", "3000 6000"):
+            self.assertNotIn(value, warning)
+        self.assertEqual(self.record()["result"]["criteria"][0]["criterion"], criterion)
+
+
 class ResultTests(ResultCase):
     def test_a_passing_mandatory_check_with_evidence_lets_the_task_finish(self):
         self.approved()

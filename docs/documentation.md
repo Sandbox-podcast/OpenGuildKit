@@ -11,7 +11,7 @@ openguildkit docs export --tasks request-status,request-history --output docs-si
 openguildkit docs export --tasks request-status --output docs-site --version 1.4.0 --sections reference,blog --openapi openapi.yaml
 ```
 
-Only tasks in the `done` or `done-with-reservations` state can be exported: their checks passed and their results are recorded. The pages carry the brief, the behaviour and criteria that were met (each said once), how many checks passed, did not apply or stayed open, the disagreements between boards left open in the deliberation (or, without one, the objections that were not deliberated), the pull request or revision and the version. They never carry the boards' reviews, the evidence paths, open questions or anything else from the local task records, and tasks you do not name are not exported.
+Only tasks in the `done` or `done-with-reservations` state can be exported: their checks passed and their results are recorded. The pages carry the brief, the behaviour and criteria that were met (each said once), how many checks passed, did not apply or stayed open, the disagreements between boards left open in the deliberation (or, without one, the objections that were not deliberated), the pull request or revision and the version. They never carry the boards' reviews, the evidence paths, open questions or anything else from the local task records, and tasks you do not name are not exported. The export checks the pages again: a credential that a brief, an answer or a result still holds is replaced with a placeholder, and an email address, a phone number or a bank account number is published with a warning on standard error.
 
 | Folder | Documentalist tab | Content |
 |---|---|---|

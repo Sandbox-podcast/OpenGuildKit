@@ -26,6 +26,7 @@ from urllib.parse import urlsplit
 from . import clock
 from .deliverables import project_path
 from .project import pack_scopes, rule_plan, rule_text
+from .sensitive import WHERE, personal_data_kinds, redact_data
 from .storage import project_lock, read_json, write_json, write_text
 from .tasks import read_task
 from .workflow import objections
@@ -180,9 +181,19 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
     previous = read_json(manifest_path)["files"] if manifest_path.is_file() else []
     if output.exists() and not manifest_path.is_file() and any(output.iterdir()):
         raise ValueError(f"{output} is not empty and was not created by openguildkit docs export.")
-    pages = {}
+    pages, warnings, published = {}, [], {}
     for position, task in enumerate(tasks, start=1):
-        pages.update(_pages(task, position, version, sections))
+        # What leaves the project is checked again: a record written before, or by hand, may hold what the CLI now refuses.
+        shown = {**task, **{key: redact_data(task[key]) for key in ("brief", "answers", "result") if key in task}}
+        written = _pages(shown, position, version, sections)
+        if shown != task:
+            warnings.append(f"{task['id']}: replaced a possible credential with a placeholder before publishing it: {WHERE}.")
+        kinds = list(dict.fromkeys(kind for text in written.values() for kind in personal_data_kinds(text)))
+        if kinds:
+            warnings.append(f"{task['id']}: the pages contain {' and '.join(kinds)}, and Documentalist shows them to every "
+                            "reader: keep personal data out unless it is a role address.")
+        pages.update(written)
+        published[task["id"]] = shown
     summary = [f"# {project}", ""]
     if "project" in sections and overview is not None:
         consulted = list(dict.fromkeys(board for task in tasks for board in task["consultation"]["boards"]))
@@ -194,7 +205,7 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
         entries = [path for path in pages if path.startswith(f"{section}/")]
         if entries:
             summary += [f"## {section.capitalize()}", ""] + [
-                f"- [{_title(read_task(state, Path(path).stem))}]({path})" for path in entries] + [""]
+                f"- [{_title(published[Path(path).stem])}]({path})" for path in entries] + [""]
     pages["SUMMARY.md"] = "\n".join(summary)
     pages["README.md"] = f"# {project}\n\nDocumentation for version {version}, generated from completed OpenGuildKit tasks.\n"
     if openapi is not None:
@@ -211,7 +222,7 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
     for relative in removed:
         (output / relative).unlink(missing_ok=True)
     write_json(manifest_path, {"version": version, "tasks": task_ids, "files": sorted(pages)})
-    return {"written": sorted(pages), "removed": removed, "kept": kept}
+    return {"written": sorted(pages), "removed": removed, "kept": kept, "warnings": warnings}
 
 
 def _shares_path(state: Path) -> Path:

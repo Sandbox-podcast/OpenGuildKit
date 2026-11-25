@@ -871,6 +871,8 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
             print(f"removed {path}")
         for path in result["kept"]:
             print(f"kept {path}: not a page this export wrote inside {args.output.as_posix()}, left in place")
+        for warning in result["warnings"]:
+            print(f"OpenGuildKit: {warning}", file=sys.stderr)
         return 0
     if args.share_action == "add":
         if not (args.deliverable and args.until and args.portal and args.by):

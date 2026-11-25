@@ -53,7 +53,7 @@ A decision record also carries free text: the `brief`, the review `summary`, eac
 | `ogk-ui:decider`, `ogk-ui:signer` | the browser's local storage for the page's address (`http://ogk-….localhost:7311`, a host name drawn at each start) | `openguildkit ui`, when you type who decides or who signs | to fill the field again while the server runs |
 | each call to a mock and its arguments | the file `--log` names | `tools mock ID --log FILE`, `tools plan` or `tools apply` with `--mock --log FILE` | so a test can check what the agent called; mocks serve synthetic data |
 
-The task record also keeps the brief, the answers, the boards' reviews, the reasons and the evidence. `task new` and `task consult` replace what looks like a credential with a placeholder, and warn when a brief or answers hold an email address, a phone number or a bank account number: they record them anyway. `task list --json` shows the approver as `owner` and the person who closed the task as `closed_by`. The tool does not store what commands print, but a CI log keeps what the commands it runs print.
+The task record also keeps the brief, the answers, the boards' reviews, the reasons and the evidence. `task new`, `task consult` and `task result` replace what looks like a credential with a placeholder, and warn when a brief, answers or a result hold an email address, a phone number or a bank account number: they record them anyway, and `docs export` warns again before it publishes them. `task list --json` shows the approver as `owner` and the person who closed the task as `closed_by`. The tool does not store what commands print, but a CI log keeps what the commands it runs print.
 
 ### The CI coordinator
 

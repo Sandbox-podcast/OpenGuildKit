@@ -8,6 +8,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - Features: `openguildkit features` lists 20 purposes (documentation portal, issue tracking, payroll, container registry...), each with a lead tool and its three best-known alternatives, and turns an option on or off in the profile with who and why. The web interface shows them in a new place, the Arsenal.
 - New bundled tool IDs: `adp`, `apache-spark`, `apigee`, `appdynamics`, `auth0`, `discord`, `docker-hub`, `eclipse`, `gravitee`, `harbor`, `jetbrains`, `jfrog-artifactory`, `keycloak`, `kong`, `lens`, `mattermost`, `microsoft-entra-id`, `npm`, `okta`, `portainer`, `rancher`, `silae`, `sonatype-nexus`, `splunk`, `visual-studio`, `vscode`, `zoom`. Kibana is now an alias of Elastic. If a project catalog already defines one of these tools or names, rename its local entry and update the profile, or remove the project definition to use the bundled tool.
 - A brief or an answer of tens of thousands of characters on one line no longer stalls `task new` and `task consult` for 10 to 30 seconds: the credential and personal data detector and the path search of routing no longer backtrack.
+- `task result` replaces a credential in the revision, the pull request, the criteria, the evidence and the reasons with a placeholder, and warns like `task new` does, so `task export` no longer commits it; `docs export` checks its pages again, replaces what a record still holds and warns about an email address, a phone number or a bank account number it publishes.
 
 ## 0.17.0
 
