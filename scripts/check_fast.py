@@ -4,10 +4,13 @@
 
 REF defaults to origin/main. Changed files are the tracked diff against that
 revision, working tree included, plus untracked files. Tests come from
-docs/agents/map.json. A changed test file runs itself. A change under
+docs/agents/map.json, then from the files and folders the repository checks
+outside the module map (README, CHANGELOG, pyproject.toml, docs/, .github/,
+examples/ and the scripts). A changed test file runs itself. A change under
 src/openguildkit/registry/ validates the catalog. A change under web/ runs
-npm run typecheck. A changed file with no attached test is named, and the
-command exits non-zero. Success is one line.
+npm run typecheck. A change under integrations/ci/ runs npm test there. A
+changed file with no attached test is named, and the command exits non-zero.
+Success is one line.
 """
 
 import argparse
@@ -22,12 +25,32 @@ ROOT = Path(__file__).resolve().parents[1]
 MAP = ROOT / "docs" / "agents" / "map.json"
 # Files this repository checks outside the module map.
 EXTRA = {
-    "scripts/check_fast.py": "tests/test_agent_native.py",
-    "scripts/agent_cost.py": "tests/test_agent_native.py",
-    "docs/agents/map.json": "tests/test_agent_native.py",
-    "docs/testing.md": "tests/test_product_docs.py",
-    "CONTRIBUTING.md": "tests/test_workflows.py",
+    "scripts/check_fast.py": ["tests/test_agent_native.py"],
+    "scripts/agent_cost.py": ["tests/test_agent_native.py"],
+    "scripts/bench.py": ["tests/test_performance.py"],
+    "scripts/check_links.py": ["tests/test_check_links.py"],
+    "scripts/coverage.py": ["tests/test_coverage.py"],
+    "scripts/edition-watch.json": ["tests/test_edition_watch.py"],
+    "scripts/watch_editions.py": ["tests/test_edition_watch.py"],
+    "docs/agents/map.json": ["tests/test_agent_native.py"],
+    "docs/testing.md": ["tests/test_product_docs.py"],
+    "CONTRIBUTING.md": ["tests/test_workflows.py"],
+    "README.md": ["tests/test_entry_pages.py", "tests/test_release.py"],
+    "README.fr.md": ["tests/test_entry_pages.py"],
+    "CHANGELOG.md": ["tests/test_release.py"],
+    "pyproject.toml": ["tests/test_release.py", "tests/test_workflows.py"],
+    ".github/workflows/check-links.yml": ["tests/test_edition_watch.py", "tests/test_workflows.py"],
+    ".github/workflows/watch-editions.yml": ["tests/test_edition_watch.py", "tests/test_workflows.py"],
 }
+# Folders this repository checks outside the module map: a path takes the tests of the first folder it is under.
+EXTRA_FOLDERS = (
+    (".github/", ["tests/test_release.py", "tests/test_workflows.py"]),
+    ("docs/", ["tests/test_doc_examples.py", "tests/test_product_docs.py"]),
+    ("examples/field-tests/", ["tests/e2e/test_field_kit.py"]),
+    ("examples/", ["tests/test_doc_examples.py", "tests/test_doc_promises.py"]),
+)
+# The Node coordinator has its own suite, which `cd integrations/ci && npm test` runs.
+NODE_FOLDER = "integrations/ci/"
 
 
 def plan(changed: list[str], module_map: dict) -> dict:
@@ -67,8 +90,12 @@ def plan(changed: list[str], module_map: dict) -> dict:
             if "web-typecheck" not in commands:
                 commands.append("web-typecheck")
             continue
-        extra = EXTRA.get(path)
-        if extra and add_tests([extra]):
+        if path.startswith(NODE_FOLDER):
+            if "node-tests" not in commands:
+                commands.append("node-tests")
+            continue
+        extra = EXTRA.get(path) or next((found for prefix, found in EXTRA_FOLDERS if path.startswith(prefix)), None)
+        if extra and add_tests(extra):
             continue
         unattached.append(path)
     return {"tests": tests, "commands": commands, "unattached": unattached}
@@ -125,6 +152,13 @@ def main(argv: list[str] | None = None) -> int:
                 failed = True
             else:
                 failed = _run([npm, "run", "typecheck"], ROOT / "web") != 0 or failed
+        elif command == "node-tests":
+            npm = shutil.which("npm")
+            if npm is None:
+                print("check_fast: npm is not on PATH, so integrations/ci/ cannot be tested.")
+                failed = True
+            else:
+                failed = _run([npm, "test"], ROOT / "integrations" / "ci") != 0 or failed
         else:
             raise SystemExit(f"check_fast: unknown command {command}.")
     if selected["unattached"]:
