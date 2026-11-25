@@ -235,7 +235,7 @@ def _shared_item(state: Path, deliverable: str) -> None:
                          "share, or the folder that openguildkit docs export wrote.")
 
 
-def _loopback(host: str) -> bool:
+def loopback(host: str) -> bool:
     """True for an address of this machine, where a local Documentalist runs without TLS."""
     if host == "localhost" or host.endswith(".localhost"):
         return True
@@ -255,7 +255,7 @@ def portal_space(portal: str) -> str:
         host, port = address.hostname, address.port
     except ValueError:
         host = port = None
-    secure = address.scheme == "https" or (address.scheme == "http" and bool(host) and _loopback(host))
+    secure = address.scheme == "https" or (address.scheme == "http" and bool(host) and loopback(host))
     if not host or not secure:
         raise ValueError("Give the https address of the Documentalist portal, such as https://docs.example.org/p/support-portal "
                          "(http only for an instance on this machine: localhost, 127.0.0.1 or ::1).")

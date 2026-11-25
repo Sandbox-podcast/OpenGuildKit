@@ -7,6 +7,7 @@ or without end dates, 409 outside magic-link mode) and logout. No real instance 
 
 import contextlib
 import json
+import os
 import socket
 import sys
 import tempfile
@@ -92,6 +93,22 @@ class Portal(BaseHTTPRequestHandler):
                 self.reply({"emails": self.emails, "expirations": self.expirations})
         else:
             self.reply({}, 404)
+
+
+class Proxy(BaseHTTPRequestHandler):
+    """A proxy the environment declares: it records what reaches it, forwards nothing and answers 502."""
+
+    received: list = []
+
+    def log_message(self, *args):
+        pass
+
+    def record(self):
+        body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+        type(self).received.append((self.command, self.path, body.decode("utf-8", "replace")))
+        self.send_error(502)
+
+    do_GET = do_POST = do_CONNECT = record
 
 
 class PortalVerificationTests(CapturedCli, unittest.TestCase):
@@ -332,6 +349,29 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
                                     code=1)
         self.assertIn("The local register has no shares for", error)
         self.assertEqual(prompt.call_count, 0)
+
+    def test_a_proxy_of_the_environment_receives_nothing_from_a_local_portal(self):
+        """Over http the password of a local instance is in clear: it never leaves the machine through a proxy."""
+        self.share(["reader@example.test"], day(10))
+        portal = self.portal.replace("http://", "https://")
+        self.share(["reader@example.test"], day(10), portal=portal)
+        Portal.emails, Portal.expirations = ["reader@example.test"], {"reader@example.test": day(10)}
+        Proxy.received = []
+        proxy = ThreadingHTTPServer(("127.0.0.1", 0), Proxy)
+        thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(proxy.server_close)
+        self.addCleanup(thread.join)
+        self.addCleanup(proxy.shutdown)
+        address = f"http://127.0.0.1:{proxy.server_port}"
+        declared = {f"{name}_proxy": address for name in ("http", "https", "all")}
+        declared = {**declared, **{name.upper(): address for name in declared}, "no_proxy": "", "NO_PROXY": ""}
+        with patch.dict(os.environ, declared):
+            output, _ = self.verify()
+            self.verify(code=1, portal=portal)
+        self.assertIn("reader@example.test: register until " + day(10) + "; portal until " + day(10) + " (open); matches",
+                      output)
+        self.assertEqual(Proxy.received, [])
 
     def test_verify_portal_can_be_called_directly(self):
         self.share(["reader@example.test"], day(10))

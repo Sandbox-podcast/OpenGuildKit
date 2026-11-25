@@ -1,7 +1,8 @@
 """Compare a local share register with one Documentalist instance on explicit request.
 
 The observation describes the server's invitation policy, not a live reader session.
-Credentials are requested at a terminal, held in memory and never saved in the register.
+Credentials are requested at a terminal, held in memory and never saved in the register. An instance on
+this machine is reached without the proxies the environment declares: over http its password is in clear.
 """
 
 import getpass
@@ -14,10 +15,10 @@ from datetime import date
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
-from urllib.request import HTTPRedirectHandler, HTTPCookieProcessor, Request, build_opener
+from urllib.request import HTTPRedirectHandler, HTTPCookieProcessor, ProxyHandler, Request, build_opener
 
 from . import clock
-from .publishing import load_shares, portal_space, share_space
+from .publishing import load_shares, loopback, portal_space, share_space
 from .storage import project_lock, read_json, write_json
 
 
@@ -148,7 +149,10 @@ def verify_portal(state: Path, portal: str, user: str) -> dict:
     if not sys.stdin.isatty():
         raise ValueError("Portal verification needs an interactive terminal for the Documentalist password.")
     password = getpass.getpass(f"Documentalist password for {user}: ")
-    opener = build_opener(_NoRedirect(), HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    handlers = [_NoRedirect(), HTTPCookieProcessor(http.cookiejar.CookieJar())]
+    if loopback(urlsplit(origin).hostname or ""):
+        handlers.append(ProxyHandler({}))  # The traffic stays on this machine, credentials included.
+    opener = build_opener(*handlers)
     logged_in = False
     source, problem, invited, expirations, no_end_dates = "local-register", None, None, None, False
     try:
