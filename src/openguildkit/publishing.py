@@ -165,6 +165,17 @@ def _inside(output: Path, relative: str) -> bool:
     return True
 
 
+def _exported_files(manifest_path: Path) -> list[str]:
+    """The files the last export wrote, as its manifest lists them; a manifest without that list is refused by name."""
+    if not manifest_path.is_file():
+        return []
+    files = read_json(manifest_path).get("files")
+    if not isinstance(files, list) or not all(isinstance(path, str) for path in files):
+        raise ValueError(f"{manifest_path.name} is not an export manifest: its \"files\" must be a list of paths. "
+                         f"Restore {manifest_path.as_posix()} from git, or export to an empty folder.")
+    return files
+
+
 def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
                 sections: tuple[str, ...] = SECTIONS, openapi: Path | None = None, project: str = "Project",
                 overview: dict | None = None) -> dict:
@@ -177,7 +188,7 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
     if not_done:
         raise ValueError(f"Only completed tasks with recorded checks can be documented: {', '.join(not_done)}.")
     manifest_path = output / MANIFEST
-    previous = read_json(manifest_path)["files"] if manifest_path.is_file() else []
+    previous = _exported_files(manifest_path)
     if output.exists() and not manifest_path.is_file() and any(output.iterdir()):
         raise ValueError(f"{output} is not empty and was not created by openguildkit docs export.")
     pages = {}
@@ -198,7 +209,10 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
     pages["SUMMARY.md"] = "\n".join(summary)
     pages["README.md"] = f"# {project}\n\nDocumentation for version {version}, generated from completed OpenGuildKit tasks.\n"
     if openapi is not None:
-        pages[f"openapi/{openapi.name}"] = openapi.read_text(encoding="utf-8")
+        try:
+            pages[f"openapi/{openapi.name}"] = openapi.read_text(encoding="utf-8")
+        except UnicodeError as error:
+            raise ValueError(f"--openapi {openapi.name} is not UTF-8 text: {error}") from error
     escaping = sorted(path for path in pages if not _inside(output, path))
     if escaping:
         raise ValueError(f"{', '.join(escaping)} would be written outside {output}: remove the symbolic link and export again.")

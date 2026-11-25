@@ -10,6 +10,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - `alerts import` no longer resolves the alerts of a package that a pip-audit report skipped (an entry with a `skip_reason`), and does not count such an entry as an analyzed dependency.
 - A resolved alert that a later report lists again loses the acceptance of its risk, so a confirmed critical alert blocks its tasks again; `alerts import` names each alert whose acceptance it removed.
 - `alerts import` warns, and names the previous file, when a report resolves alerts under another file name than the scanner's previous import: a report of another lockfile resolves the alerts of the first. The scanner has one full report per project ([alerts](docs/alerts.md)).
+- `docs share verify` reports a server that does not answer in valid HTTP like any other unreachable portal, and `docs export` refuses by name an export manifest whose `files` is not a list of paths and an `--openapi` file that is not UTF-8, instead of printing a Python trace or an unnamed decoding error.
 
 ## 0.17.0
 

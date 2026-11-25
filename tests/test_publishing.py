@@ -146,6 +146,26 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         manifest["files"].append(entry)
         write_json(site / ".openguildkit-export.json", manifest)
 
+    def test_export_refuses_a_manifest_without_a_list_of_files_and_names_it(self):
+        self.done_task()
+        manifest = self.root / "docs-site" / publishing.MANIFEST
+        for content in ('{"version": "1"}', '{"files": null}', '{"files": "reference/a.md"}', '{"files": ["a.md", 3]}'):
+            with self.subTest(manifest=content):
+                manifest.write_text(content, encoding="utf-8")
+                _, error = self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "2",
+                                        code=1)
+                self.assertIn(f"{publishing.MANIFEST} is not an export manifest", error)
+                self.assertEqual(manifest.read_text(encoding="utf-8"), content)
+                self.assertEqual(sorted(path.name for path in (self.root / "docs-site").iterdir()), [publishing.MANIFEST])
+
+    def test_export_names_an_openapi_file_that_is_not_utf8(self):
+        self.done_task()
+        (self.root / "api.yaml").write_bytes(b"\xff\xfeopenapi: 3.0.0\n")
+        _, error = self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "2",
+                                "--openapi", "api.yaml", code=1)
+        self.assertIn("--openapi api.yaml is not UTF-8 text", error)
+        self.assertEqual(sorted(path.name for path in (self.root / "docs-site").iterdir()), [publishing.MANIFEST])
+
     def test_export_keeps_a_file_the_manifest_places_above_the_output_folder(self):
         site = self.exported_site()
         victim = self.root / "victim.txt"

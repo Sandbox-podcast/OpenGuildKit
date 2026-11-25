@@ -5,6 +5,7 @@ Credentials are requested at a terminal, held in memory and never saved in the r
 """
 
 import getpass
+import http.client
 import http.cookiejar
 import json
 import re
@@ -59,6 +60,8 @@ def _reason(error: Exception, origin: str, signed_in: bool = False) -> str:
         return f"{origin} did not answer ({reason})."
     if isinstance(error, (TimeoutError, OSError)):
         return f"{origin} did not answer ({error})."
+    if isinstance(error, http.client.HTTPException):
+        return f"{origin} did not answer in valid HTTP ({type(error).__name__})."
     return str(error) if isinstance(error, ValueError) else "the answer could not be read."
 
 
@@ -190,7 +193,7 @@ def verify_portal(state: Path, portal: str, user: str) -> dict:
                 date.fromisoformat(day)
             invited, source = data["emails"], "documentalist-api"
             expirations = {address.strip().lower(): day for address, day in data["expirations"].items()}
-    except (HTTPError, URLError, OSError, ValueError, UnicodeError) as error:
+    except (HTTPError, URLError, OSError, ValueError, UnicodeError, http.client.HTTPException) as error:
         invited, expirations, source = None, None, "local-register"
         problem = f"The portal could not be verified: {_reason(error, origin, logged_in)}"
     finally:
@@ -198,7 +201,7 @@ def verify_portal(state: Path, portal: str, user: str) -> dict:
         if logged_in:
             try:
                 _json(opener, origin, "/api/auth/logout", {})
-            except (HTTPError, URLError, OSError, ValueError, UnicodeError):
+            except (HTTPError, URLError, OSError, ValueError, UnicodeError, http.client.HTTPException):
                 pass
     report = {"space": space, "checked_at": clock.real_timestamp(), "source": source, "problem": problem,
               "rows": _rows(shares, space, invited, expirations, no_end_dates),
