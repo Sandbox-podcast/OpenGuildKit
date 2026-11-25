@@ -48,7 +48,7 @@ test('merge checks the waiver clock after the final read and sends the exact hea
     }, { api, reconcile, clock });
 
     if (scenario === 'changed-base') {
-      assert.throws(invoke, /branche cible a évolué/);
+      assert.throws(invoke, /The target branch changed during the check/);
     } else {
       const result = invoke();
       assert.equal(result.exitCode, { expired: 1, 'changed-rule': 1, 'inactive-protection': 2 }[scenario] ?? 0);
@@ -73,7 +73,7 @@ test('the administrator check only approves a ruleset dedicated to the expected 
   assert.equal(verify({ bypass_actors: [actor, { ...actor, actor_id: 9 }] }).approved, false);
   assert.equal(verify({ bypass_actors: [{ ...actor, bypass_mode: 'always' }] }).approved, false);
   assert.equal(verify({ rules: [{ type: 'update' }, { type: 'pull_request' }] }).approved, false);
-  assert.throws(() => verify({ bypass_actors: undefined }), /GitHub masque les exceptions/);
+  assert.throws(() => verify({ bypass_actors: undefined }), /GitHub hides the bypass actors/);
 });
 
 test('the merge installation must match the app and be scoped to the target repository', () => {

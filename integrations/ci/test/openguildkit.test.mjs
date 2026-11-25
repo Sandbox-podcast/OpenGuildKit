@@ -544,4 +544,13 @@ test('the help and the usage errors are in English', () => {
   assert.doesNotMatch(help.stdout, /[^\x20-\x7e\n]/);
   assert.match(run('frobnicate').stderr, /^Unknown command: frobnicate\. Use --help\.$/m);
   assert.match(run('reconcile').stderr, /^Missing arguments\. Use --help\.$/m);
+  const releases = run('releases');
+  assert.equal(releases.status, 2);
+  assert.match(releases.stderr, /^A GitHub repository, the stable or pilot channel and the installed version X\.Y\.Z are required\.$/m);
+});
+
+test('the error messages of releases, merge and merge-protection are in English', () => {
+  for (const name of ['releases', 'merge', 'merge-protection']) {
+    assert.doesNotMatch(readFileSync(new URL(`../lib/${name}.mjs`, import.meta.url), 'utf8'), /[^\x00-\x7f]/, name);
+  }
 });

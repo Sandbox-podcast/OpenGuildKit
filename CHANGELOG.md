@@ -8,6 +8,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - Features: `openguildkit features` lists 20 purposes (documentation portal, issue tracking, payroll, container registry...), each with a lead tool and its three best-known alternatives, and turns an option on or off in the profile with who and why. The web interface shows them in a new place, the Arsenal.
 - New bundled tool IDs: `adp`, `apache-spark`, `apigee`, `appdynamics`, `auth0`, `discord`, `docker-hub`, `eclipse`, `gravitee`, `harbor`, `jetbrains`, `jfrog-artifactory`, `keycloak`, `kong`, `lens`, `mattermost`, `microsoft-entra-id`, `npm`, `okta`, `portainer`, `rancher`, `silae`, `sonatype-nexus`, `splunk`, `visual-studio`, `vscode`, `zoom`. Kibana is now an alias of Elastic. If a project catalog already defines one of these tools or names, rename its local entry and update the profile, or remove the project definition to use the bundled tool.
 - `openguildkit-ci` reads a `--config`, `--answers` or `--evidence` file that starts with a UTF-8 byte order mark, as a Windows editor writes it, and names the file when its JSON is invalid.
+- The error messages of `openguildkit-ci releases`, `merge` and `merge-protection` are in English, like its help and usage errors.
 
 ## 0.17.0
 

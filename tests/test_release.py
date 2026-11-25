@@ -278,6 +278,9 @@ class FrenchPagesTest(unittest.TestCase):
         self.assertIn("`web/`", rule)
         self.assertIn("French", rule)
         self.assertIn("because", rule)
+        for report in ("resume-check-2026-11-24.md", "resume-check-2026-11-25.md"):
+            self.assertIn(f"`examples/export-expiry/{report}`", rule)
+            self.assertTrue((ROOT / "examples" / "export-expiry" / report).is_file())
         top = _read("README.fr.md").split("\n## ", 1)[0]
         self.assertIn("`web/`", top)
         self.assertIn("en français", top)
