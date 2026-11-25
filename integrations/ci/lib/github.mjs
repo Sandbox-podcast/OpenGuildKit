@@ -131,7 +131,7 @@ function synchronizeProject(project, folder, { request, fetchRefs }, errors) {
 
 // An error on the policy repository stops everything. An error on one project or one PR is reported for that item.
 function synchronize(configPath, dependencies) {
-  const config = JSON.parse(readFileSync(configPath, 'utf8'));
+  const config = parseJsonObject(readFileSync(configPath), configPath);
   const folder = dirname(resolve(configPath));
   const policy = config.policyRepo;
   const policyPath = resolve(folder, policy.path);

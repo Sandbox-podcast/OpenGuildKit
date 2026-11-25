@@ -36,6 +36,8 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - Pack `github-actions-security` 1.2.0: `declare-workflow-permissions` now fails when any workflow lacks `permissions:` instead of passing when one has it, and the new rule `refuse-write-all-permissions` fails on `write-all`. A `text` check takes `each: true`, which asks every file its paths match to hold one of the texts. Projects that use the pack review the change with `openguildkit update`; their pending approvals need a new consultation.
 - `task_check_results` of the project MCP server (`openguildkit --project PATH mcp`) now returns `omitted` and `failed_omitted`: the number of recorded checks it does not list because their name is free text, such as a ChaosFolk scenario `checkout_flow.json`, and how many of them failed. A failed scenario no longer disappears from the answer without a trace.
 - A rule `check` can no longer name a path inside `.git` or `.openguildkit` (`.git/config`, `.openguildkit/project.json`): the catalog refuses it with the rule's file and field, where a literal path used to read them although wildcards never did.
+- `openguildkit-ci` reads a `--config`, `--answers` or `--evidence` file that starts with a UTF-8 byte order mark, as a Windows editor writes it, and names the file when its JSON is invalid.
+- The error messages of `openguildkit-ci releases`, `merge` and `merge-protection` are in English, like its help and usage errors.
 
 ## 0.17.0
 

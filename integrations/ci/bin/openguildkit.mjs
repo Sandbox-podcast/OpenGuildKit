@@ -11,6 +11,7 @@ import { mergeGithub } from '../lib/merge.mjs';
 import { watchGithub } from '../lib/watch.mjs';
 import { checkKitRelease } from '../lib/releases.mjs';
 import { inspectMergeInstallation, inspectMergeProtection } from '../lib/merge-protection.mjs';
+import { parseJsonObject } from '../lib/json.mjs';
 import { checkStateDirectory } from '../lib/state-directory.mjs';
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -124,7 +125,7 @@ function adoption(command, args) {
     console.log(JSON.stringify(form, null, 2));
     return;
   }
-  const filled = JSON.parse(readFileSync(values.answers, 'utf8'));
+  const filled = parseJsonObject(readFileSync(values.answers), values.answers);
   if (filled.repositoryCommit !== form.repositoryCommit || filled.catalog?.policyCommit !== catalog.policyCommit ||
       filled.catalog?.catalogPath !== catalog.catalogPath) {
     throw new Error('Les références ont changé depuis le questionnaire. Confirmer les réponses pour les révisions voulues.');
@@ -244,7 +245,7 @@ function coordinate(command, args) {
     publish: values.publish, reportUrl: values['report-url'], ...(values.reset ? { reset: values.reset } : {}),
   };
   const result = command === 'record'
-    ? recordEvidence(values.state, values.work, JSON.parse(readFileSync(values.evidence, 'utf8')))
+    ? recordEvidence(values.state, values.work, parseJsonObject(readFileSync(values.evidence), values.evidence))
     : { github: reconcileGithub, reconcile, watch: watchGithub }[command](options);
   process.stdout.write(JSON.stringify(result, null, 2) + '\n');
   if (result.errors?.length) process.exitCode = 2;
