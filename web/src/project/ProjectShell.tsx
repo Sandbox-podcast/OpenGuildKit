@@ -10,13 +10,13 @@ import { PLACES, PLACE_GROUPS, type Place } from '@/shared/places';
 import type { PlaceKey } from '@/shared/pixel/buildings';
 import { Icon } from '@/shared/pixel/icons';
 import { SceneArt } from '@/shared/pixel/Sprite';
-import { Button, Segmented } from '@/shared/ui/core';
+import { Button, Notice, Segmented } from '@/shared/ui/core';
 import { Toasts } from '@/shared/ui/overlay';
 import { currentSession } from './api';
-import { invalidate } from './query';
+import { invalidate, showActionWarning, useActionWarning } from './query';
 import { placeCounts, signalsOf, useOverview, useProfile } from './data';
 import { setPrefs, usePrefs } from './prefs';
-import { ServerWords, TerminalDialog, TouchedNotice } from './parts';
+import { Pre, ServerWords, TerminalDialog, TouchedNotice } from './parts';
 import { errorText } from './refusals';
 import { ProjectSearch } from './ProjectSearch';
 import { useShortcuts } from '@/shared/shortcuts';
@@ -71,6 +71,7 @@ export function BareShell({ children }: { children: ReactNode }) {
 }
 
 export function ProjectShell({ children }: { children: ReactNode }) {
+  const actionWarning = useActionWarning();
   const { mode } = usePrefs();
   const pro = mode === 'focus';
   const route = useRoute();
@@ -150,6 +151,10 @@ export function ProjectShell({ children }: { children: ReactNode }) {
         {overview.error && <div className="notice danger" role="alert"><Icon name="warn" size={16} /><div><span lang={errorText(overview.error).lang}>{errorText(overview.error).text}</span><ServerWords detail={errorText(overview.error).detail} /></div></div>}
         {place && <PlaceHeader place={place} pro={pro} compact={route.parts.length > 1} />}
         <TouchedNotice />
+        {actionWarning && <Notice tone="warn" title="Avertissements de la commande">
+          <Pre text={actionWarning} />
+          <Button size="small" onClick={() => showActionWarning('')}>Masquer les avertissements</Button>
+        </Notice>}
         {children}
       </main>
       <ProjectSearch open={searchOpen} onClose={() => setSearchOpen(false)} />

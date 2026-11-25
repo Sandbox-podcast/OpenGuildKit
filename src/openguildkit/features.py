@@ -71,7 +71,8 @@ def features_view(features: list[dict], tools: dict, profile: dict) -> list[dict
     enabled = enabled_tools(profile, tools)
     return [{**feature, "enabled": any(option["tool"] in enabled for option in feature["options"]),
              "options": [{**option, "enabled": option["tool"] in enabled, "servers": len(tools[option["tool"]]["servers"]),
-                          "vendor": tools[option["tool"]]["vendor"]} for option in feature["options"]]}
+                          "vendor": tools[option["tool"]]["vendor"],
+                          "tool_title": tools[option["tool"]]["title"]} for option in feature["options"]]}
             for feature in features]
 
 

@@ -24,13 +24,13 @@ export function Arsenal() {
       </Notice>
       <Q q={features}>{(list) => <>
         <Panel title={`${list.filter((f) => f.enabled).length} fonctionnalité(s) active(s) sur ${list.length}`}>
-          <p className="small muted">Le Blueprint garde la liste des outils du profil ; l’Arsenal la présente par usage.</p>
+          <p className="small muted">Un outil partagé active toutes les fonctionnalités qui l’utilisent. Le Blueprint garde la liste des outils du profil.</p>
         </Panel>
         <FeatureCards features={list} busy={busy !== null} onToggle={(option, feature) => setPicked({ option, feature })} />
       </>}</Q>
       <Dialog open={!!picked} onClose={() => setPicked(null)} title={picked ? `${enabling ? 'Activer' : 'Désactiver'} ${picked.option.title}` : ''}>
         {picked && <>
-          <p className="small">{purposeLabel(picked.feature.purpose)} : {enabling ? 'l’outil rejoint' : 'l’outil quitte'} la liste des outils du profil. Le changement est inscrit dans l’historique du profil et dans AGENTS.md.</p>
+          <p className="small">{purposeLabel(picked.feature.purpose)} : {picked.option.tool_title ?? picked.option.tool} {enabling ? 'rejoint' : 'quitte'} la liste des outils du profil. Le changement est inscrit dans l’historique du profil et dans AGENTS.md.</p>
           <ActionForm busy={busy !== null} submit={enabling ? 'Activer' : 'Désactiver'} initial={{ by }} fields={[
             { name: 'by', label: 'Personne qui décide', required: true },
             { name: 'reason', label: 'Pourquoi', required: true, placeholder: enabling ? 'L’équipe suit ses tickets dans cet outil' : 'L’équipe ne s’en sert plus' },

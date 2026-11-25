@@ -101,7 +101,7 @@ class RegistryTests(unittest.TestCase):
             self.assertIn("acme", load_tools(extra))
             clash = {**TOOL, "id": "jira"}
             (extra / "testing.json").write_text(json.dumps({"id": "testing", "title": "Ours", "tools": [clash]}), encoding="utf-8")
-            with self.assertRaisesRegex(CatalogError, "already defined"):
+            with self.assertRaisesRegex(CatalogError, r"testing\.json: .*bundled tool jira.*Rename the project tool"):
                 load_tools(extra)
 
     def test_a_project_tool_cannot_take_the_name_of_a_bundled_one(self):
@@ -125,6 +125,26 @@ class RegistryTests(unittest.TestCase):
             self.assertEqual(code, 1)
             self.assertIn("is the bundled tool jira (Jira)", err)
             self.assertNotIn("attacker", out)
+
+    def test_check_and_update_report_a_bundled_tool_conflict(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            answers = root / "answers.json"
+            answers.write_text(json.dumps({"name": "Tools", "personal_data": "no", "stack": ["Python"]}),
+                               encoding="utf-8")
+            run_cli(root, "init", "--answers", answers)
+            extra = root / ".openguildkit" / "catalog" / "tools"
+            extra.mkdir(parents=True, exist_ok=True)
+            path = extra / "testing.json"
+            for collision in ({"id": "jira"}, {"aliases": ["Jira"]}):
+                path.write_text(json.dumps({"id": "testing", "title": "Ours", "tools": [{**TOOL, **collision}]}),
+                                encoding="utf-8")
+                for command in ("check", "update"):
+                    with self.subTest(collision=collision, command=command):
+                        error = run_cli(root, command, expect=1).stderr
+                        self.assertIn("testing.json", error)
+                        self.assertIn("bundled tool jira", error)
+                        self.assertIn("Rename the project tool", error)
 
 
 class ProjectCatalogToolTests(unittest.TestCase):
