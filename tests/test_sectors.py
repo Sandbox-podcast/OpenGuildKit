@@ -329,5 +329,150 @@ class SoftwarePublisherAndAccessibilityTests(unittest.TestCase):
                 self.assertIn(norm_id, errors.getvalue())
 
 
+FRENCH_PACKS = {
+    "france-health-data-hosting": "healthcare",
+    "france-rgaa-accessibility": "public-sector",
+    "france-public-sector-security": "public-sector",
+    "france-cookies-and-trackers": None,
+    "france-e-invoicing": None,
+}
+FRENCH_RULE_VERB = (r"^(Ask|When|For|Add|Make|Keep|Show|Provide|Write|Collect|Test|Record|Present|Do not|Configure|"
+                    r"Build|Let|Send|Compute|Generate|Pin|Compare|Use|Host)\b")
+FRENCH_HOSTS = ("legifrance.gouv.fr", "cnil.fr", "numerique.gouv.fr", "impots.gouv.fr", "esante.gouv.fr",
+                "cyber.gouv.fr", "ssi.gouv.fr", "entreprises.gouv.fr")
+
+
+class FrenchPackTests(unittest.TestCase):
+    """The French packs sit on top of the EU ones: they say France, who they bind and when they do not apply."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = load_catalog()
+
+    def norms(self):
+        questions = {question["id"]: question for question in init_questions(self.catalog, "Ledger")}
+        return {norm["id"]: norm for norm in questions["norms"]["norms"]}
+
+    def test_each_french_pack_names_france_its_limits_and_claims_no_compliance(self):
+        for pack_id in FRENCH_PACKS:
+            pack = self.catalog["packs"][pack_id]
+            pattern = self.catalog["patterns"][pack_id]
+            with self.subTest(pack=pack_id):
+                self.assertRegex(pack["description"], r"^France only\.")
+                self.assertRegex(pack["description"], r"do not establish compliance")
+                self.assertRegex(pack["title"], r"France|French")
+                self.assertRegex(pattern["title"] + pattern["description"], r"France|French")
+                self.assertEqual(pattern["packs"], [pack_id])
+                self.assertEqual(pattern["kind"], "regulation")
+                self.assertLessEqual(len(pack["rules"]), 8)
+                self.assertGreaterEqual(len(pack["sources"]), 2)
+                for rule in pack["rules"]:
+                    text = f"{rule['instruction']} {rule['verification']}"
+                    self.assertNotRegex(text, r"(?i)\bcompliant\b|ensures? compliance")
+                    self.assertRegex(rule["instruction"], FRENCH_RULE_VERB)
+                    self.assertRegex(rule["verification"], r"^(Link|Open|Run|Check|Find|Show|Test|Compare|Send)\b")
+                    self.assertIn("manual", rule, rule["id"])
+
+    def test_the_sources_of_a_french_pack_are_official_french_pages_opened_on_the_day_of_the_lot(self):
+        for pack_id in FRENCH_PACKS:
+            for record in (self.catalog["packs"][pack_id], self.catalog["patterns"][pack_id]):
+                for source in record["sources"]:
+                    host = source["url"].split("/")[2]
+                    with self.subTest(pack=pack_id, url=source["url"]):
+                        self.assertTrue(any(host == name or host.endswith("." + name) for name in FRENCH_HOSTS), host)
+                        self.assertEqual(source["checked"], "2026-11-25")
+
+    def test_the_laws_the_french_rules_cite_are_named_in_the_rules_that_rely_on_them(self):
+        text = {pack_id: " ".join(f"{rule['instruction']} {rule['verification']}"
+                                  for rule in self.catalog["packs"][pack_id]["rules"]) for pack_id in FRENCH_PACKS}
+        for fact in ("Art. L1111-8", "Art. R1111-8-8", "Art. R1111-9", "Art. R1111-11", "EU or EEA"):
+            self.assertIn(fact, text["france-health-data-hosting"])
+        for fact in ("Art. 47 of loi n° 2005-102", "10 %", "50 %", "Défenseur des droits"):
+            self.assertIn(fact, text["france-rgaa-accessibility"])
+        for fact in ("Art. 82", "guidelines point 27", "recommendation section 2.3", "6 months"):
+            self.assertIn(fact, text["france-cookies-and-trackers"] + self.catalog["packs"]["france-cookies-and-trackers"]["description"])
+        for fact in ("décret n° 2010-112", "décret n° 2022-513", "SecNumCloud"):
+            self.assertIn(fact, text["france-public-sector-security"])
+        for fact in ("plateforme agréée", "XP Z12-012", "SIREN", "Chorus Pro"):
+            self.assertIn(fact, text["france-e-invoicing"])
+
+    def test_the_cnil_pack_tells_a_legal_requirement_from_a_recommendation(self):
+        for rule in self.catalog["packs"]["france-cookies-and-trackers"]["rules"]:
+            with self.subTest(rule=rule["id"]):
+                text = f"{rule['instruction']} {rule['verification']}"
+                self.assertRegex(text, r"legal requirement|recommend|CNIL considers|guidelines point")
+
+    def test_a_sector_preselects_its_french_patterns_and_the_others_are_only_suggested(self):
+        for sector in ("healthcare", "public-sector"):
+            plan = recommend_patterns(self.catalog, [], sector, [])
+            expected = {pack_id for pack_id, home in FRENCH_PACKS.items() if home == sector}
+            self.assertEqual({entry["id"] for entry in plan["matched"] if entry["id"].startswith("france-")}, expected)
+            for entry in plan["matched"]:
+                self.assertEqual(entry["reasons"], [f"sector {sector}"])
+        for pack_id, home in FRENCH_PACKS.items():
+            if home is None:
+                self.assertNotIn("match", self.catalog["patterns"][pack_id])
+                for sector in self.catalog["sectors"]:
+                    plan = recommend_patterns(self.catalog, [], sector, [])
+                    self.assertNotIn(pack_id, {entry["id"] for entry in plan["matched"]})
+        legal = recommend_patterns(self.catalog, [], "general", ["legal"], personal_data=True)
+        self.assertLessEqual(set(FRENCH_PACKS), {entry["id"] for entry in legal["suggested"]})
+        self.assertFalse(set(FRENCH_PACKS) & {entry["id"] for entry in legal["matched"]})
+
+    def test_the_norms_question_proposes_the_sector_ones_and_says_when_to_decline(self):
+        norms = self.norms()
+        self.assertEqual(norms["france-health-data-hosting"]["when"], {"sectors": ["healthcare"]})
+        for pack_id in ("france-rgaa-accessibility", "france-public-sector-security"):
+            self.assertEqual(norms[pack_id]["when"], {"sectors": ["public-sector"]})
+        self.assertNotIn("france-cookies-and-trackers", norms)
+        self.assertNotIn("france-e-invoicing", norms)
+        for pack_id in ("france-health-data-hosting", "france-rgaa-accessibility", "france-public-sector-security"):
+            self.assertRegex(norms[pack_id]["help"], r"decline it")
+
+    def test_a_healthcare_project_outside_france_declines_the_hosting_norm_with_who_and_why(self):
+        questions = init_questions(self.catalog, "Ledger")
+        answers = {"name": "Ledger", "sector": "healthcare", "personal_data": "no",
+                   "norms": {"health-data-protection": "yes"}}
+        with self.assertRaisesRegex(ValueError, "france-health-data-hosting"):
+            setup_profile(answers, self.catalog, questions)
+        decline = {"answer": "no", "by": "Camille Martin", "reason": "Hosted in Germany only"}
+        profile, _ = setup_profile({**answers, "norms": {**answers["norms"], "france-health-data-hosting": decline}},
+                                   self.catalog, questions)
+        self.assertEqual([entry["id"] for entry in profile["declined"]], ["france-health-data-hosting"])
+        self.assertIn("health-data-protection", profile["patterns"])
+        self.assertNotIn("france-health-data-hosting", profile["patterns"])
+        kept, _ = setup_profile({**answers, "norms": {**answers["norms"], "france-health-data-hosting": "yes"}},
+                                self.catalog, questions)
+        self.assertIn("france-health-data-hosting", resolved_profile(kept, self.catalog)["packs"])
+
+    def test_the_sector_contexts_name_the_french_patterns_and_when_to_decline_them(self):
+        health = " ".join(self.catalog["sectors"]["healthcare"]["context"])
+        self.assertIn("france-health-data-hosting", health)
+        self.assertIn("decline it", health)
+        public = " ".join(self.catalog["sectors"]["public-sector"]["context"])
+        for pack_id in ("france-rgaa-accessibility", "france-public-sector-security"):
+            self.assertIn(pack_id, public)
+        self.assertIn("decline them", public)
+
+    def test_each_reference_of_a_french_pack_names_it_back(self):
+        from openguildkit.references import load_references
+
+        references = {entry["id"]: entry for family in load_references().values() for entry in family["references"]}
+        for reference_id, pack_id in (("hds", "france-health-data-hosting"), ("rgaa", "france-rgaa-accessibility"),
+                                      ("cnil-cookies", "france-cookies-and-trackers"),
+                                      ("facturation-electronique-france", "france-e-invoicing")):
+            with self.subTest(reference=reference_id):
+                self.assertIn(pack_id, references[reference_id]["packs"])
+                self.assertIn(reference_id, self.catalog["patterns"][pack_id]["references"])
+
+    def test_the_e_invoicing_pack_builds_on_the_vat_pack_and_does_not_repeat_its_dates(self):
+        pack = self.catalog["packs"]["france-e-invoicing"]
+        self.assertEqual(pack["depends_on"], ["vat-and-e-invoicing"])
+        self.assertNotIn("meet-french-e-invoicing-dates", {rule["id"] for rule in pack["rules"]})
+        resolved = resolved_profile(validate_profile(
+            {"name": "Ledger", "patterns": ["france-e-invoicing"]}, self.catalog), self.catalog)
+        self.assertLessEqual({"france-e-invoicing", "vat-and-e-invoicing"}, set(resolved["packs"]))
+
+
 if __name__ == "__main__":
     unittest.main()
