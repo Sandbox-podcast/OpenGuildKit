@@ -29,6 +29,7 @@ jobs:
   recheck:
     if: github.ref == 'refs/heads/pilot/recheck-base'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       PR_NUMBER: ${{ inputs.pr }}
       EXPECTED_HEAD: ${{ inputs.commit }}

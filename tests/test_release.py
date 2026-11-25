@@ -337,6 +337,78 @@ class CiWorkflowTest(unittest.TestCase):
         self.assertEqual(len(uploads), 1, uploads)
 
 
+# The workflows of this repository and the templates a project copies. The workflow of the legacy fixture in
+# integrations/ci/prototype/demo reproduces the original prototype as it ran; the Node package does not ship it.
+TIMED_WORKFLOWS = [*WORKFLOWS, *(path for path in TEMPLATES if "prototype" not in path.relative_to(ROOT).parts)]
+
+
+class TimeLimitTest(unittest.TestCase):
+    def test_every_job_of_the_workflows_and_shipped_templates_has_a_time_limit(self):
+        for folder in (".github/workflows", "integrations/github", "integrations/ci/pilot"):
+            self.assertTrue(any(path.parent == ROOT / folder for path in TIMED_WORKFLOWS), folder)
+        for path in TIMED_WORKFLOWS:
+            for name, job in parse(path)["jobs"].items():
+                with self.subTest(workflow=path.relative_to(ROOT).as_posix(), job=name):
+                    limit = job.get("timeout-minutes")
+                    self.assertIsNotNone(limit, "GitHub stops a job without timeout-minutes after six hours.")
+                    self.assertTrue(limit.isdigit() and 0 < int(limit) <= 30, limit)
+
+
+def _glob(pattern: str) -> re.Pattern:
+    """A labeler glob as actions/labeler reads it (minimatch with dot files): ** spans folders, * and ? do not."""
+    parts = re.split(r"(\*\*/|\*\*|\*|\?)", pattern)
+    wildcards = {"**/": "(?:.*/)?", "**": ".*", "*": "[^/]*", "?": "[^/]"}
+    return re.compile("".join(wildcards.get(part, re.escape(part)) for part in parts))
+
+
+def labeler_globs() -> dict[str, list[str]]:
+    """The globs of each label in .github/labeler.yml."""
+    found = {}
+    for label, rules in parse(ROOT / ".github" / "labeler.yml").items():
+        for rule in rules:
+            for match in rule["changed-files"]:
+                globs = match["any-glob-to-any-file"]
+                found.setdefault(label, []).extend([globs] if isinstance(globs, str) else globs)
+    return found
+
+
+def labels_for(path: str) -> set[str]:
+    return {label for label, globs in labeler_globs().items() if any(_glob(glob).fullmatch(path) for glob in globs)}
+
+
+class LabelTest(unittest.TestCase):
+    """GitHub labels a pull request from its changed files, and the release notes group pull requests by label."""
+
+    def test_the_globs_use_only_the_wildcards_this_test_reads(self):
+        for label, globs in labeler_globs().items():
+            for glob in globs:
+                self.assertNotRegex(glob, r"[{}\[\]!]", label)
+        self.assertTrue(_glob("web/**").fullmatch("web/src/main.tsx"))
+        self.assertTrue(_glob("web/**").fullmatch("web/.gitignore"))
+        self.assertFalse(_glob("src/openguildkit/*.py").fullmatch("src/openguildkit/agent_files/skills/x.py"))
+
+    def test_every_tracked_file_outside_the_root_gets_a_label(self):
+        listed = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z"], capture_output=True, check=False)
+        if listed.returncode != 0:
+            self.skipTest("needs a Git checkout of the repository")
+        files = [name for name in listed.stdout.decode("utf-8").split("\0") if "/" in name]
+        self.assertGreater(len(files), 500)
+        globs = [_glob(glob) for globs in labeler_globs().values() for glob in globs]
+        unlabeled = [name for name in files if not any(glob.fullmatch(name) for glob in globs)]
+        self.assertEqual(unlabeled, [], "Add a rule to .github/labeler.yml for these files.")
+
+    def test_the_web_interface_and_the_whole_registry_get_their_labels(self):
+        self.assertEqual(labels_for("web/src/project/ProjectShell.tsx"), {"web"})
+        for folder in ("packs", "references", "tools", "tool-mocks", "deliverables", "features"):
+            self.assertIn("catalog", labels_for(f"src/openguildkit/registry/{folder}/example.json"), folder)
+
+    def test_each_label_has_a_category_in_the_release_notes(self):
+        categories = parse(ROOT / ".github" / "release.yml")["changelog"]["categories"]
+        grouped = {label for category in categories[:-1] for label in category["labels"]}
+        self.assertEqual(categories[-1]["labels"], ["*"])
+        self.assertEqual(set(labeler_globs()) - grouped, set())
+
+
 class InstalledCommandCheckTest(unittest.TestCase):
     """The script the package job runs on the installed wheel: it must pass on a built interface only."""
 
