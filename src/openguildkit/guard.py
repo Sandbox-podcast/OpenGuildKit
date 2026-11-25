@@ -376,6 +376,8 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
     }
     if "completed_at" in task:
         record["completed_at"] = task["completed_at"]
+    if task.get("lane"):
+        record.update(lane=task["lane"], paths=task["paths"])
     # What the change touches, so that CI can tell this record from a copy brought with another change.
     record["files"] = changed_files(root, decision.get("base_revision"))
     record["decision"]["payload"] = check_decision_seal(task)
@@ -545,6 +547,9 @@ def _record_shape(record: dict, relative: str) -> None:
     elif record.get("files") is not None and (not isinstance(record["files"], list)
                                               or not all(isinstance(item, str) for item in record["files"])):
         problem = "files must be a list of paths"
+    elif ("lane" in record or "paths" in record) and (record.get("lane") != "light" or not isinstance(record.get("paths"), list)
+                                                      or not all(isinstance(item, str) for item in record["paths"])):
+        problem = "lane and paths go together: the lane is light and paths a list of paths"
     elif "withdrawn" in record and (not isinstance(record["withdrawn"], dict) or not all(
             isinstance(record["withdrawn"].get(key), str) for key in ("by", "reason", "at"))):
         problem = "withdrawn must name who withdrew the approval, why and when (by, reason, at)"
@@ -627,6 +632,9 @@ def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, 
     if PurePosixPath(relative).parent.name == DECISIONS_DIR and PurePosixPath(relative).stem != record["task"]:
         return "decision-record-invalid", (
             f"{relative} names task {record['task']}: each record belongs in the file of its own task. {export_again}")
+    if (record.get("lane"), record.get("paths")) != (payload.get("lane"), payload.get("paths")):
+        return "decision-record-invalid", (f"{relative}: the lane or the paths of the record are not those that were "
+                                           f"approved. {export_again}")
     shown = shared_digest(record.get("brief"), record.get("summary"), record.get("boards"), record.get("rounds", []))
     if "shared_sha256" in payload and payload["shared_sha256"] != shown:
         return "decision-record-invalid", (

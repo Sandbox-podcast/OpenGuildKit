@@ -10,7 +10,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import alerts_cli
+from . import alerts_cli, light_lane
 from .alerts import blocking_alerts, load_register
 from .brains import brief_knowledge, consultation_context
 from .catalog import board_replacements
@@ -100,6 +100,12 @@ def add_parser(commands) -> None:
     new.add_argument("--file", type=Path, help="Read the brief from a UTF-8 Markdown or text file.")
     new.add_argument("--id", help="Use a readable lowercase task ID.")
     new.add_argument("--follows", metavar="TASK", help="Link the task to an earlier task's decision.")
+    new.add_argument("--lane", choices=(light_lane.LANE,),
+                     help="Open the task in the short lane, which a person turned on in the profile: one board, no "
+                          "questionnaire, limited to --paths.")
+    new.add_argument("--paths", nargs="+", metavar="GLOB",
+                     help="With --lane light: the folders or files the task may change, inside the profile's "
+                          "light_paths. Write the brief first.")
     listing = actions.add_parser("list", help="List the project's tasks with their status and next open point.")
     listing.add_argument("--status", help="Only tasks in this status.")
     listing.add_argument("--owner", help="Only tasks whose current decision this person took: the approval, the "
@@ -517,6 +523,8 @@ def _decision_prompt(state: Path, task: dict, profile: dict, register: dict) -> 
 def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
     if task["status"] == "approved":
         raise ValueError(decided_message(task, approval_problem(task, profile, catalog, root)))
+    if args.approve and (lane := light_lane.lane_problem(task, profile)):
+        raise ValueError(lane)
     policy = approval_policy(profile)
     base = git_revision(root) if args.approve else None
     signature = None
@@ -822,6 +830,8 @@ def _warn_inputs(original: object, recorded: object, label: str) -> None:
 
 def _questions(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The questionnaire as JSON, with the follow-ups and open points the answers leave."""
+    if light_lane.is_light(task):
+        raise ValueError(light_lane.no_questions_message(args.id))
     # One shape with or without answers: the follow-ups carry their prompt, so they can be asked as they are.
     if args.answers is None:
         answers, validated, open_list = {}, None, []
@@ -1126,6 +1136,8 @@ def _challenge(args, root: Path, state: Path, profile: dict, catalog: dict, task
 
 def _route(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """Preview the boards a consultation would select, and why."""
+    if light_lane.is_light(task):
+        raise ValueError(light_lane.no_route_message(args.id))
     if args.answers is None and "answers" not in task:
         raise ValueError(f"Pass the answers: openguildkit task route {args.id} --answers FILE previews the boards "
                          f"before openguildkit task consult {args.id} --answers FILE records them.")
@@ -1154,7 +1166,9 @@ def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     if args.brief_file is not None:
         with _input_file(args.brief_file):
             args.revised_brief = args.brief_file.read_text(encoding="utf-8-sig")
-    if args.reuse_answers:
+    if light_lane.is_light(task):
+        answers = _light_answers(args, task, profile)
+    elif args.reuse_answers:
         answers = _reused_answers(args, task)
     else:
         answers = (
@@ -1208,6 +1222,18 @@ def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     print(result["consultation"]["markdown"])
     for line in board_replacements(catalog):
         print(f"OpenGuildKit: {line}", file=sys.stderr)
+
+
+def _light_answers(args, task: dict, profile: dict) -> dict:
+    """The answers of a short-lane task: the lane's own. The lane convenes one board and takes no answers of the
+    requester's, so those options are refused, and a lane the profile no longer allows stops the consultation."""
+    used = [option for option, given in (("--answers", args.answers), ("--add", args.add), ("--remove", args.remove)) if given]
+    if used:
+        raise ValueError(light_lane.options_message(args.id, used))
+    problem = light_lane.lane_problem(task, profile)
+    if problem:
+        raise ValueError(problem)
+    return light_lane.default_answers(task)
 
 
 def _reused_answers(args, task: dict) -> dict:
@@ -1358,17 +1384,21 @@ def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
         raise ValueError("Supply either a task brief or --file PATH.")
     brief = args.file.read_text(encoding="utf-8-sig") if args.file else args.brief
     require_instructions(args, root, state, profile, catalog)
+    lane = light_lane.declare(args.lane, args.paths, profile)
     with project_lock(state):
         record = state / DECISIONS_DIR / f"{args.id}.json" if args.id else None
         if record is not None and record.is_file() and not task_path(state, args.id).is_file():
             raise ValueError(f"Task ID {args.id} is already used by the exported decision "
                              f"{record.relative_to(root).as_posix()}, a teammate's task or an earlier one: read it "
                              f"with openguildkit task show {args.id}, and choose another ID.")
-        task_id = create_task(state, brief, args.id, args.follows)
+        task_id = create_task(state, brief, args.id, args.follows, lane)
     print(task_id)
     _warn_inputs(brief.strip(), redact_credentials(brief.strip()), "task brief")
     # Standard output keeps only the ID, which scripts read; the next steps go to the agent on stderr, in the README's
     # order, with the folder the working files go in.
+    if lane:
+        print(light_lane.next_line(task_id, lane["paths"]), file=sys.stderr)
+        return
     print(f"Next: read the questions with openguildkit task questions {task_id}; save the answers in {WORK_DIR}/ "
           f"(Git ignores it), get the follow-up questions they call for with openguildkit task questions {task_id} "
           f"--answers FILE --follow-ups, preview the boards with openguildkit task route {task_id} --answers FILE, "
@@ -1404,7 +1434,8 @@ def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
             if row.get("closed_by"):
                 owner += f", closed by {row['closed_by']}"
             follows = f" (follows {row['follows']})" if row.get("follows") else ""
-            print(f"{row['id']} [{row['status']}{owner}] {row.get('brief', '')}{follows}")
+            lane = f" (short lane: {', '.join(row['paths'])})" if row.get("lane") else ""
+            print(f"{row['id']} [{row['status']}{owner}] {row.get('brief', '')}{lane}{follows}")
             print(f"    next: {row['next']}")
             if row.get("note"):
                 print(f"    note: {row['note']}")

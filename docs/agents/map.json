@@ -279,6 +279,7 @@
         "tests/test_deliberation.py",
         "tests/test_host_research.py",
         "tests/test_lenses_and_methods.py",
+        "tests/test_light_lane.py",
         "tests/test_new_brains.py",
         "tests/test_project_walk.py",
         "tests/test_proportionate_setup.py",
@@ -305,6 +306,7 @@
         "tests/test_decision_text.py",
         "tests/test_decisions.py",
         "tests/test_guard.py",
+        "tests/test_light_lane.py",
         "tests/test_personal_data_doc.py",
         "tests/test_record_integrity.py",
         "tests/test_record_lifecycle.py"
@@ -391,6 +393,7 @@
         "tests/test_clock.py",
         "tests/test_gemini_host.py",
         "tests/test_guard.py",
+        "tests/test_light_lane.py",
         "tests/test_record_lifecycle.py",
         "tests/test_sarif_commands.py",
         "tests/test_setup_questionnaire.py",
@@ -443,9 +446,16 @@
       "entry": [
         "excluded_reason",
         "declared_excluded",
-        "normalize_entries"
+        "normalize_entries",
+        "matches",
+        "declare",
+        "board_for",
+        "default_answers",
+        "proposed_routing",
+        "lane_problem"
       ],
       "tests": [
+        "tests/e2e/test_light_lane.py",
         "tests/test_light_lane.py"
       ],
       "doc": "docs/architecture.md",
@@ -809,6 +819,7 @@
       "tests": [
         "tests/test_brain_selection.py",
         "tests/test_decision_brief.py",
+        "tests/test_light_lane.py",
         "tests/test_new_brains.py",
         "tests/test_performance.py",
         "tests/test_routing.py"
@@ -1062,7 +1073,8 @@
         "tests/test_closing_points.py",
         "tests/test_deliberation.py",
         "tests/test_performance.py",
-        "tests/test_retro.py"
+        "tests/test_retro.py",
+        "tests/test_light_lane.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1077,7 +1089,9 @@
       "tests": [
         "tests/e2e/test_task_retro.py",
         "tests/test_architecture.py",
-        "tests/test_next_steps.py"
+        "tests/test_next_steps.py",
+        "tests/e2e/test_light_lane.py",
+        "tests/test_light_lane.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1173,6 +1187,7 @@
         "tests/test_clock.py",
         "tests/test_decision_brief.py",
         "tests/test_deliberation.py",
+        "tests/test_light_lane.py",
         "tests/test_output_size.py"
       ],
       "doc": "docs/architecture.md"

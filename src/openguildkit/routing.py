@@ -670,16 +670,19 @@ def suggested_patterns(profile: dict, catalog: dict, task: dict, answers: dict) 
     return [{"id": pattern_id, "reason": reason} for pattern_id, reason in suggestions.items()]
 
 
-def select_boards(profile: dict, catalog: dict, task: dict, answers: dict, selection: dict | None = None) -> dict:
+def select_boards(profile: dict, catalog: dict, task: dict, answers: dict, selection: dict | None = None,
+                  proposed: dict | None = None) -> dict:
     """Apply the project's required boards and the requester's changes to the proposed routing.
 
     selection: {"add": [ids], "remove": [ids], "reason": text, "delegate": {board: person}}
+    proposed: the routing a short-lane task is given (light_lane.proposed_routing) in place of the words of the brief.
     Returns {"routing": {...}, "adjustments": [...], "delegations": {...}}.
     """
     selection = selection or {}
     boards = catalog["boards"]
     enabled = set(profile.get("boards") or boards)
-    routing = _route_boards(profile, catalog, task, answers)
+    routing = {board_id: list(reasons) for board_id, reasons in proposed.items()} if proposed is not None \
+        else _route_boards(profile, catalog, task, answers)
     required = list(profile.get("required_boards", []))
     delegations = dict(selection.get("delegate") or {})
     unknown = sorted(set(delegations) - set(required))
