@@ -1,9 +1,11 @@
-"""Delivery: one version everywhere, a wheel built and checked as CI proves it, release notes from the last stable
-release, required and bounded CI jobs, and the entry documents (governance, security, French README) kept true."""
+"""Delivery: one version everywhere (the last release, or a development version of the next one on main), a wheel
+built and checked as CI proves it, release notes from the last stable release, required and bounded CI jobs, and
+the entry documents (governance, security, French README) kept true."""
 
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -18,6 +20,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / ".github" / "scripts" / "release-notes.sh"
 CHECK_INSTALLED = ROOT / ".github" / "scripts" / "check-installed-cli.py"
 VERSION = re.compile(r"\bv(\d+\.\d+\.\d+)\b|openguildkit-(\d+\.\d+\.\d+)")
+STABLE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+DEVELOPMENT = re.compile(r"(\d+)\.(\d+)\.(\d+)\.dev(\d+)")
 
 
 def _read(relative: str) -> str:
@@ -33,6 +37,58 @@ def release_files() -> list[str]:
 
 def project_version() -> str:
     return tomllib.loads(_read("pyproject.toml"))["project"]["version"]
+
+
+def version_key(version: str) -> tuple[int, ...]:
+    """The release a version leads to, to compare them: 0.17.1.dev0 leads to 0.17.1."""
+    found = STABLE.fullmatch(version) or DEVELOPMENT.fullmatch(version)
+    if not found:
+        raise AssertionError(f"{version!r} is neither X.Y.Z nor X.Y.Z.devN")
+    return tuple(int(part) for part in found.groups()[:3])
+
+
+def is_development(version: str) -> bool:
+    return DEVELOPMENT.fullmatch(version) is not None
+
+
+def changelog_versions(changelog: str | None = None) -> list[str]:
+    """The versions the CHANGELOG has a section for, newest first."""
+    return re.findall(r"^## (\d+\.\d+\.\d+)\b", changelog or _read("CHANGELOG.md"), re.MULTILINE)
+
+
+def released_version() -> str:
+    """The last published version, the highest section of the CHANGELOG. Between two releases main is a development
+    version of the next one in pyproject.toml, and every other file keeps announcing this one."""
+    return max(changelog_versions(), key=version_key)
+
+
+def git(*arguments: str) -> str | None:
+    """What git prints in this copy, or None without git, outside a repository or on an error."""
+    try:
+        done = subprocess.run(["git", *arguments], cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
+                              timeout=60, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return done.stdout.strip() if done.returncode == 0 else None
+
+
+def repository_tags() -> dict[str, str]:
+    """The commit of each v* tag of this copy: empty without git or without tags, and "" for a tag whose commit a
+    shallow checkout does not hold."""
+    return {tag: git("rev-list", "-n", "1", tag) or "" for tag in (git("tag", "--list", "v*") or "").split()}
+
+
+def published_but_not_at_head(changelog: str, tags: dict[str, str], head: str | None) -> dict[str, str]:
+    """Each published version whose commit is not HEAD, with where it comes from: the v* tags, or, in a copy
+    without tags (a shallow CI checkout), the CHANGELOG sections. A first section that is a version is the release
+    being made, which HEAD may be."""
+    if tags:
+        return {tag[1:]: f"the tag {tag}" for tag, commit in tags.items()
+                if STABLE.fullmatch(tag[1:]) and commit != head}
+    versions = changelog_versions(changelog)
+    if re.search(r"^## (\S+)", changelog, re.MULTILINE).group(1) != "Unreleased":
+        versions = versions[1:]
+    return {version: "a section of CHANGELOG.md" for version in versions}
 
 
 def announced_versions() -> dict[str, set[str]]:
@@ -52,11 +108,36 @@ def announced_versions() -> dict[str, set[str]]:
 
 
 class VersionTest(unittest.TestCase):
-    def test_every_file_announces_the_same_version(self):
+    def test_without_tags_the_changelog_sections_stand_for_the_published_versions(self):
+        unreleased = "# Changelog\n\nIntro.\n\n## Unreleased\n\n- A change.\n\n## 0.17.0\n\n## 0.16.1 and earlier\n"
+        release = "# Changelog\n\nIntro.\n\n## 0.17.1\n\n- A change.\n\n## 0.17.0\n\n## 0.16.1 and earlier\n"
+        self.assertEqual(set(published_but_not_at_head(unreleased, {}, "head")), {"0.17.0", "0.16.1"})
+        self.assertEqual(set(published_but_not_at_head(release, {}, "head")), {"0.17.0", "0.16.1"})
+        tags = {"v0.17.0": "head", "v0.16.1": "older", "v0.15.0": "", "archive/x": "other"}
+        self.assertEqual(set(published_but_not_at_head(unreleased, tags, "head")), {"0.16.1", "0.15.0"})
+
+    def test_every_file_announces_the_last_release_and_only_pyproject_may_lead_to_the_next(self):
         found = announced_versions()
         for relative, versions in found.items():
             self.assertTrue(versions, f"{relative} announces no version")
-        self.assertEqual(set().union(*found.values()), {project_version()}, f"align the versions: {found}")
+        found.pop("pyproject.toml")
+        self.assertEqual(set().union(*found.values()), {released_version()}, f"align the versions: {found}")
+
+    def test_the_project_is_the_last_release_or_a_development_version_of_the_next(self):
+        project, released = project_version(), released_version()
+        if is_development(project):
+            self.assertGreater(version_key(project), version_key(released),
+                               f"{project} must lead to a version above {released}, the last release")
+        else:
+            self.assertEqual(project, released, f"main carries {project}, not the last release {released} or a "
+                                                f"development version of the next (X.Y.Z.devN)")
+
+    def test_the_version_differs_from_every_published_version_whose_commit_is_not_head(self):
+        published = published_but_not_at_head(_read("CHANGELOG.md"), repository_tags(), git("rev-parse", "HEAD"))
+        self.assertTrue(published, "neither the tags nor the CHANGELOG name a published version")
+        project = project_version()
+        self.assertNotIn(project, published, f"{project} is published ({published.get(project)}) and HEAD is not "
+                                             f"its commit: main carries X.Y.Z.devN between two releases")
 
     def test_the_release_steps_name_every_versioned_file(self):
         named = set(release_files())
@@ -66,8 +147,8 @@ class VersionTest(unittest.TestCase):
         for template in sorted((ROOT / "integrations" / "github").glob("*.yml")):
             self.assertIn(template.relative_to(ROOT).as_posix(), named)
 
-    def test_templates_install_the_release_of_this_version(self):
-        version = project_version()
+    def test_templates_install_the_last_published_release(self):
+        version = released_version()
         for template in sorted((ROOT / "integrations" / "github").glob("*.yml")):
             with self.subTest(template=template.name):
                 text = template.read_text(encoding="utf-8")
@@ -79,12 +160,20 @@ class VersionTest(unittest.TestCase):
                 self.assertIn("sha256sum --strict -c", install["run"])
 
 
+def changelog_section(heading: str) -> str:
+    text = _read("CHANGELOG.md")
+    found = re.search(rf"^## {re.escape(heading)}\b.*$", text, re.MULTILINE)
+    return text[found.end():].split("\n## ", 1)[0]
+
+
 class ChangelogTest(unittest.TestCase):
-    def test_the_next_version_lists_the_changes_users_see_since_the_last_release(self):
-        text = _read("CHANGELOG.md")
-        first = re.search(r"^## (\d+\.\d+\.\d+)\b.*$", text, re.MULTILINE)
-        self.assertEqual(first.group(1), project_version())
-        section = text[first.end():].split("\n## ", 1)[0]
+    def test_the_top_section_is_unreleased_on_a_development_version_and_the_release_otherwise(self):
+        first = re.search(r"^## (\S+)", _read("CHANGELOG.md"), re.MULTILINE).group(1)
+        project = project_version()
+        self.assertEqual(first, "Unreleased" if is_development(project) else project)
+
+    def test_0_17_0_lists_the_changes_users_see_since_the_last_release(self):
+        section = changelog_section("0.17.0")
         self.assertIn("0.16.1", section)
         for change in ("done-with-reservations", "openguildkit profile", "task pass", "task export", "openguildkit ui",
                        "openguildkit tools", "mock", "openguildkit alerts", "openguildkit market",
@@ -126,7 +215,7 @@ class PackageMetadataTest(unittest.TestCase):
 
 class InstallGuideTest(unittest.TestCase):
     def test_a_team_installs_the_release_wheel_with_pipx_or_uv(self):
-        guide, version = _read("docs/install.md"), project_version()
+        guide, version = _read("docs/install.md"), released_version()
         self.assertIn(f"pipx install ./openguildkit-{version}-py3-none-any.whl", guide)
         self.assertIn(f"uv tool install ./openguildkit-{version}-py3-none-any.whl", guide)
         self.assertIn("not published on PyPI", guide)
@@ -183,6 +272,39 @@ class WheelBuildTest(unittest.TestCase):
         self.assertIn("pipx install", script)
         self.assertIn('"$RUNNER_OS" = Windows', script)
         self.assertIn(".github/scripts/check-installed-cli.py", script)
+
+
+@unittest.skipIf(sys.platform == "win32", "the step runs in bash on the Linux release runner")
+@unittest.skipUnless(shutil.which("bash") and shutil.which("node"), "the step reads package.json with node")
+class TagCheckTest(unittest.TestCase):
+    """The first step of release.yml, run on small folders: a tag is released only when it names the version of
+    pyproject.toml and of package.json, so a development version that gets tagged by mistake is refused."""
+
+    def exit_code(self, tag: str, pyproject: str, package: str) -> int:
+        release = parse(ROOT / ".github" / "workflows" / "release.yml")["jobs"]["build"]
+        step = next(step for step in steps(release) if str(step.get("name")).startswith("Refuse a tag"))
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            (folder / "pyproject.toml").write_text(f'[project]\nversion = "{pyproject}"\n', encoding="utf-8")
+            (folder / "integrations" / "ci").mkdir(parents=True)
+            (folder / "integrations" / "ci" / "package.json").write_text(json.dumps({"version": package}),
+                                                                       encoding="utf-8")
+            python = folder / "bin" / "python"  # The runner has `python`; this machine may only have python3.
+            python.parent.mkdir()
+            python.write_text(f'#!/bin/sh\nexec {shlex.quote(sys.executable)} "$@"\n', encoding="utf-8")
+            python.chmod(0o755)
+            env = {**os.environ, "PATH": f"{python.parent}{os.pathsep}{os.environ['PATH']}", "GITHUB_REF_NAME": tag}
+            done = subprocess.run(["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", step["run"]],
+                                  cwd=folder, env=env, capture_output=True, text=True, check=False)
+        return done.returncode
+
+    def test_a_tag_must_name_the_version_of_both_files(self):
+        self.assertEqual(self.exit_code("v0.17.1", "0.17.1", "0.17.1"), 0)
+        # main between two releases: pyproject.toml leads to the next version, package.json is the last release.
+        for tag in ("v0.17.1.dev0", "v0.17.1", "v0.17.0"):
+            with self.subTest(tag=tag):
+                self.assertNotEqual(self.exit_code(tag, "0.17.1.dev0", "0.17.0"), 0)
+        self.assertNotEqual(self.exit_code("v0.17.1.dev0", "0.17.1", "0.17.1"), 0)
 
 
 class GovernanceFilesTest(unittest.TestCase):
