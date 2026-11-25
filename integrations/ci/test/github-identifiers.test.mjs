@@ -50,3 +50,36 @@ test('profile approval and ticket lookup return the canonical GitHub repository'
   assert.equal(result.source.pullRequest, `${url}/pull/2`);
   assert.equal(result.issue.html_url, `${url}/issues/3`);
 });
+
+test('the profile approval refuses an unusable proposal with an English message', () => {
+  const proposal = {
+    schemaVersion: 1, owner: '@lead', policyPath: 'packs/export-link-expiry.json', targetPath: 'export.json',
+    adoption: { state: 'proposed', mode: 'observation', inventoryCommit: commit, catalogCommit: commit,
+      answers: { project: repository } },
+  };
+  const pull = {
+    merged: true, merged_by: { login: 'lead' }, merge_commit_sha: commit,
+    base: { ref: 'main', repo: { full_name: repository } }, head: { sha: commit },
+  };
+  const request = { repo: repository, pullRequest: 1, base: 'main', maintainer: 'lead' };
+  const approve = ({ options = {}, merged = {}, files, source = {}, content = proposal } = {}) =>
+    approvedGitHubProfile({ ...request, ...options }, endpoint => {
+      if (endpoint.includes('/files?')) return files ?? [[{ filename: '.openguildkit/proposal.json', status: 'added', sha: commit }]];
+      if (endpoint.includes('/contents/')) return {
+        type: 'file', encoding: 'base64', sha: commit, content: Buffer.from(JSON.stringify(content)).toString('base64'), ...source,
+      };
+      return { ...pull, ...merged };
+    });
+  assert.equal(approve().adoption.state, 'approved');
+  const refuses = (message, scenario) => assert.throws(() => approve(scenario), error => error.message === message);
+
+  refuses('A repository, a PR number, a branch and the GitHub login of the maintainer are required.',
+    { options: { maintainer: 'not a login' } });
+  refuses('The proposal must be merged by the designated maintainer into the trusted branch.',
+    { merged: { merged_by: { login: 'someone-else' } } });
+  refuses('The PR must modify the OpenGuildKit proposal.', { files: [[]] });
+  refuses('The profile proposed in the PR must be carried over unchanged into the merge commit.',
+    { source: { sha: '2'.repeat(40) } });
+  refuses('The proposal must designate the configured repository and maintainer.',
+    { content: { ...proposal, owner: '@intruder' } });
+});

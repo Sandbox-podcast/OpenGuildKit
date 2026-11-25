@@ -125,7 +125,7 @@ test('the GitHub flows accept an adopted profile only after the maintainer appro
   assert.equal(current.status, 'pending');
 
   api.mergedBy = 'someone-else';
-  refused(sync(), /fusionnée par le mainteneur désigné/);
+  refused(sync(), /merged by the designated maintainer/);
   api.mergedBy = 'lead';
 
   commitJson(origin, 'openguildkit.json', { ...approved, owner: '@intruder',
