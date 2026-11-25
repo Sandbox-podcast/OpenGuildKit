@@ -132,6 +132,27 @@ class PathRuleTests(unittest.TestCase):
         self.assertFalse(light_lane.covers("Docs/guide.md", ["docs/**"], DOCS_AND_TESTS))
 
 
+class PageTests(unittest.TestCase):
+    def section(self) -> str:
+        text = (REPO / "docs" / "workflow.md").read_text(encoding="utf-8")
+        return text.split("\n## Short lane\n", 1)[1].split("\n## ", 1)[0]
+
+    def test_the_page_lists_everything_the_lane_never_covers(self):
+        listed = self.section().split("### Never in the lane", 1)[1].split("### ", 1)[0].casefold()
+        never = (*light_lane._MANIFEST_NAMES, *light_lane._AGENT_FOLDERS, *light_lane._INSTRUCTION_NAMES,
+                 *(folder for folder, _ in light_lane._FOLDERS), *light_lane._MANIFEST_SUFFIXES)
+        self.assertEqual([item for item in never if item not in listed], [])
+        for word in ("requirements*.txt", "constraints*.txt"):
+            self.assertIn(word, listed)
+
+    def test_the_page_names_the_commands_and_the_words_of_the_lane(self):
+        section = self.section()
+        for text in ("openguildkit profile set light-paths", "--lane light --paths", "decision-lane-outside",
+                     "developer-relations-and-docs", "`qa`", "`engineering`", "task decide", "task clear", "task waive",
+                     "task submit", "task pass", "task verify", "task export", "What the review must decide"):
+            self.assertIn(text, section)
+
+
 class ProjectCase(unittest.TestCase):
     """A project of one Python component, with no short lane until a test turns it on."""
 
@@ -177,6 +198,22 @@ class ActivationTests(ProjectCase):
     def test_the_command_proposed_for_a_path_the_lane_can_never_cover_names_the_usual_folders(self):
         _, error = self.run_cli("task", "new", "Bump", "--id", "bump", "--lane", "light", "--paths", "package.json", code=1)
         self.assertIn("openguildkit profile set light-paths 'docs/**' 'tests/**' --by NAME --reason WHY", error)
+
+    def test_setup_answers_may_carry_the_lane_like_every_other_setting_and_it_is_checked(self):
+        other = tempfile.TemporaryDirectory()
+        self.addCleanup(other.cleanup)
+        root = Path(other.name)
+        write_json(root / "answers.json", {"name": "Ledger", "personal_data": "no", "stack": ["Python"],
+                                           "light_paths": ["tests/", "docs/**"]})
+        run_cli(root, "init", "--answers", root / "answers.json", stdin="")
+        profile = json.loads((root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
+        self.assertEqual(profile["light_paths"], DOCS_AND_TESTS)
+        write_json(root / "bad.json", {"name": "Ledger", "personal_data": "no", "stack": ["Python"],
+                                       "light_paths": ["package.json"]})
+        shutil.rmtree(root / ".openguildkit")
+        refused = run_cli(root, "init", "--answers", root / "bad.json", stdin="", expect=1)
+        self.assertIn("light_paths: package.json", refused.stderr)
+        self.assertFalse((root / ".openguildkit" / "project.json").exists())
 
     def test_a_person_turns_the_lane_on_at_a_terminal_and_the_profile_says_who_when_and_why(self):
         output, _ = self.run_cli("profile", "set", "light-paths", "tests/**", "docs/**", "--by", "Sam",
