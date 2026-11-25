@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from openguildkit.cli import _prompt_components
 from openguildkit.catalog import load_catalog
-from openguildkit.detect import components_for_profile, detect_stack
+from openguildkit.detect import components_for_profile, detect_stack, detected_project_name
 from openguildkit.patterns import recommend_patterns, technology_version
 from openguildkit.stack_versions import version_key
 from openguildkit.storage import write_json
@@ -194,6 +194,83 @@ class DetectedVersionTests(CapturedCli, unittest.TestCase):
         components = components_for_profile(detect_stack(self.root))
         matched = recommend_patterns(load_catalog(), [], "general", [], components)["matched"]
         self.assertIn("pci-dss-cardholder-data", {pattern["id"] for pattern in matched})
+
+    def test_a_cargo_manifest_gives_the_rust_version_the_edition_and_the_frameworks(self):
+        write(self.root, "svc/Cargo.toml",
+              '[package]\nname = "svc"\nversion = "0.1.0"\nedition = "2021"\nrust-version = "1.75"\n\n'
+              '[dependencies]\naxum = { version = "0.7.5", features = ["macros"] }\n'
+              'tokio = { version = "1", features = ["full"] }\nserde = "1"\n\n'
+              '[dev-dependencies]\nactix-web = "4.5"\n\n[build-dependencies]\nrocket = ">=0.5, <0.6"\n')
+        write(self.root, "plain/Cargo.toml", '[package]\nname = "plain"\nversion = "0.1.0"\n')
+        stacks = self.stacks()
+        self.assertEqual(stacks["svc"], ["Actix Web 4.5", "Axum 0.7.5", "Rocket >=0.5, <0.6", "Rust 1.75",
+                                         "Rust edition 2021", "Tokio 1"])
+        self.assertEqual(stacks["plain"], ["Rust"])
+        evidence = {item["name"]: item["evidence"] for component in detect_stack(self.root)["components"]
+                    if component["path"] == "svc" for item in component["evidence"]}
+        self.assertEqual(set(evidence.values()), {"svc/Cargo.toml"})
+
+    def test_cargo_dependencies_are_read_in_every_form_a_manifest_writes_them(self):
+        write(self.root, "tables/Cargo.toml",
+              '[package]\nname = "tables"\n\n[dependencies.axum]\nversion = "0.8"\nfeatures = ["json"]\n\n'
+              '[target.\'cfg(unix)\'.dependencies]\ntokio = "1.38"\n')
+        write(self.root, "renamed/Cargo.toml",
+              '[package]\nname = "renamed"\n\n[dependencies]\nweb = { package = "actix-web", version = "4" }\n'
+              'other = { package = "serde", version = "1" }\n')
+        write(self.root, "git/Cargo.toml",
+              '[package]\nname = "git"\n\n[dependencies]\nrocket = { git = "https://github.com/rwf2/Rocket" }\n'
+              'axum = { path = "../axum" }\n')
+        write(self.root, "exact/Cargo.toml",
+              '[package]\nname = "exact"\n\n[dependencies]\ntokio = "=1.40.0"\naxum = "^0.7"\nactix-web = "4.*"\n')
+        write(self.root, "broken/Cargo.toml", '[package\nname = "broken"\n')
+        write(self.root, "inherit/Cargo.toml",
+              '[package]\nname = "inherit"\nedition.workspace = true\nrust-version = { workspace = true }\n\n'
+              '[dependencies]\naxum.workspace = true\n')
+        stacks = self.stacks()
+        self.assertEqual(stacks["tables"], ["Axum 0.8", "Rust", "Tokio 1.38"])
+        self.assertEqual(stacks["renamed"], ["Actix Web 4", "Rust"])
+        self.assertEqual(stacks["git"], ["Axum", "Rocket", "Rust"])
+        self.assertEqual(stacks["exact"], ["Actix Web 4.*", "Axum ^0.7", "Rust", "Tokio 1.40.0"])
+        self.assertEqual(stacks["broken"], ["Rust"])
+        self.assertEqual(stacks["inherit"], ["Axum", "Rust"])
+
+    def test_cargo_workspace_members_share_the_component_of_their_root(self):
+        write(self.root, "Cargo.toml",
+              '[workspace]\nmembers = ["crates/*", "tools/xtask"]\nexclude = ["crates/legacy"]\nresolver = "2"\n\n'
+              '[workspace.package]\nedition = "2021"\nrust-version = "1.80"\n\n'
+              '[workspace.dependencies]\ntokio = { version = "1.38", features = ["rt"] }\naxum = "0.7"\n')
+        write(self.root, "crates/api/Cargo.toml",
+              '[package]\nname = "api"\nedition.workspace = true\nrust-version.workspace = true\n\n'
+              '[dependencies]\naxum.workspace = true\ntokio = { workspace = true }\n')
+        write(self.root, "crates/worker/Cargo.toml", '[package]\nname = "worker"\n\n[dependencies]\nactix-web = "4"\n')
+        write(self.root, "crates/legacy/Cargo.toml", '[package]\nname = "legacy"\n\n[dependencies]\nrocket = "0.5"\n')
+        write(self.root, "tools/xtask/Cargo.toml", '[package]\nname = "xtask"\n')
+        write(self.root, "tools/other/Cargo.toml", '[package]\nname = "other"\n')
+        stacks = self.stacks()
+        self.assertEqual(set(stacks), {".", "crates/legacy", "tools/other"})
+        self.assertEqual(stacks["."], ["Actix Web 4", "Axum 0.7", "Rust 1.80", "Rust edition 2021", "Tokio 1.38"])
+        self.assertEqual(stacks["crates/legacy"], ["Rocket 0.5", "Rust"])
+        self.assertEqual(stacks["tools/other"], ["Rust"])
+
+    def test_a_cargo_workspace_never_reaches_outside_the_project_or_into_a_link(self):
+        project = self.root / "project"
+        write(self.root, "outside/stolen/Cargo.toml", '[package]\nname = "stolen"\n\n[dependencies]\nrocket = "0.5"\n')
+        write(project, "ws/Cargo.toml", '[workspace]\nmembers = ["../../outside/*", "/abs", "link", "*"]\n')
+        write(project, "ws/real/Cargo.toml", '[package]\nname = "real"\n\n[dependencies]\naxum = "0.7"\n')
+        (project / "ws" / "link").symlink_to(self.root / "outside" / "stolen", target_is_directory=True)
+        stacks = {component["path"]: component["stack"] for component in detect_stack(project)["components"]}
+        self.assertEqual(stacks, {"ws": ["Axum 0.7", "Rust"]})
+
+    def test_the_project_name_comes_from_the_cargo_package_when_there_is_no_package_json(self):
+        write(self.root, "Cargo.toml", '[package]\nname = "billing-svc"\nversion = "0.1.0"\n')
+        self.assertEqual(detected_project_name(self.root), "billing-svc")
+        write(self.root, "package.json", {"name": "sample-shop"})
+        self.assertEqual(detected_project_name(self.root), "sample-shop")
+        (self.root / "package.json").unlink()
+        write(self.root, "Cargo.toml", '[workspace]\nmembers = ["crates/*"]\n')
+        self.assertEqual(detected_project_name(self.root), self.root.name)
+        write(self.root, "Cargo.toml", '[package]\nname = "two\\nlines"\n')
+        self.assertEqual(detected_project_name(self.root), self.root.name)
 
     def test_detects_ios_deployment_targets(self):
         write(self.root, "app/App.xcodeproj/project.pbxproj", 'SWIFT_VERSION = 6.0;\nIPHONEOS_DEPLOYMENT_TARGET = 16.4;\n')
