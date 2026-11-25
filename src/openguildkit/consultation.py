@@ -731,6 +731,18 @@ def _rule_lines(data: dict, task_id: str, room: int) -> list[str]:
             lines.extend(block)
             room -= size
         else:
+            if pack is data["rules"][0]:
+                excerpt = [block[0]]
+                remaining = room - len((block[0] + "\n").encode("utf-8"))
+                for rule in block[1:]:
+                    size = len((rule + "\n").encode("utf-8"))
+                    if size > remaining:
+                        break
+                    excerpt.append(rule)
+                    remaining -= size
+                if len(excerpt) > 1:
+                    lines.extend(excerpt)
+                    room = remaining
             unprinted.append(pack["pack"].split("@")[0])
     if not data["rules"]:
         lines.append("No rule of this board's packs concerns the task.")
@@ -743,7 +755,7 @@ def _rule_lines(data: dict, task_id: str, room: int) -> list[str]:
 
 
 def _unprinted_line(packs: list[str], task_id: str) -> str:
-    return (f"Also concern the task, not printed to keep this pass short: {', '.join(packs)}. One pack's rules: "
+    return (f"Also concern the task, omitted in whole or in part to keep this pass short: {', '.join(packs)}. One pack's rules: "
             f"openguildkit task brief {task_id} --pack PACK.")
 
 
