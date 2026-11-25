@@ -4,10 +4,16 @@ import json
 import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
+from pathlib import Path
+
+from openguildkit.storage import write_json
 
 from tests.support import subprocess_environment
 from tests.test_results import TASK, ResultCase
+
+REGISTRY = Path(__file__).resolve().parents[1] / "src" / "openguildkit" / "registry"
 
 
 def request(identifier, method, **params):
@@ -107,3 +113,44 @@ class ProjectMcpTests(ResultCase):
         self.assertTrue(answer["result"]["isError"])
         self.assertNotIn("private-sector-marker", json.dumps(answer))
         self.assertIn("openguildkit check", answer["result"]["content"][0]["text"])
+
+    def link_outside(self, path):
+        """Move path to a folder outside the project and leave a symbolic link to it in its place."""
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        moved = Path(outside.name, path.name)
+        shutil.move(path, moved)
+        try:
+            path.symlink_to(moved)
+        except OSError as error:
+            self.skipTest(f"This account cannot create symbolic links: {error}")
+
+    def assert_refused_without_content(self, *private):
+        answer, = self.replies(call(1, "project_profile"))
+        self.assertTrue(answer["result"].get("isError"), f"served a file outside the state directory: {answer}")
+        self.assertNotIn("structuredContent", answer["result"])
+        self.assertEqual(answer["result"]["content"][0]["text"],
+                         "Project metadata is unavailable. Run openguildkit check in this project.")
+        for text in private:
+            self.assertNotIn(text, json.dumps(answer))
+
+    def test_a_profile_linked_outside_the_state_directory_is_not_served(self):
+        write_json(self.root / "profile.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"]})
+        self.run_cli("init", "--answers", self.root / "profile.json")
+        served, = self.replies(call(1, "project_profile"))
+        self.assertEqual(served["result"]["structuredContent"]["sector"], "general")
+        self.link_outside(self.root / ".openguildkit" / "project.json")
+        self.assert_refused_without_content("sector", "general")
+
+    def test_a_catalog_file_linked_outside_the_state_directory_is_not_served(self):
+        write_json(self.root / "profile.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"]})
+        self.run_cli("init", "--answers", self.root / "profile.json")
+        state = self.root / ".openguildkit"
+        pack = json.loads((REGISTRY / "packs" / "product-discovery.json").read_text(encoding="utf-8"))
+        write_json(state / "catalog" / "packs" / "linked-pack.json", {**pack, "id": "linked-pack"})
+        profile = json.loads((state / "project.json").read_text(encoding="utf-8"))
+        write_json(state / "project.json", {**profile, "packs": [*profile["packs"], "linked-pack"]})
+        served, = self.replies(call(1, "project_profile"))
+        self.assertIn("linked-pack", [pack["id"] for pack in served["result"]["structuredContent"]["packs"]])
+        self.link_outside(state / "catalog" / "packs" / "linked-pack.json")
+        self.assert_refused_without_content("linked-pack", "sector")
