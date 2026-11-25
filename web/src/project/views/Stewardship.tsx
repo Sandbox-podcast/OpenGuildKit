@@ -39,6 +39,7 @@ function Host() {
           <div className="row">
             <Button busy={busy !== null} onClick={() => void act(['integrations', '--host', 'claude-code'], { success: 'Fichiers Claude Code installés' })}>Claude Code</Button>
             <Button busy={busy !== null} onClick={() => void act(['integrations', '--host', 'codex'], { success: 'Fichiers Codex installés' })}>Codex</Button>
+            <Button busy={busy !== null} onClick={() => void act(['integrations', '--host', 'gemini-cli'], { success: 'Fichiers Gemini CLI installés' })}>Gemini CLI</Button>
             <Button variant="ghost" busy={busy !== null} onClick={() => void act(['integrations', '--host', 'claude-code', '--force'], { success: 'Fichiers remplacés, copies .previous gardées' })}>Remplacer les fichiers modifiés</Button>
           </div>
           <p className="tiny muted">Pour tous tes projets, installe-les dans ton dossier personnel depuis un terminal :</p>
