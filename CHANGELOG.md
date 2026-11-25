@@ -9,6 +9,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - New bundled tool IDs: `adp`, `apache-spark`, `apigee`, `appdynamics`, `auth0`, `discord`, `docker-hub`, `eclipse`, `gravitee`, `harbor`, `jetbrains`, `jfrog-artifactory`, `keycloak`, `kong`, `lens`, `mattermost`, `microsoft-entra-id`, `npm`, `okta`, `portainer`, `rancher`, `silae`, `sonatype-nexus`, `splunk`, `visual-studio`, `vscode`, `zoom`. Kibana is now an alias of Elastic. If a project catalog already defines one of these tools or names, rename its local entry and update the profile, or remove the project definition to use the bundled tool.
 - The web interface refuses a command that names, in one of its options, a file the page itself will not read (`task new --file credentials.md`, `client_secret.json`): it answers `secret-file` instead of copying the file into the task.
 - The web interface lists and opens the market dossiers and tasks whose ID contains `password` or `secret` (`password-manager`, `password-reset`), which it hid as if they were secret files.
+- The web interface answers a NUL or a lone surrogate in a path, an upload or the Storybook proposals with `bad-request` instead of a server error or a false "project busy", and writes the type, message and trace of a real server error in the terminal that runs `openguildkit ui`.
 
 ## 0.17.0
 

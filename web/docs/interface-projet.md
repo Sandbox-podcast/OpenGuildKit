@@ -111,10 +111,10 @@ La commande rendue est celle que la CLI nomme dans son refus quand elle en nomme
 | `project-busy` | Une autre commande d'OpenGuildKit écrit le projet : réessayer. |
 | `stale-token` | Jeton de session absent ou périmé : le serveur a redémarré. Recharger la page. |
 | `foreign-page` | La requête ne vient pas de la page du serveur (en-tête `Host` ou `Origin` inconnu). |
-| `bad-request` | Une requête mal formée : corps, commande ou options. |
+| `bad-request` | Une requête mal formée : corps, commande ou options, un chemin avec un octet nul, un texte qu'aucun fichier ne peut contenir (un substitut isolé). |
 | `not-found` | Point d'accès ou fichier inconnu. |
 | `open-printed-link` | Le navigateur n'a pas ouvert l'adresse imprimée par `openguildkit ui` pour ce lancement : l'ouvrir. |
-| `server-error` | Le serveur a échoué en traitant la requête. |
+| `server-error` | Le serveur a échoué en traitant la requête : le type, le message et la trace sont écrits dans le terminal de `openguildkit ui`. |
 
 ## Développer l'interface
 

@@ -22,6 +22,7 @@ import socket
 import sys
 import tempfile
 import threading
+import traceback
 import webbrowser
 from http import HTTPStatus
 from http.cookies import CookieError, SimpleCookie
@@ -219,9 +220,9 @@ def check_request(args, argv: list[str], root: Path) -> None:
 def _out_of_reach(root: Path, value: Path | str, uploads: set[Path]) -> str | None:
     """The code of the refusal for a path a command names, or None when the page may let the command use it."""
     path = Path(value)
-    if path.is_absolute() and path.resolve() in uploads:
+    if path.is_absolute() and _resolved(path) in uploads:
         return None
-    target = (path if path.is_absolute() else root / path).resolve()
+    target = _resolved(path if path.is_absolute() else root / path)
     try:
         relative = target.relative_to(root)
     except ValueError:
@@ -229,6 +230,15 @@ def _out_of_reach(root: Path, value: Path | str, uploads: set[Path]) -> str | No
     if _in_git(relative.parts):
         return "outside-project"
     return "secret-file" if _secret(relative.parts) else None
+
+
+def _resolved(path: Path) -> Path:
+    """The path with its links followed; a request whose path no file can have (a NUL, a lone surrogate) is refused."""
+    try:
+        return path.resolve()
+    except ValueError:
+        raise Refused("A path holds a character no file name can hold, such as a NUL.", status=HTTPStatus.BAD_REQUEST,
+                      reason="bad-request") from None
 
 
 def _in_git(parts) -> bool:
@@ -376,7 +386,11 @@ class CliRunner:
             if not isinstance(name, str) or not UPLOAD_NAME.match(name) or not isinstance(text, str):
                 raise Refused(f"Invalid upload: {name!r}", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
             path = folder / name
-            path.write_text(text, encoding="utf-8", newline="")
+            try:
+                path.write_text(text, encoding="utf-8", newline="")
+            except UnicodeEncodeError:
+                raise Refused(f"Invalid upload: {name!r} holds a character UTF-8 cannot encode.",
+                              status=HTTPStatus.BAD_REQUEST, reason="bad-request") from None
             written[name] = path.resolve()
         result = []
         for item in argv:
@@ -399,7 +413,7 @@ class ProjectFiles:
         if not isinstance(relative, str) or not relative or Path(relative).is_absolute() or "\\" in relative:
             raise Refused("Give a path relative to the project, with forward slashes.", status=HTTPStatus.BAD_REQUEST,
                           reason="bad-request")
-        target = (self.root / relative).resolve()
+        target = _resolved(self.root / relative)
         try:
             parts = target.relative_to(self.root).parts
         except ValueError:
@@ -447,16 +461,22 @@ class ProjectFiles:
         if not isinstance(text, str):
             raise Refused("text must be a string.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
         try:
+            text.encode("utf-8")
+        except UnicodeEncodeError:
+            raise Refused("text holds a character UTF-8 cannot encode.", status=HTTPStatus.BAD_REQUEST,
+                          reason="bad-request") from None
+        try:
             json.loads(text)
         except ValueError as error:
             raise Refused(f"Invalid JSON: {error}", status=HTTPStatus.BAD_REQUEST, reason="bad-request") from None
         target = self._resolve(relative)
         # storybook propose writes the same file under the project lock.
-        try:
-            with project_lock(self.root / ".openguildkit"):
-                write_text(target, text if text.endswith("\n") else text + "\n")
-        except ValueError as error:
-            raise Refused(str(error), status=HTTPStatus.CONFLICT, reason="project-busy") from None
+        with contextlib.ExitStack() as held:
+            try:
+                held.enter_context(project_lock(self.root / ".openguildkit"))
+            except ValueError as error:
+                raise Refused(str(error), status=HTTPStatus.CONFLICT, reason="project-busy") from None
+            write_text(target, text if text.endswith("\n") else text + "\n")
         return {"path": relative, "written": True}
 
 
@@ -589,8 +609,16 @@ class Handler(BaseHTTPRequestHandler):
         except Refused as refusal:
             self._refuse(refusal)
         except Exception as error:  # noqa: BLE001 - report to the page instead of dropping the connection
+            self._report(error)
             self._refuse(Refused(f"{type(error).__name__}: {error}", status=HTTPStatus.INTERNAL_SERVER_ERROR,
                                  reason="server-error"))
+
+    def _report(self, error: Exception) -> None:
+        """Leave the failure in the terminal that runs the server, where the page's text for it sends the person."""
+        # Under the runner's lock: a command running now has sys.stderr captured for its own answer.
+        with self.app.runner.lock:
+            print(f"OpenGuildKit: the request to {urlsplit(self.path).path} failed.", file=sys.stderr)
+            traceback.print_exception(error, file=sys.stderr)
 
     def _body(self) -> dict:
         """The JSON object a request of the interface's own page sends, with its origin and session token."""

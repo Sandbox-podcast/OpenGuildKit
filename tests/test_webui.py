@@ -703,7 +703,7 @@ class WebInterfaceTests(unittest.TestCase):
         with patch.dict("os.environ", {"OPENGUILDKIT_LOCK_TIMEOUT": "0"}), project_lock(self.root / ".openguildkit"):
             refused_by_server("project-busy", 409, "/api/files/write",
                               {"path": ".openguildkit/storybook/proposals.json", "text": "{}"})
-        with patch.object(self.app, "handle", side_effect=RuntimeError("boom")):
+        with patch.object(self.app, "handle", side_effect=RuntimeError("boom")), contextlib.redirect_stderr(io.StringIO()):
             refused_by_server("server-error", 500, "/api/run", {"argv": ["check"]})
         uninitialized = self.root / ".openguildkit" / "project.json"
         saved = uninitialized.read_text(encoding="utf-8")
@@ -813,6 +813,47 @@ class WebInterfaceTests(unittest.TestCase):
         status, _, body = self.request("/api/files/list", {"path": "."})
         self.assertNotIn(".env", [entry["name"] for entry in json.loads(body)["entries"]])
         self.assertEqual(self.request("/api/files/write", {"path": ".openguildkit/project.json", "text": "{}"})[0], 403)
+
+    def test_a_path_with_a_nul_is_a_bad_request(self):
+        for path, body in (("/api/files/read", {"path": "a\0b.md"}), ("/api/files/list", {"path": "a\0b"}),
+                           ("/api/run", {"argv": ["task", "new", "--file", "a\0b.md"]}),
+                           ("/api/run", {"argv": ["task", "new", "--file", "a\ud800b.md"]})):
+            with self.subTest(path=path, body=body):
+                status, _, raw = self.request(path, body)
+                self.assertEqual((status, json.loads(raw)["reason"]), (400, "bad-request"))
+        status, _, raw = self.request("/api/run", {"batch": {"nul": ["task", "new", "--file", "a\0b.md"],
+                                                             "tasks": ["task", "list", "--json"]}})
+        results = json.loads(raw)["results"]
+        self.assertEqual((status, results["nul"]["reason"], results["tasks"]["code"]), (200, "bad-request", 0))
+
+    def test_a_proposals_text_a_file_cannot_hold_is_a_bad_request_not_a_busy_project(self):
+        status, _, raw = self.request("/api/files/write", {"path": ".openguildkit/storybook/proposals.json",
+                                                           "text": "[\"\ud800\"]"})
+        self.assertEqual((status, json.loads(raw)["reason"]), (400, "bad-request"))
+        self.assertFalse((self.root / ".openguildkit" / "storybook" / "proposals.json").exists())
+
+    def test_only_the_lock_makes_a_write_busy(self):
+        with patch("openguildkit.webui.write_text", side_effect=ValueError("not the lock")), \
+                contextlib.redirect_stderr(io.StringIO()):
+            status, _, raw = self.request("/api/files/write", {"path": ".openguildkit/storybook/proposals.json",
+                                                               "text": "{}"})
+        self.assertEqual((status, json.loads(raw)["reason"]), (500, "server-error"))
+
+    def test_an_upload_a_file_cannot_hold_is_a_bad_request(self):
+        status, result = self.run_in_page("task", "new", "--file", "@upload:a.md", uploads={"a.md": "x\ud800"})
+        self.assertEqual((status, result["reason"]), (400, "bad-request"))
+
+    def test_a_server_error_leaves_its_type_message_and_trace_in_the_terminal(self):
+        terminal = io.StringIO()
+        with patch.object(self.app, "handle", side_effect=RuntimeError("boom")), contextlib.redirect_stderr(terminal):
+            status, _, raw = self.request("/api/run", {"argv": ["check"]})
+        self.assertEqual((status, json.loads(raw)["reason"]), (500, "server-error"))
+        for text in ("RuntimeError", "boom", "Traceback", "/api/run"):
+            self.assertIn(text, terminal.getvalue())
+        terminal = io.StringIO()
+        with contextlib.redirect_stderr(terminal):
+            self.assertEqual(self.request("/api/files/read", {"path": ".env"})[0], 403)
+        self.assertEqual(terminal.getvalue(), "")
 
     def test_the_front_end_is_served_with_a_content_security_policy(self):
         status, headers, body = self.request("/")
