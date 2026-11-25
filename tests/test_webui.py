@@ -789,6 +789,25 @@ class WebInterfaceTests(unittest.TestCase):
                     seen[code] = True
         self.assertEqual(sorted(seen), sorted(REFUSALS))
 
+    def test_a_refused_request_is_answered_once_its_body_is_read(self):
+        """Windows resets a connection closed with bytes left unread, and the client can lose the answer: the server
+        reads the body it was announced before it refuses, here a token from a stopped server."""
+        body = json.dumps({"argv": ["check"]}).encode("utf-8")
+        head = (f"POST /api/run HTTP/1.1\r\nHost: {self.app.host}\r\nOrigin: {self.app.origin}\r\n"
+                f"X-OGK-Token: from-a-stopped-server\r\nContent-Type: application/json\r\n"
+                f"Content-Length: {len(body)}\r\n\r\n").encode("ascii")
+        with socket.create_connection(("127.0.0.1", self.app.port), timeout=30) as client:
+            client.sendall(head)
+            client.settimeout(0.5)
+            with self.assertRaises(TimeoutError, msg="The server answered before it read the body."):
+                client.recv(1)
+            client.settimeout(30)
+            client.sendall(body)
+            response = http.client.HTTPResponse(client)
+            response.begin()
+            answer = json.loads(response.read())
+        self.assertEqual((response.status, answer["reason"]), (403, "stale-token"))
+
     def test_every_code_is_listed_in_the_interface_documentation(self):
         from openguildkit.webui import REFUSALS
 

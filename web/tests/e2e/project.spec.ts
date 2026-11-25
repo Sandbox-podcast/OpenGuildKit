@@ -332,6 +332,8 @@ test('runs the checks, records the results and completes a task in the forge', a
   await page.getByRole('button', { name: 'Ajouter un critère' }).click();
   await page.getByLabel('Critère', { exact: true }).fill('Customers only see the history of their own requests.');
   await page.getByLabel('Preuve', { exact: true }).fill('tests/test_history_access.py');
+  // The toast of the first save stays 3.5 s: once it is gone, the one found is the second save's.
+  await expect(page.getByText('Résultats enregistrés')).toHaveCount(0);
   await page.getByRole('button', { name: 'Enregistrer les résultats' }).click();
   await expect(page.getByText('Résultats enregistrés')).toBeVisible();
   await page.getByRole('button', { name: 'Terminer la tâche' }).click();

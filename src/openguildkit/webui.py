@@ -594,7 +594,14 @@ class Handler(BaseHTTPRequestHandler):
                                  reason="server-error"))
 
     def _body(self) -> dict:
-        """The JSON object a request of the interface's own page sends, with its origin and session token."""
+        """The JSON object a request of the interface's own page sends, with its origin and session token. The body
+        announced is read first, up to MAX_BODY, refused or not: on Windows, closing a connection with bytes left
+        unread resets it, and the client can lose the answer."""
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = -1
+        raw = self.rfile.read(length) if 0 <= length <= MAX_BODY else None
         if not self._host_allowed():
             raise Refused("Unknown host.", status=HTTPStatus.MISDIRECTED_REQUEST, reason="foreign-page")
         if (self.headers.get("Origin") or "").lower() not in self.app.origins:
@@ -603,14 +610,10 @@ class Handler(BaseHTTPRequestHandler):
             raise Refused("Missing or invalid session token. Reload the page.", reason="stale-token")
         if not (self.headers.get("Content-Type") or "").startswith("application/json"):
             raise Refused("Send JSON.", status=HTTPStatus.UNSUPPORTED_MEDIA_TYPE, reason="bad-request")
-        try:
-            length = int(self.headers.get("Content-Length") or 0)
-        except ValueError:
-            length = -1
-        if length < 0 or length > MAX_BODY:
+        if raw is None:
             raise Refused("The request is too large.", status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE, reason="too-large")
         try:
-            body = json.loads(self.rfile.read(length) or b"{}")
+            body = json.loads(raw or b"{}")
         except ValueError:
             body = None
         if not isinstance(body, dict):
