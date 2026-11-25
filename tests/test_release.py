@@ -1,6 +1,7 @@
 """Delivery: one version everywhere, a wheel built and checked as CI proves it, release notes from the last stable
 release, required and bounded CI jobs, and the entry documents (governance, security, French README) kept true."""
 
+import argparse
 import json
 import os
 import re
@@ -11,6 +12,8 @@ import tempfile
 import tomllib
 import unittest
 from pathlib import Path
+
+from openguildkit.cli import command_parser
 
 from tests.test_workflows import TEMPLATES, USES, WORKFLOWS, parse, run_text, steps
 
@@ -35,6 +38,11 @@ def project_version() -> str:
     return tomllib.loads(_read("pyproject.toml"))["project"]["version"]
 
 
+def release_version() -> str:
+    match = re.search(r"^## (\d+\.\d+\.\d+)\s*$", _read("CHANGELOG.md"), re.MULTILINE)
+    return match.group(1)
+
+
 def announced_versions() -> dict[str, set[str]]:
     """Every version each release file announces, action tags aside."""
     found = {}
@@ -56,7 +64,36 @@ class VersionTest(unittest.TestCase):
         found = announced_versions()
         for relative, versions in found.items():
             self.assertTrue(versions, f"{relative} announces no version")
-        self.assertEqual(set().union(*found.values()), {project_version()}, f"align the versions: {found}")
+        python_version = found.pop("pyproject.toml").pop()
+        node_version = found.pop("integrations/ci/package.json").pop()
+        self.assertEqual(set().union(*found.values()), {release_version()}, f"align the published versions: {found}")
+        dev = re.fullmatch(r"(\d+\.\d+\.\d+)\.dev(\d+)", python_version)
+        if dev:
+            self.assertEqual(node_version, f"{dev[1]}-dev.{dev[2]}")
+            self.assertGreater(tuple(map(int, dev[1].split("."))), tuple(map(int, release_version().split("."))))
+        else:
+            self.assertEqual(python_version, release_version())
+            self.assertEqual(node_version, python_version)
+
+    def test_a_published_version_is_not_reused_on_another_commit(self):
+        if not (ROOT / ".git").exists():
+            self.skipTest("Git checkout required")
+        tag = f"refs/tags/v{project_version()}"
+        exists = subprocess.run(["git", "show-ref", "--verify", "--quiet", tag], cwd=ROOT)
+        if exists.returncode == 1:
+            return
+        exists.check_returncode()
+        commits = subprocess.check_output(["git", "rev-parse", "HEAD", f"{tag}^{{commit}}"], cwd=ROOT, text=True)
+        head, published = commits.splitlines()
+        self.assertEqual(head, published, f"{tag} already names a different commit")
+
+    def test_every_top_level_command_has_a_documented_invocation(self):
+        docs = _read("README.md") + "\n" + _read("CHANGELOG.md")
+        commands = next(action.choices for action in command_parser()._actions
+                        if isinstance(action, argparse._SubParsersAction))
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertRegex(docs, rf"openguildkit (?:--project [^ ]+ )?{re.escape(command)}\b")
 
     def test_the_release_steps_name_every_versioned_file(self):
         named = set(release_files())
@@ -67,7 +104,7 @@ class VersionTest(unittest.TestCase):
             self.assertIn(template.relative_to(ROOT).as_posix(), named)
 
     def test_templates_install_the_release_of_this_version(self):
-        version = project_version()
+        version = release_version()
         for template in sorted((ROOT / "integrations" / "github").glob("*.yml")):
             with self.subTest(template=template.name):
                 text = template.read_text(encoding="utf-8")
@@ -83,7 +120,7 @@ class ChangelogTest(unittest.TestCase):
     def test_the_next_version_lists_the_changes_users_see_since_the_last_release(self):
         text = _read("CHANGELOG.md")
         first = re.search(r"^## (\d+\.\d+\.\d+)\b.*$", text, re.MULTILINE)
-        self.assertEqual(first.group(1), project_version())
+        self.assertEqual(first.group(1), release_version())
         section = text[first.end():].split("\n## ", 1)[0]
         self.assertIn("0.16.1", section)
         for change in ("done-with-reservations", "openguildkit profile", "task pass", "task export", "openguildkit ui",
@@ -126,7 +163,7 @@ class PackageMetadataTest(unittest.TestCase):
 
 class InstallGuideTest(unittest.TestCase):
     def test_a_team_installs_the_release_wheel_with_pipx_or_uv(self):
-        guide, version = _read("docs/install.md"), project_version()
+        guide, version = _read("docs/install.md"), release_version()
         self.assertIn(f"pipx install ./openguildkit-{version}-py3-none-any.whl", guide)
         self.assertIn(f"uv tool install ./openguildkit-{version}-py3-none-any.whl", guide)
         self.assertIn("not published on PyPI", guide)

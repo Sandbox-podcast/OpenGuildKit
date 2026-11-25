@@ -171,6 +171,8 @@ openguildkit patterns --id python-fastapi-postgresql
 
 `catalog` lists the packs, boards and sectors you can use in a project, with the packs each sector preselects (financial services, insurance, healthcare, public sector, e-commerce, education, critical infrastructure). The [reference index](docs/references.md) provides summaries and source links. Rule packs contain the instructions and checks `init` writes into `AGENTS.md`.
 
+`openguildkit recommend` suggests relevant project rule packs. `openguildkit ci-check` checks a project in CI.
+
 ## Documentation
 
 - [Install a GitHub release](docs/install.md) and [changelog](CHANGELOG.md)

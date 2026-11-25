@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openguildkit"
-version = "0.17.0"
+version = "0.17.1.dev0"
 description = "Project rules and specialist reviews for AI-assisted work."
 # The description of the package page: links are absolute, so they work outside GitHub.
 readme = "docs/package-description.md"
