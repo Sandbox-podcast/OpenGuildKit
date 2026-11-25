@@ -3,6 +3,9 @@
 The field campaign of November 2026 measured 75 to 220 KB for these outputs, mostly the project scope
 repeated in each pass. The budgets keep the weight from coming back: the scope is printed once, a pass
 carries its board's brief, rules and entry, and the rest is named with the command that prints it.
+
+What an agent loads at the start of a session is read again at every turn (#363), so the managed block
+of AGENTS.md has a budget too.
 """
 
 import json
@@ -10,6 +13,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from openguildkit.project import BEGIN, END
 from openguildkit.storage import write_json
 from openguildkit.workflow import handoff
 
@@ -21,6 +25,17 @@ EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 BUDGETS = {"consultation": 30_000, "pass": 10_000, "handoff": 16_000}
 EXAMPLE_PASS = 10_000
 MONOREPO_ROLES = ["frontend", "backend", "devops", "security", "qa", "product", "project-management"]
+# The managed block of AGENTS.md, from its first marker to its last, in bytes. Issue 363 asks for 8 000.
+# Measured on 25 November 2026, the block was 15 878 bytes for the request-status example and 86 248 for the
+# monorepo with every role (48 packs): 73 % and 91 % of it is the text of the rule packs, each rule with its
+# `Verify:` line and each pack with its sources. Dropping every `Verify:`, `Checked by task verify:` and source
+# line would still leave 9 900 and 49 700 bytes, so 8 000 needs a different content, not a trim: the packs by
+# title with their rule IDs, and the text of each rule behind `openguildkit task brief ID --pack PACK`, which
+# a board pass already names. That rewrites the block of every project at its next `sync`, so it is a decision
+# for the issue, not a side effect of this budget. Until then each case keeps its measured size plus 5 %,
+# rounded up: the block cannot grow unnoticed, and the target stays visible.
+INSTRUCTION_TARGET = 8_000
+INSTRUCTION_BUDGETS = {"the request-status example": 16_700, "the monorepo with every role": 90_600}
 
 
 def write(root: Path, relative: str, content) -> None:
@@ -74,7 +89,7 @@ class OutputSizeTests(CapturedCli, unittest.TestCase):
         self.assert_budgets(self.sizes("request-status", json.loads((EXAMPLE / "answers.json").read_text())),
                             EXAMPLE_PASS)
 
-    def test_a_monorepo_with_every_role_stays_within_its_budgets(self):
+    def init_monorepo_with_every_role(self) -> None:
         write(self.root, "web/package.json", {"dependencies": {"react": "18.3.1"}, "devDependencies": {"typescript": "5.5.0"}})
         write(self.root, "api/pom.xml", "<project><parent><artifactId>spring-boot-starter-parent</artifactId>"
                                         "<version>3.3.0</version></parent></project>")
@@ -93,6 +108,9 @@ class OutputSizeTests(CapturedCli, unittest.TestCase):
         ]
         write_json(self.root / "init.json", answers)
         self.run_cli("init", "--answers", self.root / "init.json")
+
+    def test_a_monorepo_with_every_role_stays_within_its_budgets(self):
+        self.init_monorepo_with_every_role()
         self.run_cli("task", "new", "Show signed-in customers their past orders, newest first, from the orders API.",
                      "--id", "order-history")
         sizes = self.sizes("order-history", {
@@ -104,6 +122,25 @@ class OutputSizeTests(CapturedCli, unittest.TestCase):
         self.assertGreater(packs, 25, "the fixture must carry as many packs as the field projects")
         self.assertGreater(len([name for name in sizes if name.startswith("pass ")]), 6)
         self.assert_budgets(sizes, BUDGETS["pass"])
+
+    def managed_block_size(self) -> int:
+        """The bytes of the block OpenGuildKit manages in AGENTS.md, markers included: the part the agent reads at
+        the start of every session, whatever the team wrote around it."""
+        text = (self.root / "AGENTS.md").read_text(encoding="utf-8")
+        return len(text[text.index(BEGIN):text.index(END) + len(END)].encode("utf-8"))
+
+    def assert_block_within_budget(self, case: str) -> None:
+        size, budget = self.managed_block_size(), INSTRUCTION_BUDGETS[case]
+        self.assertLessEqual(size, budget, f"the AGENTS.md block of {case} is {size} bytes, budget {budget} "
+                                           f"(target {INSTRUCTION_TARGET})")
+
+    def test_the_agents_md_block_of_the_example_stays_within_its_budget(self):
+        self.run_cli("init", "--answers", EXAMPLE / "profile.json")
+        self.assert_block_within_budget("the request-status example")
+
+    def test_the_agents_md_block_of_a_monorepo_with_every_role_stays_within_its_budget(self):
+        self.init_monorepo_with_every_role()
+        self.assert_block_within_budget("the monorepo with every role")
 
     def test_a_monorepo_pass_prints_the_rules_of_the_components_the_task_names(self):
         """A pass chose its rules by shared words: a task on a Spring Boot endpoint got web-performance rules."""
