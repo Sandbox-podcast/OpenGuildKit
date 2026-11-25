@@ -269,6 +269,11 @@ def portal_space(portal: str) -> str:
     return f"{shown}{f':{port}' if port and port != _DEFAULT_PORTS[address.scheme] else ''}/p/{parts[2]}"
 
 
+def _default_port(share: dict) -> int | None:
+    """The default port of the scheme of the share's portal: 443 for https, 80 for http."""
+    return _DEFAULT_PORTS.get(urlsplit(str(share.get("portal", "")).strip()).scheme)
+
+
 def share_space(share: dict) -> str | None:
     """The space a share opens; a share recorded before the space was kept gets it from its portal.
 
@@ -276,7 +281,7 @@ def share_space(share: dict) -> str | None:
     """
     if share.get("space"):
         host, separator, rest = share["space"].partition("/p/")
-        default = _DEFAULT_PORTS.get(urlsplit(str(share.get("portal", "")).strip()).scheme)
+        default = _default_port(share)
         if default and separator and host.endswith(f":{default}"):
             return f"{host.removesuffix(f':{default}')}/p/{rest}"
         return share["space"]
@@ -287,7 +292,7 @@ def share_space(share: dict) -> str | None:
 
 
 def _address(address: str) -> str:
-    """An email address as Documentalist and docs share verify compare it: without surrounding spaces or case."""
+    """An email address as docs share verify compares it: without surrounding spaces or case."""
     return address.strip().lower()
 
 
@@ -313,7 +318,10 @@ def add_share(state: Path, deliverable: str, recipients: list[str], until: str, 
         raise ValueError(f"List the recipients' email addresses{': ' + ', '.join(bad) if bad else ''}.")
     _share_end(until)
     space = portal_space(portal)
-    share = {"id": uuid.uuid4().hex[:8], "deliverable": deliverable.strip(), "recipients": sorted(set(recipients)),
+    spellings: dict[str, str] = {}
+    for address in recipients:  # One spelling per address, the first given: the register compares them without case.
+        spellings.setdefault(_address(address), address)
+    share = {"id": uuid.uuid4().hex[:8], "deliverable": deliverable.strip(), "recipients": sorted(spellings.values()),
              "until": until, "portal": portal, "space": space, "by": by.strip(),
              "created_at": clock.real_timestamp(), "revoked_at": None}
     with project_lock(state):
@@ -414,6 +422,16 @@ def revoke_share(state: Path, share_id: str, by: str) -> dict:
     return {**share, "space": share_space(share)}
 
 
+def _observation(observations: dict, share: dict, space: str | None) -> dict:
+    """The last observation of the share's space, one an earlier version kept under HOST:443/p/SPACE included."""
+    host, separator, rest = (space or "").partition("/p/")
+    default = _default_port(share)
+    keys = [space, *([f"{host}:{default}/p/{rest}"] if default and separator else [])]
+    found = [observations[key] for key in keys
+             if isinstance(observations.get(key), dict) and observations[key].get("checked_at")]
+    return max(found, key=lambda item: str(item["checked_at"]), default={})
+
+
 def share_status(state: Path, today: date | None = None) -> list[dict]:
     """Each share with its space and state, on the real clock: active, expired, covered or revoked.
 
@@ -428,12 +446,13 @@ def share_status(state: Path, today: date | None = None) -> list[dict]:
         observations = read_json(observation_path).get("observations", {}) if observation_path.is_file() else {}
     except ValueError:
         observations = {}
+    observations = observations if isinstance(observations, dict) else {}
     for share in shares:
         row = {**share, "space": share_space(share), "remove": [], "kept": {}, "dedicated": bool(share.get("dedicated")),
                "also_in_space": [] if share["revoked_at"] else
                sorted({item["deliverable"] for item in _space_neighbours(shares, share)})}
-        observed = observations.get(row["space"], {}) if isinstance(observations, dict) else {}
-        if isinstance(observed, dict) and observed.get("checked_at"):
+        observed = _observation(observations, share, row["space"])
+        if observed:
             recipients = {_address(address) for address in share["recipients"]}
             observed_rows = observed.get("rows") if isinstance(observed.get("rows"), list) else []
             row["portal_observation"] = {"source": observed.get("source"), "checked_at": observed["checked_at"],

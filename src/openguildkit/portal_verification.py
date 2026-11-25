@@ -69,7 +69,8 @@ def _origin(portal: str) -> tuple[str, str, str]:
     if address.username is not None or address.password is not None:
         raise ValueError("Remove credentials from --portal. Enter the password at the prompt.")
     slug = address.path.split("/")[2]
-    return f"{address.scheme}://{address.netloc}", space, slug
+    # Written as a browser writes an Origin: the host in lower case, without the default port of the scheme.
+    return f"{address.scheme}://{space.partition('/p/')[0]}", space, slug
 
 
 def _json(opener, origin: str, path: str, payload=None) -> dict:

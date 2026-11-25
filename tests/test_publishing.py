@@ -689,7 +689,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
                       "as dedicated to this deliverable", output)
 
     def test_an_address_written_in_another_case_is_the_same_reader(self):
-        """Documentalist and share verify ignore the case of an address; add, check and revoke do too."""
+        """share verify ignores the case of an address; add, check and revoke do too."""
         self.deliverable()
         self.deliverable("e")
         self.add(recipient="Client@example.test")
@@ -708,6 +708,40 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         output, _ = self.run_cli("docs", "share", "revoke", "--id", first, "--by", "Camille")
         self.assertIn("Other shares give Client@example.test the same space", output)
         self.assertIn(f"openguildkit docs share revoke --id {second} --by NAME", output)
+
+    def test_an_observation_kept_under_the_default_port_stays_with_its_space(self):
+        """An earlier version keyed the observation of https://HOST:443/p/S as HOST:443/p/S; the file is not rewritten."""
+        self.deliverable()
+        self.add()
+        path = self.root / ".openguildkit" / "shares" / "portal-observations.json"
+        old = {"space": "docs.example.test:443/p/support-portal", "checked_at": "2026-11-20T10:00:00+00:00",
+               "source": "documentalist-api", "problem": None,
+               "rows": [{"recipient": "reader@example.test", "source": "documentalist-api", "invited": True,
+                         "portal_until": None, "policy_active": True, "status": "mismatch"}]}
+        write_json(path, {"observations": {old["space"]: old}})
+        before = path.read_text(encoding="utf-8")
+        listed, _ = self.run_cli("docs", "share", "list")
+        self.assertIn("last portal observation: documentalist-api at 2026-11-20T10:00:00+00:00", listed)
+        self.assertIn("reader@example.test: mismatch, portal invited with no end date (open)", listed)
+        self.assertEqual(path.read_text(encoding="utf-8"), before)
+        # Kept under both keys, the later observation is the last one.
+        newer = {**old, "space": "docs.example.test/p/support-portal", "checked_at": "2026-11-21T10:00:00+00:00"}
+        for observations in ({old["space"]: old, newer["space"]: newer}, {old["space"]: newer, newer["space"]: old}):
+            with self.subTest(keys=list(observations)):
+                write_json(path, {"observations": observations})
+                self.assertEqual(self.shares()[0]["portal_observation"]["checked_at"], newer["checked_at"])
+
+    def test_an_address_given_twice_in_another_case_is_recorded_once(self):
+        self.deliverable()
+        until = (clock.real_today() + timedelta(days=14)).isoformat()
+        _, warning = self.run_cli("docs", "share", "add", "--deliverable", "d", "--recipient", "Client@example.test",
+                                  "--recipient", "client@example.test", "--recipient", "other@example.test",
+                                  "--recipient", "other@example.test", "--until", until,
+                                  "--portal", "https://docs.example.test/p/support-portal", "--by", "Camille")
+        self.assertEqual(self.shares()[0]["recipients"], ["Client@example.test", "other@example.test"])
+        self.assertIn("OpenGuildKit: client@example.test and Client@example.test differ only in case, so they are one "
+                      "reader: the share records Client@example.test.", warning)
+        self.assertEqual(warning.count("differ only in case"), 1)
 
     def test_a_local_portal_address_may_use_http_on_this_machine_only(self):
         self.deliverable()

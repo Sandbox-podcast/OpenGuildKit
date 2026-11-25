@@ -877,6 +877,11 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
             raise ValueError("docs share add needs --deliverable, --recipient, --until, --portal and --by.")
         share = add_share(state, args.deliverable, args.recipient, args.until, args.portal, args.by, args.dedicated_space)
         _print_share_added(share)
+        for given in dict.fromkeys(args.recipient):
+            if given not in share["recipients"]:
+                kept = shared_addresses(share, {"recipients": [given]})[0]
+                print(f"OpenGuildKit: {given} and {kept} differ only in case, so they are one reader: the share records "
+                      f"{kept}.", file=sys.stderr)
         for other in space_neighbours(state, share):
             print(f"OpenGuildKit: space {share['space']} also carries {other['deliverable']} (share {other['id']}): the "
                   f"recipients of each share can read both deliverables. To share {share['deliverable']} on its own, "
