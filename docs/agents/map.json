@@ -192,6 +192,7 @@
         "tests/test_entry_pages.py",
         "tests/test_first_contribution.py",
         "tests/test_first_run.py",
+        "tests/test_host_scan.py",
         "tests/test_integrations.py",
         "tests/test_next_steps.py",
         "tests/test_performance.py",
@@ -558,7 +559,8 @@
         "is_norm",
         "norm_reason",
         "init_questions",
-        "unsure_answers"
+        "unsure_answers",
+        "managed_block_lines"
       ],
       "tests": [
         "tests/test_approval_lifecycle.py",
@@ -572,6 +574,7 @@
         "tests/test_core.py",
         "tests/test_decision_brief.py",
         "tests/test_deliberation.py",
+        "tests/test_host_scan.py",
         "tests/test_instruction_files.py",
         "tests/test_monorepo_instructions.py",
         "tests/test_pack_rules.py",
@@ -932,6 +935,19 @@
         "tests/test_storybook_extract.py"
       ],
       "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/surfaces.py",
+      "role": "Reads the instruction files and agent settings of a project for hidden characters, phrases that cancel the rules and downloads piped into an interpreter (`host scan`), offline and read-only.",
+      "entry": [
+        "scan_report",
+        "render_scan",
+        "scan_exit_code"
+      ],
+      "tests": [
+        "tests/test_host_scan.py"
+      ],
+      "doc": "docs/host-scan.md"
     },
     {
       "module": "src/openguildkit/task_index.py",

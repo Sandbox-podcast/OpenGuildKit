@@ -1401,6 +1401,15 @@ def _marker_positions(text: str) -> list[tuple[str, int, int]]:
     return _scan_markers(text)[0]
 
 
+def managed_block_lines(text: str) -> tuple[int, int] | None:
+    """The first and last line (counted from 1, markers included) of the block OpenGuildKit manages, or None when the
+    text has no block or malformed markers."""
+    matches = _marker_positions(text)
+    if [kind for kind, _, _ in matches] != [BEGIN, END]:
+        return None
+    return text.count("\n", 0, matches[0][1]) + 1, text.count("\n", 0, matches[1][2]) + 1
+
+
 def merged_instructions(current: str, generated: str, label: str = "AGENTS.md") -> str:
     """Replace the managed block in an instructions file, or append it, keeping the rest unchanged."""
     newline = "\r\n" if "\r\n" in current else "\n"

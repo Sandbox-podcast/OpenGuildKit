@@ -184,6 +184,7 @@ openguildkit patterns --id python-fastapi-postgresql
 - [Specialist brains and decision briefs](docs/brains.md)
 - [Market dossiers and competitor watch](docs/market.md)
 - [Dependency alerts and vulnerability watch](docs/alerts.md)
+- [Scan the files an agent reads for hidden characters and risky commands](docs/host-scan.md)
 - [Business deliverables from approved tasks](docs/deliverables.md)
 - [Project Storybook, company design system and extraction](docs/storybook.md)
 - [Project documentation and sharing with Documentalist](docs/documentation.md)

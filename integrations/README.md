@@ -159,6 +159,10 @@ They run no hook (see [Other agents](#other-agents)). To test the guard for such
 
 The answer depends on the mode and on the tasks. Without an approved task, the prompt example prints a reminder as `additionalContext` and exits with 0; the edit example exits with 2 and prints `Edit refused for: app.py` on standard error in `enforce`, and in `observe` prints `Edit flagged, not blocked` as `additionalContext` and exits with 0. With `"guard": "off"` both print nothing. To keep the input in a file instead, save the JSON as `hook-input.json` and run `openguildkit guard --hook pre-edit < hook-input.json`, or `Get-Content -Raw hook-input.json | openguildkit guard --hook pre-edit` in PowerShell.
 
+## Scan what an agent reads
+
+`openguildkit host scan` reads the instruction files and agent settings of the project (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, the agents, Skills and commands of `.claude/`, the rules of Cursor, Windsurf, Roo Code, Kilo Code and Junie, the instructions of Copilot, the MCP configurations) and reports hidden characters, phrases that tell an agent to drop its rules and downloads piped into an interpreter. It runs offline, changes nothing and blocks nothing: no hook of any host runs it, so a person or CI does. [What each code means, and what the scan does not prove](../docs/host-scan.md).
+
 ## Validate a host
 
 The [host validation scenario](../examples/host-validation/) checks that an agent runs the whole flow: board passes, a disagreement, insufficient evidence, the person's decision and the results. Its CLI rehearsal runs in CI; reports from real hosts sit next to it, with what each shows for issue #23, and the steps of a live session that checks the hooks and deny rules `host apply` writes.
