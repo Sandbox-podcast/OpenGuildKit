@@ -27,6 +27,7 @@ jobs:
       contains(fromJSON(vars.OPENGUILDKIT_MERGE_ACTORS || '[]'), github.actor) &&
       contains(fromJSON(vars.OPENGUILDKIT_MERGE_ACTORS || '[]'), github.triggering_actor)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: openguildkit-merge-pilot
     permissions:
       contents: read

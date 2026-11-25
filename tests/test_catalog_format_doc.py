@@ -11,6 +11,7 @@ from openguildkit.tools import CATEGORIES
 REPO = Path(__file__).resolve().parents[1]
 SOURCE = REPO / "src" / "openguildkit"
 PAGE = REPO / "docs" / "catalog-format.md"
+NUMBERS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
 
 
 def folders_in_code() -> set[str]:
@@ -35,6 +36,17 @@ class CatalogFormatPageTests(unittest.TestCase):
         self.assertEqual(missing, [], "add these folders to the layout at the top of docs/catalog-format.md")
         for heading in ("## References", "## Deliverables", "## Tools"):
             self.assertIn(f"\n{heading}\n", self.page)
+
+    def test_the_counts_of_collections_and_folders_match_the_layout(self):
+        announced = re.search(r"The catalog has (\w+) collections of records, one JSON file per record, and (\w+) "
+                              r"folders of material", self.page)
+        self.assertIsNotNone(announced, "the sentence before the layout counts the collections and the folders")
+        bundled = self.page.split("```text", 1)[1].split(".openguildkit/catalog/", 1)[0]
+        folders = set(re.findall(r"^  ([a-z-]+)/", bundled, re.MULTILINE))
+        self.assertTrue(set(COLLECTION_FIELDS) <= folders)
+        self.assertEqual(NUMBERS[announced[1]], len(COLLECTION_FIELDS))
+        self.assertEqual(NUMBERS[announced[2]], len(folders - set(COLLECTION_FIELDS)),
+                         sorted(folders - set(COLLECTION_FIELDS)))
 
     def test_every_tool_category_is_listed(self):
         missing = [category for category in CATEGORIES if f"`{category}`" not in self.page]

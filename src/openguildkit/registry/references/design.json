@@ -134,6 +134,11 @@
       "applies_when": "Choisir une version publiée du format ; ce rapport communautaire n'est pas une recommandation W3C.",
       "sources": [
         {
+          "url": "https://www.designtokens.org/",
+          "checked": "2026-11-25",
+          "title": "Design Tokens Community Group, current stable version"
+        },
+        {
           "url": "https://www.designtokens.org/tr/2025.10/format/",
           "checked": "2026-11-21",
           "title": "Design Tokens Format Module 2025.10"

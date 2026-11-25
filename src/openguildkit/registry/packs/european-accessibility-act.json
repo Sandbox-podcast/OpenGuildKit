@@ -1,7 +1,7 @@
 {
   "id": "european-accessibility-act",
   "title": "European Accessibility Act for consumer services",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "For a service provided to consumers in the EU, such as e-commerce or consumer banking: the accessibility requirements of Directive (EU) 2019/882, which national laws have applied since 28 June 2025. Micro-enterprises providing services are exempt. These rules do not establish compliance.",
   "sources": [
     {
@@ -17,7 +17,7 @@
     {
       "title": "ETSI EN 301 549 V4.1.1 (2026-09), Accessibility requirements for ICT products and services",
       "url": "https://www.etsi.org/deliver/etsi_en/301500_301599/301549/04.01.01_60/en_301549v040101p.pdf",
-      "checked": "2026-11-22"
+      "checked": "2026-11-25"
     }
   ],
   "depends_on": [
@@ -32,9 +32,9 @@
     },
     {
       "id": "meet-wcag-aa-on-changed-pages",
-      "instruction": "For each changed web page of the service, meet the WCAG 2.2 Level AA success criteria, which EN 301 549 V4.1.1 clause 9.0 maps to clauses 9.1 to 9.4 and 9.6; a service that conforms to harmonised standards published in the Official Journal is presumed to meet the requirements they cover (Art. 15(1)).",
-      "verification": "Test the changed pages against the WCAG 2.2 Level A and AA success criteria with an automated checker, the keyboard and a screen reader, and record each failure with its criterion.",
-      "manual": "Success criteria are tested on rendered pages with a keyboard, an automated checker and a screen reader."
+      "instruction": "For each changed web page of the service, meet the WCAG 2.2 Level AA success criteria, which EN 301 549 V4.1.1 clause 9.0 maps to clauses 9.1 to 9.4 and 9.6, and meet clause 9.7, user preferences for web pages, which is outside WCAG and which table ZB.4 links to Annex I, Section III (b)(v): the page does not block or override the user preference settings of the browser or the platform unless that is essential to its information or function; a service that conforms to harmonised standards published in the Official Journal is presumed to meet the requirements they cover (Art. 15(1)).",
+      "verification": "Test the changed pages against the WCAG 2.2 Level A and AA success criteria with an automated checker, the keyboard and a screen reader, check under clause 9.7 that each page keeps the user preference settings, such as text size, contrast or colour filters, and record each failure with its criterion or clause.",
+      "manual": "Success criteria and user preferences are tested on rendered pages with a keyboard, an automated checker, a screen reader and the browser's preference settings."
     },
     {
       "id": "publish-accessibility-information",

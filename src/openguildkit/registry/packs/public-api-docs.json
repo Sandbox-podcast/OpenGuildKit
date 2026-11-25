@@ -1,13 +1,13 @@
 {
   "id": "public-api-docs",
   "title": "Public API documentation",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "For a change to a public API or SDK: a reference generated from the contract, examples that run, a changelog and a deprecation notice before removal.",
   "sources": [
     {
       "title": "OpenAPI Specification",
-      "url": "https://spec.openapis.org/oas/latest.html",
-      "checked": "2026-11-21"
+      "url": "https://spec.openapis.org/oas/v3.2.1.html",
+      "checked": "2026-11-25"
     },
     {
       "title": "Diátaxis, a systematic approach to technical documentation",

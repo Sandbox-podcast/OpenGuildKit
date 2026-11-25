@@ -1,0 +1,3 @@
+# SSH keys allowed to sign release tags, for git verify-tag (docs/install.md, "Verify the release tag").
+# One line per person who signs a tag: principal, namespaces="git", public key.
+azerothl namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE+VYF6Jv/rohq06jfULuE06U8jjs+AD+gS+zWmY+GWD

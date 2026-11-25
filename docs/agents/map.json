@@ -40,7 +40,6 @@
       "role": "The dependency alert register, from the reports of the project's own scanners.",
       "entry": [
         "read_report",
-        "parse_report",
         "register_path",
         "load_register",
         "save_register",
@@ -203,6 +202,7 @@
         "tests/test_release.py",
         "tests/test_robustness.py",
         "tests/test_rule_checks.py",
+        "tests/test_sample_project.py",
         "tests/test_sectors.py",
         "tests/test_setup_questionnaire.py",
         "tests/test_storybook_extract.py",
@@ -976,6 +976,19 @@
       ],
       "tests": [
         "tests/test_architecture.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/terminal.py",
+      "role": "Tells whether standard input is a terminal a person types in: on Windows it must also be a console, not the NUL device.",
+      "entry": [
+        "interactive",
+        "console",
+        "windows_console"
+      ],
+      "tests": [
+        "tests/test_terminal.py"
       ],
       "doc": "docs/architecture.md"
     },

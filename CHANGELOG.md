@@ -7,10 +7,16 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - New pack `agent-native-engineering` 1.0.0 and method pattern `agent-native-repository`, suggested to the engineering, devops and QA roles and preselected for none: bounded command output and instruction files, a machine-readable repository map, a targeted check, evidence written by tools, oversight files out of the agent's reach, a contract for each subagent and a measured cost per task. It concerns tasks on infrastructure and delivery, and the references `context-engineering`, `agent-execution-limits` and `agent-tool-permissions` now apply it.
 - Features: `openguildkit features` lists 20 purposes (documentation portal, issue tracking, payroll, container registry...), each with a lead tool and its three best-known alternatives, and turns an option on or off in the profile with who and why. The web interface shows them in a new place, the Arsenal.
 - New bundled tool IDs: `adp`, `apache-spark`, `apigee`, `appdynamics`, `auth0`, `discord`, `docker-hub`, `eclipse`, `gravitee`, `harbor`, `jetbrains`, `jfrog-artifactory`, `keycloak`, `kong`, `lens`, `mattermost`, `microsoft-entra-id`, `npm`, `okta`, `portainer`, `rancher`, `silae`, `sonatype-nexus`, `splunk`, `visual-studio`, `vscode`, `zoom`. Kibana is now an alias of Elastic. If a project catalog already defines one of these tools or names, rename its local entry and update the profile, or remove the project definition to use the bundled tool.
+- Dates: decisions, waivers and share end dates are UTC days, like the recorded timestamps and Documentalist's access end. A share is `expired` from 00:00 UTC the day after its last day.
+- Shares: `:443`, `:80` and the case of an address no longer make one Documentalist space or reader look like two, and `docs share verify` reaches a local portal without the environment's proxy.
+- The web page refuses to read a file whose text holds a credential, whatever its name, and refuses `mcp`.
+- `features disable` names the MCP connection the agent keeps and the `tools remove` command; `features enable` proposes `tools plan` only for a tool with an MCP server.
+- `tools plan` asks for the real path of the Lens and QuickBooks servers and of a Docker Hub clone, and `tools apply` writes nothing until it is given.
+- `check`, `references`, `brains` and `task consult` refuse a project reference that names an unknown pack or brain. The catalog refuses an impossible or future `checked`, `verified` or `reviewed` date.
+- Packs: `eu-ai-act` 1.3.3 dates the prohibitions that apply from 2 December 2026, `nis2` names TLD name registries, `european-accessibility-act` 1.0.1 adds EN 301 549 clause 9.7. Each EU text has one address in the catalog.
+- On Windows, an act left to a person needs a console: standard input from `NUL` is no longer taken for a terminal.
 
 ## 0.17.0
-
-- `openguildkit --project PATH mcp` provides read-only project metadata over stdio. See [Project MCP](docs/tools.md).
 
 Changes since 0.16.1, the pre-release of 20 November 2026. The wheel now ships the web interface, and no command of 0.16.1 was removed.
 
@@ -51,6 +57,7 @@ Changes since 0.16.1, the pre-release of 20 November 2026. The wheel now ships t
 
 ### Tools, alerts, market and deliverables
 
+- `openguildkit --project PATH mcp` provides read-only project metadata over stdio. See [Project MCP](docs/tools.md).
 - Tool registry and mocks: `openguildkit tools` lists the tools of a company stack with their MCP servers, connects them (`tools plan`, `tools apply`) and rehearses a task with mock servers (`tools apply --mock`, `tools call`, `tools scenario`).
 - Dependency alerts: `openguildkit alerts` imports scanner reports into a register, links alerts to tasks, and asks a person to accept or set the severity of an alert. A confirmed critical alert linked to a task blocks its approval.
 - Market dossiers: `openguildkit market` keeps a dossier of competitors and lists the sources due for review; the market watch template opens an issue for each.

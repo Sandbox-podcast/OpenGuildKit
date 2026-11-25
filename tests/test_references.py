@@ -29,6 +29,24 @@ PRESENTED = {
 }
 
 
+# Standards and specifications without an `edition`, and why: the cited source names none (#348).
+UNDATED_STANDARDS = {
+    "archimate": "The cited Open Group article compares ArchiMate with TOGAF and names no edition of the language.",
+    "html": "A living standard: the WHATWG page shows only the day it was last updated.",
+    "oci-image-spec": "The cited OCI page publishes the specification text without a version number.",
+    "openfeature": "The cited specification page shows no version; its sections carry a stability status instead.",
+    "iso-3166": "ISO says the codes are kept up to date on its Online Browsing Platform; the page names no edition.",
+    "iec-62443": "A series whose parts each have their own edition; the cited IEC page covers the series.",
+    "iso-iec-ieee-29119": "A series whose parts each have their own edition, such as Part 2, Edition 2, 2021.",
+}
+# Regulations applied by a pack: each carries the consolidated text EUR-Lex showed as current when it was read, as
+# eu-ai-act does, or says here why it has none (#348).
+UNDATED_REGULATIONS = {
+    "facturation-electronique-france": "French law cited through impots.gouv.fr and service-public.gouv.fr, which give "
+                                       "no edition; EUR-Lex holds no consolidation of it.",
+}
+
+
 def write_family(directory, references, family_id="team-practices", title="Team practices"):
     path = Path(directory) / f"{family_id}.json"
     path.write_text(json.dumps({"id": family_id, "title": title, "references": references}), encoding="utf-8")
@@ -212,6 +230,27 @@ class ReferenceTests(unittest.TestCase):
             self.assertIn("Status: documentary reference", output.getvalue())
         with tempfile.TemporaryDirectory() as directory, self.assertRaisesRegex(CatalogError, "edition must be a non-empty string"):
             load_references(write_family(directory, [team_record(edition="")]))
+
+    def test_standards_and_applied_regulations_carry_the_edition_they_follow(self):
+        records = {record["id"]: record for family in self.families.values() for record in family["references"]}
+        undated = sorted(record_id for record_id, record in records.items()
+                         if record["kind"] in ("norme", "spécification") and not record.get("edition"))
+        self.assertEqual(undated, sorted(UNDATED_STANDARDS))
+        applied = {record_id: record for record_id, record in records.items()
+                   if record["kind"] == "réglementation" and record.get("packs")}
+        self.assertEqual(sorted(record_id for record_id, record in applied.items() if not record.get("edition")),
+                         sorted(UNDATED_REGULATIONS))
+        for record_id, record in applied.items():
+            if record_id in UNDATED_REGULATIONS:
+                continue
+            with self.subTest(reference=record_id):
+                self.assertRegex(record["edition"], r"^0\d{4}[RLD]\d{4}-\d{8}$")
+                urls = [source["url"] for source in record["sources"]]
+                self.assertIn(f"https://publications.europa.eu/resource/celex/{record['edition']}", urls)
+                self.assertTrue(any(url.startswith("https://eur-lex.europa.eu/") for url in urls))
+        openapi = records["openapi"]
+        self.assertEqual(openapi["edition"], "3.2.1")
+        self.assertEqual([source["url"] for source in openapi["sources"]], ["https://spec.openapis.org/oas/v3.2.1.html"])
 
     def test_the_documented_gdpr_example_extends_the_bundled_pack(self):
         text = (Path(__file__).resolve().parents[1] / "docs" / "references.md").read_text(encoding="utf-8")

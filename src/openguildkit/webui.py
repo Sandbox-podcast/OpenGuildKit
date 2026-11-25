@@ -32,6 +32,7 @@ from urllib.parse import parse_qs, urlsplit
 from . import cli, profile_cli
 from .catalog import load_catalog
 from .lock import package_version
+from .sensitive import credential_kind
 from .shell import shell_command
 from .storage import project_lock, write_text
 
@@ -81,7 +82,7 @@ REFUSALS = {
     "invalid-profile": "The profile sent is not a valid profile.",
     "not-initialized": "The project is not initialized: set it up first.",
     "outside-project": "A path leaves the project, or enters its .git folder.",
-    "secret-file": "The name of the file suggests a secret: the interface neither lists nor reads it.",
+    "secret-file": "The name or the text of the file suggests a secret: the interface does not read it.",
     "not-readable": "The interface only reads Markdown, JSON, YAML and text files.",
     "too-large": "The request or the file is too large.",
     "not-in-page": "A command or a file that does not belong in a page.",
@@ -108,6 +109,7 @@ TERMINAL_ACTS = {
 # Commands the interface never runs. Each needs a person at a terminal, or does not belong in a page.
 DENIED_COMMANDS = {
     "ci-check": "ci-check evaluates a central rule in CI.",
+    "mcp": "mcp serves project metadata to a local MCP client on stdio, for the agent host.",
     "ui": "The interface is already running.",
 }
 HUMAN_ONLY_TEXT = "A person runs this command in their own terminal: the interface never records it."
@@ -327,7 +329,8 @@ class CliRunner:
             if not keep_text:
                 stdout = ""
         stderr = err.getvalue()
-        for shown in {str(Path(folder).resolve()), folder}:
+        # The resolved form can contain the given one (/private/var/folders on macOS holds /var/folders): it goes first.
+        for shown in sorted({str(Path(folder).resolve()), folder}, key=len, reverse=True):
             stderr = stderr.replace(shown, "<upload>")
         result = {"code": code, "stdout": stdout, "stderr": stderr, "json": data}
         # Some decisions need a person at a terminal only in some cases (dismissing a critical alert): the CLI says
@@ -429,7 +432,14 @@ class ProjectFiles:
         if target.stat().st_size > MAX_FILE:
             raise Refused("The file is larger than 2 MB.", status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
                           reason="too-large")
-        return {"path": relative, "text": target.read_text(encoding="utf-8", errors="replace")}
+        text = target.read_text(encoding="utf-8", errors="replace")
+        # A cloud key keeps its generated name, and a setting holds a token in clear: the text decides too. The file is
+        # refused whole, as a secret name is, rather than masked: the page saves back what it reads.
+        kind = credential_kind(text)
+        if kind:
+            raise Refused(f"{relative} holds what looks like {kind}: the interface does not read it.",
+                          reason="secret-file")
+        return {"path": relative, "text": text}
 
     def write(self, relative: str, text: str) -> dict:
         if relative not in WRITABLE_FILES:
@@ -584,7 +594,14 @@ class Handler(BaseHTTPRequestHandler):
                                  reason="server-error"))
 
     def _body(self) -> dict:
-        """The JSON object a request of the interface's own page sends, with its origin and session token."""
+        """The JSON object a request of the interface's own page sends, with its origin and session token. The body
+        announced is read first, up to MAX_BODY, refused or not: on Windows, closing a connection with bytes left
+        unread resets it, and the client can lose the answer."""
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = -1
+        raw = self.rfile.read(length) if 0 <= length <= MAX_BODY else None
         if not self._host_allowed():
             raise Refused("Unknown host.", status=HTTPStatus.MISDIRECTED_REQUEST, reason="foreign-page")
         if (self.headers.get("Origin") or "").lower() not in self.app.origins:
@@ -593,14 +610,10 @@ class Handler(BaseHTTPRequestHandler):
             raise Refused("Missing or invalid session token. Reload the page.", reason="stale-token")
         if not (self.headers.get("Content-Type") or "").startswith("application/json"):
             raise Refused("Send JSON.", status=HTTPStatus.UNSUPPORTED_MEDIA_TYPE, reason="bad-request")
-        try:
-            length = int(self.headers.get("Content-Length") or 0)
-        except ValueError:
-            length = -1
-        if length < 0 or length > MAX_BODY:
+        if raw is None:
             raise Refused("The request is too large.", status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE, reason="too-large")
         try:
-            body = json.loads(self.rfile.read(length) or b"{}")
+            body = json.loads(raw or b"{}")
         except ValueError:
             body = None
         if not isinstance(body, dict):
