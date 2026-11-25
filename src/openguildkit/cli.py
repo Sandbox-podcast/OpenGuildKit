@@ -55,8 +55,8 @@ add_share, export_docs, project_overview, revoke_share, same_access, share_statu
     _on_first_call("publishing", name)
     for name in ("add_share", "export_docs", "project_overview", "revoke_share", "same_access", "share_status",
                  "shared_addresses", "space_neighbours"))
-render_scan, scan_exit_code, scan_report = (
-    _on_first_call("surfaces", name) for name in ("render_scan", "scan_exit_code", "scan_report"))
+render_scan, scan_exit_code, scan_report, scan_sarif = (
+    _on_first_call("surfaces", name) for name in ("render_scan", "scan_exit_code", "scan_report", "scan_sarif"))
 english_title, find_references, load_references, with_pattern_references = (
     _on_first_call("references", name)
     for name in ("english_title", "find_references", "load_references", "with_pattern_references"))
@@ -64,6 +64,12 @@ english_title, find_references, load_references, with_pattern_references = (
 # same number (tests/test_performance.py compares the help with it).
 UI_PORT = 7311
 FORMATS = ("text", "sarif")
+
+
+def _format_option(parser, what: str) -> None:
+    """The --format option of the commands that can print SARIF: `what` says what is printed."""
+    parser.add_argument("--format", choices=FORMATS, default="text",
+                        help=f"{what} as SARIF 2.1.0 for code scanning instead of text.")
 
 
 class _Version(argparse.Action):
@@ -125,8 +131,7 @@ def command_parser() -> argparse.ArgumentParser:
     guard.add_argument("--require-signed", action="store_true",
                        help="With --ci, fail while the base revision's approvals are local and cannot be verified.")
     guard.add_argument("--json", action="store_true", help="Print the result as JSON.")
-    guard.add_argument("--format", choices=FORMATS, default="text",
-                       help="With --ci, print the problems as SARIF 2.1.0 for code scanning instead of text.")
+    _format_option(guard, "With --ci, print the problems")
     deliverable = commands.add_parser("deliverable", help="Start and check a business deliverable from an approved task.")
     deliverable_actions = deliverable.add_subparsers(dest="deliverable_action", required=True)
     deliverable_actions.add_parser("list", help="List the deliverable templates.")
@@ -182,14 +187,13 @@ def command_parser() -> argparse.ArgumentParser:
                       help="check reports each rule; apply writes the host settings; scan reads the instruction files "
                            "and agent settings for hidden characters, phrases that cancel the rules and risky commands.")
     host.add_argument("--json", action="store_true", help="Print the report as JSON.")
-    host.add_argument("--strict", action="store_true",
-                      help="With scan: exit 1 on any finding, not only on an error.")
+    host.add_argument("--strict", action="store_true", help="With scan: exit 1 on any finding, not only an error.")
+    _format_option(host, "With scan, print the findings")
     update = commands.add_parser("update", help="Show what the installed catalog would change and adopt it.")
     update.add_argument("--apply", action="store_true", help="Adopt the installed catalog's records for this project.")
     update.add_argument("--json", action="store_true", help="Print the changes as JSON.")
     check = commands.add_parser("check", help="Check that the instructions match the project profile.")
-    check.add_argument("--format", choices=FORMATS, default="text",
-                       help="Print the problems as SARIF 2.1.0 for code scanning instead of text.")
+    _format_option(check, "Print the problems")
     commands.add_parser("mcp", help="Serve read-only project metadata to a local MCP client. Requires --project.")
     ui = commands.add_parser("ui", help="Open the web interface of this project on 127.0.0.1.")
     ui.add_argument("--port", type=int, default=UI_PORT, help=f"Port (default {UI_PORT}; 0 picks a free one).")
@@ -789,8 +793,15 @@ def _print_guard_sarif(root: Path, found: list[dict], mode: str) -> None:
 
 
 def _require_sarif_options(args) -> None:
-    """--format sarif belongs to check and to guard --ci, and it does not go with --json: both print on the standard
-    output, so say which one to type."""
+    """--format sarif belongs to check, to guard --ci and to host scan, and it does not go with --json: both print on
+    the standard output, so say which one to type."""
+    if args.command == "host" and args.format == "sarif":
+        if args.mode != "scan":
+            raise ValueError("--format sarif writes the findings of the scan: type openguildkit host scan --format sarif.")
+        if args.json:
+            raise ValueError("--format sarif and --json both print the result on the standard output: use one of them. "
+                             "Type openguildkit host scan --format sarif for code scanning, or openguildkit host scan "
+                             "--json for a program.")
     if args.command == "guard" and args.format == "sarif":
         if not args.ci:
             raise ValueError("--format sarif writes the result of the CI check: type openguildkit guard --ci "
@@ -1235,7 +1246,9 @@ def _host_scan(args, root: Path, state: Path) -> int:
     could mislead an agent. The profile, when there is one, gives the guard; the project's own tools join the registry."""
     profile = load_profile(state, project_catalog(args, state)) if (state / "project.json").is_file() else {}
     result = scan_report(root, profile, load_tools(state / "catalog" / "tools"))
-    if args.json:
+    if args.format == "sarif":
+        print(scan_sarif(result, root), end="")
+    elif args.json:
         print_json(result)
     else:
         print(render_scan(result))
