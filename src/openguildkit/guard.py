@@ -25,6 +25,7 @@ from .results import DONE_STATUSES, verification_of
 from .storage import read_json, write_json
 from .task_index import tasks_with_status
 from .tasks import STALE_DAYS, STATUSES, approval_problem, days_since, expired_waiver_problem, read_task, task_path
+from .terminal import interactive
 from .workflow import TaskStateError, exported_blockers, mock_evidence
 
 MODES = ("off", "observe", "enforce")
@@ -306,7 +307,7 @@ def hook_command(event: str, project: Path | None, catalog_in_force=None) -> int
     of the CLI.
     """
     try:
-        raw = "" if sys.stdin.isatty() else sys.stdin.read()
+        raw = "" if interactive() else sys.stdin.read()
     except (OSError, UnicodeError):
         raw = None
     code, out, err = run_hook(event, raw, project, project_loader(project, catalog_in_force))

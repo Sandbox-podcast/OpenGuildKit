@@ -19,6 +19,7 @@ from .project import (
 )
 from .storage import project_lock, write_json
 from .tasks import tasks_touched
+from .terminal import interactive
 
 LIST_FIELDS = {
     "pack": ("packs", "packs"), "role": ("roles", None), "tool": ("tools", None), "check": ("checks", None),
@@ -332,7 +333,7 @@ def _voids(voided: list[str]) -> str:
 def _confirm(change: str, target: str, weakened: list[tuple[str, list[str]]], voided: list[str]) -> None:
     """A change that weakens a protection is typed by the person at a terminal, never run by an agent."""
     what = "; ".join(text for text, _ in weakened)
-    if not sys.stdin.isatty():
+    if not interactive():
         raise Weakening(f"'{change}' weakens a protection ({what}): it is the person's decision. Ask them to run the "
                         f"same command at an interactive terminal.{_voids(voided)} Nothing was written.", weakened)
     print(f"'{change}' weakens a protection of the project ({what}).{_voids(voided)} Type {target} to confirm: ",

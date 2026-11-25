@@ -34,6 +34,7 @@ from .prompts import prompt_questions
 from .storage import json_text, print_json, project_lock, read_json, write_json
 from .tasks import list_tasks, read_task, task_path, tasks_touched
 from .tasks_cli import sharing_warnings
+from .terminal import interactive
 from .tools import detect_tools, load_tools, match_tools
 
 
@@ -1096,7 +1097,7 @@ def _init(args, root: Path, state: Path, catalog: dict) -> None:
         return
     if (state / "project.json").exists():
         raise ValueError(ALREADY_INITIALIZED)
-    if not args.answers and not sys.stdin.isatty():
+    if not args.answers and not interactive():
         raise ValueError("init needs a terminal for its questions. Without one, print them with openguildkit init "
                          "--questions, save the answers as JSON, then run openguildkit init --answers PATH.")
     answers = read_json(args.answers) if args.answers else _interactive_init(questions, catalog, registry)

@@ -46,6 +46,7 @@ from .tasks import (
     require_blocker_status, require_current_scope, resolve_blocker, revoke_approval, start_pass, state_refusal,
     submit_pass, task_path, timestamp, verification_blocker_problems,
 )
+from .terminal import interactive
 from .tools import connected_tools, load_tools, match_tools, tool_evidence_warnings
 from .workflow import (
     RESOLUTION_RULE, TaskStateError, blocker_list, challenge_report, deliberation_request, handoff, is_decision_task,
@@ -457,7 +458,7 @@ def _read_consultation(task: dict) -> dict:
 def _revoke(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
     """The person withdraws an approval at their terminal, as they gave it: never an agent."""
     result = revoke_approval(task, args.by, args.reason)
-    if not sys.stdin.isatty():
+    if not interactive():
         raise ValueError("Withdrawing an approval is the person's act: they run openguildkit task revoke in their own "
                          "terminal, as they approved.")
     problem = approval_problem(task, profile, catalog, root)
@@ -515,7 +516,7 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
     removals = pending_removals(task) if args.approve else []
     result = record_decision(task, args.approve, args.by, args.reason, base, signature, removals)
     if args.approve:
-        if (signature is None or removals) and not sys.stdin.isatty():
+        if (signature is None or removals) and not interactive():
             raise ValueError("Approval requires a person at an interactive terminal.")
         # A signed approval shows the same text: the signature replaces the typed ID, not the reading.
         print("\n".join(_decision_prompt(state, task, profile, register)), file=sys.stderr)
@@ -653,7 +654,7 @@ def _closing(args, state: Path, task: dict, profile: dict, relevance: dict, root
             + "\n- ".join(set_aside) + f"\nA person confirms each: openguildkit task complete {args.id} --by NAME, "
             "at a terminal.")
     if args.by:
-        if not sys.stdin.isatty():
+        if not interactive():
             raise ValueError("Closing a task with --by needs the person at an interactive terminal.")
         for group in closed["result"]["closing"]["open_points"]:
             print(f"{group['group']}:", file=sys.stderr)
@@ -711,7 +712,7 @@ def _declaration_checks(args, task: dict, profile: dict, check_id: str) -> dict:
         raise ValueError(f"{check_id} is not a check command of the task: {', '.join(commands) or 'none'}.")
     if not (args.by or "").strip():
         raise ValueError("Name the person with --by NAME.")
-    if not sys.stdin.isatty():
+    if not interactive():
         raise ValueError("Declaring whether a command can run needs the person at an interactive terminal.")
     return commands
 
@@ -878,7 +879,7 @@ def _resolve(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     require_approval(task, profile, catalog, root)
     require_blocker_status(task)
     if action == "waive":
-        if not sys.stdin.isatty():
+        if not interactive():
             raise ValueError("A waiver needs a person at an interactive terminal.")
         details = {"kind": "waived", "by": args.by, "reason": args.reason, "scope": args.scope, "until": args.until}
     else:
@@ -894,7 +895,7 @@ def _resolve(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
             if approval_policy(profile)["mode"] != "signed":
                 raise ValueError("A clearance signature is only used in a project with signed approvals.")
             details.update(signature=args.signature.read_text(encoding="utf-8"), signer=args.signer)
-    details["terminal"] = sys.stdin.isatty()
+    details["terminal"] = interactive()
     result = resolve_blocker(task, args.blocker, details, profile, root)
     # A signed clearance is the person's act through their key; otherwise the person types the task ID.
     if action == "clear" and "signature" not in details:
@@ -1204,7 +1205,7 @@ def _reused_answers(args, task: dict) -> dict:
             answers.update(given)
             validate_answers(answers)
     if "concerns" not in answers:
-        if sys.stdin.isatty():
+        if interactive():
             answers.update(prompt_questions([concerns_question()], "task consult"))
         else:
             answers["concerns"] = ["unsure"]
@@ -1304,7 +1305,7 @@ def _decision_payload(args, root: Path, state: Path, profile: dict, catalog: dic
 
 def _authorize(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """A person allows or refuses an external action outside the authorized scope."""
-    if args.allow and not sys.stdin.isatty():
+    if args.allow and not interactive():
         raise ValueError("Allowing an external action requires a person at an interactive terminal.")
     result = record_authorization(task, args.external_action, args.target, args.allow, args.by, args.reason)
     if args.allow:
