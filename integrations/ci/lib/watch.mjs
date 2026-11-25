@@ -254,6 +254,48 @@ function processAlive(pid) {
   }
 }
 
+function readLock(path) {
+  try {
+    return readJson(path);
+  } catch {
+    // An empty lock can be left by a crash between creation and write.
+    return null;
+  }
+}
+
+function watcherBusy(holder, path) {
+  const who = holder ? `process ${holder.pid} on ${holder.host} since ${holder.since}` : 'an unknown process';
+  return new Error(`Another watcher is using this state directory (${who}). ` +
+    `Wait for it to finish, or delete ${path} if no watcher is running.`);
+}
+
+// One watcher at a time removes a stale lock, and only while the file is still the one it judged stale.
+function removeStaleLock(path, holder, modified, now) {
+  const guard = `${path}.break`;
+  for (let tries = 0; ; tries += 1) {
+    try {
+      writeFileSync(guard, '', { flag: 'wx' });
+      break;
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+    }
+    const created = statSync(guard, { throwIfNoEntry: false })?.mtimeMs;
+    // A guard older than a minute was left by a watcher that stopped while it held it.
+    if (tries > 0 || (created !== undefined && now() - created <= minute)) return false;
+    rmSync(guard, { force: true });
+  }
+  try {
+    const current = statSync(path, { throwIfNoEntry: false });
+    if (current && (current.mtimeMs !== modified || (readLock(path)?.token ?? null) !== (holder?.token ?? null))) {
+      return false;
+    }
+    rmSync(path, { force: true });
+    return true;
+  } finally {
+    rmSync(guard, { force: true });
+  }
+}
+
 export function acquireWatchLock(stateDir, { alive = processAlive, now = Date.now } = {}) {
   const path = join(stateDir, 'watch.lock');
   const owner = { pid: process.pid, host: hostname(), since: new Date(now()).toISOString(), token: randomUUID() };
@@ -272,21 +314,12 @@ export function acquireWatchLock(stateDir, { alive = processAlive, now = Date.no
     }
     const modified = statSync(path, { throwIfNoEntry: false })?.mtimeMs;
     if (modified === undefined) continue;
-    let holder = null;
-    try {
-      holder = readJson(path);
-    } catch {
-      // An empty lock can be left by a crash between creation and write.
-    }
+    const holder = readLock(path);
     const stale = holder
       ? holder.host === hostname() && Number.isSafeInteger(holder.pid) && !alive(holder.pid)
       : now() - modified > minute;
-    if (!stale) {
-      const who = holder ? `process ${holder.pid} on ${holder.host} since ${holder.since}` : 'an unknown process';
-      throw new Error(`Another watcher is using this state directory (${who}). ` +
-        `Wait for it to finish, or delete ${path} if no watcher is running.`);
-    }
-    rmSync(path, { force: true });
+    if (!stale) throw watcherBusy(holder, path);
+    if (!removeStaleLock(path, holder, modified, now)) throw watcherBusy(readLock(path), path);
   }
   throw new Error(`Could not acquire the watcher lock ${path}.`);
 }
