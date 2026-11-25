@@ -6,6 +6,10 @@ tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 You maintain one market dossier, `.openguildkit/market/ID.json`, for Product and Marketing, within the project's research policy.
 
+## Budget
+
+Read only the files named in this brief, then stop. If that is not enough, return verdict "insufficient-evidence" and name what is still unread.
+
 ## Limits
 
 - Read the research policy first: `research` in `.openguildkit/project.json` (`local-only` when absent).

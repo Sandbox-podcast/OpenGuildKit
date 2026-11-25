@@ -1,0 +1,1064 @@
+{
+  "modules": [
+    {
+      "module": "src/openguildkit/__init__.py",
+      "role": "Marks the package; it holds nothing else.",
+      "entry": [
+        "module"
+      ],
+      "tests": [
+        "tests/test_python_floor.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/__main__.py",
+      "role": "Starts `python -m openguildkit` and the installed command; sends a plain `guard --hook` call straight to the guard without importing the rest of the CLI.",
+      "entry": [
+        "hook_call",
+        "main"
+      ],
+      "tests": [
+        "tests/test_performance.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/agent_workflow.py",
+      "role": "The task workflow that the managed block of `AGENTS.md` teaches every agent.",
+      "entry": [
+        "AGENT_WORKFLOW"
+      ],
+      "tests": [
+        "tests/test_agent_instructions.py",
+        "tests/test_instruction_files.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/alerts.py",
+      "role": "The dependency alert register, from the reports of the project's own scanners.",
+      "entry": [
+        "read_report",
+        "parse_report",
+        "register_path",
+        "load_register",
+        "save_register",
+        "import_report"
+      ],
+      "tests": [
+        "tests/test_alert_resolution.py",
+        "tests/test_alerts.py",
+        "tests/test_personal_data_doc.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/alerts_cli.py",
+      "role": "The `alerts` commands and `task alerts`: import scanner reports and review alerts.",
+      "entry": [
+        "add_parser",
+        "run",
+        "task_command",
+        "consultation_task"
+      ],
+      "tests": [
+        "tests/test_architecture.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/brains.py",
+      "role": "Assembles what a brain knows: its specialists' methods, packs and references.",
+      "entry": [
+        "brain_knowledge",
+        "knowledge_gaps",
+        "consultation_context",
+        "brief_knowledge",
+        "brain_skeleton",
+        "write_brain_skeleton"
+      ],
+      "tests": [
+        "tests/test_brain_knowledge.py",
+        "tests/test_catalog_format_doc.py",
+        "tests/test_new_brains.py",
+        "tests/test_pack_rules.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/catalog.py",
+      "role": "Loads bundled records from `registry/` and project records from `.openguildkit/catalog/`. Rejects unknown fields, duplicate IDs and keys, non-HTTPS sources, multi-line text and pack dependency cycles.",
+      "entry": [
+        "is_positive_integer",
+        "CatalogError",
+        "unique_fields",
+        "validate_fields",
+        "validate_text",
+        "validate_id"
+      ],
+      "tests": [
+        "tests/test_approval_lifecycle.py",
+        "tests/test_blocker_clearances.py",
+        "tests/test_blockers.py",
+        "tests/test_board_entries.py",
+        "tests/test_brain_knowledge.py",
+        "tests/test_brain_selection.py",
+        "tests/test_brains.py",
+        "tests/test_catalog_format_doc.py",
+        "tests/test_catalog_sources.py",
+        "tests/test_chaosfolk.py",
+        "tests/test_check_links.py",
+        "tests/test_clean_errors.py",
+        "tests/test_components.py",
+        "tests/test_core.py",
+        "tests/test_coverage.py",
+        "tests/test_decision_brief.py",
+        "tests/test_deliberation.py",
+        "tests/test_deliverables.py",
+        "tests/test_detect_versions.py",
+        "tests/test_features.py",
+        "tests/test_first_contribution.py",
+        "tests/test_instruction_files.py",
+        "tests/test_lenses_and_methods.py",
+        "tests/test_machine_checks.py",
+        "tests/test_monorepo_instructions.py",
+        "tests/test_new_brains.py",
+        "tests/test_pack_rules.py",
+        "tests/test_pass_relevance.py",
+        "tests/test_patterns.py",
+        "tests/test_performance.py",
+        "tests/test_proportionate_setup.py",
+        "tests/test_publishing.py",
+        "tests/test_questions.py",
+        "tests/test_recorded_values.py",
+        "tests/test_references.py",
+        "tests/test_regulatory_packs.py",
+        "tests/test_relevance.py",
+        "tests/test_routing.py",
+        "tests/test_rule_checks.py",
+        "tests/test_rule_plan.py",
+        "tests/test_sectors.py",
+        "tests/test_setup_questionnaire.py",
+        "tests/test_source_dates.py",
+        "tests/test_stack_patterns.py",
+        "tests/test_tools.py",
+        "tests/test_upgrades.py",
+        "tests/test_webui.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/ci.py",
+      "role": "Reads versioned evidence from Git and evaluates the central policy's field check.",
+      "entry": [
+        "read_policy_pack",
+        "check_export"
+      ],
+      "tests": [
+        "tests/e2e/test_export_ci.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/cli.py",
+      "role": "Parses commands, runs setup, sync, check, catalog and the other project commands, and hands each command group to its module.",
+      "entry": [
+        "command_parser",
+        "main"
+      ],
+      "tests": [
+        "tests/e2e/test_board_passes.py",
+        "tests/e2e/test_campaign_links.py",
+        "tests/e2e/test_catalog_lock.py",
+        "tests/e2e/test_cli_flow.py",
+        "tests/e2e/test_concurrency.py",
+        "tests/e2e/test_export_ci.py",
+        "tests/e2e/test_field_kit.py",
+        "tests/e2e/test_host_rehearsal.py",
+        "tests/test_agent_instructions.py",
+        "tests/test_approval_lifecycle.py",
+        "tests/test_audit_fixes.py",
+        "tests/test_brain_knowledge.py",
+        "tests/test_chaosfolk_results.py",
+        "tests/test_clean_errors.py",
+        "tests/test_cli_coverage.py",
+        "tests/test_components.py",
+        "tests/test_dead_code.py",
+        "tests/test_decisions.py",
+        "tests/test_detect_versions.py",
+        "tests/test_determinism.py",
+        "tests/test_doc_examples.py",
+        "tests/test_entry_pages.py",
+        "tests/test_first_contribution.py",
+        "tests/test_first_run.py",
+        "tests/test_integrations.py",
+        "tests/test_next_steps.py",
+        "tests/test_performance.py",
+        "tests/test_product_docs.py",
+        "tests/test_project_checks.py",
+        "tests/test_project_walk.py",
+        "tests/test_proportionate_setup.py",
+        "tests/test_references.py",
+        "tests/test_release.py",
+        "tests/test_robustness.py",
+        "tests/test_rule_checks.py",
+        "tests/test_sectors.py",
+        "tests/test_setup_questionnaire.py",
+        "tests/test_storybook_extract.py",
+        "tests/test_test_suite.py",
+        "tests/test_tool_registry.py",
+        "tests/test_upgrade.py",
+        "tests/test_webui.py",
+        "tests/test_workflows.py",
+        "tests/test_written_host_controls.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/clock.py",
+      "role": "The two clocks: the date records are written with (`SOURCE_DATE_EPOCH`) and the real time decisions are made with.",
+      "entry": [
+        "now",
+        "today",
+        "timestamp",
+        "real_now",
+        "real_today",
+        "real_timestamp"
+      ],
+      "tests": [
+        "tests/e2e/test_more_commands.py",
+        "tests/test_approval_lifecycle.py",
+        "tests/test_blockers.py",
+        "tests/test_clean_errors.py",
+        "tests/test_clock.py",
+        "tests/test_doc_promises.py",
+        "tests/test_market.py",
+        "tests/test_portal_verification.py",
+        "tests/test_publishing.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/consultation.py",
+      "role": "Prepares the consultation: scope snapshot, review request and each board's brief with the rules that concern the task.",
+      "entry": [
+        "profile_settings",
+        "json_section",
+        "research_decision",
+        "answer_lines",
+        "scope_lines",
+        "code_not_found"
+      ],
+      "tests": [
+        "tests/test_agent_native.py",
+        "tests/test_blocker_clearances.py",
+        "tests/test_blockers.py",
+        "tests/test_board_entries.py",
+        "tests/test_brain_knowledge.py",
+        "tests/test_brain_selection.py",
+        "tests/test_brains.py",
+        "tests/test_deliberation.py",
+        "tests/test_host_research.py",
+        "tests/test_lenses_and_methods.py",
+        "tests/test_new_brains.py",
+        "tests/test_project_walk.py",
+        "tests/test_proportionate_setup.py",
+        "tests/test_questions.py",
+        "tests/test_routing.py",
+        "tests/test_rule_plan.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/decisions.py",
+      "role": "Seals an approval to what was approved, verifies signed approvals against the allowed signers in Git, and reads exported records.",
+      "entry": [
+        "git_revision",
+        "changed_paths_since",
+        "exported_boards",
+        "exported_rounds",
+        "shared_digest",
+        "task_shared_digest"
+      ],
+      "tests": [
+        "tests/test_approval_lifecycle.py",
+        "tests/test_blockers.py",
+        "tests/test_decision_text.py",
+        "tests/test_decisions.py",
+        "tests/test_guard.py",
+        "tests/test_personal_data_doc.py",
+        "tests/test_record_integrity.py",
+        "tests/test_record_lifecycle.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/deliverables.py",
+      "role": "Business deliverable templates: inputs, tool actions that need approval, reviewer checks.",
+      "entry": [
+        "project_path",
+        "load_deliverables",
+        "launch_notice",
+        "utm_link",
+        "new_draft",
+        "draft_problems"
+      ],
+      "tests": [
+        "tests/test_deliverables.py",
+        "tests/test_source_dates.py",
+        "tests/test_tools.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/detect.py",
+      "role": "Proposes components, technologies and versions from the repository's manifests, without running a package manager.",
+      "entry": [
+        "walk",
+        "detected_project_name",
+        "detect_stack",
+        "components_for_profile"
+      ],
+      "tests": [
+        "tests/test_components.py",
+        "tests/test_detect_versions.py",
+        "tests/test_project_checks.py",
+        "tests/test_project_walk.py",
+        "tests/test_stack_patterns.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/features.py",
+      "role": "The features: a purpose, its lead tool and three alternatives from the tool registry, and which are on.",
+      "entry": [
+        "load_features",
+        "feature_options",
+        "enabled_tools",
+        "features_view",
+        "profile_names"
+      ],
+      "tests": [
+        "tests/test_features.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/features_cli.py",
+      "role": "The `features` commands: list the features, turn an option on or off through the profile's path.",
+      "entry": [
+        "add_parser",
+        "run"
+      ],
+      "tests": [
+        "tests/test_cli_coverage.py",
+        "tests/test_features.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/guard.py",
+      "role": "Says whether an approved task covers the work: the host hooks before a request or an edit, and `guard --ci` in a pull request.",
+      "entry": [
+        "guard_mode",
+        "covering_approvals",
+        "edited_paths",
+        "signers_file",
+        "hook_answer",
+        "guard_hook"
+      ],
+      "tests": [
+        "tests/test_approval_lifecycle.py",
+        "tests/test_clock.py",
+        "tests/test_guard.py",
+        "tests/test_record_lifecycle.py",
+        "tests/test_setup_questionnaire.py",
+        "tests/test_task_index.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/hosts.py",
+      "role": "Writes the settings and hooks a host agent can enforce (Claude Code, Codex) and reports which rules stay instructions.",
+      "entry": [
+        "signers_rule",
+        "approval_warning",
+        "host_controls",
+        "apply_host_settings"
+      ],
+      "tests": [
+        "tests/test_approval_lifecycle.py",
+        "tests/test_host_research.py",
+        "tests/test_hosts.py",
+        "tests/test_next_steps.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/integrations.py",
+      "role": "Installs the agent skill and the subagents shipped with this version.",
+      "entry": [
+        "packaged_file",
+        "install_agent_files"
+      ],
+      "tests": [
+        "tests/test_agent_native.py",
+        "tests/test_integrations.py"
+      ],
+      "doc": "docs/architecture.md",
+      "covers": [
+        "src/openguildkit/agent_files/",
+        "integrations/"
+      ]
+    },
+    {
+      "module": "src/openguildkit/lock.py",
+      "role": "Pins the catalog records a project uses in `catalog.lock.json`; `update` shows and applies a newer catalog.",
+      "entry": [
+        "package_version",
+        "lock_path",
+        "read_lock",
+        "central_policy",
+        "installed_catalog",
+        "project_catalog"
+      ],
+      "tests": [
+        "tests/test_new_brains.py",
+        "tests/test_other_host.py",
+        "tests/test_performance.py",
+        "tests/test_source_dates.py",
+        "tests/test_upgrades.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/market.py",
+      "role": "Market dossiers: competitors, dated observations, what is still unknown.",
+      "entry": [
+        "dossier_path",
+        "validate_dossier",
+        "validate_watch",
+        "load_dossier",
+        "dossier_text",
+        "save_dossier"
+      ],
+      "tests": [
+        "tests/test_clock.py",
+        "tests/test_doc_promises.py",
+        "tests/test_market.py",
+        "tests/test_personal_data_doc.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/market_cli.py",
+      "role": "The `market` command: create, fill, check and watch market dossiers.",
+      "entry": [
+        "add_parser",
+        "run"
+      ],
+      "tests": [
+        "tests/test_architecture.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/mcp_mock.py",
+      "role": "Stand-in MCP servers over stdio for demos and tests: synthetic answers, no network, no credentials.",
+      "entry": [
+        "validate_mock",
+        "reference_problems",
+        "check_synthetic",
+        "apply_scenario",
+        "is_generic",
+        "signature"
+      ],
+      "tests": [
+        "tests/e2e/test_tool_mocks.py",
+        "tests/test_tools.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/mcp_protocol.py",
+      "role": "Shared stdio transport, handshake and tool dispatch for local MCP servers.",
+      "entry": [
+        "ProtocolError",
+        "ToolServer",
+        "handle",
+        "serve"
+      ],
+      "tests": [
+        "tests/e2e/test_tool_mocks.py",
+        "tests/test_project_mcp.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/patterns.py",
+      "role": "Matches the project's stack and context to versioned stack patterns and the packs they apply.",
+      "entry": [
+        "role_choices",
+        "technology_key",
+        "technology_version",
+        "version_at_least",
+        "stack_contexts",
+        "is_stack_pattern"
+      ],
+      "tests": [
+        "tests/test_chaosfolk.py",
+        "tests/test_components.py",
+        "tests/test_coverage.py",
+        "tests/test_detect_versions.py",
+        "tests/test_lenses_and_methods.py",
+        "tests/test_machine_checks.py",
+        "tests/test_patterns.py",
+        "tests/test_regulatory_packs.py",
+        "tests/test_relevance.py",
+        "tests/test_sectors.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/portal_verification.py",
+      "role": "`docs share verify`: signs in to one Documentalist instance with a password typed at the terminal, reads a space's reader invitations and compares their end dates with the share register.",
+      "entry": [
+        "verify_portal"
+      ],
+      "tests": [
+        "tests/test_portal_verification.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/profile_cli.py",
+      "role": "The `profile` commands: change the profile after setup, with who, when and why; the page saves through the same path.",
+      "entry": [
+        "protective_packs",
+        "add_parser",
+        "weakening_changes",
+        "Weakening",
+        "InvalidProfile",
+        "voided_approvals"
+      ],
+      "tests": [
+        "tests/test_architecture.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/project.py",
+      "role": "Builds the setup questionnaire, validates the profile, resolves packs, renders the managed block of `AGENTS.md`, computes the profile fingerprint and checks that instructions are current.",
+      "entry": [
+        "project_root",
+        "state_path",
+        "is_norm",
+        "norm_reason",
+        "init_questions",
+        "unsure_answers"
+      ],
+      "tests": [
+        "tests/test_approval_lifecycle.py",
+        "tests/test_blocker_clearances.py",
+        "tests/test_blockers.py",
+        "tests/test_board_entries.py",
+        "tests/test_brain_knowledge.py",
+        "tests/test_brain_selection.py",
+        "tests/test_chaosfolk.py",
+        "tests/test_components.py",
+        "tests/test_core.py",
+        "tests/test_decision_brief.py",
+        "tests/test_deliberation.py",
+        "tests/test_instruction_files.py",
+        "tests/test_monorepo_instructions.py",
+        "tests/test_pack_rules.py",
+        "tests/test_pass_relevance.py",
+        "tests/test_patterns.py",
+        "tests/test_personal_data_doc.py",
+        "tests/test_proportionate_setup.py",
+        "tests/test_references.py",
+        "tests/test_regulatory_packs.py",
+        "tests/test_relevance.py",
+        "tests/test_routing.py",
+        "tests/test_rule_checks.py",
+        "tests/test_rule_plan.py",
+        "tests/test_sectors.py",
+        "tests/test_setup_questionnaire.py",
+        "tests/test_source_dates.py",
+        "tests/test_stack_patterns.py",
+        "tests/test_upgrades.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/project_checks.py",
+      "role": "Proposes the project's test commands at setup and explains why a check command failed.",
+      "entry": [
+        "propose_checks",
+        "failure_message"
+      ],
+      "tests": [
+        "tests/test_audit_fixes.py",
+        "tests/test_project_checks.py",
+        "tests/test_project_walk.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/project_mcp.py",
+      "role": "Read-only MCP access to the selected project’s profile, rule references, task status and check outcomes.",
+      "entry": [
+        "serve_project"
+      ],
+      "tests": [
+        "tests/test_project_mcp.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/prompts.py",
+      "role": "Asks a person at a terminal the setup questions of `init` and the task questions of `task consult`.",
+      "entry": [
+        "prompt_choices",
+        "prompt_questions"
+      ],
+      "tests": [
+        "tests/test_clean_errors.py",
+        "tests/test_proportionate_setup.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/publishing.py",
+      "role": "Exports verified work as documentation pages for Documentalist and keeps the share register.",
+      "entry": [
+        "project_overview",
+        "export_docs",
+        "load_shares",
+        "portal_space",
+        "share_space",
+        "add_share"
+      ],
+      "tests": [
+        "tests/test_personal_data_doc.py",
+        "tests/test_portal_verification.py",
+        "tests/test_publishing.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/questionnaire.py",
+      "role": "The task questionnaire, its follow-ups and the check of the answers.",
+      "entry": [
+        "task_questions",
+        "as_list",
+        "concerns_question",
+        "require_concerns",
+        "validate_answers",
+        "open_points"
+      ],
+      "tests": [
+        "tests/test_brain_selection.py",
+        "tests/test_first_run.py",
+        "tests/test_questions.py",
+        "tests/test_routing.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/references.py",
+      "role": "Searches the reference library, separately from the active rule packs.",
+      "entry": [
+        "load_references",
+        "check_reference_links",
+        "with_pattern_references",
+        "english_title",
+        "find_references"
+      ],
+      "tests": [
+        "tests/test_brain_knowledge.py",
+        "tests/test_catalog_sources.py",
+        "tests/test_check_links.py",
+        "tests/test_coverage.py",
+        "tests/test_edition_watch.py",
+        "tests/test_lenses_and_methods.py",
+        "tests/test_new_brains.py",
+        "tests/test_pack_rules.py",
+        "tests/test_references.py",
+        "tests/test_regulatory_packs.py",
+        "tests/test_source_dates.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/relevance.py",
+      "role": "Decides which active packs concern a task, from its answers, boards and brief.",
+      "entry": [
+        "rule_not_concerned",
+        "judge_rules",
+        "sensitive_area",
+        "evidence_owner",
+        "changed_files",
+        "condition_met"
+      ],
+      "tests": [
+        "tests/test_pass_relevance.py",
+        "tests/test_relevance.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/results.py",
+      "role": "Records what was delivered for an approved task and the checks that prove it.",
+      "entry": [
+        "expected_checks",
+        "asked_checks",
+        "not_concerned",
+        "run_command_checks",
+        "decision_changes",
+        "decision_revision_message"
+      ],
+      "tests": [
+        "tests/test_recorded_values.py",
+        "tests/test_relevance.py",
+        "tests/test_results.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/routing.py",
+      "role": "Routes a task to boards from its brief and answers, then applies required boards and the requester's changes.",
+      "entry": [
+        "normalize_text",
+        "normalize_with_offsets",
+        "trigger_pattern",
+        "scan_triggers",
+        "trigger_matches",
+        "task_concepts"
+      ],
+      "tests": [
+        "tests/test_brain_selection.py",
+        "tests/test_decision_brief.py",
+        "tests/test_new_brains.py",
+        "tests/test_performance.py",
+        "tests/test_routing.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/rule_checks.py",
+      "role": "Validates and evaluates the machine checks that pack rules declare, without executing anything.",
+      "entry": [
+        "validate_path",
+        "validate_check",
+        "describe_check",
+        "parse_fields",
+        "compare_field",
+        "matching_paths"
+      ],
+      "tests": [
+        "tests/test_lenses_and_methods.py",
+        "tests/test_machine_checks.py",
+        "tests/test_rule_checks.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/sensitive.py",
+      "role": "Recognizes credentials and personal data in what people and agents give the CLI.",
+      "entry": [
+        "credential_kind",
+        "looks_like_credential",
+        "redact_credentials",
+        "redact_data",
+        "personal_data_kinds",
+        "input_warnings"
+      ],
+      "tests": [
+        "tests/test_sensitive.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/shell.py",
+      "role": "Quotes the commands printed for a person to paste, the same way for POSIX shells and PowerShell.",
+      "entry": [
+        "shell_word",
+        "shell_command"
+      ],
+      "tests": [
+        "tests/test_next_steps.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/stack_versions.py",
+      "role": "Reads declared versions and version ranges for detection, patterns and the Storybook dependency report.",
+      "entry": [
+        "declared_version",
+        "version_key",
+        "parse_version",
+        "parse_range",
+        "satisfies",
+        "lower_bounds"
+      ],
+      "tests": [
+        "tests/test_detect_versions.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/storage.py",
+      "role": "Writes files atomically, refuses symbolic links, and serialises writing commands with the project lock.",
+      "entry": [
+        "parse_json",
+        "read_bytes",
+        "read_json",
+        "file_signature",
+        "json_text",
+        "print_json"
+      ],
+      "tests": [
+        "tests/test_agent_instructions.py",
+        "tests/test_agent_native.py",
+        "tests/test_alert_resolution.py",
+        "tests/test_alerts.py",
+        "tests/test_approval_lifecycle.py",
+        "tests/test_audit_fixes.py",
+        "tests/test_board_entries.py",
+        "tests/test_brief_revision.py",
+        "tests/test_chaosfolk_results.py",
+        "tests/test_clean_errors.py",
+        "tests/test_clock.py",
+        "tests/test_core.py",
+        "tests/test_decided_tasks.py",
+        "tests/test_decision_brief.py",
+        "tests/test_decision_text.py",
+        "tests/test_decisions.py",
+        "tests/test_deliverables.py",
+        "tests/test_dependency_watch.py",
+        "tests/test_detect_versions.py",
+        "tests/test_doc_promises.py",
+        "tests/test_features.py",
+        "tests/test_guard.py",
+        "tests/test_hook_examples.py",
+        "tests/test_host_research.py",
+        "tests/test_hosts.py",
+        "tests/test_instruction_files.py",
+        "tests/test_lenses_and_methods.py",
+        "tests/test_machine_checks.py",
+        "tests/test_market.py",
+        "tests/test_monorepo_instructions.py",
+        "tests/test_next_steps.py",
+        "tests/test_other_host.py",
+        "tests/test_output_size.py",
+        "tests/test_pass_relevance.py",
+        "tests/test_performance.py",
+        "tests/test_portal_verification.py",
+        "tests/test_profile_commands.py",
+        "tests/test_project_checks.py",
+        "tests/test_proportionate_setup.py",
+        "tests/test_publishing.py",
+        "tests/test_record_integrity.py",
+        "tests/test_record_lifecycle.py",
+        "tests/test_results.py",
+        "tests/test_routing.py",
+        "tests/test_rule_changes.py",
+        "tests/test_rule_checks.py",
+        "tests/test_sectors.py",
+        "tests/test_sensitive.py",
+        "tests/test_setup_minor.py",
+        "tests/test_setup_questionnaire.py",
+        "tests/test_source_dates.py",
+        "tests/test_storage.py",
+        "tests/test_storybook.py",
+        "tests/test_storybook_extract.py",
+        "tests/test_task_index.py",
+        "tests/test_task_list.py",
+        "tests/test_task_weight.py",
+        "tests/test_team_sharing.py",
+        "tests/test_tools.py",
+        "tests/test_upgrades.py",
+        "tests/test_webui.py",
+        "tests/test_written_host_controls.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/storybook.py",
+      "role": "References the company's Storybook, compares it with the project's, and writes extraction proposals.",
+      "entry": [
+        "committed_path",
+        "ref_id",
+        "index_file",
+        "read_index",
+        "components",
+        "compare"
+      ],
+      "tests": [
+        "tests/test_clock.py",
+        "tests/test_detect_versions.py",
+        "tests/test_storybook.py",
+        "tests/test_storybook_extract.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/storybook_cli.py",
+      "role": "The `storybook` command: compose, record and extract; loads the Storybook modules only when it runs.",
+      "entry": [
+        "add_parser",
+        "run"
+      ],
+      "tests": [
+        "tests/test_architecture.py",
+        "tests/test_storybook.py",
+        "tests/test_storybook_extract.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/storybook_extract.py",
+      "role": "Inventories the components, variants and style tokens of an existing React application.",
+      "entry": [
+        "normalize_color",
+        "extract"
+      ],
+      "tests": [
+        "tests/test_project_walk.py",
+        "tests/test_storybook_extract.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/task_index.py",
+      "role": "Each task's status without parsing every record, so the edit hook reads only the tasks that can cover an edit.",
+      "entry": [
+        "tasks_with_status"
+      ],
+      "tests": [
+        "tests/test_performance.py",
+        "tests/test_task_index.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/tasks.py",
+      "role": "Task records and their state machine, from draft to done, with blockers, approvals and their withdrawal.",
+      "entry": [
+        "timestamp",
+        "task_path",
+        "read_task",
+        "board_brief_problem",
+        "validate_brief",
+        "create_task"
+      ],
+      "tests": [
+        "tests/test_approval_lifecycle.py",
+        "tests/test_blocker_clearances.py",
+        "tests/test_blockers.py",
+        "tests/test_clock.py",
+        "tests/test_closing_points.py",
+        "tests/test_deliberation.py",
+        "tests/test_performance.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/tasks_cli.py",
+      "role": "The `task` command, from `task new` to `task export`, including the approval a person types at a terminal.",
+      "entry": [
+        "add_parser",
+        "sharing_warnings",
+        "run"
+      ],
+      "tests": [
+        "tests/test_architecture.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/tools.py",
+      "role": "The tool registry and the MCP servers that connect an agent to each tool; plans and writes host connections.",
+      "entry": [
+        "tool_names",
+        "load_tools",
+        "check_tool_links",
+        "read_scenario",
+        "load_mock",
+        "mock_ids"
+      ],
+      "tests": [
+        "tests/e2e/test_tool_mocks.py",
+        "tests/test_catalog_format_doc.py",
+        "tests/test_catalog_sources.py",
+        "tests/test_check_links.py",
+        "tests/test_features.py",
+        "tests/test_new_brains.py",
+        "tests/test_sensitive.py",
+        "tests/test_tool_registry.py",
+        "tests/test_tools.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/tools_cli.py",
+      "role": "The `tools` commands: browse the registry, plan and apply MCP connections, call and serve mocks.",
+      "entry": [
+        "add_parser",
+        "run"
+      ],
+      "tests": [
+        "tests/test_architecture.py",
+        "tests/test_next_steps.py",
+        "tests/test_tools.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/webui.py",
+      "role": "The local web interface: serves the built front end and a JSON API over the CLI on 127.0.0.1, refuses what needs a person at a terminal.",
+      "entry": [
+        "Refused",
+        "terminal_command",
+        "named_command",
+        "terminal_reason",
+        "check_request",
+        "check_paths"
+      ],
+      "tests": [
+        "tests/e2e/test_concurrency.py",
+        "tests/test_approval_lifecycle.py",
+        "tests/test_next_steps.py",
+        "tests/test_performance.py",
+        "tests/test_webui.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/workflow.py",
+      "role": "Checks the boards' review entries and evidence, the deliberation, the decision brief, the blockers and the handoff.",
+      "entry": [
+        "TaskStateError",
+        "mock_evidence",
+        "EntryProblems",
+        "validate_board_entry",
+        "validate_review",
+        "review_warnings"
+      ],
+      "tests": [
+        "tests/test_blocker_clearances.py",
+        "tests/test_blockers.py",
+        "tests/test_board_entries.py",
+        "tests/test_brain_selection.py",
+        "tests/test_brains.py",
+        "tests/test_clock.py",
+        "tests/test_decision_brief.py",
+        "tests/test_deliberation.py",
+        "tests/test_output_size.py"
+      ],
+      "doc": "docs/architecture.md"
+    }
+  ]
+}
