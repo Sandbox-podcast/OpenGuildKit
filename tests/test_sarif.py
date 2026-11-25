@@ -336,6 +336,12 @@ class MachineTests(unittest.TestCase):
             self.assertEqual(machine_paths(result), [])
             self.assertEqual(structure_problems(result), [])
 
+    def test_a_windows_folder_leaves_a_relative_path_written_with_slashes(self):
+        root = Path("C:\\Users\\someone\\project")
+        raw = "Unsupported or mismatched task record: C:\\Users\\someone\\project\\.openguildkit\\tasks\\broken.json"
+        text = document([make(message=raw)], root=root)["runs"][0]["results"][0]["message"]["text"]
+        self.assertEqual(text, "Unsupported or mismatched task record: .openguildkit/tasks/broken.json")
+
     def test_the_form_of_the_folder_before_and_after_resolving_links_is_left_out(self):
         with tempfile.TemporaryDirectory(prefix="ogk-sarif-user-") as folder:
             root = Path(folder)
