@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -541,6 +542,35 @@ class ProportionateResultTests(ResultCase):
         self.assertNotIn("packs", self.record()["result"])
         self.assertNotIn("warnings", self.record()["result"])
         self.assertEqual(self.run_cli("task", "complete", TASK, "--by", "CM", typed=TASK)[0].strip(), "done")
+
+    def pack_answers(self):
+        """Every pack the result template lists, declared not applicable as a whole."""
+        template = json.loads(self.run_cli("task", "result", TASK, "--template")[0])
+        return [{"pack": item["pack"], "status": "not-applicable", "reason": "No change in this area.",
+                 "owner": "Camille"} for item in template["packs"]]
+
+    def points(self, output):
+        return int(re.search(r"(\d+) point\(s\) before the task can be done", output).group(1))
+
+    def assert_verify_keeps_the_pack_answers(self):
+        self.run_cli("task", "verify", TASK)
+        packs = self.pack_answers()
+        self.assertGreaterEqual(len(packs), 3)
+        before = self.points(self.file(packs=packs)[0])
+        answered = [item["pack"] for item in self.record()["result"]["packs"]]
+        self.assertEqual(answered, [item["pack"] for item in packs])
+        output, _ = self.run_cli("task", "verify", TASK)
+        self.assertEqual([item["pack"] for item in self.record()["result"]["packs"]], answered)
+        self.assertEqual(self.points(output), before)
+
+    def test_task_verify_keeps_the_pack_answers_of_a_bug_on_a_python_typescript_react_project(self):
+        """Issue 377: verify records the machine checks of a pack, which is no report answering its rules one by one."""
+        self.approved(answers={"kind": "bug"}, stack=["Python", "TypeScript", "React"])
+        self.assert_verify_keeps_the_pack_answers()
+
+    def test_task_verify_keeps_the_pack_answers_of_the_example_project(self):
+        self.approved(stack=json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8"))["stack"])
+        self.assert_verify_keeps_the_pack_answers()
 
     def test_closing_over_rules_the_answers_select_set_aside_lists_them_and_needs_the_person(self):
         """Issue 288: nine GDPR rules declared not applicable closed the task without a question."""

@@ -1165,7 +1165,7 @@ def record_result(task: dict, profile: dict, payload: dict, source: str = "repor
         raise TaskStateError("Results belong to an approved task that is not done yet.")
     validated = validate_result(task, profile, payload, source, relevance, root, changed=changed)
     held = validated.pop("_held", [])
-    result = merge_results(task.get("result"), validated)
+    result = merge_results(task.get("result"), validated, source)
     if source == "report" and task.get("answers", {}).get("outcome") and not result["criteria"]:
         raise ValueError(
             "The task has an expected outcome: report at least one acceptance criterion. Run task result ID --template."

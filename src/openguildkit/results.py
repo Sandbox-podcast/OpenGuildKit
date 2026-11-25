@@ -423,7 +423,7 @@ def _check_source(check_id: object, known: dict, source: str) -> None:
         raise ValueError(f"{check_id} is recorded by task verify, which evaluates its check. Run task verify.")
 
 
-def merge_results(previous: dict | None, new: dict) -> dict:
+def merge_results(previous: dict | None, new: dict, source: str = "report") -> dict:
     """Later reports replace earlier outcomes check by check; a new replay replaces every earlier scenario."""
     new = {key: value for key, value in new.items() if key != "_held"}
     if not previous:
@@ -436,8 +436,10 @@ def merge_results(previous: dict | None, new: dict) -> dict:
     merged["criteria"] = new["criteria"] or previous.get("criteria", [])
     merged["checks"] = list(checks.values())
     # The pack answers are those of the latest report that gives any; a pack whose rules a later
-    # report answers one by one loses its answer, so the result reads as it stands.
-    answered = {item["check"].split(":", 1)[1].split("/", 1)[0] for item in new.get("checks", [])}
+    # report answers one by one loses its answer, so the result reads as it stands. What task verify
+    # records is no such answer.
+    answered = {item["check"].split(":", 1)[1].split("/", 1)[0] for item in new.get("checks", [])
+                if source == "report" and item["check"].startswith("rule:")}
     packs = new["packs"] if "packs" in new else [item for item in previous.get("packs", []) if item["pack"] not in answered]
     merged.pop("packs", None)
     if packs:
