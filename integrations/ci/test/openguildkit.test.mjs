@@ -669,3 +669,20 @@ test('the error messages of check and waivers are in English', () => {
     /^Error: Invalid waiver: incomplete\.$/);
   assert.throws(() => parseWaivers('{"schemaVersion": 1, "waivers": [{}]}'), /^Error: Invalid waiver: \(no identifier\)\.$/);
 });
+
+test('the error messages of the two binaries are in English', t => {
+  assertEnglish(['../bin/openguildkit.mjs', '../bin/openguildkit-agent.mjs']);
+  const root = mkdtempSync(join(tmpdir(), 'openguildkit-binaries-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const run = (script, args, input) => spawnSync(process.execPath, [script, ...args], { cwd: root, encoding: 'utf8', input });
+  assert.match(run(cli, ['check']).stderr, /^A rules repository and both full Git SHAs are required\.$/m);
+  assert.match(run(cli, ['gate']).stderr,
+    /^The required check needs the project, the PR number and the full commit SHA\.$/m);
+  assert.match(run(cli, ['github-approve-profile', '--repo', 'team/portal']).stderr, /^A PR number is required\.$/m);
+  mkdirSync(join(root, 'bundle'));
+  writeFileSync(join(root, 'bundle/brief.json'), JSON.stringify({ project: 'team/portal', profileCommit: 'a'.repeat(40) }));
+  writeFileSync(join(root, 'bundle/AGENTS.md'), '');
+  const response = run(agent, ['--bundle', 'bundle'], '{"id": 1, "method": "write"}\n');
+  assert.equal(response.status, 0, response.stderr);
+  assert.deepEqual(JSON.parse(response.stdout), { id: 1, error: 'Action unavailable in the read-only adapter.' });
+});
