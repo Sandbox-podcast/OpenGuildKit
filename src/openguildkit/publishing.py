@@ -263,18 +263,32 @@ def portal_space(portal: str) -> str:
     if len(parts) < 3 or parts[1] != "p" or not parts[2]:
         raise ValueError(f"--portal {portal} names no space. Give the portal of the space you share, https://HOST/p/SPACE: "
                          "the recipients see every published page of that space.")
+    if port == {"https": 443, "http": 80}.get(address.scheme):
+        port = None
     shown = f"[{host}]" if ":" in host else host
     return f"{shown}{f':{port}' if port else ''}/p/{parts[2]}"
+
+
+def _canonical_space(space: str) -> str:
+    """Drop :443 or :80 written into an older record. portal_space omits the scheme's default port."""
+    match = re.fullmatch(r"(\[[^\]]+\]|[^:/]+)(?::443|:80)?(/p/.+)", space)
+    return f"{match.group(1)}{match.group(2)}" if match else space
 
 
 def share_space(share: dict) -> str | None:
     """The space a share opens; a share recorded before the space was kept gets it from its portal."""
     if share.get("space"):
-        return share["space"]
+        return _canonical_space(share["space"])
     try:
         return portal_space(share["portal"])
     except ValueError:
         return None
+
+
+def shared_recipients(left: list[str], right: list[str]) -> list[str]:
+    """Addresses present on both sides, ignoring case, spelled as in `left`."""
+    other = {address.strip().lower() for address in right}
+    return sorted({address for address in left if address.strip().lower() in other}, key=str.lower)
 
 
 def add_share(state: Path, deliverable: str, recipients: list[str], until: str, portal: str, by: str,
@@ -361,11 +375,15 @@ def _share_end(until: str) -> date:
     return end
 
 
+def _addresses(recipients: list[str]) -> set[str]:
+    return {address.strip().lower() for address in recipients}
+
+
 def _same_access(shares: list[dict], share: dict, today: date | None) -> list[dict]:
-    space, recipients = share_space(share), set(share["recipients"])
+    space, recipients = share_space(share), _addresses(share["recipients"])
     return [item for item in shares
             if item["id"] != share["id"] and not item["revoked_at"] and space and share_space(item) == space
-            and recipients & set(item["recipients"]) and (today is None or date.fromisoformat(item["until"]) >= today)]
+            and recipients & _addresses(item["recipients"]) and (today is None or date.fromisoformat(item["until"]) >= today)]
 
 
 def same_access(state: Path, share: dict, running: bool = False) -> list[dict]:
@@ -426,7 +444,7 @@ def share_status(state: Path, today: date | None = None) -> list[dict]:
         else:
             running = _same_access(shares, share, today)
             for recipient in share["recipients"]:
-                covering = [item for item in running if recipient in item["recipients"]]
+                covering = [item for item in running if recipient.strip().lower() in _addresses(item["recipients"])]
                 if covering:
                     last = max(covering, key=lambda item: item["until"])
                     row["kept"][recipient] = {"share": last["id"], "until": last["until"]}

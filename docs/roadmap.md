@@ -20,6 +20,7 @@ This page separates what exists from what is planned. Open an issue to discuss o
 **Tooling**
 
 - A tool registry of the company's tools and the MCP servers verified on each publisher's documentation, the tooling section of the setup, connection plans for Claude Code and Codex, and mocks: stand-in MCP servers with synthetic data, to rehearse a task without an account (`openguildkit tools`, [tools](tools.md)).
+- Features: a purpose, its lead tool and three alternatives, turned on with who and why. The web interface shows them as the Arsenal (`openguildkit features`, [tools](tools.md#features)).
 
 - A [local project MCP server](tools.md#read-an-openguildkit-project-through-mcp) for active rule references, recorded task status and check outcomes.
 

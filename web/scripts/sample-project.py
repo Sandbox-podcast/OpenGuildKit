@@ -188,6 +188,12 @@ def build_gdpr(root: Path) -> None:
 
 
 def main_() -> None:
+    if any(arg in ("-h", "--help") for arg in sys.argv[1:]):
+        print(__doc__.strip())
+        return
+    unknown = [arg for arg in sys.argv[1:] if arg.startswith("-") and arg != "--gdpr"]
+    if unknown:
+        raise SystemExit(__doc__)
     gdpr = "--gdpr" in sys.argv[1:]
     args = [arg for arg in sys.argv[1:] if arg != "--gdpr"]
     if len(args) != 1:

@@ -23,6 +23,7 @@ jobs:
   targets:
     if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/pilot/merge-gate-base'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       pull-requests: read
     outputs:
@@ -59,6 +60,7 @@ jobs:
       group: openguildkit-required-${{ matrix.pr }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       pull-requests: read

@@ -559,6 +559,40 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.assertNotIn("revoke", output)
         self.assertEqual(self.shares()[0]["kept"], {"reader@example.test": {"share": second, "until": later}})
 
+    def test_a_default_port_is_the_same_space_and_an_older_record_keeps_it(self):
+        self.deliverable()
+        self.deliverable("e")
+        self.assertEqual(publishing.portal_space("https://docs.example.test:443/p/support-portal"),
+                         "docs.example.test/p/support-portal")
+        self.assertEqual(publishing.portal_space("http://127.0.0.1:80/p/support-portal"),
+                         "127.0.0.1/p/support-portal")
+        self.add(dedicated=True)
+        path = self.root / ".openguildkit" / "shares" / "shares.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["shares"][0]["space"] = "docs.example.test:443/p/support-portal"
+        data["shares"][0]["portal"] = "https://docs.example.test:443/p/support-portal"
+        path.write_text(json.dumps(data), encoding="utf-8")
+        _, error = self.add("e", portal="https://docs.example.test/p/support-portal", code=1)
+        self.assertIn("dedicated to d", error)
+
+    def test_the_same_reader_in_another_case_is_one_access(self):
+        self.deliverable()
+        self.deliverable("e")
+        self.add(recipient="Client@example.test")
+        first = self.shares()[0]["id"]
+        _, warning = self.add("e", recipient="client@example.test",
+                              portal="https://docs.example.test/p/support-portal/learn/x")
+        self.assertIn(f"client@example.test already has access to space docs.example.test/p/support-portal "
+                      f"through share {first}", warning)
+        path = self.root / ".openguildkit" / "shares" / "shares.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["shares"][0]["until"] = (clock.real_today() - timedelta(days=1)).isoformat()
+        path.write_text(json.dumps(data), encoding="utf-8")
+        output, _ = self.run_cli("docs", "share", "check")
+        self.assertIn("covered: other shares keep the same access, nothing to remove yet", output)
+        self.assertIn("keep Client@example.test", output)
+        self.assertNotIn("remove Client@example.test", output)
+
     def test_a_second_share_for_the_same_recipient_and_space_is_announced(self):
         self.deliverable()
         self.deliverable("e")

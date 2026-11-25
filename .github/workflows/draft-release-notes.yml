@@ -16,6 +16,7 @@ jobs:
   draft:
     if: github.event_name != 'release' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
@@ -33,6 +34,7 @@ jobs:
   published:
     if: github.event_name == 'release' && !github.event.release.draft
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:

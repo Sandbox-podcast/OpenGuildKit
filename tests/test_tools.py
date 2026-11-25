@@ -69,7 +69,7 @@ class RegistryTests(unittest.TestCase):
             "credential in its query": {"url": "https://mcp.acme.example/mcp?api_key=abc"},
             "https URL": {"url": "http://mcp.acme.example/mcp"},
             "declare exactly the placeholders": {"url": "https://{subdomain}.acme.example/mcp"},
-            "verified is the date": {"verified": "yesterday"},
+            "must be a date written YYYY-MM-DD": {"verified": "yesterday"},
             "list of unique names": {"env": ["acme token"]},
             "transport is one of": {"transport": "websocket"},
         }
@@ -83,6 +83,11 @@ class RegistryTests(unittest.TestCase):
             **{key: value for key, value in REMOTE.items() if key != "url"}, "transport": "stdio", "command": "docker",
             "args": ["run", "-e", "ACME_TOKEN=abc123"], "package": {"registry": "docker", "name": "acme/mcp"},
         }
+        for field in ("verified", "reviewed"):
+            tool = copy.deepcopy(TOOL)
+            tool["servers"][0][field] = "2026-13-45"
+            with self.assertRaisesRegex(CatalogError, "YYYY-MM-DD"):
+                _validate_tool(tool, "testing")
         with self.assertRaisesRegex(CatalogError, "must come from the environment"):
             _validate_tool(local, "testing")
         local["servers"][0]["args"] = ["run", "-e", "ACME_TOKEN", "--site=<your-site>"]

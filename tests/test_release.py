@@ -293,6 +293,13 @@ class CiWorkflowTest(unittest.TestCase):
         expected = {"test": "30", "package": "20", "web-e2e": "20"}
         for name, job in self.jobs.items():
             self.assertEqual(job.get("timeout-minutes"), expected.get(name, "15"), name)
+        for path in [*WORKFLOWS, *TEMPLATES]:
+            jobs = parse(path).get("jobs")
+            if not isinstance(jobs, dict):
+                continue
+            for name, job in jobs.items():
+                timeout = job.get("timeout-minutes")
+                self.assertTrue(str(timeout).isdigit() and int(timeout) < 360, f"{path.name}: {name}")
 
     def test_the_matrix_runs_from_the_floor_to_the_maintainers_python(self):
         versions = self.jobs["test"]["strategy"]["matrix"]["python"]
@@ -418,10 +425,14 @@ class ReleaseNotesTest(unittest.TestCase):
         self.assertIn(f"**Full Changelog**: https://github.com/example/openguildkit/compare/v0.16.1...{'a' * 40}", body)
         self.assertEqual(body.count("**Full Changelog**"), 1)
 
-    def test_draft_without_a_stable_release_links_the_commits(self):
-        body, log = self.draft([_release("v0.17.0", "2026-11-10T00:00:00Z", prerelease=True)])
-        self.assertNotIn("previous_tag_name", log)
-        self.assertIn(f"**Full Changelog**: https://github.com/example/openguildkit/commits/{'a' * 40}", body)
+    def test_draft_without_a_stable_release_compares_from_the_earliest_prerelease(self):
+        body, log = self.draft([
+            _release("v0.17.0", "2026-11-10T00:00:00Z", prerelease=True),
+            _release("v0.16.0", "2026-10-01T00:00:00Z", prerelease=True),
+        ])
+        self.assertIn("previous_tag_name=v0.16.0", log)
+        self.assertIn(f"**Full Changelog**: https://github.com/example/openguildkit/compare/v0.16.0...{'a' * 40}", body)
+        self.assertNotIn("/commits/", body)
 
 
 if __name__ == "__main__":

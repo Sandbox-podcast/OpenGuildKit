@@ -17,7 +17,7 @@ import tomllib
 from pathlib import Path
 
 from . import clock
-from .catalog import CatalogError, package_file, unique_fields
+from .catalog import CatalogError, _validate_checked, package_file, unique_fields
 from .detect import MAX_MANIFEST_BYTES, SKIPPED_DIRECTORIES
 from .mcp_mock import apply_scenario, check_synthetic, validate_mock
 from .sensitive import looks_like_credential
@@ -49,7 +49,6 @@ _ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _ENV = re.compile(r"[A-Z][A-Z0-9_]{1,63}")
 _VARIABLE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}")
 _SETTING = re.compile(r"\{([a-z][a-z0-9_]*)\}")
-_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 _SECRET_WORD = re.compile(r"(?i)(token|secret|password|passwd|api[_-]?key|apikey|bearer)")
 _INLINE_VALUE = re.compile(r"^-{0,2}[A-Za-z0-9_.-]*=(.+)$")
 _SETTING_VALUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@-]{0,199}")
@@ -105,16 +104,15 @@ def _validate_server(server: object, label: str) -> None:
             raise CatalogError(f"{label}: {field} is one of {', '.join(choices)}")
     _names(server["env"], f"{label} env", _ENV)
     _https(server["source"], f"{label} source")
-    if not isinstance(server["verified"], str) or not _DAY.fullmatch(server["verified"]):
-        raise CatalogError(f"{label}: verified is the date the source was read, YYYY-MM-DD")
+    _validate_checked(server["verified"], f"{label} verified")
     if "repository" in server:
         _https(server["repository"], f"{label} repository")
     if "status_source" in server:
         _https(server["status_source"], f"{label} status_source")
     if "license" in server:
         _text(server["license"], f"{label} license")
-    if "reviewed" in server and (not isinstance(server["reviewed"], str) or not _DAY.fullmatch(server["reviewed"])):
-        raise CatalogError(f"{label}: reviewed is the date access, scopes and read-only mode were looked for, YYYY-MM-DD")
+    if "reviewed" in server:
+        _validate_checked(server["reviewed"], f"{label} reviewed")
     for field in ("access", "scopes", "pin"):
         if field in server:
             _text(server[field], f"{label} {field}")

@@ -12,11 +12,15 @@ sector:
       - any-glob-to-any-file: 'src/openguildkit/registry/sectors/**'
 catalog:
   - changed-files:
-      - any-glob-to-any-file: 'src/openguildkit/registry/references/**'
+      - any-glob-to-any-file: 'src/openguildkit/registry/**'
+web:
+  - changed-files:
+      - any-glob-to-any-file: 'web/**'
 tooling:
   - changed-files:
       - any-glob-to-any-file:
-          - 'src/openguildkit/*.py'
+          - 'src/openguildkit/**'
+          - 'scripts/**'
           - 'integrations/**'
           - 'tests/**'
           - 'pyproject.toml'

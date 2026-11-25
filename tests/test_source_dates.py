@@ -15,8 +15,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import catalog as catalog_module
+from openguildkit import clock
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.deliverables import _validate as validate_deliverable, load_deliverables
+from openguildkit.tools import load_tools
 from openguildkit.lock import read_lock
 from openguildkit.project import profile_fingerprint
 from openguildkit.references import _validate_family, load_references
@@ -56,6 +58,23 @@ def bundled_sources():
 
 
 class BundledSourceDateTests(unittest.TestCase):
+    def test_no_shipped_date_is_after_today(self):
+        today = clock.real_today()
+        late = [f"{record}: {source['checked']}" for record, source in bundled_sources()
+                if date.fromisoformat(source["checked"]) > today]
+        for tool in load_tools().values():
+            for server in tool["servers"]:
+                for field in ("verified", "reviewed"):
+                    if field in server and date.fromisoformat(server[field]) > today:
+                        late.append(f"{tool['id']}/{server['id']} {field}: {server[field]}")
+        self.assertEqual(late, [])
+
+    def test_the_loader_refuses_a_future_date(self):
+        dated = copy.deepcopy(PACK)
+        dated["sources"] = [{**PACK["sources"][0], "checked": "2099-01-01"}]
+        with self.assertRaisesRegex(CatalogError, "after today"):
+            validate_entry("packs", dated)
+
     def test_every_bundled_source_has_a_checked_date(self):
         undated, count = [], 0
         for record, source in bundled_sources():

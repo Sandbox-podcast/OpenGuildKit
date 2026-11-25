@@ -8,5 +8,7 @@ changelog:
       labels: [tooling]
     - title: Documentation and examples
       labels: [documentation]
+    - title: Web interface
+      labels: [web]
     - title: Other changes
       labels: ['*']

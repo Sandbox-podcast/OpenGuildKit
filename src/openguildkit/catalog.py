@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlsplit
 
+from . import clock
 from .rule_checks import validate_check
 from .storage import file_signature
 
@@ -106,13 +107,15 @@ def tracking_parameters(url: str) -> list[str]:
 
 
 def _validate_checked(value: Any, label: str) -> None:
-    """A source's verification day: an ISO date such as 2026-11-21."""
+    """A day a page was read: a real calendar date, not after today on the real clock."""
     try:
         if not isinstance(value, str) or not CHECKED_PATTERN.fullmatch(value):
             raise ValueError
-        date.fromisoformat(value)
+        day = date.fromisoformat(value)
     except ValueError:
         raise CatalogError(f"{label} must be a date written YYYY-MM-DD, such as 2026-11-21") from None
+    if day > clock.real_today():
+        raise CatalogError(f"{label} is {value}, which is after today")
 
 
 def validate_sources(sources: Any, *, require_checked: bool = False) -> None:

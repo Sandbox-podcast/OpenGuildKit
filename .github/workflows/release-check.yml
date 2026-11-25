@@ -4,7 +4,7 @@ name: Release check
 # archive and SHA256SUMS.txt of the release, checks the hashes, installs each file and runs it on Linux,
 # macOS and Windows, then upgrades a project set up with v0.16.1 to the release (CHANGELOG.md, "Upgrading
 # from 0.16.1"). It builds nothing: the files come from the release. Runs when a release is published, or
-# by hand with the tag (step 4 of GOVERNANCE.md#releases).
+# by hand with the tag (step 7 of GOVERNANCE.md#releases).
 on:
   release:
     types: [published]

@@ -322,13 +322,59 @@ class ContributionChecksTest(unittest.TestCase):
         text = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
         section = text.split("## Open a pull request", 1)[1].split("\n## ", 1)[0]
         for words in ("No runner picked the job up", "These jobs never started", "Re-run failed jobs",
-                      "You pushed again", "cancels the run of the previous commit", "3.11 and 3.15 on Linux, macOS and Windows"):
+                      "You pushed again", "cancels the run of the previous commit", "performance measurements",
+                      "3.11 and 3.15 on Linux, macOS and Windows"):
             self.assertIn(words, section)
 
     def test_every_job_passed(self):
         result = self.run_gate({}, [])
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertFalse((self.directory / "gh.log").exists())
+
+
+def _label_globs(node) -> list[str]:
+    if isinstance(node, str):
+        return [node]
+    found = []
+    if isinstance(node, list):
+        for item in node:
+            found.extend(_label_globs(item))
+    elif isinstance(node, dict):
+        for key, value in node.items():
+            found.extend([value] if key == "any-glob-to-any-file" and isinstance(value, str) else _label_globs(value))
+    return found
+
+
+def _label_match(pattern: str, path: str) -> bool:
+    """GitHub labeler globs: `**` crosses directories and `*` stays inside one."""
+    regex, index = "", 0
+    while index < len(pattern):
+        if pattern.startswith("**", index):
+            regex += ".*"
+            index += 2
+        elif pattern[index] == "*":
+            regex += "[^/]*"
+            index += 1
+        elif pattern[index] == "?":
+            regex += "[^/]"
+            index += 1
+        else:
+            regex += re.escape(pattern[index])
+            index += 1
+    return re.fullmatch(regex, path) is not None
+
+
+class LabelRuleTests(unittest.TestCase):
+    def test_every_tracked_file_outside_the_root_matches_a_label_rule(self):
+        rules = _label_globs(parse(ROOT / ".github" / "labeler.yml"))
+        listed = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, check=True).stdout
+        missing = [name.decode() for name in listed.split(b"\0") if name and b"/" in name
+                   and not any(_label_match(rule, name.decode()) for rule in rules)]
+        self.assertEqual(missing, [])
+        release = (ROOT / ".github" / "release.yml").read_text(encoding="utf-8")
+        self.assertIn("labels: [web]", release)
+        self.assertTrue(any(_label_match(rule, "web/README.md") for rule in rules))
+        self.assertTrue(any(_label_match(rule, "src/openguildkit/registry/tools/issue-tracking.json") for rule in rules))
 
 
 if __name__ == "__main__":
