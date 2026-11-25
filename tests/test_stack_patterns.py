@@ -18,13 +18,14 @@ STACKS = {
     "android-kotlin": ["Kotlin", "Android"],
     "laravel": ["Laravel", "PHP"],
     "angular": ["Angular", "NestJS"],
+    "rust-cargo": ["Rust 1.82", "Axum 0.8", "Tokio 1"],
     "gitlab-ci-security": ["AWS", "GitLab CI", "Docker"],
     "docker-images": ["AWS", "GitLab CI", "Docker"],
     "aws-iam": ["AWS", "GitLab CI", "Docker"],
 }
 PACKS = {
     "django": "django", "rails": "rails", "node-express": "express", "vue": "vue", "angular": "angular",
-    "laravel": "laravel", "ios-swift": "ios-app", "android-kotlin": "android-app",
+    "laravel": "laravel", "rust-cargo": "rust-cargo", "ios-swift": "ios-app", "android-kotlin": "android-app",
     "gitlab-ci-security": "gitlab-ci-security", "docker-images": "container-images", "aws-iam": "aws-iam",
 }
 GENERIC_PACKS = {"secure-sdlc", "api-design", "typescript", "python"}
@@ -48,6 +49,10 @@ REPOSITORIES = {
     "vue": {"package.json": {"dependencies": {"vue": "^3.5.0"}}},
     "angular": {"package.json": {"dependencies": {"@angular/core": "^22.0.0"}}},
     "laravel": {"composer.json": {"require": {"php": "^8.3", "laravel/framework": "^13.0"}}},
+    "rust-cargo": {
+        "Cargo.toml": '[package]\nname = "orders"\nedition = "2021"\nrust-version = "1.82"\n\n'
+                      '[dependencies]\naxum = "0.8"\ntokio = { version = "1", features = ["full"] }\n',
+    },
     "ios-swift": {
         "Shop.xcodeproj/project.pbxproj": "{ buildSettings = { SDKROOT = iphoneos; SWIFT_VERSION = 6.0; }; }\n",
     },
@@ -97,7 +102,7 @@ class StackPatternTests(unittest.TestCase):
         generic = {
             rule["instruction"] for pack_id in GENERIC_PACKS for rule in self.catalog["packs"][pack_id]["rules"]
         }
-        new_packs = {*PACKS.values(), "mobile-accessibility", "mobile-store-release"}
+        new_packs = {*PACKS.values(), "mobile-accessibility", "mobile-store-release", "rust-dependencies"}
         for pack_id in sorted(new_packs):
             with self.subTest(pack=pack_id):
                 pack = self.catalog["packs"][pack_id]
@@ -107,6 +112,15 @@ class StackPatternTests(unittest.TestCase):
                 for rule in pack["rules"]:
                     self.assertTrue(rule["instruction"].strip() and rule["verification"].strip())
                     self.assertNotIn(rule["instruction"], generic)
+
+    def test_the_rust_pattern_reaches_both_cargo_packs_from_the_language_alone(self):
+        for stack in (["Rust"], ["Rust 1.75"], ["rust", "Actix Web 4"]):
+            with self.subTest(stack=stack):
+                self.assertIn("rust-cargo", self.matched({"stack": stack}))
+        # The edition is a line of its own in the detected stack, not the language.
+        self.assertNotIn("rust-cargo", self.matched({"stack": ["Rust edition 2021"]}))
+        self.assertNotIn("rust-cargo", self.matched({"stack": ["Python", "FastAPI"]}))
+        self.assertEqual(self.catalog["patterns"]["rust-cargo"]["packs"], ["rust-cargo", "rust-dependencies"])
 
     def test_framework_packs_reuse_the_generic_packs_instead_of_repeating_them(self):
         self.assertIn("python", self.catalog["packs"]["django"]["depends_on"])
@@ -139,6 +153,7 @@ class StackDetectionTests(unittest.TestCase):
         stacks = {
             "rails": {"Ruby 3.3.4", "Rails ~> 8.1.0"},
             "laravel": {"PHP ^8.3", "Laravel ^13.0"},
+            "rust-cargo": {"Rust 1.82", "Rust edition 2021", "Axum 0.8", "Tokio 1"},
             "ios-swift": {"Swift 6.0", "iOS"},
             "android-kotlin": {"Android", "Kotlin"},
             "django": {"Python", "Django"},

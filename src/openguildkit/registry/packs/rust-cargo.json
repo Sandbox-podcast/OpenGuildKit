@@ -1,0 +1,253 @@
+{
+  "id": "rust-cargo",
+  "title": "Rust projects built with Cargo",
+  "version": "1.0.0",
+  "description": "For a Rust project built with Cargo: the declared minimum Rust version, compiler and Clippy warnings refused in CI, formatting checked, `unsafe` justified and bounded, and, for a service, a request path that returns errors instead of panicking. The last two rules concern a service that answers requests; a library or a command-line tool applies the others. Dependencies, the lockfile and RustSec advisories are in `rust-dependencies`. The Rust Style Guide is the reference behind the formatting rule, and `rustfmt` follows it by default.",
+  "sources": [
+    {
+      "title": "Cargo Book, Rust version",
+      "url": "https://doc.rust-lang.org/cargo/reference/rust-version.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Cargo Book, continuous integration",
+      "url": "https://doc.rust-lang.org/cargo/guide/continuous-integration.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Cargo Book, configuration",
+      "url": "https://doc.rust-lang.org/cargo/reference/config.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Cargo Book, the manifest format",
+      "url": "https://doc.rust-lang.org/cargo/reference/manifest.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Cargo Book, workspaces",
+      "url": "https://doc.rust-lang.org/cargo/reference/workspaces.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Clippy, continuous integration",
+      "url": "https://doc.rust-lang.org/clippy/continuous_integration/index.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Clippy, usage",
+      "url": "https://doc.rust-lang.org/clippy/usage.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Clippy, lint groups",
+      "url": "https://doc.rust-lang.org/clippy/lints.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Clippy, configuration",
+      "url": "https://doc.rust-lang.org/clippy/configuration.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Clippy, lint configuration",
+      "url": "https://doc.rust-lang.org/clippy/lint_configuration.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Clippy, list of lints",
+      "url": "https://clippy.rust-lang.org/master/index.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Clippy, undocumented_unsafe_blocks lint source",
+      "url": "https://github.com/rust-lang/rust-clippy/blob/master/clippy_lints/src/undocumented_unsafe_blocks.rs",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Clippy, panic lint source",
+      "url": "https://github.com/rust-lang/rust-clippy/blob/master/clippy_lints/src/panic_unimplemented.rs",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "rustfmt, README",
+      "url": "https://github.com/rust-lang/rustfmt",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "The Rust Style Guide",
+      "url": "https://doc.rust-lang.org/style-guide/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "The Rust Programming Language, unsafe Rust",
+      "url": "https://doc.rust-lang.org/book/ch20-01-unsafe-rust.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "The rustc book, lint levels",
+      "url": "https://doc.rust-lang.org/rustc/lints/levels.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "The rustc book, allowed-by-default lints",
+      "url": "https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "The Rust Programming Language, to panic! or not to panic!",
+      "url": "https://doc.rust-lang.org/book/ch09-03-to-panic-or-not-to-panic.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "axum, error handling",
+      "url": "https://docs.rs/axum/latest/axum/error_handling/index.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Actix Web, errors",
+      "url": "https://actix.rs/docs/errors/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "tower-http, catch_panic",
+      "url": "https://docs.rs/tower-http/latest/tower_http/catch_panic/index.html",
+      "checked": "2026-11-25"
+    }
+  ],
+  "rules": [
+    {
+      "id": "declare-rust-version",
+      "instruction": "Declare `rust-version` in the `[package]` table of every crate the team publishes or deploys, or once in `[workspace.package]` for the members to inherit, and build with a toolchain of that version in CI so that the declared minimum is one the project verifies.",
+      "verification": "Check that each such crate states `rust-version` or inherits it, and that a CI job builds with a toolchain of that version (the Cargo Book's CI guide shows one with `cargo hack check --rust-version`); on an older toolchain `cargo check` stops with Cargo's error.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "Cargo.toml",
+          "*/Cargo.toml",
+          "crates/*/Cargo.toml",
+          "services/*/Cargo.toml",
+          "apps/*/Cargo.toml"
+        ],
+        "contains": [
+          "rust-version"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "refuse-warnings-in-ci",
+      "instruction": "Run `cargo clippy` on all targets and features in CI and fail the job on any lint warning, from the compiler or from Clippy: set `build.warnings = \"deny\"` (or the `CARGO_BUILD_WARNINGS` variable) where the project's Cargo supports it, otherwise pass `-D warnings` to Clippy. Pin the toolchain the job runs, since warnings carry few compatibility guarantees between releases.",
+      "verification": "On a scratch branch, add an unused variable and check that the CI job fails; check that the job names the toolchain version it runs and that a change of that version goes through a pull request.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".github/workflows/*.yml",
+          ".github/workflows/*.yaml",
+          ".gitlab-ci.yml",
+          ".circleci/config.yml",
+          ".cargo/config.toml",
+          "Makefile",
+          "justfile"
+        ],
+        "contains": [
+          "-D warnings",
+          "-Dwarnings",
+          "CARGO_BUILD_WARNINGS",
+          "warnings = \"deny\""
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "check-formatting",
+      "instruction": "Check formatting in CI with `cargo fmt --all -- --check`, so that the build fails on code rustfmt would change, and commit a `rustfmt.toml` only for the options the team changes from the default style.",
+      "verification": "On a scratch branch, break the formatting of one file and check that the CI formatting job exits with a non-zero status; if `rustfmt.toml` exists, check that it lists only options the team chose on purpose.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".github/workflows/*.yml",
+          ".github/workflows/*.yaml",
+          ".gitlab-ci.yml",
+          ".circleci/config.yml",
+          ".cargo/config.toml",
+          "Makefile",
+          "justfile"
+        ],
+        "contains": [
+          "cargo fmt --all -- --check",
+          "cargo fmt -- --check",
+          "cargo fmt --check",
+          "cargo fmt --all --check",
+          "rustfmt --check"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "document-unsafe-code",
+      "instruction": "Put a `// SAFETY:` comment on every `unsafe` block and impl, saying how the safety rules are upheld, and a `# Safety` section in the documentation of every public `unsafe fn`, saying what its caller must ensure. Deny `clippy::undocumented_unsafe_blocks` and `clippy::missing_safety_doc` in the crates that contain `unsafe`.",
+      "verification": "Run `cargo clippy --all-targets` with the two lints at deny and check that it exits with status 0; read each `unsafe` the change adds against its comment."
+    },
+    {
+      "id": "bound-unsafe-code",
+      "instruction": "State the `unsafe` policy of each crate in its lints: `unsafe_code = \"forbid\"` in `[lints.rust]` for a crate that needs none; for one that does, set it to `deny` and allow it only in one small module that exposes a safe API, with each `unsafe` block as small as it can be.",
+      "verification": "Check the `[lints.rust]` table (or `[workspace.lints.rust]`) of each crate, search the crate for `unsafe` and check that every hit sits in the one allowed module, and run the tests of that module under Miri (`cargo +nightly miri test`), which the Rust Book recommends for unsafe code.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "Cargo.toml",
+          "*/Cargo.toml",
+          "crates/*/Cargo.toml",
+          "services/*/Cargo.toml",
+          "apps/*/Cargo.toml",
+          "src/lib.rs",
+          "src/main.rs",
+          "*/src/lib.rs",
+          "*/src/main.rs",
+          "crates/*/src/lib.rs",
+          "crates/*/src/main.rs",
+          "services/*/src/main.rs",
+          "apps/*/src/main.rs"
+        ],
+        "contains": [
+          "unsafe_code"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "return-errors-on-the-request-path",
+      "instruction": "In a service, make every handler and every function it calls on request data return a `Result` whose error becomes an HTTP response with the right status (`IntoResponse` in axum, `ResponseError` in Actix Web), so that a malformed or hostile request never reaches `unwrap`, `expect`, `panic!` or an index that can panic. Where an `expect` stays, outside the request path, give it a message that states why the failure cannot happen.",
+      "verification": "For each route the change touches, send a malformed body, a missing field and an out-of-range value in a test and assert a 4xx response, with no 500 and no dropped connection; if a catch-panic layer is installed (tower-http's `CatchPanic` answers a panic with a 500), check that these tests also pass without it."
+    },
+    {
+      "id": "deny-panicking-lints-in-services",
+      "instruction": "In the crates of a service, deny `clippy::unwrap_used`, `clippy::expect_used` and `clippy::panic` in `[lints.clippy]` (or `[workspace.lints.clippy]`), and keep them allowed in tests with `allow-unwrap-in-tests`, `allow-expect-in-tests` and `allow-panic-in-tests` in `clippy.toml`. Write a comment that justifies each `#[allow]` of these lints in the service code.",
+      "verification": "Run `cargo clippy --all-targets` and check that it exits with status 0, then search the service code for `allow(clippy::unwrap_used`, `allow(clippy::expect_used` and `allow(clippy::panic` and check that each hit has a comment.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "Cargo.toml",
+          "*/Cargo.toml",
+          "crates/*/Cargo.toml",
+          "services/*/Cargo.toml",
+          "apps/*/Cargo.toml",
+          "src/lib.rs",
+          "src/main.rs",
+          "*/src/lib.rs",
+          "*/src/main.rs",
+          "crates/*/src/lib.rs",
+          "crates/*/src/main.rs",
+          "services/*/src/main.rs",
+          "apps/*/src/main.rs"
+        ],
+        "contains": [
+          "unwrap_used",
+          "expect_used"
+        ],
+        "expect": "present"
+      }
+    }
+  ]
+}
