@@ -265,7 +265,8 @@ def _check_project_names(tool: dict, bundled: dict[str, str], tools: dict) -> No
             raise CatalogError(
                 f"tool {tool['id']}: the name {name!r} is the bundled tool {taken} ({tools[taken]['title']}). "
                 "A tool of the project catalog takes a name of its own, so that typing a bundled tool's name never "
-                "selects it.")
+                "selects it. Rename the project tool and update the profile, or remove the project definition "
+                "to use OpenGuildKit's bundled tool.")
 
 
 def load_tools(extra_dir: Path | None = None) -> dict[str, dict]:
@@ -294,10 +295,10 @@ def load_tools(extra_dir: Path | None = None) -> dict[str, dict]:
                     raise CatalogError("tools must be a list")
                 for tool in record["tools"]:
                     _validate_tool(tool, record["id"])
-                    if tool["id"] in tools:
-                        raise CatalogError(f"tool {tool['id']} is already defined")
                     if from_project:
                         _check_project_names(tool, bundled, tools)
+                    if tool["id"] in tools:
+                        raise CatalogError(f"tool {tool['id']} is already defined")
                     for server in tool["servers"]:
                         known = endpoints.setdefault(server["id"], _endpoint(server))
                         if known != _endpoint(server):

@@ -1,7 +1,7 @@
 /** The Arsenal's cards, shared by the demo and the project: one feature, its lead tool and three alternatives. */
 import { Badge, Button, Panel } from '@/shared/ui/core';
 
-export interface FeatureOption { tool: string; title: string; vendor: string; servers: number; enabled: boolean }
+export interface FeatureOption { tool: string; tool_title?: string; title: string; vendor: string; servers: number; enabled: boolean }
 export interface Feature { id: string; purpose: string; enabled: boolean; options: FeatureOption[] }
 
 /** The registry writes purposes in English; the page shows them in French. */
