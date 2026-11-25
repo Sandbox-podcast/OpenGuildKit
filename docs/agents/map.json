@@ -148,6 +148,19 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/check_findings.py",
+      "role": "Gives each problem that `check` and `guard --ci` report a stable rule code, a level and a file, for their SARIF output.",
+      "entry": [
+        "RULES",
+        "APPROVAL_CODES",
+        "Report"
+      ],
+      "tests": [
+        "tests/test_sarif_commands.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/ci.py",
       "role": "Reads versioned evidence from Git and evaluates the central policy's field check.",
       "entry": [
@@ -206,6 +219,7 @@
         "tests/test_robustness.py",
         "tests/test_rule_checks.py",
         "tests/test_sample_project.py",
+        "tests/test_sarif_commands.py",
         "tests/test_sectors.py",
         "tests/test_setup_questionnaire.py",
         "tests/test_storybook_extract.py",
@@ -376,6 +390,7 @@
         "tests/test_clock.py",
         "tests/test_guard.py",
         "tests/test_record_lifecycle.py",
+        "tests/test_sarif_commands.py",
         "tests/test_setup_questionnaire.py",
         "tests/test_task_index.py"
       ],
@@ -774,6 +789,20 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/sarif.py",
+      "role": "Writes findings as SARIF 2.1.0 for code scanning: rules with a help link, relative locations, stable fingerprints, the same bytes at every run.",
+      "entry": [
+        "finding",
+        "fingerprint",
+        "to_sarif",
+        "sarif_text"
+      ],
+      "tests": [
+        "tests/test_sarif.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/sensitive.py",
       "role": "Recognizes credentials and personal data in what people and agents give the CLI.",
       "entry": [
@@ -995,7 +1024,7 @@
       "role": "The `task` command, from `task new` to `task export`, including the approval a person types at a terminal.",
       "entry": [
         "add_parser",
-        "sharing_warnings",
+        "sharing_issues",
         "run"
       ],
       "tests": [

@@ -185,6 +185,7 @@ openguildkit patterns --id python-fastapi-postgresql
 - [Market dossiers and competitor watch](docs/market.md)
 - [Dependency alerts and vulnerability watch](docs/alerts.md)
 - [Scan the files an agent reads, and list the agent tools and MCP servers of a project](docs/host-scan.md)
+- [SARIF output of `check` and `guard --ci` for code scanning](docs/sarif.md)
 - [Business deliverables from approved tasks](docs/deliverables.md)
 - [Project Storybook, company design system and extraction](docs/storybook.md)
 - [Project documentation and sharing with Documentalist](docs/documentation.md)
