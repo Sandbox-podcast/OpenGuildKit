@@ -130,6 +130,10 @@ class StackCheckTests(unittest.TestCase):
         "android-app": ("app/src/main/AndroidManifest.xml", "<application />",
                         '<application android:usesCleartextTraffic="true" />'),
         "ios-app": ("App/Info.plist", "<dict></dict>", "<key>NSAllowsArbitraryLoads</key><true/>"),
+        "kotlin-service": ("build.gradle.kts", "kotlin { compilerOptions { allWarningsAsErrors.set(true) } }",
+                           "kotlin { jvmToolchain(21) }"),
+        "ktor-server": ("src/main/kotlin/App.kt", 'install(CORS) { allowHost("app.example.test") }',
+                        "install(CORS) { anyHost() }"),
         "aspnet-core": ("appsettings.json", '{"ConnectionStrings": {"Db": "Host=db"}}',
                         '{"ConnectionStrings": {"Db": "Host=db;Password=example"}}'),
         "pci-dss": (".pre-commit-config.yaml", "- repo: https://github.com/gitleaks/gitleaks", "repos: []"),
@@ -154,6 +158,43 @@ class StackCheckTests(unittest.TestCase):
             covered.add(pack_id)
         expected = set(stack_packs(self.catalog)) - set(STACK_EXCEPTIONS)
         self.assertEqual(expected - covered, set())
+
+    def test_the_kotlin_source_checks_read_the_main_sources_of_every_module_and_skip_the_tests(self):
+        checks = {f"{pack_id}/{rule['id']}": rule["check"] for pack_id in ("kotlin-service", "ktor-server")
+                  for rule in self.catalog["packs"][pack_id]["rules"] if "check" in rule}
+        cases = {
+            "kotlin-service/scope-coroutines-to-a-lifecycle": "GlobalScope.launch { poll() }",
+            "ktor-server/harden-session-cookies": "cookie<Session>(\"s\", SessionStorageMemory())",
+            "ktor-server/restrict-cors-origins": "install(CORS) { anyHost() }",
+        }
+        for rule, content in cases.items():
+            for path, expected in (("src/main/kotlin/App.kt", "failed"), ("server/api/src/main/kotlin/a/b/App.kt", "failed"),
+                                   ("src/test/kotlin/AppTest.kt", "passed"), ("src/main/resources/app.conf", "passed")):
+                with self.subTest(rule=rule, path=path), tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    (root / path).parent.mkdir(parents=True, exist_ok=True)
+                    (root / path).write_text(content, encoding="utf-8")
+                    self.assertEqual(evaluate_check(root, checks[rule])["status"], expected)
+
+    def test_the_gradle_checks_find_the_build_files_of_the_root_and_of_a_module(self):
+        pack = self.catalog["packs"]["kotlin-service"]
+        checks = {rule["id"]: rule["check"] for rule in pack["rules"] if "check" in rule}
+        for path in ("build.gradle.kts", "server/build.gradle", "buildSrc/src/main/kotlin/conventions.gradle.kts",
+                     "build-logic/conventions/src/main/kotlin/Conventions.kt"):
+            with self.subTest(path=path), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / path).parent.mkdir(parents=True, exist_ok=True)
+                (root / path).write_text("compilerOptions { allWarningsAsErrors = true }", encoding="utf-8")
+                self.assertEqual(evaluate_check(root, checks["treat-warnings-as-errors"])["status"], "passed")
+        for present in ("gradle/libs.versions.toml", "services/api/gradle/libs.versions.toml"):
+            with self.subTest(path=present), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / present).parent.mkdir(parents=True)
+                (root / present).write_text("[versions]\n", encoding="utf-8")
+                self.assertEqual(evaluate_check(root, checks["declare-versions-in-a-catalog"])["status"], "passed")
+        with tempfile.TemporaryDirectory() as directory:
+            for rule in ("declare-versions-in-a-catalog", "lock-resolved-dependency-versions"):
+                self.assertEqual(evaluate_check(Path(directory), checks[rule])["status"], "failed")
 
 
 class DemoProjectTests(CapturedCli, unittest.TestCase):

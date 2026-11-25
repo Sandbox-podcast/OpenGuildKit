@@ -414,6 +414,9 @@
       ],
       "summary": "Décrit les conventions de structure, de nommage et de mise en forme du code Kotlin.",
       "applies_when": "Pour les projets Kotlin, avec une configuration d'éditeur et de contrôle cohérente avec les choix du projet.",
+      "packs": [
+        "kotlin-service"
+      ],
       "sources": [
         {
           "url": "https://kotlinlang.org/docs/coding-conventions.html",

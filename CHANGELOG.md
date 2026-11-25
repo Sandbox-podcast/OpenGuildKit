@@ -48,6 +48,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - `openguildkit task verify` keeps the pack answers of a result, whatever machine checks the packs carry: only a report that answers a pack's rules one by one replaces its pack answer.
 - `openguildkit task checks` shows the answer of a rule that a whole-pack answer covers, in the text and in `--json`, instead of "not reported".
 - `openguildkit task list --since` and `--until` refuse a value that is not a real day written YYYY-MM-DD, instead of listing nothing or everything.
+- New packs `kotlin-service` 1.0.0 (coroutine scopes without `GlobalScope`, explicit types for values from Java, compiler warnings as errors, style and static analysis, a Gradle version catalog and dependency locking) and `ktor-server` 1.0.0 (request validation, strict JSON decoding, authenticated routes, session cookies, HTTPS with HSTS, CORS), with the stack pattern `kotlin-ktor`, preselected when the stack names Ktor. It leaves Kotlin services on Spring Boot to `java-spring-boot` and Android apps to `android-kotlin`. `openguildkit detect` now reads Ktor and its version from the Ktor Gradle plugin, the `ktor-server-*` artifacts and the version catalogs, in Groovy and Kotlin builds.
 
 ## 0.17.0
 

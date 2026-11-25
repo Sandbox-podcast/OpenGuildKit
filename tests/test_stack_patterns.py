@@ -17,6 +17,7 @@ STACKS = {
     "vue": ["Vue", "Node.js", "Express", "MongoDB"],
     "ios-swift": ["Swift", "iOS"],
     "android-kotlin": ["Kotlin", "Android"],
+    "kotlin-ktor": ["Kotlin 2.1", "Ktor 3.1"],
     "laravel": ["Laravel", "PHP"],
     "symfony": ["Symfony", "PHP"],
     "angular": ["Angular", "NestJS"],
@@ -27,6 +28,7 @@ STACKS = {
 PACKS = {
     "django": "django", "rails": "rails", "node-express": "express", "vue": "vue", "angular": "angular",
     "laravel": "laravel", "symfony": "symfony", "ios-swift": "ios-app", "android-kotlin": "android-app",
+    "kotlin-ktor": "ktor-server",
     "gitlab-ci-security": "gitlab-ci-security", "docker-images": "container-images", "aws-iam": "aws-iam",
 }
 GENERIC_PACKS = {"secure-sdlc", "api-design", "typescript", "python"}
@@ -67,6 +69,9 @@ REPOSITORIES = {
     },
     "android-kotlin": {
         "app/build.gradle.kts": 'plugins {\n  id("com.android.application")\n  id("org.jetbrains.kotlin.android")\n}\n',
+    },
+    "kotlin-ktor": {
+        "build.gradle.kts": 'plugins {\n  kotlin("jvm") version "2.1.0"\n  id("io.ktor.plugin") version "3.1.0"\n}\n',
     },
     "gitlab-ci-security": {".gitlab-ci.yml": "test:\n  script: make test\n"},
     "docker-images": {"Dockerfile": "FROM python:3.13-slim\nUSER app\n"},
@@ -127,13 +132,36 @@ class StackPatternTests(unittest.TestCase):
     def test_a_server_side_swift_or_plain_kotlin_project_gets_no_mobile_rules(self):
         self.assertNotIn("ios-swift", self.matched({"stack": ["Swift", "Vapor"]}))
         self.assertNotIn("android-kotlin", self.matched({"stack": ["Kotlin", "Spring Boot"]}))
+        self.assertNotIn("android-kotlin", self.matched({"stack": ["Kotlin", "Ktor"]}))
+
+    def test_a_ktor_server_gets_its_own_pattern_without_the_spring_boot_or_android_ones(self):
+        self.assertLessEqual({"kotlin-ktor"}, self.matched({"stack": ["Ktor 3.1"]}))
+        self.assertLessEqual({"kotlin-ktor"}, self.matched({"stack": ["Kotlin", "Ktor"]}))
+        self.assertLessEqual({"kotlin-ktor"}, self.matched({"stack": ["Kotlin", "Ktor Server 3"]}))
+        self.assertNotIn("java-spring-boot", self.matched({"stack": ["Kotlin", "Ktor"]}))
+        for stack in (["Kotlin", "Spring Boot"], ["Kotlin", "Android"], ["Kotlin"], ["Java", "Spring Boot"]):
+            with self.subTest(stack=stack):
+                self.assertNotIn("kotlin-ktor", self.matched({"stack": stack}))
+
+    def test_a_ktor_server_gets_the_kotlin_and_ktor_packs_on_top_of_the_http_contract_rules(self):
+        profile = validate_profile({"name": "Service", "stack": ["Kotlin", "Ktor"]}, self.catalog)
+        packs = resolved_profile(profile, self.catalog)["packs"]
+        self.assertLessEqual({"kotlin-service", "ktor-server", "api-design"}, set(packs))
+        self.assertNotIn("spring-boot", packs)
+        self.assertNotIn("android-app", packs)
+        self.assertIn("api-design", self.catalog["packs"]["ktor-server"]["depends_on"])
+        pattern = self.catalog["patterns"]["kotlin-ktor"]
+        for neighbour in ("java-spring-boot", "android-kotlin"):
+            self.assertIn(neighbour, pattern["description"])
+        self.assertTrue(set(pattern["packs"]).isdisjoint(self.catalog["patterns"]["java-spring-boot"]["packs"]))
+        self.assertTrue(set(pattern["packs"]).isdisjoint(self.catalog["patterns"]["android-kotlin"]["packs"]))
 
     def test_new_rules_are_actionable_sourced_and_not_generic(self):
         generic = {
             rule["instruction"] for pack_id in GENERIC_PACKS for rule in self.catalog["packs"][pack_id]["rules"]
         }
         new_packs = {*PACKS.values(), *(pack for packs in EXTRA_PACKS.values() for pack in packs),
-                     "mobile-accessibility", "mobile-store-release"}
+                     "mobile-accessibility", "mobile-store-release", "kotlin-service"}
         for pack_id in sorted(new_packs):
             with self.subTest(pack=pack_id):
                 pack = self.catalog["packs"][pack_id]
@@ -178,6 +206,7 @@ class StackDetectionTests(unittest.TestCase):
             "symfony": {"PHP >=8.3", "Symfony 7.2.*"},
             "ios-swift": {"Swift 6.0", "iOS"},
             "android-kotlin": {"Android", "Kotlin"},
+            "kotlin-ktor": {"Kotlin 2.1.0", "Ktor 3.1.0"},
             "django": {"Python", "Django"},
         }
         for pattern_id, expected in stacks.items():

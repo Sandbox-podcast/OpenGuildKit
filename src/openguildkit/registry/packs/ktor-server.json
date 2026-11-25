@@ -1,0 +1,123 @@
+{
+  "id": "ktor-server",
+  "title": "Ktor servers",
+  "version": "1.0.0",
+  "description": "For a Ktor server written in Kotlin: request validation, strict JSON decoding, authenticated routes, session cookies, HTTPS with HSTS and CORS, as the Ktor 3 documentation describes them. A Kotlin service on Spring Boot keeps `spring-boot`; the Ktor client alone does not select this pack.",
+  "sources": [
+    {
+      "title": "Ktor documentation, content negotiation and serialization",
+      "url": "https://ktor.io/docs/server-serialization.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Ktor documentation, request validation",
+      "url": "https://ktor.io/docs/server-request-validation.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Ktor documentation, status pages",
+      "url": "https://ktor.io/docs/server-status-pages.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Kotlin documentation, customize the Json instance",
+      "url": "https://kotlinlang.org/docs/serialization-json-configuration.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Ktor documentation, authentication and authorization",
+      "url": "https://ktor.io/docs/server-auth.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Ktor documentation, JSON Web Tokens",
+      "url": "https://ktor.io/docs/server-jwt.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Ktor documentation, sessions",
+      "url": "https://ktor.io/docs/server-sessions.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Ktor documentation, HttpsRedirect",
+      "url": "https://ktor.io/docs/server-https-redirect.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Ktor documentation, forwarded headers",
+      "url": "https://ktor.io/docs/server-forward-headers.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Ktor documentation, HSTS",
+      "url": "https://ktor.io/docs/server-hsts.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Ktor documentation, CORS",
+      "url": "https://ktor.io/docs/server-cors.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Ktor documentation, testing a server",
+      "url": "https://ktor.io/docs/server-testing.html",
+      "checked": "2026-11-25"
+    }
+  ],
+  "depends_on": [
+    "api-design"
+  ],
+  "rules": [
+    {
+      "id": "validate-request-bodies",
+      "instruction": "Receive request bodies as `@Serializable` classes through `ContentNegotiation` with the `kotlinx.serialization` JSON converter. Install `RequestValidation` with a `validate<T>` block for each body type whose fields carry limits beyond their types (ranges, lengths, formats, rules between fields), and answer `RequestValidationException` with a 400 response from `StatusPages` that lists the reasons.",
+      "verification": "With `testApplication`, post a body that breaks each `validate` rule, a body missing a required field and an unparsable body: each must get a 4xx response and leave no side effect, and none a 500."
+    },
+    {
+      "id": "keep-json-decoding-strict",
+      "instruction": "Build the `Json` instance that `ContentNegotiation` uses in one place and keep its strict defaults: an unknown key, a `null` for a non-nullable property and an unquoted string are errors. Turn on `ignoreUnknownKeys`, `coerceInputValues` or `isLenient` only when the API contract needs it, name the clients or types that need it, and test the input it accepts.",
+      "verification": "Post a body with an unknown key, one with `null` for a non-nullable property and one with an unquoted string: each is rejected with the 4xx response the contract documents, never with a 500. For every option that is on, find the test that names the input it accepts."
+    },
+    {
+      "id": "authenticate-private-routes",
+      "instruction": "Install `Authentication` with a named provider for each scheme the service accepts and put every route that is not public inside `authenticate(\"name\")`, with a `validate` block that returns null for a credential that fails. For JWT, build the verifier with the expected issuer and audience, check in `validate` the claims the service relies on, and read secrets and keys from the environment or a secret store, not from a configuration file in the repository. Use the `basic` provider only over HTTPS.",
+      "verification": "With `testApplication`, call each private route with no credential, a wrong one and a valid one and assert 401, 401 and a success; for JWT add a token with another audience and an expired token, both rejected. List the routes outside `authenticate` with the reason each one is public."
+    },
+    {
+      "id": "harden-session-cookies",
+      "instruction": "When the service keeps sessions in cookies, set the cookie's `secure` property to true before production and `SameSite` through `cookie.extensions`. Sign the session with `SessionTransportTransformerMessageAuthentication`, or encrypt and sign it with `SessionTransportTransformerEncrypt` when its content is sensitive, with keys read from configuration that environment variables fill, never from the source. Do not ship `SessionStorageMemory`.",
+      "verification": "Request a route that creates a session and read its `Set-Cookie` header: it carries `Secure` and `SameSite`, an encrypted value is unreadable and a tampered cookie is rejected. Search the source for key literals and for `SessionStorageMemory`.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "**/src/main/**/*.kt"
+        ],
+        "contains": [
+          "SessionStorageMemory"
+        ],
+        "expect": "absent"
+      }
+    },
+    {
+      "id": "serve-https-with-hsts",
+      "instruction": "Redirect plain HTTP with `HttpsRedirect` where the service itself receives it, and send `Strict-Transport-Security` with the `HSTS` plugin and a `maxAgeInSeconds` the team chose. Behind a reverse proxy, install `XForwardedHeaders` or `ForwardedHeaders` so that Ktor sees the original request and the redirect does not loop, only if the service accepts connections from that proxy alone. If the proxy sets the HSTS header instead, record that decision.",
+      "verification": "Request the service over plain HTTP and check that the answer redirects to the HTTPS address without looping, then request it over HTTPS and read `Strict-Transport-Security` in the response. Where a forwarded-headers plugin is installed, confirm in the network configuration that clients cannot reach the service without the proxy."
+    },
+    {
+      "id": "restrict-cors-origins",
+      "instruction": "When browsers on other origins call the service, install `CORS` and list each trusted origin with `allowHost`, each extra method with `allowMethod` and each extra header with `allowHeader`. Do not call `anyHost()` on a service with authenticated routes, and set `allowCredentials` to true only for the listed origins that need cookies or authorization data.",
+      "verification": "Send a request with an `Origin` header that is not listed and check that the response has no `Access-Control-Allow-Origin` header, then send one with a listed origin and check the header and, when `allowCredentials` is on, `Access-Control-Allow-Credentials`. Search the source for `anyHost`.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "**/src/main/**/*.kt"
+        ],
+        "contains": [
+          "anyHost"
+        ],
+        "expect": "absent"
+      }
+    }
+  ]
+}

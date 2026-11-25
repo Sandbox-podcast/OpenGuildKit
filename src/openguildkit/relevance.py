@@ -62,7 +62,8 @@ SUBJECTS = {
     **{pack: ("the work its board reviews", None) for pack in ("test-strategy", "data-definitions")},
     **{pack: ("the project's code", _CODE) for pack in (
         "python", "typescript", "api-design", "django", "fastapi", "express", "spring-boot", "aspnet-core", "rails",
-        "laravel", "symfony", "symfony-security", "go-database", "postgresql", "pytest", "licence-policy")},
+        "laravel", "symfony", "symfony-security", "kotlin-service", "ktor-server", "go-database", "postgresql", "pytest",
+        "licence-policy")},
     **{pack: ("the user interface", _UI) for pack in (
         "react", "vue", "angular", "nextjs", "frontend-delivery", "web-accessibility", "web-performance",
         "mobile-accessibility", "ios-app", "android-app", "mobile-store-release", "i18n-readiness", "playwright",
