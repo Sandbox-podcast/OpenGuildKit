@@ -62,6 +62,8 @@ Every crash fails the run: none is tolerated. A task record edited by hand is ch
 
 Run the timed tests with `OPENGUILDKIT_PERF=1 PYTHONPATH=src python -m unittest tests.test_performance.PerformanceTests`. On Windows PowerShell, set `$env:OPENGUILDKIT_PERF = "1"` before running the test command.
 
+One test reads the network: `RegistryPackagesExistTests` in `tests/test_tool_registry.py` checks that every Docker image and npm or PyPI package of the tool registry exists. It is skipped unless `OPENGUILDKIT_NETWORK_TESTS=1`, and CI does not set it.
+
 On 22 November 2026 (Windows, Python 3.12.7, with `PYTHONDONTWRITEBYTECODE=1` in the calling environment), the 26 tests in `tests.e2e.test_cli_flow` ran in 9.316 s, down from 50.281 s at `ac33f9f`. Both runs skipped the two POSIX terminal cases. These are single runs of that module on the Windows workstation. The full standard Windows run took 404.551 s for 1,198 tests, with 30 skipped. The full-suite time on the reference macOS machine is under [Kinds of tests](#kinds-of-tests).
 
 `python scripts/bench.py` prints the times as a table and as JSON (`--json` for JSON only, `--repeat N` for more runs). Each command is a real process; the figure is the median of five runs after one warm-up. "x start" divides by `openguildkit --version` in the same run. The project with 500 tasks has 5 approved ones, so the hooks find tasks that cover the edit. Python caches the bytecode in the benchmark's temporary folder, as it does for an installed package, even when `PYTHONDONTWRITEBYTECODE` is set.

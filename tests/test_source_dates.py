@@ -217,7 +217,7 @@ class ProjectSourceDateTests(CapturedCli, unittest.TestCase):
         examples = ROOT / "examples" / "request-status"
         self.cli("task", "new", "--file", examples / "brief.md", "--id", "status")
         refused = [("references",), ("references", "--id", "team-change-record"), ("references", "--json"),
-                   ("task", "consult", "status", "--answers", examples / "answers.json")]
+                   ("brains",), ("task", "consult", "status", "--answers", examples / "answers.json")]
         for arguments in refused:
             with self.subTest(command=arguments[:2]):
                 out, err = self.cli(*arguments, code=1)

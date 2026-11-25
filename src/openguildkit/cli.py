@@ -1267,7 +1267,7 @@ def _run(args) -> int | None:
     elif args.command == "brains":
         if args.new:
             return _new_brain(args, state, catalog)
-        families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
+        families = with_pattern_references(load_references(state / "catalog" / "references", catalog), catalog["patterns"])
         return _print_brains(args, catalog, families)
     elif args.command == "integrations":
         base = Path.home() if args.user else root
