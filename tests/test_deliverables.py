@@ -170,6 +170,16 @@ class DeliverableTests(CapturedCli, unittest.TestCase):
         empty_section = draft.replace("## When to contact support\n", "## When to contact support\n<!-- nothing -->\n## Ignored\n", 1)
         self.assertIn('Section "When to contact support" is empty.', self.write_and_check(empty_section, 1))
 
+    def test_a_draft_saved_with_a_byte_order_mark_is_checked_and_another_encoding_is_named(self):
+        self.approved_task()
+        self.run_cli("deliverable", "new", "support-article", "--task", "launch", "--tool", "Brevo", "--output", "article.md")
+        draft = self.filled((self.root / "article.md").read_text(encoding="utf-8"))
+        (self.root / "article.md").write_text(draft, encoding="utf-8-sig")
+        self.assertIn("Ready for review", self.run_cli("deliverable", "check", "article.md")[0])
+        (self.root / "article.md").write_text(draft, encoding="utf-16")
+        _, error = self.run_cli("deliverable", "check", "article.md", code=1)
+        self.assertIn("article.md is not UTF-8 text", error)
+
     def write_and_check(self, text, code):
         (self.root / "article.md").write_text(text, encoding="utf-8")
         return self.run_cli("deliverable", "check", "article.md", code=code)[0]

@@ -19,6 +19,13 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - `openguildkit profile set approval` now says to run `openguildkit host apply`, as `profile set host`, `guard` and `research` do: signed approvals add a rule on the signers file to the host settings, and `check` fails until it is applied.
 - A `CLAUDE.md` that quotes `@AGENTS.md` in a code block no longer counts as importing `AGENTS.md`: `sync` adds the real import and `check` reports the instructions out of date until it does.
 - `openguildkit guard --ci` outside a Git repository says in one line that it needs one, instead of printing the usage of `git diff --no-index`.
+- `alerts import` no longer resolves the alerts of a package that a pip-audit report skipped (an entry with a `skip_reason`), and does not count such an entry as an analyzed dependency.
+- A resolved alert that a later report lists again loses the acceptance of its risk, so a confirmed critical alert blocks its tasks again; `alerts import` names each alert whose acceptance it removed.
+- `alerts import` warns, and names the previous file, when a report resolves alerts under another file name than the scanner's previous import: a report of another lockfile resolves the alerts of the first. The scanner has one full report per project ([alerts](docs/alerts.md)).
+- `docs share verify` reports a server that does not answer in valid HTTP like any other unreachable portal, and `docs export` refuses by name an export manifest whose `files` is not a list of paths and an `--openapi` file that is not UTF-8, instead of printing a Python trace or an unnamed decoding error.
+- `deliverable check` reads a draft saved with a UTF-8 byte order mark, and `alerts import` reads a report saved as UTF-16 (PowerShell 5.1 `> file`); a file in another encoding is refused with its name and the encoding.
+- `docs share add` records the deliverable as a path from the project root, so a share named by its absolute path counts as the same deliverable as one named by its relative path: `--dedicated-space` and the readers of a shared space follow it, and the register keeps no local path.
+- `alerts tasks --open` gives each confirmed alert of a package with a long name a task of its own: an ID cut at 64 characters ends with a short digest of the alert ID instead of colliding.
 
 ## 0.17.0
 
