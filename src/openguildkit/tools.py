@@ -17,7 +17,7 @@ import tomllib
 from pathlib import Path
 
 from . import clock
-from .catalog import CatalogError, package_file, unique_fields
+from .catalog import CatalogError, package_file, unique_fields, validate_day
 from .detect import MAX_MANIFEST_BYTES, SKIPPED_DIRECTORIES
 from .mcp_mock import apply_scenario, check_synthetic, validate_mock
 from .sensitive import looks_like_credential
@@ -49,7 +49,6 @@ _ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _ENV = re.compile(r"[A-Z][A-Z0-9_]{1,63}")
 _VARIABLE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}")
 _SETTING = re.compile(r"\{([a-z][a-z0-9_]*)\}")
-_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 _SECRET_WORD = re.compile(r"(?i)(token|secret|password|passwd|api[_-]?key|apikey|bearer)")
 _INLINE_VALUE = re.compile(r"^-{0,2}[A-Za-z0-9_.-]*=(.+)$")
 # A plain value: a name, a host, or a path on the workstation, absolute ones included.
@@ -108,16 +107,15 @@ def _validate_server(server: object, label: str) -> None:
             raise CatalogError(f"{label}: {field} is one of {', '.join(choices)}")
     _names(server["env"], f"{label} env", _ENV)
     _https(server["source"], f"{label} source")
-    if not isinstance(server["verified"], str) or not _DAY.fullmatch(server["verified"]):
-        raise CatalogError(f"{label}: verified is the date the source was read, YYYY-MM-DD")
+    _read_on(server, "verified", label, "the source was read")
     if "repository" in server:
         _https(server["repository"], f"{label} repository")
     if "status_source" in server:
         _https(server["status_source"], f"{label} status_source")
     if "license" in server:
         _text(server["license"], f"{label} license")
-    if "reviewed" in server and (not isinstance(server["reviewed"], str) or not _DAY.fullmatch(server["reviewed"])):
-        raise CatalogError(f"{label}: reviewed is the date access, scopes and read-only mode were looked for, YYYY-MM-DD")
+    if "reviewed" in server:
+        _read_on(server, "reviewed", label, "access, scopes and read-only mode were looked for")
     for field in ("access", "scopes", "pin"):
         if field in server:
             _text(server[field], f"{label} {field}")
@@ -160,6 +158,14 @@ def _validate_server(server: object, label: str) -> None:
         raise CatalogError(f"{label}: settings must declare exactly the placeholders used: {', '.join(sorted(used)) or 'none'}")
     if "read_only" in server:
         _validate_read_only(server, label)
+
+
+def _read_on(server: dict, field: str, label: str, meaning: str) -> None:
+    """verified and reviewed pass the check of a catalog source's checked: a calendar day, not in the future."""
+    try:
+        validate_day(server[field], f"{label} {field}")
+    except CatalogError as error:
+        raise CatalogError(f"{error}; {field} is the date {meaning}") from None
 
 
 def _check_stand_ins(values: list[str], label: str) -> None:

@@ -10,17 +10,19 @@ import re
 import shutil
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import catalog as catalog_module
+from openguildkit import clock
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.deliverables import _validate as validate_deliverable, load_deliverables
 from openguildkit.lock import read_lock
 from openguildkit.project import profile_fingerprint
 from openguildkit.references import _validate_family, load_references
 from openguildkit.storage import write_json
+from openguildkit.tools import load_tools
 
 from tests.support import CapturedCli
 
@@ -55,7 +57,44 @@ def bundled_sources():
             yield f"deliverables/{record['id']}", source
 
 
+def bundled_dates():
+    """Each date of the bundled catalog: the checked day of every source, the verified and reviewed days of every
+    tool server."""
+    for record, source in bundled_sources():
+        yield f"{record}: {source['url']}", source["checked"]
+    for tool in load_tools().values():
+        for server in tool["servers"]:
+            for field in ("verified", "reviewed"):
+                if field in server:
+                    yield f"tools/{tool['id']}/{server['id']} {field}", server[field]
+
+
+def dates_after(day: date) -> list[str]:
+    return [f"{where} {value}" for where, value in bundled_dates() if date.fromisoformat(value) > day]
+
+
 class BundledSourceDateTests(unittest.TestCase):
+    def test_no_bundled_date_is_after_the_day_of_the_test(self):
+        """A page cannot have been read in the future: such a date is a typo, and update would announce it."""
+        self.assertEqual(dates_after(clock.real_today()), [])
+        latest = max(date.fromisoformat(value) for _, value in bundled_dates())
+        self.assertTrue(dates_after(latest - timedelta(days=1)), "the check sees the latest bundled date")
+
+    def test_the_loaders_refuse_a_date_in_the_future(self):
+        """One day of margin for time zones, as for the other dates a person writes; the test above has none."""
+        tomorrow, later = (clock.real_today() + timedelta(days=days) for days in (1, 2))
+        for bundled in (True, False):
+            record = copy.deepcopy(PACK)
+            record["sources"][0]["checked"] = later.isoformat()
+            with self.subTest(bundled=bundled), self.assertRaisesRegex(CatalogError, "in the future"):
+                validate_entry("packs", record, bundled=bundled)
+            record["sources"][0]["checked"] = tomorrow.isoformat()
+            validate_entry("packs", record, bundled=bundled)
+        family = {"id": "legal", "title": "Legal", "references": [copy.deepcopy(load_references()["legal"]["references"][0])]}
+        family["references"][0]["sources"][0]["checked"] = "2099-01-01"
+        with self.assertRaisesRegex(CatalogError, "in the future"):
+            _validate_family(family, "legal.json", bundled=True)
+
     def test_every_bundled_source_has_a_checked_date(self):
         undated, count = [], 0
         for record, source in bundled_sources():
