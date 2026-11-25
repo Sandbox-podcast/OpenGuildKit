@@ -1,0 +1,88 @@
+{
+  "id": "france-rgaa-accessibility",
+  "title": "Digital accessibility of public services (France, RGAA)",
+  "version": "1.0.0",
+  "description": "France only. For a website, intranet, extranet, packaged software used through a browser or a mobile application delivered to an entity that Art. 47 of loi n° 2005-102 du 11 février 2005 binds: public-law entities, certain private entities with a public service mission or under public control, entities created by public entities, and companies with a French turnover of 250 million euros or more. It follows the RGAA method published by the DINUM, version 4.1.2 on its site on 25 November 2026 with version 5 announced for the end of 2026, and its mandatory mentions, statement and plans. The obligations bind the entity that provides the service, so the rules ask the team to feed the audit, the statement and the plans, not to publish them for it. A product for a customer outside that scope is out of scope. It adds to public-sector-accessibility (EU: Directive (EU) 2016/2102 and EN 301 549 V3.2.1) and to web-accessibility (WCAG 2.2): the RGAA tests, the statement and the French mentions come on top, and where the tests overlap the stricter result applies. These rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "DINUM, RGAA, Référentiel général d'amélioration de l'accessibilité",
+      "url": "https://accessibilite.numerique.gouv.fr/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "RGAA, Rappel du champ d'application",
+      "url": "https://accessibilite.numerique.gouv.fr/obligations/champ-application/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "RGAA, Évaluation de la conformité",
+      "url": "https://accessibilite.numerique.gouv.fr/obligations/evaluation-conformite/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "RGAA, Déclaration d'accessibilité",
+      "url": "https://accessibilite.numerique.gouv.fr/obligations/declaration-accessibilite/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "RGAA, Mentions et pages obligatoires",
+      "url": "https://accessibilite.numerique.gouv.fr/obligations/mentions-et-pages-obligatoires/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "RGAA, Schéma pluriannuel de mise en accessibilité",
+      "url": "https://accessibilite.numerique.gouv.fr/obligations/schema-pluriannuel/",
+      "checked": "2026-11-25"
+    }
+  ],
+  "rules": [
+    {
+      "id": "confirm-rgaa-scope",
+      "instruction": "Ask the account owner whether the customer is one of the four categories of Art. 47 of loi n° 2005-102, and which of its websites, intranets, extranets, packaged software used through a browser or mobile applications the product delivers; record that bodies under points 1 to 3 apply the RGAA technical method while those under point 4 may use another test method that is available on request, comes with a correspondence table to the framework and is named in the statement.",
+      "verification": "Link the account owner's recorded answer and the list of delivered services from the change.",
+      "manual": "Whether the customer is within Art. 47 is a legal assessment that the customer makes."
+    },
+    {
+      "id": "test-with-the-rgaa-method",
+      "instruction": "Test each changed page or screen with the RGAA tests of the version in force, check on the RGAA site whether version 5 has replaced 4.1.2, and mark a criterion not applicable only when the content does not exist, is exempt, or is covered by a disproportionate burden derogation with an accessible alternative.",
+      "verification": "Link the audit report that lists, for each changed page, every criterion as validated, failed or not applicable with its reason.",
+      "manual": "The tests run on rendered pages with assistive technologies, browsers and operating systems."
+    },
+    {
+      "id": "audit-a-representative-sample",
+      "instruction": "Build the sample of pages the audit covers: the home, contact, legal notices, accessibility, sitemap, help and authentication pages where they exist, one relevant page per type of service and main use, every page of a multi-page process, and pages with distinct layouts or content types, with randomly chosen pages making up at least 10 % of the sample; a screen of a mobile application counts as a page.",
+      "verification": "Open the sample list and check that the required pages are present and that the random pages are marked and reach 10 %.",
+      "manual": "The sample is chosen against the rendered service."
+    },
+    {
+      "id": "state-the-conformity-level",
+      "instruction": "Compute the conformity rate as the criteria validated on every sample page divided by the criteria applicable, and state the level from the audit: totally conforming when every criterion is met, partially when at least 50 % are, and non-conforming when no valid audit exists or fewer than 50 % are met.",
+      "verification": "Check that the level and the percentage in the statement match the audit report.",
+      "manual": "The rate comes from the audit, which a person runs and reads."
+    },
+    {
+      "id": "publish-the-accessibility-statement",
+      "instruction": "Keep the accessibility statement on the model the RGAA sets: conformity level, test results, non-accessible content split into non-conformities, exempt content and disproportionate burden derogations with their justification, duration and alternative, dates, technologies used, test environment, list of pages tested, contact and recourse; update it after a substantial redesign, three years after publication and 18 months after a new version of the framework, and never justify a derogation by a lack of priority, time or knowledge.",
+      "verification": "Open the statement and check each section of the model, its dates and the list of non-accessible content against the latest audit.",
+      "manual": "The statement is published by the entity outside the repository."
+    },
+    {
+      "id": "show-the-mention-and-accessibility-page",
+      "instruction": "Show on the home page one of the three mentions «Accessibilité : totalement conforme», «Accessibilité : partiellement conforme» or «Accessibilité : non conforme» that matches the statement, and keep an accessibility page that holds the statement, the multi-year plan and the current annual action plan, or links to them, reachable from the home page and from every page.",
+      "verification": "Open the home page and a changed page, and check the mention and the link to the accessibility page.",
+      "manual": "The mention and the link show on the rendered pages."
+    },
+    {
+      "id": "keep-a-feedback-channel",
+      "instruction": "Keep an accessible channel, an address or a form, where a user reports an accessibility defect and asks for information or an accessible alternative, that the entity acknowledges as Art. R112-3 of the code des relations entre le public et l'administration requires and answers within one week, or with a justified deadline for a complex case, and that the statement links to the Défenseur des droits for a user who gets no answer.",
+      "verification": "Send a test message through the channel and check the acknowledgement, and open the statement to find the Défenseur des droits.",
+      "manual": "Answers come from the entity's staff, outside the repository."
+    },
+    {
+      "id": "feed-the-accessibility-plans",
+      "instruction": "Ask the entity's accessibility referent to publish, in an accessible format and linked from the statement, the multi-year plan of at most three years and the annual action plan, and give them the corrections the product plans, in priority order for the most used content and services.",
+      "verification": "Open the accessibility page and check that both plans are present, current and that the planned corrections of the product appear in the action plan.",
+      "manual": "The plans are the entity's documents, published outside the repository."
+    }
+  ]
+}

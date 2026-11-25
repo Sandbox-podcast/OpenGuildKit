@@ -1,0 +1,34 @@
+{
+  "id": "france-rgaa-accessibility",
+  "title": "Digital accessibility of public services (France, RGAA)",
+  "description": "Preselected for the public sector: keep it when the product delivers websites, packaged software used through a browser or mobile applications to a French public body, to a private body with a public service mission, or to a company with a French turnover of 250 million euros or more (Art. 47 of loi n° 2005-102); decline it outside France or for a customer outside that scope. It adds the RGAA audit, statement, mentions and plans to public-sector-accessibility (EU).",
+  "sources": [
+    {
+      "title": "RGAA, Rappel du champ d'application",
+      "url": "https://accessibilite.numerique.gouv.fr/obligations/champ-application/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "DINUM, RGAA, Référentiel général d'amélioration de l'accessibilité",
+      "url": "https://accessibilite.numerique.gouv.fr/",
+      "checked": "2026-11-25"
+    }
+  ],
+  "roles": [
+    "legal",
+    "design",
+    "qa"
+  ],
+  "packs": [
+    "france-rgaa-accessibility"
+  ],
+  "kind": "regulation",
+  "match": {
+    "sectors": [
+      "public-sector"
+    ]
+  },
+  "references": [
+    "rgaa"
+  ]
+}

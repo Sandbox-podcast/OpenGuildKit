@@ -66,7 +66,7 @@ SUBJECTS = {
     **{pack: ("the user interface", _UI) for pack in (
         "react", "vue", "angular", "nextjs", "frontend-delivery", "web-accessibility", "web-performance",
         "mobile-accessibility", "ios-app", "android-app", "mobile-store-release", "i18n-readiness", "playwright",
-        "chaosfolk-e2e", "public-sector-accessibility", "european-accessibility-act")},
+        "chaosfolk-e2e", "public-sector-accessibility", "european-accessibility-act", "france-rgaa-accessibility")},
     **{pack: ("a new customer feature", _PRODUCT) for pack in (
         "design-process", "user-research-practice", "controlled-experiments", "product-discovery",
         "opportunity-solution-tree", "jobs-to-be-done", "web-search-optimization", "release-communication",
@@ -165,6 +165,9 @@ LEGAL_BASIS = {
     "france-health-data-hosting": "personal or regulated data: Art. L1111-8 of the Code de la santé publique "
                                   "requires the host of personal health data to hold a certificate of conformity, "
                                   "and Art. R1111-9-1 and R1111-11 set the storage in the EU or EEA and the contract.",
+    "france-rgaa-accessibility": "the user interface: Art. 47 of loi n° 2005-102 binds certain public and private "
+                                 "entities to make their online public communication services accessible, tested "
+                                 "with the RGAA.",
     "web-accessibility": "the user interface: WCAG 2.2, through EN 301 549, is the test of Directive (EU) 2016/2102 "
                          "and of the accessibility requirements a customer-facing screen meets.",
 }

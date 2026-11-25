@@ -12,7 +12,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | communication | 22 | 9 | 13 | 2 | 0 | 3 | 8 |
 | customer-success | 5 | 2 | 3 | 1 | 0 | 1 | 4 |
 | data | 63 | 11 | 52 | 6 | 1 | 8 | 41 |
-| design | 26 | 5 | 21 | 10 | 5 | 17 | 69 |
+| design | 26 | 6 | 20 | 11 | 5 | 18 | 77 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
 | devops | 69 | 22 | 47 | 9 | 6 | 15 | 86 |
 | engineering | 217 | 32 | 185 | 14 | 26 | 43 | 230 |
@@ -21,7 +21,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
 | it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 8 |
 | leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
-| legal | 56 | 24 | 32 | 19 | 1 | 22 | 145 |
+| legal | 56 | 25 | 31 | 20 | 1 | 23 | 153 |
 | localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
 | marketing | 22 | 7 | 15 | 8 | 0 | 8 | 17 |
 | operations | 21 | 6 | 15 | 11 | 0 | 11 | 26 |
@@ -30,7 +30,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | procurement | 8 | 6 | 2 | 1 | 0 | 1 | 5 |
 | product | 23 | 7 | 16 | 18 | 0 | 18 | 63 |
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
-| qa | 50 | 8 | 42 | 7 | 20 | 31 | 165 |
+| qa | 50 | 9 | 41 | 8 | 20 | 32 | 173 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
 | security | 103 | 29 | 74 | 20 | 17 | 44 | 259 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
@@ -81,12 +81,12 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | general | none | none | 0 |
 | healthcare | france-health-data-hosting, health-data-protection | france-health-data-hosting, health-data-protection | 15 |
 | insurance | dora-financial-entity, insurance-distribution | dora, incident-notification, insurance-distribution | 19 |
-| public-sector | public-sector-accessibility | public-sector-accessibility, web-accessibility | 14 |
+| public-sector | france-rgaa-accessibility, public-sector-accessibility | france-rgaa-accessibility, public-sector-accessibility, web-accessibility | 22 |
 | software-publisher | cyber-resilience-act-product, iso-27001-certification | cyber-resilience-act, incident-notification, iso-27001, secure-sdlc | 31 |
 
 ## Machine checks by pack
 
-25 of 477 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+25 of 485 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
@@ -122,6 +122,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | financial-planning | 2 | 0 | 0 |
 | finops-cost-management | 4 | 0 | 0 |
 | france-health-data-hosting | 8 | 0 | 8 |
+| france-rgaa-accessibility | 8 | 0 | 8 |
 | frontend-delivery | 4 | 0 | 0 |
 | gdpr | 11 | 0 | 11 |
 | github-actions-security | 5 | 2 | 0 |
@@ -222,7 +223,7 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### design
 
-`apple-hig`, `aria-apg`, `atomic-design`, `carbon-design`, `css`, `dsfr`, `dtcg-design-tokens`, `epub-accessibility`, `fluent-design`, `gov-uk-assisted-digital`, `govuk-design`, `heart`, `iso-9241-11`, `iso-9241-210`, `material-design`, `nielsen-heuristics`, `pdf-ua`, `rgaa`, `rgesn`, `storybook`, `wai-aria`
+`apple-hig`, `aria-apg`, `atomic-design`, `carbon-design`, `css`, `dsfr`, `dtcg-design-tokens`, `epub-accessibility`, `fluent-design`, `gov-uk-assisted-digital`, `govuk-design`, `heart`, `iso-9241-11`, `iso-9241-210`, `material-design`, `nielsen-heuristics`, `pdf-ua`, `rgesn`, `storybook`, `wai-aria`
 
 ### developer-relations-and-docs
 
@@ -258,7 +259,7 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### legal
 
-`cnil-cookies`, `cnil-guide-securite`, `consumer-adr-directive`, `csrd`, `developer-certificate-of-origin`, `digital-content-directive`, `eidas`, `eprivacy`, `eu-data-act`, `eu-ivdr`, `hl7-fhir`, `iab-tcf`, `iec-62304`, `iso-13485`, `iso-14971`, `iso-37301`, `iso-iec-27018`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `nist-media-sanitization`, `nist-privacy-framework`, `osi-licenses`, `product-liability-directive`, `reuse`, `rgaa`, `scip-ethics`, `soc-2`, `uk-online-safety-act`, `vertical-guidelines`, `vida`
+`cnil-cookies`, `cnil-guide-securite`, `consumer-adr-directive`, `csrd`, `developer-certificate-of-origin`, `digital-content-directive`, `eidas`, `eprivacy`, `eu-data-act`, `eu-ivdr`, `hl7-fhir`, `iab-tcf`, `iec-62304`, `iso-13485`, `iso-14971`, `iso-37301`, `iso-iec-27018`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `nist-media-sanitization`, `nist-privacy-framework`, `osi-licenses`, `product-liability-directive`, `reuse`, `scip-ethics`, `soc-2`, `uk-online-safety-act`, `vertical-guidelines`, `vida`
 
 ### localisation
 
@@ -294,7 +295,7 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### qa
 
-`aria-apg`, `behaviour-driven-development`, `chaos-engineering`, `code-review`, `contract-testing`, `cypress`, `do-178c`, `end-to-end-testing`, `eu-ivdr`, `exploratory-testing`, `fuzzing`, `gherkin`, `grafana-k6`, `hypothesis`, `iec-62304`, `iec-62443`, `integration-testing`, `iso-13485`, `iso-14971`, `iso-26262`, `iso-9001`, `iso-iec-25010`, `iso-iec-25012`, `iso-iec-ieee-12207`, `iso-iec-ieee-29148`, `jest`, `junit`, `load-testing`, `mutation-testing`, `nunit`, `pact`, `pdca`, `product-liability-directive`, `property-based-testing`, `rgaa`, `selenium`, `test-driven-development`, `test-pyramid`, `testcontainers`, `unit-testing`, `vitest`, `wai-aria`
+`aria-apg`, `behaviour-driven-development`, `chaos-engineering`, `code-review`, `contract-testing`, `cypress`, `do-178c`, `end-to-end-testing`, `eu-ivdr`, `exploratory-testing`, `fuzzing`, `gherkin`, `grafana-k6`, `hypothesis`, `iec-62304`, `iec-62443`, `integration-testing`, `iso-13485`, `iso-14971`, `iso-26262`, `iso-9001`, `iso-iec-25010`, `iso-iec-25012`, `iso-iec-ieee-12207`, `iso-iec-ieee-29148`, `jest`, `junit`, `load-testing`, `mutation-testing`, `nunit`, `pact`, `pdca`, `product-liability-directive`, `property-based-testing`, `selenium`, `test-driven-development`, `test-pyramid`, `testcontainers`, `unit-testing`, `vitest`, `wai-aria`
 
 ### sales
 
