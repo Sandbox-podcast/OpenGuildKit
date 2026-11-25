@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { describeRule } from '../prototype/demo/check.mjs';
 import { committedFile, gitSha, parseProfile, readRule, sha256 } from './check.mjs';
 import { sameRepositoryUrl } from './github-identifiers.mjs';
+import { parseJsonObject } from './json.mjs';
 
 function taskDetails(data) {
   const { ticket, outcome, criteria } = data;
@@ -30,7 +31,7 @@ export function prepareBrief({ policyRepo, policyCommit, targetRepo, profileComm
     throw new Error('Le projet doit être identifié dans le profil approuvé.');
   }
   const rule = describeRule(readRule(policyRepo, policyCommit, profile), policyCommit);
-  const request = taskDetails(ticket ? issueRequest(ticket.issue) : JSON.parse(readFileSync(task, 'utf8')));
+  const request = taskDetails(ticket ? issueRequest(ticket.issue) : parseJsonObject(readFileSync(task), task));
   const brief = {
     schemaVersion: 1,
     kitVersion,
@@ -101,7 +102,7 @@ export function linkBrief(evidence, path, pullRequest) {
     throw new Error('Adresse GitHub de la PR requise pour rattacher le ticket à la preuve.');
   }
   const bytes = readFileSync(path);
-  const brief = JSON.parse(bytes);
+  const brief = parseJsonObject(bytes, path);
   if (brief.schemaVersion !== 1 || brief.kitVersion !== evidence.kitVersion || !evidence.profileCommit ||
       brief.profileCommit !== evidence.profileCommit || brief.profileSha256 !== evidence.profileSha256 ||
       !evidence.project || brief.project !== evidence.project ||

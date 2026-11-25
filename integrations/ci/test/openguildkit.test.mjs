@@ -452,6 +452,63 @@ test('link a read-only agent brief to a PR report using the exact approved revis
   assert.equal(run(cli, stale).status, 2);
 });
 
+function agentFixture(t) {
+  const root = mkdtempSync(join(tmpdir(), 'openguildkit-agent-bom-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  git(root, 'init', '-q', '-b', 'main');
+  mkdirSync(join(root, 'policy'));
+  const policyPath = 'policy/export-link.json';
+  const policyCommit = commitJson(root, policyPath, { id: 'export-link-expiry', version: 1, maxMinutes: 30 });
+  const commit = commitJson(root, 'export.json', { downloadLinkMinutes: 25 });
+  const owner = '@maintainer';
+  const profileCommit = commitJson(root, 'openguildkit.json', {
+    schemaVersion: 1, owner, policyPath, targetPath: 'export.json', ruleId: 'export-link-expiry',
+    adoption: {
+      state: 'approved', approver: owner, mode: 'observation', inventoryCommit: commit, catalogCommit: policyCommit,
+      answers: { project: 'team/portal', tools: ['GitHub Actions'], testCommands: ['npm test'] },
+    },
+  });
+  const task = {
+    ticket: { url: 'https://github.com/team/portal/issues/42', title: 'Set up the export links' },
+    outcome: 'Check the expired links.',
+    criteria: ['A link expires in 30 minutes or less.'],
+  };
+  const run = (...args) => spawnSync(process.execPath, [cli, ...args], { cwd: root, encoding: 'utf8' });
+  const refs = ['--policy-repo', '.', '--policy-commit', policyCommit, '--profile-commit', profileCommit];
+  const withBom = value => Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(JSON.stringify(value))]);
+  return { root, task, run, refs, commit, withBom };
+}
+
+test('brief reads a --task file that starts with a byte order mark and names a file that is not JSON', t => {
+  const { root, task, run, refs, withBom } = agentFixture(t);
+  writeFileSync(join(root, 'task.json'), withBom(task));
+  const prepared = run('brief', ...refs, '--task', 'task.json', '--output', 'agent');
+  assert.equal(prepared.status, 0, prepared.stderr);
+  assert.deepEqual(JSON.parse(readFileSync(join(root, 'agent/brief.json'), 'utf8')).request, task);
+  writeFileSync(join(root, 'broken.json'), '{"ticket": ');
+  const broken = run('brief', ...refs, '--task', 'broken.json', '--output', 'other');
+  assert.equal(broken.status, 2);
+  assert.match(broken.stderr, /^Invalid JSON in broken\.json: /);
+});
+
+test('check reads a --brief file that starts with a byte order mark and names a file that is not JSON', t => {
+  const { root, task, run, refs, commit, withBom } = agentFixture(t);
+  writeFileSync(join(root, 'task.json'), JSON.stringify(task));
+  assert.equal(run('brief', ...refs, '--task', 'task.json', '--output', 'agent').status, 0);
+  const briefPath = join(root, 'agent/brief.json');
+  const brief = JSON.parse(readFileSync(briefPath, 'utf8'));
+  const pullRequest = 'https://github.com/team/portal/pull/43';
+  const link = file => run('check', ...refs, '--commit', commit, '--brief', file, '--pull-request', pullRequest);
+  writeFileSync(briefPath, withBom(brief));
+  const linked = link('agent/brief.json');
+  assert.equal(linked.status, 0, linked.stderr);
+  assert.deepEqual(JSON.parse(linked.stdout).ticket, task.ticket);
+  writeFileSync(join(root, 'broken.json'), '[1');
+  const broken = link('broken.json');
+  assert.equal(broken.status, 2);
+  assert.match(broken.stderr, /^Invalid JSON in broken\.json: /);
+});
+
 test('gate applies an authorized waiver only during its scope and validity', t => {
   const root = mkdtempSync(join(tmpdir(), 'openguildkit-waiver-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
