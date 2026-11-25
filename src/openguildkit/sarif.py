@@ -71,11 +71,16 @@ def _home() -> list[str]:
     return [form for form in sorted({str(home), home.as_posix()}, key=len, reverse=True) if len(form) > 1]
 
 
+def _relative(found) -> str:
+    """The path that follows the project folder, written with / on every platform."""
+    return found.group(1).replace("\\", "/")
+
+
 def _without_machine(text: str, root: Path | None) -> str:
     """Take the project folder and the home folder out of a message: a file inside the project is named relative to
     it, the folder itself is "the project folder", and the home folder is `~`."""
     for form in _folders(root):
-        text = re.sub(re.escape(form) + r"[/\\]", "", text)
+        text = re.sub(re.escape(form) + r"[/\\]([\w.@+=\-/\\]*)", _relative, text)
         text = re.sub(re.escape(form) + r"(?![\w\-/\\]|\.\w)", "the project folder", text)
     for form in _home():
         text = re.sub(re.escape(form) + r"(?![\w\-]|\.\w)", "~", text)
