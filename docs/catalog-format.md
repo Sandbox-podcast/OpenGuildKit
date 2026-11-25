@@ -277,7 +277,7 @@ Every source carries `checked`, a date written `YYYY-MM-DD`, placed right after 
 ```json
 {
   "title": "Regulation (EU) 2016/679 (GDPR), official text",
-  "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra",
+  "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng",
   "checked": "2026-11-20"
 }
 ```
