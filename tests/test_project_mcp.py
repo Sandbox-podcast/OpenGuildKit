@@ -50,7 +50,8 @@ class ProjectMcpTests(ResultCase):
         record = self.record()
         check = record["result"]["checks"][0]
         commit = self.git("rev-parse", "HEAD")
-        self.assertEqual((check["check"], check["status"], check["revision"]), ("command:1", "passed", commit))
+        self.assertEqual((check["check"], check["status"], check["revision"]),
+                         ("command:1", "passed", {"commit": commit, "clean": True}))
         snapshot = self.snapshot()
 
         hello, listed, *responses = self.replies(
