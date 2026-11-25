@@ -9,7 +9,6 @@ import http.cookiejar
 import json
 import re
 import ssl
-import sys
 from datetime import date
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -19,6 +18,7 @@ from urllib.request import HTTPRedirectHandler, HTTPCookieProcessor, ProxyHandle
 from . import clock
 from .publishing import is_loopback, load_shares, portal_space, share_space
 from .storage import project_lock, read_json, write_json
+from .terminal import interactive
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -68,7 +68,8 @@ def _origin(portal: str) -> tuple[str, str, str]:
     if address.username is not None or address.password is not None:
         raise ValueError("Remove credentials from --portal. Enter the password at the prompt.")
     slug = address.path.split("/")[2]
-    return f"{address.scheme}://{address.netloc}", space, slug
+    # Written as a browser writes an Origin: the host in lower case, without the default port of the scheme.
+    return f"{address.scheme}://{space.partition('/p/')[0]}", space, slug
 
 
 def _json(opener, origin: str, path: str, payload=None) -> dict:
@@ -120,7 +121,7 @@ def _rows(shares: list[dict], space: str, invited: list[str] | None, expirations
     selected = [share for share in shares if share_space(share) == space]
     recipients = sorted({address.strip().lower() for share in selected for address in share["recipients"]})
     result = []
-    today = clock.real_now().date()  # real_now() is UTC, and Documentalist ends access at 00:00 UTC.
+    today = clock.real_today()  # A UTC day, as the register's: Documentalist ends access at 00:00 UTC.
     for recipient in recipients:
         current = [s for s in selected if not s["revoked_at"] and recipient in
                    {address.strip().lower() for address in s["recipients"]}]
@@ -157,7 +158,7 @@ def verify_portal(state: Path, portal: str, user: str) -> dict:
     shares = load_shares(state)
     if not any(share_space(share) == space for share in shares):
         raise ValueError(f"The local register has no shares for {space}.")
-    if not sys.stdin.isatty():
+    if not interactive():
         raise ValueError("Portal verification needs an interactive terminal for the Documentalist password.")
     password = getpass.getpass(f"Documentalist password for {user}: ")
     opener = _opener(origin)

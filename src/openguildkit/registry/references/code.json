@@ -541,6 +541,7 @@
         "root-add-ecma"
       ],
       "title": "ECMAScript / ECMA-262",
+      "edition": "17th edition",
       "category": "Conventions par langage",
       "kind": "norme",
       "brains": [
@@ -552,7 +553,7 @@
       "sources": [
         {
           "url": "https://ecma-international.org/publications-and-standards/standards/ecma-262/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "Ecma International — ECMA-262"
         }
       ]

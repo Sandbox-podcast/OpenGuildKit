@@ -94,14 +94,16 @@ def _validate_family(family, filename: str, bundled: bool = False) -> None:
         validate_sources(record["sources"], require_checked=bundled)
 
 
-def load_references(extra_dir: Path | None = None) -> dict[str, dict]:
-    """Load the reference index and merge new project entries by stable ID."""
+def load_references(extra_dir: Path | None = None, catalog: dict | None = None) -> dict[str, dict]:
+    """Load the reference index and merge new project entries by stable ID. With the catalog the project uses, also
+    check the project's entries with check_reference_links; the tests check the bundled ones."""
     bundled = package_file("registry", "references")
     directories = [bundled]
     if extra_dir is not None and extra_dir.exists():
         directories.append(extra_dir)
     families = {}
     seen = set()
+    project = set()
     for directory in directories:
         if not directory.is_dir():
             raise CatalogError(f"{directory} must be a directory")
@@ -124,13 +126,18 @@ def load_references(extra_dir: Path | None = None) -> dict[str, dict]:
                             raise CatalogError(f"Duplicate reference ID: {name}")
                         seen.add(name)
                     family["references"].append(reference)
+                    if directory != bundled:
+                        project.add(reference["id"])
             except RecursionError as error:
                 raise CatalogError(f"{path}: JSON nested too deeply") from error
             except (OSError, ValueError) as error:
                 raise CatalogError(f"{path}: {error}") from error
         if directory == bundled and not families:
             raise CatalogError(f"{bundled} has no bundled reference families")
-    return dict(sorted(families.items()))
+    families = dict(sorted(families.items()))
+    if catalog is not None:
+        check_reference_links(families, catalog, only=project)
+    return families
 
 
 def _words(text: str) -> list[str]:
@@ -149,24 +156,28 @@ def _active_packs(pack_ids: list[str], packs: dict) -> set[str]:
     return active
 
 
-def check_reference_links(families: dict, catalog: dict) -> None:
+def check_reference_links(families: dict, catalog: dict, only: set[str] | None = None) -> None:
     """Check that references, packs and patterns on one subject name each other.
 
     A reference names the brains whose work it supports, the pattern it presents and the
     packs built on it. A pattern names the references behind the packs it activates,
-    dependencies included.
+    dependencies included. With only, check those references alone: a project's own, against
+    the catalog it uses, where a pack a release no longer ships stays while the lock keeps it.
     """
     records = {record["id"]: record for family in families.values() for record in family["references"]}
     for record_id, record in records.items():
-        unknown = sorted(set(record.get("brains", [])) - catalog["boards"].keys())
+        if only is not None and record_id not in only:
+            continue
+        unknown = [f"unknown {kind}: {', '.join(names)}" for kind, names in (
+            ("brains", sorted(set(record.get("brains", [])) - catalog["boards"].keys())),
+            ("packs", sorted(set(record.get("packs", [])) - catalog["packs"].keys()))) if names]
         if unknown:
-            raise CatalogError(f"Reference {record_id!r} names unknown brains: {', '.join(unknown)}")
-        unknown = sorted(set(record.get("packs", [])) - catalog["packs"].keys())
-        if unknown:
-            raise CatalogError(f"Reference {record_id!r} names unknown packs: {', '.join(unknown)}")
+            raise CatalogError(f"Reference {record_id!r} names {' and '.join(unknown)}")
         pattern_id = record.get("pattern")
         if pattern_id is not None and record_id not in catalog["patterns"].get(pattern_id, {}).get("references", []):
             raise CatalogError(f"Pattern {pattern_id!r} must list reference {record_id!r} in references")
+    if only is not None:
+        return
     for pattern_id, pattern in catalog["patterns"].items():
         for reference_id in pattern.get("references", []):
             record = records.get(reference_id)

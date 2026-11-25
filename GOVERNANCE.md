@@ -28,7 +28,7 @@ A contributor with several merged pull requests in a domain can ask, or be propo
 
 Versions follow Semantic Versioning for the CLI. Packs carry their own versions. [Catalog format](docs/catalog-format.md)
 
-GitHub refreshes the `openguildkit-next` release draft after changes reach `main`. It groups merged pull requests by label and compares from the last stable release. [GitHub release notes](https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes)
+GitHub refreshes the `openguildkit-next` release draft after changes reach `main`. It groups merged pull requests by label and compares from the last stable release. When every published release is a pre-release, it compares from the oldest one, so the first stable notes also list what the pilots shipped; with no release published yet, its link lists the commits up to `main`. [GitHub release notes](https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes)
 
 A maintainer publishes a version in these steps:
 

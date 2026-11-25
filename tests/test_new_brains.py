@@ -52,7 +52,7 @@ class DisciplineLensTests(unittest.TestCase):
         for lens_id in ("compensation-and-pay-equity", "employment-law-and-employee-relations", "performance-and-development"):
             self.assertIn(lens_id, lenses)
         urls = [source["url"] for source in self.catalog["packs"]["pay-transparency"]["sources"]]
-        self.assertIn("https://eur-lex.europa.eu/eli/dir/2023/970/oj", urls)
+        self.assertIn("https://eur-lex.europa.eu/eli/dir/2023/970/oj/eng", urls)
         tagged = {record["id"] for family in self.families.values() for record in family["references"] if "hr" in record.get("brains", [])}
         self.assertTrue({"eu-ai-act", "rgpd"} <= tagged)
 

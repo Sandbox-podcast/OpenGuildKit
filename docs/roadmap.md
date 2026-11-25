@@ -21,11 +21,14 @@ This page separates what exists from what is planned. Open an issue to discuss o
 
 - A tool registry of the company's tools and the MCP servers verified on each publisher's documentation, the tooling section of the setup, connection plans for Claude Code and Codex, and mocks: stand-in MCP servers with synthetic data, to rehearse a task without an account (`openguildkit tools`, [tools](tools.md)).
 
+- Features: twenty purposes a team covers with a tool, each with a lead tool and three alternatives, turned on or off with who and why (`openguildkit features`, [features](tools.md#features)).
+
 - A [local project MCP server](tools.md#read-an-openguildkit-project-through-mcp) for active rule references, recorded task status and check outcomes.
 
 **Web interface**
 
 - `openguildkit ui`: a local web interface on 127.0.0.1 over the same commands, which leaves every decision of a person to their terminal ([interface d'un projet réel](../web/docs/interface-projet.md)).
+- The Arsenal (Fonctionnalités in the Pro style) shows the features as cards and asks who decides and why before it turns an option on or off.
 
 **After the decision**
 

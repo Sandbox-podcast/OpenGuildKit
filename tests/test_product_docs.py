@@ -78,11 +78,62 @@ class WebPagesTests(unittest.TestCase):
             with self.subTest(page=path.relative_to(REPO).as_posix()):
                 self.assertEqual(counted.findall(_read(path)), [])
 
+    def test_no_page_gives_a_loopback_address_that_openguildkit_ui_refuses(self):
+        # Since #281 the server answers only under the host name it printed (ogk-....localhost): on 127.0.0.1 the
+        # page shows only the invitation to open the printed address, so OGK_API and measure:project need its origin.
+        pages = [path for folder in ("web", "docs") for path in sorted((REPO / folder).rglob("*.md"))
+                 if "node_modules" not in path.parts]
+        refused = re.compile(r"OGK_API=http://127\.0\.0\.1|http://127\.0\.0\.1:[0-9]+/\?key=")
+        for path in pages:
+            with self.subTest(page=path.relative_to(REPO).as_posix()):
+                self.assertEqual(refused.findall(_read(path)), [])
+
+
+def places() -> dict[str, str]:
+    """The places of web/src/shared/places.ts, each key with its RPG name."""
+    source = _read(REPO / "web" / "src" / "shared" / "places.ts")
+    return dict(re.findall(r"\{ key: '([a-z]+)', name: '([^']+)'", source))
+
+
+def sweep_routes() -> list[str]:
+    """The routes the sweep of web/tests/e2e/project-sweep.spec.ts opens."""
+    source = _read(REPO / "web" / "tests" / "e2e" / "project-sweep.spec.ts")
+    return re.findall(r"'(/[^']*)'", source.split("const ROUTES = [", 1)[1].split("];", 1)[0])
+
+
+class WebPlacesTests(unittest.TestCase):
+    def test_the_place_table_of_the_project_interface_has_a_row_for_each_place(self):
+        page = _read(REPO / "web" / "docs" / "interface-projet.md")
+        table = page.split("## Ce que fait chaque lieu", 1)[1].split("\n## ", 1)[0]
+        rows = [line.split("|")[1].strip() for line in table.splitlines() if line.startswith("| ") and "---" not in line]
+        self.assertEqual(len(places()), 13)
+        self.assertEqual(sorted(rows[1:]), sorted(places().values()))
+        arsenal = next(line for line in table.splitlines() if line.startswith("| Arsenal |"))
+        for command in ("features list", "features enable", "features disable"):
+            with self.subTest(command=command):
+                self.assertIn(f"`{command}`", arsenal)
+
+    def test_the_web_readme_counts_and_names_every_place(self):
+        readme = _read(REPO / "web" / "README.md")
+        self.assertEqual(set(re.findall(r"([0-9]+) lieux", readme)), {str(len(places()))})
+        demo = readme.split("## Démonstration Atelier Nova", 1)[1].split("\n\n", 2)[1]
+        for name in places().values():
+            with self.subTest(place=name):
+                self.assertIn(name, demo)
+
+    def test_the_sweep_opens_every_place_and_the_pages_count_its_routes(self):
+        routes = sweep_routes()
+        self.assertEqual(sorted({route.split("/")[1] for route in routes}), sorted(places()))
+        for name in ("accessibilite.md", "interface-projet.md"):
+            with self.subTest(page=name):
+                counts = set(re.findall(r"([0-9]+) routes", _read(REPO / "web" / "docs" / name)))
+                self.assertEqual(counts, {str(len(routes))})
+
 
 class RoadmapTests(unittest.TestCase):
     def test_available_names_what_shipped_and_the_three_systems(self):
         available = _read(REPO / "docs" / "roadmap.md").split("## Available", 1)[1].split("\n## ", 1)[0]
-        for words in ("tool registry", "mock", "web interface", "field", "Linux, macOS and Windows"):
+        for words in ("tool registry", "mock", "features", "Arsenal", "web interface", "field", "Linux, macOS and Windows"):
             with self.subTest(words=words):
                 self.assertIn(words, available)
 

@@ -257,7 +257,7 @@
           "transport": "stdio",
           "command": "node",
           "args": [
-            "path/to/mcp-quickbooks-online/dist/index.js"
+            "{clone_path}/dist/index.js"
           ],
           "package": {
             "registry": "other",
@@ -270,6 +270,12 @@
             "QUICKBOOKS_ENVIRONMENT",
             "QUICKBOOKS_REFRESH_TOKEN",
             "QUICKBOOKS_REALM_ID"
+          ],
+          "settings": [
+            {
+              "name": "clone_path",
+              "description": "QuickBooks: the complete path of your clone of github.com/intuit/quickbooks-online-mcp-server, built with npm install and npm run build"
+            }
           ],
           "status": "unknown",
           "capabilities": "About 145 tools: create, read, update, delete and search across 29 entity types, 11 financial reports, invoice PDFs; write, update and delete tools can be disabled.",

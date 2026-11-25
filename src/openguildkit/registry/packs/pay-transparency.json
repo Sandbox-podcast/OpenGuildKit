@@ -1,13 +1,13 @@
 {
   "id": "pay-transparency",
   "title": "Pay transparency",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "For a change to job postings, hiring forms, pay structures or HR reports: the obligations of Directive (EU) 2023/970, whose transposition deadline was 7 June 2026 (Art. 34(1)); apply the national law that transposes it.",
   "sources": [
     {
       "title": "Directive (EU) 2023/970 on pay transparency",
-      "url": "https://eur-lex.europa.eu/eli/dir/2023/970/oj",
-      "checked": "2026-11-22"
+      "url": "https://eur-lex.europa.eu/eli/dir/2023/970/oj/eng",
+      "checked": "2026-11-25"
     }
   ],
   "rules": [

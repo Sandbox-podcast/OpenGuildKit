@@ -17,6 +17,7 @@ from datetime import timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
+from urllib.error import URLError
 
 from openguildkit import clock
 from openguildkit.portal_verification import verify_portal
@@ -376,6 +377,24 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
                                     code=1)
         self.assertIn("The local register has no shares for", error)
         self.assertEqual(prompt.call_count, 0)
+
+    def test_the_origin_leaves_out_the_default_port_as_a_browser_does(self):
+        for portal, origin in (("https://docs.example.test:443/p/demo", "https://docs.example.test"),
+                               ("https://Docs.Example.test/p/demo", "https://docs.example.test"),
+                               ("http://localhost:80/p/demo", "http://localhost"), ("https://[::1]:443/p/demo", "https://[::1]"),
+                               ("https://docs.example.test:8443/p/demo", "https://docs.example.test:8443")):
+            with self.subTest(portal=portal):
+                self.share(["reader@example.test"], day(10), portal=portal)
+                sent = []
+
+                class Opener:
+                    def open(self, request, timeout):
+                        sent.append((request.full_url, request.get_header("Origin")))
+                        raise URLError("stand-in")
+
+                with patch("openguildkit.portal_verification.build_opener", return_value=Opener()):
+                    self.verify(code=1, portal=portal)
+                self.assertEqual(sent, [(f"{origin}/api/auth/login", origin)])
 
     def test_verify_portal_can_be_called_directly(self):
         self.share(["reader@example.test"], day(10))

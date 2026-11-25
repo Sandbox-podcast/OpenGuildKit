@@ -7,6 +7,7 @@ counted together, in UTF-8. A command, or a form of it, that prints more is list
 reason its output is large. A command added to the CLI without an example here, and without a reason in NOT_RUN, fails.
 """
 
+import argparse
 import json
 import shlex
 import shutil
@@ -108,7 +109,26 @@ EXAMPLES = [
     Example("init", "deliverable utm --url https://example.org --campaign spring --source newsletter --medium email"),
     Example("done", "docs export --tasks request-status --output docs-site --version 1.0.0"),
     Example("init", "docs share list"), Example("init", "docs share list --json"),
+    Example("briefed", "docs share add --deliverable brief.md --recipient client@example.org --until $until "
+                       "--portal https://docs.example.org/p/support-portal --by CM"),
+    Example("shared", "docs share check"), Example("shared", "docs share revoke --id $share_id --by CM"),
     Example("market", "market check portals"), Example("market", "market check portals --json"),
+    Example("market", "market new vendors --market B2B"),
+    Example("market", "market describe portals --feature 'Request status'"),
+    Example("market", "market unknown portals --text 'Prices of the portal option.'"),
+    Example("market", "market competitor portals --competitor vendor-b --name 'Vendor B' --kind direct "
+                      "--url https://example.com/vendor-b"),
+    Example("competitor", "market observe portals --competitor vendor-a --observation a-status-page "
+                          "--claim 'Shows a status per request.' --source 'Sales call notes' --date 2026-11-02"),
+    Example("competitor", "market watch portals --competitor vendor-a --kind 'release notes' "
+                          "--url https://example.com/vendor-a/release-notes --every-days 30"),
+    Example("watched", "market due portals"), Example("watched", "market due portals --json"),
+    # Research is local-only by default: an agent is refused a page, a person records it with `market provided`.
+    Example("watched", "market checked portals --url https://example.com/vendor-a/release-notes", code=1),
+    Example("watched", "market provided portals --url https://example.com/vendor-a/release-notes --by CM"),
+    Example("provided", "market change portals --competitor vendor-a --what 'Added priority labels.' "
+                        "--source https://example.com/vendor-a/release-notes --date 2026-11-10 --verified-by CM"),
+    Example("watched", "market pause portals"), Example("paused", "market resume portals"),
     # Alerts.
     Example("init", "alerts import $fixtures/alerts/pip-audit.json"),
     Example("init", "alerts import $fixtures/alerts/pip-audit.json --json"),
@@ -170,6 +190,8 @@ EXAMPLES = [
 
 # What no example runs, with the reason.
 NOT_RUN = {
+    "docs share verify": "It asks the Documentalist password at a terminal and opens a session on a portal; "
+                         "tests/test_portal_verification.py serves a stand-in portal and drives it.",
     "ui": "It serves the web interface until it is stopped, so a test cannot wait for its output; it prints a short "
           "banner with the address and the key of the run, and tests/test_webui.py starts the server and drives it.",
 }
@@ -213,11 +235,21 @@ def command_of(example: Example) -> tuple[str, ...] | None:
     return next((path for path in sorted(known, key=len, reverse=True) if tuple(words[:len(path)]) == path), None)
 
 
-def has_json_option(path: tuple[str, ...]) -> bool:
+def parser_path(path: tuple[str, ...]) -> tuple[tuple[str, ...], argparse.ArgumentParser]:
+    """The command whose parser a path runs: a group's action has its own, and a mode (market resume, docs share
+    verify) shares the parser of the command it belongs to."""
     command = _subcommands(command_parser())[path[0]]
-    if len(path) > 1:
-        command = _subcommands(command)[path[1]]
-    return any("--json" in action.option_strings for action in command._actions)
+    depth = 1
+    for part in path[1:]:
+        found = _subcommands(command)
+        if part not in found:
+            break
+        command, depth = found[part], depth + 1
+    return path[:depth], command
+
+
+def has_json_option(path: tuple[str, ...]) -> bool:
+    return any("--json" in action.option_strings for action in parser_path(path)[1]._actions)
 
 
 def size_of(result: subprocess.CompletedProcess) -> int:
@@ -243,9 +275,10 @@ def unmeasured(paths, examples, not_run) -> list[str]:
 
 
 def without_json_example(paths, examples) -> list[str]:
-    """The commands with a --json option that no example runs with it."""
-    with_json = {command_of(example) for example in examples if "--json" in shlex.split(example.command)}
-    return [" ".join(path) for path in paths if has_json_option(path) and path not in with_json]
+    """The commands with a --json option that no example runs with it. The modes of one command share its parser,
+    so one example with --json measures the form for all of them."""
+    with_json = {parser_path(command_of(example))[0] for example in examples if "--json" in shlex.split(example.command)}
+    return [" ".join(path) for path in paths if has_json_option(path) and parser_path(path)[0] not in with_json]
 
 
 def git(folder: Path, *arguments: str) -> str:
@@ -273,12 +306,15 @@ class Projects:
         "init": ("bare", "init_project"), "claude": ("bare", "init_claude"), "enforced": ("bare", "init_enforced"),
         "observed": ("bare", "init_observed"), "ci": ("bare", "init_ci"),
         "featured": ("init", "enable_feature"), "tooled": ("init", "connect_tool"), "market": ("init", "open_dossier"),
+        "competitor": ("market", "add_competitor"), "watched": ("competitor", "watch_source"),
+        "paused": ("watched", "pause_source"), "provided": ("watched", "provide_source"),
         "storybook": ("init", "add_storybook"), "extracted": ("storybook", "extract"), "proposed": ("extracted", "propose"),
         "draft": ("init", "new_task"), "consulted": ("draft", "consult"), "passed": ("consulted", "start_pass"),
         "blocked": ("consulted", "review_with_blockers"), "reviewed": ("consulted", "review"),
         "deliberating": ("reviewed", "prepare_response"), "approved": ("reviewed", "approve"),
         "alerted": ("approved", "import_alerts"), "confirmed": ("alerted", "confirm_alert"),
-        "briefed": ("approved", "draft_deliverable"), "git": ("approved", "commit_project"),
+        "briefed": ("approved", "draft_deliverable"), "shared": ("briefed", "share_deliverable"),
+        "git": ("approved", "commit_project"),
         "replayed": ("approved", "replay_chaosfolk"), "resulted": ("approved", "report_result"),
         "done": ("resulted", "complete"),
     }
@@ -350,6 +386,25 @@ class Projects:
     def enable_feature(self, root): run_cli(root, "features", "enable", "jira", "--by", "CM", "--reason", "Logs")
     def connect_tool(self, root): run_cli(root, "tools", "apply", "github", "--host", "claude-code", "--yes")
     def open_dossier(self, root): run_cli(root, "market", "new", "portals", "--market", "B2B help desks")
+
+    def add_competitor(self, root):
+        run_cli(root, "market", "competitor", "portals", "--competitor", "vendor-a", "--name", "Vendor A",
+                "--kind", "direct", "--url", "https://example.com/vendor-a")
+
+    def watch_source(self, root):
+        run_cli(root, "market", "watch", "portals", "--competitor", "vendor-a", "--kind", "release notes",
+                "--url", "https://example.com/vendor-a/release-notes", "--every-days", "30")
+
+    def pause_source(self, root): run_cli(root, "market", "pause", "portals")
+
+    def provide_source(self, root):
+        run_cli(root, "market", "provided", "portals", "--url", "https://example.com/vendor-a/release-notes", "--by", "CM")
+
+    def share_deliverable(self, root):
+        run_cli(root, "docs", "share", "add", "--deliverable", "brief.md", "--recipient", "client@example.org",
+                "--until", self.values["until"], "--portal", "https://docs.example.org/p/support-portal", "--by", "CM")
+        shares = json.loads(run_cli(root, "docs", "share", "list", "--json").stdout)
+        self.values["share_id"] = (shares["shares"] if isinstance(shares, dict) else shares)[0]["id"]
 
     def add_storybook(self, root: Path) -> None:
         shutil.copytree(REPO / "examples" / "storybook-extract" / "src", root / "src")

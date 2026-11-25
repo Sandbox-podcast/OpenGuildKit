@@ -111,6 +111,17 @@ class PreviousReleaseTests(UpgradeTestCase):
         self.assertNotIn("passes", record)
         self.assertEqual(self.run_cli("check").stderr, "")
 
+    def test_the_printed_command_reopens_the_old_approval_from_a_device_that_is_not_a_console(self):
+        """Windows gives NUL as a device whose isatty() is true: no person types there, so it consults as unsure (#357)."""
+        from tests.test_terminal import device_that_is_not_a_console
+
+        self.run_cli("sync")
+        with device_that_is_not_a_console():
+            result = self.run_cli("task", "consult", self.approved, "--reuse-answers", stdin_text=None)
+        self.assertIn("have no concerns", result.stderr)
+        record = json.loads(self.run_cli("task", "show", self.approved).stdout)
+        self.assertEqual((record["status"], record["answers"]["concerns"]), ("consulting", ["unsure"]))
+
 
 class FirstReleaseTests(UpgradeTestCase):
     """v0.1.0, the oldest release. Its insurance sector left the catalog for a time and is bundled again."""

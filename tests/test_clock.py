@@ -4,6 +4,7 @@ import json
 import os
 import re
 import tempfile
+import time
 import unittest
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -27,6 +28,24 @@ _WALL_CLOCK = re.compile(r"\b(?:datetime\.(?:now|utcnow|today)|date\.today|time\
 EPOCH = "1763640000"  # 2025-11-20T12:00:00Z
 # One fixed day after the real one and one before, so a decision read from the fixed clock fails either way.
 LATER, EARLIER = "2000000000", "1000000000"  # 2033-05-18 and 2001-09-09
+# The two ends of the world's clocks, in seconds east of UTC (Etc/GMT+12 is UTC-12): 26 hours apart, so at any hour
+# one of them is on another day than UTC.
+FAR_ZONES = {"Pacific/Kiritimati": 14 * 3600, "Etc/GMT+12": -12 * 3600}
+
+
+@contextlib.contextmanager
+def local_zone(test: unittest.TestCase, zone: str):
+    """Run the block with the local time zone of this process set to zone, as TZ=zone at start would (Unix only)."""
+    if not hasattr(time, "tzset"):
+        test.skipTest("time.tzset, which changes the local time zone of a running process, exists on Unix only.")
+    try:
+        with patch.dict(os.environ, {"TZ": zone}):
+            time.tzset()
+            if time.localtime().tm_gmtoff != FAR_ZONES[zone]:
+                test.skipTest(f"This system has no time zone data for {zone}.")
+            yield
+    finally:
+        time.tzset()
 
 
 class ClockTests(unittest.TestCase):
@@ -57,11 +76,23 @@ class ClockTests(unittest.TestCase):
             self.assertEqual(clock.now(), datetime(2025, 11, 20, 12, tzinfo=timezone.utc))
             self.assertEqual(clock.today(), date(2025, 11, 20))
             self.assertEqual(clock.timestamp(), "2025-11-20T12:00:00+00:00")
-        local_day = date(2026, 11, 22)
-        with patch.dict(os.environ, {}, clear=False), patch.object(clock, "date") as local_date:
+        # Unset, both clocks give the UTC day of the wall clock, whatever the local time zone (issue #341).
+        with patch.dict(os.environ, {}, clear=False), patch.object(clock, "datetime") as wall:
             os.environ.pop("SOURCE_DATE_EPOCH", None)
-            local_date.today.return_value = local_day
-            self.assertEqual(clock.today(), local_day)
+            wall.now.return_value = datetime(2026, 11, 22, 23, 30, tzinfo=timezone.utc)
+            self.assertEqual((clock.today(), clock.real_today()), (date(2026, 11, 22), date(2026, 11, 22)))
+
+    def test_every_day_is_the_utc_day_in_any_local_time_zone(self):
+        """Decisions are stamped in UTC: the days they are compared with are UTC days too (issue #341)."""
+        local_days = {}
+        for zone in FAR_ZONES:
+            with self.subTest(zone=zone), local_zone(self, zone):
+                local_days[zone] = time.strftime("%Y-%m-%d")
+                day = clock.real_now().date()
+                self.assertEqual([clock.today(), clock.real_today()], [day, day])
+                self.assertEqual([clock.timestamp()[:10], clock.real_timestamp()[:10]], [day.isoformat()] * 2)
+        if len(local_days) == len(FAR_ZONES):  # Both zones ran: they are on two days, one of them not UTC's.
+            self.assertEqual(len(set(local_days.values())), 2, local_days)
 
     def test_a_malformed_source_date_epoch_is_a_clear_error(self):
         for value in ("yesterday", "-5", "1.5", "²", "99999999999999999999"):
@@ -174,6 +205,16 @@ class DecisionClockTests(ApprovalCase):
     """What a person decides is dated by the real clock, which its age is measured with (issue #287)."""
 
     def test_decisions_under_source_date_epoch_carry_the_real_date(self):
+        self.decide_under_replay()
+
+    def test_decisions_and_the_real_day_agree_in_any_local_time_zone(self):
+        for zone in FAR_ZONES:
+            with self.subTest(zone=zone), local_zone(self, zone):
+                self.root = self.copies / zone.replace("/", "-")
+                self.root.mkdir()
+                self.decide_under_replay()
+
+    def decide_under_replay(self):
         self.init(waivers={"allowed_by": ["Camille"], "max_days": 30})
         (self.root / "README.md").write_text("Portal\n", encoding="utf-8")
         today = clock.real_today().isoformat()

@@ -5,7 +5,9 @@
 
 For each reference that declares an `edition`, the script opens its source pages in order
 and looks for the edition's text ("2022", "Rev. 5", "ISO 19005-1:2005") in the page, without
-regard to case, spacing or HTML markup. It records in scripts/edition-watch.json, per
+regard to case, spacing or HTML markup. A page whose address holds the edition itself
+(/dicom/2026b/) keeps showing it after a new edition: once the watch has seen the edition on
+another source page, that page alone decides and the pinned pages are no longer opened. It records in scripts/edition-watch.json, per
 reference, the page, the edition last seen there, the day it was seen and the day of the
 check. When an edition recorded as seen is no longer on the page, the reference is marked
 "may-have-changed": the edition may have changed, and a person opens the page to decide.
@@ -29,6 +31,7 @@ import json
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -93,6 +96,12 @@ def shows_edition(text: str, edition: str) -> bool:
     return re.search(pattern, text, re.IGNORECASE) is not None
 
 
+def names_edition(url: str, edition: str) -> bool:
+    """True when the page's address holds the edition itself, as /dicom/2026b/ or /celex/02024R1689-20260727 do."""
+    parts = urllib.parse.urlsplit(url)
+    return shows_edition(urllib.parse.unquote(f"{parts.path} {parts.query}"), edition)
+
+
 def _answered(result: dict) -> bool:
     return result.get("text") is not None and result.get("status") is not None and result["status"] < 400
 
@@ -103,17 +112,27 @@ def observe(entry: dict, previous: dict, fetcher, day: str) -> dict:
               **first_observation(entry, previous), "checked": day}
     if previous.get("page") in entry["pages"]:
         record["page"] = previous["page"]
-    answered = False
-    for url in entry["pages"]:
+    # A page pinned to the edition keeps showing it after a new edition. Once the edition has been seen on a page
+    # whose address does not hold it, that page follows the editions and the pinned pages are no longer opened.
+    # Until then every page is opened: a page that never shows the edition, such as a policy summary, decides
+    # nothing, and a regulation stays watched on the Publications Office page of its consolidation.
+    following = [url for url in entry["pages"] if not names_edition(url, entry["edition"])]
+    if previous.get("seen_in") == "page" and previous.get("page") in following:
+        pages = following
+    else:
+        pages = following + [url for url in entry["pages"] if url not in following]
+    answered = None
+    for url in pages:
         result = fetcher(url)
         if not _answered(result):
             continue
-        answered = True
+        answered = answered or url
         if shows_edition(page_text(result["text"]), entry["edition"]):
             return {**record, "page": url, "seen": entry["edition"], "seen_on": day, "seen_in": "page",
                     "status": "found"}
     if not answered:
         return {**record, "status": "unreachable"}
+    record["page"] = answered
     status = CHANGED if record["seen"] == entry["edition"] else "not-found"
     return {**record, "status": status}
 

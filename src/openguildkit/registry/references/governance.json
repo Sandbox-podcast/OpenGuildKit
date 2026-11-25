@@ -443,6 +443,7 @@
       "id": "rgpd",
       "title": "Règlement général sur la protection des données (UE 2016/679)",
       "title_en": "General Data Protection Regulation (GDPR), Regulation (EU) 2016/679",
+      "edition": "02016R0679-20160504",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -458,9 +459,14 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra",
-          "checked": "2026-11-20",
+          "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng",
+          "checked": "2026-11-25",
           "title": "Règlement (UE) 2016/679 — Règlement général sur la protection des données"
+        },
+        {
+          "url": "https://publications.europa.eu/resource/celex/02016R0679-20160504",
+          "checked": "2026-11-25",
+          "title": "EU Publications Office metadata for consolidated text 02016R0679-20160504"
         }
       ]
     },
@@ -468,6 +474,7 @@
       "id": "nis-2",
       "title": "Directive NIS 2 (UE 2022/2555)",
       "title_en": "NIS 2 Directive, Directive (EU) 2022/2555",
+      "edition": "02022L2555-20221227",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -483,9 +490,14 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/en",
-          "checked": "2026-11-20",
+          "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/oj/eng",
+          "checked": "2026-11-25",
           "title": "Directive (UE) 2022/2555 — NIS 2"
+        },
+        {
+          "url": "https://publications.europa.eu/resource/celex/02022L2555-20221227",
+          "checked": "2026-11-25",
+          "title": "EU Publications Office metadata for consolidated text 02022L2555-20221227"
         }
       ]
     },
@@ -493,6 +505,7 @@
       "id": "dora",
       "title": "Digital Operational Resilience Act (UE 2022/2554)",
       "title_en": "Digital Operational Resilience Act (DORA), Regulation (EU) 2022/2554",
+      "edition": "02022R2554-20221227",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -508,9 +521,14 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/fra",
-          "checked": "2026-11-20",
+          "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/eng",
+          "checked": "2026-11-25",
           "title": "Règlement (UE) 2022/2554 — Résilience opérationnelle numérique du secteur financier"
+        },
+        {
+          "url": "https://publications.europa.eu/resource/celex/02022R2554-20221227",
+          "checked": "2026-11-25",
+          "title": "EU Publications Office metadata for consolidated text 02022R2554-20221227"
         }
       ]
     },
@@ -549,6 +567,7 @@
       "id": "cyber-resilience-act",
       "title": "Cyber Resilience Act (UE 2024/2847)",
       "title_en": "Cyber Resilience Act, Regulation (EU) 2024/2847",
+      "edition": "02024R2847-20241120",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -569,8 +588,13 @@
         },
         {
           "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
-          "checked": "2026-11-20",
+          "checked": "2026-11-25",
           "title": "Règlement (UE) 2024/2847 — Cyber Resilience Act"
+        },
+        {
+          "url": "https://publications.europa.eu/resource/celex/02024R2847-20241120",
+          "checked": "2026-11-25",
+          "title": "EU Publications Office metadata for consolidated text 02024R2847-20241120"
         }
       ]
     },
@@ -588,8 +612,8 @@
       "applies_when": "Pour des services d'identité ou de confiance concernés par le règlement 910/2014 et sa modification 2024/1183.",
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/legal-content/fr/TXT/?uri=CELEX%3A32024R1183",
-          "checked": "2026-11-20",
+          "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R1183",
+          "checked": "2026-11-25",
           "title": "Règlement (UE) 2024/1183 modifiant le règlement 910/2014 — European Digital Identity Framework"
         }
       ]
@@ -629,9 +653,9 @@
       "applies_when": "Pour les communications, traceurs ou opérations de prospection concernés, selon la transposition nationale applicable.",
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dir/2002/58/oj",
-          "checked": "2026-11-20",
-          "title": "Directive 2002/58/CE — Vie privée et communications électroniques"
+          "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:02002L0058-20091219",
+          "checked": "2026-11-25",
+          "title": "Directive 2002/58/CE — Vie privée et communications électroniques, texte consolidé"
         }
       ]
     },
@@ -639,6 +663,7 @@
       "id": "eu-accessibility-act",
       "title": "Directive européenne sur l'accessibilité (UE 2019/882)",
       "title_en": "European Accessibility Act, Directive (EU) 2019/882",
+      "edition": "02019L0882-20190607",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -650,8 +675,13 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/dir/2019/882/oj/eng",
-          "checked": "2026-11-22",
+          "checked": "2026-11-25",
           "title": "Directive (UE) 2019/882 — Exigences en matière d'accessibilité applicables aux produits et services"
+        },
+        {
+          "url": "https://publications.europa.eu/resource/celex/02019L0882-20190607",
+          "checked": "2026-11-25",
+          "title": "EU Publications Office metadata for consolidated text 02019L0882-20190607"
         }
       ],
       "pattern": "european-accessibility-act",
@@ -663,6 +693,7 @@
       "id": "eu-mdr",
       "title": "Règlement sur les dispositifs médicaux (UE 2017/745)",
       "title_en": "Medical Devices Regulation, Regulation (EU) 2017/745",
+      "edition": "02017R0745-20261109",
       "category": "Réglementations et exigences sectorielles",
       "kind": "réglementation",
       "brains": [
@@ -677,8 +708,13 @@
       "sources": [
         {
           "url": "https://eur-lex.europa.eu/eli/reg/2017/745/oj/eng",
-          "checked": "2026-11-20",
+          "checked": "2026-11-25",
           "title": "Règlement (UE) 2017/745 — Dispositifs médicaux"
+        },
+        {
+          "url": "https://publications.europa.eu/resource/celex/02017R0745-20261109",
+          "checked": "2026-11-25",
+          "title": "EU Publications Office metadata for consolidated text 02017R0745-20261109"
         }
       ]
     },
@@ -696,8 +732,8 @@
       "applies_when": "Si la destination du logiciel le qualifie comme dispositif de diagnostic in vitro ou comme accessoire concerné.",
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/reg/2017/746",
-          "checked": "2026-11-20",
+          "url": "https://eur-lex.europa.eu/eli/reg/2017/746/oj/eng",
+          "checked": "2026-11-25",
           "title": "Règlement (UE) 2017/746 — Dispositifs médicaux de diagnostic in vitro"
         }
       ]

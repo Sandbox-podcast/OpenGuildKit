@@ -1128,5 +1128,35 @@ class PolishTests(unittest.TestCase):
         self.assertEqual(answer("stripe", "list_refunds", {"invoice_id": "in_test_001"})["data"]["count"], 1)
 
 
+
+class ToolDateTests(unittest.TestCase):
+    """verified and reviewed pass the check of a catalog source's checked: a calendar day, not in the future."""
+
+    def test_a_server_date_that_is_not_a_calendar_day_or_is_in_the_future_is_refused(self):
+        from datetime import timedelta
+
+        from openguildkit import clock
+
+        later = (clock.real_today() + timedelta(days=2)).isoformat()
+        for field, value in (("verified", "2026-13-45"), ("verified", "2026-02-30"), ("verified", later),
+                             ("reviewed", "2026-13-45"), ("reviewed", "2099-02-30"), ("reviewed", later)):
+            tool = copy.deepcopy(TOOL)
+            tool["servers"][0][field] = value
+            with self.subTest(field=field, value=value), self.assertRaisesRegex(CatalogError, f"{field} is the date"):
+                _validate_tool(tool, "testing")
+        tool = copy.deepcopy(TOOL)
+        tool["servers"][0].update(verified=clock.real_today().isoformat(), reviewed="2026-11-21")
+        self.assertIsNone(_validate_tool(tool, "testing"))
+
+    def test_a_project_tool_with_an_impossible_date_is_refused_at_load(self):
+        with tempfile.TemporaryDirectory() as directory:
+            extra = Path(directory)
+            server = {**REMOTE, "verified": "2026-13-45"}
+            record = {"id": "testing", "title": "Ours", "tools": [{**TOOL, "servers": [server]}]}
+            (extra / "testing.json").write_text(json.dumps(record), encoding="utf-8")
+            with self.assertRaisesRegex(CatalogError, r"testing\.json: .*verified must be a date written YYYY-MM-DD"):
+                load_tools(extra)
+
+
 if __name__ == "__main__":
     unittest.main()

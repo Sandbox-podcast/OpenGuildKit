@@ -9,6 +9,7 @@ import unittest
 from openguildkit.decisions import decision_payload, payload_text, seal
 from openguildkit.storage import read_json, write_json
 from tests.test_approval_lifecycle import EXAMPLE, ApprovalCase
+from tests.test_clock import FAR_ZONES, local_zone
 
 PRINCIPAL = "camille@example.test"
 
@@ -35,6 +36,17 @@ def copied_review(template: dict, ref: str) -> dict:
 
 class CheckCommandTests(ApprovalCase):
     def test_the_prompt_and_challenge_list_the_commands_and_those_changed_since_the_last_approval(self):
+        self.change_checks_after_an_approval()
+
+    def test_the_approval_and_the_check_changes_show_one_day_in_any_local_time_zone(self):
+        """Seconds apart, the approval and the profile changes are dated the same UTC day (issue #341)."""
+        for zone in FAR_ZONES:
+            with self.subTest(zone=zone), local_zone(self, zone):
+                self.root = self.copies / zone.replace("/", "-")
+                self.root.mkdir()
+                self.change_checks_after_an_approval()
+
+    def change_checks_after_an_approval(self):
         self.init()
         first = read_json(self.state / "project.json")["checks"][0]
         self.approve("t1")

@@ -17,7 +17,7 @@ spec = importlib.util.spec_from_file_location("check_links", SCRIPT)
 check_links = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(check_links)
 
-GDPR = "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra"
+GDPR = "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng"
 
 
 class ClassificationTests(unittest.TestCase):
