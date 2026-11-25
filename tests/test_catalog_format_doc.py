@@ -6,6 +6,7 @@ from pathlib import Path
 
 from openguildkit.brains import brain_skeleton
 from openguildkit.catalog import COLLECTION_FIELDS
+from openguildkit.rule_checks import CHECK_KINDS
 from openguildkit.tools import CATEGORIES
 
 REPO = Path(__file__).resolve().parents[1]
@@ -39,6 +40,11 @@ class CatalogFormatPageTests(unittest.TestCase):
     def test_every_tool_category_is_listed(self):
         missing = [category for category in CATEGORIES if f"`{category}`" not in self.page]
         self.assertEqual(missing, [], "list these tool categories in docs/catalog-format.md")
+
+    def test_every_kind_of_machine_check_is_in_the_table(self):
+        table = self.page.split("| `kind` | Fields | Passes when |", 1)[1].split("\n\n", 1)[0]
+        missing = [kind for kind in CHECK_KINDS if f"| `{kind}` |" not in table]
+        self.assertEqual(missing, [], "add these kinds to the table of machine checks in docs/catalog-format.md")
 
 
 if __name__ == "__main__":
