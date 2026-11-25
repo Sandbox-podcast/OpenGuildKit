@@ -12,6 +12,8 @@ const cli = join(packageRoot, 'bin', 'openguildkit.mjs');
 const manifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
 // Windows checkouts may convert line endings; compare text with LF only.
 const readme = readFileSync(join(packageRoot, 'README.md'), 'utf8').replace(/\r\n/g, '\n');
+const changelog = readFileSync(join(repositoryRoot, "CHANGELOG.md"), "utf8");
+const releaseVersion = /^## (\d+\.\d+\.\d+)\s*$/m.exec(changelog)[1];
 const read = path => readFileSync(join(packageRoot, path), 'utf8').replace(/\r\n/g, '\n');
 
 function git(cwd, ...args) {
@@ -29,8 +31,8 @@ test('the package is private and ships every file its README links to', () => {
   const repository = 'https://github.com/Sandbox-podcast/OpenGuildKit/';
   for (const link of links) {
     if (link.startsWith(repository)) {
-      const match = new RegExp(`^${repository}(?:blob|tree)/v${manifest.version.replaceAll('.', '\\.')}/(.+)$`).exec(link);
-      assert.ok(match, `${link} must be pinned to the v${manifest.version} release tag`);
+      const match = new RegExp(`^${repository}(?:blob|tree)/v${releaseVersion.replaceAll('.', '\\.')}/(.+)$`).exec(link);
+      assert.ok(match, `${link} must be pinned to the v${releaseVersion} release tag`);
       assert.ok(existsSync(join(repositoryRoot, match[1])), `${link} must name a file of the repository`);
     } else if (!/^https?:/.test(link)) {
       const path = normalize(link).split(sep).join('/').replace(/\/$/, '');
