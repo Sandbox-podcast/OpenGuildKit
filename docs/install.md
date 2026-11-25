@@ -12,6 +12,17 @@ gh release download v0.17.0 --repo Sandbox-podcast/OpenGuildKit --pattern 'openg
 
 On Linux use `sha256sum -c SHA256SUMS.txt`. On macOS use `shasum -a 256 -c SHA256SUMS.txt`. On Windows use `Get-FileHash .\openguildkit-0.17.0-py3-none-any.whl, .\openguildkit-0.17.0.tgz -Algorithm SHA256` in PowerShell and compare each hash to the corresponding line in `SHA256SUMS.txt`.
 
+### Verify the release tag
+
+From v0.17.0, release tags are signed with SSH. `.github/allowed_signers` lists the keys allowed to sign them. In a clone of the repository, with Git 2.34 or later:
+
+```sh
+git fetch origin tag v0.17.0
+git -c gpg.ssh.allowedSignersFile=.github/allowed_signers verify-tag v0.17.0
+```
+
+Git prints `Good "git" signature for azerothl with ED25519 key SHA256:AV5Bo/uY6JRe69aVl4+tSu/BYMJezgeBgtNCA7qlWvY`. The file comes from the same repository as the tag: compare the key with the signing keys of the signer's GitHub account (`gh api users/azerothl/ssh_signing_keys`). Earlier tags are not signed.
+
 ## How the release assets are built
 
 Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml` on GitHub Actions, on `ubuntu-latest`, from the tagged commit. The workflow stops if the tag differs from the version in `pyproject.toml` or `integrations/ci/package.json`. It builds the web interface with Node.js 24 (`npm ci --ignore-scripts`, `npm run build`, then `npm run bundle`, which copies it into `src/openguildkit/web_dist` and fails above its size budget), then the wheel with Python 3.13 (`python -m build --wheel`). It refuses a wheel that does not contain `openguildkit/web_dist/index.html`. It packs the Node archive (`npm pack ./integrations/ci`), writes `SHA256SUMS.txt` with `sha256sum`, one line per file, then attaches the three files to the release of the tag. When that release does not exist yet, the workflow creates it as a draft, which a maintainer reviews and publishes. The run log on the Actions tab prints the hashes it computed. The `package` job of `.github/workflows/ci.yml` builds the wheel with the same steps on every pull request, installs it on Linux, macOS and Windows (with `pipx` on Windows), and checks that `openguildkit ui` serves the interface. Once the release is published, `.github/workflows/release-check.yml` downloads its files, checks their hashes and installs them on the same three systems.
