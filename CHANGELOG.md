@@ -9,6 +9,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - New bundled tool IDs: `adp`, `apache-spark`, `apigee`, `appdynamics`, `auth0`, `discord`, `docker-hub`, `eclipse`, `gravitee`, `harbor`, `jetbrains`, `jfrog-artifactory`, `keycloak`, `kong`, `lens`, `mattermost`, `microsoft-entra-id`, `npm`, `okta`, `portainer`, `rancher`, `silae`, `sonatype-nexus`, `splunk`, `visual-studio`, `vscode`, `zoom`. Kibana is now an alias of Elastic. If a project catalog already defines one of these tools or names, rename its local entry and update the profile, or remove the project definition to use the bundled tool.
 - `openguildkit task verify` keeps the pack answers of a result, whatever machine checks the packs carry: only a report that answers a pack's rules one by one replaces its pack answer.
 - `openguildkit task checks` shows the answer of a rule that a whole-pack answer covers, in the text and in `--json`, instead of "not reported".
+- `openguildkit task list --since` and `--until` refuse a value that is not a real day written YYYY-MM-DD, instead of listing nothing or everything.
 
 ## 0.17.0
 
