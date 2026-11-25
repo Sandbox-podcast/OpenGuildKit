@@ -87,6 +87,11 @@ jobs:
           name: dependency-report
           path: .
       - name: Import the report into the alert register
+        # With several reports of one scanner, such as npm audit in front/ and in admin/, have the scan job write one
+        # file per lockfile and import each with its own scope, for example
+        # `openguildkit alerts import front.json --scope front --json > changes-front.json`: without --scope, a report
+        # resolves the alerts that the scanner's other reports listed (docs/alerts.md, "One report per scanner, or
+        # one scope per report").
         run: |
           openguildkit alerts import report.json --json > changes.json
           {

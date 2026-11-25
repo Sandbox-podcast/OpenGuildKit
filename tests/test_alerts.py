@@ -241,8 +241,67 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.assertNotIn("Warning", self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json"))
         output = self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json")
         self.assertIn("Warning: the previous npm audit import was the file npm-audit-critical.json", output)
+        self.assertIn("Declare the scope of each report with --scope NAME", output)
         self.assertIn("resolved: " + CRITICAL, output)
         self.assertEqual(json.loads(self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json", "--json"))["resolved"], [])
+
+    def test_a_report_imported_with_a_scope_resolves_only_the_alerts_of_that_scope(self):
+        self.init()
+        front = f"{CRITICAL}@front"
+        output = self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json", "--scope", "front")
+        self.assertIn("npm audit (scope front): 1 alert(s) reported, 1 new, 0 reopened, 0 resolved.", output)
+        self.assertIn(f"new: {front}", output)
+        self.cli("alerts", "set", front, "--status", "confirmed", "--by", "Alex")
+        output = self.cli("alerts", "import", FIXTURES / "npm-audit.json", "--scope", "admin")
+        self.assertIn("npm audit (scope admin): 1 alert(s) reported, 1 new, 0 reopened, 0 resolved.", output)
+        self.assertNotIn("Warning", output)
+        changes = json.loads(self.cli("alerts", "import", FIXTURES / "npm-audit.json", "--scope", "admin", "--json"))
+        self.assertEqual((changes["scope"], changes["resolved"], changes["new"]), ("admin", [], []))
+        listed = json.loads(self.cli("alerts", "list", "--json"))["alerts"]
+        self.assertEqual([(alert["id"], alert["scope"], alert["status"]) for alert in listed],
+                         [(front, "front", "confirmed"), ("npm:semver:ghsa-c2qf-rxjj-qqgw@admin", "admin", "open")])
+        self.assertIn(f"[confirmed] {front} critical <2.0.1 scope: front", self.cli("alerts", "list"))
+        output = self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json")
+        self.assertIn("0 resolved", output)
+        self.assertIn("Alerts of the scope(s) admin, front are left as they are", output)
+        self.assertEqual(json.loads(self.cli("alerts", "list", "--status", "confirmed", "--json"))["summary"]["total"], 1)
+        self.assertIn("1 resolved", self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json", "--scope", "front"))
+        imports = load_register(self.root / ".openguildkit")["imports"]
+        self.assertEqual([item.get("scope") for item in imports], ["front", "admin", "admin", None, "front"])
+
+    def test_a_scope_that_is_not_a_short_name_is_refused_with_the_rule(self):
+        self.init()
+        for scope in ("Front", "front/", "a" * 65):
+            error = self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json", "--scope", scope, code=1)
+            self.assertIn("OpenGuildKit: Invalid scope", error)
+            self.assertIn("1 to 64 lowercase letters, digits, hyphens, slashes or dots", error)
+        self.assertFalse((self.root / ".openguildkit" / "alerts.json").exists())
+
+    def test_a_register_written_before_scopes_is_read_and_behaves_as_before(self):
+        self.init()
+        write_json(self.root / ".openguildkit" / "alerts.json", {"schema_version": 1, "alerts": [{
+            "id": CRITICAL, "ecosystem": "npm", "package": "form-parser", "version": "<2.0.1",
+            "advisory": "GHSA-XXXX-YYYY-ZZZZ", "aliases": ["GHSA-XXXX-YYYY-ZZZZ"], "severity": "critical",
+            "summary": "Synthetic", "status": "confirmed", "scanners": ["npm audit"], "seen_by": ["npm audit"],
+            "tasks": [], "first_seen": "2026-11-01", "last_seen": "2026-11-20"}], "imports": []})
+        self.assertNotIn("scope", json.loads(self.cli("alerts", "list", "--json"))["alerts"][0])
+        self.assertNotIn("scope:", self.cli("alerts", "list"))
+        output = self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json", "--scope", "front")
+        self.assertIn(f"kept without scope: {CRITICAL}", output)
+        self.assertIn("0 new", output)
+        alert, = load_register(self.root / ".openguildkit")["alerts"]
+        self.assertEqual((alert["id"], alert["status"], "scope" in alert), (CRITICAL, "confirmed", False))
+        self.assertIn("1 resolved", self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json"))
+
+    def test_the_same_advisory_in_two_scopes_gets_a_task_per_scope(self):
+        self.init()
+        for scope in ("front", "services/api"):
+            self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json", "--scope", scope)
+            self.cli("alerts", "set", f"{CRITICAL}@{scope}", "--status", "confirmed", "--by", "Alex")
+        opened = json.loads(self.cli("alerts", "tasks", "--open", "--json"))
+        self.assertEqual([row["task"] for row in opened], ["dep-form-parser-ghsa-xxxx-yyyy-zzzz-front",
+                                                            "dep-form-parser-ghsa-xxxx-yyyy-zzzz-services-api"])
+        self.assertEqual(json.loads(self.cli("alerts", "tasks", "--json")), [])
 
     def test_two_alerts_of_a_package_with_a_long_name_get_two_tasks(self):
         self.init()
