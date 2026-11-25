@@ -14,6 +14,7 @@ import tomllib
 import unittest
 from pathlib import Path
 
+from tests.test_cli_coverage import command_paths
 from tests.test_workflows import TEMPLATES, USES, WORKFLOWS, parse, run_text, steps
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -179,6 +180,23 @@ class ChangelogTest(unittest.TestCase):
                        "openguildkit tools", "mock", "openguildkit alerts", "openguildkit market",
                        "openguildkit storybook", "openguildkit docs export", "relevan"):
             self.assertIn(change, section)
+
+    def test_0_17_0_names_the_mcp_command_with_a_link_to_the_tools_guide(self):
+        line = next((line for line in changelog_section("0.17.0").splitlines()
+                     if "openguildkit --project PATH mcp" in line), "")
+        self.assertIn("/docs/tools.md", line)
+
+    def test_every_link_is_absolute_because_a_release_copies_its_section_into_its_notes(self):
+        targets = re.findall(r"\]\(([^)\s]+)\)", _read("CHANGELOG.md"))
+        self.assertTrue(targets)
+        self.assertEqual([target for target in targets if not target.startswith("https://")], [])
+
+    def test_every_command_of_the_parser_is_named_in_the_changelog_or_the_readme(self):
+        text = _read("CHANGELOG.md") + _read("README.md")
+        missing = [name for name in sorted({path[0] for path in command_paths()})
+                   if not re.search(rf"openguildkit(?: --project \S+)? {re.escape(name)}(?![\w-])|`{re.escape(name)}`",
+                                    text)]
+        self.assertEqual(missing, [], "name each command in the section of the version that has it")
 
 
 class PackageMetadataTest(unittest.TestCase):

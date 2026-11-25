@@ -7,10 +7,9 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - New pack `agent-native-engineering` 1.0.0 and method pattern `agent-native-repository`, suggested to the engineering, devops and QA roles and preselected for none: bounded command output and instruction files, a machine-readable repository map, a targeted check, evidence written by tools, oversight files out of the agent's reach, a contract for each subagent and a measured cost per task. It concerns tasks on infrastructure and delivery, and the references `context-engineering`, `agent-execution-limits` and `agent-tool-permissions` now apply it.
 - Features: `openguildkit features` lists 20 purposes (documentation portal, issue tracking, payroll, container registry...), each with a lead tool and its three best-known alternatives, and turns an option on or off in the profile with who and why. The web interface shows them in a new place, the Arsenal.
 - New bundled tool IDs: `adp`, `apache-spark`, `apigee`, `appdynamics`, `auth0`, `discord`, `docker-hub`, `eclipse`, `gravitee`, `harbor`, `jetbrains`, `jfrog-artifactory`, `keycloak`, `kong`, `lens`, `mattermost`, `microsoft-entra-id`, `npm`, `okta`, `portainer`, `rancher`, `silae`, `sonatype-nexus`, `splunk`, `visual-studio`, `vscode`, `zoom`. Kibana is now an alias of Elastic. If a project catalog already defines one of these tools or names, rename its local entry and update the profile, or remove the project definition to use the bundled tool.
+- A build of `main` now says `0.17.1.dev0`, in `openguildkit --version` and in the name of the wheel it builds, so it can no longer be mistaken for the published 0.17.0 wheel, which has none of the changes above.
 
 ## 0.17.0
-
-- `openguildkit --project PATH mcp` provides read-only project metadata over stdio. See [Project MCP](docs/tools.md).
 
 Changes since 0.16.1, the pre-release of 20 November 2026. The wheel now ships the web interface, and no command of 0.16.1 was removed.
 
@@ -22,6 +21,7 @@ Changes since 0.16.1, the pre-release of 20 November 2026. The wheel now ships t
 ### Setup and profile
 
 - `openguildkit init` asks each norm that the sector, the roles and personal data imply, with the reason it is proposed, then the tools of the company, the agent host and the board guard. New projects start with the guard in `observe`. `openguildkit detect` proposes the components and versions of an existing repository, and `openguildkit preview` shows the rule packs before they are written.
+- `openguildkit recommend` shows the patterns that a context selects, each with its reason and its rule count, and writes nothing. It reads an answers file (`--answers FILE`) or the project profile, and with the profile it lists the selected patterns that no longer match.
 - `openguildkit profile adopt`, `decline`, `add`, `remove` and `set` change the profile after setup: they record who, when and why, and rewrite `AGENTS.md`. A change that weakens a protection needs a person at a terminal.
 - `.openguildkit/catalog.lock.json` pins the catalog records a project uses. `openguildkit update` shows what a newer catalog changes and `openguildkit update --apply` adopts it.
 - `openguildkit host check` and `openguildkit host apply` show and install the rules the agent host can enforce, with the hooks that bring the board to the agent before every change. `openguildkit integrations` installs the agent skill and the board, market analyst and dependency watch subagents of the same version.
@@ -36,6 +36,7 @@ Changes since 0.16.1, the pre-release of 20 November 2026. The wheel now ships t
 - Blockers are cleared with evidence (`task clear`) or waived within the project's policy (`task waive`) before the approval. An approval is sealed to what was approved; a project can require signed approvals (`task decision-payload`).
 - Closing statuses: `task complete` closes a task as `done`, or as `done-with-reservations` with the points left open, the most serious first.
 - Decision records: `task export` writes a sealed record to `.openguildkit/decisions/`, and `openguildkit guard --ci` checks in a pull request that an approved decision covers the changes.
+- `openguildkit ci-check --target-repo PATH --commit SHA` evaluates the central export rule on an exact Git commit, with the evaluator of `task verify`, and prints the verdict as JSON. It exits 0 when the rule passes, 1 when it fails and 2 when the evaluation could not run ([CI coordinator](https://github.com/Sandbox-podcast/OpenGuildKit/blob/main/integrations/ci/README.md#results-and-errors)).
 - `openguildkit task list` lists the project's tasks with their status and next open point. `task authorize` records a person's decision on an external action outside the authorized scope.
 - `task revoke ID --by NAME --reason WHY` withdraws an approval, at a terminal only; the guard stops counting it. After a rebase or a change of rules, every command gives the same reason and the same command, `task consult ID --reuse-answers`, which reopens the task under the same ID with its recorded answers, without a terminal, and keeps the passes of the boards whose brief did not change. `task list` says who took the current decision: `approved by`, `changes requested by`, `withdrawn by X (approved by Y)`, or that the approval no longer holds; `--owner` filters on that person.
 - A waiver ends on its `until` day, by the real clock: after it the blocker is open again (`task blockers` shows `[waiver expired on DATE]`), `task list` names the person's options, and `task complete` and `guard --ci` refuse the task until it is resolved again. A decision, a withdrawal, a clearance, a waiver and an authorization are dated by the real clock whatever `SOURCE_DATE_EPOCH` says, so an approval's age is right; only the replayed exports follow the variable.
@@ -52,6 +53,7 @@ Changes since 0.16.1, the pre-release of 20 November 2026. The wheel now ships t
 ### Tools, alerts, market and deliverables
 
 - Tool registry and mocks: `openguildkit tools` lists the tools of a company stack with their MCP servers, connects them (`tools plan`, `tools apply`) and rehearses a task with mock servers (`tools apply --mock`, `tools call`, `tools scenario`).
+- `openguildkit --project PATH mcp` provides read-only project metadata over stdio. See [Read an OpenGuildKit project through MCP](https://github.com/Sandbox-podcast/OpenGuildKit/blob/main/docs/tools.md#read-an-openguildkit-project-through-mcp).
 - Dependency alerts: `openguildkit alerts` imports scanner reports into a register, links alerts to tasks, and asks a person to accept or set the severity of an alert. A confirmed critical alert linked to a task blocks its approval.
 - Market dossiers: `openguildkit market` keeps a dossier of competitors and lists the sources due for review; the market watch template opens an issue for each.
 - Storybook: `openguildkit storybook` composes the company Storybook, records its stories and extracts a design system from an existing application.
