@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import alerts_cli, features_cli, market_cli, profile_cli, storybook_cli, tasks_cli, tools_cli
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
-from .catalog import board_replacements, undated_sources
+from .catalog import replaced_boards, undated_sources
 from .ci import check_export
 from .detect import components_for_profile, detect_stack, detected_project_name
 from .guard import (
@@ -19,21 +19,21 @@ from .guard import (
 from .hosts import OFF_PATH, apply_host_settings, approval_warning, host_controls
 from .integrations import OTHER_HOST_NOTE, install_agent_files
 from .lock import (
-    apply_lock, build_lock, catalog_changes, installed_catalog, installed_catalog_date, lock_is_current, package_version,
-    project_catalog, read_lock, require_instructions, unshipped_records, update_target, write_lock,
+    LOCK_FILE, apply_lock, build_lock, catalog_changes, installed_catalog, installed_catalog_date, lock_is_current,
+    package_version, project_catalog, read_lock, require_instructions, unshipped_records, update_target, write_lock,
 )
 from .patterns import patterns_to_review, role_choices
 from .profile_cli import print_touched
 from .project import (
-    ALREADY_INITIALIZED, GUARD_MODES, RULES_NOTE, Fingerprints, complete_answers, init_questions, initialize, is_norm,
-    load_profile, profile_recommendations, project_root, require_resolved_conflicts, rule_conflicts, rule_plan,
-    setup_profile, state_path, sync_instructions, unsure_answers,
+    ALREADY_INITIALIZED, GUARD_MODES, RULES_NOTE, STATE_DIR, Fingerprints, RuleError, complete_answers, init_questions,
+    initialize, is_norm, load_profile, profile_recommendations, project_root, require_resolved_conflicts, rule_conflicts,
+    rule_plan, setup_profile, state_path, sync_instructions, unsure_answers,
 )
 from .project_checks import propose_checks
 from .prompts import prompt_questions
 from .storage import json_text, print_json, project_lock, read_json, write_json
 from .tasks import list_tasks, read_task, task_path, tasks_touched
-from .tasks_cli import sharing_warnings
+from .tasks_cli import sharing_issues
 from .terminal import interactive
 from .tools import detect_tools, load_tools, match_tools
 
@@ -63,6 +63,7 @@ english_title, find_references, load_references, with_pattern_references = (
 # The port of openguildkit ui, here so that the help does not import the web server; webui.DEFAULT_PORT is the
 # same number (tests/test_performance.py compares the help with it).
 UI_PORT = 7311
+FORMATS = ("text", "sarif")
 
 
 class _Version(argparse.Action):
@@ -124,6 +125,8 @@ def command_parser() -> argparse.ArgumentParser:
     guard.add_argument("--require-signed", action="store_true",
                        help="With --ci, fail while the base revision's approvals are local and cannot be verified.")
     guard.add_argument("--json", action="store_true", help="Print the result as JSON.")
+    guard.add_argument("--format", choices=FORMATS, default="text",
+                       help="With --ci, print the problems as SARIF 2.1.0 for code scanning instead of text.")
     deliverable = commands.add_parser("deliverable", help="Start and check a business deliverable from an approved task.")
     deliverable_actions = deliverable.add_subparsers(dest="deliverable_action", required=True)
     deliverable_actions.add_parser("list", help="List the deliverable templates.")
@@ -184,7 +187,9 @@ def command_parser() -> argparse.ArgumentParser:
     update = commands.add_parser("update", help="Show what the installed catalog would change and adopt it.")
     update.add_argument("--apply", action="store_true", help="Adopt the installed catalog's records for this project.")
     update.add_argument("--json", action="store_true", help="Print the changes as JSON.")
-    commands.add_parser("check", help="Check that the instructions match the project profile.")
+    check = commands.add_parser("check", help="Check that the instructions match the project profile.")
+    check.add_argument("--format", choices=FORMATS, default="text",
+                       help="Print the problems as SARIF 2.1.0 for code scanning instead of text.")
     commands.add_parser("mcp", help="Serve read-only project metadata to a local MCP client. Requires --project.")
     ui = commands.add_parser("ui", help="Open the web interface of this project on 127.0.0.1.")
     ui.add_argument("--port", type=int, default=UI_PORT, help=f"Port (default {UI_PORT}; 0 picks a free one).")
@@ -775,11 +780,35 @@ def _guard_hook(args) -> int:
     return hook_command(args.hook, args.project, lambda state: project_catalog(args, state))
 
 
+def _print_guard_sarif(root: Path, found: list[dict], mode: str) -> None:
+    from .check_findings import Report
+
+    report = Report(True)
+    report.guard(found, mode)
+    print(report.text(root), end="")
+
+
+def _require_sarif_options(args) -> None:
+    """--format sarif belongs to check and to guard --ci, and it does not go with --json: both print on the standard
+    output, so say which one to type."""
+    if args.command == "guard" and args.format == "sarif":
+        if not args.ci:
+            raise ValueError("--format sarif writes the result of the CI check: type openguildkit guard --ci "
+                             "--format sarif.")
+        if args.json:
+            raise ValueError("--format sarif and --json both print the result on the standard output: use one of them. "
+                             "Type openguildkit guard --ci --format sarif for code scanning, or openguildkit guard --ci "
+                             "--json for a program.")
+
+
 def _guard(args, root: Path, state: Path) -> int:
     if args.ci:
+        found: list[dict] = []
         result = ci_guard(root, args.base, lambda base_state: project_catalog(args, base_state),
-                          require_signed=args.require_signed)
-        if args.json:
+                          require_signed=args.require_signed, findings=found)
+        if args.format == "sarif":
+            _print_guard_sarif(root, found, result["mode"])
+        elif args.json:
             print_json(result)
         else:
             print(f"Guard mode on {args.base}: {result['mode']}. {result['changed']} changed file(s).")
@@ -1081,11 +1110,13 @@ def _new_brain(args, state: Path, catalog: dict) -> int:
     return 0
 
 
-def _warn_unsigned(profile: dict) -> None:
+def _warn_unsigned(profile: dict, report=None) -> None:
     """Say once per setup or check command, not on every command, that local approvals can be forged."""
     warning = approval_warning(profile)
     if warning:
         print(warning, file=sys.stderr)
+        if report is not None:
+            report.add("approvals-not-signed", "warning", warning.removeprefix("OpenGuildKit: "))
 
 
 def _require_answers(answers: dict, questions: list[dict]) -> None:
@@ -1211,17 +1242,42 @@ def _host_scan(args, root: Path, state: Path) -> int:
     return scan_exit_code(result, args.strict)
 
 
-def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
+def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
+    """`check`, in text or, with --format sarif, as the SARIF document of its problems on the standard output.
+
+    The command stops where it stopped: a problem that ends it (instructions, host settings, catalog lock, approvals
+    that no longer hold) ends it in SARIF too, with the findings gathered up to there and the same exit code. A failure
+    that is not a problem of the project, such as a profile that cannot be read, prints no file."""
+    from .check_findings import Report
+
+    report = Report(args.format == "sarif")
+    code = 0
+    try:
+        _check_project(args, root, state, profile, catalog, report)
+    except RuleError as problem:
+        if not report.active:
+            raise
+        report.blocked(problem)
+        print(f"OpenGuildKit: {problem}", file=sys.stderr)
+        code = 1
+    if report.active:
+        print(report.text(root), end="")
+    return code
+
+
+def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, report) -> None:
     """Check that the instructions, the host settings and the catalog lock match the profile, and that every
-    approval still holds; warn about what git will not carry to a teammate."""
+    approval still holds; warn about what git will not carry to a teammate. Each problem and warning goes to the
+    report too, when it gathers them."""
     load_tools(state / "catalog" / "tools")
-    _warn_unsigned(profile)
+    _warn_unsigned(profile, report)
     # An approval that no longer holds is an error until the task is consulted again; a completed task
     # whose rules changed afterwards is history and stays quiet here (task list shows it).
     read = {}
     rows = list_tasks(state, profile=profile, catalog=catalog, root=root, read=read)
     failing = [f"{row['id']}: {row['next']}" for row in rows
                if row["status"] == "unreadable" or row.get("severity") == "error"]
+    report.tasks(rows)
     # An approval that holds through the signers of the revision it was signed at: said, never failed.
     for row in rows:
         if row.get("note"):
@@ -1229,7 +1285,10 @@ def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     records = exported_decisions(root, state, profile, Fingerprints(profile, catalog))
     failing += [row["problem"]["message"] for row in records
                 if row["problem"] and row["problem"]["severity"] == "error"]
-    for line in failing + board_replacements(catalog):
+    report.records(records)
+    replaced = replaced_boards(catalog)
+    report.boards(replaced)
+    for line in failing + list(replaced.values()):
         print(f"OpenGuildKit: {line}", file=sys.stderr)
     live, bundled = installed_catalog(args, state)
     lock = read_lock(state)
@@ -1237,34 +1296,41 @@ def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     missing = [control for control in host_controls(root, profile) if control["status"] == "missing"]
     settings = [control["title"] for control in missing if control.get("cause") != "path"]
     if missing:
-        raise ValueError(" ".join(
+        raise RuleError(" ".join(
             ([f"The host settings do not enforce: {'; '.join(settings)}. Run openguildkit host check for the cause, "
               "then openguildkit host apply."] if settings else [])
-            + ([OFF_PATH] if len(settings) < len(missing) else [])))
+            + ([OFF_PATH] if len(settings) < len(missing) else [])), "host-settings-missing")
     if not lock_is_current(lock, profile, catalog, bundled):
-        raise ValueError("The catalog lock does not match the profile. Run openguildkit sync.")
-    if not failing:
+        raise RuleError("The catalog lock does not match the profile. Run openguildkit sync.", "catalog-lock-stale",
+                        [f"{STATE_DIR}/{LOCK_FILE}"])
+    if not failing and not report.active:
         print("OpenGuildKit instructions match the project profile.")
     pending = _pending_catalog_changes(lock, live, profile, bundled)
     if pending:
-        print(f"OpenGuildKit: the installed catalog changes the rules of {len(pending)} locked "
-              f"{'record' if len(pending) == 1 else 'records'} ({', '.join(pending)}). The project keeps its "
-              "locked rules: run openguildkit update to review the changes.", file=sys.stderr)
+        message = (f"the installed catalog changes the rules of {len(pending)} locked "
+                   f"{'record' if len(pending) == 1 else 'records'} ({', '.join(pending)}). The project keeps its "
+                   "locked rules: run openguildkit update to review the changes.")
+        print(f"OpenGuildKit: {message}", file=sys.stderr)
+        report.add("catalog-update-pending", "warning", message, f"{STATE_DIR}/{LOCK_FILE}")
     undated = _undated_project_sources(state, live)
     if undated:
-        print(f"OpenGuildKit: date the sources of {len(undated)} project "
-              f"{'record' if len(undated) == 1 else 'records'}: {', '.join(undated)}. Open each page, then "
-              'add "checked": "YYYY-MM-DD" after its url with that day\'s date (see docs/catalog-format.md).',
-              file=sys.stderr)
-    for warning in sharing_warnings(root, state, records, read):
-        print(f"OpenGuildKit: {warning}", file=sys.stderr)
+        message = (f"date the sources of {len(undated)} project "
+                   f"{'record' if len(undated) == 1 else 'records'}: {', '.join(undated)}. Open each page, then "
+                   'add "checked": "YYYY-MM-DD" after its url with that day\'s date (see docs/catalog-format.md).')
+        print(f"OpenGuildKit: {message}", file=sys.stderr)
+        report.add("source-undated", "warning", message)
+    issues = sharing_issues(root, state, records, read)
+    for _, message, _ in issues:
+        print(f"OpenGuildKit: {message}", file=sys.stderr)
+    report.sharing(issues)
     if failing:
-        raise ValueError(f"The instructions match the project profile, but {len(failing)} "
-                         f"{'approval no longer holds' if len(failing) == 1 else 'approvals no longer hold'}: "
-                         "each line above gives the command to run.")
+        raise RuleError(f"The instructions match the project profile, but {len(failing)} "
+                        f"{'approval no longer holds' if len(failing) == 1 else 'approvals no longer hold'}: "
+                        "each line above gives the command to run.", None)
 
 
 def _run(args) -> int | None:
+    _require_sarif_options(args)
     if args.command == "guard" and args.hook:
         return _guard_hook(args)
     if args.command == "host" and args.strict and args.mode != "scan":

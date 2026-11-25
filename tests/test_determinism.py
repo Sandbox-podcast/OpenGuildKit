@@ -82,6 +82,10 @@ class Run:
         self.cli("task", "review", TASK_ID, "--file", review_file)
         self.record("task challenge", "task", "challenge", TASK_ID)
         self.record("task deliberate", "task", "deliberate", TASK_ID)
+        # Two instructions files and the ignore file out of date: three findings, which no hash order may reorder.
+        (self.project / ".openguildkit" / ".gitignore").write_text("work/\n", encoding="utf-8")
+        (self.project / "CLAUDE.md").write_text("# Notes\n", encoding="utf-8")
+        self.outputs["check --format sarif"] = run_cli(self.project, "check", "--format", "sarif", stdin="", expect=1).stdout
         return {name: text.replace(consultation_id, "CONSULTATION-ID") for name, text in self.outputs.items()}
 
 
@@ -103,6 +107,7 @@ class DeterminismTests(unittest.TestCase):
                 self.assertEqual(first[name], second[name])
         self.assertIn("<!-- BEGIN OPENGUILDKIT", first["AGENTS.md"])
         self.assertIn("# Decision brief", first["task challenge"])
+        self.assertEqual(json.loads(first["check --format sarif"])["runs"][0]["results"][0]["ruleId"], "instructions-drift")
         for name, text in first.items():
             self.assertNotIn(str(self.base), text, name)
 

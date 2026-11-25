@@ -525,16 +525,10 @@ def _record_shape(record: dict, relative: str) -> None:
                          "Export the decision again or remove the file.")
 
 
-def _record_problem(record: dict, relative: str, fingerprint: str | Fingerprints, policy: dict, base_root: Path, earlier: dict,
-                    *, extracted: bool = False, history: Path | None = None) -> str | None:
-    """Why a decision record cannot cover the changes, or None when it can."""
-    found = _record_check(record, relative, fingerprint, policy, base_root, earlier, extracted=extracted, history=history)
-    return found[1] if found else None
-
-
 def _record_check(record: dict, relative: str, fingerprint: str | Fingerprints, policy: dict, base_root: Path,
-                  earlier: dict, *, extracted: bool = False, history: Path | None = None) -> tuple[str, str] | None:
-    """The kind of problem a decision record has and its message, or None when it holds.
+                  earlier: dict, *, extracted: bool = False, history: Path | None = None) -> tuple[str, str, str] | None:
+    """The kind of problem a decision record has, its message and the code of its rule (docs/sarif.md), or None when
+    it holds.
 
     extracted says that base_root holds files copied from a Git revision (CI) rather than a working copy; history is
     then the repository whose history holds the signers of an approval the base revision already carries.
@@ -542,17 +536,18 @@ def _record_check(record: dict, relative: str, fingerprint: str | Fingerprints, 
     found = _record_fault(record, relative, fingerprint, policy, base_root, earlier, extracted=extracted, history=history)
     if found is None:
         return None
-    if found == "earlier-rules":
-        return found, f"{relative}: {stale_approval_message(record['task'])}"
-    if found == "earlier-record":
-        return found, (f"{relative} was exported by an earlier release, before records carried a digest: its "
-                       f"content is not verified. Export it again with openguildkit task export {record['task']}.")
-    if found == "withdrawn":
+    code, message = found
+    if code == "decision-stale":
+        return "earlier-rules", f"{relative}: {stale_approval_message(record['task'])}", code
+    if code == "decision-record-unverified":
+        return "earlier-record", (f"{relative} was exported by an earlier release, before records carried a digest: its "
+                                  f"content is not verified. Export it again with openguildkit task export {record['task']}."), code
+    if code == "decision-withdrawn":
         withdrawn = record.get("withdrawn") or earlier[record["task"]]["withdrawn"]
-        return found, (f"{relative}: the approval of {record['task']} was withdrawn by {withdrawn['by']} on "
-                       f"{withdrawn['at'][:10]} ({withdrawn['reason']}): the record covers no change. Open a new task "
-                       "for this work.")
-    return "invalid-record", found
+        return "withdrawn", (f"{relative}: the approval of {record['task']} was withdrawn by {withdrawn['by']} on "
+                             f"{withdrawn['at'][:10]} ({withdrawn['reason']}): the record covers no change. Open a new task "
+                             "for this work."), code
+    return "invalid-record", message, code
 
 
 _COMMIT = re.compile(r"[0-9a-f]{7,64}")
@@ -579,8 +574,9 @@ def _rules_hold(fingerprint: str | Fingerprints, recorded: str) -> bool:
 
 
 def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, policy: dict, base_root: Path, earlier: dict,
-                  *, extracted: bool = False, history: Path | None = None) -> str | None:
-    """What is wrong with a record: a message, or the kind "earlier-rules" or "earlier-record"; None when it holds.
+                  *, extracted: bool = False, history: Path | None = None) -> tuple[str, str] | None:
+    """What is wrong with a record: the code of its rule (docs/sarif.md) and a message, which _record_check writes
+    for the codes decision-stale, decision-record-unverified and decision-withdrawn; None when it holds.
 
     Records written from RECORD_VERSION on carry two digests: the approval's seal covers what the record shows of
     the approval, and record_sha256 the whole record. A record that has neither was exported by an earlier release.
@@ -589,44 +585,48 @@ def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, 
     payload = decision.get("payload")
     export_again = f"Export it again with openguildkit task export {record['task']}, or restore the file from git."
     if _earlier_withdrawal(earlier, record["task"]) and _same_approval(earlier[record["task"]], record):
-        return "withdrawn"
+        return "decision-withdrawn", ""
     if record["task"] in earlier and not _same_approval(earlier[record["task"]], record):
-        return (f"{relative}: task {record['task']} already had another approval on the base revision; open a new task "
-                "for new work. A record of the same approval (same seal, same consultation) may add its completion.")
+        return "decision-superseded", (
+            f"{relative}: task {record['task']} already had another approval on the base revision; open a new task "
+            "for new work. A record of the same approval (same seal, same consultation) may add its completion.")
     if payload is None:
-        return f"{relative} carries no approval payload. {export_again}"
+        return "decision-record-invalid", f"{relative} carries no approval payload. {export_again}"
     expected = {"task": record["task"], "outcome": "approved", "profile_fingerprint": record["profile_fingerprint"],
                 "by": decision["by"], "reason": decision["reason"]}
     if any(payload.get(key) != value for key, value in expected.items()) or seal(payload) != decision["seal"]:
-        return f"{relative}: the seal does not match the approval it records. {export_again}"
+        return "decision-record-invalid", f"{relative}: the seal does not match the approval it records. {export_again}"
     if PurePosixPath(relative).parent.name == DECISIONS_DIR and PurePosixPath(relative).stem != record["task"]:
-        return f"{relative} names task {record['task']}: each record belongs in the file of its own task. {export_again}"
+        return "decision-record-invalid", (
+            f"{relative} names task {record['task']}: each record belongs in the file of its own task. {export_again}")
     shown = shared_digest(record.get("brief"), record.get("summary"), record.get("boards"), record.get("rounds", []))
     if "shared_sha256" in payload and payload["shared_sha256"] != shown:
-        return (f"{relative}: what the record shows (brief, summary, board verdicts and recommendations, earlier "
-                f"rounds) does not match what was approved. {export_again}")
+        return "decision-record-invalid", (
+            f"{relative}: what the record shows (brief, summary, board verdicts and recommendations, earlier "
+            f"rounds) does not match what was approved. {export_again}")
     current = record.get("schema_version", 1) >= RECORD_VERSION or "shared_sha256" in payload or "record_sha256" in record
     if current and record.get("record_sha256") != record_digest(record):
-        return f"{relative} was changed after it was exported. {export_again}"
+        return "decision-record-invalid", f"{relative} was changed after it was exported. {export_again}"
     inconsistent = _completion_problem(record) if current else None
     if inconsistent:
-        return (f"{relative}: its completion is not consistent ({inconsistent}): a record that says completed carries "
-                f"the closing that task complete writes, and a record that does not carries none. {export_again}")
+        return "decision-record-invalid", (
+            f"{relative}: its completion is not consistent ({inconsistent}): a record that says completed carries "
+            f"the closing that task complete writes, and a record that does not carries none. {export_again}")
     if record.get("withdrawn"):
-        return "withdrawn"
+        return "decision-withdrawn", ""
     if not _rules_hold(fingerprint, record["profile_fingerprint"]):
-        return "earlier-rules"
+        return "decision-stale", ""
     if not current:
-        return "earlier-record"
+        return "decision-record-unverified", ""
     # In CI, a new approval must have been given on a revision of this change's history, as task list requires
     # locally: a record approved on an abandoned branch and copied into another pull request covers nothing.
     commit = (payload.get("base_revision") or {}).get("commit") if isinstance(payload.get("base_revision"), dict) else None
     if extracted and history is not None and record["task"] not in earlier and commit is not None \
             and not in_history(history, commit):
-        return f"{relative}: {outside_history_message(record['task'], str(commit))}"
+        return "decision-outside-history", f"{relative}: {outside_history_message(record['task'], str(commit))}"
     if policy["mode"] == "signed":
         if not isinstance(decision.get("signature"), str) or not isinstance(decision.get("signer"), str):
-            return f"{relative}: the project requires signed approvals and this decision is not signed."
+            return "decision-unsigned", f"{relative}: the project requires signed approvals and this decision is not signed."
         try:
             # An approval the base revision already carries may come from an approver who has left since; a new one
             # must come from a current approver.
@@ -636,7 +636,7 @@ def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, 
             else:
                 verify_signature(base_root, policy, payload, decision["signature"], decision["signer"], committed=False)
         except ValueError as error:
-            return f"{relative}: {error}"
+            return "decision-signature-invalid", f"{relative}: {error}"
     return None
 
 
@@ -723,7 +723,8 @@ def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str 
             _record_shape(record, relative)
             found = _record_check(record, relative, fingerprint, policy, root, {})
         except (OSError, ValueError) as error:
-            row["problem"] = {"kind": "invalid-record", "severity": "error", "message": str(error)}
+            row["problem"] = {"kind": "invalid-record", "severity": "error", "message": str(error),
+                              "code": "decision-record-invalid"}
             rows.append(row)
             continue
         brief = str(record.get("brief", "")).strip().splitlines()
@@ -733,18 +734,19 @@ def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str 
                    by=record["decision"]["by"], brief=brief[0][:80] if brief else "",
                    local=_has_local_task(state, record["task"]))
         if found:
-            kind, message = found
+            kind, message, code = found
             if kind == "earlier-rules" and completed:
                 message = f"{relative}: {history_message(record['task'])}"
             # A record that carries its withdrawal is history: it covers nothing and says so.
             note = kind in ("earlier-record", "withdrawn") or (kind == "earlier-rules" and completed)
             row["problem"] = {"kind": kind, "severity": "note" if note else "error",
-                              "message": message}
+                              "message": message, "code": code}
         elif row["local"] and (withdrawn := _withdrawn_here(state, record)):
             row["problem"] = {"kind": "withdrawn-here", "severity": "error", "message": (
                 f"{relative}: the approval of {record['task']} was withdrawn in this copy by {withdrawn['by']} on "
                 f"{withdrawn['at'][:10]}, and the record still says it is approved, so guard --ci keeps accepting it. "
-                f"Write the withdrawal into it with openguildkit task export {record['task']}, and commit it.")}
+                f"Write the withdrawal into it with openguildkit task export {record['task']}, and commit it."),
+                "code": "decision-withdrawn-here"}
         rows.append(row)
     return rows
 
@@ -917,7 +919,7 @@ def _journal_mismatch(root: Path, record: dict) -> str | None:
     return f"{', '.join(mismatched)}: the journal no longer matches the recorded sha256."
 
 
-def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False) -> dict:
+def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False, findings: list | None = None) -> dict:
     """Check that the changes since base come with a decision valid under the base revision's rules.
 
     The mode, the profile, the catalog lock and the allowed signers come from base, so a pull request
@@ -925,21 +927,34 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
     a record of an approval already on base covers only the files its base version listed, so re-exporting an
     old approval cannot stretch it over new work. catalog_for(state) loads the catalog of a state directory.
     require_signed makes local approvals a problem.
+
+    A list given as findings receives each problem and note as a finding of docs/sarif.md (code, level, message, path,
+    line): a problem is an error, a note stays a note, and the path is the file it concerns, None when none does.
     """
     if _git(root, "rev-parse", "--is-inside-work-tree").returncode:
         raise ValueError("guard --ci needs a Git repository: the project folder is not inside one.")
+    report = findings if findings is not None else []
+
+    def flag(code: str, message: str, path: str | None = None, level: str = "error") -> str:
+        report.append({"code": code, "level": level, "message": message, "path": path, "line": None})
+        return message
+
     changed = _git_lines(root, "diff", "--name-only", "--no-renames", f"{base}...HEAD")
     prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"
     records = [path for path in changed if path.startswith(prefix) and path.endswith(".json")]
     work = [path for path in changed if path not in records]
     valid, problems, covers, where = [], [], {}, {}
-    notes = [_workflow_note(found)] if (found := _changed_guard_workflows(root, base, work)) else []
+    running = _changed_guard_workflows(root, base, work)
+    notes = [_workflow_note(running)] if running else []
+    for path in running:
+        flag("guard-workflow-edited", notes[0], path, "note")
     with tempfile.TemporaryDirectory() as directory:
         base_root = Path(directory)
         names = _git_lines(root, "ls-tree", "-r", "--name-only", base, "--", STATE_DIR)
         if f"{STATE_DIR}/project.json" not in names:
             return {"mode": "off", "changed": len(work), "decisions": [], "records": {},
-                    "problems": [_no_base_profile(root)], "notes": notes, "ok": True}
+                    "problems": [flag("guard-no-base-profile", _no_base_profile(root), None, "note")], "notes": notes,
+                    "ok": True}
         _extract_base(root, base, base_root, [name for name in names if not name.startswith(f"{STATE_DIR}/tasks/")])
         base_state = base_root / STATE_DIR
         catalog = catalog_for(base_state)
@@ -954,45 +969,49 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
             if not path.is_file():
                 continue
             if PurePosixPath(relative).parent != PurePosixPath(prefix):
-                problems.append(f"{relative} is not directly under {prefix}: task export writes each record there, "
-                                f"named after its task, and no record elsewhere covers a change. Move it to "
-                                f"{prefix}TASK.json or remove it.")
+                problems.append(flag("decision-record-invalid", f"{relative} is not directly under {prefix}: task export "
+                                     f"writes each record there, named after its task, and no record elsewhere covers a "
+                                     f"change. Move it to {prefix}TASK.json or remove it.", relative))
                 continue
             try:
                 record = read_json(path)
             except (OSError, ValueError):
-                problems.append(conflict_message(path, relative) or (
+                problems.append(flag("decision-record-invalid", conflict_message(path, relative) or (
                     f"{relative} is not a decision record written by openguildkit task export. "
-                    "Export the decision again or remove the file."))
+                    "Export the decision again or remove the file."), relative))
                 continue
             try:
                 _record_shape(record, relative)
             except ValueError as error:
-                problems.append(str(error))
+                problems.append(flag("decision-record-invalid", str(error), relative))
                 continue
-            problem = _record_problem(record, relative, fingerprint, policy, base_root, earlier, extracted=True, history=root)
+            checked = _record_check(record, relative, fingerprint, policy, base_root, earlier, extracted=True, history=root)
+            fault = (checked[2], checked[1]) if checked else None
             # A waiver that expired opens its blocker again: the record no longer covers the change.
-            problem = problem or expired_waiver_problem(record, relative)
+            expired = None if fault else expired_waiver_problem(record, relative)
+            fault = fault or (("decision-waiver-expired", expired) if expired else None)
             journal = _journal_mismatch(root, record)
-            if problem:
-                problems.append(problem)
+            if fault:
+                problems.append(flag(fault[0], fault[1], relative))
             if journal:
-                problems.append(journal)
-            if not problem and not journal:
+                problems.append(flag("evidence-journal-changed", journal, relative))
+            if not fault and not journal:
                 valid.append(record["task"])
                 where[record["task"]] = relative
                 covers[record["task"]] = (earlier.get(record["task"]) or record).get("files")
     if work and not records:
-        problems.append("The changes come with no exported decision (openguildkit task export ID).")
+        problems.append(flag("decision-missing", "The changes come with no exported decision "
+                                                 "(openguildkit task export ID)."))
     elif work and not valid and not problems:
-        problems.append("No exported decision in this change is valid.")
+        problems.append(flag("decision-missing", "No exported decision in this change is valid."))
     elif work and valid and (uncovered := _uncovered(work, covers)):
-        problems.append(uncovered)
+        problems.append(flag("decision-files-uncovered", uncovered))
     if policy["mode"] != "signed" and guard_mode(profile) != "off":
         if require_signed:
-            problems.append(f"{LOCAL_RECORDS}: --require-signed fails this check until they are.")
+            problems.append(flag("approvals-not-signed", f"{LOCAL_RECORDS}: --require-signed fails this check until they are."))
         else:
-            notes.append(f"{LOCAL_RECORDS}, or pass --require-signed to fail this check until they are.")
+            notes.append(flag("approvals-not-signed", f"{LOCAL_RECORDS}, or pass --require-signed to fail this check until "
+                                                      "they are.", None, "note"))
     ok = not problems and (not work or bool(valid))
     return {"mode": guard_mode(profile), "changed": len(work), "decisions": valid, "records": where,
             "problems": problems, "notes": notes, "ok": ok}

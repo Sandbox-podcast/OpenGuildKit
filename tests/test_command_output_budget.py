@@ -70,9 +70,9 @@ EXAMPLES = [
     Example("bare", "detect"), Example("bare", "detect --json"),
     # Setting up and keeping a project.
     Example("bare", "init --questions"), Example("bare", "init --answers $example/profile.json"),
-    Example("init", "sync"), Example("init", "check"),
+    Example("init", "sync"), Example("init", "check"), Example("claude", "check --format sarif", code=1),
     Example("init", "update"), Example("init", "update --json"),
-    Example("git", "guard --ci --base HEAD"),
+    Example("git", "guard --ci --base HEAD"), Example("git", "guard --ci --base HEAD --format sarif"),
     Example("init", "guard"), Example("init", "guard --json"),
     Example("enforced", "guard --hook prompt"),
     Example("observed", "guard --hook pre-edit", sends=(EDIT_HOOK,)),

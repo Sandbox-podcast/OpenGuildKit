@@ -75,6 +75,8 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `rule_checks.py` | Validates and evaluates the machine checks that pack rules declare, without executing anything. |
 | `guard.py` | Says whether an approved task covers the work: the host hooks before a request or an edit, and `guard --ci` in a pull request. |
 | `ci.py` | Reads versioned evidence from Git and evaluates the central policy's field check. |
+| `sarif.py` | Writes findings as SARIF 2.1.0 for code scanning: rules with a help link, relative locations, stable fingerprints, the same bytes at every run. |
+| `check_findings.py` | Gives each problem that `check` and `guard --ci` report a stable rule code, a level and a file, for their SARIF output. |
 | `sensitive.py` | Recognizes credentials and personal data in what people and agents give the CLI. |
 | `clock.py` | The two clocks: the date records are written with (`SOURCE_DATE_EPOCH`) and the real time decisions are made with. |
 | `storage.py` | Writes files atomically, refuses symbolic links, and serialises writing commands with the project lock. |
