@@ -458,8 +458,8 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra",
-          "checked": "2026-11-20",
+          "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng",
+          "checked": "2026-11-25",
           "title": "Règlement (UE) 2016/679 — Règlement général sur la protection des données"
         }
       ]
@@ -483,8 +483,8 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/en",
-          "checked": "2026-11-20",
+          "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/oj/eng",
+          "checked": "2026-11-25",
           "title": "Directive (UE) 2022/2555 — NIS 2"
         }
       ]
@@ -508,8 +508,8 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/fra",
-          "checked": "2026-11-20",
+          "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/eng",
+          "checked": "2026-11-25",
           "title": "Règlement (UE) 2022/2554 — Résilience opérationnelle numérique du secteur financier"
         }
       ]
@@ -588,8 +588,8 @@
       "applies_when": "Pour des services d'identité ou de confiance concernés par le règlement 910/2014 et sa modification 2024/1183.",
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/legal-content/fr/TXT/?uri=CELEX%3A32024R1183",
-          "checked": "2026-11-20",
+          "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R1183",
+          "checked": "2026-11-25",
           "title": "Règlement (UE) 2024/1183 modifiant le règlement 910/2014 — European Digital Identity Framework"
         }
       ]
@@ -629,9 +629,9 @@
       "applies_when": "Pour les communications, traceurs ou opérations de prospection concernés, selon la transposition nationale applicable.",
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dir/2002/58/oj",
-          "checked": "2026-11-20",
-          "title": "Directive 2002/58/CE — Vie privée et communications électroniques"
+          "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:02002L0058-20091219",
+          "checked": "2026-11-25",
+          "title": "Directive 2002/58/CE — Vie privée et communications électroniques, texte consolidé"
         }
       ]
     },
@@ -696,8 +696,8 @@
       "applies_when": "Si la destination du logiciel le qualifie comme dispositif de diagnostic in vitro ou comme accessoire concerné.",
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/reg/2017/746",
-          "checked": "2026-11-20",
+          "url": "https://eur-lex.europa.eu/eli/reg/2017/746/oj/eng",
+          "checked": "2026-11-25",
           "title": "Règlement (UE) 2017/746 — Dispositifs médicaux de diagnostic in vitro"
         }
       ]

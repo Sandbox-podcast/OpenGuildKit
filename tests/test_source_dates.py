@@ -314,7 +314,7 @@ class LinkReportAgeTests(unittest.TestCase):
     def test_the_bundled_citations_carry_each_source_date_and_the_age_is_an_option(self):
         catalog = load_catalog()
         citations = check_links.collect_citations(catalog, load_references(), None, load_deliverables(catalog))
-        gdpr = [entry for entry in citations["https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra"]]
+        gdpr = [entry for entry in citations["https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng"]]
         self.assertTrue(all("checked" in entry for entry in gdpr))
         self.assertIn("deliverables", {entry["collection"] for entries in citations.values() for entry in entries})
         with tempfile.TemporaryDirectory() as folder:

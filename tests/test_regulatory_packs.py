@@ -70,7 +70,7 @@ class RegulatoryPackTests(unittest.TestCase):
         )
         self.assertIn("dora", resolved_profile(profile, self.catalog)["packs"])
         instructions = render_instructions(profile, self.catalog)
-        self.assertIn("`dora@2.1.1`", instructions)
+        self.assertIn("`dora@2.1.2`", instructions)
         self.assertTrue(re.search(r"financial entity under DORA", instructions))
 
     def test_gdpr_asks_for_the_notice_the_tracker_consent_and_the_art_22_safeguards(self):
@@ -98,8 +98,8 @@ class RegulatoryPackTests(unittest.TestCase):
         self.assertNotIn("Art. 48", transfer)
         self.assertNotIn("45 to 49", transfer)
         sources = {source["url"]: source["checked"] for source in self.catalog["packs"]["gdpr"]["sources"]}
-        for url in ("https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra",
-                    "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:02002L0058-20091219",
+        self.assertEqual(sources.get("https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng"), "2026-11-25")
+        for url in ("https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:02002L0058-20091219",
                     "https://www.cnil.fr/fr/conformite-rgpd-information-des-personnes-et-transparence",
                     "https://www.cnil.fr/fr/cookies-et-autres-traceurs/regles/cookies"):
             self.assertEqual(sources.get(url), "2026-11-22", url)

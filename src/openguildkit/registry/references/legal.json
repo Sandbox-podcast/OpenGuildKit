@@ -21,8 +21,8 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj/eng",
+          "checked": "2026-11-25",
           "title": "Règlement (UE) 2022/2065 — Digital Services Act"
         }
       ]
@@ -41,8 +41,8 @@
       "applies_when": "Pour les offres de logiciels, applications ou services en ligne aux consommateurs, selon la loi nationale de transposition.",
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dir/2019/770/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/dir/2019/770/oj/eng",
+          "checked": "2026-11-25",
           "title": "Directive (UE) 2019/770 — Contenus et services numériques"
         }
       ]
@@ -65,8 +65,8 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dir/2011/83/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/dir/2011/83/oj/eng",
+          "checked": "2026-11-25",
           "title": "Directive 2011/83/UE — Droits des consommateurs"
         }
       ]
@@ -85,8 +85,8 @@
       "applies_when": "Pour les produits, logiciels compris, mis sur le marché de l'UE, selon la loi nationale de transposition ; à examiner avec le juriste produit.",
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dir/2024/2853/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/dir/2024/2853/oj/eng",
+          "checked": "2026-11-25",
           "title": "Directive (UE) 2024/2853 — Responsabilité du fait des produits défectueux"
         }
       ]
@@ -109,8 +109,8 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dec_impl/2021/914/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/dec_impl/2021/914/oj/eng",
+          "checked": "2026-11-25",
           "title": "Décision d'exécution (UE) 2021/914 — Clauses contractuelles types"
         }
       ]
@@ -235,8 +235,8 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/reg/2022/720/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/reg/2022/720/oj/eng",
+          "checked": "2026-11-25",
           "title": "Commission Regulation (EU) 2022/720, Vertical Block Exemption Regulation"
         },
         {
@@ -284,8 +284,8 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/reg/2021/784/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/reg/2021/784/oj/eng",
+          "checked": "2026-11-25",
           "title": "Regulation (EU) 2021/784 on addressing the dissemination of terrorist content online"
         }
       ]

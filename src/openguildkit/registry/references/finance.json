@@ -136,8 +136,8 @@
       "applies_when": "Selon la taille de l'entreprise et la loi nationale de transposition ; le texte ayant été modifié depuis 2022, vérifier le calendrier applicable avec la direction financière.",
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dir/2022/2464/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/dir/2022/2464/oj/eng",
+          "checked": "2026-11-25",
           "title": "Directive (UE) 2022/2464 — CSRD"
         }
       ]
@@ -157,8 +157,8 @@
       "applies_when": "Pour les conditions de paiement des contrats entre professionnels et des marchés publics ; les délais exacts dépendent de la loi nationale.",
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dir/2011/7/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/dir/2011/7/oj/eng",
+          "checked": "2026-11-25",
           "title": "Directive 2011/7/UE — Retard de paiement dans les transactions commerciales"
         }
       ]
@@ -180,8 +180,8 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dir/2006/112/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/dir/2006/112/oj/eng",
+          "checked": "2026-11-25",
           "title": "Council Directive 2006/112/EC on the common system of value added tax"
         }
       ]

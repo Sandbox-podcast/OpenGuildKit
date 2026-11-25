@@ -1,13 +1,13 @@
 {
   "id": "dora",
   "title": "DORA ICT risk evidence",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Questions for the ICT risk owner and evidence checks for financial entities under Regulation (EU) 2022/2554 (DORA). Apply the entity's approved interpretation and its competent authority's guidance; these rules do not establish compliance.",
   "sources": [
     {
       "title": "Regulation (EU) 2022/2554, Digital Operational Resilience Act",
-      "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/fra",
-      "checked": "2026-11-20"
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/eng",
+      "checked": "2026-11-25"
     }
   ],
   "depends_on": [
