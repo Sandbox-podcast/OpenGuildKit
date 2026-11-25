@@ -39,7 +39,7 @@ class ExportCiTests(CliTestCase):
         self.git(repo, "add", str(path))
         self.git(
             repo, "-c", "user.name=OpenGuildKit tests", "-c", "user.email=tests@example.invalid",
-            "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "Record fixture",
+            "commit", "--quiet", "-m", "Record fixture",
         )
         return self.git(repo, "rev-parse", "HEAD")
 
@@ -74,7 +74,7 @@ class ExportCiTests(CliTestCase):
         self.git(repo, "add", str(path))
         self.git(
             repo, "-c", "user.name=OpenGuildKit tests", "-c", "user.email=tests@example.invalid",
-            "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "Record fixture",
+            "commit", "--quiet", "-m", "Record fixture",
         )
         return self.git(repo, "rev-parse", "HEAD")
 

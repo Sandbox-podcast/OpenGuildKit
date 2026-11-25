@@ -3,6 +3,7 @@
 import sys
 
 from .project import unsure_answers
+from .terminal import interactive_input
 
 
 def prompt_choices(question: dict, value: str):
@@ -23,7 +24,7 @@ def prompt_choices(question: dict, value: str):
 
 def prompt_questions(questions: list[dict], command: str) -> dict:
     """Ask each question in turn and return the answers; Enter keeps a default, ? applies the unsure answer."""
-    if not sys.stdin.isatty():
+    if not interactive_input():
         raise ValueError(f"{command} needs a terminal or --answers PATH.")
     answers = {}
     for question in questions:

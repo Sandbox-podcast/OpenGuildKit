@@ -7,12 +7,17 @@ that depend on time (a share's end, a waiver's length and its expiry, an approva
 of a market observation or a Storybook index, a date in the future) read real_now() and
 real_today(), which the variable never changes. Measuring a duration uses time.monotonic instead.
 
+Both clocks date a calendar day in UTC, the same day as the first ten characters of their
+timestamp. A local date would show two days for one act when the decision text pairs a UTC
+timestamp with a profile date, and would expire a share on a different day from the check that
+compares it (Documentalist ends an invitation at 00:00 UTC).
+
 Which clock dates which field:
 
 - the record clock (timestamp, today), which SOURCE_DATE_EPOCH replaces: a task's created_at and
   completed_at, the times of board passes, results, check runs and deferrals, the alert register,
-  a deliverable's created_at, and the dates an exported docs site or record shows, so that a
-  replayed export is the same on any day;
+  a deliverable's created_at, a profile change's date, and the dates an exported docs site or
+  record shows, so that a replayed export is the same on any day;
 - the real clock (real_timestamp, real_today), which it never changes: what a person decides and
   whose age or end is measured later, that is a decision (decision.at), the withdrawal of an
   approval (revoked.at and the decision that withdraws it), the clearance or waiver of a blocker
@@ -57,9 +62,9 @@ def now() -> datetime:
 
 
 def today() -> date:
-    """The day written into a record: today's local date, or the UTC date of SOURCE_DATE_EPOCH when it is set."""
+    """The UTC day written into a record, or the UTC date of SOURCE_DATE_EPOCH when it is set."""
     fixed = _source_date_epoch()
-    return fixed.date() if fixed else date.today()
+    return fixed.date() if fixed else now().date()
 
 
 def timestamp() -> str:
@@ -73,8 +78,8 @@ def real_now() -> datetime:
 
 
 def real_today() -> date:
-    """Today's local date, whatever SOURCE_DATE_EPOCH says: for end dates that decide something."""
-    return date.today()
+    """The UTC day of the real clock, whatever SOURCE_DATE_EPOCH says: decisions and deadlines."""
+    return real_now().date()
 
 
 def real_timestamp() -> str:

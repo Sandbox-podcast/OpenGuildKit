@@ -11,6 +11,7 @@ from .alerts import (
 from .results import DONE_STATUSES
 from .storage import json_text, project_lock, write_json
 from .tasks import create_task, read_task, task_path
+from .terminal import interactive_input
 
 STATUS_CHOICES = (*REVIEW_STATUSES, "to-verify")
 
@@ -53,7 +54,7 @@ def add_parser(commands) -> None:
 
 def _confirm_person(alert_id: str, what: str) -> None:
     """A person types the alert ID at an interactive terminal, as for a waiver."""
-    if not sys.stdin.isatty():
+    if not interactive_input():
         raise ValueError(f"To {what} {alert_id}, a person runs the command at an interactive terminal.")
     print(f"Type {alert_id} to {what} it: ", end="", file=sys.stderr, flush=True)
     if input().strip() != alert_id:

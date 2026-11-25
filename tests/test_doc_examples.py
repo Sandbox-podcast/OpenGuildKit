@@ -86,6 +86,19 @@ class ToolsScenarioTests(unittest.TestCase):
         error = run_cli(self.root, "tools", "scenario", "gryzzly", expect=1).stderr
         self.assertIn("None of these tools has a mock with records: gryzzly.", error)
 
+    def test_no_page_points_the_real_interface_at_a_numeric_loopback(self):
+        """Issue #330: openguildkit ui answers only the printed ogk-….localhost origin."""
+        repo = Path(__file__).resolve().parents[1]
+        forbidden = ("OGK_API=http://127.0.0.1", "http://127.0.0.1:7311/?key=")
+        found = []
+        for folder in (repo / "docs", repo / "web"):
+            for page in folder.rglob("*.md"):
+                text = page.read_text(encoding="utf-8")
+                for needle in forbidden:
+                    if needle in text:
+                        found.append(f"{page.relative_to(repo).as_posix()}: {needle}")
+        self.assertEqual(found, [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -9,7 +9,6 @@ import http.cookiejar
 import json
 import re
 import ssl
-import sys
 from datetime import date
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -17,6 +16,7 @@ from urllib.parse import quote, urlsplit
 from urllib.request import HTTPRedirectHandler, HTTPCookieProcessor, Request, build_opener
 
 from . import clock
+from .terminal import interactive_input
 from .publishing import load_shares, portal_space, share_space
 from .storage import project_lock, read_json, write_json
 
@@ -145,7 +145,7 @@ def verify_portal(state: Path, portal: str, user: str) -> dict:
     shares = load_shares(state)
     if not any(share_space(share) == space for share in shares):
         raise ValueError(f"The local register has no shares for {space}.")
-    if not sys.stdin.isatty():
+    if not interactive_input():
         raise ValueError("Portal verification needs an interactive terminal for the Documentalist password.")
     password = getpass.getpass(f"Documentalist password for {user}: ")
     opener = build_opener(_NoRedirect(), HTTPCookieProcessor(http.cookiejar.CookieJar()))

@@ -21,7 +21,20 @@ def subprocess_environment(overrides=None):
         environment.update(overrides)
     environment.pop("PYTHONDONTWRITEBYTECODE", None)
     environment["PYTHONPYCACHEPREFIX"] = _PYCACHE.name
+    isolate_git(environment)
     return environment
+
+
+def isolate_git(environment=None):
+    """Ignore the contributor's Git configuration. A global commit.gpgsign otherwise fails or signs every test commit."""
+    target = os.environ if environment is None else environment
+    target["GIT_CONFIG_NOSYSTEM"] = "1"
+    target["GIT_CONFIG_GLOBAL"] = os.devnull
+    target.setdefault("GIT_AUTHOR_NAME", "OpenGuildKit Test")
+    target.setdefault("GIT_AUTHOR_EMAIL", "test@example.invalid")
+    target.setdefault("GIT_COMMITTER_NAME", target["GIT_AUTHOR_NAME"])
+    target.setdefault("GIT_COMMITTER_EMAIL", target["GIT_AUTHOR_EMAIL"])
+    return target
 
 
 def run_cli(project, *arguments, expect=0, stdin=None, typed=None, subprocess_mode=False, env=None):

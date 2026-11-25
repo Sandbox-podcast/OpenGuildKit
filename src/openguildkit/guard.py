@@ -14,6 +14,7 @@ import tempfile
 from pathlib import Path, PurePosixPath
 
 from .catalog import load_catalog
+from .terminal import interactive_input
 from .decisions import (
     DECISIONS_DIR, approval_policy, base_commit, changed_paths_since, check_decision, check_decision_seal,
     exported_boards, exported_records, exported_rounds, history_message, outside_history_message, record_digest,
@@ -306,7 +307,7 @@ def hook_command(event: str, project: Path | None, catalog_in_force=None) -> int
     of the CLI.
     """
     try:
-        raw = "" if sys.stdin.isatty() else sys.stdin.read()
+        raw = "" if interactive_input() else sys.stdin.read()
     except (OSError, UnicodeError):
         raw = None
     code, out, err = run_hook(event, raw, project, project_loader(project, catalog_in_force))

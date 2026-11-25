@@ -34,7 +34,7 @@ npm run build:demo   # build de la démonstration seule dans dist-demo/, servie 
 
 `npm run bundle` refuse une construction qui contient la démo ou qui dépasse 1 298 Ko (`BUDGET_KB` dans `scripts/bundle.mjs` : la taille mesurée le 22 novembre 2026, plus 10 %). Relève ce budget seulement avec la mesure qui le justifie.
 
-Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un projet, puis `OGK_API=http://127.0.0.1:7311 npm run dev`, et ouvre une fois `http://localhost:5199/api/session?key=…` avec la clé de l'adresse imprimée avant `http://localhost:5199/`. `python scripts/sample-project.py DOSSIER` crée un projet d'exemple avec une quête dans chaque état.
+Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un projet, puis `OGK_API=http://ogk-….localhost:7311 npm run dev`, et ouvre une fois `http://localhost:5199/api/session?key=…` avec la clé de l'adresse imprimée avant `http://localhost:5199/`. `python scripts/sample-project.py DOSSIER` crée un projet d'exemple avec une quête dans chaque état.
 
 ## Vérifier
 
@@ -43,7 +43,7 @@ npm run typecheck    # TypeScript strict
 npm test             # tests Vitest : domaine de la démo (règles sensibles, parcours principal, commandes du terminal), mode réel, script d'empaquetage
 npm run e2e          # parcours de la démonstration (Playwright, Chrome installé localement)
 npm run e2e:project  # parcours et balayages du mode réel sur des projets d'exemple neufs servis par openguildkit ui (après npm run build)
-npm run measure:project -- 'http://127.0.0.1:7311/?key=…'   # l'adresse imprimée par openguildkit ui ; temps d'affichage, requêtes et volumes de chaque lieu du mode réel
+npm run measure:project -- 'http://ogk-….localhost:7311/?key=…'   # l'origine de l'adresse imprimée par openguildkit ui ; temps d'affichage, requêtes et volumes de chaque lieu du mode réel
 npm run catalogue    # régénère src/fixtures/catalogue.json depuis data/SOCLE_Catalogue_395_References.md
 npm run docs:roles   # régénère docs/roles.md depuis les capacités du domaine
 CAPTURES=1 npm run e2e -- captures   # régénère docs/captures-apres (RPG) et docs/captures-pro

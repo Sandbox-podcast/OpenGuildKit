@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 from .clock import today
+from .terminal import interactive_input
 from .hosts import HOSTS
 from .lock import apply_lock, build_lock, installed_catalog, read_lock, write_lock
 from .patterns import pattern_selection, recommend_patterns, role_choices
@@ -329,7 +330,7 @@ def _voids(voided: list[str]) -> str:
 def _confirm(change: str, target: str, weakened: list[tuple[str, list[str]]], voided: list[str]) -> None:
     """A change that weakens a protection is typed by the person at a terminal, never run by an agent."""
     what = "; ".join(text for text, _ in weakened)
-    if not sys.stdin.isatty():
+    if not interactive_input():
         raise Weakening(f"'{change}' weakens a protection ({what}): it is the person's decision. Ask them to run the "
                         f"same command at an interactive terminal.{_voids(voided)} Nothing was written.", weakened)
     print(f"'{change}' weakens a protection of the project ({what}).{_voids(voided)} Type {target} to confirm: ",

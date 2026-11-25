@@ -9,6 +9,7 @@ from importlib import import_module
 from pathlib import Path
 
 from . import alerts_cli, features_cli, market_cli, profile_cli, storybook_cli, tasks_cli, tools_cli
+from .terminal import interactive_input
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
 from .catalog import board_replacements, undated_sources
 from .ci import check_export
@@ -1088,7 +1089,7 @@ def _init(args, root: Path, state: Path, catalog: dict) -> None:
         return
     if (state / "project.json").exists():
         raise ValueError(ALREADY_INITIALIZED)
-    if not args.answers and not sys.stdin.isatty():
+    if not args.answers and not interactive_input():
         raise ValueError("init needs a terminal for its questions. Without one, print them with openguildkit init "
                          "--questions, save the answers as JSON, then run openguildkit init --answers PATH.")
     answers = read_json(args.answers) if args.answers else _interactive_init(questions, catalog, registry)

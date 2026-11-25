@@ -57,11 +57,13 @@ class ClockTests(unittest.TestCase):
             self.assertEqual(clock.now(), datetime(2025, 11, 20, 12, tzinfo=timezone.utc))
             self.assertEqual(clock.today(), date(2025, 11, 20))
             self.assertEqual(clock.timestamp(), "2025-11-20T12:00:00+00:00")
-        local_day = date(2026, 11, 22)
+        local_day = date(1999, 1, 1)
         with patch.dict(os.environ, {}, clear=False), patch.object(clock, "date") as local_date:
             os.environ.pop("SOURCE_DATE_EPOCH", None)
             local_date.today.return_value = local_day
-            self.assertEqual(clock.today(), local_day)
+            self.assertEqual(clock.today(), clock.now().date())
+            self.assertEqual(clock.real_today(), clock.real_now().date())
+            self.assertNotEqual(clock.today(), local_day)
 
     def test_a_malformed_source_date_epoch_is_a_clear_error(self):
         for value in ("yesterday", "-5", "1.5", "²", "99999999999999999999"):
@@ -193,6 +195,29 @@ class DecisionClockTests(ApprovalCase):
                  "withdrawing decision": task["decision"]["at"], "authorization": task["authorizations"][0]["at"],
                  "waiver": withdrawn["verification_blocker_resolutions"]["security:1"]["at"]}
         self.assertEqual({name: moment[:10] for name, moment in dated.items()}, dict.fromkeys(dated, today))
+
+    def test_decisions_and_deadlines_stay_on_the_utc_day_in_every_zone(self):
+        """Issue #341: one timezone, including a zone a day ahead of UTC, at any hour."""
+        import time
+        self.assertEqual(clock.real_timestamp()[:10], clock.real_today().isoformat())
+        self.assertEqual(clock.timestamp()[:10], clock.today().isoformat())
+        if not hasattr(time, "tzset"):
+            return
+        previous = os.environ.get("TZ")
+        try:
+            for zone in ("Asia/Tokyo", "America/Los_Angeles", "Pacific/Kiritimati"):
+                with self.subTest(zone=zone):
+                    os.environ["TZ"] = zone
+                    time.tzset()
+                    self.assertEqual(clock.real_today(), clock.real_now().date())
+                    self.assertEqual(clock.today(), clock.now().date())
+                    self.assertEqual(clock.real_timestamp()[:10], clock.real_today().isoformat())
+        finally:
+            if previous is None:
+                os.environ.pop("TZ", None)
+            else:
+                os.environ["TZ"] = previous
+            time.tzset()
 
     def test_a_waiver_expiry_follows_the_real_clock_under_source_date_epoch(self):
         waiver = {"kind": "waived", "until": (clock.real_today() + timedelta(days=3)).isoformat()}
