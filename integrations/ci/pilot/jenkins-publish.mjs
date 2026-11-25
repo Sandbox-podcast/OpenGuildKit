@@ -9,25 +9,25 @@ function gh(args, input) {
 
 function publish([repo, file, context = 'openguildkit/pilot-jenkins']) {
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !file || !/^openguildkit\/[a-z\d/-]+$/.test(context)) {
-    throw new Error('Dépôt, rapport ou contexte de statut invalide.');
+    throw new Error('Invalid repository, report or status context.');
   }
   const bytes = readFileSync(file);
   const report = JSON.parse(bytes);
   if (![report.commit, report.policyCommit].every(sha => /^[a-f0-9]{40}$/.test(sha)) ||
       !/^\d+\.\d+\.\d+$/.test(report.kitVersion) || !/^[a-f0-9]{64}$/.test(report.profileSha256) ||
       !['success', 'failure'].includes(report.state)) {
-    throw new Error('Le rapport ne contient pas les références attendues.');
+    throw new Error('The report does not contain the expected references.');
   }
 
   function verifyAgentPull() {
     const number = report.pullRequest?.split('/').at(-1);
     if (!/^[1-9]\d*$/.test(number) || !/^[a-f0-9]{64}$/.test(report.briefSha256) ||
         !sameRepositoryUrl(report.pullRequest, `https://github.com/${repo}/pull/${number}`)) {
-      throw new Error('PR ou empreinte du brief invalide.');
+      throw new Error('Invalid PR or brief digest.');
     }
     const pr = JSON.parse(gh(['api', `repos/${repo}/pulls/${number}`]));
     if (!sameRepositoryUrl(pr.html_url, report.pullRequest) || pr.state !== 'open' || pr.head.sha !== report.commit) {
-      throw new Error('La PR ou son commit courant ne correspond plus au rapport.');
+      throw new Error('The PR or its current commit no longer matches the report.');
     }
   }
 
@@ -41,7 +41,7 @@ function publish([repo, file, context = 'openguildkit/pilot-jenkins']) {
   let evidenceCommit;
   try {
     const saved = JSON.parse(gh(['api', `${endpoint}?ref=${encodeURIComponent(branch)}`]));
-    if (!Buffer.from(saved.content, 'base64').equals(bytes)) throw new Error('Preuve existante différente.');
+    if (!Buffer.from(saved.content, 'base64').equals(bytes)) throw new Error('The existing evidence is different.');
     evidenceCommit = gh(['api', `repos/${repo}/commits`, '--method', 'GET',
       '-f', `sha=${branch}`, '-f', `path=${path}`, '-F', 'per_page=1', '--jq', '.[0].sha']);
   } catch (error) {
