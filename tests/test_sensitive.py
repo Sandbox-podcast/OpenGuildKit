@@ -3,8 +3,11 @@
 Every fake credential is assembled at run time from obvious filler, so no committed string looks like a real one.
 """
 
+import base64
 import json
+import random
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -14,6 +17,7 @@ from openguildkit.sensitive import (
 )
 from openguildkit.storage import write_json
 from openguildkit.tools import load_tools, plan_connections
+from openguildkit.workflow import _received
 
 from tests.support import CapturedCli
 
@@ -150,6 +154,76 @@ class ShapeTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertIsNone(credential_kind(text))
 
+    def test_a_link_with_an_empty_user_name_has_a_password(self):
+        value = "S3cr3t" + "P4ss"
+        for link, expected in ((f"redis://:{value}@cache:6379/0", "redis://:[password]@cache:6379/0"),
+                               (f"amqp://guest:{value}@mq.example.test/", "amqp://guest:[password]@mq.example.test/")):
+            with self.subTest(link=link):
+                self.assertEqual(credential_kind(link), "a link with a password")
+                self.assertEqual(redact_credentials(f"Set REDIS_URL={link} first."), f"Set REDIS_URL={expected} first.")
+        for text in ("redis://cache:6379/0", "redis://:@cache:6379/0", "https://example.test:8080/a@b", "ratio://:"):
+            with self.subTest(text=text):
+                self.assertIsNone(credential_kind(text))
+
+    def test_an_npm_auth_token_is_a_secret_whatever_its_leading_underscore(self):
+        value = "abcdefgh-1234-5678-abcd-" + "ef0123456789"
+        text = f"Add //registry.npmjs.org/:_authToken={value} to .npmrc."
+        self.assertEqual(credential_kind(text), "a secret in a setting")
+        self.assertEqual(redact_credentials(text), "Add //registry.npmjs.org/:_authToken=[credential] to .npmrc.")
+        self.assertIsNone(credential_kind("Add //registry.npmjs.org/:_authToken=${NPM_TOKEN} to .npmrc."))
+        self.assertIn("[password]", redact_credentials("//registry.npmjs.org/:_password=" + "aGVsbG8" + "gd29ybGQ="))
+
+    def test_an_aws_secret_access_key_is_a_secret_in_any_case(self):
+        value = "wJalrXUtnFEMI/K7MDENG/" + "bPxRfiCYEXAMPLEKEY"
+        for text in (f'secretAccessKey: "{value}"', f'"SecretAccessKey": "{value}"', f"secret_access_key = {value}",
+                     f"secret-access-key: '{value}'", f"AWS_SECRET_ACCESS_KEY={value}"):
+            with self.subTest(text=text[:24]):
+                self.assertEqual(credential_kind(text), "a secret in a setting")
+                self.assertNotIn(value, redact_credentials(f"Config: {text} done"))
+        self.assertIsNone(credential_kind("secretAccessKey: ${AWS_SECRET_ACCESS_KEY}"))
+        self.assertIsNone(credential_kind("Read the secretAccessKey from the vault."))
+
+    def test_a_password_given_as_an_argument_is_replaced(self):
+        value = "Xq7vLm2" + "pRt9w"
+        for command, expected in (
+                (f"psql --password {value} shop", "psql --password [password] shop"),
+                (f"mysql --pass {value} shop", "mysql --pass [password] shop"),
+                (f"htpasswd --passwd {value}", "htpasswd --passwd [password]"),
+                (f"docker login -u deploy -p {value} registry.example.test",
+                 "docker login -u deploy -p [password] registry.example.test"),
+                (f"sshpass -p '{value}' ssh deploy@host", "sshpass -p [password] ssh deploy@host"),
+                (f'az login --password "{value}"', "az login --password [password]")):
+            with self.subTest(command=command[:24]):
+                self.assertEqual(credential_kind(command), "a password on a command line")
+                self.assertEqual(redact_credentials(f"Run {command}"), f"Run {expected}")
+
+    def test_a_flag_that_is_not_followed_by_a_password_is_left_alone(self):
+        for text in ("mkdir -p /tmp/build", "docker run -p 8080:80 app", "ssh -p 2222 deploy@host", "cp -p a b",
+                     "docker login --password-stdin", "psql --password to be asked", "Remove the --password flag",
+                     "Run docker login -p $REGISTRY_PASSWORD", "psql --password <password>", "sshpass -p '' ssh host",
+                     "login -p prompt", "psql --password YOUR_PASSWORD"):
+            with self.subTest(text=text):
+                self.assertIsNone(credential_kind(text))
+                self.assertEqual(redact_credentials(text), text)
+
+    def test_a_requirement_about_a_password_is_not_a_password(self):
+        for text in ("Signup form. Password: required, min 12 chars.", "Password: optional", "password: min 12 characters",
+                     "Password = required.", "Mot de passe: obligatoire, 12 caractères.", "Password: must contain a digit"):
+            with self.subTest(text=text):
+                self.assertIsNone(credential_kind(text))
+                self.assertEqual(redact_credentials(text), text)
+        for text, expected in (("Password: Xq7vLm2pRt9w", "Password: [password]"), ("password: hunter2", "password: [password]"),
+                               ("Password: required123", "Password: [password]"), ('password: "required"', "password: [password]"),
+                               ("Password: correcthorse", "Password: [password]"), ("mot de passe: Xq7vLm2pRt9w", "mot de passe: [password]")):
+            with self.subTest(text=text):
+                self.assertEqual(redact_credentials(text), expected)
+
+    def test_a_pgp_private_key_block_and_a_french_password_are_replaced(self):
+        block = "-----BEGIN PGP PRIVATE KEY BLOCK-----\nlQOYBF" + "x" * 40 + "\n-----END PGP PRIVATE KEY BLOCK-----"
+        self.assertEqual(redact_credentials(f"Key:\n{block}\nDone."), "Key:\n[private key]\nDone.")
+        self.assertEqual(redact_credentials("mdp: Xq7vLm2" + "pRt9w"), "mdp: [password]")
+        self.assertEqual(redact_credentials("DB_MDP=Xq7vLm2" + "pRt9w"), "DB_MDP=[password]")
+
     def test_a_camel_case_token_key_is_a_secret_in_a_setting(self):
         value = "x7" * 8
         for key in ("accessToken", "refreshToken", "idToken", "clientSecret"):
@@ -183,6 +257,55 @@ class ShapeTests(unittest.TestCase):
         self.assertEqual(personal_data_kinds("Call +33 6 12 34 56 78"), ["a phone number"])
         self.assertEqual(personal_data_kinds("Pay FR76 3000 6000 0112 3456 7890 189"), ["a bank account number"])
         self.assertEqual(personal_data_kinds("Ship version 1.4.0 on 2026-12-01"), [])
+
+
+class CostTests(unittest.TestCase):
+    """A long line costs one pass of each shape, not one pass per character (issue #378)."""
+
+    # A linear pass over these lines takes a few milliseconds; the quadratic one took ten seconds or more.
+    BUDGET = 2.0
+
+    @staticmethod
+    def long_lines(size):
+        noise = random.Random(378).randbytes(size * 3 // 4)
+        return {
+            "one word": "a" * size, "words joined by underscores": "a_" * (size // 2),
+            "words joined by hyphens": "a-1" * (size // 3), "dotted words": "x." * (size // 2),
+            "base64": base64.b64encode(noise).decode(), "base64 with hyphens": base64.urlsafe_b64encode(noise).decode(),
+            "mysql on one line": "mysql " * (size // 6), "login on one line": "login " * (size // 6),
+            "repeated flags": "--pass x " * (size // 9), "at signs": "a@" * (size // 2),
+            "a word and an at sign": "a" * (size - 1) + "@", "sk- prefixes": "sk-" * (size // 3),
+        }
+
+    def assertQuick(self, function, size):
+        for label, text in self.long_lines(size).items():
+            with self.subTest(line=label):
+                started = time.perf_counter()
+                function(text)
+                self.assertLess(time.perf_counter() - started, self.BUDGET)
+
+    def test_redacting_a_long_line_stays_linear(self):
+        self.assertQuick(redact_credentials, 50_000)
+
+    def test_looking_for_personal_data_in_a_long_line_stays_linear(self):
+        self.assertQuick(personal_data_kinds, 200_000)
+
+    def test_an_error_line_cuts_a_long_value_before_looking_for_secrets(self):
+        searched = []
+        with patch("openguildkit.workflow.redact_credentials", side_effect=lambda text: searched.append(text) or text):
+            received = _received("a" * 200_000)
+        self.assertLess(len(searched[0]), 5_000)
+        self.assertEqual(len(received), 60)
+        self.assertEqual(_received(f"Key {SAMPLES['a GitHub token']}"), '"Key [credential]"')
+
+    def test_a_long_line_still_hides_the_secret_it_ends_with(self):
+        for text in ("a_" * 2_000 + "DB_PASSWORD=Xq7vLm2pRt9w", "a_" * 2_000 + " dbPassword=Xq7vLm2pRt9w",
+                     "a_" * 2_000 + " --password=Xq7vLm2pRt9w"):
+            with self.subTest(end=text[-30:]):
+                self.assertTrue(redact_credentials(text).endswith("=[password]"))
+        self.assertEqual(personal_data_kinds("a." * 5_000 + " ops@example.test"), ["an email address"])
+        self.assertEqual(personal_data_kinds("a" * 5_000 + "@example.test"), ["an email address"])
+        self.assertEqual(redact_credentials("mysql " * 1_000 + "-u app -pMq7Lm2pRt9 shop").count("[password]"), 1)
 
 
 class SettingTests(unittest.TestCase):
@@ -240,6 +363,23 @@ class TaskInputTests(CapturedCli, unittest.TestCase):
             self.assertNotIn(part, record)
             self.assertNotIn(part, warning)
 
+    def test_the_forms_the_detector_once_missed_are_recorded_without_their_secret(self):
+        redis, npm, aws = "S3cr3t" + "P4ss", "abcdefgh-1234-5678-abcd-" + "ef0123456789", "wJalrXUtnFEMI/K7MDENG/" + "bPxRfiCYEXAMPLEKEY"
+        brief = (f'Fix cache: REDIS_URL=redis://:{redis}@cache:6379/0 and secretAccessKey: "{aws}" in '
+                 f"//registry.npmjs.org/:_authToken={npm}")
+        _, warning = self.run_cli("task", "new", brief, "--id", TASK)
+        self.assertIn("replaced a possible credential in the task brief", warning)
+        record = (self.root / ".openguildkit" / "tasks" / f"{TASK}.json").read_text(encoding="utf-8")
+        for secret in (redis, npm, aws):
+            self.assertNotIn(secret, record)
+            self.assertNotIn(secret, warning)
+
+    def test_a_requirement_that_names_a_password_is_recorded_as_written(self):
+        brief = "Signup form. Password: required, min 12 chars."
+        _, warning = self.run_cli("task", "new", brief, "--id", TASK)
+        self.assertEqual(self.brief(), brief)
+        self.assertNotIn("replaced a possible credential", warning)
+
     def test_a_brief_with_registry_tokens_is_recorded_without_them(self):
         atlassian, openai = SAMPLES["an Atlassian API token"], SAMPLES["an OpenAI API key"]
         brief = f"Connect the Jira export. Use api_key: {atlassian} and Authorization: Bearer {openai} for the calls."
@@ -255,6 +395,15 @@ class TaskInputTests(CapturedCli, unittest.TestCase):
     def consult(self, answers):
         write_json(self.root / "answers.json", answers)
         return self.run_cli("task", "consult", TASK, "--answers", self.root / "answers.json")[1]
+
+    def test_a_long_brief_and_a_long_answer_are_recorded_without_a_wait(self):
+        started = time.perf_counter()
+        self.run_cli("task", "new", "a" * 30_000, "--id", TASK)
+        self.assertLess(time.perf_counter() - started, 2 * CostTests.BUDGET)
+        answers = json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8"))
+        started = time.perf_counter()
+        self.consult({**answers, "context": "x" * 30_000})
+        self.assertLess(time.perf_counter() - started, 2 * CostTests.BUDGET)
 
     def test_answers_and_a_revised_brief_are_recorded_without_the_credential(self):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)

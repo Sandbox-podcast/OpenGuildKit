@@ -1,7 +1,7 @@
 {
   "id": "github-actions-security",
   "title": "GitHub Actions security",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Checks for build workflow permissions, action pinning and deployment credentials.",
   "sources": [
     {
@@ -33,7 +33,7 @@
     },
     {
       "id": "declare-workflow-permissions",
-      "instruction": "Declare `permissions:` in the workflows, so jobs get the permissions their steps need and not the default.",
+      "instruction": "Declare `permissions:` in every workflow, so jobs get the permissions their steps need and not the default.",
       "verification": "task verify evaluates the check on the working tree; review each file it names.",
       "check": {
         "kind": "text",
@@ -44,7 +44,24 @@
         "contains": [
           "permissions:"
         ],
-        "expect": "present"
+        "expect": "present",
+        "each": true
+      }
+    },
+    {
+      "id": "refuse-write-all-permissions",
+      "instruction": "Do not grant `write-all` in a workflow or a job: list the scopes the steps need, with read access where nothing is written.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".github/workflows/*.yml",
+          ".github/workflows/*.yaml"
+        ],
+        "contains": [
+          "write-all"
+        ],
+        "expect": "absent"
       }
     }
   ]

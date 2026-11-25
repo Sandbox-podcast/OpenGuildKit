@@ -75,7 +75,7 @@ Tout programme du poste peut ouvrir une connexion vers 127.0.0.1 : ceux d'un aut
 - Un script qui lance le serveur pour son propre navigateur, comme les tests de bout en bout, peut fixer la clé avec `OPENGUILDKIT_UI_KEY` (32 à 128 lettres, chiffres, `-` ou `_`) ; elle reste aussi secrète que le script la garde. En développement avec `OGK_API` (l'origine de l'adresse imprimée), Vite sert la page : ouvre une fois `http://localhost:5199/api/session?key=…` avec la clé imprimée, puis `http://localhost:5199/`. Le cookie est alors posé sur `localhost` et part vers ses autres ports : réserve ce mode à un projet d'exemple.
 - Les commandes passent par l'analyseur de la CLI, puis par une liste de refus : `ci-check`, `mcp`, `ui`, `guard --hook`, `tools mock`, `integrations --user`, et les décisions réservées au terminal ci-dessus. Les abréviations d'options (`--appr`) sont résolues avant le contrôle.
 - Pendant chaque commande, l'entrée standard n'est jamais un terminal, même si le serveur tourne dans un terminal : une invite interactive échoue au lieu d'attendre.
-- Les fichiers lus ou écrits restent dans le projet, hors de `.git` quelle que soit sa casse : sur un disque qui ignore la casse, `.GIT/x` s'écrirait dans `.git`. Les fichiers envoyés par la page (avis, rapport de scanner, résultats) passent par un dossier temporaire supprimé après la commande. La page ne liste ni ne lit `.env`, les noms qui évoquent un secret, ni les fichiers où les outils gardent leurs jetons : `token*.json`, `auth.json`, `*service-account*.json`, `local.settings.json`, ni ceux où les gestionnaires de paquets, Docker et les frameworks gardent un jeton ou un mot de passe en clair : `.yarnrc.yml`, `.npmrc`, `.pypirc`, `.netrc`, `.git-credentials`, `appsettings*.json`, `database.yml`, `.docker/config.json` (les enregistrements de l'outil sous `.openguildkit/` restent lisibles, même quand une quête s'appelle `token-rotation`).
+- Les fichiers lus ou écrits restent dans le projet, hors de `.git` quelle que soit sa casse : sur un disque qui ignore la casse, `.GIT/x` s'écrirait dans `.git`. Les fichiers envoyés par la page (avis, rapport de scanner, résultats) passent par un dossier temporaire supprimé après la commande. La page ne liste ni ne lit `.env`, les noms qui évoquent un secret, ni les fichiers où les outils gardent leurs jetons : `token*.json`, `auth.json`, `*service-account*.json`, `local.settings.json`, ni ceux où les gestionnaires de paquets, Docker et les frameworks gardent un jeton ou un mot de passe en clair : `.yarnrc.yml`, `.npmrc`, `.pypirc`, `.netrc`, `.git-credentials`, `appsettings*.json`, `database.yml`, `.docker/config.json` (les enregistrements de l'outil sous `.openguildkit/` restent listés et lisibles, même quand une quête s'appelle `token-rotation` ou `password-reset`, ou un dossier de marché `password-manager`). Une commande n'ouvre pas non plus ces fichiers par ses options : `task new --file credentials.md` est refusé (`secret-file`), alors qu'un fichier envoyé par la page est pris tel quel.
 - La page enregistre le profil par le chemin des commandes `profile` : sous le verrou du projet, validé comme `init`, inscrit dans l'historique `changes` avec le nom et la raison que la page envoie (`by`, `reason`, sinon `web interface`), puis `AGENTS.md` et le verrou du catalogue sont réécrits. Un changement qui affaiblit une protection est refusé avant d'écrire (`weakens-protection`), avec la commande `profile` à taper ; un profil invalide, ou dont l'historique diffère de celui enregistré (la page l'a modifié, ou une autre commande a changé le profil depuis sa lecture), est refusé (`invalid-profile`) ; dans les deux cas rien n'est écrit. Le seul autre fichier que la page écrit est `.openguildkit/storybook/proposals.json`, sous le même verrou (`project-busy` quand une autre commande le tient trop longtemps).
 - Les commandes s'exécutent une à la fois, dans le processus du serveur, sous un verrou. Une page envoie un fichier absent du projet comme une réponse vide, pas comme une erreur.
 
@@ -97,25 +97,25 @@ La commande rendue est celle que la CLI nomme dans son refus quand elle en nomme
 | `external-action-at-terminal` | Autoriser une action externe. |
 | `alert-accept-at-terminal` | Accepter une alerte confirmée. |
 | `alert-severity-at-terminal` | Fixer la sévérité d'une alerte. |
-| `alert-status-at-terminal` | Écarter une alerte critique ou haute, ou la déclarer fausse. |
+| `alert-status-at-terminal` | Écarter une alerte critique, ou revenir sur une alerte critique confirmée (`alerts set` ou `task alerts --set`). |
 | `weakens-protection` | Un changement du profil qui affaiblit une protection : la commande `profile` à taper, avec `--by` et `--reason`. |
 | `person-at-terminal` | Une autre décision que la CLI réserve à une personne au terminal. |
 | `send-setup-answers` | `init` sans réponses : la page envoie le questionnaire rempli. |
 | `send-task-answers` | `task consult` sans réponses : la page envoie le cadrage rempli. |
 | `invalid-profile` | Le profil envoyé n'est pas du JSON, n'est pas un profil valide, ou modifie l'historique des changements. Rien n'est écrit. |
 | `not-initialized` | Le projet n'est pas encore installé. |
-| `outside-project` | Un chemin sort du projet ou entre dans `.git`. |
-| `secret-file` | Le nom du fichier évoque un secret : la page ne le liste ni ne le lit. Un fichier dont le texte contient un secret (clé de compte de service, jeton, mot de passe) n'est pas lu non plus. |
+| `outside-project` | Un chemin sort du projet. |
+| `secret-file` | Le nom du fichier évoque un secret, ou le fichier est dans `.git` : la page ne le liste ni ne le lit. Un fichier dont le texte contient un secret (clé de compte de service, jeton, mot de passe) n'est pas lu non plus. |
 | `not-readable` | La page ne lit que le Markdown, le JSON, le YAML et le texte. |
 | `too-large` | La requête ou le fichier est trop gros (8 Mo par requête, 2 Mo par fichier lu). |
 | `not-in-page` | Une commande ou un fichier qui n'a pas sa place dans une page (`ui`, `ci-check`, `mcp`, `guard --hook`, `tools mock`, `integrations --user`, l'écriture d'un autre fichier que les propositions Storybook). |
 | `project-busy` | Une autre commande d'OpenGuildKit écrit le projet : réessayer. |
 | `stale-token` | Jeton de session absent ou périmé : le serveur a redémarré. Recharger la page. |
 | `foreign-page` | La requête ne vient pas de la page du serveur (en-tête `Host` ou `Origin` inconnu). |
-| `bad-request` | Une requête mal formée : corps, commande ou options. |
+| `bad-request` | Une requête mal formée : corps, commande ou options, un chemin avec un octet nul, un texte qu'aucun fichier ne peut contenir (un substitut isolé). |
 | `not-found` | Point d'accès ou fichier inconnu. |
 | `open-printed-link` | Le navigateur n'a pas ouvert l'adresse imprimée par `openguildkit ui` pour ce lancement : l'ouvrir. |
-| `server-error` | Le serveur a échoué en traitant la requête. |
+| `server-error` | Le serveur a échoué en traitant la requête : le type, le message et la trace sont écrits dans le terminal de `openguildkit ui`. |
 
 ## Développer l'interface
 
@@ -137,7 +137,7 @@ cd web && npm ci --ignore-scripts && npm run build && npm run bundle   # copie d
 python -m build --wheel
 ```
 
-`npm run bundle` refuse une construction qui contient les images de la démo ou qui dépasse son budget (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 298 Ko, soit 1 180 Ko mesurés le 22 novembre 2026 plus 10 %). La release (`.github/workflows/release.yml`) et le job CI `package` font ces étapes, et refusent une roue sans `openguildkit/web_dist/index.html`. Le job `package` installe ensuite la roue sur Linux, macOS et Windows (avec `pipx` sous Windows) et vérifie que `openguildkit ui` répond 200 sur `/` avec chaque script de la page (`.github/scripts/check-installed-cli.py`). Dans un dépôt source, le serveur prend la plus récente des deux : `web/dist` ou la copie de `web_dist`.
+`npm run bundle` refuse une construction qui contient les images de la démo ou qui dépasse son budget (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 298 Ko, soit 1 180 Ko mesurés le 22 novembre 2026 plus 10 % ; la construction pèse 1 248 Ko le 25 novembre 2026, ce qui laisse 50 Ko, soit 4 %, de marge). La release (`.github/workflows/release.yml`) et le job CI `package` font ces étapes, et refusent une roue sans `openguildkit/web_dist/index.html`. Le job `package` installe ensuite la roue sur Linux, macOS et Windows (avec `pipx` sous Windows) et vérifie que `openguildkit ui` répond 200 sur `/` avec chaque script de la page (`.github/scripts/check-installed-cli.py`). Dans un dépôt source, le serveur prend la plus récente des deux : `web/dist` ou la copie de `web_dist`.
 
 ## Performances
 

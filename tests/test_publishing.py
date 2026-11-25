@@ -89,6 +89,32 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.assertFalse((site / "learn" / f"{TASK}.md").exists())
         self.assertEqual(len(list((site / "reference").glob("*.md"))), 1)
 
+    def test_export_replaces_a_credential_the_record_holds_and_says_what_personal_data_it_publishes(self):
+        self.done_task()
+        path = self.root / ".openguildkit" / "tasks" / f"{TASK}.json"
+        task = json.loads(path.read_text(encoding="utf-8"))
+        password, key = "hunter" + "2pass", "AK" + "IA" + "IOSFODNN7EXAMPLE"
+        task["brief"] += f"\nDeploy with {key}. Ask ops@example.test, +33 6 12 34 56 78 or FR76 3000 6000 0112 3456 7890 189.\n"
+        task["answers"]["outcome"] = f"Customers see their status, read with password={password}."
+        task["result"]["pull_request"] = f"https://user:{password}@github.com/example/portal/pull/7"
+        write_json(path, task)
+        _, warning = self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0")
+        for page in (self.root / "docs-site").rglob("*.md"):
+            text = page.read_text(encoding="utf-8")
+            for secret in (key, password):
+                self.assertNotIn(secret, text, page.name)
+        reference = (self.root / "docs-site" / "reference" / f"{TASK}.md").read_text(encoding="utf-8")
+        self.assertIn("Delivered in https://user:[password]@github.com/example/portal/pull/7", reference)
+        self.assertIn("Deploy with [credential].", reference)
+        self.assertIn(f"{TASK}: replaced a possible credential with a placeholder before publishing it", warning)
+        self.assertIn(f"{TASK}: the pages contain an email address and a phone number and a bank account number", warning)
+        for value in (key, password, "ops@example.test", "56 78", "3000 6000"):
+            self.assertNotIn(value, warning)
+
+    def test_export_of_a_clean_record_has_nothing_to_say(self):
+        self.done_task()
+        self.assertEqual(self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0")[1], "")
+
     def test_a_long_first_line_stays_in_reference_and_blog_when_the_title_is_shortened(self):
         brief = (
             "Show each signed-in customer the status and next step of their own support requests, "
@@ -136,6 +162,21 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.run_cli("docs", "share", "check")
         self.assertIn("shares/", (self.root / ".openguildkit" / ".gitignore").read_text())
 
+    def test_a_share_refuses_a_portal_address_with_a_password_or_a_token(self):
+        self.deliverable("docs-site/reference/request-status.md")
+        until = (clock.real_today() + timedelta(days=14)).isoformat()
+        password, token = "S3cr3t" + "Pw", "abc" + "123"
+        for portal in (f"https://admin:{password}@docs.example.org/p/zz?token={token}", f"https://admin:{password}@docs.example.org/p/zz",
+                       f"https://docs.example.org/p/zz?token={token}", f"https://docs.example.org/p/zz?api_key={token}abcdef"):
+            with self.subTest(portal=portal[:30]):
+                _, error = self.run_cli("docs", "share", "add", "--deliverable", "docs-site/reference/request-status.md",
+                                        "--recipient", "client@example.org", "--until", until, "--portal", portal,
+                                        "--by", "Camille", code=1)
+                self.assertIn("--portal: the link must carry no user name, password or token", error)
+                for secret in (password, token):
+                    self.assertNotIn(secret, error)
+        self.assertFalse((self.root / ".openguildkit" / "shares" / "shares.json").exists())
+
     def exported_site(self):
         self.done_task()
         self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0")
@@ -145,6 +186,26 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         manifest = json.loads((site / ".openguildkit-export.json").read_text(encoding="utf-8"))
         manifest["files"].append(entry)
         write_json(site / ".openguildkit-export.json", manifest)
+
+    def test_export_refuses_a_manifest_without_a_list_of_files_and_names_it(self):
+        self.done_task()
+        manifest = self.root / "docs-site" / publishing.MANIFEST
+        for content in ('{"version": "1"}', '{"files": null}', '{"files": "reference/a.md"}', '{"files": ["a.md", 3]}'):
+            with self.subTest(manifest=content):
+                manifest.write_text(content, encoding="utf-8")
+                _, error = self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "2",
+                                        code=1)
+                self.assertIn(f"{publishing.MANIFEST} is not an export manifest", error)
+                self.assertEqual(manifest.read_text(encoding="utf-8"), content)
+                self.assertEqual(sorted(path.name for path in (self.root / "docs-site").iterdir()), [publishing.MANIFEST])
+
+    def test_export_names_an_openapi_file_that_is_not_utf8(self):
+        self.done_task()
+        (self.root / "api.yaml").write_bytes(b"\xff\xfeopenapi: 3.0.0\n")
+        _, error = self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "2",
+                                "--openapi", "api.yaml", code=1)
+        self.assertIn("--openapi api.yaml is not UTF-8 text", error)
+        self.assertEqual(sorted(path.name for path in (self.root / "docs-site").iterdir()), [publishing.MANIFEST])
 
     def test_export_keeps_a_file_the_manifest_places_above_the_output_folder(self):
         site = self.exported_site()
@@ -586,14 +647,34 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.assertIn("can read both deliverables", warning)
         self.assertIn("--dedicated-space", warning)
         rows = self.shares()
-        self.assertEqual([row["also_in_space"] for row in rows], [["./e"], ["d"]])
+        self.assertEqual([row["also_in_space"] for row in rows], [["e"], ["d"]])
         listed, _ = self.run_cli("docs", "share", "list")
-        self.assertIn("its recipients can also read ./e, shared through the same space", listed)
+        self.assertIn("its recipients can also read e, shared through the same space", listed)
         self.run_cli("docs", "share", "check")
         self.assertEqual(self.add("./d", recipient="third@example.test")[1].count("also carries d "), 0)
         self.assertEqual(self.add("e", portal="https://docs.example.test/p/another-space")[1], "")
         self.run_cli("docs", "share", "revoke", "--id", first, "--by", "Camille")
         self.assertEqual(self.shares()[0]["also_in_space"], [])
+
+    def test_a_deliverable_named_by_its_absolute_path_is_the_one_its_relative_path_names(self):
+        self.deliverable()
+        self.deliverable("e")
+        dedicated = "https://docs.example.test/p/deliverable-d"
+        self.add((self.root / "d").as_posix(), portal=dedicated)
+        register = self.root / ".openguildkit" / "shares" / "shares.json"
+        self.assertEqual([row["deliverable"] for row in self.shares()], ["d"])
+        self.assertNotIn(self.root.name, register.read_text(encoding="utf-8"))
+        _, warning = self.add("d", recipient="other@example.test", portal=dedicated, dedicated=True)
+        self.assertNotIn("also carries", warning)
+        self.assertEqual([row["also_in_space"] for row in self.shares()], [[], []])
+        _, error = self.add((self.root / "e").as_posix(), portal=dedicated, code=1)
+        self.assertIn("Space docs.example.test/p/deliverable-d is dedicated to d", error)
+        # A register written before the path was normalized still holds the absolute path.
+        data = json.loads(register.read_text(encoding="utf-8"))
+        data["shares"][0]["deliverable"] = (self.root / "d").as_posix()
+        register.write_text(json.dumps(data), encoding="utf-8")
+        self.add("./d", recipient="third@example.test", portal=dedicated)
+        self.assertEqual([row["also_in_space"] for row in self.shares()], [[], [], []])
 
     def test_a_dedicated_space_refuses_a_second_deliverable_and_keeps_existing_spaces_working(self):
         self.deliverable()
@@ -609,7 +690,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.assertIn("is dedicated to d", error)
         self.assertEqual(len(self.shares()), 1)
         output, _ = self.add("./d", recipient="other@example.test", portal=dedicated)
-        self.assertIn("is recorded as dedicated to ./d", output)
+        self.assertIn("is recorded as dedicated to d", output)
         self.add("e")
         self.add("d")
         _, error = self.add("e", recipient="third@example.test", dedicated=True, code=1)
@@ -623,7 +704,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         first = self.shares()[0]["id"]
         self.run_cli("docs", "share", "revoke", "--id", first, "--by", "Camille")
         _, error = self.add("e", portal=dedicated, code=1)
-        self.assertIn("is dedicated to ./d", error)
+        self.assertIn("is dedicated to d", error)
 
     def test_check_fails_when_a_dedicated_space_carries_another_deliverable_after_an_edit(self):
         self.deliverable()

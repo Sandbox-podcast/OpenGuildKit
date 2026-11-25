@@ -7,7 +7,7 @@ const repository = /^[a-z\d][a-z\d-]*\/[a-z\d_.-]+$/i;
 export function inspectMergeProtection({ repo, base, ruleset, appId }, api = githubApi) {
   if (!repository.test(repo) || !/^[\w./-]+$/.test(base) ||
       !positiveId(ruleset) || (appId !== undefined && !positiveId(appId))) {
-    throw new Error('Dépôt GitHub, branche et identifiants de protection valides requis.');
+    throw new Error('A GitHub repository, a branch and valid protection identifiers are required.');
   }
   const endpoint = `repos/${repo}/rules/branches/${encodeURIComponent(base)}?per_page=100`;
   const active = api(endpoint, '--paginate', '--slurp').flat().some(rule =>
@@ -18,7 +18,7 @@ export function inspectMergeProtection({ repo, base, ruleset, appId }, api = git
   if (active && appId !== undefined) {
     const rules = api(`repos/${repo}/rulesets/${ruleset}?includes_parents=false`);
     if (!Array.isArray(rules.bypass_actors)) {
-      throw new Error('GitHub masque les exceptions au compte courant. Utiliser un compte autorisé à modifier la protection.');
+      throw new Error('GitHub hides the bypass actors from the current account. Use an account that is allowed to change the protection.');
     }
     const [actor] = rules.bypass_actors;
     exclusiveApp = rules.enforcement === 'active' && rules.rules?.length === 1 &&
@@ -31,7 +31,7 @@ export function inspectMergeProtection({ repo, base, ruleset, appId }, api = git
 
 export function inspectMergeInstallation({ repo, appSlug, appId }, api = githubApi) {
   if (!repository.test(repo) || !/^[a-z\d][a-z\d-]*$/.test(appSlug) || !positiveId(appId)) {
-    throw new Error('Dépôt, nom et identifiant de l’application GitHub valides requis.');
+    throw new Error('A repository and a valid GitHub app slug and ID are required.');
   }
   const app = api(`apps/${appSlug}`);
   const matchingApp = app.id === appId && app.slug === appSlug;

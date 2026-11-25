@@ -14,6 +14,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from . import clock
+from .sensitive import public_evidence_url
 from .storage import parse_json, read_bytes, read_json, write_text
 
 MARKET_DIR = "market"
@@ -70,10 +71,17 @@ def _competitor(item: dict, competitors: dict, label: str) -> str:
     return value
 
 
+def _cited(text: str, field: str) -> str:
+    """A source that is a link must be a public https link without credentials; notes and documents stay as written."""
+    if re.match(r"https?://", text, re.IGNORECASE):
+        public_evidence_url(text, field)
+    return text
+
+
 def _source(value, field: str) -> dict:
     if not isinstance(value, dict) or not {"ref", "date"} <= value.keys() <= {"ref", "date", "title"}:
         raise ValueError(f"{field} needs ref and date, and can add title.")
-    source = {"ref": _text(value["ref"], f"{field}.ref"), "date": _day(value["date"], f"{field}.date")}
+    source = {"ref": _cited(_text(value["ref"], f"{field}.ref"), f"{field}.ref"), "date": _day(value["date"], f"{field}.date")}
     if "title" in value:
         source["title"] = _text(value["title"], f"{field}.title")
     return source
@@ -137,6 +145,7 @@ def validate_watch(watch: dict, competitors: dict) -> dict:
         competitor = _competitor(item, competitors, "A watched source")
         if not isinstance(item["url"], str) or not item["url"].startswith("https://"):
             raise ValueError("Watched sources are public https pages.")
+        public_evidence_url(item["url"].strip(), "url")
         source = {"competitor": competitor, "url": _text(item["url"], "url"), "kind": _text(item["kind"], "kind")}
         if "last_checked" in item:
             source["last_checked"] = _day(item["last_checked"], "last_checked")
@@ -151,7 +160,7 @@ def validate_watch(watch: dict, competitors: dict) -> dict:
             raise ValueError("Each change needs competitor, what, date, source and verified_by.")
         changes.append({
             "competitor": _competitor(item, competitors, "A change"), "what": _text(item["what"], "what"), "date": _day(item["date"], "date"),
-            "source": _text(item["source"], "source"), "verified_by": _text(item["verified_by"], "verified_by"),
+            "source": _cited(_text(item["source"], "source"), "source"), "verified_by": _text(item["verified_by"], "verified_by"),
         })
     paused = watch.get("paused", False)
     if type(paused) is not bool:

@@ -414,6 +414,45 @@ test('only one watcher works on a state directory at a time', t => {
   assert.throws(run, /process 1 on other-host/);
 });
 
+test('the watcher reads a configuration that starts with a byte order mark', t => {
+  const { folder, configPath } = fixture(t, 'openguildkit-bom-');
+  writeFileSync(configPath, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), readFileSync(configPath)]));
+  const result = watchGithub({ configPath, stateDir: folder, kitVersion }, {
+    reconcile: () => ({ current: [] }), actions: { pins },
+  });
+  assert.deepEqual(result.errors, []);
+});
+
+test('two watchers that find the same stale lock do not both take it', t => {
+  const { folder } = fixture(t, 'openguildkit-stale-lock-');
+  writeFileSync(join(folder, 'watch.lock'),
+    JSON.stringify({ pid: 999999, host: hostname(), since: 'earlier', token: 'old' }) + '\n');
+  let first;
+  // The second watcher is judging the stale lock when the first one starts.
+  assert.throws(() => acquireWatchLock(folder, {
+    alive: () => {
+      first ??= acquireWatchLock(folder, { alive: () => false });
+      return false;
+    },
+  }), /Another watcher is using this state directory/);
+  assert.equal(typeof first, 'function');
+  assert.equal(JSON.parse(readFileSync(join(folder, 'watch.lock'), 'utf8')).pid, process.pid);
+  first();
+  assert.deepEqual(readdirSync(folder).filter(name => name.startsWith('watch.lock')), []);
+});
+
+test('a stale lock is still taken over when a stopped watcher left its break guard', t => {
+  const { folder } = fixture(t, 'openguildkit-break-guard-');
+  writeFileSync(join(folder, 'watch.lock'),
+    JSON.stringify({ pid: 999999, host: hostname(), since: 'earlier', token: 'old' }) + '\n');
+  writeFileSync(join(folder, 'watch.lock.break'), '');
+  assert.throws(() => acquireWatchLock(folder, { alive: () => false }), /Another watcher is using this state directory/);
+  const release = acquireWatchLock(folder, { alive: () => false, now: () => Date.now() + 2 * 60_000 });
+  assert.equal(JSON.parse(readFileSync(join(folder, 'watch.lock'), 'utf8')).pid, process.pid);
+  release();
+  assert.deepEqual(readdirSync(folder).filter(name => name.startsWith('watch.lock')), []);
+});
+
 test('a cycle keeps its report when the references cannot be read again before publication', t => {
   const { folder, configPath } = fixture(t, 'openguildkit-resync-',
     { file: 'recheck.yml', ref: 'pilot/base', evidenceBranch: 'reports' });

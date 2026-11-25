@@ -66,6 +66,40 @@ class EvaluatorTests(unittest.TestCase):
         self.write("slow.txt", "a" * 50_000 + "!")
         self.assertEqual(evaluate_check(self.root, {**literal, "paths": ["slow.txt"]})["status"], "failed")
 
+    def test_each_asks_every_matched_file_to_hold_one_of_the_texts(self):
+        self.write(".github/workflows/a.yml", "permissions: write-all\n")
+        self.write(".github/workflows/b.yml", "on: push\n")
+        anywhere = {"kind": "text", "paths": [".github/workflows/*.yml"], "contains": ["permissions:"],
+                    "expect": "present"}
+        self.assertEqual(evaluate_check(self.root, anywhere)["status"], "passed")
+        each = {**anywhere, "each": True}
+        validate_check(each, "check", allow_command=False)
+        outcome = evaluate_check(self.root, each)
+        self.assertEqual(outcome["status"], "failed")
+        self.assertIn(".github/workflows/b.yml", outcome["evidence"])
+        self.assertNotIn("a.yml", outcome["evidence"])
+        self.write(".github/workflows/b.yml", "permissions:\n  contents: read\n")
+        outcome = evaluate_check(self.root, each)
+        self.assertEqual(outcome["status"], "passed", outcome)
+        self.assertIn("each", outcome["evidence"])
+        self.assertEqual(evaluate_check(self.root, {**each, "paths": ["missing/*.yml"]})["status"], "failed")
+        for refused in ({**each, "each": False}, {**each, "expect": "absent"}):
+            with self.subTest(check=refused), self.assertRaisesRegex(ValueError, "each"):
+                validate_check(refused, "check", allow_command=False)
+
+    def test_the_workflow_permission_rules_fail_without_a_declaration_and_on_write_all(self):
+        rules = {rule["id"]: rule["check"] for rule in load_catalog()["packs"]["github-actions-security"]["rules"]
+                 if "check" in rule}
+        self.write(".github/workflows/a.yml", "permissions: write-all\n")
+        self.write(".github/workflows/b.yml", "on: push\n")
+        outcomes = {rule: evaluate_check(self.root, check)["status"] for rule, check in rules.items()}
+        self.assertEqual(outcomes, {"declare-workflow-permissions": "failed", "refuse-write-all-permissions": "failed"})
+        self.write(".github/workflows/a.yml", "permissions:\n  contents: read\n")
+        self.assertEqual(evaluate_check(self.root, rules["declare-workflow-permissions"])["status"], "failed")
+        self.write(".github/workflows/b.yml", "permissions:\n  contents: read\n")
+        outcomes = {rule: evaluate_check(self.root, check)["status"] for rule, check in rules.items()}
+        self.assertEqual(set(outcomes.values()), {"passed"})
+
     def test_field_checks_compare_json_and_toml_values(self):
         self.write("export.json", '{"download": {"minutes": 30}, "mode": "strict"}')
         self.write("pyproject.toml", '[tool.audit]\nlevel = 2\nenabled = true\n')
@@ -94,6 +128,24 @@ class EvaluatorTests(unittest.TestCase):
                 validate_check({"kind": "field", "path": path, "field": "a", "equals": 1}, "check", allow_command=False)
         with self.assertRaisesRegex(ValueError, "wildcards"):
             validate_check({"kind": "field", "path": "*.json", "field": "a", "equals": 1}, "check", allow_command=False)
+
+    def test_a_check_cannot_name_a_path_inside_git_or_the_project_state(self):
+        for check in (
+            {"kind": "text", "paths": [".git/config"], "contains": ["tok"], "expect": "present"},
+            {"kind": "text", "paths": ["*.md", "vendor/.GIT/config"], "contains": ["tok"], "expect": "absent"},
+            {"kind": "file-exists", "paths": [".git/config"]},
+            {"kind": "file-exists", "paths": [".openguildkit/project.json"]},
+            {"kind": "field", "path": ".openguildkit/project.json", "field": "name", "equals": "x"},
+        ):
+            with self.subTest(check=check), self.assertRaisesRegex(ValueError, "not searched"):
+                validate_check(check, "check", allow_command=False)
+        for path in (".github/workflows/ci.yml", ".gitignore", ".gitattributes", "docs/.git-notes.md"):
+            with self.subTest(path=path):
+                validate_check({"kind": "file-exists", "paths": [path]}, "check", allow_command=False)
+        leak = pack([{"id": "leak", "check": {"kind": "text", "paths": [".git/config"], "contains": ["tok"],
+                                               "expect": "present"}}])
+        with self.assertRaisesRegex(CatalogError, "not searched"):
+            validate_entry("packs", leak)
 
     @unittest.skipIf(os.name == "nt", "Creating a symbolic link needs a privilege Windows does not grant by default.")
     def test_a_link_that_leaves_the_project_is_not_read(self):

@@ -6,7 +6,7 @@ import { parseJsonObject } from './json.mjs';
 import { decide, parseWaivers } from './waivers.mjs';
 
 const json = value => JSON.stringify(value, null, 2) + '\n';
-const readJson = path => JSON.parse(readFileSync(path, 'utf8'));
+const readJson = path => parseJsonObject(readFileSync(path), path);
 const workKey = inputs => sha256(JSON.stringify(inputs));
 const profilePath = 'openguildkit.json';
 

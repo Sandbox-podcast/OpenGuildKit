@@ -256,7 +256,7 @@ class RecordLifecycleTests(CapturedCli, unittest.TestCase):
         record["record_sha256"] = record_digest(record)
         write_json(self.root / RECORD, record)
         self.git("commit", "-q", "-am", "forged")
-        self.assertIn("withdrawn must name who", self.run_cli("guard", "--ci", "--base", "main", code=1)[1])
+        self.assertIn("withdrawn must name who", " ".join(self.ci(code=1)["problems"]))
         self.git("rm", "-q", RECORD)
         self.git("commit", "-q", "-m", "no record")
         self.revoke()

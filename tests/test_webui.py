@@ -198,12 +198,12 @@ class WebInterfaceTests(unittest.TestCase):
 
     def test_git_is_out_of_reach_whatever_its_case(self):
         status, result = self.run_in_page("storybook", "extract", "--src", ".", "--output", ".GIT/probe.json")
-        self.assertEqual((status, result["reason"]), (400, "outside-project"))
+        self.assertEqual((status, result["reason"]), (403, "secret-file"))
         self.assertFalse((self.root / ".GIT").exists() or (self.root / ".git").exists())
         (self.root / ".Git").mkdir()
         (self.root / ".Git" / "config.json").write_text("{}", encoding="utf-8")
         status, _, body = self.request("/api/files/read", {"path": ".Git/config.json"})
-        self.assertEqual((status, json.loads(body)["reason"]), (403, "outside-project"))
+        self.assertEqual((status, json.loads(body)["reason"]), (403, "secret-file"))
         names = [entry["name"] for entry in json.loads(self.request("/api/files/list", {"path": "."})[2])["entries"]]
         self.assertNotIn(".Git", names)
 
@@ -227,6 +227,22 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(self.request("/api/files/read", {"path": ".openguildkit/decisions/token-rotation.json"})[0], 200)
         listed = json.loads(self.request("/api/files/list", {"path": ".openguildkit/decisions"})[2])["entries"]
         self.assertEqual([entry["name"] for entry in listed], ["token-rotation.json"])
+
+    def test_the_tools_own_records_stay_listed_and_readable_whatever_their_id_says(self):
+        """A market dossier or a task named after a password manager is not a secret: only the project's files are."""
+        self.assertEqual(self.run_in_page("market", "new", "password-manager", "--title", "T", "--market", "SaaS",
+                                          "--audience", "IT")[1]["code"], 0)
+        self.assertEqual(self.run_in_page("task", "new", "Reset a password", "--id", "password-reset")[1]["code"], 0)
+        for folder, name in ((".openguildkit/market", "password-manager.json"),
+                             (".openguildkit/tasks", "password-reset.json")):
+            with self.subTest(name=name):
+                listed = json.loads(self.request("/api/files/list", {"path": folder})[2])["entries"]
+                self.assertIn(name, [entry["name"] for entry in listed])
+                status, _, body = self.request("/api/files/read", {"path": f"{folder}/{name}"})
+                self.assertEqual(status, 200, body)
+        (self.root / "password-manager.json").write_text("{}", encoding="utf-8")
+        status, _, body = self.request("/api/files/read", {"path": "password-manager.json"})
+        self.assertEqual((status, json.loads(body)["reason"]), (403, "secret-file"))
 
     def test_the_files_where_tools_keep_credentials_are_neither_listed_nor_read(self):
         """The package managers, container and framework settings that hold a password or a token in clear."""
@@ -447,7 +463,8 @@ class WebInterfaceTests(unittest.TestCase):
         status, _, body = self.request("/api/session")
         human = json.loads(body)["human_only"]
         for command in ("task decide --approve", "task clear", "task waive", "task authorize --allow", "alerts accept",
-                        "task verify --cannot-run", "task complete --by", "tools apply (live)"):
+                        "task verify --cannot-run", "task complete --by", "tools apply (live)",
+                        "alerts set or task alerts --set (critical alert dismissed or taken back)"):
             self.assertIn(command, human)
 
     def test_a_signed_clearance_or_its_payload_is_not_refused_as_a_terminal_act(self):
@@ -666,6 +683,27 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertIn("alerts set npm:x:1 --status dismissed", result["command"])
         self.assertEqual(result["reason"], "alert-status-at-terminal")
 
+    def test_a_critical_alert_is_dismissed_at_a_terminal_by_alerts_set_and_by_task_alerts(self):
+        fixtures = REPO / "tests" / "fixtures" / "alerts"
+        critical, high = "npm:form-parser:ghsa-xxxx-yyyy-zzzz", "npm:semver:ghsa-c2qf-rxjj-qqgw"
+        self.run_in_page("task", "new", "Show request status", "--id", "request-status")
+        for name in ("npm-audit-critical.json", "npm-audit.json"):
+            status, result = self.run_in_page("task", "alerts", "request-status", "--import", "@upload:report.json",
+                                              uploads={"report.json": (fixtures / name).read_text(encoding="utf-8")})
+            self.assertEqual((status, result["code"]), (200, 0), result)
+        for argv in (["alerts", "set", critical, "--status", "dismissed", "--by", "Camille", "--reason", "Build only"],
+                     ["task", "alerts", "request-status", "--set", critical, "--status", "dismissed", "--by", "Camille",
+                      "--reason", "Build only"]):
+            with self.subTest(argv=argv[:2]):
+                status, result = self.run_in_page(*argv)
+                self.assertEqual((status, result["code"], result.get("reason")), (200, 1, "alert-status-at-terminal"), result)
+                self.assertTrue(result["command"].startswith("openguildkit --project "), result["command"])
+        # The rule is the CLI's: a high alert is dismissed from the page, and the refusal does not claim otherwise.
+        status, result = self.run_in_page("alerts", "set", high, "--status", "dismissed", "--by", "Camille",
+                                          "--reason", "Build only")
+        self.assertEqual((status, result["code"]), (200, 0), result)
+        self.assertNotIn("high", webui.REFUSALS["alert-status-at-terminal"])
+
     def test_the_command_the_cli_names_in_its_refusal_is_the_one_to_type(self):
         message = ("OpenGuildKit: 1 data protection, security or AI point(s) are skipped, failed or declared not "
                    "applicable as a pack. A person confirms closing over them: openguildkit task complete "
@@ -731,7 +769,7 @@ class WebInterfaceTests(unittest.TestCase):
         # mcp serves the agent host on stdio, which the page replaces: it would fail with a server error.
         run_in_page("not-in-page", "mcp")
         run_in_page("outside-project", "task", "export", "request-status", "--output", "../outside.json", status=400)
-        run_in_page("outside-project", "task", "export", "request-status", "--output", ".git/record.json", status=400)
+        run_in_page("secret-file", "task", "export", "request-status", "--output", ".git/record.json")
         run_in_page("bad-request", "no-such-command", status=400)
         refused_by_server("weakens-protection", 403, "/api/profile/save", {"text": json.dumps(
             {**json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8")),
@@ -739,7 +777,7 @@ class WebInterfaceTests(unittest.TestCase):
         refused_by_server("invalid-profile", 400, "/api/profile/save", {"text": "[1, 2]"})
         refused_by_server("invalid-profile", 400, "/api/profile/save", {"text": "{not json"})
         refused_by_server("secret-file", 403, "/api/files/read", {"path": ".env"})
-        refused_by_server("outside-project", 403, "/api/files/read", {"path": ".git/config"})
+        refused_by_server("secret-file", 403, "/api/files/read", {"path": ".git/config"})
         refused_by_server("outside-project", 400, "/api/files/read", {"path": "../x.json"})
         refused_by_server("not-readable", 403, "/api/files/read", {"path": "notes.py"})
         refused_by_server("too-large", 413, "/api/files/read", {"path": "big.txt"})
@@ -758,7 +796,7 @@ class WebInterfaceTests(unittest.TestCase):
         with patch.dict("os.environ", {"OPENGUILDKIT_LOCK_TIMEOUT": "0"}), project_lock(self.root / ".openguildkit"):
             refused_by_server("project-busy", 409, "/api/files/write",
                               {"path": ".openguildkit/storybook/proposals.json", "text": "{}"})
-        with patch.object(self.app, "handle", side_effect=RuntimeError("boom")):
+        with patch.object(self.app, "handle", side_effect=RuntimeError("boom")), contextlib.redirect_stderr(io.StringIO()):
             refused_by_server("server-error", 500, "/api/run", {"argv": ["check"]})
         uninitialized = self.root / ".openguildkit" / "project.json"
         saved = uninitialized.read_text(encoding="utf-8")
@@ -823,6 +861,20 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(self.run_in_page("ui")[0], 403)
         self.assertEqual(self.run_in_page("--project", "..", "check")[0], 400)
 
+    def test_a_command_does_not_read_a_file_the_page_refuses_to_read(self):
+        for index, name in enumerate(("credentials.md", "client_secret.json")):
+            (self.root / name).write_text("Staging login: admin / Tr0ub4dor&3\n", encoding="utf-8")
+            with self.subTest(name=name):
+                status, _, body = self.request("/api/files/read", {"path": name})
+                self.assertEqual((status, json.loads(body)["reason"]), (403, "secret-file"))
+                status, result = self.run_in_page("task", "new", "--file", name, "--id", f"x{index}")
+                self.assertEqual((status, result.get("reason")), (403, "secret-file"), result)
+                self.assertEqual(self.run_in_page("task", "list", "--json")[1]["json"], [])
+        # The page's own upload is the person's text, whatever its name.
+        status, result = self.run_in_page("task", "new", "--file", "@upload:credentials.md", "--id", "uploaded",
+                                          uploads={"credentials.md": "Show request status\n"})
+        self.assertEqual((status, result["code"]), (200, 0), result)
+
     def test_malformed_requests_and_commands_that_do_not_belong_in_a_page_are_refused(self):
         self.assertEqual(self.request("/api/run", method="GET")[0], 405)
         self.assertEqual(self.request("/api/unknown", {})[0], 404)
@@ -873,6 +925,66 @@ class WebInterfaceTests(unittest.TestCase):
         status, _, body = self.request("/api/files/list", {"path": "."})
         self.assertNotIn(".env", [entry["name"] for entry in json.loads(body)["entries"]])
         self.assertEqual(self.request("/api/files/write", {"path": ".openguildkit/project.json", "text": "{}"})[0], 403)
+
+    def test_a_path_with_a_nul_is_a_bad_request(self):
+        """Where the platform cannot resolve such a path (a NUL, a lone surrogate: POSIX), the page answers bad-request.
+        Where it can (Windows accepts a lone surrogate in a name, and Python 3.15 no longer raises for a NUL), the page
+        answers as it does for a file that is not there. It never answers with a server error."""
+        def unresolvable(text):
+            try:
+                (self.root / text).resolve()
+            except ValueError:
+                return True
+            return False
+        for path, body, text in (("/api/files/read", {"path": "a\0b.md"}, "a\0b.md"),
+                                 ("/api/files/list", {"path": "a\0b"}, "a\0b"),
+                                 ("/api/run", {"argv": ["task", "new", "--file", "a\0b.md"]}, "a\0b.md"),
+                                 ("/api/run", {"argv": ["task", "new", "--file", "a\ud800b.md"]}, "a\ud800b.md")):
+            with self.subTest(path=path, body=body):
+                status, _, raw = self.request(path, body)
+                answer = json.loads(raw)
+                if unresolvable(text):
+                    self.assertEqual((status, answer["reason"]), (400, "bad-request"))
+                else:
+                    self.assertLess(status, 500)
+                    self.assertNotEqual(answer.get("reason"), "server-error")
+        status, _, raw = self.request("/api/run", {"batch": {"nul": ["task", "new", "--file", "a\0b.md"],
+                                                             "tasks": ["task", "list", "--json"]}})
+        results = json.loads(raw)["results"]
+        self.assertEqual((status, results["tasks"]["code"]), (200, 0))
+        if unresolvable("a\0b.md"):
+            self.assertEqual(results["nul"]["reason"], "bad-request")
+        else:
+            self.assertNotEqual(results["nul"].get("reason"), "server-error")
+
+    def test_a_proposals_text_a_file_cannot_hold_is_a_bad_request_not_a_busy_project(self):
+        status, _, raw = self.request("/api/files/write", {"path": ".openguildkit/storybook/proposals.json",
+                                                           "text": "[\"\ud800\"]"})
+        self.assertEqual((status, json.loads(raw)["reason"]), (400, "bad-request"))
+        self.assertFalse((self.root / ".openguildkit" / "storybook" / "proposals.json").exists())
+
+    def test_only_the_lock_makes_a_write_busy(self):
+        with patch("openguildkit.webui.write_text", side_effect=ValueError("not the lock")), \
+                contextlib.redirect_stderr(io.StringIO()):
+            status, _, raw = self.request("/api/files/write", {"path": ".openguildkit/storybook/proposals.json",
+                                                               "text": "{}"})
+        self.assertEqual((status, json.loads(raw)["reason"]), (500, "server-error"))
+
+    def test_an_upload_a_file_cannot_hold_is_a_bad_request(self):
+        status, result = self.run_in_page("task", "new", "--file", "@upload:a.md", uploads={"a.md": "x\ud800"})
+        self.assertEqual((status, result["reason"]), (400, "bad-request"))
+
+    def test_a_server_error_leaves_its_type_message_and_trace_in_the_terminal(self):
+        terminal = io.StringIO()
+        with patch.object(self.app, "handle", side_effect=RuntimeError("boom")), contextlib.redirect_stderr(terminal):
+            status, _, raw = self.request("/api/run", {"argv": ["check"]})
+        self.assertEqual((status, json.loads(raw)["reason"]), (500, "server-error"))
+        for text in ("RuntimeError", "boom", "Traceback", "/api/run"):
+            self.assertIn(text, terminal.getvalue())
+        terminal = io.StringIO()
+        with contextlib.redirect_stderr(terminal):
+            self.assertEqual(self.request("/api/files/read", {"path": ".env"})[0], 403)
+        self.assertEqual(terminal.getvalue(), "")
 
     def test_the_front_end_is_served_with_a_content_security_policy(self):
         status, headers, body = self.request("/")

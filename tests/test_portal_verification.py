@@ -43,9 +43,14 @@ class Portal(BaseHTTPRequestHandler):
     secure_cookie = False  # As an instance started for production without DOCUMENTALIST_COOKIE_SECURE=false.
     limited: str | None = None  # "sign-in" or "route": the instance's two 429 answers.
     calls: list = []
+    garbage: str | None = None  # The route answered with bytes that are not HTTP: "login" or "logout".
 
     def log_message(self, *args):
         pass
+
+    def not_http(self):
+        self.wfile.write(b"garbage not http\r\n\r\n")
+        self.close_connection = True
 
     def reply(self, data, status=200, headers=None):
         content = json.dumps(data).encode()
@@ -62,6 +67,8 @@ class Portal(BaseHTTPRequestHandler):
         type(self).calls.append(("POST", self.path, self.headers.get("Origin")))
         if self.headers.get("Origin") != f"http://127.0.0.1:{self.server.server_port}":
             self.reply({"error": "Origine de la requête refusée."}, 400)
+        elif self.path == f"/api/auth/{self.garbage}":
+            self.not_http()
         elif self.path == "/api/auth/login" and self.limited == "sign-in":
             self.reply({"error": "Trop de tentatives. Réessayez dans dix minutes."}, 429)
         elif self.path == "/api/auth/login" and self.limited == "route":
@@ -134,6 +141,7 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
         self.state = self.root / ".openguildkit"
         Portal.emails, Portal.expirations, Portal.mode = [], {}, "magic_link"
         Portal.redirect_login, Portal.secure_cookie, Portal.limited, Portal.calls = False, False, None, []
+        Portal.garbage = None
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), Portal)
         thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         thread.start()
@@ -337,6 +345,26 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
         output, _ = self.verify(code=1)
         self.assertIn("HTTP 429; wait 60 seconds: the instance limits "
                       "requests.", output)
+
+    def test_an_answer_that_is_not_http_gives_an_error_and_not_a_trace(self):
+        self.share(["reader@example.test"], day(10))
+        Portal.garbage = "login"
+        output, error = self.verify(code=1)
+        self.assertIn(f"The portal could not be verified: http://127.0.0.1:{self.server.server_port} did not answer in "
+                      "valid HTTP (BadStatusLine).", output)
+        self.assertNotIn("garbage", output + error)
+        self.assertNotIn("Traceback", error)
+        space = f"127.0.0.1:{self.server.server_port}/p/demo"
+        observed = read_json(self.state / "shares" / "portal-observations.json")["observations"][space]
+        self.assertEqual(observed["source"], "local-register")
+
+    def test_a_logout_that_is_not_http_leaves_the_verification_intact(self):
+        self.share(["reader@example.test"], day(10))
+        Portal.emails, Portal.expirations = ["reader@example.test"], {"reader@example.test": day(10)}
+        Portal.garbage = "logout"
+        output, _ = self.verify()
+        self.assertIn("matches", output)
+        self.assertIn(("POST", "/api/auth/logout", f"http://127.0.0.1:{self.server.server_port}"), Portal.calls)
 
     def test_credentials_are_not_forwarded_to_a_redirect(self):
         self.share(["reader@example.test"], day(10))

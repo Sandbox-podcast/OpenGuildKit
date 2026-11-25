@@ -35,7 +35,7 @@ openguildkit task consult TASK --answers answers.json --market ID
 
 ## Competitor watch
 
-A dossier can keep a `watch`: the public pages to follow per competitor (release notes, pricing, announcements, funding news), the review interval `every_days`, and `paused` to suspend it.
+A dossier can keep a `watch`: the public pages to follow per competitor (release notes, pricing, announcements, funding news), the review interval `every_days`, and `paused` to suspend it. A watched page, and a `--source` of `market observe` or `market change` that is a link, must be a public https link: one with a user name, a password or a token in its query, or on a private host, is refused, because the dossier is committed and the scheduled watch copies the link into an issue. A source that is a note or a document, not a link, stays as written.
 
 ```bash
 openguildkit market watch ID --competitor vendor-a --url https://example.com/vendor-a/release-notes --kind "release notes" --every-days 30

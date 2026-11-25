@@ -31,7 +31,8 @@ from .relevance import changed_files, pack_relevance
 from .results import (
     DONE_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE, answers_to_report, chaosfolk_checks, compare_runs,
     completion_problems, criteria_summary, decision_changes, decision_revision_message, declared_cannot_run,
-    expected_checks, keep_declarations, missing_scenarios, result_template, run_command_checks, set_aside_rules,
+    expected_checks, keep_declarations, missing_scenarios, outcomes, result_template, run_command_checks,
+    set_aside_rules,
 )
 from .routing import select_boards, trigger_matches
 from .sensitive import input_warnings, redact_credentials, redact_data
@@ -925,7 +926,7 @@ def _checks(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
         raise TaskStateError("Checks belong to an approved task.")
     relevance = _relevance(root, task, profile, catalog, args.all)
     checks = expected_checks(task, profile, relevance)
-    reported = {item["check"]: item for item in task.get("result", {}).get("checks", [])}
+    reported = outcomes(task, profile, relevance)
     if args.json:
         print_json([{**check, "result": reported.get(check["id"])} for check in checks])
     else:
@@ -982,8 +983,9 @@ def _outcome(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
             result = record_result(current_task, profile, payload, "verify", relevance, root)
         elif action == "result":
             with _input_file(args.file):
-                result = record_result(current_task, profile, read_json(args.file), "report", relevance, root,
-                                       changed=changed)
+                reported = read_json(args.file)
+                result = record_result(current_task, profile, reported, "report", relevance, root, changed=changed)
+            _warn_inputs(reported, redact_data(reported), "task result")
         else:
             result = closing
         held = result.pop("_held", [])

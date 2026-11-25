@@ -2,9 +2,9 @@
 
 The API runs the same commands a person types, in this process, one at a time. It never runs what needs a
 person at a terminal: approving a task or clearing a blocker without a signature, waiving a blocker, allowing an
-external action, accepting an alert or setting its severity, declaring that a check command cannot run, closing a
-task over sensitive points, or a profile change that weakens a protection. For those, it answers with the command
-to type.
+external action, accepting an alert, setting its severity or dismissing a critical one, declaring that a check
+command cannot run, closing a task over sensitive points, or a profile change that weakens a protection. For those,
+it answers with the command to type.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ import socket
 import sys
 import tempfile
 import threading
+import traceback
 import webbrowser
 from http import HTTPStatus
 from http.cookies import CookieError, SimpleCookie
@@ -44,7 +45,8 @@ READABLE_SUFFIXES = {".json", ".jsonl", ".md", ".markdown", ".txt", ".yaml", ".y
 WRITABLE_FILES = {".openguildkit/storybook/proposals.json"}
 # Names that suggest a secret, and the files where tools keep their tokens (token.json, auth.json, a cloud service
 # account, Azure Functions' local.settings.json): the page neither lists nor reads them. The tool's own records under
-# .openguildkit/ are named after task IDs, such as token-rotation.json, and stay readable.
+# .openguildkit/ are named after task and dossier IDs, such as token-rotation.json or password-reset.json, and stay
+# readable.
 SECRET_NAME = re.compile(r"(^\.env)|secret|credential|password|private[-_]?key|\.pem$|\.key$|id_rsa|id_ed25519", re.I)
 TOKEN_FILE = re.compile(r"^token.*\.json$|^auth\.json$|service[-_]?account.*\.json$|^local\.settings\.json$", re.I)
 # The settings where package managers, containers and frameworks keep a token or a password in clear: Yarn's
@@ -72,8 +74,8 @@ REFUSALS = {
     "external-action-at-terminal": "Allowing an external action needs a person at a terminal.",
     "alert-accept-at-terminal": "Accepting a confirmed alert needs a person at a terminal.",
     "alert-severity-at-terminal": "Setting the severity of an alert needs a person at a terminal.",
-    "alert-status-at-terminal": "Dismissing a critical or high alert, or calling it a false positive, needs a person "
-                                "at a terminal.",
+    "alert-status-at-terminal": "Dismissing a critical alert, or taking a confirmed critical alert back, needs a "
+                                "person at a terminal.",
     "weakens-protection": "A profile change that weakens a protection is the person's decision at an interactive "
                           "terminal.",
     "person-at-terminal": "Another decision the CLI leaves to a person at a terminal.",
@@ -81,8 +83,9 @@ REFUSALS = {
     "send-task-answers": "Send the task answers: the interface cannot answer terminal prompts.",
     "invalid-profile": "The profile sent is not a valid profile.",
     "not-initialized": "The project is not initialized: set it up first.",
-    "outside-project": "A path leaves the project, or enters its .git folder.",
-    "secret-file": "The name or the text of the file suggests a secret: the interface does not read it.",
+    "outside-project": "A path leaves the project.",
+    "secret-file": "The name or the text of the file suggests a secret, or the file is inside .git: the interface "
+                   "neither lists nor reads it.",
     "not-readable": "The interface only reads Markdown, JSON, YAML and text files.",
     "too-large": "The request or the file is too large.",
     "not-in-page": "A command or a file that does not belong in a page.",
@@ -103,7 +106,8 @@ TERMINAL_ACTS = {
     ("task", "complete"): "complete-at-terminal", ("task", "waive"): "waiver-at-terminal",
     ("task", "authorize"): "external-action-at-terminal", ("tools", "apply"): "live-plan-at-terminal",
     ("alerts", "accept"): "alert-accept-at-terminal", ("alerts", "severity"): "alert-severity-at-terminal",
-    ("alerts", "set"): "alert-status-at-terminal", ("task", "consult"): "send-task-answers",
+    ("alerts", "set"): "alert-status-at-terminal", ("task", "alerts"): "alert-status-at-terminal",
+    ("task", "consult"): "send-task-answers",
     ("init", None): "send-setup-answers",
 }
 # Commands the interface never runs. Each needs a person at a terminal, or does not belong in a page.
@@ -217,16 +221,26 @@ def check_request(args, argv: list[str], root: Path) -> None:
         raise Refused(REFUSALS["send-task-answers"], status=HTTPStatus.BAD_REQUEST, reason="send-task-answers")
 
 
-def _inside(root: Path, value: Path | str, uploads: set[Path]) -> bool:
+def _out_of_reach(root: Path, value: Path | str, uploads: set[Path]) -> str | None:
+    """The code of the refusal for a path a command names, or None when the page may let the command use it."""
     path = Path(value)
-    if path.is_absolute() and path.resolve() in uploads:
-        return True
-    target = (path if path.is_absolute() else root / path).resolve()
+    if path.is_absolute() and _resolved(path) in uploads:
+        return None
+    target = _resolved(path if path.is_absolute() else root / path)
     try:
         relative = target.relative_to(root)
     except ValueError:
-        return False
-    return not _in_git(relative.parts)
+        return "outside-project"
+    return "secret-file" if _in_git(relative.parts) or _secret(relative.parts) else None
+
+
+def _resolved(path: Path) -> Path:
+    """The path with its links followed; a request whose path no file can have (a NUL, a lone surrogate) is refused."""
+    try:
+        return path.resolve()
+    except ValueError:
+        raise Refused("A path holds a character no file name can hold, such as a NUL.", status=HTTPStatus.BAD_REQUEST,
+                      reason="bad-request") from None
 
 
 def _in_git(parts) -> bool:
@@ -236,23 +250,28 @@ def _in_git(parts) -> bool:
 
 def _secret(parts: tuple[str, ...]) -> bool:
     """A path the page neither lists nor reads: a name that suggests a secret, or a tool's token file."""
-    if any(SECRET_NAME.search(part) for part in parts):
-        return True
     if not parts or parts[0] == ".openguildkit":
         return False
+    if any(SECRET_NAME.search(part) for part in parts):
+        return True
     return bool(TOKEN_FILE.search(parts[-1]) or CREDENTIAL_FILE.search(parts[-1])
                 or tuple(part.casefold() for part in parts[-2:]) in CREDENTIAL_PATH)
 
 
 def check_paths(args, root: Path, uploads: set[Path]) -> None:
-    """Every file a command reads or writes stays inside the project, except the files the page uploaded."""
+    """Every file a command reads or writes stays inside the project and is one the page itself would read, except the
+    files the page uploaded."""
     for name, value in vars(args).items():
         values = value if isinstance(value, list) else [value]
         for item in values:
             path_like = isinstance(item, Path) or (name in ("log", "config_dir") and isinstance(item, str))
-            if path_like and not _inside(root, item, uploads):
+            reason = _out_of_reach(root, item, uploads) if path_like else None
+            if reason == "outside-project":
                 raise Refused(f"--{name.replace('_', '-')} must name a file inside the project: {item}",
-                              status=HTTPStatus.BAD_REQUEST, reason="outside-project")
+                              status=HTTPStatus.BAD_REQUEST, reason=reason)
+            if reason:
+                raise Refused(f"--{name.replace('_', '-')} names a path the interface does not read, because its name "
+                              f"suggests a secret or it is inside .git: {item}", reason=reason)
 
 
 def _without(data, keys: set[str]):
@@ -370,7 +389,11 @@ class CliRunner:
             if not isinstance(name, str) or not UPLOAD_NAME.match(name) or not isinstance(text, str):
                 raise Refused(f"Invalid upload: {name!r}", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
             path = folder / name
-            path.write_text(text, encoding="utf-8", newline="")
+            try:
+                path.write_text(text, encoding="utf-8", newline="")
+            except UnicodeEncodeError:
+                raise Refused(f"Invalid upload: {name!r} holds a character UTF-8 cannot encode.",
+                              status=HTTPStatus.BAD_REQUEST, reason="bad-request") from None
             written[name] = path.resolve()
         result = []
         for item in argv:
@@ -393,14 +416,14 @@ class ProjectFiles:
         if not isinstance(relative, str) or not relative or Path(relative).is_absolute() or "\\" in relative:
             raise Refused("Give a path relative to the project, with forward slashes.", status=HTTPStatus.BAD_REQUEST,
                           reason="bad-request")
-        target = (self.root / relative).resolve()
+        target = _resolved(self.root / relative)
         try:
             parts = target.relative_to(self.root).parts
         except ValueError:
             raise Refused("The path leaves the project.", status=HTTPStatus.BAD_REQUEST,
                           reason="outside-project") from None
         if _in_git(parts):
-            raise Refused("The interface does not read or write inside .git.", reason="outside-project")
+            raise Refused("The interface does not read or write inside .git.", reason="secret-file")
         if _secret(parts):
             raise Refused("The name of this path suggests a secret: the interface does not read it.",
                           reason="secret-file")
@@ -448,16 +471,22 @@ class ProjectFiles:
         if not isinstance(text, str):
             raise Refused("text must be a string.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
         try:
+            text.encode("utf-8")
+        except UnicodeEncodeError:
+            raise Refused("text holds a character UTF-8 cannot encode.", status=HTTPStatus.BAD_REQUEST,
+                          reason="bad-request") from None
+        try:
             json.loads(text)
         except ValueError as error:
             raise Refused(f"Invalid JSON: {error}", status=HTTPStatus.BAD_REQUEST, reason="bad-request") from None
         target = self._resolve(relative)
         # storybook propose writes the same file under the project lock.
-        try:
-            with project_lock(self.root / ".openguildkit"):
-                write_text(target, text if text.endswith("\n") else text + "\n")
-        except ValueError as error:
-            raise Refused(str(error), status=HTTPStatus.CONFLICT, reason="project-busy") from None
+        with contextlib.ExitStack() as held:
+            try:
+                held.enter_context(project_lock(self.root / ".openguildkit"))
+            except ValueError as error:
+                raise Refused(str(error), status=HTTPStatus.CONFLICT, reason="project-busy") from None
+            write_text(target, text if text.endswith("\n") else text + "\n")
         return {"path": relative, "written": True}
 
 
@@ -590,8 +619,16 @@ class Handler(BaseHTTPRequestHandler):
         except Refused as refusal:
             self._refuse(refusal)
         except Exception as error:  # noqa: BLE001 - report to the page instead of dropping the connection
+            self._report(error)
             self._refuse(Refused(f"{type(error).__name__}: {error}", status=HTTPStatus.INTERNAL_SERVER_ERROR,
                                  reason="server-error"))
+
+    def _report(self, error: Exception) -> None:
+        """Leave the failure in the terminal that runs the server, where the page's text for it sends the person."""
+        # Under the runner's lock: a command running now has sys.stderr captured for its own answer.
+        with self.app.runner.lock:
+            print(f"OpenGuildKit: the request to {urlsplit(self.path).path} failed.", file=sys.stderr)
+            traceback.print_exception(error, file=sys.stderr)
 
     def _body(self) -> dict:
         """The JSON object a request of the interface's own page sends, with its origin and session token. The body
@@ -695,8 +732,9 @@ class WebApp:
                         "initialized": (self.root / ".openguildkit" / "project.json").is_file()},
             "human_only": ["task decide --approve", "task revoke", "task clear", "task waive",
                            "task authorize --allow", "task verify --cannot-run", "task verify --withdraw",
-                           "task complete --by", "alerts accept", "alerts severity", "profile (weakening a protection)",
-                           "tools apply (live)"],
+                           "task complete --by", "alerts accept", "alerts severity",
+                           "alerts set or task alerts --set (critical alert dismissed or taken back)",
+                           "profile (weakening a protection)", "tools apply (live)"],
         }
 
     def handle(self, path: str, body: dict):

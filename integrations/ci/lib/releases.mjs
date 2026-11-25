@@ -13,7 +13,7 @@ function compareVersions(left, right) {
 export function checkKitRelease({ repo, channel, installedVersion }, request = gh) {
   if (typeof repo !== 'string' || !/^[a-z\d][a-z\d-]*\/[a-z\d_.-]+$/i.test(repo) ||
       !['stable', 'pilot'].includes(channel) || !versionPattern.test(installedVersion)) {
-    throw new Error('Dépôt GitHub, canal stable ou pilot, et version installée X.Y.Z requis.');
+    throw new Error('A GitHub repository, the stable or pilot channel and the installed version X.Y.Z are required.');
   }
   const pages = JSON.parse(request('api', '--paginate', '--slurp', `repos/${repo}/releases?per_page=100`));
   const candidates = pages.flat().flatMap(release => {

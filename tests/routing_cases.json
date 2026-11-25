@@ -1139,5 +1139,276 @@
     "must_not": [
       "sales"
     ]
+  },
+  {
+    "brief": "Make the checkout comply with the European Accessibility Act",
+    "must": [
+      "legal",
+      "design"
+    ]
+  },
+  {
+    "brief": "Mettre le tunnel d'achat en conformité avec l'Acte européen sur l'accessibilité",
+    "must": [
+      "legal"
+    ]
+  },
+  {
+    "brief": "Implement notice and action under the Digital Services Act",
+    "must": [
+      "legal",
+      "trust-and-safety"
+    ]
+  },
+  {
+    "brief": "Appliquer le règlement sur les services numériques à la modération",
+    "must": [
+      "legal"
+    ]
+  },
+  {
+    "brief": "Implement the pay transparency directive for salary bands",
+    "must": [
+      "legal",
+      "hr"
+    ]
+  },
+  {
+    "brief": "Mettre en œuvre la transparence salariale (directive 2023/970)",
+    "must": [
+      "legal",
+      "hr"
+    ]
+  },
+  {
+    "brief": "Handle PSD2 strong customer authentication in the checkout",
+    "must": [
+      "legal",
+      "security"
+    ]
+  },
+  {
+    "brief": "Mettre en conformité le paiement avec la DSP2",
+    "must": [
+      "legal",
+      "finance"
+    ]
+  },
+  {
+    "brief": "Run a data protection impact assessment for the new scoring",
+    "must": [
+      "legal"
+    ]
+  },
+  {
+    "brief": "Réaliser une AIPD pour le nouveau scoring",
+    "must": [
+      "legal"
+    ]
+  },
+  {
+    "brief": "Update the privacy policy and terms and conditions",
+    "must": [
+      "legal",
+      "security"
+    ]
+  },
+  {
+    "brief": "Collect parental consent for users under 13",
+    "must": [
+      "legal"
+    ]
+  },
+  {
+    "brief": "Recueillir le consentement parental pour les moins de 15 ans",
+    "must": [
+      "legal"
+    ]
+  },
+  {
+    "brief": "Implement the password reset flow with a 2FA step",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Activer le 2FA pour les administrateurs",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Add OAuth login with Google",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Implement OpenID Connect for the partner portal",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Sign the session tokens as JWT",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Rotate the TLS certificates",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Imposer un mot de passe de douze caractères",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Add role-based access with RBAC for the back office",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Chiffrer les sauvegardes",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Add SAML single sign-on to the customer portal",
+    "must": [
+      "security",
+      "it-and-workplace"
+    ]
+  },
+  {
+    "brief": "Add SSO to the customer portal",
+    "must": [
+      "security"
+    ]
+  },
+  {
+    "brief": "Integrate PayPal for refunds",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Add Apple Pay to the checkout",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Mettre en place le prélèvement SEPA",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Process SEPA direct debits every month",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Gérer le remboursement des commandes annulées",
+    "must": [
+      "finance"
+    ]
+  },
+  {
+    "brief": "Migrer la base de données en vue de la mise en production",
+    "must": [
+      "devops"
+    ],
+    "must_not": [
+      "frontend"
+    ]
+  },
+  {
+    "brief": "Rédiger la note du point de vue de l'exploitation",
+    "must_not": [
+      "frontend"
+    ]
+  },
+  {
+    "brief": "Créer une vue SQL pour le reporting",
+    "must_not": [
+      "frontend"
+    ]
+  },
+  {
+    "brief": "The worker should react to queue events within 200 ms",
+    "must_not": [
+      "frontend"
+    ]
+  },
+  {
+    "brief": "Port the login page to React",
+    "must": [
+      "frontend"
+    ]
+  },
+  {
+    "brief": "Utiliser Vue pour le tableau de bord",
+    "must": [
+      "frontend"
+    ]
+  },
+  {
+    "brief": "Display DORA's change failure rate and MTTR per team",
+    "must": [
+      "devops"
+    ],
+    "must_not": [
+      "legal",
+      "security"
+    ]
+  },
+  {
+    "brief": "Analyse employee attrition by team",
+    "must": [
+      "hr"
+    ],
+    "must_not": [
+      "customer-success",
+      "support",
+      "product"
+    ]
+  },
+  {
+    "brief": "Réduire le turnover des développeurs",
+    "must": [
+      "hr"
+    ]
+  },
+  {
+    "brief": "Suivre la rotation du personnel par équipe",
+    "must": [
+      "hr"
+    ]
+  },
+  {
+    "brief": "Analyser l'attrition des salariés par équipe",
+    "must": [
+      "hr"
+    ],
+    "must_not": [
+      "customer-success",
+      "support",
+      "product"
+    ]
+  },
+  {
+    "brief": "Reduce churn among our paying customers",
+    "must": [
+      "customer-success"
+    ]
   }
 ]

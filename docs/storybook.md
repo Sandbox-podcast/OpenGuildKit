@@ -32,7 +32,7 @@ import refs from './openguildkit-refs.json' with { type: 'json' };
   refs,
 ```
 
-The URL may not carry a user name or a password: the refs file is committed, so the command refuses `https://user:password@...`. Let the company Storybook authenticate the browser with its own sign-in.
+The URL may not carry a user name, a password or a token: the refs file is committed, so the command refuses `https://user:password@...` and `https://host/?access_token=...`. Let the company Storybook authenticate the browser with its own sign-in.
 
 When the configuration folder has no `main` file yet, the command prints this minimal `.storybook/main.ts`, which loads the refs file. It needs `@storybook/react-vite` and `@storybook/addon-docs`, which `npm create storybook` installs. It was not built with Storybook when written: run `npm run build-storybook` to check it in the project.
 
