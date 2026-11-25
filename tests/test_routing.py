@@ -124,6 +124,24 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(trigger_matches(boards, "Track DORA lead time for changes"),
                          {"devops": ["lead time for changes"]})
 
+    def test_a_possessive_does_not_hide_a_longer_phrase(self):
+        for apostrophe in ("'", "’"):
+            with self.subTest(apostrophe=apostrophe):
+                selected = text_routes(self.boards, f"Display DORA{apostrophe}s change failure rate per team")
+                self.assertEqual(set(selected), {"devops"})
+        self.assertLessEqual({"legal", "security"}, set(text_routes(self.boards, "DORA's register of ICT providers")))
+        self.assertEqual(trigger_matches({"x": {"triggers": ["user data"]}}, "The user's data"), {"x": ["user data"]})
+
+    def test_a_french_or_english_phrase_that_only_looks_like_a_framework_selects_no_frontend(self):
+        for brief in ("Migrer la base en vue de la mise en production", "Le point de vue de l'exploitation",
+                      "Créer des vues SQL pour le reporting", "The worker reacts to queue events",
+                      "Retry when the queue is full; react when a message arrives"):
+            with self.subTest(brief=brief):
+                self.assertNotIn("frontend", text_routes(self.boards, brief))
+        for brief in ("Use Vue 3 for the dashboard", "Port the login page to React"):
+            with self.subTest(brief=brief):
+                self.assertIn("frontend", text_routes(self.boards, brief))
+
     def test_a_neutral_phrase_claims_a_job_title(self):
         boards = {"engineering": {"triggers": ["backend"]}, "hr": {"triggers": ["hire"]}}
         self.assertEqual(trigger_matches(boards, "Hire two backend engineers"), {"hr": ["hire"]})
