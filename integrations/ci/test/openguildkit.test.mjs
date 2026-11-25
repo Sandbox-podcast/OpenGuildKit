@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { reconcile } from '../lib/reconcile.mjs';
 import { sameRepository } from '../lib/github-identifiers.mjs';
 import { prepareBrief } from '../lib/agent.mjs';
+import { parseProfile } from '../lib/check.mjs';
+import { parseWaivers } from '../lib/waivers.mjs';
 
 const cli = fileURLToPath(new URL('../bin/openguildkit.mjs', import.meta.url));
 const agent = fileURLToPath(new URL('../bin/openguildkit-agent.mjs', import.meta.url));
@@ -657,4 +659,13 @@ test('brief reads the outcome and the criteria under the French section titles o
   assert.deepEqual(request.criteria, ['Un lien expire en 30 minutes.']);
   assert.throws(() => brief('## Résultat attendu\nA\n## Résultat attendu\nB\n', 'again'),
     /^Error: Duplicate section in the ticket: Résultat attendu$/);
+});
+
+test('the error messages of check and waivers are in English', () => {
+  assertEnglish(['../lib/check.mjs', '../lib/waivers.mjs']);
+  assert.throws(() => parseProfile('{"schemaVersion": 2}'), /^Error: Invalid profile: /);
+  assert.throws(() => parseWaivers('{"schemaVersion": 2}'), /^Error: Invalid waiver registry\.$/);
+  assert.throws(() => parseWaivers('{"schemaVersion": 1, "waivers": [{"id": "incomplete"}]}'),
+    /^Error: Invalid waiver: incomplete\.$/);
+  assert.throws(() => parseWaivers('{"schemaVersion": 1, "waivers": [{}]}'), /^Error: Invalid waiver: \(no identifier\)\.$/);
 });

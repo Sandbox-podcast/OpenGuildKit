@@ -188,7 +188,7 @@ test('an error limited to one project or one PR is reported without stopping the
   git(origin, 'add', 'policy/waivers.json');
   git(origin, 'commit', '-qm', 'Add an invalid waiver');
   configure({ profileMaintainer: 'lead' }, { policy: { waiversPath: 'policy/waivers.json' } });
-  assert.throws(() => sync(), /Dérogation invalide : incomplete/);
+  assert.throws(() => sync(), /Invalid waiver: incomplete/);
 });
 
 test('the GitHub synchronization refuses an invalid configuration with an English message', t => {
