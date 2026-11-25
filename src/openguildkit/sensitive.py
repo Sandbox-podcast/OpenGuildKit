@@ -20,8 +20,13 @@ _SECRET_KEY = (r"(?:(?:[a-z0-9]+[_-])*(?:api[_-]?key|token|secret|access[_-]?key
                r"|[a-z][a-z0-9]*(?-i:Token|Secret))")
 # The name of a password: password, DB_PASSWORD, POSTGRES_PASSWORD, DB_PWD, PASSPHRASE, dbPassword, --password.
 # A bare pwd is the shell command: only a prefixed name (DB_PWD) is a password.
-_PASSWORD_KEY = (r"(?:(?<![A-Za-z0-9])(?:(?:[a-z0-9]+[_-])*(?:password|passwd|passphrase)|(?:[a-z0-9]+[_-])+pwd)"
-                 r"|[a-z][a-z0-9]*(?-i:Password|Passphrase)|mot de passe)")
+# A name is tried only where it starts (not after a letter, a digit, or a letter and a separator), so a long line costs
+# one pass, not one per word.
+_PASSWORD_KEY = (r"(?:(?<![A-Za-z0-9])(?<![A-Za-z0-9][_-])"
+                 r"(?:(?:[a-z0-9]+[_-])*(?:password|passwd|passphrase)|(?:[a-z0-9]+[_-])+pwd)"
+                 r"|(?<![A-Za-z0-9])[a-z0-9]+(?-i:Password|Passphrase)|mot de passe)")
+# The mysql commands: a search for -p stops at the next one, which has its own search.
+_MYSQL = r"\bmysql(?:dump|admin|import|check|show)?\b"
 # Each shape: its name in messages, the pattern, and the replacement that keeps the surrounding words.
 CREDENTIAL_SHAPES = (
     ("a cloud access key ID", re.compile(r"(?<![A-Za-z0-9_])(?:AKIA|ASIA)[A-Za-z0-9]{16}(?![A-Za-z0-9_])"),
@@ -60,14 +65,14 @@ CREDENTIAL_SHAPES = (
      "[credential]"),
     ("a private key", re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----(?:.*?-----END (?:[A-Z0-9]+ )*PRIVATE KEY-----)?",
                                  re.DOTALL), "[private key]"),
-    ("a link with a password", re.compile(r"(?i)(\b[a-z][a-z0-9+.-]*://[^\s/:@]+:)(?!\[)[^\s/@]+@"), r"\1[password]@"),
+    ("a link with a password", re.compile(r"(?i)(\b[a-z][a-z0-9+.-]{0,31}://[^\s/:@]+:)(?!\[)[^\s/@]+@"), r"\1[password]@"),
     ("a secret in a query string", re.compile(
         r"(?i)([?&;](?:[a-z0-9_.-]*[_-])?(?:token|secret|password|passwd|api[_-]?key|access[_-]?key|signature|sig)=)"
         r"(?![\[$<{])[^&#\s\"']+"), r"\1[credential]"),
     ("a password", re.compile(rf"""(?i)({_PASSWORD_KEY}["']?\s*[:=]\s*)(?![\[$<{{%])(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]*[^\s,;.!?)])"""),
      r"\1[password]"),
     # mysql -pSECRET, mysqldump -pSECRET: the value follows -p without a space; -p alone asks for it.
-    ("a password on a command line", re.compile(r"(\bmysql(?:dump|admin|import|check|show)?\b[^\n]*?\s-p)(?![\[$<{%])[^\s'\"]{4,}"),
+    ("a password on a command line", re.compile(rf"({_MYSQL}(?:(?!{_MYSQL})[^\n])*?\s-p)(?![\[$<{{%])[^\s'\"]{{4,}}"),
      r"\1[password]"),
     ("an authorization header", re.compile(
         r"""(?i)(\bauthorization["']?\s*[:=]\s*["']?(?:bearer|basic|token)\s+)"""
@@ -77,7 +82,8 @@ CREDENTIAL_SHAPES = (
      r"\1[credential]"),
 )
 PERSONAL_SHAPES = (
-    ("an email address", re.compile(r"[a-z0-9.!#$%&'*+/=?^_\x60{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+", re.IGNORECASE | re.ASCII)),
+    ("an email address", re.compile(r"(?<![a-z0-9.!#$%&'*+/=?^_\x60{|}~-])[a-z0-9.!#$%&'*+/=?^_\x60{|}~-]+@"
+                                    r"[a-z0-9-]+(?:\.[a-z0-9-]+)+", re.IGNORECASE | re.ASCII)),
     ("a phone number", re.compile(r"(?<![\w+])(?:\+\d{1,3}[ .-]?\d(?:[ .-]?\d){7,12}|0\d(?:[ .-]?\d{2}){4})(?!\w)")),
     ("a bank account number", re.compile(r"\b[A-Z]{2}\d{2} ?(?:[A-Z0-9]{4} ?){2,7}[A-Z0-9]{1,4}\b")),
 )

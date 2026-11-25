@@ -3,8 +3,11 @@
 Every fake credential is assembled at run time from obvious filler, so no committed string looks like a real one.
 """
 
+import base64
 import json
+import random
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -14,6 +17,7 @@ from openguildkit.sensitive import (
 )
 from openguildkit.storage import write_json
 from openguildkit.tools import load_tools, plan_connections
+from openguildkit.workflow import _received
 
 from tests.support import CapturedCli
 
@@ -176,6 +180,54 @@ class ShapeTests(unittest.TestCase):
         self.assertEqual(personal_data_kinds("Ship version 1.4.0 on 2026-12-01"), [])
 
 
+class CostTests(unittest.TestCase):
+    """A long line costs one pass of each shape, not one pass per character (issue #378)."""
+
+    # A linear pass over these lines takes a few milliseconds; the quadratic one took ten seconds or more.
+    BUDGET = 2.0
+
+    @staticmethod
+    def long_lines(size):
+        noise = random.Random(378).randbytes(size * 3 // 4)
+        return {
+            "one word": "a" * size, "words joined by underscores": "a_" * (size // 2),
+            "words joined by hyphens": "a-1" * (size // 3), "dotted words": "x." * (size // 2),
+            "base64": base64.b64encode(noise).decode(), "base64 with hyphens": base64.urlsafe_b64encode(noise).decode(),
+            "mysql on one line": "mysql " * (size // 6), "at signs": "a@" * (size // 2),
+            "a word and an at sign": "a" * (size - 1) + "@", "sk- prefixes": "sk-" * (size // 3),
+        }
+
+    def assertQuick(self, function, size):
+        for label, text in self.long_lines(size).items():
+            with self.subTest(line=label):
+                started = time.perf_counter()
+                function(text)
+                self.assertLess(time.perf_counter() - started, self.BUDGET)
+
+    def test_redacting_a_long_line_stays_linear(self):
+        self.assertQuick(redact_credentials, 50_000)
+
+    def test_looking_for_personal_data_in_a_long_line_stays_linear(self):
+        self.assertQuick(personal_data_kinds, 200_000)
+
+    def test_an_error_line_cuts_a_long_value_before_looking_for_secrets(self):
+        searched = []
+        with patch("openguildkit.workflow.redact_credentials", side_effect=lambda text: searched.append(text) or text):
+            received = _received("a" * 200_000)
+        self.assertLess(len(searched[0]), 5_000)
+        self.assertEqual(len(received), 60)
+        self.assertEqual(_received(f"Key {SAMPLES['a GitHub token']}"), '"Key [credential]"')
+
+    def test_a_long_line_still_hides_the_secret_it_ends_with(self):
+        for text in ("a_" * 2_000 + "DB_PASSWORD=Xq7vLm2pRt9w", "a_" * 2_000 + " dbPassword=Xq7vLm2pRt9w",
+                     "a_" * 2_000 + " --password=Xq7vLm2pRt9w"):
+            with self.subTest(end=text[-30:]):
+                self.assertTrue(redact_credentials(text).endswith("=[password]"))
+        self.assertEqual(personal_data_kinds("a." * 5_000 + " ops@example.test"), ["an email address"])
+        self.assertEqual(personal_data_kinds("a" * 5_000 + "@example.test"), ["an email address"])
+        self.assertEqual(redact_credentials("mysql " * 1_000 + "-u app -pMq7Lm2pRt9 shop").count("[password]"), 1)
+
+
 class SettingTests(unittest.TestCase):
     def test_set_refuses_each_shape_without_repeating_it(self):
         tools = load_tools()
@@ -246,6 +298,15 @@ class TaskInputTests(CapturedCli, unittest.TestCase):
     def consult(self, answers):
         write_json(self.root / "answers.json", answers)
         return self.run_cli("task", "consult", TASK, "--answers", self.root / "answers.json")[1]
+
+    def test_a_long_brief_and_a_long_answer_are_recorded_without_a_wait(self):
+        started = time.perf_counter()
+        self.run_cli("task", "new", "a" * 30_000, "--id", TASK)
+        self.assertLess(time.perf_counter() - started, 2 * CostTests.BUDGET)
+        answers = json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8"))
+        started = time.perf_counter()
+        self.consult({**answers, "context": "x" * 30_000})
+        self.assertLess(time.perf_counter() - started, 2 * CostTests.BUDGET)
 
     def test_answers_and_a_revised_brief_are_recorded_without_the_credential(self):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
