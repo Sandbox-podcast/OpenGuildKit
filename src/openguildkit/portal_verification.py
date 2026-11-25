@@ -17,7 +17,7 @@ from urllib.parse import quote, urlsplit
 from urllib.request import HTTPRedirectHandler, HTTPCookieProcessor, ProxyHandler, Request, build_opener
 
 from . import clock
-from .publishing import _loopback, load_shares, portal_space, share_space
+from .publishing import is_loopback, load_shares, portal_space, share_space
 from .storage import project_lock, read_json, write_json
 
 
@@ -147,7 +147,7 @@ def _opener(origin: str):
     this machine because that traffic stays here; a proxy would receive the account password in clear.
     """
     handlers = [_NoRedirect(), HTTPCookieProcessor(http.cookiejar.CookieJar())]
-    if _loopback(urlsplit(origin).hostname or ""):
+    if is_loopback(urlsplit(origin).hostname or ""):
         handlers.append(ProxyHandler({}))
     return build_opener(*handlers)
 
