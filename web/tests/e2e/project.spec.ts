@@ -888,3 +888,29 @@ test('sets up a project with Stripe: PCI DSS accepted, a norm declined with who 
   expect(patternIds(profile)).toContain('pci-dss-cardholder-data');
   expect(profile.declined).toEqual([expect.objectContaining({ id: 'gdpr-personal-data', by: 'Camille Martin', reason: 'The pilot stores company accounts only' })]);
 });
+
+/* ------------------------------------------------------------------ arsenal */
+
+test('turns a feature on and off in the Arsenal, with who and why', async ({ page }) => {
+  await open(page, '/arsenal');
+  await page.getByRole('button', { name: 'Activer Jira' }).click();
+  const on = page.getByRole('dialog', { name: 'Activer Jira' });
+  await expect(on).toContainText('Le changement est inscrit dans l’historique du profil.');
+  await on.getByLabel('Personne qui décide').fill('Camille Martin');
+  await on.getByLabel('Pourquoi').fill('The team tracks its tickets in Jira');
+  await on.getByRole('button', { name: 'Activer', exact: true }).click();
+  await expect(page.getByText('Fonctionnalité activée')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Désactiver Jira' })).toBeVisible();
+  expect((await savedProfile(page)).tools).toContain('Jira');
+
+  await page.getByRole('button', { name: 'Désactiver Jira' }).click();
+  const off = page.getByRole('dialog', { name: 'Désactiver Jira' });
+  await expect(off.getByLabel('Personne qui décide')).toHaveValue('Camille Martin');
+  await off.getByLabel('Pourquoi').fill('We moved to Linear');
+  await off.getByRole('button', { name: 'Désactiver', exact: true }).click();
+  await expect(page.getByText('Fonctionnalité désactivée')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Activer Jira' })).toBeVisible();
+  const profile = await savedProfile(page);
+  expect(profile.tools).not.toContain('Jira');
+  expect(profile.changes.at(-1)).toEqual(expect.objectContaining({ change: 'features disable jira', by: 'Camille Martin', reason: 'We moved to Linear' }));
+});

@@ -1,13 +1,13 @@
 # Open Guild Kit — interface web
 
-L'interface a deux modes, avec les mêmes 12 lieux et les mêmes styles RPG et Pro.
+L'interface a deux modes, avec les mêmes 13 lieux et les mêmes styles RPG et Pro.
 
 - **Projet réel** : `openguildkit ui` sert la page sur 127.0.0.1 pour le projet du dossier courant. Chaque écran lit le projet et chaque action lance une commande de la CLI ; les validations restent dans le terminal d'une personne. C'est le seul mode que le paquet Python embarque. [Interface d'un projet réel](docs/interface-projet.md)
 - **Démonstration** : lancée depuis ce dossier (`npm run dev`), sans la CLI, elle montre l'expérience sur l'organisation fictive Atelier Nova. Elle n'est pas dans le paquet : sur une page servie par `openguildkit ui`, `?demo=1` dit comment la lancer.
 
 ## Démonstration Atelier Nova
 
-Maquette de l'expérience d'Open Guild Kit en pixel art RPG, sur une organisation fictive : 12 lieux (Royaume, Blueprint, Guilde, Conseil, Quêtes, Bibliothèque, Forge, Tour de guet, Observatoire, Documentation, Chroniques, Intendance), règles de gestion RG-01 à RG-42 dans le domaine, services externes simulés par des adaptateurs déterministes.
+Maquette de l'expérience d'Open Guild Kit en pixel art RPG, sur une organisation fictive : 13 lieux (Royaume, Blueprint, Guilde, Conseil, Quêtes, Bibliothèque, Forge, Tour de guet, Observatoire, Documentation, Chroniques, Intendance, Arsenal), règles de gestion RG-01 à RG-42 dans le domaine, services externes simulés par des adaptateurs déterministes.
 
 Elle diffère du produit sur trois points, détaillés dans [Interface d'un projet réel](docs/interface-projet.md#ce-qui-distingue-la-démonstration) :
 

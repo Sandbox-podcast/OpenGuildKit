@@ -89,6 +89,47 @@ class WebPagesTests(unittest.TestCase):
                 self.assertEqual(refused.findall(_read(path)), [])
 
 
+def places() -> dict[str, str]:
+    """The places of web/src/shared/places.ts, each key with its RPG name."""
+    source = _read(REPO / "web" / "src" / "shared" / "places.ts")
+    return dict(re.findall(r"\{ key: '([a-z]+)', name: '([^']+)'", source))
+
+
+def sweep_routes() -> list[str]:
+    """The routes the sweep of web/tests/e2e/project-sweep.spec.ts opens."""
+    source = _read(REPO / "web" / "tests" / "e2e" / "project-sweep.spec.ts")
+    return re.findall(r"'(/[^']*)'", source.split("const ROUTES = [", 1)[1].split("];", 1)[0])
+
+
+class WebPlacesTests(unittest.TestCase):
+    def test_the_place_table_of_the_project_interface_has_a_row_for_each_place(self):
+        page = _read(REPO / "web" / "docs" / "interface-projet.md")
+        table = page.split("## Ce que fait chaque lieu", 1)[1].split("\n## ", 1)[0]
+        rows = [line.split("|")[1].strip() for line in table.splitlines() if line.startswith("| ") and "---" not in line]
+        self.assertEqual(len(places()), 13)
+        self.assertEqual(sorted(rows[1:]), sorted(places().values()))
+        arsenal = next(line for line in table.splitlines() if line.startswith("| Arsenal |"))
+        for command in ("features list", "features enable", "features disable"):
+            with self.subTest(command=command):
+                self.assertIn(f"`{command}`", arsenal)
+
+    def test_the_web_readme_counts_and_names_every_place(self):
+        readme = _read(REPO / "web" / "README.md")
+        self.assertEqual(set(re.findall(r"([0-9]+) lieux", readme)), {str(len(places()))})
+        demo = readme.split("## Démonstration Atelier Nova", 1)[1].split("\n\n", 2)[1]
+        for name in places().values():
+            with self.subTest(place=name):
+                self.assertIn(name, demo)
+
+    def test_the_sweep_opens_every_place_and_the_pages_count_its_routes(self):
+        routes = sweep_routes()
+        self.assertEqual(sorted({route.split("/")[1] for route in routes}), sorted(places()))
+        for name in ("accessibilite.md", "interface-projet.md"):
+            with self.subTest(page=name):
+                counts = set(re.findall(r"([0-9]+) routes", _read(REPO / "web" / "docs" / name)))
+                self.assertEqual(counts, {str(len(routes))})
+
+
 class RoadmapTests(unittest.TestCase):
     def test_available_names_what_shipped_and_the_three_systems(self):
         available = _read(REPO / "docs" / "roadmap.md").split("## Available", 1)[1].split("\n## ", 1)[0]
