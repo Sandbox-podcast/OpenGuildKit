@@ -414,6 +414,15 @@ test('only one watcher works on a state directory at a time', t => {
   assert.throws(run, /process 1 on other-host/);
 });
 
+test('the watcher reads a configuration that starts with a byte order mark', t => {
+  const { folder, configPath } = fixture(t, 'openguildkit-bom-');
+  writeFileSync(configPath, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), readFileSync(configPath)]));
+  const result = watchGithub({ configPath, stateDir: folder, kitVersion }, {
+    reconcile: () => ({ current: [] }), actions: { pins },
+  });
+  assert.deepEqual(result.errors, []);
+});
+
 test('a cycle keeps its report when the references cannot be read again before publication', t => {
   const { folder, configPath } = fixture(t, 'openguildkit-resync-',
     { file: 'recheck.yml', ref: 'pilot/base', evidenceBranch: 'reports' });

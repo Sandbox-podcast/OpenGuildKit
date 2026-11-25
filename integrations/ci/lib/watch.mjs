@@ -8,11 +8,12 @@ import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { gh, reconcileGithub } from './github.mjs';
 import { sameRepository, sameRepositoryUrl } from './github-identifiers.mjs';
+import { parseJsonObject } from './json.mjs';
 import { checkStateDirectory } from './state-directory.mjs';
 import { publishWatchReport } from './github-report.mjs';
 
 function readJson(path) {
-  return JSON.parse(readFileSync(path, 'utf8'));
+  return parseJsonObject(readFileSync(path), path);
 }
 
 function loadRun(path) {

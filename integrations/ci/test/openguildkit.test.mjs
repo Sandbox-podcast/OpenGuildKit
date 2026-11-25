@@ -173,6 +173,52 @@ test('reconcile current PR, policy and profile references without promoting a la
   assert.equal(disagreement.satisfiesRule, false);
 });
 
+test('the coordinator reads the --config, --evidence and --answers files that start with a byte order mark', t => {
+  const root = mkdtempSync(join(tmpdir(), 'openguildkit-bom-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  git(root, 'init', '-q', '-b', 'main');
+  mkdirSync(join(root, 'policy'));
+  const policyFile = 'policy/export-link.json';
+  commitJson(root, policyFile, { id: 'export-link-expiry', version: 1, maxMinutes: 60 });
+  const catalog = JSON.parse(readFileSync(new URL('../pilot/catalog.example.json', import.meta.url), 'utf8'));
+  const catalogSha = commitJson(root, 'policy/catalog.json', catalog);
+  commitJson(root, 'openguildkit.json', { schemaVersion: 1, owner: '@pilote', policyPath: policyFile, targetPath: 'export.json' });
+  commitJson(root, 'export.json', { downloadLinkMinutes: 45 });
+  const run = (...args) => spawnSync(process.execPath, [cli, ...args], { cwd: root, encoding: 'utf8' });
+  function read(result) {
+    assert.equal(result.status, 0, result.stderr);
+    return JSON.parse(result.stdout);
+  }
+  function writeWithBom(file, value) {
+    writeFileSync(file, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(JSON.stringify(value))]));
+    return file;
+  }
+
+  const config = writeWithBom(join(root, 'config.json'), {
+    policyRepo: { path: '.', ref: 'refs/heads/main' },
+    projects: [{ id: 'demo', path: '.', profileRef: 'refs/heads/main', pullRequests: [{ number: 1, ref: 'refs/heads/main' }] }],
+  });
+  const [pending] = read(run('reconcile', '--config', config, '--state', 'state')).current;
+  assert.equal(pending.status, 'pending');
+
+  const evidence = writeWithBom(join(root, 'evidence.json'), read(run('check', '--policy-repo', '.',
+    '--policy-commit', pending.policyCommit, '--profile-commit', pending.profileCommit, '--commit', pending.commit)));
+  assert.equal(read(run('record', '--state', 'state', '--work', pending.work, '--evidence', evidence)).recorded, true);
+
+  const source = ['--policy-repo', '.', '--policy-commit', catalogSha];
+  const form = read(run('onboard', ...source));
+  Object.assign(form.answers, {
+    project: 'equipe/portail', owner: '@mainteneur', environments: ['test'], conventions: [], stack: ['Node.js'],
+    sensitivePaths: ['export.json'], ticketTracker: 'GitHub Issues', dataAccess: ['fichiers versionnés'], tools: ['GitHub Actions'],
+    aiModels: [], executionBudget: '5 minutes', requiredApprovals: ['mainteneur'], references: ['convention export'],
+    testCommands: ['npm test'], ruleId: 'export-link-expiry', targetPath: 'export.json',
+  });
+  const answers = writeWithBom(join(root, 'answers.json'), form);
+  const onboarded = run('onboard', ...source, '--answers', answers, '--profile', 'proposed.json');
+  assert.equal(onboarded.status, 0, onboarded.stderr);
+  assert.equal(JSON.parse(readFileSync(join(root, 'proposed.json'), 'utf8')).adoption.state, 'proposed');
+});
+
 test('the CI coordinator uses the public catalog pack with its original Git commit', t => {
   const root = mkdtempSync(join(tmpdir(), 'openguildkit-catalog-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
