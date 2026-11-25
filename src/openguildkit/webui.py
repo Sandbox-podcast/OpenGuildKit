@@ -109,6 +109,7 @@ TERMINAL_ACTS = {
 # Commands the interface never runs. Each needs a person at a terminal, or does not belong in a page.
 DENIED_COMMANDS = {
     "ci-check": "ci-check evaluates a central rule in CI.",
+    "mcp": "mcp serves project metadata to a local MCP client on stdio, for the agent host.",
     "ui": "The interface is already running.",
 }
 HUMAN_ONLY_TEXT = "A person runs this command in their own terminal: the interface never records it."

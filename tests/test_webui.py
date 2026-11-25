@@ -707,6 +707,8 @@ class WebInterfaceTests(unittest.TestCase):
         run_in_page("send-task-answers", "task", "consult", "request-status", status=400)
         run_in_page("not-in-page", "ui")
         run_in_page("not-in-page", "guard", "--hook", "prompt")
+        # mcp serves the agent host on stdio, which the page replaces: it would fail with a server error.
+        run_in_page("not-in-page", "mcp")
         run_in_page("outside-project", "task", "export", "request-status", "--output", "../outside.json", status=400)
         run_in_page("outside-project", "task", "export", "request-status", "--output", ".git/record.json", status=400)
         run_in_page("bad-request", "no-such-command", status=400)
