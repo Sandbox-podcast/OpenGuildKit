@@ -403,7 +403,7 @@ def run(args, root: Path, state: Path) -> int:
     updated, record, catalog = write_change(
         root, state, args, lambda profile, catalog: _changed(profile, args, catalog),
         args.by, args.reason, lambda change, weakened, voided: _confirm(change, target, weakened, voided))
-    host_settings = args.profile_action == "set" and args.field in ("host", "guard", "research")
+    host_settings = args.profile_action == "set" and args.field in ("host", "guard", "research", "approval")
     report_change(state, updated, record, catalog, host_settings)
     return 0
 
@@ -437,4 +437,4 @@ def save_edited(root: Path, state: Path, edited: dict, by: str, reason: str) -> 
                         f"terminal.{_voids(voided)} Nothing was written.", weakened)
 
     updated, record, catalog = write_change(root, state, None, edit, by, reason, refuse)
-    report_change(state, updated, record, catalog, bool({"host", "guard", "research"} & set(changed)))
+    report_change(state, updated, record, catalog, bool({"host", "guard", "research", "approval"} & set(changed)))

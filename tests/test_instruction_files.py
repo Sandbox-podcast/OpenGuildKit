@@ -42,6 +42,23 @@ class InstructionFileTests(CapturedCli, unittest.TestCase):
             handle.write(f"\n~~~text\n{END}\n~~~\n")
         self.run_cli("check")
 
+    def test_an_import_quoted_in_a_code_block_is_not_the_import_of_agents(self):
+        claude = self.root / "CLAUDE.md"
+        example = "Notes.\n\n```\n@AGENTS.md\n```\n"
+        claude.write_text(example, encoding="utf-8")
+        self.run_cli("init", "--answers", self.answers)
+        text = claude.read_text(encoding="utf-8")
+        self.assertTrue(text.startswith(example))
+        self.assertIn(f"{BEGIN}\n@AGENTS.md\n{END}", text)
+        self.run_cli("check")
+        claude.write_text(example, encoding="utf-8")
+        _, error = self.run_cli("check", code=1)
+        self.assertIn("instructions are out of date", error)
+        self.run_cli("sync")
+        self.assertEqual(claude.read_text(encoding="utf-8"), text)
+        claude.write_text("Notes.\n\n@AGENTS.md\n", encoding="utf-8")
+        self.run_cli("check")
+
     def test_profile_text_refuses_every_kind_of_line_break(self):
         catalog = load_catalog()
         for value in ("line one\rline two", "Python\r" + END, "one two"):

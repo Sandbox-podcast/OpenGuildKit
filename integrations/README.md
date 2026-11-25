@@ -109,7 +109,7 @@ openguildkit task authorize ID --action external-api --target api.example.com --
 - refuses a record placed anywhere but directly in `.openguildkit/decisions/`, where `task export` writes it, and reads the base revision's records at any depth below that folder, so a record merged in a subfolder still binds its approval;
 - refuses a new approval whose approved revision is not in the history of the pull request (an approval given on an abandoned branch and copied into another change), with the message `task list` gives;
 - refuses a record that carries the withdrawal of its approval (`task revoke`, then `task export`), and a copy of that approval made before the withdrawal once the withdrawn record is on the base revision;
-- names the task whose decision covers the change with the record it read, and reports a malformed record as an `OpenGuildKit:` error with exit code 1.
+- names the task whose decision covers the change with the record it read, and reports a record it cannot read, or that `task export` could not have written, as a problem of the check: it fails in `enforce` and is flagged, not blocking, in `observe`, like any other problem.
 
 The list of files is written after the approval and sealed by nobody, not even by a signature: it stops a record from being reused as it is, and the reviewer compares it with the diff of the pull request.
 

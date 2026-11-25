@@ -15,6 +15,10 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - `check`, `references`, `brains` and `task consult` refuse a project reference that names an unknown pack or brain. The catalog refuses an impossible or future `checked`, `verified` or `reviewed` date.
 - Packs: `eu-ai-act` 1.3.3 dates the prohibitions that apply from 2 December 2026, `nis2` names TLD name registries, `european-accessibility-act` 1.0.1 adds EN 301 549 clause 9.7. Each EU text has one address in the catalog.
 - On Windows, an act left to a person needs a console: standard input from `NUL` is no longer taken for a terminal.
+- A decision record or a `catalog.lock.json` of the wrong shape (a null `schema_version`, a list as `consultation_id`, a lock entry that is not an object) is reported as a problem that names the file, instead of a Python traceback. `guard --ci` reports a record it cannot read or whose shape is wrong as a problem of the check, which still passes in `observe`.
+- `openguildkit profile set approval` now says to run `openguildkit host apply`, as `profile set host`, `guard` and `research` do: signed approvals add a rule on the signers file to the host settings, and `check` fails until it is applied.
+- A `CLAUDE.md` that quotes `@AGENTS.md` in a code block no longer counts as importing `AGENTS.md`: `sync` adds the real import and `check` reports the instructions out of date until it does.
+- `openguildkit guard --ci` outside a Git repository says in one line that it needs one, instead of printing the usage of `git diff --no-index`.
 
 ## 0.17.0
 
