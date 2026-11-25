@@ -965,3 +965,32 @@ def render_scan(result: dict) -> str:
 def scan_exit_code(result: dict, strict: bool) -> int:
     """1 when a finding is an error, or any finding at all with --strict."""
     return int(any(item["level"] == "error" or strict for item in result["findings"]))
+
+
+SARIF_HELP = "host-scan.md#what-the-findings-mean"
+SARIF_RULES = {code: {"name": name, "description": description, "help": SARIF_HELP} for code, name, description in (
+    ("hidden-character", "Hidden character",
+     "A file an agent reads holds a character a person does not see."),
+    ("instruction-override", "Instruction that cancels the rules",
+     "A file an agent reads asks it to ignore its rules or to hide an action from the user."),
+    ("remote-execution", "Code run as it arrives",
+     "A file an agent reads, or a setting, pipes a download into an interpreter or runs an encoded command."),
+    ("mcp-unpinned", "MCP server without a fixed version",
+     "An MCP server starts a package or an image that is not pinned to one version."),
+    ("mcp-insecure-transport", "MCP server over plain http",
+     "An MCP server is reached over http outside the machine."),
+    ("permissive-setting", "Permissive agent setting",
+     "A setting gives the agent every shell command or takes away its prompts or its sandbox."),
+    ("surface-uncovered", "Agent tool the guard cannot block",
+     "An agent tool is present in the project and no hook of OpenGuildKit blocks an edit made through it."),
+)}
+
+
+def scan_sarif(result: dict, root: Path) -> str:
+    """The findings of `scan_report` as the SARIF 2.1.0 document `host scan --format sarif` prints."""
+    from .lock import package_version
+    from .sarif import finding, sarif_text, to_sarif
+
+    found = [finding(item["code"], item["level"], item["message"], item.get("path"), item.get("line"))
+             for item in result["findings"]]
+    return sarif_text(to_sarif(found, rules=SARIF_RULES, tool_version=package_version(), root=root))

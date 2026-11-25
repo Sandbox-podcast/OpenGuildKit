@@ -117,6 +117,10 @@ The exit code is 1 when a finding is an `error`, and with `--strict` when there 
 
 `agents_md` is `listed`, `import` or `not-documented`; `coverage.status` is `enforced`, `missing`, `off`, `none` or `unreadable`; `pinned` is `true`, `false`, or `null` when the launch names no package. The findings of both analyses are in one list, sorted by path, line and code.
 
+## SARIF
+
+`openguildkit host scan --format sarif` prints the findings as a SARIF 2.1.0 document for code scanning, under the seven codes of the table above, one rule each. The document is the one [`check` and `guard --ci` write](sarif.md): the same bytes at every run, paths relative to the project, no folder of the machine, and a stable fingerprint per finding. The exit code is the one of the text form. It does not go with `--json`, and it is for `host scan` only. [The upload to GitHub](sarif.md#upload-to-github-code-scanning) is described there.
+
 ## What it does not prove
 
 - It blocks nothing. No hook of any agent runs it: a person runs it, or CI does. A clean scan says that these patterns are absent from these files, not that the files are safe; for any tool but Claude Code and Codex, no hook blocks an edit and the CI check (`guard --ci`) is the only barrier.

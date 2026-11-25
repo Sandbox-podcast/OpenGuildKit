@@ -10,7 +10,7 @@ openguildkit guard --ci --base origin/main --format sarif > openguildkit-guard.s
 - **The standard output holds the document and nothing else.** The standard error says what the text form says (the lines `check` prints about approvals and warnings, and the error that ends it).
 - **The exit code is the one of the text form**: `check` exits 1 on a problem that ends it, `guard --ci` exits 1 on a problem when the guard of the base revision enforces. A file with warnings only comes with exit 0.
 - **`--format` is `text` by default.** `--format sarif` and `--json` together are refused with the command to type, and `guard --format sarif` needs `--ci`. `check` has no `--json` form.
-- The file is written by [`sarif.py`](architecture.md), which does not know about `check`: `host scan` and any other command can give it findings, and [`check_findings.py`](architecture.md) gives the findings of these two.
+- The file is written by [`sarif.py`](architecture.md), which does not know about `check`: `host scan --format sarif` gives it its findings too, under the rules of [its page](host-scan.md#what-the-findings-mean), and [`check_findings.py`](architecture.md) gives the findings of `check` and `guard --ci`.
 
 ## What the file holds
 
@@ -168,13 +168,55 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 
 ## Upload to GitHub code scanning
 
-GitHub code scanning reads SARIF 2.1.0 files that the `github/codeql-action/upload-sarif` action sends ([GitHub's documentation](https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github)). A job that sends the file of this page does, in order:
+GitHub code scanning reads SARIF 2.1.0 files that the `github/codeql-action/upload-sarif` action sends ([GitHub's documentation](https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github)). `--format sarif` is not in v0.17.0: install a release that has it. The job below runs `guard --ci` and sends the file even when the command exits 1, so the exit code stays the job's verdict. For `check`, replace the command with `openguildkit check --format sarif > openguildkit-check.sarif` (and drop `--base`); for `host scan`, with `openguildkit host scan --format sarif > openguildkit-scan.sarif`.
 
-1. check out the repository with its history (`fetch-depth: 0` for `guard --ci`, which reads the base revision) and install OpenGuildKit, as [`integrations/github/openguildkit-guard.yml`](../integrations/github/openguildkit-guard.yml) does;
-2. run `openguildkit guard --ci --base "$BASE_REF" --format sarif > openguildkit-guard.sarif`, or `openguildkit check --format sarif > openguildkit-check.sarif`, and run the next step with `if: always()`, so that the file is sent when the command exits 1: the exit code stays the job's verdict;
-3. send the file with `github/codeql-action/upload-sarif`, whose `sarif_file` input names it, in a job whose token has `security-events: write`, as GitHub's documentation says.
+```yaml
+name: OpenGuildKit guard for code scanning
 
-**This page gives no workflow, because it cannot give one with the action pinned.** The workflow templates of [`integrations/github/`](../integrations/github) pin each action to the full 40-character SHA of a commit, with its tag in a comment (`uses: OWNER/ACTION@SHA # vX.Y.Z`), and `tests/test_workflows.py` requires it of the templates and the workflows of the repository. A SHA written here without having been read from GitHub would be a guess, so the step of the action is yours to write once you have read it:
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - name: Install OpenGuildKit
+        # A release that has --format sarif, and the wheel's hash from that release's SHA256SUMS.txt (install.md).
+        env:
+          OPENGUILDKIT_TAG: replace-with-a-release-tag
+          OPENGUILDKIT_WHEEL: replace-with-the-wheel-file-name
+          OPENGUILDKIT_WHEEL_SHA256: replace-with-the-wheel-hash-from-SHA256SUMS.txt
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/$OPENGUILDKIT_WHEEL" \
+            "https://github.com/Sandbox-podcast/OpenGuildKit/releases/download/$OPENGUILDKIT_TAG/$OPENGUILDKIT_WHEEL"
+          printf '%s  %s\n' "$OPENGUILDKIT_WHEEL_SHA256" "$RUNNER_TEMP/$OPENGUILDKIT_WHEEL" | sha256sum --strict -c -
+          python -m pip install "$RUNNER_TEMP/$OPENGUILDKIT_WHEEL"
+      - name: Check the decision behind the changes
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: openguildkit guard --ci --base "$BASE_REF" --format sarif > openguildkit-guard.sarif
+      - uses: github/codeql-action/upload-sarif@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        if: always()
+        with:
+          sarif_file: openguildkit-guard.sarif
+          category: openguildkit-guard
+```
+
+The action is pinned the way the templates of [`integrations/github/`](../integrations/github) pin theirs: the full SHA of the commit and its tag in a comment. `1fc58d04a4d4374f921bdac573c3811c240f9c26` is the commit of the tag `v4.39.2` (published 2026-11-03), read on 2026-11-25 with the command below; the `action.yml` of its `upload-sarif` folder declares the `sarif_file` and `category` inputs. To move to another version, read its tag the same way:
 
 ```bash
 gh api repos/github/codeql-action/git/ref/tags/TAG --jq .object
@@ -182,4 +224,4 @@ gh api repos/github/codeql-action/git/ref/tags/TAG --jq .object
 
 The answer names the object a tag points at. When its `type` is `commit`, its `sha` is the one to pin. When it is `tag` (an annotated tag), follow it with `gh api repos/github/codeql-action/git/tags/SHA --jq .object.sha`; that is the commit. Write it as `github/codeql-action/upload-sarif@SHA # vX.Y.Z`, with the version of the tag.
 
-Nothing on this page was sent to GitHub: the tests check the structure of the file with the standard library, not against the schema of the standard, and no dashboard has read a file OpenGuildKit wrote. Open the first upload's result in the repository's Security tab before relying on it.
+Nothing on this page was sent to GitHub, and the job above was not run: the tests check the structure of the file with the standard library, not against the schema of the standard, and no dashboard has read a file OpenGuildKit wrote. Open the first upload's result in the repository's Security tab before relying on it.
