@@ -95,6 +95,11 @@ SUBJECTS = {
     **{pack: ("security-sensitive changes", _SECURITY) for pack in (
         "threat-modeling", "owasp-asvs", "iso-27001", "france-public-sector-security")},
     **{pack: ("the ICT systems of a regulated entity", _ICT) for pack in ("dora", "nis2")},
+    # An aviation organisation's systems, data and interfaces, and the software and systems of an aircraft product.
+    "aviation-information-security": ("the systems of an aviation organisation", [
+        {"surface": ["service", "customer", "infrastructure"]}, {"data": ["regulated"]}]),
+    **{pack: ("airborne software and systems", _CODE) for pack in ("airborne-software-assurance",
+                                                                    "airworthiness-security")},
     **{pack: ("security incidents and vulnerabilities", [{"surface": ["infrastructure"]}, {"concerns": ["credentials"]}])
        for pack in ("cyber-resilience-act", "incident-notification")},
     "pay-transparency": ("pay and recruitment", [
@@ -134,6 +139,17 @@ LEGAL_BASIS = {
     "nis2": "regulated data, infrastructure, or a feature or maintenance on a customer or service surface with "
             "personal data: the measures of Art. 21(2) cover the network and information systems an essential or "
             "important entity uses for its services, their suppliers (point d) included.",
+    "aviation-information-security": "regulated data, or code, services and infrastructure: for an organisation listed "
+                                     "in Art. 2 of Delegated Regulation (EU) 2022/1645 or Art. 2(1) of Implementing "
+                                     "Regulation (EU) 2023/203, the systems, data and interfaces that support its "
+                                     "activities belong to the risk assessment of IS.D.OR.205 or IS.I.OR.205.",
+    "airborne-software-assurance": "code, services and infrastructure: AMC 20-115D applies to applicants, design "
+                                   "approval holders and developers of airborne software (section 2), and the "
+                                   "objectives of each software level are in the Annex A tables of ED-12C/DO-178C "
+                                   "(section 6.a).",
+    "airworthiness-security": "code, services and infrastructure: AMC 20-42 section 2 applies to manufacturers and "
+                              "design approval holders, and its product information security risk assessment is an "
+                              "acceptable means under Annex I (Part 21) to Regulation (EU) No 748/2012.",
     "european-accessibility-act": "a customer surface: Directive (EU) 2019/882 sets accessibility requirements for "
                                   "services provided to consumers (Art. 2(2), Annex I), applied since 28 June 2025.",
     "cyber-resilience-act": "infrastructure or credentials: its rules act on how releases are built, shipped and "

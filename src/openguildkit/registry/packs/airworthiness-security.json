@@ -1,0 +1,72 @@
+{
+  "id": "airworthiness-security",
+  "title": "Airworthiness information security (AMC 20-42, ED-202A / DO-326A)",
+  "version": "1.0.0",
+  "description": "For manufacturers and design approval holders whose aircraft, engine, propeller or ETSO article holds information systems that intentional unauthorised electronic interaction could turn into an unsafe condition: process controls a team can prove, built on EASA AMC 20-42, which recognises EUROCAE ED-202A / RTCA DO-326A (2014), ED-203A / DO-356 and ED-204 / DO-355 as an acceptable means of compliance. These standards are sold by EUROCAE and RTCA, so this pack quotes none of their text. EUROCAE published ED-202B in October 2024 as the replacement of ED-202A and RTCA lists DO-326B: ask the authority which edition the certification basis names, because the AMC text this pack follows names ED-202A. The AMC is not mandatory and an alternative means needs EASA's acceptance. These rules concern the product, not the organisation's information security management (see aviation-information-security). They never replace the agreement of the certification authority and do not establish compliance.",
+  "sources": [
+    {
+      "title": "EASA, AMC 20-42 Airworthiness information security risk assessment (Easy Access Rules for AMC-20)",
+      "url": "https://www.easa.europa.eu/en/document-library/easy-access-rules/online-publications/easy-access-rules-acceptable-means?page=21",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "EUROCAE, ED-202A Airworthiness Security Process Specification",
+      "url": "https://www.eurocae.net/product/ed-202a-airworthiness-security-process-specification/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "EUROCAE, ED-202B Airworthiness Security Process Specification (October 2024)",
+      "url": "https://www.eurocae.net/product/ed-202b-airworthiness-security-process-specification/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "RTCA, DO-326 Airworthiness Security Process Specification and the airworthiness security documents",
+      "url": "https://www.rtca.org/security/",
+      "checked": "2026-11-25"
+    }
+  ],
+  "rules": [
+    {
+      "id": "confirm-security-scope",
+      "instruction": "Ask the certification lead whether the change falls under AMC 20-42 section 2 (type certification, a supplemental type certificate, a change to a product or an ETSO article), which edition of ED-202, ED-203 and ED-204 (or DO-326, DO-356 and DO-355) the certification basis names, and what credit the authority accepted for earlier developments (section 1.d).",
+      "verification": "Link the recorded answer, with the authority's correspondence, from the change.",
+      "manual": "The certification basis and the credit for earlier developments are agreed with the authority."
+    },
+    {
+      "id": "update-security-risk-assessment",
+      "instruction": "When the change adds or alters an information system, an interface or a data flow of the product, update the product information security risk assessment through the steps of AMC 20-42 section 5(a): the security environment, the assets, the attack paths, the safety consequences, the threat level, the decision on acceptability and the repetition until every residual risk is acceptable.",
+      "verification": "Open the updated assessment and check that each step has an entry for the changed assets and that no risk is left without a decision.",
+      "manual": "The assessment is a safety and security engineering judgement kept in the certification data."
+    },
+    {
+      "id": "justify-each-residual-risk",
+      "instruction": "For each mitigation, record why no remaining vulnerability can be exploited to create an unacceptable hazard or failure, or why the residual risk is acceptable for the certification criteria, and make the mitigation reach operators in a timely way (AMC 20-42 sections 4(b), 4(c) and 6).",
+      "verification": "Link the record of each residual risk decision and the release or service document that delivers the mitigation.",
+      "manual": "The acceptability of a residual risk depends on the certification criteria and is judged with the authority."
+    },
+    {
+      "id": "verify-mitigations",
+      "instruction": "Verify the effectiveness of each mitigation through a combination of analysis, security-oriented robustness testing, inspections and reviews, and add testing from an adversary's perspective where the assessment calls for it (AMC 20-42 section 8).",
+      "verification": "Run the robustness tests and link, for each mitigation, the test result or the review record.",
+      "manual": "Robustness and adversary-perspective tests run on the product's test benches, and their results are certification data."
+    },
+    {
+      "id": "write-continued-protection-instructions",
+      "instruction": "Identify the information security assets and protection mechanisms to include in the Instructions for Continued Airworthiness, with the procedures that keep them effective in service (AMC 20-42 section 9).",
+      "verification": "Open the draft instructions and find each listed asset with its procedure.",
+      "manual": "The instructions are a certification document judged with the authority."
+    },
+    {
+      "id": "route-security-occurrences",
+      "instruction": "Keep a path by which the operators' reports of security occurrences reach the designer or the type certificate or supplemental type certificate holder, who analyses their impact, takes corrective action and reports a possible unsafe condition to the competent authority promptly, under point 21.A.3A for a Part 21 organisation (AMC 20-42 sections 7 and 9).",
+      "verification": "Open the procedure and check who receives an occurrence, who analyses it and who reports to the authority, and link the last exercise.",
+      "manual": "The procedure and its exercise are kept by the design organisation, outside the repository."
+    },
+    {
+      "id": "reassess-new-threats",
+      "instruction": "Reassess the threats that earlier assessments did not foresee when they appear, and notify the operators and the competent authority promptly when an unacceptable one is found (AMC 20-42 section 9).",
+      "verification": "Link the dated reassessments and, for each unacceptable threat, the notice that was sent.",
+      "manual": "Whether a new threat is unacceptable is a safety judgement taken with the authority."
+    }
+  ]
+}

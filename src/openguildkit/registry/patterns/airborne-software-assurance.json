@@ -1,0 +1,42 @@
+{
+  "id": "airborne-software-assurance",
+  "title": "Airborne software assurance and airworthiness security",
+  "description": "Preselected for aerospace: keep it when the organization develops software, or information systems, that run on board an aircraft, engine, propeller or ETSO article under an EASA or FAA approval (ED-12C / DO-178C, ED-202A / DO-326A through EASA AMC 20-115D and AMC 20-42). It does not apply to ground software, whose assurance standard the authority names, or to a state aircraft, which Regulation (EU) 2018/1139 leaves out (Art. 2(3)). The standards are sold by RTCA and EUROCAE, and these rules never replace the authority's agreement.",
+  "sources": [
+    {
+      "title": "EASA, AMC 20-115D Airborne Software Development Assurance Using EUROCAE ED-12 and RTCA DO-178 (Easy Access Rules for AMC-20)",
+      "url": "https://www.easa.europa.eu/en/document-library/easy-access-rules/online-publications/easy-access-rules-acceptable-means?page=22",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "EASA, AMC 20-42 Airworthiness information security risk assessment (Easy Access Rules for AMC-20)",
+      "url": "https://www.easa.europa.eu/en/document-library/easy-access-rules/online-publications/easy-access-rules-acceptable-means?page=21",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "RTCA, DO-178C Software Considerations in Airborne Systems and Equipment Certification",
+      "url": "https://www.rtca.org/do-178/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "EUROCAE, ED-12C Software considerations in airborne systems and equipment certification (January 2012)",
+      "url": "https://www.eurocae.net/product/ed-12c-software-considerations-in-airborne-systems-and-equipment-certification/",
+      "checked": "2026-11-25"
+    }
+  ],
+  "roles": [
+    "legal",
+    "security",
+    "qa"
+  ],
+  "packs": [
+    "airborne-software-assurance",
+    "airworthiness-security"
+  ],
+  "kind": "regulation",
+  "match": {
+    "sectors": [
+      "aerospace"
+    ]
+  }
+}

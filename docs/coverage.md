@@ -21,7 +21,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
 | it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 8 |
 | leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
-| legal | 56 | 26 | 30 | 23 | 1 | 26 | 175 |
+| legal | 56 | 26 | 30 | 25 | 1 | 29 | 204 |
 | localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
 | marketing | 22 | 8 | 14 | 9 | 0 | 9 | 25 |
 | operations | 21 | 6 | 15 | 11 | 0 | 11 | 26 |
@@ -30,9 +30,9 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | procurement | 8 | 6 | 2 | 1 | 0 | 1 | 5 |
 | product | 23 | 7 | 16 | 19 | 0 | 19 | 71 |
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
-| qa | 50 | 9 | 41 | 8 | 23 | 38 | 208 |
+| qa | 50 | 9 | 41 | 9 | 23 | 40 | 225 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 103 | 29 | 74 | 21 | 20 | 51 | 301 |
+| security | 103 | 29 | 74 | 23 | 20 | 54 | 330 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -77,6 +77,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 | Sector | Preselected patterns | Packs | Rules |
 |---|---|---|---:|
+| aerospace | airborne-software-assurance, aviation-information-security | airborne-software-assurance, airworthiness-security, aviation-information-security | 29 |
 | critical-infrastructure | nis2-essential-entity | incident-notification, nis2 | 13 |
 | e-commerce | european-accessibility-act, online-consumer-sales | european-accessibility-act, online-consumer-sales, web-accessibility | 21 |
 | education | minors-data-protection | minors-data-protection | 7 |
@@ -89,17 +90,20 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 ## Machine checks by pack
 
-42 of 542 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+42 of 571 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
 | account-health-review | 4 | 0 | 0 |
 | agent-native-engineering | 8 | 1 | 0 |
 | agent-workflow | 4 | 0 | 0 |
+| airborne-software-assurance | 10 | 0 | 10 |
+| airworthiness-security | 7 | 0 | 7 |
 | android-app | 7 | 1 | 0 |
 | angular | 7 | 1 | 0 |
 | api-design | 3 | 0 | 0 |
 | aspnet-core | 5 | 1 | 0 |
+| aviation-information-security | 12 | 0 | 12 |
 | aws-iam | 6 | 1 | 0 |
 | backend-data-safety | 4 | 0 | 0 |
 | business-case-review | 2 | 0 | 0 |
