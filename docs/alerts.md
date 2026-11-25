@@ -22,7 +22,7 @@ Each alert has a status:
 | `dismissed` | Not applicable, with the reason and who decided | `alerts set --status dismissed --by NAME --reason WHY` |
 | `resolved` | No scanner that reported it lists it anymore | An import |
 
-Importing the full report of a scanner marks the alerts that this scanner listed before and no longer lists: when no other scanner still lists them, open and confirmed alerts become `resolved`, and keep in `resolved_by` the report that resolved them: scanner, file name, SHA-256, day and number of dependencies analyzed. An alert that reappears goes back to its previous status. A dismissed alert stays dismissed. Each import is recorded with the scanner, the file name, the SHA-256 of the report, the date and the number of dependencies analyzed (the last 20 imports are kept).
+Importing the full report of a scanner marks the alerts that this scanner listed before and no longer lists: when no other scanner still lists them, open and confirmed alerts become `resolved`, and keep in `resolved_by` the report that resolved them: scanner, file name, SHA-256, day and number of dependencies analyzed. An alert that reappears goes back to its previous status, without the decision of a person: the reviewer who confirmed it, and the acceptance of a risk, are removed, so a confirmed critical alert blocks its tasks again until a person accepts it again, and the import says `acceptance removed` (key `acceptance_removed` with `--json`). A dismissed alert stays dismissed. Each import is recorded with the scanner, the file name, the SHA-256 of the report, the date and the number of dependencies analyzed (the last 20 imports are kept).
 
 ### A report that analyzed nothing
 

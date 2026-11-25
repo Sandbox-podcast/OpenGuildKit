@@ -287,15 +287,16 @@ def _merge(entry: dict, other: dict) -> dict:
     return merged
 
 
-def _absorb(alerts: list[dict], alert: dict, tool: str, today: str) -> tuple[list[dict], str]:
-    """Add one reported alert to the list; say whether it is new, known or reopened."""
+def _absorb(alerts: list[dict], alert: dict, tool: str, today: str) -> tuple[list[dict], str, bool]:
+    """Add one reported alert to the list; say whether it is new, known or reopened, and whether reopening it removed
+    the acceptance of a person."""
     matches = [entry for entry in alerts if _same(entry, alert)]
     rest = [entry for entry in alerts if not _same(entry, alert)]
     if not matches:
         fresh = {**{key: value for key, value in alert.items() if key != "source"},
                  "status": "open", "scanners": [tool], "seen_by": [tool], "tasks": [], "first_seen": today,
                  "last_seen": today}
-        return [*rest, fresh], "new"
+        return [*rest, fresh], "new", False
     entry = matches[0]
     for other in matches[1:]:
         entry = _merge(entry, other)
@@ -305,13 +306,14 @@ def _absorb(alerts: list[dict], alert: dict, tool: str, today: str) -> tuple[lis
             entry[key] = alert[key]
     entry["status"] = _status(entry)
     entry["last_seen"] = today
-    change = "known"
+    change, unaccepted = "known", False
     if entry["status"] == "resolved":
         entry["status"] = entry.pop("resolved_from", "open")
-        entry.pop("resolved_on", None)
-        entry.pop("resolved_by", None)
+        unaccepted = "accepted" in entry
+        for key in ("resolved_on", "resolved_by", "accepted", "by", "reason", "decided_at"):
+            entry.pop(key, None)
         change = "reopened"
-    return [*rest, entry], change
+    return [*rest, entry], change, unaccepted
 
 
 def import_report(register: dict, path: Path, task_id: str | None = None, today: str | None = None) -> tuple[dict, dict]:
@@ -319,8 +321,10 @@ def import_report(register: dict, path: Path, task_id: str | None = None, today:
 
     Alerts that this scanner listed before and no longer lists lose it as a source; when no scanner
     lists them anymore, open and confirmed ones become resolved, and keep the report that resolved them (file,
-    SHA-256, day, dependencies analyzed). A report that analyzed no dependency resolves nothing and says why, and one
-    that skipped a package resolves none of its alerts. With task_id, the report's alerts are linked to that task.
+    SHA-256, day, dependencies analyzed). A resolved alert that a report lists again is reopened with its earlier
+    status and without the decision of a person (who confirmed it, who accepted it), so a confirmed critical alert
+    blocks again. A report that analyzed no dependency resolves nothing and says why, and one that skipped a package
+    resolves none of its alerts. With task_id, the report's alerts are linked to that task.
     """
     today = today or _today()
     content = path.read_bytes()
@@ -328,14 +332,17 @@ def import_report(register: dict, path: Path, task_id: str | None = None, today:
     tool, reported = report["tool"], report["alerts"]
     digest = hashlib.sha256(content).hexdigest()
     alerts = [{**alert, "status": _status(alert)} for alert in register["alerts"]]
-    changes = {"tool": tool, "new": [], "reopened": [], "resolved": [], "reported": [], "analyzed": report["analyzed"]}
+    changes = {"tool": tool, "new": [], "reopened": [], "resolved": [], "reported": [], "analyzed": report["analyzed"],
+               "acceptance_removed": []}
     if not report["analyzed"]:
         changes["nothing_analyzed"] = NOTHING_ANALYZED[tool]
     for alert in reported:
-        alerts, change = _absorb(alerts, alert, tool, today)
+        alerts, change, unaccepted = _absorb(alerts, alert, tool, today)
         current = next(entry for entry in alerts if _same(entry, alert))
         if change in ("new", "reopened"):
             changes[change].append(current["id"])
+        if unaccepted:
+            changes["acceptance_removed"].append(current["id"])
         changes["reported"].append(current["id"])
         if task_id and task_id not in current["tasks"]:
             current["tasks"] = sorted([*current["tasks"], task_id])

@@ -195,6 +195,27 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=CRITICAL):
             self.assertIn("(accepted)", self.cli("alerts", "accept", CRITICAL, "--by", "Camille", "--reason", "Behind a VPN."))
 
+    def test_a_reopened_alert_loses_its_acceptance_and_blocks_again(self):
+        self.init()
+        self.cli("task", "new", "Upgrade the form parser.", "--id", "up")
+        self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json")
+        self.cli("alerts", "set", CRITICAL, "--status", "confirmed", "--by", "Alex")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=CRITICAL):
+            self.cli("alerts", "accept", CRITICAL, "--by", "Camille", "--reason", "Behind a VPN.")
+        self.assertIn("1 resolved", self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json"))
+        output = self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json")
+        self.assertIn("1 reopened", output)
+        self.assertIn(f"acceptance removed: {CRITICAL}", output)
+        alert, = load_register(self.root / ".openguildkit")["alerts"]
+        self.assertEqual(alert["status"], "confirmed")
+        for key in ("accepted", "by", "reason", "decided_at"):
+            self.assertNotIn(key, alert)
+        self.assertNotIn("accepted by", self.cli("alerts", "list"))
+        self.assertEqual([row["alert"] for row in json.loads(self.cli("alerts", "tasks", "--json"))], [CRITICAL])
+        self.cli("alerts", "link", CRITICAL, "--task", "up")
+        [message] = blocking_alerts(load_register(self.root / ".openguildkit"), {"id": "up"})
+        self.assertIn(CRITICAL, message)
+
     def test_a_person_sets_the_severity_pip_audit_leaves_unknown_and_it_then_blocks(self):
         self.init()
         self.cli("task", "new", "Upgrade Jinja in the report service.", "--id", "upgrade")
