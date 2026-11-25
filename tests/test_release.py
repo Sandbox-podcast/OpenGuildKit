@@ -223,6 +223,12 @@ class GovernanceFilesTest(unittest.TestCase):
             with self.subTest(page=relative):
                 self.assertEqual(set(re.findall(pattern, _read(relative))), {steps[0]})
 
+    def test_the_governance_says_where_the_draft_starts_without_a_stable_release(self):
+        draft = next(block for block in _read("GOVERNANCE.md").split("\n\n") if "openguildkit-next" in block)
+        for words in ("last stable release", "pre-release", "oldest", "no release"):
+            with self.subTest(words=words):
+                self.assertIn(words, draft)
+
     def test_contributing_states_the_licence_of_catalog_content(self):
         self.assertTrue(_read("LICENSE").startswith("MIT License"))
         paragraph = next(block for block in _read("CONTRIBUTING.md").split("\n\n") if "licen" in block.lower())
@@ -502,6 +508,13 @@ class ReleaseNotesTest(unittest.TestCase):
             self.assertEqual(done.returncode, 0, done.stderr)
             return done.stdout, (folder / "log.txt").read_text(encoding="utf-8")
 
+    def assert_one_bound(self, body: str, log: str, tag: str) -> None:
+        """GitHub lists the pull requests from previous_tag_name; the Full Changelog link starts at the same tag."""
+        self.assertEqual(re.findall(r"previous_tag_name=(\S+)", log), [tag])
+        self.assertEqual(re.findall(r"\*\*Full Changelog\*\*: https://github\.com/example/openguildkit/compare/"
+                                    r"([^.\s]+(?:\.[^.\s]+)*)\.\.\." + "a" * 40 + r"$", body, re.MULTILINE), [tag])
+        self.assertEqual(body.count("**Full Changelog**"), 1)
+
     def test_draft_compares_from_the_last_stable_release_despite_a_newer_prerelease(self):
         body, log = self.draft([
             _release("v0.16.0", "2026-10-01T00:00:00Z"),
@@ -509,14 +522,24 @@ class ReleaseNotesTest(unittest.TestCase):
             _release("v0.17.0", "2026-11-10T00:00:00Z", prerelease=True),
             _release("openguildkit-next", None, draft=True),
         ])
-        self.assertIn("previous_tag_name=v0.16.1", log)
-        self.assertIn(f"**Full Changelog**: https://github.com/example/openguildkit/compare/v0.16.1...{'a' * 40}", body)
-        self.assertEqual(body.count("**Full Changelog**"), 1)
+        self.assert_one_bound(body, log, "v0.16.1")
 
-    def test_draft_without_a_stable_release_links_the_commits(self):
-        body, log = self.draft([_release("v0.17.0", "2026-11-10T00:00:00Z", prerelease=True)])
-        self.assertNotIn("previous_tag_name", log)
-        self.assertIn(f"**Full Changelog**: https://github.com/example/openguildkit/commits/{'a' * 40}", body)
+    def test_draft_without_a_stable_release_compares_from_the_oldest_published_release(self):
+        body, log = self.draft([
+            _release("v0.17.0", "2026-11-10T00:00:00Z", prerelease=True),
+            _release("v0.1.0", "2026-09-01T00:00:00Z", prerelease=True),
+            _release("v0.16.1", "2026-11-01T00:00:00Z", prerelease=True),
+            _release("openguildkit-next", None, draft=True),
+        ])
+        self.assert_one_bound(body, log, "v0.1.0")
+
+    def test_draft_without_any_published_release_links_the_commits(self):
+        for releases in ([], [_release("openguildkit-next", None, draft=True)]):
+            with self.subTest(releases=len(releases)):
+                body, log = self.draft(releases)
+                self.assertNotIn("previous_tag_name", log)
+                self.assertIn(f"**Full Changelog**: https://github.com/example/openguildkit/commits/{'a' * 40}", body)
+                self.assertNotIn("/compare/", body)
 
 
 if __name__ == "__main__":
