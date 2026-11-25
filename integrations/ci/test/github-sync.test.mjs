@@ -130,7 +130,7 @@ test('the GitHub flows accept an adopted profile only after the maintainer appro
 
   commitJson(origin, 'openguildkit.json', { ...approved, owner: '@intruder',
     adoption: { ...approved.adoption, approver: '@intruder' } });
-  refused(sync(), /diffère de la proposition approuvée/);
+  refused(sync(), /differs from the approved proposal/);
 });
 
 test('the GitHub flows read a configuration that starts with a byte order mark', t => {
@@ -164,10 +164,11 @@ test('an error limited to one project or one PR is reported without stopping the
   assert.deepEqual(result.current.map(row => [row.project, row.pullRequest, row.status]), [['team/repo', 7, 'failure']]);
   assert.deepEqual(result.errors.map(error => [error.project, error.pullRequest]),
     [['team/repo', 9], ['team/repo', 8], ['team/broken', undefined]]);
-  assert.match(result.errors[1].message, /a évolué pendant le chargement/);
+  assert.equal(result.errors[0].message, 'Invalid GitHub PR in team/repo.');
+  assert.match(result.errors[1].message, /^PR team\/repo#8 changed during loading\. Run the synchronization again\.$/);
   assert.match(result.errors[2].message, /Duplicate JSON key: owner/);
   assert.throws(() => sync({ selection: { project: 'team/repo', pullRequest: 8, commit: moved, mode: 'required' } }),
-    /a évolué pendant le chargement/);
+    /PR team\/repo#8 changed during loading\. Run the synchronization again\./);
 
   const local = join(root, 'local.json');
   writeFileSync(local, JSON.stringify({
@@ -187,6 +188,23 @@ test('an error limited to one project or one PR is reported without stopping the
   git(origin, 'commit', '-qm', 'Add an invalid waiver');
   configure({ profileMaintainer: 'lead' }, { policy: { waiversPath: 'policy/waivers.json' } });
   assert.throws(() => sync(), /Dérogation invalide : incomplete/);
+});
+
+test('the GitHub synchronization refuses an invalid configuration with an English message', t => {
+  const { configure, configPath, sync } = githubFixture(t);
+  assert.throws(() => { configure({}, { policy: { ref: 'main' } }); sync(); },
+    error => error.message === 'A GitHub repository, a clone path and a trusted branch refs/heads/… are required.');
+
+  configure({ profileMaintainer: 'lead', prNumbers: [0] });
+  refused(sync(), /^prNumbers must contain positive PR numbers\.$/);
+
+  writeFileSync(configPath, JSON.stringify({ policyRepo: { id: 'team/policies', path: 'clone', ref: 'refs/heads/main' }, projects: {} }));
+  assert.throws(() => sync(), error => error.message === 'projects must be a list.');
+
+  configure({ profileMaintainer: 'lead' });
+  for (const options of [{ reportUrl: 'https://example.org/report' }, { publish: true, reportUrl: 'ftp://example.org/report' }]) {
+    assert.throws(() => sync(options), error => error.message === '--report-url requires --publish and an HTTP or HTTPS URL.');
+  }
 });
 
 test('only the PRs into the profile branch are evaluated, and their statuses are in English', t => {

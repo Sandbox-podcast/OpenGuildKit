@@ -83,3 +83,21 @@ test('the profile approval refuses an unusable proposal with an English message'
   refuses('The proposal must designate the configured repository and maintainer.',
     { content: { ...proposal, owner: '@intruder' } });
 });
+
+test('the ticket lookup refuses an unusable PR or ticket reference with an English message', () => {
+  const url = `https://github.com/${repository}`;
+  const pull = { state: 'open', head: { sha: commit }, html_url: `${url}/pull/2`, body: 'OpenGuildKit-Ticket: #3' };
+  const issue = { html_url: `${url}/issues/3` };
+  const read = ({ request = {}, pr = {}, ticket = {} } = {}) =>
+    readGitHubTicket({ repo: 'example/portal', pullRequest: 2, commit, ...request }, endpoint =>
+      endpoint.endsWith('/pulls/2') ? { ...pull, ...pr } : { ...issue, ...ticket });
+  assert.equal(read().issue.html_url, issue.html_url);
+  const refuses = (message, scenario) => assert.throws(() => read(scenario), error => error.message === message);
+
+  refuses('A GitHub repository, a PR number and a full SHA are required.', { request: { commit: 'abc123' } });
+  refuses('The PR or its current commit no longer matches the request.', { pr: { state: 'closed' } });
+  refuses('The PR must declare a single ticket with OpenGuildKit-Ticket: #NUMBER.', { pr: { body: 'No ticket here.' } });
+  refuses('The PR must declare a single ticket with OpenGuildKit-Ticket: #NUMBER.',
+    { pr: { body: 'OpenGuildKit-Ticket: #3\nOpenGuildKit-Ticket: #4' } });
+  refuses('The reference must point to a ticket in the repository of the PR.', { ticket: { pull_request: {} } });
+});
