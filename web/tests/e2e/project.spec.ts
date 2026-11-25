@@ -634,6 +634,7 @@ test('creates a market dossier, adds a competitor and an observation, and review
 });
 
 test('exports a completed task for Documentalist, then records and revokes a share', async ({ page }) => {
+  const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
   await open(page, '/documentation');
   await page.getByLabel(/request-status/).check();
   await page.getByLabel('Version du projet').fill('1.5.0');
@@ -646,7 +647,7 @@ test('exports a completed task for Documentalist, then records and revokes a sha
   await page.getByRole('tab', { name: /Partages/ }).click();
   await expect(page.getByText(/Indique tes initiales ou l’identifiant de ton équipe pour enregistrer qu’un accès a été retiré/)).toBeVisible();
   await page.getByLabel('Page ou dossier partagé').fill('docs-site/reference/request-status.md');
-  await page.getByLabel('Dernier jour d’accès').fill('2026-12-20');
+  await page.getByLabel('Dernier jour d’accès').fill(day(20));
   await page.getByLabel('Adresse du portail Documentalist').fill('https://docs.example.org/p/support-portal');
   await page.getByLabel('Responsable du partage').fill('Camille Martin');
   await page.getByRole('button', { name: 'Enregistrer le partage' }).click();
@@ -654,14 +655,27 @@ test('exports a completed task for Documentalist, then records and revokes a sha
   await page.getByLabel('Ajouter : Destinataires (adresses)').fill('partner@example.org');
   await page.getByLabel('Ajouter : Destinataires (adresses)').press('Enter');
   await page.getByLabel('Page ou dossier partagé').fill('docs-site/reference/request-status.md');
-  await page.getByLabel('Dernier jour d’accès').fill('2026-12-20');
+  await page.getByLabel('Dernier jour d’accès').fill(day(20));
   await page.getByLabel('Adresse du portail Documentalist').fill('https://docs.example.org/p/support-portal');
   await page.getByLabel('Responsable du partage').fill('Camille Martin');
   await page.getByRole('button', { name: 'Enregistrer le partage' }).click();
   await expect(page.getByText('Partage enregistré')).toBeVisible();
-  const row = page.locator('tr', { hasText: 'partner@example.org' });
+  await page.getByLabel('Ajouter : Destinataires (adresses)').fill('partner@example.org');
+  await page.getByLabel('Ajouter : Destinataires (adresses)').press('Enter');
+  await page.getByLabel('Page ou dossier partagé').fill('docs-site');
+  await page.getByLabel('Dernier jour d’accès').fill(day(30));
+  await page.getByLabel('Adresse du portail Documentalist').fill('https://docs.example.org/p/support-portal');
+  await page.getByLabel('Responsable du partage').fill('Camille Martin');
+  await page.getByRole('button', { name: 'Enregistrer le partage' }).click();
+  await expect(page.getByText('Avertissements de la commande')).toBeVisible();
+  await expect(page.getByText(new RegExp(`later last day, ${day(30)}`))).toBeVisible();
+  const row = page.getByRole('row')
+    .filter({ has: page.getByRole('cell', { name: 'partner@example.org', exact: true }) })
+    .filter({ has: page.getByText('Autres livrables visibles : docs-site', { exact: true }) });
+  await expect(row.getByText('Autres livrables visibles : docs-site', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Masquer les avertissements' }).click();
   await row.getByRole('button', { name: 'Accès retiré' }).click();
-  await expect(row.getByText('Retiré')).toBeVisible();
+  await expect(page.getByText(/docs share revoke --id [a-f0-9]{8} --by NAME/)).toBeVisible();
 
   await page.getByRole('tab', { name: /Relevés de décision/ }).click();
   await expect(page.getByRole('button', { name: /request-status/ }).first()).toBeVisible();
