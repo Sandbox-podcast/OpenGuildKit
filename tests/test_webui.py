@@ -198,12 +198,12 @@ class WebInterfaceTests(unittest.TestCase):
 
     def test_git_is_out_of_reach_whatever_its_case(self):
         status, result = self.run_in_page("storybook", "extract", "--src", ".", "--output", ".GIT/probe.json")
-        self.assertEqual((status, result["reason"]), (400, "outside-project"))
+        self.assertEqual((status, result["reason"]), (403, "secret-file"))
         self.assertFalse((self.root / ".GIT").exists() or (self.root / ".git").exists())
         (self.root / ".Git").mkdir()
         (self.root / ".Git" / "config.json").write_text("{}", encoding="utf-8")
         status, _, body = self.request("/api/files/read", {"path": ".Git/config.json"})
-        self.assertEqual((status, json.loads(body)["reason"]), (403, "outside-project"))
+        self.assertEqual((status, json.loads(body)["reason"]), (403, "secret-file"))
         names = [entry["name"] for entry in json.loads(self.request("/api/files/list", {"path": "."})[2])["entries"]]
         self.assertNotIn(".Git", names)
 
@@ -394,7 +394,8 @@ class WebInterfaceTests(unittest.TestCase):
         status, _, body = self.request("/api/session")
         human = json.loads(body)["human_only"]
         for command in ("task decide --approve", "task clear", "task waive", "task authorize --allow", "alerts accept",
-                        "task verify --cannot-run", "task complete --by", "tools apply (live)"):
+                        "task verify --cannot-run", "task complete --by", "tools apply (live)",
+                        "alerts set or task alerts --set (critical alert dismissed or taken back)"):
             self.assertIn(command, human)
 
     def test_a_signed_clearance_or_its_payload_is_not_refused_as_a_terminal_act(self):
@@ -613,6 +614,27 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertIn("alerts set npm:x:1 --status dismissed", result["command"])
         self.assertEqual(result["reason"], "alert-status-at-terminal")
 
+    def test_a_critical_alert_is_dismissed_at_a_terminal_by_alerts_set_and_by_task_alerts(self):
+        fixtures = REPO / "tests" / "fixtures" / "alerts"
+        critical, high = "npm:form-parser:ghsa-xxxx-yyyy-zzzz", "npm:semver:ghsa-c2qf-rxjj-qqgw"
+        self.run_in_page("task", "new", "Show request status", "--id", "request-status")
+        for name in ("npm-audit-critical.json", "npm-audit.json"):
+            status, result = self.run_in_page("task", "alerts", "request-status", "--import", "@upload:report.json",
+                                              uploads={"report.json": (fixtures / name).read_text(encoding="utf-8")})
+            self.assertEqual((status, result["code"]), (200, 0), result)
+        for argv in (["alerts", "set", critical, "--status", "dismissed", "--by", "Camille", "--reason", "Build only"],
+                     ["task", "alerts", "request-status", "--set", critical, "--status", "dismissed", "--by", "Camille",
+                      "--reason", "Build only"]):
+            with self.subTest(argv=argv[:2]):
+                status, result = self.run_in_page(*argv)
+                self.assertEqual((status, result["code"], result.get("reason")), (200, 1, "alert-status-at-terminal"), result)
+                self.assertTrue(result["command"].startswith("openguildkit --project "), result["command"])
+        # The rule is the CLI's: a high alert is dismissed from the page, and the refusal does not claim otherwise.
+        status, result = self.run_in_page("alerts", "set", high, "--status", "dismissed", "--by", "Camille",
+                                          "--reason", "Build only")
+        self.assertEqual((status, result["code"]), (200, 0), result)
+        self.assertNotIn("high", webui.REFUSALS["alert-status-at-terminal"])
+
     def test_the_command_the_cli_names_in_its_refusal_is_the_one_to_type(self):
         message = ("OpenGuildKit: 1 data protection, security or AI point(s) are skipped, failed or declared not "
                    "applicable as a pack. A person confirms closing over them: openguildkit task complete "
@@ -676,7 +698,7 @@ class WebInterfaceTests(unittest.TestCase):
         run_in_page("not-in-page", "ui")
         run_in_page("not-in-page", "guard", "--hook", "prompt")
         run_in_page("outside-project", "task", "export", "request-status", "--output", "../outside.json", status=400)
-        run_in_page("outside-project", "task", "export", "request-status", "--output", ".git/record.json", status=400)
+        run_in_page("secret-file", "task", "export", "request-status", "--output", ".git/record.json")
         run_in_page("bad-request", "no-such-command", status=400)
         refused_by_server("weakens-protection", 403, "/api/profile/save", {"text": json.dumps(
             {**json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8")),
@@ -684,7 +706,7 @@ class WebInterfaceTests(unittest.TestCase):
         refused_by_server("invalid-profile", 400, "/api/profile/save", {"text": "[1, 2]"})
         refused_by_server("invalid-profile", 400, "/api/profile/save", {"text": "{not json"})
         refused_by_server("secret-file", 403, "/api/files/read", {"path": ".env"})
-        refused_by_server("outside-project", 403, "/api/files/read", {"path": ".git/config"})
+        refused_by_server("secret-file", 403, "/api/files/read", {"path": ".git/config"})
         refused_by_server("outside-project", 400, "/api/files/read", {"path": "../x.json"})
         refused_by_server("not-readable", 403, "/api/files/read", {"path": "notes.py"})
         refused_by_server("too-large", 413, "/api/files/read", {"path": "big.txt"})

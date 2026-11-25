@@ -526,7 +526,7 @@ test('says a refusal in French by its code, keeps the command copyable, and mark
     return page.getByRole('dialog', { name: 'À faire dans ton terminal' });
   };
   let terminal = await dismiss();
-  await expect(terminal.locator('p').first()).toHaveText('Écarter une alerte critique ou haute se fait par une personne, dans son terminal, avec ses initiales et la raison.');
+  await expect(terminal.locator('p').first()).toHaveText('Écarter une alerte critique, ou revenir sur une alerte critique confirmée, se fait par une personne, dans son terminal, avec ses initiales et la raison.');
   await expect(terminal.locator('p').first()).not.toHaveAttribute('lang', 'en');
   await expect(terminal.getByLabel('Commande')).toContainText('alerts set npm:form-parser');
   await expect(terminal.getByRole('button', { name: 'Copier' })).toBeVisible();

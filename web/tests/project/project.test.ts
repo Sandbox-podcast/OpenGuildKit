@@ -154,6 +154,13 @@ describe('refusals of the local server', () => {
     expect(refusalText(undefined, 'No code.')).toEqual({ text: 'No code.', lang: 'en' });
   });
 
+  it('says critical, as the CLI does, for a dismissed alert, and counts .git among the files it does not read', () => {
+    expect(REFUSAL_FR['alert-status-at-terminal']).toMatch(/critique/);
+    expect(REFUSAL_FR['alert-status-at-terminal']).not.toMatch(/haute/);
+    expect(REFUSAL_FR['secret-file']).toContain('.git');
+    expect(REFUSAL_FR['outside-project']).not.toContain('.git');
+  });
+
   it('shows the French text with the server words as detail, or the English marked', () => {
     const known = new ApiError('Missing or invalid session token. Reload the page.', 403, { reason: 'stale-token', lang: 'en' });
     expect(errorText(known)).toEqual({ text: REFUSAL_FR['stale-token'], detail: 'Missing or invalid session token. Reload the page.' });

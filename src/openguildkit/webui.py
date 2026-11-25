@@ -2,9 +2,9 @@
 
 The API runs the same commands a person types, in this process, one at a time. It never runs what needs a
 person at a terminal: approving a task or clearing a blocker without a signature, waiving a blocker, allowing an
-external action, accepting an alert or setting its severity, declaring that a check command cannot run, closing a
-task over sensitive points, or a profile change that weakens a protection. For those, it answers with the command
-to type.
+external action, accepting an alert, setting its severity or dismissing a critical one, declaring that a check
+command cannot run, closing a task over sensitive points, or a profile change that weakens a protection. For those,
+it answers with the command to type.
 """
 
 from __future__ import annotations
@@ -73,8 +73,8 @@ REFUSALS = {
     "external-action-at-terminal": "Allowing an external action needs a person at a terminal.",
     "alert-accept-at-terminal": "Accepting a confirmed alert needs a person at a terminal.",
     "alert-severity-at-terminal": "Setting the severity of an alert needs a person at a terminal.",
-    "alert-status-at-terminal": "Dismissing a critical or high alert, or calling it a false positive, needs a person "
-                                "at a terminal.",
+    "alert-status-at-terminal": "Dismissing a critical alert, or taking a confirmed critical alert back, needs a "
+                                "person at a terminal.",
     "weakens-protection": "A profile change that weakens a protection is the person's decision at an interactive "
                           "terminal.",
     "person-at-terminal": "Another decision the CLI leaves to a person at a terminal.",
@@ -82,8 +82,9 @@ REFUSALS = {
     "send-task-answers": "Send the task answers: the interface cannot answer terminal prompts.",
     "invalid-profile": "The profile sent is not a valid profile.",
     "not-initialized": "The project is not initialized: set it up first.",
-    "outside-project": "A path leaves the project, or enters its .git folder.",
-    "secret-file": "The name of the file suggests a secret: the interface neither lists nor reads it.",
+    "outside-project": "A path leaves the project.",
+    "secret-file": "The name of the file suggests a secret, or the file is inside .git: the interface neither lists "
+                   "nor reads it.",
     "not-readable": "The interface only reads Markdown, JSON, YAML and text files.",
     "too-large": "The request or the file is too large.",
     "not-in-page": "A command or a file that does not belong in a page.",
@@ -104,7 +105,8 @@ TERMINAL_ACTS = {
     ("task", "complete"): "complete-at-terminal", ("task", "waive"): "waiver-at-terminal",
     ("task", "authorize"): "external-action-at-terminal", ("tools", "apply"): "live-plan-at-terminal",
     ("alerts", "accept"): "alert-accept-at-terminal", ("alerts", "severity"): "alert-severity-at-terminal",
-    ("alerts", "set"): "alert-status-at-terminal", ("task", "consult"): "send-task-answers",
+    ("alerts", "set"): "alert-status-at-terminal", ("task", "alerts"): "alert-status-at-terminal",
+    ("task", "consult"): "send-task-answers",
     ("init", None): "send-setup-answers",
 }
 # Commands the interface never runs. Each needs a person at a terminal, or does not belong in a page.
@@ -227,9 +229,7 @@ def _out_of_reach(root: Path, value: Path | str, uploads: set[Path]) -> str | No
         relative = target.relative_to(root)
     except ValueError:
         return "outside-project"
-    if _in_git(relative.parts):
-        return "outside-project"
-    return "secret-file" if _secret(relative.parts) else None
+    return "secret-file" if _in_git(relative.parts) or _secret(relative.parts) else None
 
 
 def _resolved(path: Path) -> Path:
@@ -268,8 +268,8 @@ def check_paths(args, root: Path, uploads: set[Path]) -> None:
                 raise Refused(f"--{name.replace('_', '-')} must name a file inside the project: {item}",
                               status=HTTPStatus.BAD_REQUEST, reason=reason)
             if reason:
-                raise Refused(f"--{name.replace('_', '-')} names a path that suggests a secret, which the interface "
-                              f"does not read: {item}", reason=reason)
+                raise Refused(f"--{name.replace('_', '-')} names a path the interface does not read, because its name "
+                              f"suggests a secret or it is inside .git: {item}", reason=reason)
 
 
 def _without(data, keys: set[str]):
@@ -420,7 +420,7 @@ class ProjectFiles:
             raise Refused("The path leaves the project.", status=HTTPStatus.BAD_REQUEST,
                           reason="outside-project") from None
         if _in_git(parts):
-            raise Refused("The interface does not read or write inside .git.", reason="outside-project")
+            raise Refused("The interface does not read or write inside .git.", reason="secret-file")
         if _secret(parts):
             raise Refused("The name of this path suggests a secret: the interface does not read it.",
                           reason="secret-file")
@@ -719,8 +719,9 @@ class WebApp:
                         "initialized": (self.root / ".openguildkit" / "project.json").is_file()},
             "human_only": ["task decide --approve", "task revoke", "task clear", "task waive",
                            "task authorize --allow", "task verify --cannot-run", "task verify --withdraw",
-                           "task complete --by", "alerts accept", "alerts severity", "profile (weakening a protection)",
-                           "tools apply (live)"],
+                           "task complete --by", "alerts accept", "alerts severity",
+                           "alerts set or task alerts --set (critical alert dismissed or taken back)",
+                           "profile (weakening a protection)", "tools apply (live)"],
         }
 
     def handle(self, path: str, body: dict):
