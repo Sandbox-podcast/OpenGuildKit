@@ -82,7 +82,7 @@ class WebPagesTests(unittest.TestCase):
 class RoadmapTests(unittest.TestCase):
     def test_available_names_what_shipped_and_the_three_systems(self):
         available = _read(REPO / "docs" / "roadmap.md").split("## Available", 1)[1].split("\n## ", 1)[0]
-        for words in ("tool registry", "mock", "web interface", "field", "Linux, macOS and Windows"):
+        for words in ("tool registry", "mock", "features", "Arsenal", "web interface", "field", "Linux, macOS and Windows"):
             with self.subTest(words=words):
                 self.assertIn(words, available)
 

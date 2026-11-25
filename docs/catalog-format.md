@@ -2,7 +2,7 @@
 
 The [reference library](references.md) holds source material you can use when contributing a pack. The records below define what OpenGuildKit can apply to a project or use in a board review.
 
-The catalog has four collections of records, one JSON file per record, and four folders of material that the records and the commands use:
+The catalog has four collections of records, one JSON file per record, and five folders of material that the records and the commands use:
 
 ```text
 src/openguildkit/registry/          shared catalog, shipped with the package

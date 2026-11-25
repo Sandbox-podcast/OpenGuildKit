@@ -210,6 +210,19 @@ class GovernanceFilesTest(unittest.TestCase):
         self.assertIn("stays private", away)
         self.assertIn("Security", away)
 
+    def test_pages_that_cite_the_release_check_step_cite_the_step_that_describes_it(self):
+        section = _read("GOVERNANCE.md").split("## Releases", 1)[1].split("\n## ", 1)[0]
+        steps = [line.split(". ", 1)[0] for line in section.splitlines()
+                 if re.match(r"\d+\. ", line) and "release-check.yml" in line]
+        self.assertEqual(len(steps), 1, steps)
+        cited = {
+            ".github/workflows/release-check.yml": r"step (\d+) of GOVERNANCE\.md#releases",
+            "docs/testing.md": r"GOVERNANCE\.md#releases\), step (\d+)",
+        }
+        for relative, pattern in cited.items():
+            with self.subTest(page=relative):
+                self.assertEqual(set(re.findall(pattern, _read(relative))), {steps[0]})
+
     def test_contributing_states_the_licence_of_catalog_content(self):
         self.assertTrue(_read("LICENSE").startswith("MIT License"))
         paragraph = next(block for block in _read("CONTRIBUTING.md").split("\n\n") if "licen" in block.lower())
@@ -308,6 +321,16 @@ class CiWorkflowTest(unittest.TestCase):
             variable = next(name for name, value in gate["steps"][0]["env"].items() if f"needs.{job}.result" in value)
             self.assertIn(f'test "${variable}" = success', script)
         self.assertNotIn("once it has passed on main", _read(".github/workflows/ci.yml"))
+
+    def test_contributing_names_every_job_contribution_checks_requires(self):
+        named = {"test": "test matrix", "performance": "performance tests", "package": "wheel build",
+                 "ci-coordinator": "CI coordinator", "web": "checks and journeys of the web interface",
+                 "web-e2e": "checks and journeys of the web interface"}
+        self.assertEqual(set(named), set(self.jobs["contribution-checks"]["needs"]))
+        paragraph = next(block for block in _read("CONTRIBUTING.md").split("\n\n") if "`contribution-checks` status" in block)
+        for job, words in named.items():
+            with self.subTest(job=job):
+                self.assertIn(words, paragraph)
 
     def test_no_checkout_leaves_the_token_in_the_git_config(self):
         for path in WORKFLOWS:
