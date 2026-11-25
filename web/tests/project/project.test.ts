@@ -183,6 +183,39 @@ describe('commands to type in a terminal', () => {
     expect(quoteFor("Camille's scope", false)).toBe("'Camille'\\''s scope'");
     expect(quoteFor('a $HOME `x`', false)).toBe("'a $HOME `x`'");
   });
+
+  it('writes the same words as shell_word (src/openguildkit/shell.py), shell by shell', () => {
+    // [word, as PowerShell reads it, as a POSIX shell reads it]: shell_word(word, True) and shell_word(word, False).
+    const words: [string, string, string][] = [
+      ['Validé par l’équipe', "'Validé par l’’équipe'", "'Validé par l’équipe'"],
+      ['it’s', "'it’’s'", "'it’s'"],
+      ['‘a’', "'‘‘a’’'", "'‘a’'"],
+      ['a‚b', "'a‚‚b'", "'a‚b'"],
+      ['a‛b', "'a‛‛b'", "'a‛b'"],
+      ['=cmd', '=cmd', "'=cmd'"],
+      ['@args', "'@args'", '@args'],
+      ['key=value', 'key=value', 'key=value'],
+      ['x=@y', 'x=@y', 'x=@y'],
+      ['a@b', 'a@b', 'a@b'],
+      ['a,b', "'a,b'", 'a,b'],
+      ['100%', '100%', '100%'],
+      ['équipe', 'équipe', 'équipe'],
+      ['日本語', '日本語', '日本語'],
+      ['RUNNER~1', 'RUNNER~1', 'RUNNER~1'],
+      ['~/notes', "'~/notes'", "'~/notes'"],
+      ['a=~b', "'a=~b'", "'a=~b'"],
+      ['a:~b', "'a:~b'", "'a:~b'"],
+      ['a~~b', "'a~~b'", "'a~~b'"],
+      [':x', ':x', ':x'],
+      ['--reason', '--reason', '--reason'],
+      ['$HOME', "'$HOME'", "'$HOME'"],
+      ['line\nbreak', "'line\nbreak'", "'line\nbreak'"],
+      ['', "''", "''"],
+    ];
+    for (const [word, powershell, posix] of words) {
+      expect([word, quoteFor(word, true), quoteFor(word, false)]).toEqual([word, powershell, posix]);
+    }
+  });
 });
 
 describe('project signals', () => {

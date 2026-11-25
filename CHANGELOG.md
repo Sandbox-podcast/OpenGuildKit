@@ -10,6 +10,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - The web interface refuses a command that names, in one of its options, a file the page itself will not read (`task new --file credentials.md`, `client_secret.json`): it answers `secret-file` instead of copying the file into the task.
 - The web interface lists and opens the market dossiers and tasks whose ID contains `password` or `secret` (`password-manager`, `password-reset`), which it hid as if they were secret files.
 - The web interface answers a NUL or a lone surrogate in a path, an upload or the Storybook proposals with `bad-request` instead of a server error or a false "project busy", and writes the type, message and trace of a real server error in the terminal that runs `openguildkit ui`.
+- The commands the web interface offers to copy now quote a word as the CLI does: typographic apostrophes (‘ ’ ‚ ‛) are doubled for PowerShell, and a leading `=` (POSIX shells) or `@` (PowerShell) goes between quotes.
 
 ## 0.17.0
 

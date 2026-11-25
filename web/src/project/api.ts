@@ -115,11 +115,19 @@ export const readJson = async <T,>(path: string) => parseOrNull<T>(await readFil
 export const writeFile = (path: string, text: string) => post<{ written: boolean }>('./api/files/write', { path, text });
 export const saveProfile = (text: string) => post<CliResult>('./api/profile/save', { text });
 
+// Words each shell reads as typed, as src/openguildkit/shell.py lists them (letters and digits are Unicode ones).
+// Quoted anyway: a leading = (zsh reads a command path), a leading @ or a comma in PowerShell (splatting, a list), and
+// a tilde that does not follow a word character.
+const POSIX_PLAIN = /^(?:[\p{L}\p{N}_%+,./@-]~?|:)(?:[\p{L}\p{N}_%+,./@-]~?|[=:])*$/u;
+const POWERSHELL_PLAIN = /^(?:[\p{L}\p{N}_%+./-]~?|[=:])(?:[\p{L}\p{N}_%+./@-]~?|[=:])*$/u;
+
 /**
- * Quotes an argument the way a person types it: single quotes work the same in PowerShell and POSIX shells;
- * only the escape of a single quote differs ('' in PowerShell, '\'' in sh).
+ * Quotes an argument the way a person types it, as shell_word does: single quotes work the same in PowerShell and
+ * POSIX shells; only the escape of a single quote differs ('\'' in sh, a doubled quote in PowerShell, which also
+ * closes a string at a typographic one: ‘ ’ ‚ ‛).
  */
-export const quoteFor = (value: string, windows: boolean) => /^[A-Za-z0-9._:/@=+-]+$/.test(value) ? value : `'${value.replace(/'/g, windows ? "''" : "'\\''")}'`;
+export const quoteFor = (value: string, windows: boolean) => (windows ? POWERSHELL_PLAIN : POSIX_PLAIN).test(value) ? value
+  : `'${value.replace(windows ? /['‘’‚‛]/g : /'/g, windows ? '$&$&' : "'\\''")}'`;
 export const shellQuote = (value: string) => quoteFor(value, /^[A-Za-z]:[\\/]/.test(session?.project.root ?? ''));
 /** A path the CLI records (absolute, the project's own separators) as the file API takes it: relative, with slashes. */
 export function projectPath(path: string, root = session?.project.root ?? '') {
