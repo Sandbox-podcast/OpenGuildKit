@@ -39,8 +39,9 @@ REQUIRED_LISTS = (("required_rules", "required-rule", "required rule"),
                   ("required_boards", "required-board", "required board"), ("checks", "check", "check command"))
 GUARD_LEVEL = {"off": 0, "observe": 1, "enforce": 2}
 # How much each host enforces by itself: Claude Code also denies edits to the profile and the task records,
-# Codex runs the hooks and forbids the approval commands, another agent only reads the instructions.
-HOST_LEVEL = {"other": 0, "codex": 1, "claude-code": 2}
+# Codex runs the hooks and forbids the approval commands, Gemini CLI runs the hooks and nothing else, another agent
+# only reads the instructions.
+HOST_LEVEL = {"other": 0, "gemini-cli": 1, "codex": 2, "claude-code": 3}
 PROTECTIVE_BOARDS = ("security", "legal")
 AI_PACKS = ("llm-evaluations", "nist-ai-risk", "eu-ai-act")
 

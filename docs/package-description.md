@@ -19,7 +19,7 @@ openguildkit check
 openguildkit ui
 ```
 
-`init` asks the stack, the sector, personal data and each norm they imply, then writes the profile and, in `AGENTS.md`, the task workflow and the rule packs by rule ID. `host apply` installs the settings and hooks of Claude Code or Codex; skip it for another agent. `ui` opens the project in the browser, on 127.0.0.1; approvals stay in your terminal. Every change then follows the [task workflow](https://github.com/Sandbox-podcast/OpenGuildKit/blob/main/docs/workflow.md): the agent opens a task, the brains of the disciplines it concerns review it, you decide, and the agent delivers the approved scope.
+`init` asks the stack, the sector, personal data and each norm they imply, then writes the profile and, in `AGENTS.md`, the task workflow and the rule packs by rule ID. `host apply` installs the settings and hooks of Claude Code, Codex or Gemini CLI; skip it for another agent. `ui` opens the project in the browser, on 127.0.0.1; approvals stay in your terminal. Every change then follows the [task workflow](https://github.com/Sandbox-podcast/OpenGuildKit/blob/main/docs/workflow.md): the agent opens a task, the brains of the disciplines it concerns review it, you decide, and the agent delivers the approved scope.
 
 ## Documentation
 

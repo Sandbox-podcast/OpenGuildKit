@@ -16,7 +16,7 @@ from .detect import components_for_profile, detect_stack, detected_project_name
 from .guard import (
     NO_TASK, SCOPE_NOTE, STALE_DAYS, ci_guard, covering_approvals, exported_decisions, guard_mode, hook_command,
 )
-from .hosts import OFF_PATH, apply_host_settings, approval_warning, host_controls
+from .hosts import HOOK_HOSTS, HOSTS, OFF_PATH, apply_host_settings, approval_warning, host_controls
 from .integrations import OTHER_HOST_NOTE, install_agent_files
 from .lock import (
     LOCK_FILE, apply_lock, build_lock, catalog_changes, installed_catalog, installed_catalog_date, lock_is_current,
@@ -178,7 +178,7 @@ def command_parser() -> argparse.ArgumentParser:
     market_cli.add_parser(commands)
     storybook_cli.add_parser(commands)
     agent = commands.add_parser("integrations", help="Install the agent skill and subagent of this version.")
-    agent.add_argument("--host", required=True, choices=("claude-code", "codex", "other"),
+    agent.add_argument("--host", required=True, choices=HOSTS,
                        help="Agent to configure (other: the Agent Skills folder .agents/skills/).")
     agent.add_argument("--user", action="store_true", help="Install in the home folder for every project.")
     agent.add_argument("--force", action="store_true", help="Replace modified files, keeping a .previous copy.")
@@ -499,9 +499,9 @@ def _print_preselection(plan: dict, catalog: dict) -> None:
 HOST_STATUS_LABELS = {"instruction": "by instruction", "human": "by a person"}
 NO_HOST_SETTINGS = (
     "the project's host is other, so host apply wrote nothing: OpenGuildKit writes host settings only for "
-    "claude-code and codex. The rules above stay with the AGENTS.md instructions and the CI check. To install "
-    "the settings and hooks for one of these agents, run openguildkit profile set host claude-code (or codex) "
-    "--by NAME --reason WHY, then openguildkit host apply."
+    "claude-code, codex and gemini-cli. The rules above stay with the AGENTS.md instructions and the CI check. To "
+    "install the settings and hooks for one of these agents, run openguildkit profile set host claude-code (or codex) "
+    "--by NAME --reason WHY, then openguildkit host apply. For Gemini CLI, set the host to gemini-cli."
 )
 
 
@@ -511,6 +511,8 @@ def _detected_host(root: Path) -> str | None:
         return "claude-code"
     if (root / ".codex").is_dir():
         return "codex"
+    if (root / ".gemini").is_dir() or (root / "GEMINI.md").is_file():
+        return "gemini-cli"
     return None
 
 
@@ -529,7 +531,7 @@ def _print_setup_notes(profile: dict, left_aside: list[dict], registry: dict, pr
     mode = profile.get("guard", "off")
     host = profile.get("host", "other")
     print(f"Board guard: {GUARD_MODES[mode]}")
-    if mode != "off" and host not in ("claude-code", "codex"):
+    if mode != "off" and host not in HOOK_HOSTS:
         print("  This host has no hook: the reminder is the AGENTS.md instruction, and the CI check catches the rest.")
     print("  To change it: openguildkit profile set guard off|observe|enforce --by NAME --reason WHY "
           "(lowering it is typed by the person at a terminal).")
@@ -539,7 +541,7 @@ def _print_setup_notes(profile: dict, left_aside: list[dict], registry: dict, pr
               'Add them under "components" to scope the rules to them.', file=sys.stderr)
     known, unknown = match_tools(profile.get("tools", []), registry)
     steps = []
-    if host in ("claude-code", "codex"):
+    if host in HOOK_HOSTS:
         steps.append(f"openguildkit host apply    install the {host} settings and hooks, then openguildkit host check")
     if known:
         steps.append(f"openguildkit tools plan {' '.join(known)}    see the MCP servers for the team's tools")
@@ -1173,6 +1175,8 @@ def _init(args, root: Path, state: Path, catalog: dict) -> None:
     print(f"Initialized {root}")
     print("Wrote AGENTS.md, the project rules every agent reads, and CLAUDE.md, one line that imports "
           "AGENTS.md for Claude Code. Delete CLAUDE.md if nobody uses Claude Code: check does not require it.")
+    if profile.get("host") == "gemini-cli":
+        print("Wrote GEMINI.md, one line that imports AGENTS.md for Gemini CLI, which reads GEMINI.md and not AGENTS.md.")
     proposed = next(question for question in questions if question["id"] == "checks").get("proposed", [])
     _print_setup_notes(profile, left_aside if args.answers else [], registry, proposed)
     _warn_unsigned(profile)
@@ -1217,7 +1221,7 @@ def _host(args, root: Path, profile: dict) -> int:
         written = apply_host_settings(root, profile)
         for path in written:
             print(f"Wrote {path}", file=sys.stderr)
-        if not written and profile.get("host", "other") not in ("claude-code", "codex"):
+        if not written and profile.get("host", "other") not in HOOK_HOSTS:
             print(f"OpenGuildKit: {NO_HOST_SETTINGS}", file=sys.stderr)
         controls = host_controls(root, profile)
     missing = [control for control in controls if control["status"] == "missing"]
@@ -1237,7 +1241,7 @@ def _host(args, root: Path, profile: dict) -> int:
                   "instructions or to a person on purpose: no setting of this host can enforce it.")
     # host apply that writes nothing for the host other has done nothing the person asked for, and one that leaves a
     # setting missing has not done it either.
-    wrote_nothing = written == [] and profile.get("host", "other") not in ("claude-code", "codex")
+    wrote_nothing = written == [] and profile.get("host", "other") not in HOOK_HOSTS
     return 1 if missing or wrote_nothing else 0
 
 

@@ -52,9 +52,9 @@ Les mots qu'OpenGuildKit emploie dans ses commandes, ses questions et ses messag
 
 ### `host` · agent hôte
 
-**EN** The AI coding agent that works in the project and runs the commands: `claude-code`, `codex` or `other`.
+**EN** The AI coding agent that works in the project and runs the commands: `claude-code`, `codex`, `gemini-cli` or `other`.
 
-**FR** L'agent de code IA qui travaille dans le projet et lance les commandes : `claude-code`, `codex` ou `other`.
+**FR** L'agent de code IA qui travaille dans le projet et lance les commandes : `claude-code`, `codex`, `gemini-cli` ou `other`.
 
 ### `hook` · déclencheur
 

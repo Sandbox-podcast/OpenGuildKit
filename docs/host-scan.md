@@ -30,7 +30,7 @@ Each file left alone is listed in `scanned.skipped` of the JSON with the reason,
 
 ### The agent tools of the project
 
-A tool is present when one of its files is. These are the file names OpenGuildKit looks for; they are conventions of each tool, not checked against each vendor's current documentation, so a tool that moves its files is missed, and a folder of the same name that another tool wrote is taken for it. Only the file names of `claude-code` and `codex` come from the code of OpenGuildKit itself (`CLAUDE.md`, `.claude/settings.json`, `.mcp.json`, `.codex/config.toml`, `.codex/hooks.json`).
+A tool is present when one of its files is. These are the file names OpenGuildKit looks for; they are conventions of each tool, not checked against each vendor's current documentation, so a tool that moves its files is missed, and a folder of the same name that another tool wrote is taken for it. Only the file names of `claude-code`, `codex` and `gemini-cli` come from the code of OpenGuildKit itself (`CLAUDE.md`, `.claude/settings.json`, `.mcp.json`, `.codex/config.toml`, `.codex/hooks.json`, `GEMINI.md`, `.gemini/settings.json`).
 
 | Tool | Files that show it | Reads AGENTS.md, by the agents.md list |
 |---|---|---|
@@ -40,7 +40,7 @@ A tool is present when one of its files is. These are the file names OpenGuildKi
 | `codex` Codex | `.codex` | listed |
 | `copilot` GitHub Copilot | `.github/copilot-instructions.md`, `.github/instructions` | listed, as "Coding agent" |
 | `cursor` Cursor | `.cursor`, `.cursorrules` | listed |
-| `gemini-cli` Gemini CLI | `GEMINI.md`, `.gemini` | listed |
+| `gemini-cli` Gemini CLI | `GEMINI.md`, `.gemini` | listed (its default context file is `GEMINI.md`: OpenGuildKit writes an import of `AGENTS.md` there when the profile's host is `gemini-cli`) |
 | `goose` goose | `.goosehints` | listed |
 | `junie` Junie | `.junie` | listed |
 | `kilo` Kilo Code | `.kilocode` | listed |
@@ -56,8 +56,8 @@ Since the managed block of `AGENTS.md` reaches every tool that reads the file, t
 
 **What OpenGuildKit covers for each tool.**
 
-- `claude-code` and `codex`: what `host check` says about the hooks of the guard, for the guard of the profile. With `"guard": "off"` no hook runs (`host check` says nothing about hooks then). With `observe` or `enforce`, the status is the one of the control "The board is consulted before each change": `enforced` when the hooks are installed and can run, `missing` otherwise. `host apply` installs the hooks of the profile's host only: a project of host `claude-code` that also holds a `.codex` folder has no Codex hook, and the scan says so.
-- every other tool: no hook blocks an edit made through it, and the CI check (`guard --ci`) is the only barrier.
+- `claude-code`, `codex` and `gemini-cli`: what `host check` says about the hooks of the guard, for the guard of the profile. With `"guard": "off"` no hook runs (`host check` says nothing about hooks then). With `observe` or `enforce`, the status is the one of the control "The board is consulted before each change": `enforced` when the hooks are installed and can run, `missing` otherwise. `host apply` installs the hooks of the profile's host only: a project of host `claude-code` that also holds a `.codex` or `.gemini` folder has no Codex or Gemini CLI hook, and the scan says so. The hooks of Gemini CLI are those of [its section](../integrations/README.md#gemini-cli), not seen in a live session.
+- every other tool: no hook blocks an edit made through it, and the CI check (`guard --ci`) is the only barrier. Cursor and GitHub Copilot document a hook that can refuse a tool, but no page read shows the arguments of their edit tools, so OpenGuildKit installs none ([what was read](../integrations/README.md#hooks-of-other-tools-what-was-read-and-why-none-was-added), 2026-11-25).
 
 A present tool whose hooks are not enforced is a `surface-uncovered` finding: a `note`, a `warning` when the profile says `"guard": "enforce"`. It is information, not an error: only `--strict` makes it fail the command.
 
@@ -123,7 +123,7 @@ The exit code is 1 when a finding is an `error`, and with `--strict` when there 
 
 ## What it does not prove
 
-- It blocks nothing. No hook of any agent runs it: a person runs it, or CI does. A clean scan says that these patterns are absent from these files, not that the files are safe; for any tool but Claude Code and Codex, no hook blocks an edit and the CI check (`guard --ci`) is the only barrier.
+- It blocks nothing. No hook of any agent runs it: a person runs it, or CI does. A clean scan says that these patterns are absent from these files, not that the files are safe; for any tool but Claude Code, Codex and Gemini CLI, no hook blocks an edit and the CI check (`guard --ci`) is the only barrier.
 - It does not detect every injection. Matching is by a short list of words in English and French, in the order and the distance the list names; a sentence in another language, another wording, a text split over lines or an instruction hidden in an image passes. Hidden characters outside the list above (soft hyphen, variation selectors, invisible mathematical operators) are not flagged. A `bash <(curl ...)` or `sh -c "$(curl ...)"` is not detected as `remote-execution`.
 - It reads files, not what an agent does with them. It does not check that a command a file asks for is safe, only that a line has this shape.
 - It does not read what a person puts elsewhere: `README.md`, source code, the files of a subfolder, the user-level settings of an agent in the home folder, a Codex profile (`[profiles.*]`) or a setting that another tool reads from an environment variable.

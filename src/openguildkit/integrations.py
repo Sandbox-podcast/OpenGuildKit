@@ -28,6 +28,8 @@ HOST_FILES = {
         "agents/dependency-watch.md": Path(".claude") / "agents" / "dependency-watch.md",
     },
     "codex": _skill_files(".agents"),
+    # Gemini CLI reads the workspace skills of .gemini/skills/ and of its alias .agents/skills/.
+    "gemini-cli": _skill_files(".agents"),
     # Other agents: the folder of the Agent Skills format, which Codex and other agents read.
     "other": _skill_files(".agents"),
 }

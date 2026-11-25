@@ -205,6 +205,7 @@
         "tests/test_entry_pages.py",
         "tests/test_first_contribution.py",
         "tests/test_first_run.py",
+        "tests/test_gemini_host.py",
         "tests/test_host_scan.py",
         "tests/test_host_surfaces.py",
         "tests/test_integrations.py",
@@ -388,6 +389,7 @@
       "tests": [
         "tests/test_approval_lifecycle.py",
         "tests/test_clock.py",
+        "tests/test_gemini_host.py",
         "tests/test_guard.py",
         "tests/test_record_lifecycle.py",
         "tests/test_sarif_commands.py",
@@ -398,7 +400,7 @@
     },
     {
       "module": "src/openguildkit/hosts.py",
-      "role": "Writes the settings and hooks a host agent can enforce (Claude Code, Codex) and reports which rules stay instructions.",
+      "role": "Writes the settings and hooks a host agent can enforce (Claude Code, Codex, Gemini CLI) and reports which rules stay instructions.",
       "entry": [
         "signers_rule",
         "approval_warning",
@@ -408,6 +410,7 @@
       ],
       "tests": [
         "tests/test_approval_lifecycle.py",
+        "tests/test_gemini_host.py",
         "tests/test_host_research.py",
         "tests/test_host_surfaces.py",
         "tests/test_hosts.py",
@@ -424,6 +427,7 @@
       ],
       "tests": [
         "tests/test_agent_native.py",
+        "tests/test_gemini_host.py",
         "tests/test_integrations.py"
       ],
       "doc": "docs/architecture.md",
@@ -564,7 +568,8 @@
         "voided_approvals"
       ],
       "tests": [
-        "tests/test_architecture.py"
+        "tests/test_architecture.py",
+        "tests/test_gemini_host.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -592,6 +597,7 @@
         "tests/test_core.py",
         "tests/test_decision_brief.py",
         "tests/test_deliberation.py",
+        "tests/test_gemini_host.py",
         "tests/test_host_scan.py",
         "tests/test_host_surfaces.py",
         "tests/test_instruction_files.py",
@@ -980,6 +986,7 @@
         "scan_exit_code"
       ],
       "tests": [
+        "tests/test_gemini_host.py",
         "tests/test_host_scan.py",
         "tests/test_host_surfaces.py"
       ],
@@ -1078,6 +1085,7 @@
       ],
       "tests": [
         "tests/test_architecture.py",
+        "tests/test_gemini_host.py",
         "tests/test_next_steps.py",
         "tests/test_tools.py"
       ],

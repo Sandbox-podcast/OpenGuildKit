@@ -38,6 +38,8 @@ PROTECTED = (
     f"{STATE_DIR}/tasks/", f"{STATE_DIR}/{DECISIONS_DIR}/", f"{STATE_DIR}/project.json", f"{STATE_DIR}/{LOCK_FILE}",
     ".claude/settings.json", ".claude/settings.local.json", ".codex/hooks.json", ".codex/config.toml", ".codex/rules/",
 )
+# The host settings the guard relies on when the profile names that host: a project of another host may edit the file.
+HOST_PROTECTED = {"gemini-cli": (".gemini/settings.json",)}
 # Files under .openguildkit/ that are work like any other: an approved task must cover an edit. The project
 # catalog changes what the boards review, and the alert register what blocks an approval.
 STATE_WORK = (f"{STATE_DIR}/alerts.json", f"{STATE_DIR}/catalog/")
@@ -90,7 +92,7 @@ def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) ->
 
 
 def edited_paths(hook_input: object) -> list[str]:
-    """File paths a host wants to edit: Claude Code passes file_path, Codex passes a patch.
+    """File paths a host wants to edit: Claude Code and Gemini CLI (write_file, replace) pass file_path, Codex a patch.
 
     Raise ValueError when the input does not say which files change, so the hook can refuse.
     """
@@ -129,8 +131,8 @@ def _listed(relative: str, items: tuple) -> bool:
     return any(folded == item.casefold() or (item.endswith("/") and folded.startswith(item.casefold())) for item in items)
 
 
-def _protected(relative: str) -> bool:
-    return _listed(relative, PROTECTED)
+def _protected(relative: str, host: str | None = None) -> bool:
+    return _listed(relative, PROTECTED + HOST_PROTECTED.get(host, ()))
 
 
 def signers_file(root: Path, profile: dict) -> str | None:
@@ -164,7 +166,27 @@ def _describe(approvals: list[dict]) -> str:
     return "; ".join(parts)
 
 
-def _context(event: str, text: str) -> str:
+# Gemini CLI names its hook events BeforeAgent (a request) and BeforeTool (before a tool), where Claude Code and Codex
+# say UserPromptSubmit and PreToolUse; the input carries the name, so the answer follows it.
+GEMINI_EVENTS = ("BeforeAgent", "BeforeTool")
+
+
+def hook_dialect(hook_input: object) -> str:
+    """The host whose format the hook input has: "gemini" for Gemini CLI, "claude" for the others."""
+    name = hook_input.get("hook_event_name") if isinstance(hook_input, dict) else None
+    return "gemini" if name in GEMINI_EVENTS else "claude"
+
+
+def _context(event: str, text: str, dialect: str = "claude") -> str:
+    """The JSON a hook prints to tell the agent, or for Gemini CLI before a tool the person, what the guard found.
+
+    Gemini CLI documents additionalContext for BeforeAgent only: before a tool, its documented text field is
+    systemMessage, which it shows to the person (https://geminicli.com/docs/hooks/reference/).
+    """
+    if dialect == "gemini":
+        if event == "prompt":
+            return json.dumps({"hookSpecificOutput": {"hookEventName": "BeforeAgent", "additionalContext": text}})
+        return json.dumps({"systemMessage": text})
     name = "UserPromptSubmit" if event == "prompt" else "PreToolUse"
     return json.dumps({"hookSpecificOutput": {"hookEventName": name, "additionalContext": text}})
 
@@ -178,10 +200,11 @@ SCOPE_NOTE = (
 )
 
 
-def hook_answer(event: str, mode: str, outcome: str, detail: str = "") -> tuple[int, str, str]:
+def hook_answer(event: str, mode: str, outcome: str, detail: str = "", dialect: str = "claude") -> tuple[int, str, str]:
     """The exit code, stdout and stderr for a hook, built from the mode and the outcome so words and code agree.
 
-    Only enforce refuses an edit (exit code 2, reason on stderr); observe lets it through and says it is flagged.
+    Only enforce refuses an edit (exit code 2, reason on stderr: the refusal of Claude Code, Codex and Gemini CLI);
+    observe lets it through and says it is flagged.
     """
     if outcome not in HOOK_OUTCOMES:
         raise ValueError(f"Unknown guard outcome {outcome!r}: one of {', '.join(HOOK_OUTCOMES)}.")
@@ -192,13 +215,15 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "") -> tuple[
     if mode == UNKNOWN_MODE:
         detail += "; the profile cannot be read, so the guard cannot know its mode and refuses edits as in enforce"
     if outcome == "covered":
-        return 0, _context(event, f"OpenGuildKit: approved task(s) in progress: {detail}. {SCOPE_NOTE}"), ""
+        if dialect == "gemini" and event != "prompt":
+            return 0, "", ""  # Before a tool, Gemini CLI has no documented way to tell the agent: the request hook did.
+        return 0, _context(event, f"OpenGuildKit: approved task(s) in progress: {detail}. {SCOPE_NOTE}", dialect), ""
     if event == "prompt":
         if outcome != "unchecked":
-            return 0, _context(event, NO_TASK), ""
+            return 0, _context(event, NO_TASK, dialect), ""
         edits = "refused" if refuse else "flagged, not blocked,"
         return 0, _context(event, f"OpenGuildKit: the guard could not run ({detail}). Tell the person; "
-                                  f"file edits are {edits} until it is fixed."), ""
+                                  f"file edits are {edits} until it is fixed.", dialect), ""
     if outcome == "protected":
         message = (f"OpenGuildKit: {detail} is written by the openguildkit commands and the guard relies on it. "
                    f"{verdict}: ask the person to run the openguildkit command that changes it.")
@@ -214,7 +239,7 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "") -> tuple[
         message = f"OpenGuildKit: the guard could not check this edit ({detail}). {verdict}: fix the cause or ask the person."
     if refuse:
         return 2, "", message
-    return 0, _context(event, message), ""
+    return 0, _context(event, message, dialect), ""
 
 
 def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict, hook_input: object) -> tuple[int, str, str]:
@@ -222,22 +247,24 @@ def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict
     mode = guard_mode(profile)
     if mode == "off":
         return 0, "", ""
+    dialect = hook_dialect(hook_input)
     approvals = covering_approvals(root, state, profile, catalog)
     if event == "prompt":
-        return hook_answer(event, mode, "covered" if approvals else "uncovered", _describe(approvals))
+        return hook_answer(event, mode, "covered" if approvals else "uncovered", _describe(approvals), dialect)
     inside = [relative for relative in (_project_relative(root, path) for path in edited_paths(hook_input)) if relative]
     signers = signers_file(root, profile)
     keys = [relative for relative in inside if signers and relative.casefold() == signers.casefold()]
-    protected = [relative for relative in inside if _protected(relative)]
-    work = [relative for relative in inside if relative not in keys and not _protected(relative) and _is_work(relative)]
+    host = profile.get("host")
+    protected = [relative for relative in inside if _protected(relative, host)]
+    work = [relative for relative in inside if relative not in keys and not _protected(relative, host) and _is_work(relative)]
     if keys:
-        return hook_answer(event, mode, "signers", ", ".join(keys))
+        return hook_answer(event, mode, "signers", ", ".join(keys), dialect)
     if protected:
-        return hook_answer(event, mode, "protected", ", ".join(protected))
+        return hook_answer(event, mode, "protected", ", ".join(protected), dialect)
     if work and not approvals:
-        return hook_answer(event, mode, "uncovered", ", ".join(work))
+        return hook_answer(event, mode, "uncovered", ", ".join(work), dialect)
     if work:
-        return hook_answer(event, mode, "covered", _describe(approvals))
+        return hook_answer(event, mode, "covered", _describe(approvals), dialect)
     return hook_answer(event, mode, "outside")
 
 
@@ -268,7 +295,7 @@ def run_hook(event: str, raw: str | None, project: Path | None, load) -> tuple[i
     """
     if _declared_mode(project) == "off":
         return hook_answer(event, "off", "outside")
-    mode = None
+    mode, dialect = None, "claude"
     try:
         root, state, profile, catalog = load()
         mode = guard_mode(profile)
@@ -278,9 +305,10 @@ def run_hook(event: str, raw: str | None, project: Path | None, load) -> tuple[i
             hook_input = json.loads(raw) if raw.strip() or event == "pre-edit" else {}
         except ValueError as error:
             raise ValueError("the hook input is not JSON") from error
+        dialect = hook_dialect(hook_input)
         return guard_hook(event, root, state, profile, catalog, hook_input)
     except Exception as error:  # A guard that cannot decide must not let an edit through in enforce mode.
-        return hook_answer(event, mode or _declared_mode(project), "unchecked", _one_line(error))
+        return hook_answer(event, mode or _declared_mode(project), "unchecked", _one_line(error), dialect)
 
 
 def project_loader(project: Path | None, catalog_in_force=None):

@@ -62,7 +62,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `project_checks.py` | Proposes the project's test commands at setup and explains why a check command failed. |
 | `agent_workflow.py` | The task workflow that the managed block of `AGENTS.md` teaches every agent. |
 | `integrations.py` | Installs the agent skill and the subagents shipped with this version. |
-| `hosts.py` | Writes the settings and hooks a host agent can enforce (Claude Code, Codex) and reports which rules stay instructions. |
+| `hosts.py` | Writes the settings and hooks a host agent can enforce (Claude Code, Codex, Gemini CLI) and reports which rules stay instructions. |
 | `questionnaire.py` | The task questionnaire, its follow-ups and the check of the answers. |
 | `routing.py` | Routes a task to boards from its brief and answers, then applies required boards and the requester's changes. |
 | `relevance.py` | Decides which active packs concern a task, from its answers, boards and brief. |
@@ -100,8 +100,9 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 your-project/
   AGENTS.md                      managed block between OpenGuildKit markers
   CLAUDE.md                      imports AGENTS.md for Claude Code
+  GEMINI.md                      imports AGENTS.md for Gemini CLI (only when the profile's host is gemini-cli)
   .mcp.json, .codex/config.toml  MCP connections that tools apply writes (commit them)
-  .claude/, .codex/              host settings, hooks and rules that host apply writes (commit them)
+  .claude/, .codex/, .gemini/    host settings, hooks and rules that host apply writes (commit them)
   .storybook/openguildkit-refs.json   composed Storybooks that storybook compose writes
   .openguildkit/
     project.json                 the profile (commit it)
@@ -186,12 +187,12 @@ sequenceDiagram
 | Project catalog additions | Trusted project config | Same schema validation as bundled records; cannot reuse a bundled ID |
 | Review JSON | Agent output | Schema validated; must cover exactly the selected boards |
 
-The project's host settings, written by `openguildkit host apply`, let Claude Code or Codex enforce the research policy and keep the agent away from the approval command. `openguildkit host check` says which rules remain instructions. [Host controls](../integrations/README.md#what-the-host-enforces)
+The project's host settings, written by `openguildkit host apply`, let Claude Code or Codex enforce the research policy and keep the agent away from the approval command, and Gemini CLI run the guard hooks. `openguildkit host check` says which rules remain instructions. [Host controls](../integrations/README.md#what-the-host-enforces)
 
 Public research is allowed only when the profile says `public-sources` **and** the task answer says `public`. Otherwise the consultation tells the agent to stay with local project material.
 
 ## Extension points
 
 - **New pack, board or sector:** add a JSON file to `registry/` (shared) or `.openguildkit/catalog/` (private). See [catalog format](catalog-format.md).
-- **New host agent:** anything that reads `AGENTS.md` and can run shell commands works. The [integrations](../integrations) folder has a skill for Claude Code and Codex.
+- **New host agent:** anything that reads `AGENTS.md` and can run shell commands works. The [integrations](../integrations) folder has a skill for Claude Code, Codex and Gemini CLI.
 - **CI:** run `openguildkit check` to fail a build when `AGENTS.md` drifts from the profile.

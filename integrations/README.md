@@ -16,7 +16,7 @@ Both agents use the same `SKILL.md` format (a folder with a `SKILL.md` file and 
 
 ## Install from the package
 
-`openguildkit integrations --host claude-code` or `--host codex` copies the skill (`SKILL.md` and its `references/` files) and subagent shipped with the installed version into the project (`--user` for your home folder). It keeps files you changed unless you pass `--force`. The copies below are the same files; a test keeps them identical to the packaged ones in `src/openguildkit/agent_files/`.
+`openguildkit integrations --host claude-code`, `--host codex` or `--host gemini-cli` copies the skill (`SKILL.md` and its `references/` files) and subagent shipped with the installed version into the project (`--user` for your home folder). It keeps files you changed unless you pass `--force`. The copies below are the same files; a test keeps them identical to the packaged ones in `src/openguildkit/agent_files/`.
 
 ## Claude Code
 
@@ -45,7 +45,7 @@ Codex spawns its own agents for the board passes; it does not need the `guild-bo
 
 ## What the host enforces
 
-OpenGuildKit cannot stop an agent from using its tools. Some hosts can, through their own project settings. Set `"host": "claude-code"` or `"host": "codex"` in `.openguildkit/project.json`, then:
+OpenGuildKit cannot stop an agent from using its tools. Some hosts can, through their own project settings. Set `"host": "claude-code"`, `"host": "codex"` or `"host": "gemini-cli"` in `.openguildkit/project.json`, then:
 
 ```bash
 openguildkit host check
@@ -60,9 +60,11 @@ openguildkit host apply
 | The board before every change (`"guard": "observe"` or `"enforce"`) | Hooks in `.claude/settings.json` run `openguildkit guard` on each request and before `Edit`, `Write`, `MultiEdit` and `NotebookEdit`; `Edit(/...)` deny rules keep those tools away from `.openguildkit/tasks/`, `.openguildkit/decisions/`, `.openguildkit/project.json`, the catalog lock, the project catalog (`.openguildkit/catalog/`), the alert register (`.openguildkit/alerts.json`) and the Claude Code settings; in `enforce` the pre-edit hook carries `"onFailure": "block"` and the settings say `"disableAllHooks": false` | `.codex/hooks.json` runs it on each request and before `apply_patch` | AGENTS.md instruction and the CI check |
 | External actions outside the authorized scope | Recorded decision with `openguildkit task authorize` | Same | Same |
 
+Gemini CLI (`"host": "gemini-cli"`) is the third host with hooks, and the only rule it enforces is the last-but-one row: the board before every change, through hooks in `.gemini/settings.json` (see [Gemini CLI](#gemini-cli)). For the other rows it behaves as the column "Other hosts": research and approval stay instructions, and `host check` says so.
+
 `host check` reports each rule as enforced, partial (the setting is in place and the detail says what still gets around it), missing (the host could enforce it but the setting is absent), by instruction (the agent follows the instruction and a person checks) or by a person (a person decides); `--json` gives the statuses `enforced`, `partial`, `missing`, `instruction` and `human`. The rule that keeps the agent from approving is `partial` at best: deny rules match a command line, and a script file that runs the command or opens a pseudo-terminal gets around them. `host check` exits with code 1 while a setting is missing, and with 0 when nothing is missing, even if some rules stay with the instructions or with a person: no setting of the host can enforce those. `openguildkit check` fails too while a setting is missing. Codex reads project settings only once the project is trusted. `host apply` adds its `web_search` line as a top-level key outside the `openguildkit tools` block and refuses to write when the result would not read back as `web_search = "disabled"`. Deny rules match the command line only: they are friction, not a security boundary. See [what the hosts document](#what-the-host-documentation-says) for what they miss. A local approval seal only detects accidental edits, so with `"guard": "enforce"` `host check` and `check` print a one-line warning until the project requires [signed approvals](../docs/workflow.md#signed-approvals), the only approval that resists an agent that can write files.
 
-The hooks call `openguildkit` by name. When that command is not on the PATH of the workstation running `host check` (a virtual environment that is not activated, for example), the board control reads `missing`. In `enforce`, `host apply` writes `"onFailure": "block"` on the Claude Code pre-edit hook, so a hook that cannot start refuses the edit instead of letting it through; this needs Claude Code 2.1.295 or later, and `host check` reports the hook as `missing` without it. In `observe` the key is not written. In `enforce`, `host apply` also writes `"disableAllHooks": false` in `.claude/settings.json`: Claude Code honours `"disableAllHooks": true` from a user's own settings unless the project says `false`, and `host check` reports the board as `missing` without it. Codex has no such setting: install OpenGuildKit on the PATH (with `pipx`, for example) or start the agent from the activated environment.
+The hooks call `openguildkit` by name. When that command is not on the PATH of the workstation running `host check` (a virtual environment that is not activated, for example), the board control reads `missing`. In `enforce`, `host apply` writes `"onFailure": "block"` on the Claude Code pre-edit hook, so a hook that cannot start refuses the edit instead of letting it through; this needs Claude Code 2.1.295 or later, and `host check` reports the hook as `missing` without it. In `observe` the key is not written. In `enforce`, `host apply` also writes `"disableAllHooks": false` in `.claude/settings.json`: Claude Code honours `"disableAllHooks": true` from a user's own settings unless the project says `false`, and `host check` reports the board as `missing` without it. Codex and Gemini CLI have no such setting: install OpenGuildKit on the PATH (with `pipx`, for example) or start the agent from the activated environment.
 
 ### What the host documentation says
 
@@ -94,7 +96,7 @@ openguildkit task authorize ID --action external-api --target api.example.com --
 - on each request, the agent receives a reminder: either the approved tasks in progress, or the instruction to open a task and consult the boards before changing files;
 - before a file edit inside the project, when no approved task covers the work, `enforce` refuses the edit (exit code 2, "Edit refused") and `observe` lets it through with a warning for the agent ("Edit flagged, not blocked"). The word "refused" appears only when the edit is refused. When a task covers it, the agent is told which one, with its brief, and an approval older than 14 days is flagged so the agent asks the person whether it still applies.
 - an approval covers the work, not a list of files: while one task is approved, every edit in the project counts as covered, `README.md` or an unrelated module included, and the hook tells the agent that the guard does not compare the files with the task's scope. A task records the kind of work and the affected areas, not paths, so the guard has nothing it could compare without false refusals. At review, the person compares the files of the change with the approved brief and sends anything outside it back to a new task.
-- edits to the files the CLI writes through its own commands and the guard relies on are refused in `enforce`, even under an approved task: `.openguildkit/tasks/`, `.openguildkit/decisions/`, `.openguildkit/project.json`, `.openguildkit/catalog.lock.json`, `.claude/settings.json`, `.claude/settings.local.json` and the `.codex/` settings. So is the allowed signers file of a project with signed approvals, wherever the profile puts it: only the person changes who may approve.
+- edits to the files the CLI writes through its own commands and the guard relies on are refused in `enforce`, even under an approved task: `.openguildkit/tasks/`, `.openguildkit/decisions/`, `.openguildkit/project.json`, `.openguildkit/catalog.lock.json`, `.claude/settings.json`, `.claude/settings.local.json` and the `.codex/` settings, and `.gemini/settings.json` when the profile's host is `gemini-cli`. So is the allowed signers file of a project with signed approvals, wherever the profile puts it: only the person changes who may approve.
 - the project catalog (`.openguildkit/catalog/`) and the alert register (`.openguildkit/alerts.json`) are work like any other file: an approved task must cover an edit to them, since they change what the boards review and what blocks an approval. Other files under `.openguildkit/` and files outside the project stay allowed. Codex patches are checked on every `Update`, `Add`, `Delete` and `Move to` line.
 - in `enforce`, a hook that cannot decide refuses the edit with a one-line reason: an unreadable profile, an input that names no file, or any error. `observe` reports the same reason and lets the edit through. When the profile itself cannot be read, the guard cannot know its mode: it refuses the edit as in `enforce` and says so. A broken task record covers nothing and does not stop the hook.
 - writes through the shell (`sed -i`, `echo > file`, a script) do not go through the hook. In Claude Code the `Edit(/...)` deny rules still cover redirections, `tee` and `sed` on the protected files, not a script. The CI check below is the backstop for the rest.
@@ -155,9 +157,79 @@ printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"apply_patch","tool_inp
 
 ### Other hosts
 
-They run no hook (see [Other agents](#other-agents)). To test the guard for such a host, use the Claude Code examples: the guard reads the same `tool_input.file_path`.
+They run no hook (see [Other agents](#other-agents)). To test the guard for such a host, use the Claude Code examples: the guard reads the same `tool_input.file_path`. Gemini CLI has its own examples, under [Gemini CLI](#try-the-hooks-of-gemini-cli-by-hand).
 
 The answer depends on the mode and on the tasks. Without an approved task, the prompt example prints a reminder as `additionalContext` and exits with 0; the edit example exits with 2 and prints `Edit refused for: app.py` on standard error in `enforce`, and in `observe` prints `Edit flagged, not blocked` as `additionalContext` and exits with 0. With `"guard": "off"` both print nothing. To keep the input in a file instead, save the JSON as `hook-input.json` and run `openguildkit guard --hook pre-edit < hook-input.json`, or `Get-Content -Raw hook-input.json | openguildkit guard --hook pre-edit` in PowerShell.
+
+## Gemini CLI
+
+Gemini CLI is the third host whose hooks `host apply` writes. With `"host": "gemini-cli"` and a guard other than `off` in the profile:
+
+```bash
+openguildkit host apply
+openguildkit host check
+```
+
+### What it receives and what it blocks
+
+- `host apply` declares two hooks in `.gemini/settings.json`, the project settings file, and keeps every other key of the file: a hook on `BeforeAgent` (each request) named `openguildkit-prompt`, which runs `openguildkit guard --hook prompt`, and a hook on `BeforeTool` named `openguildkit-guard`, with the matcher `write_file|replace`, which runs `openguildkit guard --hook pre-edit`. Running it again changes nothing. A group of the person's that already runs the guard is not doubled.
+- `host apply` removes the two guard hooks from `hooksConfig.disabled` when the person had listed them. In `enforce` it also writes `"hooksConfig": {"enabled": true}`, since Gemini CLI lets a project setting win over a user setting and `"enabled": false` turns every hook off; `observe` leaves that key alone.
+- Before a `write_file` or a `replace`, `enforce` refuses the edit with exit code 2 and the reason on standard error, which Gemini CLI sends to the agent as the reason of the block, and `observe` lets it through. In `observe` the flag goes to the person as a `systemMessage`: Gemini CLI documents `additionalContext` for `BeforeAgent` only, and no field that tells the agent something from a `BeforeTool` hook that lets the edit through. The request hook answers with `additionalContext` under `"hookEventName": "BeforeAgent"`: the approved tasks in progress, or the instruction to open a task. When an approved task covers the edit, the hook prints nothing.
+- The files the guard relies on are refused in `enforce` as for the other hosts, and `.gemini/settings.json` joins them when the profile names this host: only `host apply` and the person change what the hooks run. A project of another host may still edit that file as any work.
+- `init` and `sync` write `GEMINI.md`, one line that imports `AGENTS.md` (`@./AGENTS.md`), when the profile's host is `gemini-cli`, as they write `CLAUDE.md` for Claude Code: Gemini CLI loads `GEMINI.md` unless its `context.fileName` setting says otherwise, and imports another file with a relative `@` path. A file of yours keeps its text, a symbolic link to `AGENTS.md` is left alone, and `check` reports the file as out of date until `sync` has written the import. If your `context.fileName` also lists `AGENTS.md`, the rules may be read twice.
+- `integrations --host gemini-cli` installs the skill in `.agents/skills/openguildkit/`, the alias of its workspace skills folder that Gemini CLI reads.
+- `host check` reports the board control as enforced once the hooks stand under the right events with a matcher that fires for both tools, the project does not switch them off and the command is on the PATH. It says what the hooks leave open and that the host was not seen in a session.
+
+### What it does not block
+
+- Anything that does not go through `write_file` or `replace`: `run_shell_command` (`sed -i`, `echo > file`, a script) and a tool of an MCP server that writes files. The tool reference lists `replace` and `write_file` as its two file-editing tools. The CI check (`guard --ci`) is the backstop.
+- An edit when the hook cannot start (the command is not on the PATH of the person who runs Gemini CLI) or exits with a code other than 0 and 2: the documentation calls those a warning and lets the action proceed, and Claude Code's `onFailure` has no equivalent. A hook that fails inside `openguildkit` exits with 2 and refuses in `enforce`. What a timeout does is not documented.
+- A folder Gemini CLI does not trust, when its Trusted Folders feature (off by default) is on: the project's `.gemini/settings.json` is then not loaded. Gemini CLI treats a new or changed project hook as untrusted and warns the person before it runs; the page does not say whether it runs before the person accepts. The system settings file overrides every other: an administrator can turn hooks off there, and nothing here can tell.
+- A session where hooks do not run: the pages say nothing about non-interactive mode, an IDE or a GitHub Action, so this is not established either way.
+- The research and approval rules: `host check` lists them as instructions, since no setting of Gemini CLI that enforces them was read.
+
+### What the Gemini CLI documentation says
+
+These pages were read on 2026-11-25, and every statement above about the host rests on them; the "last updated" date is the one each page shows.
+
+- [Hooks](https://geminicli.com/docs/hooks/) (last updated 2026-04-13): hooks are configured in `settings.json`, in the project (`.gemini/settings.json`), user (`~/.gemini/settings.json`) or system file or by an extension; an event lists groups with a `matcher`, a regular expression for tool events, and `hooks` entries of type `command` with an optional `name` and a `timeout` in milliseconds (60 000 by default); exit code 0 reads standard output as JSON, 2 blocks the action and uses standard error as the reason, any other code is a warning that lets the interaction proceed; Gemini CLI fingerprints project hooks and treats a changed one as new and untrusted, with a warning before it runs.
+- [Hooks reference](https://geminicli.com/docs/hooks/reference/) (2026-04-10): the common input fields (`session_id`, `transcript_path`, `cwd`, `hook_event_name`, `timestamp`); `BeforeTool` adds `tool_name` and `tool_input`, `BeforeAgent` adds `prompt`; `BeforeTool` is refused by `"decision": "deny"` with a `reason`, or by exit code 2; `systemMessage` is shown to the person; `additionalContext` of `hookSpecificOutput` is documented for `BeforeAgent`.
+- [Hooks best practices](https://geminicli.com/docs/hooks/best-practices/) (2026-04-10): the one JSON input of a `BeforeTool` hook the pages show, for `write_file` with `file_path` and `content`, which the tests use as it stands. The inputs for `replace` and `BeforeAgent` are composed from the field lists of the reference pages, and the tests say so.
+- [Tools reference](https://geminicli.com/docs/reference/tools/) (2026-09-01): `write_file` takes `file_path` and `content`; `replace` takes `file_path`, `old_string`, `new_string`, `instruction` and `allow_multiple`; `run_shell_command` runs shell commands.
+- [Configuration reference](https://geminicli.com/docs/reference/configuration/) (2026-10-15): a project setting overrides a user setting and the system settings file overrides all others; `hooksConfig.enabled` (true by default) turns the hooks system off when false, and `hooksConfig.disabled` lists hook names that do not run.
+- [Context files](https://geminicli.com/docs/cli/gemini-md/) (2026-06-18): `GEMINI.md` is the default name, a file is imported with `@` and a relative path, and `context.fileName` names other files, such as `AGENTS.md`. [Skills](https://geminicli.com/docs/cli/skills/) (2026-04-30): workspace skills are read from `.gemini/skills/` and from its alias `.agents/skills/`. [Trusted folders](https://geminicli.com/docs/cli/trusted-folders/) (2026-04-23).
+- The hooks pages carry a banner saying that, for the unpaid tier and Google One users, Gemini CLI was replaced by Antigravity CLI on 2026-06-18. Antigravity CLI is not covered here: its documentation was not read.
+
+Checked without Gemini CLI: `tests/test_gemini_host.py` runs the documented input through `guard --hook`, runs the hook commands that `host apply` wrote through the shell, and checks `host apply`, `host check` and `host scan` before and after. Not verified: that Gemini CLI loads these settings, runs these hooks and refuses on exit code 2 as its pages say. The hook is not seen in a live session of Gemini CLI, and neither is `GEMINI.md`. The [host validation scenario](../examples/host-validation/README.md#the-controls-that-host-apply-writes) gives the steps for Claude Code and Codex; a Gemini CLI session would follow the same steps with `"host": "gemini-cli"`.
+
+### Try the hooks of Gemini CLI by hand
+
+The first input is the one of the documentation, reduced to the fields the guard reads; the other two are composed from its field lists. Run them from the project folder, with the same care for quotes as above.
+
+```sh
+printf '%s' '{"hook_event_name":"BeforeAgent","prompt":"Add a status page"}' | openguildkit guard --hook prompt
+printf '%s' '{"hook_event_name":"BeforeTool","tool_name":"write_file","tool_input":{"file_path":"app.py","content":"b"}}' | openguildkit guard --hook pre-edit
+printf '%s' '{"hook_event_name":"BeforeTool","tool_name":"replace","tool_input":{"file_path":"app.py","old_string":"a","new_string":"b","instruction":"Rename a"}}' | openguildkit guard --hook pre-edit
+```
+
+```powershell
+'{"hook_event_name":"BeforeAgent","prompt":"Add a status page"}' | openguildkit guard --hook prompt
+'{"hook_event_name":"BeforeTool","tool_name":"write_file","tool_input":{"file_path":"app.py","content":"b"}}' | openguildkit guard --hook pre-edit
+'{"hook_event_name":"BeforeTool","tool_name":"replace","tool_input":{"file_path":"app.py","old_string":"a","new_string":"b","instruction":"Rename a"}}' | openguildkit guard --hook pre-edit
+```
+
+Without an approved task, the first prints the reminder as `additionalContext` under `BeforeAgent` and exits with 0; each edit exits with 2 and prints `Edit refused for: app.py` on standard error in `enforce`, and in `observe` prints `Edit flagged, not blocked` as a `systemMessage` and exits with 0.
+
+## Hooks of other tools: what was read and why none was added
+
+An issue asked for the hosts whose official documentation describes a hook that runs before a file edit and can refuse it. A host is added only when the documentation shows the input of that hook for an edit: the guard needs the path of the file to protect the task records and the profile, and a guard that guesses the key would either refuse every edit in `enforce` or let a protected file through. These pages were read on 2026-11-25, and no live session of any of these tools was run.
+
+- **Cursor**, [Hooks](https://cursor.com/docs/agent/hooks) (no date on the page): `.cursor/hooks.json` with `"version": 1`; a `preToolUse` hook fires for every tool and takes a `matcher` such as `Write`; exit code 2 or `"permission": "deny"` refuses; the cloud agents run the command hooks of the repository; `afterFileEdit` shows `file_path` but runs after the edit and cannot refuse. The one input shown for `preToolUse` is a `Shell` command: no page shows the arguments of an edit before it happens. The page on [third-party hooks](https://cursor.com/docs/reference/third-party-hooks) says Cursor also loads the hooks of `.claude/settings.json` (a setting on by default), and does not say what input they then receive. Cursor reads `AGENTS.md` ([rules](https://cursor.com/docs/rules)). The page on its CLI does not mention hooks.
+- **GitHub Copilot**, [Hooks reference](https://docs.github.com/en/copilot/reference/hooks-configuration) (no date on the page; also at `.../hooks-reference`) and [about hooks](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-hooks): `.github/hooks/*.json` with `"version": 1`, for Copilot CLI and the cloud agent, and, as a preview with the same hook format, for VS Code ([Agent hooks](https://code.visualstudio.com/docs/copilot/customization/hooks)); a `preToolUse` hook can refuse by exit code 2 or `"permissionDecision": "deny"`, takes a matcher on the tool name (`edit`, `create`...), and a hook that fails refuses while a timeout lets the tool run; the pages also say Copilot reads `.claude/settings.json`. Every input shown is a `bash` call (`toolArgs` is a JSON string in the CLI tutorial and `unknown` in the reference): no page shows the arguments of an edit.
+- **Devin CLI** (Windsurf's own documentation now describes Devin Local and sends to the Devin CLI pages for hooks), [Hooks](https://docs.devin.ai/cli/extensibility/hooks/overview) and [lifecycle hooks](https://docs.devin.ai/cli/extensibility/hooks/lifecycle-hooks): `.devin/hooks.v1.json`, a `PreToolUse` hook with a matcher on tools such as `edit`, `write` and `apply_patch`, exit code 2 or `"decision": "block"` refuses, any other failure does not. The one input shown is an `exec` call. Not added either.
+- Cline's page on hooks points to a page on SDK plugins, which was not read. Kilo Code, Roo Code, opencode, Junie, Warp, goose, Zed and Aider were not examined.
+
+These tools keep the status of `host scan`: they read the instructions and nothing blocks an edit but the CI check. When a page of one of them shows the input of its edit tool, adding it follows the Gemini CLI model: an entry of `HOSTS`, the hook declaration in `hosts.py`, the paths in `guard.py`, a test that feeds the hook the documented input.
 
 ## Scan what an agent reads
 
@@ -169,7 +241,8 @@ What each tool receives from OpenGuildKit, and what blocks an edit:
 |---|---|---|
 | Claude Code | `AGENTS.md` through the import in `CLAUDE.md`; the settings and hooks `host apply` writes when the profile's host is `claude-code` | Its hooks, once `host check` reports the board control as enforced; then `guard --ci` |
 | Codex | `AGENTS.md` (Codex is on the agents.md list); the rules, hooks and config `host apply` writes when the profile's host is `codex` | Its hooks, same condition; then `guard --ci` |
-| Cursor, GitHub Copilot, Gemini CLI, Windsurf, Roo Code, Kilo Code, Junie, Aider, Zed, opencode, Warp, goose | `AGENTS.md`, since the [agents.md list](https://agents.md) names them (read on 2026-11-25) | No hook blocks an edit: the CI check (`guard --ci`) is the only barrier |
+| Gemini CLI | `GEMINI.md`, where OpenGuildKit writes an import of `AGENTS.md` when the profile's host is `gemini-cli` (the [agents.md list](https://agents.md) names Gemini CLI too, read on 2026-11-25; its default context file is `GEMINI.md`); the hooks `host apply` writes when the profile's host is `gemini-cli` | Its hooks, once `host check` reports the board control as enforced; then `guard --ci` |
+| Cursor, GitHub Copilot, Windsurf, Roo Code, Kilo Code, Junie, Aider, Zed, opencode, Warp, goose | `AGENTS.md`, since the [agents.md list](https://agents.md) names them (read on 2026-11-25) | No hook blocks an edit: the CI check (`guard --ci`) is the only barrier. Cursor and GitHub Copilot document a hook that can refuse a tool, but no page shows the arguments of their edit tools: [see why none was added](#hooks-of-other-tools-what-was-read-and-why-none-was-added) |
 | Cline, and any tool absent from the list | Not documented as reading `AGENTS.md` | No hook blocks an edit: the CI check (`guard --ci`) is the only barrier |
 
 `host apply` writes hooks for the host the profile names, and for no other tool. With `"guard": "enforce"`, `host scan` raises each tool that is present and not covered from a note to a warning.
@@ -180,11 +253,11 @@ The [host validation scenario](../examples/host-validation/) checks that an agen
 
 ## Other agents
 
-`openguildkit init` records `"host": "other"` unless the person chooses Claude Code or Codex. For any other agent:
+`openguildkit init` records `"host": "other"` unless the person chooses Claude Code, Codex or Gemini CLI. For any other agent:
 
 1. `openguildkit integrations --host other` writes the skill to `.agents/skills/openguildkit/SKILL.md`, the folder of the Agent Skills format. If the agent reads its skills or instructions from another folder, copy the whole folder there (`SKILL.md` and `references/`), or point the agent at `AGENTS.md`, which carries the same workflow.
 2. OpenGuildKit writes no settings for this agent. `host apply` says so, writes nothing and exits with 1; `host check` lists the rules left to the instructions (`by instruction`) or to a person (`by a person`) and exits with 0. The board guard has no hook: the AGENTS.md instruction and the CI check (`guard --ci`) are the controls.
 3. `tools apply` and `tools remove` write MCP settings for Claude Code or Codex only: add `--host claude-code` or `--host codex` to write them for one of these agents. For another agent, run `openguildkit tools plan ID`: with the host `other` it prints each server as an `mcpServers` entry, the format most MCP clients read, to copy into that agent's settings.
-4. To move to Claude Code or Codex later, run `openguildkit profile set host claude-code --by NAME --reason WHY` (or `codex`), then `openguildkit host apply`.
+4. To move to Claude Code, Codex or Gemini CLI later, run `openguildkit profile set host claude-code --by NAME --reason WHY` (or `codex`, or `gemini-cli`), then `openguildkit host apply`.
 
 `init` also writes `CLAUDE.md`, one line that imports `AGENTS.md` for Claude Code, whatever the host; delete it if nobody uses Claude Code.

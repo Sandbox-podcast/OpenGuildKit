@@ -37,7 +37,7 @@ class QuestionnaireTests(unittest.TestCase):
         self.assertLess(order.index("norms"), order.index("patterns"))
         self.assertEqual(questions["tools"]["default"], ["github"])
         self.assertEqual(questions["tools"]["detected"][0]["tool"], "github")
-        self.assertEqual([choice["id"] for choice in questions["host"]["choices"]], ["claude-code", "codex", "other"])
+        self.assertEqual([choice["id"] for choice in questions["host"]["choices"]], ["claude-code", "codex", "gemini-cli", "other"])
         self.assertEqual(questions["host"]["default"], "other")
         detected = self.questions(host="codex")["host"]
         self.assertEqual((detected["default"], detected["detected"]), ("other", "codex"))
