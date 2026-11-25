@@ -209,7 +209,7 @@ test('the coordinator reads the --config, --evidence and --answers files that st
   const form = read(run('onboard', ...source));
   Object.assign(form.answers, {
     project: 'equipe/portail', owner: '@mainteneur', environments: ['test'], conventions: [], stack: ['Node.js'],
-    sensitivePaths: ['export.json'], ticketTracker: 'GitHub Issues', dataAccess: ['fichiers versionnés'], tools: ['GitHub Actions'],
+    sensitivePaths: ['export.json'], ticketTracker: 'GitHub Issues', dataAccess: ['versioned files'], tools: ['GitHub Actions'],
     aiModels: [], executionBudget: '5 minutes', requiredApprovals: ['mainteneur'], references: ['convention export'],
     testCommands: ['npm test'], ruleId: 'export-link-expiry', targetPath: 'export.json',
   });
@@ -366,7 +366,7 @@ test('prepare a questionnaire from committed files and activate only a reviewed 
   assert.equal(run('onboard', ...source, '--answers', 'answers.json').status, 2);
   Object.assign(form.answers, {
     project: 'equipe/portail', owner: '@mainteneur', environments: ['test'], conventions: [],
-    sensitivePaths: ['export.json'], ticketTracker: 'GitHub Issues', dataAccess: ['fichiers versionnés'],
+    sensitivePaths: ['export.json'], ticketTracker: 'GitHub Issues', dataAccess: ['versioned files'],
     aiModels: [], executionBudget: '5 minutes', requiredApprovals: ['mainteneur'], references: ['convention export'],
   });
   writeFileSync(questionnairePath, JSON.stringify(form));

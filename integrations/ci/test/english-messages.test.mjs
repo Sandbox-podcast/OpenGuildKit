@@ -11,6 +11,14 @@ const frenchWords = /\b(?:pour|dans|avec|sans|une|des|les|est|sont|doit|aux|inva
 const filesOf = folder => readdirSync(join(packageRoot, folder), { recursive: true })
   .map(name => join(folder, name)).filter(path => statSync(join(packageRoot, path)).isFile());
 
+test('the questions and error messages of onboard, reconcile and watch are in English', () => {
+  for (const name of ['onboard']) {
+    const source = read(`lib/${name}.mjs`);
+    assert.doesNotMatch(source, /[^\x00-\x7f]/, name);
+    assert.doesNotMatch(source, frenchWords, name);
+  }
+});
+
 test('the scripts and templates of pilot and prototype are in English', () => {
   for (const path of ['pilot', 'prototype'].flatMap(filesOf)) {
     const source = read(path);
