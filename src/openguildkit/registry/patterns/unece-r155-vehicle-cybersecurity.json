@@ -1,0 +1,43 @@
+{
+  "id": "unece-r155-vehicle-cybersecurity",
+  "title": "UN Regulation No 155, vehicle cybersecurity",
+  "description": "Preselected for automotive: keep it when the organization is a vehicle manufacturer, or a supplier whose system, component or software goes into a vehicle type that needs a cybersecurity approval under UN Regulation No 155, which Regulation (EU) 2019/2144 requires for the EU type-approval of categories M, N and O and which other contracting parties of the 1958 Agreement can apply. The approval and the certificate of the cyber security management system are the vehicle manufacturer's; a supplier is concerned through the manufacturer's management of its dependencies. Decline it for software that is not part of a vehicle, such as fleet management or workshop tools: ask the legal owner whether the Cyber Resilience Act applies to it instead (Art. 2(2)(c) leaves it out only for products covered by Regulation (EU) 2019/2144).",
+  "sources": [
+    {
+      "title": "Regulation (EU) 2019/2144 on type-approval requirements for motor vehicles, consolidated text of 2 August 2026",
+      "url": "https://eur-lex.europa.eu/eli/reg/2019/2144/2026-08-02/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "UN Regulation No 155, cyber security and cyber security management system, consolidated text up to Supplement 3 (OJ 2025/5)",
+      "url": "https://eur-lex.europa.eu/eli/reg/2025/5/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "United Nations Treaty Collection, UN Regulation No. 155, cyber security and cyber security management systems",
+      "url": "https://treaties.un.org/doc/Publication/MTDSG/Volume%20I/Chapter%20XI/XI-B-16-155.en.xml",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Regulation (EU) 2024/2847, Cyber Resilience Act",
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
+      "checked": "2026-11-25"
+    }
+  ],
+  "roles": [
+    "legal",
+    "security"
+  ],
+  "packs": [
+    "unece-r155"
+  ],
+  "kind": "regulation",
+  "references": [
+    "unece-r155"
+  ],
+  "match": {
+    "sectors": [
+      "automotive"
+    ]
+  }
+}

@@ -360,10 +360,13 @@
       ],
       "summary": "Décrit le style de formatage de référence du code Rust.",
       "applies_when": "Pour les projets Rust ; le profil retenu doit rester cohérent avec la configuration de rustfmt.",
+      "packs": [
+        "rust-cargo"
+      ],
       "sources": [
         {
           "url": "https://doc.rust-lang.org/style-guide/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "The Rust Style Guide"
         }
       ]
@@ -414,6 +417,9 @@
       ],
       "summary": "Décrit les conventions de structure, de nommage et de mise en forme du code Kotlin.",
       "applies_when": "Pour les projets Kotlin, avec une configuration d'éditeur et de contrôle cohérente avec les choix du projet.",
+      "packs": [
+        "kotlin-service"
+      ],
       "sources": [
         {
           "url": "https://kotlinlang.org/docs/coding-conventions.html",

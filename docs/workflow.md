@@ -277,22 +277,25 @@ Each bundled pack has a subject, the task answers that call for it, and for a fe
 |---|---|---|
 | Every change | always | `agent-workflow`, `secure-sdlc` |
 | The project's code | surface `service`, `customer` or `infrastructure` | language and framework packs (`python`, `typescript`, `fastapi`, `django`, `postgresql`...) |
-| The user interface | surface `customer` | `react`, `vue`, `nextjs`, accessibility, web performance, mobile, i18n, `playwright`... |
+| The user interface | surface `customer` | `react`, `vue`, `nextjs`, accessibility (including `france-rgaa-accessibility`), trackers (`france-cookies-and-trackers`), web performance, mobile, i18n, `playwright`... |
 | A new customer feature | kind `feature` and surface `customer` | design, user research, experiments, product discovery, SEO, support readiness, release communication |
 | A backend service | surface `service` | `backend-data-safety`, `public-api-docs`, and `service-reliability` (also `infrastructure`) |
 | Infrastructure and delivery | surface `infrastructure` | containers, Kubernetes, Terraform, AWS IAM, CI security, incident response, release management, supply chain |
 | The tools and instructions agents work with | surface `infrastructure` | `agent-native-engineering` |
 | Cloud and vendor spending | surface `infrastructure`, or surface `business` with concern `money` when `finance` or `devops` reviews the task | `finops-cost-management` |
-| Personal data | data `personal` or `regulated` | `gdpr`, `minors-data-protection`, `health-data-protection` |
-| Security-sensitive changes | data `regulated`, concern `credentials`, surface `infrastructure`, or data `personal` on surface `customer` or `service` | `threat-modeling`, `owasp-asvs`, `iso-27001` |
+| Personal data | data `personal` or `regulated` | `gdpr`, `minors-data-protection`, `health-data-protection`, `france-health-data-hosting` |
+| Security-sensitive changes | data `regulated`, concern `credentials`, surface `infrastructure`, or data `personal` on surface `customer` or `service` | `threat-modeling`, `owasp-asvs`, `iso-27001`, `france-public-sector-security` |
 | The ICT systems of a regulated entity | data `regulated`, surface `infrastructure`, or a `feature` or `maintenance` with data `personal` on surface `customer` or `service` | `dora`, `nis2` |
+| The systems of an aviation organisation | data `regulated`, or surface `service`, `customer` or `infrastructure` | `aviation-information-security` |
+| Airborne software and systems | surface `service`, `customer` or `infrastructure` | `airborne-software-assurance`, `airworthiness-security` |
 | Security incidents and vulnerabilities | surface `infrastructure` or concern `credentials` | `cyber-resilience-act`, `incident-notification` (each of its rows also follows its regulation, below) |
 | AI | concern `ai` or `people-decisions` | `llm-evaluations`, `nist-ai-risk`, `eu-ai-act` |
-| Money | concern `money` | revenue, SaaS metrics, VAT, financial planning, deal approval |
+| Money | concern `money` | revenue, SaaS metrics, VAT, French e-invoicing (`france-e-invoicing`), financial planning, deal approval |
 | Payment card data | data `regulated`, or concern `money` when the brief names cards or payments (card, payment, checkout, Stripe...) | `pci-dss` |
 | Pay and recruitment | concern `people-decisions`; or the `hr` board with concern `money` (pay) or a brief that names hiring (interview, candidate, job posting...) | `pay-transparency`; `structured-hiring` without the pay case |
 | A business process | surface `business` | sales, partners, campaigns, HR processes, procurement, governance and delivery methods |
 | Selling to consumers or insurance | surface `customer` with concern `money` | `online-consumer-sales`, `insurance-distribution` |
+| The software and the software updates of a road vehicle | surface `service`, `customer` or `infrastructure` | `unece-r155`, `unece-r156` |
 | Content users publish | the `trust-and-safety` board reviews the task (the brief speaks of reports, moderation or illegal content) | `notice-and-action` |
 
 An answer left open (`unsure`, `other`, or not given) calls for the packs of that subject. On top of the subject, a pack brought by a method pattern needs a board of the role that brought it (the pattern's roles the profile lists) among the task's boards, and a pack brought for some components needs a file changed since the approved revision in them; files changed in a component other than the whole project bring its packs even when the answers do not. A component at the project root (path `.`) holds every file, so there the subject decides. A pack of the project's own catalog has no subject: a regulation pack concerns tasks on personal or regulated data, a pack needed by another (`depends_on`) follows the packs that need it, and the others concern every task. A pack or rule listed in `required_rules` is always asked.

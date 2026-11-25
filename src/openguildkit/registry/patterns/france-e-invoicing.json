@@ -1,0 +1,29 @@
+{
+  "id": "france-e-invoicing",
+  "title": "Electronic invoicing and e-reporting (France)",
+  "description": "Select when billing or checkout software of a company established in France invoices businesses liable to French VAT, sells to individuals or operators abroad, or collects VAT on receipt of payment; it is not preselected for a sector, since any sector can bill. It adds the platforms, formats, new invoice mentions and e-reporting of the French reform to vat-and-e-invoicing, which keeps the VAT rules and the dates.",
+  "sources": [
+    {
+      "title": "impots.gouv.fr, Je découvre la facturation électronique",
+      "url": "https://www.impots.gouv.fr/professionnel/je-decouvre-la-facturation-electronique",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "impots.gouv.fr, Spécifications externes et normes pour la facturation électronique",
+      "url": "https://www.impots.gouv.fr/specifications-externes-b2b",
+      "checked": "2026-11-25"
+    }
+  ],
+  "roles": [
+    "finance",
+    "legal",
+    "backend"
+  ],
+  "packs": [
+    "france-e-invoicing"
+  ],
+  "kind": "regulation",
+  "references": [
+    "facturation-electronique-france"
+  ]
+}

@@ -44,6 +44,10 @@ UNDATED_STANDARDS = {
 UNDATED_REGULATIONS = {
     "facturation-electronique-france": "French law cited through impots.gouv.fr and service-public.gouv.fr, which give "
                                        "no edition; EUR-Lex holds no consolidation of it.",
+    "unece-r155": "A UN Regulation that EUR-Lex republishes as a documentation text, not as the consolidation of an EU "
+                  "act: its text changes by supplement, which the pack names.",
+    "unece-r156": "A UN Regulation that EUR-Lex republishes as a documentation text, not as the consolidation of an EU "
+                  "act: its text changes by amendment, which the pack says it has not read.",
 }
 
 

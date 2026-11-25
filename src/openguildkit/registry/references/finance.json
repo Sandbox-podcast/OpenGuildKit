@@ -232,7 +232,8 @@
       "summary": "Toutes les entreprises établies en France reçoivent les factures électroniques depuis le 1er septembre 2026 ; l'émission s'applique aux grandes entreprises et ETI depuis cette date, aux PME et micro-entreprises à partir du 1er septembre 2027.",
       "applies_when": "Pour une entreprise établie en France qui achète ou vend à d'autres entreprises ; vérifier sa date d'émission selon sa taille.",
       "packs": [
-        "vat-and-e-invoicing"
+        "vat-and-e-invoicing",
+        "france-e-invoicing"
       ],
       "sources": [
         {

@@ -69,7 +69,8 @@ export const RESEARCH: Record<string, string> = { local: 'Sources locales', publ
 export const SECTOR_FR: Record<string, string> = {
   'critical-infrastructure': 'Infrastructures critiques et industrie', 'e-commerce': 'Commerce en ligne', education: 'Éducation',
   'financial-services': 'Services financiers', general: 'Général', healthcare: 'Santé', insurance: 'Assurance',
-  'public-sector': 'Secteur public', 'software-publisher': 'Éditeur de logiciels',
+  'public-sector': 'Secteur public', 'software-publisher': 'Éditeur de logiciels', aerospace: 'Aéronautique',
+  automotive: 'Automobile',
 };
 export const NORM_FR: Record<string, string> = {
   'dora-financial-entity': 'DORA pour les entités financières',
@@ -82,6 +83,15 @@ export const NORM_FR: Record<string, string> = {
   'online-consumer-sales': 'Vente en ligne aux consommateurs (UE)',
   'pci-dss-cardholder-data': 'PCI DSS pour les données de carte de paiement',
   'public-sector-accessibility': 'Accessibilité du secteur public (UE)',
+  'aviation-information-security': 'Part-IS : sécurité informatique en aviation civile (UE)',
+  'airborne-software-assurance': 'Logiciel embarqué et sécurité de navigabilité (DO-178C, DO-326A)',
+  'unece-r155-vehicle-cybersecurity': 'Cybersécurité des véhicules (règlement ONU n° 155)',
+  'unece-r156-software-updates': 'Mises à jour logicielles des véhicules (règlement ONU n° 156)',
+  'france-health-data-hosting': 'Hébergement de données de santé (France)',
+  'france-rgaa-accessibility': 'Accessibilité numérique, RGAA (France)',
+  'france-public-sector-security': 'Sécurité du numérique pour le secteur public (France)',
+  'france-cookies-and-trackers': 'Cookies et traceurs, CNIL (France)',
+  'france-e-invoicing': 'Facturation électronique (France)',
 };
 /** Why the CLI proposes a pattern (recommend --json, reasons), in French; an unknown reason is null. */
 export function reasonLabel(reason: string): string | null {

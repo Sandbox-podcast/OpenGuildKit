@@ -6,7 +6,7 @@
     "Ask the privacy owner whether the product processes data concerning health (GDPR Art. 9) and for which controller. This sector preselects the health-data-protection pattern.",
     "Ask the regulatory owner whether a feature has a medical purpose that makes it medical device software under Regulation (EU) 2017/745 before writing its claims or its interface text.",
     "When the product stores or exchanges electronic health records, ask which priority categories of Regulation (EU) 2025/327 (EHDS) it processes and from which date Art. 105 applies them.",
-    "National rules apply on top of EU law, such as the French rules on health data hosting (HDS): ask the compliance owner which ones bind the hosting and the customers."
+    "National rules apply on top of EU law. This sector also preselects the france-health-data-hosting pattern for the French rules on health data hosting (HDS): decline it when the product is not hosted for customers in France, and ask the compliance owner which other national rules bind the hosting and the customers."
   ],
   "sources": [
     {
@@ -23,6 +23,11 @@
       "title": "Regulation (EU) 2025/327, European Health Data Space",
       "url": "https://eur-lex.europa.eu/eli/reg/2025/327/oj/eng",
       "checked": "2026-11-21"
+    },
+    {
+      "title": "Légifrance, Code de la santé publique, Article L1111-8 (hosting of personal health data)",
+      "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000049577902",
+      "checked": "2026-11-25"
     }
   ]
 }

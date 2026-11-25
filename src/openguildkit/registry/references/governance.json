@@ -599,6 +599,65 @@
       ]
     },
     {
+      "id": "unece-r155",
+      "title": "Règlement ONU n° 155 (cybersécurité des véhicules)",
+      "title_en": "UN Regulation No 155, vehicle cyber security and cyber security management system",
+      "category": "Réglementations et exigences sectorielles",
+      "kind": "réglementation",
+      "brains": [
+        "legal",
+        "security"
+      ],
+      "summary": "Demande au constructeur un système de gestion de la cybersécurité et, pour chaque type de véhicule, une évaluation des risques, des mesures, des essais, une surveillance et un rapport annuel à l'autorité d'homologation.",
+      "applies_when": "Pour un type de véhicule soumis à l'homologation de l'UE (règlement (UE) 2019/2144) ou d'une autre partie contractante ; l'homologation et le certificat sont ceux du constructeur, un fournisseur y répond par contrat ; un logiciel hors du véhicule n'entre pas dans ce texte.",
+      "pattern": "unece-r155-vehicle-cybersecurity",
+      "packs": [
+        "unece-r155"
+      ],
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/reg/2025/5/oj/eng",
+          "checked": "2026-11-25",
+          "title": "Règlement ONU n° 155 — texte consolidé jusqu'au Supplément 3 (JO 2025/5)"
+        },
+        {
+          "url": "https://treaties.un.org/doc/Publication/MTDSG/Volume%20I/Chapter%20XI/XI-B-16-155.en.xml",
+          "checked": "2026-11-25",
+          "title": "Nations unies, Recueil des traités — Règlement ONU n° 155"
+        }
+      ]
+    },
+    {
+      "id": "unece-r156",
+      "title": "Règlement ONU n° 156 (mises à jour logicielles des véhicules)",
+      "title_en": "UN Regulation No 156, vehicle software update and software update management system",
+      "category": "Réglementations et exigences sectorielles",
+      "kind": "réglementation",
+      "brains": [
+        "legal",
+        "engineering",
+        "qa"
+      ],
+      "summary": "Demande au constructeur un système de gestion des mises à jour logicielles : identification des versions, évaluation de l'effet sur l'homologation, protection de la livraison et, pour les mises à jour à distance, exécution sûre et information du conducteur.",
+      "applies_when": "Pour un type de véhicule approuvé par une autorité qui applique ce règlement ; le règlement (UE) 2019/2144 ne le liste pas dans sa version consolidée du 2 août 2026, il faut donc demander quelle autorité l'exige ; le texte d'origine a été modifié depuis (Recueil des traités).",
+      "pattern": "unece-r156-software-updates",
+      "packs": [
+        "unece-r156"
+      ],
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/reg/2021/388/oj/eng",
+          "checked": "2026-11-25",
+          "title": "Règlement ONU n° 156 — texte d'origine (JO 2021/388)"
+        },
+        {
+          "url": "https://treaties.un.org/doc/Publication/MTDSG/Volume%20I/Chapter%20XI/XI-B-16-156.en.xml",
+          "checked": "2026-11-25",
+          "title": "Nations unies, Recueil des traités — Règlement ONU n° 156"
+        }
+      ]
+    },
+    {
       "id": "eidas",
       "title": "eIDAS et cadre européen d'identité numérique",
       "title_en": "eIDAS and the European Digital Identity Framework",
@@ -780,6 +839,9 @@
       ],
       "summary": "Définit le cadre de certification de certains services d'hébergement de données personnelles de santé en France.",
       "applies_when": "Pour les activités d'hébergement pour compte de tiers entrant dans le champ français, selon les données, finalités et rôles exercés.",
+      "packs": [
+        "france-health-data-hosting"
+      ],
       "sources": [
         {
           "url": "https://esante.gouv.fr/services/hebergeurs-de-donnees-de-sante/les-referentiels-de-la-procedure-de-certification",
@@ -891,6 +953,48 @@
           "url": "https://www.iso.org/publication/PUB200262.html",
           "checked": "2026-11-20",
           "title": "ISO — ISO 26262 road vehicles functional safety"
+        }
+      ]
+    },
+    {
+      "id": "iso-sae-21434",
+      "title": "ISO/SAE 21434:2021",
+      "title_en": "ISO/SAE 21434:2021, Road vehicles, Cybersecurity engineering",
+      "edition": "2021",
+      "category": "Qualité et sûreté sectorielles",
+      "kind": "norme",
+      "brains": [
+        "security",
+        "engineering"
+      ],
+      "summary": "Définit des exigences d'ingénierie de la cybersécurité pour les systèmes électriques et électroniques des véhicules routiers, de la conception à la fin de vie.",
+      "applies_when": "Pour des équipes qui développent ou modifient des systèmes de véhicules routiers ; norme payante qu'un constructeur ou un client peut demander comme preuve de processus ; le règlement ONU n° 155 ne la cite que comme exemple dans une note.",
+      "sources": [
+        {
+          "url": "https://committee.iso.org/standard/70918.html",
+          "checked": "2026-11-25",
+          "title": "ISO — ISO/SAE 21434:2021 Road vehicles, Cybersecurity engineering"
+        }
+      ]
+    },
+    {
+      "id": "iso-24089",
+      "title": "ISO 24089:2023",
+      "title_en": "ISO 24089:2023, Road vehicles, Software update engineering",
+      "edition": "2023",
+      "category": "Qualité et sûreté sectorielles",
+      "kind": "norme",
+      "brains": [
+        "engineering",
+        "security"
+      ],
+      "summary": "Fixe des exigences et des recommandations d'ingénierie des mises à jour logicielles des véhicules routiers, au niveau de l'organisation et du projet.",
+      "applies_when": "Pour des constructeurs, fournisseurs et partenaires qui préparent et déploient des paquets de mises à jour d'un véhicule ; norme payante distincte du règlement ONU n° 156 : elle ne dit pas qu'un type de véhicule est approuvé.",
+      "sources": [
+        {
+          "url": "https://committee.iso.org/standard/77796.html",
+          "checked": "2026-11-25",
+          "title": "ISO — ISO 24089:2023 Road vehicles, Software update engineering"
         }
       ]
     },

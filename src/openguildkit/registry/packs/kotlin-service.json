@@ -1,0 +1,134 @@
+{
+  "id": "kotlin-service",
+  "title": "Kotlin services on the JVM",
+  "version": "1.0.0",
+  "description": "For a Kotlin service on the JVM: coroutine scopes, null boundaries with Java, compiler warnings, style and static analysis, and pinned Gradle dependencies. It leaves out what other packs own: a Kotlin service on Spring Boot keeps `spring-boot`, an Android app keeps `android-app`.",
+  "sources": [
+    {
+      "title": "Kotlin documentation, coroutines basics",
+      "url": "https://kotlinlang.org/docs/coroutines-basics.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "kotlinx.coroutines API, GlobalScope",
+      "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-global-scope/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Ktor API reference, Application",
+      "url": "https://api.ktor.io/ktor-server-core/io.ktor.server.application/-application/index.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Kotlin documentation, calling Java from Kotlin",
+      "url": "https://kotlinlang.org/docs/java-interop.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Kotlin documentation, Gradle compiler options",
+      "url": "https://kotlinlang.org/docs/gradle-compiler-options.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Kotlin documentation, coding conventions",
+      "url": "https://kotlinlang.org/docs/coding-conventions.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Kotlin documentation, code quality tools in Kotlin projects",
+      "url": "https://kotlinlang.org/docs/jvm-code-analysis.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Gradle documentation, base plugin",
+      "url": "https://docs.gradle.org/current/userguide/base_plugin.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Gradle documentation, version catalogs",
+      "url": "https://docs.gradle.org/current/userguide/version_catalogs.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Gradle documentation, dependency locking",
+      "url": "https://docs.gradle.org/current/userguide/dependency_locking.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Ktor documentation, adding server dependencies",
+      "url": "https://ktor.io/docs/server-dependencies.html",
+      "checked": "2026-11-25"
+    }
+  ],
+  "rules": [
+    {
+      "id": "scope-coroutines-to-a-lifecycle",
+      "instruction": "Start every coroutine from a scope that something owns and cancels: `coroutineScope` inside the suspending function that needs concurrent work, or the Ktor `Application` scope, which is cancelled when the application stops, for background work that lives as long as the service. Do not use `GlobalScope`, and do not build a `CoroutineScope()` at the call site to replace it.",
+      "verification": "Search the main sources for `GlobalScope` and for `CoroutineScope(` and replace each hit. In a test, cancel the owning scope or stop the application and check that the work it launched has stopped.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "**/src/main/**/*.kt"
+        ],
+        "contains": [
+          "GlobalScope"
+        ],
+        "expect": "absent"
+      }
+    },
+    {
+      "id": "declare-types-from-java-calls",
+      "instruction": "When Kotlin code receives a value from a Java API or library, declare the Kotlin type of the variable, property or function result yourself, so that no platform type is inferred: `String?` when the Java side can return null, `String` only when its contract rules null out. A Java declaration with a nullability annotation Kotlin reads needs no declaration of yours.",
+      "verification": "For each Java call in the change, read the receiving declaration for an explicit type, then run a test that makes the Java side return null where it can: the code must handle the null or fail at that boundary with a clear message, not later with a `NullPointerException`."
+    },
+    {
+      "id": "treat-warnings-as-errors",
+      "instruction": "Set `allWarningsAsErrors` to true in the Kotlin `compilerOptions`, for the whole project or in the shared convention plugin of the modules, and fix a warning instead of hiding it: leave `suppressWarnings` at false.",
+      "verification": "Add an unused variable on a scratch branch and check that `./gradlew compileKotlin` fails, then check that every module applies the option. task verify looks for it in the Gradle files; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "**/*.gradle.kts",
+          "**/*.gradle",
+          "buildSrc/**/*.kt",
+          "build-logic/**/*.kt"
+        ],
+        "contains": [
+          "allWarningsAsErrors.set(true)",
+          "allWarningsAsErrors = true",
+          "allWarningsAsErrors=true"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "enforce-style-and-static-analysis",
+      "instruction": "Apply the official Kotlin coding conventions with a formatter and a static analyzer that Gradle runs, such as ktlint and detekt, which the Kotlin documentation shows, and attach both tasks to `check` so that a violation fails the build. Record each accepted exception in the tool's own configuration with its reason.",
+      "verification": "On a scratch branch, break a rule of the formatter and one of the analyzer, run `./gradlew check` and read the executed tasks: both tools must run and the build must fail."
+    },
+    {
+      "id": "declare-versions-in-a-catalog",
+      "instruction": "Declare the versions of Kotlin, Ktor, every library and every plugin once in `gradle/libs.versions.toml` and use the type-safe accessors in build scripts (`libs.` and `alias(libs.plugins.`), with no version literal in a module's build script. Keep every Ktor artifact on one version, taken from the Ktor Gradle plugin, which adds the Ktor BOM, or from one catalog entry.",
+      "verification": "Search the module build scripts for quoted `group:artifact:version` strings and `version =` literals, then run `./gradlew :<module>:dependencies --configuration runtimeClasspath` and check that every `io.ktor` artifact resolves to the same version.",
+      "check": {
+        "kind": "file-exists",
+        "paths": [
+          "gradle/libs.versions.toml",
+          "**/gradle/libs.versions.toml"
+        ]
+      }
+    },
+    {
+      "id": "lock-resolved-dependency-versions",
+      "instruction": "Turn on Gradle dependency locking for every configuration with `dependencyLocking { lockAllConfigurations() }`, commit `gradle.lockfile`, and change it only with `./gradlew dependencies --write-locks` (or `--update-locks` with the module names) in a commit that says why. Pin no `-SNAPSHOT` or other changing version.",
+      "verification": "On a scratch branch, raise a dependency version without rewriting the locks and check that the build fails. Check that `git ls-files gradle.lockfile` lists the file and that the diff of a dependency update shows the lock change.",
+      "check": {
+        "kind": "file-exists",
+        "paths": [
+          "gradle.lockfile",
+          "**/gradle.lockfile"
+        ]
+      }
+    }
+  ]
+}

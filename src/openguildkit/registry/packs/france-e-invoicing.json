@@ -1,0 +1,75 @@
+{
+  "id": "france-e-invoicing",
+  "title": "Electronic invoicing and e-reporting (France)",
+  "version": "1.0.0",
+  "description": "France only. For billing software and checkout flows of a company established in France that invoices other businesses established in France and liable to French VAT, sells to individuals or to operators abroad, or collects VAT on receipt of payment: the three parts of the reform as impots.gouv.fr describes them (e-invoicing, transaction e-reporting and payment e-reporting), the plateformes agréées, the accepted formats, the DGFiP external specifications, the new mandatory mentions and the transmission frequencies. A company not established in France, or without these flows, has nothing to apply here. It depends on vat-and-e-invoicing, which keeps the VAT treatment, the general invoice particulars and the dates (1 September 2026 to receive, 1 September 2026 or 1 September 2027 to issue); this pack does not repeat the dates. These rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "impots.gouv.fr, Je découvre la facturation électronique",
+      "url": "https://www.impots.gouv.fr/professionnel/je-decouvre-la-facturation-electronique",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "impots.gouv.fr, J'approfondis mes connaissances sur la réforme",
+      "url": "https://www.impots.gouv.fr/japprofondis-mes-connaissances-sur-la-reforme",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "impots.gouv.fr, Spécifications externes et normes pour la facturation électronique",
+      "url": "https://www.impots.gouv.fr/specifications-externes-b2b",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "DGFiP, E-reporting, fréquences et délais de transmission des données de transaction et de paiement (August 2026 update)",
+      "url": "https://www.impots.gouv.fr/sites/default/files/media/1_metier/2_professionnel/EV/2_gestion/290_facturation_electronique/japprof_frequences-et-delais-de-transmission.pdf",
+      "checked": "2026-11-25"
+    }
+  ],
+  "depends_on": [
+    "vat-and-e-invoicing"
+  ],
+  "rules": [
+    {
+      "id": "classify-each-flow",
+      "instruction": "Ask the finance owner to classify each flow of the product as e-invoicing (sales between businesses established in France and liable to French VAT), transaction e-reporting (sales to individuals and operations with operators abroad, including exports and intra-EU acquisitions and deliveries) or payment e-reporting (operations whose VAT is due on receipt of payment), and record the class of each flow.",
+      "verification": "Link the table that gives each billing and checkout flow of the changed code one class and the finance owner's name.",
+      "manual": "Which flow falls in which class depends on the company's customers and VAT regime."
+    },
+    {
+      "id": "exchange-through-a-platform",
+      "instruction": "Send and receive invoices, and transmit the data for the administration, through at least one plateforme agréée that the company chose, and do not send an invoice between businesses as an ordinary PDF, a scan or an e-mail attachment, which impots.gouv.fr no longer treats as an electronic invoice.",
+      "verification": "Link the contract or account with the platform and a test invoice sent and one received through it.",
+      "manual": "The choice of platform and its account are the company's, outside the repository."
+    },
+    {
+      "id": "generate-an-accepted-format",
+      "instruction": "Generate each invoice in one of the formats that impots.gouv.fr accepts, UBL, CII or the mixed format made of a structured data file and an image file, following the formats and profiles of standard XP Z12-012, which defines the invoice and lifecycle status messages.",
+      "verification": "Run the validation of a generated invoice against the XSD files and examples of the DGFiP external specifications and link the result.",
+      "manual": "Validation runs against files downloaded from the DGFiP, which the repository may not hold."
+    },
+    {
+      "id": "pin-the-external-specifications",
+      "instruction": "Pin the version of the DGFiP external specifications that the integration implements, 3.2 of 30 April 2026 on the page of 25 November 2026, and the APIs of standard XP Z12-013 when the information system connects to a platform, and record who watches for a new version.",
+      "verification": "Find the pinned version in the integration documentation and check that it is the latest listed on the DGFiP page.",
+      "manual": "The latest version is read on the DGFiP page, which changes outside the repository."
+    },
+    {
+      "id": "add-the-new-mandatory-mentions",
+      "instruction": "Add to the invoice template and data model, in dedicated fields, the four mentions that the reform adds: the customer's SIREN number, the category of the operation (sale of goods, provision of services, or both), the VAT-on-debits option when it applies, and the delivery address when it differs from the billing address.",
+      "verification": "Compare a test invoice for each category of operation with the four additions and check that each sits in its own field of the generated file.",
+      "manual": "The mentions show on generated invoices, which depend on the template in use."
+    },
+    {
+      "id": "transmit-ereporting-data-on-schedule",
+      "instruction": "Compare the transaction and payment data that the product holds with the DGFiP lists of data to transmit, and send each flow at the frequency and within the deadline that the DGFiP table gives for the company's VAT regime (normal regime, its quarterly option, simplified regime or franchise in base).",
+      "verification": "Run a test period for each VAT regime the company can have and check the dates of the generated transmissions against the DGFiP table.",
+      "manual": "The data lists and the table are read on the DGFiP pages, and the schedule runs in a live system."
+    },
+    {
+      "id": "reach-public-buyers-through-chorus-pro",
+      "instruction": "When a customer is a public entity, ask the finance owner how its invoices reach it through Chorus Pro, the reference platform of the public sector that the DGFiP specifications page names, and keep that path next to the platform of the other customers.",
+      "verification": "Link a test invoice for a public customer and the record of its submission through Chorus Pro.",
+      "manual": "Submission to Chorus Pro happens on the public platform, outside the repository."
+    }
+  ]
+}

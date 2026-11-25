@@ -1,0 +1,34 @@
+{
+  "id": "france-health-data-hosting",
+  "title": "Health data hosting (France, HDS)",
+  "description": "Preselected for the healthcare sector: keep it when the product, or the platform it runs on, stores personal health data for customers in France; decline it for a product outside France or without health data. It adds the French hosting rules of the Code de la santé publique, including the HDS certificate, to health-data-protection (EU).",
+  "sources": [
+    {
+      "title": "Légifrance, Code de la santé publique, Article L1111-8 (hosting of personal health data)",
+      "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000049577902",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Légifrance, Code de la santé publique, Articles R1111-9 to R1111-11 (hosting activities, storage in the EU or EEA, certification, contract content)",
+      "url": "https://www.legifrance.gouv.fr/codes/id/LEGISCTA000036658495/",
+      "checked": "2026-11-25"
+    }
+  ],
+  "roles": [
+    "legal",
+    "security",
+    "devops"
+  ],
+  "packs": [
+    "france-health-data-hosting"
+  ],
+  "kind": "regulation",
+  "match": {
+    "sectors": [
+      "healthcare"
+    ]
+  },
+  "references": [
+    "hds"
+  ]
+}
