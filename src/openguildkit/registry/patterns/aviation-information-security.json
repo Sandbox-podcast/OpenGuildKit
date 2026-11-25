@@ -1,0 +1,35 @@
+{
+  "id": "aviation-information-security",
+  "title": "Aviation information security (EU Part-IS)",
+  "description": "Preselected for aerospace: keep it when the organization is one that Art. 2 of Delegated Regulation (EU) 2022/1645 (Part 21 design and production organisations, aerodrome operators, apron management providers) or Art. 2(1) of Implementing Regulation (EU) 2023/203 (maintenance, continuing airworthiness, air operator, training, air navigation and U-space organisations) lists. It does not apply to an excluded organisation (such as one working only on ELA2 aircraft), to an organisation whose competent authority approved an exemption, to state aircraft, or to a supplier that is not itself listed, although a listed customer must keep its contracted activities under oversight.",
+  "sources": [
+    {
+      "title": "Delegated Regulation (EU) 2022/1645, information security risks with an impact on aviation safety (design, production, aerodromes)",
+      "url": "https://eur-lex.europa.eu/eli/reg_del/2022/1645/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Implementing Regulation (EU) 2023/203, information security risks with an impact on aviation safety (organisations and authorities)",
+      "url": "https://eur-lex.europa.eu/eli/reg_impl/2023/203/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "EASA, Information Security (Part-IS): regulations, acceptable means of compliance and guidance material",
+      "url": "https://www.easa.europa.eu/en/regulations/information-security",
+      "checked": "2026-11-25"
+    }
+  ],
+  "roles": [
+    "legal",
+    "security"
+  ],
+  "packs": [
+    "aviation-information-security"
+  ],
+  "kind": "regulation",
+  "match": {
+    "sectors": [
+      "aerospace"
+    ]
+  }
+}

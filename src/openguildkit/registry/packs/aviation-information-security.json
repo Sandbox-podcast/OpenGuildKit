@@ -1,0 +1,117 @@
+{
+  "id": "aviation-information-security",
+  "title": "Aviation information security management (EU Part-IS)",
+  "version": "1.0.0",
+  "description": "Questions for the compliance, security and engineering owners and process checks for an organisation that Art. 2 of Delegated Regulation (EU) 2022/1645 or Art. 2(1) of Implementing Regulation (EU) 2023/203 lists: Part 21 design and production organisations, aerodrome operators and apron management providers (applied since 16 October 2025), and Part-145, Part-CAMO, Part-ORO, Part-ORA, ATCO training and Part-ATM/ANS.OR organisations and U-space service providers (applied since 22 February 2026, and since 1 January 2026 for the EGNOS air navigation service provider). Ground handling providers that process third-party data join from 27 March 2031 (Delegated Regulation (EU) 2025/22). The acts exclude, among others, design and production organisations working only on ELA2 aircraft, Part-ML-only maintenance, air navigation providers with a limited certificate and declaring flight information service providers, and the competent authority can approve an exemption (IS.D.OR.200(e), IS.I.OR.200(e)); state aircraft are outside Regulation (EU) 2018/1139. A supplier that is not itself listed is not bound by the acts, but a listed customer keeps its contracted activities under oversight. The rules concern the organisation's information security management system, not the airworthiness security of a product (see airworthiness-security). Recital 7 of Implementing Regulation (EU) 2023/203 notes that international standards such as ISO 27001, which many organisations already use, may not fully address the specificities of civil aviation. National rules and the authority's acceptable means of compliance come on top; these rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "Delegated Regulation (EU) 2022/1645, information security risks with an impact on aviation safety (design, production, aerodromes)",
+      "url": "https://eur-lex.europa.eu/eli/reg_del/2022/1645/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Implementing Regulation (EU) 2023/203, information security risks with an impact on aviation safety (organisations and authorities)",
+      "url": "https://eur-lex.europa.eu/eli/reg_impl/2023/203/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Delegated Regulation (EU) 2025/22 amending Delegated Regulation (EU) 2022/1645 for ground handling",
+      "url": "https://eur-lex.europa.eu/eli/reg_del/2025/22/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Implementing Regulation (EU) 2025/2293 amending Implementing Regulation (EU) 2023/203 for organisations subject to a declaration",
+      "url": "https://eur-lex.europa.eu/eli/reg_impl/2025/2293/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "EASA, Information Security (Part-IS): regulations, acceptable means of compliance and guidance material",
+      "url": "https://www.easa.europa.eu/en/regulations/information-security",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "EASA, Easy Access Rules for Information Security (Regulations (EU) 2023/203 and 2022/1645)",
+      "url": "https://www.easa.europa.eu/en/document-library/easy-access-rules/online-publications/easy-access-rules-information-security",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "EASA, FAQ on the applicability dates of Part-IS",
+      "url": "https://www.easa.europa.eu/en/faq/139292",
+      "checked": "2026-11-25"
+    }
+  ],
+  "rules": [
+    {
+      "id": "confirm-part-is-scope",
+      "instruction": "Ask the compliance owner which of the organisation types of Art. 2 of Delegated Regulation (EU) 2022/1645 and Art. 2(1) of Implementing Regulation (EU) 2023/203 the organization is, which exclusion or approved exemption (IS.D.OR.200(e), IS.I.OR.200(e)) applies if any, and who the competent authority is, and decline the aviation-information-security pattern when none concerns it.",
+      "verification": "Link the recorded answer, with the approval or certificate the organization holds, from the change.",
+      "manual": "Which approvals the organization holds, and whether an exemption was granted, is the compliance owner's assessment against the authority's records."
+    },
+    {
+      "id": "keep-risk-assessment-current",
+      "instruction": "When the change adds or alters a system, data set, service or interface with another organisation that supports the organisation's activities, facilities or services, ask the security owner to add it to the information security risk assessment with its risk level, its aviation safety impact and the decision to accept or treat it (IS.D.OR.205, IS.I.OR.205).",
+      "verification": "Link the updated entry of the risk assessment, with the interface and the risk level, from the change.",
+      "manual": "The risk assessment is kept in the management system's records, outside the repository."
+    },
+    {
+      "id": "treat-unacceptable-risks",
+      "instruction": "For each risk the assessment rates unacceptable, implement in the change a measure that controls the circumstances of the threat, reduces its consequences for safety or avoids the risk, check that it keeps working and creates no new unacceptable risk, and inform the affected staff and the organisations that share the risk (IS.D.OR.210, IS.I.OR.210).",
+      "verification": "Run the test or open the configuration that shows each measure, and link the record that informed the other organisations.",
+      "manual": "The effect of a measure on safety is judged by the responsible persons, and the notices are recorded outside the repository."
+    },
+    {
+      "id": "detect-and-triage-events",
+      "instruction": "Make the changed system raise a warning when it deviates from the performance baselines the organisation defined, and route each information security event to the internal reporting scheme, where it is triaged as an incident or vulnerability with an aviation safety impact or not (IS.D.OR.215 and 220, IS.I.OR.215 and 220).",
+      "verification": "Run a test event through the changed system and show the warning and the entry in the internal reporting scheme.",
+      "manual": "Detection and routing show only in the running system."
+    },
+    {
+      "id": "restore-within-recovery-time",
+      "instruction": "Record the recovery time the organisation set in advance for the changed system and plan its recovery so that the affected elements return to a safe state within it (IS.D.OR.220, IS.I.OR.220(c)).",
+      "verification": "Link the latest recovery test of the changed system with the time it took.",
+      "manual": "Recovery tests run on the operated infrastructure and are recorded outside the repository."
+    },
+    {
+      "id": "file-the-72-hour-report",
+      "instruction": "Keep a procedure that notifies the competent authority as soon as the organisation becomes aware of an information security incident or vulnerability that may significantly risk aviation safety, files the report no later than 72 hours after, unless exceptional circumstances prevent it, and files the follow-up report once the recovery and prevention actions are identified; it also reaches the design approval holder when an aircraft or its system or component is affected, and the organisation responsible for the design of a system or constituent the organisation uses when that is affected (IS.D.OR.230, IS.I.OR.230).",
+      "verification": "Open the procedure and check that it names who files each report, the authority's form and the 72 hour clock, and link the last exercise.",
+      "manual": "The procedure and its exercise are kept by the incident owner, outside the repository."
+    },
+    {
+      "id": "align-reporting-clocks",
+      "instruction": "When the organization also reports under another regulation, such as NIS 2 or the GDPR, list the Part-IS report with its authority, trigger and 72 hour limit in the same incident reporting matrix, so that one event starts every clock (see the incident-notification pack).",
+      "verification": "Open the reporting matrix and find the Part-IS row with its authority and deadline.",
+      "manual": "The matrix is a document of the incident owner, kept outside the repository."
+    },
+    {
+      "id": "contract-the-activities-you-rely-on",
+      "instruction": "When the change brings in a contractor or supplier that performs an activity of the management system or could expose the organisation to an information security risk, write into the contract that the contractor works under the organisation's oversight, reports information security events to it and gives the competent authority access on request (IS.D.OR.215 and 235, IS.I.OR.215(c) and 235).",
+      "verification": "Open the contract and find the oversight, event reporting and authority access clauses.",
+      "manual": "Contracts are kept outside the repository."
+    },
+    {
+      "id": "keep-records-five-years",
+      "instruction": "Keep the risk assessment records, the treatment measures and the incident and vulnerability reports for at least five years, the contracts of the management system for at least five years after they are amended or terminated, and the staff qualification and experience records for at least three years after the person leaves, in a store with controlled access that protects their integrity and authenticity (IS.D.OR.245, IS.I.OR.245).",
+      "verification": "Show the retention setting and the access control of the store that holds the records of the changed system.",
+      "manual": "Retention and access are configured in the record store, not in the repository."
+    },
+    {
+      "id": "establish-staff-trustworthiness",
+      "instruction": "When the change grants access to information systems or data that support aviation activities, ask the compliance owner to confirm that the identity and trustworthiness of the people who receive it have been established (IS.D.OR.240, IS.I.OR.240(i)).",
+      "verification": "Link the recorded confirmation, or the personnel process that covers the access, from the change.",
+      "manual": "Identity and trustworthiness checks are personnel records kept outside the repository."
+    },
+    {
+      "id": "route-changes-to-the-management-system",
+      "instruction": "Before a change alters a process, a role or a manual that the information security management manual describes, ask the compliance owner whether the change procedure the authority approved covers it or the authority must approve it before it takes place (IS.D.OR.255, IS.I.OR.255, which Implementing Regulation (EU) 2025/2293 amends for declared organisations).",
+      "verification": "Link the recorded answer and, when approval is needed, the authority's approval from the change before it is released.",
+      "manual": "Whether a change needs approval depends on the procedure the authority approved and on whether the organization is approved or declared."
+    },
+    {
+      "id": "map-an-existing-iso-27001-system",
+      "instruction": "When the organization already runs an information security management system under ISO/IEC 27001, ask the security owner to map it to Part-IS, starting from the mapping appendix of EASA's acceptable means of compliance and guidance material, and to record the requirements it leaves uncovered (recital 7 of Implementing Regulation (EU) 2023/203).",
+      "verification": "Link the mapping and the list of uncovered requirements from the change.",
+      "manual": "The mapping is a comparison of two management systems made by the security owner."
+    }
+  ]
+}

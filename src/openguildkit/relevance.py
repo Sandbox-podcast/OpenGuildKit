@@ -90,6 +90,9 @@ SUBJECTS = {
     **{pack: ("personal data", _PERSONAL) for pack in ("gdpr", "minors-data-protection", "health-data-protection")},
     **{pack: ("security-sensitive changes", _SECURITY) for pack in ("threat-modeling", "owasp-asvs", "iso-27001")},
     **{pack: ("the ICT systems of a regulated entity", _ICT) for pack in ("dora", "nis2")},
+    # An aviation organisation's systems, data and interfaces.
+    "aviation-information-security": ("the systems of an aviation organisation", [
+        {"surface": ["service", "customer", "infrastructure"]}, {"data": ["regulated"]}]),
     **{pack: ("security incidents and vulnerabilities", [{"surface": ["infrastructure"]}, {"concerns": ["credentials"]}])
        for pack in ("cyber-resilience-act", "incident-notification")},
     "pay-transparency": ("pay and recruitment", [
@@ -129,6 +132,10 @@ LEGAL_BASIS = {
     "nis2": "regulated data, infrastructure, or a feature or maintenance on a customer or service surface with "
             "personal data: the measures of Art. 21(2) cover the network and information systems an essential or "
             "important entity uses for its services, their suppliers (point d) included.",
+    "aviation-information-security": "regulated data, or code, services and infrastructure: for an organisation listed "
+                                     "in Art. 2 of Delegated Regulation (EU) 2022/1645 or Art. 2(1) of Implementing "
+                                     "Regulation (EU) 2023/203, the systems, data and interfaces that support its "
+                                     "activities belong to the risk assessment of IS.D.OR.205 or IS.I.OR.205.",
     "european-accessibility-act": "a customer surface: Directive (EU) 2019/882 sets accessibility requirements for "
                                   "services provided to consumers (Art. 2(2), Annex I), applied since 28 June 2025.",
     "cyber-resilience-act": "infrastructure or credentials: its rules act on how releases are built, shipped and "

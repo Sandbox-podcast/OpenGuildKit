@@ -21,7 +21,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
 | it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 8 |
 | leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
-| legal | 56 | 23 | 33 | 18 | 1 | 21 | 137 |
+| legal | 56 | 23 | 33 | 19 | 1 | 22 | 149 |
 | localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
 | marketing | 22 | 7 | 15 | 8 | 0 | 8 | 17 |
 | operations | 21 | 6 | 15 | 11 | 0 | 11 | 26 |
@@ -32,7 +32,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
 | qa | 50 | 8 | 42 | 7 | 20 | 31 | 165 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 103 | 28 | 75 | 19 | 17 | 43 | 251 |
+| security | 103 | 28 | 75 | 20 | 17 | 44 | 263 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -74,6 +74,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 | Sector | Preselected patterns | Packs | Rules |
 |---|---|---|---:|
+| aerospace | aviation-information-security | aviation-information-security | 12 |
 | critical-infrastructure | nis2-essential-entity | incident-notification, nis2 | 13 |
 | e-commerce | european-accessibility-act, online-consumer-sales | european-accessibility-act, online-consumer-sales, web-accessibility | 21 |
 | education | minors-data-protection | minors-data-protection | 7 |
@@ -86,7 +87,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 ## Machine checks by pack
 
-25 of 469 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+25 of 481 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
@@ -97,6 +98,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | angular | 7 | 1 | 0 |
 | api-design | 3 | 0 | 0 |
 | aspnet-core | 5 | 1 | 0 |
+| aviation-information-security | 12 | 0 | 12 |
 | aws-iam | 6 | 1 | 0 |
 | backend-data-safety | 4 | 0 | 0 |
 | business-case-review | 2 | 0 | 0 |
