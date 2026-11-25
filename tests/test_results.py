@@ -572,6 +572,21 @@ class ProportionateResultTests(ResultCase):
         self.approved(stack=json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8"))["stack"])
         self.assert_verify_keeps_the_pack_answers()
 
+    def test_checks_show_a_rule_a_pack_answer_covers_with_that_answer(self):
+        """Issue 379: task checks read only the rules reported one by one, and listed the covered ones as not reported."""
+        self.approved(stack=["Python", "TypeScript", "React"])
+        rule = "rule:react/keep-render-pure"
+        self.assertIn(f"{rule} [report] not reported", self.run_cli("task", "checks", TASK)[0])
+        self.file(packs=[{"pack": "react", "status": "not-applicable", "reason": "No interface change here.",
+                          "owner": "CM"}])
+        listing = self.run_cli("task", "checks", TASK)[0]
+        self.assertIn(f"{rule} [report] not-applicable", listing)
+        self.assertNotIn(f"{rule} [report] not reported", listing)
+        entry = next(item for item in json.loads(self.run_cli("task", "checks", TASK, "--json")[0])
+                     if item["id"] == rule)
+        self.assertEqual(entry["result"]["status"], "not-applicable")
+        self.assertEqual(entry["result"]["via_pack"], "react")
+
     def test_closing_over_rules_the_answers_select_set_aside_lists_them_and_needs_the_person(self):
         """Issue 288: nine GDPR rules declared not applicable closed the task without a question."""
         self.gdpr_task()
