@@ -75,7 +75,10 @@ RUBY_GEMS = {
     "adyen-ruby-api-library": "Adyen", "braintree": "Braintree", "mollie-api-ruby": "Mollie",
 }
 COMPOSER_PACKAGES = {
-    "laravel/framework": "Laravel", "stripe/stripe-php": "Stripe", "adyen/php-api-library": "Adyen",
+    # The framework bundle (or the full-stack package of old applications) marks a Symfony application; the
+    # Symfony components that Laravel, Drupal or a console tool use alone do not.
+    "laravel/framework": "Laravel", "symfony/framework-bundle": "Symfony", "symfony/symfony": "Symfony",
+    "stripe/stripe-php": "Stripe", "adyen/php-api-library": "Adyen",
     "braintree/braintree_php": "Braintree", "checkout/checkout-sdk-php": "Checkout.com",
     "mollie/mollie-api-php": "Mollie",
 }
