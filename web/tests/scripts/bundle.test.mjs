@@ -38,6 +38,18 @@ describe('npm run bundle', () => {
     expect(problems).toEqual(['assets/world belongs to the demo: build with npm run build, not npm run build:demo.']);
   });
 
+  it('is described in both guides with the measure and the margin the script gives', () => {
+    const script = readFileSync(new URL('../../scripts/bundle.mjs', import.meta.url), 'utf8');
+    const measured = Number(/weighed ([\d,]+) KB/.exec(script)?.[1].replace(',', ''));
+    const french = (kb) => `${String(kb).replace(/(\d)(\d{3})$/, '$1 $2')} Ko`;
+    expect(measured).toBeGreaterThan(0);
+    expect(measured).toBeLessThanOrEqual(BUDGET_KB);
+    for (const guide of ['../../README.md', '../../docs/interface-projet.md']) {
+      const text = readFileSync(new URL(guide, import.meta.url), 'utf8');
+      for (const kb of [BUDGET_KB, measured, BUDGET_KB - measured]) expect(text, `${guide} says ${french(kb)}`).toContain(french(kb));
+    }
+  });
+
   it('builds with the chunk options of the current bundler, which warns about advancedChunks', () => {
     const config = readFileSync(new URL('../../vite.config.ts', import.meta.url), 'utf8');
     expect(config).not.toContain('advancedChunks');

@@ -7,7 +7,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /**
  * Budget of the copy, in KB as `du -sk` counts them on 4 KB blocks: 1,180 KB measured on 22 November 2026
- * once the demo was left out, plus 10 %. Raise it only with the measure that justifies it.
+ * once the demo was left out, plus 10 %. The build weighed 1,244 KB on 25 November 2026, 54 KB (4 %) under the
+ * budget, which was kept. Raise it only with the measure that justifies it.
  */
 export const BUDGET_KB = 1298;
 

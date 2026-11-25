@@ -26,6 +26,11 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - `deliverable check` reads a draft saved with a UTF-8 byte order mark, and `alerts import` reads a report saved as UTF-16 (PowerShell 5.1 `> file`); a file in another encoding is refused with its name and the encoding.
 - `docs share add` records the deliverable as a path from the project root, so a share named by its absolute path counts as the same deliverable as one named by its relative path: `--dedicated-space` and the readers of a shared space follow it, and the register keeps no local path.
 - `alerts tasks --open` gives each confirmed alert of a package with a long name a task of its own: an ID cut at 64 characters ends with a short digest of the alert ID instead of colliding.
+- The web interface refuses a command that names, in one of its options, a file the page itself will not read (`task new --file credentials.md`, `client_secret.json`): it answers `secret-file` instead of copying the file into the task.
+- The web interface lists and opens the market dossiers and tasks whose ID contains `password` or `secret` (`password-manager`, `password-reset`), which it hid as if they were secret files.
+- The web interface answers a NUL or a lone surrogate in a path, an upload or the Storybook proposals with `bad-request` instead of a server error or a false "project busy", and writes the type, message and trace of a real server error in the terminal that runs `openguildkit ui`.
+- The commands the web interface offers to copy now quote a word as the CLI does: typographic apostrophes (‘ ’ ‚ ‛) are doubled for PowerShell, and a leading `=` (POSIX shells) or `@` (PowerShell) goes between quotes.
+- The web interface's refusals say what happens: `.git` is refused as a file it does not read, not as "outside the project"; `task alerts --set` on a critical alert gets the alert refusal like `alerts set`; and the list of acts left to a terminal names dismissing a critical alert.
 
 ## 0.17.0
 
