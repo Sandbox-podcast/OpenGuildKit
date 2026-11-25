@@ -129,7 +129,12 @@
     "card token",
     "tokenization",
     "tokenisation",
-    "jeton de paiement"
+    "jeton de paiement",
+    "mcp server",
+    "serveur mcp",
+    "mcp client",
+    "client mcp",
+    "model context protocol"
   ],
   "questions": [
     "Which actors, permissions and data classes does the change affect?",
