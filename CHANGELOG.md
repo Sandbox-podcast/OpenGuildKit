@@ -42,6 +42,9 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - `task result` replaces a credential in the revision, the pull request, the criteria, the evidence and the reasons with a placeholder, and warns like `task new` does, so `task export` no longer commits it; `docs export` checks its pages again, replaces what a record still holds and warns about an email address, a phone number or a bank account number it publishes.
 - The credential detector now replaces `redis://:PASSWORD@host`, the `_authToken` of an `.npmrc`, `secretAccessKey` of the AWS CLI, a PGP private key block, `mdp:`, `--password VALUE`, `--pass VALUE` and the `-p VALUE` of `docker login` and `sshpass`; a requirement such as `Password: required, min 12 chars` is no longer rewritten.
 - `market watch`, `market observe --source`, `market change --source`, `docs share add --portal` and `storybook compose --url` refuse a link with a user name, a password or a token in its query, instead of recording it in a committed file; the market commands also refuse a link to a private host.
+- `openguildkit task verify` keeps the pack answers of a result, whatever machine checks the packs carry: only a report that answers a pack's rules one by one replaces its pack answer.
+- `openguildkit task checks` shows the answer of a rule that a whole-pack answer covers, in the text and in `--json`, instead of "not reported".
+- `openguildkit task list --since` and `--until` refuse a value that is not a real day written YYYY-MM-DD, instead of listing nothing or everything.
 
 ## 0.17.0
 

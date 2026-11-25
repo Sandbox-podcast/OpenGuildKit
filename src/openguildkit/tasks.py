@@ -520,6 +520,18 @@ def require_approval(task: dict, profile: dict, catalog: dict, root: Path | None
         raise ValueError(problem["message"])
 
 
+def _period_day(value: str | None, option: str) -> str | None:
+    """The day a period option names, written YYYY-MM-DD and a real date."""
+    if value is None:
+        return None
+    try:
+        if not _DAY.fullmatch(value):
+            raise ValueError
+        return date.fromisoformat(value).isoformat()
+    except ValueError:
+        raise ValueError(f"{option}: {value!r} is not a real date. Write it YYYY-MM-DD.") from None
+
+
 def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
                since: str | None = None, until: str | None = None, *, profile: dict | None = None,
                catalog: dict | None = None, root: Path | None = None, read: dict | None = None) -> list[dict]:
@@ -529,6 +541,7 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
     signature and revision too (one git call for every approval). A dict given as read receives every task record
     read, by ID, so that a caller that needs them too does not read them again.
     """
+    since, until = _period_day(since, "--since"), _period_day(until, "--until")
     directory = state / "tasks"
     rows = []
     if not directory.is_dir():
@@ -1165,7 +1178,7 @@ def record_result(task: dict, profile: dict, payload: dict, source: str = "repor
         raise TaskStateError("Results belong to an approved task that is not done yet.")
     validated = validate_result(task, profile, payload, source, relevance, root, changed=changed)
     held = validated.pop("_held", [])
-    result = merge_results(task.get("result"), validated)
+    result = merge_results(task.get("result"), validated, source)
     if source == "report" and task.get("answers", {}).get("outcome") and not result["criteria"]:
         raise ValueError(
             "The task has an expected outcome: report at least one acceptance criterion. Run task result ID --template."
