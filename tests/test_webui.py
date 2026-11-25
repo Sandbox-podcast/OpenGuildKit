@@ -733,6 +733,20 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(self.run_in_page("ui")[0], 403)
         self.assertEqual(self.run_in_page("--project", "..", "check")[0], 400)
 
+    def test_a_command_does_not_read_a_file_the_page_refuses_to_read(self):
+        for index, name in enumerate(("credentials.md", "client_secret.json")):
+            (self.root / name).write_text("Staging login: admin / Tr0ub4dor&3\n", encoding="utf-8")
+            with self.subTest(name=name):
+                status, _, body = self.request("/api/files/read", {"path": name})
+                self.assertEqual((status, json.loads(body)["reason"]), (403, "secret-file"))
+                status, result = self.run_in_page("task", "new", "--file", name, "--id", f"x{index}")
+                self.assertEqual((status, result.get("reason")), (403, "secret-file"), result)
+                self.assertEqual(self.run_in_page("task", "list", "--json")[1]["json"], [])
+        # The page's own upload is the person's text, whatever its name.
+        status, result = self.run_in_page("task", "new", "--file", "@upload:credentials.md", "--id", "uploaded",
+                                          uploads={"credentials.md": "Show request status\n"})
+        self.assertEqual((status, result["code"]), (200, 0), result)
+
     def test_malformed_requests_and_commands_that_do_not_belong_in_a_page_are_refused(self):
         self.assertEqual(self.request("/api/run", method="GET")[0], 405)
         self.assertEqual(self.request("/api/unknown", {})[0], 404)

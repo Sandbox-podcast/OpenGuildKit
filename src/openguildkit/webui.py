@@ -215,16 +215,19 @@ def check_request(args, argv: list[str], root: Path) -> None:
         raise Refused(REFUSALS["send-task-answers"], status=HTTPStatus.BAD_REQUEST, reason="send-task-answers")
 
 
-def _inside(root: Path, value: Path | str, uploads: set[Path]) -> bool:
+def _out_of_reach(root: Path, value: Path | str, uploads: set[Path]) -> str | None:
+    """The code of the refusal for a path a command names, or None when the page may let the command use it."""
     path = Path(value)
     if path.is_absolute() and path.resolve() in uploads:
-        return True
+        return None
     target = (path if path.is_absolute() else root / path).resolve()
     try:
         relative = target.relative_to(root)
     except ValueError:
-        return False
-    return not _in_git(relative.parts)
+        return "outside-project"
+    if _in_git(relative.parts):
+        return "outside-project"
+    return "secret-file" if _secret(relative.parts) else None
 
 
 def _in_git(parts) -> bool:
@@ -243,14 +246,19 @@ def _secret(parts: tuple[str, ...]) -> bool:
 
 
 def check_paths(args, root: Path, uploads: set[Path]) -> None:
-    """Every file a command reads or writes stays inside the project, except the files the page uploaded."""
+    """Every file a command reads or writes stays inside the project and is one the page itself would read, except the
+    files the page uploaded."""
     for name, value in vars(args).items():
         values = value if isinstance(value, list) else [value]
         for item in values:
             path_like = isinstance(item, Path) or (name in ("log", "config_dir") and isinstance(item, str))
-            if path_like and not _inside(root, item, uploads):
+            reason = _out_of_reach(root, item, uploads) if path_like else None
+            if reason == "outside-project":
                 raise Refused(f"--{name.replace('_', '-')} must name a file inside the project: {item}",
-                              status=HTTPStatus.BAD_REQUEST, reason="outside-project")
+                              status=HTTPStatus.BAD_REQUEST, reason=reason)
+            if reason:
+                raise Refused(f"--{name.replace('_', '-')} names a path that suggests a secret, which the interface "
+                              f"does not read: {item}", reason=reason)
 
 
 def _without(data, keys: set[str]):
