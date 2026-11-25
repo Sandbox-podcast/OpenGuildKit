@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { reconcile } from '../lib/reconcile.mjs';
 import { sameRepository } from '../lib/github-identifiers.mjs';
+import { prepareBrief } from '../lib/agent.mjs';
 
 const cli = fileURLToPath(new URL('../bin/openguildkit.mjs', import.meta.url));
 const agent = fileURLToPath(new URL('../bin/openguildkit-agent.mjs', import.meta.url));
@@ -476,7 +477,7 @@ function agentFixture(t) {
   const run = (...args) => spawnSync(process.execPath, [cli, ...args], { cwd: root, encoding: 'utf8' });
   const refs = ['--policy-repo', '.', '--policy-commit', policyCommit, '--profile-commit', profileCommit];
   const withBom = value => Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(JSON.stringify(value))]);
-  return { root, task, run, refs, commit, withBom };
+  return { root, task, run, refs, commit, withBom, policyCommit, profileCommit };
 }
 
 test('brief reads a --task file that starts with a byte order mark and names a file that is not JSON', t => {
@@ -610,4 +611,50 @@ test('the error messages of releases, merge and merge-protection are in English'
   for (const name of ['releases', 'merge', 'merge-protection']) {
     assert.doesNotMatch(readFileSync(new URL(`../lib/${name}.mjs`, import.meta.url), 'utf8'), /[^\x00-\x7f]/, name);
   }
+});
+
+const frenchWord = new RegExp(`\\b(?:${[
+  'le', 'la', 'les', 'un', 'une', 'des', 'du', 'de', 'et', 'ou', 'est', 'sont', 'doit', 'doivent', 'exige', 'demande',
+  'requis', 'requise', 'requiert', 'invalide', 'sans', 'avec', 'pour', 'dans', 'sur', 'par', 'depuis', 'avant', 'attendu', 'attendus',
+  'depot', 'regle', 'projet', 'profil', 'registre', 'derogation', 'adresse', 'numero', 'identifiant', 'obligatoire',
+].join('|')})\\b`, 'i');
+
+function assertEnglish(files, strip = text => text) {
+  for (const file of files) {
+    const lines = strip(readFileSync(new URL(file, import.meta.url), 'utf8')).split('\n');
+    assert.deepEqual(lines.filter(line => /[^\x00-\x7f]/.test(line) || frenchWord.test(line)), [], file);
+  }
+}
+
+// The agent reads the sections of French tickets by their title: that is data, not a message.
+const withoutTicketSections = text => text.replace(/sections\.get\((?:'[^']*'|"[^"]*")\)/g, 'sections.get()');
+
+test('the error messages and the brief text of the agent are in English', t => {
+  assertEnglish(['../lib/agent.mjs'], withoutTicketSections);
+  const { root, task, run, refs } = agentFixture(t);
+  writeFileSync(join(root, 'task.json'), JSON.stringify({ ...task, criteria: [] }));
+  const refused = run('brief', ...refs, '--task', 'task.json', '--output', 'agent');
+  assert.equal(refused.status, 2);
+  assert.match(refused.stderr, /^The ticket, the expected outcome and the acceptance criteria are required\.$/m);
+  writeFileSync(join(root, 'task.json'), JSON.stringify(task));
+  assert.equal(run('brief', ...refs, '--task', 'task.json', '--output', 'agent').status, 0);
+  const guidance = readFileSync(join(root, 'agent/AGENTS.md'), 'utf8');
+  assert.match(guidance, /^# OpenGuildKit guidance$/m);
+  assert.match(guidance, /^Approved profile: [0-9a-f]{40}$/m);
+  assert.match(guidance, /^Versioned rule: [0-9a-f]{40}$/m);
+});
+
+test('brief reads the outcome and the criteria under the French section titles of a ticket', t => {
+  const { root, policyCommit, profileCommit } = agentFixture(t);
+  const source = { pullRequest: 'https://github.com/team/portal/pull/43', commit: 'b'.repeat(40) };
+  const brief = (body, output) => prepareBrief({
+    policyRepo: root, policyCommit, targetRepo: root, profileCommit, output: join(root, output), kitVersion: '0.0.0',
+    ticket: { issue: { html_url: 'https://github.com/team/portal/issues/42', title: 'Set up the export links', body }, source },
+  });
+  brief('## Résultat attendu\nLiens vérifiés.\n\n### Critères d’acceptation\n- Un lien expire en 30 minutes.\n', 'agent');
+  const { request } = JSON.parse(readFileSync(join(root, 'agent/brief.json'), 'utf8'));
+  assert.equal(request.outcome, 'Liens vérifiés.');
+  assert.deepEqual(request.criteria, ['Un lien expire en 30 minutes.']);
+  assert.throws(() => brief('## Résultat attendu\nA\n## Résultat attendu\nB\n', 'again'),
+    /^Error: Duplicate section in the ticket: Résultat attendu$/);
 });
