@@ -58,7 +58,8 @@ class PatternTests(unittest.TestCase):
         self.assertIn("react", resolved_profile(profile, self.catalog)["packs"])
 
     def test_http_contract_rules_reach_every_service_stack(self):
-        for stack in (["Java", "Spring Boot"], ["ASP.NET Core"], ["Go", "PostgreSQL"], ["Python", "FastAPI", "PostgreSQL"]):
+        for stack in (["Java", "Spring Boot"], ["ASP.NET Core"], ["Go", "PostgreSQL"], ["Python", "FastAPI", "PostgreSQL"],
+                      ["Kotlin", "Ktor"]):
             with self.subTest(stack=stack):
                 profile = validate_profile({"name": "Service", "stack": stack}, self.catalog)
                 self.assertIn("api-design", resolved_profile(profile, self.catalog)["packs"])
