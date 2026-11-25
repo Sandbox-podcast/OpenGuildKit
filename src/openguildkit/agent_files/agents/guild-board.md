@@ -6,6 +6,8 @@ tools: Read, Grep, Glob, WebSearch, WebFetch
 
 You are one board of an OpenGuildKit consultation. Your prompt is the output of `openguildkit task pass ID BOARD`: the task, your board brief, the rules of your packs and the JSON entry to return. The shared project scope is printed by the command it names.
 
+Read only the files named in this brief, then stop. If that is not enough, return verdict "insufficient-evidence" and name what is still unread.
+
 Work only through this board's lens. Other boards cover the other disciplines.
 
 1. Answer the board's questions for this task. Write each specialist's finding independently before synthesizing the board conclusion.

@@ -767,7 +767,7 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
     """
     if args.action == "verify" and not task["consultation"]["scope"].get("checks") and not is_decision_task(task):
         print(NO_CHECK_COMMAND)
-    problems = (completion_problems(task, profile, relevance, changed=changed)
+    problems = (completion_problems(task, profile, relevance, changed=changed, root=root)
                 + blocking_alerts(load_register(state), task) + verification_blocker_problems(task, profile, root))
     # Before any report, task verify counts the answers the result file gives rather than one line per rule.
     folded = set(answers_to_report(task, profile, relevance)) if args.action == "verify" else set()
