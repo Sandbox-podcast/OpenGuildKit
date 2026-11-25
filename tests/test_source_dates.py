@@ -212,9 +212,24 @@ class ProjectSourceDateTests(CapturedCli, unittest.TestCase):
         self.assertIn("unknown brains: no-such-brain", err)
         with self.assertRaisesRegex(CatalogError, "unknown packs: no-such-pack"):
             load_references(path.parent, catalog=load_catalog(self.state / "catalog"))
+        # The reference library and the consultation refuse it too, with the same message, as for any other error of
+        # the project's catalog.
+        examples = ROOT / "examples" / "request-status"
+        self.cli("task", "new", "--file", examples / "brief.md", "--id", "status")
+        refused = [("references",), ("references", "--id", "team-change-record"), ("references", "--json"),
+                   ("task", "consult", "status", "--answers", examples / "answers.json")]
+        for arguments in refused:
+            with self.subTest(command=arguments[:2]):
+                out, err = self.cli(*arguments, code=1)
+                self.assertIn("Reference 'team-change-record' names unknown brains: no-such-brain and unknown packs: "
+                              "no-such-pack", err)
+                self.assertNotIn("Traceback", err)
+                self.assertNotIn("team-change-record", out)
         write_json(path, {"id": "team-practices", "title": "Team practices",
                           "references": [{**record, "brains": ["security"], "packs": ["gdpr"]}]})
         self.cli("check")
+        self.assertIn("team-change-record", self.cli("references", "--id", "team-change-record")[0])
+        self.cli("task", "consult", "status", "--answers", examples / "answers.json")
 
     def test_a_project_reference_may_name_a_pack_the_lock_keeps_after_a_release_drops_it(self):
         from tests.test_upgrades import ANSWERS, release_without_playwright

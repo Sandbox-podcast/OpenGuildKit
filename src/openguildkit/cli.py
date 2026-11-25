@@ -574,7 +574,7 @@ def _sector_packs(catalog: dict, sector_id: str) -> list[str]:
 
 
 def _print_references(args, state: Path, catalog: dict) -> None:
-    families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
+    families = with_pattern_references(load_references(state / "catalog" / "references", catalog), catalog["patterns"])
     if not args.json and all(value is None for value in (args.query, args.family, args.id)):
         print(f"{sum(len(family['references']) for family in families.values())} references")
         for family in families.values():

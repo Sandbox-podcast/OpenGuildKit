@@ -1160,7 +1160,8 @@ def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
             research = "public-sources" if public else "local-only"
             market = market_scope_entry(load_dossier(state, args.market), research, brief=" ".join(
                 [args.revised_brief or current_task["brief"], answers.get("context") or ""]))
-        families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
+        families = with_pattern_references(load_references(state / "catalog" / "references", catalog),
+                                           catalog["patterns"])
         scoped_profile = task_scope_profile(profile, catalog, answers.get("components", []))
         active = set(scoped_profile["packs"])
         context = consultation_context(current_task, answers, scoped_profile, catalog)
