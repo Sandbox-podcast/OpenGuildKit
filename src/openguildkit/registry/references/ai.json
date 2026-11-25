@@ -300,6 +300,9 @@
       ],
       "summary": "Présente les risques spécifiques aux agents capables d'utiliser des outils et d'enchaîner des actions.",
       "applies_when": "Pour concevoir ou évaluer des agents autonomes, leurs permissions et leurs interactions avec des systèmes.",
+      "packs": [
+        "agentic-application-security"
+      ],
       "sources": [
         {
           "url": "https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/",
@@ -420,6 +423,9 @@
       ],
       "summary": "Définit une interface commune pour qu'une application utilisant un modèle accède à des outils, ressources et modèles de prompts exposés par des serveurs.",
       "applies_when": "Quand les agents doivent utiliser des capacités externes via des intégrations interopérables, avec authentification et permissions adaptées.",
+      "packs": [
+        "agentic-application-security"
+      ],
       "sources": [
         {
           "url": "https://modelcontextprotocol.io/specification/latest",
@@ -442,6 +448,9 @@
       ],
       "summary": "Décrit la découverte des capacités d'agents et leurs échanges de messages, tâches et résultats pour coordonner des systèmes distincts.",
       "applies_when": "Quand des agents indépendants doivent coopérer au-delà d'une même application ou d'un même framework, avec des responsabilités explicites.",
+      "packs": [
+        "agentic-application-security"
+      ],
       "sources": [
         {
           "url": "https://a2a-protocol.org/latest/specification/",
@@ -515,7 +524,8 @@
       "summary": "Limiter les capacités d'un agent aux opérations et données nécessaires, avec des permissions minimales et une élévation ciblée lorsqu'elle est requise.",
       "applies_when": "Dès qu'un agent peut consulter des données privées, modifier un dépôt ou agir sur des systèmes externes.",
       "packs": [
-        "agent-native-engineering"
+        "agent-native-engineering",
+        "agentic-application-security"
       ],
       "sources": [
         {
@@ -541,6 +551,9 @@
       ],
       "summary": "Interrompre l'exécution à un point prévu pour permettre à une personne de valider, corriger ou refuser une action avant sa poursuite.",
       "applies_when": "Pour les décisions et actions dont l'organisation exige une validation humaine, avec un état sauvegardé et une reprise maîtrisée.",
+      "packs": [
+        "agentic-application-security"
+      ],
       "sources": [
         {
           "url": "https://docs.langchain.com/oss/python/langgraph/interrupts",
@@ -565,7 +578,8 @@
       "summary": "Fixer des conditions d'arrêt portant sur le nombre d'échanges, les jetons consommés ou la durée, et prévoir une interruption externe.",
       "applies_when": "Pour contenir les boucles, les délais et la consommation de ressources des agents ; les limites doivent être appliquées par l'orchestrateur.",
       "packs": [
-        "agent-native-engineering"
+        "agent-native-engineering",
+        "agentic-application-security"
       ],
       "sources": [
         {
@@ -616,6 +630,9 @@
       ],
       "summary": "Distinguer l'état d'une conversation des informations conservées entre sessions, et organiser leur enregistrement puis leur récupération.",
       "applies_when": "Quand les agents doivent reprendre une tâche ou réutiliser des connaissances, avec un périmètre d'accès et des règles de conservation explicites.",
+      "packs": [
+        "agentic-application-security"
+      ],
       "sources": [
         {
           "url": "https://docs.langchain.com/oss/python/concepts/memory",

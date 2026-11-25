@@ -285,6 +285,27 @@ class SubjectTests(RelevanceCase):
         task, profile = self.task(BUG, boards=("engineering", "devops"), profile=profile)
         self.assertFalse(self.relevance(task, profile)["packs"]["agent-native-engineering"]["concerned"])
 
+    def test_the_agentic_security_pack_concerns_tasks_about_agents_and_mcp_only(self):
+        profile = validate_profile({"name": "Agents", "stack": ["Python", "MCP"], "roles": ["engineering", "security"]},
+                                   self.catalog)
+        self.assertIn("agentic-application-security", resolved_profile(profile, self.catalog)["packs"])
+        boards = ("engineering", "security")
+        task, profile = self.task(BUG, boards=boards, profile=profile, brief="Fix the CSV export of invoices.")
+        packs = self.relevance(task, profile)["packs"]
+        self.assertFalse(packs["agentic-application-security"]["concerned"])
+        self.assertIn("text names agents and MCP", packs["agentic-application-security"]["reason"])
+        # A support agent or a sales agent is a person, not an AI agent.
+        task, profile = self.task({**BUG, "kind": "feature"}, boards=boards, profile=profile,
+                                  brief="Let the support agent reassign a ticket to another team.")
+        self.assertFalse(self.relevance(task, profile)["packs"]["agentic-application-security"]["concerned"])
+        for answers, brief in (({**BUG, "concerns": ["ai"]}, "Fix the export."),
+                               ({**BUG, "kind": "feature"}, "Add an MCP server to our product."),
+                               ({**BUG, "kind": "feature"}, "Ajouter un serveur MCP à notre produit."),
+                               ({**BUG, "kind": "feature"}, "Expose the ticket search as a tool for AI agents.")):
+            with self.subTest(brief=brief, concerns=answers["concerns"]):
+                task, profile = self.task(answers, boards=boards, profile=profile, brief=brief)
+                self.assertTrue(self.relevance(task, profile)["packs"]["agentic-application-security"]["concerned"])
+
     def test_pci_dss_needs_regulated_data_or_cards_and_payments_named(self):
         profile = self.profile(patterns=["pci-dss-cardholder-data"])
         proration = {**BUG, "kind": "feature", "data": "internal", "concerns": ["money"]}
