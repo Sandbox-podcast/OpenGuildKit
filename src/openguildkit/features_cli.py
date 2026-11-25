@@ -26,7 +26,8 @@ def add_parser(commands) -> None:
         command = actions.add_parser(name, help=text)
         command.add_argument("names", nargs="+", metavar="NAME", help="A feature ID (its lead tool) or a tool of it.")
         command.add_argument("--by", required=True, help="The person who decides the change.")
-        command.add_argument("--reason", required=True, help="Why, in one line; shown in AGENTS.md and preview.")
+        command.add_argument("--reason", required=True, help="Why, in one line; recorded in the profile history "
+                                                                 "(.openguildkit/project.json).")
 
 
 def _print(view: list[dict]) -> None:

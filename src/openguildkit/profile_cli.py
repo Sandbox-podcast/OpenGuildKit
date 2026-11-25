@@ -94,9 +94,12 @@ def add_parser(commands) -> None:
                         help="waivers allowed: a person who may waive a blocker; repeat for each.")
     setter.add_argument("--max-days", type=int, metavar="DAYS",
                         help="waivers allowed: how long a waiver may last, 1 to 366 days.")
-    for command in actions.choices.values():
+    for name, command in actions.choices.items():
         command.add_argument("--by", required=True, help="The person who decides the change.")
-        command.add_argument("--reason", required=True, help="Why, in one line; shown in AGENTS.md and preview.")
+        # Only an adopted or declined pattern shows its reason in AGENTS.md and preview (profile_decision_lines).
+        shown = " and shown in AGENTS.md and preview" if name in ("adopt", "decline") else ""
+        command.add_argument("--reason", required=True, help="Why, in one line; recorded in the profile history "
+                                                             f"(.openguildkit/project.json){shown}.")
 
 
 def weakening_changes(before: dict, after: dict, catalog: dict) -> list[tuple[str, list[str]]]:

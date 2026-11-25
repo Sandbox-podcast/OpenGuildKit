@@ -1,11 +1,13 @@
 """Features: a team turns a tool, or one of its three best-known alternatives, on or off, with who and why."""
 
+import argparse
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
 from openguildkit.catalog import CatalogError
+from openguildkit.cli import command_parser
 from openguildkit.features import _feature, load_features
 from openguildkit.storage import write_json
 from openguildkit.tools import load_tools
@@ -97,6 +99,57 @@ class FeatureCommandTests(unittest.TestCase):
         _, error = self.run_cli("features", "enable", "jira", "--by", "Camille", "--reason", "Again", code=1)
         self.assertIn("jira is already on", error)
         self.assertEqual(self.profile()["tools"], ["Jira Cloud"])
+
+
+
+def reason_help(*path: str) -> str:
+    """The help of --reason for a command, such as ("features", "enable")."""
+    parser = command_parser()
+    for name in path:
+        commands = next(action for action in parser._actions if isinstance(action, argparse._SubParsersAction))
+        parser = commands.choices[name]
+    return next(action.help for action in parser._actions if "--reason" in action.option_strings)
+
+
+class FeatureReasonTests(unittest.TestCase):
+    """The reason of a features or profile change goes where the help says (#336)."""
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        write_json(self.root / "answers.json", {"name": "Ledger", "personal_data": "no", "stack": ["Python"],
+                                                "tools": ["Jira Cloud"]})
+        self.run_cli("init", "--answers", self.root / "answers.json")
+
+    def run_cli(self, *arguments, code=0):
+        result = run_cli(self.root, *arguments, expect=code, env=DAY)
+        return result.stdout, result.stderr
+
+    def test_the_reason_of_a_tool_or_a_setting_stays_in_the_profile_history(self):
+        self.run_cli("features", "enable", "linear", "--by", "CM", "--reason", "Try Linear")
+        self.run_cli("profile", "add", "tool", "Figma", "--by", "CM", "--reason", "Design files")
+        history = json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))["changes"]
+        self.assertEqual([change["reason"] for change in history[-2:]], ["Try Linear", "Design files"])
+        agents = (self.root / "AGENTS.md").read_text(encoding="utf-8")
+        preview, _ = self.run_cli("preview")
+        for reason in ("Try Linear", "Design files"):
+            with self.subTest(reason=reason):
+                self.assertNotIn(reason, agents)
+                self.assertNotIn(reason, preview)
+        for path in (("features", "enable"), ("features", "disable"), ("profile", "add"), ("profile", "remove"),
+                     ("profile", "set")):
+            with self.subTest(command=" ".join(path)):
+                self.assertIn("profile history", reason_help(*path))
+                self.assertNotIn("AGENTS.md", reason_help(*path))
+                self.assertNotIn("preview", reason_help(*path))
+
+    def test_the_reason_of_an_adopted_or_declined_pattern_also_shows_in_agents_md_and_preview(self):
+        # tests/test_profile_commands.py holds where these reasons show.
+        for action in ("adopt", "decline"):
+            with self.subTest(action=action):
+                self.assertIn("profile history", reason_help("profile", action))
+                self.assertIn("AGENTS.md and preview", reason_help("profile", action))
 
 
 if __name__ == "__main__":

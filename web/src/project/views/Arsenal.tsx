@@ -30,7 +30,7 @@ export function Arsenal() {
       </>}</Q>
       <Dialog open={!!picked} onClose={() => setPicked(null)} title={picked ? `${enabling ? 'Activer' : 'Désactiver'} ${picked.option.title}` : ''}>
         {picked && <>
-          <p className="small">{purposeLabel(picked.feature.purpose)} : {picked.option.tool_title ?? picked.option.tool} {enabling ? 'rejoint' : 'quitte'} la liste des outils du profil. Le changement est inscrit dans l’historique du profil et dans AGENTS.md.</p>
+          <p className="small">{purposeLabel(picked.feature.purpose)} : {picked.option.tool_title ?? picked.option.tool} {enabling ? 'rejoint' : 'quitte'} la liste des outils du profil. Le changement est inscrit dans l’historique du profil.</p>
           <ActionForm busy={busy !== null} submit={enabling ? 'Activer' : 'Désactiver'} initial={{ by }} fields={[
             { name: 'by', label: 'Personne qui décide', required: true },
             { name: 'reason', label: 'Pourquoi', required: true, placeholder: enabling ? 'L’équipe suit ses tickets dans cet outil' : 'L’équipe ne s’en sert plus' },
