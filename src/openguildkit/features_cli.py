@@ -11,7 +11,7 @@ from pathlib import Path
 from . import profile_cli
 from .features import feature_options, features_view, load_features, profile_names
 from .project import load_profile
-from .tools import load_tools, resolve_tool
+from .tools import CLAUDE_MCP_FILE, CODEX_CONFIG_FILE, connection_status, load_tools, resolve_tool
 
 
 def add_parser(commands) -> None:
@@ -81,6 +81,31 @@ def _refuse(change: str, weakened: list, voided: list) -> None:
                      "Nothing was written.")
 
 
+def _print_connect(targets: list[str], tools: dict) -> None:
+    """After features enable: the tools plan command for the tools with an MCP server on record, and which have none."""
+    served = [tool for tool in targets if tools[tool]["servers"]]
+    if served:
+        print(f"To connect the MCP servers: openguildkit tools plan {' '.join(served)}, then tools apply once the "
+              "team accepts the plan.")
+    unserved = [tool for tool in targets if not tools[tool]["servers"]]
+    if unserved:
+        print(f"{', '.join(unserved)}: no MCP server on record, so there is nothing to connect.")
+
+
+def _print_still_connected(root: Path, state: Path, targets: list[str], tools: dict, project_host: str | None) -> None:
+    """After features disable: each connection tools apply wrote that still gives the agent a tool turned off, with
+    the command that removes it. Turning a feature off leaves the host files as they are."""
+    for item in connection_status(root, state):
+        present = "reason" not in item and (item["configured"] or item["changed"])
+        if not present or not set(item["covers"]) & set(targets):
+            continue
+        file = CLAUDE_MCP_FILE if item["host"] == "claude-code" else CODEX_CONFIG_FILE.as_posix()
+        titles = " and ".join(tools[tool]["title"] if tool in tools else tool for tool in item["covers"])
+        host = "" if item["host"] == project_host else f" --host {item['host']}"
+        print(f"The MCP server {item['key']} stays connected ({item['host']}, {item['mode']}, {file}): the agent keeps "
+              f"access to {titles}. To remove the connection: openguildkit tools remove {item['key']}{host}.")
+
+
 def run(args, root: Path, state: Path, catalog: dict) -> int:
     tools = load_tools(state / "catalog" / "tools")
     features = load_features(tools)
@@ -96,6 +121,7 @@ def run(args, root: Path, state: Path, catalog: dict) -> int:
                                                   args.by.strip(), args.reason.strip(), _refuse)
     profile_cli.report_change(state, updated, record, catalog, False)
     if args.features_action == "enable":
-        print(f"To connect the MCP servers: openguildkit tools plan {' '.join(targets)}, then tools apply once the "
-              "team accepts the plan.")
+        _print_connect(targets, tools)
+    else:
+        _print_still_connected(root, state, targets, tools, updated.get("host"))
     return 0

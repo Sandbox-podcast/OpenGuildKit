@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -71,7 +72,7 @@ class FeatureCommandTests(unittest.TestCase):
     def test_enabling_adds_the_tool_to_the_profile_with_who_when_and_why(self):
         output, _ = self.run_cli("features", "enable", "kibana", "Harvest", "--by", "Camille", "--reason", "Logs, time")
         self.assertIn("Profile changed: features enable kibana, Harvest, by Camille on 2026-11-21", output)
-        self.assertIn("openguildkit tools plan elastic harvest", output)
+        self.assertIn("openguildkit tools plan elastic, then", output)
         self.assertEqual(self.profile()["tools"], ["Jira Cloud", "Elastic", "Harvest"])
         self.assertEqual(self.profile()["changes"][-1]["reason"], "Logs, time")
         self.assertEqual(self.on()["kibana"], ["elastic"])
@@ -150,6 +151,49 @@ class FeatureReasonTests(unittest.TestCase):
             with self.subTest(action=action):
                 self.assertIn("profile history", reason_help("profile", action))
                 self.assertIn("AGENTS.md and preview", reason_help("profile", action))
+
+
+
+class FeatureConnectionTests(unittest.TestCase):
+    """What follows a features change: the connection tools apply wrote, and tools plan only for a tool with a server
+    (#337)."""
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        write_json(self.root / "answers.json", {"name": "Ledger", "personal_data": "no", "stack": ["Python"],
+                                                "host": "claude-code", "tools": ["Jira Cloud"]})
+        self.run_cli("init", "--answers", self.root / "answers.json")
+
+    def run_cli(self, *arguments, code=0):
+        result = run_cli(self.root, *arguments, expect=code, env=DAY)
+        return result.stdout, result.stderr
+
+    def test_disabling_a_connected_tool_names_each_connection_and_the_command_that_removes_it(self):
+        self.run_cli("tools", "apply", "jira", "--mock")
+        self.run_cli("tools", "apply", "jira", "--mock", "--host", "codex")
+        output, _ = self.run_cli("features", "disable", "jira", "--by", "CM", "--reason", "We moved to Linear")
+        self.assertIn("The MCP server jira stays connected (claude-code, mock, .mcp.json): the agent keeps access to "
+                      "Jira. To remove the connection: openguildkit tools remove jira.", output)
+        self.assertIn("The MCP server jira stays connected (codex, mock, .codex/config.toml): the agent keeps access "
+                      "to Jira. To remove the connection: openguildkit tools remove jira --host codex.", output)
+        for command in re.findall(r"To remove the connection: openguildkit (tools remove [^\n]+)\.$", output, re.M):
+            self.run_cli(*command.split())
+        self.assertEqual(json.loads(self.run_cli("tools", "status", "--json")[0]), [])
+
+    def test_disabling_a_tool_that_is_not_connected_names_no_connection(self):
+        output, _ = self.run_cli("features", "disable", "jira", "--by", "CM", "--reason", "We moved to Linear")
+        self.assertNotIn("stays connected", output)
+        self.assertNotIn("tools remove", output)
+
+    def test_enabling_proposes_tools_plan_only_for_a_tool_with_an_mcp_server(self):
+        output, _ = self.run_cli("features", "enable", "payfit", "--by", "CM", "--reason", "Payroll")
+        self.assertNotIn("tools plan", output)
+        self.assertIn("payfit: no MCP server on record, so there is nothing to connect.", output)
+        output, _ = self.run_cli("features", "enable", "kibana", "Harvest", "--by", "CM", "--reason", "Logs, time")
+        self.assertIn("To connect the MCP servers: openguildkit tools plan elastic, then tools apply", output)
+        self.assertIn("harvest: no MCP server on record", output)
 
 
 if __name__ == "__main__":

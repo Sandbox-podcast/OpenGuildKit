@@ -43,7 +43,7 @@ Dans un projet sans `.openguildkit/project.json`, la page ouvre l'installation :
 | Documentation | L'export des quêtes terminées pour Documentalist, le registre des partages, les relevés de décision | `docs export`, `docs share add`, `revoke`, `check`, `.openguildkit/decisions/` |
 | Chroniques | L'historique reconstruit à partir des enregistrements des quêtes | `task show` |
 | Intendance | Les réglages de l'hôte, les fichiers de l'agent, l'adoption du catalogue installé, le fonctionnement de l'interface | `host apply`, `integrations`, `update --apply`, `sync` |
-| Arsenal | Activer ou désactiver une fonctionnalité : un outil de l'équipe ou l'une de ses trois alternatives les plus connues, avec la personne qui décide et pourquoi, inscrits dans l'historique du profil | `features list`, `features enable`, `features disable` |
+| Arsenal | Activer ou désactiver une fonctionnalité : un outil de l'équipe ou l'une de ses trois alternatives les plus connues, avec la personne qui décide et pourquoi, inscrits dans l'historique du profil ; après une désactivation, la connexion MCP qui donne encore l'outil à l'agent, avec la commande qui la retire | `features list`, `features enable`, `features disable`, `tools status` |
 
 Les textes renvoyés par la CLI en anglais (prochaine étape, questions du cadrage, points ouverts) sont affichés en français quand leur forme est connue. Les avis des cerveaux restent dans la langue où l'agent les a écrits.
 

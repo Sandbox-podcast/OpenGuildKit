@@ -891,8 +891,10 @@ test('sets up a project with Stripe: PCI DSS accepted, a norm declined with who 
 
 /* ------------------------------------------------------------------ arsenal */
 
-test('turns a feature on and off in the Arsenal, with who and why', async ({ page }) => {
+test('turns a feature on and off in the Arsenal, with who and why, and names the connection the agent keeps', async ({ page }) => {
   await open(page, '/arsenal');
+  // A connection tools apply wrote, as the Forge does: turning the feature off leaves it in place.
+  expect((await cli(page, ['tools', 'apply', 'jira', '--mock', '--host', 'claude-code'])).code).toBe(0);
   await page.getByRole('button', { name: 'Activer Jira' }).click();
   const on = page.getByRole('dialog', { name: 'Activer Jira' });
   await expect(on).toContainText('Le changement est inscrit dans l’historique du profil.');
@@ -902,6 +904,7 @@ test('turns a feature on and off in the Arsenal, with who and why', async ({ pag
   await expect(page.getByText('Fonctionnalité activée')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Désactiver Jira' })).toBeVisible();
   expect((await savedProfile(page)).tools).toContain('Jira');
+  await expect(page.getByText(/^Jira\b.* reste connecté à l’agent/)).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Désactiver Jira' }).click();
   const off = page.getByRole('dialog', { name: 'Désactiver Jira' });
@@ -913,4 +916,9 @@ test('turns a feature on and off in the Arsenal, with who and why', async ({ pag
   const profile = await savedProfile(page);
   expect(profile.tools).not.toContain('Jira');
   expect(profile.changes.at(-1)).toEqual(expect.objectContaining({ change: 'features disable jira', by: 'Camille Martin', reason: 'We moved to Linear' }));
+  // features disable names the connection and the command that removes it; the page says the same.
+  await expect(page.getByText(/^Jira\b.* reste connecté à l’agent/)).toBeVisible();
+  await expect(page.locator('.notice', { hasText: 'reste connecté' })).toContainText('Le serveur MCP jira (claude-code, simulation)');
+  await expect(page.getByLabel('Commande qui retire la connexion'))
+    .toContainText(profile.host === 'claude-code' ? /tools remove jira$/ : /tools remove jira --host claude-code$/);
 });
