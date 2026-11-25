@@ -83,6 +83,10 @@ def _print_changes(changes: dict, as_json: bool) -> None:
           f"{len(changes['reopened'])} reopened, {len(changes['resolved'])} resolved.")
     if changes.get("nothing_analyzed"):
         print(f"  The report analyzed no dependency ({changes['nothing_analyzed']}): it resolves no alert.")
+    if changes.get("previous_file"):
+        print(f"  Warning: the previous {changes['tool']} import was the file {changes['previous_file']}, and this report "
+              "resolves what that one listed. Import one full report per scanner: a report of another lockfile "
+              "resolves the alerts of the first.")
     for key in ("new", "reopened", "resolved"):
         for alert_id in changes[key]:
             print(f"  {key}: {alert_id}")

@@ -24,6 +24,10 @@ Each alert has a status:
 
 Importing the full report of a scanner marks the alerts that this scanner listed before and no longer lists: when no other scanner still lists them, open and confirmed alerts become `resolved`, and keep in `resolved_by` the report that resolved them: scanner, file name, SHA-256, day and number of dependencies analyzed. An alert that reappears goes back to its previous status, without the decision of a person: the reviewer who confirmed it, and the acceptance of a risk, are removed, so a confirmed critical alert blocks its tasks again until a person accepts it again, and the import says `acceptance removed` (key `acceptance_removed` with `--json`). A dismissed alert stays dismissed. Each import is recorded with the scanner, the file name, the SHA-256 of the report, the date and the number of dependencies analyzed (the last 20 imports are kept).
 
+### One report per scanner
+
+The register does not know which lockfile or folder a report covers: an import resolves the alerts that the scanner listed before and the new report no longer lists, whatever file it comes from. Give each scanner one full report that covers every lockfile of the project (`osv-scanner --format json -r .` scans the whole folder). A second report of the same scanner for another lockfile, such as `npm audit` in `front/` then in `admin/`, resolves the alerts of the first one, confirmed critical ones included. When an import resolves alerts under another file name than the scanner's previous import, it prints a warning that names the previous file (`previous_file` with `--json`); a report that keeps one name, such as the `report.json` of the scheduled watch, never triggers it.
+
 ### A report that analyzed nothing
 
 A clean report resolves its alerts with no other step: that is the normal case. A report that shows no analyzed dependency resolves nothing, and `alerts import` says so (`The report analyzed no dependency (...): it resolves no alert.`), because an empty file is also what anyone can write to make a critical alert disappear. What counts as analyzed, by scanner:

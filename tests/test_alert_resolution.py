@@ -26,6 +26,15 @@ def empty():
     return {"schema_version": 1, "alerts": [], "imports": []}
 
 
+def lockfile_report(package, severity, advisory, total):
+    """What npm audit writes for one lockfile: one vulnerable package among `total` dependencies."""
+    via = {"source": 1, "name": package, "title": "x", "url": f"https://github.com/advisories/{advisory}",
+           "severity": severity, "range": "<1.0.0"}
+    return {"auditReportVersion": 2, "vulnerabilities": {package: {"name": package, "severity": severity, "via": [via],
+                                                                   "range": "<1.0.0"}},
+            "metadata": {"dependencies": {"total": total}}}
+
+
 class EmptyReportTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
@@ -61,6 +70,23 @@ class EmptyReportTests(unittest.TestCase):
         self.assertEqual((register["alerts"][0]["status"], register["alerts"][0]["scanners"]), ("confirmed", ["pip-audit"]))
         register, changes = import_report(register, FIXTURES / "pip-audit-clean.json", today="2026-11-24")
         self.assertEqual(changes["resolved"], [JINJA])
+
+    def test_a_report_under_another_name_that_resolves_alerts_names_the_report_before_it(self):
+        semver = "npm:semver:ghsa-c2qf-rxjj-qqgw"
+        write_json(self.folder / "front.json", lockfile_report("semver", "critical", "GHSA-c2qf-rxjj-qqgw", 10))
+        write_json(self.folder / "admin.json", lockfile_report("minimist", "high", "GHSA-vh95-rmgr-6w4m", 20))
+        register, changes = import_report(empty(), self.folder / "front.json", today="2026-11-21")
+        self.assertNotIn("previous_file", changes)
+        register = set_status(register, semver, "confirmed", "Alex")
+        register, changes = import_report(register, self.folder / "admin.json", today="2026-11-22")
+        self.assertEqual((changes["new"], changes["resolved"]), (["npm:minimist:ghsa-vh95-rmgr-6w4m"], [semver]))
+        self.assertEqual(changes["previous_file"], "front.json")
+        register, changes = import_report(register, self.folder / "admin.json", today="2026-11-23")
+        self.assertEqual((changes["resolved"], "previous_file" in changes), ([], False))
+        write_json(self.folder / "admin.json", {**lockfile_report("minimist", "high", "GHSA-vh95-rmgr-6w4m", 20),
+                                                "vulnerabilities": {}})
+        register, changes = import_report(register, self.folder / "admin.json", today="2026-11-24")
+        self.assertEqual(("previous_file" in changes, changes["resolved"]), (False, ["npm:minimist:ghsa-vh95-rmgr-6w4m"]))
 
     def test_a_confirmed_critical_alert_resolved_by_an_import_keeps_the_report(self):
         register, _ = import_report(empty(), FIXTURES / "npm-audit-critical.json", today="2026-11-21")

@@ -9,6 +9,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - New bundled tool IDs: `adp`, `apache-spark`, `apigee`, `appdynamics`, `auth0`, `discord`, `docker-hub`, `eclipse`, `gravitee`, `harbor`, `jetbrains`, `jfrog-artifactory`, `keycloak`, `kong`, `lens`, `mattermost`, `microsoft-entra-id`, `npm`, `okta`, `portainer`, `rancher`, `silae`, `sonatype-nexus`, `splunk`, `visual-studio`, `vscode`, `zoom`. Kibana is now an alias of Elastic. If a project catalog already defines one of these tools or names, rename its local entry and update the profile, or remove the project definition to use the bundled tool.
 - `alerts import` no longer resolves the alerts of a package that a pip-audit report skipped (an entry with a `skip_reason`), and does not count such an entry as an analyzed dependency.
 - A resolved alert that a later report lists again loses the acceptance of its risk, so a confirmed critical alert blocks its tasks again; `alerts import` names each alert whose acceptance it removed.
+- `alerts import` warns, and names the previous file, when a report resolves alerts under another file name than the scanner's previous import: a report of another lockfile resolves the alerts of the first. The scanner has one full report per project ([alerts](docs/alerts.md)).
 
 ## 0.17.0
 

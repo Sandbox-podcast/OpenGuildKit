@@ -216,6 +216,15 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         [message] = blocking_alerts(load_register(self.root / ".openguildkit"), {"id": "up"})
         self.assertIn(CRITICAL, message)
 
+    def test_an_import_says_when_another_file_of_the_scanner_resolves_the_alerts_of_the_first(self):
+        self.init()
+        self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json")
+        self.assertNotIn("Warning", self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json"))
+        output = self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json")
+        self.assertIn("Warning: the previous npm audit import was the file npm-audit-critical.json", output)
+        self.assertIn("resolved: " + CRITICAL, output)
+        self.assertEqual(json.loads(self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json", "--json"))["resolved"], [])
+
     def test_a_person_sets_the_severity_pip_audit_leaves_unknown_and_it_then_blocks(self):
         self.init()
         self.cli("task", "new", "Upgrade Jinja in the report service.", "--id", "upgrade")

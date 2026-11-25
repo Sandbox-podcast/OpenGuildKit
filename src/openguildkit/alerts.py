@@ -324,7 +324,9 @@ def import_report(register: dict, path: Path, task_id: str | None = None, today:
     SHA-256, day, dependencies analyzed). A resolved alert that a report lists again is reopened with its earlier
     status and without the decision of a person (who confirmed it, who accepted it), so a confirmed critical alert
     blocks again. A report that analyzed no dependency resolves nothing and says why, and one that skipped a package
-    resolves none of its alerts. With task_id, the report's alerts are linked to that task.
+    resolves none of its alerts. A report that resolves alerts under another file name than the scanner's previous
+    import names that file (previous_file), since a report of another lockfile resolves what the first one listed.
+    With task_id, the report's alerts are linked to that task.
     """
     today = today or _today()
     content = path.read_bytes()
@@ -359,6 +361,10 @@ def import_report(register: dict, path: Path, task_id: str | None = None, today:
             alert.update(resolved_from=alert["status"], status="resolved", resolved_on=today, resolved_by=source)
             changes["resolved"].append(alert["id"])
     changes = {key: sorted(set(value)) if isinstance(value, list) else value for key, value in changes.items()}
+    previous = next((item.get("file") for item in reversed(register.get("imports", [])) if item.get("tool") == tool),
+                    path.name)
+    if changes["resolved"] and previous != path.name:
+        changes["previous_file"] = previous
     entry = {"tool": tool, "file": path.name, "sha256": digest, "date": today, "dependencies": report["analyzed"],
              "alerts": len(changes["reported"]), "new": len(changes["new"]), "resolved": len(changes["resolved"])}
     imports = [*register.get("imports", []), entry][-IMPORTS_KEPT:]
