@@ -1,0 +1,44 @@
+{
+  "id": "unece-r156-software-updates",
+  "title": "UN Regulation No 156, vehicle software updates",
+  "description": "Preselected for automotive: keep it when the organization is a vehicle manufacturer, or a supplier of software or a component that a manufacturer updates, and the vehicle type is approved by an authority that applies UN Regulation No 156 (software update and software update management system), or when the team chooses to run its vehicle updates under such a system. The consolidated text of Regulation (EU) 2019/2144 does not list UN Regulation No 156, although recital 27 of Regulation (EU) 2024/2847 counts software updates among the cybersecurity requirements that Regulation introduces: for an EU type-approval alone, ask the type-approval owner whether the authority requires it. Decline it when no approval authority of the markets served applies it and the team does not want such a system, or for software that does not update a vehicle.",
+  "sources": [
+    {
+      "title": "UN Regulation No 156, software update and software update management system, original text (OJ 2021/388)",
+      "url": "https://eur-lex.europa.eu/eli/reg/2021/388/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Regulation (EU) 2019/2144 on type-approval requirements for motor vehicles, consolidated text of 2 August 2026",
+      "url": "https://eur-lex.europa.eu/eli/reg/2019/2144/2026-08-02/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Regulation (EU) 2024/2847, Cyber Resilience Act",
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "United Nations Treaty Collection, UN Regulation No. 156, software update and software update management system",
+      "url": "https://treaties.un.org/doc/Publication/MTDSG/Volume%20I/Chapter%20XI/XI-B-16-156.en.xml",
+      "checked": "2026-11-25"
+    }
+  ],
+  "roles": [
+    "legal",
+    "engineering",
+    "qa"
+  ],
+  "packs": [
+    "unece-r156"
+  ],
+  "kind": "regulation",
+  "references": [
+    "unece-r156"
+  ],
+  "match": {
+    "sectors": [
+      "automotive"
+    ]
+  }
+}

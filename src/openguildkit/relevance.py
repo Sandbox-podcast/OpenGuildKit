@@ -115,6 +115,8 @@ SUBJECTS = {
     "online-consumer-sales": ("selling to consumers", [{"surface": ["customer"], "concerns": ["money"]}]),
     "insurance-distribution": ("selling insurance", [{"surface": ["customer"], "concerns": ["money"]},
                                                      {"surface": ["customer"], "concerns": ["people-decisions"]}]),
+    "unece-r155": ("the software of a road vehicle", _CODE),
+    "unece-r156": ("the software updates of a road vehicle", _CODE),
 }
 # The subject retained for each regulatory pack and its legal reason. A regulation pattern is selected by a person
 # who confirmed that the regulation applies to the organization; the subject then says which changes it reaches.
@@ -178,6 +180,14 @@ LEGAL_BASIS = {
                               "pricing for natural persons.",
     "online-consumer-sales": "a customer surface with money: Directive 2011/83/EU Art. 6 and 8 govern the "
                              "information and the order button of a distance sale to consumers.",
+    "unece-r155": "the code of a service, a customer surface or infrastructure: UN Regulation No 155 asks the vehicle "
+                  "manufacturer for a risk assessment, mitigations and tests of each vehicle type (paragraphs 7.3.3 "
+                  "to 7.3.6, Annex 5) and for the monitoring of vehicles in use, and Regulation (EU) 2019/2144 Annex II "
+                  "row D4 makes it a condition of EU type-approval.",
+    "unece-r156": "the code of a service, a customer surface or infrastructure: UN Regulation No 156 asks the vehicle "
+                  "manufacturer to identify software versions, assess the effect of each update on the type approval "
+                  "and protect its delivery (paragraphs 7.1 and 7.2), where an approval authority applies it; "
+                  "Regulation (EU) 2019/2144 does not list it in Annex I or Annex II.",
     "public-sector-accessibility": "the user interface: Directive (EU) 2016/2102 Art. 4 applies to the websites "
                                    "and mobile applications of public sector bodies.",
     "france-health-data-hosting": "personal or regulated data: Art. L1111-8 of the Code de la santé publique "

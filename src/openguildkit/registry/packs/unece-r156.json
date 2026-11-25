@@ -1,0 +1,120 @@
+{
+  "id": "unece-r156",
+  "title": "UN Regulation No 156, vehicle software updates",
+  "version": "1.0.0",
+  "description": "Questions for the legal, type-approval and engineering owners and repository checks for road vehicle software updates under UN Regulation No 156, the software update management system (SUMS). Regulation (EU) 2019/2144 does not list it in Annex I or Annex II in its consolidated text of 2 August 2026, although recital 27 of Regulation (EU) 2024/2847 counts software updates among the cybersecurity requirements that Regulation introduces, so an EU type-approval alone does not settle that it applies: other contracting parties of the 1958 Agreement can apply it, and the first rules ask which approval authorities do. Written from the original text of the Official Journal (2021/388); the United Nations treaty record lists amendments notified after it, which this pack has not read: read the current text. The application for approval, the Certificate of Compliance for the SUMS and the processes of paragraph 7.1 are the vehicle manufacturer's (paragraphs 3.1, 3.5, 6 and 7.1); the Regulation names suppliers only for protected information (paragraph 3.4), so a supplier answers to the manufacturer through its contract, and a rule that begins \"When the organization is the vehicle manufacturer\" or \"When the organization supplies\" says whom it concerns, while the others concern the team that develops the change. The rules of release-management and supply-chain overlap the identification and the protection of versions: this pack adds the paragraphs of the Regulation. These rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "UN Regulation No 156, software update and software update management system, original text (OJ 2021/388)",
+      "url": "https://eur-lex.europa.eu/eli/reg/2021/388/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Regulation (EU) 2019/2144 on type-approval requirements for motor vehicles, consolidated text of 2 August 2026",
+      "url": "https://eur-lex.europa.eu/eli/reg/2019/2144/2026-08-02/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Regulation (EU) 2024/2847, Cyber Resilience Act",
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "United Nations Treaty Collection, UN Regulation No. 156, software update and software update management system",
+      "url": "https://treaties.un.org/doc/Publication/MTDSG/Volume%20I/Chapter%20XI/XI-B-16-156.en.xml",
+      "checked": "2026-11-25"
+    }
+  ],
+  "rules": [
+    {
+      "id": "confirm-r156-role",
+      "instruction": "Ask the legal owner whether the organization is the vehicle manufacturer that applies for the approval of the vehicle type with the Certificate of Compliance for the SUMS (paragraphs 3.1, 3.5 and 6), or a supplier of software or a component that a manufacturer updates, and record which duties each side holds.",
+      "verification": "Link the recorded answer, with the manufacturer's name and the vehicle types concerned, from the change.",
+      "manual": "The role in the approval is a legal and contractual assessment."
+    },
+    {
+      "id": "confirm-r156-markets",
+      "instruction": "Ask the type-approval owner which approval authorities of the markets served apply UN Regulation No 156 to the vehicle types the change reaches, since neither Annex I nor Annex II of Regulation (EU) 2019/2144 lists it, and record them; decline the unece-r156-software-updates pattern when none does and no software update management system is wanted.",
+      "verification": "Link the recorded list of markets and approval authorities from the change.",
+      "manual": "Which authority applies the Regulation is a regulatory and legal assessment."
+    },
+    {
+      "id": "keep-sums-certificate",
+      "instruction": "When the organization is the vehicle manufacturer, ask the type-approval owner for the Certificate of Compliance for the SUMS, which stays valid for three years at most (paragraph 6.6), record its expiry date, and inform the approval authority of any change that will affect its relevance (paragraph 6.8).",
+      "verification": "Link the reference and the expiry date of the certificate from the change.",
+      "manual": "An approval authority issues the certificate to the manufacturer and it is kept outside the repository."
+    },
+    {
+      "id": "identify-software-versions",
+      "instruction": "Make every initial and updated software version of a type approved system, with its integrity validation data, and its relevant hardware components uniquely identifiable, and keep that information where the manufacturer can retrieve it for the approval authority (paragraphs 7.1.1.1 and 7.1.1.2).",
+      "verification": "Run the query or the test that lists, for one system, each software version with its integrity validation data and its hardware components.",
+      "manual": "Identification shows when the records of the manufacturer and the vehicle are queried for one system."
+    },
+    {
+      "id": "keep-rxswin-register",
+      "instruction": "When the vehicle type has an RXSWIN, keep for every RXSWIN an auditable register of the software relevant to it before and after each update, and update the RXSWIN when a change of type approval relevant software leads to a type approval extension or a new type approval (paragraphs 7.1.1.3, 7.1.2.3 and 7.2.1.2.1).",
+      "verification": "Open the register of one RXSWIN and find its software versions before and after the latest update.",
+      "manual": "The register is a record of the manufacturer, judged for one RXSWIN at a time."
+    },
+    {
+      "id": "expose-and-protect-rxswin",
+      "instruction": "When the vehicle type has an RXSWIN, make it readable in a standardized way through an electronic communication interface, at least the standard interface (OBD port), and protect the RXSWIN and the software versions held on the vehicle against unauthorised modification (paragraphs 7.2.1.2.2 and 7.2.1.2.3).",
+      "verification": "Test that a diagnostic tool reads the RXSWIN through the OBD port and that an attempt to change it on a bench is refused.",
+      "manual": "The reading and the refusal show on a vehicle or a bench with a diagnostic tool."
+    },
+    {
+      "id": "identify-targets-and-compatibility",
+      "instruction": "For each update, identify its target vehicles before it is issued, confirm its compatibility with their last known software and hardware configuration, and record both (paragraphs 7.1.1.6, 7.1.1.7 and 7.1.2.4).",
+      "verification": "Open the record of one update and find the list of target vehicles with the confirmation of compatibility.",
+      "manual": "The record is judged one update at a time and can live outside the repository."
+    },
+    {
+      "id": "assess-update-impact",
+      "instruction": "For each software update, assess and record whether it affects type approved systems or the parameters that define them, whether it adds, alters or enables functions that were not present or enabled at type approval, and whether it affects another system needed for the safe and continued operation of the vehicle (paragraphs 7.1.1.8 to 7.1.1.10).",
+      "verification": "Open the record of the update and find the three assessments with their outcome.",
+      "manual": "The assessments are engineering and regulatory judgements recorded for each update."
+    },
+    {
+      "id": "document-each-update",
+      "instruction": "Keep for each update a record of its purpose, the systems and functions it affects, which of them are type approved, its effect on the type approval requirements and parameters, whether an approval was sought, how and under which conditions it is executed, the confirmation that it is conducted safely and securely and the results of its verification and validation, with the configuration of the type approved systems before and after it (paragraphs 7.1.2.2, 7.1.2.5 and 7.1.3.3).",
+      "verification": "Open the record of the latest update and find each of these items.",
+      "manual": "The record is judged one update at a time and can live outside the repository."
+    },
+    {
+      "id": "protect-update-process",
+      "instruction": "Keep software updates protected against manipulation before they start, and keep the update processes protected so that they cannot reasonably be compromised, including the development of the update delivery system (paragraphs 7.1.3.1 and 7.1.3.2).",
+      "verification": "Open the description of the update delivery chain and find the control that protects each step from the build to the vehicle.",
+      "manual": "The protection of the chain is judged on its description and on a test of the chain."
+    },
+    {
+      "id": "protect-update-authenticity",
+      "instruction": "Make the vehicle protect the authenticity and integrity of each software update so that a compromise and an invalid update are reasonably prevented (paragraph 7.2.1.1).",
+      "verification": "Run the test that offers the vehicle a modified update and an invalid one and find that neither is executed.",
+      "manual": "The rejection shows only when a vehicle or a bench receives a modified update."
+    },
+    {
+      "id": "fail-safe-over-the-air",
+      "instruction": "When updates are delivered over the air, make the vehicle execute an update only when its preconditions are met and it has enough power to complete it, including a possible recovery, and restore the previous version of its systems or reach a safe state after a failed or interrupted update (paragraphs 7.2.2.1.1, 7.2.2.1.2 and 7.2.2.5).",
+      "verification": "Run the test that interrupts an update and the test that starts one without enough power, and find the previous version restored or the update refused.",
+      "manual": "The behaviour shows only when an update runs on a vehicle or a bench."
+    },
+    {
+      "id": "assess-update-while-driving",
+      "instruction": "When updates are delivered over the air, keep the process that assesses whether an update can affect safety if it is executed while driving, and where it may not be safe, make the vehicle unable to be driven during the execution and the driver unable to use functions that would affect safety or the update (paragraphs 7.1.4.1 and 7.2.2.3).",
+      "verification": "Open the assessment of one update and run the test that tries to drive the vehicle during its execution.",
+      "manual": "The behaviour shows only when an update runs on a vehicle or a bench."
+    },
+    {
+      "id": "inform-the-vehicle-user",
+      "instruction": "When updates are delivered over the air, make the vehicle inform its user before the execution of the purpose and criticality of the update, the changes to vehicle functions, the expected time, the functions not available during it and any instruction that helps to execute it safely, and after the execution of its success or failure and of the changes and user manual updates (paragraphs 7.2.2.2 and 7.2.2.4).",
+      "verification": "Run the test of one update and find the information shown before and after its execution.",
+      "manual": "The information shows only when an update runs on a vehicle or a bench."
+    },
+    {
+      "id": "agree-update-information",
+      "instruction": "When the organization supplies software or a component that a vehicle manufacturer updates, ask the manufacturer which version identifiers, integrity validation data and interdependency information its SUMS needs from the supplier (paragraphs 7.1.1.2, 7.1.1.5 and 7.1.1.7), and record them in the contract or the interface agreement.",
+      "verification": "Link the clause of the contract or the interface agreement that lists them.",
+      "manual": "The information owed between manufacturer and supplier is agreed in a contract."
+    }
+  ]
+}

@@ -12,6 +12,7 @@ from unittest.mock import patch
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.cli import _interactive_init, main
 from openguildkit.patterns import recommend_patterns
+from openguildkit.references import load_references
 from openguildkit.project import (
     init_questions,
     profile_recommendations,
@@ -29,8 +30,12 @@ SECTOR_PACKS = {
     "education": "minors-data-protection",
     "insurance": "insurance-distribution",
     "critical-infrastructure": "nis2",
+    "automotive": "unece-r155",
 }
-NEW_PACKS = [pack for pack in SECTOR_PACKS.values() if pack != "nis2"]
+# The vehicle packs speak of a Certificate of Compliance, an object of the UN Regulations: AutomotiveSectorTests
+# holds them to the same rules without the word filter that the other sectors' packs pass.
+VEHICLE_PACKS = {"unece-r155": "unece-r155-vehicle-cybersecurity", "unece-r156": "unece-r156-software-updates"}
+NEW_PACKS = [pack for pack in SECTOR_PACKS.values() if pack != "nis2" and pack not in VEHICLE_PACKS]
 RULE_VERB = r"^(Ask|When|For|Add|Make|Keep|Show|Label|Provide|Write|Collect|Test|Record|Present|Do not)\b"
 
 
@@ -252,6 +257,160 @@ class SectorQuestionTests(unittest.TestCase):
         self.assertIn("insurance-distribution: sector insurance", text)
         self.assertIn("Declined", text)
         self.assertIn("dora-financial-entity", text.split("Declined", 1)[1])
+
+
+class AutomotiveSectorTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = load_catalog()
+
+    def norms(self):
+        questions = {question["id"]: question for question in init_questions(self.catalog, "Ledger")}
+        return {norm["id"]: norm for norm in questions["norms"]["norms"]}
+
+    def test_the_sector_preselects_the_two_vehicle_regulations_and_neither_the_cra_nor_nis_2(self):
+        plan = recommend_patterns(self.catalog, [], "automotive", [])
+        self.assertEqual({entry["id"] for entry in plan["matched"]}, set(VEHICLE_PACKS.values()))
+        packs = {pack for entry in plan["matched"] for pack in entry["packs"]}
+        self.assertEqual(packs, set(VEHICLE_PACKS))
+        for entry in plan["matched"]:
+            self.assertEqual(entry["reasons"], ["sector automotive"])
+        for pattern_id in VEHICLE_PACKS.values():
+            pattern = self.catalog["patterns"][pattern_id]
+            self.assertEqual(pattern["kind"], "regulation")
+            self.assertEqual(pattern["match"], {"sectors": ["automotive"]})
+        # A role suggests a regulation, never preselects it: a legal role in another sector sees them, unselected.
+        legal = recommend_patterns(self.catalog, [], "general", ["legal", "engineering", "qa", "security"])
+        self.assertFalse(set(VEHICLE_PACKS.values()) & {entry["id"] for entry in legal["matched"]})
+        self.assertLessEqual(set(VEHICLE_PACKS.values()), {entry["id"] for entry in legal["suggested"]})
+
+    def test_the_sector_asks_who_the_organization_is_and_what_decides_each_pattern(self):
+        record = self.catalog["sectors"]["automotive"]
+        context = " ".join(record["context"])
+        for fact in ("tier 1", "tier 2", "vehicle manufacturer", "paragraphs 3.1", "fleet", "Annex I", "Annex II row D4",
+                     "6 July 2022", "7 July 2024", "does not list UN Regulation No 156",
+                     "decline the unece-r156-software-updates pattern when none does",
+                     "Art. 2(2)(c)", "recital 27", "does not preselect cyber-resilience-act-product",
+                     "2025/1455", "11 December 2027", "NIS 2 Annex II point 5(e)", "nis2-essential-entity",
+                     "7.2.2.4(b)", "gdpr-personal-data", "ISO/SAE 21434", "ISO 24089", "ISO 26262", "paid standards"):
+            self.assertIn(fact, context)
+        self.assertNotRegex(context, r"(?i)\bcompliant\b|ensures? compliance")
+        urls = {source["url"] for source in record["sources"]}
+        self.assertLessEqual({
+            "https://eur-lex.europa.eu/eli/reg/2019/2144/2026-08-02/eng",
+            "https://eur-lex.europa.eu/eli/reg/2025/5/oj/eng",
+            "https://eur-lex.europa.eu/eli/reg/2021/388/oj/eng",
+            "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
+            "https://eur-lex.europa.eu/eli/reg_del/2025/1455/oj/eng",
+            "https://eur-lex.europa.eu/eli/dir/2022/2555/oj/eng",
+        }, urls)
+
+    def test_paid_standards_are_cited_by_the_publisher_page_and_never_quoted_by_a_rule(self):
+        urls = {source["url"] for source in self.catalog["sectors"]["automotive"]["sources"]}
+        self.assertLessEqual({"https://committee.iso.org/standard/70918.html", "https://committee.iso.org/standard/77796.html",
+                              "https://committee.iso.org/standard/68383.html"}, urls)
+        for pack_id in VEHICLE_PACKS:
+            for rule in self.catalog["packs"][pack_id]["rules"]:
+                with self.subTest(pack=pack_id, rule=rule["id"]):
+                    self.assertNotRegex(f"{rule['instruction']} {rule['verification']}", r"\bISO\b|\bSAE\b|\bIEC\b")
+        references = {reference["id"]: reference for family in load_references().values()
+                      for reference in family["references"]}
+        for reference_id, edition in (("iso-sae-21434", "2021"), ("iso-24089", "2023")):
+            with self.subTest(reference=reference_id):
+                self.assertEqual(references[reference_id]["kind"], "norme")
+                self.assertEqual(references[reference_id]["edition"], edition)
+                self.assertNotIn("packs", references[reference_id])
+                self.assertTrue(all("iso.org" in source["url"] for source in references[reference_id]["sources"]))
+
+    def test_vehicle_packs_say_who_a_rule_concerns_cite_the_text_and_claim_no_compliance(self):
+        for pack_id in VEHICLE_PACKS:
+            pack = self.catalog["packs"][pack_id]
+            with self.subTest(pack=pack_id):
+                self.assertRegex(pack["description"], r"\bEU\b")
+                self.assertRegex(pack["description"], r"do not establish compliance")
+                self.assertRegex(pack["description"], r"vehicle manufacturer")
+                self.assertRegex(pack["description"], r"supplier")
+                self.assertGreaterEqual(len(pack["sources"]), 3)
+                self.assertGreaterEqual(len(pack["rules"]), 10)
+                for rule in pack["rules"]:
+                    text = f"{rule['instruction']} {rule['verification']}"
+                    self.assertRegex(text, r"\b(Art\.|Annex|paragraphs?)\s", rule["id"])
+                    self.assertNotRegex(text, r"(?i)\bcompliant\b|ensures? compliance|you are certified")
+                    self.assertRegex(rule["instruction"], RULE_VERB, rule["id"])
+                    self.assertRegex(rule["verification"], r"^(Link|Open|Run|Check|Find|Show|Test)\b", rule["id"])
+                    self.assertTrue(rule.get("manual"), rule["id"])
+                    self.assertNotIn("check", rule)
+        # The roles in the approval are asked first, and a supplier has a rule of its own in each pack.
+        for pack_id, role_rule, supplier_rule in (("unece-r155", "confirm-r155-role", "agree-supplier-obligations"),
+                                                  ("unece-r156", "confirm-r156-role", "agree-update-information")):
+            rules = self.catalog["packs"][pack_id]["rules"]
+            self.assertEqual(rules[0]["id"], role_rule)
+            supplier = next(rule for rule in rules if rule["id"] == supplier_rule)
+            self.assertRegex(supplier["instruction"], r"^When the organization (is the supplier|supplies)")
+
+    def test_r155_rules_name_the_paragraphs_that_say_what_they_ask(self):
+        pack = self.catalog["packs"]["unece-r155"]
+        text = " ".join(f"{rule['instruction']} {rule['verification']}" for rule in pack["rules"])
+        for fact in ("paragraphs 3.1", "Annex 5 Part A", "Annex 5 Parts B and C", "7.3.3", "7.3.4", "7.3.5", "7.3.6", "7.3.7",
+                     "7.3.8", "7.2.2.2", "7.2.2.4", "7.2.2.5", "7.3.2", "7.4.1", "8.1", "6.7", "6.11",
+                     "first registration", "at least once a year"):
+            self.assertIn(fact, text)
+        for fact in ("Annex II row D4", "6 July 2022", "7 July 2024", "Art. 2(2)(c)", "Supplement 3", "Certificate of Compliance"):
+            self.assertIn(fact, pack["description"])
+        self.assertIn("https://eur-lex.europa.eu/eli/reg/2025/5/oj/eng", [source["url"] for source in pack["sources"]])
+
+    def test_r156_rules_name_the_paragraphs_and_say_the_eu_act_does_not_list_it(self):
+        pack = self.catalog["packs"]["unece-r156"]
+        text = " ".join(f"{rule['instruction']} {rule['verification']}" for rule in pack["rules"])
+        for fact in ("7.1.1.2", "7.1.1.7", "7.1.1.8", "7.1.2.3", "7.1.2.5", "7.1.3.1", "7.1.3.2", "7.2.1.1", "7.2.1.2",
+                     "7.2.2.1", "7.2.2.2", "7.2.2.3", "6.6", "RXSWIN", "SUMS"):
+            self.assertIn(fact, text)
+        description = pack["description"]
+        for fact in ("does not list it in Annex I or Annex II", "recital 27 of Regulation (EU) 2024/2847", "original text", "amendments"):
+            self.assertIn(fact, description)
+        self.assertIn("https://eur-lex.europa.eu/eli/reg/2021/388/oj/eng", [source["url"] for source in pack["sources"]])
+
+    def test_the_patterns_say_when_they_do_not_apply_and_link_their_references(self):
+        for pack_id, pattern_id in VEHICLE_PACKS.items():
+            pattern = self.catalog["patterns"][pattern_id]
+            with self.subTest(pattern=pattern_id):
+                self.assertTrue(pattern["description"].startswith("Preselected for automotive: keep it when"))
+                self.assertRegex(pattern["description"], r"Decline it|decline it")
+                self.assertEqual(pattern["packs"], [pack_id])
+                self.assertGreaterEqual(len(pattern["sources"]), 2)
+                self.assertEqual(pattern["references"], [pack_id])
+        r155 = self.catalog["patterns"]["unece-r155-vehicle-cybersecurity"]["description"]
+        self.assertIn("Regulation (EU) 2019/2144", r155)
+        r156 = self.catalog["patterns"]["unece-r156-software-updates"]["description"]
+        self.assertIn("does not list UN Regulation No 156", r156)
+
+    def test_init_proposes_both_vehicle_norms_for_automotive_with_their_condition(self):
+        norms = self.norms()
+        proposed = {norm_id for norm_id, norm in norms.items() if "automotive" in norm["when"].get("sectors", [])}
+        self.assertEqual(proposed, set(VEHICLE_PACKS.values()))
+        for norm_id in proposed:
+            self.assertIn("the sector is automotive", norms[norm_id]["prompt"])
+        self.assertIn("vehicle manufacturer", norms["unece-r155-vehicle-cybersecurity"]["help"])
+        self.assertIn("https://eur-lex.europa.eu/eli/reg/2019/2144/2026-08-02/eng",
+                      [source["url"] for source in norms["unece-r155-vehicle-cybersecurity"]["sources"]])
+        resolved = resolved_profile(validate_profile(
+            {"name": "Ledger", "sector": "automotive", "patterns": sorted(proposed)}, self.catalog), self.catalog)
+        self.assertLessEqual(set(VEHICLE_PACKS), set(resolved["packs"]))
+        with tempfile.TemporaryDirectory() as directory:
+            write_json(Path(directory) / "answers.json", {"name": "Ledger", "sector": "automotive", "personal_data": "no"})
+            errors = io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(errors):
+                self.assertEqual(main(["--project", directory, "init", "--answers", f"{directory}/answers.json"]), 1)
+            for norm_id in proposed:
+                self.assertIn(norm_id, errors.getvalue())
+
+    def test_a_declined_vehicle_norm_stays_declined_and_the_other_stays_proposed(self):
+        answers = {"name": "Ledger", "sector": "automotive", "declined": ["unece-r156-software-updates"]}
+        profile = validate_profile(answers, self.catalog)
+        self.assertEqual(profile["declined"], ["unece-r156-software-updates"])
+        plan = profile_recommendations(profile, self.catalog)
+        self.assertNotIn("unece-r156-software-updates", ids(plan["matched"]) | ids(plan["suggested"]))
+        self.assertIn("unece-r155-vehicle-cybersecurity", ids(plan["matched"]) | set(profile["patterns"]))
 
 
 class SoftwarePublisherAndAccessibilityTests(unittest.TestCase):
