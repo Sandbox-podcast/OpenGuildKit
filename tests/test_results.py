@@ -35,7 +35,7 @@ class ResultCase(CapturedCli, unittest.TestCase):
             (self.root / "app.py").write_text("VERSION = 1\n", encoding="utf-8")
             self.git("init", "-q", "-b", "main")
             self.git("add", ".")
-            self.git("-c", "user.name=Tester", "-c", "user.email=tester@example.org", "commit", "-qm", "Initial project")
+            self.git("commit", "-qm", "Initial project")
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
         if answers:
             write_json(self.root / "answers.json", {**json.loads((EXAMPLE / "answers.json").read_text()), **answers})
@@ -130,7 +130,7 @@ class ResultTests(ResultCase):
         self.assertIn("Name the delivered revision", self.run_cli("task", "result", TASK, "--file", report, code=1)[1])
         self.assertIn("Name the delivered revision", self.run_cli("task", "complete", TASK, code=1)[1])
         self.git("add", "app.py")
-        self.git("-c", "user.name=Tester", "-c", "user.email=tester@example.org", "commit", "-qm", "Change project")
+        self.git("commit", "-qm", "Change project")
         write_json(report, {"revision": self.git("rev-parse", "HEAD"), "criteria": []})
         self.run_cli("task", "result", TASK, "--file", report)
         self.assertIn(f"--follows {TASK}", self.run_cli("task", "complete", TASK)[0])

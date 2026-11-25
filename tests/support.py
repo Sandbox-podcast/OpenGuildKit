@@ -11,12 +11,14 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.cli import main
+from tests import GIT_ENVIRONMENT
 
 _PYCACHE = tempfile.TemporaryDirectory(prefix="ogk-test-pycache-")
 
 
 def subprocess_environment(overrides=None):
-    environment = dict(os.environ)
+    """This process's environment for a child, with Git isolated from the machine's configuration."""
+    environment = {**os.environ, **GIT_ENVIRONMENT}
     if overrides:
         environment.update(overrides)
     environment.pop("PYTHONDONTWRITEBYTECODE", None)

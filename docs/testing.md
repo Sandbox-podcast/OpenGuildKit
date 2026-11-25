@@ -18,6 +18,8 @@ A test starts a real process only when it needs one: the person typing at a pseu
 
 Child processes get `support.subprocess_environment()`: without `PYTHONDONTWRITEBYTECODE`, which made each of them compile the package again, and with `PYTHONPYCACHEPREFIX` in a temporary folder, so the bytecode stays out of the repository.
 
+Git reads no configuration of the machine during the tests. `tests/__init__.py` sets `GIT_CONFIG_GLOBAL` to the null device, `GIT_CONFIG_NOSYSTEM=1` and a test identity for the whole run, so a contributor's commit signing, hooks or name never reach a commit a test makes, and a test needs no `-c user.name=...` of its own. `tests/test_test_suite.py` commits under a global configuration that signs with a key that does not exist.
+
 ## Kinds of tests
 
 On 22 November 2026, on a laptop (Apple M1 Pro, macOS 26, Python 3.15.2) whose other applications kept the load average between 3.8 and 6.6: 1 218 tests in 279 s, 3 skipped (the time budgets); the one failure of that run, `test_a_component_path_with_spaces_works_in_the_check_shell`, needs a `python` command, which this laptop does not have. On the same laptop and the same day, the suite took 636 s for 1 198 tests before #252, and 431 s for 1 202 tests after it. A matrix job on GitHub Actions was not timed for this commit. Each time below is the sum of its tests in an earlier run with `--durations 0` on the same laptop and the same day (1 205 tests in 283 s, before the last commits of #252's branch).

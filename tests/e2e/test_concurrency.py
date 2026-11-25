@@ -327,7 +327,7 @@ class TwoClonesTests(unittest.TestCase):
     def git(self, folder, *arguments):
         environment = {**ENV, "GIT_AUTHOR_NAME": "Test Person", "GIT_AUTHOR_EMAIL": "person@example.test",
                        "GIT_COMMITTER_NAME": "Test Person", "GIT_COMMITTER_EMAIL": "person@example.test"}
-        result = subprocess.run(["git", "-c", "init.defaultBranch=main", "-c", "commit.gpgsign=false", *arguments],
+        result = subprocess.run(["git", "-c", "init.defaultBranch=main", *arguments],
                                 cwd=folder, capture_output=True, text=True, encoding="utf-8", env=environment, timeout=60)
         self.assertEqual(result.returncode, 0, f"git {' '.join(arguments)}: {result.stderr}")
         return result.stdout
