@@ -40,9 +40,9 @@ Les mots qu'OpenGuildKit emploie dans ses commandes, ses questions et ses messag
 
 ### `pack` · pack de règles
 
-**EN** A set of rules and checks for the agent that `init` writes into `AGENTS.md`, such as the rules for React or for GDPR.
+**EN** A set of rules and checks for the agent whose rules `init` names by ID in `AGENTS.md`, such as the rules for React or for GDPR; `task brief ID --pack PACK` prints one in full.
 
-**FR** Un ensemble de règles et de contrôles pour l'agent, que `init` écrit dans `AGENTS.md`, par exemple les règles de React ou du RGPD.
+**FR** Un ensemble de règles et de contrôles pour l'agent, dont `init` nomme les règles par identifiant dans `AGENTS.md`, par exemple les règles de React ou du RGPD ; `task brief ID --pack PACK` en imprime un en entier.
 
 ### `component` · composant
 

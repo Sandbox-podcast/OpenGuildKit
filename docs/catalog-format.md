@@ -307,6 +307,7 @@ What a project sees:
 - Use one address for a document across packs, patterns, boards and references, at the edition the catalog cites. `tests/test_catalog_sources.py` checks the usual variants (an RFC on two IETF sites, `index.html`, a final slash).
 - Do not claim compliance. "Map project controls to the Statement of Applicability" is a rule. "This makes you ISO 27001 compliant" is not.
 - Keep one idea per rule. Split a rule that needs "and" twice.
+- Give each rule an ID that says what it asks (`keep-render-pure`, `protect-secrets`): `AGENTS.md` names every rule in force by its ID alone, and the agent reads that line at every turn.
 - Start a pack description with the context it applies to, such as "For a service in production: ...". [Catalog coverage](coverage.md) shows, for each brain, the packs its patterns reach and the references no pack applies yet.
 - Keep one method per pack, so that a pattern activates only the rules of its method. When you split a pack, keep its ID for the part its name describes, move the other rules to a new pack and bump the major version.
 - When a service pack serves HTTP endpoints, declare `depends_on: ["api-design"]` so the contract rules apply to every stack.

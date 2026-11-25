@@ -403,8 +403,9 @@ class VerifyAndEvidenceTests(CapturedCli, unittest.TestCase):
         (self.root / "notes.md").write_text("x" * 150, encoding="utf-8")
         self.assertIn("rule:team-rules/short-notes: failed\n    notes.md is 150 bytes, above 100.",
                       self.run_cli("task", "verify", TASK)[0])
-        self.assertIn("Each file matching `notes.md` is at most 100 bytes.",
-                      (self.root / "AGENTS.md").read_text(encoding="utf-8"))
+        self.assertIn("- short-notes: Each file matching `notes.md` is at most 100 bytes.",
+                      self.run_cli("task", "brief", TASK, "--pack", "team-rules")[0])
+        self.assertIn("`short-notes`", (self.root / "AGENTS.md").read_text(encoding="utf-8"))
 
     RECORD = {"id": "record-processing", "instruction": "Update the record.", "verification": "Link it.",
               "evidence": [{"id": "processing-record", "title": "Record of processing activities"}]}
@@ -466,11 +467,12 @@ class VerifyAndEvidenceTests(CapturedCli, unittest.TestCase):
         with self.assertRaisesRegex(CatalogError, "when"):
             validate_entry("packs", pack([{**self.RECORD, "evidence": [{**self.RECORD["evidence"][0], "when": {}}]}]))
 
-    def test_a_named_evidence_can_be_an_https_link_and_appears_in_the_instructions(self):
+    def test_a_named_evidence_can_be_an_https_link_and_appears_in_the_pack_brief(self):
         self.approved([{"id": "assess-dpia", "instruction": "Ask about the assessment.", "verification": "Link it.",
                         "evidence": [{"id": "dpia-decision", "title": "Decision on the impact assessment"}]}])
-        instructions = (self.root / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("Evidence for task result: Decision on the impact assessment", instructions)
+        brief = self.run_cli("task", "brief", TASK, "--pack", "team-rules")[0]
+        self.assertIn("Evidence for task result: Decision on the impact assessment", brief)
+        self.assertNotIn("Evidence for task result", (self.root / "AGENTS.md").read_text(encoding="utf-8"))
         self.report({"check": "rule:team-rules/assess-dpia", "status": "passed", "evidence": "Asked."},
                     {"check": "evidence:team-rules/assess-dpia/dpia-decision", "status": "passed",
                      "evidence": "https://wiki.example.test/privacy/dpia-42", "owner": "Dana"})

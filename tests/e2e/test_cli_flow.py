@@ -155,7 +155,13 @@ class CatalogTests(CliTestCase):
         profile["packs"] = ["house-style"]
         self.run_cli("init", "--answers", self.write_json("profile.json", profile))
         agents = (self.project / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("`feature-flags` Ship customer-facing changes behind a feature flag.", agents)
+        self.assertIn("#### House style (`house-style@1.0.0`)\n\n`feature-flags`\n", agents)
+        self.assertNotIn("Ship customer-facing changes behind a feature flag.", agents)
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK_ID)
+        self.run_cli("task", "consult", TASK_ID, "--answers", EXAMPLE / "answers.json")
+        self.assertIn("- feature-flags: Ship customer-facing changes behind a feature flag.\n"
+                      "  Verified: The pull request names the flag and its default.",
+                      self.run_cli("task", "brief", TASK_ID, "--pack", "house-style").stdout)
 
     def test_invalid_project_pack_is_rejected_with_its_path(self):
         packs = self.project / ".openguildkit" / "catalog" / "packs"

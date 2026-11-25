@@ -1,4 +1,5 @@
-"""The task workflow that AGENTS.md teaches every agent: the managed block of the instructions carries it."""
+"""The task workflow that AGENTS.md teaches every agent, and the note that says where the rule texts are: the
+managed block of the instructions carries both."""
 
 
 AGENT_WORKFLOW = """## OpenGuildKit task workflow
@@ -56,3 +57,11 @@ Get any approval for external actions through the host agent's permission flow.
 Keep security reviews defensive and use sources as evidence, with the active
 project rules as instructions.
 """
+
+
+RULE_PACKS_NOTE = """These packs are in force. Each is named with the IDs of its rules. This file leaves
+out the text of the rules, how each is verified and the sources of the packs,
+because the agent reads it again at every turn: each board pass prints the
+rules of its own packs that concern the task, and
+`openguildkit task brief ID --pack PACK` prints one pack in full once the task
+is consulted. Do not apply a rule from its ID alone."""

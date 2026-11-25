@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -94,6 +95,34 @@ class InstructionFileTests(CapturedCli, unittest.TestCase):
         self.assertIn("CLAUDE.md has malformed", error)
         with self.assertRaisesRegex(ValueError, "AGENTS.md has malformed"):
             merged_instructions(f"{BEGIN}\n", "rules")
+
+    def test_a_block_that_still_holds_the_text_of_the_rules_is_out_of_date_not_edited_by_hand(self):
+        """Before #363 the block held each rule's text under the same profile stamp. After an upgrade check names the
+        remedy, and sync replaces the block without calling its rule lines hand edits."""
+        agents = self.root / "AGENTS.md"
+        self.run_cli("init", "--answers", self.answers)
+        current = agents.read_text(encoding="utf-8")
+        previous = re.sub(r" layout \d+ -->", " -->", current).replace(
+            "### Rule packs\n", "### Rule packs\n\n#### Python (`python@1.0.0`)\n\n"
+            "- `follow-python-style` Use the repository's formatter, lint rules and module layout.\n"
+            "  Verify: Run the configured formatter and linter on the changed code.\n", 1)
+        self.assertNotEqual(previous, current)
+        agents.write_text(previous, encoding="utf-8")
+        _, error = self.run_cli("check", code=1)
+        self.assertIn("OpenGuildKit instructions are out of date. Run openguildkit sync.", error)
+        self.assertNotIn("edited by hand", error)
+        output, _ = self.run_cli("sync")
+        self.assertNotIn("edited by hand", output)
+        self.assertEqual(agents.read_text(encoding="utf-8"), current)
+        self.run_cli("check")
+
+    def test_a_line_a_person_adds_to_the_block_is_still_reported_with_the_layout_stamp(self):
+        agents = self.root / "AGENTS.md"
+        self.run_cli("init", "--answers", self.answers)
+        agents.write_text(agents.read_text(encoding="utf-8").replace(
+            "### Rule packs\n", "### Rule packs\n\nAlways answer in French.\n", 1), encoding="utf-8")
+        _, error = self.run_cli("check", code=1)
+        self.assertIn("was edited by hand (1 line(s), first: Always answer in French.)", error)
 
 
 if __name__ == "__main__":

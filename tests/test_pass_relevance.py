@@ -30,7 +30,7 @@ def printed_rules(text: str) -> set[str]:
     """PACK/RULE of each rule a pass prints under its rules heading."""
     rules, pack = set(), None
     for line in text[text.index(RULES_HEADING):].splitlines()[1:]:
-        if line.startswith(("Also concern", "Not concerned", "No rule")) or line.endswith("(AGENTS.md)."):
+        if line.startswith(("Also concern", "Not concerned", "No rule")) or "other packs are in force" in line:
             break
         heading = re.search(r"\(([\w-]+)@[^)]*\):$", line)
         if heading:
@@ -135,6 +135,25 @@ class PassRelevanceTests(ProjectCase):
         self.assertEqual(len([line for line in section.splitlines() if line.startswith("Not concerned")]), 1)
         self.assertRegex(section, r"Not concerned by this task, so not asked \(each reason: openguildkit task checks "
                                   r"pd-bug\): .*gdpr \(\d+ of \d+ rules\)")
+
+    def test_the_consultation_and_the_handoff_say_where_the_text_of_the_rules_is(self):
+        """AGENTS.md names the rules by ID (#363): the consultation, the passes and the handoff name the commands that
+        print their text, not the file."""
+        self.init()
+        self.consult("pd-bug", "Fix the date column of the support requests export: it ignores the time zone.", BUG)
+        pack_command = "openguildkit task brief pd-bug --pack PACK"
+        consultation = self.cli("task", "brief", "pd-bug")
+        self.assertIn(f"AGENTS.md names their rules by ID. Each board pass prints the rules of its own packs that "
+                      f"concern the task; one pack in full: {pack_command}.", consultation)
+        self.assertNotIn("Their rules are in the project's agent instructions", consultation)
+        crowded = [self.cli("task", "brief", "pd-bug", "--board", board) for board in ("engineering", "legal")]
+        self.assertTrue(any(pack_command in text for text in crowded))
+        self.assertFalse(any("(AGENTS.md)" in text for text in crowded))
+        self.approve("pd-bug")
+        handoff = self.cli("task", "handoff", "pd-bug")
+        self.assertIn(f"AGENTS.md names the rules by ID and leaves their text out. One pack in full: {pack_command}; "
+                      "the whole scope with every rule text: openguildkit task brief pd-bug --scope.", handoff)
+        self.assertNotIn("The rule texts are in the project's agent instructions", handoff)
 
     def test_the_handoff_of_a_decision_task_has_no_rules_to_apply(self):
         self.init()
