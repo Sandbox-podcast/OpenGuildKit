@@ -161,9 +161,24 @@ class RegulatoryPackTests(unittest.TestCase):
         pack = self.catalog["packs"]["nis2"]
         self.assertIn("Implementing Regulation (EU) 2024/2690", pack["description"])
         sources = {source["url"]: source["checked"] for source in pack["sources"]}
-        self.assertEqual(sources["https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R2690"], "2026-11-22")
+        self.assertEqual(sources["https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R2690"], "2026-11-25")
         rule = next(rule for rule in pack["rules"] if "2024/2690" in rule["instruction"])
         self.assertIn("Art. 7", rule["instruction"])
+        # Art. 1 of the implementing regulation names TLD name registries among the relevant entities (#346).
+        self.assertIn("TLD name registries", pack["description"])
+
+    def test_eaa_web_rule_adds_the_user_preferences_clause_to_wcag(self):
+        """EN 301 549 V4.1.1 clause 9.7, user preferences for web pages, is outside WCAG 2.2; table ZB.4 links it to
+        Annex I, Section III (b)(v) of Directive (EU) 2019/882 (#346)."""
+        pack = self.catalog["packs"]["european-accessibility-act"]
+        rule = next(rule for rule in pack["rules"] if rule["id"] == "meet-wcag-aa-on-changed-pages")
+        self.assertIn("WCAG 2.2 Level AA", rule["instruction"])
+        self.assertIn("clause 9.7", rule["instruction"])
+        self.assertIn("Section III (b)(v)", rule["instruction"])
+        self.assertIn("clause 9.7", rule["verification"])
+        sources = {source["url"]: source["checked"] for source in pack["sources"]}
+        self.assertEqual(sources["https://www.etsi.org/deliver/etsi_en/301500_301599/301549/04.01.01_60/"
+                                 "en_301549v040101p.pdf"], "2026-11-25")
 
 
 if __name__ == "__main__":

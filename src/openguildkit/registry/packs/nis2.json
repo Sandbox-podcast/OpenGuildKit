@@ -1,8 +1,8 @@
 {
   "id": "nis2",
   "title": "NIS 2 cybersecurity measures",
-  "version": "2.2.0",
-  "description": "Questions for the security owner and evidence checks for essential and important entities under Directive (EU) 2022/2555 (NIS 2), as transposed into national law. For DNS, cloud computing, data centre, content delivery, managed and managed security service providers, online marketplaces, search engines, social networks and trust services, Commission Implementing Regulation (EU) 2024/2690 sets the requirements of the Art. 21(2) measures and the significant incident criteria directly. These rules do not establish compliance.",
+  "version": "2.2.1",
+  "description": "Questions for the security owner and evidence checks for essential and important entities under Directive (EU) 2022/2555 (NIS 2), as transposed into national law. For DNS service providers, TLD name registries, cloud computing, data centre, content delivery, managed and managed security service providers, online marketplaces, search engines, social networks and trust services, Commission Implementing Regulation (EU) 2024/2690 sets the requirements of the Art. 21(2) measures and the significant incident criteria directly. These rules do not establish compliance.",
   "sources": [
     {
       "title": "Directive (EU) 2022/2555 (NIS 2)",
@@ -17,7 +17,7 @@
     {
       "title": "Commission Implementing Regulation (EU) 2024/2690, NIS 2 measures and significant incidents for digital service providers",
       "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R2690",
-      "checked": "2026-11-22"
+      "checked": "2026-11-25"
     }
   ],
   "depends_on": [
