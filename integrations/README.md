@@ -161,7 +161,18 @@ The answer depends on the mode and on the tasks. Without an approved task, the p
 
 ## Scan what an agent reads
 
-`openguildkit host scan` reads the instruction files and agent settings of the project (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, the agents, Skills and commands of `.claude/`, the rules of Cursor, Windsurf, Roo Code, Kilo Code and Junie, the instructions of Copilot, the MCP configurations) and reports hidden characters, phrases that tell an agent to drop its rules and downloads piped into an interpreter. It runs offline, changes nothing and blocks nothing: no hook of any host runs it, so a person or CI does. [What each code means, and what the scan does not prove](../docs/host-scan.md).
+`openguildkit host scan` reads the instruction files and agent settings of the project (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, the agents, Skills and commands of `.claude/`, the rules of Cursor, Windsurf, Roo Code, Kilo Code and Junie, the instructions of Copilot, the MCP configurations) and reports hidden characters, phrases that tell an agent to drop its rules and downloads piped into an interpreter. It also lists the agent tools the repository shows, its MCP servers (launch, presence in the tool registry, version not fixed, `http://` address) and its permissive settings. It runs offline, changes nothing and blocks nothing: no hook of any host runs it, so a person or CI does. [What each code means, and what the scan does not prove](../docs/host-scan.md).
+
+What each tool receives from OpenGuildKit, and what blocks an edit:
+
+| Tool | Receives | What blocks an edit |
+|---|---|---|
+| Claude Code | `AGENTS.md` through the import in `CLAUDE.md`; the settings and hooks `host apply` writes when the profile's host is `claude-code` | Its hooks, once `host check` reports the board control as enforced; then `guard --ci` |
+| Codex | `AGENTS.md` (Codex is on the agents.md list); the rules, hooks and config `host apply` writes when the profile's host is `codex` | Its hooks, same condition; then `guard --ci` |
+| Cursor, GitHub Copilot, Gemini CLI, Windsurf, Roo Code, Kilo Code, Junie, Aider, Zed, opencode, Warp, goose | `AGENTS.md`, since the [agents.md list](https://agents.md) names them (read on 2026-11-25) | No hook blocks an edit: the CI check (`guard --ci`) is the only barrier |
+| Cline, and any tool absent from the list | Not documented as reading `AGENTS.md` | No hook blocks an edit: the CI check (`guard --ci`) is the only barrier |
+
+`host apply` writes hooks for the host the profile names, and for no other tool. With `"guard": "enforce"`, `host scan` raises each tool that is present and not covered from a note to a warning.
 
 ## Validate a host
 
