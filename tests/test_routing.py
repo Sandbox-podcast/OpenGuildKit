@@ -80,6 +80,15 @@ class RoutingTests(unittest.TestCase):
                 for board in case.get("not_routes", []):
                     self.assertNotIn(board, routing)
 
+    def test_a_brief_with_the_title_of_a_regulation_pattern_reaches_legal(self):
+        # A pattern of kind regulation that lists legal among its roles names a text of law: its title routes there.
+        titles = {pattern_id: pattern["title"] for pattern_id, pattern in self.catalog["patterns"].items()
+                  if pattern.get("kind") == "regulation" and "legal" in pattern["roles"]}
+        self.assertGreaterEqual(len(titles), 12)
+        for pattern_id, title in titles.items():
+            with self.subTest(pattern=pattern_id):
+                self.assertIn("legal", text_routes(self.boards, title))
+
     def test_every_brain_is_reachable_from_a_plain_brief(self):
         reached = {board for case in CASES for board in case.get("must", [])}
         self.assertEqual(set(self.boards) - reached, set())
