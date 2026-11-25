@@ -47,6 +47,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `market_cli.py` | The `market` command: create, fill, check and watch market dossiers. |
 | `alerts_cli.py` | The `alerts` commands and `task alerts`: import scanner reports and review alerts. |
 | `storybook_cli.py` | The `storybook` command: compose, record and extract; loads the Storybook modules only when it runs. |
+| `terminal.py` | Detects interactive input and distinguishes a Windows console from a NUL handle. |
 | `prompts.py` | Asks a person at a terminal the setup questions of `init` and the task questions of `task consult`. |
 | `shell.py` | Quotes the commands printed for a person to paste, the same way for POSIX shells and PowerShell. |
 | `webui.py` | The local web interface: serves the built front end and a JSON API over the CLI on 127.0.0.1, refuses what needs a person at a terminal. |
