@@ -46,6 +46,20 @@ On 22 November 2026, on a laptop (Apple M1 Pro, macOS 26, Python 3.15.2) whose o
 
 The Node coordinator in `integrations/ci` has its own suite: `cd integrations/ci && npm test`. `tests/e2e/test_export_ci.py` runs the Python side of the cases it shares with that suite.
 
+## Size budgets
+
+What an agent loads is read again at every turn, so its size is tested like a time budget (#363). A test fails above the budget and names the file or output and its size in bytes.
+
+| What | Budget | Test |
+| --- | --- | --- |
+| A consultation, a board pass, a handoff | 30 000, 10 000 and 16 000 bytes | `tests/test_output_size.py` |
+| The managed block of `AGENTS.md`, for the request-status example | 16 700 bytes | `tests/test_output_size.py` |
+| The same block, for a monorepo with every role (48 packs) | 90 600 bytes | `tests/test_output_size.py` |
+| `SKILL.md`, in the package and in `integrations/` | 15 000 bytes | `tests/test_agent_instructions.py` |
+| A file of a project, for a team that wants the same rule | `max_bytes` of a [`size` check](catalog-format.md#machine-checks-and-named-evidence) | `tests/test_rule_checks.py` |
+
+The two `AGENTS.md` budgets are not the 8 000 bytes that #363 asks for. On 25 November 2026 the blocks were 15 878 and 86 248 bytes, and the text of the rule packs is 73 % and 91 % of them: each rule with its `Verify:` line, each pack with its sources. Without every `Verify:`, `Checked by task verify:` and source line they would still be 9 900 and 49 700 bytes. Reaching 8 000 means printing the packs by title with their rule IDs and leaving the text of each rule to `openguildkit task brief ID --pack PACK`, which rewrites the block of every project at its next `sync`. Until that is decided, each budget is the measured size plus 5 %, rounded up, so the block cannot grow unnoticed; the comment in the test says the same. `SKILL.md` was 28 933 bytes and is 14 330: the procedures only some sessions need are in `references/`, copied in `integrations/` and installed with the skill.
+
 ## Robustness: seeds and known crashes
 
 The robustness tests use a fixed seed, so a failure names the seed, the command and the mutated key, and reproduces. To explore, set another seed:
