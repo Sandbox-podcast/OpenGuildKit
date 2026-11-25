@@ -182,6 +182,7 @@
         "tests/test_chaosfolk_results.py",
         "tests/test_clean_errors.py",
         "tests/test_cli_coverage.py",
+        "tests/test_command_output_budget.py",
         "tests/test_components.py",
         "tests/test_dead_code.py",
         "tests/test_decisions.py",

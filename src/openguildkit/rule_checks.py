@@ -1,10 +1,11 @@
 """Validate and evaluate the machine checks that pack rules declare.
 
 A declarative check reads project files with the standard library and executes nothing:
-a path exists, a text file contains or lacks a literal text, or a field of a JSON or TOML
-file compares to a value. Literal text instead of regular expressions keeps every match
-linear, so no pattern can make a check hang. Only a pack of the project's own catalog may
-declare a `command` check, which task verify runs like the project's check commands.
+a path exists, a text file contains or lacks a literal text, a field of a JSON or TOML
+file compares to a value, or a file stays within a number of bytes. Literal text instead of
+regular expressions keeps every match linear, so no pattern can make a check hang. Only a pack
+of the project's own catalog may declare a `command` check, which task verify runs like the
+project's check commands.
 """
 
 import json
@@ -16,12 +17,13 @@ from pathlib import Path
 
 from .storage import parse_json
 
-CHECK_KINDS = ("file-exists", "text", "field", "command")
+CHECK_KINDS = ("file-exists", "text", "field", "size", "command")
 FIELD_OPERATORS = ("equals", "one_of", "min", "max", "integer")
 FIELD_FORMATS = {".json": "JSON", ".toml": "TOML"}
 MAX_PATHS = 20
 MAX_FILES = 200
 MAX_FILE_BYTES = 1_000_000
+MAX_SIZE_BYTES = 1_000_000_000
 MAX_LITERALS = 20
 MAX_LITERAL_LENGTH = 200
 MAX_SAFE_INTEGER = (1 << 53) - 1
@@ -90,6 +92,14 @@ def _validate_text(check: dict, label: str) -> None:
         raise ValueError(f"{label}.each must be true, with expect present; omit it otherwise")
 
 
+def _validate_size(check: dict, label: str) -> None:
+    _fields(check, label, {"paths", "max_bytes"}, set())
+    _validate_paths(check, label)
+    limit = check["max_bytes"]
+    if type(limit) is not int or not 1 <= limit <= MAX_SIZE_BYTES:
+        raise ValueError(f"{label}.max_bytes must be a whole number of bytes from 1 to {MAX_SIZE_BYTES}")
+
+
 def _validate_field(check: dict, label: str) -> None:
     _fields(check, label, {"path", "field"}, set(FIELD_OPERATORS))
     _validate_check_path(check["path"], f"{label}.path", pattern=False)
@@ -130,6 +140,8 @@ def validate_check(check: object, label: str, *, allow_command: bool) -> None:
         _validate_text(check, label)
     elif kind == "field":
         _validate_field(check, label)
+    elif kind == "size":
+        _validate_size(check, label)
     else:
         if not allow_command:
             raise ValueError(
@@ -156,6 +168,9 @@ def describe_check(check: dict) -> str:
         texts = " or ".join(_show(literal) for literal in check["contains"])
         subject = "Each file of " if check.get("each") else ""
         return f"{subject}{', '.join(f'`{path}`' for path in check['paths'])} {verb} {texts}."
+    if kind == "size":
+        paths = ", ".join(f"`{path}`" for path in check["paths"])
+        return f"Each file matching {paths} is at most {check['max_bytes']} bytes."
     conditions = []
     if check.get("integer"):
         conditions.append("an integer")
@@ -295,6 +310,23 @@ def _text_outcome(root: Path, check: dict) -> tuple[bool, str]:
     return True, f"{len(files)} file(s) read, none contains the text."
 
 
+def _size_outcome(root: Path, check: dict) -> tuple[bool, str]:
+    """Measure the files the paths name, without reading them: the largest is the evidence."""
+    paths, too_many = matching_paths(root, check["paths"])
+    if too_many:
+        return False, f"More than {MAX_FILES} files match: narrow the paths of the check."
+    limit = check["max_bytes"]
+    sizes = sorted(((path.stat().st_size, path.relative_to(root.resolve()).as_posix())
+                    for path in paths if path.is_file()), key=lambda item: (-item[0], item[1]))
+    if not sizes:
+        return True, f"No file matches {', '.join(check['paths'])}: nothing is above {limit} bytes."
+    above = [f"{name} is {size} bytes, above {limit}" for size, name in sizes if size > limit]
+    if above:
+        return False, f"{'; '.join(above[:5])}."
+    size, name = sizes[0]
+    return True, f"{name} is {size} bytes (the largest of {len(sizes)} file(s); at most {limit})."
+
+
 def evaluate_check(root: Path, check: dict) -> dict:
     """Evaluate a declarative check on the working tree: passed or failed, with what was found."""
     if check["kind"] == "file-exists":
@@ -307,6 +339,9 @@ def evaluate_check(root: Path, check: dict) -> dict:
         return {"status": "failed", "evidence": f"Not found: none of {', '.join(check['paths'])} exists."}
     if check["kind"] == "text":
         passed, evidence = _text_outcome(root, check)
+        return {"status": "passed" if passed else "failed", "evidence": evidence}
+    if check["kind"] == "size":
+        passed, evidence = _size_outcome(root, check)
         return {"status": "passed" if passed else "failed", "evidence": evidence}
     paths, _ = matching_paths(root, [check["path"]])
     if not paths or not paths[0].is_file():

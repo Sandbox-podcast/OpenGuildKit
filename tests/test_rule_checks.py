@@ -14,7 +14,9 @@ from unittest.mock import patch
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.cli import main
 from openguildkit.project import init_questions, profile_recommendations, resolved_profile, validate_profile
-from openguildkit.rule_checks import MAX_FILE_BYTES, MAX_FILES, evaluate_check, validate_check
+from openguildkit.rule_checks import (
+    MAX_FILE_BYTES, MAX_FILES, MAX_SIZE_BYTES, describe_check, evaluate_check, validate_check,
+)
 from openguildkit.storage import write_json
 
 from tests.support import CapturedCli
@@ -170,6 +172,124 @@ class EvaluatorTests(unittest.TestCase):
                            allow_command=False)
 
 
+class SizeCheckTests(unittest.TestCase):
+    """The size kind bounds the bytes of the files its paths name, without reading them."""
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+
+    def write(self, name, size):
+        path = self.root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"x" * size)
+
+    def check(self, **fields):
+        return {"kind": "size", "paths": ["AGENTS.md"], "max_bytes": 100, **fields}
+
+    def test_a_valid_size_check_is_accepted(self):
+        validate_check(self.check(), "check", allow_command=False)
+        validate_check(self.check(paths=["docs/**/*.md", "CLAUDE.md"], max_bytes=MAX_SIZE_BYTES), "check",
+                       allow_command=False)
+
+    def test_fields_are_required_and_nothing_else_is_accepted(self):
+        for fields, message in (({"paths": None}, "missing fields: paths"), ({"max_bytes": None}, "missing fields: max_bytes"),
+                                ({"contains": ["x"]}, "unknown fields: contains"), ({"max": 5}, "unknown fields: max")):
+            check = {key: value for key, value in self.check(**fields).items() if value is not None}
+            with self.subTest(fields=fields), self.assertRaisesRegex(ValueError, message):
+                validate_check(check, "check", allow_command=False)
+
+    def test_max_bytes_is_a_whole_positive_number_below_the_limit(self):
+        for value in (0, -1, True, False, 1.5, 100.0, "100", None, [100], MAX_SIZE_BYTES + 1):
+            with self.subTest(max_bytes=value), self.assertRaisesRegex(ValueError, "max_bytes"):
+                validate_check(self.check(max_bytes=value), "check", allow_command=False)
+
+    def test_paths_are_relative_to_the_project_and_limited_in_number(self):
+        for paths in (["../AGENTS.md"], ["/etc/passwd"], ["a/./b"], ["a//b"], [""], [], "AGENTS.md",
+                      [f"f{index}.md" for index in range(21)]):
+            with self.subTest(paths=paths), self.assertRaisesRegex(ValueError, "paths"):
+                validate_check(self.check(paths=paths), "check", allow_command=False)
+
+    def test_a_file_at_or_below_the_limit_passes_and_a_file_above_it_fails(self):
+        for size, status in ((99, "passed"), (100, "passed"), (101, "failed")):
+            with self.subTest(size=size):
+                self.write("AGENTS.md", size)
+                outcome = evaluate_check(self.root, self.check())
+                self.assertEqual(outcome["status"], status)
+                self.assertIn(f"AGENTS.md is {size} bytes", outcome["evidence"])
+
+    def test_the_evidence_names_the_largest_file_and_every_file_above_the_limit(self):
+        self.write("docs/a.md", 50)
+        self.write("docs/b.md", 130)
+        self.write("docs/c.md", 120)
+        self.write("docs/d.md", 90)
+        passed = evaluate_check(self.root, self.check(paths=["docs/a.md", "docs/d.md"]))
+        self.assertEqual(passed["status"], "passed")
+        self.assertIn("docs/d.md is 90 bytes", passed["evidence"])
+        failed = evaluate_check(self.root, self.check(paths=["docs/*.md"]))
+        self.assertEqual(failed["status"], "failed")
+        self.assertTrue(failed["evidence"].startswith("docs/b.md is 130 bytes"), failed["evidence"])
+        self.assertIn("docs/c.md is 120 bytes", failed["evidence"])
+        self.assertNotIn("docs/d.md", failed["evidence"])
+        self.assertIn("above 100", failed["evidence"])
+
+    def test_wildcards_match_files_at_any_depth_like_the_other_kinds(self):
+        self.write("a/b/deep.md", 150)
+        self.write("top.md", 10)
+        self.assertEqual(evaluate_check(self.root, self.check(paths=["*.md"]))["status"], "passed")
+        self.assertEqual(evaluate_check(self.root, self.check(paths=["**/*.md"]))["status"], "failed")
+        self.assertEqual(evaluate_check(self.root, self.check(paths=["a/?/deep.md"]))["status"], "failed")
+
+    def test_no_matching_file_passes_because_nothing_is_above_the_limit(self):
+        outcome = evaluate_check(self.root, self.check(paths=["AGENTS.md", "docs/*.md"]))
+        self.assertEqual(outcome["status"], "passed")
+        self.assertIn("No file matches AGENTS.md, docs/*.md", outcome["evidence"])
+        self.write("docs/folder.md/inner.txt", 500)
+        self.assertEqual(evaluate_check(self.root, self.check(paths=["docs/*.md"]))["status"], "passed")
+
+    def test_a_directory_is_not_measured_and_the_folders_of_the_kit_are_not_searched(self):
+        self.write(".openguildkit/big.md", 500)
+        self.write(".git/big.md", 500)
+        self.assertEqual(evaluate_check(self.root, self.check(paths=["**/*.md"]))["status"], "passed")
+
+    def test_a_file_is_measured_without_being_read(self):
+        # The file read limit does not apply: its bytes are never read, only counted.
+        self.write("bundle.js", MAX_FILE_BYTES + 1)
+        outcome = evaluate_check(self.root, self.check(paths=["bundle.js"], max_bytes=MAX_FILE_BYTES + 10))
+        self.assertEqual(outcome["status"], "passed")
+        self.assertIn(f"bundle.js is {MAX_FILE_BYTES + 1} bytes", outcome["evidence"])
+        with patch.object(Path, "read_bytes", side_effect=AssertionError("read")):
+            self.assertEqual(evaluate_check(self.root, self.check(paths=["bundle.js"]))["status"], "failed")
+
+    def test_the_number_of_files_is_bounded(self):
+        for index in range(MAX_FILES + 1):
+            self.write(f"many/{index}.txt", 1)
+        outcome = evaluate_check(self.root, self.check(paths=["many/*.txt"]))
+        self.assertEqual(outcome["status"], "failed")
+        self.assertIn("narrow", outcome["evidence"])
+
+    @unittest.skipIf(os.name == "nt", "Creating a symbolic link needs a privilege Windows does not grant by default.")
+    def test_a_link_that_leaves_the_project_is_not_measured(self):
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        Path(outside.name, "AGENTS.md").write_bytes(b"x" * 500)
+        (self.root / "AGENTS.md").symlink_to(Path(outside.name, "AGENTS.md"))
+        outcome = evaluate_check(self.root, self.check())
+        self.assertEqual(outcome["status"], "passed")
+        self.assertIn("No file matches", outcome["evidence"])
+
+    def test_the_derived_instruction_says_the_limit(self):
+        self.assertEqual(describe_check(self.check(paths=["AGENTS.md", "docs/*.md"], max_bytes=8000)),
+                         "Each file matching `AGENTS.md`, `docs/*.md` is at most 8000 bytes.")
+
+    def test_a_pack_rule_can_declare_the_check_and_the_catalog_refuses_a_malformed_one(self):
+        rule = {"id": "small-instructions", "check": self.check(max_bytes=8000)}
+        validate_entry("packs", pack([rule]))
+        with self.assertRaisesRegex(CatalogError, "max_bytes"):
+            validate_entry("packs", pack([{"id": "small-instructions", "check": self.check(max_bytes=0)}]))
+
+
 class CatalogFormatTests(unittest.TestCase):
     def test_a_bundled_pack_cannot_run_a_command(self):
         command = pack([{"id": "lint", "check": {"kind": "command", "command": "make lint"}}])
@@ -275,6 +395,16 @@ class VerifyAndEvidenceTests(CapturedCli, unittest.TestCase):
                          {"passed"})
         self.report()
         self.assertEqual(self.run_cli("task", "complete", TASK)[0].strip(), "done")
+
+    def test_task_verify_measures_the_size_of_a_file_a_rule_bounds(self):
+        self.approved([{"id": "short-notes", "check": {"kind": "size", "paths": ["notes.md"], "max_bytes": 100}}])
+        self.assertIn("rule:team-rules/short-notes: passed\n    No file matches notes.md",
+                      self.run_cli("task", "verify", TASK)[0])
+        (self.root / "notes.md").write_text("x" * 150, encoding="utf-8")
+        self.assertIn("rule:team-rules/short-notes: failed\n    notes.md is 150 bytes, above 100.",
+                      self.run_cli("task", "verify", TASK)[0])
+        self.assertIn("Each file matching `notes.md` is at most 100 bytes.",
+                      (self.root / "AGENTS.md").read_text(encoding="utf-8"))
 
     RECORD = {"id": "record-processing", "instruction": "Update the record.", "verification": "Link it.",
               "evidence": [{"id": "processing-record", "title": "Record of processing activities"}]}

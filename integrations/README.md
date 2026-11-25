@@ -4,7 +4,8 @@ Any agent that reads `AGENTS.md` and runs shell commands can follow the OpenGuil
 
 | File | What it does |
 |---|---|
-| `skills/openguildkit/SKILL.md` | Skill for Claude Code and Codex: setup questionnaire, task scoping, one pass per board, review, stop for the decision, handoff |
+| `skills/openguildkit/SKILL.md` | Skill for Claude Code and Codex: task scoping, one pass per board, review, stop for the decision, handoff; under 15 000 bytes, because it is read at every turn |
+| `skills/openguildkit/references/*.md` | What only some sessions need, read when `SKILL.md` says so: the setup questionnaire, deliberation, closing a task, market dossiers, dependency alerts, Storybook, tools and MCP servers |
 | `chaosfolk/README.md` | Optional ChaosFolk end-to-end replays: pinned version, `chaosfolk-e2e` pack, CI example and exit codes |
 | `claude-code/agents/guild-board.md` | Claude Code subagent that reviews a task through one board and returns a JSON entry |
 | `claude-code/agents/market-analyst.md` | Claude Code subagent that fills and refreshes a market dossier through `openguildkit market` commands, within the research policy |
@@ -15,7 +16,7 @@ Both agents use the same `SKILL.md` format (a folder with a `SKILL.md` file and 
 
 ## Install from the package
 
-`openguildkit integrations --host claude-code` or `--host codex` copies the skill and subagent shipped with the installed version into the project (`--user` for your home folder). It keeps files you changed unless you pass `--force`. The copies below are the same files; a test keeps them identical to the packaged ones in `src/openguildkit/agent_files/`.
+`openguildkit integrations --host claude-code` or `--host codex` copies the skill (`SKILL.md` and its `references/` files) and subagent shipped with the installed version into the project (`--user` for your home folder). It keeps files you changed unless you pass `--force`. The copies below are the same files; a test keeps them identical to the packaged ones in `src/openguildkit/agent_files/`.
 
 ## Claude Code
 
@@ -166,7 +167,7 @@ The [host validation scenario](../examples/host-validation/) checks that an agen
 
 `openguildkit init` records `"host": "other"` unless the person chooses Claude Code or Codex. For any other agent:
 
-1. `openguildkit integrations --host other` writes the skill to `.agents/skills/openguildkit/SKILL.md`, the folder of the Agent Skills format. If the agent reads its skills or instructions from another folder, copy the file there, or point the agent at `AGENTS.md`, which carries the same workflow.
+1. `openguildkit integrations --host other` writes the skill to `.agents/skills/openguildkit/SKILL.md`, the folder of the Agent Skills format. If the agent reads its skills or instructions from another folder, copy the whole folder there (`SKILL.md` and `references/`), or point the agent at `AGENTS.md`, which carries the same workflow.
 2. OpenGuildKit writes no settings for this agent. `host apply` says so, writes nothing and exits with 1; `host check` lists the rules left to the instructions (`by instruction`) or to a person (`by a person`) and exits with 0. The board guard has no hook: the AGENTS.md instruction and the CI check (`guard --ci`) are the controls.
 3. `tools apply` and `tools remove` write MCP settings for Claude Code or Codex only: add `--host claude-code` or `--host codex` to write them for one of these agents. For another agent, run `openguildkit tools plan ID`: with the host `other` it prints each server as an `mcpServers` entry, the format most MCP clients read, to copy into that agent's settings.
 4. To move to Claude Code or Codex later, run `openguildkit profile set host claude-code --by NAME --reason WHY` (or `codex`), then `openguildkit host apply`.

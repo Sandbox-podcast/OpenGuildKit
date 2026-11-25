@@ -281,9 +281,10 @@ class InteractiveInitTests(unittest.TestCase):
 
 class SkillSetupTests(unittest.TestCase):
     def test_the_skill_asks_the_questions_in_the_questionnaire_order_and_never_answers_for_the_user(self):
-        skill = (Path(__file__).resolve().parents[1] / "integrations" / "skills" / "openguildkit" / "SKILL.md")
-        text = skill.read_text(encoding="utf-8")
-        setup = text[text.index("## Setup"):text.index("## Task")]
+        # The setup procedure is a reference file of the skill: SKILL.md says when to read it.
+        folder = Path(__file__).resolve().parents[1] / "integrations" / "skills" / "openguildkit"
+        self.assertRegex((folder / "SKILL.md").read_text(encoding="utf-8"), r"references/setup\.md[^\n]*\bwhen\b")
+        setup = (folder / "references" / "setup.md").read_text(encoding="utf-8")
         self.assertIn("Never answer a question for the user", setup)
         order = [question["id"] for question in init_questions(load_catalog(), "Ledger")]
         positions = [setup.index(f"`{question_id}`") for question_id in order]

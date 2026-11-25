@@ -161,6 +161,7 @@ jobs:
           "$OPENGUILDKIT" check
           "$OPENGUILDKIT" integrations --host claude-code
           test -f .claude/skills/openguildkit/SKILL.md
+          test -f .claude/skills/openguildkit/references/setup.md
           test -f .claude/agents/guild-board.md
 
   ci-coordinator:
