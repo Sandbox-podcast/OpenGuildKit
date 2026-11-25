@@ -15,7 +15,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | design | 26 | 5 | 21 | 10 | 5 | 17 | 69 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
 | devops | 69 | 22 | 47 | 8 | 6 | 14 | 78 |
-| engineering | 217 | 32 | 185 | 14 | 26 | 43 | 230 |
+| engineering | 217 | 32 | 185 | 14 | 27 | 45 | 241 |
 | finance | 23 | 14 | 9 | 11 | 1 | 13 | 50 |
 | frontend | 8 | 3 | 5 | 2 | 0 | 4 | 19 |
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
@@ -30,9 +30,9 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | procurement | 8 | 6 | 2 | 1 | 0 | 1 | 5 |
 | product | 23 | 7 | 16 | 18 | 0 | 18 | 63 |
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
-| qa | 50 | 8 | 42 | 7 | 20 | 31 | 165 |
+| qa | 50 | 8 | 42 | 7 | 21 | 33 | 176 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 103 | 28 | 75 | 19 | 17 | 43 | 251 |
+| security | 103 | 28 | 75 | 19 | 18 | 45 | 262 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -64,6 +64,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | python-pytest | python / python3 + pytest | pytest, python | 6 |
 | rails | rails / ruby on rails | rails | 7 |
 | react-web | react / react.js / next.js | react | 5 |
+| symfony | symfony | symfony, symfony-security | 11 |
 | terraform-kubernetes | terraform + kubernetes / k8s | terraform-kubernetes | 3 |
 | typescript-development | typescript / ts | typescript | 4 |
 | vue | vue / vue.js / nuxt | vue | 7 |
@@ -86,7 +87,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 ## Machine checks by pack
 
-25 of 469 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+28 of 480 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
@@ -182,6 +183,8 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | structured-hiring | 3 | 0 | 0 |
 | supply-chain | 5 | 0 | 0 |
 | support-readiness | 4 | 0 | 0 |
+| symfony | 4 | 1 | 0 |
+| symfony-security | 7 | 2 | 0 |
 | terraform-kubernetes | 3 | 0 | 0 |
 | test-strategy | 3 | 0 | 0 |
 | threat-modeling | 3 | 0 | 0 |

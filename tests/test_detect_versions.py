@@ -154,6 +154,24 @@ class DetectedVersionTests(CapturedCli, unittest.TestCase):
         conflicts = json.dumps(plan)
         self.assertIn("Next.js ~13.0.1 is below next.js 13.4", conflicts)
 
+    def test_a_symfony_application_is_recognised_by_its_framework_bundle_and_its_version(self):
+        write(self.root, "shop/composer.json", {"require": {
+            "php": ">=8.3", "symfony/framework-bundle": "7.2.*", "symfony/console": "7.2.*"}})
+        write(self.root, "legacy/composer.json", {"require": {"symfony/symfony": "^3.4"}})
+        # A Symfony component alone is not a Symfony application: Laravel and a console tool both use them.
+        write(self.root, "tool/composer.json", {"require": {"symfony/console": "^7.0"}})
+        write(self.root, "store/composer.json", {"require": {
+            "laravel/framework": "^13.0", "symfony/http-foundation": "^7.0"}})
+        stacks = self.stacks()
+        self.assertEqual(stacks["shop"], ["PHP >=8.3", "Symfony 7.2.*"])
+        self.assertEqual(stacks["legacy"], ["PHP", "Symfony ^3.4"])
+        self.assertEqual(stacks["tool"], ["PHP"])
+        self.assertEqual(stacks["store"], ["Laravel ^13.0", "PHP"])
+        components = components_for_profile(detect_stack(self.root))
+        matched = recommend_patterns(load_catalog(), [], "general", [], components)["matched"]
+        self.assertEqual({component for pattern in matched if pattern["id"] == "symfony"
+                          for component in pattern["components"]}, {"shop", "legacy"})
+
     def test_an_old_style_kotlin_version_variable_is_read(self):
         write(self.root, "app/build.gradle",
               "buildscript {\n  ext.kotlin_version = '1.9.24'\n  dependencies {\n"

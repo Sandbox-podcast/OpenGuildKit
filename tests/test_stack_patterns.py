@@ -8,6 +8,7 @@ from pathlib import Path
 from openguildkit.catalog import load_catalog
 from openguildkit.detect import components_for_profile, detect_stack
 from openguildkit.project import profile_recommendations, resolved_profile, validate_profile
+from openguildkit.rule_checks import evaluate_check
 
 STACKS = {
     "django": ["Django", "Python", "MySQL"],
@@ -17,6 +18,7 @@ STACKS = {
     "ios-swift": ["Swift", "iOS"],
     "android-kotlin": ["Kotlin", "Android"],
     "laravel": ["Laravel", "PHP"],
+    "symfony": ["Symfony", "PHP"],
     "angular": ["Angular", "NestJS"],
     "gitlab-ci-security": ["AWS", "GitLab CI", "Docker"],
     "docker-images": ["AWS", "GitLab CI", "Docker"],
@@ -24,10 +26,21 @@ STACKS = {
 }
 PACKS = {
     "django": "django", "rails": "rails", "node-express": "express", "vue": "vue", "angular": "angular",
-    "laravel": "laravel", "ios-swift": "ios-app", "android-kotlin": "android-app",
+    "laravel": "laravel", "symfony": "symfony", "ios-swift": "ios-app", "android-kotlin": "android-app",
     "gitlab-ci-security": "gitlab-ci-security", "docker-images": "container-images", "aws-iam": "aws-iam",
 }
 GENERIC_PACKS = {"secure-sdlc", "api-design", "typescript", "python"}
+# A pattern that activates more than one pack of its own: the security configuration of an application has its own.
+EXTRA_PACKS = {"symfony": ["symfony-security"]}
+# The machine checks of the Symfony packs, by PACK/RULE: a file that meets the rule and one that does not.
+SYMFONY_CHECKS = {
+    "symfony-security/keep-local-secrets-out-of-git": (
+        ".gitignore", "/.env.local\n/.env.*.local\n", "/var/\n/vendor/\n"),
+    "symfony-security/deny-when-no-voter-decides": (
+        "config/packages/security.yaml", "security:\n    access_decision_manager:\n        strategy: unanimous\n",
+        "security:\n    access_decision_manager:\n        allow_if_all_abstain: true\n"),
+    "symfony/keep-debug-off-in-production": (".env.prod", "APP_ENV=prod\nAPP_DEBUG=0\n", "APP_ENV=prod\nAPP_DEBUG=1\n"),
+}
 
 
 def write(root: Path, relative: str, content) -> None:
@@ -48,6 +61,7 @@ REPOSITORIES = {
     "vue": {"package.json": {"dependencies": {"vue": "^3.5.0"}}},
     "angular": {"package.json": {"dependencies": {"@angular/core": "^22.0.0"}}},
     "laravel": {"composer.json": {"require": {"php": "^8.3", "laravel/framework": "^13.0"}}},
+    "symfony": {"composer.json": {"require": {"php": ">=8.3", "symfony/framework-bundle": "7.2.*"}}},
     "ios-swift": {
         "Shop.xcodeproj/project.pbxproj": "{ buildSettings = { SDKROOT = iphoneos; SWIFT_VERSION = 6.0; }; }\n",
     },
@@ -81,6 +95,27 @@ class StackPatternTests(unittest.TestCase):
                 self.assertIn(pack_id, pattern["packs"])
                 self.assertTrue(pattern["sources"])
 
+    def test_symfony_activates_its_two_packs_and_only_for_a_symfony_application(self):
+        pattern = self.catalog["patterns"]["symfony"]
+        self.assertEqual(pattern["packs"], ["symfony", *EXTRA_PACKS["symfony"]])
+        self.assertEqual(pattern["match"]["stack"], [["symfony"]])
+        self.assertIn("symfony", self.matched({"stack": ["Symfony 7.2", "PHP 8.3"]}))
+        self.assertIn("symfony", self.matched({"stack": ["Symfony 3.4.*"]}))
+        self.assertNotIn("symfony", self.matched({"stack": ["Laravel", "PHP"]}))
+        self.assertNotIn("laravel", self.matched({"stack": ["Symfony", "PHP"]}))
+        profile = validate_profile({"name": "Shop", "stack": ["Symfony 7.2", "PHP 8.3"]}, self.catalog)
+        packs = resolved_profile(profile, self.catalog)["packs"]
+        self.assertLessEqual({"symfony", "symfony-security"}, set(packs))
+
+    def test_each_symfony_check_passes_on_a_file_that_meets_its_rule_and_fails_on_one_that_does_not(self):
+        for rule_path, (path, good, bad) in SYMFONY_CHECKS.items():
+            pack_id, rule_id = rule_path.split("/")
+            rule = next(rule for rule in self.catalog["packs"][pack_id]["rules"] if rule["id"] == rule_id)
+            for content, expected in ((good, "passed"), (bad, "failed")):
+                with self.subTest(rule=rule_path, expected=expected), tempfile.TemporaryDirectory() as directory:
+                    write(Path(directory), path, content)
+                    self.assertEqual(evaluate_check(Path(directory), rule["check"])["status"], expected)
+
     def test_mobile_apps_get_accessibility_and_store_release_packs(self):
         for stack in (["Swift", "iOS"], ["Kotlin", "Android"]):
             with self.subTest(stack=stack):
@@ -97,7 +132,8 @@ class StackPatternTests(unittest.TestCase):
         generic = {
             rule["instruction"] for pack_id in GENERIC_PACKS for rule in self.catalog["packs"][pack_id]["rules"]
         }
-        new_packs = {*PACKS.values(), "mobile-accessibility", "mobile-store-release"}
+        new_packs = {*PACKS.values(), *(pack for packs in EXTRA_PACKS.values() for pack in packs),
+                     "mobile-accessibility", "mobile-store-release"}
         for pack_id in sorted(new_packs):
             with self.subTest(pack=pack_id):
                 pack = self.catalog["packs"][pack_id]
@@ -139,6 +175,7 @@ class StackDetectionTests(unittest.TestCase):
         stacks = {
             "rails": {"Ruby 3.3.4", "Rails ~> 8.1.0"},
             "laravel": {"PHP ^8.3", "Laravel ^13.0"},
+            "symfony": {"PHP >=8.3", "Symfony 7.2.*"},
             "ios-swift": {"Swift 6.0", "iOS"},
             "android-kotlin": {"Android", "Kotlin"},
             "django": {"Python", "Django"},

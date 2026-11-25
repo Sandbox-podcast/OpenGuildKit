@@ -121,6 +121,8 @@ class StackCheckTests(unittest.TestCase):
                     '{"angularCompilerOptions": {"strictTemplates": false}}'),
         "rails": (".gitignore", "/config/master.key\n", "/tmp\n"),
         "laravel": ("app/Models/User.php", "protected $fillable = ['name'];", "protected $guarded = [];"),
+        "symfony": (".env.prod", "APP_DEBUG=0\n", "APP_DEBUG=1\n"),
+        "symfony-security": (".gitignore", "/.env.local\n", "/var/\n"),
         "container-images": ("Dockerfile", "FROM python:3.13-slim@sha256:abc", "FROM python:latest"),
         "gitlab-ci-security": (".gitlab-ci.yml", "image: node:22.11", "image: node:latest"),
         "github-actions-security": (".github/workflows/ci.yml", "permissions:\n  contents: read", "on: push"),

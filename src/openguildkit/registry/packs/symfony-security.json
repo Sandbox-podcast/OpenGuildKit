@@ -1,0 +1,105 @@
+{
+  "id": "symfony-security",
+  "title": "Symfony application security",
+  "version": "1.0.0",
+  "description": "For a Symfony application: firewalls and access control, voters, CSRF tokens, validation constraints and secrets kept out of the repository; the general rules of secure-sdlc and backend-data-safety still apply.",
+  "sources": [
+    {
+      "title": "Symfony 8.1, security: firewalls, access control and IsGranted",
+      "url": "https://symfony.com/doc/8.1/security.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Symfony 8.1, how to use voters to check user permissions",
+      "url": "https://symfony.com/doc/8.1/security/voters.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Symfony 8.1, security configuration reference",
+      "url": "https://symfony.com/doc/8.1/reference/configuration/security.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Symfony 8.1, how to implement CSRF protection",
+      "url": "https://symfony.com/doc/8.1/security/csrf.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Symfony 8.1, validation",
+      "url": "https://symfony.com/doc/8.1/validation.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Symfony 8.1, how to keep sensitive information secret",
+      "url": "https://symfony.com/doc/8.1/configuration/secrets.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Symfony 8.1, configuring Symfony: environment variables and .env files",
+      "url": "https://symfony.com/doc/8.1/configuration.html",
+      "checked": "2026-11-25"
+    }
+  ],
+  "rules": [
+    {
+      "id": "protect-urls-with-access-control",
+      "instruction": "Protect each route that needs a signed-in user or a role with an `access_control` rule in `config/packages/security.yaml`. List the most specific `path` first, because only the first matching rule applies, keep the firewall without a `pattern` last, and use `PUBLIC_ACCESS` only for routes that must stay open, such as the login page.",
+      "verification": "Write a functional test for each changed protected URL: as an anonymous visitor assert that the page is not served and the visitor is sent to log in, and as a signed-in user without the role assert a 403 response. Check that the `dev` firewall `pattern` still lists only the dev tools and asset paths."
+    },
+    {
+      "id": "authorize-objects-with-voters",
+      "instruction": "Put the permission to act on a given object, such as whether this user may edit this post, in a `Voter` with `supports()` and `voteOnAttribute()`, and check it with `#[IsGranted('edit', 'post')]` or `denyAccessUnlessGranted()`. Do not stop at a role check when the action targets one user's record.",
+      "verification": "Write a functional test for the changed route as a signed-in user who does not own the object and assert a 403 response, and a unit test that `supports()` returns false for other attributes and other subjects, so that the voter abstains."
+    },
+    {
+      "id": "deny-when-no-voter-decides",
+      "instruction": "Keep `allow_if_all_abstain` at its default `false` under `security.access_decision_manager`, so that an attribute that no voter supports is denied instead of granted.",
+      "verification": "task verify evaluates the check on the working tree; review each file it names.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "config/packages/*.yaml",
+          "config/packages/**/*.yaml",
+          "config/packages/*.yml",
+          "config/packages/**/*.yml"
+        ],
+        "contains": [
+          "allow_if_all_abstain: true",
+          "allowIfAllAbstain(true)"
+        ],
+        "expect": "absent",
+        "ignore_case": true
+      }
+    },
+    {
+      "id": "keep-csrf-protection-enabled",
+      "instruction": "Keep `framework.csrf_protection` enabled and give each form that changes state a CSRF token: the Form component adds and checks one by default, and a plain HTML form sends `csrf_token()` and checks it with `isCsrfTokenValid()`. Set `csrf_protection` to false only on a read-only GET form, and enable `enable_csrf` on the `form_login` of a login form.",
+      "verification": "Send a POST to each changed state-changing route without its token and assert that the request is rejected, and search the change for `csrf_protection` set to false: each one must be a read-only GET form."
+    },
+    {
+      "id": "validate-input-with-constraints",
+      "instruction": "Declare validation constraints, such as `#[Assert\\NotBlank]` and `#[Assert\\Length]`, on each object that receives request data, and validate it through a form, the mapped request payload or `ValidatorInterface::validate()` before using or saving it. Do not hand raw request values to an entity or a query.",
+      "verification": "Run `php bin/console debug:validator 'App\\Entity\\Name'` on each changed class to list its constraints, and write a test that submits an invalid value and asserts that it is rejected and nothing is saved."
+    },
+    {
+      "id": "keep-secrets-in-the-vault",
+      "instruction": "Store passwords, API keys and other sensitive values in the secrets vault with `php bin/console secrets:set NAME`, or as real environment variables, and read them with `%env(NAME)%`. Keep production values out of `.env`, which holds the committed defaults for local development.",
+      "verification": "Run `php bin/console secrets:list` and check that each sensitive variable the change adds is listed, then search `.env` and the committed `.env.<environment>` files for production passwords, tokens and keys."
+    },
+    {
+      "id": "keep-local-secrets-out-of-git",
+      "instruction": "List `.env.local`, `.env.*.local` and `config/secrets/prod/prod.decrypt.private.php` in `.gitignore`, and give production the decryption key through `SYMFONY_DECRYPTION_SECRET` or a file that stays on the server.",
+      "verification": "task verify checks that `.gitignore` names `.env.local`; run `git ls-files` and check that no `.env.local`, no `.env.*.local` file and no `prod.decrypt.private.php` is tracked.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".gitignore"
+        ],
+        "contains": [
+          ".env.local"
+        ],
+        "expect": "present"
+      }
+    }
+  ]
+}

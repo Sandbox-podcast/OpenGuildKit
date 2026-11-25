@@ -1,0 +1,101 @@
+{
+  "id": "symfony",
+  "title": "Symfony applications",
+  "version": "1.0.0",
+  "description": "For a Symfony application: Doctrine migrations, Composer advisories, debug mode and the profiler in production, and static analysis; review a new dependency with secure-sdlc.",
+  "sources": [
+    {
+      "title": "Symfony 8.1, databases and the Doctrine ORM: migrations",
+      "url": "https://symfony.com/doc/8.1/doctrine.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "DoctrineMigrationsBundle",
+      "url": "https://symfony.com/bundles/DoctrineMigrationsBundle/current/index.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Doctrine Migrations 3.10, managing migrations",
+      "url": "https://www.doctrine-project.org/projects/doctrine-migrations/en/current/reference/managing-migrations.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Composer, command-line interface: audit and install",
+      "url": "https://getcomposer.org/doc/03-cli.md",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Composer, basic usage: the composer.lock file",
+      "url": "https://getcomposer.org/doc/01-basic-usage.md",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Symfony 8.1, how to deploy a Symfony application",
+      "url": "https://symfony.com/doc/8.1/deployment.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Symfony 8.1, front controller, kernel and environments: debug mode",
+      "url": "https://symfony.com/doc/8.1/configuration/front_controllers_and_kernel.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Symfony 8.1, the profiler",
+      "url": "https://symfony.com/doc/8.1/profiler.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Symfony 8.1, service container: linting service definitions",
+      "url": "https://symfony.com/doc/8.1/service_container.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "PHPStan, getting started",
+      "url": "https://phpstan.org/user-guide/getting-started",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "PHPStan, rule levels",
+      "url": "https://phpstan.org/user-guide/rule-levels",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "PHPStan, baseline",
+      "url": "https://phpstan.org/user-guide/baseline",
+      "checked": "2026-11-25"
+    }
+  ],
+  "rules": [
+    {
+      "id": "review-doctrine-migrations",
+      "instruction": "Generate the migration of each mapping change with `php bin/console make:migration`, read its SQL and its `down()` method, and commit it with the change. Apply it with `php bin/console doctrine:migrations:migrate` when you deploy.",
+      "verification": "On a fresh test database run `php bin/console doctrine:migrations:migrate --no-interaction`, then `php bin/console doctrine:migrations:migrate prev --no-interaction` to run the new `down()`, and check that the file under `migrations/` is part of the change. For a production change, attach the SQL that `doctrine:migrations:migrate --dry-run` shows."
+    },
+    {
+      "id": "audit-composer-dependencies",
+      "instruction": "Commit `composer.lock`, install from it with `composer install`, and run `composer audit --locked` in CI. Fix each advisory it reports, or record the reason and an owner for it, before merging a change to `composer.json` or `composer.lock`.",
+      "verification": "Run `composer audit --locked` and check that it exits with 0, or that each advisory it lists has an owner and a reason in the change."
+    },
+    {
+      "id": "keep-debug-off-in-production",
+      "instruction": "Run production with `APP_ENV=prod` and `APP_DEBUG=0`, install the profiler as a development dependency only (`composer require --dev symfony/profiler-pack`), and deploy with `composer install --no-dev --optimize-autoloader`. Never enable the profiler in production.",
+      "verification": "task verify checks that `.env.prod` and `.env.prod.local` do not set `APP_DEBUG=1`; also check the deployment script and the production environment for `APP_ENV=prod` and `APP_DEBUG=0`, and that `symfony/profiler-pack` sits under `require-dev` in `composer.json`.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".env.prod",
+          ".env.prod.local"
+        ],
+        "contains": [
+          "APP_DEBUG=1"
+        ],
+        "expect": "absent"
+      }
+    },
+    {
+      "id": "run-static-analysis",
+      "instruction": "Run a static analyser such as PHPStan on `src/` in CI at the level the project sets, and run `php bin/console lint:container`. Fix a new error instead of lowering the level or adding it to the baseline file.",
+      "verification": "Run `vendor/bin/phpstan analyse` or the project's analyser and `php bin/console lint:container` and check that both exit with 0, then review the change for a lowered `level` and for new entries in `phpstan-baseline.neon`."
+    }
+  ]
+}
