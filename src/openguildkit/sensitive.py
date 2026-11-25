@@ -175,6 +175,24 @@ def credential_problems(value: object, path: str) -> list[str]:
     return []
 
 
+def _carries_credentials(url) -> bool:
+    return url.username is not None or url.password is not None or any(
+        _QUERY_CREDENTIAL.search(name) or looks_like_credential(value)
+        for name, value in parse_qsl(url.query, keep_blank_values=True)
+    )
+
+
+def refuse_link_credentials(ref: str, field: str) -> None:
+    """Refuse a link with a user name, a password or a credential in its query string; the link is never repeated."""
+    try:
+        url = urlsplit(ref.strip())
+    except ValueError:
+        return
+    if _carries_credentials(url):
+        raise ValueError(f"{field}: the link must carry no user name, password or token: the address is recorded as "
+                         f"written, and {WHERE}.")
+
+
 def public_evidence_url(ref: str, field: str) -> None:
     """Validate an HTTPS citation's literal host and query, without resolving its address."""
     try:
@@ -185,10 +203,7 @@ def public_evidence_url(ref: str, field: str) -> None:
         hostname = None
     if not hostname or url.scheme != "https" or any(char.isspace() for char in ref):
         raise ValueError(f"{field}: a public source needs an https link in ref.")
-    if url.username is not None or url.password is not None or any(
-        _QUERY_CREDENTIAL.search(name) or looks_like_credential(value)
-        for name, value in parse_qsl(url.query, keep_blank_values=True)
-    ):
+    if _carries_credentials(url):
         raise ValueError(f"{field}: a public source must use a link without credentials.")
     host = hostname.rstrip(".")
     try:

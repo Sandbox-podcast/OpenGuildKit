@@ -26,7 +26,7 @@ from urllib.parse import urlsplit
 from . import clock
 from .deliverables import project_path
 from .project import pack_scopes, rule_plan, rule_text
-from .sensitive import WHERE, personal_data_kinds, redact_data
+from .sensitive import WHERE, personal_data_kinds, redact_data, refuse_link_credentials
 from .storage import project_lock, read_json, write_json, write_text
 from .tasks import read_task
 from .workflow import objections
@@ -303,6 +303,7 @@ def add_share(state: Path, deliverable: str, recipients: list[str], until: str, 
     if not recipients or bad:
         raise ValueError(f"List the recipients' email addresses{': ' + ', '.join(bad) if bad else ''}.")
     _share_end(until)
+    refuse_link_credentials(portal, "--portal")
     space = portal_space(portal)
     share = {"id": uuid.uuid4().hex[:8], "deliverable": deliverable.strip(), "recipients": sorted(set(recipients)),
              "until": until, "portal": portal, "space": space, "by": by.strip(),

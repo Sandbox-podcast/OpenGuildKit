@@ -10,6 +10,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - A brief or an answer of tens of thousands of characters on one line no longer stalls `task new` and `task consult` for 10 to 30 seconds: the credential and personal data detector and the path search of routing no longer backtrack.
 - `task result` replaces a credential in the revision, the pull request, the criteria, the evidence and the reasons with a placeholder, and warns like `task new` does, so `task export` no longer commits it; `docs export` checks its pages again, replaces what a record still holds and warns about an email address, a phone number or a bank account number it publishes.
 - The credential detector now replaces `redis://:PASSWORD@host`, the `_authToken` of an `.npmrc`, `secretAccessKey` of the AWS CLI, a PGP private key block, `mdp:`, `--password VALUE`, `--pass VALUE` and the `-p VALUE` of `docker login` and `sshpass`; a requirement such as `Password: required, min 12 chars` is no longer rewritten.
+- `market watch`, `market observe --source`, `market change --source`, `docs share add --portal` and `storybook compose --url` refuse a link with a user name, a password or a token in its query, instead of recording it in a committed file; the market commands also refuse a link to a private host.
 
 ## 0.17.0
 

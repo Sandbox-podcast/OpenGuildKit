@@ -19,6 +19,7 @@ from urllib.parse import urlsplit
 
 from . import clock
 from .detect import walk
+from .sensitive import refuse_link_credentials
 from .stack_versions import STORYBOOK_VERSION, lower_bounds, parse_range, parse_version, satisfies, version_text
 from .storage import json_text, project_lock, read_json, write_json, write_text
 
@@ -260,6 +261,7 @@ def _check_ref_url(url: object) -> None:
                          "Let the Storybook host handle authentication, with its own sign-in.")
     if not netloc or not re.fullmatch(r"(https://[^\s]+|http://(localhost|127\.0\.0\.1)(:\d+)?(/[^\s]*)?)", url):
         raise ValueError("The composed Storybook needs an https URL, or http://localhost while testing.")
+    refuse_link_credentials(url, "The composed Storybook URL")
 
 
 def compose(root: Path, ref: str, url: str | None, title: str | None = None, remove: bool = False,

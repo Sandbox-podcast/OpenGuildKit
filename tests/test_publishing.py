@@ -162,6 +162,21 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.run_cli("docs", "share", "check")
         self.assertIn("shares/", (self.root / ".openguildkit" / ".gitignore").read_text())
 
+    def test_a_share_refuses_a_portal_address_with_a_password_or_a_token(self):
+        self.deliverable("docs-site/reference/request-status.md")
+        until = (clock.real_today() + timedelta(days=14)).isoformat()
+        password, token = "S3cr3t" + "Pw", "abc" + "123"
+        for portal in (f"https://admin:{password}@docs.example.org/p/zz?token={token}", f"https://admin:{password}@docs.example.org/p/zz",
+                       f"https://docs.example.org/p/zz?token={token}", f"https://docs.example.org/p/zz?api_key={token}abcdef"):
+            with self.subTest(portal=portal[:30]):
+                _, error = self.run_cli("docs", "share", "add", "--deliverable", "docs-site/reference/request-status.md",
+                                        "--recipient", "client@example.org", "--until", until, "--portal", portal,
+                                        "--by", "Camille", code=1)
+                self.assertIn("--portal: the link must carry no user name, password or token", error)
+                for secret in (password, token):
+                    self.assertNotIn(secret, error)
+        self.assertFalse((self.root / ".openguildkit" / "shares" / "shares.json").exists())
+
     def exported_site(self):
         self.done_task()
         self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0")
