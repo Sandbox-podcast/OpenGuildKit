@@ -79,6 +79,8 @@ SUBJECTS = {
     **{pack: ("infrastructure and delivery", _INFRASTRUCTURE) for pack in (
         "container-images", "kubernetes-gitops", "terraform-kubernetes", "aws-iam", "github-actions-security",
         "gitlab-ci-security", "incident-response", "release-management", "supply-chain")},
+    # The tools, instructions and checks agents work with: the repository's delivery tooling.
+    "agent-native-engineering": ("the tools and instructions agents work with", _INFRASTRUCTURE),
     "finops-cost-management": ("cloud and vendor spending", [
         {"surface": ["infrastructure"]}, {"surface": ["business"], "concerns": ["money"], "boards": ["finance", "devops"]}]),
     **{pack: ("AI", _AI) for pack in ("llm-evaluations", "nist-ai-risk", "eu-ai-act")},
