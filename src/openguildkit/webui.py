@@ -43,7 +43,8 @@ READABLE_SUFFIXES = {".json", ".jsonl", ".md", ".markdown", ".txt", ".yaml", ".y
 WRITABLE_FILES = {".openguildkit/storybook/proposals.json"}
 # Names that suggest a secret, and the files where tools keep their tokens (token.json, auth.json, a cloud service
 # account, Azure Functions' local.settings.json): the page neither lists nor reads them. The tool's own records under
-# .openguildkit/ are named after task IDs, such as token-rotation.json, and stay readable.
+# .openguildkit/ are named after task and dossier IDs, such as token-rotation.json or password-reset.json, and stay
+# readable.
 SECRET_NAME = re.compile(r"(^\.env)|secret|credential|password|private[-_]?key|\.pem$|\.key$|id_rsa|id_ed25519", re.I)
 TOKEN_FILE = re.compile(r"^token.*\.json$|^auth\.json$|service[-_]?account.*\.json$|^local\.settings\.json$", re.I)
 # The settings where package managers, containers and frameworks keep a token or a password in clear: Yarn's
@@ -237,10 +238,10 @@ def _in_git(parts) -> bool:
 
 def _secret(parts: tuple[str, ...]) -> bool:
     """A path the page neither lists nor reads: a name that suggests a secret, or a tool's token file."""
-    if any(SECRET_NAME.search(part) for part in parts):
-        return True
     if not parts or parts[0] == ".openguildkit":
         return False
+    if any(SECRET_NAME.search(part) for part in parts):
+        return True
     return bool(TOKEN_FILE.search(parts[-1]) or CREDENTIAL_FILE.search(parts[-1])
                 or tuple(part.casefold() for part in parts[-2:]) in CREDENTIAL_PATH)
 

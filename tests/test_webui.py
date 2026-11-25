@@ -228,6 +228,22 @@ class WebInterfaceTests(unittest.TestCase):
         listed = json.loads(self.request("/api/files/list", {"path": ".openguildkit/decisions"})[2])["entries"]
         self.assertEqual([entry["name"] for entry in listed], ["token-rotation.json"])
 
+    def test_the_tools_own_records_stay_listed_and_readable_whatever_their_id_says(self):
+        """A market dossier or a task named after a password manager is not a secret: only the project's files are."""
+        self.assertEqual(self.run_in_page("market", "new", "password-manager", "--title", "T", "--market", "SaaS",
+                                          "--audience", "IT")[1]["code"], 0)
+        self.assertEqual(self.run_in_page("task", "new", "Reset a password", "--id", "password-reset")[1]["code"], 0)
+        for folder, name in ((".openguildkit/market", "password-manager.json"),
+                             (".openguildkit/tasks", "password-reset.json")):
+            with self.subTest(name=name):
+                listed = json.loads(self.request("/api/files/list", {"path": folder})[2])["entries"]
+                self.assertIn(name, [entry["name"] for entry in listed])
+                status, _, body = self.request("/api/files/read", {"path": f"{folder}/{name}"})
+                self.assertEqual(status, 200, body)
+        (self.root / "password-manager.json").write_text("{}", encoding="utf-8")
+        status, _, body = self.request("/api/files/read", {"path": "password-manager.json"})
+        self.assertEqual((status, json.loads(body)["reason"]), (403, "secret-file"))
+
     def test_the_files_where_tools_keep_credentials_are_neither_listed_nor_read(self):
         """The package managers, container and framework settings that hold a password or a token in clear."""
         covered = (".yarnrc.yml", ".yarnrc", ".npmrc", ".pypirc", ".netrc", ".git-credentials", "appsettings.json",
