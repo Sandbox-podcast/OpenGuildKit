@@ -118,7 +118,10 @@ class RegulatoryPackTests(unittest.TestCase):
 
     def test_rules_not_yet_applicable_carry_their_date(self):
         dated = {
-            "eu-ai-act": {"classify-employment-use": "2 December 2027", "keep-high-risk-logs": "2 December 2027",
+            # Art. 113(a) as amended by Regulation (EU) 2026/1744: Art. 5(1)(ba) and (bb), 5(1a) and 5(1b) apply
+            # from 2 December 2026, the rest of Art. 5 since 2 February 2025 (#345).
+            "eu-ai-act": {"classify-ai-system": "2 December 2026",
+                          "classify-employment-use": "2 December 2027", "keep-high-risk-logs": "2 December 2027",
                           "enable-human-oversight": "2 December 2027",
                           "maintain-technical-documentation": "2 December 2027",
                           "mark-generated-content": "2 December 2026"},
@@ -131,6 +134,11 @@ class RegulatoryPackTests(unittest.TestCase):
             for rule_id, day in rules.items():
                 with self.subTest(pack=pack_id, rule=rule_id):
                     self.assertIn(day, pack[rule_id]["instruction"])
+        ai_act = self.catalog["packs"]["eu-ai-act"]
+        for text in (ai_act["description"], next(rule["instruction"] for rule in ai_act["rules"]
+                                                  if rule["id"] == "classify-ai-system")):
+            for fact in ("Art. 5(1)(ba) and (bb)", "Art. 5(1a) and (1b)", "2 December 2026", "Art. 113(a)"):
+                self.assertIn(fact, text)
         sources = {source["url"]: source["checked"] for source in self.catalog["packs"]["eu-ai-act"]["sources"]}
         self.assertEqual(sources["https://ai-act-service-desk.ec.europa.eu/en/ai-act/timeline/timeline-implementation-eu-ai-act"],
                          "2026-11-22")
