@@ -333,6 +333,11 @@
       "applies_when": "Pour rendre des décisions explicites et vérifiables, éventuellement en complément de processus BPMN.",
       "sources": [
         {
+          "url": "https://www.omg.org/spec/DMN/",
+          "checked": "2026-11-25",
+          "title": "OMG, Decision Model and Notation, specification versions"
+        },
+        {
           "url": "https://www.omg.org/spec/DMN/1.5",
           "checked": "2026-11-21",
           "title": "Decision Model and Notation 1.5 - OMG"
@@ -695,6 +700,11 @@
       "applies_when": "Pour les fichiers où la lisibilité et l'édition manuelle comptent ; choisir un schéma et des contrôles adaptés aux ambiguïtés du format.",
       "sources": [
         {
+          "url": "https://yaml.org/",
+          "checked": "2026-11-25",
+          "title": "YAML Ain't Markup Language (YAML), specifications"
+        },
+        {
           "url": "https://yaml.org/spec/1.2.2/",
           "checked": "2026-11-21",
           "title": "YAML Ain't Markup Language (YAML) revision 1.2.2"
@@ -714,6 +724,11 @@
       "summary": "Organise des paramètres de configuration sous forme de clés, de valeurs et de sections lisibles.",
       "applies_when": "Pour les projets ou outils qui utilisent TOML ; alternative à JSON ou YAML selon les besoins de configuration.",
       "sources": [
+        {
+          "url": "https://toml.io/en/latest",
+          "checked": "2026-11-25",
+          "title": "TOML, latest version"
+        },
         {
           "url": "https://toml.io/en/v1.1.0",
           "checked": "2026-11-23",
@@ -792,6 +807,11 @@
       "summary": "Associe un schéma à une représentation sérialisée des données et définit des mécanismes de lecture entre schémas.",
       "applies_when": "Pour les échanges ou fichiers de données qui utilisent Avro ; vérifier les règles d'évolution des schémas de lecture et d'écriture.",
       "sources": [
+        {
+          "url": "https://avro.apache.org/docs/++version++/specification/",
+          "checked": "2026-11-25",
+          "title": "Apache Avro Specification, latest version"
+        },
         {
           "url": "https://avro.apache.org/docs/1.12.0/specification/",
           "checked": "2026-11-21",

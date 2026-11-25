@@ -126,6 +126,11 @@
       ],
       "sources": [
         {
+          "url": "https://owasp.org/www-project-api-security/",
+          "checked": "2026-11-25",
+          "title": "OWASP API Security Project"
+        },
+        {
           "url": "https://api-security.owasp.org/editions/2023/en/0x11-t10/",
           "checked": "2026-11-21",
           "title": "OWASP Top 10 API Security Risks – 2023"
@@ -358,6 +363,11 @@
       "summary": "Propose un format léger pour les déclarations VEX sur l'effet d'une vulnérabilité.",
       "applies_when": "Si les outils retenus prennent en charge cette spécification encore présentée comme draft par son projet.",
       "sources": [
+        {
+          "url": "https://github.com/openvex/spec/releases/latest",
+          "checked": "2026-11-25",
+          "title": "OpenVEX Spec, latest release"
+        },
         {
           "url": "https://github.com/openvex/spec/releases/tag/v0.2.0",
           "checked": "2026-11-23",

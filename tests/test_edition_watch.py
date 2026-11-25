@@ -10,7 +10,6 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
 
 from openguildkit.references import load_references
 
@@ -35,18 +34,21 @@ CHECKED = {"quality": {**FAMILIES["quality"], "references": [
 
 
 # References whose every source is a page whose address holds the edition: the publisher keeps that page online after
-# a new edition, so the watch keeps finding the old one there. Each one waits for a page that follows the editions
-# (#348); the list may only shrink.
+# a new edition, so the watch keeps finding the old one there. Each one lacks a page of the publisher that follows the
+# editions and that the watch can read (#348); the list may only shrink.
 VERSIONED_ONLY = {
-    "apache-avro", "dmn", "dtcg-design-tokens", "hm-treasury-green-book", "keep-a-changelog", "openvex",
-    "owasp-agentic-top-10", "owasp-api-top-10", "prince2", "saml-2", "toml", "yaml",
+    "keep-a-changelog": "keepachangelog.com sends readers to the versioned page through an HTML redirect the watch "
+                        "does not follow.",
+    "owasp-agentic-top-10": "No OWASP page other than the 2026 resource names the edition.",
+    "prince2": "PeopleCert refused both a browser and the watch (HTTP 403) on 2026-11-25.",
+    "saml-2": "The OASIS page of the standard writes v2.0, which the watch does not read as the edition 2.0.",
 }
-
-
-def names_edition(url: str, edition: str) -> bool:
-    """True when the address itself holds the edition, as /dicom/2026b/ or /celex/02024R1689-20260727 do."""
-    parts = urlsplit(url)
-    return watch_editions.shows_edition(unquote(f"{parts.path} {parts.query}"), edition)
+PINNED = "https://standards.example.test/2026b/spec"
+CURRENT = "https://standards.example.test/current/spec"
+FOLLOWED = {"data": {"id": "data", "title": "Data", "references": [
+    {"id": "spec-y", "edition": "2026b", "sources": [{"title": "Pinned", "url": PINNED, "checked": "2026-11-20"},
+                                                      {"title": "Current", "url": CURRENT, "checked": "2026-11-20"}]},
+]}}
 
 
 def pages(**texts):
@@ -134,6 +136,7 @@ class EditionWatchTests(unittest.TestCase):
     def test_a_page_that_names_the_edition_comes_with_one_that_does_not(self):
         """A versioned page stays online and keeps showing its edition: the watch needs a source that follows the
         editions, such as DICOM's current folder (#348)."""
+        names_edition = watch_editions.names_edition
         self.assertTrue(names_edition("https://dicom.nema.org/medical/dicom/2026b/output/html/part01.html", "2026b"))
         self.assertFalse(names_edition("https://dicom.nema.org/medical/dicom/current/output/html/part01.html", "2026b"))
         self.assertTrue(names_edition("https://publications.europa.eu/resource/celex/02016R0679-20160504",
@@ -141,6 +144,36 @@ class EditionWatchTests(unittest.TestCase):
         versioned_only = sorted(entry["reference"] for entry in watch_editions.watched(load_references())
                                 if all(names_edition(url, entry["edition"]) for url in entry["pages"]))
         self.assertEqual(versioned_only, sorted(VERSIONED_ONLY))
+
+    def test_once_seen_on_a_page_that_follows_the_editions_the_pinned_page_is_no_longer_read(self):
+        """The pinned page keeps showing 2026b after 2026e is out: the current page, where the watch saw 2026b, alone
+        decides (#348)."""
+        seen = watch_editions.watch(FOLLOWED, {}, lambda url: {"status": 200, "text": "DICOM 2026b"}, "2026-11-30")
+        self.assertEqual(seen["references"]["spec-y"]["page"], CURRENT)
+        for status, text, expected in ((200, "DICOM 2026e", "may-have-changed"), (403, None, "unreachable")):
+            opened = []
+
+            def fetcher(url, status=status, text=text):
+                opened.append(url)
+                return {"status": status, "text": text} if url == CURRENT else {"status": 200, "text": "DICOM 2026b"}
+
+            with self.subTest(status=status):
+                record = watch_editions.watch(FOLLOWED, seen, fetcher, "2026-12-07")["references"]["spec-y"]
+                self.assertEqual((record["status"], record["page"], record["seen"]), (expected, CURRENT, "2026b"))
+                self.assertEqual(opened, [CURRENT])
+
+    def test_a_page_that_never_showed_the_edition_leaves_the_pinned_page_in_the_watch(self):
+        """A regulation cites a policy page and EUR-Lex, which show no consolidation to the watch: its Publications
+        Office page, whose address holds the consolidation, keeps it watched (#348)."""
+        opened = []
+
+        def fetcher(url):
+            opened.append(url)
+            return {"status": 200, "text": "Policy summary" if url == CURRENT else "02016R0679-20160504 2026b"}
+
+        record = watch_editions.watch(FOLLOWED, {}, fetcher, "2026-12-01")["references"]["spec-y"]
+        self.assertEqual((record["status"], record["page"]), ("found", PINNED))
+        self.assertEqual(opened, [CURRENT, PINNED])
 
     def test_dicom_follows_the_current_edition(self):
         state = watch_editions.read_state(watch_editions.STATE)

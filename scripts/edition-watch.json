@@ -34,9 +34,9 @@
     "apache-avro": {
       "family": "architecture",
       "edition": "1.12.0",
-      "page": "https://avro.apache.org/docs/1.12.0/specification/",
+      "page": "https://avro.apache.org/docs/++version++/specification/",
       "seen": "1.12.0",
-      "seen_on": "2026-11-21",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -184,9 +184,9 @@
     "dmn": {
       "family": "architecture",
       "edition": "1.5",
-      "page": "https://www.omg.org/spec/DMN/1.5",
+      "page": "https://www.omg.org/spec/DMN/",
       "seen": "1.5",
-      "seen_on": "2026-11-21",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -214,9 +214,9 @@
     "dtcg-design-tokens": {
       "family": "design",
       "edition": "2025.10",
-      "page": "https://www.designtokens.org/tr/2025.10/format/",
+      "page": "https://www.designtokens.org/",
       "seen": "2025.10",
-      "seen_on": "2026-11-21",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -374,9 +374,9 @@
     "hm-treasury-green-book": {
       "family": "finance",
       "edition": "2026",
-      "page": "https://www.gov.uk/government/publications/the-green-book--2/the-green-book-2026",
+      "page": "https://www.gov.uk/government/publications/the-green-book-appraisal-and-evaluation-in-central-government",
       "seen": "2026",
-      "seen_on": "2026-11-21",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -1074,9 +1074,9 @@
     "openvex": {
       "family": "security",
       "edition": "v0.2.0",
-      "page": "https://github.com/openvex/spec/releases/tag/v0.2.0",
+      "page": "https://github.com/openvex/spec/releases/latest",
       "seen": "v0.2.0",
-      "seen_on": "2026-11-23",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -1094,9 +1094,9 @@
     "owasp-api-top-10": {
       "family": "security",
       "edition": "2023",
-      "page": "https://api-security.owasp.org/editions/2023/en/0x11-t10/",
+      "page": "https://owasp.org/www-project-api-security/",
       "seen": "2023",
-      "seen_on": "2026-11-21",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -1324,9 +1324,9 @@
     "toml": {
       "family": "architecture",
       "edition": "v1.1.0",
-      "page": "https://toml.io/en/v1.1.0",
+      "page": "https://toml.io/en/latest",
       "seen": "v1.1.0",
-      "seen_on": "2026-11-23",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -1454,9 +1454,9 @@
     "yaml": {
       "family": "architecture",
       "edition": "1.2.2",
-      "page": "https://yaml.org/spec/1.2.2/",
+      "page": "https://yaml.org/",
       "seen": "1.2.2",
-      "seen_on": "2026-11-21",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
