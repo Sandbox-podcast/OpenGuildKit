@@ -5,6 +5,7 @@ import sys
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from openguildkit.storage import write_json
@@ -21,7 +22,7 @@ def tty_that_is_not_a_console():
     with patch("sys.stdin.isatty", return_value=True), \
             patch("openguildkit.terminal._isatty_replaced", return_value=False), \
             patch("openguildkit.terminal._windows_console", return_value=False), \
-            patch("sys.platform", "win32"):
+            patch("openguildkit.terminal.sys", SimpleNamespace(platform="win32", stdin=sys.stdin)):
         yield
 
 
