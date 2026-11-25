@@ -99,5 +99,42 @@ class MarketStaleObservationTests(unittest.TestCase):
         self.assertTrue(flagged(181))
 
 
+class ApprovalNeutralChangeTests(Project):
+    """docs/patterns.md and docs/workflow.md: only a change of the rules, the checks or the boards voids an approval;
+    a new tool or the guard leaves it standing."""
+
+    RULE = "Only a change of the rules, the checks or the boards voids an approval"
+
+    def problem(self):
+        return json.loads(self.run_cli("task", "list", "--json")[0])[0].get("approval_problem")
+
+    def test_both_pages_give_the_rule(self):
+        section = (REPO / "docs" / "patterns.md").read_text(encoding="utf-8").split(
+            "## Change the profile after setup", 1)[1].split("\n## ", 1)[0]
+        workflow = (REPO / "docs" / "workflow.md").read_text(encoding="utf-8")
+        for page, text in (("patterns.md", section), ("workflow.md", workflow)):
+            with self.subTest(page=page):
+                self.assertIn(self.RULE, text)
+                self.assertRegex(text, r"A new (tool or convention|convention or tool), the guard[^.]*leave approvals "
+                                       r"standing")
+        self.assertNotIn("makes earlier approvals stale", section)
+
+    def test_an_approval_holds_after_a_tool_and_the_guard_and_not_after_a_pack(self):
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
+        self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json")
+        template = json.loads(self.run_cli("task", "template", TASK)[0])
+        write_json(self.root / "review.json", {"consultation_id": template["consultation_id"],
+                                               **json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))})
+        self.run_cli("task", "review", TASK, "--file", self.root / "review.json")
+        self.run_cli("task", "decide", TASK, "--approve", "--by", "CM", "--reason", "Agreed", typed=TASK)
+        self.run_cli("profile", "add", "tool", "Jira", "--by", "CM", "--reason", "Tracker")
+        self.run_cli("profile", "set", "guard", "enforce", "--by", "CM", "--reason", "Audit")
+        self.assertIsNone(self.problem())
+        output, _ = self.run_cli("profile", "add", "pack", "threat-modeling", "--by", "CM", "--reason", "Threats")
+        self.assertIn(f"This change voids the approval of {TASK}", output)
+        self.assertEqual(self.problem(), "earlier-rules")
+        self.assertIn("earlier rules (pack threat-modeling added)", self.run_cli("check", code=1)[1])
+
+
 if __name__ == "__main__":
     unittest.main()
