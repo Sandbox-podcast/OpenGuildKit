@@ -2,22 +2,22 @@ import { committedFile, git, gitSha, isGitPath, parseProfile, readRule } from '.
 import { parseJsonObject } from './json.mjs';
 
 const questions = {
-  project: 'Quel projet et quel dépôt sont concernés ?',
-  owner: 'Quel mainteneur approuve le profil ?',
-  stack: 'Quelles technologies sont utilisées ?',
-  environments: 'Quels environnements sont concernés ?',
-  conventions: 'Quelles conventions existantes faut-il respecter ?',
-  testCommands: 'Quelles commandes de vérification sont approuvées ?',
-  sensitivePaths: 'Quelles zones du dépôt sont sensibles ?',
-  tools: 'Quels outils sont autorisés ?',
-  ticketTracker: 'Où l’équipe suit-elle ses tickets ? Indiquer « aucun » le cas échéant.',
-  dataAccess: 'Quelles données l’agent peut-il consulter ?',
-  aiModels: 'Quels modèles sont autorisés ?',
-  executionBudget: 'Quel budget d’exécution a été approuvé ?',
-  requiredApprovals: 'Quelles validations sont requises ?',
-  references: 'Quels référentiels ou conventions internes s’appliquent ?',
-  ruleId: 'Quelle règle du catalogue appliquer en observation ?',
-  targetPath: 'Quel fichier du dépôt doit être vérifié ?',
+  project: 'Which project and which repository does this concern?',
+  owner: 'Which maintainer approves the profile?',
+  stack: 'Which technologies are used?',
+  environments: 'Which environments does this cover?',
+  conventions: 'Which existing conventions must be followed?',
+  testCommands: 'Which verification commands are approved?',
+  sensitivePaths: 'Which areas of the repository are sensitive?',
+  tools: 'Which tools are allowed?',
+  ticketTracker: 'Where does the team track its tickets? Write "none" if there is no tracker.',
+  dataAccess: 'Which data can the agent read?',
+  aiModels: 'Which models are allowed?',
+  executionBudget: 'Which execution budget has been approved?',
+  requiredApprovals: 'Which approvals are required?',
+  references: 'Which internal standards or conventions apply?',
+  ruleId: 'Which catalog rule should apply in observation mode?',
+  targetPath: 'Which file of the repository must be checked?',
 };
 
 const arrays = ['stack', 'environments', 'conventions', 'testCommands', 'sensitivePaths',
@@ -26,11 +26,11 @@ const text = value => typeof value === 'string' && value.trim().length > 0;
 
 export function loadCatalog({ policyRepo, policyCommit, catalogPath = 'policy/catalog.json' }) {
   if (!policyRepo || !gitSha.test(policyCommit) || !isGitPath(catalogPath)) {
-    throw new Error('Le catalogue demande un dépôt, un SHA complet et un chemin Git relatif.');
+    throw new Error('The catalog needs a repository, a full SHA and a relative Git path.');
   }
   const catalog = parseJsonObject(committedFile(policyRepo, policyCommit, catalogPath), catalogPath);
   if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.rules) || !catalog.rules.length) {
-    throw new Error('Catalogue invalide : au moins une règle est requise.');
+    throw new Error('Invalid catalog: at least one rule is required.');
   }
   const ids = new Set();
   const rules = catalog.rules.map(entry => {
@@ -38,12 +38,12 @@ export function loadCatalog({ policyRepo, policyCommit, catalogPath = 'policy/ca
         !Array.isArray(entry.scope) || !entry.scope.length || !entry.scope.every(text) ||
         entry.evaluation !== 'automated' || !isGitPath(entry.policyPath) ||
         !isGitPath(entry.targetPath) || ids.has(entry.id)) {
-      throw new Error(`Entrée de catalogue invalide : ${entry.id}`);
+      throw new Error(`Invalid catalog entry: ${entry.id}`);
     }
     ids.add(entry.id);
     const source = readRule(policyRepo, policyCommit, { ...entry, ruleId: entry.id });
     if (source.format !== 'catalog' && (!Number.isSafeInteger(source.version) || source.version < 1)) {
-      throw new Error(`La règle versionnée ne correspond pas au catalogue : ${entry.id}`);
+      throw new Error(`The versioned rule does not match the catalog: ${entry.id}`);
     }
     return { ...entry, version: source.version, supported: entry.id === 'export-link-expiry' };
   });
@@ -52,7 +52,7 @@ export function loadCatalog({ policyRepo, policyCommit, catalogPath = 'policy/ca
 
 export function questionnaire({ repo, ref, catalog, inspect }) {
   const commit = git(repo, 'rev-parse', '--verify', '--end-of-options', `${ref}^{commit}`).toString().trim();
-  if (!gitSha.test(commit)) throw new Error('Révision d’inventaire invalide.');
+  if (!gitSha.test(commit)) throw new Error('Invalid inventory revision.');
   const answers = Object.fromEntries(Object.keys(questions).map(field => [field, null]));
   const files = inspect ? new Set(git(repo, 'ls-tree', '-rz', '--name-only', commit).toString('utf8').split('\0')) : new Set();
   const stack = [
@@ -91,14 +91,14 @@ export function questionnaire({ repo, ref, catalog, inspect }) {
 }
 
 export function proposeProfile({ answers, catalog, commit }) {
-  if (!answers || typeof answers !== 'object') throw new Error('Le questionnaire doit contenir ses réponses.');
+  if (!answers || typeof answers !== 'object') throw new Error('The questionnaire must contain its answers.');
   const incomplete = Object.keys(questions).filter(field => arrays.includes(field)
     ? !Array.isArray(answers[field]) || !answers[field].every(text)
     : !text(answers[field]));
-  if (incomplete.length) throw new Error(`Réponses manquantes ou invalides : ${incomplete.join(', ')}.`);
+  if (incomplete.length) throw new Error(`Missing or invalid answers: ${incomplete.join(', ')}.`);
   const rule = catalog.rules.find(item => item.id === answers.ruleId);
   if (!rule?.supported || !gitSha.test(commit)) {
-    throw new Error('Règle du catalogue indisponible dans ce kit ou commit d’inventaire invalide.');
+    throw new Error('Catalog rule not available in this kit, or invalid inventory commit.');
   }
   const profile = {
     schemaVersion: 1,

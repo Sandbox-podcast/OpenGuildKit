@@ -13,7 +13,7 @@ try {
   const { kit, repository, pr, commit, profileCommit, policyCommit, checkout } = JSON.parse(readFileSync(config, 'utf8'));
   if (!/^[\w.-]+\/[\w.-]+$/.test(repository) || !Number.isSafeInteger(pr) || pr < 1 ||
       ![commit, profileCommit, policyCommit].every(sha => /^[a-f0-9]{40}$/.test(sha)) || typeof checkout !== 'string') {
-    throw new Error('Configuration Jenkins OpenGuildKit invalide.');
+    throw new Error('Invalid OpenGuildKit Jenkins configuration.');
   }
   const output = resolve(destination);
   const bundle = join(output, 'agent-bundle');
@@ -44,7 +44,7 @@ try {
     if (responses.length !== requests.length || audit.length !== requests.length ||
         !responses[0].result || !responses[1].result || !responses[2].error || !responses[3].error ||
         audit.some((event, index) => event.method !== requests[index].method || event.allowed !== (index < 2))) {
-      throw new Error('Décisions inattendues de l’adaptateur agent.');
+      throw new Error('Unexpected decisions from the agent adapter.');
     }
     writeFileSync(join(output, 'agent-audit.jsonl'), child.stderr);
     const checked = spawnSync(process.execPath, [cli, 'check', ...refs, '--commit', commit,

@@ -31,19 +31,19 @@ export function approveGitHubProfile(options, request = gh) {
 
 export function readGitHubTicket({ repo, pullRequest, commit }, api = endpoint => JSON.parse(gh('api', endpoint))) {
   if (!repositoryPattern.test(repo) || !Number.isSafeInteger(pullRequest) || pullRequest < 1 || !gitSha.test(commit)) {
-    throw new Error('Dépôt GitHub, numéro de PR et SHA complet requis.');
+    throw new Error('A GitHub repository, a PR number and a full SHA are required.');
   }
   const pullUrl = `https://github.com/${repo}/pull/${pullRequest}`;
   const pr = api(`repos/${repo}/pulls/${pullRequest}`);
   if (pr.state !== 'open' || pr.head.sha !== commit || !sameRepositoryUrl(pr.html_url, pullUrl)) {
-    throw new Error('La PR ou son commit courant ne correspond plus à la demande.');
+    throw new Error('The PR or its current commit no longer matches the request.');
   }
   const links = [...(pr.body ?? '').matchAll(/^OpenGuildKit-Ticket:[ \t]*#([1-9]\d*)[ \t]*\r?$/gm)];
-  if (links.length !== 1) throw new Error('La PR doit déclarer un seul ticket avec OpenGuildKit-Ticket: #NUMERO.');
+  if (links.length !== 1) throw new Error('The PR must declare a single ticket with OpenGuildKit-Ticket: #NUMBER.');
   const number = links[0][1];
   const issue = api(`repos/${repo}/issues/${number}`);
   if (issue.pull_request || !sameRepositoryUrl(issue.html_url, `https://github.com/${repo}/issues/${number}`)) {
-    throw new Error('La référence doit désigner un ticket du dépôt de la PR.');
+    throw new Error('The reference must point to a ticket in the repository of the PR.');
   }
   return {
     issue, source: { pullRequest: pr.html_url, commit, ticketUpdatedAt: issue.updated_at },
@@ -59,7 +59,7 @@ function fetch(repo, id, refspecs) {
 function validateRepo(id, path, ref) {
   if (typeof id !== 'string' || !repositoryPattern.test(id) || typeof path !== 'string' || !path ||
       typeof ref !== 'string' || !branchPattern.test(ref)) {
-    throw new Error('Dépôt GitHub, chemin du clone et branche de confiance refs/heads/… requis.');
+    throw new Error('A GitHub repository, a clone path and a trusted branch refs/heads/… are required.');
   }
   git(path, 'check-ref-format', ref);
 }
@@ -73,7 +73,7 @@ function listPullRequests(id, base, numbers, request, errors) {
     if (pr.state !== 'open' || !Number.isSafeInteger(pr.number) || pr.number < 1 ||
         !gitSha.test(pr.head?.sha) || !sameRepository(repository, id)) {
       const pullRequest = Number.isSafeInteger(pr.number) ? { pullRequest: pr.number } : {};
-      errors.push({ project: id, ...pullRequest, message: `PR GitHub invalide dans ${id}.` });
+      errors.push({ project: id, ...pullRequest, message: `Invalid GitHub PR in ${id}.` });
       return [];
     }
     return [{ number: pr.number, sha: pr.head.sha, repository }];
@@ -84,7 +84,7 @@ function synchronizeProject(project, folder, { request, fetchRefs }, errors) {
   validateRepo(project.id, resolve(folder, project.path), project.profileRef);
   if (project.prNumbers !== undefined && (!Array.isArray(project.prNumbers) ||
       project.prNumbers.some(number => !Number.isSafeInteger(number) || number < 1))) {
-    throw new Error('prNumbers doit contenir des numéros de PR positifs.');
+    throw new Error('prNumbers must contain positive PR numbers.');
   }
   const target = resolve(folder, project.path);
   const namespace = `refs/openguildkit/projects/${sha256(`${project.id}:${project.profileRef}`)}`;
@@ -108,7 +108,7 @@ function synchronizeProject(project, folder, { request, fetchRefs }, errors) {
       base, maintainer: project.profileMaintainer,
     }, request);
     if (!isDeepStrictEqual(profile, approved)) {
-      throw new Error(`Le profil actif de ${project.id} diffère de la proposition approuvée.`);
+      throw new Error(`The active profile of ${project.id} differs from the approved proposal.`);
     }
     try {
       git(target, 'merge-base', '--is-ancestor', approved.adoption.approval.mergeCommit, tip);
@@ -122,7 +122,7 @@ function synchronizeProject(project, folder, { request, fetchRefs }, errors) {
   const pullRequests = listed.filter(pr => {
     if (git(target, 'rev-parse', '--verify', pr.ref).toString().trim() === pr.sha) return true;
     errors.push({ project: project.id, pullRequest: pr.number,
-      message: `La PR ${project.id}#${pr.number} a évolué pendant le chargement. Relancer la synchronisation.` });
+      message: `PR ${project.id}#${pr.number} changed during loading. Run the synchronization again.` });
     return false;
   });
   const id = listed[0]?.repository ?? project.id;
@@ -136,7 +136,7 @@ function synchronize(configPath, dependencies) {
   const policy = config.policyRepo;
   const policyPath = resolve(folder, policy.path);
   validateRepo(policy.id, policyPath, policy.ref);
-  if (!Array.isArray(config.projects)) throw new Error('projects doit être une liste.');
+  if (!Array.isArray(config.projects)) throw new Error('projects must be a list.');
 
   const policyRef = `refs/openguildkit/policy/${sha256(`${policy.id}:${policy.ref}`)}`;
   dependencies.fetchRefs(policyPath, policy.id, [`+${policy.ref}:${policyRef}`]);
@@ -172,7 +172,7 @@ function publishObservation(entry, reportUrl, request) {
 
 export function reconcileGithub({ publish, reportUrl, ...options }, { request = gh, fetchRefs = fetch } = {}) {
   if (reportUrl !== undefined && (!publish || !['http:', 'https:'].includes(new URL(reportUrl).protocol))) {
-    throw new Error('--report-url requiert --publish et une URL HTTP ou HTTPS.');
+    throw new Error('--report-url requires --publish and an HTTP or HTTPS URL.');
   }
   const result = reconcile({
     ...options, sameProject: sameRepository, loadConfig: () => synchronize(options.configPath, { request, fetchRefs }),

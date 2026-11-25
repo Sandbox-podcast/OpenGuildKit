@@ -20,7 +20,7 @@ if (pullRequests !== undefined && (
       new Set(numbers).size !== numbers.length;
   })
 )) {
-  throw new Error('pullRequests doit contenir une liste de numéros de PR positifs et distincts pour chaque dépôt surveillé.');
+  throw new Error('pullRequests must contain a list of distinct positive PR numbers for each watched repository.');
 }
 const reportPath = 'result.json';
 rmSync(reportPath, { force: true });
@@ -64,7 +64,7 @@ const previousPullRequests = previous.pullRequests == null ? null : Object.fromE
 );
 const scopeChanged = JSON.stringify(previousPullRequests) !== JSON.stringify(configuredPullRequests);
 if (previous.policyCommit === policyCommit && previous.done && !scopeChanged) {
-  console.log(`Règle inchangée : ${policyCommit}`);
+  console.log(`Rule unchanged: ${policyCommit}`);
   process.exit(0);
 }
 
@@ -78,7 +78,7 @@ function currentTargets() {
     const pages = JSON.parse(gh(['api', '--paginate', '--slurp', `repos/${repo}/pulls?state=open&per_page=100`]));
     return pages.flat().filter(pr => watchesPullRequest(repo, pr.number)).map(pr => {
       if (pr.head.repo?.full_name !== repo) {
-        throw new Error(`Le prototype prend en charge les PR internes au dépôt : ${repo}#${pr.number}`);
+        throw new Error(`The prototype supports only PRs from the repository itself: ${repo}#${pr.number}`);
       }
       return { repo, number: pr.number, commit: pr.head.sha };
     });
@@ -118,13 +118,13 @@ for (const target of batch.targets) {
       JSON.stringify({ target_commit: commit, policy_commit: policyCommit, policy_json: JSON.stringify(rule) }));
     const runId = /\/actions\/runs\/(\d+)$/.exec(url)?.[1];
     if (!runId) {
-      throw new Error(`GitHub n'a pas retourné l'identifiant d'exécution pour ${repo}#${number}.`);
+      throw new Error(`GitHub did not return the run ID for ${repo}#${number}.`);
     }
     target.githubRun = { id: runId, url };
     saveBatch();
   }
   if (!target.jenkinsPublished) {
-    const description = `v${result.version} | règle ${policyCommit}`;
+    const description = `v${result.version} | rule ${policyCommit}`;
     gh(['api', `repos/${repo}/statuses/${commit}`, '-f', 'context=openguildkit/jenkins',
       '-f', `state=${result.state}`, '-f', `description=${description}`]);
     target.jenkinsPublished = true;
@@ -144,11 +144,11 @@ for (const target of batch.targets) {
       if (run.conclusion !== result.state || status?.state !== result.state) {
         delete target.githubRun;
         saveBatch();
-        throw new Error(`Verdict GitHub Actions absent ou différent : ${githubRun.url}`);
+        throw new Error(`GitHub Actions verdict missing or different: ${githubRun.url}`);
       }
       break;
     }
-    if (Date.now() >= deadline) throw new Error(`GitHub Actions est encore en cours : ${githubRun.url}`);
+    if (Date.now() >= deadline) throw new Error(`GitHub Actions is still running: ${githubRun.url}`);
     await setTimeout(3_000);
   } while (true);
 }

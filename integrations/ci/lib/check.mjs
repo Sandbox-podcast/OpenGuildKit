@@ -33,16 +33,16 @@ export function parseProfile(bytes, { allowProposal = false } = {}) {
   const { owner, policyPath, targetPath } = profile;
   if (profile.schemaVersion !== 1 || typeof owner !== 'string' || !owner.trim() ||
       !isGitPath(policyPath) || !isGitPath(targetPath)) {
-    throw new Error('Profil invalide : schemaVersion 1, owner et chemins relatifs au dépôt attendus.');
+    throw new Error('Invalid profile: schemaVersion 1, an owner and paths relative to the repository are expected.');
   }
   if (profile.adoption !== undefined) {
     const { state, approver, mode } = profile.adoption;
     if (!['observation', 'required'].includes(mode) || !['proposed', 'approved'].includes(state) ||
         !gitSha.test(profile.adoption.inventoryCommit) || !gitSha.test(profile.adoption.catalogCommit)) {
-      throw new Error('État ou mode d’adoption du profil invalide.');
+      throw new Error('Invalid adoption state or mode in the profile.');
     }
     if (!(allowProposal && state === 'proposed') && (state !== 'approved' || approver !== owner)) {
-      throw new Error('Le profil doit être approuvé par son mainteneur avant activation.');
+      throw new Error('The profile must be approved by its maintainer before activation.');
     }
   }
   return profile;
@@ -68,12 +68,12 @@ export function readRule(policyRepo, policyCommit, profile) {
     if (source.id !== 'export-link-expiry' || !Array.isArray(source.rules) || source.rules.length !== 1 ||
         entry?.id !== source.id || !isCatalogVersion(source.version) ||
         !Number.isSafeInteger(maxMinutes) || maxMinutes <= 0 || profile.targetPath !== 'export.json') {
-      throw new Error('Pack export-link-expiry invalide : version X.Y.Z, seuil entier et export.json requis.');
+      throw new Error('Invalid export-link-expiry pack: a version X.Y.Z, an integer threshold and export.json are required.');
     }
     rule = { id: source.id, version: source.version, maxMinutes, format: 'catalog' };
   }
   if (profile.ruleId !== undefined && rule.id !== profile.ruleId) {
-    throw new Error('La règle active ne correspond pas à celle sélectionnée dans le profil.');
+    throw new Error('The active rule does not match the one selected in the profile.');
   }
   return rule;
 }

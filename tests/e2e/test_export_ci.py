@@ -143,7 +143,7 @@ class ExportCiTests(CliTestCase):
             self.assertEqual((previous["commit"], current["commit"]), (head, head))
             self.assertEqual((previous["policy_commit"], current["policy_commit"]), (self.original, updated))
             self.assertEqual(current["check"]["max"], 30)
-            self.assertIn(current["instruction"], instructions)
+            self.assertIn(f"`{current['rule']}`", instructions)
             self.assertIn(current["policy_commit"], instructions)
             self.assertIn(current["profile_fingerprint"], instructions)
         self.assertEqual(json.loads(self.evaluate(self.original, first, head_a).stdout), before_a)

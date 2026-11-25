@@ -45,7 +45,7 @@ const githubActions = {
     }).trim();
     const match = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/actions\/runs\/(\d+)$/.exec(output);
     if (!match || !sameRepositoryUrl(output, `https://github.com/${project}/actions/runs/${match[1]}`)) {
-      throw new Error('GitHub Actions n’a pas renvoyé d’identifiant d’exécution.');
+      throw new Error('GitHub Actions did not return a run ID.');
     }
     return { id: match[1], url: output };
   },
@@ -59,7 +59,7 @@ const githubActions = {
     if (!match) return null;
     const id = String(match.id);
     if (!/^\d+$/.test(id) || !sameRepositoryUrl(match.html_url, `https://github.com/${project}/actions/runs/${id}`)) {
-      throw new Error('Exécution GitHub Actions retrouvée avec des références invalides.');
+      throw new Error('The GitHub Actions run that was found has invalid references.');
     }
     return { id, url: match.html_url };
   },
@@ -338,11 +338,11 @@ export function watchGithub({ publish, reset: requestedResets = [], ...options }
       const { id, workflow } = project;
       if (!workflow || !/^[\w.-]+\.ya?ml$/.test(workflow.file) ||
           typeof workflow.ref !== 'string' || !/^[\w./-]+$/.test(workflow.ref) || workflow.ref.startsWith('-')) {
-        throw new Error(`Workflow de réévaluation absent ou invalide pour ${id}.`);
+        throw new Error(`Missing or invalid recheck workflow for ${id}.`);
       }
       if (publish && (typeof workflow.evidenceBranch !== 'string' ||
           !/^[\w./-]+$/.test(workflow.evidenceBranch) || workflow.evidenceBranch.startsWith('-'))) {
-        throw new Error(`Branche de rapports absente ou invalide pour ${id}.`);
+        throw new Error(`Missing or invalid reports branch for ${id}.`);
       }
       return [id.toLowerCase(), project];
     }));

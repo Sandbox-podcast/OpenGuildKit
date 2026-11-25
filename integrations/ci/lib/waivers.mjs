@@ -15,7 +15,7 @@ function timestamp(value) {
 export function parseWaivers(bytes) {
   const registry = parseJsonObject(bytes, 'waiver registry');
   if (registry.schemaVersion !== 1 || !Array.isArray(registry.waivers)) {
-    throw new Error('Registre de dérogations invalide.');
+    throw new Error('Invalid waiver registry.');
   }
   const ids = new Set();
   return registry.waivers.map(item => {
@@ -25,7 +25,7 @@ export function parseWaivers(bytes) {
         ids.has(item.id) || !Number.isSafeInteger(item.pullRequest) || item.pullRequest < 1 ||
         ![item.commit, item.profileCommit, item.policyCommit].every(sha => gitSha.test(sha)) ||
         !Number.isFinite(start) || !Number.isFinite(end) || start >= end) {
-      throw new Error(`Dérogation invalide : ${item.id ?? '(sans identifiant)'}.`);
+      throw new Error(`Invalid waiver: ${item.id ?? '(no identifier)'}.`);
     }
     ids.add(item.id);
     return { item, start, end };

@@ -4,9 +4,9 @@
     {
       "id": "export-link-expiry",
       "owner": "@equipe-plateforme",
-      "rationale": "Limiter la durée pendant laquelle un lien d’export reste utilisable.",
-      "scope": ["Dépôts générant des liens de téléchargement pour leurs exports"],
-      "guidance": "Utiliser le seuil maxMinutes défini dans la règle versionnée.",
+      "rationale": "Limit how long an export link stays usable.",
+      "scope": ["Repositories that generate download links for their exports"],
+      "guidance": "Use the maxMinutes threshold defined in the versioned rule.",
       "evaluation": "automated",
       "policyPath": "policy/export-link.json",
       "targetPath": "export.json"

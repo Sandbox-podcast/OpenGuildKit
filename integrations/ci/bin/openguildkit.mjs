@@ -91,7 +91,7 @@ function approveProfile(args) {
   const { values } = parseArgs({ args, options: {
     repo: { type: 'string' }, pr: { type: 'string' }, base: { type: 'string' }, maintainer: { type: 'string' },
   } });
-  if (!/^[1-9]\d*$/.test(values.pr)) throw new Error('Le numéro de PR est requis.');
+  if (!/^[1-9]\d*$/.test(values.pr)) throw new Error('A PR number is required.');
   const approved = approveGitHubProfile({ ...values, pullRequest: Number(values.pr) });
   console.log(JSON.stringify(approved, null, 2));
 }
@@ -128,7 +128,7 @@ function adoption(command, args) {
   const filled = parseJsonObject(readFileSync(values.answers), values.answers);
   if (filled.repositoryCommit !== form.repositoryCommit || filled.catalog?.policyCommit !== catalog.policyCommit ||
       filled.catalog?.catalogPath !== catalog.catalogPath) {
-    throw new Error('Les références ont changé depuis le questionnaire. Confirmer les réponses pour les révisions voulues.');
+    throw new Error('The references changed since the questionnaire. Confirm the answers for the intended revisions.');
   }
   const profile = proposeProfile({ answers: filled.answers, catalog, commit: form.repositoryCommit });
   writeFileSync(values.profile, JSON.stringify(profile, null, 2) + '\n', { flag: 'wx' });
@@ -171,11 +171,11 @@ function check(args) {
   });
   const policyCommit = options['policy-commit'];
   if (!options['policy-repo'] || !gitSha.test(policyCommit) || !gitSha.test(options.commit)) {
-    throw new Error('Un dépôt de règles et les deux SHA Git complets sont requis.');
+    throw new Error('A rules repository and both full Git SHAs are required.');
   }
   const profileCommit = options['profile-commit'];
   if (profileCommit !== undefined && (!gitSha.test(profileCommit) || !isGitPath(options.profile))) {
-    throw new Error('Un SHA de profil complet et un chemin de profil relatif à Git sont requis.');
+    throw new Error('A full profile SHA and a Git-relative profile path are required.');
   }
   const targetRepo = options['target-repo'];
   const profileBytes = profileCommit !== undefined
@@ -186,11 +186,11 @@ function check(args) {
     commit: options.commit, profileBytes, kitVersion: version,
   });
   if (options.enforce && evidence.mode === 'observation') {
-    throw new Error('Le profil approuvé est en observation. Modifier son mode dans une nouvelle révision approuvée.');
+    throw new Error('The approved profile is in observation mode. Change its mode in a new approved revision.');
   }
   if (profileCommit !== undefined) evidence.profileCommit = profileCommit;
   if (options.brief || options['pull-request']) {
-    if (!options.brief) throw new Error('--pull-request requiert --brief.');
+    if (!options.brief) throw new Error('--pull-request requires --brief.');
     evidence = linkBrief(evidence, options.brief, options['pull-request']);
   }
   const json = JSON.stringify(evidence, null, 2) + '\n';
@@ -265,7 +265,7 @@ function gate(command, args) {
   const pullRequest = Number(values.pr);
   if (!values.config || !values.state || !values.project || !gitSha.test(values.commit) ||
       !/^[1-9]\d*$/.test(values.pr) || !Number.isSafeInteger(pullRequest)) {
-    throw new Error('Le contrôle obligatoire demande le projet, le numéro de PR et le SHA complet du commit.');
+    throw new Error('The required check needs the project, the PR number and the full commit SHA.');
   }
   const options = {
     configPath: values.config, stateDir: values.state, kitVersion: version,

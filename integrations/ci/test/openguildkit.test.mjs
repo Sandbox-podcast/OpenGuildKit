@@ -7,6 +7,9 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { reconcile } from '../lib/reconcile.mjs';
 import { sameRepository } from '../lib/github-identifiers.mjs';
+import { prepareBrief } from '../lib/agent.mjs';
+import { parseProfile } from '../lib/check.mjs';
+import { parseWaivers } from '../lib/waivers.mjs';
 
 const cli = fileURLToPath(new URL('../bin/openguildkit.mjs', import.meta.url));
 const agent = fileURLToPath(new URL('../bin/openguildkit-agent.mjs', import.meta.url));
@@ -209,7 +212,7 @@ test('the coordinator reads the --config, --evidence and --answers files that st
   const form = read(run('onboard', ...source));
   Object.assign(form.answers, {
     project: 'equipe/portail', owner: '@mainteneur', environments: ['test'], conventions: [], stack: ['Node.js'],
-    sensitivePaths: ['export.json'], ticketTracker: 'GitHub Issues', dataAccess: ['fichiers versionnés'], tools: ['GitHub Actions'],
+    sensitivePaths: ['export.json'], ticketTracker: 'GitHub Issues', dataAccess: ['versioned files'], tools: ['GitHub Actions'],
     aiModels: [], executionBudget: '5 minutes', requiredApprovals: ['mainteneur'], references: ['convention export'],
     testCommands: ['npm test'], ruleId: 'export-link-expiry', targetPath: 'export.json',
   });
@@ -325,7 +328,7 @@ test('keep the executed proof when the active policy changes and skip sync when 
     loadConfig: () => ++reads === 1 ? config : { ...config, projects: [] },
   });
   assert.deepEqual(closed.current, []);
-  assert.match(closed.errors[0].message, /références courantes/);
+  assert.match(closed.errors[0].message, /no longer matches the current references/);
   assert.equal(JSON.parse(readFileSync(closed.executedEvidence[0].path)).evidence.state, 'failure');
 });
 
@@ -366,7 +369,7 @@ test('prepare a questionnaire from committed files and activate only a reviewed 
   assert.equal(run('onboard', ...source, '--answers', 'answers.json').status, 2);
   Object.assign(form.answers, {
     project: 'equipe/portail', owner: '@mainteneur', environments: ['test'], conventions: [],
-    sensitivePaths: ['export.json'], ticketTracker: 'GitHub Issues', dataAccess: ['fichiers versionnés'],
+    sensitivePaths: ['export.json'], ticketTracker: 'GitHub Issues', dataAccess: ['versioned files'],
     aiModels: [], executionBudget: '5 minutes', requiredApprovals: ['mainteneur'], references: ['convention export'],
   });
   writeFileSync(questionnairePath, JSON.stringify(form));
@@ -450,6 +453,63 @@ test('link a read-only agent brief to a PR report using the exact approved revis
   const newer = commitJson(root, policyPath, { ...rule, version: 2 });
   const stale = checkArgs.map(arg => arg === policyCommit ? newer : arg);
   assert.equal(run(cli, stale).status, 2);
+});
+
+function agentFixture(t) {
+  const root = mkdtempSync(join(tmpdir(), 'openguildkit-agent-bom-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  git(root, 'init', '-q', '-b', 'main');
+  mkdirSync(join(root, 'policy'));
+  const policyPath = 'policy/export-link.json';
+  const policyCommit = commitJson(root, policyPath, { id: 'export-link-expiry', version: 1, maxMinutes: 30 });
+  const commit = commitJson(root, 'export.json', { downloadLinkMinutes: 25 });
+  const owner = '@maintainer';
+  const profileCommit = commitJson(root, 'openguildkit.json', {
+    schemaVersion: 1, owner, policyPath, targetPath: 'export.json', ruleId: 'export-link-expiry',
+    adoption: {
+      state: 'approved', approver: owner, mode: 'observation', inventoryCommit: commit, catalogCommit: policyCommit,
+      answers: { project: 'team/portal', tools: ['GitHub Actions'], testCommands: ['npm test'] },
+    },
+  });
+  const task = {
+    ticket: { url: 'https://github.com/team/portal/issues/42', title: 'Set up the export links' },
+    outcome: 'Check the expired links.',
+    criteria: ['A link expires in 30 minutes or less.'],
+  };
+  const run = (...args) => spawnSync(process.execPath, [cli, ...args], { cwd: root, encoding: 'utf8' });
+  const refs = ['--policy-repo', '.', '--policy-commit', policyCommit, '--profile-commit', profileCommit];
+  const withBom = value => Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(JSON.stringify(value))]);
+  return { root, task, run, refs, commit, withBom, policyCommit, profileCommit };
+}
+
+test('brief reads a --task file that starts with a byte order mark and names a file that is not JSON', t => {
+  const { root, task, run, refs, withBom } = agentFixture(t);
+  writeFileSync(join(root, 'task.json'), withBom(task));
+  const prepared = run('brief', ...refs, '--task', 'task.json', '--output', 'agent');
+  assert.equal(prepared.status, 0, prepared.stderr);
+  assert.deepEqual(JSON.parse(readFileSync(join(root, 'agent/brief.json'), 'utf8')).request, task);
+  writeFileSync(join(root, 'broken.json'), '{"ticket": ');
+  const broken = run('brief', ...refs, '--task', 'broken.json', '--output', 'other');
+  assert.equal(broken.status, 2);
+  assert.match(broken.stderr, /^Invalid JSON in broken\.json: /);
+});
+
+test('check reads a --brief file that starts with a byte order mark and names a file that is not JSON', t => {
+  const { root, task, run, refs, commit, withBom } = agentFixture(t);
+  writeFileSync(join(root, 'task.json'), JSON.stringify(task));
+  assert.equal(run('brief', ...refs, '--task', 'task.json', '--output', 'agent').status, 0);
+  const briefPath = join(root, 'agent/brief.json');
+  const brief = JSON.parse(readFileSync(briefPath, 'utf8'));
+  const pullRequest = 'https://github.com/team/portal/pull/43';
+  const link = file => run('check', ...refs, '--commit', commit, '--brief', file, '--pull-request', pullRequest);
+  writeFileSync(briefPath, withBom(brief));
+  const linked = link('agent/brief.json');
+  assert.equal(linked.status, 0, linked.stderr);
+  assert.deepEqual(JSON.parse(linked.stdout).ticket, task.ticket);
+  writeFileSync(join(root, 'broken.json'), '[1');
+  const broken = link('broken.json');
+  assert.equal(broken.status, 2);
+  assert.match(broken.stderr, /^Invalid JSON in broken\.json: /);
 });
 
 test('gate applies an authorized waiver only during its scope and validity', t => {
@@ -553,4 +613,76 @@ test('the error messages of releases, merge and merge-protection are in English'
   for (const name of ['releases', 'merge', 'merge-protection']) {
     assert.doesNotMatch(readFileSync(new URL(`../lib/${name}.mjs`, import.meta.url), 'utf8'), /[^\x00-\x7f]/, name);
   }
+});
+
+const frenchWord = new RegExp(`\\b(?:${[
+  'le', 'la', 'les', 'un', 'une', 'des', 'du', 'de', 'et', 'ou', 'est', 'sont', 'doit', 'doivent', 'exige', 'demande',
+  'requis', 'requise', 'requiert', 'invalide', 'sans', 'avec', 'pour', 'dans', 'sur', 'par', 'depuis', 'avant', 'attendu', 'attendus',
+  'depot', 'regle', 'projet', 'profil', 'registre', 'derogation', 'adresse', 'numero', 'identifiant', 'obligatoire',
+].join('|')})\\b`, 'i');
+
+function assertEnglish(files, strip = text => text) {
+  for (const file of files) {
+    const lines = strip(readFileSync(new URL(file, import.meta.url), 'utf8')).split('\n');
+    assert.deepEqual(lines.filter(line => /[^\x00-\x7f]/.test(line) || frenchWord.test(line)), [], file);
+  }
+}
+
+// The agent reads the sections of French tickets by their title: that is data, not a message.
+const withoutTicketSections = text => text.replace(/sections\.get\((?:'[^']*'|"[^"]*")\)/g, 'sections.get()');
+
+test('the error messages and the brief text of the agent are in English', t => {
+  assertEnglish(['../lib/agent.mjs'], withoutTicketSections);
+  const { root, task, run, refs } = agentFixture(t);
+  writeFileSync(join(root, 'task.json'), JSON.stringify({ ...task, criteria: [] }));
+  const refused = run('brief', ...refs, '--task', 'task.json', '--output', 'agent');
+  assert.equal(refused.status, 2);
+  assert.match(refused.stderr, /^The ticket, the expected outcome and the acceptance criteria are required\.$/m);
+  writeFileSync(join(root, 'task.json'), JSON.stringify(task));
+  assert.equal(run('brief', ...refs, '--task', 'task.json', '--output', 'agent').status, 0);
+  const guidance = readFileSync(join(root, 'agent/AGENTS.md'), 'utf8');
+  assert.match(guidance, /^# OpenGuildKit guidance$/m);
+  assert.match(guidance, /^Approved profile: [0-9a-f]{40}$/m);
+  assert.match(guidance, /^Versioned rule: [0-9a-f]{40}$/m);
+});
+
+test('brief reads the outcome and the criteria under the French section titles of a ticket', t => {
+  const { root, policyCommit, profileCommit } = agentFixture(t);
+  const source = { pullRequest: 'https://github.com/team/portal/pull/43', commit: 'b'.repeat(40) };
+  const brief = (body, output) => prepareBrief({
+    policyRepo: root, policyCommit, targetRepo: root, profileCommit, output: join(root, output), kitVersion: '0.0.0',
+    ticket: { issue: { html_url: 'https://github.com/team/portal/issues/42', title: 'Set up the export links', body }, source },
+  });
+  brief('## Résultat attendu\nLiens vérifiés.\n\n### Critères d’acceptation\n- Un lien expire en 30 minutes.\n', 'agent');
+  const { request } = JSON.parse(readFileSync(join(root, 'agent/brief.json'), 'utf8'));
+  assert.equal(request.outcome, 'Liens vérifiés.');
+  assert.deepEqual(request.criteria, ['Un lien expire en 30 minutes.']);
+  assert.throws(() => brief('## Résultat attendu\nA\n## Résultat attendu\nB\n', 'again'),
+    /^Error: Duplicate section in the ticket: Résultat attendu$/);
+});
+
+test('the error messages of check and waivers are in English', () => {
+  assertEnglish(['../lib/check.mjs', '../lib/waivers.mjs']);
+  assert.throws(() => parseProfile('{"schemaVersion": 2}'), /^Error: Invalid profile: /);
+  assert.throws(() => parseWaivers('{"schemaVersion": 2}'), /^Error: Invalid waiver registry\.$/);
+  assert.throws(() => parseWaivers('{"schemaVersion": 1, "waivers": [{"id": "incomplete"}]}'),
+    /^Error: Invalid waiver: incomplete\.$/);
+  assert.throws(() => parseWaivers('{"schemaVersion": 1, "waivers": [{}]}'), /^Error: Invalid waiver: \(no identifier\)\.$/);
+});
+
+test('the error messages of the two binaries are in English', t => {
+  assertEnglish(['../bin/openguildkit.mjs', '../bin/openguildkit-agent.mjs']);
+  const root = mkdtempSync(join(tmpdir(), 'openguildkit-binaries-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const run = (script, args, input) => spawnSync(process.execPath, [script, ...args], { cwd: root, encoding: 'utf8', input });
+  assert.match(run(cli, ['check']).stderr, /^A rules repository and both full Git SHAs are required\.$/m);
+  assert.match(run(cli, ['gate']).stderr,
+    /^The required check needs the project, the PR number and the full commit SHA\.$/m);
+  assert.match(run(cli, ['github-approve-profile', '--repo', 'team/portal']).stderr, /^A PR number is required\.$/m);
+  mkdirSync(join(root, 'bundle'));
+  writeFileSync(join(root, 'bundle/brief.json'), JSON.stringify({ project: 'team/portal', profileCommit: 'a'.repeat(40) }));
+  writeFileSync(join(root, 'bundle/AGENTS.md'), '');
+  const response = run(agent, ['--bundle', 'bundle'], '{"id": 1, "method": "write"}\n');
+  assert.equal(response.status, 0, response.stderr);
+  assert.deepEqual(JSON.parse(response.stdout), { id: 1, error: 'Action unavailable in the read-only adapter.' });
 });

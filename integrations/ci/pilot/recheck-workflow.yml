@@ -15,7 +15,7 @@ on:
         required: true
       attempt:
         type: string
-        description: Identifiant de tentative pour la reprise du coordinateur
+        description: Attempt ID that the coordinator uses to recover a dispatch
         required: false
       expected:
         type: string
