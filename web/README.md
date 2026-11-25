@@ -32,7 +32,7 @@ npm run bundle       # copie dist/ dans le paquet Python (src/openguildkit/web_d
 npm run build:demo   # build de la démonstration seule dans dist-demo/, servie par npm run preview:demo
 ```
 
-`npm run bundle` refuse une construction qui contient la démo ou qui dépasse 1 298 Ko (`BUDGET_KB` dans `scripts/bundle.mjs` : la taille mesurée le 22 novembre 2026, plus 10 %). Relève ce budget seulement avec la mesure qui le justifie.
+`npm run bundle` refuse une construction qui contient la démo ou qui dépasse 1 298 Ko (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 180 Ko mesurés le 22 novembre 2026, plus 10 %). Le 25 novembre 2026 la construction pèse 1 244 Ko : le budget est conservé, avec 54 Ko (4 %) de marge. Relève ce budget seulement avec la mesure qui le justifie.
 
 Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un projet, puis `OGK_API=http://127.0.0.1:7311 npm run dev`, et ouvre une fois `http://localhost:5199/api/session?key=…` avec la clé de l'adresse imprimée avant `http://localhost:5199/`. `python scripts/sample-project.py DOSSIER` crée un projet d'exemple avec une quête dans chaque état.
 
