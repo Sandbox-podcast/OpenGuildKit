@@ -24,7 +24,7 @@ from openguildkit.references import _validate_family, load_references
 from openguildkit.storage import write_json
 from openguildkit.tools import load_tools
 
-from tests.support import CapturedCli
+from tests.support import CapturedCli, run_cli
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "src" / "openguildkit" / "registry"
@@ -197,6 +197,44 @@ class ProjectSourceDateTests(CapturedCli, unittest.TestCase):
             write_json(path, dated)
         out, err = self.cli("check")
         self.assertNotIn("date the sources", err)
+
+    def test_check_refuses_a_project_reference_that_names_an_unknown_pack_or_brain(self):
+        """docs/catalog-format.md promises it: the references a project adds name packs and brains that exist."""
+        record = {"id": "team-change-record", "title": "Change record", "category": "Livraison", "kind": "pratique",
+                  "summary": "Trace les changements.", "applies_when": "Pour chaque mise en production.",
+                  "brains": ["no-such-brain"], "packs": ["no-such-pack"],
+                  "sources": [{"title": "Handbook", "url": "https://handbook.example.test/"}]}
+        path = self.state / "catalog" / "references" / "team-practices.json"
+        write_json(path, {"id": "team-practices", "title": "Team practices", "references": [record]})
+        out, err = self.cli("check", code=1)
+        self.assertNotIn("Traceback", err)
+        self.assertRegex(err, r"Reference 'team-change-record' names .*unknown packs: no-such-pack")
+        self.assertIn("unknown brains: no-such-brain", err)
+        with self.assertRaisesRegex(CatalogError, "unknown packs: no-such-pack"):
+            load_references(path.parent, catalog=load_catalog(self.state / "catalog"))
+        write_json(path, {"id": "team-practices", "title": "Team practices",
+                          "references": [{**record, "brains": ["security"], "packs": ["gdpr"]}]})
+        self.cli("check")
+
+    def test_a_project_reference_may_name_a_pack_the_lock_keeps_after_a_release_drops_it(self):
+        from tests.test_upgrades import ANSWERS, release_without_playwright
+
+        from openguildkit import lock
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_json(root / "answers.json", ANSWERS)
+            run_cli(root, "init", "--answers", root / "answers.json")
+            record = {"id": "team-e2e", "title": "End-to-end checks", "category": "Tests", "kind": "pratique",
+                      "summary": "Teste les parcours.", "applies_when": "Pour chaque parcours.", "packs": ["playwright"],
+                      "sources": [{"title": "Handbook", "url": "https://handbook.example.test/"}]}
+            write_json(root / ".openguildkit" / "catalog" / "references" / "team.json",
+                       {"id": "team", "title": "Team", "references": [record]})
+            with patch.object(lock, "load_catalog", release_without_playwright):
+                run_cli(root, "check")
+                write_json(root / ".openguildkit" / "catalog" / "references" / "team.json",
+                           {"id": "team", "title": "Team", "references": [{**record, "packs": ["no-such-pack"]}]})
+                self.assertIn("unknown packs: no-such-pack", run_cli(root, "check", expect=1).stderr)
 
     def test_update_prints_the_catalog_date_and_the_changed_count_before_the_changes(self):
         latest = max(source["checked"] for _, source in bundled_sources())

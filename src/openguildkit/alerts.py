@@ -199,12 +199,6 @@ def read_report(content: bytes, label: str) -> dict:
     raise ValueError(f"{label} is not an npm audit, pip-audit, OSV-Scanner or Dependabot JSON report.")
 
 
-def parse_report(content: bytes, label: str) -> tuple[str, list[dict]]:
-    """Recognize the scanner by the report's shape and normalize its alerts."""
-    report = read_report(content, label)
-    return report["tool"], report["alerts"]
-
-
 # Why a report that analyzed no dependency leaves the register's alerts as they are, by scanner.
 NOTHING_ANALYZED = {
     "npm audit": "metadata.dependencies counts no audited dependency",

@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.alerts import (
-    accept_alert, blocking_alerts, find_alert, import_report, link_alert, load_register, migrate_task, parse_report,
+    accept_alert, blocking_alerts, find_alert, import_report, link_alert, load_register, migrate_task, read_report,
     set_status, summary, task_alerts,
 )
 from openguildkit.storage import write_json
@@ -26,6 +26,12 @@ CRITICAL = "npm:form-parser:ghsa-xxxx-yyyy-zzzz"
 
 def empty():
     return {"schema_version": 1, "alerts": [], "imports": []}
+
+
+def parse_report(content: bytes, label: str) -> tuple[str, list[dict]]:
+    """The scanner and the normalized alerts that read_report, the parser import_report uses, finds in a report."""
+    report = read_report(content, label)
+    return report["tool"], report["alerts"]
 
 
 def imported(*names, task_id=None, register=None):

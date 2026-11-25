@@ -204,10 +204,12 @@ def _pending_catalog_changes(lock: dict | None, live: dict, profile: dict, bundl
 
 
 def _undated_project_sources(state: Path, live: dict) -> list[str]:
-    """Project records that cite a source without a checked date; bundled sources always carry one."""
+    """Project records that cite a source without a checked date; bundled sources always carry one. The project's
+    references are read with the catalog it uses, so a pack or a brain they name that does not exist stops check."""
     project = state / "catalog"
+    in_use = apply_lock(live, read_lock(state))
     references = {
-        "references": {record["id"]: record for family in load_references(project / "references").values()
+        "references": {record["id"]: record for family in load_references(project / "references", in_use).values()
                        for record in family["references"]},
         "deliverables": load_deliverables(live, project / "deliverables"),
     }
