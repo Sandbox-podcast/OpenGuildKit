@@ -14,14 +14,14 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | data | 63 | 11 | 52 | 6 | 1 | 8 | 41 |
 | design | 26 | 6 | 20 | 11 | 5 | 18 | 77 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
-| devops | 69 | 22 | 47 | 9 | 6 | 15 | 86 |
+| devops | 69 | 22 | 47 | 10 | 6 | 16 | 93 |
 | engineering | 217 | 32 | 185 | 14 | 26 | 43 | 230 |
 | finance | 23 | 14 | 9 | 11 | 1 | 13 | 50 |
 | frontend | 8 | 3 | 5 | 2 | 0 | 4 | 19 |
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
 | it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 8 |
 | leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
-| legal | 56 | 25 | 31 | 20 | 1 | 23 | 153 |
+| legal | 56 | 25 | 31 | 21 | 1 | 24 | 160 |
 | localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
 | marketing | 22 | 7 | 15 | 8 | 0 | 8 | 17 |
 | operations | 21 | 6 | 15 | 11 | 0 | 11 | 26 |
@@ -32,7 +32,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
 | qa | 50 | 9 | 41 | 8 | 20 | 32 | 173 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 103 | 29 | 74 | 20 | 17 | 44 | 259 |
+| security | 103 | 29 | 74 | 21 | 17 | 45 | 266 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -81,12 +81,12 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | general | none | none | 0 |
 | healthcare | france-health-data-hosting, health-data-protection | france-health-data-hosting, health-data-protection | 15 |
 | insurance | dora-financial-entity, insurance-distribution | dora, incident-notification, insurance-distribution | 19 |
-| public-sector | france-rgaa-accessibility, public-sector-accessibility | france-rgaa-accessibility, public-sector-accessibility, web-accessibility | 22 |
+| public-sector | france-public-sector-security, france-rgaa-accessibility, public-sector-accessibility | france-public-sector-security, france-rgaa-accessibility, public-sector-accessibility, web-accessibility | 29 |
 | software-publisher | cyber-resilience-act-product, iso-27001-certification | cyber-resilience-act, incident-notification, iso-27001, secure-sdlc | 31 |
 
 ## Machine checks by pack
 
-25 of 485 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+25 of 492 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
@@ -122,6 +122,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | financial-planning | 2 | 0 | 0 |
 | finops-cost-management | 4 | 0 | 0 |
 | france-health-data-hosting | 8 | 0 | 8 |
+| france-public-sector-security | 7 | 0 | 7 |
 | france-rgaa-accessibility | 8 | 0 | 8 |
 | frontend-delivery | 4 | 0 | 0 |
 | gdpr | 11 | 0 | 11 |

@@ -91,7 +91,7 @@ SUBJECTS = {
     **{pack: ("personal data", _PERSONAL) for pack in (
         "gdpr", "minors-data-protection", "health-data-protection", "france-health-data-hosting")},
     **{pack: ("security-sensitive changes", _SECURITY) for pack in (
-        "threat-modeling", "owasp-asvs", "iso-27001")},
+        "threat-modeling", "owasp-asvs", "iso-27001", "france-public-sector-security")},
     **{pack: ("the ICT systems of a regulated entity", _ICT) for pack in ("dora", "nis2")},
     **{pack: ("security incidents and vulnerabilities", [{"surface": ["infrastructure"]}, {"concerns": ["credentials"]}])
        for pack in ("cyber-resilience-act", "incident-notification")},
@@ -168,6 +168,9 @@ LEGAL_BASIS = {
     "france-rgaa-accessibility": "the user interface: Art. 47 of loi n° 2005-102 binds certain public and private "
                                  "entities to make their online public communication services accessible, tested "
                                  "with the RGAA.",
+    "france-public-sector-security": "regulated data, infrastructure, credentials, or personal data on a customer or "
+                                     "service surface: Art. 3 and 4 of décret n° 2010-112 and Art. 4-3 of décret "
+                                     "n° 2019-1088 hold a public authority to a risk analysis and a homologation.",
     "web-accessibility": "the user interface: WCAG 2.2, through EN 301 549, is the test of Directive (EU) 2016/2102 "
                          "and of the accessibility requirements a customer-facing screen meets.",
 }
@@ -273,7 +276,7 @@ SENSITIVE = {
     "data protection": ("gdpr", "minors-data-protection", "health-data-protection", "france-health-data-hosting", "backend-data-safety", "pci-dss"),
     "security": ("secure-sdlc", "owasp-asvs", "threat-modeling", "supply-chain", "iso-27001", "aws-iam",
                  "container-images", "github-actions-security", "gitlab-ci-security", "nis2", "dora",
-                 "cyber-resilience-act", "incident-notification"),
+                 "cyber-resilience-act", "incident-notification", "france-public-sector-security"),
     "AI": ("llm-evaluations", "nist-ai-risk", "eu-ai-act"),
 }
 # Who provides the named evidence of a pack: the document belongs to them, never to the agent.
