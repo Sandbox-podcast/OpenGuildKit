@@ -1,0 +1,146 @@
+{
+  "id": "agentic-application-security",
+  "title": "Agentic application security",
+  "version": "1.0.0",
+  "description": "For a project that builds an AI agent or an MCP server, or lets an agent call tools and other agents: an action to take and a check to read for each risk of the OWASP Top 10 for Agentic Applications 2026, and rules for the MCP servers it writes or uses. It claims no conformity with the OWASP list or the MCP specification.",
+  "sources": [
+    {
+      "title": "OWASP, Top 10 for Agentic Applications for 2026",
+      "url": "https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "OWASP, Top 10 for Agentic Applications 2026, the ten risks ASI01 to ASI10",
+      "url": "https://genai.owasp.org/top-10-for-agentic-applications-2026/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Model Context Protocol, Specification (revision 2026-07-28 when read)",
+      "url": "https://modelcontextprotocol.io/specification/latest",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Model Context Protocol, Security Best Practices",
+      "url": "https://modelcontextprotocol.io/specification/latest/basic/security_best_practices",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Model Context Protocol, Authorization",
+      "url": "https://modelcontextprotocol.io/specification/latest/basic/authorization",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Model Context Protocol, Tools",
+      "url": "https://modelcontextprotocol.io/specification/latest/server/tools",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Model Context Protocol, Streamable HTTP transport",
+      "url": "https://modelcontextprotocol.io/specification/latest/basic/transports/streamable-http",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Agent2Agent (A2A) Protocol Specification, authentication and authorization",
+      "url": "https://a2a-protocol.org/latest/specification/",
+      "checked": "2026-11-25"
+    }
+  ],
+  "depends_on": [
+    "secure-sdlc",
+    "threat-modeling"
+  ],
+  "rules": [
+    {
+      "id": "treat-ingested-content-as-data",
+      "instruction": "Treat everything the agent reads (user text, files, web pages, retrieved passages, tool results, messages from other agents) as data that cannot change its goal, tools or permissions, and add a test that hides an instruction in each kind (OWASP ASI01).",
+      "verification": "Open the tests that plant an instruction in a document, a web page, a tool result and a peer message, check that each fails when the agent obeys it, and compare them with the sources that reach the agent's context."
+    },
+    {
+      "id": "scope-and-validate-tool-calls",
+      "instruction": "Give each tool only the permissions, data, request rate and network destinations its task needs, and validate every call's tool name and arguments against that policy in code outside the model before it runs, refusing an ambiguous tool name (OWASP ASI02).",
+      "verification": "Compare each tool's permissions with its task, then send a call with an out-of-policy argument, one with a missing argument and one with an ambiguous tool name, and check that each is refused before any effect."
+    },
+    {
+      "id": "issue-short-lived-agent-credentials",
+      "instruction": "Give each agent its own identity and short-lived credentials limited to its task and resources; never reuse a person's long-lived token, and never put a credential in a prompt, a memory entry or a log (OWASP ASI03).",
+      "verification": "List the credentials the agent uses with owner, scope and expiry, check that none is a personal or shared long-lived token, and search the prompts, memory and logs of a test run for their values."
+    },
+    {
+      "id": "pin-and-review-agent-components",
+      "instruction": "List what the agent loads at run time (models, agent and tool packages, tool servers, images, prompts, tool definitions) with each source and an exact version or digest, keep prompts and tool definitions in reviewed version control, and load nothing off the list (OWASP ASI04, ASI01).",
+      "verification": "Compare the list with the lockfiles, image references and server configuration, check that each entry has an exact version or digest, and check that a prompt change appears as a reviewed commit."
+    },
+    {
+      "id": "sandbox-generated-code",
+      "instruction": "Run code or commands that the model writes or controls in a sandbox that is not root, limits the filesystem and allows no network beyond a list, and never pass model output to eval, exec, a shell or a deserializer in the application process (OWASP ASI05).",
+      "verification": "Find each place where model output reaches an interpreter, shell or deserializer and check that it runs in the sandbox; in a test, have the agent read a file outside its folder and reach an unlisted host, and check that both fail."
+    },
+    {
+      "id": "control-memory-writes",
+      "instruction": "Before writing to an agent's persistent memory or retrieval index, record the source, treat the content as untrusted, store it per user or tenant with an expiry, and never write the agent's own unverified output back as trusted memory (OWASP ASI06).",
+      "verification": "Write an entry containing an instruction through each ingestion path; check that it is stored as data with its source and expiry, that no other user or tenant can read it, and that one source's entries can be purged."
+    },
+    {
+      "id": "authenticate-agent-messages",
+      "instruction": "When agents in the project call each other, accept a message only from an authenticated peer over an encrypted channel, validate it against a versioned schema, and reject a replayed message or one addressed to another agent (OWASP ASI07).",
+      "verification": "Connect a peer with no credentials, with another agent's credentials and with a replayed message, send a malformed message and an unknown schema version, and check that each is refused and logged."
+    },
+    {
+      "id": "bound-agent-runs",
+      "instruction": "Enforce limits per agent run in the orchestrator, not the prompt: steps, tokens, spend and elapsed time, plus a circuit breaker that stops a chain of agents when a step's output fails validation or errors repeat (OWASP ASI08).",
+      "verification": "Start a looping run and a run whose first agent returns invalid output; check that the first stops at its limit with the reason recorded and that the second never reaches the next agent."
+    },
+    {
+      "id": "confirm-high-impact-actions",
+      "instruction": "List the irreversible or high-impact actions (deleting or sending data, spending money, changing permissions, deploying) and stop the agent before each until a person approves it, after seeing a preview of its exact effect and where the request came from (OWASP ASI09, ASI01).",
+      "verification": "Trigger each listed action in a test environment; check that the run stops, that the approval shows the exact effect and its source, and that the approver and the decision are recorded."
+    },
+    {
+      "id": "keep-a-kill-switch",
+      "instruction": "Provide a documented way to disable one agent, one tool connection or one credential at once, without a redeploy, and rehearse it (OWASP ASI10).",
+      "verification": "Follow the runbook on a test agent and a test tool connection and check that the next call is refused and the credential stops working, then read the date of the last rehearsal."
+    },
+    {
+      "id": "log-agent-actions",
+      "instruction": "Log each tool call and each message between agents with the identity, the arguments or their digest, the result status and the approval that allowed it, in a log the agent cannot edit or delete, without secrets or personal data (OWASP ASI10, ASI08).",
+      "verification": "Run a task that calls a tool and read its log entry for the identity, the arguments or digest and the approval; check that the agent's credentials cannot write to the log and that the entry holds no secret."
+    },
+    {
+      "id": "pin-mcp-server-versions",
+      "instruction": "Pin each MCP server that a package manager or a container launches (npx, uvx, docker and similar) to an exact version or image digest in the project's MCP configuration; never use `@latest` or the `latest` tag (OWASP ASI04).",
+      "verification": "task verify looks for `@latest` and `:latest` in `.mcp.json` and `.codex/config.toml`; it cannot see a server launched with no version at all, so read each entry and check that its package or image carries an exact version or digest.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".mcp.json",
+          ".codex/config.toml"
+        ],
+        "contains": [
+          "@latest",
+          ":latest"
+        ],
+        "expect": "absent"
+      }
+    },
+    {
+      "id": "expose-minimal-mcp-tools",
+      "instruction": "For an MCP server the project writes, expose only the tools its use case needs, keep read-only tools apart from tools that change state, avoid a tool that runs a command, query or request written by the model, and validate each tool's input on the server against its schema (OWASP ASI02).",
+      "verification": "List the tools the server returns against the use case, check that a read-only caller cannot call a tool that changes state, and call a tool with an input outside its schema to check that the server rejects it."
+    },
+    {
+      "id": "keep-mcp-tokens-inside-the-server-boundary",
+      "instruction": "For an MCP server exposed over HTTP, require a bearer token on every request and accept only tokens issued for this server; when a tool calls another service, use a credential issued to the server for it and never forward the client's token (OWASP ASI03).",
+      "verification": "Call the server with no token, an expired token and a token issued for another service, and check that each gets a 401; read the code that calls downstream services and check that none forwards the incoming Authorization header."
+    },
+    {
+      "id": "treat-mcp-metadata-and-results-as-untrusted",
+      "instruction": "In a client or agent that uses MCP servers, treat the tool names, descriptions, annotations and results of a server the project does not control as untrusted data: show a sensitive call's arguments first, validate a result before the model sees it, and review the server again when its tools change (OWASP ASI01, ASI02).",
+      "verification": "Point the client at a test server whose tool description and result both hold an instruction and check that the agent ignores it; check that a changed tool list is logged or approved and that a sensitive call shows its arguments first."
+    },
+    {
+      "id": "bind-local-mcp-servers-to-loopback",
+      "instruction": "A local MCP server that speaks HTTP binds to 127.0.0.1, not to all interfaces, checks the Origin header of every request and answers 403 when it is not allowed, and requires a token; use stdio when only the client that launches it needs it.",
+      "verification": "Start the server and read its listening address (127.0.0.1, not 0.0.0.0), then send a request with a foreign Origin and one without a token, and check that the first gets 403 and the second is refused."
+    }
+  ]
+}

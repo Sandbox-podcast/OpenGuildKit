@@ -1,0 +1,47 @@
+{
+  "id": "agentic-application-security",
+  "title": "Agentic application security",
+  "description": "Select for a project that builds an AI agent or an MCP server, or that gives an agent tools: rules for its inputs, tools, credentials, memory and runs, and for the MCP servers it writes or uses.",
+  "sources": [
+    {
+      "title": "OWASP, Top 10 for Agentic Applications 2026, the ten risks ASI01 to ASI10",
+      "url": "https://genai.owasp.org/top-10-for-agentic-applications-2026/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Model Context Protocol, Security Best Practices",
+      "url": "https://modelcontextprotocol.io/specification/latest/basic/security_best_practices",
+      "checked": "2026-11-25"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "security"
+  ],
+  "packs": [
+    "agentic-application-security"
+  ],
+  "references": [
+    "owasp-agentic-top-10",
+    "model-context-protocol",
+    "agent-tool-permissions",
+    "human-in-the-loop",
+    "agent-execution-limits",
+    "agent-memory",
+    "agent2agent"
+  ],
+  "match": {
+    "stack": [
+      [
+        "MCP",
+        "Model Context Protocol",
+        "LangGraph",
+        "CrewAI",
+        "OpenAI Agents SDK",
+        "Pydantic AI",
+        "Claude Agent SDK",
+        "AutoGen"
+      ]
+    ]
+  }
+}

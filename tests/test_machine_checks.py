@@ -139,6 +139,8 @@ class StackCheckTests(unittest.TestCase):
         "pci-dss": (".pre-commit-config.yaml", "- repo: https://github.com/gitleaks/gitleaks", "repos: []"),
         "rust-cargo": ("Cargo.toml", '[package]\nname = "svc"\nrust-version = "1.82"\n', '[package]\nname = "svc"\n'),
         "rust-dependencies": (".github/workflows/ci.yml", "      - run: cargo build --locked", "      - run: cargo build"),
+        "agentic-application-security": (".mcp.json", '{"mcpServers": {"docs": {"command": "npx", "args": ["-y", "docs-mcp@1.4.2"]}}}',
+                                         '{"mcpServers": {"docs": {"command": "npx", "args": ["-y", "docs-mcp@latest"]}}}'),
     }
 
     @classmethod
