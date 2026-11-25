@@ -34,6 +34,7 @@ from .prompts import prompt_questions
 from .storage import json_text, print_json, project_lock, read_json, write_json
 from .tasks import list_tasks, read_task, task_path, tasks_touched
 from .tasks_cli import sharing_warnings
+from .terminal import interactive
 from .tools import detect_tools, load_tools, match_tools
 
 
@@ -50,10 +51,10 @@ def _on_first_call(module: str, name: str):
 draft_problems, launch_notice, load_deliverables, new_draft, project_path, utm_link = (
     _on_first_call("deliverables", name)
     for name in ("draft_problems", "launch_notice", "load_deliverables", "new_draft", "project_path", "utm_link"))
-add_share, export_docs, project_overview, revoke_share, same_access, share_status, shared_recipients, space_neighbours = (
+add_share, export_docs, project_overview, revoke_share, same_access, share_status, shared_addresses, space_neighbours = (
     _on_first_call("publishing", name)
     for name in ("add_share", "export_docs", "project_overview", "revoke_share", "same_access", "share_status",
-                 "shared_recipients", "space_neighbours"))
+                 "shared_addresses", "space_neighbours"))
 english_title, find_references, load_references, with_pattern_references = (
     _on_first_call("references", name)
     for name in ("english_title", "find_references", "load_references", "with_pattern_references"))
@@ -204,10 +205,12 @@ def _pending_catalog_changes(lock: dict | None, live: dict, profile: dict, bundl
 
 
 def _undated_project_sources(state: Path, live: dict) -> list[str]:
-    """Project records that cite a source without a checked date; bundled sources always carry one."""
+    """Project records that cite a source without a checked date; bundled sources always carry one. The project's
+    references are read with the catalog it uses, so a pack or a brain they name that does not exist stops check."""
     project = state / "catalog"
+    in_use = apply_lock(live, read_lock(state))
     references = {
-        "references": {record["id"]: record for family in load_references(project / "references").values()
+        "references": {record["id"]: record for family in load_references(project / "references", in_use).values()
                        for record in family["references"]},
         "deliverables": load_deliverables(live, project / "deliverables"),
     }
@@ -572,7 +575,7 @@ def _sector_packs(catalog: dict, sector_id: str) -> list[str]:
 
 
 def _print_references(args, state: Path, catalog: dict) -> None:
-    families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
+    families = with_pattern_references(load_references(state / "catalog" / "references", catalog), catalog["patterns"])
     if not args.json and all(value is None for value in (args.query, args.family, args.id)):
         print(f"{sum(len(family['references']) for family in families.values())} references")
         for family in families.values():
@@ -877,12 +880,17 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
             raise ValueError("docs share add needs --deliverable, --recipient, --until, --portal and --by.")
         share = add_share(state, args.deliverable, args.recipient, args.until, args.portal, args.by, args.dedicated_space)
         _print_share_added(share)
+        for given in dict.fromkeys(args.recipient):
+            if given not in share["recipients"]:
+                kept = shared_addresses(share, {"recipients": [given]})[0]
+                print(f"OpenGuildKit: {given} and {kept} differ only in case, so they are one reader: the share records "
+                      f"{kept}.", file=sys.stderr)
         for other in space_neighbours(state, share):
             print(f"OpenGuildKit: space {share['space']} also carries {other['deliverable']} (share {other['id']}): the "
                   f"recipients of each share can read both deliverables. To share {share['deliverable']} on its own, "
                   "publish it in a space of its own and record it with --dedicated-space.", file=sys.stderr)
         for other in same_access(state, share, running=True):
-            for recipient in shared_recipients(share["recipients"], other["recipients"]):
+            for recipient in shared_addresses(share, other):
                 print(f"OpenGuildKit: {recipient} already has access to space {share['space']} through share {other['id']} "
                       f"(until {other['until']}). Documentalist keeps one access per address and space: give it the later "
                       f"last day, {max(share['until'], other['until'])}, in the portal; removing it there ends both shares, "
@@ -898,8 +906,7 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
               f"{share['deliverable']}.")
         others = same_access(state, share)
         if others:
-            others_recipients = [recipient for other in others for recipient in other["recipients"]]
-            shared = shared_recipients(share["recipients"], others_recipients)
+            shared = sorted({recipient for other in others for recipient in shared_addresses(share, other)})
             print(f"Other shares give {', '.join(shared)} the same space: if you removed that access there, they lost it "
                   "too. Record each one:")
             for other in others:
@@ -1090,7 +1097,7 @@ def _init(args, root: Path, state: Path, catalog: dict) -> None:
         return
     if (state / "project.json").exists():
         raise ValueError(ALREADY_INITIALIZED)
-    if not args.answers and not sys.stdin.isatty():
+    if not args.answers and not interactive():
         raise ValueError("init needs a terminal for its questions. Without one, print them with openguildkit init "
                          "--questions, save the answers as JSON, then run openguildkit init --answers PATH.")
     answers = read_json(args.answers) if args.answers else _interactive_init(questions, catalog, registry)
@@ -1261,7 +1268,7 @@ def _run(args) -> int | None:
     elif args.command == "brains":
         if args.new:
             return _new_brain(args, state, catalog)
-        families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
+        families = with_pattern_references(load_references(state / "catalog" / "references", catalog), catalog["patterns"])
         return _print_brains(args, catalog, families)
     elif args.command == "integrations":
         base = Path.home() if args.user else root

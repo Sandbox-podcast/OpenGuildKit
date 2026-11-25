@@ -7,6 +7,7 @@ or without end dates, 409 outside magic-link mode) and logout. No real instance 
 
 import contextlib
 import json
+import os
 import socket
 import sys
 import tempfile
@@ -16,6 +17,7 @@ from datetime import timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
+from urllib.error import URLError
 
 from openguildkit import clock
 from openguildkit.portal_verification import verify_portal
@@ -94,6 +96,31 @@ class Portal(BaseHTTPRequestHandler):
             self.reply({}, 404)
 
 
+class RecordingProxy(BaseHTTPRequestHandler):
+    """An HTTP proxy that keeps every request. A portal on this machine must never reach it."""
+
+    received: list = []
+
+    def log_message(self, *args):
+        pass
+
+    def _record(self):
+        length = int(self.headers.get("Content-Length", "0") or 0)
+        body = self.rfile.read(length) if length else b""
+        type(self).received.append((self.command, self.path, body))
+        self.send_response(502)
+        self.end_headers()
+
+    def do_GET(self):
+        self._record()
+
+    def do_POST(self):
+        self._record()
+
+    def do_CONNECT(self):
+        self._record()
+
+
 class PortalVerificationTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         folder = tempfile.TemporaryDirectory()
@@ -155,6 +182,24 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
         report = json.loads(self.verify("--json")[0])
         self.assertEqual(report["rows"][0]["policy_active"], True)
         self.assertEqual((report["source"], report["rows"][0]["status"]), ("documentalist-api", "matches"))
+
+    def test_a_local_proxy_declared_in_the_environment_receives_nothing(self):
+        self.share(["reader@example.test"], day(10))
+        Portal.emails, Portal.expirations = ["reader@example.test"], {"reader@example.test": day(10)}
+        proxy = ThreadingHTTPServer(("127.0.0.1", 0), RecordingProxy)
+        thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(proxy.server_close)
+        self.addCleanup(thread.join)
+        self.addCleanup(proxy.shutdown)
+        RecordingProxy.received = []
+        address = f"http://127.0.0.1:{proxy.server_port}"
+        # No exclusion for this machine: that is the setting that used to forward the password.
+        with patch.dict(os.environ, {"HTTP_PROXY": address, "HTTPS_PROXY": address, "ALL_PROXY": address,
+                                     "NO_PROXY": ""}):
+            self.verify()
+        self.assertEqual(RecordingProxy.received, [])
+        self.assertIn("/api/auth/login", [call[1] for call in Portal.calls])
 
     def test_the_session_is_opened_with_the_instance_origin_then_closed_and_nothing_secret_is_kept(self):
         self.share(["reader@example.test"], day(10))
@@ -332,6 +377,24 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
                                     code=1)
         self.assertIn("The local register has no shares for", error)
         self.assertEqual(prompt.call_count, 0)
+
+    def test_the_origin_leaves_out_the_default_port_as_a_browser_does(self):
+        for portal, origin in (("https://docs.example.test:443/p/demo", "https://docs.example.test"),
+                               ("https://Docs.Example.test/p/demo", "https://docs.example.test"),
+                               ("http://localhost:80/p/demo", "http://localhost"), ("https://[::1]:443/p/demo", "https://[::1]"),
+                               ("https://docs.example.test:8443/p/demo", "https://docs.example.test:8443")):
+            with self.subTest(portal=portal):
+                self.share(["reader@example.test"], day(10), portal=portal)
+                sent = []
+
+                class Opener:
+                    def open(self, request, timeout):
+                        sent.append((request.full_url, request.get_header("Origin")))
+                        raise URLError("stand-in")
+
+                with patch("openguildkit.portal_verification.build_opener", return_value=Opener()):
+                    self.verify(code=1, portal=portal)
+                self.assertEqual(sent, [(f"{origin}/api/auth/login", origin)])
 
     def test_verify_portal_can_be_called_directly(self):
         self.share(["reader@example.test"], day(10))

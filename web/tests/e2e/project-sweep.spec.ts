@@ -21,7 +21,7 @@ const ROUTES = [
   '/quetes', '/quetes/request-status', '/bibliotheque', '/bibliotheque/patterns', '/bibliotheque/packs', '/bibliotheque/secteurs',
   '/bibliotheque/ref/owasp-asvs', '/forge', '/forge/request-history', '/forge/livrables', '/forge/outils', '/forge/storybook',
   '/tour', '/tour/alertes', '/tour/blocages', '/observatoire', '/documentation', '/documentation/partages', '/documentation/decisions',
-  '/chroniques', '/intendance', '/intendance/catalogue', '/intendance/interface',
+  '/chroniques', '/intendance', '/intendance/catalogue', '/intendance/interface', '/arsenal',
 ];
 
 async function audit(page: Page) {
@@ -165,3 +165,16 @@ for (const [label, viewport, mode] of VARIANTS) {
     expect(errors, errors.join('\n')).toEqual([]);
   });
 }
+
+test('the Arsenal shows a header scene that exists, in RPG', async ({ page }) => {
+  // Twelve scenes are drawn for thirteen places: a place without its own shows another, never a missing image.
+  const failed: string[] = [];
+  page.on('response', (r) => { if (r.request().resourceType() === 'image' && r.status() >= 400) failed.push(`${r.status()} ${r.url()}`); });
+  await page.addInitScript(() => { localStorage.setItem('ogk-ui:prefs', JSON.stringify({ mode: 'explorer', motion: 'reduced' })); });
+  await page.goto('/#/arsenal');
+  await expect(page.getByRole('heading', { level: 1, name: 'Arsenal' })).toBeVisible();
+  const scene = page.locator('.place-heading-art img');
+  await expect(scene).toHaveCount(1);
+  await expect.poll(() => scene.evaluate((img: HTMLImageElement) => (img.complete ? img.naturalWidth : 0))).toBeGreaterThan(0);
+  expect(failed).toEqual([]);
+});

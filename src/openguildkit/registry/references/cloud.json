@@ -77,6 +77,7 @@
         "pd_oci_runtime"
       ],
       "title": "OCI Runtime Specification",
+      "edition": "v1.3.0",
       "category": "Infrastructure et conteneurs",
       "kind": "spécification",
       "brains": [
@@ -87,12 +88,12 @@
       "sources": [
         {
           "url": "https://specs.opencontainers.org/runtime-spec/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "OCI — Runtime Specification"
         },
         {
           "url": "https://opencontainers.org/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "Open Container Initiative — Specifications"
         }
       ]
@@ -792,6 +793,7 @@
         "pd_trace_context"
       ],
       "title": "W3C Trace Context",
+      "edition": "W3C Recommendation 23 November 2021",
       "category": "Observabilité et diagnostic",
       "kind": "spécification",
       "brains": [
@@ -803,7 +805,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/TR/trace-context/",
-          "checked": "2026-11-20",
+          "checked": "2026-11-25",
           "title": "W3C — Trace Context"
         }
       ]
@@ -814,6 +816,7 @@
         "pd_baggage"
       ],
       "title": "W3C Baggage",
+      "edition": "W3C Candidate Recommendation Snapshot 30 May 2024",
       "category": "Observabilité et diagnostic",
       "kind": "spécification",
       "brains": [
@@ -825,7 +828,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/TR/baggage/",
-          "checked": "2026-11-20",
+          "checked": "2026-11-25",
           "title": "W3C — Baggage (Candidate Recommendation)"
         }
       ]
@@ -952,6 +955,7 @@
         "pd_focus"
       ],
       "title": "FinOps Open Cost and Usage Specification (FOCUS)",
+      "edition": "1.4",
       "category": "FinOps et sobriété numérique",
       "kind": "spécification",
       "brains": [
@@ -963,7 +967,7 @@
       "sources": [
         {
           "url": "https://focus.finops.org/what-is-focus/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "FinOps Foundation — What is FOCUS?"
         }
       ]
@@ -1074,6 +1078,7 @@
         "pd_sci"
       ],
       "title": "Software Carbon Intensity (SCI)",
+      "edition": "1.1.0",
       "category": "FinOps et sobriété numérique",
       "kind": "spécification",
       "brains": [
@@ -1085,7 +1090,7 @@
       "sources": [
         {
           "url": "https://sci.greensoftware.foundation/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "Green Software Foundation — Software Carbon Intensity Specification"
         }
       ]

@@ -9,7 +9,8 @@ import { fileURLToPath } from 'node:url';
 
 const packageRoot = fileURLToPath(new URL('..', import.meta.url));
 const script = name => join(packageRoot, 'pilot', name);
-const { version } = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
+// The installer only accepts published-format versions. This archive is a test fixture.
+const version = '1.2.3';
 
 function git(cwd, ...args) {
   return execFileSync('git', ['-c', 'user.name=OpenGuildKit Test',
@@ -50,6 +51,9 @@ test('run-kit keeps the check exit codes: 0 conforming, 1 rule failed, 2 not eva
     for (const entry of ['bin', 'lib', 'prototype/demo', 'package.json']) {
       cpSync(join(packageRoot, entry), join(staging, entry), { recursive: true });
     }
+    const manifestPath = join(staging, 'package.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    writeFileSync(manifestPath, JSON.stringify({ ...manifest, version }));
     const archive = join(root, `openguildkit-${version}.tgz`);
     execFileSync('tar', ['-czf', archive, '-C', join(root, 'staging'), 'package']);
     const sha256 = createHash('sha256').update(readFileSync(archive)).digest('hex');

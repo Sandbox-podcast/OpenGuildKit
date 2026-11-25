@@ -5,8 +5,8 @@
   "sources": [
     {
       "title": "OpenAPI Specification",
-      "url": "https://spec.openapis.org/oas/latest.html",
-      "checked": "2026-11-21"
+      "url": "https://spec.openapis.org/oas/v3.2.1.html",
+      "checked": "2026-11-25"
     },
     {
       "title": "Diátaxis, a systematic approach to technical documentation",

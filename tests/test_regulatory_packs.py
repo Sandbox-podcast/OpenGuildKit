@@ -70,7 +70,7 @@ class RegulatoryPackTests(unittest.TestCase):
         )
         self.assertIn("dora", resolved_profile(profile, self.catalog)["packs"])
         instructions = render_instructions(profile, self.catalog)
-        self.assertIn("`dora@2.1.1`", instructions)
+        self.assertIn("`dora@2.1.2`", instructions)
         self.assertTrue(re.search(r"financial entity under DORA", instructions))
 
     def test_gdpr_asks_for_the_notice_the_tracker_consent_and_the_art_22_safeguards(self):
@@ -98,8 +98,8 @@ class RegulatoryPackTests(unittest.TestCase):
         self.assertNotIn("Art. 48", transfer)
         self.assertNotIn("45 to 49", transfer)
         sources = {source["url"]: source["checked"] for source in self.catalog["packs"]["gdpr"]["sources"]}
-        for url in ("https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra",
-                    "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:02002L0058-20091219",
+        self.assertEqual(sources.get("https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng"), "2026-11-25")
+        for url in ("https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:02002L0058-20091219",
                     "https://www.cnil.fr/fr/conformite-rgpd-information-des-personnes-et-transparence",
                     "https://www.cnil.fr/fr/cookies-et-autres-traceurs/regles/cookies"):
             self.assertEqual(sources.get(url), "2026-11-22", url)
@@ -118,7 +118,10 @@ class RegulatoryPackTests(unittest.TestCase):
 
     def test_rules_not_yet_applicable_carry_their_date(self):
         dated = {
-            "eu-ai-act": {"classify-employment-use": "2 December 2027", "keep-high-risk-logs": "2 December 2027",
+            # Art. 113(a) as amended by Regulation (EU) 2026/1744: Art. 5(1)(ba) and (bb), 5(1a) and 5(1b) apply
+            # from 2 December 2026, the rest of Art. 5 since 2 February 2025 (#345).
+            "eu-ai-act": {"classify-ai-system": "2 December 2026",
+                          "classify-employment-use": "2 December 2027", "keep-high-risk-logs": "2 December 2027",
                           "enable-human-oversight": "2 December 2027",
                           "maintain-technical-documentation": "2 December 2027",
                           "mark-generated-content": "2 December 2026"},
@@ -131,6 +134,11 @@ class RegulatoryPackTests(unittest.TestCase):
             for rule_id, day in rules.items():
                 with self.subTest(pack=pack_id, rule=rule_id):
                     self.assertIn(day, pack[rule_id]["instruction"])
+        ai_act = self.catalog["packs"]["eu-ai-act"]
+        for text in (ai_act["description"], next(rule["instruction"] for rule in ai_act["rules"]
+                                                  if rule["id"] == "classify-ai-system")):
+            for fact in ("Art. 5(1)(ba) and (bb)", "Art. 5(1a) and (1b)", "2 December 2026", "Art. 113(a)"):
+                self.assertIn(fact, text)
         sources = {source["url"]: source["checked"] for source in self.catalog["packs"]["eu-ai-act"]["sources"]}
         self.assertEqual(sources["https://ai-act-service-desk.ec.europa.eu/en/ai-act/timeline/timeline-implementation-eu-ai-act"],
                          "2026-11-22")
@@ -153,9 +161,24 @@ class RegulatoryPackTests(unittest.TestCase):
         pack = self.catalog["packs"]["nis2"]
         self.assertIn("Implementing Regulation (EU) 2024/2690", pack["description"])
         sources = {source["url"]: source["checked"] for source in pack["sources"]}
-        self.assertEqual(sources["https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R2690"], "2026-11-22")
+        self.assertEqual(sources["https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R2690"], "2026-11-25")
         rule = next(rule for rule in pack["rules"] if "2024/2690" in rule["instruction"])
         self.assertIn("Art. 7", rule["instruction"])
+        # Art. 1 of the implementing regulation names TLD name registries among the relevant entities (#346).
+        self.assertIn("TLD name registries", pack["description"])
+
+    def test_eaa_web_rule_adds_the_user_preferences_clause_to_wcag(self):
+        """EN 301 549 V4.1.1 clause 9.7, user preferences for web pages, is outside WCAG 2.2; table ZB.4 links it to
+        Annex I, Section III (b)(v) of Directive (EU) 2019/882 (#346)."""
+        pack = self.catalog["packs"]["european-accessibility-act"]
+        rule = next(rule for rule in pack["rules"] if rule["id"] == "meet-wcag-aa-on-changed-pages")
+        self.assertIn("WCAG 2.2 Level AA", rule["instruction"])
+        self.assertIn("clause 9.7", rule["instruction"])
+        self.assertIn("Section III (b)(v)", rule["instruction"])
+        self.assertIn("clause 9.7", rule["verification"])
+        sources = {source["url"]: source["checked"] for source in pack["sources"]}
+        self.assertEqual(sources["https://www.etsi.org/deliver/etsi_en/301500_301599/301549/04.01.01_60/"
+                                 "en_301549v040101p.pdf"], "2026-11-25")
 
 
 if __name__ == "__main__":

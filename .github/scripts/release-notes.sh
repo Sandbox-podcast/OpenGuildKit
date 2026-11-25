@@ -37,20 +37,21 @@ draft() {
     endpoint="$releases"
   fi
 
-  # The draft tag does not exist in Git. Compare from the last stable release: a pilot pre-release is
-  # skipped, so the next stable notes also list the changes it shipped. When every published release is a
-  # pre-release, compare from the earliest one. The link uses that same tag.
-  previous=$(jq -r '[.[][] | select((.draft | not) and (.prerelease | not))] | sort_by(.published_at) | last | .tag_name // empty' <<< "$existing")
-  if [[ -z "$previous" ]]; then
-    previous=$(jq -r '[.[][] | select(.draft | not)] | sort_by(.published_at) | first | .tag_name // empty' <<< "$existing")
+  # The draft tag does not exist in Git, so compare from the last stable release to the commit.
+  # A pilot prerelease is skipped: the next stable notes must also list the changes it shipped.
+  # Without a stable release, compare from the oldest published release, prerelease included, for the same
+  # reason. The notes and the Full Changelog link start at the same tag, passed as previous_tag_name.
+  # Without any published release, no tag can start the comparison: previous_tag_name is left out and the
+  # link lists the commits up to SHA.
+  previous=$(jq -r '[.[][] | select(.draft | not)] | sort_by(.published_at)
+    | (map(select(.prerelease | not)) | last) // first | .tag_name // empty' <<< "$existing")
+  local args=(-f tag_name="$draft_tag" -f target_commitish="$sha" -f configuration_file_path=.github/release.yml)
+  if [[ -n "$previous" ]]; then
+    args+=(-f previous_tag_name="$previous")
+    link="https://github.com/$GH_REPO/compare/$previous...$sha"
+  else
+    link="https://github.com/$GH_REPO/commits/$sha"
   fi
-  if [[ -z "$previous" ]]; then
-    printf 'No published release to compare from.\n' >&2
-    exit 1
-  fi
-  local args=(-f tag_name="$draft_tag" -f target_commitish="$sha" -f configuration_file_path=.github/release.yml
-    -f previous_tag_name="$previous")
-  link="https://github.com/$GH_REPO/compare/$previous...$sha"
 
   notes=$(gh api --method POST "$releases/generate-notes" "${args[@]}" --jq .body)
   body=$(jq -rn --arg notes "$notes" --arg link "$link" '

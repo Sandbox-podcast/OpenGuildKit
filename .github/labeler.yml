@@ -13,18 +13,19 @@ sector:
 catalog:
   - changed-files:
       - any-glob-to-any-file: 'src/openguildkit/registry/**'
-web:
-  - changed-files:
-      - any-glob-to-any-file: 'web/**'
 tooling:
   - changed-files:
       - any-glob-to-any-file:
-          - 'src/openguildkit/**'
-          - 'scripts/**'
+          - 'src/openguildkit/*.py'
+          - 'src/openguildkit/agent_files/**'
           - 'integrations/**'
           - 'tests/**'
+          - 'scripts/**'
           - 'pyproject.toml'
           - '.github/**'
+web:
+  - changed-files:
+      - any-glob-to-any-file: 'web/**'
 documentation:
   - changed-files:
       - any-glob-to-any-file:

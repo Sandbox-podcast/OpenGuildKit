@@ -8,6 +8,7 @@
         "pd_iso8601"
       ],
       "title": "ISO 8601",
+      "edition": "2019",
       "category": "Formats et échanges de données",
       "kind": "norme",
       "brains": [
@@ -19,7 +20,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/iso-8601-date-and-time-format.html",
-          "checked": "2026-11-20",
+          "checked": "2026-11-25",
           "title": "ISO — ISO 8601: Date and time format"
         }
       ]
@@ -30,6 +31,7 @@
         "pd_rfc3339"
       ],
       "title": "RFC 3339",
+      "edition": "RFC 3339",
       "category": "Formats et échanges de données",
       "kind": "spécification",
       "brains": [
@@ -41,7 +43,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/rfc/rfc3339",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "IETF RFC 3339 — Date and Time on the Internet: Timestamps"
         }
       ]
@@ -279,6 +281,7 @@
         "pd_odcs"
       ],
       "title": "Open Data Contract Standard (ODCS)",
+      "edition": "v3.2.0",
       "category": "Gouvernance et architecture des données",
       "kind": "spécification",
       "brains": [
@@ -290,7 +293,7 @@
       "sources": [
         {
           "url": "https://bitol-io.github.io/open-data-contract-standard/latest/",
-          "checked": "2026-11-22",
+          "checked": "2026-11-25",
           "title": "Bitol — Open Data Contract Standard (ODCS)"
         }
       ],
@@ -372,6 +375,7 @@
         "pd_openlineage"
       ],
       "title": "OpenLineage",
+      "edition": "1.55.0",
       "category": "Gouvernance et architecture des données",
       "kind": "spécification",
       "brains": [
@@ -383,7 +387,7 @@
       "sources": [
         {
           "url": "https://openlineage.io/docs/spec/object-model/",
-          "checked": "2026-11-22",
+          "checked": "2026-11-25",
           "title": "OpenLineage — Object Model"
         }
       ],
@@ -513,7 +517,7 @@
     {
       "id": "dicom",
       "title": "DICOM",
-      "edition": "2026b",
+      "edition": "2026e",
       "category": "Interopérabilité santé",
       "kind": "norme",
       "brains": [
@@ -524,9 +528,9 @@
       "applies_when": "Pour les systèmes d'imagerie médicale ; vérifier les services et profils nécessaires.",
       "sources": [
         {
-          "url": "https://dicom.nema.org/medical/dicom/2026b/output/html/part01.html",
-          "checked": "2026-11-21",
-          "title": "DICOM PS3.1 2026b — Introduction and Overview"
+          "url": "https://dicom.nema.org/medical/dicom/current/output/html/part01.html",
+          "checked": "2026-11-25",
+          "title": "DICOM PS3.1, Introduction and Overview, current edition"
         }
       ]
     }

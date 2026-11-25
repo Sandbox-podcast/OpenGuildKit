@@ -12,6 +12,7 @@ the way the CLI's own tests do. Never use it on a real project.
 
 from __future__ import annotations
 
+import argparse
 import contextlib
 import io
 import json
@@ -188,21 +189,17 @@ def build_gdpr(root: Path) -> None:
 
 
 def main_() -> None:
-    if any(arg in ("-h", "--help") for arg in sys.argv[1:]):
-        print(__doc__.strip())
-        return
-    unknown = [arg for arg in sys.argv[1:] if arg.startswith("-") and arg != "--gdpr"]
-    if unknown:
-        raise SystemExit(__doc__)
-    gdpr = "--gdpr" in sys.argv[1:]
-    args = [arg for arg in sys.argv[1:] if arg != "--gdpr"]
-    if len(args) != 1:
-        raise SystemExit(__doc__)
-    root = Path(args[0]).resolve()
+    # argparse prints the usage for --help and refuses any other argument that starts with a dash, so that no
+    # project is built in a folder named after an option.
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("dir", metavar="DIR", help="an empty or missing folder")
+    parser.add_argument("--gdpr", action="store_true", help="add the GDPR pattern and a task on personal data")
+    args = parser.parse_args()
+    root = Path(args.dir).resolve()
     if root.exists() and any(root.iterdir()):
         raise SystemExit(f"{root} is not empty. Pick an empty folder.")
     root.mkdir(parents=True, exist_ok=True)
-    (build_gdpr if gdpr else build)(root)
+    (build_gdpr if args.gdpr else build)(root)
     print(f"Sample project ready: {root}\nRun: openguildkit --project \"{root}\" ui")
 
 

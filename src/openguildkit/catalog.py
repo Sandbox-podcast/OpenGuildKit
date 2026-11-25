@@ -5,7 +5,7 @@ import json
 import os
 import re
 import unicodedata
-from datetime import date
+from datetime import date, timedelta
 from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
 from typing import Any
@@ -106,16 +106,17 @@ def tracking_parameters(url: str) -> list[str]:
     return found
 
 
-def _validate_checked(value: Any, label: str) -> None:
-    """A day a page was read: a real calendar date, not after today on the real clock."""
+def validate_day(value: Any, label: str) -> None:
+    """The day a page was read: a source's checked, a tool server's verified and reviewed. A calendar date written
+    YYYY-MM-DD, not after today on the real clock (one day of margin for time zones)."""
     try:
         if not isinstance(value, str) or not CHECKED_PATTERN.fullmatch(value):
             raise ValueError
         day = date.fromisoformat(value)
     except ValueError:
         raise CatalogError(f"{label} must be a date written YYYY-MM-DD, such as 2026-11-21") from None
-    if day > clock.real_today():
-        raise CatalogError(f"{label} is {value}, which is after today")
+    if day > clock.real_today() + timedelta(days=1):
+        raise CatalogError(f"{label} is {value}, a day in the future: write the day the page was read")
 
 
 def validate_sources(sources: Any, *, require_checked: bool = False) -> None:
@@ -126,7 +127,7 @@ def validate_sources(sources: Any, *, require_checked: bool = False) -> None:
         label = f"sources[{index}]"
         validate_fields(source, label, {"title", "url"}, {"checked"})
         if "checked" in source:
-            _validate_checked(source["checked"], f"{label}.checked")
+            validate_day(source["checked"], f"{label}.checked")
         elif require_checked:
             raise CatalogError(UNDATED_SOURCE.format(label=label))
         validate_text(source["title"], f"{label}.title")

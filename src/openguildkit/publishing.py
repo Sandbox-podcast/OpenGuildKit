@@ -39,6 +39,7 @@ _DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 # The only paths an export writes; a manifest entry of another shape is never removed.
 _EXPORTED = re.compile(r"(?:(?:reference|learn|blog)/[^/]+\.md|openapi/[^/]+|project/overview\.md|SUMMARY\.md|README\.md)")
 MAX_SHARE_DAYS = 366
+_DEFAULT_PORTS = {"https": 443, "http": 80}
 
 
 def _title(task: dict) -> str:
@@ -235,7 +236,7 @@ def _shared_item(state: Path, deliverable: str) -> None:
                          "share, or the folder that openguildkit docs export wrote.")
 
 
-def _loopback(host: str) -> bool:
+def is_loopback(host: str) -> bool:
     """True for an address of this machine, where a local Documentalist runs without TLS."""
     if host == "localhost" or host.endswith(".localhost"):
         return True
@@ -248,14 +249,15 @@ def _loopback(host: str) -> bool:
 def portal_space(portal: str) -> str:
     """The space a portal address opens, written HOST/p/SPACE: Documentalist shows a reader every page of it.
 
-    The address is https, or http for an instance on this machine (localhost, 127.0.0.1, ::1).
+    The address is https, or http for an instance on this machine (localhost, 127.0.0.1, ::1). The default port of
+    the scheme is left out, so HOST:443 and HOST name the same space.
     """
     address = urlsplit(portal.strip())
     try:
         host, port = address.hostname, address.port
     except ValueError:
         host = port = None
-    secure = address.scheme == "https" or (address.scheme == "http" and bool(host) and _loopback(host))
+    secure = address.scheme == "https" or (address.scheme == "http" and bool(host) and is_loopback(host))
     if not host or not secure:
         raise ValueError("Give the https address of the Documentalist portal, such as https://docs.example.org/p/support-portal "
                          "(http only for an instance on this machine: localhost, 127.0.0.1 or ::1).")
@@ -263,32 +265,41 @@ def portal_space(portal: str) -> str:
     if len(parts) < 3 or parts[1] != "p" or not parts[2]:
         raise ValueError(f"--portal {portal} names no space. Give the portal of the space you share, https://HOST/p/SPACE: "
                          "the recipients see every published page of that space.")
-    if port == {"https": 443, "http": 80}.get(address.scheme):
-        port = None
     shown = f"[{host}]" if ":" in host else host
-    return f"{shown}{f':{port}' if port else ''}/p/{parts[2]}"
+    return f"{shown}{f':{port}' if port and port != _DEFAULT_PORTS[address.scheme] else ''}/p/{parts[2]}"
 
 
-def _canonical_space(space: str) -> str:
-    """Drop :443 or :80 written into an older record. portal_space omits the scheme's default port."""
-    match = re.fullmatch(r"(\[[^\]]+\]|[^:/]+)(?::443|:80)?(/p/.+)", space)
-    return f"{match.group(1)}{match.group(2)}" if match else space
+def _default_port(share: dict) -> int | None:
+    """The default port of the scheme of the share's portal: 443 for https, 80 for http."""
+    return _DEFAULT_PORTS.get(urlsplit(str(share.get("portal", "")).strip()).scheme)
 
 
 def share_space(share: dict) -> str | None:
-    """The space a share opens; a share recorded before the space was kept gets it from its portal."""
+    """The space a share opens; a share recorded before the space was kept gets it from its portal.
+
+    A space recorded with the default port of its portal's scheme, as earlier versions kept it, is read without it.
+    """
     if share.get("space"):
-        return _canonical_space(share["space"])
+        host, separator, rest = share["space"].partition("/p/")
+        default = _default_port(share)
+        if default and separator and host.endswith(f":{default}"):
+            return f"{host.removesuffix(f':{default}')}/p/{rest}"
+        return share["space"]
     try:
         return portal_space(share["portal"])
     except ValueError:
         return None
 
 
-def shared_recipients(left: list[str], right: list[str]) -> list[str]:
-    """Addresses present on both sides, ignoring case, spelled as in `left`."""
-    other = {address.strip().lower() for address in right}
-    return sorted({address for address in left if address.strip().lower() in other}, key=str.lower)
+def _address(address: str) -> str:
+    """An email address as docs share verify compares it: without surrounding spaces or case."""
+    return address.strip().lower()
+
+
+def shared_addresses(share: dict, other: dict) -> list[str]:
+    """The share's recipients that the other share names too, whatever the case, written as the share writes them."""
+    theirs = {_address(address) for address in other["recipients"]}
+    return sorted(address for address in share["recipients"] if _address(address) in theirs)
 
 
 def add_share(state: Path, deliverable: str, recipients: list[str], until: str, portal: str, by: str,
@@ -307,7 +318,10 @@ def add_share(state: Path, deliverable: str, recipients: list[str], until: str, 
         raise ValueError(f"List the recipients' email addresses{': ' + ', '.join(bad) if bad else ''}.")
     _share_end(until)
     space = portal_space(portal)
-    share = {"id": uuid.uuid4().hex[:8], "deliverable": deliverable.strip(), "recipients": sorted(set(recipients)),
+    spellings: dict[str, str] = {}
+    for address in recipients:  # One spelling per address, the first given: the register compares them without case.
+        spellings.setdefault(_address(address), address)
+    share = {"id": uuid.uuid4().hex[:8], "deliverable": deliverable.strip(), "recipients": sorted(spellings.values()),
              "until": until, "portal": portal, "space": space, "by": by.strip(),
              "created_at": clock.real_timestamp(), "revoked_at": None}
     with project_lock(state):
@@ -375,19 +389,15 @@ def _share_end(until: str) -> date:
     return end
 
 
-def _addresses(recipients: list[str]) -> set[str]:
-    return {address.strip().lower() for address in recipients}
-
-
 def _same_access(shares: list[dict], share: dict, today: date | None) -> list[dict]:
-    space, recipients = share_space(share), _addresses(share["recipients"])
+    space = share_space(share)
     return [item for item in shares
             if item["id"] != share["id"] and not item["revoked_at"] and space and share_space(item) == space
-            and recipients & _addresses(item["recipients"]) and (today is None or date.fromisoformat(item["until"]) >= today)]
+            and shared_addresses(share, item) and (today is None or date.fromisoformat(item["until"]) >= today)]
 
 
 def same_access(state: Path, share: dict, running: bool = False) -> list[dict]:
-    """The other shares not revoked that give one of the share's recipients the same space.
+    """The other shares not revoked that give one of the share's recipients the same space, whatever the case.
 
     Documentalist keeps one access per address and space, so these shares grant and lose that access together.
     With `running`, only those whose last day is not past on the real clock.
@@ -412,6 +422,16 @@ def revoke_share(state: Path, share_id: str, by: str) -> dict:
     return {**share, "space": share_space(share)}
 
 
+def _observation(observations: dict, share: dict, space: str | None) -> dict:
+    """The last observation of the share's space, one an earlier version kept under HOST:443/p/SPACE included."""
+    host, separator, rest = (space or "").partition("/p/")
+    default = _default_port(share)
+    keys = [space, *([f"{host}:{default}/p/{rest}"] if default and separator else [])]
+    found = [observations[key] for key in keys
+             if isinstance(observations.get(key), dict) and observations[key].get("checked_at")]
+    return max(found, key=lambda item: str(item["checked_at"]), default={})
+
+
 def share_status(state: Path, today: date | None = None) -> list[dict]:
     """Each share with its space and state, on the real clock: active, expired, covered or revoked.
 
@@ -426,13 +446,14 @@ def share_status(state: Path, today: date | None = None) -> list[dict]:
         observations = read_json(observation_path).get("observations", {}) if observation_path.is_file() else {}
     except ValueError:
         observations = {}
+    observations = observations if isinstance(observations, dict) else {}
     for share in shares:
         row = {**share, "space": share_space(share), "remove": [], "kept": {}, "dedicated": bool(share.get("dedicated")),
                "also_in_space": [] if share["revoked_at"] else
                sorted({item["deliverable"] for item in _space_neighbours(shares, share)})}
-        observed = observations.get(row["space"], {}) if isinstance(observations, dict) else {}
-        if isinstance(observed, dict) and observed.get("checked_at"):
-            recipients = {address.strip().lower() for address in share["recipients"]}
+        observed = _observation(observations, share, row["space"])
+        if observed:
+            recipients = {_address(address) for address in share["recipients"]}
             observed_rows = observed.get("rows") if isinstance(observed.get("rows"), list) else []
             row["portal_observation"] = {"source": observed.get("source"), "checked_at": observed["checked_at"],
                                          "rows": [item for item in observed_rows
@@ -444,7 +465,8 @@ def share_status(state: Path, today: date | None = None) -> list[dict]:
         else:
             running = _same_access(shares, share, today)
             for recipient in share["recipients"]:
-                covering = [item for item in running if recipient.strip().lower() in _addresses(item["recipients"])]
+                covering = [item for item in running
+                            if _address(recipient) in {_address(address) for address in item["recipients"]}]
                 if covering:
                     last = max(covering, key=lambda item: item["until"])
                     row["kept"][recipient] = {"share": last["id"], "until": last["until"]}

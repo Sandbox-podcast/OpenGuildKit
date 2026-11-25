@@ -5,7 +5,7 @@ import re
 import tempfile
 import unittest
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog, tracking_parameters
 from openguildkit.references import load_references
@@ -41,13 +41,29 @@ def _all_sources():
                 yield f"references/{record['id']}", source
 
 
+# The letter of an EU act in its CELEX number, by the type that starts its ELI (reg_impl and dir_del included).
+EU_ACT_LETTERS = {"reg": "R", "dir": "L", "dec": "D"}
+ELI_ACT = re.compile(r"/eli/(reg|dir|dec)(?:_[a-z]+)?/(\d{4})/(\d+)(?:/.*)?")
+CELEX_ACT = re.compile(r"CELEX:[03](\d{4})([RLD])(\d+)")
+
+
 def _document_key(url: str) -> tuple:
-    """Spellings that reach the same document share a key: an RFC on either IETF site, index.html, a final slash."""
+    """Spellings that reach the same document share a key: an RFC on either IETF site, index.html, a final slash,
+    an EU act on EUR-Lex in any language, ELI form (/oj, a consolidated date, the up-to-date form) or CELEX link,
+    and the OpenAPI Specification under latest or one of its versions."""
     parts = urlsplit(url)
     host = parts.hostname.removeprefix("www.")
     rfc = re.fullmatch(r"/(?:doc/html|rfc|info)/(rfc\d+)(?:\.html|/)?", parts.path)
     if host in ("rfc-editor.org", "datatracker.ietf.org") and rfc:
         return ("rfc", rfc.group(1))
+    if host == "eur-lex.europa.eu":
+        eli, celex = ELI_ACT.fullmatch(parts.path), CELEX_ACT.search(unquote(parts.query))
+        if eli:
+            return ("eu-act", EU_ACT_LETTERS[eli.group(1)], eli.group(2), int(eli.group(3)))
+        if celex:
+            return ("eu-act", celex.group(2), celex.group(1), int(celex.group(3)))
+    if host == "spec.openapis.org" and re.fullmatch(r"/oas/(?:latest|v\d+(?:\.\d+)*)(?:\.html)?", parts.path):
+        return ("openapi",)
     path = parts.path.removesuffix("index.html").removesuffix(".html").rstrip("/")
     return (host, path.lower(), parts.query)
 
@@ -103,6 +119,46 @@ class BundledSourceTests(unittest.TestCase):
     def test_bundled_sources_carry_no_tracking_parameter(self):
         for where, source in _all_sources():
             self.assertEqual(tracking_parameters(source["url"]), [], where)
+
+    def test_spellings_of_one_eu_act_or_of_openapi_share_a_key(self):
+        same = [
+            ("https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra", "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng"),
+            ("https://eur-lex.europa.eu/eli/reg/2022/2065/oj", "https://eur-lex.europa.eu/eli/reg/2022/2065/oj/eng"),
+            ("https://eur-lex.europa.eu/eli/dir/2022/2555/en", "https://eur-lex.europa.eu/eli/dir/2022/2555/oj/eng"),
+            ("https://eur-lex.europa.eu/eli/reg/2024/1689/2026-07-27/eng", "https://eur-lex.europa.eu/eli/reg/2024/1689/oj"),
+            ("https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
+             "https://eur-lex.europa.eu/eli/reg/2024/2847/oj/eng"),
+            ("https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:02002L0058-20091219",
+             "https://eur-lex.europa.eu/eli/dir/2002/58/oj"),
+            ("https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R2690",
+             "https://eur-lex.europa.eu/eli/reg_impl/2024/2690/oj/eng"),
+            ("https://spec.openapis.org/oas/latest.html", "https://spec.openapis.org/oas/v3.2.1.html"),
+        ]
+        for first, second in same:
+            with self.subTest(url=first):
+                self.assertEqual(_document_key(first), _document_key(second))
+        different = [
+            ("https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng", "https://eur-lex.europa.eu/eli/dir/2016/680/oj/eng"),
+            ("https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng", "https://eur-lex.europa.eu/eli/dir/2016/679/oj/eng"),
+            ("https://spec.openapis.org/oas/v3.2.1.html", "https://spec.openapis.org/arazzo/latest.html"),
+        ]
+        for first, second in different:
+            with self.subTest(url=first):
+                self.assertNotEqual(_document_key(first), _document_key(second))
+
+    def test_eu_texts_use_one_language_and_one_eli_form(self):
+        """English everywhere; an act at its Official Journal text (/oj/eng) or at a dated consolidation (#347)."""
+        wrong = []
+        for where, source in _all_sources():
+            parts = urlsplit(source["url"])
+            if parts.hostname != "eur-lex.europa.eu":
+                continue
+            if parts.path.startswith("/eli/"):
+                if not re.fullmatch(r"/eli/[a-z_]+/\d{4}/\d+/(?:oj|\d{4}-\d{2}-\d{2})/eng", parts.path):
+                    wrong.append(f"{where}: {source['url']}")
+            elif not parts.path.startswith("/legal-content/EN/"):
+                wrong.append(f"{where}: {source['url']}")
+        self.assertEqual(wrong, [])
 
     def test_each_document_has_one_address(self):
         addresses = {}

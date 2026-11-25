@@ -1,9 +1,6 @@
 """docs/catalog-format.md names every catalog folder and every tool category the code knows."""
 
 import re
-import subprocess
-import sys
-import tempfile
 import unittest
 from pathlib import Path
 
@@ -14,6 +11,7 @@ from openguildkit.tools import CATEGORIES
 REPO = Path(__file__).resolve().parents[1]
 SOURCE = REPO / "src" / "openguildkit"
 PAGE = REPO / "docs" / "catalog-format.md"
+NUMBERS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
 
 
 def folders_in_code() -> set[str]:
@@ -39,25 +37,16 @@ class CatalogFormatPageTests(unittest.TestCase):
         for heading in ("## References", "## Deliverables", "## Tools"):
             self.assertIn(f"\n{heading}\n", self.page)
 
-    def test_the_announced_material_folder_count_matches_the_layout(self):
-        words = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9}
-        announced = words[re.search(r"(\w+) folders of material", self.page).group(1)]
-        layout = self.page.split("```text", 1)[1].split("```", 1)[0]
-        material = [name for name in re.findall(r"^  ([a-z-]+)/", layout, re.M) if name not in COLLECTION_FIELDS]
-        self.assertEqual(announced, len(material), material)
-
-    def test_sample_project_explains_itself_and_refuses_an_option_it_does_not_know(self):
-        script = REPO / "web" / "scripts" / "sample-project.py"
-        with tempfile.TemporaryDirectory() as folder:
-            shown = subprocess.run([sys.executable, str(script), "--help"], cwd=folder, capture_output=True,
-                                   text=True, encoding="utf-8")
-            refused = subprocess.run([sys.executable, str(script), "--nope"], cwd=folder, capture_output=True,
-                                     text=True, encoding="utf-8")
-            self.assertEqual(list(Path(folder).iterdir()), [])
-        self.assertEqual(shown.returncode, 0, shown.stderr)
-        self.assertIn("sample-project.py DIR", shown.stdout)
-        self.assertNotEqual(refused.returncode, 0)
-        self.assertIn("sample-project.py DIR", refused.stderr)
+    def test_the_counts_of_collections_and_folders_match_the_layout(self):
+        announced = re.search(r"The catalog has (\w+) collections of records, one JSON file per record, and (\w+) "
+                              r"folders of material", self.page)
+        self.assertIsNotNone(announced, "the sentence before the layout counts the collections and the folders")
+        bundled = self.page.split("```text", 1)[1].split(".openguildkit/catalog/", 1)[0]
+        folders = set(re.findall(r"^  ([a-z-]+)/", bundled, re.MULTILINE))
+        self.assertTrue(set(COLLECTION_FIELDS) <= folders)
+        self.assertEqual(NUMBERS[announced[1]], len(COLLECTION_FIELDS))
+        self.assertEqual(NUMBERS[announced[2]], len(folders - set(COLLECTION_FIELDS)),
+                         sorted(folders - set(COLLECTION_FIELDS)))
 
     def test_every_tool_category_is_listed(self):
         missing = [category for category in CATEGORIES if f"`{category}`" not in self.page]

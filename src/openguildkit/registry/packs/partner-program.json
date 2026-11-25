@@ -1,13 +1,13 @@
 {
   "id": "partner-program",
   "title": "Partner programme",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "For a programme with resellers, integrators, referral partners or marketplaces: written terms, no imposed resale prices, a channel conflict rule and clear data roles.",
   "sources": [
     {
       "title": "Commission Regulation (EU) 2022/720, Vertical Block Exemption Regulation",
-      "url": "https://eur-lex.europa.eu/eli/reg/2022/720/oj",
-      "checked": "2026-11-21"
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/720/oj/eng",
+      "checked": "2026-11-25"
     },
     {
       "title": "European Commission, Vertical block exemptions and Guidelines on vertical restraints",

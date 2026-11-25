@@ -6,9 +6,9 @@ changelog:
       labels: [pack, board, sector, catalog]
     - title: CLI and integrations
       labels: [tooling]
-    - title: Documentation and examples
-      labels: [documentation]
     - title: Web interface
       labels: [web]
+    - title: Documentation and examples
+      labels: [documentation]
     - title: Other changes
       labels: ['*']

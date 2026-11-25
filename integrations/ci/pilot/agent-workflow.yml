@@ -87,7 +87,7 @@ jobs:
   publish:
     needs: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
       pull-requests: read
       statuses: write

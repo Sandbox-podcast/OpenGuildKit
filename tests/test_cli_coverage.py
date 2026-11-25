@@ -1,8 +1,10 @@
-"""Every CLI command and task action is run by at least one test.
+"""Every CLI command, task action and command mode is run by at least one test.
 
 The test walks the argparse tree and looks in the test files for an invocation:
 the group and action as consecutive arguments, such as "task", "pass", or a
-top-level command as an argument of its own. A new command without a test fails here.
+top-level command as an argument of its own. A command whose positional argument
+selects a mode counts once per mode: "market", "resume" or "docs", "share", "verify".
+A new command or mode without a test fails here.
 
 A command the web interface tests send to a running server is not an invocation of
 its own: the calls of their HTTP helpers are left out of the search, and so are
@@ -16,11 +18,14 @@ import re
 import unittest
 from pathlib import Path
 
+from openguildkit import market_cli
 from openguildkit.cli import command_parser
 
 TESTS = Path(__file__).resolve().parent
 # The helpers of tests/test_webui.py that send a command to the server over HTTP.
 HTTP_HELPERS = {"run_in_page", "request", "refused_by_server"}
+# Positional arguments with choices that are values, not modes: profile add, remove and set FIELD.
+MODE_EXCEPTIONS = {"field"}
 
 
 def _subcommands(parser: argparse.ArgumentParser) -> dict:
@@ -30,12 +35,23 @@ def _subcommands(parser: argparse.ArgumentParser) -> dict:
     return {}
 
 
+def _modes(parser: argparse.ArgumentParser) -> list[str]:
+    """The choices of the positional argument that selects what a command does, such as market MODE, host MODE
+    or docs share ACTION. A profile command's FIELD names the setting it changes, not a mode of the command."""
+    for action in parser._actions:
+        if not action.option_strings and action.choices and action.dest not in MODE_EXCEPTIONS \
+                and not isinstance(action, argparse._SubParsersAction):
+            return list(action.choices)
+    return []
+
+
 def command_paths() -> list[tuple[str, ...]]:
-    """Each runnable command: a top-level command, or a group and its action."""
+    """Each runnable command: a top-level command, or a group and its action, followed by each mode its
+    positional argument offers (market resume, docs share verify)."""
     paths = []
     for name, command in _subcommands(command_parser()).items():
-        actions = _subcommands(command)
-        paths.extend([(name, action) for action in actions] if actions else [(name,)])
+        for path, parser in [((name, action), sub) for action, sub in _subcommands(command).items()] or [((name,), command)]:
+            paths.extend([(*path, mode) for mode in _modes(parser)] or [path])
     return paths
 
 
@@ -90,6 +106,17 @@ class CliCoverageTests(unittest.TestCase):
         self.assertIn(("deliverable", "list"), paths)
         self.assertIn(("check",), paths)
         self.assertGreater(len(paths), 50)
+
+    def test_the_walk_lists_each_mode_a_positional_argument_selects(self):
+        paths = command_paths()
+        for mode in market_cli.MODES:
+            self.assertIn(("market", mode), paths)
+        self.assertNotIn(("market",), paths)
+        self.assertIn(("host", "check"), paths)
+        self.assertIn(("host", "apply"), paths)
+        for action in ("add", "list", "revoke", "check", "verify"):
+            self.assertIn(("docs", "share", action), paths)
+        self.assertNotIn(("docs", "share"), paths)
 
     def test_every_command_and_task_action_is_invoked_by_a_test(self):
         sources = _test_sources()

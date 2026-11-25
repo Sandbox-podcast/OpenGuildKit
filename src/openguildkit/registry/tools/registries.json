@@ -23,19 +23,15 @@
           "publisher": "vendor",
           "maintainer": "Docker",
           "transport": "stdio",
-          "command": "docker",
+          "command": "node",
           "args": [
-            "run",
-            "-i",
-            "--rm",
-            "-e",
-            "HUB_PAT_TOKEN",
-            "docker/dockerhub-mcp:0.17.0",
+            "{clone_path}/dist/index.js",
+            "--transport=stdio",
             "--username={hub_username}"
           ],
           "package": {
-            "registry": "docker",
-            "name": "docker/dockerhub-mcp"
+            "registry": "other",
+            "name": "github.com/docker/hub-mcp (clone, npm install, npm run build)"
           },
           "auth": "api-token",
           "env": [
@@ -43,26 +39,29 @@
           ],
           "settings": [
             {
+              "name": "clone_path",
+              "description": "Docker Hub: the complete path of your clone of github.com/docker/hub-mcp, built with npm install and npm run build"
+            },
+            {
               "name": "hub_username",
               "description": "Docker Hub: the username that owns the personal access token"
             }
           ],
           "status": "unknown",
           "capabilities": "Search images and Docker Hardened Images, read repository info, tags and Dockerfiles; create repositories and update repository info and Dockerfiles.",
-          "source": "https://docs.docker.com/ai/mcp-catalog-and-toolkit/hub-mcp/",
+          "source": "https://docs.docker.com/docker-hub/mcp-server/",
           "repository": "https://github.com/docker/hub-mcp",
           "license": "Apache-2.0",
-          "verified": "2026-11-24",
+          "verified": "2026-11-25",
           "access": "Read and write.",
-          "pin": "docker/dockerhub-mcp:0.17.0 (version in the repository's server.json)",
-          "scopes": "The rights of the Docker Hub personal access token. Consent: Create a PAT with the least permissions; without HUB_PAT_TOKEN the server reads public content only."
+          "scopes": "The permissions of the Docker Hub personal access token in HUB_PAT_TOKEN (the README asks for appropriate permissions); without it the server reads public content only."
         }
       ],
       "api": {
         "kind": "rest",
         "docs": "https://docs.docker.com/reference/api/hub/latest/"
       },
-      "notes": "Docker's docs also install it from the MCP Toolkit catalog (Docker Desktop 4.43+) or from a clone (node dist/index.js --transport=stdio). The image and its --username argument come from server.json in docker/hub-mcp; no status is stated."
+      "notes": "Docker's page also installs it from the MCP Toolkit of Docker Desktop: add Docker Hub from the Catalog tab to a profile, then enter the username and the personal access token. The registered command runs a clone of github.com/docker/hub-mcp built with npm install and npm run build (Node.js 22 or later, per its README). No status is stated."
     },
     {
       "id": "harbor",

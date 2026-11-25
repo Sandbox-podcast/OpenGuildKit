@@ -9,9 +9,14 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 PACKAGE = REPO / "src" / "openguildkit"
-# Where a name of the package may be used: the package, its tests, the maintainers' scripts, and the examples and
-# integrations shipped with the repository.
-READERS = ("src", "tests", "scripts", "examples", "integrations")
+# Where a name of the package may be used: the package, the maintainers' scripts, and the examples and integrations
+# shipped with the repository. A name only the tests read is code nothing runs: it hides a check that never happens.
+READERS = ("src", "scripts", "examples", "integrations")
+# The names only the tests read, kept on purpose, and why.
+TESTED_ONLY = {
+    "LEGAL_BASIS": "relevance.py: the legal reason of each regulatory pack, a table for maintainers (docs/workflow.md); "
+                   "its test checks that every regulatory pack has one.",
+}
 
 
 def used_names(tree: ast.AST) -> Counter:
@@ -52,14 +57,19 @@ class DeadCodeTests(unittest.TestCase):
                 uses.update(used_names(ast.parse(path.read_text(encoding="utf-8"))))
         scripts = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))["project"]["scripts"]
         uses.update(target.rpartition(":")[2] for target in scripts.values())
-        unused = []
+        unused, kept = [], set()
         for path, tree in package_modules().items():
             for statement in tree.body:
                 inside = used_names(statement)  # A function that calls itself is not used by that call.
                 for name in defined_names(statement):
-                    if uses[name] - inside[name] <= 0:
+                    if uses[name] - inside[name] > 0:
+                        continue
+                    if name in TESTED_ONLY:
+                        kept.add(name)
+                    else:
                         unused.append(f"{path.relative_to(REPO).as_posix()}:{statement.lineno} {name}")
-        self.assertEqual(unused, [], "remove these names, or call them")
+        self.assertEqual(unused, [], "remove these names, call them, or give the reason to keep them in TESTED_ONLY")
+        self.assertEqual(sorted(TESTED_ONLY.keys() - kept), [], "the package now uses these names: drop them from TESTED_ONLY")
 
     def test_no_module_imports_a_private_name_of_another(self):
         private = []

@@ -1,0 +1,63 @@
+{
+  "id": "agent-native-engineering",
+  "title": "Agent-native engineering",
+  "version": "1.0.0",
+  "description": "For a repository where coding agents do most of the work: bounded command output and instruction files, a machine-readable map, a targeted check, evidence written by tools, oversight files out of the agent's reach, a contract for each subagent and a measured cost per task.",
+  "sources": [
+    {
+      "title": "Anthropic, Effective context engineering for AI agents",
+      "url": "https://www.anthropic.com/research/effective-context-engineering-for-ai-agents",
+      "checked": "2026-11-25"
+    }
+  ],
+  "rules": [
+    {
+      "id": "budget-command-output",
+      "instruction": "Give each command an agent runs in this repository (CLI, test runner, linters, scripts) a default output budget: one line on success, and on failure only the failing items with their location and the command that shows more. Write longer output to a file and print its path.",
+      "verification": "Run the main commands on the repository's example and compare each output with the budget a test declares; check that the test fails when a command exceeds it."
+    },
+    {
+      "id": "budget-agent-instructions",
+      "instruction": "Keep the instruction files an agent loads at every session (AGENTS.md, CLAUDE.md, skills) within a size budget the repository states, and move reference material into files or commands the agent reads only when a step needs them.",
+      "verification": "Check that a test or script measures these files against the stated budget and that each detail moved out of them is named with the path or command that gives it."
+    },
+    {
+      "id": "keep-a-repository-map",
+      "instruction": "Keep a machine-readable map of the repository that gives, for each module, its purpose in one line, its entry points, the tests that cover it and its documentation page, and keep it complete with a test.",
+      "verification": "Open the map and check that every source module has an entry whose test and documentation paths exist.",
+      "check": {
+        "kind": "file-exists",
+        "paths": [
+          "AGENTS.map.json",
+          "docs/agents/map.json",
+          ".agents/map.json"
+        ]
+      }
+    },
+    {
+      "id": "offer-a-targeted-check",
+      "instruction": "Provide one command that checks only what a change touches (the tests mapped to the changed files, lint and type checks) within the time budget the repository states, and run it before handing work over; keep the full suite for CI.",
+      "verification": "Change one module, run the command and check that it selects that module's tests, reports a changed file with no mapped test and stays within the stated time."
+    },
+    {
+      "id": "record-evidence-from-tools",
+      "instruction": "Record a check as passed only from the tool that ran it, with its exit code, the digest of its log and the revision it ran on; never write a passed status or its evidence by hand.",
+      "verification": "Pick a recorded check and compare its digest with its log and its revision with the change under review."
+    },
+    {
+      "id": "keep-oversight-out-of-agent-reach",
+      "instruction": "Keep approvals, decision records, guard settings, CI workflows and the host's permission settings out of what the agent may edit, through the host's permissions and required reviews rather than an instruction alone, and ask a person for any change to them.",
+      "verification": "Check that the host settings deny the agent edits to these paths and that a change to them needs a person's review, for example through CODEOWNERS and branch protection."
+    },
+    {
+      "id": "brief-subagents-with-a-contract",
+      "instruction": "Give each subagent a brief with its goal, its inputs as paths, the tools it may use, the schema of its result, a budget of turns or reads and a stop condition, and take back only a result that matches the schema.",
+      "verification": "Read the repository's brief templates and agent files and check that each one states these six items."
+    },
+    {
+      "id": "measure-agent-cost-per-task",
+      "instruction": "Measure for each closed task the input, cached and generated tokens, the turns, the time spent waiting and the retries, as totals only, and compare them with the budget agreed for a reference task.",
+      "verification": "Review the measurement of recent tasks against the regression budget and check that it keeps no prompt or tool output text."
+    }
+  ]
+}

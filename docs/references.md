@@ -52,7 +52,7 @@ Before a project activates a requirement, it records four things: the scope (whi
   "version": "1.0.0",
   "description": "For the support console and its ticket export: the team's scope, owner and evidence for the gdpr pack.",
   "sources": [
-    {"title": "Regulation (EU) 2016/679, General Data Protection Regulation", "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra"}
+    {"title": "Regulation (EU) 2016/679, General Data Protection Regulation", "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng"}
   ],
   "depends_on": ["gdpr"],
   "rules": [

@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.alerts import (
-    accept_alert, blocking_alerts, find_alert, import_report, link_alert, load_register, migrate_task, parse_report,
+    accept_alert, blocking_alerts, find_alert, import_report, link_alert, load_register, migrate_task, read_report,
     set_status, summary, task_alerts,
 )
 from openguildkit.storage import write_json
@@ -26,6 +26,12 @@ CRITICAL = "npm:form-parser:ghsa-xxxx-yyyy-zzzz"
 
 def empty():
     return {"schema_version": 1, "alerts": [], "imports": []}
+
+
+def parse_report(content: bytes, label: str) -> tuple[str, list[dict]]:
+    """The scanner and the normalized alerts that read_report, the parser import_report uses, finds in a report."""
+    report = read_report(content, label)
+    return report["tool"], report["alerts"]
 
 
 def imported(*names, task_id=None, register=None):
@@ -298,8 +304,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         if os.name == "nt" or not bash or not jq or not git:
             self.skipTest("Running the workflow steps needs bash, jq and git, as on the GitHub runner.")
         self.init()
-        for command in (["init", "-q", "-b", "main"], ["add", "-A"],
-                        ["-c", "user.email=dev@example.test", "-c", "user.name=Dev", "commit", "-q", "-m", "base"]):
+        for command in (["init", "-q", "-b", "main"], ["add", "-A"], ["commit", "-q", "-m", "base"]):
             subprocess.run(["git", "-C", str(self.root), *command], check=True, capture_output=True)
         shutil.copy(FIXTURES / "npm-audit-critical.json", self.root / "report.json")
         bin_dir = self.root / "bin"
@@ -350,8 +355,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         output, calls = step("Open a task per new confirmed alert")
         self.assertNotIn("issue create", calls)
         self.assertEqual(json.loads((self.root / "opened.json").read_text(encoding="utf-8")), [])
-        for command in (["add", ".openguildkit/alerts.json"], ["-c", "user.email=dev@example.test", "-c",
-                                                                "user.name=Dev", "commit", "-q", "-m", "register"]):
+        for command in (["add", ".openguildkit/alerts.json"], ["commit", "-q", "-m", "register"]):
             subprocess.run(["git", "-C", str(self.root), *command], check=True, capture_output=True)
         self.assertIn("did not change", step("Propose the register in a pull request")[0])
 

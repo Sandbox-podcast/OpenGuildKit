@@ -1,7 +1,11 @@
 """The suite keeps one way to run the CLI, so that a faster or safer runner reaches every test at once."""
 
 import ast
+import os
 import re
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -45,6 +49,45 @@ class CliRunnerTests(unittest.TestCase):
         self.assertNotIn("PYTHONDONTWRITEBYTECODE", environment)
         prefix = Path(environment["PYTHONPYCACHEPREFIX"]).resolve()
         self.assertNotIn(REPO, prefix.parents)
+
+    @unittest.skipIf(shutil.which("git") is None, "needs git")
+    def test_a_helper_commit_passes_when_the_contributor_signs_every_commit(self):
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            # A contributor's global configuration that signs every commit and tag, with a key and a signing
+            # program that do not exist: any commit that reads it fails, and no real key or agent is reached.
+            signing = folder / "signing.gitconfig"
+            signing.write_text(
+                "[user]\n\tname = Signing Contributor\n\temail = signer@example.invalid\n"
+                "\tsigningkey = 0000000000000000000000000000000000000000\n"
+                "[commit]\n\tgpgsign = true\n[tag]\n\tgpgsign = true\n"
+                f"[gpg]\n\tprogram = {(folder / 'no-such-gpg').as_posix()}\n", encoding="utf-8")
+            repo = folder / "repo"
+            repo.mkdir()
+            subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True, capture_output=True)
+            signed = subprocess.run(["git", "-C", str(repo), "commit", "-q", "--allow-empty", "-m", "signed"],
+                                    capture_output=True, text=True,
+                                    env={**os.environ, "GIT_CONFIG_GLOBAL": str(signing)})
+            self.assertNotEqual(signed.returncode, 0, "the signing configuration must break a commit")
+            self.assertIn("sign", signed.stderr)
+
+            # A fresh test process on that machine: no Git variable but the global configuration.
+            environment = {key: value for key, value in support.subprocess_environment().items()
+                           if not key.startswith("GIT_")}
+            environment.update(GIT_CONFIG_GLOBAL=str(signing),
+                               PYTHONPATH=os.pathsep.join([str(REPO), str(REPO / "src")]))
+            helper = (
+                "import subprocess, sys\n"
+                "from tests import support\n"
+                "repo = sys.argv[1]\n"
+                "subprocess.run(['git', '-C', repo, 'commit', '-q', '--allow-empty', '-m', 'test'], check=True)\n"
+                "subprocess.run(['git', '-C', repo, 'commit', '-q', '--allow-empty', '-m', 'child'], check=True,\n"
+                "               env=support.subprocess_environment())\n"
+                "subprocess.run(['git', '-C', repo, 'tag', '-a', 'v1', '-m', 'tag'], check=True)\n"
+            )
+            result = subprocess.run([sys.executable, "-c", helper, str(repo)], cwd=REPO, env=environment,
+                                    capture_output=True, text=True, timeout=120)
+            self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_run_cli_runs_in_this_process_and_reports_the_exit_code(self):
         with tempfile.TemporaryDirectory() as folder:

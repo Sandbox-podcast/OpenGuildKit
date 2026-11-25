@@ -514,6 +514,9 @@
       ],
       "summary": "Limiter les capacités d'un agent aux opérations et données nécessaires, avec des permissions minimales et une élévation ciblée lorsqu'elle est requise.",
       "applies_when": "Dès qu'un agent peut consulter des données privées, modifier un dépôt ou agir sur des systèmes externes.",
+      "packs": [
+        "agent-native-engineering"
+      ],
       "sources": [
         {
           "url": "https://modelcontextprotocol.io/specification/latest/basic/security_best_practices",
@@ -561,6 +564,9 @@
       ],
       "summary": "Fixer des conditions d'arrêt portant sur le nombre d'échanges, les jetons consommés ou la durée, et prévoir une interruption externe.",
       "applies_when": "Pour contenir les boucles, les délais et la consommation de ressources des agents ; les limites doivent être appliquées par l'orchestrateur.",
+      "packs": [
+        "agent-native-engineering"
+      ],
       "sources": [
         {
           "url": "https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/tutorial/termination.html",
@@ -583,6 +589,10 @@
       ],
       "summary": "Sélectionner, organiser et actualiser les instructions, outils, informations et historiques réellement utiles dans la fenêtre de contexte du modèle.",
       "applies_when": "Quand une tâche longue ou complexe accumule trop d'informations ; définir des règles de sélection, de synthèse et de récupération du contexte.",
+      "pattern": "agent-native-repository",
+      "packs": [
+        "agent-native-engineering"
+      ],
       "sources": [
         {
           "url": "https://www.anthropic.com/research/effective-context-engineering-for-ai-agents",

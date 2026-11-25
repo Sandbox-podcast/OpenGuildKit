@@ -17,6 +17,11 @@ Which clock dates which field:
   whose age or end is measured later, that is a decision (decision.at), the withdrawal of an
   approval (revoked.at and the decision that withdraws it), the clearance or waiver of a blocker
   (at), the authorization of an external action (at), and a share of the publishing register.
+
+One time zone, UTC, dates everything on both clocks: a time is written in UTC (+00:00), and a day
+(today, real_today, a share's last day, a waiver's end, the day of a profile change) is the UTC day,
+as Documentalist counts a reader's last day. The local time zone is never read: two acts seconds
+apart show the same day, and a share ends at the same instant on every machine.
 """
 
 import os
@@ -57,9 +62,8 @@ def now() -> datetime:
 
 
 def today() -> date:
-    """The day written into a record: today's local date, or the UTC date of SOURCE_DATE_EPOCH when it is set."""
-    fixed = _source_date_epoch()
-    return fixed.date() if fixed else date.today()
+    """The day written into a record: the UTC date of now(), so that of SOURCE_DATE_EPOCH when it is set."""
+    return now().date()
 
 
 def timestamp() -> str:
@@ -73,8 +77,8 @@ def real_now() -> datetime:
 
 
 def real_today() -> date:
-    """Today's local date, whatever SOURCE_DATE_EPOCH says: for end dates that decide something."""
-    return date.today()
+    """Today's UTC date, whatever SOURCE_DATE_EPOCH says: for end dates that decide something."""
+    return real_now().date()
 
 
 def real_timestamp() -> str:

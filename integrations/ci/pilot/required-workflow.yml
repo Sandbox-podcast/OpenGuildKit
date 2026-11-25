@@ -23,7 +23,7 @@ jobs:
   targets:
     if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/pilot/merge-gate-base'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
       pull-requests: read
     outputs:
