@@ -67,7 +67,8 @@ SUBJECTS = {
     **{pack: ("the user interface", _UI) for pack in (
         "react", "vue", "angular", "nextjs", "frontend-delivery", "web-accessibility", "web-performance",
         "mobile-accessibility", "ios-app", "android-app", "mobile-store-release", "i18n-readiness", "playwright",
-        "chaosfolk-e2e", "public-sector-accessibility", "european-accessibility-act")},
+        "chaosfolk-e2e", "public-sector-accessibility", "european-accessibility-act", "france-rgaa-accessibility",
+        "france-cookies-and-trackers")},
     **{pack: ("a new customer feature", _PRODUCT) for pack in (
         "design-process", "user-research-practice", "controlled-experiments", "product-discovery",
         "opportunity-solution-tree", "jobs-to-be-done", "web-search-optimization", "release-communication",
@@ -86,10 +87,13 @@ SUBJECTS = {
         {"surface": ["infrastructure"]}, {"surface": ["business"], "concerns": ["money"], "boards": ["finance", "devops"]}]),
     **{pack: ("AI", _AI) for pack in ("llm-evaluations", "nist-ai-risk", "eu-ai-act")},
     **{pack: ("money", _MONEY) for pack in (
-        "revenue-recognition", "saas-metrics", "vat-and-e-invoicing", "financial-planning", "deal-approval")},
+        "revenue-recognition", "saas-metrics", "vat-and-e-invoicing", "france-e-invoicing", "financial-planning",
+        "deal-approval")},
     "pci-dss": ("payment card data", [{"data": ["regulated"]}, {"concerns": ["money"], "mentions": ["card payments"]}]),
-    **{pack: ("personal data", _PERSONAL) for pack in ("gdpr", "minors-data-protection", "health-data-protection")},
-    **{pack: ("security-sensitive changes", _SECURITY) for pack in ("threat-modeling", "owasp-asvs", "iso-27001")},
+    **{pack: ("personal data", _PERSONAL) for pack in (
+        "gdpr", "minors-data-protection", "health-data-protection", "france-health-data-hosting")},
+    **{pack: ("security-sensitive changes", _SECURITY) for pack in (
+        "threat-modeling", "owasp-asvs", "iso-27001", "france-public-sector-security")},
     **{pack: ("the ICT systems of a regulated entity", _ICT) for pack in ("dora", "nis2")},
     **{pack: ("security incidents and vulnerabilities", [{"surface": ["infrastructure"]}, {"concerns": ["credentials"]}])
        for pack in ("cyber-resilience-act", "incident-notification")},
@@ -160,6 +164,19 @@ LEGAL_BASIS = {
                              "information and the order button of a distance sale to consumers.",
     "public-sector-accessibility": "the user interface: Directive (EU) 2016/2102 Art. 4 applies to the websites "
                                    "and mobile applications of public sector bodies.",
+    "france-health-data-hosting": "personal or regulated data: Art. L1111-8 of the Code de la santé publique "
+                                  "requires the host of personal health data to hold a certificate of conformity, "
+                                  "and Art. R1111-9-1 and R1111-11 set the storage in the EU or EEA and the contract.",
+    "france-rgaa-accessibility": "the user interface: Art. 47 of loi n° 2005-102 binds certain public and private "
+                                 "entities to make their online public communication services accessible, tested "
+                                 "with the RGAA.",
+    "france-cookies-and-trackers": "the user interface: Art. 82 of loi n° 78-17 requires information and consent "
+                                   "before trackers are written to or read from a user's device, unless exempt.",
+    "france-public-sector-security": "regulated data, infrastructure, credentials, or personal data on a customer or "
+                                     "service surface: Art. 3 and 4 of décret n° 2010-112 and Art. 4-3 of décret "
+                                     "n° 2019-1088 hold a public authority to a risk analysis and a homologation.",
+    "france-e-invoicing": "money: the DGFiP e-invoicing and e-reporting reform of impots.gouv.fr covers the invoices "
+                          "and the transaction and payment data of businesses liable to French VAT.",
     "web-accessibility": "the user interface: WCAG 2.2, through EN 301 549, is the test of Directive (EU) 2016/2102 "
                          "and of the accessibility requirements a customer-facing screen meets.",
 }
@@ -262,10 +279,11 @@ def judge_rules(task: dict, profile: dict, relevance: dict | None = None) -> dic
 REGULATION_DEFAULT = [{"data": ["personal", "regulated"]}]
 # Rules a person must confirm by name before a task closes with them skipped or failed.
 SENSITIVE = {
-    "data protection": ("gdpr", "minors-data-protection", "health-data-protection", "backend-data-safety", "pci-dss"),
+    "data protection": ("gdpr", "minors-data-protection", "health-data-protection", "france-health-data-hosting",
+                        "france-cookies-and-trackers", "backend-data-safety", "pci-dss"),
     "security": ("secure-sdlc", "owasp-asvs", "threat-modeling", "supply-chain", "iso-27001", "aws-iam",
                  "container-images", "github-actions-security", "gitlab-ci-security", "nis2", "dora",
-                 "cyber-resilience-act", "incident-notification"),
+                 "cyber-resilience-act", "incident-notification", "france-public-sector-security"),
     "AI": ("llm-evaluations", "nist-ai-risk", "eu-ai-act"),
 }
 # Who provides the named evidence of a pack: the document belongs to them, never to the agent.

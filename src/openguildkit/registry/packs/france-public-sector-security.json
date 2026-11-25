@@ -1,0 +1,82 @@
+{
+  "id": "france-public-sector-security",
+  "title": "Security of services for French public authorities (RGS, homologation, SecNumCloud)",
+  "version": "1.0.0",
+  "description": "France only. For a service, software or hosting delivered to a French administrative authority or to the State: the security duties those customers carry, namely the risk analysis and the conformity to the Référentiel général de sécurité under décret n° 2010-112, the security homologation before a service enters the State's information system under décret n° 2022-513, and the State's cloud doctrine, which asks a SecNumCloud qualification, or a European one of at least equivalent level, for sensitive data (circulaire n° 6404/SG of 31 May 2023). Those duties bind the customer, not the publisher: the rules ask the team to provide what the customer's authorities need and to ask them for their decisions. The homologation of décret n° 2022-513 and the doctrine concern the State, so a local authority or a private customer may fall under the RGS alone or under none of them. It adds to nis2 (EU: Directive (EU) 2022/2555), which covers essential and important entities, and to public-sector-accessibility, which covers accessibility only. No rule here reads the SecNumCloud qualification framework itself: it asks for the qualification that the doctrine names. These rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "Légifrance, Décret n° 2010-112 du 2 février 2010 pris pour l'application des articles 9, 10 et 12 de l'ordonnance n° 2005-1516 (RGS)",
+      "url": "https://www.legifrance.gouv.fr/loda/id/JORFTEXT000021779444",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "DINUM, Référentiel général de sécurité (RGS)",
+      "url": "https://www.numerique.gouv.fr/offre-accompagnement/reference-securite-rgs/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Légifrance, Décret n° 2022-513 du 8 avril 2022 relatif à la sécurité numérique du système d'information et de communication de l'Etat et de ses établissements publics",
+      "url": "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000045537693",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "ANSSI, MonServiceSécurisé, Tout savoir sur l'homologation de sécurité",
+      "url": "https://aide.monservicesecurise.cyber.gouv.fr/fr/article/tout-savoir-sur-lhomologation-de-securite-18i8iqh/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "DINUM, Doctrine « Cloud au centre » de l'État",
+      "url": "https://numerique.gouv.fr/offre-accompagnement/cloud-administrations/la-doctrine-de-l%C3%A9tat/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Légifrance, Circulaire n° 6404/SG du 31 mai 2023, actualisation de la doctrine d'utilisation de l'informatique en nuage par l'État",
+      "url": "https://www.legifrance.gouv.fr/circulaire/id/45446",
+      "checked": "2026-11-25"
+    }
+  ],
+  "rules": [
+    {
+      "id": "confirm-the-customer-regime",
+      "instruction": "Ask the account owner whether the customer is an administrative authority bound by the RGS (décret n° 2010-112 Art. 1), a State administration or public establishment of the State whose services need homologation (décret n° 2022-513), or a State project under the cloud doctrine, and record which texts the customer says apply.",
+      "verification": "Link the account owner's recorded answer from the change.",
+      "manual": "Which texts bind the customer is a legal assessment that the customer makes."
+    },
+    {
+      "id": "collect-the-security-objectives",
+      "instruction": "Ask the customer's security owner for the risks, the security objectives (availability, integrity, confidentiality, identification of users) and the security functions and levels it expects from the product, which décret n° 2010-112 Art. 3 asks the authority to set, and record them with the change.",
+      "verification": "Link the recorded objectives and check that the change names the functions it affects.",
+      "manual": "The objectives are the customer's decision, recorded outside the repository."
+    },
+    {
+      "id": "review-risks-on-change",
+      "instruction": "When the change alters the data processed, the exposed interfaces, the hosting or the administration access of the service, ask the customer's security owner whether its risk analysis, which décret n° 2010-112 Art. 3 asks the authority to re-examine periodically as risks change, and its homologation need a review.",
+      "verification": "Link the security owner's answer, or the updated risk analysis, from the change.",
+      "manual": "Whether a risk analysis needs review is the customer's judgment."
+    },
+    {
+      "id": "use-qualified-or-verified-products",
+      "instruction": "When the product provides a security function the customer relies on, such as identification, electronic signature, confidentiality or time stamping, ask the customer whether it requires a qualified product or trust service or its own verification of conformity to the RGS (décret n° 2010-112 Art. 1 and 4), and record the level.",
+      "verification": "Link the qualification attestation, or the verification of conformity the customer accepted, for each such function.",
+      "manual": "Qualification attestations are issued outside the repository."
+    },
+    {
+      "id": "support-homologation-before-service",
+      "instruction": "When the customer is an administrative authority, which ANSSI presents as bound to homologate under the RGS, or integrates the product into the State's information system, give the customer's homologation authority what a decision needs before go-live, namely the risks identified, the measures in place and the residual risks to accept (Art. 4-3 inserted into décret n° 2019-1088 by décret n° 2022-513, Art. 1), and do not release to production before that decision.",
+      "verification": "Link the homologation decision, or the file handed to the authority, and check that its date precedes the release.",
+      "manual": "The decision is taken by the customer's authority, outside the repository."
+    },
+    {
+      "id": "support-the-security-attestation",
+      "instruction": "For an online service, ask the customer where its attestation to users that the system meets its security objectives is published (décret n° 2010-112 Art. 5), and keep a place for it that users can reach.",
+      "verification": "Open the online service and find the attestation or its link.",
+      "manual": "The attestation is the customer's act and appears on the rendered service."
+    },
+    {
+      "id": "host-sensitive-data-on-a-qualified-offer",
+      "instruction": "When the customer is a State project that processes sensitive data, host it on an offer qualified SecNumCloud or on a European qualification of at least equivalent level that also protects the data from access by public authorities of third States, as the State's cloud doctrine asks; ask the account owner whether the customer classes the data as sensitive, which is the customer's decision.",
+      "verification": "Link the customer's decision on the sensitivity of the data and the qualification decision of the hosting offer.",
+      "manual": "Sensitivity is the customer's classification and the qualification is granted outside the repository."
+    }
+  ]
+}

@@ -3,7 +3,7 @@
   "title": "Public sector",
   "description": "Adapt reviews to software built for or sold to EU public sector bodies: administrations, local authorities and public institutions.",
   "context": [
-    "Ask the account owner whether the customer is a public sector body whose websites and mobile applications fall under Directive (EU) 2016/2102, and which national transposition applies, such as the RGAA in France. This sector preselects the public-sector-accessibility pattern.",
+    "Ask the account owner whether the customer is a public sector body whose websites and mobile applications fall under Directive (EU) 2016/2102, and which national transposition applies, such as the RGAA in France. This sector preselects the public-sector-accessibility pattern and, for France, the france-rgaa-accessibility and france-public-sector-security patterns: decline them for a customer outside France.",
     "Read the accessibility and other technical specifications of the contract (Directive 2014/24/EU Art. 42) before planning a change to a delivered product.",
     "Name who updates the customer's accessibility statement and answers its feedback mechanism (Directive (EU) 2016/2102 Art. 7).",
     "NIS 2 lists public administration in its Annex I: ask the security owner whether the customer is an essential or important entity, and select the nis2-essential-entity pattern when the product is in its scope."
@@ -23,6 +23,11 @@
       "title": "Directive (EU) 2022/2555 (NIS 2)",
       "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/oj/eng",
       "checked": "2026-11-21"
+    },
+    {
+      "title": "RGAA, Rappel du champ d'application",
+      "url": "https://accessibilite.numerique.gouv.fr/obligations/champ-application/",
+      "checked": "2026-11-25"
     }
   ]
 }

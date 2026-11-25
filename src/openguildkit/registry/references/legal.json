@@ -145,6 +145,9 @@
       ],
       "summary": "Rassemble les règles et recommandations de la CNIL sur l'information et le consentement pour les cookies et autres traceurs.",
       "applies_when": "Pour un site ou une application qui dépose des traceurs non strictement nécessaires.",
+      "packs": [
+        "france-cookies-and-trackers"
+      ],
       "sources": [
         {
           "url": "https://www.cnil.fr/fr/cookies-et-autres-traceurs",

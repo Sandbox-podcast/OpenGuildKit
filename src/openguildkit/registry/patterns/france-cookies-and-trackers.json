@@ -1,0 +1,30 @@
+{
+  "id": "france-cookies-and-trackers",
+  "title": "Cookies and trackers (France, CNIL)",
+  "description": "Select when the website or mobile application writes or reads cookies, local storage or device identifiers on the devices of users in France, beyond those that Art. 82 of loi n° 78-17 exempts; it is not preselected for a sector, since any sector can need it. It adds the CNIL guidelines and recommendation to the tracker rule of the gdpr pack (EU).",
+  "sources": [
+    {
+      "title": "CNIL, Délibération n° 2020-091, lignes directrices relatives à l'application de l'article 82 de la loi du 6 janvier 1978 (cookies et autres traceurs)",
+      "url": "https://www.cnil.fr/sites/cnil/files/atoms/files/lignes_directrices_de_la_cnil_sur_les_cookies_et_autres_traceurs.pdf",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "CNIL, Questions-réponses sur les lignes directrices modificatives et la recommandation cookies et autres traceurs",
+      "url": "https://www.cnil.fr/fr/cookies-et-autres-traceurs/regles/cookies/FAQ",
+      "checked": "2026-11-25"
+    }
+  ],
+  "roles": [
+    "legal",
+    "product",
+    "frontend",
+    "marketing"
+  ],
+  "packs": [
+    "france-cookies-and-trackers"
+  ],
+  "kind": "regulation",
+  "references": [
+    "cnil-cookies"
+  ]
+}
