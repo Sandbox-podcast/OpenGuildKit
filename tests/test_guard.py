@@ -341,6 +341,15 @@ class GuardTests(CapturedCli, unittest.TestCase):
         self.assertEqual(error, "")
 
     @unittest.skipIf(shutil.which("git") is None, "needs git")
+    def test_ci_outside_a_git_repository_says_so_in_one_line(self):
+        self.init(guard="enforce")
+        with patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": str(self.root.parent)}):
+            output, error = self.run_cli("guard", "--ci", "--base", "main", code=1)
+        self.assertEqual(output, "")
+        self.assertEqual(len(error.splitlines()), 1, error)
+        self.assertTrue(error.startswith("OpenGuildKit: guard --ci needs a Git repository"), error)
+
+    @unittest.skipIf(shutil.which("git") is None, "needs git")
     def test_the_first_pull_request_explains_why_nothing_is_enforced_and_what_comes_next(self):
         self.git("init", "-q", "-b", "main")
         (self.root / "README.md").write_text("Portal\n", encoding="utf-8")

@@ -925,6 +925,8 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
     old approval cannot stretch it over new work. catalog_for(state) loads the catalog of a state directory.
     require_signed makes local approvals a problem.
     """
+    if _git(root, "rev-parse", "--is-inside-work-tree").returncode:
+        raise ValueError("guard --ci needs a Git repository: the project folder is not inside one.")
     changed = _git_lines(root, "diff", "--name-only", "--no-renames", f"{base}...HEAD")
     prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"
     records = [path for path in changed if path.startswith(prefix) and path.endswith(".json")]
