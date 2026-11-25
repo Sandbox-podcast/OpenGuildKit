@@ -1,8 +1,7 @@
 """Compare a local share register with one Documentalist instance on explicit request.
 
 The observation describes the server's invitation policy, not a live reader session.
-Credentials are requested at a terminal, held in memory and never saved in the register. An instance on
-this machine is reached without the proxies the environment declares: over http its password is in clear.
+Credentials are requested at a terminal, held in memory and never saved in the register.
 """
 
 import getpass
@@ -17,7 +16,7 @@ from urllib.parse import quote, urlsplit
 from urllib.request import HTTPRedirectHandler, HTTPCookieProcessor, ProxyHandler, Request, build_opener
 
 from . import clock
-from .publishing import load_shares, loopback, portal_space, share_space
+from .publishing import is_loopback, load_shares, portal_space, share_space
 from .storage import project_lock, read_json, write_json
 from .terminal import interactive
 
@@ -142,6 +141,18 @@ def _rows(shares: list[dict], space: str, invited: list[str] | None, expirations
     return result
 
 
+def _opener(origin: str):
+    """Open Documentalist directly when it runs on this machine.
+
+    build_opener otherwise installs the environment proxy. http is accepted only for an instance on
+    this machine because that traffic stays here; a proxy would receive the account password in clear.
+    """
+    handlers = [_NoRedirect(), HTTPCookieProcessor(http.cookiejar.CookieJar())]
+    if is_loopback(urlsplit(origin).hostname or ""):
+        handlers.append(ProxyHandler({}))
+    return build_opener(*handlers)
+
+
 def verify_portal(state: Path, portal: str, user: str) -> dict:
     origin, space, slug = _origin(portal)
     shares = load_shares(state)
@@ -150,10 +161,7 @@ def verify_portal(state: Path, portal: str, user: str) -> dict:
     if not interactive():
         raise ValueError("Portal verification needs an interactive terminal for the Documentalist password.")
     password = getpass.getpass(f"Documentalist password for {user}: ")
-    handlers = [_NoRedirect(), HTTPCookieProcessor(http.cookiejar.CookieJar())]
-    if loopback(urlsplit(origin).hostname or ""):
-        handlers.append(ProxyHandler({}))  # The traffic stays on this machine, credentials included.
-    opener = build_opener(*handlers)
+    opener = _opener(origin)
     logged_in = False
     source, problem, invited, expirations, no_end_dates = "local-register", None, None, None, False
     try:

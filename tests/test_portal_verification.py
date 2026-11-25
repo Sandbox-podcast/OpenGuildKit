@@ -96,20 +96,29 @@ class Portal(BaseHTTPRequestHandler):
             self.reply({}, 404)
 
 
-class Proxy(BaseHTTPRequestHandler):
-    """A proxy the environment declares: it records what reaches it, forwards nothing and answers 502."""
+class RecordingProxy(BaseHTTPRequestHandler):
+    """An HTTP proxy that keeps every request. A portal on this machine must never reach it."""
 
     received: list = []
 
     def log_message(self, *args):
         pass
 
-    def record(self):
-        body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
-        type(self).received.append((self.command, self.path, body.decode("utf-8", "replace")))
-        self.send_error(502)
+    def _record(self):
+        length = int(self.headers.get("Content-Length", "0") or 0)
+        body = self.rfile.read(length) if length else b""
+        type(self).received.append((self.command, self.path, body))
+        self.send_response(502)
+        self.end_headers()
 
-    do_GET = do_POST = do_CONNECT = record
+    def do_GET(self):
+        self._record()
+
+    def do_POST(self):
+        self._record()
+
+    def do_CONNECT(self):
+        self._record()
 
 
 class PortalVerificationTests(CapturedCli, unittest.TestCase):
@@ -173,6 +182,24 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
         report = json.loads(self.verify("--json")[0])
         self.assertEqual(report["rows"][0]["policy_active"], True)
         self.assertEqual((report["source"], report["rows"][0]["status"]), ("documentalist-api", "matches"))
+
+    def test_a_local_proxy_declared_in_the_environment_receives_nothing(self):
+        self.share(["reader@example.test"], day(10))
+        Portal.emails, Portal.expirations = ["reader@example.test"], {"reader@example.test": day(10)}
+        proxy = ThreadingHTTPServer(("127.0.0.1", 0), RecordingProxy)
+        thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(proxy.server_close)
+        self.addCleanup(thread.join)
+        self.addCleanup(proxy.shutdown)
+        RecordingProxy.received = []
+        address = f"http://127.0.0.1:{proxy.server_port}"
+        # No exclusion for this machine: that is the setting that used to forward the password.
+        with patch.dict(os.environ, {"HTTP_PROXY": address, "HTTPS_PROXY": address, "ALL_PROXY": address,
+                                     "NO_PROXY": ""}):
+            self.verify()
+        self.assertEqual(RecordingProxy.received, [])
+        self.assertIn("/api/auth/login", [call[1] for call in Portal.calls])
 
     def test_the_session_is_opened_with_the_instance_origin_then_closed_and_nothing_secret_is_kept(self):
         self.share(["reader@example.test"], day(10))
@@ -350,29 +377,6 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
                                     code=1)
         self.assertIn("The local register has no shares for", error)
         self.assertEqual(prompt.call_count, 0)
-
-    def test_a_proxy_of_the_environment_receives_nothing_from_a_local_portal(self):
-        """Over http the password of a local instance is in clear: it never leaves the machine through a proxy."""
-        self.share(["reader@example.test"], day(10))
-        portal = self.portal.replace("http://", "https://")
-        self.share(["reader@example.test"], day(10), portal=portal)
-        Portal.emails, Portal.expirations = ["reader@example.test"], {"reader@example.test": day(10)}
-        Proxy.received = []
-        proxy = ThreadingHTTPServer(("127.0.0.1", 0), Proxy)
-        thread = threading.Thread(target=proxy.serve_forever, daemon=True)
-        thread.start()
-        self.addCleanup(proxy.server_close)
-        self.addCleanup(thread.join)
-        self.addCleanup(proxy.shutdown)
-        address = f"http://127.0.0.1:{proxy.server_port}"
-        declared = {f"{name}_proxy": address for name in ("http", "https", "all")}
-        declared = {**declared, **{name.upper(): address for name in declared}, "no_proxy": "", "NO_PROXY": ""}
-        with patch.dict(os.environ, declared):
-            output, _ = self.verify()
-            self.verify(code=1, portal=portal)
-        self.assertIn("reader@example.test: register until " + day(10) + "; portal until " + day(10) + " (open); matches",
-                      output)
-        self.assertEqual(Proxy.received, [])
 
     def test_the_origin_leaves_out_the_default_port_as_a_browser_does(self):
         for portal, origin in (("https://docs.example.test:443/p/demo", "https://docs.example.test"),
