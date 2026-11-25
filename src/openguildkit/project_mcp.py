@@ -109,6 +109,8 @@ def _status(state: Path, task_id: str) -> dict:
 
 
 def _revision(value: object) -> str | None:
+    if isinstance(value, dict):
+        value = value.get("commit")
     if isinstance(value, str) and (value == "working tree" or REVISION.fullmatch(value)):
         return value
     return None

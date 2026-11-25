@@ -409,7 +409,8 @@
       "doc": "docs/architecture.md",
       "covers": [
         "src/openguildkit/agent_files/",
-        "integrations/"
+        "integrations/claude-code/",
+        "integrations/skills/"
       ]
     },
     {

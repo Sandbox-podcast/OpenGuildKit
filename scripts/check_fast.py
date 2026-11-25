@@ -37,13 +37,14 @@ def plan(changed: list[str], module_map: dict) -> dict:
 
     def add_tests(paths: list[str]) -> None:
         for path in paths:
-            if path not in tests:
+            if path not in tests and (ROOT / path).is_file():
                 tests.append(path)
 
     for path in changed:
         name = path.rsplit("/", 1)[-1]
         if path.startswith("tests/") and path.endswith(".py") and name.startswith("test_"):
-            add_tests([path])
+            if (ROOT / path).is_file():
+                add_tests([path])
             continue
         item = by_path.get(path)
         if item:

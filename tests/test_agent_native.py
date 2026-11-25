@@ -93,6 +93,10 @@ class CheckFastTests(unittest.TestCase):
             "web/src/App.tsx",
             "scripts/check_fast.py",
             "integrations/claude-code/agents/guild-board.md",
+            "tests/test_deleted_example.py",
+            "integrations/ci/package.json",
+            "integrations/chaosfolk/README.md",
+            "integrations/github/openguildkit-guard.yml",
             "docs/not-a-module.md",
         ], module_map)
         self.assertIn("tests/test_results.py", selected["tests"])
@@ -100,7 +104,11 @@ class CheckFastTests(unittest.TestCase):
         self.assertIn("tests/test_agent_native.py", selected["tests"])
         self.assertIn("tests/test_integrations.py", selected["tests"])
         self.assertEqual(selected["commands"], ["catalog", "web-typecheck"])
-        self.assertEqual(selected["unattached"], ["docs/not-a-module.md"])
+        self.assertNotIn("tests/test_deleted_example.py", selected["tests"])
+        self.assertEqual(selected["unattached"], [
+            "integrations/ci/package.json", "integrations/chaosfolk/README.md",
+            "integrations/github/openguildkit-guard.yml", "docs/not-a-module.md",
+        ])
 
 
 class BudgetTests(CapturedCli, unittest.TestCase):
