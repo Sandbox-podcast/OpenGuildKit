@@ -5,6 +5,7 @@ hooks run it when a request arrives and before a file edit. In CI, it checks tha
 pull request carries an exported decision that matches the rules of its base revision.
 """
 
+import hashlib
 import json
 import os
 import re
@@ -361,6 +362,13 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
             key: task["result"][key] for key in ("revision", "pull_request") if key in task["result"]
         }
         record["result"]["checks"] = {item["check"]: item["status"] for item in checks}
+        journals = [
+            {"check": item["check"], "evidence": item["evidence"], "sha256": item["sha256"]}
+            for item in checks
+            if item.get("journal") is True and isinstance(item.get("sha256"), str) and isinstance(item.get("evidence"), str)
+        ]
+        if journals:
+            record["result"]["journals"] = journals
         record["result"]["check_exceptions"] = [
             {key: item[key] for key in ("check", "status", "reason", "owner") if key in item}
             for item in checks if item["status"] in ("skipped", "not-applicable")
@@ -871,6 +879,35 @@ def _workflow_note(paths: list[str]) -> str:
             "requires the workflow; see integrations/README.md#protect-the-check).")
 
 
+def _journal_mismatch(root: Path, record: dict) -> str | None:
+    """The checks whose journal is in this tree and no longer matches the exported sha256.
+
+    A record exported before journals were hashed has none. A journal that this checkout does not contain
+    (the project gitignore leaves .openguildkit/tasks/ out) cannot be re-hashed here: task complete checks
+    it on the machine that still has the file.
+    """
+    journals = (record.get("result") or {}).get("journals")
+    if not isinstance(journals, list):
+        return None
+    mismatched = []
+    for item in journals:
+        if not isinstance(item, dict):
+            continue
+        evidence, digest, name = item.get("evidence"), item.get("sha256"), item.get("check")
+        if not isinstance(evidence, str) or not isinstance(digest, str) or not isinstance(name, str):
+            continue
+        path = root / evidence
+        try:
+            current = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+        except OSError:
+            current = None
+        if current is not None and current != digest:
+            mismatched.append(name)
+    if not mismatched:
+        return None
+    return f"{', '.join(mismatched)}: the journal no longer matches the recorded sha256."
+
+
 def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False) -> dict:
     """Check that the changes since base come with a decision valid under the base revision's rules.
 
@@ -915,9 +952,12 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
             problem = _record_problem(record, relative, fingerprint, policy, base_root, earlier, extracted=True, history=root)
             # A waiver that expired opens its blocker again: the record no longer covers the change.
             problem = problem or expired_waiver_problem(record, relative)
+            journal = _journal_mismatch(root, record)
             if problem:
                 problems.append(problem)
-            else:
+            if journal:
+                problems.append(journal)
+            if not problem and not journal:
                 valid.append(record["task"])
                 where[record["task"]] = relative
                 covers[record["task"]] = (earlier.get(record["task"]) or record).get("files")
