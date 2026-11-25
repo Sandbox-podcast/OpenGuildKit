@@ -491,7 +491,10 @@ def blocking_alerts(register: dict, task: dict) -> list[str]:
 def alert_task_id(alert: dict) -> str:
     """The ID of the task that handles an alert: the same in every copy of the project and in every scheduled run."""
     words = re.sub(r"[^a-z0-9]+", "-", f"dep-{alert['package']}-{alert['advisory']}".lower()).strip("-")
-    return words[:64].rstrip("-")
+    if len(words) <= 64:
+        return words
+    # The cut would give two alerts of a package with a long name the same task: keep a digest of the alert ID.
+    return f"{words[:55].rstrip('-')}-{hashlib.sha256(alert['id'].encode('utf-8')).hexdigest()[:8]}"
 
 
 def unhandled_alerts(register: dict) -> list[dict]:

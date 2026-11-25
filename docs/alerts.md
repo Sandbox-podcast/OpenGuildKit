@@ -106,7 +106,7 @@ openguildkit alerts tasks           # the confirmed alerts no task handles, with
 openguildkit alerts tasks --open    # opens each task as a draft and links its alert to it
 ```
 
-A confirmed alert that no task handles and no person accepted gets a task of its own. Its ID comes from the package and the advisory (`dep-form-parser-ghsa-xxxx-yyyy-zzzz`), so it is the same in every copy of the project and every scheduled run: the register links the alert to that ID, and whoever takes the work creates the task with it (`task new "BRIEF" --id ID`), already linked. Its brief names the alert, the affected version and the fixed one. `--json` prints the list for a script.
+A confirmed alert that no task handles and no person accepted gets a task of its own. Its ID comes from the package and the advisory (`dep-form-parser-ghsa-xxxx-yyyy-zzzz`; past 64 characters it keeps its start and ends with eight characters of a digest of the alert ID, so two alerts of a package with a long name get two tasks), so it is the same in every copy of the project and every scheduled run: the register links the alert to that ID, and whoever takes the work creates the task with it (`task new "BRIEF" --id ID`), already linked. Its brief names the alert, the affected version and the fixed one. `--json` prints the list for a script.
 
 ## Scheduled watch
 
