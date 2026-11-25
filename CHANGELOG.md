@@ -9,6 +9,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - New bundled tool IDs: `adp`, `apache-spark`, `apigee`, `appdynamics`, `auth0`, `discord`, `docker-hub`, `eclipse`, `gravitee`, `harbor`, `jetbrains`, `jfrog-artifactory`, `keycloak`, `kong`, `lens`, `mattermost`, `microsoft-entra-id`, `npm`, `okta`, `portainer`, `rancher`, `silae`, `sonatype-nexus`, `splunk`, `visual-studio`, `vscode`, `zoom`. Kibana is now an alias of Elastic. If a project catalog already defines one of these tools or names, rename its local entry and update the profile, or remove the project definition to use the bundled tool.
 - A decision record or a `catalog.lock.json` of the wrong shape (a null `schema_version`, a list as `consultation_id`, a lock entry that is not an object) is reported as a problem that names the file, instead of a Python traceback. `guard --ci` reports a record it cannot read or whose shape is wrong as a problem of the check, which still passes in `observe`.
 - `openguildkit profile set approval` now says to run `openguildkit host apply`, as `profile set host`, `guard` and `research` do: signed approvals add a rule on the signers file to the host settings, and `check` fails until it is applied.
+- A `CLAUDE.md` that quotes `@AGENTS.md` in a code block no longer counts as importing `AGENTS.md`: `sync` adds the real import and `check` reports the instructions out of date until it does.
 
 ## 0.17.0
 
