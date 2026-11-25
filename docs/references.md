@@ -75,7 +75,7 @@ Before a project activates a requirement, it records four things: the scope (whi
 }
 ```
 
-Then it runs `openguildkit profile add pack team-gdpr --by NAME --reason WHY`, with the person's name and reason, and `openguildkit check`. `AGENTS.md` lists `gdpr` before `team-gdpr`, so the agent reads the regulation's rules first and the team's scope, owner and evidence next. The link runs from the reference (`rgpd`) to the bundled rules (`gdpr`) to the project's checks (`team-gdpr`). `tests/test_references.py` loads this example from a temporary project catalog.
+Then it runs `openguildkit profile add pack team-gdpr --by NAME --reason WHY`, with the person's name and reason, and `openguildkit check`. `AGENTS.md` lists `gdpr` before `team-gdpr`, so the regulation's rules come first and the team's scope, owner and evidence next; `task brief ID --pack PACK` prints either in full. The link runs from the reference (`rgpd`) to the bundled rules (`gdpr`) to the project's checks (`team-gdpr`). `tests/test_references.py` loads this example from a temporary project catalog.
 
 ## Add references
 

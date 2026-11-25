@@ -9,11 +9,13 @@ of AGENTS.md has a budget too.
 """
 
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit.project import BEGIN, END
+from openguildkit.catalog import load_catalog
+from openguildkit.project import BEGIN, END, rule_plan, validate_profile
 from openguildkit.storage import write_json
 from openguildkit.workflow import handoff
 
@@ -25,17 +27,18 @@ EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 BUDGETS = {"consultation": 30_000, "pass": 10_000, "handoff": 16_000}
 EXAMPLE_PASS = 10_000
 MONOREPO_ROLES = ["frontend", "backend", "devops", "security", "qa", "product", "project-management"]
-# The managed block of AGENTS.md, from its first marker to its last, in bytes. Issue 363 asks for 8 000.
-# Measured on 25 November 2026, the block was 15 878 bytes for the request-status example and 86 248 for the
-# monorepo with every role (48 packs): 73 % and 91 % of it is the text of the rule packs, each rule with its
-# `Verify:` line and each pack with its sources. Dropping every `Verify:`, `Checked by task verify:` and source
-# line would still leave 9 900 and 49 700 bytes, so 8 000 needs a different content, not a trim: the packs by
-# title with their rule IDs, and the text of each rule behind `openguildkit task brief ID --pack PACK`, which
-# a board pass already names. That rewrites the block of every project at its next `sync`, so it is a decision
-# for the issue, not a side effect of this budget. Until then each case keeps its measured size plus 5 %,
-# rounded up: the block cannot grow unnoticed, and the target stays visible.
+# The managed block of AGENTS.md, from its first marker to its last, in bytes. Issue 363 asks for 8 000: the agent
+# reads the block again at every turn. The block names each pack with the IDs of its rules and leaves their text, their
+# `Verify:` lines and the sources of the packs to `openguildkit task brief ID --pack PACK`. The request-status example
+# went from 15 878 to 5 983 bytes and holds the target. The monorepo with every role went from 90 541 to 16 759 and
+# cannot, as of 25 November 2026: its 49 packs bring 190 rule IDs, and before the first pack the block is already
+# 8 158 bytes (the workflow 3 340, the 45 selected patterns 3 481, the sector and stack 1 071). Naming the packs with
+# no rule ID at all would still leave about 11 500. Reaching 8 000 there means dropping something that is not rule
+# text (the rule IDs, the list of selected patterns, the sector's context or part of the workflow), which is a decision
+# for the issue and not a trim. Until it is taken the monorepo keeps its measured size plus 5 %, rounded up to the
+# next 100: the block cannot grow unnoticed, and the target stays visible.
 INSTRUCTION_TARGET = 8_000
-INSTRUCTION_BUDGETS = {"the request-status example": 16_700, "the monorepo with every role": 90_600}
+INSTRUCTION_BUDGETS = {"the request-status example": INSTRUCTION_TARGET, "the monorepo with every role": 17_600}
 
 
 def write(root: Path, relative: str, content) -> None:
@@ -134,13 +137,43 @@ class OutputSizeTests(CapturedCli, unittest.TestCase):
         self.assertLessEqual(size, budget, f"the AGENTS.md block of {case} is {size} bytes, budget {budget} "
                                            f"(target {INSTRUCTION_TARGET})")
 
+    def assert_block_names_every_rule(self) -> None:
+        """Every pack in force is a heading of the block and every rule of the pack is named by its ID under it, and
+        what the block leaves to `task brief ID --pack PACK` is not in it: the text of a rule, its `Verify:` line and
+        the sources of the pack. The block is the part of a project's rules that the agent reads without asking."""
+        text = (self.root / "AGENTS.md").read_text(encoding="utf-8")
+        block = text[text.index(BEGIN):text.index(END)]
+        catalog = load_catalog()
+        profile = validate_profile(json.loads((self.root / ".openguildkit" / "project.json").read_text()), catalog)
+        sections = {match.group(1): match.group(2) for match in re.finditer(
+            r"^#### [^\n]* \(`([^`@]+)@[^`]+`\)\n(.*?)(?=^#### |^<!-- openguildkit profile )", block, re.S | re.M)}
+        plan = rule_plan(profile, catalog)["packs"]
+        self.assertEqual(list(sections), [pack["id"] for pack in plan])
+        for pack in plan:
+            for rule in pack["rules"]:
+                with self.subTest(pack=pack["id"], rule=rule):
+                    self.assertIn(f"`{rule}`", sections[pack["id"]])
+        self.assertIn("openguildkit task brief ID --pack PACK", block)
+        self.assertNotIn("Verify:", block)
+        self.assertNotIn("](<http", block)
+        instruction = catalog["packs"][plan[0]["id"]]["rules"][0]["instruction"]
+        self.assertNotIn(instruction, block)
+
     def test_the_agents_md_block_of_the_example_stays_within_its_budget(self):
         self.run_cli("init", "--answers", EXAMPLE / "profile.json")
         self.assert_block_within_budget("the request-status example")
 
+    def test_the_agents_md_block_of_the_example_names_every_rule_of_its_packs(self):
+        self.run_cli("init", "--answers", EXAMPLE / "profile.json")
+        self.assert_block_names_every_rule()
+
     def test_the_agents_md_block_of_a_monorepo_with_every_role_stays_within_its_budget(self):
         self.init_monorepo_with_every_role()
         self.assert_block_within_budget("the monorepo with every role")
+
+    def test_the_agents_md_block_of_a_monorepo_with_every_role_names_every_rule_of_its_packs(self):
+        self.init_monorepo_with_every_role()
+        self.assert_block_names_every_rule()
 
     def test_a_monorepo_pass_prints_the_rules_of_the_components_the_task_names(self):
         """A pass chose its rules by shared words: a task on a Spring Boot endpoint got web-performance rules."""

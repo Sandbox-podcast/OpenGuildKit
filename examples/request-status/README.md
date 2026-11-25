@@ -24,7 +24,7 @@ The script copies the current `consultation_id` from `task template` before reco
 
 ## What to look at
 
-After `init`, `AGENTS.md` contains the workflow and packs from the matched stack patterns. The Python, FastAPI and PostgreSQL combination adds API and database checks. `CLAUDE.md` imports the generated instructions.
+After `init`, `AGENTS.md` contains the workflow and, for each pack of the matched stack patterns, its title and the IDs of its rules; a board pass prints their text. The Python, FastAPI and PostgreSQL combination adds API and database checks. `CLAUDE.md` imports the generated instructions.
 
 `task consult` selects seven boards and says why:
 

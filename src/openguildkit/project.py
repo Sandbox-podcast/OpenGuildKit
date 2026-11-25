@@ -5,7 +5,7 @@ import json
 import re
 from pathlib import Path, PurePosixPath
 
-from .agent_workflow import AGENT_WORKFLOW
+from .agent_workflow import AGENT_WORKFLOW, RULE_PACKS_NOTE
 from .catalog import rule_check
 from .clock import today
 from .patterns import (
@@ -25,6 +25,9 @@ STATE_DIR = ".openguildkit"
 SCHEMA_VERSION = 1
 BEGIN = "<!-- BEGIN OPENGUILDKIT -->"
 END = "<!-- END OPENGUILDKIT -->"
+# The layout of the managed block, written in its stamp. Raise it when a release changes the block without changing
+# the profile: the stamp then differs, and check calls the block out of date instead of calling its lines hand edits.
+INSTRUCTIONS_LAYOUT = 2
 ALREADY_INITIALIZED = (
     "Project is already initialized. Change its profile with openguildkit profile (adopt, decline, add, remove, "
     "set); openguildkit profile --help lists them."
@@ -1238,11 +1241,6 @@ def _bullets(values: list[str]) -> list[str]:
     return ["- " + value.replace("\n", "\n  ") for value in values]
 
 
-def _source_link(source: dict) -> str:
-    title = source["title"].replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
-    return f"[{title}](<{source['url']}>)"
-
-
 CHECK_VERIFICATION = "OpenGuildKit evaluates the check: task verify in the project, ci-check on a commit."
 
 
@@ -1357,29 +1355,17 @@ def render_instructions(profile: dict, catalog: dict) -> str:
         if profile[field]:
             lines.extend(["", f"### {title}", "", *_bullets(profile[field])])
     scopes = pack_scopes(profile, catalog) if components else {}
-    lines.extend(["", "### Rule packs"])
+    lines.extend(["", "### Rule packs", "", *RULE_PACKS_NOTE.splitlines()])
     for pack_id in resolved["packs"]:
         pack = catalog["packs"][pack_id]
-        lines.extend(["", f"#### {pack['title']} (`{pack_id}@{pack['version']}`)", "", pack["description"], ""])
+        lines.extend(["", f"#### {pack['title']} (`{pack_id}@{pack['version']}`)", ""])
         if scopes.get(pack_id):
-            lines.extend([f"Applies to {scope_text(scopes[pack_id])}.", ""])
+            lines.append(f"Applies to {scope_text(scopes[pack_id])}.")
         if "policy_commit" in pack:
-            lines.extend([f"Policy commit: `{pack['policy_commit']}`", ""])
-        for rule in pack["rules"]:
-            instruction, verification = rule_text(rule)
-            lines.extend([f"- `{rule['id']}` {instruction}", f"  Verify: {verification}"])
-            if "check" in rule and "instruction" in rule:
-                lines.append(f"  Checked by task verify: {describe_check(rule_check(rule))}")
-            for item in rule.get("evidence", []):
-                when = item.get("when", {}).get("data")
-                applies = f" Supply it when the task's data is {' or '.join(when)}." if when else ""
-                lines.append(
-                    f"  Evidence for task result: {item['title']}, a project path or an https link, "
-                    f"or not-applicable with a reason and an owner.{applies}"
-                )
-        if pack["sources"]:
-            lines.extend(["", *_bullets([_source_link(source) for source in pack["sources"]])])
-    lines.extend(["", f"<!-- openguildkit profile {profile_fingerprint(profile, catalog)} -->"])
+            lines.append(f"Policy commit: `{pack['policy_commit']}`")
+        lines.append(", ".join(f"`{rule['id']}`" for rule in pack["rules"]))
+    stamp = f"{profile_fingerprint(profile, catalog)} layout {INSTRUCTIONS_LAYOUT}"
+    lines.extend(["", f"<!-- openguildkit profile {stamp} -->"])
     return "\n".join(lines)
 
 
@@ -1433,7 +1419,7 @@ def merged_instructions(current: str, generated: str, label: str = "AGENTS.md") 
     return current[:matches[0][1]] + block + current[matches[1][2]:]
 
 
-_FINGERPRINT_LINE = re.compile(r"<!-- openguildkit profile [0-9a-f]{64} -->")
+_FINGERPRINT_LINE = re.compile(r"<!-- openguildkit profile [0-9a-f]{64}(?: layout \d+)? -->")
 
 
 def hand_edits(current: str, generated: str) -> list[str]:

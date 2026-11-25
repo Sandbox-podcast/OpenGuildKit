@@ -6,7 +6,7 @@ const repoPattern = /^[\w.-]+\/[\w.-]+$/;
 const targetPattern = /^([\w.-]+\/[\w.-]+)#([1-9]\d*)$/;
 if (!policyRepo || !repoPattern.test(policyRepo) ||
     targets.length === 0 || targets.some(target => !targetPattern.test(target))) {
-  throw new Error('Usage : node prototype/recheck.mjs PROPRIETAIRE/DEPOT-REGLE PROPRIETAIRE/DEPOT#PR [...]');
+  throw new Error('Usage: node prototype/recheck.mjs OWNER/POLICY_REPO OWNER/REPO#PR [...]');
 }
 
 function gh(args, input) {
@@ -26,7 +26,7 @@ for (const target of targets) {
   const [, repo, number] = target.match(targetPattern);
   const pr = JSON.parse(gh(['api', `repos/${repo}/pulls/${number}`]));
   if (pr.state !== 'open' || pr.head.repo?.full_name !== repo) {
-    throw new Error(`PR ${target} : une PR ouverte depuis une branche du dépôt est requise.`);
+    throw new Error(`PR ${target}: an open PR from a branch of the repository is required.`);
   }
   const payload = JSON.stringify({
     target_commit: pr.head.sha,
@@ -34,5 +34,5 @@ for (const target of targets) {
     policy_json: JSON.stringify(policy),
   });
   const run = gh(['workflow', 'run', 'openguildkit.yml', '--repo', repo, '--ref', workflowRef, '--json'], payload);
-  console.log(`${target} | commit ${pr.head.sha} | règle v${policy.version} | ${run || 'contrôle demandé'}`);
+  console.log(`${target} | commit ${pr.head.sha} | rule v${policy.version} | ${run || 'check requested'}`);
 }

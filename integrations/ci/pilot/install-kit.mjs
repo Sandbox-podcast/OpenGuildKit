@@ -7,7 +7,7 @@ import { join } from 'node:path';
 export function withInstalledKit(kit, use, { cacheDir } = {}) {
   if (!/^[\w.-]+\/[\w.-]+$/.test(kit.repository) || !/^\d+\.\d+\.\d+$/.test(kit.version) ||
     !/^[a-f0-9]{64}$/.test(kit.sha256)) {
-    throw new Error('Référence du kit invalide.');
+    throw new Error('Invalid kit reference.');
   }
   const install = mkdtempSync(join(tmpdir(), 'openguildkit-pilot-'));
   try {
@@ -21,7 +21,7 @@ export function withInstalledKit(kit, use, { cacheDir } = {}) {
     }
     const bytes = readFileSync(cachedAlready ? cached : archive);
     const digest = createHash('sha256').update(bytes).digest('hex');
-    if (digest !== kit.sha256) throw new Error('Empreinte de l’archive OpenGuildKit incorrecte.');
+    if (digest !== kit.sha256) throw new Error('Incorrect digest for the OpenGuildKit archive.');
     if (cachedAlready) writeFileSync(archive, bytes, { flag: 'wx' });
     if (cached && !cachedAlready) {
       mkdirSync(cacheDir, { recursive: true });
@@ -34,13 +34,13 @@ export function withInstalledKit(kit, use, { cacheDir } = {}) {
       }
     }
     if (cached) {
-      const source = cachedAlready ? 'cache local' : 'GitHub Releases';
-      console.error(`Archive OpenGuildKit ${kit.version} vérifiée (${source}).`);
+      const source = cachedAlready ? 'local cache' : 'GitHub Releases';
+      console.error(`OpenGuildKit archive ${kit.version} verified (${source}).`);
     }
     execFileSync('tar', ['-xf', archive, '-C', install], { stdio: 'inherit' });
     const bin = join(install, 'package/bin');
     const version = execFileSync(process.execPath, [join(bin, 'openguildkit.mjs'), '--version'], { encoding: 'utf8' }).trim();
-    if (version !== kit.version) throw new Error(`Version installée inattendue : ${version}.`);
+    if (version !== kit.version) throw new Error(`Unexpected installed version: ${version}.`);
     return use(bin, install);
   } finally {
     rmSync(install, { recursive: true, force: true });

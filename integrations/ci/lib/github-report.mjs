@@ -15,7 +15,7 @@ function archive(entry, branch, markdown) {
   let commit;
   if (saved) {
     if (Buffer.from(saved.content, 'base64').toString('utf8') !== markdown) {
-      throw new Error('Le rapport existant diffère du rapport attendu.');
+      throw new Error('The existing report differs from the expected report.');
     }
     commit = gh('api', '--method', 'GET', `repos/${project}/commits`,
       '-f', `sha=${branch}`, '-f', `path=${path}`, '-F', 'per_page=1', '--jq', '.[0].sha');
@@ -28,7 +28,7 @@ function archive(entry, branch, markdown) {
     }));
     commit = response.commit.sha;
   }
-  if (!gitSha.test(commit)) throw new Error('GitHub n’a pas confirmé le commit du rapport.');
+  if (!gitSha.test(commit)) throw new Error('GitHub did not confirm the commit of the report.');
   return `https://github.com/${project}/blob/${commit}/${path}`;
 }
 

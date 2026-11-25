@@ -47,7 +47,7 @@ function runWatcher(t, settings, { previous, listedTargets = targets } = {}) {
     const workflowInput = JSON.stringify({ target_commit: commit, policy_commit: policyCommit, policy_json: JSON.stringify(rule) });
     stub(['workflow', 'run', 'openguildkit.yml', '--repo', repo, '--ref', 'main', '--json'], url, workflowInput);
     stub(['api', `repos/${repo}/statuses/${commit}`, '-f', 'context=openguildkit/jenkins',
-      '-f', `state=${state}`, '-f', `description=v7 | règle ${policyCommit}`], '');
+      '-f', `state=${state}`, '-f', `description=v7 | rule ${policyCommit}`], '');
     stub(['run', 'view', runId, '--repo', repo, '--json', 'status,conclusion'],
       JSON.stringify({ status: 'completed', conclusion: state }));
     stub(['api', `repos/${repo}/commits/${commit}/statuses?per_page=100`], JSON.stringify([{
@@ -135,6 +135,6 @@ test('the prototype clears prior dispatch state when the policy changes', t => {
 test('the prototype rejects a scope that omits a watched repository', t => {
   const run = runWatcher(t, { ...config, pullRequests: { [repositories[0]]: [1] } });
   assert.equal(run.status, 1);
-  assert.match(run.stderr, /pullRequests doit contenir/);
+  assert.match(run.stderr, /pullRequests must contain/);
   assert.doesNotMatch(run.stderr, /Unexpected call/);
 });

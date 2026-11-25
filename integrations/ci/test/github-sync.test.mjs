@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import { test } from 'node:test';
 import { reconcileGithub } from '../lib/github.mjs';
+import { publishWatchReport } from '../lib/github-report.mjs';
 import { mergeGithub } from '../lib/merge.mjs';
 import { reconcile } from '../lib/reconcile.mjs';
 
@@ -125,12 +126,12 @@ test('the GitHub flows accept an adopted profile only after the maintainer appro
   assert.equal(current.status, 'pending');
 
   api.mergedBy = 'someone-else';
-  refused(sync(), /fusionnée par le mainteneur désigné/);
+  refused(sync(), /merged by the designated maintainer/);
   api.mergedBy = 'lead';
 
   commitJson(origin, 'openguildkit.json', { ...approved, owner: '@intruder',
     adoption: { ...approved.adoption, approver: '@intruder' } });
-  refused(sync(), /diffère de la proposition approuvée/);
+  refused(sync(), /differs from the approved proposal/);
 });
 
 test('the GitHub flows read a configuration that starts with a byte order mark', t => {
@@ -164,10 +165,11 @@ test('an error limited to one project or one PR is reported without stopping the
   assert.deepEqual(result.current.map(row => [row.project, row.pullRequest, row.status]), [['team/repo', 7, 'failure']]);
   assert.deepEqual(result.errors.map(error => [error.project, error.pullRequest]),
     [['team/repo', 9], ['team/repo', 8], ['team/broken', undefined]]);
-  assert.match(result.errors[1].message, /a évolué pendant le chargement/);
+  assert.equal(result.errors[0].message, 'Invalid GitHub PR in team/repo.');
+  assert.match(result.errors[1].message, /^PR team\/repo#8 changed during loading\. Run the synchronization again\.$/);
   assert.match(result.errors[2].message, /Duplicate JSON key: owner/);
   assert.throws(() => sync({ selection: { project: 'team/repo', pullRequest: 8, commit: moved, mode: 'required' } }),
-    /a évolué pendant le chargement/);
+    /PR team\/repo#8 changed during loading\. Run the synchronization again\./);
 
   const local = join(root, 'local.json');
   writeFileSync(local, JSON.stringify({
@@ -186,7 +188,24 @@ test('an error limited to one project or one PR is reported without stopping the
   git(origin, 'add', 'policy/waivers.json');
   git(origin, 'commit', '-qm', 'Add an invalid waiver');
   configure({ profileMaintainer: 'lead' }, { policy: { waiversPath: 'policy/waivers.json' } });
-  assert.throws(() => sync(), /Dérogation invalide : incomplete/);
+  assert.throws(() => sync(), /Invalid waiver: incomplete/);
+});
+
+test('the GitHub synchronization refuses an invalid configuration with an English message', t => {
+  const { configure, configPath, sync } = githubFixture(t);
+  assert.throws(() => { configure({}, { policy: { ref: 'main' } }); sync(); },
+    error => error.message === 'A GitHub repository, a clone path and a trusted branch refs/heads/… are required.');
+
+  configure({ profileMaintainer: 'lead', prNumbers: [0] });
+  refused(sync(), /^prNumbers must contain positive PR numbers\.$/);
+
+  writeFileSync(configPath, JSON.stringify({ policyRepo: { id: 'team/policies', path: 'clone', ref: 'refs/heads/main' }, projects: {} }));
+  assert.throws(() => sync(), error => error.message === 'projects must be a list.');
+
+  configure({ profileMaintainer: 'lead' });
+  for (const options of [{ reportUrl: 'https://example.org/report' }, { publish: true, reportUrl: 'ftp://example.org/report' }]) {
+    assert.throws(() => sync(options), error => error.message === '--report-url requires --publish and an HTTP or HTTPS URL.');
+  }
 });
 
 test('only the PRs into the profile branch are evaluated, and their statuses are in English', t => {
@@ -265,4 +284,52 @@ test('the enforcement templates guard organization repositories and verifiable s
   for (const name of ['agent-workflow.yml', 'broker-workflow.yml', 'recheck-workflow.yml', 'required-workflow.yml']) {
     assert.doesNotMatch(read(name), /[^\x00-\x7f]/, name);
   }
+});
+
+test('the PR report archive refuses a different or an unconfirmed report with an English message',
+  { skip: process.platform === 'win32' && 'needs a POSIX stand-in for the GitHub CLI' }, t => {
+    const root = mkdtempSync(join(tmpdir(), 'openguildkit-report-'));
+    const bin = join(root, 'bin');
+    mkdirSync(bin);
+    writeFileSync(join(bin, 'gh'), [
+      '#!/bin/sh',
+      'case "$*" in',
+      '  "api repos/team/repo/pulls/7") printf \'{"state":"open","head":{"sha":"%s"},"body":""}\' "$FAKE_HEAD";;',
+      '  *"--method PUT"*) cat >/dev/null; printf \'{"commit":{"sha":"not-a-commit"}}\';;',
+      '  "api repos/team/repo/contents/"*) if [ -n "$FAKE_SAVED" ]; then printf \'{"content":"%s"}\' "$FAKE_SAVED"; else echo "HTTP 404" >&2; exit 1; fi;;',
+      '  *) echo "Unexpected gh call: $*" >&2; exit 1;;',
+      'esac',
+    ].join('\n') + '\n');
+    chmodSync(join(bin, 'gh'), 0o755);
+    const { PATH } = process.env;
+    t.after(() => {
+      process.env.PATH = PATH;
+      delete process.env.FAKE_HEAD;
+      delete process.env.FAKE_SAVED;
+      rmSync(root, { recursive: true, force: true });
+    });
+    const commit = 'a'.repeat(40);
+    process.env.PATH = `${bin}${delimiter}${PATH}`;
+    process.env.FAKE_HEAD = commit;
+    const entry = {
+      project: 'team/repo', pullRequest: 7, commit, profileCommit: 'b'.repeat(40), policyCommit: 'd'.repeat(40),
+      rule: 'export-link-expiry', mode: 'required', work: 'c'.repeat(64),
+      actions: { state: 'verified', url: 'https://github.com/team/repo/actions/runs/1', verifiedAt: '2026-11-21T00:00:00Z',
+        proof: { proof: { actualMinutes: 20, maxMinutes: 30, owner: '@lead', guidance: 'Keep links short.', state: 'success' } } },
+      decision: { effectiveStatus: 'success' },
+    };
+
+    process.env.FAKE_SAVED = Buffer.from('Another report').toString('base64');
+    assert.throws(() => publishWatchReport(entry, 'reports'), error => error.message === 'The existing report differs from the expected report.');
+    delete process.env.FAKE_SAVED;
+    assert.throws(() => publishWatchReport(entry, 'reports'), error => error.message === 'GitHub did not confirm the commit of the report.');
+  });
+
+test('the error messages of the GitHub modules are in English', () => {
+  // The PR report keeps its middle dots, so the check looks for French letters and punctuation, not for every non-ASCII character.
+  const french = /[\u00ab\u00bb\u00c0-\u00ff\u0152\u0153\u2019]/;
+  const accented = ['github', 'github-profile', 'github-report'].flatMap(name =>
+    readFileSync(new URL(`../lib/${name}.mjs`, import.meta.url), 'utf8').split('\n')
+      .flatMap((line, index) => french.test(line) ? [`${name}.mjs:${index + 1}`] : []));
+  assert.deepEqual(accented, []);
 });

@@ -34,7 +34,7 @@ test('the Jenkins helpers exit with 2 when they cannot evaluate', t => {
     ['run-kit.mjs', [], /Usage: node pilot\/run-kit\.mjs/],
     ['run-kit.mjs', ['.', '1'.repeat(40), '2'.repeat(40), 'out'], /openguildkit-kit\.json|not a git repository/i],
     ['run-agent-jenkins.mjs', [], /Usage: node pilot\/run-agent-jenkins\.mjs/],
-    ['jenkins-publish.mjs', ['not a repository', 'report.json'], /Dépôt, rapport ou contexte de statut invalide/],
+    ['jenkins-publish.mjs', ['not a repository', 'report.json'], /Invalid repository, report or status context/],
   ]) {
     const result = run(name, ...args);
     assert.equal(result.status, 2, `${name}: ${result.stderr}`);

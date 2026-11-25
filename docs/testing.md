@@ -56,12 +56,14 @@ What an agent loads is read again at every turn, so its size is tested like a ti
 | What | Budget | Test |
 | --- | --- | --- |
 | A consultation, a board pass, a handoff | 30 000, 10 000 and 16 000 bytes | `tests/test_output_size.py` |
-| The managed block of `AGENTS.md`, for the request-status example | 16 700 bytes | `tests/test_output_size.py` |
-| The same block, for a monorepo with every role (48 packs) | 90 600 bytes | `tests/test_output_size.py` |
+| The managed block of `AGENTS.md`, for the request-status example | 8 000 bytes | `tests/test_output_size.py` |
+| The same block, for a monorepo with every role (49 packs) | 17 600 bytes | `tests/test_output_size.py` |
 | `SKILL.md`, in the package and in `integrations/` | 15 000 bytes | `tests/test_agent_instructions.py` |
 | A file of a project, for a team that wants the same rule | `max_bytes` of a [`size` check](catalog-format.md#machine-checks-and-named-evidence) | `tests/test_rule_checks.py` |
 
-The two `AGENTS.md` budgets are not the 8 000 bytes that #363 asks for. On 25 November 2026 the blocks were 15 878 and 86 248 bytes, and the text of the rule packs is 73 % and 91 % of them: each rule with its `Verify:` line, each pack with its sources. Without every `Verify:`, `Checked by task verify:` and source line they would still be 9 900 and 49 700 bytes. Reaching 8 000 means printing the packs by title with their rule IDs and leaving the text of each rule to `openguildkit task brief ID --pack PACK`, which rewrites the block of every project at its next `sync`. Until that is decided, each budget is the measured size plus 5 %, rounded up, so the block cannot grow unnoticed; the comment in the test says the same. `SKILL.md` was 28 933 bytes and is 14 330: the procedures only some sessions need are in `references/`, copied in `integrations/` and installed with the skill.
+The block names each pack with the IDs of its rules. The text of the rules, their `Verify:` lines and the sources of the packs are printed by `openguildkit task brief ID --pack PACK` (#363), and the same file checks that every rule of every pack in force is named, for the example and for the monorepo. On 25 November 2026 the request-status example went from 15 878 to 5 983 bytes, under the 8 000 that #363 asks for. The monorepo went from 90 541 to 16 759 bytes and does not fit: its 49 packs bring 190 rule IDs, and before its first pack the block is already 8 158 bytes (the workflow 3 340, the 45 selected patterns 3 481, the sector and stack 1 071). Naming the packs with no rule ID would still leave about 11 500 bytes.
+
+What is left to do to hold 8 000 bytes on a project this size, each a decision for #363 because it drops something the agent reads today: name the packs without their rule IDs (the consultation already gives their count), print the selected patterns behind `openguildkit preview`, or shorten the sector's context and the workflow. Until one is taken, the monorepo budget is the measured size plus 5 %, rounded up to the next 100, so the block cannot grow unnoticed; the comment in the test says the same. `SKILL.md` was 28 933 bytes and is 14 490: the procedures only some sessions need are in `references/`, copied in `integrations/` and installed with the skill.
 
 ## Output budget
 

@@ -11,11 +11,11 @@ try {
     reset: { type: 'string', multiple: true },
   } });
   if (!values.kit || !values.config || !values.state) {
-    throw new Error('Usage : node pilot/run-watch-jenkins.mjs --kit FILE --config FILE --state DIR [--publish] [--reset WORK|all]...');
+    throw new Error('Usage: node pilot/run-watch-jenkins.mjs --kit FILE --config FILE --state DIR [--publish] [--reset WORK|all]...');
   }
   const output = resolve('result.json');
   if ([values.kit, values.config].some(path => resolve(path).toLowerCase() === output.toLowerCase())) {
-    throw new Error('Le chemin result.json est réservé au rapport du job Jenkins.');
+    throw new Error('The result.json path is reserved for the report of the Jenkins job.');
   }
   rmSync(output, { force: true });
   checkStateDirectory(values.state);
@@ -28,7 +28,7 @@ try {
       encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, stdio: ['ignore', 'pipe', 'inherit'],
     });
     if (result.error) throw result.error;
-    if (!result.stdout && result.status === 0) throw new Error('Le coordinateur n’a produit aucun rapport.');
+    if (!result.stdout && result.status === 0) throw new Error('The coordinator produced no report.');
     if (result.stdout) {
       JSON.parse(result.stdout);
       const temporary = `${output}.tmp`;

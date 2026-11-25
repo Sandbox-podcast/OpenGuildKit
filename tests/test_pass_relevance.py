@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import load_catalog
+from openguildkit.consultation import pack_rules
 from openguildkit.project import load_profile
 from openguildkit.relevance import pack_relevance
 from openguildkit.storage import write_json
@@ -29,7 +30,7 @@ def printed_rules(text: str) -> set[str]:
     """PACK/RULE of each rule a pass prints under its rules heading."""
     rules, pack = set(), None
     for line in text[text.index(RULES_HEADING):].splitlines()[1:]:
-        if line.startswith(("Also concern", "Not concerned", "No rule")) or line.endswith("(AGENTS.md)."):
+        if line.startswith(("Also concern", "Not concerned", "No rule")) or "other packs are in force" in line:
             break
         heading = re.search(r"\(([\w-]+)@[^)]*\):$", line)
         if heading:
@@ -135,6 +136,25 @@ class PassRelevanceTests(ProjectCase):
         self.assertRegex(section, r"Not concerned by this task, so not asked \(each reason: openguildkit task checks "
                                   r"pd-bug\): .*gdpr \(\d+ of \d+ rules\)")
 
+    def test_the_consultation_and_the_handoff_say_where_the_text_of_the_rules_is(self):
+        """AGENTS.md names the rules by ID (#363): the consultation, the passes and the handoff name the commands that
+        print their text, not the file."""
+        self.init()
+        self.consult("pd-bug", "Fix the date column of the support requests export: it ignores the time zone.", BUG)
+        pack_command = "openguildkit task brief pd-bug --pack PACK"
+        consultation = self.cli("task", "brief", "pd-bug")
+        self.assertIn(f"AGENTS.md names their rules by ID. Each board pass prints the rules of its own packs that "
+                      f"concern the task; one pack in full: {pack_command}.", consultation)
+        self.assertNotIn("Their rules are in the project's agent instructions", consultation)
+        crowded = [self.cli("task", "brief", "pd-bug", "--board", board) for board in ("engineering", "legal")]
+        self.assertTrue(any(pack_command in text for text in crowded))
+        self.assertFalse(any("(AGENTS.md)" in text for text in crowded))
+        self.approve("pd-bug")
+        handoff = self.cli("task", "handoff", "pd-bug")
+        self.assertIn(f"AGENTS.md names the rules by ID and leaves their text out. One pack in full: {pack_command}; "
+                      "the whole scope with every rule text: openguildkit task brief pd-bug --scope.", handoff)
+        self.assertNotIn("The rule texts are in the project's agent instructions", handoff)
+
     def test_the_handoff_of_a_decision_task_has_no_rules_to_apply(self):
         self.init()
         self.consult("export-mode", "Decide whether the export should be a CSV download or an e-mailed report.",
@@ -232,6 +252,29 @@ class PassRelevanceTests(ProjectCase):
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", side_effect=lambda: next(typed)):
             self.cli("task", "consult", "typed")
         self.assertEqual(json.loads(self.cli("task", "show", "typed"))["answers"]["concerns"], ["unsure"])
+
+
+class PackBriefTests(ProjectCase):
+    """task brief ID --pack prints what the managed block of AGENTS.md leaves out of a pack (#363): the text of each
+    rule, its verification, the check task verify runs, the evidence the result asks and the sources of the pack."""
+
+    def test_a_pack_brief_prints_the_checks_the_evidence_and_the_sources_of_its_rules(self):
+        self.init()
+        self.consult("pd-bug", "Fix the date column of the support requests export: it ignores the time zone.", BUG)
+        fastapi = self.cli("task", "brief", "pd-bug", "--pack", "fastapi")
+        self.assertRegex(fastapi, r"- use-lifespan-not-startup-events: .+\n  Verified: .+\n  Checked by task verify: ")
+        self.assertIn("\nSources:\n- FastAPI response models: https://fastapi.tiangolo.com/tutorial/response-model/\n"
+                      "- FastAPI lifespan events: https://fastapi.tiangolo.com/advanced/events/\n", fastapi)
+        gdpr = self.cli("task", "brief", "pd-bug", "--pack", "gdpr")
+        self.assertIn("  Evidence for task result: Record of processing activities, a project path or an https link, "
+                      "or not-applicable with a reason and an owner. Supply it when the task's data is personal or "
+                      "regulated or unsure.", gdpr)
+
+    def test_a_rule_that_is_only_a_machine_check_prints_what_the_check_accepts(self):
+        consultation = {"scope": {"packs": [{"id": "team", "title": "Team", "version": "1.0.0", "rules": [
+            {"id": "keep-readme", "check": {"kind": "file-exists", "paths": ["README.md"]}}]}]}}
+        self.assertIn("- keep-readme: One of `README.md` exists.\n  Verified: OpenGuildKit evaluates the check",
+                      pack_rules(consultation, "team"))
 
 
 if __name__ == "__main__":

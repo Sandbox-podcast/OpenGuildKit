@@ -23,6 +23,8 @@ def add_parser(commands) -> None:
     imported = actions.add_parser("import", help="Merge an npm audit, pip-audit, OSV-Scanner or Dependabot JSON report.")
     imported.add_argument("report", type=Path, help="The scanner's JSON report.")
     imported.add_argument("--task", help="Link the report's alerts to this task.")
+    imported.add_argument("--scope", help="Name of the project part the report covers, such as front or services/api: "
+                          "the import resolves only the alerts of that scope. Without it, only alerts without a scope.")
     imported.add_argument("--json", action="store_true", help="Print what changed as JSON.")
     listing = actions.add_parser("list", help="List the alerts of the register.")
     listing.add_argument("--status", action="append", choices=STATUSES, help="Only this status (repeatable).")
@@ -73,26 +75,35 @@ def _print_alerts(alerts: list[dict], data: dict, as_json: bool) -> None:
         fix = f" fix: {alert['fix']}" if alert.get("fix") else ""
         accepted = f" accepted by {alert['accepted']['by']}" if alert.get("accepted") else ""
         tasks = f" tasks: {', '.join(alert['tasks'])}" if alert.get("tasks") else ""
-        print(f"  [{alert['status']}] {alert['id']} {alert['severity']} {alert['version']}{fix}{accepted}{tasks}")
+        scope = f" scope: {alert['scope']}" if alert.get("scope") else ""
+        print(f"  [{alert['status']}] {alert['id']} {alert['severity']} {alert['version']}{scope}{fix}{accepted}{tasks}")
 
 
 def _print_changes(changes: dict, as_json: bool) -> None:
     if as_json:
         print(json_text(changes), end="")
         return
-    print(f"{changes['tool']}: {len(changes['reported'])} alert(s) reported, {len(changes['new'])} new, "
+    scope = f" (scope {changes['scope']})" if changes.get("scope") else ""
+    print(f"{changes['tool']}{scope}: {len(changes['reported'])} alert(s) reported, {len(changes['new'])} new, "
           f"{len(changes['reopened'])} reopened, {len(changes['resolved'])} resolved.")
     if changes.get("nothing_analyzed"):
         print(f"  The report analyzed no dependency ({changes['nothing_analyzed']}): it resolves no alert.")
     if changes.get("previous_file"):
         print(f"  Warning: the previous {changes['tool']} import was the file {changes['previous_file']}, and this report "
               "resolves what that one listed. Import one full report per scanner: a report of another lockfile "
-              "resolves the alerts of the first.")
+              "resolves the alerts of the first. Declare the scope of each report with --scope NAME (for example "
+              "--scope front) so that a report resolves only the alerts of its own scope.")
+    if changes.get("other_scopes"):
+        print(f"  Alerts of the scope(s) {', '.join(changes['other_scopes'])} are left as they are: this import has no "
+              "scope, so it concerns only the alerts without one.")
     for key in ("new", "reopened", "resolved"):
         for alert_id in changes[key]:
             print(f"  {key}: {alert_id}")
     for alert_id in changes["acceptance_removed"]:
         print(f"  acceptance removed: {alert_id} (reopened: it blocks its tasks again until a person accepts it again)")
+    for alert_id in changes.get("unscoped", []):
+        print(f"  kept without scope: {alert_id} (this report lists it, but it has no scope: a report with a scope "
+              "neither resolves nor reopens it; an import without --scope does)")
 
 
 def _review(register: dict, alert_id: str, status: str, by: str, reason: str) -> dict:
@@ -149,7 +160,7 @@ def run(args, state: Path) -> None:
         if action == "import":
             if args.task:
                 read_task(state, args.task)
-            register, changes = import_report(register, args.report, args.task)
+            register, changes = import_report(register, args.report, args.task, scope=args.scope)
         elif action == "set":
             register = _review(register, args.alert, args.status, args.by, args.reason)
         elif action == "severity":

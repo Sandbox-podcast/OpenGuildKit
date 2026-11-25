@@ -32,6 +32,15 @@ _ECOSYSTEMS = {
     "actions": "github-actions", "github actions": "github-actions",
 }
 _PRIMARY = (re.compile(r"GHSA-[a-z0-9-]+", re.IGNORECASE), re.compile(r"CVE-\d+-\d+", re.IGNORECASE))
+_SCOPE = re.compile(r"[a-z0-9](?:[a-z0-9./-]{0,62}[a-z0-9])?")
+
+
+def check_scope(scope: str | None) -> str | None:
+    """The scope a person declares for a report, such as front or services/api; None when there is none."""
+    if scope is not None and not _SCOPE.fullmatch(scope):
+        raise ValueError(f"Invalid scope {scope!r}: use 1 to 64 lowercase letters, digits, hyphens, slashes or dots, "
+                         "starting and ending with a letter or a digit, such as front or services/api.")
+    return scope
 
 
 def _ecosystem(name: str) -> str:
@@ -261,10 +270,16 @@ def _status(alert: dict) -> str:
     return LEGACY_STATUSES.get(alert.get("status", "open"), alert.get("status", "open"))
 
 
-def _same(entry: dict, alert: dict) -> bool:
-    """Same package and an advisory ID in common, whatever scanner named it."""
-    return (entry["ecosystem"], entry["package"]) == (alert["ecosystem"], alert["package"]) and bool(
+def _same(entry: dict, alert: dict, scope: str | None = None) -> bool:
+    """Same scope, same package and an advisory ID in common, whatever scanner named it."""
+    return entry.get("scope") == scope and (entry["ecosystem"], entry["package"]) == (
+        alert["ecosystem"], alert["package"]) and bool(
         set(entry.get("aliases", [entry["advisory"].upper()])) & set(alert["aliases"]))
+
+
+def _unscoped(alerts: list[dict], alert: dict) -> list[dict]:
+    """The entries without a scope that a scoped report's alert would be, but for its scope: a resolved one is history."""
+    return [entry for entry in alerts if _same(entry, alert) and _status(entry) != "resolved"]
 
 
 def _worse(first: str, second: str) -> str:
@@ -294,15 +309,21 @@ def _merge(entry: dict, other: dict) -> dict:
     return merged
 
 
-def _absorb(alerts: list[dict], alert: dict, tool: str, today: str) -> tuple[list[dict], str, bool]:
+def _absorb(alerts: list[dict], alert: dict, tool: str, today: str,
+            scope: str | None = None) -> tuple[list[dict], str, bool]:
     """Add one reported alert to the list; say whether it is new, known or reopened, and whether reopening it removed
-    the acceptance of a person."""
-    matches = [entry for entry in alerts if _same(entry, alert)]
-    rest = [entry for entry in alerts if not _same(entry, alert)]
+    the acceptance of a person. A scoped report adds one entry per scope, whose ID ends with @scope; an alert that
+    exists without a scope is left as it is (unscoped)."""
+    matches = [entry for entry in alerts if _same(entry, alert, scope)]
+    rest = [entry for entry in alerts if not _same(entry, alert, scope)]
     if not matches:
+        if scope and _unscoped(alerts, alert):
+            return alerts, "unscoped", False
         fresh = {**{key: value for key, value in alert.items() if key != "source"},
                  "status": "open", "scanners": [tool], "seen_by": [tool], "tasks": [], "first_seen": today,
                  "last_seen": today}
+        if scope:
+            fresh.update(id=f"{fresh['id']}@{scope}", scope=scope)
         return [*rest, fresh], "new", False
     entry = matches[0]
     for other in matches[1:]:
@@ -323,7 +344,8 @@ def _absorb(alerts: list[dict], alert: dict, tool: str, today: str) -> tuple[lis
     return [*rest, entry], change, unaccepted
 
 
-def import_report(register: dict, path: Path, task_id: str | None = None, today: str | None = None) -> tuple[dict, dict]:
+def import_report(register: dict, path: Path, task_id: str | None = None, today: str | None = None,
+                  scope: str | None = None) -> tuple[dict, dict]:
     """Merge a scanner report into the register.
 
     Alerts that this scanner listed before and no longer lists lose it as a source; when no scanner
@@ -331,10 +353,14 @@ def import_report(register: dict, path: Path, task_id: str | None = None, today:
     SHA-256, day, dependencies analyzed). A resolved alert that a report lists again is reopened with its earlier
     status and without the decision of a person (who confirmed it, who accepted it), so a confirmed critical alert
     blocks again. A report that analyzed no dependency resolves nothing and says why, and one that skipped a package
-    resolves none of its alerts. A report that resolves alerts under another file name than the scanner's previous
-    import names that file (previous_file), since a report of another lockfile resolves what the first one listed.
-    With task_id, the report's alerts are linked to that task.
+    resolves none of its alerts. With a scope the person declares (front, services/api), the import resolves, reopens
+    and counts as absent only the alerts of that scope, and keeps one entry per scope for an advisory; an alert that
+    exists without a scope stays without one, and the import lists it (unscoped). Without a scope, only the alerts
+    without a scope are concerned, and a report that resolves alerts under another file name than the scanner's previous
+    unscoped import names that file (previous_file), since a report of another lockfile resolves what the first one
+    listed. With task_id, the report's alerts are linked to that task.
     """
+    scope = check_scope(scope)
     today = today or _today()
     content = path.read_bytes()
     report = read_report(content, path.name)
@@ -343,13 +369,18 @@ def import_report(register: dict, path: Path, task_id: str | None = None, today:
     alerts = [{**alert, "status": _status(alert)} for alert in register["alerts"]]
     changes = {"tool": tool, "new": [], "reopened": [], "resolved": [], "reported": [], "analyzed": report["analyzed"],
                "acceptance_removed": []}
+    if scope:
+        changes["scope"] = scope
     if not report["analyzed"]:
         changes["nothing_analyzed"] = NOTHING_ANALYZED[tool]
     for alert in reported:
-        alerts, change, unaccepted = _absorb(alerts, alert, tool, today)
-        current = next(entry for entry in alerts if _same(entry, alert))
+        alerts, change, unaccepted = _absorb(alerts, alert, tool, today, scope)
+        current = _unscoped(alerts, alert)[0] if change == "unscoped" else next(
+            entry for entry in alerts if _same(entry, alert, scope))
         if change in ("new", "reopened"):
             changes[change].append(current["id"])
+        if change == "unscoped":
+            changes.setdefault("unscoped", []).append(current["id"])
         if unaccepted:
             changes["acceptance_removed"].append(current["id"])
         changes["reported"].append(current["id"])
@@ -357,23 +388,30 @@ def import_report(register: dict, path: Path, task_id: str | None = None, today:
             current["tasks"] = sorted([*current["tasks"], task_id])
     reported_ids = set(changes["reported"])
     source = {"tool": tool, "file": path.name, "sha256": digest, "date": today, "dependencies": report["analyzed"]}
+    if scope:
+        source["scope"] = scope
     skipped = report.get("skipped", [])
     for alert in alerts:
-        # A report that analyzed nothing, or skipped the alert's package, cannot show that an alert is gone.
+        # A report that analyzed nothing, or skipped the alert's package, cannot show that an alert is gone; nor can a
+        # report of another scope.
         if alert["id"] in reported_ids or tool not in alert.get("scanners", []) or not report["analyzed"] or (
-                (alert["ecosystem"], alert["package"]) in skipped):
+                (alert["ecosystem"], alert["package"]) in skipped) or alert.get("scope") != scope:
             continue
         alert["scanners"] = [name for name in alert["scanners"] if name != tool]
         if not alert["scanners"] and alert["status"] in ACTIVE:
             alert.update(resolved_from=alert["status"], status="resolved", resolved_on=today, resolved_by=source)
             changes["resolved"].append(alert["id"])
+    if not scope and any(alert.get("scope") for alert in alerts):
+        changes["other_scopes"] = sorted({alert["scope"] for alert in alerts if alert.get("scope")})
     changes = {key: sorted(set(value)) if isinstance(value, list) else value for key, value in changes.items()}
-    previous = next((item.get("file") for item in reversed(register.get("imports", [])) if item.get("tool") == tool),
-                    path.name)
-    if changes["resolved"] and previous != path.name:
+    previous = next((item.get("file") for item in reversed(register.get("imports", []))
+                     if item.get("tool") == tool and not item.get("scope")), path.name)
+    if changes["resolved"] and previous != path.name and not scope:
         changes["previous_file"] = previous
     entry = {"tool": tool, "file": path.name, "sha256": digest, "date": today, "dependencies": report["analyzed"],
              "alerts": len(changes["reported"]), "new": len(changes["new"]), "resolved": len(changes["resolved"])}
+    if scope:
+        entry["scope"] = scope
     imports = [*register.get("imports", []), entry][-IMPORTS_KEPT:]
     return {**register, "alerts": alerts, "imports": imports}, changes
 
@@ -382,7 +420,8 @@ def find_alert(register: dict, alert_id: str) -> dict:
     """An alert by its ID, or by ecosystem:package:ALIAS for any advisory ID it is known by."""
     wanted = alert_id.strip().lower()
     for alert in register["alerts"]:
-        names = {alert["id"]} | {f"{alert['ecosystem']}:{alert['package']}:{alias}".lower()
+        suffix = f"@{alert['scope']}" if alert.get("scope") else ""
+        names = {alert["id"]} | {f"{alert['ecosystem']}:{alert['package']}:{alias}{suffix}".lower()
                                  for alias in alert.get("aliases", [])}
         if wanted in names:
             return alert
@@ -484,7 +523,8 @@ def blocking_alerts(register: dict, task: dict) -> list[str]:
 
 def alert_task_id(alert: dict) -> str:
     """The ID of the task that handles an alert: the same in every copy of the project and in every scheduled run."""
-    words = re.sub(r"[^a-z0-9]+", "-", f"dep-{alert['package']}-{alert['advisory']}".lower()).strip("-")
+    words = re.sub(r"[^a-z0-9]+", "-", f"dep-{alert['package']}-{alert['advisory']}-{alert.get('scope', '')}".lower()
+                   ).strip("-")
     if len(words) <= 64:
         return words
     # The cut would give two alerts of a package with a long name the same task: keep a digest of the alert ID.

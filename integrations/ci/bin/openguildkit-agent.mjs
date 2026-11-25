@@ -23,7 +23,7 @@ try {
     }) + '\n');
     process.stdout.write(JSON.stringify(allowed
       ? { id, result: documents.get(method) }
-      : { id, error: 'Action indisponible dans l’adaptateur en lecture.' }) + '\n');
+      : { id, error: 'Action unavailable in the read-only adapter.' }) + '\n');
   }
 } catch (error) {
   process.stderr.write(error.message + '\n');

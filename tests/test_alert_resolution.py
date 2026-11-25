@@ -6,13 +6,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit.alerts import NOTHING_ANALYZED, import_report, set_status
+from openguildkit.alerts import NOTHING_ANALYZED, find_alert, import_report, set_status
 from openguildkit.storage import read_json, write_json
 from tests.test_approval_lifecycle import EXAMPLE, ApprovalCase
 
 FIXTURES = Path(__file__).with_name("fixtures") / "alerts"
 CRITICAL = "npm:form-parser:ghsa-xxxx-yyyy-zzzz"
 JINJA = "pypi:jinja2:ghsa-h5c8-rqwp-cp95"
+SEMVER = "npm:semver:ghsa-c2qf-rxjj-qqgw"
+MINIMIST = "npm:minimist:ghsa-vh95-rmgr-6w4m"
 # What each scanner writes when it analyzed nothing, as an agent could write it to escape an alert.
 EMPTY = {
     "npm audit": ("npm-audit-critical.json", CRITICAL, {"auditReportVersion": 2, "vulnerabilities": {}, "metadata": {}}),
@@ -101,6 +103,109 @@ class EmptyReportTests(unittest.TestCase):
         register, changes = import_report(register, FIXTURES / "npm-audit-critical.json", today="2026-11-23")
         self.assertEqual(changes["reopened"], [CRITICAL])
         self.assertNotIn("resolved_by", register["alerts"][0])
+
+
+class ScopeTests(unittest.TestCase):
+    """A report imported with --scope resolves, reopens and counts as absent only the alerts of its own scope (#393)."""
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.folder = Path(temporary.name)
+        semver = lockfile_report("semver", "critical", "GHSA-c2qf-rxjj-qqgw", 10)
+        minimist = lockfile_report("minimist", "high", "GHSA-vh95-rmgr-6w4m", 20)
+        for name, report in {
+            "front.json": semver, "admin.json": minimist,
+            "front-clean.json": {**semver, "vulnerabilities": {}}, "admin-clean.json": {**minimist, "vulnerabilities": {}},
+            "admin-semver.json": lockfile_report("semver", "critical", "GHSA-c2qf-rxjj-qqgw", 20),
+        }.items():
+            write_json(self.folder / name, report)
+
+    def load(self, register, name, scope=None, day="2026-11-22"):
+        return import_report(register, self.folder / name, scope=scope, today=day)
+
+    @staticmethod
+    def states(register):
+        return {alert["id"]: alert["status"] for alert in register["alerts"]}
+
+    def test_a_confirmed_critical_alert_of_a_scope_stays_open_when_another_scope_is_imported(self):
+        register, changes = self.load(empty(), "front.json", "front", "2026-11-21")
+        self.assertEqual((changes["scope"], changes["new"]), ("front", [f"{SEMVER}@front"]))
+        register = set_status(register, f"{SEMVER}@front", "confirmed", "Alex")
+        register, changes = self.load(register, "admin.json", "admin")
+        self.assertEqual((changes["scope"], changes["new"], changes["resolved"]), ("admin", [f"{MINIMIST}@admin"], []))
+        self.assertNotIn("previous_file", changes)
+        self.assertEqual(self.states(register), {f"{SEMVER}@front": "confirmed", f"{MINIMIST}@admin": "open"})
+        self.assertEqual({alert["id"]: alert["scope"] for alert in register["alerts"]},
+                         {f"{SEMVER}@front": "front", f"{MINIMIST}@admin": "admin"})
+        register, changes = self.load(register, "front-clean.json", "front", "2026-11-23")
+        self.assertEqual(changes["resolved"], [f"{SEMVER}@front"])
+        self.assertEqual(self.states(register), {f"{SEMVER}@front": "resolved", f"{MINIMIST}@admin": "open"})
+        resolved = next(alert for alert in register["alerts"] if alert["status"] == "resolved")
+        self.assertEqual(resolved["resolved_by"]["scope"], "front")
+        register, changes = self.load(register, "admin.json", "admin", "2026-11-24")
+        self.assertEqual((changes["reopened"], changes["new"]), ([], []))
+        register, changes = self.load(register, "front.json", "front", "2026-11-25")
+        self.assertEqual((changes["reopened"], changes["new"]), ([f"{SEMVER}@front"], []))
+        self.assertEqual(self.states(register), {f"{SEMVER}@front": "confirmed", f"{MINIMIST}@admin": "open"})
+
+    def test_an_import_without_a_scope_neither_resolves_nor_reopens_an_alert_of_a_scope(self):
+        register, _ = self.load(empty(), "front.json", "front", "2026-11-21")
+        register = set_status(register, f"{SEMVER}@front", "confirmed", "Alex")
+        register, changes = self.load(register, "admin.json")
+        self.assertEqual((changes["new"], changes["resolved"], changes["other_scopes"]), ([MINIMIST], [], ["front"]))
+        self.assertNotIn("scope", changes)
+        self.assertEqual(self.states(register), {f"{SEMVER}@front": "confirmed", MINIMIST: "open"})
+        register, changes = self.load(register, "front-clean.json")
+        self.assertEqual(changes["resolved"], [MINIMIST])
+        self.assertEqual(self.states(register), {f"{SEMVER}@front": "confirmed", MINIMIST: "resolved"})
+        register, _ = self.load(register, "front-clean.json", "front", "2026-11-23")
+        self.assertEqual(self.states(register)[f"{SEMVER}@front"], "resolved")
+        register, changes = self.load(register, "front.json", day="2026-11-24")
+        self.assertEqual((changes["new"], changes["reopened"]), ([SEMVER], []))
+        self.assertEqual(self.states(register)[f"{SEMVER}@front"], "resolved")
+
+    def test_an_alert_without_a_scope_that_a_scoped_report_lists_stays_without_one_and_the_import_says_so(self):
+        register, _ = self.load(empty(), "front.json", day="2026-11-21")
+        register = set_status(register, SEMVER, "confirmed", "Alex")
+        register, changes = self.load(register, "front.json", "front")
+        self.assertEqual((changes["new"], changes["resolved"], changes["unscoped"]), ([], [], [SEMVER]))
+        alert, = register["alerts"]
+        self.assertEqual((alert["id"], alert["status"], "scope" in alert), (SEMVER, "confirmed", False))
+        register, changes = self.load(register, "front-clean.json", "front", "2026-11-23")
+        self.assertEqual((changes["resolved"], "unscoped" in changes), ([], False))
+        self.assertEqual(self.states(register), {SEMVER: "confirmed"})
+        register, changes = self.load(register, "front-clean.json", day="2026-11-24")
+        self.assertEqual(changes["resolved"], [SEMVER])
+        register, changes = self.load(register, "front.json", "front", "2026-11-25")
+        self.assertEqual((changes["new"], "unscoped" in changes), ([f"{SEMVER}@front"], False))
+        self.assertEqual(self.states(register), {SEMVER: "resolved", f"{SEMVER}@front": "open"})
+
+    def test_the_same_advisory_in_two_scopes_gives_one_entry_per_scope(self):
+        register, _ = self.load(empty(), "front.json", "front", "2026-11-21")
+        register, changes = self.load(register, "admin-semver.json", "admin")
+        self.assertEqual(changes["new"], [f"{SEMVER}@admin"])
+        self.assertEqual(sorted(self.states(register)), [f"{SEMVER}@admin", f"{SEMVER}@front"])
+        register = set_status(register, f"{SEMVER}@front", "confirmed", "Alex")
+        register, changes = self.load(register, "admin-clean.json", "admin", "2026-11-23")
+        self.assertEqual(changes["resolved"], [f"{SEMVER}@admin"])
+        self.assertEqual(self.states(register), {f"{SEMVER}@admin": "resolved", f"{SEMVER}@front": "confirmed"})
+        self.assertEqual(find_alert(register, f"{SEMVER}@front")["scope"], "front")
+
+    def test_an_alert_of_a_scope_is_found_by_any_of_its_advisory_ids(self):
+        register, _ = import_report(empty(), FIXTURES / "pip-audit.json", scope="api", today="2026-11-21")
+        self.assertEqual(find_alert(register, "pypi:jinja2:cve-2024-22195@api")["id"], f"{JINJA}@api")
+        with self.assertRaisesRegex(ValueError, "Unknown alert"):
+            find_alert(register, JINJA)
+
+    def test_a_scope_is_a_short_name_and_anything_else_is_refused(self):
+        for scope in ("front", "services/api", "my-app.v2", "a", "0", "a" * 64):
+            with self.subTest(scope=scope):
+                self.assertEqual(import_report(empty(), self.folder / "front.json", scope=scope)[1]["scope"], scope)
+        for scope in ("", "Front", "front end", "a" * 65, "front/", "/front", ".", "..", "-front", "front@x", "front:y",
+                      "\u00e9", "front\n"):
+            with self.subTest(scope=scope), self.assertRaisesRegex(ValueError, "Invalid scope"):
+                import_report(empty(), self.folder / "front.json", scope=scope)
 
 
 class DecisionTests(ApprovalCase):

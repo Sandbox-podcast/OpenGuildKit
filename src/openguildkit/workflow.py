@@ -1036,9 +1036,10 @@ def _rules_section(task: dict, checks: list[dict] | None) -> list[str]:
         if len(ids) < len(pack.get("rules", [])):
             skipped[pack["id"]] = (len(pack["rules"]) - len(ids), len(pack["rules"]))
     lines = ["## Rules to apply and their checks", "",
-             "The rule texts are in the project's agent instructions (AGENTS.md); the whole scope with every rule "
-             f"text: openguildkit task brief {task_id} --scope. What to report for each rule: openguildkit task "
-             f"checks {task_id}.", "", *(asked or ["No rule of the packs in force concerns this task."])]
+             "AGENTS.md names the rules by ID and leaves their text out. One pack in full: "
+             f"openguildkit task brief {task_id} --pack PACK; the whole scope with every rule text: openguildkit "
+             f"task brief {task_id} --scope. What to report for each rule: openguildkit task checks {task_id}.",
+             "", *(asked or ["No rule of the packs in force concerns this task."])]
     if skipped:
         counts = ", ".join(f"{pack} ({count} of {total} rules)" if count < total else f"{pack} ({total} rules)"
                            for pack, (count, total) in skipped.items())

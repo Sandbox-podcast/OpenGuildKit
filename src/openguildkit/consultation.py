@@ -7,11 +7,14 @@ from copy import deepcopy
 from pathlib import Path
 from uuid import uuid4
 
+from .catalog import rule_check
 from .detect import walk
 from .patterns import is_stack_pattern, pattern_selection
+from .project import rule_text
 from .questionnaire import SURFACE_MEANINGS, as_list, open_points, validate_answers
 from .relevance import BASELINE_PACKS, judge_rules, pack_relevance
 from .routing import select_boards, touched_components
+from .rule_checks import describe_check
 
 
 def profile_settings(profile: dict) -> dict:
@@ -152,8 +155,8 @@ def scope_lines(scope: dict) -> list[str]:
     packs = [f"{pack['id']}@{pack.get('version', '')} ({len(pack.get('rules', []))} rules)" for pack in scope.get("packs", [])]
     lines.append(
         f"- Rule packs in force ({len(packs)}): " + ", ".join(_bounded(packs, f"openguildkit task brief {task_id} --scope"))
-        + ". Their rules are in the project's agent instructions (AGENTS.md); each board pass prints the rules of "
-          "its own packs."
+        + ". AGENTS.md names their rules by ID. Each board pass prints the rules of its own packs that concern the "
+          f"task; one pack in full: {_pack_command(task_id)}."
     )
     for field, label in (("conventions", "Conventions"), ("checks", "Project checks")):
         if scope.get(field):
@@ -722,7 +725,7 @@ def _rule_lines(data: dict, task_id: str, room: int) -> list[str]:
     footer = _not_concerned_lines(data)
     # Room is kept for the closing lines at their longest: every pack left unprinted, and the other boards' count.
     closing = [_unprinted_line([pack["pack"].split("@")[0] for pack in data["rules"]], task_id),
-               _other_packs_line(data["other_packs"])]
+               _other_packs_line(data["other_packs"], task_id)]
     room -= len("\n".join([*lines, *footer, *closing]).encode("utf-8")) + 1
     for pack in data["rules"]:
         block = [f"{pack['title']} ({pack['pack']}):", *(f"- {rule['id']}: {rule['instruction']}" for rule in pack["rules"])]
@@ -750,21 +753,27 @@ def _rule_lines(data: dict, task_id: str, room: int) -> list[str]:
         lines.append(_unprinted_line(unprinted, task_id))
     lines.extend(footer)
     if data["other_packs"]:
-        lines.append(_other_packs_line(data["other_packs"]))
+        lines.append(_other_packs_line(data["other_packs"], task_id))
     return lines
 
 
 def _unprinted_line(packs: list[str], task_id: str) -> str:
     return (f"Also concern the task, omitted in whole or in part to keep this pass short: {', '.join(packs)}. One pack's rules: "
-            f"openguildkit task brief {task_id} --pack PACK.")
+            f"{_pack_command(task_id)}.")
 
 
-def _other_packs_line(count: int) -> str:
-    return f"{count} other packs are in force for other boards (AGENTS.md)." if count else ""
+def _pack_command(task_id: str) -> str:
+    return f"openguildkit task brief {task_id} --pack PACK"
+
+
+def _other_packs_line(count: int, task_id: str) -> str:
+    return (f"{count} other packs are in force for other boards (AGENTS.md names them; one pack's rules: "
+            f"{_pack_command(task_id)}).") if count else ""
 
 
 def pack_rules(consultation: dict, pack_id: str) -> str:
-    """One pack in force for the task, with each rule's instruction and how it is verified."""
+    """One pack in force for the task, in full: each rule's instruction, how it is verified, the check task verify
+    runs and the evidence the result asks, then the sources. AGENTS.md names the rules and leaves this text here."""
     packs = {pack["id"]: pack for pack in consultation["scope"].get("packs", [])}
     if pack_id not in packs:
         raise ValueError(f"Pack {pack_id!r} is not in force for this task. In force: {', '.join(packs) or 'none'}.")
@@ -773,9 +782,17 @@ def pack_rules(consultation: dict, pack_id: str) -> str:
     if pack.get("description"):
         lines.extend([pack["description"], ""])
     for rule in pack.get("rules", []):
-        lines.append(f"- {rule['id']}: {rule.get('instruction', 'machine check, run by task verify')}")
-        if rule.get("verification"):
-            lines.append(f"  Verified: {rule['verification']}")
+        instruction, verification = rule_text(rule)
+        lines.extend([f"- {rule['id']}: {instruction}", f"  Verified: {verification}"])
+        if "check" in rule and "instruction" in rule:
+            lines.append(f"  Checked by task verify: {describe_check(rule_check(rule))}")
+        for item in rule.get("evidence", []):
+            when = item.get("when", {}).get("data")
+            applies = f" Supply it when the task's data is {' or '.join(when)}." if when else ""
+            lines.append(f"  Evidence for task result: {item['title']}, a project path or an https link, "
+                         f"or not-applicable with a reason and an owner.{applies}")
+    if pack.get("sources"):
+        lines.extend(["", "Sources:", *(f"- {source['title']}: {source['url']}" for source in pack["sources"])])
     return "\n".join(lines) + "\n"
 
 

@@ -44,9 +44,14 @@ class CatalogLockTests(CliTestCase):
         self.run_cli("sync")
         agents_path = self.project / "AGENTS.md"
         agents = agents_path.read_text(encoding="utf-8")
-        self.assertIn(f"`{rule_id}` Older wording approved by the team.", agents)
+        self.assertIn(f"`{rule_id}`, ", agents)
+        self.assertIn("`retired-rule`", agents)
         self.assertIn("secure-sdlc@0.9.0", agents)
         self.run_cli("check")
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK_ID)
+        self.run_cli("task", "consult", TASK_ID, "--answers", EXAMPLE / "answers.json")
+        self.assertIn(f"- {rule_id}: Older wording approved by the team.",
+                      self.run_cli("task", "brief", TASK_ID, "--pack", "secure-sdlc").stdout)
 
         agents_path.unlink()
         self.run_cli("sync")
@@ -69,14 +74,18 @@ class CatalogLockTests(CliTestCase):
         text = self.run_cli("update").stdout
         self.assertIn("- rule retired-rule", text)
         self.assertIn("update --apply", text)
-        self.assertIn("Older wording", (self.project / "AGENTS.md").read_text(encoding="utf-8"))
+        agents = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("secure-sdlc@0.9.0", agents)
+        self.assertIn("`retired-rule`", agents)
+        self.assertIn("Older wording", self.lock_path().read_text(encoding="utf-8"))
 
         applied = json.loads(self.run_cli("update", "--apply", "--json").stdout)
         self.assertTrue(applied["applied"])
         self.assertEqual(applied["stale_tasks"], [{"id": TASK_ID, "status": "consulting", "step": "consult it again"}])
         agents = (self.project / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertNotIn("Older wording", agents)
+        self.assertNotIn("secure-sdlc@0.9.0", agents)
         self.assertNotIn("retired-rule", agents)
+        self.assertNotIn("Older wording", self.lock_path().read_text(encoding="utf-8"))
         self.run_cli("check")
         self.assertEqual(json.loads(self.run_cli("update", "--json").stdout)["changes"], [])
 
@@ -192,10 +201,16 @@ class CatalogUpgradeTests(CliTestCase):
         touched = preview.split("Tasks this change touches:", 1)[1]
         self.assertIn(f"  {TASK_ID} (approved)", touched)
         self.assertIn("  export-history (consulting)", touched)
-        self.assertNotIn(self.NEW_TEXT, (self.project / "AGENTS.md").read_text(encoding="utf-8"))
+        lock = self.project / ".openguildkit" / "catalog.lock.json"
+        old_version = json.loads(lock.read_text(encoding="utf-8"))["records"]["packs"]["secure-sdlc"]["version"]
+        self.assertNotIn(self.NEW_TEXT, lock.read_text(encoding="utf-8"))
+        self.assertIn(f"secure-sdlc@{old_version}", (self.project / "AGENTS.md").read_text(encoding="utf-8"))
 
         applied = self.run_with(env, "update", "--apply")
         for task_id in (TASK_ID, "export-history"):
             self.assertIn(f"  {task_id} (", applied)
             self.assertIn(f"  {task_id} (", self.run_with(env, "sync"))
-        self.assertIn(self.NEW_TEXT, (self.project / "AGENTS.md").read_text(encoding="utf-8"))
+        self.assertIn(self.NEW_TEXT, lock.read_text(encoding="utf-8"))
+        new_version = json.loads(lock.read_text(encoding="utf-8"))["records"]["packs"]["secure-sdlc"]["version"]
+        self.assertNotEqual(new_version, old_version)
+        self.assertIn(f"secure-sdlc@{new_version}", (self.project / "AGENTS.md").read_text(encoding="utf-8"))
