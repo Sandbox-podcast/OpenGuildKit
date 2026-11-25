@@ -4,6 +4,7 @@ Detection only reads local manifests. It never runs a package manager or opens t
 network, and the team confirms or corrects the proposal before it reaches the profile.
 """
 
+import itertools
 import json
 import os
 import re
@@ -22,6 +23,7 @@ SKIPPED_DIRECTORIES = frozenset({
 })
 MAX_DEPTH = 4
 MAX_MANIFEST_BYTES = 2_000_000
+MAX_WORKSPACE_MEMBERS = 500
 
 NPM_PACKAGES = {
     "next": "Next.js",
@@ -74,6 +76,7 @@ RUBY_GEMS = {
     "rails": "Rails", "pg": "PostgreSQL", "mysql2": "MySQL", "stripe": "Stripe",
     "adyen-ruby-api-library": "Adyen", "braintree": "Braintree", "mollie-api-ruby": "Mollie",
 }
+CARGO_CRATES = {"axum": "Axum", "actix-web": "Actix Web", "rocket": "Rocket", "tokio": "Tokio"}
 COMPOSER_PACKAGES = {
     # The framework bundle (or the full-stack package of old applications) marks a Symfony application; the
     # Symfony components that Laravel, Drupal or a console tool use alone do not.
@@ -196,11 +199,29 @@ def _json_manifest(path: Path) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+def _toml_manifest(path: Path) -> dict:
+    text = _read_text(path)
+    try:
+        data = tomllib.loads(text) if text else None
+    except (tomllib.TOMLDecodeError, RecursionError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _table(data: dict, key: str) -> dict:
+    value = data.get(key)
+    return value if isinstance(value, dict) else {}
+
+
+def _single_line(name: object) -> str | None:
+    return name.strip() if isinstance(name, str) and len(name.strip().splitlines()) == 1 else None
+
+
 def detected_project_name(root: Path) -> str:
-    name = _json_manifest(root / "package.json").get("name")
-    if isinstance(name, str) and len(name.strip().splitlines()) == 1:
-        return name.strip()
-    return root.name or "Project"
+    """The name of the root package.json, else of the root Cargo.toml package, else the folder's name."""
+    name = _single_line(_json_manifest(root / "package.json").get("name"))
+    return name or _single_line(_table(_toml_manifest(root / "Cargo.toml"), "package").get("name")) \
+        or root.name or "Project"
 
 
 def _package_json(component: _Component, path: Path, label: str) -> None:
@@ -281,6 +302,67 @@ def _go_mod(component: _Component, path: Path, label: str) -> None:
     for module, name in GO_MODULES.items():
         if module in text:
             component.add(name, None, label, inferred=True)
+
+
+def _cargo_dependencies(data: dict) -> list[dict]:
+    """Every dependency table of a manifest: the package's, its target-specific ones and the workspace's."""
+    kinds = ("dependencies", "dev-dependencies", "build-dependencies")
+    tables = [_table(data, kind) for kind in kinds] + [_table(_table(data, "workspace"), "dependencies")]
+    for target in _table(data, "target").values():
+        tables.extend(_table(target, kind) for kind in kinds if isinstance(target, dict))
+    return tables
+
+
+def _cargo(component: _Component, path: Path, label: str) -> None:
+    """A Cargo.toml names the Rust version, the edition and the crates; a workspace root can state the first two
+    for its members, which then write `workspace = true`, and the versions of their crates."""
+    data = _toml_manifest(path)
+    package, shared = _table(data, "package"), _table(_table(data, "workspace"), "package")
+
+    def declared(key: str) -> str | None:
+        return next((value for value in map(declared_version, (package.get(key), shared.get(key))) if value), None)
+
+    component.add("Rust", declared("rust-version"), label)
+    if declared("edition"):
+        component.add("Rust edition", declared("edition"), label)
+    for table in _cargo_dependencies(data):
+        for crate, spec in table.items():
+            spec = spec if isinstance(spec, dict) else {"version": spec}
+            package_name = spec["package"] if isinstance(spec.get("package"), str) else crate
+            name = CARGO_CRATES.get(package_name.lower().replace("_", "-"))
+            if name:
+                component.add(name, declared_version(spec.get("version")), label)
+
+
+def _cargo_folders(directory: Path, patterns: object) -> list[Path]:
+    """The folders below directory that a workspace's `members` or `exclude` list names, globs expanded.
+
+    A pattern that leaves the folder, a link and a folder without a Cargo.toml are left out, so that a member
+    never reaches files outside the project."""
+    folders: list[Path] = []
+    for pattern in patterns[:MAX_WORKSPACE_MEMBERS] if isinstance(patterns, list) else []:
+        if not isinstance(pattern, str) or pattern.startswith(("/", "\\")) or ".." in pattern.split("/") \
+                or re.match(r"[A-Za-z]:", pattern):
+            continue
+        try:
+            matches = list(itertools.islice(directory.glob(pattern), MAX_WORKSPACE_MEMBERS))
+        except (ValueError, NotImplementedError, OSError, RecursionError):
+            continue
+        for match in matches:
+            current, plain = directory, True
+            for part in match.relative_to(directory).parts:
+                current = current / part
+                plain = plain and part not in SKIPPED_DIRECTORIES and not current.is_symlink()
+            if plain and (match / "Cargo.toml").is_file() and not (match / "Cargo.toml").is_symlink():
+                folders.append(match)
+    return folders
+
+
+def _cargo_members(directory: Path) -> list[Path]:
+    """The folders of the workspace that the Cargo.toml of directory declares, less its excluded ones."""
+    workspace = _table(_toml_manifest(directory / "Cargo.toml"), "workspace")
+    excluded = set(_cargo_folders(directory, workspace.get("exclude")))
+    return [member for member in _cargo_folders(directory, workspace.get("members")) if member not in excluded]
 
 
 def _maven(component: _Component, path: Path, label: str) -> None:
@@ -586,6 +668,8 @@ def _parse(component: _Component, path: Path, label: str, root: Path) -> None:
         _gemfile(component, path, label)
     elif name == "composer.json":
         _composer(component, path, label)
+    elif name == "Cargo.toml":
+        _cargo(component, path, label)
     elif name == "Package.swift":
         _swift_package(component, path, label)
     elif name == "manage.py" and "django" in (_read_text(path) or ""):
@@ -638,7 +722,7 @@ def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dic
     """
     root = root.resolve()
     components: dict[str, _Component] = {}
-    gradle_roots: dict[Path, str] = {}
+    module_roots: dict[Path, str] = {}
     # Each file and marker folder, keyed by its path parts below root: read in that order, a folder's entries come
     # in name order with each subfolder's content in its place, so the first evidence of a technology stays the same.
     found: list[tuple[tuple[str, ...], str, Path, str]] = []
@@ -649,8 +733,11 @@ def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dic
         names = files + folders
         if any(name in ("settings.gradle", "settings.gradle.kts") for name in names):
             for module in _gradle_modules(directory):
-                gradle_roots[module] = relative
-        relative = _kustomize_base(gradle_roots.get(directory, relative), names)
+                module_roots[module] = relative
+        if "Cargo.toml" in files:
+            for member in _cargo_members(directory):
+                module_roots[member] = relative
+        relative = _kustomize_base(module_roots.get(directory, relative), names)
         found += [((*parts, name), "file", directory / name, relative) for name in files]
         for name in [name for name in folders if name.endswith(".xcodeproj")]:
             found.append(((*parts, name), "xcode", directory / name, relative))
