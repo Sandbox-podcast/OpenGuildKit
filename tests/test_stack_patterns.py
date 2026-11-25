@@ -252,5 +252,72 @@ class StackDetectionTests(unittest.TestCase):
         self.assertIn("AWS", cdk["components"][0]["stack"])
 
 
+# What each agent framework or MCP SDK declares in its manifest, and the technology detect reports for it. The
+# package names were read in the registries (PyPI, npm) and the publishers' repositories on 25 November 2026.
+AGENT_MANIFESTS = {
+    "MCP": [
+        ("pyproject.toml", '[project]\nname = "srv"\ndependencies = ["mcp[cli]>=1.2"]\n'),
+        ("requirements.txt", "mcp==1.2.0\n"),
+        ("package.json", {"dependencies": {"@modelcontextprotocol/sdk": "^1.12.0"}}),
+        ("package.json", {"dependencies": {"@modelcontextprotocol/server": "^2.0.0"}}),
+        ("package.json", {"devDependencies": {"@modelcontextprotocol/client": "^2.0.0"}}),
+    ],
+    "LangGraph": [("pyproject.toml", '[project]\nname = "a"\ndependencies = ["langgraph>=0.2"]\n'),
+                  ("pyproject.toml", '[tool.poetry.dependencies]\npython = "^3.12"\nlanggraph = "^0.2"\n')],
+    "CrewAI": [("requirements.txt", "crewai==0.80.0\n")],
+    "OpenAI Agents SDK": [("pyproject.toml", '[project]\nname = "a"\ndependencies = ["openai-agents>=0.1"]\n')],
+    "Pydantic AI": [("pyproject.toml", '[project]\nname = "a"\ndependencies = ["pydantic-ai>=0.1"]\n'),
+                    ("requirements.txt", "pydantic-ai-slim[openai]==0.1.0\n")],
+    "Claude Agent SDK": [
+        ("pyproject.toml", '[project]\nname = "a"\ndependencies = ["claude-agent-sdk>=0.1"]\n'),
+        ("package.json", {"dependencies": {"@anthropic-ai/claude-agent-sdk": "^0.1.0"}}),
+    ],
+    "AutoGen": [("requirements.txt", "autogen-agentchat>=0.4\n"), ("requirements.txt", "autogen>=0.9\n"),
+                ("requirements.txt", "pyautogen==0.2.35\n")],
+}
+
+
+class AgenticStackTests(unittest.TestCase):
+    """A repository that depends on an MCP SDK or an agent framework gets the agentic application security pattern."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = load_catalog()
+
+    def detect(self, files: dict) -> dict:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for relative, content in files.items():
+                write(root, relative, content)
+            return detect_stack(root)
+
+    def test_each_mcp_sdk_and_agent_framework_is_detected_from_its_manifest(self):
+        for technology, manifests in AGENT_MANIFESTS.items():
+            for relative, content in manifests:
+                with self.subTest(technology=technology, manifest=relative, content=content):
+                    stack = {item["name"] for component in self.detect({relative: content})["components"]
+                             for item in component["evidence"]}
+                    self.assertIn(technology, stack)
+
+    def test_each_of_them_is_recommended_the_pattern_and_its_pack(self):
+        for technology, manifests in AGENT_MANIFESTS.items():
+            for relative, content in manifests:
+                with self.subTest(technology=technology, manifest=relative, content=content):
+                    components = components_for_profile(self.detect({relative: content}))
+                    answers = {"name": "Repository", "roles": ["engineering"], "components": components}
+                    plan = profile_recommendations(answers, self.catalog)
+                    self.assertIn("agentic-application-security", {pattern["id"] for pattern in plan["matched"]})
+        profile = validate_profile({"name": "Agent", "stack": ["Python 3.12", "LangGraph"]}, self.catalog)
+        self.assertIn("agentic-application-security", resolved_profile(profile, self.catalog)["packs"])
+
+    def test_a_repository_without_an_agent_dependency_gets_no_agentic_rules(self):
+        files = {"pyproject.toml": '[project]\nname = "api"\ndependencies = ["fastapi>=0.115", "pydantic>=2"]\n',
+                 "web/package.json": {"dependencies": {"react": "^18.3.0", "@modelcontextprotocol-docs/site": "^1.0.0"}}}
+        components = components_for_profile(self.detect(files))
+        plan = profile_recommendations({"name": "Repository", "roles": ["engineering"], "components": components},
+                                       self.catalog)
+        self.assertNotIn("agentic-application-security", {pattern["id"] for pattern in plan["matched"]})
+
+
 if __name__ == "__main__":
     unittest.main()

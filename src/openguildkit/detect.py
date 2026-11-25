@@ -49,6 +49,12 @@ NPM_PACKAGES = {
     "braintree": "Braintree",
     "checkout-sdk-node": "Checkout.com",
     "@mollie/api-client": "Mollie",
+    # What puts an MCP server or an AI agent in a project, which the agentic-application-security pattern follows. The
+    # MCP SDK for TypeScript is `sdk` up to its first line and `server` and `client` from its second.
+    "@modelcontextprotocol/sdk": "MCP",
+    "@modelcontextprotocol/server": "MCP",
+    "@modelcontextprotocol/client": "MCP",
+    "@anthropic-ai/claude-agent-sdk": "Claude Agent SDK",
 }
 PYTHON_PACKAGES = {
     "fastapi": "FastAPI",
@@ -67,6 +73,18 @@ PYTHON_PACKAGES = {
     "braintree": "Braintree",
     "checkout-sdk": "Checkout.com",
     "mollie-api-python": "Mollie",
+    # The names the registry gives: `autogen` is the community AG2 line, `autogen-agentchat` the Microsoft one and
+    # `pyautogen` the proxy of the second.
+    "mcp": "MCP",
+    "langgraph": "LangGraph",
+    "crewai": "CrewAI",
+    "openai-agents": "OpenAI Agents SDK",
+    "pydantic-ai": "Pydantic AI",
+    "pydantic-ai-slim": "Pydantic AI",
+    "claude-agent-sdk": "Claude Agent SDK",
+    "autogen": "AutoGen",
+    "autogen-agentchat": "AutoGen",
+    "pyautogen": "AutoGen",
 }
 GO_MODULES = {
     "github.com/jackc/pgx": "PostgreSQL",
