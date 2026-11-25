@@ -52,7 +52,10 @@ _SETTING = re.compile(r"\{([a-z][a-z0-9_]*)\}")
 _DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 _SECRET_WORD = re.compile(r"(?i)(token|secret|password|passwd|api[_-]?key|apikey|bearer)")
 _INLINE_VALUE = re.compile(r"^-{0,2}[A-Za-z0-9_.-]*=(.+)$")
-_SETTING_VALUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@-]{0,199}")
+# A plain value: a name, a host, or a path on the workstation, absolute ones included.
+_SETTING_VALUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@-]{0,199}|/[A-Za-z0-9][A-Za-z0-9._:/@-]{0,198}")
+# What a publisher writes in place of a value the reader fills in: /path/to/server, <your-site>.
+_STAND_IN = re.compile(r"(?i)path/to/|[<>]")
 TOOL_FIELDS = {"id", "title", "vendor", "summary", "homepage", "brains", "servers"}
 TOOL_OPTIONAL = {"aliases", "detect", "api", "notes"}
 SERVER_FIELDS = {
@@ -147,17 +150,25 @@ def _validate_server(server: object, label: str) -> None:
                 or package["registry"] not in PACKAGE_REGISTRIES:
             raise CatalogError(f"{label}: package has a registry ({', '.join(PACKAGE_REGISTRIES)}) and a name")
         _text(package["name"], f"{label} package name")
+        _check_stand_ins([server["command"], *server["args"]], label)
         for arg in server["args"]:
             inline = _INLINE_VALUE.match(arg)
             if inline and _SECRET_WORD.search(arg.split("=", 1)[0]) and not _SETTING.fullmatch(inline.group(1)):
                 raise CatalogError(f"{label}: {arg.split('=', 1)[0]} must come from the environment, not from an argument")
-            if "<" in arg or ">" in arg:
-                raise CatalogError(f"{label}: write placeholders as {{name}} and declare them in settings")
-        used = {name for arg in server["args"] for name in _SETTING.findall(arg)}
+        used = {name for text in [server["command"], *server["args"]] for name in _SETTING.findall(text)}
     if used != declared:
         raise CatalogError(f"{label}: settings must declare exactly the placeholders used: {', '.join(sorted(used)) or 'none'}")
     if "read_only" in server:
         _validate_read_only(server, label)
+
+
+def _check_stand_ins(values: list[str], label: str) -> None:
+    """A command written with the publisher's stand-in starts nothing on a workstation: a placeholder makes tools
+    plan ask for the real value instead."""
+    for value in values:
+        if _STAND_IN.search(value):
+            raise CatalogError(f"{label}: {value!r} stands in for a value: write placeholders as {{name}} and declare "
+                               "them in settings, with where to find the value")
 
 
 def _check_forwarded(args: list, env: list, label: str) -> None:
@@ -190,6 +201,7 @@ def _validate_read_only(server: dict, label: str) -> None:
         if not isinstance(variant["args"], list) or any(not isinstance(arg, str) or not arg for arg in variant["args"]) \
                 or set(_SETTING.findall(" ".join(variant["args"]))) != set(_SETTING.findall(" ".join(server["args"]))):
             raise CatalogError(f"{label}: read_only args is a list of text with the same settings as args")
+        _check_stand_ins(variant["args"], f"{label} read_only")
         if server["command"] == "docker":
             _check_forwarded(variant["args"], server["env"], f"{label} read_only")
     if "env" in variant:
@@ -637,16 +649,16 @@ def review_facts(tool: dict, server: dict, bearer: str | None = None) -> dict:
 def host_entry(host: str, server: dict, settings: dict, token_env: str | None) -> dict:
     """The host's own configuration entry for a server. Variables are named, never resolved."""
     if server["transport"] == "stdio":
-        args = [_fill(arg, settings) for arg in server["args"]]
+        command, args = _fill(server["command"], settings), [_fill(arg, settings) for arg in server["args"]]
         if host == "codex":
-            entry = {"command": server["command"], "args": args}
+            entry = {"command": command, "args": args}
             # Codex passes the named variables through and sets the plain values of a read-only mode itself.
             if server.get("set_env"):
                 entry["env"] = dict(server["set_env"])
             if server["env"]:
                 entry["env_vars"] = list(server["env"])
             return entry
-        entry = {"command": server["command"], "args": args}
+        entry = {"command": command, "args": args}
         values = dict(server.get("set_env", {}))
         if values or server["env"]:
             entry["env"] = {**values, **{name: "${" + name + "}" for name in server["env"]}}
@@ -758,7 +770,8 @@ def plan_connections(
         if server["transport"] == "sse":
             warnings.append("SSE transport is deprecated by hosts: prefer a streamable HTTP server when the publisher offers one.")
         if server["transport"] == "stdio":
-            steps.append(f"Install {server['package']['name']} ({server['package']['registry']}) so that `{server['command']}` runs on each workstation.")
+            steps.append(f"Install {server['package']['name']} ({server['package']['registry']}) so that "
+                         f"`{_fill(server['command'], filled)}` runs on each workstation.")
             if server["env"]:
                 steps.append("Set in each person's environment, never in a file: " + ", ".join(server["env"]) + ".")
         elif bearer:
@@ -769,7 +782,9 @@ def plan_connections(
         elif server["auth"] == "api-token":
             warnings.append("This server needs a token: pass --token-env TOOL=VARIABLE, or see its source for the header it expects.")
         if missing:
-            steps.append("Still to provide: " + ", ".join(f"--set {tool_id}.{name}=VALUE" for name in missing) + ".")
+            described = {item["name"]: item["description"] for item in server.get("settings", [])}
+            steps.append("Still to provide: " + ", ".join(f"--set {tool_id}.{name}=VALUE ({described[name]})"
+                                                          for name in missing) + ".")
         item = {
             "tool": tool_id, "title": tool["title"], "server": server["id"], "key": server["id"], "mode": "live",
             "covers": [tool_id], "publisher": server["publisher"], "transport": server["transport"], "auth": server["auth"],

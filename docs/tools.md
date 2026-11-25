@@ -173,7 +173,7 @@ A server names the variables it reads. The host passes them from each person's e
 `--set TOOL.NAME=VALUE` refuses:
 
 - a setting whose name is a secret word (token, secret, password, passwd, API key, bearer);
-- a value that is not plain: letters, digits and `._:/@-` only, up to 200 characters, starting with a letter or digit;
+- a value that is not plain: letters, digits and `._:/@-` only, up to 200 characters, starting with a letter or digit, or with `/` for an absolute path;
 - a value that matches a credential shape of the table below.
 
 | Shape | Recognized by |

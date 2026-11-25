@@ -143,7 +143,7 @@
           "publisher": "vendor",
           "maintainer": "Mirantis (Lens)",
           "transport": "stdio",
-          "command": "path/to/bundled-lens-cli",
+          "command": "{cli_path}",
           "args": [
             "mcp-server"
           ],
@@ -154,6 +154,12 @@
           "auth": "none",
           "env": [
             "LENS_CLI_API_SOCKET"
+          ],
+          "settings": [
+            {
+              "name": "cli_path",
+              "description": "Lens: the path of the Lens CLI in the MCP server snippet Lens shows; it differs per platform"
+            }
           ],
           "status": "unknown",
           "capabilities": "List, connect and disconnect the clusters known to Lens (kubeconfig, EKS, AKS, Teamwork spaces) and run read-only kubectl commands.",
