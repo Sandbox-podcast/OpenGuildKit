@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,7 +12,7 @@ from openguildkit.decisions import record_digest
 from openguildkit.guard import HOOK_OUTCOMES, MODES, UNKNOWN_MODE, hook_answer
 from openguildkit.storage import write_json
 
-from tests.support import CapturedCli, openguildkit_on_path
+from tests.support import CapturedCli, openguildkit_on_path, run_cli as run_project
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "request-status"
@@ -533,6 +534,25 @@ class GuardTests(CapturedCli, unittest.TestCase):
         unsigned["record_sha256"] = record_digest(unsigned)
         self.commit_record(f"{TASK}.json", unsigned)
         self.assertIn("not signed", self.ci(code=1)["problems"][0])
+
+    @unittest.skipUnless(shutil.which("git"), "needs git")
+    def test_a_journal_that_no_longer_matches_fails_guard_ci(self):
+        command = f'"{sys.executable}" -c "import sys; sys.exit(0)"'
+        self.branch_with_change(checks=[command], guard="enforce")
+        self.approve_example()
+        self.run_cli("task", "verify", TASK)
+        self.run_cli("task", "export", TASK)
+        record = json.loads((self.root / ".openguildkit" / "decisions" / f"{TASK}.json").read_text(encoding="utf-8"))
+        journal = record["result"]["journals"][0]
+        self.assertEqual(journal["check"], "command:1")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "decision")
+        before = json.loads(run_project(self.root, "guard", "--ci", "--base", "main", "--json", expect=None).stdout)
+        self.assertFalse(any("sha256" in item for item in before["problems"]))
+        log = self.root / journal["evidence"]
+        log.write_text(log.read_text(encoding="utf-8") + "tampered\n", encoding="utf-8")
+        after = json.loads(run_project(self.root, "guard", "--ci", "--base", "main", "--json", expect=1).stdout)
+        self.assertTrue(any("command:1" in item and "sha256" in item for item in after["problems"]))
 
 
 if __name__ == "__main__":

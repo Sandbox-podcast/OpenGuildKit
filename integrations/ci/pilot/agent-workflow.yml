@@ -16,6 +16,7 @@ jobs:
   verify:
     if: github.ref == 'refs/heads/pilot/agent-ticket-base'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       issues: read
@@ -86,6 +87,7 @@ jobs:
   publish:
     needs: verify
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       pull-requests: read
       statuses: write

@@ -26,7 +26,6 @@ from .market import load_dossier
 from .market import scope_entry as market_scope_entry
 from .project import STATE_DIR, WORK_DIR, Fingerprints, load_profile, task_scope_profile
 from .prompts import prompt_questions
-from .terminal import interactive_input
 from .questionnaire import concerns_question, open_points, require_concerns, task_questions, validate_answers
 from .relevance import changed_files, pack_relevance
 from .results import (
@@ -47,6 +46,7 @@ from .tasks import (
     require_blocker_status, require_current_scope, resolve_blocker, revoke_approval, start_pass, state_refusal,
     submit_pass, task_path, timestamp, verification_blocker_problems,
 )
+from .terminal import interactive
 from .tools import connected_tools, load_tools, match_tools, tool_evidence_warnings
 from .workflow import (
     RESOLUTION_RULE, TaskStateError, blocker_list, challenge_report, deliberation_request, handoff, is_decision_task,
@@ -458,7 +458,7 @@ def _read_consultation(task: dict) -> dict:
 def _revoke(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
     """The person withdraws an approval at their terminal, as they gave it: never an agent."""
     result = revoke_approval(task, args.by, args.reason)
-    if not interactive_input():
+    if not interactive():
         raise ValueError("Withdrawing an approval is the person's act: they run openguildkit task revoke in their own "
                          "terminal, as they approved.")
     problem = approval_problem(task, profile, catalog, root)
@@ -516,7 +516,7 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
     removals = pending_removals(task) if args.approve else []
     result = record_decision(task, args.approve, args.by, args.reason, base, signature, removals)
     if args.approve:
-        if (signature is None or removals) and not interactive_input():
+        if (signature is None or removals) and not interactive():
             raise ValueError("Approval requires a person at an interactive terminal.")
         # A signed approval shows the same text: the signature replaces the typed ID, not the reading.
         print("\n".join(_decision_prompt(state, task, profile, register)), file=sys.stderr)
@@ -654,7 +654,7 @@ def _closing(args, state: Path, task: dict, profile: dict, relevance: dict, root
             + "\n- ".join(set_aside) + f"\nA person confirms each: openguildkit task complete {args.id} --by NAME, "
             "at a terminal.")
     if args.by:
-        if not interactive_input():
+        if not interactive():
             raise ValueError("Closing a task with --by needs the person at an interactive terminal.")
         for group in closed["result"]["closing"]["open_points"]:
             print(f"{group['group']}:", file=sys.stderr)
@@ -712,7 +712,7 @@ def _declaration_checks(args, task: dict, profile: dict, check_id: str) -> dict:
         raise ValueError(f"{check_id} is not a check command of the task: {', '.join(commands) or 'none'}.")
     if not (args.by or "").strip():
         raise ValueError("Name the person with --by NAME.")
-    if not interactive_input():
+    if not interactive():
         raise ValueError("Declaring whether a command can run needs the person at an interactive terminal.")
     return commands
 
@@ -768,7 +768,7 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
     """
     if args.action == "verify" and not task["consultation"]["scope"].get("checks") and not is_decision_task(task):
         print(NO_CHECK_COMMAND)
-    problems = (completion_problems(task, profile, relevance, changed=changed)
+    problems = (completion_problems(task, profile, relevance, changed=changed, root=root)
                 + blocking_alerts(load_register(state), task) + verification_blocker_problems(task, profile, root))
     # Before any report, task verify counts the answers the result file gives rather than one line per rule.
     folded = set(answers_to_report(task, profile, relevance)) if args.action == "verify" else set()
@@ -879,7 +879,7 @@ def _resolve(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     require_approval(task, profile, catalog, root)
     require_blocker_status(task)
     if action == "waive":
-        if not interactive_input():
+        if not interactive():
             raise ValueError("A waiver needs a person at an interactive terminal.")
         details = {"kind": "waived", "by": args.by, "reason": args.reason, "scope": args.scope, "until": args.until}
     else:
@@ -895,7 +895,7 @@ def _resolve(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
             if approval_policy(profile)["mode"] != "signed":
                 raise ValueError("A clearance signature is only used in a project with signed approvals.")
             details.update(signature=args.signature.read_text(encoding="utf-8"), signer=args.signer)
-    details["terminal"] = interactive_input()
+    details["terminal"] = interactive()
     result = resolve_blocker(task, args.blocker, details, profile, root)
     # A signed clearance is the person's act through their key; otherwise the person types the task ID.
     if action == "clear" and "signature" not in details:
@@ -1161,7 +1161,8 @@ def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
             research = "public-sources" if public else "local-only"
             market = market_scope_entry(load_dossier(state, args.market), research, brief=" ".join(
                 [args.revised_brief or current_task["brief"], answers.get("context") or ""]))
-        families = with_pattern_references(load_references(state / "catalog" / "references"), catalog["patterns"])
+        families = with_pattern_references(load_references(state / "catalog" / "references", catalog),
+                                           catalog["patterns"])
         scoped_profile = task_scope_profile(profile, catalog, answers.get("components", []))
         active = set(scoped_profile["packs"])
         context = consultation_context(current_task, answers, scoped_profile, catalog)
@@ -1204,7 +1205,7 @@ def _reused_answers(args, task: dict) -> dict:
             answers.update(given)
             validate_answers(answers)
     if "concerns" not in answers:
-        if interactive_input():
+        if interactive():
             answers.update(prompt_questions([concerns_question()], "task consult"))
         else:
             answers["concerns"] = ["unsure"]
@@ -1304,7 +1305,7 @@ def _decision_payload(args, root: Path, state: Path, profile: dict, catalog: dic
 
 def _authorize(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """A person allows or refuses an external action outside the authorized scope."""
-    if args.allow and not interactive_input():
+    if args.allow and not interactive():
         raise ValueError("Allowing an external action requires a person at an interactive terminal.")
     result = record_authorization(task, args.external_action, args.target, args.allow, args.by, args.reason)
     if args.allow:

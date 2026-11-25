@@ -59,8 +59,7 @@ class ApprovalCase(unittest.TestCase):
         return result.stdout, result.stderr
 
     def git(self, *arguments):
-        subprocess.run(["git", "-C", str(self.root), "-c", "user.email=dev@example.test", "-c", "user.name=Dev",
-                        *arguments], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(self.root), *arguments], check=True, capture_output=True)
 
     def approve(self, task_id, verification_blocker=False):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", task_id)

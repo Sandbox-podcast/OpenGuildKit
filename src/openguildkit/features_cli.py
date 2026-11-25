@@ -11,7 +11,7 @@ from pathlib import Path
 from . import profile_cli
 from .features import feature_options, features_view, load_features, profile_names
 from .project import load_profile
-from .tools import load_tools, resolve_tool
+from .tools import CLAUDE_MCP_FILE, CODEX_CONFIG_FILE, connection_status, load_tools, resolve_tool
 
 
 def add_parser(commands) -> None:
@@ -26,7 +26,8 @@ def add_parser(commands) -> None:
         command = actions.add_parser(name, help=text)
         command.add_argument("names", nargs="+", metavar="NAME", help="A feature ID (its lead tool) or a tool of it.")
         command.add_argument("--by", required=True, help="The person who decides the change.")
-        command.add_argument("--reason", required=True, help="Why, in one line; shown in AGENTS.md and preview.")
+        command.add_argument("--reason", required=True, help="Why, in one line; recorded in the profile history "
+                                                                 "(.openguildkit/project.json).")
 
 
 def _print(view: list[dict]) -> None:
@@ -64,6 +65,12 @@ def _edit(args, features: list[dict], tools: dict):
             if enable and present or not enable and not present:
                 state = "already on" if enable else "not on"
                 raise ValueError(f"{tool_id} is {state}. Nothing was written.")
+            uses = [feature["id"] for feature in features
+                    if any(option["tool"] == tool_id for option in feature["options"])]
+            if not enable and len(uses) > 1:
+                raise ValueError(
+                    f"{tools[tool_id]['title']} serves several features: {', '.join(uses)}. "
+                    "Nothing was written. Use profile remove tool to remove it from the whole profile.")
             names = [*names, tools[tool_id]["title"]] if enable else [name for name in names if name not in present]
         return {**profile, "tools": names}, f"features {args.features_action} {', '.join(args.names)}"
     return edit
@@ -72,6 +79,31 @@ def _edit(args, features: list[dict], tools: dict):
 def _refuse(change: str, weakened: list, voided: list) -> None:
     raise ValueError(f"'{change}' would weaken a protection; turning a feature on or off never should. "
                      "Nothing was written.")
+
+
+def _print_connect(targets: list[str], tools: dict) -> None:
+    """After features enable: the tools plan command for the tools with an MCP server on record, and which have none."""
+    served = [tool for tool in targets if tools[tool]["servers"]]
+    if served:
+        print(f"To connect the MCP servers: openguildkit tools plan {' '.join(served)}, then tools apply once the "
+              "team accepts the plan.")
+    unserved = [tool for tool in targets if not tools[tool]["servers"]]
+    if unserved:
+        print(f"{', '.join(unserved)}: no MCP server on record, so there is nothing to connect.")
+
+
+def _print_still_connected(root: Path, state: Path, targets: list[str], tools: dict, project_host: str | None) -> None:
+    """After features disable: each connection tools apply wrote that still gives the agent a tool turned off, with
+    the command that removes it. Turning a feature off leaves the host files as they are."""
+    for item in connection_status(root, state):
+        present = "reason" not in item and (item["configured"] or item["changed"])
+        if not present or not set(item["covers"]) & set(targets):
+            continue
+        file = CLAUDE_MCP_FILE if item["host"] == "claude-code" else CODEX_CONFIG_FILE.as_posix()
+        titles = " and ".join(tools[tool]["title"] if tool in tools else tool for tool in item["covers"])
+        host = "" if item["host"] == project_host else f" --host {item['host']}"
+        print(f"The MCP server {item['key']} stays connected ({item['host']}, {item['mode']}, {file}): the agent keeps "
+              f"access to {titles}. To remove the connection: openguildkit tools remove {item['key']}{host}.")
 
 
 def run(args, root: Path, state: Path, catalog: dict) -> int:
@@ -89,6 +121,7 @@ def run(args, root: Path, state: Path, catalog: dict) -> int:
                                                   args.by.strip(), args.reason.strip(), _refuse)
     profile_cli.report_change(state, updated, record, catalog, False)
     if args.features_action == "enable":
-        print(f"To connect the MCP servers: openguildkit tools plan {' '.join(targets)}, then tools apply once the "
-              "team accepts the plan.")
+        _print_connect(targets, tools)
+    else:
+        _print_still_connected(root, state, targets, tools, updated.get("host"))
     return 0

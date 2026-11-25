@@ -275,6 +275,16 @@ class SubjectTests(RelevanceCase):
                 task, profile = self.task(budget, boards=boards, profile=profile, brief="Plan next year's cloud budget.")
                 self.assertTrue(self.relevance(task, profile)["packs"]["finops-cost-management"]["concerned"])
 
+    def test_the_agent_native_pack_concerns_infrastructure_and_delivery_only(self):
+        profile = validate_profile({"name": "Agents", "stack": ["Python"], "roles": ["engineering", "devops"],
+                                    "patterns": ["agent-native-repository"]}, self.catalog)
+        tooling = {**BUG, "kind": "maintenance", "surface": ["infrastructure"]}
+        task, profile = self.task(tooling, boards=("engineering", "devops"), profile=profile,
+                                  brief="Bound the output of the test runner.")
+        self.assertTrue(self.relevance(task, profile)["packs"]["agent-native-engineering"]["concerned"])
+        task, profile = self.task(BUG, boards=("engineering", "devops"), profile=profile)
+        self.assertFalse(self.relevance(task, profile)["packs"]["agent-native-engineering"]["concerned"])
+
     def test_pci_dss_needs_regulated_data_or_cards_and_payments_named(self):
         profile = self.profile(patterns=["pci-dss-cardholder-data"])
         proration = {**BUG, "kind": "feature", "data": "internal", "concerns": ["money"]}

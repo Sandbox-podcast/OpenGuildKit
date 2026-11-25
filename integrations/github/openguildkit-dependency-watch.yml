@@ -2,14 +2,14 @@
 # Every Monday it runs the project's scanner and imports the report into the alert register
 # (.openguildkit/alerts.json). For each confirmed alert that no task handles yet, it opens a task: the register
 # links the alert to the task's ID and an issue tracks it. It then proposes the updated register in a pull request
-# (branch openguildkit/dependency-watch), where a person confirms or dismisses the new alerts before merging.
+# (branch openguildkit/dependency-watch-RUN-ATTEMPT), where a person confirms or dismisses the new alerts before merging.
 # The job changes no dependency: a fix goes through an OpenGuildKit task and its approval.
 # The repository setting "Allow GitHub Actions to create and approve pull requests" must be on for the pull request.
 #
 # In guard mode enforce, guard --ci refuses the pull request until it carries an exported decision that lists
 # .openguildkit/alerts.json: the register decides what blocks an approval, so it changes under a task like any
 # other work. The person who reviews the alerts opens a review task on the base branch and gets it approved, then
-# checks out openguildkit/dependency-watch, reviews the alerts, commits the register and exports the decision there
+# checks out the pull request's branch, reviews the alerts, commits the register and exports the decision there
 # (docs/alerts.md, "The pull request and the guard"). GitHub leaves the pull_request runs of a pull request opened
 # with the job's GITHUB_TOKEN waiting for a maintainer's approval: the reviewer's push starts them, or a maintainer
 # approves them in the pull request.
@@ -56,6 +56,7 @@ jobs:
   # Installs only OpenGuildKit, from a release checked by its hash, and reads the report of the scan job.
   watch:
     needs: scan
+    concurrency: openguildkit-dependency-watch-${{ github.ref }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -127,13 +128,15 @@ jobs:
             echo "The alert register did not change: no pull request."
             exit 0
           fi
-          branch=openguildkit/dependency-watch
-          head=$(git rev-parse HEAD)
-          if gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" >/dev/null 2>&1; then
-            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch" -f sha="$head" -F force=true >/dev/null
-          else
-            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/heads/$branch" -f sha="$head" >/dev/null
+          pending=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls" -X GET -f state=open -f base="$BASE" -F per_page=100 \
+            --jq '.[] | select(.head.repo.full_name == .base.repo.full_name) | select(.head.ref == "openguildkit/dependency-watch" or (.head.ref | startswith("openguildkit/dependency-watch-"))) | .number')
+          if [ -n "$pending" ]; then
+            echo "A dependency watch pull request is awaiting merge: $pending. Its branch is left untouched."
+            exit 0
           fi
+          branch="openguildkit/dependency-watch-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          head=$(git rev-parse HEAD)
+          gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/heads/$branch" -f sha="$head" >/dev/null
           current=$(gh api "repos/$GITHUB_REPOSITORY/contents/$register?ref=$branch" --jq .sha 2>/dev/null || true)
           gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$register" -f branch="$branch" \
             -f message="Update the dependency alert register" -f content="$(base64 < "$register" | tr -d '\n')" \
@@ -152,9 +155,4 @@ jobs:
             echo
             echo "Review each new alert on this branch before merging: \`openguildkit alerts set ALERT --status confirmed --by NAME\`, or \`--status dismissed --by NAME --reason WHY\` (dismissing a critical alert needs the person at a terminal), then commit \`.openguildkit/alerts.json\`. The next run opens a task for each confirmed alert."
           } > body.md
-          number=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')
-          if [ -n "$number" ]; then
-            gh pr edit "$number" --body-file body.md
-          else
-            gh pr create --head "$branch" --base "$BASE" --title "Dependency alerts: review the register" --body-file body.md
-          fi
+          gh pr create --head "$branch" --base "$BASE" --title "Dependency alerts: review the register" --body-file body.md

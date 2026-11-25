@@ -6,6 +6,7 @@
       "id": "dsa",
       "title": "Règlement (UE) 2022/2065 sur les services numériques (DSA)",
       "title_en": "Regulation (EU) 2022/2065 on digital services (Digital Services Act, DSA)",
+      "edition": "02022R2065-20221027",
       "category": "Plateformes et services numériques",
       "kind": "réglementation",
       "brains": [
@@ -21,9 +22,14 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj/eng",
+          "checked": "2026-11-25",
           "title": "Règlement (UE) 2022/2065 — Digital Services Act"
+        },
+        {
+          "url": "https://publications.europa.eu/resource/celex/02022R2065-20221027",
+          "checked": "2026-11-25",
+          "title": "EU Publications Office metadata for consolidated text 02022R2065-20221027"
         }
       ]
     },
@@ -41,8 +47,8 @@
       "applies_when": "Pour les offres de logiciels, applications ou services en ligne aux consommateurs, selon la loi nationale de transposition.",
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dir/2019/770/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/dir/2019/770/oj/eng",
+          "checked": "2026-11-25",
           "title": "Directive (UE) 2019/770 — Contenus et services numériques"
         }
       ]
@@ -51,6 +57,7 @@
       "id": "consumer-rights-directive",
       "title": "Directive 2011/83/UE relative aux droits des consommateurs",
       "title_en": "Directive 2011/83/EU on consumer rights",
+      "edition": "02011L0083-20260927",
       "category": "Contrats et consommateurs",
       "kind": "réglementation",
       "brains": [
@@ -65,9 +72,14 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dir/2011/83/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/dir/2011/83/oj/eng",
+          "checked": "2026-11-25",
           "title": "Directive 2011/83/UE — Droits des consommateurs"
+        },
+        {
+          "url": "https://publications.europa.eu/resource/celex/02011L0083-20260927",
+          "checked": "2026-11-25",
+          "title": "EU Publications Office metadata for consolidated text 02011L0083-20260927"
         }
       ]
     },
@@ -85,8 +97,8 @@
       "applies_when": "Pour les produits, logiciels compris, mis sur le marché de l'UE, selon la loi nationale de transposition ; à examiner avec le juriste produit.",
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dir/2024/2853/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/dir/2024/2853/oj/eng",
+          "checked": "2026-11-25",
           "title": "Directive (UE) 2024/2853 — Responsabilité du fait des produits défectueux"
         }
       ]
@@ -95,6 +107,7 @@
       "id": "standard-contractual-clauses",
       "title": "Clauses contractuelles types (décision d'exécution (UE) 2021/914)",
       "title_en": "Standard contractual clauses (Implementing Decision (EU) 2021/914)",
+      "edition": "02021D0914-20210607",
       "category": "Transferts et sous-traitance de données",
       "kind": "réglementation",
       "brains": [
@@ -109,9 +122,14 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/dec_impl/2021/914/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/dec_impl/2021/914/oj/eng",
+          "checked": "2026-11-25",
           "title": "Décision d'exécution (UE) 2021/914 — Clauses contractuelles types"
+        },
+        {
+          "url": "https://publications.europa.eu/resource/celex/02021D0914-20210607",
+          "checked": "2026-11-25",
+          "title": "EU Publications Office metadata for consolidated text 02021D0914-20210607"
         }
       ]
     },
@@ -181,6 +199,7 @@
     {
       "id": "reuse",
       "title": "REUSE Specification",
+      "edition": "3.3",
       "category": "Licences logicielles",
       "kind": "spécification",
       "brains": [
@@ -192,7 +211,7 @@
       "sources": [
         {
           "url": "https://reuse.software/spec/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "FSFE — REUSE Specification"
         }
       ]
@@ -221,6 +240,7 @@
       "id": "vertical-block-exemption",
       "title": "Règlement (UE) 2022/720 d'exemption par catégorie des accords verticaux",
       "title_en": "Regulation (EU) 2022/720, vertical block exemption",
+      "edition": "02022R0720-20240211",
       "category": "Contrats et consommateurs",
       "kind": "réglementation",
       "brains": [
@@ -235,14 +255,19 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/reg/2022/720/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/reg/2022/720/oj/eng",
+          "checked": "2026-11-25",
           "title": "Commission Regulation (EU) 2022/720, Vertical Block Exemption Regulation"
         },
         {
           "url": "https://competition-policy.ec.europa.eu/antitrust-and-cartels/legislation/vertical-block-exemptions_en",
           "checked": "2026-11-21",
           "title": "European Commission, Vertical block exemptions and Guidelines on vertical restraints"
+        },
+        {
+          "url": "https://publications.europa.eu/resource/celex/02022R0720-20240211",
+          "checked": "2026-11-25",
+          "title": "EU Publications Office metadata for consolidated text 02022R0720-20240211"
         }
       ]
     },
@@ -271,6 +296,7 @@
       "id": "eu-tco-regulation",
       "title": "Règlement (UE) 2021/784 relatif aux contenus à caractère terroriste en ligne",
       "title_en": "Regulation (EU) 2021/784 on terrorist content online",
+      "edition": "02021R0784-20210517",
       "category": "Plateformes et services numériques",
       "kind": "réglementation",
       "brains": [
@@ -284,9 +310,14 @@
       ],
       "sources": [
         {
-          "url": "https://eur-lex.europa.eu/eli/reg/2021/784/oj",
-          "checked": "2026-11-21",
+          "url": "https://eur-lex.europa.eu/eli/reg/2021/784/oj/eng",
+          "checked": "2026-11-25",
           "title": "Regulation (EU) 2021/784 on addressing the dissemination of terrorist content online"
+        },
+        {
+          "url": "https://publications.europa.eu/resource/celex/02021R0784-20210517",
+          "checked": "2026-11-25",
+          "title": "EU Publications Office metadata for consolidated text 02021R0784-20210517"
         }
       ]
     },

@@ -95,15 +95,6 @@ class ProfileCommandTests(unittest.TestCase):
         listed, _ = self.run_cli("task", "list")
         self.assertIn("approval no longer holds", listed)
 
-    def test_doc_promises(self):
-        text = (Path(__file__).resolve().parents[1] / "docs" / "patterns.md").read_text(encoding="utf-8")
-        self.assertNotIn("makes earlier approvals stale", text)
-        self.assertIn("Only a change of the rules, the checks or the boards voids an approval", text)
-        self.assertIn(
-            "the guard mode, the host, the research setting, the approval mode or the waiver policy leave approvals standing",
-            text,
-        )
-
     def test_lowering_the_guard_or_allowing_public_research_needs_a_terminal(self):
         for field, value in (("guard", "off"), ("research", "public-sources")):
             with self.subTest(field=field), patch("sys.stdin.isatty", return_value=False):

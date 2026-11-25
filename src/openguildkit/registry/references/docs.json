@@ -89,6 +89,7 @@
     {
       "id": "commonmark",
       "title": "CommonMark",
+      "edition": "0.31.2",
       "category": "Documentation et rédaction",
       "kind": "spécification",
       "brains": [
@@ -101,7 +102,7 @@
       "sources": [
         {
           "url": "https://spec.commonmark.org/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "CommonMark Spec"
         }
       ]
@@ -109,6 +110,7 @@
     {
       "id": "gfm",
       "title": "GitHub Flavored Markdown",
+      "edition": "0.29-gfm",
       "category": "Documentation et rédaction",
       "kind": "spécification",
       "brains": [
@@ -120,7 +122,7 @@
       "sources": [
         {
           "url": "https://github.github.com/gfm/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "GitHub Flavored Markdown Spec"
         }
       ]
@@ -206,6 +208,7 @@
     {
       "id": "bcp47",
       "title": "BCP 47",
+      "edition": "RFC 5646",
       "category": "Internationalisation et conventions de référence",
       "kind": "spécification",
       "brains": [
@@ -221,7 +224,7 @@
       "sources": [
         {
           "url": "https://www.rfc-editor.org/rfc/rfc5646.html",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "IETF RFC 5646 (BCP 47) — Tags for Identifying Languages"
         }
       ]
@@ -295,6 +298,7 @@
     {
       "id": "unicode-normalization",
       "title": "Unicode Normalization UAX 15",
+      "edition": "Unicode 18.0.0",
       "category": "Internationalisation et conventions de référence",
       "kind": "spécification",
       "brains": [
@@ -306,7 +310,7 @@
       "sources": [
         {
           "url": "https://www.unicode.org/reports/tr15/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "UAX #15: Unicode Normalization Forms"
         }
       ]
@@ -314,6 +318,7 @@
     {
       "id": "iso-4217",
       "title": "ISO 4217",
+      "edition": "2015",
       "category": "Internationalisation et conventions de référence",
       "kind": "norme",
       "brains": [
@@ -326,7 +331,7 @@
       "sources": [
         {
           "url": "https://www.iso.org/iso-4217-currency-codes.html",
-          "checked": "2026-11-20",
+          "checked": "2026-11-25",
           "title": "ISO - ISO 4217 — Currency codes"
         }
       ]
@@ -376,6 +381,7 @@
       "id": "unicode-bidi",
       "title": "Unicode UAX #9 — algorithme bidirectionnel",
       "title_en": "Unicode UAX #9, Bidirectional Algorithm",
+      "edition": "Unicode 18.0.0",
       "category": "Internationalisation et conventions de référence",
       "kind": "norme",
       "brains": [
@@ -387,7 +393,7 @@
       "sources": [
         {
           "url": "https://www.unicode.org/reports/tr9/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "Unicode Standard Annex #9, Unicode Bidirectional Algorithm"
         }
       ]

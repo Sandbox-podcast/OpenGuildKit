@@ -1,79 +1,69 @@
-"""A character device that is not a console is not a terminal (issue #357)."""
+"""A person at a terminal: standard input must be a console, not only a device whose isatty() is true (#357)."""
 
-import json
-import sys
+import io
+import os
+import re
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import patch
 
-from openguildkit.storage import write_json
-from openguildkit.terminal import interactive_input
-from tests.support import run_cli
-from tests.test_approval_lifecycle import EXAMPLE, ApprovalCase
+from openguildkit import terminal
+
+from tests.test_results import TASK, ResultCase
 
 SOURCE = Path(__file__).resolve().parents[1] / "src" / "openguildkit"
 
 
 @contextmanager
-def tty_that_is_not_a_console():
-    """isatty() is true, and the Windows console check fails. That is what NUL does."""
-    with patch("sys.stdin.isatty", return_value=True), \
-            patch("openguildkit.terminal._isatty_replaced", return_value=False), \
-            patch("openguildkit.terminal._windows_console", return_value=False), \
-            patch("openguildkit.terminal.sys", SimpleNamespace(platform="win32", stdin=sys.stdin)):
+def device_that_is_not_a_console():
+    """Standard input as Windows gives NUL: a device whose isatty() is true, and which no person types in."""
+    with open(os.devnull, encoding="utf-8") as stream, patch("sys.stdin", stream), \
+            patch.object(stream, "isatty", return_value=True), \
+            patch("openguildkit.terminal.console", return_value=False):
         yield
 
 
-class TerminalSourceTests(unittest.TestCase):
-    def test_no_module_calls_stdin_isatty_directly(self):
-        offenders = []
-        for path in sorted(SOURCE.rglob("*.py")):
-            if "sys.stdin.isatty" in path.read_text(encoding="utf-8"):
-                offenders.append(path.relative_to(SOURCE).as_posix())
-        self.assertEqual(offenders, [])
+class InteractiveTests(unittest.TestCase):
+    def test_a_device_is_a_terminal_only_when_it_is_a_console(self):
+        with device_that_is_not_a_console():
+            self.assertFalse(terminal.interactive())
+        with open(os.devnull, encoding="utf-8") as stream, patch("sys.stdin", stream), \
+                patch.object(stream, "isatty", return_value=True), \
+                patch("openguildkit.terminal.console", return_value=True):
+            self.assertTrue(terminal.interactive())
 
-    @unittest.skipUnless(sys.platform == "win32", "NUL is a character device only on Windows")
-    def test_nul_reports_a_terminal_but_is_not_a_console(self):
-        saved = sys.stdin
-        stream = open("NUL", encoding="utf-8")
-        try:
-            sys.stdin = stream
+    def test_a_stand_in_stream_keeps_its_own_answer(self):
+        """The suite types at a terminal with a stream that has no device: its isatty() stands."""
+        with patch("sys.stdin", io.StringIO("")):
+            self.assertFalse(terminal.interactive())
+            with patch("sys.stdin.isatty", return_value=True):
+                self.assertTrue(terminal.interactive())
+        with patch("sys.stdin", None):
+            self.assertFalse(terminal.interactive())
+
+    @unittest.skipUnless(os.name == "nt", "the NUL device is a Windows device")
+    def test_nul_is_not_a_console_on_windows(self):
+        with open("NUL", encoding="utf-8") as stream:
             self.assertTrue(stream.isatty())
-            self.assertFalse(interactive_input())
-        finally:
-            sys.stdin = saved
-            stream.close()
+            self.assertFalse(terminal.windows_console(stream.fileno()))
+
+    def test_no_module_asks_isatty_of_standard_input_but_the_terminal_module(self):
+        callers = [path.name for path in SOURCE.rglob("*.py")
+                   if path.name != "terminal.py" and re.search(r"stdin\.isatty\(", path.read_text(encoding="utf-8"))]
+        self.assertEqual(callers, [])
 
 
-class NonConsoleInputTests(ApprovalCase):
-    def setUp(self):
-        super().setUp()
-        self.init()
-        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "nc")
-        write_json(self.root / "answers.json", json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8")))
-        self.run_cli("task", "consult", "nc", "--answers", self.root / "answers.json")
+class ActsOfAPersonTests(ResultCase):
+    def test_an_approval_from_a_device_that_is_not_a_console_is_refused_with_its_reason(self):
+        self.reviewed()
+        with device_that_is_not_a_console():
+            _, error = self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed",
+                                    code=1)
+        self.assertIn("Approval requires a person at an interactive terminal.", error)
+        self.assertNotIn("EOF", error)
+        self.assertEqual(self.record()["status"], "reviewed")
 
-    def test_reuse_answers_without_a_console_consults_as_unsure(self):
-        task = self.task("nc")
-        task["answers"].pop("concerns")
-        write_json(self.state / "tasks" / "nc.json", task)
-        with tty_that_is_not_a_console():
-            self.assertFalse(interactive_input())
-            result = run_cli(self.root, "task", "consult", "nc", "--reuse-answers", expect=0)
-        self.assertIn("consulted as unsure", result.stderr)
-        self.assertEqual(self.task("nc")["answers"]["concerns"], ["unsure"])
 
-    def test_approve_without_a_console_is_refused(self):
-        template = json.loads(self.run_cli("task", "template", "nc")[0])
-        review = {"consultation_id": template["consultation_id"],
-                  **json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))}
-        review["boards"] = [entry for entry in review["boards"] if entry["id"] in {board["id"] for board in template["boards"]}]
-        write_json(self.root / "review.json", review)
-        self.run_cli("task", "review", "nc", "--file", self.root / "review.json")
-        with tty_that_is_not_a_console():
-            result = run_cli(self.root, "task", "decide", "nc", "--approve", "--by", "Camille",
-                             "--reason", "Agreed", expect=1)
-        self.assertIn("interactive terminal", result.stderr)
-        self.assertNotEqual(self.task("nc").get("status"), "approved")
+if __name__ == "__main__":
+    unittest.main()

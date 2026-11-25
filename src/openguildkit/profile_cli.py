@@ -11,7 +11,6 @@ import sys
 from pathlib import Path
 
 from .clock import today
-from .terminal import interactive_input
 from .hosts import HOSTS
 from .lock import apply_lock, build_lock, installed_catalog, read_lock, write_lock
 from .patterns import pattern_selection, recommend_patterns, role_choices
@@ -20,6 +19,7 @@ from .project import (
 )
 from .storage import project_lock, write_json
 from .tasks import tasks_touched
+from .terminal import interactive
 
 LIST_FIELDS = {
     "pack": ("packs", "packs"), "role": ("roles", None), "tool": ("tools", None), "check": ("checks", None),
@@ -95,9 +95,12 @@ def add_parser(commands) -> None:
                         help="waivers allowed: a person who may waive a blocker; repeat for each.")
     setter.add_argument("--max-days", type=int, metavar="DAYS",
                         help="waivers allowed: how long a waiver may last, 1 to 366 days.")
-    for command in actions.choices.values():
+    for name, command in actions.choices.items():
         command.add_argument("--by", required=True, help="The person who decides the change.")
-        command.add_argument("--reason", required=True, help="Why, in one line; shown in AGENTS.md and preview.")
+        # Only an adopted or declined pattern shows its reason in AGENTS.md and preview (profile_decision_lines).
+        shown = " and shown in AGENTS.md and preview" if name in ("adopt", "decline") else ""
+        command.add_argument("--reason", required=True, help="Why, in one line; recorded in the profile history "
+                                                             f"(.openguildkit/project.json){shown}.")
 
 
 def weakening_changes(before: dict, after: dict, catalog: dict) -> list[tuple[str, list[str]]]:
@@ -330,7 +333,7 @@ def _voids(voided: list[str]) -> str:
 def _confirm(change: str, target: str, weakened: list[tuple[str, list[str]]], voided: list[str]) -> None:
     """A change that weakens a protection is typed by the person at a terminal, never run by an agent."""
     what = "; ".join(text for text, _ in weakened)
-    if not interactive_input():
+    if not interactive():
         raise Weakening(f"'{change}' weakens a protection ({what}): it is the person's decision. Ask them to run the "
                         f"same command at an interactive terminal.{_voids(voided)} Nothing was written.", weakened)
     print(f"'{change}' weakens a protection of the project ({what}).{_voids(voided)} Type {target} to confirm: ",

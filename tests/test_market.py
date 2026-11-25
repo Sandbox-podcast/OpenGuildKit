@@ -191,6 +191,17 @@ class MarketCommandTests(CapturedCli, unittest.TestCase):
         self.assertIn("Watch paused.", self.cli("market", "due", "portals"))
         self.assertEqual(self.dossier()["unknowns"], [])
 
+    def test_market_resume_lists_the_sources_due_again_after_a_pause(self):
+        self.cli("market", "new", "portals", "--market", "B2B help desks", "--audience", "Support leads", "--feature", "Status")
+        self.cli("market", "competitor", "portals", "--competitor", "vendor-a", "--name", "Vendor A", "--kind", "direct")
+        self.cli("market", "watch", "portals", "--competitor", "vendor-a", "--url", "https://example.com/vendor-a/releases",
+                 "--kind", "release notes")
+        self.cli("market", "pause", "portals")
+        self.assertIn("Watch paused.", self.cli("market", "due", "portals"))
+        self.cli("market", "resume", "portals")
+        self.assertFalse(self.dossier()["watch"]["paused"])
+        self.assertIn("vendor-a release notes", self.cli("market", "due", "portals"))
+
     def test_market_unknown_preserves_the_other_sections_and_line_endings(self):
         self.cli("market", "new", "portals", "--market", "B2B help desks", "--audience", "Support leads",
                  "--feature", "Status")

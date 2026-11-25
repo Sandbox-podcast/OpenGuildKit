@@ -332,6 +332,8 @@ test('runs the checks, records the results and completes a task in the forge', a
   await page.getByRole('button', { name: 'Ajouter un critère' }).click();
   await page.getByLabel('Critère', { exact: true }).fill('Customers only see the history of their own requests.');
   await page.getByLabel('Preuve', { exact: true }).fill('tests/test_history_access.py');
+  // The toast of the first save stays 3.5 s: once it is gone, the one found is the second save's.
+  await expect(page.getByText('Résultats enregistrés')).toHaveCount(0);
   await page.getByRole('button', { name: 'Enregistrer les résultats' }).click();
   await expect(page.getByText('Résultats enregistrés')).toBeVisible();
   await page.getByRole('button', { name: 'Terminer la tâche' }).click();
@@ -634,6 +636,7 @@ test('creates a market dossier, adds a competitor and an observation, and review
 });
 
 test('exports a completed task for Documentalist, then records and revokes a share', async ({ page }) => {
+  const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
   await open(page, '/documentation');
   await page.getByLabel(/request-status/).check();
   await page.getByLabel('Version du projet').fill('1.5.0');
@@ -646,7 +649,7 @@ test('exports a completed task for Documentalist, then records and revokes a sha
   await page.getByRole('tab', { name: /Partages/ }).click();
   await expect(page.getByText(/Indique tes initiales ou l’identifiant de ton équipe pour enregistrer qu’un accès a été retiré/)).toBeVisible();
   await page.getByLabel('Page ou dossier partagé').fill('docs-site/reference/request-status.md');
-  await page.getByLabel('Dernier jour d’accès').fill('2026-12-20');
+  await page.getByLabel('Dernier jour d’accès').fill(day(20));
   await page.getByLabel('Adresse du portail Documentalist').fill('https://docs.example.org/p/support-portal');
   await page.getByLabel('Responsable du partage').fill('Camille Martin');
   await page.getByRole('button', { name: 'Enregistrer le partage' }).click();
@@ -654,14 +657,27 @@ test('exports a completed task for Documentalist, then records and revokes a sha
   await page.getByLabel('Ajouter : Destinataires (adresses)').fill('partner@example.org');
   await page.getByLabel('Ajouter : Destinataires (adresses)').press('Enter');
   await page.getByLabel('Page ou dossier partagé').fill('docs-site/reference/request-status.md');
-  await page.getByLabel('Dernier jour d’accès').fill('2026-12-20');
+  await page.getByLabel('Dernier jour d’accès').fill(day(20));
   await page.getByLabel('Adresse du portail Documentalist').fill('https://docs.example.org/p/support-portal');
   await page.getByLabel('Responsable du partage').fill('Camille Martin');
   await page.getByRole('button', { name: 'Enregistrer le partage' }).click();
   await expect(page.getByText('Partage enregistré')).toBeVisible();
-  const row = page.locator('tr', { hasText: 'partner@example.org' });
+  await page.getByLabel('Ajouter : Destinataires (adresses)').fill('partner@example.org');
+  await page.getByLabel('Ajouter : Destinataires (adresses)').press('Enter');
+  await page.getByLabel('Page ou dossier partagé').fill('docs-site');
+  await page.getByLabel('Dernier jour d’accès').fill(day(30));
+  await page.getByLabel('Adresse du portail Documentalist').fill('https://docs.example.org/p/support-portal');
+  await page.getByLabel('Responsable du partage').fill('Camille Martin');
+  await page.getByRole('button', { name: 'Enregistrer le partage' }).click();
+  await expect(page.getByText('Avertissements de la commande')).toBeVisible();
+  await expect(page.getByText(new RegExp(`later last day, ${day(30)}`))).toBeVisible();
+  const row = page.getByRole('row')
+    .filter({ has: page.getByRole('cell', { name: 'partner@example.org', exact: true }) })
+    .filter({ has: page.getByText('Autres livrables visibles : docs-site', { exact: true }) });
+  await expect(row.getByText('Autres livrables visibles : docs-site', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Masquer les avertissements' }).click();
   await row.getByRole('button', { name: 'Accès retiré' }).click();
-  await expect(row.getByText('Retiré')).toBeVisible();
+  await expect(page.getByText(/docs share revoke --id [a-f0-9]{8} --by NAME/)).toBeVisible();
 
   await page.getByRole('tab', { name: /Relevés de décision/ }).click();
   await expect(page.getByRole('button', { name: /request-status/ }).first()).toBeVisible();
@@ -871,4 +887,38 @@ test('sets up a project with Stripe: PCI DSS accepted, a norm declined with who 
   const profile = await savedProfile(page);
   expect(patternIds(profile)).toContain('pci-dss-cardholder-data');
   expect(profile.declined).toEqual([expect.objectContaining({ id: 'gdpr-personal-data', by: 'Camille Martin', reason: 'The pilot stores company accounts only' })]);
+});
+
+/* ------------------------------------------------------------------ arsenal */
+
+test('turns a feature on and off in the Arsenal, with who and why, and names the connection the agent keeps', async ({ page }) => {
+  await open(page, '/arsenal');
+  // A connection tools apply wrote, as the Forge does: turning the feature off leaves it in place.
+  expect((await cli(page, ['tools', 'apply', 'jira', '--mock', '--host', 'claude-code'])).code).toBe(0);
+  await page.getByRole('button', { name: 'Activer Jira' }).click();
+  const on = page.getByRole('dialog', { name: 'Activer Jira' });
+  await expect(on).toContainText('Le changement est inscrit dans l’historique du profil.');
+  await on.getByLabel('Personne qui décide').fill('Camille Martin');
+  await on.getByLabel('Pourquoi').fill('The team tracks its tickets in Jira');
+  await on.getByRole('button', { name: 'Activer', exact: true }).click();
+  await expect(page.getByText('Fonctionnalité activée')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Désactiver Jira' })).toBeVisible();
+  expect((await savedProfile(page)).tools).toContain('Jira');
+  await expect(page.getByText(/^Jira\b.* reste connecté à l’agent/)).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Désactiver Jira' }).click();
+  const off = page.getByRole('dialog', { name: 'Désactiver Jira' });
+  await expect(off.getByLabel('Personne qui décide')).toHaveValue('Camille Martin');
+  await off.getByLabel('Pourquoi').fill('We moved to Linear');
+  await off.getByRole('button', { name: 'Désactiver', exact: true }).click();
+  await expect(page.getByText('Fonctionnalité désactivée')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Activer Jira' })).toBeVisible();
+  const profile = await savedProfile(page);
+  expect(profile.tools).not.toContain('Jira');
+  expect(profile.changes.at(-1)).toEqual(expect.objectContaining({ change: 'features disable jira', by: 'Camille Martin', reason: 'We moved to Linear' }));
+  // features disable names the connection and the command that removes it; the page says the same.
+  await expect(page.getByText(/^Jira\b.* reste connecté à l’agent/)).toBeVisible();
+  await expect(page.locator('.notice', { hasText: 'reste connecté' })).toContainText('Le serveur MCP jira (claude-code, simulation)');
+  await expect(page.getByLabel('Commande qui retire la connexion'))
+    .toContainText(profile.host === 'claude-code' ? /tools remove jira$/ : /tools remove jira --host claude-code$/);
 });

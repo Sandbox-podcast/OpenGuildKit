@@ -9,7 +9,7 @@ Les contrôles couvrent Chrome, le clavier, le mouvement réduit et les écrans 
 - Hors d'un champ et hors d'un dialogue, `g` suivi de l'initiale d'un lieu y mène (`g q` pour les quêtes, `g f` pour la Forge), et `m` passe du style RPG au style Pro. Ces raccourcis à une touche ne s'activent pas pendant la saisie.
 - À faible largeur, la navigation s'ouvre par un bouton ; Échap la referme. Chaque lien de lieu porte son nom et, en description, son rôle et son compteur.
 - Une décision réservée à une personne (approuver, lever ou déroger à un blocage, clore par-dessus des points sensibles) ouvre un dialogue qui affiche la commande à taper dans le terminal, avec un bouton de copie. Échap ferme le dialogue.
-- Les deux balayages de `npm run e2e:project` ouvrent 34 routes, en RPG sur bureau et en Pro à 375 px : un seul titre principal, chaque champ et chaque bouton nommés, aucun identifiant en double, pas de défilement horizontal.
+- Les deux balayages de `npm run e2e:project` ouvrent 35 routes, en RPG sur bureau et en Pro à 375 px : un seul titre principal, chaque champ et chaque bouton nommés, aucun identifiant en double, pas de défilement horizontal.
 
 ## Démonstration
 
@@ -25,7 +25,7 @@ Les contrôles couvrent Chrome, le clavier, le mouvement réduit et les écrans 
 
 La démo et l'interface d'un projet partagent les mêmes raccourcis (`src/shared/shortcuts.ts`). <kbd>Ctrl</kbd> + <kbd>K</kbd> (<kbd>Cmd</kbd> + <kbd>K</kbd> sur Mac) ouvre la recherche. Les raccourcis à une touche, <kbd>/</kbd> pour la recherche, <kbd>g</kbd> puis une lettre pour changer de lieu, <kbd>m</kbd> pour passer de RPG à Pro et <kbd>?</kbd> pour l'aide de la démo, ne jouent ni pendant la saisie ni quand un dialogue est ouvert. Ils se désactivent dans Intendance › Interface (projet) ou dans le dialogue "Raccourcis clavier" de la démo, ouvert par <kbd>?</kbd> ou par le menu d'identité (critère WCAG 2.1.4). Le choix est gardé dans le navigateur, pour les deux interfaces ; <kbd>Ctrl</kbd> + <kbd>K</kbd> reste actif.
 
-Le balayage `tests/e2e/project-sweep.spec.ts` parcourt les 34 routes du projet en RPG et en Pro, sur bureau et à 375 px. Il vérifie qu'un contenu qui défile se rejoint au clavier, que chaque en-tête de tableau a un nom, que les cibles de la carte et des liens de site font au moins 24 px et que le nom d'un lien contient les mots qu'il affiche. Il lance axe-core quand il est installé, ou quand `AXE_CORE_PATH` désigne son `axe.min.js`, et échoue sur une violation sérieuse ou critique.
+Le balayage `tests/e2e/project-sweep.spec.ts` parcourt les 35 routes du projet en RPG et en Pro, sur bureau et à 375 px. Il vérifie qu'un contenu qui défile se rejoint au clavier, que chaque en-tête de tableau a un nom, que les cibles de la carte et des liens de site font au moins 24 px et que le nom d'un lien contient les mots qu'il affiche. Il lance axe-core quand il est installé, ou quand `AXE_CORE_PATH` désigne son `axe.min.js`, et échoue sur une violation sérieuse ou critique.
 
 ## Contrastes mesurés
 

@@ -10,13 +10,15 @@ Claude Code 2.1.330 ran against OpenGuildKit 0.17.0 from commit `6ec06a5` on Win
 
 ## Still to observe
 
+Observed since: the person approved `guard-ping` on 24 November, and a connected macOS session made the edit with no refusal, in [the report of 24 November](claude-code-2026-11-24-approved-edit.md). The paragraph below is the state on 23 November.
+
 The prepared `guard-ping` task is reviewed but has not been approved. A person must inspect its decision brief and approve it in their own terminal; only then can the final live run establish that an approved edit passes. The reviews for this task are prepared synthetic fixtures, not independent expert reviews. This report does not claim that the approved-edit case passed.
 
 The local session logs include machine paths and are not committed. The hook events and tool results above are the observed host output; unlike the CLI-only replay, they came from a connected Claude Code session.
 
 ## 24 November 2026: the copy rebuilt on macOS, waiting for the person
 
-No Claude Code session ran on 24 November: the machine that rebuilt the copy has no `claude` command. Nothing in this section is a live-session result.
+When this section was written, no Claude Code session had run on 24 November: the machine that rebuilt the copy had no `claude` command on its `PATH`. Nothing in this section is a live-session result. The approval and the live run it describes were done later that day: see [the report of 24 November](claude-code-2026-11-24-approved-edit.md).
 
 ### State of the copy
 

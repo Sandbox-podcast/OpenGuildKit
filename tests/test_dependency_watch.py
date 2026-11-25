@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -85,13 +86,55 @@ class RegisterPullRequestGuardTests(CapturedCli, unittest.TestCase):
                 self.assertIn("GITHUB_TOKEN", text)
                 self.assertIn("approv", text)
         self.assertIn("### The pull request and the guard", alerts)
-        for command in ("openguildkit task new", "task decide", "git checkout openguildkit/dependency-watch",
+        for command in ("openguildkit task new", "task decide", "gh pr checkout PR_NUMBER",
                         "openguildkit task export"):
             self.assertIn(command, alerts)
         self.assertIn("docs/alerts.md#the-pull-request-and-the-guard", integrations)
 
 
 class DependencyWatchTemplateTests(unittest.TestCase):
+
+    def test_next_run_leaves_the_open_register_pull_request_and_review_commits_alone(self):
+        git = shutil.which("git")
+        bash = Path(git).resolve().parents[1] / "bin" / "bash.exe" if os.name == "nt" and git else shutil.which("bash")
+        if not bash or not Path(bash).is_file():
+            self.skipTest("requires GitHub Actions' bash shell")
+        watch = parse(TEMPLATE)["jobs"]["watch"]
+        proposal = next(step["run"] for step in steps(watch)
+                        if step.get("name") == "Propose the register in a pull request")
+        fake_commands = r"""
+git() { if [ "$1" = rev-parse ]; then echo base-sha; else return 1; fi; }
+jq() { :; }
+gh() {
+    case "$1 $2 $3" in
+        "api --paginate repos/example/repo/pulls")
+            if [ -f open-pr ]; then echo 73; fi ;;
+        "pr create --head") touch open-pr ;;
+        *) echo "$*" >> writes ;;
+    esac
+}
+"""
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            register = root / ".openguildkit" / "alerts.json"
+            register.parent.mkdir()
+            register.write_text("{}", encoding="utf-8")
+            (root / "opened.json").write_text("[]", encoding="utf-8")
+            env = {**os.environ, "BASE": "main", "GITHUB_REPOSITORY": "example/repo",
+                   "GITHUB_RUN_ID": "42", "GITHUB_RUN_ATTEMPT": "1"}
+            args = [str(bash), "-e", "-o", "pipefail", "-c", fake_commands + proposal]
+            first = subprocess.run(args, cwd=root, env=env, capture_output=True, text=True, check=True)
+            writes = root / "writes"
+            self.assertTrue((root / "open-pr").exists(), first.stderr)
+            self.assertIn("refs/heads/openguildkit/dependency-watch-42-1", writes.read_text())
+            with writes.open("a", encoding="utf-8") as log:
+                log.write("reviewer commit\n")
+            reviewed = writes.read_text()
+            second = subprocess.run(args, cwd=root, env={**env, "GITHUB_RUN_ID": "43"},
+                                    capture_output=True, text=True, check=True)
+            self.assertIn("awaiting merge: 73", second.stdout)
+            self.assertEqual(writes.read_text(), reviewed)
+
     def setUp(self):
         self.workflow = parse(TEMPLATE)
         self.jobs = self.workflow["jobs"]

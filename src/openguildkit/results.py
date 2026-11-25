@@ -8,6 +8,7 @@ document its owner provides, as a project path or an https link: the tool checks
 exists, never what it says. A project can make some rules mandatory with `required_rules`.
 """
 
+import hashlib
 import re
 import subprocess
 import time
@@ -147,6 +148,23 @@ def _run_command(root: Path, state: Path, task: dict, check: dict, command: str)
     return outcome
 
 
+def _stamp(outcome: dict, revision: dict | None, *, journal: bytes | None = None) -> dict:
+    """The fingerprint of what this check recorded, and the commit it ran against.
+
+    journal is the log file task verify just wrote. A machine check has no log: its fingerprint is the evidence
+    sentence, and a later reader does not look for a file.
+    """
+    stamped = dict(outcome)
+    if journal is not None:
+        stamped["sha256"] = hashlib.sha256(journal).hexdigest()
+        stamped["journal"] = True
+    elif isinstance(stamped.get("evidence"), str):
+        stamped["sha256"] = hashlib.sha256(stamped["evidence"].encode("utf-8")).hexdigest()
+    if revision:
+        stamped["revision"] = {"commit": revision["commit"], "clean": not revision["dirty"]}
+    return stamped
+
+
 def run_command_checks(root: Path, state: Path, task: dict, profile: dict, relevance: dict | None = None,
                        only: set[str] | None = None) -> list[dict]:
     """Run the project's check commands and evaluate the machine checks of the rules that concern the task.
@@ -158,15 +176,18 @@ def run_command_checks(root: Path, state: Path, task: dict, profile: dict, relev
     for check in asked_checks(task, profile, relevance):
         if only is not None and check["id"] not in only:
             continue
+        journal = None
         if check["kind"] == "command":
             outcome = _run_command(root, state, task, check, check["command"])
+            journal = (root / outcome["evidence"]).read_bytes()
         elif check["kind"] == "machine" and check["check"]["kind"] == "command":
             outcome = _run_command(root, state, task, check, check["check"]["command"])
+            journal = (root / outcome["evidence"]).read_bytes()
         elif check["kind"] == "machine":
             outcome = {"check": check["id"], **evaluate_check(root, check["check"])}
         else:
             continue
-        results.append({**outcome, **({"revision": revision["commit"]} if revision else {})})
+        results.append(_stamp(outcome, revision, journal=journal))
     return results
 
 
@@ -380,7 +401,7 @@ def _check_entry(task: dict, item: object, known: dict, source: str, root: Path 
             return entry, f"{item['check']}: {value} does not exist in the project."
     if item.get("cannot_run") is True and source == "verify" and check.get("kind") == "command":
         entry["cannot_run"] = True
-    for key in ("exit_code", "seconds", "revision", "chaosfolk_status", "message"):
+    for key in ("exit_code", "seconds", "revision", "chaosfolk_status", "message", "sha256", "journal"):
         if key in item:
             entry[key] = item[key]
     return entry, ""
@@ -531,8 +552,31 @@ def set_aside_rules(task: dict, profile: dict, relevance: dict | None = None) ->
     return lines
 
 
+def _journal_problems(task: dict, root: Path | None) -> list[str]:
+    """A command journal whose bytes no longer match the hash task verify recorded.
+
+    A check recorded before journals were hashed has no sha256: it stays readable and is not failed.
+    """
+    if root is None:
+        return []
+    problems = []
+    for item in (task.get("result") or {}).get("checks", []):
+        if item.get("journal") is not True or not isinstance(item.get("sha256"), str):
+            continue
+        evidence = item.get("evidence")
+        name = item.get("check", "a check")
+        if not isinstance(evidence, str):
+            continue
+        path = root / evidence
+        if not path.is_file():
+            problems.append(f"{name}: the journal {evidence} is missing, so its sha256 cannot be confirmed.")
+        elif hashlib.sha256(path.read_bytes()).hexdigest() != item["sha256"]:
+            problems.append(f"{name}: the journal {evidence} no longer matches the recorded sha256.")
+    return problems
+
+
 def completion_problems(task: dict, profile: dict, relevance: dict | None = None, *,
-                        changed: list[str] | None = None) -> list[str]:
+                        changed: list[str] | None = None, root: Path | None = None) -> list[str]:
     """Why the task cannot be declared done yet: only the checks that concern it count.
 
     A decision task needs no result unless its answers name an outcome; when it changed project
@@ -542,7 +586,7 @@ def completion_problems(task: dict, profile: dict, relevance: dict | None = None
     result = task.get("result") or {}
     if not decision and not result:
         return ["No result is recorded. Run task verify or task result."]
-    problems = []
+    problems = _journal_problems(task, root)
     if changed and not (result.get("revision") or result.get("pull_request")):
         problems.append(decision_revision_message(changed))
     reported, deferred = outcomes(task, profile, relevance), deferred_evidence(task)

@@ -1,6 +1,7 @@
 """Delivery: one version everywhere, a wheel built and checked as CI proves it, release notes from the last stable
 release, required and bounded CI jobs, and the entry documents (governance, security, French README) kept true."""
 
+import argparse
 import json
 import os
 import re
@@ -11,6 +12,8 @@ import tempfile
 import tomllib
 import unittest
 from pathlib import Path
+
+from openguildkit.cli import command_parser
 
 from tests.test_workflows import TEMPLATES, USES, WORKFLOWS, parse, run_text, steps
 
@@ -35,6 +38,11 @@ def project_version() -> str:
     return tomllib.loads(_read("pyproject.toml"))["project"]["version"]
 
 
+def release_version() -> str:
+    match = re.search(r"^## (\d+\.\d+\.\d+)\s*$", _read("CHANGELOG.md"), re.MULTILINE)
+    return match.group(1)
+
+
 def announced_versions() -> dict[str, set[str]]:
     """Every version each release file announces, action tags aside."""
     found = {}
@@ -56,7 +64,36 @@ class VersionTest(unittest.TestCase):
         found = announced_versions()
         for relative, versions in found.items():
             self.assertTrue(versions, f"{relative} announces no version")
-        self.assertEqual(set().union(*found.values()), {project_version()}, f"align the versions: {found}")
+        python_version = found.pop("pyproject.toml").pop()
+        node_version = found.pop("integrations/ci/package.json").pop()
+        self.assertEqual(set().union(*found.values()), {release_version()}, f"align the published versions: {found}")
+        dev = re.fullmatch(r"(\d+\.\d+\.\d+)\.dev(\d+)", python_version)
+        if dev:
+            self.assertEqual(node_version, f"{dev[1]}-dev.{dev[2]}")
+            self.assertGreater(tuple(map(int, dev[1].split("."))), tuple(map(int, release_version().split("."))))
+        else:
+            self.assertEqual(python_version, release_version())
+            self.assertEqual(node_version, python_version)
+
+    def test_a_published_version_is_not_reused_on_another_commit(self):
+        if not (ROOT / ".git").exists():
+            self.skipTest("Git checkout required")
+        tag = f"refs/tags/v{project_version()}"
+        exists = subprocess.run(["git", "show-ref", "--verify", "--quiet", tag], cwd=ROOT)
+        if exists.returncode == 1:
+            return
+        exists.check_returncode()
+        commits = subprocess.check_output(["git", "rev-parse", "HEAD", f"{tag}^{{commit}}"], cwd=ROOT, text=True)
+        head, published = commits.splitlines()
+        self.assertEqual(head, published, f"{tag} already names a different commit")
+
+    def test_every_top_level_command_has_a_documented_invocation(self):
+        docs = _read("README.md") + "\n" + _read("CHANGELOG.md")
+        commands = next(action.choices for action in command_parser()._actions
+                        if isinstance(action, argparse._SubParsersAction))
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertRegex(docs, rf"openguildkit (?:--project [^ ]+ )?{re.escape(command)}\b")
 
     def test_the_release_steps_name_every_versioned_file(self):
         named = set(release_files())
@@ -67,7 +104,7 @@ class VersionTest(unittest.TestCase):
             self.assertIn(template.relative_to(ROOT).as_posix(), named)
 
     def test_templates_install_the_release_of_this_version(self):
-        version = project_version()
+        version = release_version()
         for template in sorted((ROOT / "integrations" / "github").glob("*.yml")):
             with self.subTest(template=template.name):
                 text = template.read_text(encoding="utf-8")
@@ -83,7 +120,7 @@ class ChangelogTest(unittest.TestCase):
     def test_the_next_version_lists_the_changes_users_see_since_the_last_release(self):
         text = _read("CHANGELOG.md")
         first = re.search(r"^## (\d+\.\d+\.\d+)\b.*$", text, re.MULTILINE)
-        self.assertEqual(first.group(1), project_version())
+        self.assertEqual(first.group(1), release_version())
         section = text[first.end():].split("\n## ", 1)[0]
         self.assertIn("0.16.1", section)
         for change in ("done-with-reservations", "openguildkit profile", "task pass", "task export", "openguildkit ui",
@@ -126,7 +163,7 @@ class PackageMetadataTest(unittest.TestCase):
 
 class InstallGuideTest(unittest.TestCase):
     def test_a_team_installs_the_release_wheel_with_pipx_or_uv(self):
-        guide, version = _read("docs/install.md"), project_version()
+        guide, version = _read("docs/install.md"), release_version()
         self.assertIn(f"pipx install ./openguildkit-{version}-py3-none-any.whl", guide)
         self.assertIn(f"uv tool install ./openguildkit-{version}-py3-none-any.whl", guide)
         self.assertIn("not published on PyPI", guide)
@@ -209,6 +246,25 @@ class GovernanceFilesTest(unittest.TestCase):
         away = next(block for block in policy.split("\n\n") if "away" in block)
         self.assertIn("stays private", away)
         self.assertIn("Security", away)
+
+    def test_pages_that_cite_the_release_check_step_cite_the_step_that_describes_it(self):
+        section = _read("GOVERNANCE.md").split("## Releases", 1)[1].split("\n## ", 1)[0]
+        steps = [line.split(". ", 1)[0] for line in section.splitlines()
+                 if re.match(r"\d+\. ", line) and "release-check.yml" in line]
+        self.assertEqual(len(steps), 1, steps)
+        cited = {
+            ".github/workflows/release-check.yml": r"step (\d+) of GOVERNANCE\.md#releases",
+            "docs/testing.md": r"GOVERNANCE\.md#releases\), step (\d+)",
+        }
+        for relative, pattern in cited.items():
+            with self.subTest(page=relative):
+                self.assertEqual(set(re.findall(pattern, _read(relative))), {steps[0]})
+
+    def test_the_governance_says_where_the_draft_starts_without_a_stable_release(self):
+        draft = next(block for block in _read("GOVERNANCE.md").split("\n\n") if "openguildkit-next" in block)
+        for words in ("last stable release", "pre-release", "oldest", "no release"):
+            with self.subTest(words=words):
+                self.assertIn(words, draft)
 
     def test_contributing_states_the_licence_of_catalog_content(self):
         self.assertTrue(_read("LICENSE").startswith("MIT License"))
@@ -309,6 +365,16 @@ class CiWorkflowTest(unittest.TestCase):
             self.assertIn(f'test "${variable}" = success', script)
         self.assertNotIn("once it has passed on main", _read(".github/workflows/ci.yml"))
 
+    def test_contributing_names_every_job_contribution_checks_requires(self):
+        named = {"test": "test matrix", "performance": "performance tests", "package": "wheel build",
+                 "ci-coordinator": "CI coordinator", "web": "checks and journeys of the web interface",
+                 "web-e2e": "checks and journeys of the web interface"}
+        self.assertEqual(set(named), set(self.jobs["contribution-checks"]["needs"]))
+        paragraph = next(block for block in _read("CONTRIBUTING.md").split("\n\n") if "`contribution-checks` status" in block)
+        for job, words in named.items():
+            with self.subTest(job=job):
+                self.assertIn(words, paragraph)
+
     def test_no_checkout_leaves_the_token_in_the_git_config(self):
         for path in WORKFLOWS:
             for name, job in parse(path)["jobs"].items():
@@ -335,6 +401,78 @@ class CiWorkflowTest(unittest.TestCase):
         for path in [*WORKFLOWS, *TEMPLATES]:
             uploads |= set(re.findall(r"actions/upload-artifact@([0-9a-f]{40})", path.read_text(encoding="utf-8")))
         self.assertEqual(len(uploads), 1, uploads)
+
+
+# The workflows of this repository and the templates a project copies. The workflow of the legacy fixture in
+# integrations/ci/prototype/demo reproduces the original prototype as it ran; the Node package does not ship it.
+TIMED_WORKFLOWS = [*WORKFLOWS, *(path for path in TEMPLATES if "prototype" not in path.relative_to(ROOT).parts)]
+
+
+class TimeLimitTest(unittest.TestCase):
+    def test_every_job_of_the_workflows_and_shipped_templates_has_a_time_limit(self):
+        for folder in (".github/workflows", "integrations/github", "integrations/ci/pilot"):
+            self.assertTrue(any(path.parent == ROOT / folder for path in TIMED_WORKFLOWS), folder)
+        for path in TIMED_WORKFLOWS:
+            for name, job in parse(path)["jobs"].items():
+                with self.subTest(workflow=path.relative_to(ROOT).as_posix(), job=name):
+                    limit = job.get("timeout-minutes")
+                    self.assertIsNotNone(limit, "GitHub stops a job without timeout-minutes after six hours.")
+                    self.assertTrue(limit.isdigit() and 0 < int(limit) <= 30, limit)
+
+
+def _glob(pattern: str) -> re.Pattern:
+    """A labeler glob as actions/labeler reads it (minimatch with dot files): ** spans folders, * and ? do not."""
+    parts = re.split(r"(\*\*/|\*\*|\*|\?)", pattern)
+    wildcards = {"**/": "(?:.*/)?", "**": ".*", "*": "[^/]*", "?": "[^/]"}
+    return re.compile("".join(wildcards.get(part, re.escape(part)) for part in parts))
+
+
+def labeler_globs() -> dict[str, list[str]]:
+    """The globs of each label in .github/labeler.yml."""
+    found = {}
+    for label, rules in parse(ROOT / ".github" / "labeler.yml").items():
+        for rule in rules:
+            for match in rule["changed-files"]:
+                globs = match["any-glob-to-any-file"]
+                found.setdefault(label, []).extend([globs] if isinstance(globs, str) else globs)
+    return found
+
+
+def labels_for(path: str) -> set[str]:
+    return {label for label, globs in labeler_globs().items() if any(_glob(glob).fullmatch(path) for glob in globs)}
+
+
+class LabelTest(unittest.TestCase):
+    """GitHub labels a pull request from its changed files, and the release notes group pull requests by label."""
+
+    def test_the_globs_use_only_the_wildcards_this_test_reads(self):
+        for label, globs in labeler_globs().items():
+            for glob in globs:
+                self.assertNotRegex(glob, r"[{}\[\]!]", label)
+        self.assertTrue(_glob("web/**").fullmatch("web/src/main.tsx"))
+        self.assertTrue(_glob("web/**").fullmatch("web/.gitignore"))
+        self.assertFalse(_glob("src/openguildkit/*.py").fullmatch("src/openguildkit/agent_files/skills/x.py"))
+
+    def test_every_tracked_file_outside_the_root_gets_a_label(self):
+        listed = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z"], capture_output=True, check=False)
+        if listed.returncode != 0:
+            self.skipTest("needs a Git checkout of the repository")
+        files = [name for name in listed.stdout.decode("utf-8").split("\0") if "/" in name]
+        self.assertGreater(len(files), 500)
+        globs = [_glob(glob) for globs in labeler_globs().values() for glob in globs]
+        unlabeled = [name for name in files if not any(glob.fullmatch(name) for glob in globs)]
+        self.assertEqual(unlabeled, [], "Add a rule to .github/labeler.yml for these files.")
+
+    def test_the_web_interface_and_the_whole_registry_get_their_labels(self):
+        self.assertEqual(labels_for("web/src/project/ProjectShell.tsx"), {"web"})
+        for folder in ("packs", "references", "tools", "tool-mocks", "deliverables", "features"):
+            self.assertIn("catalog", labels_for(f"src/openguildkit/registry/{folder}/example.json"), folder)
+
+    def test_each_label_has_a_category_in_the_release_notes(self):
+        categories = parse(ROOT / ".github" / "release.yml")["changelog"]["categories"]
+        grouped = {label for category in categories[:-1] for label in category["labels"]}
+        self.assertEqual(categories[-1]["labels"], ["*"])
+        self.assertEqual(set(labeler_globs()) - grouped, set())
 
 
 class InstalledCommandCheckTest(unittest.TestCase):
@@ -407,6 +545,13 @@ class ReleaseNotesTest(unittest.TestCase):
             self.assertEqual(done.returncode, 0, done.stderr)
             return done.stdout, (folder / "log.txt").read_text(encoding="utf-8")
 
+    def assert_one_bound(self, body: str, log: str, tag: str) -> None:
+        """GitHub lists the pull requests from previous_tag_name; the Full Changelog link starts at the same tag."""
+        self.assertEqual(re.findall(r"previous_tag_name=(\S+)", log), [tag])
+        self.assertEqual(re.findall(r"\*\*Full Changelog\*\*: https://github\.com/example/openguildkit/compare/"
+                                    r"([^.\s]+(?:\.[^.\s]+)*)\.\.\." + "a" * 40 + r"$", body, re.MULTILINE), [tag])
+        self.assertEqual(body.count("**Full Changelog**"), 1)
+
     def test_draft_compares_from_the_last_stable_release_despite_a_newer_prerelease(self):
         body, log = self.draft([
             _release("v0.16.0", "2026-10-01T00:00:00Z"),
@@ -414,14 +559,24 @@ class ReleaseNotesTest(unittest.TestCase):
             _release("v0.17.0", "2026-11-10T00:00:00Z", prerelease=True),
             _release("openguildkit-next", None, draft=True),
         ])
-        self.assertIn("previous_tag_name=v0.16.1", log)
-        self.assertIn(f"**Full Changelog**: https://github.com/example/openguildkit/compare/v0.16.1...{'a' * 40}", body)
-        self.assertEqual(body.count("**Full Changelog**"), 1)
+        self.assert_one_bound(body, log, "v0.16.1")
 
-    def test_draft_without_a_stable_release_links_the_commits(self):
-        body, log = self.draft([_release("v0.17.0", "2026-11-10T00:00:00Z", prerelease=True)])
-        self.assertNotIn("previous_tag_name", log)
-        self.assertIn(f"**Full Changelog**: https://github.com/example/openguildkit/commits/{'a' * 40}", body)
+    def test_draft_without_a_stable_release_compares_from_the_oldest_published_release(self):
+        body, log = self.draft([
+            _release("v0.17.0", "2026-11-10T00:00:00Z", prerelease=True),
+            _release("v0.1.0", "2026-09-01T00:00:00Z", prerelease=True),
+            _release("v0.16.1", "2026-11-01T00:00:00Z", prerelease=True),
+            _release("openguildkit-next", None, draft=True),
+        ])
+        self.assert_one_bound(body, log, "v0.1.0")
+
+    def test_draft_without_any_published_release_links_the_commits(self):
+        for releases in ([], [_release("openguildkit-next", None, draft=True)]):
+            with self.subTest(releases=len(releases)):
+                body, log = self.draft(releases)
+                self.assertNotIn("previous_tag_name", log)
+                self.assertIn(f"**Full Changelog**: https://github.com/example/openguildkit/commits/{'a' * 40}", body)
+                self.assertNotIn("/compare/", body)
 
 
 if __name__ == "__main__":

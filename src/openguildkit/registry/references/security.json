@@ -126,6 +126,11 @@
       ],
       "sources": [
         {
+          "url": "https://owasp.org/www-project-api-security/",
+          "checked": "2026-11-25",
+          "title": "OWASP API Security Project"
+        },
+        {
           "url": "https://api-security.owasp.org/editions/2023/en/0x11-t10/",
           "checked": "2026-11-21",
           "title": "OWASP Top 10 API Security Risks – 2023"
@@ -359,6 +364,11 @@
       "applies_when": "Si les outils retenus prennent en charge cette spécification encore présentée comme draft par son projet.",
       "sources": [
         {
+          "url": "https://github.com/openvex/spec/releases/latest",
+          "checked": "2026-11-25",
+          "title": "OpenVEX Spec, latest release"
+        },
+        {
           "url": "https://github.com/openvex/spec/releases/tag/v0.2.0",
           "checked": "2026-11-23",
           "title": "OpenVEX Spec v0.2.0 release"
@@ -507,6 +517,7 @@
     {
       "id": "iso-iec-5230",
       "title": "OpenChain ISO/IEC 5230",
+      "edition": "ISO/IEC 5230:2020",
       "category": "Chaîne logicielle et dépendances",
       "kind": "norme",
       "brains": [
@@ -518,7 +529,7 @@
       "sources": [
         {
           "url": "https://openchainproject.org/license-compliance",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "OpenChain ISO/IEC 5230 — License Compliance"
         }
       ]
@@ -833,6 +844,7 @@
     {
       "id": "aes-fips-197",
       "title": "Advanced Encryption Standard (AES, FIPS 197)",
+      "edition": "NIST.FIPS.197-upd1",
       "category": "Identité, accès et cryptographie",
       "kind": "norme",
       "brains": [
@@ -844,7 +856,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/fips/197/final",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "NIST FIPS 197 — Advanced Encryption Standard (AES)"
         }
       ]
@@ -852,6 +864,7 @@
     {
       "id": "fips-140-3",
       "title": "FIPS 140-3 — Cryptographic Modules",
+      "edition": "NIST.FIPS.140-3",
       "category": "Identité, accès et cryptographie",
       "kind": "norme",
       "brains": [
@@ -863,7 +876,7 @@
       "sources": [
         {
           "url": "https://csrc.nist.gov/pubs/fips/140-3/final",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "NIST FIPS 140-3 — Security Requirements for Cryptographic Modules"
         }
       ]

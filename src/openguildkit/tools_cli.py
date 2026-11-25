@@ -12,7 +12,7 @@ from .sensitive import looks_like_credential
 from .shell import shell_command
 from .storage import json_text, project_lock, write_text
 from .tasks import read_task
-from .terminal import interactive_input
+from .terminal import interactive
 from .tools import (
     CATEGORIES, HOSTS, PROJECT_ORIGIN, PROJECT_TOOLS, SCENARIO, apply_connections, check_settings, check_tool_links,
     choose_server, connection_status, load_mock, load_tools, mock_ids, plan_connections, read_manifest, recommend_tools,
@@ -161,7 +161,7 @@ def _confirm_live(plan: list[dict], args, host: str, tools: dict) -> None:
     live = [item["key"] for item in items]
     if not live or args.yes:
         return
-    if not interactive_input():
+    if not interactive():
         raise ValueError(f"Review the plan of {', '.join(live)} (openguildkit tools plan), then write it with: "
                          + _apply_command(args, host, plan, tools) + " --yes")
     _print_plan(items, host, sys.stderr if args.json else None)

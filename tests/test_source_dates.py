@@ -10,19 +10,21 @@ import re
 import shutil
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import catalog as catalog_module
+from openguildkit import clock
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.deliverables import _validate as validate_deliverable, load_deliverables
 from openguildkit.lock import read_lock
 from openguildkit.project import profile_fingerprint
 from openguildkit.references import _validate_family, load_references
 from openguildkit.storage import write_json
+from openguildkit.tools import load_tools
 
-from tests.support import CapturedCli
+from tests.support import CapturedCli, run_cli
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "src" / "openguildkit" / "registry"
@@ -55,7 +57,44 @@ def bundled_sources():
             yield f"deliverables/{record['id']}", source
 
 
+def bundled_dates():
+    """Each date of the bundled catalog: the checked day of every source, the verified and reviewed days of every
+    tool server."""
+    for record, source in bundled_sources():
+        yield f"{record}: {source['url']}", source["checked"]
+    for tool in load_tools().values():
+        for server in tool["servers"]:
+            for field in ("verified", "reviewed"):
+                if field in server:
+                    yield f"tools/{tool['id']}/{server['id']} {field}", server[field]
+
+
+def dates_after(day: date) -> list[str]:
+    return [f"{where} {value}" for where, value in bundled_dates() if date.fromisoformat(value) > day]
+
+
 class BundledSourceDateTests(unittest.TestCase):
+    def test_no_bundled_date_is_after_the_day_of_the_test(self):
+        """A page cannot have been read in the future: such a date is a typo, and update would announce it."""
+        self.assertEqual(dates_after(clock.real_today()), [])
+        latest = max(date.fromisoformat(value) for _, value in bundled_dates())
+        self.assertTrue(dates_after(latest - timedelta(days=1)), "the check sees the latest bundled date")
+
+    def test_the_loaders_refuse_a_date_in_the_future(self):
+        """One day of margin for time zones, as for the other dates a person writes; the test above has none."""
+        tomorrow, later = (clock.real_today() + timedelta(days=days) for days in (1, 2))
+        for bundled in (True, False):
+            record = copy.deepcopy(PACK)
+            record["sources"][0]["checked"] = later.isoformat()
+            with self.subTest(bundled=bundled), self.assertRaisesRegex(CatalogError, "in the future"):
+                validate_entry("packs", record, bundled=bundled)
+            record["sources"][0]["checked"] = tomorrow.isoformat()
+            validate_entry("packs", record, bundled=bundled)
+        family = {"id": "legal", "title": "Legal", "references": [copy.deepcopy(load_references()["legal"]["references"][0])]}
+        family["references"][0]["sources"][0]["checked"] = "2099-01-01"
+        with self.assertRaisesRegex(CatalogError, "in the future"):
+            _validate_family(family, "legal.json", bundled=True)
+
     def test_every_bundled_source_has_a_checked_date(self):
         undated, count = [], 0
         for record, source in bundled_sources():
@@ -159,6 +198,59 @@ class ProjectSourceDateTests(CapturedCli, unittest.TestCase):
         out, err = self.cli("check")
         self.assertNotIn("date the sources", err)
 
+    def test_check_refuses_a_project_reference_that_names_an_unknown_pack_or_brain(self):
+        """docs/catalog-format.md promises it: the references a project adds name packs and brains that exist."""
+        record = {"id": "team-change-record", "title": "Change record", "category": "Livraison", "kind": "pratique",
+                  "summary": "Trace les changements.", "applies_when": "Pour chaque mise en production.",
+                  "brains": ["no-such-brain"], "packs": ["no-such-pack"],
+                  "sources": [{"title": "Handbook", "url": "https://handbook.example.test/"}]}
+        path = self.state / "catalog" / "references" / "team-practices.json"
+        write_json(path, {"id": "team-practices", "title": "Team practices", "references": [record]})
+        out, err = self.cli("check", code=1)
+        self.assertNotIn("Traceback", err)
+        self.assertRegex(err, r"Reference 'team-change-record' names .*unknown packs: no-such-pack")
+        self.assertIn("unknown brains: no-such-brain", err)
+        with self.assertRaisesRegex(CatalogError, "unknown packs: no-such-pack"):
+            load_references(path.parent, catalog=load_catalog(self.state / "catalog"))
+        # The reference library and the consultation refuse it too, with the same message, as for any other error of
+        # the project's catalog.
+        examples = ROOT / "examples" / "request-status"
+        self.cli("task", "new", "--file", examples / "brief.md", "--id", "status")
+        refused = [("references",), ("references", "--id", "team-change-record"), ("references", "--json"),
+                   ("brains",), ("task", "consult", "status", "--answers", examples / "answers.json")]
+        for arguments in refused:
+            with self.subTest(command=arguments[:2]):
+                out, err = self.cli(*arguments, code=1)
+                self.assertIn("Reference 'team-change-record' names unknown brains: no-such-brain and unknown packs: "
+                              "no-such-pack", err)
+                self.assertNotIn("Traceback", err)
+                self.assertNotIn("team-change-record", out)
+        write_json(path, {"id": "team-practices", "title": "Team practices",
+                          "references": [{**record, "brains": ["security"], "packs": ["gdpr"]}]})
+        self.cli("check")
+        self.assertIn("team-change-record", self.cli("references", "--id", "team-change-record")[0])
+        self.cli("task", "consult", "status", "--answers", examples / "answers.json")
+
+    def test_a_project_reference_may_name_a_pack_the_lock_keeps_after_a_release_drops_it(self):
+        from tests.test_upgrades import ANSWERS, release_without_playwright
+
+        from openguildkit import lock
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_json(root / "answers.json", ANSWERS)
+            run_cli(root, "init", "--answers", root / "answers.json")
+            record = {"id": "team-e2e", "title": "End-to-end checks", "category": "Tests", "kind": "pratique",
+                      "summary": "Teste les parcours.", "applies_when": "Pour chaque parcours.", "packs": ["playwright"],
+                      "sources": [{"title": "Handbook", "url": "https://handbook.example.test/"}]}
+            write_json(root / ".openguildkit" / "catalog" / "references" / "team.json",
+                       {"id": "team", "title": "Team", "references": [record]})
+            with patch.object(lock, "load_catalog", release_without_playwright):
+                run_cli(root, "check")
+                write_json(root / ".openguildkit" / "catalog" / "references" / "team.json",
+                           {"id": "team", "title": "Team", "references": [{**record, "packs": ["no-such-pack"]}]})
+                self.assertIn("unknown packs: no-such-pack", run_cli(root, "check", expect=1).stderr)
+
     def test_update_prints_the_catalog_date_and_the_changed_count_before_the_changes(self):
         latest = max(source["checked"] for _, source in bundled_sources())
         out, _ = self.cli("update")
@@ -222,7 +314,7 @@ class LinkReportAgeTests(unittest.TestCase):
     def test_the_bundled_citations_carry_each_source_date_and_the_age_is_an_option(self):
         catalog = load_catalog()
         citations = check_links.collect_citations(catalog, load_references(), None, load_deliverables(catalog))
-        gdpr = [entry for entry in citations["https://eur-lex.europa.eu/eli/reg/2016/679/oj/fra"]]
+        gdpr = [entry for entry in citations["https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng"]]
         self.assertTrue(all("checked" in entry for entry in gdpr))
         self.assertIn("deliverables", {entry["collection"] for entries in citations.values() for entry in entries})
         with tempfile.TemporaryDirectory() as folder:

@@ -101,7 +101,7 @@ class RegistryTests(unittest.TestCase):
             self.assertIn("acme", load_tools(extra))
             clash = {**TOOL, "id": "jira"}
             (extra / "testing.json").write_text(json.dumps({"id": "testing", "title": "Ours", "tools": [clash]}), encoding="utf-8")
-            with self.assertRaisesRegex(CatalogError, "already defined"):
+            with self.assertRaisesRegex(CatalogError, r"testing\.json: .*bundled tool jira.*Rename the project tool"):
                 load_tools(extra)
 
     def test_a_project_tool_cannot_take_the_name_of_a_bundled_one(self):
@@ -125,6 +125,26 @@ class RegistryTests(unittest.TestCase):
             self.assertEqual(code, 1)
             self.assertIn("is the bundled tool jira (Jira)", err)
             self.assertNotIn("attacker", out)
+
+    def test_check_and_update_report_a_bundled_tool_conflict(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            answers = root / "answers.json"
+            answers.write_text(json.dumps({"name": "Tools", "personal_data": "no", "stack": ["Python"]}),
+                               encoding="utf-8")
+            run_cli(root, "init", "--answers", answers)
+            extra = root / ".openguildkit" / "catalog" / "tools"
+            extra.mkdir(parents=True, exist_ok=True)
+            path = extra / "testing.json"
+            for collision in ({"id": "jira"}, {"aliases": ["Jira"]}):
+                path.write_text(json.dumps({"id": "testing", "title": "Ours", "tools": [{**TOOL, **collision}]}),
+                                encoding="utf-8")
+                for command in ("check", "update"):
+                    with self.subTest(collision=collision, command=command):
+                        error = run_cli(root, command, expect=1).stderr
+                        self.assertIn("testing.json", error)
+                        self.assertIn("bundled tool jira", error)
+                        self.assertIn("Rename the project tool", error)
 
 
 class ProjectCatalogToolTests(unittest.TestCase):
@@ -1106,6 +1126,36 @@ class PolishTests(unittest.TestCase):
                             {"invoice_id": "in_test_001", "amount_cents": 500, "reason": "duplicate"})
         self.assertIn("the mock keeps nothing: later calls will not show this record", created["content"][1]["text"])
         self.assertEqual(answer("stripe", "list_refunds", {"invoice_id": "in_test_001"})["data"]["count"], 1)
+
+
+
+class ToolDateTests(unittest.TestCase):
+    """verified and reviewed pass the check of a catalog source's checked: a calendar day, not in the future."""
+
+    def test_a_server_date_that_is_not_a_calendar_day_or_is_in_the_future_is_refused(self):
+        from datetime import timedelta
+
+        from openguildkit import clock
+
+        later = (clock.real_today() + timedelta(days=2)).isoformat()
+        for field, value in (("verified", "2026-13-45"), ("verified", "2026-02-30"), ("verified", later),
+                             ("reviewed", "2026-13-45"), ("reviewed", "2099-02-30"), ("reviewed", later)):
+            tool = copy.deepcopy(TOOL)
+            tool["servers"][0][field] = value
+            with self.subTest(field=field, value=value), self.assertRaisesRegex(CatalogError, f"{field} is the date"):
+                _validate_tool(tool, "testing")
+        tool = copy.deepcopy(TOOL)
+        tool["servers"][0].update(verified=clock.real_today().isoformat(), reviewed="2026-11-21")
+        self.assertIsNone(_validate_tool(tool, "testing"))
+
+    def test_a_project_tool_with_an_impossible_date_is_refused_at_load(self):
+        with tempfile.TemporaryDirectory() as directory:
+            extra = Path(directory)
+            server = {**REMOTE, "verified": "2026-13-45"}
+            record = {"id": "testing", "title": "Ours", "tools": [{**TOOL, "servers": [server]}]}
+            (extra / "testing.json").write_text(json.dumps(record), encoding="utf-8")
+            with self.assertRaisesRegex(CatalogError, r"testing\.json: .*verified must be a date written YYYY-MM-DD"):
+                load_tools(extra)
 
 
 if __name__ == "__main__":

@@ -25,7 +25,7 @@ export function ArsenalSpace() {
   });
   return (
     <div className="page-grid">
-      <Notice tone="info">Démonstration : chaque fonctionnalité propose un outil de référence et ses trois alternatives les plus connues. Dans un projet, activer un outil l’ajoute au profil (<code>openguildkit features enable</code>) ; son serveur MCP se branche ensuite depuis la Forge.</Notice>
+      <Notice tone="info">Démonstration : chaque fonctionnalité propose un outil de référence et ses trois alternatives les plus connues. Dans un projet, activer un outil l’ajoute au profil (<code>openguildkit features enable</code>). Un outil partagé est actif dans toutes les fonctionnalités qui l’utilisent. Son serveur MCP se branche ensuite depuis la Forge.</Notice>
       <FeatureCards features={features} onToggle={(option) => setOn((list) => list.includes(option.tool) ? list.filter((t) => t !== option.tool) : [...list, option.tool])} />
     </div>
   );

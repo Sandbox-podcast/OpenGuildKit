@@ -1,45 +1,45 @@
-"""Whether a person can type at this process's standard input."""
+"""Whether a person can answer at this terminal.
 
+Every act left to a person, and every question asked at a terminal, starts with `interactive()`. Python's
+`isatty()` is true on Windows for any character device, the NUL device included: there the handle of standard
+input must also be a console.
+"""
+import os
 import sys
 
-if sys.platform == "win32":
+
+def interactive() -> bool:
+    """True when standard input is a terminal a person types in."""
+    stream = sys.stdin
+    try:
+        if stream is None or not stream.isatty():
+            return False
+    except ValueError:  # A closed stream.
+        return False
+    try:
+        descriptor = stream.fileno()
+    except (AttributeError, OSError, ValueError):
+        return True  # A stand-in stream with no device behind it: its own answer stands.
+    return console(descriptor)
+
+
+def console(descriptor: int) -> bool:
+    """True unless the system says the descriptor is not a console (only Windows can tell NUL from a console)."""
+    return windows_console(descriptor) if os.name == "nt" else True
+
+
+def windows_console(descriptor: int) -> bool:
+    """True when Windows has a console mode for the handle: a console answers, NUL or a serial port does not."""
     import ctypes
     import msvcrt
+    from ctypes import wintypes
 
-    _KERNEL32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    _KERNEL32.GetConsoleMode.argtypes = (ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint))
-    _KERNEL32.GetConsoleMode.restype = ctypes.c_int
-
-
-def interactive_input() -> bool:
-    """True when stdin is a console a person can type at.
-
-    On Windows, isatty() is true for every character device, including NUL. A command that
-    treats NUL as a terminal then reads a line and fails with EOF. GetConsoleMode on the
-    input handle is what distinguishes a console. A test that replaces isatty() is stating
-    the case it wants; that replaced method is not the NUL device.
-    """
-    stream = sys.stdin
-    if not stream.isatty():
-        return False
-    if _isatty_replaced(stream) or sys.platform != "win32":
-        return True
-    return _windows_console(stream)
-
-
-def _isatty_replaced(stream) -> bool:
-    """True when a test replaced isatty on this stream. A real file keeps the method on its class."""
-    return "isatty" in getattr(stream, "__dict__", {})
-
-
-def _windows_console(stream) -> bool:
     try:
-        fileno = stream.fileno()
-    except (AttributeError, OSError, ValueError):
-        return True
-    try:
-        handle = msvcrt.get_osfhandle(fileno)
+        handle = msvcrt.get_osfhandle(descriptor)
     except OSError:
         return False
-    mode = ctypes.c_uint()
-    return bool(_KERNEL32.GetConsoleMode(ctypes.c_void_p(handle), ctypes.byref(mode)))
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.GetConsoleMode.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.GetConsoleMode.restype = wintypes.BOOL
+    mode = wintypes.DWORD()
+    return bool(kernel32.GetConsoleMode(handle, ctypes.byref(mode)))
