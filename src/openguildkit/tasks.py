@@ -1217,7 +1217,7 @@ def complete_task(task: dict, profile: dict, root: Path | None = None, relevance
     problems = (verification_blocker_problems(task, profile, root)
                 + [f"Blocker {item['id']}: {expired_waiver_step(task, item)}" for item in expired_waivers(blocker_list(task))
                    if item.get("phase") != "verification"]
-                + completion_problems(task, profile, relevance, changed=changed))
+                + completion_problems(task, profile, relevance, changed=changed, root=root))
     if problems:
         raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(problems))
     groups = points_left_open(task, profile, relevance)

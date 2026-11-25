@@ -1,3 +1,4 @@
+import hashlib
 import json
 import shutil
 import subprocess
@@ -92,6 +93,43 @@ class ResultTests(ResultCase):
         self.assertIn("## Checks task verify ran", handoff)
         self.assertNotIn("must pass before the task is done", handoff)
         self.assertEqual(record["result"]["pull_request"], "https://github.com/example/portal/pull/7")
+
+    @unittest.skipUnless(shutil.which("git"), "needs git")
+    def test_a_command_journal_is_hashed_and_a_later_edit_blocks_completion(self):
+        self.approved(git_project=True)
+        self.run_cli("task", "verify", TASK)
+        check = next(item for item in self.record()["result"]["checks"] if item["check"] == "command:1")
+        log = self.root / check["evidence"]
+        self.assertEqual(check["sha256"], hashlib.sha256(log.read_bytes()).hexdigest())
+        self.assertIs(check["journal"], True)
+        self.assertEqual(check["revision"], {"commit": self.git("rev-parse", "HEAD"), "clean": True})
+        log.write_text(log.read_text(encoding="utf-8") + "\nedited\n", encoding="utf-8")
+        _, error = self.run_cli("task", "complete", TASK, code=1)
+        self.assertIn("command:1: the journal", error)
+        self.assertIn("no longer matches the recorded sha256", error)
+
+    def test_a_check_recorded_before_journal_hashes_still_completes(self):
+        self.approved()
+        self.run_cli("task", "verify", TASK)
+        path = self.root / ".openguildkit" / "tasks" / f"{TASK}.json"
+        task = json.loads(path.read_text(encoding="utf-8"))
+        log = None
+        for item in task["result"]["checks"]:
+            item.pop("sha256", None)
+            item.pop("journal", None)
+            if isinstance(item.get("revision"), dict):
+                item["revision"] = item["revision"]["commit"]
+            if item.get("check") == "command:1":
+                log = self.root / item["evidence"]
+        write_json(path, task)
+        log.unlink()
+        write_json(self.root / "result.json", {
+            "pull_request": "https://github.com/example/portal/pull/7",
+            "criteria": [{"criterion": "Users only see their own requests.", "status": "met", "evidence": "tests/test_access.py"}],
+            "checks": self.rule_outcomes(),
+        })
+        self.run_cli("task", "result", TASK, "--file", self.root / "result.json")
+        self.assertEqual(self.run_cli("task", "complete", TASK)[0].strip(), "done")
 
     def test_a_decision_records_its_outcome_without_code_checks_or_a_revision(self):
         outcome = "The project owner selects a format for request history."

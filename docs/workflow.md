@@ -281,6 +281,7 @@ Each bundled pack has a subject, the task answers that call for it, and for a fe
 | A new customer feature | kind `feature` and surface `customer` | design, user research, experiments, product discovery, SEO, support readiness, release communication |
 | A backend service | surface `service` | `backend-data-safety`, `public-api-docs`, and `service-reliability` (also `infrastructure`) |
 | Infrastructure and delivery | surface `infrastructure` | containers, Kubernetes, Terraform, AWS IAM, CI security, incident response, release management, supply chain |
+| The tools and instructions agents work with | surface `infrastructure` | `agent-native-engineering` |
 | Cloud and vendor spending | surface `infrastructure`, or surface `business` with concern `money` when `finance` or `devops` reviews the task | `finops-cost-management` |
 | Personal data | data `personal` or `regulated` | `gdpr`, `minors-data-protection`, `health-data-protection` |
 | Security-sensitive changes | data `regulated`, concern `credentials`, surface `infrastructure`, or data `personal` on surface `customer` or `service` | `threat-modeling`, `owasp-asvs`, `iso-27001` |
