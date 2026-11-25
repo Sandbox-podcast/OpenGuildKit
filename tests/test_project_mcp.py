@@ -10,6 +10,8 @@ from pathlib import Path
 
 from openguildkit.storage import write_json
 
+from openguildkit.storage import write_json
+
 from tests.support import subprocess_environment
 from tests.test_results import TASK, ResultCase
 
@@ -82,7 +84,7 @@ class ProjectMcpTests(ResultCase):
         self.assertEqual(status, {"id": TASK, "status": record["status"]})
         self.assertEqual(outcomes, {"id": TASK, "revision": commit, "checks": [
             {"check": "command:1", "status": "passed", "revision": commit},
-        ]})
+        ], "omitted": 0, "failed_omitted": 0})
         for tool, result in zip(tools, results, strict=True):
             self.assertEqual(set(tool["outputSchema"]["required"]), set(result["structuredContent"]))
             self.assertEqual(json.loads(result["content"][0]["text"]), result["structuredContent"])
@@ -90,6 +92,25 @@ class ProjectMcpTests(ResultCase):
         for private in ("Private convention marker", "Camille", check["evidence"], str(self.root)):
             self.assertNotIn(private, serialized)
         self.assertEqual(snapshot, self.snapshot())
+
+    def test_a_check_whose_name_is_free_text_is_counted_and_a_failure_is_signalled(self):
+        self.approved()
+        summary = self.root / "qa-results" / "summary.json"
+        write_json(summary, {"schema_version": 1, "results": [
+            {"name": "checkout_flow.json", "status": "failed", "message": "The cart stays empty"},
+            {"name": "login-flow", "status": "passed"},
+        ]})
+        self.run_cli("task", "verify", TASK, "--chaosfolk", summary)
+        recorded = [item["check"] for item in self.record()["result"]["checks"]]
+        self.assertIn("chaosfolk:checkout_flow.json", recorded)
+        _, listed = self.replies(
+            request(1, "initialize", protocolVersion="2025-11-25", capabilities={}, clientInfo={"name": "test", "version": "1"}),
+            call(2, "task_check_results", task_id=TASK),
+        )
+        outcomes = listed["result"]["structuredContent"]
+        self.assertEqual([check["check"] for check in outcomes["checks"]], ["chaosfolk:login-flow"])
+        self.assertEqual((outcomes.get("omitted"), outcomes.get("failed_omitted")), (1, 1))
+        self.assertNotIn("checkout_flow", json.dumps(listed))
 
     def test_reads_require_a_project_and_refuse_paths_and_mutations(self):
         done = self.exchange(project=False)

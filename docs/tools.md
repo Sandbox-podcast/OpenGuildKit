@@ -26,14 +26,16 @@ client does not inherit your shell's PATH.
 | `project_profile` | None | `sector`, `components` (objects with an `id`), `packs` (active pack references) |
 | `project_rule` | `pack_id`, `rule_id` | `pack` (an active pack reference), `rule_id` |
 | `task_status` | `task_id` | `id`, `status` as recorded in the task |
-| `task_check_results` | `task_id` | `id`, `revision`, `checks` (objects with `check`, `status` and `revision`) |
+| `task_check_results` | `task_id` | `id`, `revision`, `checks` (objects with `check`, `status` and `revision`), `omitted` and `failed_omitted` (counts) |
 
 A pack reference contains `id`, `version` and `scope` from the catalog in force.
 Scope is a list of component IDs, or `null` for a project-wide pack. A revision is a
 full Git commit ID, `"working tree"` or `null` when no safe commit reference is recorded.
-Outcomes use the CLI's check IDs. Imported scenario names that contain free text
-are available through `task show` in the terminal. Before a task records any results,
-`checks` is empty and `revision` is `null`.
+Outcomes use the CLI's check IDs. A check whose name is free text, such as an imported
+ChaosFolk scenario named `checkout_flow.json`, is not listed: `omitted` counts the checks
+left out and `failed_omitted` how many of them failed, so a client sees that a failure
+exists. `task show` in the terminal gives their names. Before a task records any results,
+`checks` is empty, `omitted` and `failed_omitted` are 0 and `revision` is `null`.
 
 The client can discover each tool's input and output schema. Each successful call
 returns the same JSON object as structured content and as a text item. Invalid arguments and unknown IDs return a JSON-RPC parameter error.
