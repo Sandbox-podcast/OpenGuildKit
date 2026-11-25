@@ -145,6 +145,76 @@ class ShapeTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertIsNone(credential_kind(text))
 
+    def test_a_link_with_an_empty_user_name_has_a_password(self):
+        value = "S3cr3t" + "P4ss"
+        for link, expected in ((f"redis://:{value}@cache:6379/0", "redis://:[password]@cache:6379/0"),
+                               (f"amqp://guest:{value}@mq.example.test/", "amqp://guest:[password]@mq.example.test/")):
+            with self.subTest(link=link):
+                self.assertEqual(credential_kind(link), "a link with a password")
+                self.assertEqual(redact_credentials(f"Set REDIS_URL={link} first."), f"Set REDIS_URL={expected} first.")
+        for text in ("redis://cache:6379/0", "redis://:@cache:6379/0", "https://example.test:8080/a@b", "ratio://:"):
+            with self.subTest(text=text):
+                self.assertIsNone(credential_kind(text))
+
+    def test_an_npm_auth_token_is_a_secret_whatever_its_leading_underscore(self):
+        value = "abcdefgh-1234-5678-abcd-" + "ef0123456789"
+        text = f"Add //registry.npmjs.org/:_authToken={value} to .npmrc."
+        self.assertEqual(credential_kind(text), "a secret in a setting")
+        self.assertEqual(redact_credentials(text), "Add //registry.npmjs.org/:_authToken=[credential] to .npmrc.")
+        self.assertIsNone(credential_kind("Add //registry.npmjs.org/:_authToken=${NPM_TOKEN} to .npmrc."))
+        self.assertIn("[password]", redact_credentials("//registry.npmjs.org/:_password=" + "aGVsbG8" + "gd29ybGQ="))
+
+    def test_an_aws_secret_access_key_is_a_secret_in_any_case(self):
+        value = "wJalrXUtnFEMI/K7MDENG/" + "bPxRfiCYEXAMPLEKEY"
+        for text in (f'secretAccessKey: "{value}"', f'"SecretAccessKey": "{value}"', f"secret_access_key = {value}",
+                     f"secret-access-key: '{value}'", f"AWS_SECRET_ACCESS_KEY={value}"):
+            with self.subTest(text=text[:24]):
+                self.assertEqual(credential_kind(text), "a secret in a setting")
+                self.assertNotIn(value, redact_credentials(f"Config: {text} done"))
+        self.assertIsNone(credential_kind("secretAccessKey: ${AWS_SECRET_ACCESS_KEY}"))
+        self.assertIsNone(credential_kind("Read the secretAccessKey from the vault."))
+
+    def test_a_password_given_as_an_argument_is_replaced(self):
+        value = "Xq7vLm2" + "pRt9w"
+        for command, expected in (
+                (f"psql --password {value} shop", "psql --password [password] shop"),
+                (f"mysql --pass {value} shop", "mysql --pass [password] shop"),
+                (f"htpasswd --passwd {value}", "htpasswd --passwd [password]"),
+                (f"docker login -u deploy -p {value} registry.example.test",
+                 "docker login -u deploy -p [password] registry.example.test"),
+                (f"sshpass -p '{value}' ssh deploy@host", "sshpass -p [password] ssh deploy@host"),
+                (f'az login --password "{value}"', "az login --password [password]")):
+            with self.subTest(command=command[:24]):
+                self.assertEqual(credential_kind(command), "a password on a command line")
+                self.assertEqual(redact_credentials(f"Run {command}"), f"Run {expected}")
+
+    def test_a_flag_that_is_not_followed_by_a_password_is_left_alone(self):
+        for text in ("mkdir -p /tmp/build", "docker run -p 8080:80 app", "ssh -p 2222 deploy@host", "cp -p a b",
+                     "docker login --password-stdin", "psql --password to be asked", "Remove the --password flag",
+                     "Run docker login -p $REGISTRY_PASSWORD", "psql --password <password>", "sshpass -p '' ssh host",
+                     "login -p prompt", "psql --password YOUR_PASSWORD"):
+            with self.subTest(text=text):
+                self.assertIsNone(credential_kind(text))
+                self.assertEqual(redact_credentials(text), text)
+
+    def test_a_requirement_about_a_password_is_not_a_password(self):
+        for text in ("Signup form. Password: required, min 12 chars.", "Password: optional", "password: min 12 characters",
+                     "Password = required.", "Mot de passe: obligatoire, 12 caractères.", "Password: must contain a digit"):
+            with self.subTest(text=text):
+                self.assertIsNone(credential_kind(text))
+                self.assertEqual(redact_credentials(text), text)
+        for text, expected in (("Password: Xq7vLm2pRt9w", "Password: [password]"), ("password: hunter2", "password: [password]"),
+                               ("Password: required123", "Password: [password]"), ('password: "required"', "password: [password]"),
+                               ("Password: correcthorse", "Password: [password]"), ("mot de passe: Xq7vLm2pRt9w", "mot de passe: [password]")):
+            with self.subTest(text=text):
+                self.assertEqual(redact_credentials(text), expected)
+
+    def test_a_pgp_private_key_block_and_a_french_password_are_replaced(self):
+        block = "-----BEGIN PGP PRIVATE KEY BLOCK-----\nlQOYBF" + "x" * 40 + "\n-----END PGP PRIVATE KEY BLOCK-----"
+        self.assertEqual(redact_credentials(f"Key:\n{block}\nDone."), "Key:\n[private key]\nDone.")
+        self.assertEqual(redact_credentials("mdp: Xq7vLm2" + "pRt9w"), "mdp: [password]")
+        self.assertEqual(redact_credentials("DB_MDP=Xq7vLm2" + "pRt9w"), "DB_MDP=[password]")
+
     def test_a_camel_case_token_key_is_a_secret_in_a_setting(self):
         value = "x7" * 8
         for key in ("accessToken", "refreshToken", "idToken", "clientSecret"):
@@ -193,7 +263,8 @@ class CostTests(unittest.TestCase):
             "one word": "a" * size, "words joined by underscores": "a_" * (size // 2),
             "words joined by hyphens": "a-1" * (size // 3), "dotted words": "x." * (size // 2),
             "base64": base64.b64encode(noise).decode(), "base64 with hyphens": base64.urlsafe_b64encode(noise).decode(),
-            "mysql on one line": "mysql " * (size // 6), "at signs": "a@" * (size // 2),
+            "mysql on one line": "mysql " * (size // 6), "login on one line": "login " * (size // 6),
+            "repeated flags": "--pass x " * (size // 9), "at signs": "a@" * (size // 2),
             "a word and an at sign": "a" * (size - 1) + "@", "sk- prefixes": "sk-" * (size // 3),
         }
 
@@ -282,6 +353,23 @@ class TaskInputTests(CapturedCli, unittest.TestCase):
         for part in (password, SECRET_PARTS["a Google OAuth access token"]):
             self.assertNotIn(part, record)
             self.assertNotIn(part, warning)
+
+    def test_the_forms_the_detector_once_missed_are_recorded_without_their_secret(self):
+        redis, npm, aws = "S3cr3t" + "P4ss", "abcdefgh-1234-5678-abcd-" + "ef0123456789", "wJalrXUtnFEMI/K7MDENG/" + "bPxRfiCYEXAMPLEKEY"
+        brief = (f'Fix cache: REDIS_URL=redis://:{redis}@cache:6379/0 and secretAccessKey: "{aws}" in '
+                 f"//registry.npmjs.org/:_authToken={npm}")
+        _, warning = self.run_cli("task", "new", brief, "--id", TASK)
+        self.assertIn("replaced a possible credential in the task brief", warning)
+        record = (self.root / ".openguildkit" / "tasks" / f"{TASK}.json").read_text(encoding="utf-8")
+        for secret in (redis, npm, aws):
+            self.assertNotIn(secret, record)
+            self.assertNotIn(secret, warning)
+
+    def test_a_requirement_that_names_a_password_is_recorded_as_written(self):
+        brief = "Signup form. Password: required, min 12 chars."
+        _, warning = self.run_cli("task", "new", brief, "--id", TASK)
+        self.assertEqual(self.brief(), brief)
+        self.assertNotIn("replaced a possible credential", warning)
 
     def test_a_brief_with_registry_tokens_is_recorded_without_them(self):
         atlassian, openai = SAMPLES["an Atlassian API token"], SAMPLES["an OpenAI API key"]

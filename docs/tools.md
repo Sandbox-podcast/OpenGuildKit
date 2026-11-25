@@ -205,17 +205,17 @@ A server names the variables it reads. The host passes them from each person's e
 | SendGrid API key | `SG.`, then two dot-separated parts of 16 and 30 or more characters |
 | Azure storage key | `AccountKey=` or `SharedAccessKey=` followed by 20 or more base64 characters, as in a connection string |
 | JSON Web Token | three dot-separated base64url parts, the first two starting with `eyJ` |
-| Private key | a `-----BEGIN ... PRIVATE KEY-----` block |
-| Link with a password | `scheme://user:password@host` |
+| Private key | a `-----BEGIN ... PRIVATE KEY-----` block, or a `PRIVATE KEY BLOCK` (PGP) |
+| Link with a password | `scheme://user:password@host`, with or without the user name (`redis://:password@host`) |
 | Secret in a query string | `?token=`, `&api_key=`, `&password=`, `&signature=`, `&sig=` and their variants, with a value |
-| Password | `password`, `passwd` or `passphrase`, alone or ending a name (`DB_PASSWORD`, `POSTGRES_PASSWORD`, `dbPassword`, `--password`), a prefixed `_PWD` (`DB_PWD`), or `mot de passe`, then `:` or `=` and a value |
-| Password on a command line | `mysql -pVALUE`, and the same for `mysqldump`, `mysqladmin` and the other MySQL clients |
+| Password | `password`, `passwd` or `passphrase`, alone or ending a name (`DB_PASSWORD`, `POSTGRES_PASSWORD`, `dbPassword`, `--password`), a prefixed `_PWD` (`DB_PWD`), `mot de passe` or `mdp`, then `:` or `=` and a value. A word of prose after the name is not a value: `Password: required, min 12 chars` stays as written |
+| Password on a command line | `mysql -pVALUE`, and the same for `mysqldump`, `mysqladmin` and the other MySQL clients; `--password VALUE`, `--passwd VALUE` and `--pass VALUE`, and the `-p VALUE` of `sshpass` and of a `login` command (`docker login -u NAME -p VALUE`), when the value is quoted or holds a digit |
 | Authorization header | `Authorization: Bearer`, `Basic` or `Token` followed by 8 or more characters |
-| Secret in a setting | a key ending in `api_key`, `token`, `secret`, `client_secret`, `access_key` or `secret_key` (`AWS_SECRET_ACCESS_KEY`, `x-api-key`, `"api_key"` in JSON), or a camelCase key ending in `Token` or `Secret` (`accessToken`, `refreshToken`, `clientSecret`), then `:` or `=`, then a quoted value or 8 or more characters with a digit |
+| Secret in a setting | a key ending in `api_key`, `token`, `secret`, `client_secret`, `access_key`, `secret_key` or `secret_access_key` (`AWS_SECRET_ACCESS_KEY`, `secretAccessKey`, `x-api-key`, `"api_key"` in JSON), or a camelCase key ending in `Token` or `Secret`, with or without a leading `_` (`accessToken`, `refreshToken`, `clientSecret`, the `_authToken` of an `.npmrc`), then `:` or `=`, then a quoted value or 8 or more characters with a digit |
 
 A variable name or a placeholder is not a secret and stays as written: `${JIRA_TOKEN}`, `$TOKEN`, `%API_KEY%`, `{{ secrets.TOKEN }}`, `<token>`, `[credential]`, a name in capitals such as `YOUR_TOKEN`, or a value with an ellipsis (`token=...`).
 
-What is not detected: a token without a known prefix written on its own (a random string in a sentence), a secret after a key the table does not name (a bare `pwd:`, `auth:`, `key:`), an unquoted value of a setting without a digit (`api_key: abcdefgh`), a webhook or a token of a provider not listed here, a secret split over several lines, and an encoded or encrypted secret. The detector reduces mistakes; it is not a secret scanner. Keep credentials in each person's environment or in the tool's vault, and run the team's own scanner on the repository.
+What is not detected: a token without a known prefix written on its own (a random string in a sentence), a secret after a key the table does not name (a bare `pwd:`, `auth:`, `key:`), an unquoted value of a setting without a digit (`api_key: abcdefgh`), a password written after `-p` or `--password` without a digit and without quotes, the `-p` of a command other than `sshpass` and a `login` (`mkdir -p` and `docker run -p` are not passwords), a webhook or a token of a provider not listed here, a secret split over several lines, and an encoded or encrypted secret. The detector reduces mistakes; it is not a secret scanner. Keep credentials in each person's environment or in the tool's vault, and run the team's own scanner on the repository.
 
 The table lives in one place, `src/openguildkit/sensitive.py`, and the same shapes apply wherever the CLI records what a person or an agent writes. The refusal never repeats the value, and the apply command a plan or a refusal prints writes `--set TOOL.NAME=VALUE` in place of a value of these shapes.
 
