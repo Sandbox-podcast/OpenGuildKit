@@ -123,7 +123,7 @@ A maintainer validates every replacement in the pull request that makes it. Run 
 
 ## Code contributions
 
-- The agent skill and subagent live in `src/openguildkit/agent_files/` and are copied in `integrations/`; edit both, the tests check that they match.
+- The agent skill and subagent live in `src/openguildkit/agent_files/` and are copied in `integrations/`; edit both, the tests check that they match. An agent reads `SKILL.md` again at every turn, so it stays under 15 000 bytes (a test checks it): a procedure that only some sessions need goes in a file of `references/` next to it, which `SKILL.md` names with the condition to read it, and which `src/openguildkit/integrations.py` and the package data of `pyproject.toml` ship with the skill.
 
 - Python 3.11+, standard library only at runtime.
 - Keep the CLI offline. It must never call a model provider or the network. The one exception is `docs share verify`, which a person runs to read their own Documentalist instance; do not add another without discussing it in an issue.
