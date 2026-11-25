@@ -397,6 +397,27 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual((status, result["code"]), (200, 0), result["stderr"])
         self.assertEqual(self.run_in_page("task", "list", "--json")[1]["json"][0]["id"], "request-status")
 
+    @unittest.skipIf(os.name == "nt", "A symbolic link needs a privilege on Windows, and a drive letter cannot sit "
+                                      "inside a path.")
+    def test_the_upload_folder_is_hidden_whole_when_its_real_path_contains_the_given_one(self):
+        """On macOS the temporary folder /var/folders/... resolves to /private/var/folders/...: the longer form is
+        hidden first, or the message keeps /private. Each request draws a new folder name, so several are sent."""
+        base = self.root.parent
+        given = base / "uploads"
+        real = Path(str(base / "real") + str(given))
+        real.mkdir(parents=True)
+        given.symlink_to(real, target_is_directory=True)
+        self.run_in_page("task", "new", "Show request status", "--id", "request-status")
+        with patch.object(tempfile, "tempdir", str(given)):
+            for attempt in range(12):
+                with self.subTest(attempt=attempt):
+                    status, result = self.run_in_page("task", "consult", "request-status", "--answers",
+                                                      "@upload:answers.json", uploads={"answers.json": "{not json"})
+                    self.assertEqual((status, result["code"]), (200, 1), result)
+                    self.assertIn("<upload>/answers.json", result["stderr"])
+                    self.assertNotIn(str(base), result["stderr"])
+                    self.assertNotIn("/private", result["stderr"])
+
     def test_what_needs_a_person_at_a_terminal_is_refused_with_the_command_to_type(self):
         self.run_in_page("task", "new", "Show request status", "--id", "request-status")
         for argv in (

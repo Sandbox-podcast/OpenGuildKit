@@ -329,7 +329,8 @@ class CliRunner:
             if not keep_text:
                 stdout = ""
         stderr = err.getvalue()
-        for shown in {str(Path(folder).resolve()), folder}:
+        # The resolved form can contain the given one (/private/var/folders on macOS holds /var/folders): it goes first.
+        for shown in sorted({str(Path(folder).resolve()), folder}, key=len, reverse=True):
             stderr = stderr.replace(shown, "<upload>")
         result = {"code": code, "stdout": stdout, "stderr": stderr, "json": data}
         # Some decisions need a person at a terminal only in some cases (dismissing a critical alert): the CLI says
