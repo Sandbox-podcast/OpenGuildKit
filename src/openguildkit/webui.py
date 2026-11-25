@@ -32,6 +32,7 @@ from urllib.parse import parse_qs, urlsplit
 from . import cli, profile_cli
 from .catalog import load_catalog
 from .lock import package_version
+from .sensitive import credential_kind
 from .shell import shell_command
 from .storage import project_lock, write_text
 
@@ -81,7 +82,7 @@ REFUSALS = {
     "invalid-profile": "The profile sent is not a valid profile.",
     "not-initialized": "The project is not initialized: set it up first.",
     "outside-project": "A path leaves the project, or enters its .git folder.",
-    "secret-file": "The name of the file suggests a secret: the interface neither lists nor reads it.",
+    "secret-file": "The name or the text of the file suggests a secret: the interface does not read it.",
     "not-readable": "The interface only reads Markdown, JSON, YAML and text files.",
     "too-large": "The request or the file is too large.",
     "not-in-page": "A command or a file that does not belong in a page.",
@@ -429,7 +430,14 @@ class ProjectFiles:
         if target.stat().st_size > MAX_FILE:
             raise Refused("The file is larger than 2 MB.", status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
                           reason="too-large")
-        return {"path": relative, "text": target.read_text(encoding="utf-8", errors="replace")}
+        text = target.read_text(encoding="utf-8", errors="replace")
+        # A cloud key keeps its generated name, and a setting holds a token in clear: the text decides too. The file is
+        # refused whole, as a secret name is, rather than masked: the page saves back what it reads.
+        kind = credential_kind(text)
+        if kind:
+            raise Refused(f"{relative} holds what looks like {kind}: the interface does not read it.",
+                          reason="secret-file")
+        return {"path": relative, "text": text}
 
     def write(self, relative: str, text: str) -> dict:
         if relative not in WRITABLE_FILES:

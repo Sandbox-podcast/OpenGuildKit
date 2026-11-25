@@ -248,6 +248,54 @@ class WebInterfaceTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertEqual(self.request("/api/files/read", {"path": name})[0], 200)
 
+    def test_a_file_whose_text_holds_a_credential_is_not_read_whatever_its_name(self):
+        """A cloud service account key keeps its generated name, and an MCP or a framework setting holds a token or a
+        password in clear: the page reads none of them. The same files with placeholders stay readable."""
+        private_key = "-----BEGIN " + "PRIVATE" + " KEY-----\n" + "F4" * 32 + "\n-----END " + "PRIVATE" + " KEY-----\n"
+        key = {"type": "service_account", "project_id": "demo-proj-412907", "private_key_id": "3f9a1c2b7d4e" * 3,
+               "private_key": private_key}
+        token = "gh" + "p_" + "y" * 36
+        password = "Demo-" + "v" * 10
+        files = {
+            "demo-proj-412907-3f9a1c2b7d4e.json": (json.dumps(key), "F4" * 32),
+            "demo-proj-firebase-adminsdk-x1y2z-0a1b2c3d4e.json": (json.dumps({**key, "project_id": "demo-proj"}), "F4" * 32),
+            ".mcp.json": (json.dumps({"mcpServers": {"github": {"env": {"GITHUB_PERSONAL_ACCESS_TOKEN": token}}}}), token),
+            "config/application.yml": ("datasource:\n  username: demo\n  pass" + "word: " + password + "\n", password),
+        }
+        for name, (text, secret) in files.items():
+            (self.root / name).parent.mkdir(parents=True, exist_ok=True)
+            (self.root / name).write_text(text, encoding="utf-8")
+            with self.subTest(name=name):
+                status, _, body = self.request("/api/files/read", {"path": name})
+                self.assertEqual((status, json.loads(body).get("reason")), (403, "secret-file"), body)
+                self.assertNotIn(secret.encode(), body)
+        placeholders = {
+            ".mcp.json": json.dumps({"mcpServers": {"github": {"env": {"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"}}}}),
+            "config/application.yml": "datasource:\n  username: demo\n  pass" + "word: ${DB_PASSWORD}\n",
+        }
+        for name, text in placeholders.items():
+            (self.root / name).write_text(text, encoding="utf-8")
+            with self.subTest(name=name, placeholder=True):
+                status, _, body = self.request("/api/files/read", {"path": name})
+                self.assertEqual((status, json.loads(body)["text"]), (200, text))
+
+    def test_the_text_of_the_largest_readable_file_is_checked_in_seconds(self):
+        """Long runs of letters, a base64url blob, a line that repeats mysql: each credential shape reads them once. A
+        search that starts again at each letter holds the interpreter for hours, the whole server with it: the read
+        runs in its own process, stopped after a minute."""
+        runs = ("Qk1aYz_0-" * 80_000, "mysql " * 60_000, "a-" * 200_000, "a" * 300_000)
+        text = "\n".join(runs)
+        self.assertLessEqual(len(text.encode("utf-8")), webui.MAX_FILE)
+        (self.root / "blob.txt").write_text(text, encoding="utf-8")
+        script = ("import sys; from pathlib import Path; from openguildkit.webui import ProjectFiles; "
+                  "print(len(ProjectFiles(Path(sys.argv[1])).read('blob.txt')['text']))")
+        try:
+            done = subprocess.run([sys.executable, "-c", script, str(self.root)], capture_output=True, text=True,
+                                  env=ENV, timeout=60)
+        except subprocess.TimeoutExpired:
+            self.fail("Checking the text of a 2 MB file took more than a minute.")
+        self.assertEqual((done.returncode, done.stdout.strip()), (0, str(len(text))), done.stderr)
+
     def test_a_foreign_host_origin_or_token_is_refused(self):
         self.assertEqual(self.request("/api/session", headers={"Host": "evil.example:80"})[0], 421)
         self.assertEqual(self.request("/api/run", {"argv": ["check"]}, headers={"Origin": "https://evil.example"})[0], 403)

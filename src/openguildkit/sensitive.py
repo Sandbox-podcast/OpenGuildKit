@@ -19,9 +19,10 @@ _SETTING_VALUE = (rf"""(?:"{_NOT_A_VALUE}[^"\r\n]{{4,}}"|'{_NOT_A_VALUE}[^'\r\n]
 _SECRET_KEY = (r"(?:(?:[a-z0-9]+[_-])*(?:api[_-]?key|token|secret|access[_-]?key|secret[_-]?key|client[_-]?secret)"
                r"|[a-z][a-z0-9]*(?-i:Token|Secret))")
 # The name of a password: password, DB_PASSWORD, POSTGRES_PASSWORD, DB_PWD, PASSPHRASE, dbPassword, --password.
-# A bare pwd is the shell command: only a prefixed name (DB_PWD) is a password.
-_PASSWORD_KEY = (r"(?:(?<![A-Za-z0-9])(?:(?:[a-z0-9]+[_-])*(?:password|passwd|passphrase)|(?:[a-z0-9]+[_-])+pwd)"
-                 r"|[a-z][a-z0-9]*(?-i:Password|Passphrase)|mot de passe)")
+# A bare pwd is the shell command: only a prefixed name (DB_PWD) is a password. The match starts at the last word of the
+# name (PASSWORD in DB_PASSWORD) or at the start of a camelCase name: a long run of letters is read once, not once per letter.
+_PASSWORD_KEY = (r"(?:(?<![A-Za-z0-9])(?:password|passwd|passphrase)|(?<=[A-Za-z0-9][_-])pwd"
+                 r"|(?<![A-Za-z0-9])[0-9]*[a-z][a-z0-9]*(?-i:Password|Passphrase)|mot de passe)")
 # Each shape: its name in messages, the pattern, and the replacement that keeps the surrounding words.
 CREDENTIAL_SHAPES = (
     ("a cloud access key ID", re.compile(r"(?<![A-Za-z0-9_])(?:AKIA|ASIA)[A-Za-z0-9]{16}(?![A-Za-z0-9_])"),
@@ -60,14 +61,19 @@ CREDENTIAL_SHAPES = (
      "[credential]"),
     ("a private key", re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----(?:.*?-----END (?:[A-Z0-9]+ )*PRIVATE KEY-----)?",
                                  re.DOTALL), "[private key]"),
-    ("a link with a password", re.compile(r"(?i)(\b[a-z][a-z0-9+.-]*://[^\s/:@]+:)(?!\[)[^\s/@]+@"), r"\1[password]@"),
+    # The scheme is looked for once per run of scheme characters, not once per letter of a long run.
+    ("a link with a password", re.compile(r"(?i)((?<![a-z0-9+.-])(?>[a-z0-9+.-]*?\b[a-z])[a-z0-9+.-]*+://[^\s/:@]+:)"
+                                          r"(?!\[)[^\s/@]+@"), r"\1[password]@"),
     ("a secret in a query string", re.compile(
         r"(?i)([?&;](?:[a-z0-9_.-]*[_-])?(?:token|secret|password|passwd|api[_-]?key|access[_-]?key|signature|sig)=)"
         r"(?![\[$<{])[^&#\s\"']+"), r"\1[credential]"),
     ("a password", re.compile(rf"""(?i)({_PASSWORD_KEY}["']?\s*[:=]\s*)(?![\[$<{{%])(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]*[^\s,;.!?)])"""),
      r"\1[password]"),
-    # mysql -pSECRET, mysqldump -pSECRET: the value follows -p without a space; -p alone asks for it.
-    ("a password on a command line", re.compile(r"(\bmysql(?:dump|admin|import|check|show)?\b[^\n]*?\s-p)(?![\[$<{%])[^\s'\"]{4,}"),
+    # mysql -pSECRET, mysqldump -pSECRET: the value follows -p without a space; -p alone asks for it. The search from one
+    # mysql stops at the next, which takes over: a line that repeats mysql is read once.
+    ("a password on a command line", re.compile(r"(\bmysql(?:dump|admin|import|check|show)?\b"
+                                                r"(?:(?!\bmysql(?:dump|admin|import|check|show)?\b)[^\n])*?\s-p)"
+                                                r"(?![\[$<{%])[^\s'\"]{4,}"),
      r"\1[password]"),
     ("an authorization header", re.compile(
         r"""(?i)(\bauthorization["']?\s*[:=]\s*["']?(?:bearer|basic|token)\s+)"""
