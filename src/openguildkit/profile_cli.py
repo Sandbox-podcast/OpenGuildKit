@@ -11,6 +11,7 @@ import sys
 from argparse import Namespace
 from pathlib import Path
 
+from . import light_lane
 from .clock import today
 from .hosts import HOSTS
 from .lock import apply_lock, build_lock, installed_catalog, read_lock, write_lock
@@ -18,6 +19,7 @@ from .patterns import pattern_selection, recommend_patterns, role_choices
 from .project import (
     GUARD_MODES, declined_ids, load_profile, norm_reason, sync_instructions, unanswered_norms, validate_profile,
 )
+from .shell import shell_word
 from .storage import project_lock, write_json
 from .tasks import tasks_touched
 from .terminal import interactive
@@ -31,6 +33,7 @@ SET_FIELDS = {
     "host": HOSTS, "guard": tuple(GUARD_MODES), "research": ("local-only", "public-sources"),
     "personal-data": ("yes", "no"), "people-decisions": ("yes", "no"), "sector": None,
     "approval": ("local", "signed"), "waivers": ("none", "allowed"), "ask-every-rule": ("yes", "no"),
+    "light-paths": None,  # Paths, not a choice: set apart in _set.
 }
 # The options of profile set, each with the setting and value it belongs to.
 SET_OPTIONS = {"signers": ("approval", "signed"), "approver": ("approval", "signed"),
@@ -86,9 +89,10 @@ def add_parser(commands) -> None:
         command.add_argument("values", nargs="+", metavar="VALUE", help="IDs, tool names or check commands.")
     setter = actions.add_parser(
         "set", help="Set the host, guard, research policy, sector, approval mode, waiver policy, whether every rule "
-                    "is asked, or a setup answer.")
+                    "is asked, the paths of the short lane, or a setup answer.")
     setter.add_argument("field", choices=sorted(SET_FIELDS), help="The setting to change.")
-    setter.add_argument("value", help="Its new value.")
+    setter.add_argument("value", help="Its new value (light-paths: a folder or file glob such as 'docs/**', or none).")
+    setter.add_argument("more", nargs="*", metavar="PATH", help="light-paths: more paths.")
     setter.add_argument("--signers", metavar="PATH",
                         help="approval signed: the allowed signers file, a path inside the project.")
     setter.add_argument("--approver", action="append", metavar="NAME",
@@ -110,10 +114,11 @@ def weakening_changes(before: dict, after: dict, catalog: dict) -> list[tuple[st
     guard, public research, a regulation that stops being active, a regulation, security or AI pack removed, the
     security or legal board removed, personal data set to no, a host whose settings enforce less, signed
     approvals turned off or on, an approver added or the signers file moved, waivers allowed or widened, a
-    required rule, required board or check command removed, every rule no longer asked. The profile commands and
-    the web page ask this."""
+    required rule, required board or check command removed, every rule no longer asked, a path added to the short
+    lane. The profile commands and the web page ask this."""
     person = ["--by", "NAME", "--reason", "WHY"]
-    changes = [*_approval_changes(before, after, person), *_waiver_changes(before, after, person)]
+    changes = [*_approval_changes(before, after, person), *_waiver_changes(before, after, person),
+               *_light_changes(before, after, person)]
     old_guard, new_guard = before.get("guard", "off"), after.get("guard", "off")
     if GUARD_LEVEL.get(new_guard, 0) < GUARD_LEVEL.get(old_guard, 0):
         changes.append((f"guard {old_guard} -> {new_guard}", ["profile", "set", "guard", str(new_guard), *person]))
@@ -212,6 +217,17 @@ def _waiver_changes(before: dict, after: dict, person: list[str]) -> list[tuple[
     return [(f"waivers widened: {'; '.join(wider)}", command)] if wider else []
 
 
+def _light_changes(before: dict, after: dict, person: list[str]) -> list[tuple[str, list[str]]]:
+    """A path added to the short lane: a task there is reviewed by one board and without questions, so adding a path
+    lowers the rigor of that part of the project. Fewer paths, or none, is stricter and asks nothing."""
+    old, new = _texts(before.get("light_paths")), _texts(after.get("light_paths"))
+    added = [path for path in new if path not in old]
+    if not added:
+        return []
+    what = f"short lane widened: {', '.join(added)} added" if old else f"short lane turned on for {', '.join(added)}"
+    return [(what, ["profile", "set", "light-paths", *new, *person])]
+
+
 def _adopt(profile: dict, pattern_id: str, catalog: dict) -> dict:
     if pattern_id not in catalog["patterns"]:
         raise ValueError(f"Unknown pattern: {pattern_id}. Run openguildkit patterns.")
@@ -271,15 +287,25 @@ def _setting(field: str, value: str, options: dict) -> tuple[str, object]:
         return "waivers", {"allowed_by": options["allowed_by"], "max_days": options["max_days"]}
     if field == "ask-every-rule":
         return "ask_every_rule", True if value == "yes" else None
+    if field == "light-paths":
+        if value == "none":
+            if options["paths"][1:]:
+                raise ValueError("profile set light-paths none takes no other path. Nothing was written.")
+            return "light_paths", None
+        return "light_paths", light_lane.normalize_entries(options["paths"], "light-paths")
     return field.replace("-", "_"), value == "yes" if field in ("personal-data", "people-decisions") else value
 
 
 def _set(profile: dict, args, catalog: dict) -> dict:
     field, value = args.field, args.value
-    allowed = SET_FIELDS[field] or tuple(catalog["sectors"])
-    if value not in allowed:
-        raise ValueError(f"{field} must be one of {', '.join(allowed)}.")
+    if field != "light-paths":
+        allowed = SET_FIELDS[field] or tuple(catalog["sectors"])
+        if value not in allowed:
+            raise ValueError(f"{field} must be one of {', '.join(allowed)}.")
+        if args.more:
+            raise ValueError(f"profile set {field} takes one value, not {len(args.more) + 1}. Nothing was written.")
     options = {name: getattr(args, name, None) for name in SET_OPTIONS}
+    options["paths"] = [value, *args.more]
     for name, owner in SET_OPTIONS.items():
         if options[name] is not None and owner != (field, value):
             option = name.replace("_", "-")
@@ -298,6 +324,8 @@ def _set_change(args) -> str:
         return f"{change} (signers {args.signers}; approvers {', '.join(args.approver or [])})"
     if args.field == "waivers" and args.value == "allowed":
         return f"{change} (by {', '.join(args.allowed_by or [])}; up to {args.max_days} days)"
+    if args.field == "light-paths" and args.value != "none":
+        return f"set light-paths {', '.join(light_lane.normalize_entries([args.value, *args.more], 'light-paths'))}"
     return change
 
 
@@ -412,14 +440,24 @@ def report_change(state: Path, updated: dict, record: dict, catalog: dict, host_
         print("No open task was consulted under the previous profile.")
 
 
+def _target(args) -> str:
+    """What the person types to confirm a change that weakens a protection: the pattern, the values given."""
+    if args.profile_action in ("adopt", "decline"):
+        return args.pattern
+    return " ".join([args.value, *args.more] if args.profile_action == "set" else args.values)
+
+
 def run(args, root: Path, state: Path) -> int:
     """Apply one profile command, rewrite the instructions and the catalog lock, and say what follows."""
-    target = getattr(args, "pattern", None) or getattr(args, "value", None) or " ".join(args.values)
+    target = _target(args)
     updated, record, catalog = write_change(
         root, state, args, lambda profile, catalog: _changed(profile, args, catalog),
         args.by, args.reason, lambda change, weakened, voided: _confirm(change, target, weakened, voided))
     host_settings = args.profile_action == "set" and args.field in ("host", "guard", "research", "approval")
     report_change(state, updated, record, catalog, host_settings)
+    if updated.get("light_paths") and args.profile_action == "set" and args.field == "light-paths":
+        print(f'Short lane: openguildkit task new "BRIEF" --id ID --lane light --paths '
+              f'{shell_word(updated["light_paths"][0])} (docs/workflow.md, "Short lane").')
     return 0
 
 

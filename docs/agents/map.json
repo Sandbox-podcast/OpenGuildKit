@@ -438,6 +438,22 @@
       ]
     },
     {
+      "module": "src/openguildkit/light_lane.py",
+      "role": "The short lane for a change a person declares trivial: the paths it covers, what it never covers (rules, dependencies, the profile, agent instructions) and the one board its paths call for.",
+      "entry": [
+        "excluded_reason",
+        "declared_excluded",
+        "normalize_entries"
+      ],
+      "tests": [
+        "tests/test_light_lane.py"
+      ],
+      "doc": "docs/architecture.md",
+      "covers": [
+        "tests/fixtures/upgrade/before-light-lane.json"
+      ]
+    },
+    {
       "module": "src/openguildkit/lock.py",
       "role": "Pins the catalog records a project uses in `catalog.lock.json`; `update` shows and applies a newer catalog.",
       "entry": [
@@ -571,7 +587,8 @@
       "tests": [
         "tests/test_architecture.py",
         "tests/test_gemini_host.py",
-        "tests/test_profile_commands.py"
+        "tests/test_profile_commands.py",
+        "tests/test_light_lane.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -603,6 +620,7 @@
         "tests/test_host_scan.py",
         "tests/test_host_surfaces.py",
         "tests/test_instruction_files.py",
+        "tests/test_light_lane.py",
         "tests/test_monorepo_instructions.py",
         "tests/test_pack_rules.py",
         "tests/test_pass_relevance.py",

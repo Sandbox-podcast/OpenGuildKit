@@ -5,6 +5,7 @@ import json
 import re
 from pathlib import Path, PurePosixPath
 
+from . import light_lane
 from .agent_workflow import AGENT_WORKFLOW, RULE_PACKS_NOTE
 from .catalog import rule_check
 from .clock import today
@@ -646,6 +647,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
         "resolutions", "boards", "required_boards", "required_rules", "research", "host", "guard", "waivers", "approval", "tools",
         "conventions", "checks", "personal_data", "people_decisions", "declined", "changes", "ask_every_rule",
+        "light_paths",
     }
     unknown = sorted(answers.keys() - fields)
     if unknown:
@@ -739,6 +741,9 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         if type(max_days) is not int or not 1 <= max_days <= 366:
             raise ValueError("waivers.max_days must be a whole number of days between 1 and 366")
         profile["waivers"] = {"allowed_by": _texts(waivers["allowed_by"], "waivers.allowed_by"), "max_days": max_days}
+    # The short lane (light_lane.py): absent, or an empty list, means it is off.
+    if answers.get("light_paths"):
+        profile["light_paths"] = light_lane.normalize_entries(answers["light_paths"], "light_paths")
     ask_every_rule = answers.get("ask_every_rule", False)
     if type(ask_every_rule) is not bool:
         raise ValueError("ask_every_rule must be true or false")
@@ -1179,9 +1184,11 @@ def check_component(command: str, components: list[dict]) -> str | None:
 
 
 # Profile fields that change neither the rules, nor the checks, nor the boards of a task: changing one leaves every
-# approval standing. A convention or a tool reaches the next consultations; the guard, host, research, approval and
-# waiver settings are read when they act (the signature, for one, is verified again by every reader of an approval).
-APPROVAL_NEUTRAL_FIELDS = ("name", "conventions", "tools", "host", "guard", "research", "approval", "waivers")
+# approval standing. A convention or a tool reaches the next consultations; the guard, host, research, approval,
+# waiver and short lane settings are read when they act (the signature, for one, is verified again by every reader of
+# an approval, and the lane's paths by the edit hook, task complete and guard --ci).
+APPROVAL_NEUTRAL_FIELDS = ("name", "conventions", "tools", "host", "guard", "research", "approval", "waivers",
+                           "light_paths")
 
 
 def _advice_profile(profile: dict, neutral: tuple = ()) -> dict:
