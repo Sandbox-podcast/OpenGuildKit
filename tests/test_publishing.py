@@ -656,6 +656,59 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         output, _ = self.run_cli("docs", "share", "revoke", "--id", second, "--by", "Camille")
         self.assertNotIn("--id", output)
 
+    def test_the_default_port_of_the_scheme_opens_the_same_space(self):
+        """HOST and HOST:443 are one space, a share recorded with :443 included; the register is not rewritten."""
+        self.deliverable()
+        self.deliverable("e")
+        self.add(portal="https://docs.example.test/p/s1", dedicated=True)
+        _, error = self.add("e", portal="https://docs.example.test:443/p/s1", code=1)
+        self.assertIn("Space docs.example.test/p/s1 is dedicated to d", error)
+        for portal, space in (("https://docs.example.test:443/p/s1", "docs.example.test/p/s1"),
+                              ("http://localhost:80/p/s1", "localhost/p/s1"), ("https://[::1]:443/p/s1", "[::1]/p/s1"),
+                              ("https://docs.example.test:8443/p/s1", "docs.example.test:8443/p/s1"),
+                              ("http://127.0.0.1:443/p/s1", "127.0.0.1:443/p/s1")):
+            with self.subTest(portal=portal):
+                self.assertEqual(publishing.portal_space(portal), space)
+        # Recorded by an earlier version with the port: read as the same space, and the dedication holds.
+        register = self.root / ".openguildkit" / "shares" / "shares.json"
+        data = json.loads(register.read_text(encoding="utf-8"))
+        data["shares"][0].update(portal="https://docs.example.test:443/p/s1", space="docs.example.test:443/p/s1")
+        register.write_text(json.dumps(data), encoding="utf-8")
+        _, error = self.add("e", portal="https://docs.example.test/p/s1", code=1)
+        self.assertIn("Space docs.example.test/p/s1 is dedicated to d", error)
+        self.assertEqual(self.shares()[0]["space"], "docs.example.test/p/s1")
+        self.assertIn('"docs.example.test:443/p/s1"', register.read_text(encoding="utf-8"))
+        # A second deliverable an earlier version let in through :443 breaks the dedication: check fails.
+        self.add("e", portal="https://docs.example.test/p/s2")
+        data = json.loads(register.read_text(encoding="utf-8"))
+        data["shares"][0]["space"] = "docs.example.test/p/s1"
+        data["shares"][1].update(portal="https://docs.example.test:443/p/s1", space="docs.example.test:443/p/s1")
+        register.write_text(json.dumps(data), encoding="utf-8")
+        output, _ = self.run_cli("docs", "share", "check", code=1)
+        self.assertIn("its recipients can also read e, shared through the same space although the space is recorded "
+                      "as dedicated to this deliverable", output)
+
+    def test_an_address_written_in_another_case_is_the_same_reader(self):
+        """Documentalist and share verify ignore the case of an address; add, check and revoke do too."""
+        self.deliverable()
+        self.deliverable("e")
+        self.add(recipient="Client@example.test")
+        later = (clock.real_today() + timedelta(days=60)).isoformat()
+        _, warning = self.add("e", recipient="client@example.test", until=later)
+        first, second = (row["id"] for row in self.shares())
+        self.assertIn(f"client@example.test already has access to space docs.example.test/p/support-portal through share "
+                      f"{first}", warning)
+        register = self.root / ".openguildkit" / "shares" / "shares.json"
+        data = json.loads(register.read_text(encoding="utf-8"))
+        data["shares"][0]["until"] = (clock.real_today() - timedelta(days=1)).isoformat()
+        register.write_text(json.dumps(data), encoding="utf-8")
+        output, _ = self.run_cli("docs", "share", "check")
+        self.assertIn("covered: other shares keep the same access, nothing to remove yet", output)
+        self.assertEqual(self.shares()[0]["kept"], {"Client@example.test": {"share": second, "until": later}})
+        output, _ = self.run_cli("docs", "share", "revoke", "--id", first, "--by", "Camille")
+        self.assertIn("Other shares give Client@example.test the same space", output)
+        self.assertIn(f"openguildkit docs share revoke --id {second} --by NAME", output)
+
     def test_a_local_portal_address_may_use_http_on_this_machine_only(self):
         self.deliverable()
         for portal in ("http://127.0.0.1:3000/p/support-portal", "http://localhost:3000/p/support-portal",

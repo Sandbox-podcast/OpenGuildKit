@@ -39,6 +39,7 @@ _DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 # The only paths an export writes; a manifest entry of another shape is never removed.
 _EXPORTED = re.compile(r"(?:(?:reference|learn|blog)/[^/]+\.md|openapi/[^/]+|project/overview\.md|SUMMARY\.md|README\.md)")
 MAX_SHARE_DAYS = 366
+_DEFAULT_PORTS = {"https": 443, "http": 80}
 
 
 def _title(task: dict) -> str:
@@ -248,7 +249,8 @@ def loopback(host: str) -> bool:
 def portal_space(portal: str) -> str:
     """The space a portal address opens, written HOST/p/SPACE: Documentalist shows a reader every page of it.
 
-    The address is https, or http for an instance on this machine (localhost, 127.0.0.1, ::1).
+    The address is https, or http for an instance on this machine (localhost, 127.0.0.1, ::1). The default port of
+    the scheme is left out, so HOST:443 and HOST name the same space.
     """
     address = urlsplit(portal.strip())
     try:
@@ -264,17 +266,35 @@ def portal_space(portal: str) -> str:
         raise ValueError(f"--portal {portal} names no space. Give the portal of the space you share, https://HOST/p/SPACE: "
                          "the recipients see every published page of that space.")
     shown = f"[{host}]" if ":" in host else host
-    return f"{shown}{f':{port}' if port else ''}/p/{parts[2]}"
+    return f"{shown}{f':{port}' if port and port != _DEFAULT_PORTS[address.scheme] else ''}/p/{parts[2]}"
 
 
 def share_space(share: dict) -> str | None:
-    """The space a share opens; a share recorded before the space was kept gets it from its portal."""
+    """The space a share opens; a share recorded before the space was kept gets it from its portal.
+
+    A space recorded with the default port of its portal's scheme, as earlier versions kept it, is read without it.
+    """
     if share.get("space"):
+        host, separator, rest = share["space"].partition("/p/")
+        default = _DEFAULT_PORTS.get(urlsplit(str(share.get("portal", "")).strip()).scheme)
+        if default and separator and host.endswith(f":{default}"):
+            return f"{host.removesuffix(f':{default}')}/p/{rest}"
         return share["space"]
     try:
         return portal_space(share["portal"])
     except ValueError:
         return None
+
+
+def _address(address: str) -> str:
+    """An email address as Documentalist and docs share verify compare it: without surrounding spaces or case."""
+    return address.strip().lower()
+
+
+def shared_addresses(share: dict, other: dict) -> list[str]:
+    """The share's recipients that the other share names too, whatever the case, written as the share writes them."""
+    theirs = {_address(address) for address in other["recipients"]}
+    return sorted(address for address in share["recipients"] if _address(address) in theirs)
 
 
 def add_share(state: Path, deliverable: str, recipients: list[str], until: str, portal: str, by: str,
@@ -362,14 +382,14 @@ def _share_end(until: str) -> date:
 
 
 def _same_access(shares: list[dict], share: dict, today: date | None) -> list[dict]:
-    space, recipients = share_space(share), set(share["recipients"])
+    space = share_space(share)
     return [item for item in shares
             if item["id"] != share["id"] and not item["revoked_at"] and space and share_space(item) == space
-            and recipients & set(item["recipients"]) and (today is None or date.fromisoformat(item["until"]) >= today)]
+            and shared_addresses(share, item) and (today is None or date.fromisoformat(item["until"]) >= today)]
 
 
 def same_access(state: Path, share: dict, running: bool = False) -> list[dict]:
-    """The other shares not revoked that give one of the share's recipients the same space.
+    """The other shares not revoked that give one of the share's recipients the same space, whatever the case.
 
     Documentalist keeps one access per address and space, so these shares grant and lose that access together.
     With `running`, only those whose last day is not past on the real clock.
@@ -414,7 +434,7 @@ def share_status(state: Path, today: date | None = None) -> list[dict]:
                sorted({item["deliverable"] for item in _space_neighbours(shares, share)})}
         observed = observations.get(row["space"], {}) if isinstance(observations, dict) else {}
         if isinstance(observed, dict) and observed.get("checked_at"):
-            recipients = {address.strip().lower() for address in share["recipients"]}
+            recipients = {_address(address) for address in share["recipients"]}
             observed_rows = observed.get("rows") if isinstance(observed.get("rows"), list) else []
             row["portal_observation"] = {"source": observed.get("source"), "checked_at": observed["checked_at"],
                                          "rows": [item for item in observed_rows
@@ -426,7 +446,8 @@ def share_status(state: Path, today: date | None = None) -> list[dict]:
         else:
             running = _same_access(shares, share, today)
             for recipient in share["recipients"]:
-                covering = [item for item in running if recipient in item["recipients"]]
+                covering = [item for item in running
+                            if _address(recipient) in {_address(address) for address in item["recipients"]}]
                 if covering:
                     last = max(covering, key=lambda item: item["until"])
                     row["kept"][recipient] = {"share": last["id"], "until": last["until"]}

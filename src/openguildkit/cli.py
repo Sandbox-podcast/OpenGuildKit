@@ -50,10 +50,10 @@ def _on_first_call(module: str, name: str):
 draft_problems, launch_notice, load_deliverables, new_draft, project_path, utm_link = (
     _on_first_call("deliverables", name)
     for name in ("draft_problems", "launch_notice", "load_deliverables", "new_draft", "project_path", "utm_link"))
-add_share, export_docs, project_overview, revoke_share, same_access, share_status, space_neighbours = (
+add_share, export_docs, project_overview, revoke_share, same_access, share_status, shared_addresses, space_neighbours = (
     _on_first_call("publishing", name)
     for name in ("add_share", "export_docs", "project_overview", "revoke_share", "same_access", "share_status",
-                 "space_neighbours"))
+                 "shared_addresses", "space_neighbours"))
 english_title, find_references, load_references, with_pattern_references = (
     _on_first_call("references", name)
     for name in ("english_title", "find_references", "load_references", "with_pattern_references"))
@@ -882,7 +882,7 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
                   f"recipients of each share can read both deliverables. To share {share['deliverable']} on its own, "
                   "publish it in a space of its own and record it with --dedicated-space.", file=sys.stderr)
         for other in same_access(state, share, running=True):
-            for recipient in sorted(set(share["recipients"]) & set(other["recipients"])):
+            for recipient in shared_addresses(share, other):
                 print(f"OpenGuildKit: {recipient} already has access to space {share['space']} through share {other['id']} "
                       f"(until {other['until']}). Documentalist keeps one access per address and space: give it the later "
                       f"last day, {max(share['until'], other['until'])}, in the portal; removing it there ends both shares, "
@@ -898,7 +898,7 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
               f"{share['deliverable']}.")
         others = same_access(state, share)
         if others:
-            shared = sorted({recipient for other in others for recipient in other["recipients"]} & set(share["recipients"]))
+            shared = sorted({recipient for other in others for recipient in shared_addresses(share, other)})
             print(f"Other shares give {', '.join(shared)} the same space: if you removed that access there, they lost it "
                   "too. Record each one:")
             for other in others:
