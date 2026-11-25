@@ -237,8 +237,9 @@ def load_shares(state: Path) -> list[dict]:
     return read_json(path)["shares"] if path.is_file() else []
 
 
-def _shared_item(state: Path, deliverable: str) -> None:
-    """What a recipient receives: an existing file of the project, or the folder of a documentation export."""
+def _shared_item(state: Path, deliverable: str) -> str:
+    """What a recipient receives: an existing file of the project, or the folder of a documentation export. Returns its
+    path from the project root, written with `/`, once links are resolved: the register keeps no local path."""
     target = project_path(state.parent, state, deliverable, "--deliverable")
     shown = Path(deliverable).as_posix()
     if not target.exists():
@@ -247,6 +248,7 @@ def _shared_item(state: Path, deliverable: str) -> None:
     if target.is_dir() and not (target / MANIFEST).is_file():
         raise ValueError(f"--deliverable {shown} is a folder that holds no documentation export. Name the file you "
                          "share, or the folder that openguildkit docs export wrote.")
+    return target.relative_to(state.parent.resolve()).as_posix()
 
 
 def is_loopback(host: str) -> bool:
@@ -301,43 +303,50 @@ def add_share(state: Path, deliverable: str, recipients: list[str], until: str, 
     """
     if not deliverable.strip() or not by.strip():
         raise ValueError("Name the deliverable and the owner of the share.")
-    _shared_item(state, deliverable.strip())
+    shared = _shared_item(state, deliverable.strip())
     bad = [item for item in recipients if not _EMAIL.fullmatch(item)]
     if not recipients or bad:
         raise ValueError(f"List the recipients' email addresses{': ' + ', '.join(bad) if bad else ''}.")
     _share_end(until)
     space = portal_space(portal)
-    share = {"id": uuid.uuid4().hex[:8], "deliverable": deliverable.strip(), "recipients": sorted(set(recipients)),
+    share = {"id": uuid.uuid4().hex[:8], "deliverable": shared, "recipients": sorted(set(recipients)),
              "until": until, "portal": portal, "space": space, "by": by.strip(),
              "created_at": clock.real_timestamp(), "revoked_at": None}
     with project_lock(state):
         shares = load_shares(state)
         # Another share of the same deliverable keeps a dedicated space dedicated after the first one is revoked.
-        if dedicated or any(item.get("dedicated") for item in _same_deliverable(shares, share)):
+        if dedicated or any(item.get("dedicated") for item in _same_deliverable(state, shares, share)):
             share["dedicated"] = True
-        _check_dedication(_space_neighbours(shares, share), share)
+        _check_dedication(_space_neighbours(state, shares, share), share)
         write_json(_shares_path(state), {"shares": [*shares, share]})
     return share
 
 
-def _deliverable_key(deliverable: str) -> str:
-    """The same deliverable written `d.md` or `./d.md` is one deliverable."""
-    return posixpath.normpath(Path(deliverable).as_posix())
+def _deliverable_key(project: Path, deliverable: str) -> str:
+    """The same deliverable written `d.md`, `./d.md` or by its absolute path, as an earlier register may hold it, is one
+    deliverable. `project` is the resolved project folder."""
+    try:
+        return (project / deliverable).resolve().relative_to(project).as_posix()
+    except ValueError:
+        return posixpath.normpath(Path(deliverable).as_posix())
 
 
-def _space_neighbours(shares: list[dict], share: dict) -> list[dict]:
+def _space_neighbours(state: Path, shares: list[dict], share: dict) -> list[dict]:
     """The shares not revoked of another deliverable through the same space: Documentalist shows a reader every
     published page of a space, so the recipients of each of them can read the other deliverables too."""
-    space, key = share_space(share), _deliverable_key(share["deliverable"])
+    project = state.parent.resolve()
+    space, key = share_space(share), _deliverable_key(project, share["deliverable"])
     return [item for item in shares
             if item["id"] != share["id"] and not item["revoked_at"] and space and share_space(item) == space
-            and _deliverable_key(item["deliverable"]) != key]
+            and _deliverable_key(project, item["deliverable"]) != key]
 
 
-def _same_deliverable(shares: list[dict], share: dict) -> list[dict]:
-    space, key = share_space(share), _deliverable_key(share["deliverable"])
+def _same_deliverable(state: Path, shares: list[dict], share: dict) -> list[dict]:
+    project = state.parent.resolve()
+    space, key = share_space(share), _deliverable_key(project, share["deliverable"])
     return [item for item in shares
-            if not item["revoked_at"] and space and share_space(item) == space and _deliverable_key(item["deliverable"]) == key]
+            if not item["revoked_at"] and space and share_space(item) == space
+            and _deliverable_key(project, item["deliverable"]) == key]
 
 
 def _check_dedication(neighbours: list[dict], share: dict) -> None:
@@ -356,7 +365,7 @@ def _check_dedication(neighbours: list[dict], share: dict) -> None:
 
 def space_neighbours(state: Path, share: dict) -> list[dict]:
     """The shares not revoked of other deliverables through the share's space."""
-    return _space_neighbours(load_shares(state), share)
+    return _space_neighbours(state, load_shares(state), share)
 
 
 def _share_end(until: str) -> date:
@@ -425,7 +434,7 @@ def share_status(state: Path, today: date | None = None) -> list[dict]:
     for share in shares:
         row = {**share, "space": share_space(share), "remove": [], "kept": {}, "dedicated": bool(share.get("dedicated")),
                "also_in_space": [] if share["revoked_at"] else
-               sorted({item["deliverable"] for item in _space_neighbours(shares, share)})}
+               sorted({item["deliverable"] for item in _space_neighbours(state, shares, share)})}
         observed = observations.get(row["space"], {}) if isinstance(observations, dict) else {}
         if isinstance(observed, dict) and observed.get("checked_at"):
             recipients = {address.strip().lower() for address in share["recipients"]}

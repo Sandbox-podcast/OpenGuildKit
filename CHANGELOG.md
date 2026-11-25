@@ -12,6 +12,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - `alerts import` warns, and names the previous file, when a report resolves alerts under another file name than the scanner's previous import: a report of another lockfile resolves the alerts of the first. The scanner has one full report per project ([alerts](docs/alerts.md)).
 - `docs share verify` reports a server that does not answer in valid HTTP like any other unreachable portal, and `docs export` refuses by name an export manifest whose `files` is not a list of paths and an `--openapi` file that is not UTF-8, instead of printing a Python trace or an unnamed decoding error.
 - `deliverable check` reads a draft saved with a UTF-8 byte order mark, and `alerts import` reads a report saved as UTF-16 (PowerShell 5.1 `> file`); a file in another encoding is refused with its name and the encoding.
+- `docs share add` records the deliverable as a path from the project root, so a share named by its absolute path counts as the same deliverable as one named by its relative path: `--dedicated-space` and the readers of a shared space follow it, and the register keeps no local path.
 
 ## 0.17.0
 
