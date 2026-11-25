@@ -85,10 +85,13 @@ SUBJECTS = {
         {"surface": ["infrastructure"]}, {"surface": ["business"], "concerns": ["money"], "boards": ["finance", "devops"]}]),
     **{pack: ("AI", _AI) for pack in ("llm-evaluations", "nist-ai-risk", "eu-ai-act")},
     **{pack: ("money", _MONEY) for pack in (
-        "revenue-recognition", "saas-metrics", "vat-and-e-invoicing", "financial-planning", "deal-approval")},
+        "revenue-recognition", "saas-metrics", "vat-and-e-invoicing", "financial-planning",
+        "deal-approval")},
     "pci-dss": ("payment card data", [{"data": ["regulated"]}, {"concerns": ["money"], "mentions": ["card payments"]}]),
-    **{pack: ("personal data", _PERSONAL) for pack in ("gdpr", "minors-data-protection", "health-data-protection")},
-    **{pack: ("security-sensitive changes", _SECURITY) for pack in ("threat-modeling", "owasp-asvs", "iso-27001")},
+    **{pack: ("personal data", _PERSONAL) for pack in (
+        "gdpr", "minors-data-protection", "health-data-protection", "france-health-data-hosting")},
+    **{pack: ("security-sensitive changes", _SECURITY) for pack in (
+        "threat-modeling", "owasp-asvs", "iso-27001")},
     **{pack: ("the ICT systems of a regulated entity", _ICT) for pack in ("dora", "nis2")},
     **{pack: ("security incidents and vulnerabilities", [{"surface": ["infrastructure"]}, {"concerns": ["credentials"]}])
        for pack in ("cyber-resilience-act", "incident-notification")},
@@ -159,6 +162,9 @@ LEGAL_BASIS = {
                              "information and the order button of a distance sale to consumers.",
     "public-sector-accessibility": "the user interface: Directive (EU) 2016/2102 Art. 4 applies to the websites "
                                    "and mobile applications of public sector bodies.",
+    "france-health-data-hosting": "personal or regulated data: Art. L1111-8 of the Code de la santé publique "
+                                  "requires the host of personal health data to hold a certificate of conformity, "
+                                  "and Art. R1111-9-1 and R1111-11 set the storage in the EU or EEA and the contract.",
     "web-accessibility": "the user interface: WCAG 2.2, through EN 301 549, is the test of Directive (EU) 2016/2102 "
                          "and of the accessibility requirements a customer-facing screen meets.",
 }
@@ -261,7 +267,7 @@ def judge_rules(task: dict, profile: dict, relevance: dict | None = None) -> dic
 REGULATION_DEFAULT = [{"data": ["personal", "regulated"]}]
 # Rules a person must confirm by name before a task closes with them skipped or failed.
 SENSITIVE = {
-    "data protection": ("gdpr", "minors-data-protection", "health-data-protection", "backend-data-safety", "pci-dss"),
+    "data protection": ("gdpr", "minors-data-protection", "health-data-protection", "france-health-data-hosting", "backend-data-safety", "pci-dss"),
     "security": ("secure-sdlc", "owasp-asvs", "threat-modeling", "supply-chain", "iso-27001", "aws-iam",
                  "container-images", "github-actions-security", "gitlab-ci-security", "nis2", "dora",
                  "cyber-resilience-act", "incident-notification"),

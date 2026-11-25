@@ -14,14 +14,14 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | data | 63 | 11 | 52 | 6 | 1 | 8 | 41 |
 | design | 26 | 5 | 21 | 10 | 5 | 17 | 69 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
-| devops | 69 | 22 | 47 | 8 | 6 | 14 | 78 |
+| devops | 69 | 22 | 47 | 9 | 6 | 15 | 86 |
 | engineering | 217 | 32 | 185 | 14 | 26 | 43 | 230 |
 | finance | 23 | 14 | 9 | 11 | 1 | 13 | 50 |
 | frontend | 8 | 3 | 5 | 2 | 0 | 4 | 19 |
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
 | it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 8 |
 | leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
-| legal | 56 | 23 | 33 | 18 | 1 | 21 | 137 |
+| legal | 56 | 24 | 32 | 19 | 1 | 22 | 145 |
 | localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
 | marketing | 22 | 7 | 15 | 8 | 0 | 8 | 17 |
 | operations | 21 | 6 | 15 | 11 | 0 | 11 | 26 |
@@ -32,7 +32,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
 | qa | 50 | 8 | 42 | 7 | 20 | 31 | 165 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 103 | 28 | 75 | 19 | 17 | 43 | 251 |
+| security | 103 | 29 | 74 | 20 | 17 | 44 | 259 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -79,14 +79,14 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | education | minors-data-protection | minors-data-protection | 7 |
 | financial-services | dora-financial-entity, european-accessibility-act, gdpr-personal-data | dora, european-accessibility-act, gdpr, incident-notification, web-accessibility | 35 |
 | general | none | none | 0 |
-| healthcare | health-data-protection | health-data-protection | 7 |
+| healthcare | france-health-data-hosting, health-data-protection | france-health-data-hosting, health-data-protection | 15 |
 | insurance | dora-financial-entity, insurance-distribution | dora, incident-notification, insurance-distribution | 19 |
 | public-sector | public-sector-accessibility | public-sector-accessibility, web-accessibility | 14 |
 | software-publisher | cyber-resilience-act-product, iso-27001-certification | cyber-resilience-act, incident-notification, iso-27001, secure-sdlc | 31 |
 
 ## Machine checks by pack
 
-25 of 469 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+25 of 477 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
@@ -121,6 +121,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | fastapi | 4 | 1 | 0 |
 | financial-planning | 2 | 0 | 0 |
 | finops-cost-management | 4 | 0 | 0 |
+| france-health-data-hosting | 8 | 0 | 8 |
 | frontend-delivery | 4 | 0 | 0 |
 | gdpr | 11 | 0 | 11 |
 | github-actions-security | 5 | 2 | 0 |
@@ -257,7 +258,7 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### legal
 
-`cnil-cookies`, `cnil-guide-securite`, `consumer-adr-directive`, `csrd`, `developer-certificate-of-origin`, `digital-content-directive`, `eidas`, `eprivacy`, `eu-data-act`, `eu-ivdr`, `hds`, `hl7-fhir`, `iab-tcf`, `iec-62304`, `iso-13485`, `iso-14971`, `iso-37301`, `iso-iec-27018`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `nist-media-sanitization`, `nist-privacy-framework`, `osi-licenses`, `product-liability-directive`, `reuse`, `rgaa`, `scip-ethics`, `soc-2`, `uk-online-safety-act`, `vertical-guidelines`, `vida`
+`cnil-cookies`, `cnil-guide-securite`, `consumer-adr-directive`, `csrd`, `developer-certificate-of-origin`, `digital-content-directive`, `eidas`, `eprivacy`, `eu-data-act`, `eu-ivdr`, `hl7-fhir`, `iab-tcf`, `iec-62304`, `iso-13485`, `iso-14971`, `iso-37301`, `iso-iec-27018`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `nist-media-sanitization`, `nist-privacy-framework`, `osi-licenses`, `product-liability-directive`, `reuse`, `rgaa`, `scip-ethics`, `soc-2`, `uk-online-safety-act`, `vertical-guidelines`, `vida`
 
 ### localisation
 
@@ -301,7 +302,7 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### security
 
-`abac`, `aes-fips-197`, `capec`, `cis-benchmarks`, `cisa-kev`, `cnil-guide-securite`, `csaf`, `cve`, `cvss`, `cwe`, `dast`, `dkim`, `dmarc`, `ebios-risk-manager`, `eidas`, `enisa-supply-chain-good-practices`, `epss`, `fido2`, `fips-140-3`, `hds`, `iec-62443`, `in-toto`, `iso-22301`, `iso-iec-23894`, `iso-iec-27002`, `iso-iec-27005`, `iso-iec-27017`, `iso-iec-27018`, `iso-iec-27034`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `jwe`, `jws`, `jwt`, `least-privilege`, `mitre-atlas`, `mitre-attack`, `nist-csf`, `nist-media-sanitization`, `nist-privacy-framework`, `nist-sp-800-63`, `nist-ssdf-ai-profile`, `nist-zero-trust`, `oauth-2`, `oauth-security-bcp`, `openid-connect`, `openssf-best-practices`, `openssf-osps-baseline`, `openssf-scorecard`, `openvex`, `oscal`, `osv`, `owasp-agent-control-standard`, `owasp-agentic-top-10`, `owasp-llm-top-10`, `owasp-masvs`, `owasp-samm`, `owasp-top-10`, `pkce`, `rbac`, `saml-2`, `sast`, `sca`, `secret-scanning`, `secure-by-design`, `sigstore`, `soc-2`, `soc-3`, `spf`, `tls-1-3`, `tuf`, `vex`, `webauthn`
+`abac`, `aes-fips-197`, `capec`, `cis-benchmarks`, `cisa-kev`, `cnil-guide-securite`, `csaf`, `cve`, `cvss`, `cwe`, `dast`, `dkim`, `dmarc`, `ebios-risk-manager`, `eidas`, `enisa-supply-chain-good-practices`, `epss`, `fido2`, `fips-140-3`, `iec-62443`, `in-toto`, `iso-22301`, `iso-iec-23894`, `iso-iec-27002`, `iso-iec-27005`, `iso-iec-27017`, `iso-iec-27018`, `iso-iec-27034`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `jwe`, `jws`, `jwt`, `least-privilege`, `mitre-atlas`, `mitre-attack`, `nist-csf`, `nist-media-sanitization`, `nist-privacy-framework`, `nist-sp-800-63`, `nist-ssdf-ai-profile`, `nist-zero-trust`, `oauth-2`, `oauth-security-bcp`, `openid-connect`, `openssf-best-practices`, `openssf-osps-baseline`, `openssf-scorecard`, `openvex`, `oscal`, `osv`, `owasp-agent-control-standard`, `owasp-agentic-top-10`, `owasp-llm-top-10`, `owasp-masvs`, `owasp-samm`, `owasp-top-10`, `pkce`, `rbac`, `saml-2`, `sast`, `sca`, `secret-scanning`, `secure-by-design`, `sigstore`, `soc-2`, `soc-3`, `spf`, `tls-1-3`, `tuf`, `vex`, `webauthn`
 
 ### support
 

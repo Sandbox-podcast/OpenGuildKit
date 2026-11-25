@@ -780,6 +780,9 @@
       ],
       "summary": "Définit le cadre de certification de certains services d'hébergement de données personnelles de santé en France.",
       "applies_when": "Pour les activités d'hébergement pour compte de tiers entrant dans le champ français, selon les données, finalités et rôles exercés.",
+      "packs": [
+        "france-health-data-hosting"
+      ],
       "sources": [
         {
           "url": "https://esante.gouv.fr/services/hebergeurs-de-donnees-de-sante/les-referentiels-de-la-procedure-de-certification",
