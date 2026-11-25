@@ -17,18 +17,18 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | devops | 69 | 22 | 47 | 10 | 6 | 16 | 93 |
 | engineering | 217 | 32 | 185 | 14 | 26 | 43 | 230 |
 | finance | 23 | 14 | 9 | 11 | 1 | 13 | 50 |
-| frontend | 8 | 3 | 5 | 2 | 0 | 4 | 19 |
+| frontend | 8 | 3 | 5 | 3 | 0 | 5 | 27 |
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
 | it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 8 |
 | leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
-| legal | 56 | 25 | 31 | 21 | 1 | 24 | 160 |
+| legal | 56 | 26 | 30 | 22 | 1 | 25 | 168 |
 | localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
-| marketing | 22 | 7 | 15 | 8 | 0 | 8 | 17 |
+| marketing | 22 | 8 | 14 | 9 | 0 | 9 | 25 |
 | operations | 21 | 6 | 15 | 11 | 0 | 11 | 26 |
 | partnerships | 5 | 3 | 2 | 1 | 0 | 1 | 4 |
 | performance | 17 | 8 | 9 | 2 | 2 | 5 | 16 |
 | procurement | 8 | 6 | 2 | 1 | 0 | 1 | 5 |
-| product | 23 | 7 | 16 | 18 | 0 | 18 | 63 |
+| product | 23 | 7 | 16 | 19 | 0 | 19 | 71 |
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
 | qa | 50 | 9 | 41 | 8 | 20 | 32 | 173 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
@@ -86,7 +86,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 ## Machine checks by pack
 
-25 of 492 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+25 of 500 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
@@ -121,6 +121,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | fastapi | 4 | 1 | 0 |
 | financial-planning | 2 | 0 | 0 |
 | finops-cost-management | 4 | 0 | 0 |
+| france-cookies-and-trackers | 8 | 0 | 8 |
 | france-health-data-hosting | 8 | 0 | 8 |
 | france-public-sector-security | 7 | 0 | 7 |
 | france-rgaa-accessibility | 8 | 0 | 8 |
@@ -260,7 +261,7 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### legal
 
-`cnil-cookies`, `cnil-guide-securite`, `consumer-adr-directive`, `csrd`, `developer-certificate-of-origin`, `digital-content-directive`, `eidas`, `eprivacy`, `eu-data-act`, `eu-ivdr`, `hl7-fhir`, `iab-tcf`, `iec-62304`, `iso-13485`, `iso-14971`, `iso-37301`, `iso-iec-27018`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `nist-media-sanitization`, `nist-privacy-framework`, `osi-licenses`, `product-liability-directive`, `reuse`, `scip-ethics`, `soc-2`, `uk-online-safety-act`, `vertical-guidelines`, `vida`
+`cnil-guide-securite`, `consumer-adr-directive`, `csrd`, `developer-certificate-of-origin`, `digital-content-directive`, `eidas`, `eprivacy`, `eu-data-act`, `eu-ivdr`, `hl7-fhir`, `iab-tcf`, `iec-62304`, `iso-13485`, `iso-14971`, `iso-37301`, `iso-iec-27018`, `iso-iec-27040`, `iso-iec-27701`, `iso-iec-29100`, `iso-iec-5230`, `nist-media-sanitization`, `nist-privacy-framework`, `osi-licenses`, `product-liability-directive`, `reuse`, `scip-ethics`, `soc-2`, `uk-online-safety-act`, `vertical-guidelines`, `vida`
 
 ### localisation
 
@@ -268,7 +269,7 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### marketing
 
-`cnil-cookies`, `dkim`, `dmarc`, `eprivacy`, `google-search-essentials`, `iab-tcf`, `json-ld`, `open-graph`, `robots-txt`, `schema-org`, `scip-ethics`, `sitemaps`, `sostac`, `spf`, `value-proposition-canvas`
+`dkim`, `dmarc`, `eprivacy`, `google-search-essentials`, `iab-tcf`, `json-ld`, `open-graph`, `robots-txt`, `schema-org`, `scip-ethics`, `sitemaps`, `sostac`, `spf`, `value-proposition-canvas`
 
 ### operations
 

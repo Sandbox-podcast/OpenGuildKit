@@ -66,7 +66,8 @@ SUBJECTS = {
     **{pack: ("the user interface", _UI) for pack in (
         "react", "vue", "angular", "nextjs", "frontend-delivery", "web-accessibility", "web-performance",
         "mobile-accessibility", "ios-app", "android-app", "mobile-store-release", "i18n-readiness", "playwright",
-        "chaosfolk-e2e", "public-sector-accessibility", "european-accessibility-act", "france-rgaa-accessibility")},
+        "chaosfolk-e2e", "public-sector-accessibility", "european-accessibility-act", "france-rgaa-accessibility",
+        "france-cookies-and-trackers")},
     **{pack: ("a new customer feature", _PRODUCT) for pack in (
         "design-process", "user-research-practice", "controlled-experiments", "product-discovery",
         "opportunity-solution-tree", "jobs-to-be-done", "web-search-optimization", "release-communication",
@@ -168,6 +169,8 @@ LEGAL_BASIS = {
     "france-rgaa-accessibility": "the user interface: Art. 47 of loi n° 2005-102 binds certain public and private "
                                  "entities to make their online public communication services accessible, tested "
                                  "with the RGAA.",
+    "france-cookies-and-trackers": "the user interface: Art. 82 of loi n° 78-17 requires information and consent "
+                                   "before trackers are written to or read from a user's device, unless exempt.",
     "france-public-sector-security": "regulated data, infrastructure, credentials, or personal data on a customer or "
                                      "service surface: Art. 3 and 4 of décret n° 2010-112 and Art. 4-3 of décret "
                                      "n° 2019-1088 hold a public authority to a risk analysis and a homologation.",
@@ -273,7 +276,8 @@ def judge_rules(task: dict, profile: dict, relevance: dict | None = None) -> dic
 REGULATION_DEFAULT = [{"data": ["personal", "regulated"]}]
 # Rules a person must confirm by name before a task closes with them skipped or failed.
 SENSITIVE = {
-    "data protection": ("gdpr", "minors-data-protection", "health-data-protection", "france-health-data-hosting", "backend-data-safety", "pci-dss"),
+    "data protection": ("gdpr", "minors-data-protection", "health-data-protection", "france-health-data-hosting",
+                        "france-cookies-and-trackers", "backend-data-safety", "pci-dss"),
     "security": ("secure-sdlc", "owasp-asvs", "threat-modeling", "supply-chain", "iso-27001", "aws-iam",
                  "container-images", "github-actions-security", "gitlab-ci-security", "nis2", "dora",
                  "cyber-resilience-act", "incident-notification", "france-public-sector-security"),
