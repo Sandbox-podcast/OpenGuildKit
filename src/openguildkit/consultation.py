@@ -7,11 +7,14 @@ from copy import deepcopy
 from pathlib import Path
 from uuid import uuid4
 
+from .catalog import rule_check
 from .detect import walk
 from .patterns import is_stack_pattern, pattern_selection
+from .project import rule_text
 from .questionnaire import SURFACE_MEANINGS, as_list, open_points, validate_answers
 from .relevance import BASELINE_PACKS, judge_rules, pack_relevance
 from .routing import select_boards, touched_components
+from .rule_checks import describe_check
 
 
 def profile_settings(profile: dict) -> dict:
@@ -764,7 +767,8 @@ def _other_packs_line(count: int) -> str:
 
 
 def pack_rules(consultation: dict, pack_id: str) -> str:
-    """One pack in force for the task, with each rule's instruction and how it is verified."""
+    """One pack in force for the task, in full: each rule's instruction, how it is verified, the check task verify
+    runs and the evidence the result asks, then the sources. AGENTS.md names the rules and leaves this text here."""
     packs = {pack["id"]: pack for pack in consultation["scope"].get("packs", [])}
     if pack_id not in packs:
         raise ValueError(f"Pack {pack_id!r} is not in force for this task. In force: {', '.join(packs) or 'none'}.")
@@ -773,9 +777,17 @@ def pack_rules(consultation: dict, pack_id: str) -> str:
     if pack.get("description"):
         lines.extend([pack["description"], ""])
     for rule in pack.get("rules", []):
-        lines.append(f"- {rule['id']}: {rule.get('instruction', 'machine check, run by task verify')}")
-        if rule.get("verification"):
-            lines.append(f"  Verified: {rule['verification']}")
+        instruction, verification = rule_text(rule)
+        lines.extend([f"- {rule['id']}: {instruction}", f"  Verified: {verification}"])
+        if "check" in rule and "instruction" in rule:
+            lines.append(f"  Checked by task verify: {describe_check(rule_check(rule))}")
+        for item in rule.get("evidence", []):
+            when = item.get("when", {}).get("data")
+            applies = f" Supply it when the task's data is {' or '.join(when)}." if when else ""
+            lines.append(f"  Evidence for task result: {item['title']}, a project path or an https link, "
+                         f"or not-applicable with a reason and an owner.{applies}")
+    if pack.get("sources"):
+        lines.extend(["", "Sources:", *(f"- {source['title']}: {source['url']}" for source in pack["sources"])])
     return "\n".join(lines) + "\n"
 
 

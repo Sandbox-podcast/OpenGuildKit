@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import load_catalog
+from openguildkit.consultation import pack_rules
 from openguildkit.project import load_profile
 from openguildkit.relevance import pack_relevance
 from openguildkit.storage import write_json
@@ -232,6 +233,29 @@ class PassRelevanceTests(ProjectCase):
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", side_effect=lambda: next(typed)):
             self.cli("task", "consult", "typed")
         self.assertEqual(json.loads(self.cli("task", "show", "typed"))["answers"]["concerns"], ["unsure"])
+
+
+class PackBriefTests(ProjectCase):
+    """task brief ID --pack prints what the managed block of AGENTS.md leaves out of a pack (#363): the text of each
+    rule, its verification, the check task verify runs, the evidence the result asks and the sources of the pack."""
+
+    def test_a_pack_brief_prints_the_checks_the_evidence_and_the_sources_of_its_rules(self):
+        self.init()
+        self.consult("pd-bug", "Fix the date column of the support requests export: it ignores the time zone.", BUG)
+        fastapi = self.cli("task", "brief", "pd-bug", "--pack", "fastapi")
+        self.assertRegex(fastapi, r"- use-lifespan-not-startup-events: .+\n  Verified: .+\n  Checked by task verify: ")
+        self.assertIn("\nSources:\n- FastAPI response models: https://fastapi.tiangolo.com/tutorial/response-model/\n"
+                      "- FastAPI lifespan events: https://fastapi.tiangolo.com/advanced/events/\n", fastapi)
+        gdpr = self.cli("task", "brief", "pd-bug", "--pack", "gdpr")
+        self.assertIn("  Evidence for task result: Record of processing activities, a project path or an https link, "
+                      "or not-applicable with a reason and an owner. Supply it when the task's data is personal or "
+                      "regulated or unsure.", gdpr)
+
+    def test_a_rule_that_is_only_a_machine_check_prints_what_the_check_accepts(self):
+        consultation = {"scope": {"packs": [{"id": "team", "title": "Team", "version": "1.0.0", "rules": [
+            {"id": "keep-readme", "check": {"kind": "file-exists", "paths": ["README.md"]}}]}]}}
+        self.assertIn("- keep-readme: One of `README.md` exists.\n  Verified: OpenGuildKit evaluates the check",
+                      pack_rules(consultation, "team"))
 
 
 if __name__ == "__main__":
