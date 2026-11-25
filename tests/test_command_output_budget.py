@@ -202,14 +202,14 @@ NOT_RUN = {
 # ceiling is the size measured on 25 November 2026 plus 10 %, rounded up to the next 1 000 bytes. A command that grows
 # past its ceiling fails; raise the ceiling in the pull request that makes it grow, with the reason.
 EXCEPTIONS = {
-    "catalog --json": (545_000, "The whole bundled catalog for a program to read; `catalog` lists it in 7 KB."),
+    "catalog --json": (690_000, "The whole bundled catalog for a program to read; `catalog` lists it in 7 KB."),
     "references --json": (485_000, "Every reference of the library with its sources; `references` lists the families "
                                    "in 1 KB, and a search or `--id` prints a few."),
-    "patterns --json": (82_000, "Every pattern with its rule packs; `patterns` lists them in 9 KB."),
+    "patterns --json": (99_000, "Every pattern with its rule packs; `patterns` lists them in 9 KB."),
     "brains --json": (192_000, "Every brain with its lenses and knowledge; `brains` lists them in 2 KB."),
     "brains --id security": (20_000, "One brain in full, which is what the option asks for: its lenses with their "
                                      "checks, and the knowledge attached."),
-    "init --questions": (52_000, "The whole questionnaire as JSON, each choice with its label and help, for an agent "
+    "init --questions": (66_000, "The whole questionnaire as JSON, each choice with its label and help, for an agent "
                                  "that answers for a person."),
     "tools list": (13_000, "One line per tool of the registry (161 on 25 November 2026), so it grows with each tool "
                            "added; `--category` and `--brain` narrow it."),

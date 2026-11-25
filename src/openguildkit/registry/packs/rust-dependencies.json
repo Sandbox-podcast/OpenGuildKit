@@ -1,0 +1,136 @@
+{
+  "id": "rust-dependencies",
+  "title": "Rust dependencies resolved by Cargo",
+  "version": "1.0.0",
+  "description": "For a Rust project that resolves its dependencies with Cargo: a committed `Cargo.lock`, builds that obey it, RustSec advisories checked on every change, and the sources and licences that dependencies may have. The Cargo FAQ leaves the choice of committing `Cargo.lock` to each package, so the first two rules ask it of a binary or a service, where builds must be repeatable, and a library applies them only if its team decides so. The licence policy itself is the legal owner's decision and stays in `licence-policy`; build provenance and SBOMs stay in `supply-chain`. The rules on advisories, sources and licences name cargo-audit and cargo-deny because RustSec's own page lists cargo-audit for advisories and cargo-deny for advisories, licences and sources; an equivalent tool meets them.",
+  "sources": [
+    {
+      "title": "Cargo Book, frequently asked questions",
+      "url": "https://doc.rust-lang.org/cargo/faq.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Cargo Book, Cargo.toml vs Cargo.lock",
+      "url": "https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Cargo Book, cargo build",
+      "url": "https://doc.rust-lang.org/cargo/commands/cargo-build.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Cargo Book, cargo test",
+      "url": "https://doc.rust-lang.org/cargo/commands/cargo-test.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "RustSec Advisory Database",
+      "url": "https://rustsec.org/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "cargo-audit, README",
+      "url": "https://github.com/rustsec/rustsec/blob/main/cargo-audit/README.md",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "cargo-deny, README",
+      "url": "https://github.com/EmbarkStudios/cargo-deny",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "cargo-deny, check command",
+      "url": "https://embarkstudios.github.io/cargo-deny/cli/check.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "cargo-deny, advisories configuration",
+      "url": "https://embarkstudios.github.io/cargo-deny/checks/advisories/cfg.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "cargo-deny, sources configuration",
+      "url": "https://embarkstudios.github.io/cargo-deny/checks/sources/cfg.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "cargo-deny, licenses configuration",
+      "url": "https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html",
+      "checked": "2026-11-25"
+    }
+  ],
+  "rules": [
+    {
+      "id": "commit-cargo-lock",
+      "instruction": "Commit `Cargo.lock` for every binary and service of the repository, and review its diff whenever a dependency changes, so that builds, bisects and CI runs resolve the same versions.",
+      "verification": "Check that `git ls-files Cargo.lock` lists the file, that `.gitignore` does not exclude it, and that a change to the dependencies in `Cargo.toml` carries the matching `Cargo.lock` diff.",
+      "check": {
+        "kind": "file-exists",
+        "paths": [
+          "Cargo.lock",
+          "*/Cargo.lock",
+          "crates/*/Cargo.lock",
+          "services/*/Cargo.lock",
+          "apps/*/Cargo.lock"
+        ]
+      }
+    },
+    {
+      "id": "build-with-locked",
+      "instruction": "Pass `--locked` to the `cargo build`, `cargo test` and `cargo install` commands of CI and release jobs, so that they fail when `Cargo.lock` is missing or would change, instead of resolving new versions silently.",
+      "verification": "Search the CI and release jobs for `cargo build`, `cargo test` and `cargo install` without `--locked`; on a scratch branch, require a newer dependency in `Cargo.toml` without updating `Cargo.lock` and check that the job fails.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".github/workflows/*.yml",
+          ".github/workflows/*.yaml",
+          ".gitlab-ci.yml",
+          ".circleci/config.yml",
+          ".cargo/config.toml",
+          "Makefile",
+          "justfile"
+        ],
+        "contains": [
+          "--locked"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "audit-advisories",
+      "instruction": "Run `cargo audit`, the scanner of the RustSec advisory database, or `cargo deny check advisories` on every change and on a schedule, fail the job on a vulnerability, and record each advisory the team ignores by its RUSTSEC ID with the reason.",
+      "verification": "Run the scanner on the branch and read its report; check that the CI job also runs on a schedule, and that each ignored RUSTSEC ID is listed in `audit.toml` or in the ignore list of the deny configuration, with a reason.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".github/workflows/*.yml",
+          ".github/workflows/*.yaml",
+          ".gitlab-ci.yml",
+          ".circleci/config.yml",
+          ".cargo/config.toml",
+          "Makefile",
+          "justfile"
+        ],
+        "contains": [
+          "cargo audit",
+          "cargo-audit",
+          "audit-check",
+          "cargo deny",
+          "cargo-deny"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "restrict-dependency-sources",
+      "instruction": "List the registries and git repositories that dependencies may come from, and make a dependency from anywhere else fail CI: `cargo deny check sources` does it with `unknown-registry` and `unknown-git` set to `deny` in `[sources]`, since both only warn by default.",
+      "verification": "On a scratch branch, add a dependency from a git repository that is not on the list and check that the sources check fails; read `allow-registry` and `allow-git` and check that each entry has an owner."
+    },
+    {
+      "id": "check-crate-licences",
+      "instruction": "Write the licences that dependencies may carry, taken from the legal owner's policy, as SPDX identifiers in the `allow` list of the dependency checker, and fail CI on a dependency outside it: `cargo deny check licenses` refuses by default any licence not in `allow`.",
+      "verification": "On a scratch branch, add a dependency whose licence is outside the list and check that the licences check fails; check that each entry of `exceptions` names one crate and has a reason."
+    }
+  ]
+}

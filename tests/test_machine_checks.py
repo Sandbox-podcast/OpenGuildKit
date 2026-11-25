@@ -121,6 +121,8 @@ class StackCheckTests(unittest.TestCase):
                     '{"angularCompilerOptions": {"strictTemplates": false}}'),
         "rails": (".gitignore", "/config/master.key\n", "/tmp\n"),
         "laravel": ("app/Models/User.php", "protected $fillable = ['name'];", "protected $guarded = [];"),
+        "symfony": (".env.prod", "APP_DEBUG=0\n", "APP_DEBUG=1\n"),
+        "symfony-security": (".gitignore", "/.env.local\n", "/var/\n"),
         "container-images": ("Dockerfile", "FROM python:3.13-slim@sha256:abc", "FROM python:latest"),
         "gitlab-ci-security": (".gitlab-ci.yml", "image: node:22.11", "image: node:latest"),
         "github-actions-security": (".github/workflows/ci.yml", "permissions:\n  contents: read", "on: push"),
@@ -128,9 +130,15 @@ class StackCheckTests(unittest.TestCase):
         "android-app": ("app/src/main/AndroidManifest.xml", "<application />",
                         '<application android:usesCleartextTraffic="true" />'),
         "ios-app": ("App/Info.plist", "<dict></dict>", "<key>NSAllowsArbitraryLoads</key><true/>"),
+        "kotlin-service": ("build.gradle.kts", "kotlin { compilerOptions { allWarningsAsErrors.set(true) } }",
+                           "kotlin { jvmToolchain(21) }"),
+        "ktor-server": ("src/main/kotlin/App.kt", 'install(CORS) { allowHost("app.example.test") }',
+                        "install(CORS) { anyHost() }"),
         "aspnet-core": ("appsettings.json", '{"ConnectionStrings": {"Db": "Host=db"}}',
                         '{"ConnectionStrings": {"Db": "Host=db;Password=example"}}'),
         "pci-dss": (".pre-commit-config.yaml", "- repo: https://github.com/gitleaks/gitleaks", "repos: []"),
+        "rust-cargo": ("Cargo.toml", '[package]\nname = "svc"\nrust-version = "1.82"\n', '[package]\nname = "svc"\n'),
+        "rust-dependencies": (".github/workflows/ci.yml", "      - run: cargo build --locked", "      - run: cargo build"),
     }
 
     @classmethod
@@ -152,6 +160,99 @@ class StackCheckTests(unittest.TestCase):
             covered.add(pack_id)
         expected = set(stack_packs(self.catalog)) - set(STACK_EXCEPTIONS)
         self.assertEqual(expected - covered, set())
+
+    def test_the_kotlin_source_checks_read_the_main_sources_of_every_module_and_skip_the_tests(self):
+        checks = {f"{pack_id}/{rule['id']}": rule["check"] for pack_id in ("kotlin-service", "ktor-server")
+                  for rule in self.catalog["packs"][pack_id]["rules"] if "check" in rule}
+        cases = {
+            "kotlin-service/scope-coroutines-to-a-lifecycle": "GlobalScope.launch { poll() }",
+            "ktor-server/harden-session-cookies": "cookie<Session>(\"s\", SessionStorageMemory())",
+            "ktor-server/restrict-cors-origins": "install(CORS) { anyHost() }",
+        }
+        for rule, content in cases.items():
+            for path, expected in (("src/main/kotlin/App.kt", "failed"), ("server/api/src/main/kotlin/a/b/App.kt", "failed"),
+                                   ("src/test/kotlin/AppTest.kt", "passed"), ("src/main/resources/app.conf", "passed")):
+                with self.subTest(rule=rule, path=path), tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    (root / path).parent.mkdir(parents=True, exist_ok=True)
+                    (root / path).write_text(content, encoding="utf-8")
+                    self.assertEqual(evaluate_check(root, checks[rule])["status"], expected)
+
+    def test_the_gradle_checks_find_the_build_files_of_the_root_and_of_a_module(self):
+        pack = self.catalog["packs"]["kotlin-service"]
+        checks = {rule["id"]: rule["check"] for rule in pack["rules"] if "check" in rule}
+        for path in ("build.gradle.kts", "server/build.gradle", "buildSrc/src/main/kotlin/conventions.gradle.kts",
+                     "build-logic/conventions/src/main/kotlin/Conventions.kt"):
+            with self.subTest(path=path), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / path).parent.mkdir(parents=True, exist_ok=True)
+                (root / path).write_text("compilerOptions { allWarningsAsErrors = true }", encoding="utf-8")
+                self.assertEqual(evaluate_check(root, checks["treat-warnings-as-errors"])["status"], "passed")
+        for present in ("gradle/libs.versions.toml", "services/api/gradle/libs.versions.toml"):
+            with self.subTest(path=present), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / present).parent.mkdir(parents=True)
+                (root / present).write_text("[versions]\n", encoding="utf-8")
+                self.assertEqual(evaluate_check(root, checks["declare-versions-in-a-catalog"])["status"], "passed")
+        with tempfile.TemporaryDirectory() as directory:
+            for rule in ("declare-versions-in-a-catalog", "lock-resolved-dependency-versions"):
+                self.assertEqual(evaluate_check(Path(directory), checks[rule])["status"], "failed")
+
+
+class RustCheckTests(unittest.TestCase):
+    """Each machine check of the two Rust packs passes on a repository that meets its rule and fails on one that
+    does not, and a rule that needs a person to judge it carries no check."""
+
+    GOOD = {
+        "Cargo.toml": '[workspace]\nmembers = ["crates/*"]\n\n[workspace.package]\nrust-version = "1.82"\n\n'
+                      '[workspace.lints.rust]\nunsafe_code = "forbid"\n\n'
+                      '[workspace.lints.clippy]\nunwrap_used = "deny"\nexpect_used = "deny"\n',
+        "Cargo.lock": "# This file is automatically @generated by Cargo.\nversion = 4\n",
+        ".github/workflows/ci.yml": "jobs:\n  check:\n    env:\n      CARGO_BUILD_WARNINGS: deny\n    steps:\n"
+                                    "      - run: cargo fmt --all -- --check\n      - run: cargo clippy --locked\n"
+                                    "      - run: cargo audit\n",
+    }
+    BAD = {
+        "Cargo.toml": '[package]\nname = "svc"\nedition = "2021"\n',
+        ".github/workflows/ci.yml": "jobs:\n  check:\n    steps:\n      - run: cargo build\n      - run: cargo test\n",
+    }
+    CHECKED = {"rust-cargo": ["declare-rust-version", "refuse-warnings-in-ci", "check-formatting", "bound-unsafe-code",
+                              "deny-panicking-lints-in-services"],
+               "rust-dependencies": ["commit-cargo-lock", "build-with-locked", "audit-advisories"]}
+    JUDGED = {"rust-cargo": ["document-unsafe-code", "return-errors-on-the-request-path"],
+              "rust-dependencies": ["restrict-dependency-sources", "check-crate-licences"]}
+
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = load_catalog()
+
+    def outcomes(self, files):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, content in files.items():
+                (root / name).parent.mkdir(parents=True, exist_ok=True)
+                (root / name).write_text(content, encoding="utf-8")
+            return {f"{pack_id}/{rule['id']}": evaluate_check(root, rule["check"])["status"]
+                    for pack_id in self.CHECKED for rule in self.catalog["packs"][pack_id]["rules"] if "check" in rule}
+
+    def test_the_rules_with_a_check_are_the_ones_a_file_can_settle(self):
+        for pack_id in self.CHECKED:
+            rules = self.catalog["packs"][pack_id]["rules"]
+            with self.subTest(pack=pack_id):
+                self.assertEqual([rule["id"] for rule in rules if "check" in rule], self.CHECKED[pack_id])
+                self.assertEqual([rule["id"] for rule in rules if "check" not in rule], self.JUDGED[pack_id])
+
+    def test_every_check_passes_on_a_repository_that_meets_its_rule(self):
+        outcomes = self.outcomes(self.GOOD)
+        self.assertEqual({status for status in outcomes.values()}, {"passed"}, outcomes)
+
+    def test_every_check_fails_on_a_repository_that_does_not(self):
+        outcomes = self.outcomes(self.BAD)
+        self.assertEqual({status for status in outcomes.values()}, {"failed"}, outcomes)
+
+    def test_a_formatting_job_that_rewrites_files_does_not_count_as_a_check(self):
+        outcomes = self.outcomes({".github/workflows/ci.yml": "      - run: cargo fmt --all\n"})
+        self.assertEqual(outcomes["rust-cargo/check-formatting"], "failed")
 
 
 class DemoProjectTests(CapturedCli, unittest.TestCase):

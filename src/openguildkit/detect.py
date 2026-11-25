@@ -4,6 +4,7 @@ Detection only reads local manifests. It never runs a package manager or opens t
 network, and the team confirms or corrects the proposal before it reaches the profile.
 """
 
+import itertools
 import json
 import os
 import re
@@ -22,6 +23,7 @@ SKIPPED_DIRECTORIES = frozenset({
 })
 MAX_DEPTH = 4
 MAX_MANIFEST_BYTES = 2_000_000
+MAX_WORKSPACE_MEMBERS = 500
 
 NPM_PACKAGES = {
     "next": "Next.js",
@@ -74,8 +76,12 @@ RUBY_GEMS = {
     "rails": "Rails", "pg": "PostgreSQL", "mysql2": "MySQL", "stripe": "Stripe",
     "adyen-ruby-api-library": "Adyen", "braintree": "Braintree", "mollie-api-ruby": "Mollie",
 }
+CARGO_CRATES = {"axum": "Axum", "actix-web": "Actix Web", "rocket": "Rocket", "tokio": "Tokio"}
 COMPOSER_PACKAGES = {
-    "laravel/framework": "Laravel", "stripe/stripe-php": "Stripe", "adyen/php-api-library": "Adyen",
+    # The framework bundle (or the full-stack package of old applications) marks a Symfony application; the
+    # Symfony components that Laravel, Drupal or a console tool use alone do not.
+    "laravel/framework": "Laravel", "symfony/framework-bundle": "Symfony", "symfony/symfony": "Symfony",
+    "stripe/stripe-php": "Stripe", "adyen/php-api-library": "Adyen",
     "braintree/braintree_php": "Braintree", "checkout/checkout-sdk-php": "Checkout.com",
     "mollie/mollie-api-php": "Mollie",
 }
@@ -103,6 +109,13 @@ _ANDROID_PLUGIN = re.compile(r"com\.android\.(?:application|library|tools\.build
                              r"libs\.plugins\.android\.(?:application|library)")
 _KOTLIN_PLUGIN = re.compile(r"org\.jetbrains\.kotlin|kotlin\(\s*[\"']|kotlin-android|libs\.plugins\.kotlin|"
                             r"plugin:\s*[\"']kotlin[\"'-]")
+# Ktor server: the Gradle plugin, a server artifact, or the server libraries of the Ktor version catalog. The
+# client artifacts (ktor-client-*) are not a server, so an Android app that calls an API does not match.
+_KTOR_PLUGIN = "io.ktor.plugin"
+_KTOR_SERVER_ARTIFACT = re.compile(r"""io\.ktor:ktor-server-[\w-]+(?::([^'"\s)]+))?""")
+_KTOR_BOM = re.compile(r"""io\.ktor:ktor-bom:([^'"\s)]+)""")
+_KTOR_SETTINGS_CATALOG = re.compile(
+    r"""create\(\s*["'](\w+)["']\s*\)\s*\{\s*from\(\s*["']io\.ktor:ktor-version-catalog:([^"']+)["']""")
 _REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])?\s*([^;#]*)")
 _KUBE_API = re.compile(r"""(?m)^apiVersion:[ \t]+["']?(?:([a-z0-9.-]+)/)?v\d+(?:[a-z]+\d+)?["']?[ \t]*(?:#.*)?$""")
 _KUBE_KIND = re.compile(r"""(?m)^kind:[ \t]+["']?([A-Z][A-Za-z0-9]*)["']?[ \t]*(?:#.*)?$""")
@@ -186,11 +199,29 @@ def _json_manifest(path: Path) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+def _toml_manifest(path: Path) -> dict:
+    text = _read_text(path)
+    try:
+        data = tomllib.loads(text) if text else None
+    except (tomllib.TOMLDecodeError, RecursionError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _table(data: dict, key: str) -> dict:
+    value = data.get(key)
+    return value if isinstance(value, dict) else {}
+
+
+def _single_line(name: object) -> str | None:
+    return name.strip() if isinstance(name, str) and len(name.strip().splitlines()) == 1 else None
+
+
 def detected_project_name(root: Path) -> str:
-    name = _json_manifest(root / "package.json").get("name")
-    if isinstance(name, str) and len(name.strip().splitlines()) == 1:
-        return name.strip()
-    return root.name or "Project"
+    """The name of the root package.json, else of the root Cargo.toml package, else the folder's name."""
+    name = _single_line(_json_manifest(root / "package.json").get("name"))
+    return name or _single_line(_table(_toml_manifest(root / "Cargo.toml"), "package").get("name")) \
+        or root.name or "Project"
 
 
 def _package_json(component: _Component, path: Path, label: str) -> None:
@@ -273,6 +304,67 @@ def _go_mod(component: _Component, path: Path, label: str) -> None:
             component.add(name, None, label, inferred=True)
 
 
+def _cargo_dependencies(data: dict) -> list[dict]:
+    """Every dependency table of a manifest: the package's, its target-specific ones and the workspace's."""
+    kinds = ("dependencies", "dev-dependencies", "build-dependencies")
+    tables = [_table(data, kind) for kind in kinds] + [_table(_table(data, "workspace"), "dependencies")]
+    for target in _table(data, "target").values():
+        tables.extend(_table(target, kind) for kind in kinds if isinstance(target, dict))
+    return tables
+
+
+def _cargo(component: _Component, path: Path, label: str) -> None:
+    """A Cargo.toml names the Rust version, the edition and the crates; a workspace root can state the first two
+    for its members, which then write `workspace = true`, and the versions of their crates."""
+    data = _toml_manifest(path)
+    package, shared = _table(data, "package"), _table(_table(data, "workspace"), "package")
+
+    def declared(key: str) -> str | None:
+        return next((value for value in map(declared_version, (package.get(key), shared.get(key))) if value), None)
+
+    component.add("Rust", declared("rust-version"), label)
+    if declared("edition"):
+        component.add("Rust edition", declared("edition"), label)
+    for table in _cargo_dependencies(data):
+        for crate, spec in table.items():
+            spec = spec if isinstance(spec, dict) else {"version": spec}
+            package_name = spec["package"] if isinstance(spec.get("package"), str) else crate
+            name = CARGO_CRATES.get(package_name.lower().replace("_", "-"))
+            if name:
+                component.add(name, declared_version(spec.get("version")), label)
+
+
+def _cargo_folders(directory: Path, patterns: object) -> list[Path]:
+    """The folders below directory that a workspace's `members` or `exclude` list names, globs expanded.
+
+    A pattern that leaves the folder, a link and a folder without a Cargo.toml are left out, so that a member
+    never reaches files outside the project."""
+    folders: list[Path] = []
+    for pattern in patterns[:MAX_WORKSPACE_MEMBERS] if isinstance(patterns, list) else []:
+        if not isinstance(pattern, str) or pattern.startswith(("/", "\\")) or ".." in pattern.split("/") \
+                or re.match(r"[A-Za-z]:", pattern):
+            continue
+        try:
+            matches = list(itertools.islice(directory.glob(pattern), MAX_WORKSPACE_MEMBERS))
+        except (ValueError, NotImplementedError, OSError, RecursionError):
+            continue
+        for match in matches:
+            current, plain = directory, True
+            for part in match.relative_to(directory).parts:
+                current = current / part
+                plain = plain and part not in SKIPPED_DIRECTORIES and not current.is_symlink()
+            if plain and (match / "Cargo.toml").is_file() and not (match / "Cargo.toml").is_symlink():
+                folders.append(match)
+    return folders
+
+
+def _cargo_members(directory: Path) -> list[Path]:
+    """The folders of the workspace that the Cargo.toml of directory declares, less its excluded ones."""
+    workspace = _table(_toml_manifest(directory / "Cargo.toml"), "workspace")
+    excluded = set(_cargo_folders(directory, workspace.get("exclude")))
+    return [member for member in _cargo_folders(directory, workspace.get("members")) if member not in excluded]
+
+
 def _maven(component: _Component, path: Path, label: str) -> None:
     text = _read_text(path) or ""
     component.add("Java", declared_version(_xml_value(text, "java.version") or _xml_value(text, "maven.compiler.release")), label)
@@ -309,6 +401,102 @@ def _gradle_catalog_plugins(path: Path, text: str) -> dict:
     return found
 
 
+def _gradle_variable(name: str, text: str, directory: Path) -> str | None:
+    """The value of a variable a version names: an assignment in the build script, or gradle.properties."""
+    assigned = re.search(rf"""\b{re.escape(name)}\s*=\s*['"]([^'"]+)['"]""", text)
+    if assigned:
+        return assigned.group(1)
+    properties = _read_text(directory / "gradle.properties") or ""
+    declared = re.search(rf"(?m)^[ \t]*{re.escape(name)}[ \t]*[=:][ \t]*(\S+)", properties)
+    return declared.group(1) if declared else None
+
+
+def _gradle_declared(token: str, text: str, directory: Path) -> str | None:
+    """A version written in a dependency: a number, or $name and ${name} for a variable."""
+    variable = re.fullmatch(r"\$\{?(\w+)\}?", token)
+    return declared_version(_gradle_variable(variable.group(1), text, directory) if variable else token)
+
+
+def _catalog_version(item: dict, versions: dict) -> str | None:
+    version = item.get("version")
+    if isinstance(version, dict):
+        ref = version.get("ref")
+        version = versions.get(ref) if isinstance(ref, str) else next(
+            (version[key] for key in ("strictly", "require", "prefer") if isinstance(version.get(key), str)), None)
+    return declared_version(version)
+
+
+def _gradle_catalog_ktor(path: Path, text: str) -> tuple[bool, str | None]:
+    """Whether the build uses a Ktor server library or bundle of its catalog, and the version the catalog gives."""
+    def accessor(name: str) -> str:
+        return re.sub(r"[-_]", ".", name)
+
+    used = {re.sub(r"\.(?:get|asProvider)$", "", name) for name in re.findall(r"\blibs\.([a-zA-Z0-9.]+)", text)}
+    if not used:
+        return False, None
+    try:
+        catalog = tomllib.loads(_read_text(path) or "")
+    except tomllib.TOMLDecodeError:
+        return False, None
+    sections = [catalog.get(name, {}) for name in ("versions", "libraries", "bundles")]
+    if not all(isinstance(section, dict) for section in sections):
+        return False, None
+    versions, libraries, bundles = sections
+    wanted = {alias for alias in libraries if accessor(alias) in used}
+    for name, members in bundles.items():
+        if f"bundles.{accessor(name)}" in used and isinstance(members, list):
+            wanted.update(member for member in members if member in libraries)
+    server, bom = [], []
+    for alias in sorted(wanted):
+        item = libraries[alias]
+        if isinstance(item, str):
+            # The short notation: "group:artifact:version".
+            group, _, rest = item.partition(":")
+            artifact, _, number = rest.partition(":")
+            coordinate, version = f"{group}:{artifact}", declared_version(number)
+        elif isinstance(item, dict):
+            module = item.get("module")
+            coordinate = module if isinstance(module, str) else f"{item.get('group')}:{item.get('name')}"
+            version = _catalog_version(item, versions)
+        else:
+            continue
+        if coordinate.startswith("io.ktor:ktor-server-"):
+            server.append(version)
+        elif coordinate == "io.ktor:ktor-bom":
+            bom.append(version)
+    return bool(server), next((version for version in server + bom if version), None)
+
+
+def _gradle_ktor(text: str, base: Path, plugins: dict, catalog_path: Path) -> tuple[bool, str | None, Path | None]:
+    """Whether a build is a Ktor server, the version it declares and the file that declares it (None: the build).
+
+    The Ktor Gradle plugin, a server artifact, a server library of the project's version catalog and the version
+    catalog that Ktor publishes (ktorLibs.server.core) each say it is a server. The version comes from the plugin
+    first, then the server artifacts, the project's catalog, a Ktor BOM and last the Ktor version catalog.
+    """
+    artifacts = _KTOR_SERVER_ARTIFACT.findall(text)
+    in_catalog, catalog_version = _gradle_catalog_ktor(catalog_path, text)
+    published = None
+    for name in ("settings.gradle.kts", "settings.gradle"):
+        declared = _KTOR_SETTINGS_CATALOG.search(_read_text(base / name) or "")
+        if declared and re.search(rf"\b{re.escape(declared.group(1))}\.server\.", text):
+            published = (declared_version(declared.group(2)), base / name)
+            break
+    if not (_KTOR_PLUGIN in text or _KTOR_PLUGIN in plugins or artifacts or in_catalog or published):
+        return False, None, None
+    plugin = _gradle_plugin_version(text, re.escape(_KTOR_PLUGIN))
+    named = next(filter(None, (_gradle_declared(token, text, base) for token in artifacts if token)), None)
+    if plugin or named:
+        return True, plugin or named, None
+    if plugins.get(_KTOR_PLUGIN) or catalog_version:
+        return True, plugins.get(_KTOR_PLUGIN) or catalog_version, catalog_path
+    bom = _KTOR_BOM.search(text)
+    bom_version = _gradle_declared(bom.group(1), text, base) if bom else None
+    if bom_version:
+        return True, bom_version, None
+    return (True, *published) if published and published[0] else (True, None, None)
+
+
 def _gradle(component: _Component, path: Path, label: str, root: Path) -> None:
     text = _read_text(path) or ""
     java = re.search(r"""(?:jvmToolchain|JavaLanguageVersion\.of)\s*\(\s*(\d+)|"""
@@ -317,7 +505,10 @@ def _gradle(component: _Component, path: Path, label: str, root: Path) -> None:
     catalog_label = catalog_path.relative_to(root).as_posix()
     catalog = _gradle_catalog_plugins(catalog_path, text)
     kotlin = next((version for plugin, version in catalog.items() if plugin.startswith("org.jetbrains.kotlin.")), None)
-    has_kotlin = _KOTLIN_PLUGIN.search(text) or any(plugin.startswith("org.jetbrains.kotlin.") for plugin in catalog)
+    ktor, ktor_version, ktor_source = _gradle_ktor(text, root / component.path, catalog, catalog_path)
+    # A Ktor server is written in Kotlin, even when a convention plugin applies the Kotlin plugin.
+    has_kotlin = (_KOTLIN_PLUGIN.search(text) or any(plugin.startswith("org.jetbrains.kotlin.") for plugin in catalog)
+                  or ktor)
     if java or not has_kotlin:
         component.add("Java", (java.group(1) or java.group(2)).replace("_", ".") if java else None, label)
     if has_kotlin:
@@ -342,6 +533,8 @@ def _gradle(component: _Component, path: Path, label: str, root: Path) -> None:
     plugin = _gradle_plugin_version(text, r"org\.springframework\.boot")
     if plugin or "spring-boot" in text:
         component.add("Spring Boot", plugin, label)
+    if ktor:
+        component.add("Ktor", ktor_version, ktor_source.relative_to(root).as_posix() if ktor_source else label)
 
 
 def _gradle_modules(directory: Path) -> list[Path]:
@@ -475,6 +668,8 @@ def _parse(component: _Component, path: Path, label: str, root: Path) -> None:
         _gemfile(component, path, label)
     elif name == "composer.json":
         _composer(component, path, label)
+    elif name == "Cargo.toml":
+        _cargo(component, path, label)
     elif name == "Package.swift":
         _swift_package(component, path, label)
     elif name == "manage.py" and "django" in (_read_text(path) or ""):
@@ -527,7 +722,7 @@ def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dic
     """
     root = root.resolve()
     components: dict[str, _Component] = {}
-    gradle_roots: dict[Path, str] = {}
+    module_roots: dict[Path, str] = {}
     # Each file and marker folder, keyed by its path parts below root: read in that order, a folder's entries come
     # in name order with each subfolder's content in its place, so the first evidence of a technology stays the same.
     found: list[tuple[tuple[str, ...], str, Path, str]] = []
@@ -538,8 +733,11 @@ def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dic
         names = files + folders
         if any(name in ("settings.gradle", "settings.gradle.kts") for name in names):
             for module in _gradle_modules(directory):
-                gradle_roots[module] = relative
-        relative = _kustomize_base(gradle_roots.get(directory, relative), names)
+                module_roots[module] = relative
+        if "Cargo.toml" in files:
+            for member in _cargo_members(directory):
+                module_roots[member] = relative
+        relative = _kustomize_base(module_roots.get(directory, relative), names)
         found += [((*parts, name), "file", directory / name, relative) for name in files]
         for name in [name for name in folders if name.endswith(".xcodeproj")]:
             found.append(((*parts, name), "xcode", directory / name, relative))

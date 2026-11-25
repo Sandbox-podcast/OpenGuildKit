@@ -1,0 +1,33 @@
+{
+  "id": "symfony",
+  "title": "Symfony",
+  "description": "Review access control, voters, CSRF, secrets, Doctrine migrations and Composer advisories in a Symfony application.",
+  "sources": [
+    {
+      "title": "Symfony 8.1, security: firewalls, access control and IsGranted",
+      "url": "https://symfony.com/doc/8.1/security.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Composer, command-line interface: audit and install",
+      "url": "https://getcomposer.org/doc/03-cli.md",
+      "checked": "2026-11-25"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "symfony",
+    "symfony-security"
+  ],
+  "match": {
+    "stack": [
+      [
+        "symfony"
+      ]
+    ]
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "id": "france-cookies-and-trackers",
+  "title": "Cookies and trackers (France, CNIL)",
+  "version": "1.0.0",
+  "description": "France only. For a website or mobile application that writes or reads information on a user's device in France: Art. 82 of loi n° 78-17 du 6 janvier 1978, which transposes Art. 5(3) of Directive 2002/58/EC and applies whether or not the data is personal, read with the CNIL guidelines (deliberation n° 2020-091), which restate the law, and its recommendation (deliberation n° 2020-092, consolidated version of 16 January 2026), which the CNIL itself calls non-prescriptive guidance. Each rule says whether its source states a legal requirement or a CNIL recommendation. It adds the French detail to the rule gate-trackers-on-consent of the gdpr pack, which holds the EU rule; a service with no tracker outside the exemptions has little to apply here. These rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "CNIL, Délibération n° 2020-091, lignes directrices relatives à l'application de l'article 82 de la loi du 6 janvier 1978 (cookies et autres traceurs)",
+      "url": "https://www.cnil.fr/sites/cnil/files/atoms/files/lignes_directrices_de_la_cnil_sur_les_cookies_et_autres_traceurs.pdf",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "CNIL, Recommandation cookies et autres traceurs, version consolidée du 16 janvier 2026",
+      "url": "https://www.cnil.fr/sites/default/files/2026-01/recommandation_cookies_consolidee.pdf",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "CNIL, Questions-réponses sur les lignes directrices modificatives et la recommandation cookies et autres traceurs",
+      "url": "https://www.cnil.fr/fr/cookies-et-autres-traceurs/regles/cookies/FAQ",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "CNIL, Cookies : solutions pour les outils de mesure d'audience",
+      "url": "https://www.cnil.fr/fr/cookies-solutions-pour-les-outils-de-mesure-daudience",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "CNIL, Cookies et autres traceurs : la CNIL publie des lignes directrices modificatives et sa recommandation",
+      "url": "https://www.cnil.fr/fr/cookies-et-autres-traceurs/regles/cookies/lignes-directrices-modificatives-et-recommandation",
+      "checked": "2026-11-25"
+    }
+  ],
+  "rules": [
+    {
+      "id": "inventory-trackers",
+      "instruction": "Keep an inventory of every cookie, local storage entry, SDK or device identifier, fingerprinting technique and tracking pixel that the site or application writes or reads, including those set by third-party scripts for which the publisher answers (guidelines point 13, 34 and 35), with its purpose and whether it needs consent or falls under an exemption of guidelines point 49.",
+      "verification": "Link the inventory and check that each cookie and storage entry seen in a browser capture of the changed pages appears in it with its status.",
+      "manual": "Trackers show in a running browser or application, not only in the code."
+    },
+    {
+      "id": "require-a-clear-positive-act",
+      "instruction": "Do not treat continued browsing, scrolling or a pre-ticked box as consent: until the user performs a clear positive act, write and read nothing that needs consent and treat the absence of an act as a refusal (guidelines point 27, a legal requirement).",
+      "verification": "Test on a clean browser profile: load a page, scroll and open a second page without clicking, and check in the storage and network panels that only exempt trackers are set.",
+      "manual": "The behaviour shows only in a running browser or application."
+    },
+    {
+      "id": "refuse-as-easily-as-accepting",
+      "instruction": "Let the user refuse with no action or with an action as simple as the one that accepts (guidelines point 30, a legal requirement); the recommendation advises, on the first layer, a refuse-all button at the same level and in the same format as accept-all, with the same size, font and emphasis, rather than a refusal that takes several steps (recommendation section 2.3).",
+      "verification": "Open the first layer of the consent interface on a phone and a computer, count the actions needed to accept and to refuse, and link the screenshots.",
+      "manual": "The interface shows only when rendered."
+    },
+    {
+      "id": "inform-before-the-choice",
+      "instruction": "Present, before the user chooses and in plain terms, the identity of every controller, with an exhaustive and current list reachable simply, the purposes, how to accept or refuse, the consequences of each choice and the right to withdraw (guidelines point 24 and 25, a legal requirement); the recommendation proposes a short title per purpose on the first layer and the detail on a second one (recommendation section 2.1).",
+      "verification": "Check the first layer of the consent interface against the five items and open the list of controllers.",
+      "manual": "The information shows only in the rendered interface."
+    },
+    {
+      "id": "ask-per-purpose",
+      "instruction": "Do not couple distinct purposes in one consent without a way to accept or refuse purpose by purpose, and do not collect consent through acceptance of general terms of use (guidelines point 19 and 20); global accept-all and refuse-all buttons are possible next to a button that opens the choice purpose by purpose (recommendation section 2.3).",
+      "verification": "Check that the interface lets the user decide each purpose and that accepting the terms of use sets no tracker that needs consent.",
+      "manual": "The behaviour shows only in a running interface."
+    },
+    {
+      "id": "make-withdrawal-effective",
+      "instruction": "Let the user withdraw consent at any time as easily as they gave it (guidelines point 31, a legal requirement), for example through a link or icon such as «manage my cookies» that stays reachable on every page (recommendation section 3), and on withdrawal stop every read and write of the trackers concerned, including the requests to third-party domains made from the site (CNIL questions and answers, withdrawal of consent).",
+      "verification": "Test: accept, withdraw, then check in the storage and network panels that the cookies are gone and that no request reaches the third-party domains.",
+      "manual": "The effect shows only in a running browser or application."
+    },
+    {
+      "id": "record-and-keep-the-choice",
+      "instruction": "Record each user's choice with its date and the version of the interface and information shown, so that the organization can show valid consent at any time (guidelines point 29, a legal requirement; recommendation section 4 lists code versions, timestamped screenshots and audits as ways), and keep the choice so that the interface does not return on every page; the CNIL considers keeping it for 6 months a good practice, to be set case by case (recommendation section 2.3).",
+      "verification": "Open the consent log for a test user and check the date, the interface version and the choices, and check the lifetime of the cookie or entry that keeps the choice.",
+      "manual": "The log and the lifetime show in a running system."
+    },
+    {
+      "id": "limit-exempt-audience-measurement",
+      "instruction": "When an analytics tool runs without consent, check that it serves audience measurement for the publisher alone, produces anonymous statistics only, does not follow people across sites or applications and does not match its data with other processing or pass it to third parties (guidelines point 51); the CNIL recommends a tracker lifetime such as 13 months that visits do not extend, data kept at most 25 months and a periodic review (recommendation section 5, CNIL audience measurement page).",
+      "verification": "Link the provider's documentation of the configuration, or its use of the CNIL self-assessment tool, and open a capture that shows the tracker's lifetime.",
+      "manual": "The provider's configuration and its documentation lie outside the repository."
+    }
+  ]
+}

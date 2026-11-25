@@ -1,0 +1,36 @@
+{
+  "id": "france-public-sector-security",
+  "title": "Security of services for French public authorities (RGS, homologation, SecNumCloud)",
+  "description": "Preselected for the public sector: keep it when the product, or the hosting it runs on, is delivered to a French administrative authority or to the State, which carry the RGS, the security homologation and, for sensitive data, the State's cloud doctrine; decline it outside France or for a private customer. Local authorities and private customers may fall under the RGS alone or under none of these texts. It adds to nis2-essential-entity (EU).",
+  "sources": [
+    {
+      "title": "Légifrance, Décret n° 2010-112 du 2 février 2010 pris pour l'application des articles 9, 10 et 12 de l'ordonnance n° 2005-1516 (RGS)",
+      "url": "https://www.legifrance.gouv.fr/loda/id/JORFTEXT000021779444",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Légifrance, Décret n° 2022-513 du 8 avril 2022 relatif à la sécurité numérique du système d'information et de communication de l'Etat et de ses établissements publics",
+      "url": "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000045537693",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "DINUM, Doctrine « Cloud au centre » de l'État",
+      "url": "https://numerique.gouv.fr/offre-accompagnement/cloud-administrations/la-doctrine-de-l%C3%A9tat/",
+      "checked": "2026-11-25"
+    }
+  ],
+  "roles": [
+    "legal",
+    "security",
+    "devops"
+  ],
+  "packs": [
+    "france-public-sector-security"
+  ],
+  "kind": "regulation",
+  "match": {
+    "sectors": [
+      "public-sector"
+    ]
+  }
+}

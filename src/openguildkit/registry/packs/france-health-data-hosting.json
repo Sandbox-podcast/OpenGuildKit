@@ -1,0 +1,78 @@
+{
+  "id": "france-health-data-hosting",
+  "title": "Health data hosting (France, HDS)",
+  "version": "1.0.0",
+  "description": "France only. For a product that stores personal health data for customers in France, or that runs on a platform which does: the hosting rules of the Code de la santé publique (Art. L1111-8 and Art. R1111-8-8 to R1111-11), including the certificate of conformity, known as HDS, that a digital host holds. Hosting means storing data collected during prevention, diagnosis, care or social and medico-social follow-up for the controller that produced it or for the patient; short-term entry, formatting or digitisation for the original collector is not hosting (Art. R1111-8-8), and a product without health data or outside France is out of scope. This pack reads the Code, not the HDS certification framework itself. It adds to health-data-protection, which covers GDPR Art. 9, medical devices and the EHDS, and to gdpr, which covers the processing record and the Art. 28 contract. These rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "Légifrance, Code de la santé publique, Article L1111-8 (hosting of personal health data)",
+      "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000049577902",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Légifrance, Code de la santé publique, Article R1111-8-8 (scope of hosting and the controller's check of the certificate)",
+      "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000036656709",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Légifrance, Code de la santé publique, Articles R1111-9 to R1111-11 (hosting activities, storage in the EU or EEA, certification, contract content)",
+      "url": "https://www.legifrance.gouv.fr/codes/id/LEGISCTA000036658495/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "G_NIUS, Agence du Numérique en Santé, Hébergement des données de santé (HDS)",
+      "url": "https://gnius.esante.gouv.fr/fr/reglementation/fiches-reglementation/hebergement-des-donnees-de-sante-hds",
+      "checked": "2026-11-25"
+    }
+  ],
+  "rules": [
+    {
+      "id": "confirm-hosting-scope",
+      "instruction": "Ask the compliance owner whether the product stores personal health data collected during prevention, diagnosis, care or social and medico-social follow-up, for a controller that produced or collected it or for the patient (Art. R1111-8-8 I), and whether the only handling is short-term entry, formatting or digitisation for the original collector, which that Article does not treat as hosting.",
+      "verification": "Link the compliance owner's recorded answer from the change.",
+      "manual": "Whether the product hosts health data within the meaning of the Code is a legal assessment."
+    },
+    {
+      "id": "map-hosting-activities",
+      "instruction": "Ask the compliance owner which of the six hosting activities of Art. R1111-9 the organization provides and which a subcontractor provides: physical sites, hardware infrastructure, virtual infrastructure, application hosting platform, administration and operation of the information system, and backup of the data.",
+      "verification": "Link a table that names, for each of the six activities, who provides it and under which certificate.",
+      "manual": "Who provides each activity is a contractual fact recorded outside the repository."
+    },
+    {
+      "id": "check-host-certificates",
+      "instruction": "When the product stores health data on a third party's infrastructure or platform, ask the compliance owner to check that each host holds the certificate of conformity of Art. L1111-8 II for the activities it provides, as the controller must under Art. R1111-8-8 II, and to record the certificate's scope and dates.",
+      "verification": "Link each host's certificate and check that its scope covers the activities the table of the previous rule gives it.",
+      "manual": "Certificates are issued and published outside the repository."
+    },
+    {
+      "id": "keep-storage-in-the-eea",
+      "instruction": "Configure the storage of the hosted health data, its backups and its replicas in locations inside a Member State of the European Union or a party to the European Economic Area only (Art. R1111-9-1, which the page of Articles R1111-9 to R1111-11 dates from 26 September 2026).",
+      "verification": "Open the infrastructure configuration and check that every database, object store and backup location of the changed data is in an EU or EEA state.",
+      "manual": "Locations show in each provider's configuration, which varies by platform."
+    },
+    {
+      "id": "control-transfers-and-remote-access",
+      "instruction": "When health data is transferred outside the EU or EEA, or accessed remotely from outside it, for example by a support or operations team, ask the compliance owner which basis applies, an adequacy decision (GDPR Art. 45) or appropriate safeguards with enforceable rights (GDPR Art. 46), and have the contract say which one applies (Art. R1111-9-1).",
+      "verification": "Link the recorded basis and the contract clause, and check that each remote access path from outside the EEA appears in the architecture description.",
+      "manual": "The basis for a transfer is a legal assessment and the contract lives outside the repository."
+    },
+    {
+      "id": "include-contract-clauses",
+      "instruction": "Ask the legal owner to check that the hosting contract carries the clauses of Art. R1111-11 I, among them the certificate's scope and dates, the hosting locations, incident handling, subcontractors, transfers outside the EU or EEA, the ban on secondary use, reversibility and the return and destruction of data, and, when the client reaches a certified host through an intermediary, that the client's contract repeats them (Art. R1111-11 II).",
+      "verification": "Link the contract with each clause of Art. R1111-11 I ticked against its section.",
+      "manual": "The contract is a legal document kept outside the repository."
+    },
+    {
+      "id": "publish-the-transfer-map",
+      "instruction": "Keep up to date and publish the map of transfers to countries outside the EU or EEA, of remote accesses and of the risks of unauthorised access, which Art. R1111-11 III asks of the host, following the certification framework's requirements.",
+      "verification": "Open the published map and check that it lists each access path from outside the EEA of the current architecture.",
+      "manual": "The map is published outside the repository and follows a framework this pack does not summarise."
+    },
+    {
+      "id": "forbid-other-uses-of-hosted-data",
+      "instruction": "Do not use hosted health data for any purpose other than performing the hosting service, never sell data that identifies a person, even with consent (Art. L1111-8 V and VII), and at the end of the contract return the data and keep no copy (Art. L1111-8 V).",
+      "verification": "Check that no analytics, training or marketing job reads the hosted data, and test the end-of-contract export and deletion on a test tenant.",
+      "manual": "Secondary use shows in the jobs and permissions of a running system."
+    }
+  ]
+}

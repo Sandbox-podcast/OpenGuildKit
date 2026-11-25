@@ -1,0 +1,49 @@
+{
+  "id": "kotlin-ktor",
+  "title": "Kotlin server with Ktor",
+  "description": "Review coroutine scopes, Java null boundaries, Gradle dependency pinning, request validation, authentication, session cookies and HTTPS headers in a Kotlin service built with Ktor. It matches Ktor alone: a Kotlin service on Spring Boot stays with java-spring-boot and an Android app with android-kotlin.",
+  "sources": [
+    {
+      "title": "Ktor documentation, adding server dependencies",
+      "url": "https://ktor.io/docs/server-dependencies.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Ktor documentation, authentication and authorization",
+      "url": "https://ktor.io/docs/server-auth.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Kotlin documentation, coroutines basics",
+      "url": "https://kotlinlang.org/docs/coroutines-basics.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Kotlin documentation, Gradle compiler options",
+      "url": "https://kotlinlang.org/docs/gradle-compiler-options.html",
+      "checked": "2026-11-25"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "kotlin-service",
+    "ktor-server"
+  ],
+  "references": [
+    "kotlin-coding-conventions",
+    "http",
+    "openapi"
+  ],
+  "match": {
+    "stack": [
+      [
+        "ktor",
+        "ktor server"
+      ]
+    ]
+  }
+}

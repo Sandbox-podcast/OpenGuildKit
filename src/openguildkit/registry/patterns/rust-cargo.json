@@ -1,0 +1,36 @@
+{
+  "id": "rust-cargo",
+  "title": "Rust and Cargo",
+  "description": "Review the lockfile, advisories, sources and licences of the dependencies, the declared Rust version, CI warnings, formatting, unsafe code and request-path errors in a Rust project built with Cargo.",
+  "sources": [
+    {
+      "title": "Cargo Book, continuous integration",
+      "url": "https://doc.rust-lang.org/cargo/guide/continuous-integration.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "RustSec Advisory Database",
+      "url": "https://rustsec.org/",
+      "checked": "2026-11-25"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "rust-cargo",
+    "rust-dependencies"
+  ],
+  "references": [
+    "rust-style-guide"
+  ],
+  "match": {
+    "stack": [
+      [
+        "rust"
+      ]
+    ]
+  }
+}

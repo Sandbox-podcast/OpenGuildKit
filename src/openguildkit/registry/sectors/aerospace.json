@@ -1,0 +1,55 @@
+{
+  "id": "aerospace",
+  "title": "Aerospace and civil aviation",
+  "description": "Adapt reviews to organisations approved under the EU civil aviation rules (design and production, maintenance, operators, air navigation, aerodromes) and to the software they build for aircraft and aviation services.",
+  "context": [
+    "Ask the compliance owner which approvals or certificates the organization holds and compare them with Art. 2 of Delegated Regulation (EU) 2022/1645 (Part 21 design and production organisations, aerodrome operators, apron management providers) and Art. 2(1) of Implementing Regulation (EU) 2023/203 (Part-145, Part-CAMO, Part-ORO, Part-ORA and ATCO training organisations, Part-ATM/ANS.OR providers, U-space and single common information service providers). This sector preselects the aviation-information-security pattern; decline it when no listed organisation is concerned or the competent authority approved an exemption. Record whether the organization provides ground handling: Delegated Regulation (EU) 2025/22 adds the providers that process third-party data, or give data to aircraft operators for operational use, from 27 March 2031.",
+    "Record whether the software runs on board an aircraft, engine, propeller or ETSO article, runs on the ground (air traffic management, aerodrome, maintenance or operations systems), or both. Airborne software preselects the airborne-software-assurance pattern; for ground software, ask the authority which assurance standard its approval calls for, because ED-12C / DO-178C is titled for airborne systems.",
+    "Ask the certification lead for the authority, the certification basis, the software level of each item and what the authority already agreed (plans, tools, methods). RTCA and EUROCAE sell DO-178C / ED-12C and DO-326A / ED-202A; EUROCAE has published ED-202B and RTCA lists DO-326B, so obtain the edition the basis names. The packs are process controls that never replace the authority's agreement.",
+    "Treat state aircraft as outside these rules: aircraft and equipment used for military, customs, police, search and rescue, firefighting, border control, coastguard or similar activities, military aerodromes and military air navigation services are outside Regulation (EU) 2018/1139 (Art. 2(3)), the regulation Part-IS implements. Ask the legal owner which national or customer defence requirements apply; this catalog does not cover them.",
+    "Ask the legal owner about the unmanned aircraft case: Regulation (EU) 2018/1139 covers unmanned aircraft, but Art. 2 of the two Part-IS acts lists no operator of them, only U-space service providers and single common information service providers (Implementing Regulation (EU) 2021/664). Ask too whether the Cyber Resilience Act applies before selecting its pattern: a product certified under Regulation (EU) 2018/1139 is excluded (Art. 2(3)), and so is a product developed exclusively for national security or defence (Art. 2(7)).",
+    "Ask the legal owner whether the national law transposing NIS 2 also covers the organization: Annex I lists air carriers, airport managing bodies and air traffic control operators, and Art. 4 lets a sector-specific act of at least equivalent effect replace NIS 2 requirements. Select the nis2-essential-entity pattern when it applies."
+  ],
+  "sources": [
+    {
+      "title": "Delegated Regulation (EU) 2022/1645, information security risks with an impact on aviation safety (design, production, aerodromes)",
+      "url": "https://eur-lex.europa.eu/eli/reg_del/2022/1645/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Implementing Regulation (EU) 2023/203, information security risks with an impact on aviation safety (organisations and authorities)",
+      "url": "https://eur-lex.europa.eu/eli/reg_impl/2023/203/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Delegated Regulation (EU) 2025/22 amending Delegated Regulation (EU) 2022/1645 for ground handling",
+      "url": "https://eur-lex.europa.eu/eli/reg_del/2025/22/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Regulation (EU) 2018/1139, common rules in the field of civil aviation (EASA Basic Regulation)",
+      "url": "https://eur-lex.europa.eu/eli/reg/2018/1139/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Directive (EU) 2022/2555 (NIS 2)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Regulation (EU) 2024/2847, Cyber Resilience Act",
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "RTCA, DO-178C Software Considerations in Airborne Systems and Equipment Certification",
+      "url": "https://www.rtca.org/do-178/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "EUROCAE, ED-202B Airworthiness Security Process Specification (October 2024)",
+      "url": "https://www.eurocae.net/product/ed-202b-airworthiness-security-process-specification/",
+      "checked": "2026-11-25"
+    }
+  ]
+}

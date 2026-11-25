@@ -1,0 +1,90 @@
+{
+  "id": "airborne-software-assurance",
+  "title": "Airborne software assurance (ED-12C / DO-178C)",
+  "version": "1.0.0",
+  "description": "For software that runs on board an aircraft, engine, propeller or ETSO article under an EASA or FAA approval: process controls a team can prove, built around EUROCAE ED-12C / RTCA DO-178C, which EASA's AMC 20-115D recognises as an acceptable means of compliance for the software aspects of product certification (with ED-215/DO-330 for tool qualification and the supplements ED-216/DO-333, ED-217/DO-332 and ED-218/DO-331). These standards are sold by RTCA and EUROCAE: this pack quotes none of their text and states none of their objectives, which are listed in their Annex A tables by software level. Ground software (air traffic management, aerodromes, maintenance systems) is outside it: the authority names the assurance standard that applies. The AMC is not mandatory and an alternative means needs EASA's approval. These controls never replace the agreement of the certification authority on the certification basis, the software level, the plans and the means of compliance, and they do not establish compliance. See supply-chain for build provenance and secure-sdlc for security review.",
+  "sources": [
+    {
+      "title": "RTCA, DO-178C Software Considerations in Airborne Systems and Equipment Certification",
+      "url": "https://www.rtca.org/do-178/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "EUROCAE, ED-12C Software considerations in airborne systems and equipment certification (January 2012)",
+      "url": "https://www.eurocae.net/product/ed-12c-software-considerations-in-airborne-systems-and-equipment-certification/",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "EASA, AMC 20-115D Airborne Software Development Assurance Using EUROCAE ED-12 and RTCA DO-178 (Easy Access Rules for AMC-20)",
+      "url": "https://www.easa.europa.eu/en/document-library/easy-access-rules/online-publications/easy-access-rules-acceptable-means?page=22",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "EASA, Harmonised Software EASA AMC and FAA AC 20-115D have been published",
+      "url": "https://www.easa.europa.eu/en/newsroom-and-events/news/harmonised-software-easa-amc-and-faa-ac-20-115d-have-been-published",
+      "checked": "2026-11-25"
+    }
+  ],
+  "rules": [
+    {
+      "id": "confirm-level-and-basis",
+      "instruction": "Ask the certification lead which authority and certification basis cover the software, which software level each item has been assigned, and which edition of the standards and of the AMC the basis names, and record what the authority has already agreed.",
+      "verification": "Link the recorded answer, with the authority's correspondence, from the change.",
+      "manual": "The certification basis and the software level are agreed with the authority and kept in the certification file."
+    },
+    {
+      "id": "keep-the-compliance-plan",
+      "instruction": "Keep one plan for the software aspects of certification under version control that names, for each software item, its level, its life cycle processes, its tools and the objectives the team will meet, and update it in the same change when the change alters any of them (AMC 20-115D section 6.a).",
+      "verification": "Open the plan in the change and check that each altered process, tool or objective is updated, and link the authority's recorded agreement of the plan version.",
+      "manual": "The authority's agreement of a plan version is a record outside the repository."
+    },
+    {
+      "id": "trace-requirements-code-tests",
+      "instruction": "For each changed requirement, keep a trace in both directions to the design and code that implement it and to the test cases and results that verify it, in a file the project generates or reviews with the change.",
+      "verification": "Run the project's traceability report and check that no changed requirement lacks code or a test result and that no changed code lacks a requirement.",
+      "manual": "The trace lives in the project's own requirements and test records, and a person judges that it is complete."
+    },
+    {
+      "id": "review-every-change",
+      "instruction": "Have each change to the software baseline reviewed and approved by a named person other than its author, against the requirements and the plan, before it enters the baseline, and keep the review record with the change.",
+      "verification": "Open the merged change and check the reviewer, the result and the date, and list the merged changes that have no review record.",
+      "manual": "Review records sit in the code hosting or review tool, and a person judges that the review was against the requirements."
+    },
+    {
+      "id": "control-the-baseline",
+      "instruction": "Identify each release by a baseline that fixes the versions of the requirements, source, tests, tools and plans, keep it unchanged, and build the release from it.",
+      "verification": "Rebuild the release from its baseline in a clean environment and compare the checksum of the result with the released one.",
+      "manual": "The rebuild runs in the build environment, which holds the tool versions the baseline names."
+    },
+    {
+      "id": "assess-change-impact",
+      "instruction": "For each change to released software, record a change impact analysis that lists the requirements, code, tests and plan items it affects and the verification that is repeated, and re-run that verification before release (AMC 20-115D section 9.b.4 asks for one when legacy software is modified).",
+      "verification": "Open the analysis with the change and check that each listed test was re-run and its result recorded.",
+      "manual": "A person judges that the analysis lists everything the change affects."
+    },
+    {
+      "id": "qualify-tools-or-record-why-not",
+      "instruction": "When the change adds or modifies a tool used to develop or verify the software, such as a code generator, a compiler, or a test or coverage tool, ask the certification lead whether it needs qualification (AMC 20-115D section 10, ED-215/DO-330) and record its qualification level or the reason none is needed.",
+      "verification": "Link the recorded decision for each tool from the change.",
+      "manual": "Whether a tool needs qualification is decided with the certification lead and the authority."
+    },
+    {
+      "id": "apply-supplements-together",
+      "instruction": "When the team uses model-based development, object-oriented technology or formal methods, state in the compliance plan how the supplement (ED-218/DO-331, ED-217/DO-332, ED-216/DO-333) combines with ED-12C/DO-178C, and ask the certification lead whether the authority already evaluated the method (AMC 20-115D sections 5.a.3 and 8.a).",
+      "verification": "Link the plan section and the authority's recorded decision, such as a certification review item or a certification memorandum, from the change.",
+      "manual": "The authority's evaluation of a method is recorded in the certification file."
+    },
+    {
+      "id": "review-legacy-reuse",
+      "instruction": "When the change reuses or modifies software developed under an earlier edition (ED-12, ED-12A or ED-12B), ask the certification lead which route of AMC 20-115D section 9 applies, and record the review of its service history, the mapping of its software level and the change impact analysis.",
+      "verification": "Link the recorded route and the three records from the change.",
+      "manual": "The route for legacy software is agreed with the authority."
+    },
+    {
+      "id": "prepare-life-cycle-data",
+      "instruction": "Keep the life cycle data that the AMC says the applicant submits (section 6.b) or makes available on the authority's request (section 6.d) as an indexed set of files tied to the baseline, so that each item can be produced for a given release.",
+      "verification": "Open the index and check that each listed item opens from the release's baseline.",
+      "manual": "A person judges that the index covers the data the authority can request."
+    }
+  ]
+}
