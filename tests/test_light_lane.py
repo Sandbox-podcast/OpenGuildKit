@@ -5,7 +5,11 @@ profile, and a project written before the lane existed.
 """
 
 import json
+import os
 import shlex
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from datetime import datetime
@@ -17,7 +21,7 @@ from openguildkit.decisions import check_decision_seal, record_digest
 from openguildkit.project import profile_fingerprint, validate_profile
 from openguildkit.storage import write_json
 
-from tests.support import run_cli
+from tests.support import run_cli, subprocess_environment
 
 REPO = Path(__file__).resolve().parents[1]
 DOCS_AND_TESTS = ["docs/**", "tests/**"]
@@ -115,6 +119,18 @@ class PathRuleTests(unittest.TestCase):
         for board in (light_lane.DOCS_BOARD, light_lane.TESTS_BOARD, light_lane.DEFAULT_BOARD):
             self.assertIn(board, boards)
 
+    def test_an_excluded_file_stays_outside_a_glob_that_would_match_it(self):
+        self.assertTrue(light_lane.covers("docs/guide.md", ["docs/**"], DOCS_AND_TESTS))
+        self.assertFalse(light_lane.covers("docs/example/package.json", ["docs/**"], DOCS_AND_TESTS))
+        self.assertFalse(light_lane.covers("docs/AGENTS.md", ["docs/**"], DOCS_AND_TESTS))
+
+    def test_a_file_is_covered_only_when_the_task_and_the_profile_both_cover_it(self):
+        self.assertTrue(light_lane.covers("docs/guide.md", ["docs/**"], DOCS_AND_TESTS))
+        self.assertFalse(light_lane.covers("tests/test_a.py", ["docs/**"], DOCS_AND_TESTS))
+        self.assertFalse(light_lane.covers("docs/guide.md", ["docs/**"], ["tests/**"]))
+        self.assertFalse(light_lane.covers("docs/guide.md", ["docs/**"], []))
+        self.assertFalse(light_lane.covers("Docs/guide.md", ["docs/**"], DOCS_AND_TESTS))
+
 
 class ProjectCase(unittest.TestCase):
     """A project of one Python component, with no short lane until a test turns it on."""
@@ -127,6 +143,9 @@ class ProjectCase(unittest.TestCase):
                                                 **getattr(self, "profile_answers", {})})
         self.run_cli("init", "--answers", self.root / "answers.json")
         (self.root / "notes.md").write_text("The guide is the only page that names the export.\n", encoding="utf-8")
+        # The agent's working files go where Git ignores them, as the instructions say.
+        self.work = self.root / ".openguildkit" / "work"
+        self.work.mkdir()
 
     def run_cli(self, *arguments, code=0, typed=None):
         # Without a typed line, no terminal: the suite may itself run at one.
@@ -298,8 +317,8 @@ class LaneCase(ProjectCase):
                              failure_mode="Nothing worth naming.", verification="Read the guide again.")
             if blockers:
                 challenge["blockers"] = blockers
-        write_json(self.root / f"{task_id}-review.json", template)
-        self.run_cli("task", "review", task_id, "--file", self.root / f"{task_id}-review.json")
+        write_json(self.work / f"{task_id}-review.json", template)
+        self.run_cli("task", "review", task_id, "--file", self.work / f"{task_id}-review.json")
 
     def consulted(self, task_id="typo", *paths):
         self.new(task_id, *paths)
@@ -596,6 +615,331 @@ class OutputBudgetTests(LaneCase):
         self.run_cli("task", "decide", "typo", "--approve", "--by", "Camille", "--reason", "Agreed", typed="typo")
         handoff, _ = self.run_cli("task", "handoff", "typo")
         self.assertLessEqual(len(handoff.encode("utf-8")), BUDGETS["handoff"])
+
+
+class GuardCase(LaneCase):
+    """A project whose guard is on, so that the edit hook and the CI check read the lane."""
+
+    profile_answers = {"guard": "enforce"}
+
+    def edit(self, relative) -> str:
+        return json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Edit",
+                           "tool_input": {"file_path": str(self.root / relative)}})
+
+    def hook(self, relative, code=0):
+        result = run_cli(self.root, "guard", "--hook", "pre-edit", stdin=self.edit(relative), expect=code)
+        return result.stdout, result.stderr
+
+    def context(self, relative) -> str:
+        return json.loads(self.hook(relative)[0])["hookSpecificOutput"]["additionalContext"]
+
+    def approved_full_path(self, task_id="retry"):
+        self.run_cli("task", "new", "Add a retry to the export job", "--id", task_id)
+        write_json(self.work / "answers-full.json", {"kind": "bug", "surface": ["service"], "data": "none",
+                                                     "research": "local", "concerns": ["none"]})
+        self.run_cli("task", "consult", task_id, "--answers", self.work / "answers-full.json")
+        self.review(task_id)
+        self.run_cli("task", "decide", task_id, "--approve", "--by", "Camille", "--reason", "Agreed", typed=task_id)
+
+
+class HookTests(GuardCase):
+    def test_an_approved_short_lane_task_covers_the_edits_in_its_paths_and_enforce_refuses_the_others(self):
+        self.approved("typo", "docs/**")
+        context = self.context("docs/guide.md")
+        self.assertIn("typo (Fix a typo in the guide)", context)
+        self.assertIn("holds each edit to the paths of the short-lane task(s) (typo (docs/**))", context)
+        self.assertNotIn("does not compare", context)
+        for outside in ("src/app.py", "README.md", "docs/example/package.json", "docs/AGENTS.md", "package.json",
+                        ".github/workflows/ci.yml"):
+            with self.subTest(outside=outside):
+                _, error = self.hook(outside, code=2)
+                self.assertIn(f"Edit refused for: {outside}", error)
+                self.assertIn("typo (docs/**)", error)
+                self.assertIn("never in the lane", error)
+                self.assertIn("openguildkit task new BRIEF, without --lane", error)
+        _, error = self.hook(".openguildkit/project.json", code=2)
+        self.assertIn("written by the openguildkit commands", error)
+
+    def test_observe_flags_an_edit_outside_the_paths_without_blocking_and_says_nothing_for_one_inside(self):
+        self.run_cli("profile", "set", "guard", "observe", "--by", "Sam", "--reason", "Pilot", typed="observe")
+        self.approved("typo", "docs/**")
+        context = self.context("docs/guide.md")
+        self.assertNotIn("flagged", context)
+        self.assertNotIn("refused", context)
+        output, error = self.hook("src/app.py")
+        flagged = json.loads(output)["hookSpecificOutput"]["additionalContext"]
+        self.assertEqual(error, "")
+        self.assertTrue(flagged.startswith("OpenGuildKit: Edit flagged, not blocked (guard: observe): src/app.py"), flagged)
+        self.assertIn("typo (docs/**)", flagged)
+        self.assertNotIn("refused", flagged)
+
+    def test_a_task_of_the_full_path_covers_every_edit_beside_a_short_lane_task(self):
+        self.approved("typo", "docs/**")
+        self.approved_full_path("retry")
+        self.assertIn("retry", self.context("src/app.py"))
+        self.assertIn("typo (Fix a typo in the guide), short lane limited to docs/**", self.context("src/app.py"))
+        self.assertIn("does not compare", self.context("src/app.py"))
+        self.assertIn("does not compare", self.run_cli("guard")[0])
+
+    def test_the_request_hook_and_guard_say_that_the_guard_holds_a_short_lane_task_to_its_paths(self):
+        self.approved("typo", "docs/**")
+        prompt = json.loads(run_cli(self.root, "guard", "--hook", "prompt", stdin="").stdout)
+        context = prompt["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("typo", context)
+        self.assertIn("holds each edit to the paths of the short-lane task(s) (typo (docs/**))", context)
+        self.assertNotIn("does not compare", context)
+        text, _ = self.run_cli("guard")
+        self.assertIn("typo: Fix a typo in the guide (short lane: docs/**)", text)
+        self.assertNotIn("does not compare", text)
+        approvals = json.loads(self.run_cli("guard", "--json")[0])["approvals"]
+        self.assertEqual((approvals[0]["lane"], approvals[0]["paths"]), ("light", ["docs/**"]))
+
+    def test_a_lane_narrowed_after_the_approval_stops_covering_what_it_no_longer_allows(self):
+        self.approved("typo", "docs/**")
+        self.hook("docs/guide.md")
+        self.run_cli("profile", "set", "light-paths", "tests/**", "--by", "Sam", "--reason", "Narrower")
+        _, error = self.hook("docs/guide.md", code=2)
+        self.assertIn("Edit refused for: docs/guide.md", error)
+        self.run_cli("profile", "set", "light-paths", "none", "--by", "Sam", "--reason", "Closed")
+        _, error = self.hook("docs/guide.md", code=2)
+        self.assertIn("Edit refused for: docs/guide.md", error)
+
+    def test_a_task_of_the_full_path_is_judged_as_before(self):
+        self.approved_full_path("retry")
+        self.assertIn("does not compare", self.context("docs/guide.md"))
+        approvals = json.loads(self.run_cli("guard", "--json")[0])["approvals"]
+        self.assertEqual(sorted(approvals[0]), ["approved_at", "brief", "stale", "task"])
+
+
+GIT_ENV = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.org", "GIT_COMMITTER_NAME": "t",
+           "GIT_COMMITTER_EMAIL": "t@example.org"}
+
+
+@unittest.skipIf(shutil.which("git") is None, "needs git")
+class GitCase(GuardCase):
+    def git(self, *args):
+        result = subprocess.run(["git", "-C", str(self.root), *args], capture_output=True, text=True,
+                                env={**os.environ, **GIT_ENV})
+        self.assertEqual(result.returncode, 0, f"git {' '.join(args)}: {result.stderr}")
+
+    def write(self, relative, text):
+        path = self.root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+    def branch(self):
+        """The profile and a guide on main, then a feature branch."""
+        self.write("docs/guide.md", "The exprot page.\n")
+        self.git("init", "-q", "-b", "main")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("checkout", "-q", "-b", "feature")
+
+    def commit_all(self, message):
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", message)
+
+    def deliver(self, task_id="typo", *paths, changes):
+        """An approved short-lane task whose work (the files given) is committed, and its exported record."""
+        self.approved(task_id, *paths)
+        for relative, text in changes.items():
+            self.write(relative, text)
+        self.commit_all("The work")
+        self.run_cli("task", "export", task_id)
+        self.commit_all("The decision")
+
+    def ci(self, *options, code=0):
+        output, _ = self.run_cli("guard", "--ci", "--base", "main", *options, code=code)
+        return output
+
+
+class CiTests(GitCase):
+    def test_a_short_lane_record_covers_the_files_inside_its_paths(self):
+        self.branch()
+        self.deliver("typo", "docs/**", changes={"docs/guide.md": "The export page.\n"})
+        result = json.loads(self.ci("--json"))
+        self.assertEqual((result["ok"], result["decisions"], result["problems"]), (True, ["typo"], []))
+
+    def test_a_record_whose_files_go_outside_its_paths_is_refused_with_the_files_named(self):
+        self.branch()
+        self.deliver("typo", "docs/**", changes={"docs/guide.md": "The export page.\n", "src/app.py": "print('x')\n",
+                                                 "docs/example/package.json": "{}\n"})
+        result = json.loads(self.ci("--json", code=1))
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["decisions"], [])
+        self.assertEqual(len(result["problems"]), 1, result["problems"])
+        problem = result["problems"][0]
+        self.assertIn("Short-lane task typo covers only docs/**", problem)
+        self.assertIn("2 changed file(s) are outside: docs/example/package.json, src/app.py", problem)
+        self.assertIn("within the light_paths of the base revision main", problem)
+        self.assertIn('openguildkit task new "BRIEF" --follows typo', problem)
+        sarif = json.loads(self.ci("--format", "sarif", code=1))
+        rules = {item["ruleId"] for item in sarif["runs"][0]["results"]}
+        self.assertIn("decision-lane-outside", rules)
+
+    def test_a_change_cannot_widen_the_lane_it_is_judged_by(self):
+        self.run_cli("profile", "set", "light-paths", "docs/**", "--by", "Sam", "--reason", "Docs only")
+        self.branch()
+        # The pull request widens the lane to src/** and works in src/**: the base revision still says docs/**.
+        self.run_cli("profile", "set", "light-paths", "docs/**", "src/**", "--by", "Sam", "--reason", "Wider",
+                     typed="docs/** src/**")
+        self.commit_all("Widen the lane")
+        self.deliver("src-fix", "src/**", changes={"src/app.py": "print('x')\n"})
+        result = json.loads(self.ci("--json", code=1))
+        self.assertFalse(result["ok"])
+        outside = [problem for problem in result["problems"] if "covers only src/**" in problem]
+        self.assertEqual(len(outside), 1, result["problems"])
+        self.assertIn("within the light_paths of the base revision main (docs/**)", outside[0])
+        self.assertIn("src/app.py", outside[0])
+
+    def test_a_change_cannot_turn_the_lane_on_for_itself(self):
+        # The base revision has no light_paths: a pull request that adds them, and a short-lane task, is refused.
+        self.run_cli("profile", "set", "light-paths", "none", "--by", "Sam", "--reason", "Off on main")
+        self.branch()
+        self.run_cli("profile", "set", "light-paths", "docs/**", "--by", "Sam", "--reason", "On", typed="docs/**")
+        self.commit_all("Turn the lane on")
+        self.deliver("typo", "docs/**", changes={"docs/guide.md": "The export page.\n"})
+        result = json.loads(self.ci("--json", code=1))
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["decisions"], [])
+        problem = next(item for item in result["problems"] if "Short-lane task typo" in item)
+        self.assertIn("is judged by the base revision main, which has no light_paths", problem)
+        self.assertIn("cannot turn on the lane it is judged by", problem)
+
+    def test_a_full_path_record_is_judged_as_before_and_covers_any_file(self):
+        self.branch()
+        self.approved_full_path("retry")
+        self.write("src/app.py", "print('x')\n")
+        self.commit_all("The work")
+        self.run_cli("task", "export", "retry")
+        self.commit_all("The decision")
+        result = json.loads(self.ci("--json"))
+        self.assertEqual((result["ok"], result["decisions"]), (True, ["retry"]))
+
+
+class CompletionTests(GitCase):
+    def test_task_verify_and_complete_refuse_a_short_lane_task_whose_files_go_outside_its_paths(self):
+        self.branch()
+        self.approved("typo", "docs/**")
+        self.write("docs/guide.md", "The export page.\n")
+        self.write("src/app.py", "print('x')\n")
+        self.commit_all("The work")
+        verified, _ = self.run_cli("task", "verify", "typo")
+        self.assertIn("Short-lane task typo covers only docs/**, within the light_paths of this project", verified)
+        self.assertIn("1 changed file(s) are outside: src/app.py", verified)
+        _, error = self.run_cli("task", "complete", "typo", code=1)
+        self.assertIn("The task cannot be declared done:", error)
+        self.assertIn("1 changed file(s) are outside: src/app.py", error)
+        self.assertEqual(self.task()["status"], "approved")
+        # Taking the file out again leaves nothing outside; a new file Git does not track yet counts as well.
+        self.git("rm", "-q", "src/app.py")
+        self.commit_all("Take it out")
+        self.assertNotIn("Short-lane", self.run_cli("task", "verify", "typo")[0])
+        self.write("src/new.py", "print('y')\n")
+        self.assertIn("1 changed file(s) are outside: src/new.py", self.run_cli("task", "complete", "typo", code=1)[1])
+        (self.root / "src" / "new.py").unlink()
+        self.assertNotIn("Short-lane", self.run_cli("task", "verify", "typo")[0])
+
+    def test_a_lane_turned_off_or_narrowed_before_the_closing_is_named(self):
+        self.branch()
+        self.approved("typo", "docs/**")
+        self.run_cli("profile", "set", "light-paths", "tests/**", "--by", "Sam", "--reason", "Narrower")
+        _, error = self.run_cli("task", "complete", "typo", code=1)
+        self.assertIn("Task typo is in the short lane for docs/**, and the profile's light_paths (tests/**) no longer cover docs/**",
+                      error)
+
+
+LANE_CHILD = (
+    "import json, sys\n"
+    "from pathlib import Path\n"
+    "sys.path.insert(0, sys.argv[1])\n"
+    "from tests.test_light_lane import LaneRun\n"
+    "print(json.dumps(LaneRun(Path(sys.argv[2])).play()))\n"
+)
+
+
+class LaneRun:
+    """The journey of a short-lane task up to its export, played in the process of a child, with its outputs."""
+
+    def __init__(self, folder: Path):
+        self.project = folder
+        self.work = folder / ".openguildkit" / "work"
+
+    def cli(self, *args, typed=None) -> str:
+        result = run_cli(self.project, *args, stdin="" if typed is None else None, typed=typed, expect=None)
+        if result.returncode:
+            raise AssertionError(f"openguildkit {' '.join(map(str, args))}: {result.stderr}")
+        return result.stdout
+
+    def play(self) -> dict:
+        outputs = {}
+        write_json(self.project / "answers.json", {"name": "Ledger", "personal_data": "no", "stack": ["Python"]})
+        (self.project / "notes.md").write_text("The guide names the export.\n", encoding="utf-8")
+        self.cli("init", "--answers", self.project / "answers.json")
+        self.work.mkdir()
+        self.cli("profile", "set", "light-paths", "tests/**", "docs/**", "src/**", "--by", "Sam", "--reason", "Fixes",
+                 typed="tests/** docs/** src/**")
+        outputs["project.json"] = (self.project / ".openguildkit" / "project.json").read_text(encoding="utf-8")
+        self.cli("task", "new", "Fix a typo in the guide", "--id", "one", "--lane", "light", "--paths", "tests/**", "docs/**",
+                 "docs/", "docs/**")
+        self.cli("task", "new", "Fix a typo in the guide", "--id", "two", "--lane", "light", "--paths", "docs/**", "tests/**")
+        for task_id in ("one", "two"):
+            record = json.loads(self.cli("task", "show", task_id))
+            outputs[f"{task_id} lane"] = json.dumps([record["lane"], record["paths"]])
+        outputs["task list"] = self.cli("task", "list")
+        consultation = self.cli("task", "consult", "one")
+        template = json.loads(self.cli("task", "template", "one"))
+        consultation_id = template["consultation_id"]
+        outputs["task consult"] = consultation
+        outputs["task pass"] = self.cli("task", "pass", "one", "engineering")
+        for entry in template["boards"]:
+            entry.update(recommendation="Fix it.", open_questions=[],
+                         evidence=[{"source": "project-file", "ref": "notes.md", "supports": "The guide names the export."}])
+            challenge = entry["challenge"]
+            for lens in challenge["specialists"]:
+                lens.update(finding="Seen.", basis="observed", evidence_refs=[1])
+            challenge.update(verdict="proceed", confidence="medium", alternative="Leave it.", failure_mode="None.",
+                             verification="Read it.")
+        template["summary"] = "Agreed."
+        write_json(self.work / "review.json", template)
+        self.cli("task", "review", "one", "--file", self.work / "review.json")
+        outputs["task challenge"] = self.cli("task", "challenge", "one")
+        self.cli("task", "decide", "one", "--approve", "--by", "Camille", "--reason", "Agreed", typed="one")
+        outputs["task handoff"] = self.cli("task", "handoff", "one")
+        record = json.loads((self.project / self.cli("task", "export", "one").strip()).read_text(encoding="utf-8"))
+        # The seal and the time of the decision come from a random ID and the real clock: what the record shows is compared.
+        outputs["exported record"] = json.dumps({key: record[key] for key in (
+            "lane", "paths", "brief", "status", "summary", "boards", "files", "completed", "profile_fingerprint")},
+            sort_keys=True)
+        return {name: text.replace(consultation_id, "CONSULTATION-ID") for name, text in outputs.items()}
+
+
+class LaneDeterminismTests(unittest.TestCase):
+    def test_two_teams_get_the_same_short_lane_outputs_whatever_the_folder_and_the_hash_seed(self):
+        from tests.test_determinism import SEEDS
+
+        base = Path(tempfile.mkdtemp(prefix="ogk-lane-determinism-")).resolve()
+        self.addCleanup(shutil.rmtree, base, ignore_errors=True)
+        runs = []
+        for folder, seed in zip((base / "team-a" / "project", base / "Équipe B" / "deeper" / "other-name"), SEEDS):
+            folder.mkdir(parents=True)
+            result = subprocess.run(
+                [sys.executable, "-c", LANE_CHILD, str(REPO), str(folder)], capture_output=True, text=True,
+                encoding="utf-8", timeout=300,
+                env=subprocess_environment({"PYTHONHASHSEED": seed, "PYTHONPATH": str(REPO / "src"),
+                                            "SOURCE_DATE_EPOCH": "1795219200"}))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            runs.append(json.loads(result.stdout))
+        first, second = runs
+        self.assertEqual(sorted(first), sorted(second))
+        for name in first:
+            with self.subTest(output=name):
+                self.assertEqual(first[name], second[name])
+        self.assertEqual(first["one lane"], first["two lane"])
+        self.assertEqual(json.loads(first["one lane"]), ["light", ["docs/**", "tests/**"]])
+        self.assertIn("Short lane", first["task challenge"])
+        for name, text in first.items():
+            self.assertNotIn(str(base), text, name)
 
 
 BEFORE = json.loads((REPO / "tests" / "fixtures" / "upgrade" / "before-light-lane.json").read_text(encoding="utf-8"))

@@ -19,7 +19,10 @@ from .decisions import (
     DECISIONS_DIR, EARLIER_SIGNERS, NAMESPACE, approval_policy, decision_payload, exported_records, git_revision,
     ignored_by_git, payload_text, reconsult_command, record_digest, verify_signature,
 )
-from .guard import export_decision, export_withdrawal, exported_decisions, record_of_another_task, untracked_files
+from .guard import (
+    changes_since_approval, export_decision, export_withdrawal, exported_decisions, record_of_another_task,
+    untracked_files,
+)
 from .hosts import host_controls
 from .lock import project_catalog, require_instructions
 from .market import load_dossier
@@ -660,8 +663,22 @@ def _print_checks(checks: list[dict], reported: dict, task_id: str) -> None:
             print(f"  {name} ({count} check(s)): {reason}")
 
 
+def _lane_problems(root: Path, task: dict, profile: dict) -> list[str]:
+    """What keeps a short-lane task from being done: the profile no longer allows its paths, or a file changed since
+    its approval is outside them. A project outside Git has no list of changed files to compare."""
+    problem = light_lane.lane_problem(task, profile)
+    if problem or not light_lane.is_light(task):
+        return [problem] if problem else []
+    outside = light_lane.files_outside(task["paths"], profile["light_paths"], changes_since_approval(root, task) or [])
+    return [light_lane.outside_message(task["id"], task["paths"], profile["light_paths"], outside, "this project")] \
+        if outside else []
+
+
 def _closing(args, state: Path, task: dict, profile: dict, relevance: dict, root: Path, changed: list[str]) -> dict:
     """The closed task. Deferring evidence or naming who closes needs the person at a terminal."""
+    lane = _lane_problems(root, task, profile)
+    if lane:
+        raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(lane))
     blocking = blocking_alerts(load_register(state), task)
     if blocking:
         raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(blocking))
@@ -797,7 +814,8 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
     if args.action == "verify" and not task["consultation"]["scope"].get("checks") and not is_decision_task(task):
         print(NO_CHECK_COMMAND)
     problems = (completion_problems(task, profile, relevance, changed=changed, root=root)
-                + blocking_alerts(load_register(state), task) + verification_blocker_problems(task, profile, root))
+                + blocking_alerts(load_register(state), task) + verification_blocker_problems(task, profile, root)
+                + _lane_problems(root, task, profile))
     # Before any report, task verify counts the answers the result file gives rather than one line per rule.
     folded = set(answers_to_report(task, profile, relevance)) if args.action == "verify" else set()
     if folded:

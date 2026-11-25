@@ -14,6 +14,7 @@ import sys
 import tempfile
 from pathlib import Path, PurePosixPath
 
+from . import light_lane
 from .catalog import load_catalog
 from .decisions import (
     DECISIONS_DIR, approval_policy, base_commit, changed_paths_since, check_decision, check_decision_seal,
@@ -84,8 +85,11 @@ def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) ->
                 continue
             age = _age_days(task["decision"].get("at"))
             brief = task["brief"].strip().splitlines()
-            covered.append({"task": task["id"], "brief": brief[0][:120] if brief else "",
-                            "approved_at": task["decision"].get("at"), "stale": age is None or age > STALE_DAYS})
+            entry = {"task": task["id"], "brief": brief[0][:120] if brief else "",
+                     "approved_at": task["decision"].get("at"), "stale": age is None or age > STALE_DAYS}
+            if light_lane.is_light(task):
+                entry.update(lane=task["lane"], paths=task["paths"])
+            covered.append(entry)
         except Exception:  # A broken record covers nothing; it must not stop the guard.
             continue
     return covered
@@ -158,8 +162,13 @@ NO_TASK = (
 def _describe(approvals: list[dict]) -> str:
     """Each covering task with its brief, and a warning on approvals older than the delay."""
     parts = []
+    # Beside a task of the full path, which covers every edit, a short-lane task is named with its paths; alone, the note
+    # of the message (scope_note) names them.
+    mixed = any(not item.get("lane") for item in approvals)
     for item in approvals:
         text = f"{item['task']} ({item['brief']})"
+        if item.get("lane") and mixed:
+            text += f", short lane limited to {', '.join(item['paths'])}"
         if item["stale"]:
             text += f", approved more than {STALE_DAYS} days ago: ask the person whether it still applies"
         parts.append(text)
@@ -193,14 +202,35 @@ def _context(event: str, text: str, dialect: str = "claude") -> str:
 
 # What the guard found: an approved task covers the work, no task covers it, the edit touches a file the guard
 # relies on or the allowed signers file, the guard could not check, or the edit stays outside the project's work.
-HOOK_OUTCOMES = ("covered", "uncovered", "protected", "signers", "unchecked", "outside")
+HOOK_OUTCOMES = ("covered", "uncovered", "lane", "protected", "signers", "unchecked", "outside")
 SCOPE_NOTE = (
     "The guard does not compare the edited files with a task's scope: keep this work within the approved brief "
     "and bring anything else back to the person."
 )
+LANE_REASON = ("Each short-lane task covers only its paths, and rules, dependencies, the profile and agent instructions "
+               "are never in the lane.")
+LANE_ADVICE = ("Open a task on the full path (openguildkit task new BRIEF, without --lane) and wait for the person's "
+               "approval before editing these files, or bring this edit back to the person.")
 
 
-def hook_answer(event: str, mode: str, outcome: str, detail: str = "", dialect: str = "claude") -> tuple[int, str, str]:
+def scope_note(approvals: list[dict]) -> str:
+    """What the guard compares with the edits: nothing for a task of the full path, the paths for short-lane tasks that
+    are the only ones approved."""
+    if not approvals or any(not item.get("lane") for item in approvals):
+        return SCOPE_NOTE
+    return (f"The guard holds each edit to the paths of the short-lane task(s) ({light_lane.covered_summary(approvals)}), "
+            "not to the brief: keep this work within the approved brief and bring anything else back to the person.")
+
+
+def approval_text(item: dict) -> str:
+    """One covering task in a line of guard: its ID and brief, its lane, and a warning on an old approval."""
+    lane = f" (short lane: {', '.join(item['paths'])})" if item.get("lane") else ""
+    stale = f" (approved more than {STALE_DAYS} days ago: confirm it still applies)" if item["stale"] else ""
+    return f"{item['task']}: {item['brief']}{lane}{stale}"
+
+
+def hook_answer(event: str, mode: str, outcome: str, detail: str = "", dialect: str = "claude",
+                note: str = SCOPE_NOTE) -> tuple[int, str, str]:
     """The exit code, stdout and stderr for a hook, built from the mode and the outcome so words and code agree.
 
     Only enforce refuses an edit (exit code 2, reason on stderr: the refusal of Claude Code, Codex and Gemini CLI);
@@ -217,7 +247,7 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "", dialect: 
     if outcome == "covered":
         if dialect == "gemini" and event != "prompt":
             return 0, "", ""  # Before a tool, Gemini CLI has no documented way to tell the agent: the request hook did.
-        return 0, _context(event, f"OpenGuildKit: approved task(s) in progress: {detail}. {SCOPE_NOTE}", dialect), ""
+        return 0, _context(event, f"OpenGuildKit: approved task(s) in progress: {detail}. {note}", dialect), ""
     if event == "prompt":
         if outcome != "unchecked":
             return 0, _context(event, NO_TASK, dialect), ""
@@ -230,6 +260,9 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "", dialect: 
     elif outcome == "signers":
         message = (f"OpenGuildKit: {detail} lists the keys that may sign approvals: only the person changes it, in a "
                    f"commit they review, even under an approved task. {verdict}: ask the person.")
+    elif outcome == "lane":
+        message = (f"OpenGuildKit: {verdict} for: {detail}. {LANE_REASON} {LANE_ADVICE}" if refuse
+                   else f"OpenGuildKit: {verdict}: {detail}. {LANE_REASON} {LANE_ADVICE}")
     elif outcome == "uncovered":
         # In observe, what happened comes first: the instruction must not read stronger than the flag.
         advice = NO_TASK.removeprefix("OpenGuildKit: ")
@@ -250,7 +283,8 @@ def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict
     dialect = hook_dialect(hook_input)
     approvals = covering_approvals(root, state, profile, catalog)
     if event == "prompt":
-        return hook_answer(event, mode, "covered" if approvals else "uncovered", _describe(approvals), dialect)
+        return hook_answer(event, mode, "covered" if approvals else "uncovered", _describe(approvals), dialect,
+                           scope_note(approvals))
     inside = [relative for relative in (_project_relative(root, path) for path in edited_paths(hook_input)) if relative]
     signers = signers_file(root, profile)
     keys = [relative for relative in inside if signers and relative.casefold() == signers.casefold()]
@@ -264,7 +298,14 @@ def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict
     if work and not approvals:
         return hook_answer(event, mode, "uncovered", ", ".join(work), dialect)
     if work:
-        return hook_answer(event, mode, "covered", _describe(approvals), dialect)
+        # A task of the full path covers every edit; a short-lane task, only the files its paths and the profile name.
+        light = profile.get("light_paths") or []
+        left = [relative for relative in work if not any(
+            not item.get("lane") or light_lane.covers(relative, item["paths"], light) for item in approvals)]
+        if left:
+            return hook_answer(event, mode, "lane", f"{', '.join(left)} (approved short-lane task(s): "
+                                                    f"{light_lane.covered_summary(approvals)})", dialect)
+        return hook_answer(event, mode, "covered", _describe(approvals), dialect, scope_note(approvals))
     return hook_answer(event, mode, "outside")
 
 
@@ -898,6 +939,26 @@ def _uncovered(work: list[str], covers: dict) -> str | None:
             "work is committed (openguildkit task export ID), or open a task for this change." + detail)
 
 
+def _lane_fault(record: dict, files: list[str] | None, light: list[str], base: str) -> str | None:
+    """Why a short-lane record cannot cover the change: the base revision has no light_paths (a change cannot turn on
+    the lane it is judged by), or a file the record lists is outside its paths or the base revision's light_paths. The
+    files a record covers are those of its base version when the base holds the same approval."""
+    if record.get("lane") != light_lane.LANE:
+        return None
+    where = f"the base revision {base}"
+    if not light:
+        return light_lane.off_message(record["task"], where)
+    outside = light_lane.files_outside(record["paths"], light, files or [])
+    return light_lane.outside_message(record["task"], record["paths"], light, outside, where) if outside else None
+
+
+def changes_since_approval(root: Path, task: dict) -> list[str] | None:
+    """The files Git tracks that changed since the task's approval, committed or not, and the new files it does not
+    track yet (the decision records left out); None when the approval named no Git revision."""
+    files = changed_files(root, (task.get("decision") or {}).get("base_revision"))
+    return None if files is None else sorted({*files, *untracked_files(root)})
+
+
 def _workflow_ref() -> str | None:
     """The workflow file GitHub Actions is running, from GITHUB_WORKFLOW_REF (owner/repo/PATH@ref)."""
     reference = os.environ.get("GITHUB_WORKFLOW_REF", "").split("@", 1)[0]
@@ -1027,11 +1088,15 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
             expired = None if fault else expired_waiver_problem(record, relative)
             fault = fault or (("decision-waiver-expired", expired) if expired else None)
             journal = _journal_mismatch(root, record)
+            outside = None if fault else _lane_fault(record, (earlier.get(record["task"]) or record).get("files"),
+                                                     profile.get("light_paths") or [], base)
             if fault:
                 problems.append(flag(fault[0], fault[1], relative))
             if journal:
                 problems.append(flag("evidence-journal-changed", journal, relative))
-            if not fault and not journal:
+            if outside:
+                problems.append(flag("decision-lane-outside", f"{relative}: {outside}", relative))
+            if not fault and not journal and not outside:
                 valid.append(record["task"])
                 where[record["task"]] = relative
                 covers[record["task"]] = (earlier.get(record["task"]) or record).get("files")

@@ -49,6 +49,8 @@ _RULES = {
     "decision-missing": ("No valid decision for the change", "The changes come with no valid exported decision."),
     "decision-files-uncovered": ("Changed files without a decision",
                                  "Changed files are in no decision record of the change."),
+    "decision-lane-outside": ("Short-lane decision outside its lane",
+                              "A short-lane decision covers files outside its paths, or the base revision has no lane."),
     "evidence-journal-changed": ("Evidence journal changed",
                                  "A journal cited as evidence no longer matches the hash recorded with it."),
     "guard-no-base-profile": ("No profile on the base revision",

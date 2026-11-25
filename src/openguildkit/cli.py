@@ -14,7 +14,7 @@ from .catalog import replaced_boards, undated_sources
 from .ci import check_export
 from .detect import components_for_profile, detect_stack, detected_project_name
 from .guard import (
-    NO_TASK, SCOPE_NOTE, STALE_DAYS, ci_guard, covering_approvals, exported_decisions, guard_mode, hook_command,
+    NO_TASK, approval_text, ci_guard, covering_approvals, exported_decisions, guard_mode, hook_command, scope_note,
 )
 from .hosts import HOOK_HOSTS, HOSTS, OFF_PATH, apply_host_settings, approval_warning, host_controls
 from .integrations import OTHER_HOST_NOTE, install_agent_files
@@ -854,9 +854,8 @@ def _guard(args, root: Path, state: Path) -> int:
     else:
         print("Approved task(s) in progress:")
         for item in approvals:
-            stale = f" (approved more than {STALE_DAYS} days ago: confirm it still applies)" if item["stale"] else ""
-            print(f"  {item['task']}: {item['brief']}{stale}")
-        print(SCOPE_NOTE)
+            print(f"  {approval_text(item)}")
+        print(scope_note(approvals))
     return 0
 
 

@@ -178,6 +178,41 @@ def matches(pattern: str, path: str) -> bool:
     return len(rules) in states
 
 
+def covers(path: str, task_paths: list[str], light_paths: list[str]) -> bool:
+    """Whether the lane covers an edit to this file: the task names it, the profile still allows it, and it is not
+    rules, dependencies, the profile or agent instructions, which no glob brings in. The case of a folder is kept: on a
+    disk that ignores case, an edit to Docs/ is outside docs/**, which errs on the side of the full path."""
+    return (excluded_reason(path) is None and any(matches(item, path) for item in task_paths)
+            and any(matches(item, path) for item in light_paths))
+
+
+def files_outside(task_paths: list[str], light_paths: list[str], files: list[str]) -> list[str]:
+    """The changed files the lane does not cover."""
+    return [name for name in files if not covers(name, task_paths, light_paths)]
+
+
+def outside_message(task_id: str, task_paths: list[str], light_paths: list[str], outside: list[str], where: str) -> str:
+    """The changed files of a short-lane task that are outside its paths, in one sentence; where says whose light_paths
+    the paths are held to."""
+    shown = ", ".join(outside[:10]) + (f" and {len(outside) - 10} more" if len(outside) > 10 else "")
+    return (f"Short-lane task {task_id} covers only {', '.join(task_paths)}, within the light_paths of {where} "
+            f"({', '.join(light_paths)}), and {len(outside)} changed file(s) are outside: {shown}. Rules, dependencies, "
+            f"the profile and agent instructions are never in the lane. Move the work to the full path: openguildkit "
+            f'task new "BRIEF" --follows {task_id}.')
+
+
+def covered_summary(approvals: list[dict]) -> str:
+    """The short-lane tasks among the covering approvals, each with its paths, as the guard's messages name them."""
+    return "; ".join(f"{item['task']} ({', '.join(item['paths'])})" for item in approvals if item.get("lane"))
+
+
+def off_message(task_id: str, where: str) -> str:
+    """A short-lane record judged by a revision that has no light_paths: the lane is off there."""
+    return (f"Short-lane task {task_id} is judged by {where}, which has no light_paths: the lane is off there, and a change "
+            "cannot turn on the lane it is judged by. A person turns it on in a change that is merged first "
+            f"({activation_command(DEFAULT_PATHS)}), or the work takes the full path ({FULL_PATH}).")
+
+
 def declared_covered(entry: str, light_paths: list[str]) -> bool:
     """Whether every file a declared path can match is one the profile's light_paths allow: the same glob, a folder
     glob of the profile whose folder the path starts with, or a path with no wildcard that a glob matches."""

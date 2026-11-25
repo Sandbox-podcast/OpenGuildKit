@@ -448,11 +448,13 @@
         "declared_excluded",
         "normalize_entries",
         "matches",
+        "covers",
         "declare",
         "board_for",
         "default_answers",
         "proposed_routing",
-        "lane_problem"
+        "lane_problem",
+        "files_outside"
       ],
       "tests": [
         "tests/e2e/test_light_lane.py",

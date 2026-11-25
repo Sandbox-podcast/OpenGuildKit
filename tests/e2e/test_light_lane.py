@@ -26,7 +26,8 @@ class ShortLaneJourneyTests(CliTestCase):
     def setUp(self):
         super().setUp()
         command = f'"{sys.executable}" -c "print(1)"'
-        profile = {"personal_data": "no", "name": "Support portal", "stack": ["Python"], "packs": [], "checks": [command]}
+        profile = {"personal_data": "no", "name": "Support portal", "stack": ["Python"], "packs": [], "checks": [command],
+                   "guard": "enforce"}
         self.run_cli("init", "--answers", self.write_json("profile.json", profile))
         code, _, stderr = self.in_terminal(("profile", "set", "light-paths", "docs/**", "tests/**", "--by", "Test Owner",
                                             "--reason", "Docs and tests fixes"), "docs/** tests/**")
@@ -38,6 +39,9 @@ class ShortLaneJourneyTests(CliTestCase):
         self.git("init", "-q", "-b", "main")
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "base")
+        self.git("checkout", "-q", "-b", "feature")
+        # The agent's working files go where Git ignores them: anything else it leaves is a file outside the lane.
+        (self.project / ".openguildkit" / "work").mkdir()
 
     def task_json(self, task_id=TASK):
         return json.loads(self.run_cli("task", "show", task_id).stdout)
@@ -69,7 +73,7 @@ class ShortLaneJourneyTests(CliTestCase):
         # The pass and its submission are the full path's.
         brief = self.run_cli("task", "pass", TASK, BOARD).stdout
         self.assertIn(f"# Board pass: {BOARD}", brief)
-        self.assertEqual(self.run_cli("task", "submit", TASK, "--file", self.write_json("entry.json", self.entry())).stdout.strip(),
+        self.assertEqual(self.run_cli("task", "submit", TASK, "--file", self.write_json(".openguildkit/work/entry.json", self.entry())).stdout.strip(),
                          "done")
         self.assertEqual(self.run_cli("task", "review", TASK, "--summary", "The board agrees: fix the one typo.").stdout.strip(),
                          "reviewed")
@@ -98,7 +102,7 @@ class ShortLaneJourneyTests(CliTestCase):
         checks = json.loads(self.run_cli("task", "checks", TASK, "--json").stdout)
         rules = [{"check": item["id"], "status": "not-applicable", "reason": "A typo in a guide.", "owner": "Test Owner"}
                  for item in checks if item["kind"] == "rule" and item["concerned"]]
-        self.run_cli("task", "result", TASK, "--file", self.write_json("result.json", {"checks": rules}))
+        self.run_cli("task", "result", TASK, "--file", self.write_json(".openguildkit/work/result.json", {"checks": rules}))
         self.assertEqual(self.run_cli("task", "complete", TASK).stdout.strip().splitlines()[0], "done")
         self.assertIn("(short lane: docs/**)", self.run_cli("task", "list").stdout)
 
@@ -112,6 +116,12 @@ class ShortLaneJourneyTests(CliTestCase):
         self.run_cli("task", "export", TASK)
         self.assertEqual(exported.read_bytes(), first)
         self.run_cli("check")
+
+        # CI covers the change with that record, the lane read from the base revision.
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "The decision")
+        result = json.loads(self.run_cli("guard", "--ci", "--base", "main", "--json").stdout)
+        self.assertEqual((result["ok"], result["decisions"], result["problems"]), (True, [TASK], []))
 
     def test_a_full_path_task_in_the_same_project_still_asks_its_questions(self):
         self.run_cli("task", "new", "Add a retry to the export job", "--id", "retry")
