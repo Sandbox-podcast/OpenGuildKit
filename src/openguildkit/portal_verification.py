@@ -121,7 +121,7 @@ def _rows(shares: list[dict], space: str, invited: list[str] | None, expirations
     selected = [share for share in shares if share_space(share) == space]
     recipients = sorted({address.strip().lower() for share in selected for address in share["recipients"]})
     result = []
-    today = clock.real_now().date()  # real_now() is UTC, and Documentalist ends access at 00:00 UTC.
+    today = clock.real_today()  # A UTC day, as the register's: Documentalist ends access at 00:00 UTC.
     for recipient in recipients:
         current = [s for s in selected if not s["revoked_at"] and recipient in
                    {address.strip().lower() for address in s["recipients"]}]
