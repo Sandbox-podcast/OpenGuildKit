@@ -45,6 +45,23 @@ class EmptyReportTests(unittest.TestCase):
                 self.assertEqual((alert["status"], alert["scanners"]), ("confirmed", [tool]))
                 self.assertEqual(register["imports"][-1]["dependencies"], 0)
 
+    def test_a_pip_audit_entry_it_skipped_is_not_analyzed_and_resolves_no_alert_of_its_package(self):
+        skipped = {"name": "jinja2", "skip_reason": "Dependency not found on PyPI and could therefore not be audited"}
+        register, _ = import_report(empty(), FIXTURES / "pip-audit.json", today="2026-11-21")
+        write_json(self.folder / "skipped.json", {"dependencies": [skipped], "fixes": []})
+        register, changes = import_report(register, self.folder / "skipped.json", today="2026-11-22")
+        self.assertEqual((changes["resolved"], changes["analyzed"]), ([], 0))
+        self.assertEqual(changes["nothing_analyzed"], NOTHING_ANALYZED["pip-audit"])
+        self.assertEqual(register["alerts"][0]["status"], "open")
+        register = set_status(register, JINJA, "confirmed", "Alex")
+        audited = {"name": "fastapi", "version": "0.115.0", "vulns": []}
+        write_json(self.folder / "mixed.json", {"dependencies": [skipped, audited], "fixes": []})
+        register, changes = import_report(register, self.folder / "mixed.json", today="2026-11-23")
+        self.assertEqual((changes["resolved"], changes["analyzed"]), ([], 1))
+        self.assertEqual((register["alerts"][0]["status"], register["alerts"][0]["scanners"]), ("confirmed", ["pip-audit"]))
+        register, changes = import_report(register, FIXTURES / "pip-audit-clean.json", today="2026-11-24")
+        self.assertEqual(changes["resolved"], [JINJA])
+
     def test_a_confirmed_critical_alert_resolved_by_an_import_keeps_the_report(self):
         register, _ = import_report(empty(), FIXTURES / "npm-audit-critical.json", today="2026-11-21")
         register = set_status(register, CRITICAL, "confirmed", "Alex")

@@ -171,10 +171,16 @@ def _osv_analyzed(report: dict) -> int:
     return sum(len(result.get("packages", [])) for result in report["results"] if isinstance(result, dict))
 
 
+def _pip_audit_skipped(report: dict) -> list[tuple[str, str]]:
+    """The packages pip-audit did not audit (an entry with a skip_reason, and no vulns): the report says nothing of them."""
+    return [("pypi", _package("pypi", dependency["name"])) for dependency in report["dependencies"]
+            if "skip_reason" in dependency]
+
+
 def read_report(content: bytes, label: str) -> dict:
-    """Recognize the scanner by the report's shape: its name, its normalized alerts, and how many dependencies (or,
-    for Dependabot, alerts of any state) the report shows it analyzed. A report that analyzed nothing resolves
-    nothing (import_report)."""
+    """Recognize the scanner by the report's shape: its name, its normalized alerts, how many dependencies (or, for
+    Dependabot, alerts of any state) the report shows it analyzed, and the packages it skipped. A report that analyzed
+    nothing resolves nothing, and neither does it for a package it skipped (import_report)."""
     try:
         values = _json_documents(content.decode("utf-8-sig"))
     except (UnicodeError, ValueError, RecursionError) as error:
@@ -191,7 +197,9 @@ def read_report(content: bytes, label: str) -> dict:
         if isinstance(data, dict) and isinstance(data.get("vulnerabilities"), dict):
             return {"tool": "npm audit", "alerts": _npm(data), "analyzed": _npm_analyzed(data)}
         if isinstance(data, dict) and isinstance(data.get("dependencies"), list):
-            return {"tool": "pip-audit", "alerts": _pip_audit(data), "analyzed": len(data["dependencies"])}
+            skipped = _pip_audit_skipped(data)
+            return {"tool": "pip-audit", "alerts": _pip_audit(data), "skipped": skipped,
+                    "analyzed": len(data["dependencies"]) - len(skipped)}
         if isinstance(data, dict) and isinstance(data.get("results"), list):
             return {"tool": "OSV-Scanner", "alerts": _osv(data), "analyzed": _osv_analyzed(data)}
     except (KeyError, TypeError, AttributeError) as error:
@@ -208,7 +216,7 @@ def parse_report(content: bytes, label: str) -> tuple[str, list[dict]]:
 # Why a report that analyzed no dependency leaves the register's alerts as they are, by scanner.
 NOTHING_ANALYZED = {
     "npm audit": "metadata.dependencies counts no audited dependency",
-    "pip-audit": "its dependencies list is empty",
+    "pip-audit": "its dependencies list holds no audited entry (an entry with a skip_reason was not audited)",
     "OSV-Scanner": "its results list no scanned package (run it so it lists every package it scanned)",
     "GitHub Dependabot": "it lists no alert in any state (fetch the alerts of every state, not only the open ones)",
 }
@@ -311,8 +319,8 @@ def import_report(register: dict, path: Path, task_id: str | None = None, today:
 
     Alerts that this scanner listed before and no longer lists lose it as a source; when no scanner
     lists them anymore, open and confirmed ones become resolved, and keep the report that resolved them (file,
-    SHA-256, day, dependencies analyzed). A report that analyzed no dependency resolves nothing and says why. With
-    task_id, the report's alerts are linked to that task.
+    SHA-256, day, dependencies analyzed). A report that analyzed no dependency resolves nothing and says why, and one
+    that skipped a package resolves none of its alerts. With task_id, the report's alerts are linked to that task.
     """
     today = today or _today()
     content = path.read_bytes()
@@ -333,9 +341,11 @@ def import_report(register: dict, path: Path, task_id: str | None = None, today:
             current["tasks"] = sorted([*current["tasks"], task_id])
     reported_ids = set(changes["reported"])
     source = {"tool": tool, "file": path.name, "sha256": digest, "date": today, "dependencies": report["analyzed"]}
+    skipped = report.get("skipped", [])
     for alert in alerts:
-        # A report that analyzed nothing cannot show that an alert is gone.
-        if alert["id"] in reported_ids or tool not in alert.get("scanners", []) or not report["analyzed"]:
+        # A report that analyzed nothing, or skipped the alert's package, cannot show that an alert is gone.
+        if alert["id"] in reported_ids or tool not in alert.get("scanners", []) or not report["analyzed"] or (
+                (alert["ecosystem"], alert["package"]) in skipped):
             continue
         alert["scanners"] = [name for name in alert["scanners"] if name != tool]
         if not alert["scanners"] and alert["status"] in ACTIVE:

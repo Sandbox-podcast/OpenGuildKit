@@ -31,9 +31,11 @@ A clean report resolves its alerts with no other step: that is the normal case. 
 | Scanner | Analyzed | Resolves nothing when |
 |---|---|---|
 | npm audit | `metadata.dependencies.total` (or the sum of its counts) | `metadata.dependencies` is missing or counts none |
-| pip-audit | the entries of `dependencies`, vulnerable or not | `dependencies` is empty |
+| pip-audit | the entries of `dependencies` that it audited, vulnerable or not; an entry with a `skip_reason` (a dependency it could not audit) is not counted | `dependencies` is empty, or holds only skipped entries |
 | OSV-Scanner | the packages listed under `results` | `results` lists no package: OSV-Scanner lists only vulnerable packages unless it is asked to list every package it scanned |
 | GitHub Dependabot | the alerts listed, in any state | the export is an empty list: fetch the alerts of every state, so a fixed alert shows as fixed |
+
+A report that skipped a package (pip-audit's `skip_reason`) resolves none of that package's alerts, whatever the other entries show.
 
 A confirmed critical alert that an import resolved is shown to the person when they decide: the approval prompt, `task challenge` and `task decision-payload` of each task linked to it name the alert and its report, for the resolutions since the task's last decision.
 
