@@ -345,7 +345,7 @@ def _board_template(board: dict, reviewer: str | None = None, surfaces: list[str
 
 # A pass stays under this size: its brief and entry come first, and the rules of its packs fill what is left,
 # the most specific first. The packs that do not fit are named with the command that prints their rules.
-PASS_BUDGET = 9_800
+PASS_BUDGET = 9_850
 
 
 # The order in which a board's packs concerning the task are printed: a regulation the task's own answers select

@@ -1,6 +1,16 @@
 {
   "schema_version": 1,
   "references": {
+    "aes-fips-197": {
+      "family": "security",
+      "edition": "NIST.FIPS.197-upd1",
+      "page": "https://csrc.nist.gov/pubs/fips/197/final",
+      "seen": "NIST.FIPS.197-upd1",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
     "amec-barcelona-principles": {
       "family": "communication",
       "edition": "3.0",
@@ -41,12 +51,62 @@
       "checked": null,
       "status": "from-catalog"
     },
+    "bcp47": {
+      "family": "docs",
+      "edition": "RFC 5646",
+      "page": "https://www.rfc-editor.org/rfc/rfc5646.html",
+      "seen": "RFC 5646",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "bpmn": {
+      "family": "architecture",
+      "edition": "2.0.2",
+      "page": "https://www.omg.org/spec/BPMN/",
+      "seen": "2.0.2",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
     "cis-controls": {
       "family": "security",
       "edition": "8.1",
       "page": "https://www.cisecurity.org/controls/v8-1",
       "seen": "8.1",
       "seen_on": "2026-11-21",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "cloudevents": {
+      "family": "architecture",
+      "edition": "1.0.2",
+      "page": "https://cloudevents.io/",
+      "seen": "1.0.2",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "commonmark": {
+      "family": "docs",
+      "edition": "0.31.2",
+      "page": "https://spec.commonmark.org/",
+      "seen": "0.31.2",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "consumer-rights-directive": {
+      "family": "legal",
+      "edition": "02011L0083-20260927",
+      "page": "https://eur-lex.europa.eu/eli/dir/2011/83/oj/eng",
+      "seen": "02011L0083-20260927",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -71,6 +131,26 @@
       "checked": null,
       "status": "from-catalog"
     },
+    "css": {
+      "family": "architecture",
+      "edition": "CSS Snapshot 2026",
+      "page": "https://www.w3.org/Style/CSS/",
+      "seen": "CSS Snapshot 2026",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "cyber-resilience-act": {
+      "family": "governance",
+      "edition": "02024R2847-20241120",
+      "page": "https://digital-strategy.ec.europa.eu/en/policies/cra-summary",
+      "seen": "02024R2847-20241120",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
     "cyclonedx": {
       "family": "security",
       "edition": "1.7",
@@ -83,10 +163,10 @@
     },
     "dicom": {
       "family": "data",
-      "edition": "2026b",
-      "page": "https://dicom.nema.org/medical/dicom/2026b/output/html/part01.html",
-      "seen": "2026b",
-      "seen_on": "2026-11-21",
+      "edition": "2026e",
+      "page": "https://dicom.nema.org/medical/dicom/current/output/html/part01.html",
+      "seen": "2026e",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -111,12 +191,42 @@
       "checked": null,
       "status": "from-catalog"
     },
+    "dora": {
+      "family": "governance",
+      "edition": "02022R2554-20221227",
+      "page": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj/eng",
+      "seen": "02022R2554-20221227",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "dsa": {
+      "family": "legal",
+      "edition": "02022R2065-20221027",
+      "page": "https://eur-lex.europa.eu/eli/reg/2022/2065/oj/eng",
+      "seen": "02022R2065-20221027",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
     "dtcg-design-tokens": {
       "family": "design",
       "edition": "2025.10",
       "page": "https://www.designtokens.org/tr/2025.10/format/",
       "seen": "2025.10",
       "seen_on": "2026-11-21",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "ecmascript": {
+      "family": "code",
+      "edition": "17th edition",
+      "page": "https://ecma-international.org/publications-and-standards/standards/ecma-262/",
+      "seen": "17th edition",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -151,12 +261,92 @@
       "checked": null,
       "status": "from-catalog"
     },
+    "eu-accessibility-act": {
+      "family": "governance",
+      "edition": "02019L0882-20190607",
+      "page": "https://eur-lex.europa.eu/eli/dir/2019/882/oj/eng",
+      "seen": "02019L0882-20190607",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
     "eu-ai-act": {
       "family": "governance",
       "edition": "02024R1689-20260727",
       "page": "https://eur-lex.europa.eu/eli/reg/2024/1689/2026-07-27/eng",
       "seen": "02024R1689-20260727",
       "seen_on": "2026-11-23",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "eu-mdr": {
+      "family": "governance",
+      "edition": "02017R0745-20261109",
+      "page": "https://eur-lex.europa.eu/eli/reg/2017/745/oj/eng",
+      "seen": "02017R0745-20261109",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "eu-pay-transparency": {
+      "family": "people",
+      "edition": "02023L0970-20230517",
+      "page": "https://eur-lex.europa.eu/eli/dir/2023/970/oj/eng",
+      "seen": "02023L0970-20230517",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "eu-public-procurement-directive": {
+      "family": "business",
+      "edition": "02014L0024-20260101",
+      "page": "https://eur-lex.europa.eu/eli/dir/2014/24/oj/eng",
+      "seen": "02014L0024-20260101",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "eu-tco-regulation": {
+      "family": "legal",
+      "edition": "02021R0784-20210517",
+      "page": "https://eur-lex.europa.eu/eli/reg/2021/784/oj/eng",
+      "seen": "02021R0784-20210517",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "finops-focus": {
+      "family": "cloud",
+      "edition": "1.4",
+      "page": "https://focus.finops.org/what-is-focus/",
+      "seen": "1.4",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "fips-140-3": {
+      "family": "security",
+      "edition": "NIST.FIPS.140-3",
+      "page": "https://csrc.nist.gov/pubs/fips/140-3/final",
+      "seen": "NIST.FIPS.140-3",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "gfm": {
+      "family": "docs",
+      "edition": "0.29-gfm",
+      "page": "https://github.github.com/gfm/",
+      "seen": "0.29-gfm",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -201,12 +391,42 @@
       "checked": null,
       "status": "from-catalog"
     },
+    "iab-tcf": {
+      "family": "business",
+      "edition": "v2.3",
+      "page": "https://iabeurope.eu/transparency-consent-framework/",
+      "seen": "v2.3",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "ias-38": {
+      "family": "finance",
+      "edition": "2026 Issued",
+      "page": "https://www.ifrs.org/issued-standards/list-of-standards/ias-38-intangible-assets/",
+      "seen": "2026 Issued",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
     "iec-62304": {
       "family": "governance",
       "edition": "IEC 62304:2006+AMD1:2015 CSV",
       "page": "https://webstore.iec.ch/en/publication/22794",
       "seen": "IEC 62304:2006+AMD1:2015 CSV",
       "seen_on": "2026-11-23",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "ifrs-15": {
+      "family": "finance",
+      "edition": "2026 Issued",
+      "page": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-15-revenue-from-contracts-with-customers/",
+      "seen": "2026 Issued",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -341,6 +561,16 @@
       "checked": null,
       "status": "from-catalog"
     },
+    "iso-4217": {
+      "family": "docs",
+      "edition": "2015",
+      "page": "https://www.iso.org/iso-4217-currency-codes.html",
+      "seen": "2015",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
     "iso-45001": {
       "family": "people",
       "edition": "2018",
@@ -367,6 +597,16 @@
       "page": "https://www.iso.org/standard/79278.html",
       "seen": "2024",
       "seen_on": "2026-11-20",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "iso-8601": {
+      "family": "data",
+      "edition": "2019",
+      "page": "https://www.iso.org/iso-8601-date-and-time-format.html",
+      "seen": "2019",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -541,6 +781,16 @@
       "checked": null,
       "status": "from-catalog"
     },
+    "iso-iec-5230": {
+      "family": "security",
+      "edition": "ISO/IEC 5230:2020",
+      "page": "https://openchainproject.org/license-compliance",
+      "seen": "ISO/IEC 5230:2020",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
     "iso-iec-ieee-12207": {
       "family": "quality",
       "edition": "2026",
@@ -581,6 +831,26 @@
       "checked": null,
       "status": "from-catalog"
     },
+    "json-ld": {
+      "family": "business",
+      "edition": "1.1",
+      "page": "https://www.w3.org/TR/json-ld11/",
+      "seen": "1.1",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "json-schema": {
+      "family": "architecture",
+      "edition": "2020-12",
+      "page": "https://json-schema.org/specification",
+      "seen": "2020-12",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
     "kanban-guide": {
       "family": "product",
       "edition": "May 2025",
@@ -607,6 +877,16 @@
       "page": "https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html",
       "seen": "5.0",
       "seen_on": "2026-11-21",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "nis-2": {
+      "family": "governance",
+      "edition": "02022L2555-20221227",
+      "page": "https://eur-lex.europa.eu/eli/dir/2022/2555/oj/eng",
+      "seen": "02022L2555-20221227",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -741,12 +1021,52 @@
       "checked": null,
       "status": "from-catalog"
     },
+    "oci-runtime-spec": {
+      "family": "cloud",
+      "edition": "v1.3.0",
+      "page": "https://specs.opencontainers.org/runtime-spec/",
+      "seen": "v1.3.0",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "open-data-contract-standard": {
+      "family": "data",
+      "edition": "v3.2.0",
+      "page": "https://bitol-io.github.io/open-data-contract-standard/latest/",
+      "seen": "v3.2.0",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "openapi": {
+      "family": "architecture",
+      "edition": "3.2.1",
+      "page": "https://spec.openapis.org/oas/v3.2.1.html",
+      "seen": "3.2.1",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
     "openid-connect": {
       "family": "security",
       "edition": "Core 1.0 incorporating errata set 2",
       "page": "https://openid.net/specs/openid-connect-core-1_0.html",
       "seen": "Core 1.0 incorporating errata set 2",
       "seen_on": "2026-11-23",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "openlineage": {
+      "family": "data",
+      "edition": "1.55.0",
+      "page": "https://openlineage.io/docs/spec/object-model/",
+      "seen": "1.55.0",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -861,6 +1181,36 @@
       "checked": null,
       "status": "from-catalog"
     },
+    "reuse": {
+      "family": "legal",
+      "edition": "3.3",
+      "page": "https://reuse.software/spec/",
+      "seen": "3.3",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "rfc-3339": {
+      "family": "data",
+      "edition": "RFC 3339",
+      "page": "https://www.rfc-editor.org/rfc/rfc3339",
+      "seen": "RFC 3339",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "rgpd": {
+      "family": "governance",
+      "edition": "02016R0679-20160504",
+      "page": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng",
+      "seen": "02016R0679-20160504",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
     "safe": {
       "family": "delivery",
       "edition": "6.0",
@@ -877,6 +1227,16 @@
       "page": "https://docs.oasis-open.org/security/saml/Post2.0/sstc-saml-tech-overview-2.0.html",
       "seen": "2.0",
       "seen_on": "2026-11-21",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "schema-org": {
+      "family": "business",
+      "edition": "V30.1",
+      "page": "https://schema.org/docs/gs.html",
+      "seen": "V30.1",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -921,12 +1281,32 @@
       "checked": null,
       "status": "from-catalog"
     },
+    "software-carbon-intensity": {
+      "family": "cloud",
+      "edition": "1.1.0",
+      "page": "https://sci.greensoftware.foundation/",
+      "seen": "1.1.0",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
     "sql": {
       "family": "data",
       "edition": "ISO/IEC 9075-1:2023",
       "page": "https://www.iso.org/standard/76583.html",
       "seen": "ISO/IEC 9075-1:2023",
       "seen_on": "2026-11-20",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "standard-contractual-clauses": {
+      "family": "legal",
+      "edition": "02021D0914-20210607",
+      "page": "https://eur-lex.europa.eu/eli/dec_impl/2021/914/oj/eng",
+      "seen": "02021D0914-20210607",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -961,12 +1341,82 @@
       "checked": null,
       "status": "from-catalog"
     },
+    "uml": {
+      "family": "architecture",
+      "edition": "2.5.1",
+      "page": "https://www.omg.org/spec/UML/",
+      "seen": "2.5.1",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "unicode-bidi": {
+      "family": "docs",
+      "edition": "Unicode 18.0.0",
+      "page": "https://www.unicode.org/reports/tr9/",
+      "seen": "Unicode 18.0.0",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "unicode-normalization": {
+      "family": "docs",
+      "edition": "Unicode 18.0.0",
+      "page": "https://www.unicode.org/reports/tr15/",
+      "seen": "Unicode 18.0.0",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "vat-directive": {
+      "family": "finance",
+      "edition": "02006L0112-20250414",
+      "page": "https://eur-lex.europa.eu/eli/dir/2006/112/oj/eng",
+      "seen": "02006L0112-20250414",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "vertical-block-exemption": {
+      "family": "legal",
+      "edition": "02022R0720-20240211",
+      "page": "https://eur-lex.europa.eu/eli/reg/2022/720/oj/eng",
+      "seen": "02022R0720-20240211",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
     "vertical-guidelines": {
       "family": "legal",
       "edition": "2022",
       "page": "https://competition-policy.ec.europa.eu/antitrust-and-cartels/legislation/vertical-block-exemptions_en",
       "seen": "2022",
       "seen_on": "2026-11-21",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "w3c-baggage": {
+      "family": "cloud",
+      "edition": "W3C Candidate Recommendation Snapshot 30 May 2024",
+      "page": "https://www.w3.org/TR/baggage/",
+      "seen": "W3C Candidate Recommendation Snapshot 30 May 2024",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "w3c-trace-context": {
+      "family": "cloud",
+      "edition": "W3C Recommendation 23 November 2021",
+      "page": "https://www.w3.org/TR/trace-context/",
+      "seen": "W3C Recommendation 23 November 2021",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
@@ -987,6 +1437,16 @@
       "page": "https://www.w3.org/TR/WCAG22/",
       "seen": "2.2",
       "seen_on": "2026-11-20",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "xsd": {
+      "family": "architecture",
+      "edition": "1.1",
+      "page": "https://www.w3.org/TR/xmlschema11-1/",
+      "seen": "1.1",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"

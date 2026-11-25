@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 from openguildkit.references import load_references
 
@@ -31,6 +32,21 @@ CHECKED = {"quality": {**FAMILIES["quality"], "references": [
                                                          {"title": "Mirror", "url": MIRROR, "checked": "2026-11-18"}]},
     FAMILIES["quality"]["references"][1],
 ]}}
+
+
+# References whose every source is a page whose address holds the edition: the publisher keeps that page online after
+# a new edition, so the watch keeps finding the old one there. Each one waits for a page that follows the editions
+# (#348); the list may only shrink.
+VERSIONED_ONLY = {
+    "apache-avro", "dmn", "dtcg-design-tokens", "hm-treasury-green-book", "keep-a-changelog", "openvex",
+    "owasp-agentic-top-10", "owasp-api-top-10", "prince2", "saml-2", "toml", "yaml",
+}
+
+
+def names_edition(url: str, edition: str) -> bool:
+    """True when the address itself holds the edition, as /dicom/2026b/ or /celex/02024R1689-20260727 do."""
+    parts = urlsplit(url)
+    return watch_editions.shows_edition(unquote(f"{parts.path} {parts.query}"), edition)
 
 
 def pages(**texts):
@@ -114,6 +130,24 @@ class EditionWatchTests(unittest.TestCase):
         for reference, record in state["references"].items():
             self.assertEqual(record["edition"], expected[reference]["edition"], reference)
             self.assertIn(record["page"], expected[reference]["pages"], reference)
+
+    def test_a_page_that_names_the_edition_comes_with_one_that_does_not(self):
+        """A versioned page stays online and keeps showing its edition: the watch needs a source that follows the
+        editions, such as DICOM's current folder (#348)."""
+        self.assertTrue(names_edition("https://dicom.nema.org/medical/dicom/2026b/output/html/part01.html", "2026b"))
+        self.assertFalse(names_edition("https://dicom.nema.org/medical/dicom/current/output/html/part01.html", "2026b"))
+        self.assertTrue(names_edition("https://publications.europa.eu/resource/celex/02016R0679-20160504",
+                                      "02016R0679-20160504"))
+        versioned_only = sorted(entry["reference"] for entry in watch_editions.watched(load_references())
+                                if all(names_edition(url, entry["edition"]) for url in entry["pages"]))
+        self.assertEqual(versioned_only, sorted(VERSIONED_ONLY))
+
+    def test_dicom_follows_the_current_edition(self):
+        state = watch_editions.read_state(watch_editions.STATE)
+        record = state["references"]["dicom"]
+        self.assertEqual((record["edition"], record["seen"]), ("2026e", "2026e"))
+        self.assertEqual(record["page"], "https://dicom.nema.org/medical/dicom/current/output/html/part01.html")
+        self.assertGreaterEqual(record["seen_on"], "2026-11-25")
 
     def test_no_reference_of_the_watch_file_waits_for_a_first_observation(self):
         state = watch_editions.read_state(watch_editions.STATE)

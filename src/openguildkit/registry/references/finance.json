@@ -6,6 +6,7 @@
       "id": "ifrs-15",
       "title": "IFRS 15 — Produits des activités ordinaires tirés de contrats avec des clients",
       "title_en": "IFRS 15, Revenue from Contracts with Customers",
+      "edition": "2026 Issued",
       "category": "Normes comptables",
       "kind": "norme",
       "brains": [
@@ -22,7 +23,7 @@
       "sources": [
         {
           "url": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-15-revenue-from-contracts-with-customers/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "IFRS Foundation — IFRS 15 Revenue from Contracts with Customers"
         }
       ]
@@ -31,6 +32,7 @@
       "id": "ias-38",
       "title": "IAS 38 — Immobilisations incorporelles",
       "title_en": "IAS 38, Intangible Assets",
+      "edition": "2026 Issued",
       "category": "Normes comptables",
       "kind": "norme",
       "brains": [
@@ -42,7 +44,7 @@
       "sources": [
         {
           "url": "https://www.ifrs.org/issued-standards/list-of-standards/ias-38-intangible-assets/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "IFRS Foundation — IAS 38 Intangible Assets"
         }
       ]
@@ -167,6 +169,7 @@
       "id": "vat-directive",
       "title": "Directive 2006/112/CE — système commun de TVA (VAT Directive)",
       "title_en": "Directive 2006/112/EC on the common system of value added tax (VAT Directive)",
+      "edition": "02006L0112-20250414",
       "category": "Fiscalité",
       "kind": "réglementation",
       "brains": [
@@ -183,6 +186,11 @@
           "url": "https://eur-lex.europa.eu/eli/dir/2006/112/oj/eng",
           "checked": "2026-11-25",
           "title": "Council Directive 2006/112/EC on the common system of value added tax"
+        },
+        {
+          "url": "https://publications.europa.eu/resource/celex/02006L0112-20250414",
+          "checked": "2026-11-25",
+          "title": "EU Publications Office metadata for consolidated text 02006L0112-20250414"
         }
       ]
     },

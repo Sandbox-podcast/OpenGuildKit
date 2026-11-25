@@ -165,6 +165,7 @@
       "id": "eu-pay-transparency",
       "title": "Directive (UE) 2023/970 sur la transparence des rémunérations",
       "title_en": "Directive (EU) 2023/970 on pay transparency",
+      "edition": "02023L0970-20230517",
       "category": "Droit du travail et données RH",
       "kind": "réglementation",
       "brains": [
@@ -182,6 +183,11 @@
           "url": "https://eur-lex.europa.eu/eli/dir/2023/970/oj/eng",
           "checked": "2026-11-25",
           "title": "Directive (UE) 2023/970 — Transparence des rémunérations"
+        },
+        {
+          "url": "https://publications.europa.eu/resource/celex/02023L0970-20230517",
+          "checked": "2026-11-25",
+          "title": "EU Publications Office metadata for consolidated text 02023L0970-20230517"
         }
       ]
     }

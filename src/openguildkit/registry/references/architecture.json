@@ -210,6 +210,7 @@
     {
       "id": "uml",
       "title": "Unified Modeling Language",
+      "edition": "2.5.1",
       "category": "Architecture et modélisation",
       "kind": "spécification",
       "brains": [
@@ -220,7 +221,7 @@
       "sources": [
         {
           "url": "https://www.omg.org/spec/UML/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "Unified Modeling Language - OMG"
         }
       ]
@@ -301,6 +302,7 @@
     {
       "id": "bpmn",
       "title": "Business Process Model and Notation",
+      "edition": "2.0.2",
       "category": "Architecture et modélisation",
       "kind": "spécification",
       "brains": [
@@ -312,7 +314,7 @@
       "sources": [
         {
           "url": "https://www.omg.org/spec/BPMN/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "Business Process Model and Notation - OMG"
         }
       ]
@@ -486,6 +488,7 @@
     {
       "id": "openapi",
       "title": "OpenAPI Specification",
+      "edition": "3.2.1",
       "category": "API, protocoles et interopérabilité",
       "kind": "spécification",
       "brains": [
@@ -621,6 +624,7 @@
     {
       "id": "cloudevents",
       "title": "CloudEvents",
+      "edition": "1.0.2",
       "category": "API, protocoles et interopérabilité",
       "kind": "spécification",
       "brains": [
@@ -631,7 +635,7 @@
       "sources": [
         {
           "url": "https://cloudevents.io/",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "CloudEvents"
         }
       ]
@@ -659,6 +663,7 @@
     {
       "id": "json-schema",
       "title": "JSON Schema",
+      "edition": "2020-12",
       "category": "Formats et schémas",
       "kind": "spécification",
       "brains": [
@@ -671,7 +676,7 @@
       "sources": [
         {
           "url": "https://json-schema.org/specification",
-          "checked": "2026-11-21",
+          "checked": "2026-11-25",
           "title": "JSON Schema Specification"
         }
       ]
@@ -738,6 +743,7 @@
     {
       "id": "xsd",
       "title": "XML Schema Definition",
+      "edition": "1.1",
       "category": "Formats et schémas",
       "kind": "spécification",
       "brains": [
@@ -749,7 +755,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/TR/xmlschema11-1/",
-          "checked": "2026-11-20",
+          "checked": "2026-11-25",
           "title": "W3C XML Schema Definition Language (XSD) 1.1 Part 1: Structures"
         }
       ]
@@ -864,6 +870,7 @@
       ],
       "title": "Spécifications CSS",
       "title_en": "CSS specifications",
+      "edition": "CSS Snapshot 2026",
       "category": "Standards de la plateforme web",
       "kind": "spécification",
       "brains": [
@@ -876,7 +883,7 @@
       "sources": [
         {
           "url": "https://www.w3.org/Style/CSS/",
-          "checked": "2026-11-20",
+          "checked": "2026-11-25",
           "title": "W3C — Cascading Style Sheets"
         }
       ]
