@@ -35,10 +35,12 @@ def plan(changed: list[str], module_map: dict) -> dict:
     by_path = {item["module"]: item for item in module_map["modules"]}
     tests, commands, unattached = [], [], []
 
-    def add_tests(paths: list[str]) -> None:
-        for path in paths:
-            if path not in tests and (ROOT / path).is_file():
+    def add_tests(paths: list[str]) -> bool:
+        available = [path for path in paths if (ROOT / path).is_file()]
+        for path in available:
+            if path not in tests:
                 tests.append(path)
+        return bool(available)
 
     for path in changed:
         name = path.rsplit("/", 1)[-1]
@@ -48,16 +50,13 @@ def plan(changed: list[str], module_map: dict) -> dict:
             continue
         item = by_path.get(path)
         if item:
-            if item["tests"]:
-                add_tests(item["tests"])
-            else:
+            if not add_tests(item["tests"]):
                 unattached.append(path)
             continue
         covered = False
         for entry in module_map["modules"]:
             if any(path.startswith(prefix) for prefix in entry.get("covers", [])):
-                add_tests(entry["tests"])
-                covered = True
+                covered = add_tests(entry["tests"]) or covered
         if covered:
             continue
         if path.startswith("src/openguildkit/registry/"):
@@ -69,8 +68,7 @@ def plan(changed: list[str], module_map: dict) -> dict:
                 commands.append("web-typecheck")
             continue
         extra = EXTRA.get(path)
-        if extra:
-            add_tests([extra])
+        if extra and add_tests([extra]):
             continue
         unattached.append(path)
     return {"tests": tests, "commands": commands, "unattached": unattached}

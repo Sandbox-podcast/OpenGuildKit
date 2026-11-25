@@ -111,6 +111,17 @@ class CheckFastTests(unittest.TestCase):
         ])
 
 
+    def test_a_changed_module_with_only_removed_tests_is_unattached(self):
+        module_map = {"modules": [{
+            "module": "src/openguildkit/results.py",
+            "tests": ["tests/test_deleted_example.py"],
+            "covers": ["examples/mapped/"],
+        }]}
+        changed = ["src/openguildkit/results.py", "examples/mapped/sample.md"]
+        self.assertEqual(check_fast.plan(changed, module_map),
+                         {"tests": [], "commands": [], "unattached": changed})
+
+
 class BudgetTests(CapturedCli, unittest.TestCase):
     cli_output = "stdout"
 
