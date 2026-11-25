@@ -194,3 +194,5 @@ openguildkit patterns --id python-fastapi-postgresql
 - [Architecture](docs/architecture.md) and [task workflow](docs/workflow.md)
 - [Contributing](CONTRIBUTING.md), [catalog format](docs/catalog-format.md) and [testing](docs/testing.md)
 - [Roadmap](docs/roadmap.md) and [MIT license](LICENSE)
+
+`openguildkit recommend` suggests relevant project rule packs. `openguildkit ci-check` checks a project in CI.
