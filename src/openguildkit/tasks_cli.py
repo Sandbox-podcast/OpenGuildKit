@@ -982,8 +982,9 @@ def _outcome(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
             result = record_result(current_task, profile, payload, "verify", relevance, root)
         elif action == "result":
             with _input_file(args.file):
-                result = record_result(current_task, profile, read_json(args.file), "report", relevance, root,
-                                       changed=changed)
+                reported = read_json(args.file)
+                result = record_result(current_task, profile, reported, "report", relevance, root, changed=changed)
+            _warn_inputs(reported, redact_data(reported), "task result")
         else:
             result = closing
         held = result.pop("_held", [])

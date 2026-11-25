@@ -164,7 +164,7 @@ def mock_evidence(task: dict) -> list[str]:
 
 def _received(value: object) -> str:
     """The value a person sent, short enough for one line of an error."""
-    text = redact_credentials(json.dumps(value, ensure_ascii=False))
+    text = redact_credentials(json.dumps(value, ensure_ascii=False)[:2000])
     return text if len(text) <= 60 else text[:57] + "..."
 
 

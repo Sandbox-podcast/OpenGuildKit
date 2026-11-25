@@ -741,7 +741,7 @@ def touched_components(scope: dict, profile: dict) -> set[str]:
     """Components the task names in its answers, or whose folder a path of the brief falls in."""
     named = set(as_list(scope["answers"].get("components")))
     text = " ".join([scope["brief"], *(scope["answers"].get(key, "") for key in ("context", *FOLLOW_UPS))])
-    paths = [match.group(0) for match in re.finditer(r"[\w.-]+(?:/[\w.-]+)+", text)]
+    paths = [match.group(0) for match in re.finditer(r"(?<![\w.-])[\w.-]+(?:/[\w.-]+)+", text)]
     for component in profile.get("components", []):
         folder = (component.get("path") or "").strip("/")
         if folder and any(path == folder or path.startswith(folder + "/") for path in paths):

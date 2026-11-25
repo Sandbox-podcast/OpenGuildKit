@@ -21,6 +21,7 @@ from .project import STATE_DIR, rule_text
 from .project_checks import failure_message
 from .relevance import DECISION_REASON, evidence_owner, judge_rules, sensitive_area
 from .rule_checks import evaluate_check, validate_path
+from .sensitive import redact_data
 from .storage import write_text
 from .workflow import is_decision_task
 
@@ -323,12 +324,14 @@ def validate_result(task: dict, profile: dict, payload: dict, source: str = "rep
 
     A report written by the agent (`source` "report") covers rules and criteria only: command
     checks and ChaosFolk replays are recorded by `task verify` ("verify"), which runs or reads them.
-    A blank status is a question left unanswered. A named evidence that cannot be recorded (a
+    A credential in a report is replaced with a placeholder, as in a brief. A blank status is a question left unanswered. A named evidence that cannot be recorded (a
     missing file, or not-applicable where it must be supplied) is held back with the reason, under
     "_held" (each with its check and message), and the rest is recorded: the task waits for that evidence.
     """
     if task.get("status") not in ("approved", *DONE_STATUSES):
         raise ValueError("Record results for an approved task.")
+    if source == "report":
+        payload = redact_data(payload)
     fields = {"revision", "pull_request", "criteria", "checks", "packs"} | TEMPLATE_NOTES
     if source == "verify":
         fields.add("run")

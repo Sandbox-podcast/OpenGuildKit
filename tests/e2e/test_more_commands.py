@@ -209,6 +209,21 @@ class StorybookComposeCommandTests(CliTestCase):
         self.assertNotIn("brand", removed)
         self.run_cli("storybook", "compose", "brand", "--remove", expect=1)
 
+    def test_compose_refuses_a_url_with_a_password_or_a_token(self):
+        self.init_example()
+        (self.project / ".storybook").mkdir()
+        (self.project / ".storybook" / "main.ts").write_text("export default {};\n", encoding="utf-8")
+        password, token = "S3cr3t" + "Pw", "abcd1234" + "efgh5678"
+        for url, message in ((f"https://design.example.com/?access_token={token}", "the link must carry no user name, password or token"),
+                             (f"https://design.example.com/?api_key={token}", "the link must carry no user name, password or token"),
+                             (f"https://admin:{password}@design.example.com/?x=1", "Remove the user name and password")):
+            with self.subTest(url=url[:30]):
+                refused = self.run_cli("storybook", "compose", "company", "--url", url, "--title", "Acme", expect=1)
+                self.assertIn(message, refused.stderr)
+                for secret in (password, token):
+                    self.assertNotIn(secret, refused.stderr)
+        self.assertFalse((self.project / ".storybook" / "openguildkit-refs.json").exists())
+
 
 class DeliverableListCommandTests(CliTestCase):
     def test_list_shows_every_template_with_its_reviewers(self):

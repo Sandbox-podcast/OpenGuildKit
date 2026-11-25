@@ -16,14 +16,27 @@ _NOT_A_VALUE = r"""(?![\[$<{%]|(?-i:[A-Z_]+)(?![A-Za-z0-9])|[^\s,;"']*(?:\.\.\.|
 # An unquoted run that starts with a name and a colon continues a namespaced name (token:color:#0a66c2), not a value.
 _SETTING_VALUE = (rf"""(?:"{_NOT_A_VALUE}[^"\r\n]{{4,}}"|'{_NOT_A_VALUE}[^'\r\n]{{4,}}'"""
                   rf"""|{_NOT_A_VALUE}(?![A-Za-z][A-Za-z-]*:)(?=[^\s,;"']*\d)[^\s,;"']{{8,}})""")
-# The name of a secret setting: api_key, AWS_SECRET_ACCESS_KEY, x-api-key, or a camelCase name such as accessToken.
-_SECRET_KEY = (r"(?:(?:[a-z0-9]+[_-])*(?:api[_-]?key|token|secret|access[_-]?key|secret[_-]?key|client[_-]?secret)"
-               r"|[a-z][a-z0-9]*(?-i:Token|Secret))")
-# The name of a password: password, DB_PASSWORD, POSTGRES_PASSWORD, DB_PWD, PASSPHRASE, dbPassword, --password.
-# A bare pwd is the shell command: only a prefixed name (DB_PWD) is a password. The match starts at the last word of the
-# name (PASSWORD in DB_PASSWORD) or at the start of a camelCase name: a long run of letters is read once, not once per letter.
-_PASSWORD_KEY = (r"(?:(?<![A-Za-z0-9])(?:password|passwd|passphrase)|(?<=[A-Za-z0-9][_-])pwd"
-                 r"|(?<![A-Za-z0-9])[0-9]*[a-z][a-z0-9]*(?-i:Password|Passphrase)|mot de passe)")
+# The name of a secret setting: api_key, AWS_SECRET_ACCESS_KEY, secretAccessKey, x-api-key, or a camelCase name such as
+# accessToken or the _authToken of an .npmrc.
+_SECRET_KEY = (r"(?:(?:[a-z0-9]+[_-])*(?:api[_-]?key|token|secret|access[_-]?key|secret[_-]?key|client[_-]?secret"
+               r"|secret[_-]?access[_-]?key)|_?[a-z][a-z0-9]*(?-i:Token|Secret))")
+# The name of a password: password, DB_PASSWORD, POSTGRES_PASSWORD, DB_PWD, PASSPHRASE, dbPassword, --password, mdp.
+# A bare pwd is the shell command: only a prefixed name (DB_PWD) is a password.
+# A name is tried only where it starts (not after a letter, a digit, or a letter and a separator), so a long line costs
+# one pass, not one per word.
+_PASSWORD_KEY = (r"(?:(?<![A-Za-z0-9])(?<![A-Za-z0-9][_-])"
+                 r"(?:(?:[a-z0-9]+[_-])*(?:password|passwd|passphrase|mdp)|(?:[a-z0-9]+[_-])+pwd)"
+                 r"|(?<![A-Za-z0-9])[a-z0-9]+(?-i:Password|Passphrase)|mot de passe)")
+# The mysql commands: a search for -p stops at the next one, which has its own search.
+_MYSQL = r"\bmysql(?:dump|admin|import|check|show)?\b"
+# What a requirement says after "Password:": a word of prose, not a value.
+_PASSWORD_PROSE = (r"(?:required|optional|mandatory|hidden|masked|hashed|encrypted|empty|none|min|max|minimum|maximum|must|"
+                   r"should|needed|policy|rules?|field|input|reset|expires?|never|always|same|the|an?|and|or|not|is|are|at|"
+                   r"to|of|in|for|with|requis|obligatoire|facultatif|optionnel|masqué|haché|chiffré|vide|aucun|"
+                   r"doit|le|la|les|un|une|et|ou|de|du|des|pas)")
+# The value of a password given as an argument after a space: quoted, or a run of characters that holds a digit.
+_ARGUMENT_VALUE = (rf"""(?:"{_NOT_A_VALUE}[^"\r\n]+"|'{_NOT_A_VALUE}[^'\r\n]+'"""
+                   rf"""|{_NOT_A_VALUE}(?=[^\s'"]*\d)[^\s'"]{{4,}})""")
 # Each shape: its name in messages, the pattern, and the replacement that keeps the surrounding words.
 CREDENTIAL_SHAPES = (
     ("a cloud access key ID", re.compile(r"(?<![A-Za-z0-9_])(?:AKIA|ASIA)[A-Za-z0-9]{16}(?![A-Za-z0-9_])"),
@@ -60,22 +73,20 @@ CREDENTIAL_SHAPES = (
      r"\1[credential]"),
     ("a JSON Web Token", re.compile(r"(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
      "[credential]"),
-    ("a private key", re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----(?:.*?-----END (?:[A-Z0-9]+ )*PRIVATE KEY-----)?",
-                                 re.DOTALL), "[private key]"),
-    # The scheme is looked for once per run of scheme characters, not once per letter of a long run.
-    ("a link with a password", re.compile(r"(?i)((?<![a-z0-9+.-])(?>[a-z0-9+.-]*?\b[a-z])[a-z0-9+.-]*+://[^\s/:@]+:)"
-                                          r"(?!\[)[^\s/@]+@"), r"\1[password]@"),
+    ("a private key", re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----"
+                                 r"(?:.*?-----END (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----)?", re.DOTALL), "[private key]"),
+    ("a link with a password", re.compile(r"(?i)(\b[a-z][a-z0-9+.-]{0,31}://[^\s/:@]*:)(?!\[)[^\s/@]+@"), r"\1[password]@"),
     ("a secret in a query string", re.compile(
         r"(?i)([?&;](?:[a-z0-9_.-]*[_-])?(?:token|secret|password|passwd|api[_-]?key|access[_-]?key|signature|sig)=)"
         r"(?![\[$<{])[^&#\s\"']+"), r"\1[credential]"),
-    ("a password", re.compile(rf"""(?i)({_PASSWORD_KEY}["']?\s*[:=]\s*)(?![\[$<{{%])(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]*[^\s,;.!?)])"""),
-     r"\1[password]"),
-    # mysql -pSECRET, mysqldump -pSECRET: the value follows -p without a space; -p alone asks for it. The search from one
-    # mysql stops at the next, which takes over: a line that repeats mysql is read once.
-    ("a password on a command line", re.compile(r"(\bmysql(?:dump|admin|import|check|show)?\b"
-                                                r"(?:(?!\bmysql(?:dump|admin|import|check|show)?\b)[^\n])*?\s-p)"
-                                                r"(?![\[$<{%])[^\s'\"]{4,}"),
-     r"\1[password]"),
+    ("a password", re.compile(rf"""(?i)({_PASSWORD_KEY}["']?\s*[:=]\s*)(?![\[$<{{%])(?!{_PASSWORD_PROSE}(?![\w'-]))"""
+                              r"""(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]*[^\s,;.!?)])"""), r"\1[password]"),
+    # mysql -pSECRET, mysqldump -pSECRET: the value follows -p without a space; -p alone asks for it. Elsewhere the value
+    # follows --password, --pass or the -p of sshpass and of a login, after a space.
+    ("a password on a command line", re.compile(
+        rf"({_MYSQL}(?:(?!{_MYSQL})[^\n])*?\s-p)(?![\[$<{{%])[^\s'\"]{{4,}}"
+        rf"|((?<![\w-])--pass(?:word|wd|phrase)?[ \t]+|\b(?:sshpass|login)\b[^\n]{{0,200}}?[ \t]-p[ \t]+){_ARGUMENT_VALUE}"),
+     r"\1\2[password]"),
     ("an authorization header", re.compile(
         r"""(?i)(\bauthorization["']?\s*[:=]\s*["']?(?:bearer|basic|token)\s+)"""
         rf"""{_NOT_A_VALUE}[A-Za-z0-9._~+/=-]{{8,}}"""), r"\1[credential]"),
@@ -84,7 +95,8 @@ CREDENTIAL_SHAPES = (
      r"\1[credential]"),
 )
 PERSONAL_SHAPES = (
-    ("an email address", re.compile(r"[a-z0-9.!#$%&'*+/=?^_\x60{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+", re.IGNORECASE | re.ASCII)),
+    ("an email address", re.compile(r"(?<![a-z0-9.!#$%&'*+/=?^_\x60{|}~-])[a-z0-9.!#$%&'*+/=?^_\x60{|}~-]+@"
+                                    r"[a-z0-9-]+(?:\.[a-z0-9-]+)+", re.IGNORECASE | re.ASCII)),
     ("a phone number", re.compile(r"(?<![\w+])(?:\+\d{1,3}[ .-]?\d(?:[ .-]?\d){7,12}|0\d(?:[ .-]?\d{2}){4})(?!\w)")),
     ("a bank account number", re.compile(r"\b[A-Z]{2}\d{2} ?(?:[A-Z0-9]{4} ?){2,7}[A-Z0-9]{1,4}\b")),
 )
@@ -164,6 +176,24 @@ def credential_problems(value: object, path: str) -> list[str]:
     return []
 
 
+def _carries_credentials(url) -> bool:
+    return url.username is not None or url.password is not None or any(
+        _QUERY_CREDENTIAL.search(name) or looks_like_credential(value)
+        for name, value in parse_qsl(url.query, keep_blank_values=True)
+    )
+
+
+def refuse_link_credentials(ref: str, field: str) -> None:
+    """Refuse a link with a user name, a password or a credential in its query string; the link is never repeated."""
+    try:
+        url = urlsplit(ref.strip())
+    except ValueError:
+        return
+    if _carries_credentials(url):
+        raise ValueError(f"{field}: the link must carry no user name, password or token: the address is recorded as "
+                         f"written, and {WHERE}.")
+
+
 def public_evidence_url(ref: str, field: str) -> None:
     """Validate an HTTPS citation's literal host and query, without resolving its address."""
     try:
@@ -174,10 +204,7 @@ def public_evidence_url(ref: str, field: str) -> None:
         hostname = None
     if not hostname or url.scheme != "https" or any(char.isspace() for char in ref):
         raise ValueError(f"{field}: a public source needs an https link in ref.")
-    if url.username is not None or url.password is not None or any(
-        _QUERY_CREDENTIAL.search(name) or looks_like_credential(value)
-        for name, value in parse_qsl(url.query, keep_blank_values=True)
-    ):
+    if _carries_credentials(url):
         raise ValueError(f"{field}: a public source must use a link without credentials.")
     host = hostname.rstrip(".")
     try:

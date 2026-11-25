@@ -89,6 +89,32 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.assertFalse((site / "learn" / f"{TASK}.md").exists())
         self.assertEqual(len(list((site / "reference").glob("*.md"))), 1)
 
+    def test_export_replaces_a_credential_the_record_holds_and_says_what_personal_data_it_publishes(self):
+        self.done_task()
+        path = self.root / ".openguildkit" / "tasks" / f"{TASK}.json"
+        task = json.loads(path.read_text(encoding="utf-8"))
+        password, key = "hunter" + "2pass", "AK" + "IA" + "IOSFODNN7EXAMPLE"
+        task["brief"] += f"\nDeploy with {key}. Ask ops@example.test, +33 6 12 34 56 78 or FR76 3000 6000 0112 3456 7890 189.\n"
+        task["answers"]["outcome"] = f"Customers see their status, read with password={password}."
+        task["result"]["pull_request"] = f"https://user:{password}@github.com/example/portal/pull/7"
+        write_json(path, task)
+        _, warning = self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0")
+        for page in (self.root / "docs-site").rglob("*.md"):
+            text = page.read_text(encoding="utf-8")
+            for secret in (key, password):
+                self.assertNotIn(secret, text, page.name)
+        reference = (self.root / "docs-site" / "reference" / f"{TASK}.md").read_text(encoding="utf-8")
+        self.assertIn("Delivered in https://user:[password]@github.com/example/portal/pull/7", reference)
+        self.assertIn("Deploy with [credential].", reference)
+        self.assertIn(f"{TASK}: replaced a possible credential with a placeholder before publishing it", warning)
+        self.assertIn(f"{TASK}: the pages contain an email address and a phone number and a bank account number", warning)
+        for value in (key, password, "ops@example.test", "56 78", "3000 6000"):
+            self.assertNotIn(value, warning)
+
+    def test_export_of_a_clean_record_has_nothing_to_say(self):
+        self.done_task()
+        self.assertEqual(self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0")[1], "")
+
     def test_a_long_first_line_stays_in_reference_and_blog_when_the_title_is_shortened(self):
         brief = (
             "Show each signed-in customer the status and next step of their own support requests, "
@@ -135,6 +161,21 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.run_cli("docs", "share", "revoke", "--id", data["shares"][0]["id"], "--by", "Camille")
         self.run_cli("docs", "share", "check")
         self.assertIn("shares/", (self.root / ".openguildkit" / ".gitignore").read_text())
+
+    def test_a_share_refuses_a_portal_address_with_a_password_or_a_token(self):
+        self.deliverable("docs-site/reference/request-status.md")
+        until = (clock.real_today() + timedelta(days=14)).isoformat()
+        password, token = "S3cr3t" + "Pw", "abc" + "123"
+        for portal in (f"https://admin:{password}@docs.example.org/p/zz?token={token}", f"https://admin:{password}@docs.example.org/p/zz",
+                       f"https://docs.example.org/p/zz?token={token}", f"https://docs.example.org/p/zz?api_key={token}abcdef"):
+            with self.subTest(portal=portal[:30]):
+                _, error = self.run_cli("docs", "share", "add", "--deliverable", "docs-site/reference/request-status.md",
+                                        "--recipient", "client@example.org", "--until", until, "--portal", portal,
+                                        "--by", "Camille", code=1)
+                self.assertIn("--portal: the link must carry no user name, password or token", error)
+                for secret in (password, token):
+                    self.assertNotIn(secret, error)
+        self.assertFalse((self.root / ".openguildkit" / "shares" / "shares.json").exists())
 
     def exported_site(self):
         self.done_task()

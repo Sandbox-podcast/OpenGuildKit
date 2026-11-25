@@ -159,6 +159,35 @@ class MarketCommandTests(CapturedCli, unittest.TestCase):
                  "--feature", "Request status")
         self.assertFalse(any("Describe" in gap for gap in json.loads(self.cli("market", "check", "nope", "--json"))["gaps"]))
 
+    def test_watch_observe_and_change_refuse_a_link_with_a_password_or_a_token(self):
+        password, token, key = "hunter" + "2", "abc123" + "SECRET", "abcdef" + "1234567890"
+        self.cli("market", "new", "portals", "--market", "B2B help desks", "--audience", "Support leads", "--feature", "Status")
+        self.cli("market", "competitor", "portals", "--competitor", "acme", "--name", "Acme", "--kind", "direct")
+        self.cli("market", "watch", "portals", "--competitor", "acme", "--url", "https://acme.example.com/releases", "--kind", "releases")
+        links = (f"https://user:{password}@internal.corp.local/pricing?token={token}&x=1",
+                 f"https://user:{password}@acme.example.com/pricing", f"https://acme.example.com/pricing?token={token}&x=1",
+                 f"https://acme.example.com/x?api_key={key}")
+        commands = {"watch": ("--url", "{link}", "--kind", "pricing"),
+                    "observe": ("--observation", "o1", "--claim", "Costs 10.", "--source", "{link}", "--date", "2026-11-02"),
+                    "change": ("--what", "Changed.", "--source", "{link}", "--date", "2026-11-10", "--verified-by", "Camille")}
+        for link in links:
+            for mode, options in commands.items():
+                with self.subTest(mode=mode, link=link[:30]):
+                    error = self.cli("market", mode, "portals", "--competitor", "acme",
+                                     *(option.format(link=link) for option in options), code=1)
+                    self.assertIn("a public source must use a link without credentials", error)
+                    for secret in (password, token, key):
+                        self.assertNotIn(secret, error)
+        record = (self.root / ".openguildkit" / "market" / "portals.json").read_text(encoding="utf-8")
+        for secret in (password, token, key):
+            self.assertNotIn(secret, record)
+        self.assertEqual(self.dossier()["observations"], [])
+        # A page without credentials and a document that is not a link are still recorded.
+        self.cli("market", "observe", "portals", "--competitor", "acme", "--observation", "o1", "--claim", "Costs 10.",
+                 "--source", "https://acme.example.com/pricing?plan=pro", "--date", "2026-11-02")
+        self.cli("market", "observe", "portals", "--competitor", "acme", "--observation", "o2", "--claim", "Costs 12.",
+                 "--source", "Notes of the sales call", "--date", "2026-11-03")
+
     def test_commands_record_observations_changes_and_last_checked(self):
         today = clock.real_today().isoformat()
         self.cli("market", "new", "portals", "--market", "B2B help desks", "--audience", "Support leads", "--feature", "Status")
