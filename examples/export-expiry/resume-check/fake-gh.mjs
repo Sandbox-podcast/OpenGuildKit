@@ -23,6 +23,17 @@ const fail = message => {
   process.exit(1);
 };
 
+// On Windows the stand-in is gh.exe, a parent of this process. Its parent is the watcher.
+function coordinatorPid() {
+  if (process.platform !== 'win32') return process.ppid;
+  const output = execFileSync('powershell.exe', ['-NoProfile', '-Command',
+    `(Get-CimInstance Win32_Process -Filter "ProcessId=${process.ppid}").ParentProcessId`],
+    { encoding: 'utf8' });
+  const pid = Number(String(output).trim());
+  if (!Number.isInteger(pid) || pid <= 0) fail(`cannot identify the watcher to interrupt (parent of ${process.ppid})`);
+  return pid;
+}
+
 function option(args, name) {
   const index = args.indexOf(name);
   return index === -1 ? undefined : args[index + 1];
@@ -127,8 +138,9 @@ if (command === 'workflow' && sub === 'run') {
   const dispatches = Object.keys(state.runs).length;
   save(state);
   if (state.killAfterDispatch.includes(dispatches)) {
-    log({ event: 'coordinator-killed', afterRun: id, pid: process.ppid });
-    process.kill(process.ppid, 'SIGKILL');
+    const target = coordinatorPid();
+    log({ event: 'coordinator-killed', afterRun: id, pid: target });
+    process.kill(target, 'SIGKILL');
   }
   process.stdout.write(`${run.html_url}\n`);
 } else if (command === 'run' && sub === 'view') {

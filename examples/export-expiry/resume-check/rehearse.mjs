@@ -2,12 +2,15 @@
 // Replays the coordinator resume checks of issue #261 against a built Node archive and a local GitHub stand-in.
 // Usage: node rehearse.mjs --archive openguildkit-X.Y.Z.tgz --work EMPTY_DIR
 // It writes WORK/timeline.json and WORK/github-calls.jsonl and prints the timeline. Exit code 1 when an expectation fails.
+// Windows: Node resolves gh.exe before gh.cmd, and git treats backslashes in url.insteadOf as escapes.
+// The script builds a gh.exe stand-in with csc.exe and writes repository paths with slashes.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { basename, delimiter, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
+import { fileURLToPath } from 'node:url';
 
 const { values } = parseArgs({ options: { archive: { type: 'string' }, work: { type: 'string' } } });
 if (!values.archive || !values.work) throw new Error('Usage: rehearse.mjs --archive FILE.tgz --work EMPTY_DIR');
@@ -15,7 +18,50 @@ const archive = resolve(values.archive);
 const work = resolve(values.work);
 if (existsSync(work) && readdirSync(work).length) throw new Error(`${work} must be empty.`);
 mkdirSync(work, { recursive: true });
-const fakeGh = new URL('./fake-gh.mjs', import.meta.url).pathname;
+const fakeGh = fileURLToPath(new URL('./fake-gh.mjs', import.meta.url));
+
+// Node on Windows resolves `gh` to gh.exe before any gh.cmd earlier in PATH.
+let compiledGhExe = null;
+function windowsGhExe() {
+  if (compiledGhExe) return compiledGhExe;
+  const compiler = [
+    process.env.WINDIR && join(process.env.WINDIR, 'Microsoft.NET', 'Framework64', 'v4.0.30319', 'csc.exe'),
+    process.env.WINDIR && join(process.env.WINDIR, 'Microsoft.NET', 'Framework', 'v4.0.30319', 'csc.exe'),
+  ].find(path => path && existsSync(path));
+  if (!compiler) throw new Error('The Windows rehearsal needs csc.exe to put a gh.exe stand-in ahead of the real GitHub CLI.');
+  const dir = join(work, 'gh-shim');
+  mkdirSync(dir);
+  const source = join(dir, 'Shim.cs');
+  const exe = join(dir, 'gh.exe');
+  writeFileSync(source, [
+    'using System;',
+    'using System.Diagnostics;',
+    'using System.Text;',
+    'class Shim {',
+    '  static int Main(string[] args) {',
+    '    var start = new ProcessStartInfo();',
+    '    start.FileName = Environment.GetEnvironmentVariable("OPENGUILDKIT_FAKE_GH_NODE");',
+    '    start.UseShellExecute = false;',
+    '    var command = new StringBuilder();',
+    '    command.Append(\'"\').Append(Environment.GetEnvironmentVariable("OPENGUILDKIT_FAKE_GH_SCRIPT")).Append(\'"\');',
+    '    foreach (var arg in args) {',
+    '      command.Append(\' \');',
+    '      if (arg.Length == 0 || arg.IndexOfAny(new char[] { \' \', \'\\t\', \'"\' }) >= 0)',
+    '        command.Append(\'"\').Append(arg.Replace("\\"", "\\\\\\"")) .Append(\'"\');',
+    '      else command.Append(arg);',
+    '    }',
+    '    start.Arguments = command.ToString();',
+    '    var child = Process.Start(start);',
+    '    child.WaitForExit();',
+    '    return child.ExitCode;',
+    '  }',
+    '}',
+    '',
+  ].join('\n'));
+  execFileSync(compiler, ['/nologo', '/optimize+', '/out:' + exe, source]);
+  compiledGhExe = exe;
+  return exe;
+}
 const asset = basename(archive);
 const digest = createHash('sha256').update(readFileSync(archive)).digest('hex');
 const kit = join(work, 'kit');
@@ -70,11 +116,18 @@ function environment(name, projects) {
   const bin = join(dir, 'bin');
   mkdirSync(bin);
   writeFileSync(join(bin, 'gh'), `#!/bin/sh\nexec "${process.execPath}" "${fakeGh}" "$@"\n`, { mode: 0o755 });
+  if (process.platform === 'win32') {
+    // Node looks up gh.exe before gh.cmd, so a real GitHub CLI later on PATH would win over a batch file.
+    copyFileSync(windowsGhExe(), join(bin, 'gh.exe'));
+  }
   const gitconfig = join(dir, 'gitconfig');
-  const bareOf = id => join(github, `${id}.git`);
+  // Git treats backslashes in url.insteadOf as escapes.
+  const bareOf = id => join(github, `${id}.git`).replaceAll('\\', '/');
   const ids = ['team/policies', ...Object.keys(projects)];
   writeFileSync(gitconfig, ids.map(id => `[url "${bareOf(id)}"]\n\tinsteadOf = https://github.com/${id}.git\n`).join(''));
-  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_GH_ROOT: github,
+  const pathKey = Object.keys(process.env).find(key => key.toUpperCase() === 'PATH') ?? 'PATH';
+  const env = { ...process.env, [pathKey]: `${bin}${delimiter}${process.env[pathKey] ?? ''}`, FAKE_GH_ROOT: github,
+    OPENGUILDKIT_FAKE_GH_NODE: process.execPath, OPENGUILDKIT_FAKE_GH_SCRIPT: fakeGh,
     GIT_CONFIG_GLOBAL: gitconfig, GIT_CONFIG_NOSYSTEM: '1' };
   const refs = { pulls: {} };
 
@@ -173,7 +226,10 @@ function scenarioOne() {
   // The stand-in kills the watcher right after GitHub accepted the second dispatch of the batch.
   s.control({ killAfterDispatch: [2] });
   const first = s.watch('1 (killed after the 2nd accepted dispatch)');
-  assert.equal(first.child.signal, 'SIGKILL');
+  // Windows does not report the signal of a force-killed process. An empty report still means the watcher died.
+  const interrupted = first.child.signal === 'SIGKILL'
+    || (process.platform === 'win32' && first.report == null && first.child.status !== 0);
+  assert.equal(interrupted, true);
   assert.equal(existsSync(join(s.stateDir, 'watch.lock')), true);
   const atKill = s.records();
   note('s1-interruption', 'state after the interruption', { records: Object.fromEntries(Object.entries(atKill)
