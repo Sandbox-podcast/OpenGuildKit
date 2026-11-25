@@ -79,7 +79,7 @@ A rule can declare a `check` that `openguildkit task verify` evaluates and recor
 | `kind` | Fields | Passes when |
 |---|---|---|
 | `file-exists` | `paths`: 1 to 20 paths | One of the paths exists. |
-| `text` | `paths`, `contains`: 1 to 20 literal texts of at most 200 characters, `expect`: `present` or `absent`, optional `ignore_case` | `present`: a file contains one of the texts. `absent`: no file contains any. |
+| `text` | `paths`, `contains`: 1 to 20 literal texts of at most 200 characters, `expect`: `present` or `absent`, optional `ignore_case`, optional `each: true` with `present` | `present`: a file contains one of the texts; with `each`, every file the paths match does, and the check names the files that do not. `absent`: no file contains any. |
 | `field` | `path` of a `.json` or `.toml` file, `field` as a dotted path such as `tool.audit.level`, and at least one of `equals`, `one_of`, `min`, `max`, `integer: true` | The field exists and meets every condition. `true` and `1` are different values. |
 | `command` | `command` | The command exits with 0. Only a pack in `.openguildkit/catalog/packs/` may declare it: the project already controls its check commands. A bundled pack, a central policy or a catalog lock with a command is refused. |
 
