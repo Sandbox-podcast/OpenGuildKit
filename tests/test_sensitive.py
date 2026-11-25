@@ -112,6 +112,15 @@ class ShapeTests(unittest.TestCase):
                 self.assertIsNone(credential_kind(text))
                 self.assertEqual(redact_credentials(text), text)
 
+    def test_a_namespaced_name_that_starts_with_token_is_not_a_secret(self):
+        """Design tokens are named token:KIND:VALUE: the extracted design system's proposals hold dozens of them."""
+        for text in ('"key": "token:color:#0a66c2"', '"key": "token:font-size:0.875rem"', "token:spacing:16px",
+                     "secret:rotation:2026-12-01"):
+            with self.subTest(text=text):
+                self.assertIsNone(credential_kind(text))
+                self.assertEqual(redact_credentials(text), text)
+        self.assertEqual(credential_kind("token:x7x7x7x7x7x7"), "a secret in a setting")
+
     def test_a_secret_key_followed_by_a_colon_or_an_equals_sign_is_replaced_like_a_password(self):
         value = "x7" * 8
         for key in ("api_key", "apiKey", "token", "secret", "client_secret", "access_key", "AWS_SECRET_ACCESS_KEY",

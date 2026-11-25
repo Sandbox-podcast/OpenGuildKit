@@ -13,8 +13,9 @@ from urllib.parse import parse_qsl, urlsplit
 # [credential], YOUR_TOKEN) or an ellipsis.
 _NOT_A_VALUE = r"""(?![\[$<{%]|(?-i:[A-Z_]+)(?![A-Za-z0-9])|[^\s,;"']*(?:\.\.\.|…))"""
 # The value of a setting: quoted, or a run of characters that holds a digit, as generated secrets do and words do not.
+# An unquoted run that starts with a name and a colon continues a namespaced name (token:color:#0a66c2), not a value.
 _SETTING_VALUE = (rf"""(?:"{_NOT_A_VALUE}[^"\r\n]{{4,}}"|'{_NOT_A_VALUE}[^'\r\n]{{4,}}'"""
-                  rf"""|{_NOT_A_VALUE}(?=[^\s,;"']*\d)[^\s,;"']{{8,}})""")
+                  rf"""|{_NOT_A_VALUE}(?![A-Za-z][A-Za-z-]*:)(?=[^\s,;"']*\d)[^\s,;"']{{8,}})""")
 # The name of a secret setting: api_key, AWS_SECRET_ACCESS_KEY, x-api-key, or a camelCase name such as accessToken.
 _SECRET_KEY = (r"(?:(?:[a-z0-9]+[_-])*(?:api[_-]?key|token|secret|access[_-]?key|secret[_-]?key|client[_-]?secret)"
                r"|[a-z][a-z0-9]*(?-i:Token|Secret))")
