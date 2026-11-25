@@ -165,6 +165,101 @@ class DetectedVersionTests(CapturedCli, unittest.TestCase):
         self.assertIn("Kotlin 1.9.24", stacks["app"])
         self.assertIn("Kotlin 2.0.0", stacks["lib"])
 
+    def test_the_ktor_plugin_and_the_server_artifacts_give_the_ktor_version(self):
+        write(self.root, "plugin/build.gradle.kts",
+              'plugins {\n  kotlin("jvm") version "2.0.0"\n  id("io.ktor.plugin") version "3.0.0"\n}\n')
+        write(self.root, "groovy/build.gradle",
+              "plugins {\n  id 'org.jetbrains.kotlin.jvm' version '2.0.0'\n  id 'io.ktor.plugin' version '3.0.1'\n}\n")
+        write(self.root, "deps/build.gradle.kts",
+              'plugins { kotlin("jvm") version "2.0.0" }\ndependencies {\n'
+              '  implementation("io.ktor:ktor-server-core-jvm:3.0.2")\n'
+              '  implementation("io.ktor:ktor-server-netty:3.0.2")\n}\n')
+        stacks = self.stacks()
+        self.assertEqual(stacks["plugin"], ["Kotlin 2.0.0", "Ktor 3.0.0"])
+        self.assertEqual(stacks["groovy"], ["Kotlin 2.0.0", "Ktor 3.0.1"])
+        self.assertEqual(stacks["deps"], ["Kotlin 2.0.0", "Ktor 3.0.2"])
+
+    def test_ktor_is_read_from_a_version_catalog_through_a_plugin_a_library_or_a_bundle(self):
+        catalog = ('[versions]\nktor = "3.0.3"\n[libraries]\n'
+                   'ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }\n'
+                   'ktor-server-netty = { group = "io.ktor", name = "ktor-server-netty", version = "3.0.3" }\n'
+                   'ktor-server-cio = "io.ktor:ktor-server-cio:3.0.3"\n'
+                   '[bundles]\nktor-server = ["ktor-server-core", "ktor-server-netty"]\n'
+                   '[plugins]\nktor = { id = "io.ktor.plugin", version.ref = "ktor" }\n')
+        for folder, build in {
+            "by-plugin": "plugins { alias(libs.plugins.ktor) }\n",
+            "by-library": "dependencies { implementation(libs.ktor.server.core) }\n",
+            "by-group-and-name": "dependencies { implementation(libs.ktor.server.netty) }\n",
+            "by-bundle": "dependencies { implementation(libs.bundles.ktor.server) }\n",
+            "by-notation": "dependencies { implementation(libs.ktor.server.cio) }\n",
+        }.items():
+            write(self.root, f"{folder}/build.gradle.kts", build)
+            write(self.root, f"{folder}/gradle/libs.versions.toml", catalog)
+        # The catalog declares Ktor, the build never uses it.
+        write(self.root, "unused/build.gradle.kts", 'plugins { kotlin("jvm") version "2.0.0" }\n')
+        write(self.root, "unused/gradle/libs.versions.toml", catalog)
+        stacks = self.stacks()
+        for folder in ("by-plugin", "by-library", "by-group-and-name", "by-bundle", "by-notation"):
+            with self.subTest(folder=folder):
+                self.assertIn("Ktor 3.0.3", stacks[folder])
+                self.assertIn("Kotlin", stacks[folder])
+        self.assertEqual(stacks["unused"], ["Kotlin 2.0.0"])
+        evidence = {item["name"]: item["evidence"] for component in detect_stack(self.root)["components"]
+                    if component["path"] == "by-library" for item in component["evidence"]}
+        self.assertEqual(evidence["Ktor"], "by-library/gradle/libs.versions.toml")
+
+    def test_a_ktor_module_shares_the_component_and_the_version_of_its_gradle_build(self):
+        write(self.root, "settings.gradle.kts", 'include(":server", ":shared")\n')
+        write(self.root, "build.gradle.kts", "plugins { alias(libs.plugins.ktor) apply false }\n")
+        write(self.root, "gradle/libs.versions.toml",
+              '[versions]\nktor = "3.0.4"\n[plugins]\nktor = { id = "io.ktor.plugin", version.ref = "ktor" }\n'
+              '[libraries]\nktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }\n')
+        write(self.root, "server/build.gradle.kts", "dependencies { implementation(libs.ktor.server.core) }\n")
+        write(self.root, "shared/build.gradle.kts", "kotlin { jvmToolchain(21) }\n")
+        stacks = self.stacks()
+        self.assertEqual(set(stacks), {"."})
+        self.assertIn("Ktor 3.0.4", stacks["."])
+
+    def test_a_ktor_version_catalog_in_the_settings_and_a_version_variable_are_read(self):
+        write(self.root, "catalog/settings.gradle.kts",
+              'dependencyResolutionManagement {\n  versionCatalogs {\n'
+              '    create("ktorLibs") {\n      from("io.ktor:ktor-version-catalog:3.0.5")\n    }\n  }\n}\n'
+              'include(":server")\n')
+        write(self.root, "catalog/server/build.gradle.kts",
+              'plugins { kotlin("jvm") version "2.0.0" }\ndependencies { implementation(ktorLibs.server.core) }\n')
+        write(self.root, "properties/gradle.properties", "ktor_version=3.0.6\nkotlin.code.style=official\n")
+        write(self.root, "properties/build.gradle.kts",
+              'val ktor_version: String by project\ndependencies {\n'
+              '  implementation("io.ktor:ktor-server-core-jvm:$ktor_version")\n}\n')
+        write(self.root, "groovy-ext/build.gradle",
+              "ext.ktor_version = '3.0.7'\ndependencies {\n"
+              '  implementation "io.ktor:ktor-server-netty:$ktor_version"\n  implementation "io.ktor:ktor-server-auth:${ktor_version}"\n}\n')
+        stacks = self.stacks()
+        self.assertIn("Ktor 3.0.5", stacks["catalog"])
+        self.assertIn("Ktor 3.0.6", stacks["properties"])
+        self.assertIn("Ktor 3.0.7", stacks["groovy-ext"])
+
+    def test_ktor_without_a_readable_version_is_still_detected_as_a_kotlin_server(self):
+        write(self.root, "managed/build.gradle.kts",
+              'plugins { id("io.ktor.plugin") }\ndependencies { implementation("io.ktor:ktor-server-core") }\n')
+        write(self.root, "bom/build.gradle.kts",
+              'dependencies {\n  implementation(platform("io.ktor:ktor-bom:3.0.8"))\n'
+              '  implementation("io.ktor:ktor-server-core")\n}\n')
+        stacks = self.stacks()
+        self.assertEqual(stacks["managed"], ["Kotlin", "Ktor"])
+        self.assertEqual(stacks["bom"], ["Kotlin", "Ktor 3.0.8"])
+
+    def test_the_ktor_client_alone_does_not_make_a_ktor_server(self):
+        write(self.root, "android/build.gradle.kts",
+              'plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }\n'
+              'dependencies { implementation("io.ktor:ktor-client-okhttp:3.0.0") }\n')
+        write(self.root, "client/build.gradle.kts",
+              'plugins { kotlin("jvm") version "2.0.0" }\n'
+              'dependencies { implementation("io.ktor:ktor-client-cio:3.0.0") }\n')
+        stacks = self.stacks()
+        self.assertFalse([item for stack in stacks.values() for item in stack if item.startswith("Ktor")])
+        self.assertIn("Android", stacks["android"])
+
     def test_detect_says_why_a_technology_has_no_version(self):
         write(self.root, "requirements.txt", "stripe==8.1.0\n")
         write(self.root, "android/build.gradle", 'plugins { id "com.android.application" }\nandroid { compileSdk 34 }\n')
